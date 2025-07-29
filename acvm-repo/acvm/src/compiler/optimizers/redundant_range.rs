@@ -168,8 +168,12 @@ impl<F: AcirField> RangeOptimizer<F> {
                         info.min_num_bits = num_bits;
                         info.min_num_bits_is_implied = is_implied;
                         info.min_num_bits_idx = idx;
-                    } else if num_bits == info.min_num_bits && is_implied {
+                    } else if num_bits == info.min_num_bits
+                        && is_implied
+                        && !info.min_num_bits_is_implied
+                    {
                         info.min_num_bits_is_implied = true;
+                        info.min_num_bits_idx = idx;
                     }
                 })
                 .or_insert_with(|| RangeInfo {
@@ -487,16 +491,29 @@ mod tests {
         // assert w1 == 0
         circuit.opcodes.push(Opcode::AssertZero(Witness(1).into()));
 
-        let acir_opcode_positions = circuit.opcodes.iter().enumerate().map(|(i, _)| i).collect();
+        let acir_opcode_positions: Vec<usize> =
+            circuit.opcodes.iter().enumerate().map(|(i, _)| i).collect();
+
+        // All opcodes are expected to be kept.
+        let expected_length = acir_opcode_positions.len();
+
         let optimizer = RangeOptimizer::new(circuit);
-        let (optimized_circuit, _) = optimizer.replace_redundant_ranges(acir_opcode_positions);
-        assert_eq!(optimized_circuit.opcodes.len(), 4);
+        let (optimized_circuit, _) =
+            optimizer.replace_redundant_ranges(acir_opcode_positions.clone());
+
+        assert_eq!(optimized_circuit.opcodes.len(), expected_length);
         assert_eq!(
             optimized_circuit.opcodes[0],
             Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
                 input: FunctionInput::witness(Witness(1), 0) // number of bits implied from the constant
             })
         );
+
+        // Applying again should have no effect (despite the range having the same bit size as the assert).
+        let optimizer = RangeOptimizer::new(optimized_circuit);
+        let (double_optimized_circuit, _) =
+            optimizer.replace_redundant_ranges(acir_opcode_positions);
+        assert_eq!(double_optimized_circuit.opcodes.len(), expected_length);
     }
 
     #[test]
