@@ -1,0 +1,22 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+trait BigNum {}
+
+trait BigCurve<B>
+where
+    B: BigNum,
+{
+    fn new() -> Self;
+}
+
+pub fn foo<B, Curve>()
+where
+    B: BigNum,
+    Curve: BigCurve<B>,
+{
+    let _: Curve = Curve::new();
+}
+
+fn main() {}
