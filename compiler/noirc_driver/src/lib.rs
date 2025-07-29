@@ -490,7 +490,7 @@ pub fn compile_main(
     }
 
     if options.print_acir {
-        noirc_errors::println_to_stdout!("Compiled ACIR for main (unoptimized):");
+        noirc_errors::println_to_stdout!("Compiled ACIR for main (non-transformed):");
         noirc_errors::println_to_stdout!("{}", compiled_program.program);
     }
 
@@ -549,7 +549,7 @@ pub fn compile_contract(
                     }
                 }
                 println!(
-                    "Compiled ACIR for {}::{} (unoptimized):",
+                    "Compiled ACIR for {}::{} (non-transformed):",
                     compiled_contract.name, contract_function.name
                 );
                 println!("{}", contract_function.bytecode);
