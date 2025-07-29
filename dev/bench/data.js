@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1753811920047,
+  "lastUpdate": 1753811921934,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -4719,80 +4719,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "9d04ff58d6da0bab8bdb11f7d1e296dfdb618621",
-          "message": "chore: mark bignum as expected to pass (#9244)",
-          "timestamp": "2025-07-18T11:12:28+01:00",
-          "tree_id": "0dceaf3c0c371c76b0300283683ae8f06431a2d3",
-          "url": "https://github.com/noir-lang/noir/commit/9d04ff58d6da0bab8bdb11f7d1e296dfdb618621"
-        },
-        "date": 1752834587647,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.018,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.153,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.01,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.298,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 0.182,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 13.3,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.002,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.004,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.019,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 0.054,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "a5846e654aa00d97cd2607c7c4817e2ac31ad799",
           "message": "chore: skip `ram_blowup_regression` on PRs (#9231)",
@@ -6923,6 +6849,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 0.099,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ccbea58c5c744383e320653f4062816e25cccdd2",
+          "message": "chore(ci): Update status of noir_json_parser (#9351)",
+          "timestamp": "2025-07-29T17:26:42Z",
+          "tree_id": "4b84da91e665c21d0716cfa9422c29f861776444",
+          "url": "https://github.com/noir-lang/noir/commit/ccbea58c5c744383e320653f4062816e25cccdd2"
+        },
+        "date": 1753811904524,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.019,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 0.094,
             "unit": "s"
           }
         ]
