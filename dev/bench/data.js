@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1753810300428,
+  "lastUpdate": 1753811782480,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -13275,48 +13275,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "9d04ff58d6da0bab8bdb11f7d1e296dfdb618621",
-          "message": "chore: mark bignum as expected to pass (#9244)",
-          "timestamp": "2025-07-18T11:12:28+01:00",
-          "tree_id": "0dceaf3c0c371c76b0300283683ae8f06431a2d3",
-          "url": "https://github.com/noir-lang/noir/commit/9d04ff58d6da0bab8bdb11f7d1e296dfdb618621"
-        },
-        "date": 1752833755780,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 248523,
-            "range": "± 470",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 218794,
-            "range": "± 5171",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2778238,
-            "range": "± 28118",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "a5846e654aa00d97cd2607c7c4817e2ac31ad799",
           "message": "chore: skip `ram_blowup_regression` on PRs (#9231)",
@@ -15359,6 +15317,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2783538,
             "range": "± 50098",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ccbea58c5c744383e320653f4062816e25cccdd2",
+          "message": "chore(ci): Update status of noir_json_parser (#9351)",
+          "timestamp": "2025-07-29T17:26:42Z",
+          "tree_id": "4b84da91e665c21d0716cfa9422c29f861776444",
+          "url": "https://github.com/noir-lang/noir/commit/ccbea58c5c744383e320653f4062816e25cccdd2"
+        },
+        "date": 1753811766213,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 249462,
+            "range": "± 731",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 219846,
+            "range": "± 3332",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2810100,
+            "range": "± 9648",
             "unit": "ns/iter"
           }
         ]
