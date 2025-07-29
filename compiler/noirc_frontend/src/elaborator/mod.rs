@@ -1397,22 +1397,19 @@ impl<'context> Elaborator<'context> {
             let trait_bound = &trait_constraint.trait_bound;
 
             // Replace implicitly added named generics with fresh type variables
-            let named_generics = trait_bound
-                .trait_generics
-                .named
-                .iter()
-                .map(|named_type| {
-                    let typ = match &named_type.typ {
-                        Type::NamedGeneric(NamedGeneric { type_var, implicit: true, .. })
-                            if type_var.borrow().is_unbound() =>
-                        {
-                            self.interner.next_type_variable()
-                        }
-                        _ => named_type.typ.clone(),
-                    };
-                    NamedType { name: named_type.name.clone(), typ }
-                })
-                .collect::<Vec<_>>();
+            let named_generics = trait_bound.trait_generics.named.iter();
+            let named_generics = named_generics.map(|named_type| {
+                let typ = match &named_type.typ {
+                    Type::NamedGeneric(NamedGeneric { type_var, implicit: true, .. })
+                        if type_var.borrow().is_unbound() =>
+                    {
+                        self.interner.next_type_variable()
+                    }
+                    _ => named_type.typ.clone(),
+                };
+                NamedType { name: named_type.name.clone(), typ }
+            });
+            let named_generics = named_generics.collect::<Vec<_>>();
 
             if self
                 .interner
