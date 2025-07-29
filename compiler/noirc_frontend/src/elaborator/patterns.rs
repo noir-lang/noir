@@ -1004,6 +1004,22 @@ impl Elaborator<'_> {
         let (typ, bindings) =
             self.instantiate(t, bindings, generics, function_generic_count, location);
 
+        if let ImplKind::TraitItem(mut method) = ident.impl_kind {
+            method.constraint.apply_bindings(&bindings);
+            if method.assumed {
+                let trait_generics = method.constraint.trait_bound.trait_generics.clone();
+                let object_type = method.constraint.typ;
+                let trait_impl = TraitImplKind::Assumed { object_type, trait_generics };
+                self.interner.select_impl_for_expression(expr_id, trait_impl);
+            } else {
+                self.push_trait_constraint(
+                    method.constraint,
+                    expr_id,
+                    true, // this constraint should lead to choosing a trait impl method
+                );
+            }
+        }
+
         // Push any trait constraints required by this definition to the context
         // to be checked later when the type of this variable is further constrained.
         if let Some(definition) = self.interner.try_definition(ident.id) {
@@ -1018,25 +1034,6 @@ impl Elaborator<'_> {
                         false, // This constraint shouldn't lead to choosing a trait impl method
                     );
                 }
-            }
-        }
-
-        if let ImplKind::TraitItem(mut method) = ident.impl_kind {
-            method.constraint.apply_bindings(&bindings);
-            if method.assumed {
-                let trait_generics = method.constraint.trait_bound.trait_generics.clone();
-                let object_type = method.constraint.typ;
-                let trait_impl = TraitImplKind::Assumed { object_type, trait_generics };
-                self.interner.select_impl_for_expression(expr_id, trait_impl);
-            } else {
-                // Currently only one impl can be selected per expr_id, so this
-                // constraint needs to be pushed after any other constraints so
-                // that monomorphization can resolve this trait method to the correct impl.
-                self.push_trait_constraint(
-                    method.constraint,
-                    expr_id,
-                    true, // this constraint should lead to choosing a trait impl method
-                );
             }
         }
 
