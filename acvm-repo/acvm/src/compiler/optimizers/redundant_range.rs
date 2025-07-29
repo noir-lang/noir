@@ -80,24 +80,23 @@ struct RangeInfo {
     is_implied: bool,
 }
 
-pub(crate) struct RangeOptimizer<F: AcirField> {
+pub(crate) struct RangeOptimizer<'a, F: AcirField> {
     /// Maps witnesses to their bit size switch points.
     infos: BTreeMap<Witness, RangeInfo>,
     /// The next potential side effect for each opcode.
-    next_side_effects: Vec<usize>,
+    brillig_side_effects: &'a BTreeMap<BrilligFunctionId, bool>,
     circuit: Circuit<F>,
 }
 
-impl<F: AcirField> RangeOptimizer<F> {
+impl<'a, F: AcirField> RangeOptimizer<'a, F> {
     /// Creates a new `RangeOptimizer` by collecting all known range
     /// constraints from `Circuit`.
     pub(crate) fn new(
         circuit: Circuit<F>,
-        brillig_side_effects: &BTreeMap<BrilligFunctionId, bool>,
+        brillig_side_effects: &'a BTreeMap<BrilligFunctionId, bool>,
     ) -> Self {
         let infos = Self::collect_ranges(&circuit);
-        let next_side_effects = Self::collect_side_effects(&circuit, brillig_side_effects);
-        Self { circuit, infos, next_side_effects }
+        Self { circuit, infos, brillig_side_effects }
     }
 
     /// Collect range information about witnesses.
@@ -179,35 +178,6 @@ impl<F: AcirField> RangeOptimizer<F> {
         infos
     }
 
-    /// Return a vector of the next potential side effect for each opcode position.
-    fn collect_side_effects(
-        circuit: &Circuit<F>,
-        brillig_side_effects: &BTreeMap<BrilligFunctionId, bool>,
-    ) -> Vec<usize> {
-        let mut output = Vec::new();
-        // Consider the index beyond the last as a pseudo size effect by which time
-        // all constraints need to be inserted.
-        let mut last_side_effect = circuit.opcodes.len();
-
-        // Go in reverse so we can propagate the information backwards.
-        for (idx, opcode) in circuit.opcodes.iter().enumerate().rev() {
-            match opcode {
-                // Assume that Brillig calls might have side effects, unless we know they don't.
-                Opcode::BrilligCall { id, .. }
-                    if brillig_side_effects.get(id).copied().unwrap_or(true) =>
-                {
-                    last_side_effect = idx;
-                }
-                // Not sure if ACIR calls should be marked. For now only doing it for Brillig.
-                _ => {}
-            }
-            output.push(last_side_effect);
-        }
-
-        output.reverse();
-        output
-    }
-
     /// Returns a `Circuit` where each Witness is only range constrained
     /// at most once to the lowest number `bit size` possible.
     pub(crate) fn replace_redundant_ranges(
@@ -216,13 +186,23 @@ impl<F: AcirField> RangeOptimizer<F> {
     ) -> (Circuit<F>, Vec<usize>) {
         let mut new_order_list = Vec::with_capacity(order_list.len());
         let mut optimized_opcodes = Vec::with_capacity(self.circuit.opcodes.len());
-        for (idx, opcode) in self.circuit.opcodes.into_iter().enumerate() {
+        // Consider the index beyond the last as a pseudo size effect by which time all constraints need to be inserted.
+        let mut next_side_effect = self.circuit.opcodes.len();
+        // Going in reverse so we can propagate the side effect information backwards.
+        for (idx, opcode) in self.circuit.opcodes.into_iter().enumerate().rev() {
             let Some(witness) = (match opcode {
                 Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE { input }) => {
                     match input.input() {
                         ConstantOrWitnessEnum::Witness(witness) => Some(witness),
                         _ => None,
                     }
+                }
+                Opcode::BrilligCall { id, .. } => {
+                    // Assume that Brillig calls might have side effects, unless we know they don't.
+                    if self.brillig_side_effects.get(&id).copied().unwrap_or(true) {
+                        next_side_effect = idx;
+                    }
+                    None
                 }
                 _ => None,
             }) else {
@@ -232,7 +212,6 @@ impl<F: AcirField> RangeOptimizer<F> {
                 continue;
             };
 
-            let next_side_effect = self.next_side_effects[idx];
             let info = self.infos.get(&witness).expect("Could not find witness. This should never be the case if `collect_ranges` is called");
 
             // If this is not a switch point, then we should have already added a range constraint at least as strict, if it was needed.
@@ -254,6 +233,10 @@ impl<F: AcirField> RangeOptimizer<F> {
             new_order_list.push(order_list[idx]);
             optimized_opcodes.push(opcode.clone());
         }
+
+        // Restore forward order.
+        optimized_opcodes.reverse();
+        new_order_list.reverse();
 
         (Circuit { opcodes: optimized_opcodes, ..self.circuit }, new_order_list)
     }
@@ -321,7 +304,8 @@ mod tests {
         // The optimizer should keep the lowest bit size range constraint
         let circuit = test_circuit(vec![(Witness(1), 32), (Witness(1), 16)]);
         let acir_opcode_positions = circuit.opcodes.iter().enumerate().map(|(i, _)| i).collect();
-        let optimizer = RangeOptimizer::new(circuit, &Default::default());
+        let brillig_side_effects = BTreeMap::new();
+        let optimizer = RangeOptimizer::new(circuit, &brillig_side_effects);
 
         let info = optimizer
             .infos
@@ -354,7 +338,8 @@ mod tests {
             (Witness(2), 23),
         ]);
         let acir_opcode_positions = circuit.opcodes.iter().enumerate().map(|(i, _)| i).collect();
-        let optimizer = RangeOptimizer::new(circuit, &Default::default());
+        let brillig_side_effects = BTreeMap::new();
+        let optimizer = RangeOptimizer::new(circuit, &brillig_side_effects);
         let (optimized_circuit, _) = optimizer.replace_redundant_ranges(acir_opcode_positions);
         assert_eq!(optimized_circuit.opcodes.len(), 2);
 
@@ -383,7 +368,8 @@ mod tests {
         circuit.opcodes.push(Opcode::AssertZero(Expression::default()));
         circuit.opcodes.push(Opcode::AssertZero(Expression::default()));
         let acir_opcode_positions = circuit.opcodes.iter().enumerate().map(|(i, _)| i).collect();
-        let optimizer = RangeOptimizer::new(circuit, &Default::default());
+        let brillig_side_effects = BTreeMap::new();
+        let optimizer = RangeOptimizer::new(circuit, &brillig_side_effects);
         let (optimized_circuit, _) = optimizer.replace_redundant_ranges(acir_opcode_positions);
         assert_eq!(optimized_circuit.opcodes.len(), 5);
     }
@@ -395,7 +381,8 @@ mod tests {
 
         circuit.opcodes.push(Opcode::AssertZero(Witness(1).into()));
         let acir_opcode_positions = circuit.opcodes.iter().enumerate().map(|(i, _)| i).collect();
-        let optimizer = RangeOptimizer::new(circuit, &Default::default());
+        let brillig_side_effects = BTreeMap::new();
+        let optimizer = RangeOptimizer::new(circuit, &brillig_side_effects);
         let (optimized_circuit, _) = optimizer.replace_redundant_ranges(acir_opcode_positions);
         assert_eq!(optimized_circuit.opcodes.len(), 1);
         assert_eq!(optimized_circuit.opcodes[0], Opcode::AssertZero(Witness(1).into()));
@@ -476,7 +463,8 @@ mod tests {
         circuit.opcodes.push(mem_init.clone());
         circuit.opcodes.push(mem_op.clone());
         let acir_opcode_positions = circuit.opcodes.iter().enumerate().map(|(i, _)| i).collect();
-        let optimizer = RangeOptimizer::new(circuit, &Default::default());
+        let brillig_side_effects = BTreeMap::new();
+        let optimizer = RangeOptimizer::new(circuit, &brillig_side_effects);
         let (optimized_circuit, _) = optimizer.replace_redundant_ranges(acir_opcode_positions);
         assert_eq!(optimized_circuit.opcodes.len(), 2);
         assert_eq!(optimized_circuit.opcodes[0], mem_init);
