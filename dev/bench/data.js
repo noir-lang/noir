@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1753796243287,
+  "lastUpdate": 1753796383899,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -5010,80 +5010,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jc@joshcrites.com",
-            "name": "josh crites",
-            "username": "critesjosh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "3e81e3eb6ac8c4b101d13d16f8df199ee9e73d01",
-          "message": "chore(docs): Include list to hashing libraries at the top of the relevant docs page (#9239)",
-          "timestamp": "2025-07-17T17:02:07Z",
-          "tree_id": "e524faacb5f7ed3babb09c0e4a1d780346b7b218",
-          "url": "https://github.com/noir-lang/noir/commit/3e81e3eb6ac8c4b101d13d16f8df199ee9e73d01"
-        },
-        "date": 1752773817913,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.018,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.151,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.01,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.296,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 0.187,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 13.5,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.002,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.005,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.018,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 0.057,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -7343,6 +7269,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 0.1,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "38997a82cb1f962a27b0aa4e76e4f84136c13f98",
+          "message": "chore: try printing byte arrays as strings in the SSA interpreter (#9346)",
+          "timestamp": "2025-07-29T13:10:45Z",
+          "tree_id": "0eebdf05ff11e1ceeff00a8696e0334ffe235d10",
+          "url": "https://github.com/noir-lang/noir/commit/38997a82cb1f962a27b0aa4e76e4f84136c13f98"
+        },
+        "date": 1753796367457,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.019,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 0.097,
             "unit": "s"
           }
         ]
