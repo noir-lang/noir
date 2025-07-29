@@ -67,13 +67,17 @@ use acir::{
     },
     native_types::Witness,
 };
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 /// Information gathered about witnesses which are subject to range constraints.
 struct RangeInfo {
     /// Opcode positions at which stricter bit size information becomes available.
-    /// `idx -> (num_bits, is_implied)`
-    switch_points: BTreeMap<usize, (u32, bool)>,
+    switch_points: BTreeSet<usize>,
+    /// Strictest constraint on bit size so far.
+    num_bits: u32,
+    /// Indicate whether the bit size comes from an assertion, in which case we
+    /// can save an equivalent range constraint.
+    is_implied: bool,
 }
 
 pub(crate) struct RangeOptimizer<F: AcirField> {
@@ -158,17 +162,18 @@ impl<F: AcirField> RangeOptimizer<F> {
             infos
                 .entry(witness)
                 .and_modify(|info| {
-                    let (last_num_bits, last_is_implied) =
-                        *info.switch_points.last_entry().unwrap().get();
-
-                    if num_bits < last_num_bits
-                        || num_bits == last_num_bits && is_implied && !last_is_implied
+                    if num_bits < info.num_bits
+                        || num_bits == info.num_bits && is_implied && !info.is_implied
                     {
-                        info.switch_points.insert(idx, (num_bits, is_implied));
+                        info.switch_points.insert(idx);
+                        info.num_bits = num_bits;
+                        info.is_implied = is_implied;
                     }
                 })
                 .or_insert_with(|| RangeInfo {
-                    switch_points: BTreeMap::from_iter(vec![(idx, (num_bits, is_implied))]),
+                    num_bits,
+                    is_implied,
+                    switch_points: BTreeSet::from_iter(std::iter::once(idx)),
                 });
         }
         infos
@@ -231,18 +236,18 @@ impl<F: AcirField> RangeOptimizer<F> {
             let info = self.infos.get(&witness).expect("Could not find witness. This should never be the case if `collect_ranges` is called");
 
             // If this is not a switch point, then we should have already added a range constraint at least as strict, if it was needed.
-            if !info.switch_points.contains_key(&idx) {
+            if !info.switch_points.contains(&idx) {
                 continue;
             }
 
             // Check if we have an even stricter point before the next side effect.
-            let stricter_before_next_side_effect = info
+            let has_stricter_before_next_side_effect = info
                 .switch_points
                 .iter()
-                .find(|(point_idx, _)| **point_idx > idx && **point_idx < next_side_effect);
+                .any(|switch_idx| *switch_idx > idx && *switch_idx < next_side_effect);
 
             // If there is something even stricter before the next side effect (or the end), we don't need this.
-            if stricter_before_next_side_effect.is_some() {
+            if has_stricter_before_next_side_effect {
                 continue;
             }
 
@@ -323,8 +328,7 @@ mod tests {
             .get(&Witness(1))
             .expect("Witness(1) was inserted, but it is missing from the map");
         assert_eq!(
-            info.switch_points.iter().last().unwrap().1.0,
-            16,
+            info.num_bits, 16,
             "expected a range size of 16 since that was the lowest bit size provided"
         );
 
