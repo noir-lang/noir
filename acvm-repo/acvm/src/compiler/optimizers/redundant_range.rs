@@ -159,7 +159,7 @@ impl<F: AcirField> RangeOptimizer<F> {
                 .entry(witness)
                 .and_modify(|info| {
                     let (last_num_bits, last_is_implied) =
-                        info.switch_points.last_entry().unwrap().get().clone();
+                        *info.switch_points.last_entry().unwrap().get();
 
                     if num_bits < last_num_bits
                         || num_bits == last_num_bits && is_implied && !last_is_implied
@@ -270,7 +270,7 @@ mod tests {
         FieldElement,
         circuit::{
             Circuit, ExpressionWidth, Opcode, PublicInputs,
-            brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs},
+            brillig::{BrilligFunctionId, BrilligInputs},
             opcodes::{BlackBoxFuncCall, BlockId, BlockType, FunctionInput, MemOp},
         },
         native_types::{Expression, Witness},
