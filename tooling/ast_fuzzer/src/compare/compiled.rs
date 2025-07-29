@@ -168,12 +168,24 @@ impl Comparable for NargoErrorWithTypes {
                 // Looks like the workaround we have for comptime failures originating from overflows and similar assertion failures.
                 true
             }
+            (
+                AssertionFailed(ResolvedAssertionPayload::Raw(_), _, _),
+                AssertionFailed(ResolvedAssertionPayload::Raw(_), _, _),
+            ) if msg2.as_ref().is_some_and(|msg| msg.contains("overflow"))
+                && msg1.as_ref().is_some_and(|msg| {
+                    msg.len() == crate::program::CONSTRAIN_MSG_LENGTH as usize
+                }) =>
+            {
+                // This is the case where a randomly generated `assert x == const, "MSG"` in ACIR causes
+                // a preceding range constraint to be removed from the bytecode.
+                true
+            }
             (AssertionFailed(p1, _, _), AssertionFailed(p2, _, _)) => p1 == p2,
             (SolvingError(s1, _), SolvingError(s2, _)) => format!("{s1}") == format!("{s2}"),
             (
                 SolvingError(OpcodeResolutionError::UnsatisfiedConstrain { .. }, _),
                 AssertionFailed(_, _, _),
-            ) => msg2.is_some_and(|msg| msg.contains("divide by zero")),
+            ) => msg2.as_ref().is_some_and(|msg| msg.contains("divide by zero")),
             (
                 AssertionFailed(_, _, _),
                 SolvingError(OpcodeResolutionError::UnsatisfiedConstrain { .. }, _),
