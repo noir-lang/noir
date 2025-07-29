@@ -9,7 +9,7 @@ use crate::{
     ast::{IdentOrQuotedType, ItemVisibility, UnresolvedType},
     graph::CrateGraph,
     hir::def_collector::dc_crate::UnresolvedTrait,
-    hir_def::traits::ResolvedTraitBound,
+    hir_def::traits::{NamedType, ResolvedTraitBound},
     node_interner::{GlobalValue, QuotedTypeId},
     token::SecondaryAttributeKind,
     usage_tracker::UsageTracker,
@@ -1396,13 +1396,31 @@ impl<'context> Elaborator<'context> {
             let trait_constraint_type = trait_constraint.typ.substitute(&bindings);
             let trait_bound = &trait_constraint.trait_bound;
 
+            // Replace implicitly added named generics with fresh type variables
+            let named_generics = trait_bound
+                .trait_generics
+                .named
+                .iter()
+                .map(|named_type| {
+                    let typ = match &named_type.typ {
+                        Type::NamedGeneric(NamedGeneric { type_var, implicit: true, .. })
+                            if type_var.borrow().is_unbound() =>
+                        {
+                            self.interner.next_type_variable()
+                        }
+                        _ => named_type.typ.clone(),
+                    };
+                    NamedType { name: named_type.name.clone(), typ }
+                })
+                .collect::<Vec<_>>();
+
             if self
                 .interner
                 .try_lookup_trait_implementation(
                     &trait_constraint_type,
                     trait_bound.trait_id,
                     &trait_bound.trait_generics.ordered,
-                    &trait_bound.trait_generics.named,
+                    &named_generics,
                 )
                 .is_err()
             {

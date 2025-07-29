@@ -13,7 +13,6 @@ use petgraph::prelude::DiGraph;
 use petgraph::prelude::NodeIndex as PetGraphIndex;
 use rustc_hash::FxHashMap as HashMap;
 
-use crate::NamedGeneric;
 use crate::QuotedType;
 use crate::ast::{
     ExpressionKind, Ident, LValue, Pattern, StatementKind, UnaryOp, UnresolvedTypeData,
@@ -1697,15 +1696,6 @@ impl NodeInterner {
                 .iter()
                 .zip(&impl_trait_generics.named)
                 .all(|(trait_generic, impl_generic)| {
-                    // Implicitly added unbound named generics should match as long as kinds match
-                    if let Type::NamedGeneric(NamedGeneric { type_var, implicit: true, .. }) =
-                        &trait_generic.typ
-                    {
-                        if type_var.borrow().is_unbound() {
-                            return type_var.kind().unifies(&impl_generic.typ.kind());
-                        }
-                    }
-
                     let impl_generic2 = impl_generic.typ.force_substitute(&instantiation_bindings);
                     trait_generic.typ.try_unify(&impl_generic2, &mut fresh_bindings).is_ok()
                 });
