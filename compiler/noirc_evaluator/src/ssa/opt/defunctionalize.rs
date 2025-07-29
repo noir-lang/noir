@@ -1,4 +1,4 @@
-//! This module defines the defunctionalization pass for the SSA IR.
+//! This module defines the defunctionalization iass for the SSA IR.
 //! Certain IR targets (e.g., Brillig and ACIR) do not support higher-order functions directly.
 //!
 //! The pass eliminates higher-order functions (a function which accepts function values as arguments or returns functions)
@@ -48,6 +48,7 @@ use crate::ssa::{
         types::{NumericType, Type},
         value::{Value, ValueId},
     },
+    opt::pure::Purity,
     ssa_gen::Ssa,
 };
 use fxhash::FxHashMap as HashMap;
@@ -97,13 +98,18 @@ impl Ssa {
         let variants = find_variants(&self);
 
         // Generate the apply functions for the provided variants
-        let apply_functions = create_apply_functions(&mut self, variants);
+        let (apply_functions, purities) = create_apply_functions(&mut self, variants);
 
         // Setup the pass context
         let context = DefunctionalizationContext { apply_functions };
 
         // Run defunctionalization over all functions in the SSA
         context.defunctionalize_all(&mut self);
+
+        let purities = Arc::new(purities);
+        for function in self.functions.values_mut() {
+            function.dfg.set_function_purities(purities.clone());
+        }
 
         // Check that we have established the properties expected from this pass.
         #[cfg(debug_assertions)]
@@ -418,8 +424,16 @@ fn find_dynamic_dispatches(func: &Function) -> BTreeSet<Signature> {
 /// [ApplyFunctions] keyed by each function's signature _before_ functions are changed
 /// into field types. The inner apply function itself will have its defunctionalized type,
 /// with function values represented as field values.
-fn create_apply_functions(ssa: &mut Ssa, variants_map: Variants) -> ApplyFunctions {
+fn create_apply_functions(
+    ssa: &mut Ssa,
+    variants_map: Variants,
+) -> (ApplyFunctions, HashMap<FunctionId, Purity>) {
     let mut apply_functions = HashMap::default();
+    let mut purities = if ssa.functions.is_empty() {
+        HashMap::default()
+    } else {
+        (*ssa.functions.iter().next().unwrap().1.dfg.function_purities).clone()
+    };
 
     for ((signature, runtime), variants) in variants_map.into_iter() {
         let dispatches_to_multiple_functions = variants.len() > 1;
@@ -451,13 +465,13 @@ fn create_apply_functions(ssa: &mut Ssa, variants_map: Variants) -> ApplyFunctio
             // If no variants exist for a dynamic call we leave removing those dead calls and parameters to DIE.
             // However, we have to construct a dummy function for these dead calls as to keep a well formed SSA
             // and to not break the semantics of other SSA passes before DIE is reached.
-            create_dummy_function(ssa, defunctionalized_signature, runtime)
+            create_dummy_function(ssa, defunctionalized_signature, runtime, &mut purities)
         };
         apply_functions
             .insert((signature, runtime), ApplyFunction { id, dispatches_to_multiple_functions });
     }
 
-    apply_functions
+    (apply_functions, purities)
 }
 
 /// Transforms a [FunctionId] into a [FieldElement]
@@ -500,11 +514,9 @@ fn create_apply_function(
     // We will be borrowing `ssa` mutably so we need to fetch this shared information
     // before attempting to add a new function to the SSA.
     let globals = ssa.main().dfg.globals.clone();
-    let purities = ssa.main().dfg.function_purities.clone();
     ssa.add_fn(|id| {
         let mut function_builder = FunctionBuilder::new("apply".to_string(), id);
         function_builder.set_globals(globals);
-        function_builder.set_purities(purities);
 
         // We want to push for apply functions to be inlined more aggressively;
         // they are expected to be optimized away by constants visible at the call site.
@@ -637,6 +649,7 @@ fn create_dummy_function(
     ssa: &mut Ssa,
     signature: Signature,
     caller_runtime: RuntimeType,
+    purities: &mut HashMap<FunctionId, Purity>,
 ) -> FunctionId {
     ssa.add_fn(|id| {
         let mut function_builder = FunctionBuilder::new("apply_dummy".to_string(), id);
@@ -658,9 +671,7 @@ fn create_dummy_function(
         // As the dummy function is just meant to be a placeholder for any calls to
         // higher-order functions without variants, we want the function to be marked pure
         // so that dead instruction elimination can remove any calls to it.
-        let mut purities = HashMap::default();
-        purities.insert(id, super::pure::Purity::Pure);
-        function_builder.set_purities(Arc::new(purities));
+        purities.insert(id, Purity::Pure);
 
         let results =
             vecmap(signature.returns, |typ| make_dummy_return_data(&mut function_builder, &typ));
@@ -1639,7 +1650,7 @@ mod tests {
         let variants = find_variants(&ssa);
         assert_eq!(variants.len(), 2);
 
-        let apply_functions = create_apply_functions(&mut ssa, variants);
+        let (apply_functions, _purities) = create_apply_functions(&mut ssa, variants);
         // This was 1 before this bug was fixed.
         assert_eq!(apply_functions.len(), 2);
     }
