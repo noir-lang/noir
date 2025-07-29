@@ -50,6 +50,12 @@
 //! it would result in a read past the end of the array, which is invalid. We can then remove the explicit
 //! range constraint on `index` as the usage as an array index more tightly constrains its value.
 //!
+//! # Side effects
+//!
+//! The pass will keep range constraints for witnesses that are directly or indirectly involved with Brillig calls,
+//! if removing the constraint would allow potentially invalid inputs to be passed to Brillig,
+//! which could have visible side effects.
+//!
 //! [BlackBoxFunc::Range]: acir::circuit::black_box_functions::BlackBoxFunc::RANGE
 
 use acir::{
