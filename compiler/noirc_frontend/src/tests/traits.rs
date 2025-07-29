@@ -2045,3 +2045,25 @@ fn trait_bound_with_associated_constant() {
     "#;
     assert_no_errors!(src);
 }
+
+#[named]
+#[test]
+fn trait_method_call_when_it_has_bounds_on_generic() {
+    let src = r#"
+    trait BigNum {}
+
+    trait BigCurve<B>
+    where
+        B: BigNum,
+    {
+        fn new() -> Self;
+    }
+
+    pub fn foo<B: BigNum, Curve: BigCurve<B>>() {
+        let _: Curve = BigCurve::new();
+    }
+
+    fn main() {}
+    "#;
+    assert_no_errors!(src);
+}
