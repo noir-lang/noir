@@ -13,7 +13,7 @@ use super::{
     opt::pure::Purity,
 };
 
-use acvm::{AcirField, FieldElement};
+use acvm::FieldElement;
 use ast::{
     AssertMessage, Identifier, ParsedBlock, ParsedFunction, ParsedGlobal, ParsedGlobalValue,
     ParsedInstruction, ParsedMakeArray, ParsedNumericConstant, ParsedParameter, ParsedSsa,
@@ -21,7 +21,9 @@ use ast::{
 };
 use lexer::{Lexer, LexerError};
 use noirc_errors::Span;
-use noirc_frontend::{monomorphization::ast::InlineType, token::IntType};
+use noirc_frontend::{
+    monomorphization::ast::InlineType, signed_field::SignedField, token::IntType,
+};
 use thiserror::Error;
 use token::{Keyword, SpannedToken, Token};
 
@@ -452,7 +454,12 @@ impl<'a> Parser<'a> {
 
         let value = self.parse_value_or_error()?;
         self.eat_or_error(Token::Keyword(Keyword::To))?;
-        let max_bit_size = self.eat_int_or_error()?.to_u128() as u32;
+        let max_bit_size = self.eat_int_or_error()?.try_to_unsigned::<u32>().ok_or(
+            ParserError::InvalidInteger {
+                found: self.token.token().clone(),
+                span: self.token.span(),
+            },
+        )?;
         self.eat_or_error(Token::Keyword(Keyword::Bits))?;
 
         let assert_message =
@@ -573,12 +580,22 @@ impl<'a> Parser<'a> {
         if self.eat_keyword(Keyword::Truncate)? {
             let value = self.parse_value_or_error()?;
             self.eat_or_error(Token::Keyword(Keyword::To))?;
-            let bit_size = self.eat_int_or_error()?.to_u128() as u32;
+            let bit_size = self.eat_int_or_error()?.try_to_unsigned::<u32>().ok_or(
+                ParserError::InvalidInteger {
+                    found: self.token.token().clone(),
+                    span: self.token.span(),
+                },
+            )?;
             self.eat_or_error(Token::Keyword(Keyword::Bits))?;
             self.eat_or_error(Token::Comma)?;
             self.eat_or_error(Token::Keyword(Keyword::MaxBitSize))?;
             self.eat_or_error(Token::Colon)?;
-            let max_bit_size = self.eat_int_or_error()?.to_u128() as u32;
+            let max_bit_size = self.eat_int_or_error()?.try_to_unsigned::<u32>().ok_or(
+                ParserError::InvalidInteger {
+                    found: self.token.token().clone(),
+                    span: self.token.span(),
+                },
+            )?;
             return Ok(ParsedInstruction::Truncate { target, value, bit_size, max_bit_size });
         }
 
@@ -616,7 +633,7 @@ impl<'a> Parser<'a> {
             let token = self.token.token().clone();
             let span = self.token.span();
             let field = self.eat_int_or_error()?;
-            if let Some(offset) = field.try_to_u32().and_then(ArrayOffset::from_u32) {
+            if let Some(offset) = field.try_to_unsigned::<u32>().and_then(ArrayOffset::from_u32) {
                 if offset == ArrayOffset::None {
                     self.unexpected_offset(token, span)
                 } else {
@@ -802,7 +819,7 @@ impl<'a> Parser<'a> {
 
     fn parse_field_value(&mut self) -> ParseResult<Option<ParsedNumericConstant>> {
         if self.eat_keyword(Keyword::Field)? {
-            let value = self.eat_int_or_error()?;
+            let value = self.eat_int_or_error()?.to_field_element();
             Ok(Some(ParsedNumericConstant { value, typ: Type::field() }))
         } else {
             Ok(None)
@@ -815,6 +832,12 @@ impl<'a> Parser<'a> {
             let typ = match int_type {
                 IntType::Unsigned(bit_size) => Type::unsigned(bit_size),
                 IntType::Signed(bit_size) => Type::signed(bit_size),
+            };
+            let value = if typ.is_signed() && value.is_negative() {
+                // 2-complement representation:
+                FieldElement::from(2u128.pow(typ.bit_size())) - value.absolute_value()
+            } else {
+                value.absolute_value()
             };
             Ok(Some(ParsedNumericConstant { value, typ }))
         } else {
@@ -865,7 +888,7 @@ impl<'a> Parser<'a> {
             if self.eat(Token::Semicolon)? {
                 let length = self.eat_int_or_error()?;
                 self.eat_or_error(Token::RightBracket)?;
-                return Ok(Type::Array(Arc::new(element_types), length.to_u128() as u32));
+                return Ok(Type::Array(Arc::new(element_types), length.try_to_unsigned().unwrap()));
             } else {
                 self.eat_or_error(Token::RightBracket)?;
                 return Ok(Type::Slice(Arc::new(element_types)));
@@ -961,18 +984,13 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn eat_int(&mut self) -> ParseResult<Option<FieldElement>> {
+    fn eat_int(&mut self) -> ParseResult<Option<SignedField>> {
         let negative = self.eat(Token::Dash)?;
 
         if matches!(self.token.token(), Token::Int(..)) {
             let token = self.bump()?;
             match token.into_token() {
-                Token::Int(mut int) => {
-                    if negative {
-                        int = -int;
-                    }
-                    Ok(Some(int))
-                }
+                Token::Int(int) => Ok(Some(SignedField::new(int, negative))),
                 _ => unreachable!(),
             }
         } else {
@@ -980,7 +998,7 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn eat_int_or_error(&mut self) -> ParseResult<FieldElement> {
+    fn eat_int_or_error(&mut self) -> ParseResult<SignedField> {
         if let Some(int) = self.eat_int()? { Ok(int) } else { self.expected_int() }
     }
 
@@ -1168,6 +1186,8 @@ pub(crate) enum ParserError {
     MultipleReturnValuesOnlyAllowedForCall { second_target: Identifier },
     #[error("Unexpected integer value for array_get offset")]
     UnexpectedOffset { found: Token, span: Span },
+    #[error("Invalid integer value")]
+    InvalidInteger { found: Token, span: Span },
 }
 
 impl ParserError {
@@ -1185,7 +1205,9 @@ impl ParserError {
             | ParserError::ExpectedByteString { span, .. }
             | ParserError::ExpectedValue { span, .. }
             | ParserError::ExpectedGlobalValue { span, .. }
-            | ParserError::UnexpectedOffset { span, .. } => *span,
+            | ParserError::UnexpectedOffset { span, .. }
+            | ParserError::InvalidInteger { span, .. } => *span,
+
             ParserError::MultipleReturnValuesOnlyAllowedForCall { second_target, .. } => {
                 second_target.span
             }

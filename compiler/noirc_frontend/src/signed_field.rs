@@ -1,6 +1,6 @@
 use acvm::{AcirField, FieldElement};
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, serde::Deserialize, serde::Serialize)]
 pub struct SignedField {
     field: FieldElement,
     is_negative: bool,

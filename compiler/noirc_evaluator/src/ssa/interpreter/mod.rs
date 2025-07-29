@@ -1276,9 +1276,15 @@ impl<W: Write> Interpreter<'_, W> {
             BinaryOp::Div => {
                 apply_int_binop_opt!(dfg, lhs, rhs, binary, num_traits::CheckedDiv::checked_div)
             }
-            BinaryOp::Mod => {
-                apply_int_binop_opt!(dfg, lhs, rhs, binary, num_traits::CheckedRem::checked_rem)
-            }
+            BinaryOp::Mod => match (lhs, rhs) {
+                (NumericValue::I8(i8::MIN), NumericValue::I8(-1)) => NumericValue::I8(0),
+                (NumericValue::I16(i16::MIN), NumericValue::I16(-1)) => NumericValue::I16(0),
+                (NumericValue::I32(i32::MIN), NumericValue::I32(-1)) => NumericValue::I32(0),
+                (NumericValue::I64(i64::MIN), NumericValue::I64(-1)) => NumericValue::I64(0),
+                _ => {
+                    apply_int_binop_opt!(dfg, lhs, rhs, binary, num_traits::CheckedRem::checked_rem)
+                }
+            },
             BinaryOp::Eq => apply_int_comparison_op!(lhs, rhs, binary, |a, b| a == b),
             BinaryOp::Lt => apply_int_comparison_op!(lhs, rhs, binary, |a, b| a < b),
             BinaryOp::And => {
