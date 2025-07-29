@@ -38,6 +38,13 @@ mod tests {
     }
 
     #[test]
+    fn format_num_type_alias() {
+        let src = "  pub  type  Foo:u32  =  2*N  ; ";
+        let expected = "pub type Foo: u32 = 2 * N;\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
     fn format_generic_type_alias() {
         let src = "  pub  type  Foo < A, B > =   i32  ; ";
         let expected = "pub type Foo<A, B> = i32;\n";
