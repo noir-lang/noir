@@ -115,11 +115,6 @@ expression: artifact
     "INIT (id: 0, len: 5, witnesses: [_0, _1, _2, _3, _4])",
     "BLACKBOX::RANGE [(_5, 32)] []",
     "BLACKBOX::RANGE [(_6, 32)] []",
-    "BLACKBOX::RANGE [(_7, 3)] []",
-    "BLACKBOX::RANGE [(_8, 3)] []",
-    "BLACKBOX::RANGE [(_9, 3)] []",
-    "BLACKBOX::RANGE [(_10, 3)] []",
-    "BLACKBOX::RANGE [(_11, 3)] []",
     "INIT (id: 1, len: 5, witnesses: [_7, _8, _9, _10, _11])",
     "BLACKBOX::RANGE [(_12, 32)] []",
     "BLACKBOX::RANGE [(_13, 32)] []",
@@ -223,7 +218,7 @@ expression: artifact
     "unconstrained func 1",
     "[Const { destination: Direct(21), bit_size: Integer(U32), value: 1 }, Const { destination: Direct(20), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(21), offset_address: Direct(20) }, Const { destination: Direct(2), bit_size: Field, value: 0 }, BinaryFieldOp { destination: Direct(3), op: Equals, lhs: Direct(0), rhs: Direct(2) }, JumpIf { condition: Direct(3), location: 8 }, Const { destination: Direct(1), bit_size: Field, value: 1 }, BinaryFieldOp { destination: Direct(0), op: Div, lhs: Direct(1), rhs: Direct(0) }, Stop { return_data: HeapVector { pointer: Direct(20), size: Direct(21) } }]"
   ],
-  "debug_symbols": "rZbRjtowEEX/xc882B7P2OZXqmqVhbCKFAWUhZUqtP/eMblOaSWq1uzTGQjnenBix1ez718vby/DdDi+m+23q3mdh3Ec3l7G4647D8dJv71+bkz9+HKe+16/MnfX1Tp1cz+dzXa6jOPGfHTj5faj91M33XjuZr1qN6af9koNPAxjX6rPzS/bPlYdC2QnbtX5P3z/ZT43+N4xfO99y/g5rj498vmxz1T7Z5Ln/NA0Ptf++fH8/6OfWvy09p+a+o/1/nHMLX6uz69Y+6QfG3zxrvqen/OppX8JdfELt8y/xHX8yE/6LfdPJFS/6fmLNsOPzjb59fmNtmX9Rr+OH2zD/kNr/+Sa/LD6HJt8Wf3U5Lvn/Fj3H3q8f/zNz/X/B+eb/LD6LeMHqv2HEJt8t/ot8xfW92doev/ejf+H/10/dbth/u3EYrzVd+bGeLfA63tTQQuCzqeCNUwhuqYVUZeGIpltUmSz1RtGJUW7Igd6kEBNcppPDGqW0xFIw5wOQZrmdAzKC0PJ01UaSp4OGjxIYABLnnYTBCx52lZIYF7IFnSgBwksefo/mEEBI5jAvFAs6EAPEog8QZ4gT5AnyBPN8zo/0ZaTj9KBHiQwgAwKGMs5R6l5Xucr5oXJgg70IIEBZFDACCIvlTyd12zBkqfzlT1IYAAZFDCCCcwLnbW1cLUokbkUVItQC66FlA22FLEWqWy0pcgonCZTWfkf3Tx0r2OPg/nhMu3uzunnH6d6pZ7kT/Nx1+8vc19WyO2arpmf",
+  "debug_symbols": "rZbdjtowEIXfxde58PhvbF6lqlCAsIoUBZSFlSq0794xOXZpJarW7NVnCN+ZwYkd39Rh2F3ftuN8PL2rzbeb2i3jNI1v2+m07y/jaZZvb5+dKh+3l2UY5Cv1cF2sc78M80Vt5us0deqjn673H72f+/nOS7/IVd2pYT4IJfA4TkMefXa/bP1cJR8gU6Cq+//wzZf5vsE35OEbY1rqJ66+feb75763pX9vw2u+a6rvS//++fz/ox9b/Fj7j039c7l/nlOLn8rzG7R+0ecGPxgqvvGv+bal/+DK4g++Zf4D1/rsX/Rb7l8IrvhNzx/rBJ9JN/nl+WXdsn7Z1PpON+w/tvZvqcl31ffc5IfqxyafXvO57D/2+f7xNz+V/+/INPmu+i31nS39O8dNPlW/Zf5cfX+6pvfvQ/0//O/yqd+Py28nFkVe3pmdorCC5b0piCuSzGenjJYwAcmaFhhZGgKrNlHg1EZumMkp0pUJIIMRlCSSfKtBySKpYCWMpISVNJIa1oE5T1apzXlS1DIYwbTS5TzpxhGY86QtZ0EHejCADEYw58n/8Bok0IAWdKAHA8hgBJEXkBeQF5AXkBckz8j8BJ9PPsIAMhjBtJI1SKDJ5xyh5BmZL3agBwPIYATTyqhBAg2IvJjzZF6jB3OezFdkMIJpZdIggQa0oAM9iLyU82Q+UgTTStK6DCjvrXlgysDmPTYPXBlIqs2L/qNfxn43DTiTH6/z/uGIfvlxLlfKIf68nPbD4boMeXHcr8ly+Qk=",
   "file_map": {
     "50": {
       "source": "fn main(\n    x: [u32; 5],\n    mut z: u32,\n    t: u32,\n    index: [u32; 5],\n    index2: [u32; 5],\n    offset: u32,\n    sublen: Field,\n) {\n    let idx = (z - 5 * t - 5);\n    //dynamic array test\n    dyn_array(x, idx, idx - 3);\n    //regression for issue 1283\n    let mut s = 0;\n    let x3 = [246, 159, 32, 176, 8];\n    for i in 0..5 {\n        s += x3[index[i]];\n    }\n    assert(s != 0);\n\n    if 3 < (sublen as u32) {\n        assert(index[offset + 3] == index2[3]);\n    }\n}\n\nfn dyn_array(mut x: [u32; 5], y: u32, z: u32) {\n    assert(x[y] == 111);\n    assert(x[z] == 101);\n    x[z] = 0;\n    assert(x[y] == 111);\n    assert(x[1] == 0);\n    if y as u32 < 10 {\n        x[y] = x[y] - 2;\n    } else {\n        x[y] = 0;\n    }\n    assert(x[4] == 109);\n}\n",
