@@ -195,7 +195,7 @@ impl<F: AcirField> RangeOptimizer<F> {
                         match input {
                             BrilligInputs::Single(expr) => effects.mark_expr(expr, idx),
                             BrilligInputs::Array(exprs) => {
-                                exprs.iter().for_each(|expr| effects.mark_expr(expr, idx))
+                                exprs.iter().for_each(|expr| effects.mark_expr(expr, idx));
                             }
                             BrilligInputs::MemoryArray(_) => {}
                         }
