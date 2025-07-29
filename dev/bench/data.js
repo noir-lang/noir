@@ -1,92 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1753817774842,
+  "lastUpdate": 1753817783650,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "a5846e654aa00d97cd2607c7c4817e2ac31ad799",
-          "message": "chore: skip `ram_blowup_regression` on PRs (#9231)",
-          "timestamp": "2025-07-18T10:14:59Z",
-          "tree_id": "6e5c46da9093aec87924b6e1dc3187c55d03e15d",
-          "url": "https://github.com/noir-lang/noir/commit/a5846e654aa00d97cd2607c7c4817e2ac31ad799"
-        },
-        "date": 1752836394340,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 235.31,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 543.3,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 208.97,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 1370,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 1460,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 1090,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 9380,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 9390,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 328.79,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 339.2,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 104.55,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 255.53,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -2299,6 +2215,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512_100_bytes",
             "value": 234.73,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "7d98dc2ec806c49e41c98fe54b314f85c37b5473",
+          "message": "fix: push definition trait constraints after trait item constraint (#9354)",
+          "timestamp": "2025-07-29T19:07:45Z",
+          "tree_id": "35e85fb191052436457013799fff4aa1f4dd1d6e",
+          "url": "https://github.com/noir-lang/noir/commit/7d98dc2ec806c49e41c98fe54b314f85c37b5473"
+        },
+        "date": 1753817766497,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore_depth_10",
+            "value": 104.71,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 234.77,
             "unit": "MB"
           }
         ]
