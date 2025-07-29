@@ -108,6 +108,7 @@ expression: artifact
     "EXPR [ (2, _6, _32) (1, _32, _33) (-1, _35) 0 ]",
     "BRILLIG CALL func 0: inputs: [EXPR [ (64, _34, _35) 0 ], EXPR [ 4294967296 ]], outputs: [_36, _37]",
     "BLACKBOX::RANGE [(_36, 222)] []",
+    "BLACKBOX::RANGE [(_37, 8)] []",
     "EXPR [ (64, _34, _35) (-4294967296, _36) (-1, _37) 0 ]",
     "EXPR [ (-1, _36) (-1, _38) 5096253676302562286669017222071363378443840053029366383258766538131 ]",
     "BLACKBOX::RANGE [(_38, 222)] []",
@@ -127,11 +128,13 @@ expression: artifact
     "EXPR [ (-1, _35, _43) (-1, _44) 64 ]",
     "EXPR [ (1, _43) -32 ]",
     "BRILLIG CALL func 0: inputs: [EXPR [ (1, _1) 192 ], EXPR [ 256 ]], outputs: [_46, _47]",
+    "BLACKBOX::RANGE [(_46, 0)] []",
     "BLACKBOX::RANGE [(_47, 8)] []",
     "EXPR [ (1, _1) (-256, _46) (-1, _47) 192 ]",
     "EXPR [ (-1, _35, _46) (1, _35) (-1, _48) 0 ]",
     "BRILLIG CALL func 0: inputs: [EXPR [ (1, _0, _48) 0 ], EXPR [ 18446744073709551616 ]], outputs: [_49, _50]",
     "BLACKBOX::RANGE [(_49, 190)] []",
+    "BLACKBOX::RANGE [(_50, 8)] []",
     "EXPR [ (1, _0, _48) (-18446744073709551616, _49) (-1, _50) 0 ]",
     "EXPR [ (-1, _49) (-1, _51) 1186564023676924939888766319973246049704924238154051448977 ]",
     "BLACKBOX::RANGE [(_51, 190)] []",
@@ -365,6 +368,7 @@ expression: artifact
     "EXPR [ (-2, _183, _185) (1, _195, _196) (1, _183) (1, _185) (-256, _201) (-1, _202) 511 ]",
     "EXPR [ (1, _202) -16 ]",
     "BRILLIG CALL func 0: inputs: [EXPR [ (1, _1) 248 ], EXPR [ 256 ]], outputs: [_203, _204]",
+    "BLACKBOX::RANGE [(_203, 0)] []",
     "BLACKBOX::RANGE [(_204, 8)] []",
     "EXPR [ (1, _1) (-256, _203) (-1, _204) 248 ]",
     "BRILLIG CALL func 1: inputs: [EXPR [ (-1, _203, _1) (1, _1) 0 ], EXPR [ 8 ], EXPR [ 2 ]], outputs: [[_205, _206, _207, _208, _209, _210, _211, _212]]",
@@ -574,7 +578,7 @@ expression: artifact
     "unconstrained func 2",
     "[Const { destination: Direct(21), bit_size: Integer(U32), value: 1 }, Const { destination: Direct(20), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(21), offset_address: Direct(20) }, Const { destination: Direct(2), bit_size: Field, value: 0 }, BinaryFieldOp { destination: Direct(3), op: Equals, lhs: Direct(0), rhs: Direct(2) }, JumpIf { condition: Direct(3), location: 8 }, Const { destination: Direct(1), bit_size: Field, value: 1 }, BinaryFieldOp { destination: Direct(0), op: Div, lhs: Direct(1), rhs: Direct(0) }, Stop { return_data: HeapVector { pointer: Direct(20), size: Direct(21) } }]"
   ],
-  "debug_symbols": "pdnLThtJFIDhd/GaRZ9b1al5ldEocogTIVmAHIg0ivLu09Wn/1wWs2lvfH5wzhcwLmPs76dPl4/vXz48PX9++Xr66+/vp4+3p+v16cuH68vj+e3p5Xn97PcfDyc+/PB2u1zWT51+u37dej3fLs9vp7+e36/Xh9O38/V9+0dfX8/P23w739Zrl4fT5fnTOlfw89P1MuvHw6/t5f9XZbF9WeTXehza70f2Tdi3vG/f/cj+yH1flzv3RQ7sqwb7du/+kdvf1Pd9O/T/m+TPfb1z/8jP30LZb+2+/X7k63fj9nM/cvt54/x4P3L+PH/u57hvfxy5/4Rw/kLu3Fc7sm+dfb93/8jtF40H32hH7j/ROb+Rcuf+ka+//Xz8bsud+xJH9o3brx16/P59/9DX3/j5t2537h95/GqD268vRx6/uvL9d9X79s3u3P/z+/9n/ej8+HT74xnPyddfmQ+n2C7bdtm3y9wux3YpSw2poTWsRgFSghQhZUghUoqWoqVoKVqKlqKlaClaipaipVgpVoqVYqVYKVaKlWKlWClWipfipXgpXoqX4qV4KV6Kl+KlRCmxKusvrViV9b4TVsNrRI1Wo9fIGquy/rJqq7I+ZjSpoTWshteIGq1Gr5E1xjZ6Kb2UXkovpZfSV6WtY1XWM9J7jawxtpFLDamhNVZlfVKQqzLWETVajV5j3i7rHS9HzbHsU/ap+7R9+j5jn22ffZ+7N3ZPloUQQgkjnAiiEZ1IAlmQBVmQBVmQBVmQBVmQBVmRFVmRFVmRFVmRFVmRFdmQDdmQDdmQDdmQDdmQDdmRHdmRHdmRHdmRHdmRHTmQAzmQAzmQAzmQAzmQA7khN+SG3JAbckNuyA25ITfkjjyPlWwPbFPWGUY4EUQjOpHE2GMetAohkBM5kRM5kRM5kRN5IA/kgTyQB/JAHsgDeSCPXdZlIYRQwggngmhEJ5JAFmRBFmRBFmRBFmRBFmRBVmRFVmRFVmRFVmRFVmRFNmRDNmRDNmRDNmRDNmRDdmRHdmRHdmRHdmRHdmRHDuRADuRADuTtDNqMKbcZnUhi7LGdwS2EUGLKfcaUc0YQjehEEmOP7QxuIYQSRiB35I7ckTtyR07kRE7kRE7kRE7kRE7kRB7IA3kgD+SBPJAH8nYGx4ycL4PMGBU2z2CFEEoY4UQQjehEEsiCLMiCLMiCLMiCLMiCLMiKrMiKrMiKrMiKrMiKrMiGbMiGbMiGbMiGbMiGbMiO7MiO7MiO7MiO7MiO7MiBHMiBHMiBHMiBHMiBHMgNuSE35IbckBtyQ27I8wzq9gR6yjqfQi+EEEoY4UQQjehEEsiJnMjzDKrNMMKJIBrRiSSm7POJ/pRjhhBKGOFEEI3oRBKjwpeFEEIJI5wIYsptxpT7jCTGHtsZ3EIIJYxwIogp54wpjxlJjD22M7iFEEoY4UQQjUBWZEU2ZEM2ZEM2ZEM2ZEOeZ3C+duDzDNr2d9gyXw6dIYQSRjgRRCM6kcTYI5ADOZC3P99shhNBNKITSYw95hmsEEIJ5IbckBtyQ27IDbkjd+SO3JE7ckfuyB25I3fkRE7kRE7kRE7kRE7kRE7kgTyQB/JAHsgDeSAP5IE8djnmGbT5+tS38+3p/PF6+Vpv33x+f3787d2ct39fuYb3e15vL4+XT++3y3wdZLtufWXkPw==",
+  "debug_symbols": "pdnLThtJFIDhd/GaRZ9rVc2rjEaRQ5wIyQLkQKRRlHefrj7957KYTXvj84NzvoBx2WB/P326fHz/8uHp+fPL19Nff38/fbw9Xa9PXz5cXx7Pb08vz+tnv/94OPHhh7fb5bJ+6vTb9evW6/l2eX47/fX8fr0+nL6dr+/bP/r6en7e5tv5tl67PJwuz5/WuYKfn66XWT8efm0v/78qi+3LIr/W49B+O7Jvwr71+/bdj+yPvu/rcue+yIF91WDf7t0/cvub+r5vh/5/k/5zX+/cP/Lzt1D2M+/bb0e+fjduP/cjt58n58fbkfPn/ed+H/ftjyP3nxDOX8id+2pH9q2x7/fuH7n9InnwjTxy/4nG+Y0ud+4f+frz5+N3LnfuSxzZN26/PPT4/fv+oa8/+flnszv3jzx+5eD2a8uRx6+mfP9N9b59szv3//z+/1k/Oj8+3f74jefk61Pmwym2y9wu23bZt8uxXcpSQ2poDatRgJQgRUgZUoiUoqVoKVqKlqKlaClaipaipWgpVoqVYqVYKVaKlWKlWClWipXipXgpXoqX4qV4KV6Kl+KleClRSpQSq7I+d8WqrHeh8BpRI2u0Gr3G2EauyvqclauyPnSk1rAaXiNqZI1Wo9cY22hLjVJaKa2UVkorpZXSSmmrkutYlfXg9KWG1NAaVsNrRI1VWX9T6Ksy1tFrjG2Mpca8XdZ749B92j59n7HP3GfbZ9/nqCnLQgihhBFOBJFEIzqBLMiCLMiCLMiCLMiCLMiCrMiKrMiKrMiKrMiKrMiKbMiGbMiGbMiGbMiGbMiG7MiO7MiO7MiO7MiO7MiOHMiBHMiBHMiBHMiBHMiBnMiJnMiJnMiJnMiJnMiJ3JAbckNuyPNkyfaAN2WdkUQjOjH2mKesQggljHACuSN35I7ckQfyQB7IA3kgD+SBPJAH8thlXRZCCCWMcCKIJBrRCWRBFmRBFmRBFmRBFmRBFmRFVmRFVmRFVmRFVmRFVmRDNmRDNmRDNmRDNmRDNmRHdmRHdmRHdmRHdmRHduRADuRADuRADuRADuTtDNqMKed8ul4IIZQwwokgptxmTLnP6MTYYzuDWwihhBFOBJEEckNuyB25I3fkjtyRO3JH7sgduSMP5IE8kAfyQB7IA3kgD+Sxy7adwTFD5ssjM5QwwokgkmhEJ8Ye8wxWIAuyIAuyIAuyIAuyICuyIiuyIiuyIiuyIiuyIhuyIRuyIRuyIRuyIRuyITuyIzuyIzuyIzuyIzuyIwdyIAdyIAdyIAdyIAdyICdyIidyIidyIidyIidyIjfkhjzPoG6/Wk9ZZzgRRBKN6MTYY57BCiGUQO7IHXmeQbUZjejE2GOewQohlJiyz5hyzAgiiUZ0YlT4PIMVQihhhBNBJNGITiBvZzBnTLnNUMIIJ4JIohGdGHtsZ7DPmPKYoYQRTgSRRCM6MfbYzuAWyIZsyIZsyIZsyIZsyI7syPMMzhcXfJ5B2/5Qm39j6YwgkmhEJ8Ye8wxWCKGEEciBHMjb33A2oxNjj3kGK4RQwggngkgCOZETuSE35IbckBtyQ27IDbkhN+SO3JE7ckfuyB25I3fkjtyRB/JAHsgDeSAP5IE8kAfy2OVYFkIIJYyY8nwB69v59nT+eL18rfd3Pr8/P/72ds/bv69cwxtCr7eXx8un99tlvlCyXbe+dPIf",
   "file_map": {
     "50": {
       "source": "fn main(x: u64, y: u8, z: i16, u: i64) {\n    // runtime shifts on compile-time known values\n    assert(64 << y == 128);\n    assert(64 >> y == 32);\n    // runtime shifts on runtime values\n    assert(x << y == 128);\n    assert(x >> y == 32);\n    // regression tests for issue #8176, superseded by issue #8791\n    assert(u >> (x as u8) == -1);\n    assert(z >> (x as u8) == -1);\n\n    // Bit-shift with signed integers\n    let mut a: i8 = y as i8;\n    let mut b: i8 = x as i8;\n    assert(b << 1 == -128);\n    assert(b >> 2 == 16);\n    assert(b >> y == 32);\n    a = -a;\n    assert(a << 7 == -128);\n    assert(a << y == -2);\n\n    assert(x >> (x as u8) == 0);\n\n    assert_eq(z >> 3, -97);\n\n    assert(z >> 16 == -1);\n    assert(-z >> x as u8 == 0);\n}\n",

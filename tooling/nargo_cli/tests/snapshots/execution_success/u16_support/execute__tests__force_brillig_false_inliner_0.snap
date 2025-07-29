@@ -83,6 +83,7 @@ expression: artifact
     "EXPR [ (1, _33, _34) (-1, _35) 0 ]",
     "BRILLIG CALL func 1: inputs: [EXPR [ (1, _0, _35) 0 ], EXPR [ 65536 ]], outputs: [_36, _37]",
     "BLACKBOX::RANGE [(_36, 238)] []",
+    "BLACKBOX::RANGE [(_37, 4)] []",
     "EXPR [ (1, _0, _35) (-65536, _36) (-1, _37) 0 ]",
     "EXPR [ (-1, _36) (-1, _38) 333988080930164722019140712665668870369695501715332555293246523843014656 ]",
     "BLACKBOX::RANGE [(_38, 238)] []",
@@ -143,7 +144,7 @@ expression: artifact
     "unconstrained func 3",
     "[Const { destination: Direct(21), bit_size: Integer(U32), value: 1 }, Const { destination: Direct(20), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(21), offset_address: Direct(20) }, Const { destination: Direct(2), bit_size: Field, value: 0 }, BinaryFieldOp { destination: Direct(3), op: Equals, lhs: Direct(0), rhs: Direct(2) }, JumpIf { condition: Direct(3), location: 8 }, Const { destination: Direct(1), bit_size: Field, value: 1 }, BinaryFieldOp { destination: Direct(0), op: Div, lhs: Direct(1), rhs: Direct(0) }, Stop { return_data: HeapVector { pointer: Direct(20), size: Direct(21) } }]"
   ],
-  "debug_symbols": "tdZNjuIwEIbhu3idRezyT5mrIIQCpFuRooDSMNII5e5Tpr4wsGAWiWbD2zRdD20cA3dzag+37303fJ1/zGZ7N4ex6/vue9+fj821Ow/y27upy40NZuMqY6MmadhsSJIfcbXGapyGNN5svCRooiZpWCNKqAyJEiVW4zSkESVJgkYUliQNa/IjXhSepsrMK9lfx7YtC3lZmiz40oztcDWb4db3lfnV9LfHH/1cmuHRazPKo3Vl2uEkFfCr69vy01T9na4/j9qUMGyZn+Phfd5+nqfsME85L5lPjHlf1wvmvaV53tGSeZrX70NYNx+XvH7Bzq9fWPT/v85/fP5/7L97bt/HZ88rdz+v3P28cvfzyt3PK3c/r9z9/P92n5+H37q38Z3ca47d+P5OK+95VjSnIY3XhIJUJmqShjVZY2vUog4l1KOwLDALzYKz8Bw8B8/Bc/AcPAfPwXPwHDwHj+ARPIJH8AgewSN4BI/gETwPz8Pz8Dw8D8/D8/A8PA/PwwvwArwALxRPLoRQPDkQIaARTSijWRtr1KIOJRRehBfhRXgRXoSX4CV4CV6Cl+AleAlegpfgJXgMj+ExPIbH8Bgew2N4DI/hZXgZXoaXiyef8Ll4aSrHZeyaQ9+Wi74ci9twnM+A3L3+vsyPzN9HLuP52J5uY1vOy8uXErndelf5tNOrfuu5CvVuKgfsDw==",
+  "debug_symbols": "tdbBbuIwEMbxd/E5h9gzjse8CkIoQFpFigJKYaUV4t13zHxh4cAeiPbCv5TOjxrHwNUdut3le9uPX8cft1pf3W7qh6H/3g7HfXvuj6P+9urqcuOjW4XK+caSLOJWpMn3hNriLcFCFnYr1kRLY0kWsagSK0eqNBpvCRayqJI00aKKaJJFLPkeVkVut8rNK9mep64rC3lami741E7deHar8TIMlfvVDpf7H/2c2vHeczvpo3XluvGgVfCrH7ry0636O12/H/UpYdiLPMbj67x/P085YJ5y/mQ+Cea5rj+YZ0/zfKBP5mleP8e4bL755PWLfn794kf///P82+f/x/6Hx/a9ffa8cPfzwt3PC3c/L9z9vHD388Ldz/9v9+Vx+H14Gd/ovXbfT6/vtPqe51ULFrKwJRakco0lWcSSLb5GPRpQQhmF5YF5aB6chxfgBXgBXoAX4AV4AV6AF+AFeASP4BE8gkfwCB7BI3gEj+AxPIbH8Bgew2N4DI/hMTyGF+FFeBFehBeLpxdELJ4ejNigCRU0W5sa9WhACWUUXgOvgdfAa+AleAlegpfgJXgJXoKX4CV4CZ7AE3gCT+AJPIEn8ASewBN4GV6Gl+FleLl4+kmfi5du5dhMfbsbunLxl+NxGffzWdC759+n+ZH5e8lpOu67w2Xqyrl5+nKit2sOFaeNXf1rlirWm1s5aH8A",
   "file_map": {
     "50": {
       "source": "fn main(x: u16) {\n    test_u16(x);\n    // Safety: testing context\n    unsafe {\n        test_u16_unconstrained(x);\n    }\n}\n\nunconstrained fn test_u16_unconstrained(x: u16) {\n    test_u16(x)\n}\n\nfn test_u16(x: u16) {\n    let t1: u16 = 1234;\n    let t2: u16 = 4321;\n    let t = t1 + t2;\n\n    let t4 = t - t2;\n    assert(t4 == t1);\n\n    let mut small_int = x as u16;\n    let shift = small_int << (x as u8);\n    assert(shift == 8);\n    assert(shift >> (x as u8) == small_int);\n    assert(shift >> 15 == 0);\n    assert(shift << 15 == 0);\n}\n",
