@@ -113,54 +113,7 @@
 <a href="#112" id="112">112</a>
 <a href="#113" id="113">113</a>
 <a href="#114" id="114">114</a>
-<a href="#115" id="115">115</a>
-<a href="#116" id="116">116</a>
-<a href="#117" id="117">117</a>
-<a href="#118" id="118">118</a>
-<a href="#119" id="119">119</a>
-<a href="#120" id="120">120</a>
-<a href="#121" id="121">121</a>
-<a href="#122" id="122">122</a>
-<a href="#123" id="123">123</a>
-<a href="#124" id="124">124</a>
-<a href="#125" id="125">125</a>
-<a href="#126" id="126">126</a>
-<a href="#127" id="127">127</a>
-<a href="#128" id="128">128</a>
-<a href="#129" id="129">129</a>
-<a href="#130" id="130">130</a>
-<a href="#131" id="131">131</a>
-<a href="#132" id="132">132</a>
-<a href="#133" id="133">133</a>
-<a href="#134" id="134">134</a>
-<a href="#135" id="135">135</a>
-<a href="#136" id="136">136</a>
-<a href="#137" id="137">137</a>
-<a href="#138" id="138">138</a>
-<a href="#139" id="139">139</a>
-<a href="#140" id="140">140</a>
-<a href="#141" id="141">141</a>
-<a href="#142" id="142">142</a>
-<a href="#143" id="143">143</a>
-<a href="#144" id="144">144</a>
-<a href="#145" id="145">145</a>
-<a href="#146" id="146">146</a>
-<a href="#147" id="147">147</a>
-<a href="#148" id="148">148</a>
-<a href="#149" id="149">149</a>
-<a href="#150" id="150">150</a>
-<a href="#151" id="151">151</a>
-<a href="#152" id="152">152</a>
-<a href="#153" id="153">153</a>
-<a href="#154" id="154">154</a>
-<a href="#155" id="155">155</a>
-<a href="#156" id="156">156</a>
-<a href="#157" id="157">157</a>
-<a href="#158" id="158">158</a>
-<a href="#159" id="159">159</a>
-<a href="#160" id="160">160</a>
-<a href="#161" id="161">161</a>
-<a href="#162" id="162">162</a></pre></div><pre class="rust"><code><span class="kw">use </span>fm::FileManager;
+<a href="#115" id="115">115</a></pre></div><pre class="rust"><code><span class="kw">use </span>fm::FileManager;
 <span class="kw">use </span>noirc_driver::{
     CompilationResult, CompileOptions, CompiledContract, CompiledProgram, CrateId, check_crate,
     link_to_debug_crate,
@@ -171,53 +124,6 @@
 <span class="kw">use </span><span class="kw">crate</span>::errors::CompileError;
 <span class="kw">use </span><span class="kw">crate</span>::prepare_package;
 <span class="kw">use crate</span>::{package::Package, workspace::Workspace};
-
-<span class="kw">use </span>rayon::prelude::<span class="kw-2">*</span>;
-
-<span class="doccomment">/// Compiles workspace.
-///
-/// # Errors
-///
-/// This function will return an error if there are any compilations errors reported.
-</span><span class="kw">pub fn </span>compile_workspace(
-    file_manager: <span class="kw-2">&amp;</span>FileManager,
-    parsed_files: <span class="kw-2">&amp;</span>ParsedFiles,
-    workspace: <span class="kw-2">&amp;</span>Workspace,
-    compile_options: <span class="kw-2">&amp;</span>CompileOptions,
-) -&gt; CompilationResult&lt;(Vec&lt;CompiledProgram&gt;, Vec&lt;CompiledContract&gt;)&gt; {
-    <span class="kw">let </span>(binary_packages, contract_packages): (Vec&lt;<span class="kw">_</span>&gt;, Vec&lt;<span class="kw">_</span>&gt;) = workspace
-        .into_iter()
-        .filter(|package| !package.is_library())
-        .cloned()
-        .partition(|package| package.is_binary());
-
-    <span class="comment">// Compile all of the packages in parallel.
-    </span><span class="kw">let </span>program_results: Vec&lt;CompilationResult&lt;CompiledProgram&gt;&gt; = binary_packages
-        .par_iter()
-        .map(|package| {
-            compile_program(file_manager, parsed_files, workspace, package, compile_options, <span class="prelude-val">None</span>)
-        })
-        .collect();
-    <span class="kw">let </span>contract_results: Vec&lt;CompilationResult&lt;CompiledContract&gt;&gt; = contract_packages
-        .par_iter()
-        .map(|package| compile_contract(file_manager, parsed_files, package, compile_options))
-        .collect();
-
-    <span class="comment">// Collate any warnings/errors which were encountered during compilation.
-    </span><span class="kw">let </span>compiled_programs = collect_errors(program_results);
-    <span class="kw">let </span>compiled_contracts = collect_errors(contract_results);
-
-    <span class="kw">match </span>(compiled_programs, compiled_contracts) {
-        (<span class="prelude-val">Ok</span>((programs, program_warnings)), <span class="prelude-val">Ok</span>((contracts, contract_warnings))) =&gt; {
-            <span class="kw">let </span>warnings = [program_warnings, contract_warnings].concat();
-            <span class="prelude-val">Ok</span>(((programs, contracts), warnings))
-        }
-        (<span class="prelude-val">Err</span>(program_errors), <span class="prelude-val">Err</span>(contract_errors)) =&gt; {
-            <span class="prelude-val">Err</span>([program_errors, contract_errors].concat())
-        }
-        (<span class="prelude-val">Err</span>(errors), <span class="kw">_</span>) | (<span class="kw">_</span>, <span class="prelude-val">Err</span>(errors)) =&gt; <span class="prelude-val">Err</span>(errors),
-    }
-}
 
 <span class="kw">pub fn </span>compile_program(
     file_manager: <span class="kw-2">&amp;</span>FileManager,

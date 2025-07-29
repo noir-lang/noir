@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["check_crate_and_report_errors","collect_errors","compile_contract","compile_program","compile_program_with_debug_instrumenter","compile_workspace","report_errors"]};
+window.SIDEBAR_ITEMS = {"fn":["check_crate_and_report_errors","collect_errors","compile_contract","compile_program","compile_program_with_debug_instrumenter","report_errors"]};
