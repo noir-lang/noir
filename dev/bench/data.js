@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1753809678264,
+  "lastUpdate": 1753809905914,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -4810,80 +4810,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "1719bc3a7977248e792816df3a3e907f2d006a95",
-          "message": "fix: suggest traits via visible reexports if they are not directly visible (#9242)",
-          "timestamp": "2025-07-17T20:15:42Z",
-          "tree_id": "9d3db7c8468011f1c9844c3d2af07144bef1ab85",
-          "url": "https://github.com/noir-lang/noir/commit/1719bc3a7977248e792816df3a3e907f2d006a95"
-        },
-        "date": 1752785238443,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.018,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.153,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.01,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.295,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 0.186,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 13.5,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.002,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.004,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.019,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 0.057,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -7063,6 +6989,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 0.102,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "be626a1f1dde0c9dc0a63caa3c71dc262573c044",
+          "message": "fix(ssa): Keep reference count increments for array set values (#9344)",
+          "timestamp": "2025-07-29T16:50:15Z",
+          "tree_id": "4b84da91e665c21d0716cfa9422c29f861776444",
+          "url": "https://github.com/noir-lang/noir/commit/be626a1f1dde0c9dc0a63caa3c71dc262573c044"
+        },
+        "date": 1753809889091,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.019,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 0.099,
             "unit": "s"
           }
         ]
