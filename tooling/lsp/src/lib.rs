@@ -29,6 +29,7 @@ use nargo::{
 };
 use nargo_toml::{PackageSelection, find_file_manifest, resolve_workspace_from_toml};
 use noirc_driver::NOIR_ARTIFACT_VERSION_STRING;
+use noirc_errors::CustomDiagnostic;
 use noirc_frontend::{
     ParsedModule,
     graph::{CrateGraph, CrateId, CrateName},
@@ -76,7 +77,10 @@ use solver::WrapperSolver;
 use types::{NargoTest, NargoTestId, Position, Range, Url, notification, request};
 use with_file::parsed_module_with_file;
 
-use crate::{requests::on_expand_request, types::request::NargoExpand};
+use crate::{
+    requests::{on_expand_request, on_std_source_code_request},
+    types::request::{NargoExpand, NargoStdSourceCode},
+};
 
 #[derive(Debug, Error)]
 pub enum LspError {
@@ -90,12 +94,15 @@ pub struct LspState {
     root_path: Option<PathBuf>,
     client: ClientSocket,
     solver: WrapperSolver,
-    open_documents_count: usize,
     input_files: HashMap<String, String>,
     cached_parsed_files: HashMap<PathBuf, (usize, (ParsedModule, Vec<ParserError>))>,
     workspace_cache: HashMap<PathBuf, WorkspaceCacheData>,
     package_cache: HashMap<PathBuf, PackageCacheData>,
     workspace_symbol_cache: WorkspaceSymbolCache,
+
+    /// Whenever a file in a workspace is changed we'll add it to this set.
+    workspaces_to_process: HashSet<PathBuf>,
+
     options: LspInitializationOptions,
 
     // Tracks files that currently have errors, by package root.
@@ -112,6 +119,8 @@ struct PackageCacheData {
     node_interner: NodeInterner,
     def_maps: BTreeMap<CrateId, CrateDefMap>,
     usage_tracker: UsageTracker,
+    diagnostics: Vec<CustomDiagnostic>,
+    diagnostics_just_published: bool,
 }
 
 impl LspState {
@@ -128,7 +137,7 @@ impl LspState {
             workspace_cache: HashMap::new(),
             package_cache: HashMap::new(),
             workspace_symbol_cache: WorkspaceSymbolCache::default(),
-            open_documents_count: 0,
+            workspaces_to_process: HashSet::new(),
             options: Default::default(),
             files_with_errors: HashMap::new(),
         }
@@ -167,6 +176,7 @@ impl NargoLspService {
             .request::<CodeActionRequest, _>(on_code_action_request)
             .request::<WorkspaceSymbolRequest, _>(on_workspace_symbol_request)
             .request::<NargoExpand, _>(on_expand_request)
+            .request::<NargoStdSourceCode, _>(on_std_source_code_request)
             .notification::<notification::Initialized>(on_initialized)
             .notification::<notification::DidChangeConfiguration>(on_did_change_configuration)
             .notification::<notification::DidOpenTextDocument>(on_did_open_text_document)
@@ -418,8 +428,9 @@ pub fn insert_all_files_for_workspace_into_file_manager(
 pub fn source_code_overrides(input_files: &HashMap<String, String>) -> HashMap<PathBuf, &str> {
     let mut overrides: HashMap<PathBuf, &str> = HashMap::new();
     for (path, source) in input_files {
-        let path = path.strip_prefix("file://").unwrap();
-        overrides.insert(PathBuf::from_str(path).unwrap(), source);
+        if let Some(path) = path.strip_prefix("file://") {
+            overrides.insert(PathBuf::from_str(path).unwrap(), source);
+        }
     }
     overrides
 }

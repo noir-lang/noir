@@ -273,7 +273,7 @@ fn ecdsa_secp256k1_missing_inputs() {
     BLACKBOX::ECDSA_SECP256K1 [{inputs_str}] [_100]
     "
     );
-    assert_circuit_roundtrip(&src);
+    let _ = Circuit::from_str(&src).unwrap();
 }
 
 #[test]
@@ -308,7 +308,7 @@ fn ecdsa_secp256r1_missing_inputs() {
     BLACKBOX::ECDSA_SECP256R1 [{inputs_str}] [_100]
     "
     );
-    assert_circuit_roundtrip(&src);
+    let _ = Circuit::from_str(&src).unwrap();
 }
 
 #[test]
@@ -332,6 +332,27 @@ fn keccakf1600() {
 }
 
 #[test]
+#[should_panic]
+fn keccakf1600_missing_inputs() {
+    let input_witnesses: Vec<String> = (0..24).map(|i| format!("(_{i}, 64)")).collect();
+    let inputs_str = input_witnesses.join(", ");
+
+    let output_witnesses: Vec<String> = (24..49).map(|i| format!("_{i}")).collect();
+    let outputs_str = output_witnesses.join(", ");
+
+    let src = format!(
+        "
+        current witness index : _49
+        private parameters indices : []
+        public parameters indices : []
+        return value indices : []
+        BLACKBOX::KECCAKF1600 [{inputs_str}] [{outputs_str}]
+        "
+    );
+    let _ = Circuit::from_str(&src).unwrap();
+}
+
+#[test]
 fn embedded_curve_add() {
     let src = "
     current witness index : _9
@@ -341,6 +362,19 @@ fn embedded_curve_add() {
     BLACKBOX::EMBEDDED_CURVE_ADD [(_0, 255), (_1, 255), (_2, 1), (_3, 255), (_4, 255), (_5, 1)] [_6, _7, _8]
     ";
     assert_circuit_roundtrip(src);
+}
+
+#[test]
+#[should_panic]
+fn embedded_curve_add_wrong_output_count() {
+    let src = "
+        current witness index : _8
+        private parameters indices : []
+        public parameters indices : []
+        return value indices : []
+        BLACKBOX::EMBEDDED_CURVE_ADD [(_0, 255), (_1, 255), (_2, 1), (_3, 255), (_4, 255), (_5, 1)] [_6, _7]
+    ";
+    let _ = Circuit::from_str(src).unwrap();
 }
 
 #[test]
@@ -373,6 +407,27 @@ fn sha256_compression() {
     "
     );
     assert_circuit_roundtrip(&src);
+}
+
+#[test]
+#[should_panic]
+fn sha256_compression_missing_outputs() {
+    let input_witnesses: Vec<String> = (0..24).map(|i| format!("(_{i}, 8)")).collect();
+    let inputs_str = input_witnesses.join(", ");
+
+    let output_witnesses: Vec<String> = (24..31).map(|i| format!("_{i}")).collect(); // should be 8 total
+    let outputs_str = output_witnesses.join(", ");
+
+    let src = format!(
+        "
+        current witness index : _31
+        private parameters indices : []
+        public parameters indices : []
+        return value indices : []
+        BLACKBOX::SHA256_COMPRESSION [{inputs_str}] [{outputs_str}]
+        "
+    );
+    let _ = Circuit::from_str(&src).unwrap();
 }
 
 #[test]
