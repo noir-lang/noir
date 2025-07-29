@@ -52,9 +52,9 @@
 //!
 //! # Side effects
 //!
-//! The pass will keep range constraints for witnesses that are directly or indirectly involved with Brillig calls,
-//! if removing the constraint would allow potentially invalid inputs to be passed to Brillig,
-//! which could have visible side effects.
+//! The pass will keep range constraints where, should the constraint have failed, removing it
+//! would allow potentially side effecting Brillig calls to be executed, before another constraint
+//! further down the line would have stopped the circuit.
 //!
 //! [BlackBoxFunc::Range]: acir::circuit::black_box_functions::BlackBoxFunc::RANGE
 
@@ -62,10 +62,9 @@ use acir::{
     AcirField,
     circuit::{
         Circuit, Opcode,
-        brillig::BrilligInputs,
         opcodes::{BlackBoxFuncCall, BlockId, ConstantOrWitnessEnum, FunctionInput, MemOp},
     },
-    native_types::{Expression, Witness},
+    native_types::Witness,
 };
 use std::collections::{BTreeMap, HashMap, HashSet};
 
@@ -77,8 +76,7 @@ struct RangeInfo {
     min_num_bits_is_implied: bool,
     /// The minimum opcode position at which the minimum bit size has been recorded.
     min_num_bits_idx: usize,
-    /// The minimum opcode position at which the witness (indirectly) participates
-    /// in a potentially side effecting opcode.
+    /// The minimum opcode index after the range constraint which might have a side effect.
     min_side_effect_idx: Option<usize>,
 }
 
@@ -92,8 +90,8 @@ impl<F: AcirField> RangeOptimizer<F> {
     /// Creates a new `RangeOptimizer` by collecting all known range
     /// constraints from `Circuit`.
     pub(crate) fn new(circuit: Circuit<F>) -> Self {
-        let infos = Self::collect_ranges(&circuit);
-        let infos = Self::collect_side_effects(&circuit, infos);
+        let next_side_effects = Self::collect_side_effects(&circuit);
+        let infos = Self::collect_ranges(&circuit, next_side_effects);
         Self { circuit, infos }
     }
 
@@ -103,7 +101,10 @@ impl<F: AcirField> RangeOptimizer<F> {
     /// both 32 bits and 16 bits. This function will
     /// only store the fact that we have constrained it to
     /// be 16 bits.
-    fn collect_ranges(circuit: &Circuit<F>) -> BTreeMap<Witness, RangeInfo> {
+    fn collect_ranges(
+        circuit: &Circuit<F>,
+        next_side_effects: Vec<Option<usize>>,
+    ) -> BTreeMap<Witness, RangeInfo> {
         let mut infos: BTreeMap<Witness, RangeInfo> = BTreeMap::new();
         let mut memory_block_lengths_bit_size: HashMap<BlockId, u32> = HashMap::new();
 
@@ -159,6 +160,8 @@ impl<F: AcirField> RangeOptimizer<F> {
                 continue;
             };
 
+            let next_side_effect = next_side_effects[idx];
+
             // Check if the witness has already been recorded and if the witness
             // size is more than the current one, we replace it
             infos
@@ -180,59 +183,32 @@ impl<F: AcirField> RangeOptimizer<F> {
                     min_num_bits: num_bits,
                     min_num_bits_is_implied: is_implied,
                     min_num_bits_idx: idx,
-                    min_side_effect_idx: None,
+                    min_side_effect_idx: next_side_effect,
                 });
         }
         infos
     }
 
-    /// Take the range information prepared by `collect_ranges` and enrich it with the lowest opcode position
-    /// at which the witness can participate in some side effect. If this is earlier than the minimum bit size,
-    /// then we have to keep at least one range constraint that precedes the side effect to be safe.
-    fn collect_side_effects(
-        circuit: &Circuit<F>,
-        mut infos: BTreeMap<Witness, RangeInfo>,
-    ) -> BTreeMap<Witness, RangeInfo> {
-        // Keep track of potential effects of any witness, not just range constraints.
-        let mut effects = MinSideEffects(BTreeMap::new());
+    /// Return a vector of the next potential side effect for each opcode position.
+    fn collect_side_effects(circuit: &Circuit<F>) -> Vec<Option<usize>> {
+        let mut output = Vec::new();
+        let mut last_side_effect = None;
 
         // Go in reverse so we can propagate the information backwards.
         for (idx, opcode) in circuit.opcodes.iter().enumerate().rev() {
             match opcode {
                 // Any witness going into a Brillig call might have some side effect.
-                Opcode::BrilligCall { inputs, .. } => {
-                    for input in inputs {
-                        match input {
-                            BrilligInputs::Single(expr) => effects.mark_expr(expr, idx),
-                            BrilligInputs::Array(exprs) => {
-                                exprs.iter().for_each(|expr| effects.mark_expr(expr, idx));
-                            }
-                            BrilligInputs::MemoryArray(_) => {}
-                        }
-                    }
-                }
-                // An assertion establishes a relationship between witnesses.
-                // If any one of them is an input to a side effecting opcode later on,
-                // we should keep the constraints of all the others, so that if they
-                // are invalid, we don't let any indirect side effect get through.
-                // For example: [RANGE(a, 32); Assert(b < a); BrilligCall(print, b); Assert(a == 1)]
-                // we should keep the RANGE on `a`, otherwise we might let a 64 bit a go through and print b.
-                Opcode::AssertZero(expr) => {
-                    if let Some(idx) = effects.min_idx(expr) {
-                        effects.mark_expr(expr, idx);
-                    }
+                Opcode::BrilligCall { .. } => {
+                    last_side_effect = Some(idx);
                 }
                 // Not sure if ACIR calls should be marked. For now only doing it for Brillig.
                 _ => {}
             }
+            output.push(last_side_effect);
         }
 
-        // Copy the side effect info to the output. Only interested in range constraint inputs.
-        for (w, idx) in effects.0 {
-            infos.entry(w).and_modify(|info| info.min_side_effect_idx = Some(idx));
-        }
-
-        infos
+        output.reverse();
+        output
     }
 
     /// Returns a `Circuit` where each Witness is only range constrained
@@ -295,42 +271,6 @@ impl<F: AcirField> RangeOptimizer<F> {
 fn memory_block_implied_max_bits(init: &[Witness]) -> u32 {
     let array_len = init.len() as u32;
     32 - array_len.leading_zeros()
-}
-
-fn visit_expr_witnesses<F, V>(expr: &Expression<F>, mut visit: V)
-where
-    V: FnMut(Witness),
-{
-    for (_, w1, w2) in &expr.mul_terms {
-        visit(*w1);
-        visit(*w2);
-    }
-    for (_, w) in &expr.linear_combinations {
-        visit(*w);
-    }
-}
-
-/// Keep track of the earliest index a witness is an input to a potentially side effecting opcode.
-struct MinSideEffects(BTreeMap<Witness, usize>);
-impl MinSideEffects {
-    /// Mark a witness as input to a potential side effecting opcode.
-    fn mark_witness(&mut self, w: Witness, idx: usize) {
-        self.0.insert(w, idx);
-    }
-    /// Mark all witnesses in the expression.
-    fn mark_expr<F>(&mut self, expr: &Expression<F>, idx: usize) {
-        visit_expr_witnesses(expr, |w| self.mark_witness(w, idx));
-    }
-    /// Find the minimum index of the witnesses in the expression.
-    fn min_idx<F>(&self, expr: &Expression<F>) -> Option<usize> {
-        let mut min = None;
-        visit_expr_witnesses(expr, |w| {
-            if let Some(idx) = self.0.get(&w) {
-                min = Some(min.map_or(*idx, |min| std::cmp::min(min, *idx)));
-            }
-        });
-        min
-    }
 }
 
 #[cfg(test)]
@@ -474,11 +414,6 @@ mod tests {
     fn potential_side_effects() {
         // The optimizer should not remove range constraints if doing so might allow invalid side effects to go through.
         let mut circuit = test_circuit(vec![(Witness(1), 16)]);
-
-        // assert w1 == w2
-        let mut expr: Expression<_> = Witness(1).into();
-        expr.push_addition_term(FieldElement::from(-1_i128), Witness(2));
-        circuit.opcodes.push(Opcode::AssertZero(expr));
 
         // Call brillig with w2
         circuit.opcodes.push(Opcode::BrilligCall {
