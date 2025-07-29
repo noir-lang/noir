@@ -305,7 +305,7 @@ pub(crate) fn simplify(
 }
 
 /// Given an array access on a length 1 array such as:
-/// ```
+/// ```ssa
 /// v2 = make_array [v0] : [Field; 1]
 /// v3 = array_get v2, index v1 -> Field
 /// ```
@@ -316,7 +316,7 @@ pub(crate) fn simplify(
 /// We then inject an explicit assertion that the index variable has the value zero while replacing the value
 /// being used in the `array_get` instruction with a constant value of zero. This then results in the SSA:
 ///
-/// ```
+/// ```ssa
 /// v2 = make_array [v0] : [Field; 1]
 /// constrain v1 == u32 0, "Index out of bounds"
 /// v4 = array_get v2, index u32 0 -> Field
