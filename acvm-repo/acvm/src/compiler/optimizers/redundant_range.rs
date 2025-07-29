@@ -334,6 +334,7 @@ mod tests {
         FieldElement,
         circuit::{
             Circuit, ExpressionWidth, Opcode, PublicInputs,
+            brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs},
             opcodes::{BlackBoxFuncCall, BlockId, BlockType, FunctionInput, MemOp},
         },
         native_types::{Expression, Witness},
@@ -457,6 +458,39 @@ mod tests {
         let (optimized_circuit, _) = optimizer.replace_redundant_ranges(acir_opcode_positions);
         assert_eq!(optimized_circuit.opcodes.len(), 1);
         assert_eq!(optimized_circuit.opcodes[0], Opcode::AssertZero(Witness(1).into()));
+    }
+
+    #[test]
+    fn potential_side_effects() {
+        // The optimizer should not remove range constraints if doing so might allow invalid side effects to go through.
+        let mut circuit = test_circuit(vec![(Witness(1), 16)]);
+
+        // assert w1 == w2
+        let mut expr: Expression<_> = Witness(1).into();
+        expr.push_addition_term(FieldElement::from(-1_i128), Witness(2));
+        circuit.opcodes.push(Opcode::AssertZero(expr));
+
+        // Call brillig with w2
+        circuit.opcodes.push(Opcode::BrilligCall {
+            id: BrilligFunctionId(0),
+            inputs: vec![BrilligInputs::Single(Witness(2).into())],
+            outputs: vec![BrilligOutputs::Simple(Witness(3))],
+            predicate: None,
+        });
+
+        // assert w1 == 0
+        circuit.opcodes.push(Opcode::AssertZero(Witness(1).into()));
+
+        let acir_opcode_positions = circuit.opcodes.iter().enumerate().map(|(i, _)| i).collect();
+        let optimizer = RangeOptimizer::new(circuit);
+        let (optimized_circuit, _) = optimizer.replace_redundant_ranges(acir_opcode_positions);
+        assert_eq!(optimized_circuit.opcodes.len(), 4);
+        assert_eq!(
+            optimized_circuit.opcodes[0],
+            Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
+                input: FunctionInput::witness(Witness(1), 0) // number of bits implied from the constant
+            })
+        );
     }
 
     #[test]
