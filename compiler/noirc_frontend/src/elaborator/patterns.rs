@@ -737,7 +737,8 @@ impl Elaborator<'_> {
         let generics = segment.generics.map(|generics| {
             vecmap(generics, |generic| {
                 let location = generic.location;
-                let typ = self.use_type_with_kind(generic, &Kind::Any);
+                let wildcard_allowed = true;
+                let typ = self.use_type_with_kind(generic, &Kind::Any, wildcard_allowed);
                 Located::from(location, typ)
             })
         });
@@ -1163,7 +1164,8 @@ impl Elaborator<'_> {
     pub(super) fn elaborate_type_path(&mut self, path: TypePath) -> (ExprId, Type) {
         let typ_location = path.typ.location;
         let turbofish = path.turbofish;
-        let typ = self.use_type(path.typ);
+        let wildcard_allowed = true;
+        let typ = self.use_type(path.typ, wildcard_allowed);
         self.elaborate_type_path_impl(typ, path.item, turbofish, typ_location)
     }
 

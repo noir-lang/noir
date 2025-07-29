@@ -260,7 +260,7 @@ fn errors_if_trying_to_access_public_function_inside_private_module() {
 
 #[named]
 #[test]
-fn warns_if_calling_private_struct_method() {
+fn errors_if_calling_private_struct_method() {
     let src = r#"
     mod moo {
         pub struct Foo {}
@@ -557,6 +557,31 @@ fn errors_if_accessing_private_struct_member_inside_function_generated_at_compti
 
     fn main(x: Bar) {
         let _ = bar_get_foo_inner(x);
+    }
+    "#;
+    check_errors!(src);
+}
+
+#[named]
+#[test]
+fn errors_on_use_of_private_exported_item() {
+    let src = r#"
+    mod foo {
+        mod bar {
+            pub fn baz() {}
+        }
+
+        use bar::baz;
+
+        pub fn qux() {
+            baz();
+        }
+    }
+
+    fn main() {
+        foo::baz();
+             ^^^ baz is private and not visible from the current module
+             ~~~ baz is private
     }
     "#;
     check_errors!(src);

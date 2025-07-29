@@ -1,0 +1,7 @@
+
+            [package]
+            name = "noirc_frontend_tests_traits_associated_constant_sum_of_other_constants"
+            type = "bin"
+            authors = [""]
+            
+            [dependencies]
