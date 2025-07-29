@@ -26,7 +26,6 @@ expression: artifact
     "private parameters indices : [_0]",
     "public parameters indices : []",
     "return value indices : []",
-    "BLACKBOX::RANGE [(_0, 64)] []",
     "BRILLIG CALL func 0: inputs: [EXPR [ (1, _0) 0 ], EXPR [ 256 ]], outputs: [_1, _2]",
     "BLACKBOX::RANGE [(_1, 56)] []",
     "EXPR [ (1, _0) (-256, _1) (-1, _2) 0 ]",
@@ -43,7 +42,7 @@ expression: artifact
     "unconstrained func 0",
     "[Const { destination: Direct(10), bit_size: Integer(U32), value: 2 }, Const { destination: Direct(11), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(10), offset_address: Direct(11) }, BinaryFieldOp { destination: Direct(2), op: IntegerDiv, lhs: Direct(0), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Mul, lhs: Direct(2), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Sub, lhs: Direct(0), rhs: Direct(1) }, Mov { destination: Direct(0), source: Direct(2) }, Stop { return_data: HeapVector { pointer: Direct(11), size: Direct(10) } }]"
   ],
-  "debug_symbols": "pZJNjsMgDIXv4jULCC35ucpoFJHEqZAQiShUGkW9+zg0zLSLLpps/MD2Z1nyW2DALl5a48bpCs3XAp031ppLa6deBzM5yi53BvnbBo9IKXiqEzVrjy5A46K1DG7axtR0nbVLGrSnKmeAbiClgaOxuL7u7J/m71FZbKys/+Dz5/RJ7qBV3ltVR+iy2EFX9UbX5RFacLEDF6LKfKGO8ZK/8N/0073xLzYDQY0MihRliido6HRnuiADlWKZYkWnZFDTMAaCP0Q8hHBFQvx6rZv2RncWNxuP0fVPrg4/c65k389+6nGIHtfVUo2W/QU=",
+  "debug_symbols": "pZJNjsMgDIXv4jULCC35ucpoFJHEqZAQiShUGkW9+zhMmLaLLppsnsH2Z1nyW2DALl5a48bpCs3XAp031ppLa6deBzM5yi53BvnbBo9IKXiqEzVrjy5A46K1DG7axtR0nbVLMWhPVc4A3UCRBo7G4vq6swfN36Oy2FhZ/8Pnz+mT3EGrvLeqjtBlsYOu6o2uyyO04GIHLkSV+UId4yV/4b/pp3vjX2wGnBoZiKRFUgkNne5EF2RwTqqSlnRKBhUNY1AnFfwvEK0oEL4e66a90Z3FzcVjdP2TqcPPnCvZ9rOfehyix3WzVKNdfwE=",
   "file_map": {
     "50": {
       "source": "fn main(x: u64) {\n    assert_eq(x as i8, -1);\n    assert_eq(x as i16, -1);\n    assert_eq(x as i32, -1);\n    assert_eq(x as i64, -1);\n}\n",
