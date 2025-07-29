@@ -62,6 +62,7 @@ use acir::{
     AcirField,
     circuit::{
         Circuit, Opcode,
+        brillig::BrilligFunctionId,
         opcodes::{BlackBoxFuncCall, BlockId, ConstantOrWitnessEnum, FunctionInput, MemOp},
     },
     native_types::Witness,
@@ -89,8 +90,11 @@ pub(crate) struct RangeOptimizer<F: AcirField> {
 impl<F: AcirField> RangeOptimizer<F> {
     /// Creates a new `RangeOptimizer` by collecting all known range
     /// constraints from `Circuit`.
-    pub(crate) fn new(circuit: Circuit<F>) -> Self {
-        let next_side_effects = Self::collect_side_effects(&circuit);
+    pub(crate) fn new(
+        circuit: Circuit<F>,
+        brillig_side_effects: &BTreeMap<BrilligFunctionId, bool>,
+    ) -> Self {
+        let next_side_effects = Self::collect_side_effects(&circuit, brillig_side_effects);
         let infos = Self::collect_ranges(&circuit, next_side_effects);
         Self { circuit, infos }
     }
@@ -190,15 +194,20 @@ impl<F: AcirField> RangeOptimizer<F> {
     }
 
     /// Return a vector of the next potential side effect for each opcode position.
-    fn collect_side_effects(circuit: &Circuit<F>) -> Vec<Option<usize>> {
+    fn collect_side_effects(
+        circuit: &Circuit<F>,
+        brillig_side_effects: &BTreeMap<BrilligFunctionId, bool>,
+    ) -> Vec<Option<usize>> {
         let mut output = Vec::new();
         let mut last_side_effect = None;
 
         // Go in reverse so we can propagate the information backwards.
         for (idx, opcode) in circuit.opcodes.iter().enumerate().rev() {
             match opcode {
-                // Any witness going into a Brillig call might have some side effect.
-                Opcode::BrilligCall { .. } => {
+                // Assume that Brillig calls might have side effects, unless we know they don't.
+                Opcode::BrilligCall { id, .. }
+                    if brillig_side_effects.get(id).copied().unwrap_or(true) =>
+                {
                     last_side_effect = Some(idx);
                 }
                 // Not sure if ACIR calls should be marked. For now only doing it for Brillig.
@@ -275,7 +284,7 @@ fn memory_block_implied_max_bits(init: &[Witness]) -> u32 {
 
 #[cfg(test)]
 mod tests {
-    use std::collections::BTreeSet;
+    use std::collections::{BTreeMap, BTreeSet};
 
     use crate::compiler::optimizers::redundant_range::{
         RangeOptimizer, memory_block_implied_max_bits,
@@ -330,7 +339,7 @@ mod tests {
         // The optimizer should keep the lowest bit size range constraint
         let circuit = test_circuit(vec![(Witness(1), 32), (Witness(1), 16)]);
         let acir_opcode_positions = circuit.opcodes.iter().enumerate().map(|(i, _)| i).collect();
-        let optimizer = RangeOptimizer::new(circuit);
+        let optimizer = RangeOptimizer::new(circuit, &Default::default());
 
         let info = optimizer
             .infos
@@ -363,7 +372,7 @@ mod tests {
             (Witness(2), 23),
         ]);
         let acir_opcode_positions = circuit.opcodes.iter().enumerate().map(|(i, _)| i).collect();
-        let optimizer = RangeOptimizer::new(circuit);
+        let optimizer = RangeOptimizer::new(circuit, &Default::default());
         let (optimized_circuit, _) = optimizer.replace_redundant_ranges(acir_opcode_positions);
         assert_eq!(optimized_circuit.opcodes.len(), 2);
 
@@ -392,7 +401,7 @@ mod tests {
         circuit.opcodes.push(Opcode::AssertZero(Expression::default()));
         circuit.opcodes.push(Opcode::AssertZero(Expression::default()));
         let acir_opcode_positions = circuit.opcodes.iter().enumerate().map(|(i, _)| i).collect();
-        let optimizer = RangeOptimizer::new(circuit);
+        let optimizer = RangeOptimizer::new(circuit, &Default::default());
         let (optimized_circuit, _) = optimizer.replace_redundant_ranges(acir_opcode_positions);
         assert_eq!(optimized_circuit.opcodes.len(), 5);
     }
@@ -404,7 +413,7 @@ mod tests {
 
         circuit.opcodes.push(Opcode::AssertZero(Witness(1).into()));
         let acir_opcode_positions = circuit.opcodes.iter().enumerate().map(|(i, _)| i).collect();
-        let optimizer = RangeOptimizer::new(circuit);
+        let optimizer = RangeOptimizer::new(circuit, &Default::default());
         let (optimized_circuit, _) = optimizer.replace_redundant_ranges(acir_opcode_positions);
         assert_eq!(optimized_circuit.opcodes.len(), 1);
         assert_eq!(optimized_circuit.opcodes[0], Opcode::AssertZero(Witness(1).into()));
@@ -432,7 +441,10 @@ mod tests {
         // All opcodes are expected to be kept.
         let expected_length = acir_opcode_positions.len();
 
-        let optimizer = RangeOptimizer::new(circuit);
+        // Consider the Brillig function to have a side effect.
+        let brillig_side_effects = BTreeMap::from_iter(vec![(BrilligFunctionId(0), true)]);
+
+        let optimizer = RangeOptimizer::new(circuit, &brillig_side_effects);
         let (optimized_circuit, _) =
             optimizer.replace_redundant_ranges(acir_opcode_positions.clone());
 
@@ -445,7 +457,7 @@ mod tests {
         );
 
         // Applying again should have no effect (despite the range having the same bit size as the assert).
-        let optimizer = RangeOptimizer::new(optimized_circuit);
+        let optimizer = RangeOptimizer::new(optimized_circuit, &brillig_side_effects);
         let (double_optimized_circuit, _) =
             optimizer.replace_redundant_ranges(acir_opcode_positions);
         assert_eq!(double_optimized_circuit.opcodes.len(), expected_length);
@@ -470,7 +482,7 @@ mod tests {
         circuit.opcodes.push(mem_init.clone());
         circuit.opcodes.push(mem_op.clone());
         let acir_opcode_positions = circuit.opcodes.iter().enumerate().map(|(i, _)| i).collect();
-        let optimizer = RangeOptimizer::new(circuit);
+        let optimizer = RangeOptimizer::new(circuit, &Default::default());
         let (optimized_circuit, _) = optimizer.replace_redundant_ranges(acir_opcode_positions);
         assert_eq!(optimized_circuit.opcodes.len(), 2);
         assert_eq!(optimized_circuit.opcodes[0], mem_init);
