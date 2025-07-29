@@ -63,27 +63,24 @@ use acir::{
     circuit::{
         Circuit, Opcode,
         brillig::BrilligFunctionId,
-        opcodes::{BlackBoxFuncCall, BlockId, ConstantOrWitnessEnum, FunctionInput, MemOp},
+        opcodes::{BlackBoxFuncCall, BlockId, ConstantOrWitnessEnum, MemOp},
     },
     native_types::Witness,
 };
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap};
 
 /// Information gathered about witnesses which are subject to range constraints.
 struct RangeInfo {
-    /// The minimum overall explicit or implied bit size.
-    min_num_bits: u32,
-    /// Indicate that the minimum bit size comes from an assertion, in which case we don't need to keep the range constraint.
-    min_num_bits_is_implied: bool,
-    /// The minimum opcode position at which the minimum bit size has been recorded.
-    min_num_bits_idx: usize,
-    /// The minimum opcode index after the range constraint which might have a side effect.
-    min_side_effect_idx: Option<usize>,
+    /// Opcode positions at which stricter bit size information becomes available.
+    /// `idx -> (num_bits, is_implied)`
+    switch_points: BTreeMap<usize, (u32, bool)>,
 }
 
 pub(crate) struct RangeOptimizer<F: AcirField> {
-    /// Maps witnesses to their lowest known bit sizes.
+    /// Maps witnesses to their bit size switch points.
     infos: BTreeMap<Witness, RangeInfo>,
+    /// The next potential side effect for each opcode.
+    next_side_effects: Vec<usize>,
     circuit: Circuit<F>,
 }
 
@@ -94,21 +91,13 @@ impl<F: AcirField> RangeOptimizer<F> {
         circuit: Circuit<F>,
         brillig_side_effects: &BTreeMap<BrilligFunctionId, bool>,
     ) -> Self {
+        let infos = Self::collect_ranges(&circuit);
         let next_side_effects = Self::collect_side_effects(&circuit, brillig_side_effects);
-        let infos = Self::collect_ranges(&circuit, next_side_effects);
-        Self { circuit, infos }
+        Self { circuit, infos, next_side_effects }
     }
 
-    /// Stores the lowest bit range, that a witness
-    /// has been constrained to be.
-    /// For example, if we constrain a witness `x` to be
-    /// both 32 bits and 16 bits. This function will
-    /// only store the fact that we have constrained it to
-    /// be 16 bits.
-    fn collect_ranges(
-        circuit: &Circuit<F>,
-        next_side_effects: Vec<Option<usize>>,
-    ) -> BTreeMap<Witness, RangeInfo> {
+    /// Collect range information about witnesses.
+    fn collect_ranges(circuit: &Circuit<F>) -> BTreeMap<Witness, RangeInfo> {
         let mut infos: BTreeMap<Witness, RangeInfo> = BTreeMap::new();
         let mut memory_block_lengths_bit_size: HashMap<BlockId, u32> = HashMap::new();
 
@@ -164,30 +153,22 @@ impl<F: AcirField> RangeOptimizer<F> {
                 continue;
             };
 
-            let next_side_effect = next_side_effects[idx];
-
             // Check if the witness has already been recorded and if the witness
             // size is more than the current one, we replace it
             infos
                 .entry(witness)
                 .and_modify(|info| {
-                    if num_bits < info.min_num_bits {
-                        info.min_num_bits = num_bits;
-                        info.min_num_bits_is_implied = is_implied;
-                        info.min_num_bits_idx = idx;
-                    } else if num_bits == info.min_num_bits
-                        && is_implied
-                        && !info.min_num_bits_is_implied
+                    let (last_num_bits, last_is_implied) =
+                        info.switch_points.last_entry().unwrap().get().clone();
+
+                    if num_bits < last_num_bits
+                        || num_bits == last_num_bits && is_implied && !last_is_implied
                     {
-                        info.min_num_bits_is_implied = true;
-                        info.min_num_bits_idx = idx;
+                        info.switch_points.insert(idx, (num_bits, is_implied));
                     }
                 })
                 .or_insert_with(|| RangeInfo {
-                    min_num_bits: num_bits,
-                    min_num_bits_is_implied: is_implied,
-                    min_num_bits_idx: idx,
-                    min_side_effect_idx: next_side_effect,
+                    switch_points: BTreeMap::from_iter(vec![(idx, (num_bits, is_implied))]),
                 });
         }
         infos
@@ -197,9 +178,11 @@ impl<F: AcirField> RangeOptimizer<F> {
     fn collect_side_effects(
         circuit: &Circuit<F>,
         brillig_side_effects: &BTreeMap<BrilligFunctionId, bool>,
-    ) -> Vec<Option<usize>> {
+    ) -> Vec<usize> {
         let mut output = Vec::new();
-        let mut last_side_effect = None;
+        // Consider the index beyond the last as a pseudo size effect by which time
+        // all constraints need to be inserted.
+        let mut last_side_effect = circuit.opcodes.len();
 
         // Go in reverse so we can propagate the information backwards.
         for (idx, opcode) in circuit.opcodes.iter().enumerate().rev() {
@@ -208,7 +191,7 @@ impl<F: AcirField> RangeOptimizer<F> {
                 Opcode::BrilligCall { id, .. }
                     if brillig_side_effects.get(id).copied().unwrap_or(true) =>
                 {
-                    last_side_effect = Some(idx);
+                    last_side_effect = idx;
                 }
                 // Not sure if ACIR calls should be marked. For now only doing it for Brillig.
                 _ => {}
@@ -226,17 +209,13 @@ impl<F: AcirField> RangeOptimizer<F> {
         self,
         order_list: Vec<usize>,
     ) -> (Circuit<F>, Vec<usize>) {
-        let mut already_seen_witness = HashSet::new();
-
         let mut new_order_list = Vec::with_capacity(order_list.len());
         let mut optimized_opcodes = Vec::with_capacity(self.circuit.opcodes.len());
         for (idx, opcode) in self.circuit.opcodes.into_iter().enumerate() {
-            let Some((witness, num_bits)) = (match opcode {
+            let Some(witness) = (match opcode {
                 Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE { input }) => {
                     match input.input() {
-                        ConstantOrWitnessEnum::Witness(witness) => {
-                            Some((witness, input.num_bits()))
-                        }
+                        ConstantOrWitnessEnum::Witness(witness) => Some(witness),
                         _ => None,
                     }
                 }
@@ -248,29 +227,27 @@ impl<F: AcirField> RangeOptimizer<F> {
                 continue;
             };
 
-            // If we've already applied the range constraint for this witness then skip this opcode.
-            if already_seen_witness.contains(&witness) {
+            let next_side_effect = self.next_side_effects[idx];
+            let info = self.infos.get(&witness).expect("Could not find witness. This should never be the case if `collect_ranges` is called");
+
+            // If this is not a switch point, then we should have already added a range constraint at least as strict, if it was needed.
+            if !info.switch_points.contains_key(&idx) {
                 continue;
             }
 
-            let info = self.infos.get(&witness).expect("Could not find witness. This should never be the case if `collect_ranges` is called");
+            // Check if we have an even stricter point before the next side effect.
+            let stricter_before_next_side_effect = info
+                .switch_points
+                .iter()
+                .find(|(point_idx, _)| **point_idx > idx && **point_idx < next_side_effect);
 
-            // Decide if this is the time to insert the one range constraint we might want to keep.
-            let keep=
-                // If the minimum bits comes from a range constraint, we should keep it, but if it's implied we can let the assert do it and save an opcode.
-                num_bits == info.min_num_bits && !info.min_num_bits_is_implied ||
-                // If there is a side effect the witness participates in, and it comes before where the minimum bit size would be enforced, insert a constraint as early as possible.
-                info.min_side_effect_idx.is_some_and(|min_side_effect_idx| min_side_effect_idx < info.min_num_bits_idx);
-
-            if keep {
-                // Keep the first range constraint, but use the lowest stored bit size for it.
-                let opcode = Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
-                    input: FunctionInput::witness(witness, info.min_num_bits),
-                });
-                already_seen_witness.insert(witness);
-                new_order_list.push(order_list[idx]);
-                optimized_opcodes.push(opcode.clone());
+            // If there is something even stricter before the next side effect (or the end), we don't need this.
+            if stricter_before_next_side_effect.is_some() {
+                continue;
             }
+
+            new_order_list.push(order_list[idx]);
+            optimized_opcodes.push(opcode.clone());
         }
 
         (Circuit { opcodes: optimized_opcodes, ..self.circuit }, new_order_list)
@@ -311,13 +288,13 @@ mod tests {
         assert_eq!(memory_block_implied_max_bits(&[Witness(0); u16::MAX as usize]), 16);
     }
 
-    fn test_circuit(ranges: Vec<(Witness, u32)>) -> Circuit<FieldElement> {
-        fn test_range_constraint(witness: Witness, num_bits: u32) -> Opcode<FieldElement> {
-            Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
-                input: FunctionInput::witness(witness, num_bits),
-            })
-        }
+    fn test_range_constraint(witness: Witness, num_bits: u32) -> Opcode<FieldElement> {
+        Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
+            input: FunctionInput::witness(witness, num_bits),
+        })
+    }
 
+    fn test_circuit(ranges: Vec<(Witness, u32)>) -> Circuit<FieldElement> {
         let opcodes: Vec<_> = ranges
             .into_iter()
             .map(|(witness, num_bits)| test_range_constraint(witness, num_bits))
@@ -346,7 +323,8 @@ mod tests {
             .get(&Witness(1))
             .expect("Witness(1) was inserted, but it is missing from the map");
         assert_eq!(
-            info.min_num_bits, 16,
+            info.switch_points.iter().last().unwrap().1.0,
+            16,
             "expected a range size of 16 since that was the lowest bit size provided"
         );
 
@@ -422,24 +400,36 @@ mod tests {
     #[test]
     fn potential_side_effects() {
         // The optimizer should not remove range constraints if doing so might allow invalid side effects to go through.
-        let mut circuit = test_circuit(vec![(Witness(1), 16)]);
+        let mut circuit = test_circuit(vec![(Witness(1), 32)]);
 
         // Call brillig with w2
         circuit.opcodes.push(Opcode::BrilligCall {
             id: BrilligFunctionId(0),
             inputs: vec![BrilligInputs::Single(Witness(2).into())],
-            outputs: vec![BrilligOutputs::Simple(Witness(3))],
+            outputs: vec![],
             predicate: None,
         });
 
+        circuit.opcodes.push(test_range_constraint(Witness(1), 16));
+
+        // Anther call
+        circuit.opcodes.push(Opcode::BrilligCall {
+            id: BrilligFunctionId(0),
+            inputs: vec![BrilligInputs::Single(Witness(2).into())],
+            outputs: vec![],
+            predicate: None,
+        });
+
+        // One more constraint, but this is redundant.
+        circuit.opcodes.push(test_range_constraint(Witness(1), 64));
         // assert w1 == 0
         circuit.opcodes.push(Opcode::AssertZero(Witness(1).into()));
 
         let acir_opcode_positions: Vec<usize> =
             circuit.opcodes.iter().enumerate().map(|(i, _)| i).collect();
 
-        // All opcodes are expected to be kept.
-        let expected_length = acir_opcode_positions.len();
+        // The last constraint is expected to be removed.
+        let expected_length = circuit.opcodes.len() - 1;
 
         // Consider the Brillig function to have a side effect.
         let brillig_side_effects = BTreeMap::from_iter(vec![(BrilligFunctionId(0), true)]);
@@ -452,7 +442,7 @@ mod tests {
         assert_eq!(
             optimized_circuit.opcodes[0],
             Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
-                input: FunctionInput::witness(Witness(1), 0) // number of bits implied from the constant
+                input: FunctionInput::witness(Witness(1), 32) // The minimum does not propagate backwards.
             })
         );
 
