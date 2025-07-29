@@ -1,0 +1,20 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+pub trait Other {
+    let N: u32;
+}
+
+impl Other for Field {
+    let N: u32 = 1;
+}
+
+pub trait Trait<T>
+where
+    T: Other,
+{}
+
+impl Trait<Field> for i32 {}
+
+fn main() {}
