@@ -489,7 +489,10 @@
 <a href="#488" id="488">488</a>
 <a href="#489" id="489">489</a>
 <a href="#490" id="490">490</a>
-<a href="#491" id="491">491</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file is for pretty-printing the SSA IR in a human-readable form for debugging.
+<a href="#491" id="491">491</a>
+<a href="#492" id="492">492</a>
+<a href="#493" id="493">493</a>
+<a href="#494" id="494">494</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file is for pretty-printing the SSA IR in a human-readable form for debugging.
 </span><span class="kw">use </span>std::fmt::{Display, Formatter, <span class="prelude-ty">Result</span>};
 
 <span class="kw">use </span>acvm::acir::AcirField;
@@ -925,18 +928,21 @@
             <span class="kw">return </span><span class="prelude-val">None</span>;
         }
         <span class="kw">let </span>byte: u8 = element <span class="kw">as </span>u8;
-        <span class="kw">const </span>FORM_FEED: u8 = <span class="number">12</span>; <span class="comment">// This is the ASCII code for '\f', which isn't a valid escape sequence in strings
-        </span><span class="kw">if </span>byte != FORM_FEED
-            &amp;&amp; (byte.is_ascii_alphanumeric()
-                || byte.is_ascii_punctuation()
-                || byte.is_ascii_whitespace())
-        {
+        <span class="kw">if </span>is_printable_byte(byte) {
             string.push(byte <span class="kw">as </span>char);
         } <span class="kw">else </span>{
             <span class="kw">return </span><span class="prelude-val">None</span>;
         }
     }
     <span class="prelude-val">Some</span>(string)
+}
+
+<span class="kw">pub fn </span>is_printable_byte(byte: u8) -&gt; bool {
+    <span class="kw">const </span>FORM_FEED: u8 = <span class="number">12</span>; <span class="comment">// This is the ASCII code for '\f', which isn't a valid escape sequence in strings
+    </span>byte != FORM_FEED
+        &amp;&amp; (byte.is_ascii_alphanumeric()
+            || byte.is_ascii_punctuation()
+            || byte.is_ascii_whitespace())
 }
 
 <span class="kw">fn </span>result_types(dfg: <span class="kw-2">&amp;</span>DataFlowGraph, results: <span class="kw-2">&amp;</span>[ValueId]) -&gt; String {
