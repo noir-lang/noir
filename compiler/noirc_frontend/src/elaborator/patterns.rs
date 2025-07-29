@@ -1022,6 +1022,29 @@ impl Elaborator<'_> {
 
         // Push any trait constraints required by this definition to the context
         // to be checked later when the type of this variable is further constrained.
+        //
+        // This must be done before the above trait constraint in case the above one further
+        // restricts types.
+        //
+        // For example, in this code:
+        //
+        // ```noir
+        // trait One {}
+        //
+        // trait Two<O: One> {
+        //     fn new() -> Self;
+        // }
+        //
+        // fn foo<O: One, T: Two<O>>() {
+        //     let _: T = Two::new();
+        // }
+        // ```
+        //
+        // when type-checking `Two::new` we'll have a return type `'2` which is constrained by `'2: Two<'1>`.
+        // Then the definition for `new` has a constraint on it, `O: One`, which translates to `'1: One`.
+        //
+        // If we try to find a trait implementation for `'1` before finding one for `'2` we'll never find it:
+        // once we find one for `'2`, `'1` will become bound and a trait implementation will be found.
         if let Some(definition) = self.interner.try_definition(ident.id) {
             if let DefinitionKind::Function(function) = definition.kind {
                 let function = self.interner.function_meta(&function);
