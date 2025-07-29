@@ -1392,24 +1392,24 @@ impl<'context> Elaborator<'context> {
             else {
                 continue;
             };
+            let trait_constraint_trait_name = trait_constraint_trait.name.to_string();
 
             let trait_constraint_type = trait_constraint.typ.substitute(&bindings);
             let trait_bound = &trait_constraint.trait_bound;
 
-            // Replace implicitly added named generics with fresh type variables
-            let named_generics = trait_bound.trait_generics.named.iter();
-            let named_generics = named_generics.map(|named_type| {
-                let typ = match &named_type.typ {
-                    Type::NamedGeneric(NamedGeneric { type_var, implicit: true, .. })
-                        if type_var.borrow().is_unbound() =>
-                    {
-                        self.interner.next_type_variable()
-                    }
-                    _ => named_type.typ.clone(),
-                };
-                NamedType { name: named_type.name.clone(), typ }
-            });
-            let named_generics = named_generics.collect::<Vec<_>>();
+            let mut named_generics = trait_bound.trait_generics.named.clone();
+
+            // If the trait bound is over a trait that has associated types, the ones that
+            // aren't explicit will be in `named_generics` as implicitly added ones.
+            // If they are unbound, they won't be bound until monomorphization, in which cae
+            // the below trait implementation lookup will fail (an unbound named generic will
+            // never unify in this case). In this case we replace them with fresh type variables
+            // so they'll unify (the bindings aren't applied here so this is fine).
+            // If they are bound though, we won't replace them as we want to ensure the binding
+            // matches.
+            self.replace_implicitly_added_unbound_named_generics_with_fresh_type_variables(
+                &mut named_generics,
+            );
 
             if self
                 .interner
@@ -1422,7 +1422,7 @@ impl<'context> Elaborator<'context> {
                 .is_err()
             {
                 let missing_trait =
-                    format!("{}{}", trait_constraint_trait.name, trait_bound.trait_generics);
+                    format!("{}{}", trait_constraint_trait_name, trait_bound.trait_generics);
                 self.push_err(ResolverError::TraitNotImplemented {
                     impl_trait: impl_trait.clone(),
                     missing_trait,
@@ -1431,6 +1431,22 @@ impl<'context> Elaborator<'context> {
                     missing_trait_location: trait_bound.location,
                 });
             }
+        }
+    }
+
+    fn replace_implicitly_added_unbound_named_generics_with_fresh_type_variables(
+        &mut self,
+        named_generics: &mut [NamedType],
+    ) {
+        for named_type in named_generics.iter_mut() {
+            match &named_type.typ {
+                Type::NamedGeneric(NamedGeneric { type_var, implicit: true, .. })
+                    if type_var.borrow().is_unbound() =>
+                {
+                    named_type.typ = self.interner.next_type_variable();
+                }
+                _ => (),
+            };
         }
     }
 
