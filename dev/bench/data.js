@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1753807086201,
+  "lastUpdate": 1753807221497,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -15728,90 +15728,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "c30f8ef3c39ec98adee177e43b17fd99d7a10852",
-          "message": "fix: bind self when type-checking AsTraitPath (#9236)",
-          "timestamp": "2025-07-17T17:29:18Z",
-          "tree_id": "13df6d7ce0806d6916f7e6ae71c706ca83905b27",
-          "url": "https://github.com/noir-lang/noir/commit/c30f8ef3c39ec98adee177e43b17fd99d7a10852"
-        },
-        "date": 1752775262209,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 716.1,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 1972.3,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 543,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 4943,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 3958.4,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 3881.2,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 32668.1,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 32702.4,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 187.1,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 398.6,
-            "unit": "KB"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 632.4,
-            "unit": "KB"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 622.9,
-            "unit": "KB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "1719bc3a7977248e792816df3a3e907f2d006a95",
           "message": "fix: suggest traits via visible reexports if they are not directly visible (#9242)",
           "timestamp": "2025-07-17T20:15:42Z",
@@ -18151,6 +18067,40 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/38997a82cb1f962a27b0aa4e76e4f84136c13f98"
         },
         "date": 1753796372628,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore-depth-10",
+            "value": 632.1,
+            "unit": "KB"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 525.2,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8349a40a27c7f10d51b8b8cb05e7ddf3d78f713f",
+          "message": "chore: remove unused `compile_workspace` (#9353)",
+          "timestamp": "2025-07-29T16:09:51Z",
+          "tree_id": "5acbfcd1233504ff9421ea789931c8eb22ba124c",
+          "url": "https://github.com/noir-lang/noir/commit/8349a40a27c7f10d51b8b8cb05e7ddf3d78f713f"
+        },
+        "date": 1753807205028,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
