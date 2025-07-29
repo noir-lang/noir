@@ -179,7 +179,8 @@ impl<'a, F: AcirField> RangeOptimizer<'a, F> {
     }
 
     /// Returns a `Circuit` where each Witness is only range constrained
-    /// at most once to the lowest number `bit size` possible.
+    /// a minimal number of times that still allows us to avoid executing
+    /// any new side effects due to their removal.
     pub(crate) fn replace_redundant_ranges(
         self,
         order_list: Vec<usize>,
