@@ -62,14 +62,13 @@ expression: artifact
     "EXPR [ (8, _2) (-1, _4) 0 ]",
     "BLACKBOX::RANGE [(_4, 32)] []",
     "BRILLIG CALL func 0: inputs: [EXPR [ (-1, _4) 4294967305 ], EXPR [ 4294967296 ]], outputs: [_5, _6]",
-    "BLACKBOX::RANGE [(_5, 0)] []",
     "BLACKBOX::RANGE [(_6, 32)] []",
     "EXPR [ (-1, _4) (-4294967296, _5) (-1, _6) 4294967305 ]",
     "EXPR [ (-1, _5) 0 ]",
     "unconstrained func 0",
     "[Const { destination: Direct(10), bit_size: Integer(U32), value: 2 }, Const { destination: Direct(11), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(10), offset_address: Direct(11) }, BinaryFieldOp { destination: Direct(2), op: IntegerDiv, lhs: Direct(0), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Mul, lhs: Direct(2), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Sub, lhs: Direct(0), rhs: Direct(1) }, Mov { destination: Direct(0), source: Direct(2) }, Stop { return_data: HeapVector { pointer: Direct(11), size: Direct(10) } }]"
   ],
-  "debug_symbols": "nZHBDoMgDIbfpWcOMnQ6XmVZDGpdSAgaBksW47uvMtnmYcnipT/t348UOkGHTbjW2vbDDeR5gsZpY/S1NkOrvB4sVaeZQUpr7xCpBF8+UaNyaD1IG4xhcFcmxKbbqGxUrxy5GQO0HSld2GuDy2lmHzr7jZbVylb5Gy7+pk/lSvNM7MA554nn5R5epJdzUWz4C2Wq1W7z3SCokUEeYwHywOAIUjAoY6xA5gxOMfLsJfwlB5J5mcNp1Rhcd9cH236t0j/G5KRlj25osQsOlzmiR5M9AQ==",
+  "debug_symbols": "nZHBDoMgDIbfpWcOMnQ6XmVZDGpdSAgaBksW47uvMtnmYcnipT/t348UOkGHTbjW2vbDDeR5gsZpY/S1NkOrvB4sVaeZQUpr7xCpBF8+UaNyaD1IG4xhcFcmxKbbqGxUrxy5GQO0HSld2GuDy2lmHzr7jZbVylb5Gy7+pk/lSvNM7MA554nn5R5epJdzUWz4C2Wq1W7z3SCokUEeYwHywOAIUjAoY6xA5gxOMfLsJZxkXgZwWjUG16X1wbZfO/SPMTlpy6MbWuyCw2WA6NFITw==",
   "file_map": {
     "50": {
       "source": "// Test integer addition: 3 + 4 = 7\nfn main(mut x: u32, y: u32, z: u32) {\n    x += y;\n    assert(x == z);\n\n    x *= 8;\n    assert(x > 9);\n}\n",

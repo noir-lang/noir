@@ -31,10 +31,8 @@ expression: artifact
     "private parameters indices : [_0]",
     "public parameters indices : []",
     "return value indices : []",
-    "BLACKBOX::RANGE [(_0, 2)] []",
     "BRILLIG CALL func 0: inputs: [EXPR [ (-1, _0) 8589934592 ], EXPR [ 4294967296 ]], outputs: [_1, _2]",
     "BLACKBOX::RANGE [(_1, 2)] []",
-    "BLACKBOX::RANGE [(_2, 32)] []",
     "EXPR [ (-1, _0) (-4294967296, _1) (-1, _2) 8589934592 ]",
     "BRILLIG CALL func 0: inputs: [EXPR [ (1, _0) 2147483648 ], EXPR [ 4294967296 ]], outputs: [_3, _4]",
     "BLACKBOX::RANGE [(_3, 1)] []",
@@ -50,7 +48,7 @@ expression: artifact
     "unconstrained func 0",
     "[Const { destination: Direct(10), bit_size: Integer(U32), value: 2 }, Const { destination: Direct(11), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(10), offset_address: Direct(11) }, BinaryFieldOp { destination: Direct(2), op: IntegerDiv, lhs: Direct(0), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Mul, lhs: Direct(2), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Sub, lhs: Direct(0), rhs: Direct(1) }, Mov { destination: Direct(0), source: Direct(2) }, Stop { return_data: HeapVector { pointer: Direct(11), size: Direct(10) } }]"
   ],
-  "debug_symbols": "nZLBjoQgDIbfhbMHYUDRV9lsDCpOSAgaBjbZGN99a5WdmQPJxMtf2vK1TdOVjLqP9864aX6Q9mslvTfWmntn50EFMzuIrltBktsFrzWEyEseqEV57QJpXbS2ID/KRvz0WJRDG5SHbFkQ7UawUHAyVu+vrXjSZR6ViZXyHxYf05SJE6csy7M8z5vbyYuSX+rPU3/OrvCiTnxV5niR55msTp41l+YXiaf1O/8NnhqMf7sXQkkLC2OoN1SOKlAr1BpVojaotDzMQdMDpwdPoQDskEKFetsH9Ub1Vp/XOUU3vBxr+F1SJp3z4udBj9HrfVDMweh/",
+  "debug_symbols": "ndLBboQgEAbgd+HsQVhQ9FWaxqDihoSgYaFJY3z3jrPQ7h5IGi+/wvjJhMxOZj3G+2Dcsj5I/7GT0RtrzX2w66SCWR3s7kdF8nIIXmvYIi91UJvy2gXSu2htRb6UjfjRY1MOn0F5qNYV0W6GJ/xwMVafb0f1p+syldlK+YvFvzVlInHKip6VPe9uyYuaXzqf5/M5u+JFm31Tl7woeyab5Fl3qX+RPW3f/Ses1GT827yQmvRwYRSTYd4wOabAbDBbTInZPVXCT02Bw91R8O1xNuiNGq1OU7lEN70MafjeciWP8ebXSc/R67NBrEHLPw==",
   "file_map": {
     "50": {
       "source": "use std::ops::{Neg, Not};\n\n// x = 3\nfn main(x: u32) {\n    let wx = Wrapper::new(x as i32);\n    let ex: i32 = 3;\n\n    assert((-wx).inner == -ex);\n    assert((!wx).inner == !ex);\n\n    // Check that it works with type variables (x's type isn't immediately known)\n    let x = 3;\n    assert(-3 == -x);\n}\n\nstruct Wrapper {\n    inner: i32,\n}\n\nimpl Wrapper {\n    fn new(inner: i32) -> Self {\n        Wrapper { inner }\n    }\n}\n\nimpl Neg for Wrapper {\n    fn neg(self) -> Wrapper {\n        Wrapper::new(-self.inner)\n    }\n}\n\nimpl Not for Wrapper {\n    fn not(self) -> Wrapper {\n        Wrapper::new(!self.inner)\n    }\n}\n",

@@ -38,11 +38,10 @@ expression: artifact
     "private parameters indices : [_0, _1]",
     "public parameters indices : []",
     "return value indices : []",
-    "BLACKBOX::RANGE [(_0, 0)] []",
     "BLACKBOX::RANGE [(_1, 32)] []",
     "EXPR [ (-1, _0) 0 ]"
   ],
-  "debug_symbols": "dY/BDoIwDIbfpecdUONBXsUYMkYhTZpuKZuJIby7hYDiwVPX/v3+9Z+gw7YMDUkfR6jvE7RKzDQ0HIPPFMWm0+xgb5usiDaCg25U8oqSoZbC7ODpuaxLY/Ky1uzV1MoBSmfVDHtiXF6z+9LVf/R22dhTdfrQV8Mf1vlA+nMwnG1xXtyUfMu4heiLhEOm/Eq7sqdOGgN2RXGxWzX74A0=",
+  "debug_symbols": "dY/BCoMwDIbfJecelLHDfJUxpNYogZCW2A6G+O6Lops77JQmf76/+WfosStjSzLECZr7DJ0SM40tx+AzRbHpvDg42jYroo3gpBuVvKJkaKQwO3h6LtvSlLxsNXs1tXKA0ls1w4EY19fivnT1H71ddrau6g99NfxhnQ+kPwdDbYvL6qbkO8Y9xFAknDLlVzqUI3XSGLAviqvdptkHbw==",
   "file_map": {
     "50": {
       "source": "fn main(print: bool, i: u32) {\n    let array: [u32; 0] = [];\n\n    if print {\n        println(array[i]);\n    }\n}\n",

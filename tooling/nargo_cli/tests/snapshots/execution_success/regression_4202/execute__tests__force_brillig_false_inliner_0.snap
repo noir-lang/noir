@@ -30,16 +30,12 @@ expression: artifact
     "private parameters indices : [_0, _1, _2, _3]",
     "public parameters indices : []",
     "return value indices : []",
-    "BLACKBOX::RANGE [(_0, 1)] []",
-    "BLACKBOX::RANGE [(_1, 2)] []",
-    "BLACKBOX::RANGE [(_2, 2)] []",
-    "BLACKBOX::RANGE [(_3, 3)] []",
     "EXPR [ (-1, _0) 1 ]",
     "EXPR [ (-1, _1) 2 ]",
     "EXPR [ (-1, _2) 3 ]",
     "EXPR [ (-1, _3) 4 ]"
   ],
-  "debug_symbols": "jZDdCoMwDIXfJde92Pwb+CpjSNUohdCW2A6G+O6LRTd3IewmaXLyNeTM0GMbx8bYwU1Q32do2RCZsSHX6WCcle68KNjLJjCitOCgC+U1ow1Q20ik4KkppqHJa5ty0CzqRQHaXrJ8OBjC9bWoL305R7Os2uAsLz54+T9/zU/4h1S6M/xzMRQyqKBMsUrxJnFZF7DRLeHmyxBtd7ApvPyu7EZ6dh32kXFdkDRZ+QY=",
+  "debug_symbols": "jZDPCoMwDMbfJece/LPt4KuMIbVGKYS2xHYwxHdfLLq5g7BL0uTLryHfDD12aWytG/wEzX2Gji2RHVvyRkfrnXTnRcFetpERpQUHXaigGV2ExiUiBU9NKQ9NQbuco2ZRCwXoesny4WAJ19eivnRxjlbVbYOr+vLBr//zZX3CP6TSxvLPxVDIoIIyxyrHWuKyLmCrO8LNlyE5c7ApvsKu7EYG9gb7xLguyJqsfAM=",
   "file_map": {
     "50": {
       "source": "fn main(input: [u32; 4]) {\n    let mut slice1: [u32] = &[1, 2, 3, 4];\n    if slice1[0] == 3 {\n        slice1[1] = 4;\n    }\n\n    if slice1[1] == 5 {\n        slice1[3] = 6;\n    }\n\n    for i in 0..4 {\n        assert(slice1[i] == input[i]);\n    }\n}\n",

@@ -47,13 +47,12 @@ expression: artifact
     "private parameters indices : [_0, _1]",
     "public parameters indices : []",
     "return value indices : [_2]",
-    "BLACKBOX::RANGE [(_0, 0)] []",
     "BLACKBOX::RANGE [(_1, 1)] []",
     "EXPR [ (1, _0) 0 ]",
     "EXPR [ (1, _1) (1, _2) -1 ]",
     "INIT CALLDATA 0 (id: 1, len: 1, witnesses: [_1])"
   ],
-  "debug_symbols": "dY/RCoMwDEX/Jc99cGNz4K+MIbVGKYS0xHYwxH9fFLu5hz2lye25yZ2hxy6PrechTNDcZ+jEE/mxpeBs8oF1Oi8GStsmQdQRHHSlohXkBA1nIgNPS3n7NEXLW01WVK0MIPda1XDwhOtrMV+6+o/W9c7eLh/4qvRDO+u8/NwLZ2hOy2om3naEe4YhsztESq9YlBI6SnDYZ8HVbtN0wRs=",
+  "debug_symbols": "dY/RCoMwDEX/Jc99UNgc+CtjSK1RCiEtsR0M8d8XxW7uYU9pcntuchcYsM9T53kMM7T3BXrxRH7qKDibfGCdLquB0nZJEHUEJ12paAU5QcuZyMDTUt4/zdHyXpMVVSsDyINWNRw94fZazZeu/qNNc7C3ywe+Kv3QzjovP/dCDW29bmbibU94ZBgzu1Ok9IpFKaGjBIdDFtzsdk0XvAE=",
   "file_map": {
     "50": {
       "source": "fn main(x: u32, array: call_data(0) [bool; 1]) -> pub bool {\n    !array[x]\n}\n",

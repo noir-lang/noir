@@ -28,14 +28,13 @@ expression: artifact
     "return value indices : []",
     "BLACKBOX::RANGE [(_0, 32)] []",
     "BRILLIG CALL func 0: inputs: [EXPR [ (-1, _0) 4294967306 ], EXPR [ 4294967296 ]], outputs: [_1, _2]",
-    "BLACKBOX::RANGE [(_1, 1)] []",
     "BLACKBOX::RANGE [(_2, 32)] []",
     "EXPR [ (-1, _0) (-4294967296, _1) (-1, _2) 4294967306 ]",
     "EXPR [ (1, _1) -1 ]",
     "unconstrained func 0",
     "[Const { destination: Direct(10), bit_size: Integer(U32), value: 2 }, Const { destination: Direct(11), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(10), offset_address: Direct(11) }, BinaryFieldOp { destination: Direct(2), op: IntegerDiv, lhs: Direct(0), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Mul, lhs: Direct(2), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Sub, lhs: Direct(0), rhs: Direct(1) }, Mov { destination: Direct(0), source: Direct(2) }, Stop { return_data: HeapVector { pointer: Direct(11), size: Direct(10) } }]"
   ],
-  "debug_symbols": "nZHdCoMwDIXfJde98Gc68VXGkFqjFEpbajsY4rsvFrvpxWDsJmly+uVAssCAfZg6qUczQ3tboHdSKTl1ygjupdHUXVYGqey8Q6QWHHSiLHeoPbQ6KMXgwVWIn2bLdcyeO1IzBqgHyjRwlAq318o+dPYdzet8h/P6+sarn/miSeZFU//Bl9ll58vizN+p4kK608YgJyMGRYxljJcYKxqwbjZO8l7hvt0xaHFYtn/apKRzWGcEDsHhZhM1Mn4B",
+  "debug_symbols": "nZFNCsMgEIXvMmsX+WsacpVSgjGTIIiK0UIJuXsnEttkUSjdzDjz/HzwXGDAPkyd1KOZob0t0DuplJw6ZQT30mjaLiuDNHbeIdIKDjpRljvUHlodlGLw4CrES7PlOnbPHakZA9QDdXpwlAq308o+dPYdzet8h/P6+sYvP/NFk8yLpv6DL7Nq58vizN9p4kK6U2KQkxGDItYy1orQdTNwkvcK91zHoMUhZv+0SUkfYZ0ROASHm0HUyPIF",
   "file_map": {
     "50": {
       "source": "struct Bar {\n    inner: [Field; 3],\n}\n\nfn main(y: pub u32) {\n    let bar = Bar { inner: [100, 101, 102] };\n\n    // The assert inside the if should be hit\n    if y < 10 {\n        assert(bar.inner == [100, 101, 102]);\n    }\n\n    // The assert inside the if should not be hit\n    if y > 10 {\n        assert(bar.inner == [0, 1, 2]);\n    }\n}\n",

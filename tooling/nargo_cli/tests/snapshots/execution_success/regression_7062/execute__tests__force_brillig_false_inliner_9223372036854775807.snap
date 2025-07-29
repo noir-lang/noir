@@ -44,7 +44,6 @@ expression: artifact
     "return value indices : []",
     "BLACKBOX::RANGE [(_1, 2)] []",
     "BRILLIG CALL func 1: inputs: [EXPR [ (1, _1) 4294967294 ], EXPR [ 4294967296 ]], outputs: [_2, _3]",
-    "BLACKBOX::RANGE [(_2, 0)] []",
     "BLACKBOX::RANGE [(_3, 32)] []",
     "EXPR [ (1, _1) (-4294967296, _2) (-1, _3) 4294967294 ]",
     "EXPR [ (-1, _2) 0 ]",
@@ -64,7 +63,7 @@ expression: artifact
     "unconstrained func 2",
     "[Const { destination: Direct(21), bit_size: Integer(U32), value: 1 }, Const { destination: Direct(20), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(21), offset_address: Direct(20) }, Const { destination: Direct(2), bit_size: Field, value: 0 }, BinaryFieldOp { destination: Direct(3), op: Equals, lhs: Direct(0), rhs: Direct(2) }, JumpIf { condition: Direct(3), location: 8 }, Const { destination: Direct(1), bit_size: Field, value: 1 }, BinaryFieldOp { destination: Direct(0), op: Div, lhs: Direct(1), rhs: Direct(0) }, Stop { return_data: HeapVector { pointer: Direct(20), size: Direct(21) } }]"
   ],
-  "debug_symbols": "pZLLisQgEEX/pdYu1Dw7vxJCMIlpBDHB1oEh5N+ndGI/Fg1NenOvWp6qUmqDSQ7+2iszLzdo2g0Gq7RW114vo3BqMXi67QTStndWSjyCpzhSq7DSOGiM15rAj9A+XrqtwkR3wmKUEpBmQseEs9IyrHbyoOl7tExsye5w8TldH3R1OUEzzg6cZfwEz2niOa3P8OzOs/q7+t/yPHvhO9yJUdmXaQGGH0WAR82i5lGLqCWmIVBFraNeojIKTYaGdI6GeIGGfIWGCao9dGiVGLQ8hnL2ZnyaUfe7pkia4tUuo5y8laHD2BwNglnbjJGcdf9127wgBe328KI/",
+  "debug_symbols": "pZLLisQgEEX/pdYu1Dw7vxJCMIlpBDHB1oEh5N+ndGI/Fg1NenOvWp6qUmqDSQ7+2iszLzdo2g0Gq7RW114vo3BqMXi67QTStndWSjyCpzhSq7DSOGiM15rAj9A+XrqtwkR3wmKUEpBmQseEs9IyrHbyoOl7tExsye5w8TldH3R1OUEzzg6cZfwEz2niOa3P8OzOs/q7+t/yPHvhO9yJUdmXaQGGH0WAR82i5lELTECgjFpFraNeoMkIMApNjoZ0gYZ4hYZ8tYfWrBKDlsc0zt6MT8PpftcUSeO72mWUk7cytBa7okEwXZsxkrPuv2CbF6Sg3R6e8gc=",
   "file_map": {
     "50": {
       "source": "fn main(value: Field, index: u32) {\n    let mut args = &[0, 1];\n    args[index] = value;\n    // Safety: n/a\n    unsafe { store(args) };\n    // Dummy test to remove the 'underconstraint bug'\n    assert(args[0] + args[1] != 0);\n}\n\npub unconstrained fn store(_: [Field]) {}\n",

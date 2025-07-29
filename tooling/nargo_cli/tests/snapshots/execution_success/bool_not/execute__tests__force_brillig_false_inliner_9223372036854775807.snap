@@ -26,10 +26,9 @@ expression: artifact
     "private parameters indices : [_0]",
     "public parameters indices : []",
     "return value indices : []",
-    "BLACKBOX::RANGE [(_0, 1)] []",
     "EXPR [ (1, _0) -1 ]"
   ],
-  "debug_symbols": "dY/RCoMwDEX/Jc990A1h+CtjSK1RCiEtsR0M8d8XxW7uYU9pcntuchcYsM9T53kMM7T3BXrxRH7qKDibfGCdLquB0nZJEHUEJ12paAU5QcuZyMDTUt4/zdHyXpMVVSsDyINWNRw94fZazZeu/qOX28Femw/cKP3QzjovP/dCDW29bmbibU94ZBgzu1Ok9IpFKaGjBIdDFtzsdk0XvAE=",
+  "debug_symbols": "dY/RCoMwDEX/Jc99cBuD4a+MIbVGCYS0xHYwxH9fFN3cw57S5Pbc5E7QYVuGhqSPI9T3CVolZhoajsFnimLTaXawt01WRBvBQTcqeUXJUEthdvD0XNZPY/Ky1uzV1MoBSmfVDHtiXF6z+9LVf/R829jL9QNfjX5Y5wPpz71QQX2aFzMl3zJuGfoi4RApv9Ku7KGTxoBdUVzsVs0WvAE=",
   "file_map": {
     "50": {
       "source": "fn main(x: u1) {\n    assert(!x == 0);\n}\n",

@@ -85,7 +85,6 @@ expression: artifact
     "EXPR [ (-1, _15) 2 ]",
     "MEM (id: 2, read at: EXPR [ (1, _15) 0 ], value: EXPR [ (1, _16) 0 ]) ",
     "BRILLIG CALL func 1: inputs: [EXPR [ (-1, _12) 4294967298 ], EXPR [ 4294967296 ]], outputs: [_17, _18]",
-    "BLACKBOX::RANGE [(_17, 0)] []",
     "BLACKBOX::RANGE [(_18, 32)] []",
     "EXPR [ (-1, _12) (-4294967296, _17) (-1, _18) 4294967298 ]",
     "EXPR [ (-1, _17) 0 ]",
@@ -98,7 +97,7 @@ expression: artifact
     "unconstrained func 1",
     "[Const { destination: Direct(10), bit_size: Integer(U32), value: 2 }, Const { destination: Direct(11), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(10), offset_address: Direct(11) }, BinaryFieldOp { destination: Direct(2), op: IntegerDiv, lhs: Direct(0), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Mul, lhs: Direct(2), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Sub, lhs: Direct(0), rhs: Direct(1) }, Mov { destination: Direct(0), source: Direct(2) }, Stop { return_data: HeapVector { pointer: Direct(11), size: Direct(10) } }]"
   ],
-  "debug_symbols": "nZLRboQgEEX/ZZ55EFBX91eaxqDihoSgYaFJY/z3jjNLu/vQpOnLPcJ472SAHWY75tvgwrLe4fq2wxid9+42+HUyya0Bd/dDQFkOKVqLW/BUR9dmog0JriF7L+DD+Ew/3TcTiMlErFYCbJiRGLg4b8+vQ/y4q9+tUncPs6z7b3vzd3/bFv+l+4dfydJfydf+77gyk4svJwYSGwlQpJq0Jm1IW9ILhgnoSHtSWTEkQzE0o2Y0jJbBGRJDNKInqIohGZiij3Oy6Mzo7eNClxymp/tNn1uplBewxXWyc472nIxqOOsX",
+  "debug_symbols": "nZHRboQgEEX/ZZ55EFBX91eaxqDihoSgYaFJY/z3jjNLu/vQpOnLPcJ472SYHWY75tvgwrLe4fq2wxid9+42+HUyya0Bb/dDQDkOKVqLV/BUR9dmog0JriF7L+DD+Ew/3TcTiMlErFYCbJiRGLg4b8+vQ/y4q9+tUncPs6z7b3vzd3/bFv+l+4dfydJfydf+73gyk4svLwYSGwlQpJq0Jm1IW9ILhgnoSHtSWTEkQzE0o2Y0jJbBGRJDNKInqIqBKfo4R4rOjN4+NrnkMD0tNn1upVJWv8V1snOO9hyJajjkFw==",
   "file_map": {
     "50": {
       "source": "fn main(a: bool) -> pub ((u32, Field), (u32, Field)) {\n    let s0: [Field] = if a { &[10, 20] } else { &[30, 40, 50] };\n    let (s1, f) = s0.pop_back();\n    let s2 = s0.push_back(60);\n    ((s1.len(), f), (s2.len(), s2[2]))\n}\n",
