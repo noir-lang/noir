@@ -28,8 +28,8 @@ use crate::ssa::{
 };
 
 impl Ssa {
-    /// See [`constant_evaluation`][self] module for more information.
-    pub(crate) fn constant_evaluation(mut self) -> Ssa {
+    /// See [`fold_constant_brillig_calls`][self] module for more information.
+    pub(crate) fn fold_constant_brillig_calls(mut self) -> Ssa {
         // Gather constant evaluation results per function
         let mut constant_evaluations = self
             .functions
@@ -250,7 +250,7 @@ mod test {
             ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.constant_evaluation();
+        let ssa = ssa.fold_constant_brillig_calls();
         let ssa = ssa.remove_unreachable_functions();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
@@ -277,7 +277,7 @@ mod test {
             ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.constant_evaluation();
+        let ssa = ssa.fold_constant_brillig_calls();
         let ssa = ssa.remove_unreachable_functions();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
@@ -305,7 +305,7 @@ mod test {
             ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.constant_evaluation();
+        let ssa = ssa.fold_constant_brillig_calls();
         let ssa = ssa.remove_unreachable_functions();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
@@ -332,7 +332,7 @@ mod test {
             ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.constant_evaluation();
+        let ssa = ssa.fold_constant_brillig_calls();
         let ssa = ssa.remove_unreachable_functions();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
@@ -360,7 +360,7 @@ mod test {
             ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.constant_evaluation();
+        let ssa = ssa.fold_constant_brillig_calls();
         let ssa = ssa.remove_unreachable_functions();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
@@ -393,7 +393,7 @@ mod test {
             ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.constant_evaluation();
+        let ssa = ssa.fold_constant_brillig_calls();
         let ssa = ssa.remove_unreachable_functions();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
@@ -423,7 +423,7 @@ mod test {
         ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.constant_evaluation();
+        let ssa = ssa.fold_constant_brillig_calls();
         let ssa = ssa.remove_unreachable_functions();
         assert_ssa_snapshot!(ssa, @r"
         g0 = Field 2
@@ -460,7 +460,7 @@ mod test {
         ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.constant_evaluation();
+        let ssa = ssa.fold_constant_brillig_calls();
         let ssa = ssa.remove_unreachable_functions();
         assert_ssa_snapshot!(ssa, @r"
         g0 = Field 2

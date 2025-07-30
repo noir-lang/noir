@@ -48,7 +48,7 @@ pub struct BrilligOptions {
 #[derive(Default, Clone)]
 pub struct Brillig {
     /// Maps SSA function labels to their brillig artifact
-    pub ssa_function_to_brillig: HashMap<FunctionId, BrilligArtifact<FieldElement>>,
+    ssa_function_to_brillig: HashMap<FunctionId, BrilligArtifact<FieldElement>>,
     pub call_stacks: CallStackHelper,
     globals: HashMap<FunctionId, BrilligArtifact<FieldElement>>,
     globals_memory_size: HashMap<FunctionId, usize>,
