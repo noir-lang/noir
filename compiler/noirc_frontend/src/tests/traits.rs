@@ -2021,3 +2021,49 @@ fn associated_constant_mul_of_other_constants() {
     "#;
     assert_no_errors!(src);
 }
+
+#[named]
+#[test]
+fn trait_bound_with_associated_constant() {
+    let src = r#"
+    pub trait Other {
+        let N: u32;
+    }
+
+    pub trait Trait<T>
+    where
+        T: Other,
+    {}
+
+    impl Other for Field {
+        let N: u32 = 1;
+    }
+
+    impl Trait<Field> for i32 {}
+
+    fn main() {}
+    "#;
+    assert_no_errors!(src);
+}
+
+#[named]
+#[test]
+fn trait_method_call_when_it_has_bounds_on_generic() {
+    let src = r#"
+    trait BigNum {}
+
+    trait BigCurve<B>
+    where
+        B: BigNum,
+    {
+        fn new() -> Self;
+    }
+
+    pub fn foo<B: BigNum, Curve: BigCurve<B>>() {
+        let _: Curve = BigCurve::new();
+    }
+
+    fn main() {}
+    "#;
+    assert_no_errors!(src);
+}
