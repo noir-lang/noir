@@ -1750,7 +1750,12 @@
 <a href="#1749" id="1749">1749</a>
 <a href="#1750" id="1750">1750</a>
 <a href="#1751" id="1751">1751</a>
-<a href="#1752" id="1752">1752</a></pre></div><pre class="rust"><code><span class="kw">use </span>core::str;
+<a href="#1752" id="1752">1752</a>
+<a href="#1753" id="1753">1753</a>
+<a href="#1754" id="1754">1754</a>
+<a href="#1755" id="1755">1755</a>
+<a href="#1756" id="1756">1756</a>
+<a href="#1757" id="1757">1757</a></pre></div><pre class="rust"><code><span class="kw">use </span>core::str;
 <span class="kw">use </span>std::path::Path;
 <span class="kw">use </span>std::rc::Rc;
 <span class="kw">use </span>std::vec;
@@ -2200,6 +2205,11 @@
             <span class="kw">let </span>location = trait_definition.location;
             <span class="kw">let </span>has_allow_dead_code =
                 trait_definition.attributes.iter().any(|attr| attr.kind.is_allow(<span class="string">"dead_code"</span>));
+
+            desugar_generic_trait_bounds(
+                <span class="kw-2">&amp;mut </span>trait_definition.generics,
+                <span class="kw-2">&amp;mut </span>trait_definition.where_clause,
+            );
 
             <span class="comment">// Create the corresponding module for the trait namespace
             </span><span class="kw">let </span>trait_id = <span class="kw">match </span><span class="self">self</span>.push_child_module(
