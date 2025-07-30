@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1753886457836,
+  "lastUpdate": 1753888303086,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -12366,48 +12366,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "566de3f20199259e1594d778e47ad3550aa344cd",
-          "message": "fix(licm): Ensure that all nested loops the current block is part of are guaranteed to execute (#9249)",
-          "timestamp": "2025-07-21T09:18:17Z",
-          "tree_id": "74351d0506a127948c7b14d5e8c11e90b1fc62c6",
-          "url": "https://github.com/noir-lang/noir/commit/566de3f20199259e1594d778e47ad3550aa344cd"
-        },
-        "date": 1753090961222,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 248917,
-            "range": "± 1181",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 219669,
-            "range": "± 3822",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2783747,
-            "range": "± 7630",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -14459,6 +14417,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2786672,
             "range": "± 10664",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "922efbdb30b35c7e93f8db829436fbe0a03ffae1",
+          "message": "fix: modulo overflow in comptime (#9348)",
+          "timestamp": "2025-07-30T14:43:05Z",
+          "tree_id": "59b169ae7402cf35c78fac04acbcbe9f21208608",
+          "url": "https://github.com/noir-lang/noir/commit/922efbdb30b35c7e93f8db829436fbe0a03ffae1"
+        },
+        "date": 1753888286798,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 250619,
+            "range": "± 1248",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 222934,
+            "range": "± 1498",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2784635,
+            "range": "± 1196",
             "unit": "ns/iter"
           }
         ]
