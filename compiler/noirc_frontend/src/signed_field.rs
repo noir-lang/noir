@@ -108,11 +108,17 @@ impl SignedField {
     }
 
     pub fn to_u128(self) -> u128 {
+        assert!(!self.is_negative());
         self.to_field_element().to_u128()
     }
 
     pub fn to_i128(self) -> i128 {
-        self.to_field_element().to_i128()
+        if self.is_negative() {
+            let value = self.field.to_u128();
+            if value == ((i128::MAX as u128) + 1) { i128::MIN } else { -(value as i128) }
+        } else {
+            self.field.to_u128() as i128
+        }
     }
 }
 
@@ -407,5 +413,14 @@ mod tests {
         assert!(SignedField::one().is_one());
         assert!(!SignedField::negative(FieldElement::one()).is_one());
         assert!(!SignedField::zero().is_one());
+    }
+
+    #[test]
+    fn to_i128() {
+        assert_eq!(SignedField::positive(FieldElement::from(i128::MAX)).to_i128(), i128::MAX);
+        assert_eq!(
+            SignedField::negative(FieldElement::from((i128::MAX as u128) + 1)).to_i128(),
+            i128::MIN
+        );
     }
 }
