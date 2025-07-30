@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1753909150524,
+  "lastUpdate": 1753909172445,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -5582,80 +5582,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "ed329988a7d21de0380ca42bf8ed08b07133fea8",
-          "message": "fix(acir_gen): Bail out of `handle_constant_index` when it encounters `DynamicArray` (#9259)",
-          "timestamp": "2025-07-21T14:43:00Z",
-          "tree_id": "b071162d971ff3a6c0c85fc597dfc04743ab0e05",
-          "url": "https://github.com/noir-lang/noir/commit/ed329988a7d21de0380ca42bf8ed08b07133fea8"
-        },
-        "date": 1753112105116,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 202.14,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 238.18,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 191.37,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 502.48,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 435.34,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1510,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 324.89,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 327.53,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 69.3,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 55.56,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jfecher11@gmail.com",
             "name": "jfecher",
             "username": "jfecher"
@@ -7425,6 +7351,40 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/4e13631500ed9aaecbd20aa80480b2f8bf547d03"
         },
         "date": 1753895063765,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore_depth_10",
+            "value": 69.46,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 54.95,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "4a7bb06475e44cbdd5ea9393779843fbb49a106d",
+          "message": "feat: add `FunctionDefinition::visibility` (#9363)",
+          "timestamp": "2025-07-30T20:16:52Z",
+          "tree_id": "fe6148a81d5f95b8b857c961431912071d0ee4fe",
+          "url": "https://github.com/noir-lang/noir/commit/4a7bb06475e44cbdd5ea9393779843fbb49a106d"
+        },
+        "date": 1753909156145,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
