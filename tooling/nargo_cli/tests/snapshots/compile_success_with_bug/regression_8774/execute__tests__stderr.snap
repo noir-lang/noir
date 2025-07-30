@@ -3,10 +3,10 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
 bug: Assertion is always false: Index out of bounds
-  ┌─ src/main.nr:3:8
+  ┌─ src/main.nr:3:6
   │
 3 │     *d[0]
-  │        - As a result, the compiled circuit is ensured to fail. Other assertions may also fail during execution
+  │      ---- As a result, the compiled circuit is ensured to fail. Other assertions may also fail during execution
   │
   = Call stack:
-    1. src/main.nr:3:8
+    1. src/main.nr:3:6

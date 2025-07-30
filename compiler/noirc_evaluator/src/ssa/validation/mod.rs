@@ -12,6 +12,8 @@
 //! - Check that the input values of certain instructions matches that instruction's constraint
 //!   At the moment, only [Instruction::Binary], [Instruction::ArrayGet], and [Instruction::ArraySet]
 //!   are type checked.
+use core::panic;
+
 use acvm::{AcirField, FieldElement};
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
@@ -256,6 +258,51 @@ impl<'f> Validator<'f> {
                     panic!(
                         "Left-hand side and right-hand side of constrain must have the same type"
                     );
+                }
+            }
+            Instruction::MakeArray { elements, typ: _ } => {
+                let results = dfg.instruction_results(instruction);
+                assert_eq!(results.len(), 1, "MakeArray must return exactly one value");
+
+                let result_type = dfg.type_of_value(results[0]);
+
+                let composite_type = match result_type {
+                    Type::Array(composite_type, length) => {
+                        let array_flattened_length = composite_type.len() * length as usize;
+                        if elements.len() != array_flattened_length {
+                            panic!(
+                                "MakeArray returns an array of flattened length {}, but it has {} elements",
+                                array_flattened_length,
+                                elements.len()
+                            );
+                        }
+                        composite_type
+                    }
+                    Type::Slice(composite_type) => {
+                        if elements.len() % composite_type.len() != 0 {
+                            panic!(
+                                "MakeArray slice has {} elements but composite type has {} types which don't divide the number of elements",
+                                elements.len(),
+                                composite_type.len()
+                            );
+                        }
+                        composite_type
+                    }
+                    _ => {
+                        panic!("MakeArray must return an array or slice type, not {result_type}");
+                    }
+                };
+
+                let composite_type_len = composite_type.len();
+                for (index, element) in elements.iter().enumerate() {
+                    let element_type = dfg.type_of_value(*element);
+                    let expected_type = &composite_type[index % composite_type_len];
+                    if &element_type != expected_type {
+                        panic!(
+                            "MakeArray has incorrect element type at index {index}: expected {}, got {}",
+                            expected_type, element_type
+                        );
+                    }
                 }
             }
             _ => (),
@@ -599,6 +646,66 @@ mod tests {
         acir(inline) fn foo f1 {
           b0():
             return Field 1
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "MakeArray returns an array of flattened length 2, but it has 3 elements"
+    )]
+    fn make_array_returns_incorrect_length() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = make_array [u8 1, u8 2, u8 3] : [u8; 2]
+            return v0
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "MakeArray returns an array of flattened length 4, but it has 3 elements"
+    )]
+    fn make_array_returns_incorrect_length_composite_type() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = make_array [u8 1, u8 2, u8 3] : [(u8, u8); 2]
+            return v0
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "MakeArray slice has 3 elements but composite type has 2 types which don't divide the number of elements"
+    )]
+    fn make_array_slice_returns_incorrect_length() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = make_array [u8 1, u8 2, u8 3] : [(u8, u8)]
+            return v0
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "MakeArray has incorrect element type at index 1: expected u8, got Field"
+    )]
+    fn make_array_has_incorrect_element_type() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = make_array [u8 1, Field 2, u8 3, u8 4] : [(u8, u8); 2]
+            return v0
         }
         ";
         let _ = Ssa::from_str(src).unwrap();

@@ -1879,3 +1879,212 @@ fn suggests_importing_trait_via_module_reexport() {
     "#;
     check_errors!(src);
 }
+
+#[named]
+#[test]
+fn associated_constant_sum_of_other_constants() {
+    let src = r#"
+    pub trait Deserialize {
+        let N: u32;
+
+        fn deserialize(_: [Field; Self::N]);
+    }
+
+    impl Deserialize for Field {
+        let N: u32 = 1;
+
+        fn deserialize(_: [Field; Self::N]) {}
+    }
+
+    struct Gen<T> {}
+
+    impl<T> Deserialize for Gen<T>
+    where
+        T: Deserialize,
+    {
+        let N: u32 = <T as Deserialize>::N + <T as Deserialize>::N;
+
+        fn deserialize(_: [Field; Self::N]) {}
+    }
+
+    fn main() {
+        let f = <Gen<Field> as Deserialize>::deserialize;
+        f([0; 2]);
+    }
+    "#;
+    assert_no_errors!(src);
+}
+
+#[named]
+#[test]
+fn regression_9245_small_code() {
+    let src = r#"
+    pub trait From2<T> {}
+
+    impl<T> From2<T> for T {}
+
+    pub trait Into2<T> {}
+
+    impl From2<u8> for Field {}
+
+    impl<T: From2<U>, U> Into2<T> for U {}
+
+    fn foo<T: Into2<Field>>() {}
+
+    fn main() {
+        foo::<u8>();
+    }
+    "#;
+    assert_no_errors!(src);
+}
+
+#[named]
+#[test]
+fn associated_constant_sum_of_other_constants_2() {
+    let src = r#"
+    pub trait Deserialize {
+        let N: u32;
+
+        fn deserialize(_: [Field; N]);
+    }
+
+    impl Deserialize for Field {
+        let N: u32 = 1;
+
+        fn deserialize(_: [Field; Self::N]) {}
+    }
+
+    impl<T, let M: u32> Deserialize for [T; M]
+    where
+        T: Deserialize,
+    {
+        let N: u32 = <T as Deserialize>::N + M;
+
+        fn deserialize(_: [Field; Self::N]) {}
+    }
+
+    pub fn foo<let X: u32>() {
+        let f = <[Field; X] as Deserialize>::deserialize;
+        let _ = f([0; X + 1]);
+    }
+
+    fn main() {}
+    "#;
+    assert_no_errors!(src);
+}
+
+#[named]
+#[test]
+fn associated_constant_sum_of_other_constants_3() {
+    let src = r#"
+    pub trait Deserialize {
+        let N: u32;
+
+        fn deserialize(_: [Field; N]);
+    }
+
+    impl Deserialize for Field {
+        let N: u32 = 1;
+
+        fn deserialize(_: [Field; Self::N]) {}
+    }
+
+    impl<T, let M: u32> Deserialize for [T; M]
+    where
+        T: Deserialize,
+    {
+        let N: u32 = <T as Deserialize>::N + M - 1;
+
+        fn deserialize(_: [Field; Self::N]) {}
+    }
+
+    pub fn foo<let X: u32>() {
+        let f = <[Field; X] as Deserialize>::deserialize;
+        let _ = f([0; X]);
+    }
+
+    fn main() {}
+    "#;
+    assert_no_errors!(src);
+}
+
+#[named]
+#[test]
+fn associated_constant_mul_of_other_constants() {
+    let src = r#"
+    pub trait Deserialize {
+        let N: u32;
+
+        fn deserialize(_: [Field; N]);
+    }
+
+    impl Deserialize for Field {
+        let N: u32 = 1;
+
+        fn deserialize(_: [Field; Self::N]) {}
+    }
+
+    impl<T, let M: u32> Deserialize for [T; M]
+    where
+        T: Deserialize,
+    {
+        let N: u32 = <T as Deserialize>::N * M;
+
+        fn deserialize(_: [Field; Self::N]) {}
+    }
+
+    pub fn foo<let X: u32>() {
+        let f = <[Field; X] as Deserialize>::deserialize;
+        let _ = f([0; X]);
+    }
+
+    fn main() {}
+    "#;
+    assert_no_errors!(src);
+}
+
+#[named]
+#[test]
+fn trait_bound_with_associated_constant() {
+    let src = r#"
+    pub trait Other {
+        let N: u32;
+    }
+
+    pub trait Trait<T>
+    where
+        T: Other,
+    {}
+
+    impl Other for Field {
+        let N: u32 = 1;
+    }
+
+    impl Trait<Field> for i32 {}
+
+    fn main() {}
+    "#;
+    assert_no_errors!(src);
+}
+
+#[named]
+#[test]
+fn trait_method_call_when_it_has_bounds_on_generic() {
+    let src = r#"
+    trait BigNum {}
+
+    trait BigCurve<B>
+    where
+        B: BigNum,
+    {
+        fn new() -> Self;
+    }
+
+    pub fn foo<B: BigNum, Curve: BigCurve<B>>() {
+        let _: Curve = BigCurve::new();
+    }
+
+    fn main() {}
+    "#;
+    assert_no_errors!(src);
+}

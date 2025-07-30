@@ -1440,7 +1440,7 @@ mod tests {
         let src = r#"
         acir(inline) fn main f0 {
           b0(v0: u32):
-            v1 = make_array [f1] : [function; 0]
+            v1 = make_array [f1] : [function; 1]
             v2 = array_set v1, index u32 0, value f2
             return v0
         }

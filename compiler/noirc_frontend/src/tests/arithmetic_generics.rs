@@ -1,5 +1,7 @@
 #![cfg(test)]
 
+use core::panic;
+
 use acvm::{AcirField, FieldElement};
 
 use crate::assert_no_errors;
@@ -93,10 +95,12 @@ fn arithmetic_generics_checked_cast_zeros() {
             }
             _ => panic!("unexpected length: {length:?}"),
         }
-        assert!(matches!(
-            err,
-            TypeCheckError::FailingBinaryOp { op: BinaryTypeOperator::Modulo, lhs: 0, rhs: 0, .. }
-        ));
+        let TypeCheckError::FailingBinaryOp { op, lhs, rhs, .. } = err else {
+            panic!("Expected FailingBinaryOp, but found: {err:?}");
+        };
+        assert_eq!(op, &BinaryTypeOperator::Modulo);
+        assert_eq!(lhs, "0");
+        assert_eq!(rhs, "0");
     } else {
         panic!("unexpected error: {monomorphization_error:?}");
     }

@@ -553,7 +553,8 @@ impl Elaborator<'_> {
         variables_defined: &mut Vec<Ident>,
     ) -> Pattern {
         let location = constructor.typ.location;
-        let typ = self.resolve_type(constructor.typ);
+        let wildcard_allowed = true;
+        let typ = self.resolve_type(constructor.typ, wildcard_allowed);
 
         let Some((struct_name, mut expected_field_types)) =
             self.struct_name_and_field_types(&typ, location)
