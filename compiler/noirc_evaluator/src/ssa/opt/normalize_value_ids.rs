@@ -61,8 +61,6 @@ impl Context {
         else {
             return;
         };
-            return;
-        };
         let mut new_purities = HashMap::default();
 
         for (id, function) in functions {
