@@ -6,7 +6,6 @@ use noir_ast_fuzzer::compare::{
     CompareInterpretedResult, HasPrograms,
 };
 use noirc_abi::input_parser::Format;
-use noirc_evaluator::brillig::Brillig;
 use noirc_evaluator::ssa::{SsaPass, primary_passes};
 use noirc_evaluator::{
     brillig::BrilligOptions,

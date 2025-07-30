@@ -36,7 +36,7 @@ expression: artifact
       "path": "std/lib.nr"
     },
     "50": {
-      "source": "fn main() {\n    // Safety:\n    let result = unsafe { foo([0]) };\n    println(result);\n}\n\nunconstrained fn foo(bytes: [u8; 1]) -> Field {\n    for _ in 0..bytes.len() {\n        let _ = bytes[0];\n    }\n    0\n}",
+      "source": "fn main() {\n    // Safety:\n    let result = unsafe { foo([0]) };\n    println(result);\n}\n\nunconstrained fn foo(bytes: [u8; 1]) -> Field {\n    for _ in 0..bytes.len() {\n        let _ = bytes[0];\n    }\n    0\n}\n",
       "path": ""
     }
   },

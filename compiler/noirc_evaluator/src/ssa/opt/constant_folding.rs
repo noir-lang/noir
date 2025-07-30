@@ -14,36 +14,23 @@
 //!
 //! This is the only pass which removes duplicated pure [`Instruction`]s however and so is needed when
 //! different blocks are merged, i.e. after the [`flatten_cfg`][super::flatten_cfg] pass.
-use std::collections::{BTreeMap, HashSet, VecDeque};
+use std::collections::{HashSet, VecDeque};
 
-use acvm::{
-    FieldElement,
-    acir::AcirField,
-    brillig_vm::{MemoryValue, VM, VMStatus},
-};
-use bn254_blackbox_solver::Bn254BlackBoxSolver;
-use im::Vector;
+use acvm::{FieldElement, acir::AcirField};
 use iter_extended::vecmap;
 
-use crate::{
-    brillig::{
-        Brillig, BrilligOptions,
-        brillig_gen::gen_brillig_for,
-        brillig_ir::{artifact::BrilligParameter, brillig_variable::get_bit_size_from_ssa_type},
+use crate::ssa::{
+    ir::{
+        basic_block::BasicBlockId,
+        dfg::{DataFlowGraph, InsertInstructionResult},
+        dom::DominatorTree,
+        function::Function,
+        instruction::{ArrayOffset, Instruction, InstructionId},
+        types::NumericType,
+        value::{Value, ValueId, ValueMapping},
     },
-    ssa::{
-        ir::{
-            basic_block::BasicBlockId,
-            dfg::{DataFlowGraph, InsertInstructionResult},
-            dom::DominatorTree,
-            function::{Function, FunctionId, RuntimeType},
-            instruction::{ArrayOffset, Instruction, InstructionId},
-            types::{NumericType, Type},
-            value::{Value, ValueId, ValueMapping},
-        },
-        opt::pure::Purity,
-        ssa_gen::Ssa,
-    },
+    opt::pure::Purity,
+    ssa_gen::Ssa,
 };
 use fxhash::FxHashMap as HashMap;
 
@@ -57,7 +44,7 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn fold_constants(mut self) -> Ssa {
         for function in self.functions.values_mut() {
-            function.constant_fold(false, None);
+            function.constant_fold(false);
         }
         self
     }
@@ -70,35 +57,8 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn fold_constants_using_constraints(mut self) -> Ssa {
         for function in self.functions.values_mut() {
-            function.constant_fold(true, None);
+            function.constant_fold(true);
         }
-        self
-    }
-
-    /// Performs constant folding on each instruction while also replacing calls to brillig functions
-    /// with all constant arguments by trying to evaluate those calls.
-    #[tracing::instrument(level = "trace", skip(self, brillig))]
-    pub fn fold_constants_with_brillig(mut self, brillig: &Brillig) -> Ssa {
-        // Collect all brillig functions so that later we can find them when processing a call instruction
-        let mut brillig_functions: BTreeMap<FunctionId, Function> = BTreeMap::new();
-        for (func_id, func) in &self.functions {
-            if let RuntimeType::Brillig(..) = func.runtime() {
-                let cloned_function = Function::clone_with_id(*func_id, func);
-                brillig_functions.insert(*func_id, cloned_function);
-            };
-        }
-
-        let brillig_info = Some(BrilligInfo { brillig, brillig_functions: &brillig_functions });
-
-        for function in self.functions.values_mut() {
-            // We have already performed our final Brillig generation, so constant folding
-            // Brillig functions is unnecessary work.
-            if function.dfg.runtime().is_brillig() {
-                continue;
-            }
-            function.constant_fold(false, brillig_info);
-        }
-
         self
     }
 }
@@ -106,12 +66,8 @@ impl Ssa {
 impl Function {
     /// The structure of this pass is simple:
     /// Go through each block and re-insert all instructions.
-    pub(crate) fn constant_fold(
-        &mut self,
-        use_constraint_info: bool,
-        brillig_info: Option<BrilligInfo>,
-    ) {
-        let mut context = Context::new(use_constraint_info, brillig_info);
+    pub(crate) fn constant_fold(&mut self, use_constraint_info: bool) {
+        let mut context = Context::new(use_constraint_info);
         let mut dom = DominatorTree::with_function(self);
         context.block_queue.push_back(self.entry_block());
 
@@ -126,9 +82,8 @@ impl Function {
     }
 }
 
-struct Context<'a> {
+struct Context {
     use_constraint_info: bool,
-    brillig_info: Option<BrilligInfo<'a>>,
     /// Maps pre-folded ValueIds to the new ValueIds obtained by re-inserting the instruction.
     visited_blocks: HashSet<BasicBlockId>,
     block_queue: VecDeque<BasicBlockId>,
@@ -146,12 +101,6 @@ struct Context<'a> {
     cached_instruction_results: InstructionResultCache,
 
     values_to_replace: ValueMapping,
-}
-
-#[derive(Copy, Clone)]
-pub(crate) struct BrilligInfo<'a> {
-    brillig: &'a Brillig,
-    brillig_functions: &'a BTreeMap<FunctionId, Function>,
 }
 
 /// Records a simplified equivalents of an [`Instruction`] in the blocks
@@ -216,11 +165,10 @@ struct ResultCache {
     result: Option<(BasicBlockId, Vec<ValueId>)>,
 }
 
-impl<'brillig> Context<'brillig> {
-    fn new(use_constraint_info: bool, brillig_info: Option<BrilligInfo<'brillig>>) -> Self {
+impl Context {
+    fn new(use_constraint_info: bool) -> Self {
         Self {
             use_constraint_info,
-            brillig_info,
             visited_blocks: Default::default(),
             block_queue: Default::default(),
             constraint_simplification_mappings: Default::default(),
@@ -345,23 +293,9 @@ impl<'brillig> Context<'brillig> {
             }
         };
 
+        // Try inserting the instruction again to apply any optimizations using the newly resolved inputs.
         // First try to inline a call to a brillig function with all constant arguments.
-        let new_results = if runtime_is_brillig {
-            Self::push_instruction(id, instruction.clone(), &old_results, block, dfg)
-        } else {
-            // We only want to try to inline Brillig calls for Brillig entry points (functions called from an ACIR runtime).
-            Self::try_inline_brillig_call_with_all_constants(
-                &instruction,
-                &old_results,
-                block,
-                dfg,
-                self.brillig_info,
-            )
-            // Otherwise, try inserting the instruction again to apply any optimizations using the newly resolved inputs.
-            .unwrap_or_else(|| {
-                Self::push_instruction(id, instruction.clone(), &old_results, block, dfg)
-            })
-        };
+        let new_results = Self::push_instruction(id, instruction.clone(), &old_results, block, dfg);
 
         self.replace_result_ids(&old_results, &new_results);
 
@@ -559,171 +493,6 @@ impl<'brillig> Context<'brillig> {
         results_for_instruction.get(&predicate)?.get(block, dom, instruction.has_side_effects(dfg))
     }
 
-    /// Checks if the given instruction is a call to a brillig function with all constant arguments.
-    /// If so, we can try to evaluate that function and replace the results with the evaluation results.
-    fn try_inline_brillig_call_with_all_constants(
-        instruction: &Instruction,
-        old_results: &[ValueId],
-        block: BasicBlockId,
-        dfg: &mut DataFlowGraph,
-        brillig_info: Option<BrilligInfo>,
-    ) -> Option<Vec<ValueId>> {
-        let evaluation_result = Self::evaluate_const_brillig_call(
-            instruction,
-            brillig_info?.brillig,
-            brillig_info?.brillig_functions,
-            dfg,
-        );
-
-        match evaluation_result {
-            EvaluationResult::NotABrilligCall | EvaluationResult::CannotEvaluate => None,
-            EvaluationResult::Evaluated(memory_values) => {
-                let mut memory_index = 0;
-                let new_results = vecmap(old_results, |old_result| {
-                    let typ = dfg.type_of_value(*old_result);
-                    Self::new_value_for_type_and_memory_values(
-                        typ,
-                        block,
-                        &memory_values,
-                        &mut memory_index,
-                        dfg,
-                    )
-                });
-                Some(new_results)
-            }
-        }
-    }
-
-    /// Tries to evaluate an instruction if it's a call that points to a brillig function,
-    /// and all its arguments are constant.
-    /// We do this by directly executing the function with a brillig VM.
-    fn evaluate_const_brillig_call(
-        instruction: &Instruction,
-        brillig: &Brillig,
-        brillig_functions: &BTreeMap<FunctionId, Function>,
-        dfg: &mut DataFlowGraph,
-    ) -> EvaluationResult {
-        let Instruction::Call { func: func_id, arguments } = instruction else {
-            return EvaluationResult::NotABrilligCall;
-        };
-
-        let func_value = &dfg[*func_id];
-        let Value::Function(func_id) = func_value else {
-            return EvaluationResult::NotABrilligCall;
-        };
-
-        let Some(func) = brillig_functions.get(func_id) else {
-            return EvaluationResult::NotABrilligCall;
-        };
-
-        if !arguments.iter().all(|argument| dfg.is_constant(*argument)) {
-            return EvaluationResult::CannotEvaluate;
-        }
-
-        let mut brillig_arguments = Vec::new();
-        for argument in arguments {
-            let typ = dfg.type_of_value(*argument);
-            let Some(parameter) = type_to_brillig_parameter(&typ) else {
-                return EvaluationResult::CannotEvaluate;
-            };
-            brillig_arguments.push(parameter);
-        }
-
-        // let x = interpreter::
-
-        // Check that the function returns (doesn't always fail)
-        let Some(returns) = func.returns() else {
-            return EvaluationResult::CannotEvaluate;
-        };
-
-        // Check that return value types are supported by brillig
-        for return_id in returns {
-            let typ = func.dfg.type_of_value(*return_id);
-            if type_to_brillig_parameter(&typ).is_none() {
-                return EvaluationResult::CannotEvaluate;
-            }
-        }
-
-        let Ok(generated_brillig) =
-            gen_brillig_for(func, brillig_arguments, brillig, &BrilligOptions::default())
-        else {
-            return EvaluationResult::CannotEvaluate;
-        };
-
-        let mut calldata = Vec::new();
-        for argument in arguments {
-            value_id_to_calldata(*argument, dfg, &mut calldata);
-        }
-
-        let bytecode = &generated_brillig.byte_code;
-        let pedantic_solving = true;
-        let black_box_solver = Bn254BlackBoxSolver(pedantic_solving);
-        let profiling_active = false;
-        let mut vm = VM::new(calldata, bytecode, &black_box_solver, profiling_active, None);
-        let vm_status: VMStatus<_> = vm.process_opcodes();
-        let VMStatus::Finished { return_data_offset, return_data_size } = vm_status else {
-            return EvaluationResult::CannotEvaluate;
-        };
-
-        let memory =
-            vm.get_memory()[return_data_offset..(return_data_offset + return_data_size)].to_vec();
-
-        EvaluationResult::Evaluated(memory)
-    }
-
-    /// Creates a new value inside this function by reading it from `memory_values` starting at
-    /// `memory_index` depending on the given Type: if it's an array multiple values will be read
-    /// and a new `make_array` instruction will be created.
-    fn new_value_for_type_and_memory_values(
-        typ: Type,
-        block_id: BasicBlockId,
-        memory_values: &[MemoryValue<FieldElement>],
-        memory_index: &mut usize,
-        dfg: &mut DataFlowGraph,
-    ) -> ValueId {
-        match typ {
-            Type::Numeric(typ) => {
-                let memory = memory_values[*memory_index];
-                *memory_index += 1;
-
-                let field_value = memory.to_field();
-                dfg.make_constant(field_value, typ)
-            }
-            Type::Array(types, length) => {
-                let mut new_array_values = Vector::new();
-                for _ in 0..length {
-                    for typ in types.iter() {
-                        let new_value = Self::new_value_for_type_and_memory_values(
-                            typ.clone(),
-                            block_id,
-                            memory_values,
-                            memory_index,
-                            dfg,
-                        );
-                        new_array_values.push_back(new_value);
-                    }
-                }
-
-                let instruction = Instruction::MakeArray {
-                    elements: new_array_values,
-                    typ: Type::Array(types, length),
-                };
-                let instruction_id = dfg.make_instruction(instruction, None);
-                dfg[block_id].instructions_mut().push(instruction_id);
-                *dfg.instruction_results(instruction_id).first().unwrap()
-            }
-            Type::Reference(_) => {
-                panic!("Unexpected reference type in brillig function result")
-            }
-            Type::Slice(_) => {
-                panic!("Unexpected slice type in brillig function result")
-            }
-            Type::Function => {
-                panic!("Unexpected function type in brillig function result")
-            }
-        }
-    }
-
     /// Remove previously cached instructions that created arrays,
     /// if the current instruction is such that it could modify that array.
     fn remove_possibly_mutated_cached_make_arrays(
@@ -833,50 +602,6 @@ impl ResultCache {
 enum CacheResult<'a> {
     Cached(&'a [ValueId]),
     NeedToHoistToCommonBlock(BasicBlockId),
-}
-
-/// Result of trying to evaluate an instruction (any instruction) in this pass.
-enum EvaluationResult {
-    /// Nothing was done because the instruction wasn't a call to a brillig function,
-    /// or some arguments to it were not constants.
-    NotABrilligCall,
-    /// The instruction was a call to a brillig function, but we couldn't evaluate it.
-    /// This can occur in the situation where the brillig function reaches a "trap" or a foreign call opcode.
-    CannotEvaluate,
-    /// The instruction was a call to a brillig function and we were able to evaluate it,
-    /// returning evaluation memory values.
-    Evaluated(Vec<MemoryValue<FieldElement>>),
-}
-
-/// Similar to FunctionContext::ssa_type_to_parameter but never panics and disallows reference types.
-pub(crate) fn type_to_brillig_parameter(typ: &Type) -> Option<BrilligParameter> {
-    match typ {
-        Type::Numeric(_) => Some(BrilligParameter::SingleAddr(get_bit_size_from_ssa_type(typ))),
-        Type::Array(item_type, size) => {
-            let mut parameters = Vec::with_capacity(item_type.len());
-            for item_typ in item_type.iter() {
-                parameters.push(type_to_brillig_parameter(item_typ)?);
-            }
-            Some(BrilligParameter::Array(parameters, *size as usize))
-        }
-        _ => None,
-    }
-}
-
-fn value_id_to_calldata(value_id: ValueId, dfg: &DataFlowGraph, calldata: &mut Vec<FieldElement>) {
-    if let Some(value) = dfg.get_numeric_constant(value_id) {
-        calldata.push(value);
-        return;
-    }
-
-    if let Some((values, _type)) = dfg.get_array_constant(value_id) {
-        for value in values {
-            value_id_to_calldata(value, dfg, calldata);
-        }
-        return;
-    }
-
-    panic!("Expected ValueId to be numeric constant or array constant");
 }
 
 /// Check if one expression is simpler than the other.
@@ -1385,255 +1110,6 @@ mod test {
             jmp b4()
           b4():
             return
-        }
-        ");
-    }
-
-    #[test]
-    fn inlines_brillig_call_without_arguments() {
-        let src = "
-            acir(inline) fn main f0 {
-              b0():
-                v0 = call f1() -> Field
-                return v0
-            }
-
-            brillig(inline) fn one f1 {
-              b0():
-                v0 = add Field 2, Field 3
-                return v0
-            }
-            ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let brillig = ssa.to_brillig(&BrilligOptions::default());
-
-        let ssa = ssa.fold_constants_with_brillig(&brillig);
-        let ssa = ssa.remove_unreachable_functions();
-        assert_ssa_snapshot!(ssa, @r"
-        acir(inline) fn main f0 {
-          b0():
-            return Field 5
-        }
-        ");
-    }
-
-    #[test]
-    fn inlines_brillig_call_with_two_field_arguments() {
-        let src = "
-            acir(inline) fn main f0 {
-              b0():
-                v0 = call f1(Field 2, Field 3) -> Field
-                return v0
-            }
-
-            brillig(inline) fn one f1 {
-              b0(v0: Field, v1: Field):
-                v2 = add v0, v1
-                return v2
-            }
-            ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let brillig = ssa.to_brillig(&BrilligOptions::default());
-
-        let ssa = ssa.fold_constants_with_brillig(&brillig);
-        let ssa = ssa.remove_unreachable_functions();
-        assert_ssa_snapshot!(ssa, @r"
-        acir(inline) fn main f0 {
-          b0():
-            return Field 5
-        }
-        ");
-    }
-
-    #[test]
-    fn inlines_brillig_call_with_two_i32_arguments() {
-        let src = "
-            acir(inline) fn main f0 {
-              b0():
-                v0 = call f1(i32 2, i32 3) -> i32
-                return v0
-            }
-
-            brillig(inline) fn one f1 {
-              b0(v0: i32, v1: i32):
-                v2 = unchecked_add v0, v1
-                v3 = truncate v2 to 32 bits, max_bit_size: 33
-                return v3
-            }
-            ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let brillig = ssa.to_brillig(&BrilligOptions::default());
-
-        let ssa = ssa.fold_constants_with_brillig(&brillig);
-        let ssa = ssa.remove_unreachable_functions();
-        assert_ssa_snapshot!(ssa, @r"
-        acir(inline) fn main f0 {
-          b0():
-            return i32 5
-        }
-        ");
-    }
-
-    #[test]
-    fn inlines_brillig_call_with_array_return() {
-        let src = "
-            acir(inline) fn main f0 {
-              b0():
-                v0 = call f1(Field 2, Field 3, Field 4) -> [Field; 3]
-                return v0
-            }
-
-            brillig(inline) fn one f1 {
-              b0(v0: Field, v1: Field, v2: Field):
-                v3 = make_array [v0, v1, v2] : [Field; 3]
-                return v3
-            }
-            ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let brillig = ssa.to_brillig(&BrilligOptions::default());
-
-        let ssa = ssa.fold_constants_with_brillig(&brillig);
-        let ssa = ssa.remove_unreachable_functions();
-        assert_ssa_snapshot!(ssa, @r"
-        acir(inline) fn main f0 {
-          b0():
-            v3 = make_array [Field 2, Field 3, Field 4] : [Field; 3]
-            return v3
-        }
-        ");
-    }
-
-    #[test]
-    fn inlines_brillig_call_with_composite_array_return() {
-        let src = "
-            acir(inline) fn main f0 {
-              b0():
-                v0 = call f1(Field 2, i32 3, Field 4, i32 5) -> [(Field, i32); 2]
-                return v0
-            }
-
-            brillig(inline) fn one f1 {
-              b0(v0: Field, v1: i32, v2: Field, v3: i32):
-                v4 = make_array [v0, v1, v2, v3] : [(Field, i32); 2]
-                return v4
-            }
-            ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let brillig = ssa.to_brillig(&BrilligOptions::default());
-
-        let ssa = ssa.fold_constants_with_brillig(&brillig);
-        let ssa = ssa.remove_unreachable_functions();
-        assert_ssa_snapshot!(ssa, @r"
-        acir(inline) fn main f0 {
-          b0():
-            v4 = make_array [Field 2, i32 3, Field 4, i32 5] : [(Field, i32); 2]
-            return v4
-        }
-        ");
-    }
-
-    #[test]
-    fn inlines_brillig_call_with_array_arguments() {
-        let src = "
-            acir(inline) fn main f0 {
-              b0():
-                v0 = make_array [Field 2, Field 3] : [Field; 2]
-                v1 = call f1(v0) -> Field
-                return v1
-            }
-
-            brillig(inline) fn one f1 {
-              b0(v0: [Field; 2]):
-                inc_rc v0
-                v2 = array_get v0, index u32 0 -> Field
-                v4 = array_get v0, index u32 1 -> Field
-                v5 = add v2, v4
-                dec_rc v0
-                return v5
-            }
-            ";
-        let ssa = Ssa::from_str(src).unwrap();
-        // Need to run SSA pass that sets up Brillig array gets
-        let ssa = ssa.brillig_array_get_and_set();
-        let brillig = ssa.to_brillig(&BrilligOptions::default());
-
-        let ssa = ssa.fold_constants_with_brillig(&brillig);
-        let ssa = ssa.remove_unreachable_functions();
-        assert_ssa_snapshot!(ssa, @r"
-        acir(inline) fn main f0 {
-          b0():
-            v2 = make_array [Field 2, Field 3] : [Field; 2]
-            return Field 5
-        }
-        ");
-    }
-
-    #[test]
-    fn inlines_brillig_call_with_entry_point_globals() {
-        let src = "
-        g0 = Field 2
-
-        acir(inline) fn main f0 {
-          b0():
-            v1 = call f1() -> Field
-            return v1
-        }
-
-        brillig(inline) fn one f1 {
-          b0():
-            v1 = add g0, Field 3
-            return v1
-        }
-        ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let brillig = ssa.to_brillig(&BrilligOptions::default());
-
-        let ssa = ssa.fold_constants_with_brillig(&brillig);
-        let ssa = ssa.remove_unreachable_functions();
-        assert_ssa_snapshot!(ssa, @r"
-        g0 = Field 2
-
-        acir(inline) fn main f0 {
-          b0():
-            return Field 5
-        }
-        ");
-    }
-
-    #[test]
-    fn inlines_brillig_call_with_non_entry_point_globals() {
-        let src = "
-        g0 = Field 2
-
-        acir(inline) fn main f0 {
-          b0():
-            v1 = call f1() -> Field
-            return v1
-        }
-
-        brillig(inline) fn entry_point f1 {
-          b0():
-            v1 = call f2() -> Field
-            return v1
-        }
-
-        brillig(inline) fn one f2 {
-          b0():
-            v1 = add g0, Field 3
-            return v1
-        }
-        ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let brillig = ssa.to_brillig(&BrilligOptions::default());
-
-        let ssa = ssa.fold_constants_with_brillig(&brillig);
-        let ssa = ssa.remove_unreachable_functions();
-        assert_ssa_snapshot!(ssa, @r"
-        g0 = Field 2
-
-        acir(inline) fn main f0 {
-          b0():
-            return Field 5
         }
         ");
     }

@@ -102,9 +102,6 @@ pub struct SsaEvaluatorOptions {
 pub struct ArtifactsAndWarnings(pub Artifacts, pub Vec<SsaReport>);
 
 /// The default SSA optimization pipeline.
-///
-/// After these passes everything is ready for execution, which is
-/// something we take can advantage of in the [secondary_passes].
 pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
     vec![
         SsaPass::new(Ssa::expand_signed_checks, "expand signed checks"),
@@ -237,13 +234,7 @@ pub fn minimal_passes() -> Vec<SsaPass<'static>> {
 /// An ACIR program is made up of both ACIR functions
 /// and Brillig functions for unconstrained execution.
 ///
-/// The `primary` SSA passes are applied on the initial SSA.
-/// Then we compile the Brillig functions, and use the output
-/// to run a `secondary` pass, which can use the Brillig
-/// artifacts to do constant folding.
-///
-/// See the [primary_passes] and [secondary_passes] for
-/// the default implementations.
+/// See the [primary_passes] for the default implementation.
 pub fn optimize_ssa_builder_into_acir(
     builder: SsaBuilder,
     options: &SsaEvaluatorOptions,
