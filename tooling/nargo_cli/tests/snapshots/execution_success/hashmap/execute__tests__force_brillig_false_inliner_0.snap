@@ -36,11 +36,23 @@ expression: artifact
     ],
     "return_type": null,
     "error_types": {
+      "1004672304334401604": {
+        "error_kind": "fmtstring",
+        "length": 48,
+        "item_types": [
+          {
+            "kind": "field"
+          },
+          {
+            "kind": "field"
+          }
+        ]
+      },
       "1359149291226868540": {
         "error_kind": "string",
         "string": "hashmap.len() does not match input length."
       },
-      "2386996775688025706": {
+      "2572122181750573608": {
         "error_kind": "fmtstring",
         "length": 39,
         "item_types": [
@@ -67,45 +79,10 @@ expression: artifact
         "item_types": [
           {
             "kind": "field"
-          },
-          {
-            "kind": "field"
           }
         ]
       },
-      "5019202896831570965": {
-        "error_kind": "string",
-        "string": "attempt to add with overflow"
-      },
-      "6693878053340631133": {
-        "error_kind": "fmtstring",
-        "length": 79,
-        "item_types": [
-          {
-            "kind": "integer",
-            "sign": "unsigned",
-            "width": 32
-          },
-          {
-            "kind": "integer",
-            "sign": "unsigned",
-            "width": 32
-          }
-        ]
-      },
-      "6895136539169241630": {
-        "error_kind": "string",
-        "string": "HashMaps should not be equal."
-      },
-      "7233212735005103307": {
-        "error_kind": "string",
-        "string": "attempt to multiply with overflow"
-      },
-      "9417307514377997680": {
-        "error_kind": "string",
-        "string": "HashMap after one insert should have a length of 1 element."
-      },
-      "9576462532509309328": {
+      "2658413227894878119": {
         "error_kind": "fmtstring",
         "length": 82,
         "item_types": [
@@ -121,18 +98,61 @@ expression: artifact
           }
         ]
       },
-      "9862881900111276825": {
+      "2920182694213909827": {
+        "error_kind": "string",
+        "string": "attempt to subtract with overflow"
+      },
+      "4115449374354845873": {
         "error_kind": "fmtstring",
-        "length": 35,
+        "length": 39,
         "item_types": [
+          {
+            "kind": "array",
+            "length": 3,
+            "type": {
+              "kind": "field"
+            }
+          }
+        ]
+      },
+      "4792885743450309393": {
+        "error_kind": "fmtstring",
+        "length": 36,
+        "item_types": [
+          {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 32
+          }
+        ]
+      },
+      "5019202896831570965": {
+        "error_kind": "string",
+        "string": "attempt to add with overflow"
+      },
+      "6895136539169241630": {
+        "error_kind": "string",
+        "string": "HashMaps should not be equal."
+      },
+      "7001869529102964896": {
+        "error_kind": "fmtstring",
+        "length": 36,
+        "item_types": [
+          {
+            "kind": "field"
+          },
           {
             "kind": "field"
           }
         ]
       },
-      "9965974553718638037": {
+      "7233212735005103307": {
+        "error_kind": "string",
+        "string": "attempt to multiply with overflow"
+      },
+      "8503083277066543196": {
         "error_kind": "fmtstring",
-        "length": 81,
+        "length": 79,
         "item_types": [
           {
             "kind": "integer",
@@ -154,10 +174,15 @@ expression: artifact
         "error_kind": "string",
         "string": "Value has been removed, but is still available (not none)."
       },
-      "12389747999246339213": {
+      "11671323210994517436": {
         "error_kind": "fmtstring",
-        "length": 36,
+        "length": 81,
         "item_types": [
+          {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 32
+          },
           {
             "kind": "integer",
             "sign": "unsigned",

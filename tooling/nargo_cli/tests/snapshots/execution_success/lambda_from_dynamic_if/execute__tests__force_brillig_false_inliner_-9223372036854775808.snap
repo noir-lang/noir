@@ -27,7 +27,7 @@ expression: artifact
         "error_kind": "string",
         "string": "attempt to add with overflow"
       },
-      "11660857942269032329": {
+      "17454579865077992320": {
         "error_kind": "fmtstring",
         "length": 1,
         "item_types": []

@@ -2,4 +2,4 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stdout
 ---
-[simple_program_addition] Circuit output: Field(4)
+[simple_program_addition] Circuit output: 0x04
