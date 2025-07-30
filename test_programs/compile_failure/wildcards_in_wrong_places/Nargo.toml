@@ -1,0 +1,7 @@
+[package]
+name = "wildcards_in_wrong_places"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.33.0"
+
+[dependencies]

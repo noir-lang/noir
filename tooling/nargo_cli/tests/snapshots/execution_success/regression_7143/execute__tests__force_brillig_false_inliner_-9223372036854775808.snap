@@ -52,7 +52,7 @@ expression: artifact
     "EXPR [ (1, _1) (1, _2) -1 ]",
     "INIT CALLDATA 0 (id: 1, len: 1, witnesses: [_1])"
   ],
-  "debug_symbols": "jZDdCoMwDIXfJde9mPtR8FXGkFqjFEJbYjsY4rsvit30YrCrNDn9TsiZoMM2DY11vR+hvk/QsiWyQ0Pe6Gi9k+k0K8htExlRRrDThQqa0UWoXSJS8NSU1k9j0G6tUbOoJwXoOqli2FvC5TWrL336jVbnja0uH/j2N12Wmb4e6Id02lg+XAsF1MW8mLHVLeGWQJ+c2QUSXyErObLA3mCXGBe7VZMFbw==",
+  "debug_symbols": "dY/RCoMwDEX/Jc99UNgc+CtjSK1RCiEtsR0M8d8XxW7uYU9pcntuchcYsM9T53kMM7T3BXrxRH7qKDibfGCdLquB0nZJEHUEJ12paAU5QcuZyMDTUt4/zdHyXpMVVSsDyINWNRw94fZazZeu/qNNc7C3ywe+Kv3QzjovP/dCDW29bmbibU94ZBgzu1Ok9IpFKaGjBIdDFtzsdk0XvAE=",
   "file_map": {
     "50": {
       "source": "fn main(x: u32, array: call_data(0) [bool; 1]) -> pub bool {\n    !array[x]\n}\n",

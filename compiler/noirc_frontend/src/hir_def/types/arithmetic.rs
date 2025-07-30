@@ -68,16 +68,15 @@ impl Type {
             Type::InfixExpr(lhs, op, rhs, inversion) => {
                 let kind = lhs.infix_kind(rhs);
                 let dummy_location = Location::dummy();
+
+                let evaluate = |typ: &Type| {
+                    typ.evaluate_to_field_element_helper(&kind, dummy_location, run_simplifications)
+                };
+
                 // evaluate_to_field_element also calls canonicalize so if we just called
                 // `self.evaluate_to_field_element(..)` we'd get infinite recursion.
-                if let Ok(lhs_value) =
-                    lhs.evaluate_to_field_element_helper(&kind, dummy_location, run_simplifications)
-                {
-                    if let Ok(rhs_value) = rhs.evaluate_to_field_element_helper(
-                        &kind,
-                        dummy_location,
-                        run_simplifications,
-                    ) {
+                if let Ok(lhs_value) = evaluate(lhs) {
+                    if let Ok(rhs_value) = evaluate(rhs) {
                         if let Ok(result) = op.function(lhs_value, rhs_value, &kind, dummy_location)
                         {
                             return Type::Constant(result, kind);
@@ -87,6 +86,24 @@ impl Type {
 
                 let lhs = lhs.canonicalize_helper(found_checked_cast, run_simplifications);
                 let rhs = rhs.canonicalize_helper(found_checked_cast, run_simplifications);
+
+                // See if this is `X * 1` or `X / 1` in which case we can simplify it to `X`
+                if matches!(op, BinaryTypeOperator::Multiplication | BinaryTypeOperator::Division) {
+                    if let Ok(rhs_value) = evaluate(&rhs) {
+                        if rhs_value.is_one() {
+                            return lhs;
+                        }
+                    }
+                }
+
+                // See if this is `X + 0` or `X - 0`, in which case we can simplify it to `X`
+                if matches!(op, BinaryTypeOperator::Addition | BinaryTypeOperator::Subtraction) {
+                    if let Ok(rhs_value) = evaluate(&rhs) {
+                        if rhs_value.is_zero() {
+                            return lhs;
+                        }
+                    }
+                }
 
                 if !run_simplifications {
                     return Type::InfixExpr(Box::new(lhs), *op, Box::new(rhs), *inversion);
@@ -626,7 +643,7 @@ mod proptests {
             match (&infix, &infix_canonicalized) {
                 (Type::CheckedCast { from, to }, Type::CheckedCast { from: from_canonicalized, to: to_canonicalized }) => {
                     // ensure from's are the same
-                    prop_assert_eq!(from, from_canonicalized);
+                    prop_assert_eq!(from.canonicalize(), from_canonicalized.canonicalize());
 
                     // ensure to's have the same kinds
                     prop_assert_eq!(to.kind(), kind.clone());

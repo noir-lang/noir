@@ -30,10 +30,6 @@ expression: artifact
       "visibility": "public"
     },
     "error_types": {
-      "14225679739041873922": {
-        "error_kind": "string",
-        "string": "Index out of bounds"
-      },
       "17843811134343075018": {
         "error_kind": "string",
         "string": "Stack too deep"
@@ -46,31 +42,29 @@ expression: artifact
     "private parameters indices : [_0, _1]",
     "public parameters indices : []",
     "return value indices : [_2]",
-    "BRILLIG CALL func 0: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(0))], q_c: 0 }), Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(1))], q_c: 0 })], outputs: [Array([Witness(3), Witness(4)])]",
+    "BRILLIG CALL func 0: inputs: [EXPR [ (1, _0) 0 ], EXPR [ (1, _1) 0 ]], outputs: [[_3, _4]]",
     "INIT (id: 0, len: 2, witnesses: [_3, _4])",
-    "BRILLIG CALL func 1: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(0))], q_c: 0 }), Single(Expression { mul_terms: [], linear_combinations: [], q_c: 4294967296 })], outputs: [Simple(Witness(5)), Simple(Witness(6))]",
+    "BRILLIG CALL func 1: inputs: [EXPR [ (1, _0) 0 ], EXPR [ 4294967296 ]], outputs: [_5, _6]",
     "BLACKBOX::RANGE [(_5, 222)] []",
     "EXPR [ (1, _0) (-4294967296, _5) (-1, _6) 0 ]",
     "EXPR [ (-1, _5) (-1, _7) 5096253676302562286669017222071363378443840053029366383258766538131 ]",
     "BLACKBOX::RANGE [(_7, 222)] []",
-    "BRILLIG CALL func 2: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(-1, Witness(5))], q_c: 5096253676302562286669017222071363378443840053029366383258766538131 })], outputs: [Simple(Witness(8))]",
+    "BRILLIG CALL func 2: inputs: [EXPR [ (-1, _5) 5096253676302562286669017222071363378443840053029366383258766538131 ]], outputs: [_8]",
     "EXPR [ (-1, _5, _8) (5096253676302562286669017222071363378443840053029366383258766538131, _8) (1, _9) -1 ]",
     "EXPR [ (-1, _5, _9) (5096253676302562286669017222071363378443840053029366383258766538131, _9) 0 ]",
     "EXPR [ (1, _6, _9) (268435455, _9) (-1, _10) 0 ]",
     "BLACKBOX::RANGE [(_10, 32)] []",
-    "BLACKBOX::RANGE [(_6, 1)] []",
     "MEM (id: 0, read at: EXPR [ (1, _6) 0 ], value: EXPR [ (1, _11) 0 ]) ",
-    "BRILLIG CALL func 1: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(1))], q_c: 0 }), Single(Expression { mul_terms: [], linear_combinations: [], q_c: 4294967296 })], outputs: [Simple(Witness(12)), Simple(Witness(13))]",
+    "BRILLIG CALL func 1: inputs: [EXPR [ (1, _1) 0 ], EXPR [ 4294967296 ]], outputs: [_12, _13]",
     "BLACKBOX::RANGE [(_12, 222)] []",
     "EXPR [ (1, _1) (-4294967296, _12) (-1, _13) 0 ]",
     "EXPR [ (-1, _12) (-1, _14) 5096253676302562286669017222071363378443840053029366383258766538131 ]",
     "BLACKBOX::RANGE [(_14, 222)] []",
-    "BRILLIG CALL func 2: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(-1, Witness(12))], q_c: 5096253676302562286669017222071363378443840053029366383258766538131 })], outputs: [Simple(Witness(15))]",
+    "BRILLIG CALL func 2: inputs: [EXPR [ (-1, _12) 5096253676302562286669017222071363378443840053029366383258766538131 ]], outputs: [_15]",
     "EXPR [ (-1, _12, _15) (5096253676302562286669017222071363378443840053029366383258766538131, _15) (1, _16) -1 ]",
     "EXPR [ (-1, _12, _16) (5096253676302562286669017222071363378443840053029366383258766538131, _16) 0 ]",
     "EXPR [ (1, _13, _16) (268435455, _16) (-1, _17) 0 ]",
     "BLACKBOX::RANGE [(_17, 32)] []",
-    "BLACKBOX::RANGE [(_13, 1)] []",
     "MEM (id: 0, read at: EXPR [ (1, _13) 0 ], value: EXPR [ (1, _18) 0 ]) ",
     "EXPR [ (1, _2) (-1, _11) (-1, _18) 0 ]",
     "unconstrained func 0",
@@ -80,7 +74,7 @@ expression: artifact
     "unconstrained func 2",
     "[Const { destination: Direct(21), bit_size: Integer(U32), value: 1 }, Const { destination: Direct(20), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(21), offset_address: Direct(20) }, Const { destination: Direct(2), bit_size: Field, value: 0 }, BinaryFieldOp { destination: Direct(3), op: Equals, lhs: Direct(0), rhs: Direct(2) }, JumpIf { condition: Direct(3), location: 8 }, Const { destination: Direct(1), bit_size: Field, value: 1 }, BinaryFieldOp { destination: Direct(0), op: Div, lhs: Direct(1), rhs: Direct(0) }, Stop { return_data: HeapVector { pointer: Direct(20), size: Direct(21) } }]"
   ],
-  "debug_symbols": "pZPbisMgEIbfxetcqKM59FVKKTa1RRATbLKwlLz7jk5Nl10CS/bm/3L6Rsfok13tZb6fXbgND3Y4PtklOu/d/eyH3kxuCPj0yXgKKdlBVEwCQRE0oSY0hJbQZQDaYlkqVkqep2htqvhtDBx5NNGGiR3C7H3FPoyf80eP0YTMyUR8yytmwxWJBW/O23S1VG+bb6sAzUsGaFdd/9kXvPhC6j0+6OJr2PJh25cgX75UfI8v69UXe3xdFl/qdo+v1Op3/5v/D/+Ed6Z38deuxQUTOXHv4uCQU+XUOeucTc42Z5dTcIIgkC7Qx18osADORGhCTWgILaHLkJwgCJIABKqSDlCzpKajMxdv08xTb3PoSyN4O32O5U05oGMcenudo01Nv08pFj8CVApO1MQRF111pyUt0hc=",
+  "debug_symbols": "pZPbisMgEIbfxetcqKM59FVKKTa1RRATbLKwlLz7jk5Nl10CS/bm/3L6xtHok13tZb6fXbgND3Y4PtklOu/d/eyH3kxuCPj0yXgKKdlBVEwCQRE0oSY0hJbQZQDaYlkqVkqep2htqvhtDBx5NNGGiR3C7H3FPoyf80eP0YTMyUR8yytmwxWJBW/O23S1VG+bb6sAzUsGaFdd/9kXvPhC6j0+6OJr2PJh25cgX75UfI8v69UXe3xdFl/qdo+v1Op3/+v/h3/CO9O7+GvX4oKJnLh3cXDIqXLqnHXOJmebs8spOEEQUMd/J9DHFoQiaEJNaAgtocuQnCAIkoBVmiVNMzpz8Tb1mmYzh760jrfT51jelCM5xqG31znaNM33ucRyR4BKwYnaPuIyq+60pGX5Ag==",
   "file_map": {
     "50": {
       "source": "fn main(x: Field, y: Field) -> pub Field {\n    // Safety: testing context\n    unsafe {\n        let notes = create_notes(x, y);\n        sum_x(notes, x, y)\n    }\n}\n\nfn sum_x(notes: [Field; 2], x: Field, y: Field) -> Field {\n    notes[x as u32] + notes[y as u32]\n}\n\nunconstrained fn create_notes(x: Field, y: Field) -> [Field; 2] {\n    [x, y]\n}\n",

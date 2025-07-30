@@ -85,7 +85,7 @@ expression: artifact
     "BLACKBOX::RANGE [(_34, 8)] []",
     "BLACKBOX::RANGE [(_35, 8)] []",
     "BLACKBOX::RANGE [(_36, 8)] []",
-    "BRILLIG CALL func 0: inputs: [Array([Expression { mul_terms: [], linear_combinations: [(1, Witness(0))], q_c: 0 }, Expression { mul_terms: [], linear_combinations: [(1, Witness(1))], q_c: 0 }, Expression { mul_terms: [], linear_combinations: [(1, Witness(2))], q_c: 0 }, Expression { mul_terms: [], linear_combinations: [(1, Witness(3))], q_c: 0 }, Expression { mul_terms: [], linear_combinations: [(1, Witness(4))], q_c: 0 }])], outputs: [Array([Witness(37), Witness(38), Witness(39), Witness(40), Witness(41), Witness(42), Witness(43), Witness(44), Witness(45), Witness(46), Witness(47), Witness(48), Witness(49), Witness(50), Witness(51), Witness(52), Witness(53), Witness(54), Witness(55), Witness(56), Witness(57), Witness(58), Witness(59), Witness(60), Witness(61), Witness(62), Witness(63), Witness(64), Witness(65), Witness(66), Witness(67), Witness(68)])]",
+    "BRILLIG CALL func 0: inputs: [[EXPR [ (1, _0) 0 ], EXPR [ (1, _1) 0 ], EXPR [ (1, _2) 0 ], EXPR [ (1, _3) 0 ], EXPR [ (1, _4) 0 ]]], outputs: [[_37, _38, _39, _40, _41, _42, _43, _44, _45, _46, _47, _48, _49, _50, _51, _52, _53, _54, _55, _56, _57, _58, _59, _60, _61, _62, _63, _64, _65, _66, _67, _68]]",
     "BLACKBOX::RANGE [(_37, 8)] []",
     "BLACKBOX::RANGE [(_38, 8)] []",
     "BLACKBOX::RANGE [(_39, 8)] []",

@@ -246,6 +246,20 @@ fn register_value(
             // added, we need to implement this as well.
             todo!("Tracing support for enums is not yet implemented")
         }
+        PrintableType::FmtString { length: _, typ } => {
+            // TODO: Proper handling for FmtString type
+            if let PrintableValue::FmtString(msg, printable_values) = value {
+                printable_values
+                    .iter()
+                    .for_each(|printable_value| {
+                        register_value(tracer, printable_value, typ);
+                    });
+                let type_id = TraceWriter::ensure_type_id(tracer, runtime_tracing::TypeKind::String, "String");
+                ValueRecord::String { text: msg.clone(), type_id }
+            } else {
+                panic!("type-value mismatch: value: {:?} does not match type FmtString", value)
+            }
+        }
     }
 }
 

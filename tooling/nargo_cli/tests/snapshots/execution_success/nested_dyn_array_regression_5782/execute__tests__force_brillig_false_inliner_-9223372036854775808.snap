@@ -49,12 +49,11 @@ expression: artifact
     "return value indices : []",
     "INIT (id: 0, len: 2, witnesses: [_0, _1])",
     "EXPR [ (1, _2) (-1, _3) -1 ]",
-    "BLACKBOX::RANGE [(_3, 1)] []",
     "MEM (id: 0, read at: EXPR [ (1, _3) 0 ], value: EXPR [ (1, _4) 0 ]) ",
     "EXPR [ (1, _4) -5 ]",
-    "BLACKBOX::RANGE [(_2, 1)] []",
     "MEM (id: 0, read at: EXPR [ (1, _2) 0 ], value: EXPR [ (1, _5) 0 ]) ",
     "EXPR [ (1, _5) -10 ]",
+    "BLACKBOX::RANGE [(_2, 1)] []",
     "EXPR [ (-1, _6) 2 ]",
     "MEM (id: 0, write EXPR [ (1, _6) 0 ] at: EXPR [ (1, _2) 0 ]) ",
     "EXPR [ (-1, _7) 0 ]",
@@ -76,7 +75,7 @@ expression: artifact
     "MEM (id: 2, read at: EXPR [ (1, _2) 0 ], value: EXPR [ (1, _19) 0 ]) ",
     "EXPR [ (1, _19) -2 ]"
   ],
-  "debug_symbols": "pZTBjoMgEED/Zc4cBAXUX9lsGmppQ0LQUG2yMf33HezQbQ+bNHjxCfjGEYdZ4WSPy+Xgwnm8Qv+1wjE6793l4MfBzG4MOLveGeThYY7W4hS8rKM1mWjDDH1YvGdwM37ZHrpOJmycTcTVioENJyQGPDtv092d/dnV/6ri5Cr1lOXHtpTZ1ntsXRXYXU121xTYrc623GV3BTavss55ydt58/SlKPF1Lhje7vVL8hd1Q75o6p2+2umX/D+hVPZ1u89v+Zv/jSMzuPjWJYDjRjMQ27VGiUEDPVa/hB4/RKHKQOMZZNDiWWLQbVdeYXki+ANJx5x4naoO2RAlURE1sSV2D4qKyImCmOJhLiLFw2yEJCpiipeK5GaiM0dvqe+dlzC8tMH5Z8oruVFOcRzsaYk2bca2htvzCw==",
+  "debug_symbols": "pZTbioMwEED/ZZ7zYGIu6q8sS0ltWgIhSqqFpfTfd2JHt31YKPHFYy5nGONk7nByx/ly8PE8XKH7usMx+RD85RCG3k5+iDh7fzBYh4cpOYdT8LKO1miTixN0cQ6Bwc2Gedl0HW1cONmEqxUDF09IDHj2weW3B/uzq/9VzcnVepPVx7ZSq2322KYqsBtDdqt22W2BzXlNOueyxK/M5pdkz+XmK1Him7VkeLPXL8lf1JJ8Ieudvt7pl/x/ofXqm2af3/A3/xtHtvfprU8Ax4NmIHA7gxo6LD4JHX6CQomBxvvHwOA9YtAszxbrmgGvnsg2JsNFLjdkTZRERdREQ2yI7ZOiInJijoepiBwPkxGSqIg5Xq6Om03eHoOjlneeY//SAaefcV1Ze+SYht6d5uTyKSxreC6/",
   "file_map": {
     "50": {
       "source": "fn main(mut array: [Field; 2], i: u32) {\n    assert_eq(array[i - 1], 5);\n    assert_eq(array[i], 10);\n\n    array[i] = 2;\n\n    let array2 = [array, array];\n\n    assert_eq(array2[0][0], 5);\n    assert_eq(array2[0][i], 2);\n    assert_eq(array2[i][0], 5);\n    assert_eq(array2[i][i], 2);\n}\n",

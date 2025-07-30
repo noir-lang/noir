@@ -43,7 +43,7 @@ expression: artifact
     "private parameters indices : []",
     "public parameters indices : []",
     "return value indices : [_0]",
-    "BRILLIG CALL func 0: inputs: [Array([Expression { mul_terms: [], linear_combinations: [], q_c: 1 }]), Array([Expression { mul_terms: [], linear_combinations: [], q_c: 1 }]), Single(Expression { mul_terms: [], linear_combinations: [], q_c: 1 })], outputs: [Array([Witness(1)])]",
+    "BRILLIG CALL func 0: inputs: [[EXPR [ 1 ]], [EXPR [ 1 ]], EXPR [ 1 ]], outputs: [[_1]]",
     "BLACKBOX::RANGE [(_1, 1)] []",
     "EXPR [ (1, _0) (-1, _1) 0 ]",
     "unconstrained func 0",

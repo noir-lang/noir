@@ -1,6 +1,5 @@
 ---
 source: tooling/nargo_cli/tests/execute.rs
-assertion_line: 512
 expression: artifact
 ---
 {
@@ -40,7 +39,7 @@ expression: artifact
     "EXPR [ (1, _0) 0 ]",
     "EXPR [ (1, _1) -1 ]"
   ],
-  "debug_symbols": "dY/BDoIwDIbfpecd8GBUXsUYMkYhTZpuKZuJIby7hYDiwVPX/vv+9p+gw7YMDUkfR6jvE7RKzDQ0HIPPFMWm0+xgb5usiDaCg25U8oqSoZbC7ODpuayfxuRlrdmrqZUDlM6qGfbEuLxm96Wr/+jlurGX2wc+G/2wzgfSn3uhgvo0L2ZKvmXcMvRFwiFSfqVd2UMnjQG7orjYrZoteAM=",
+  "debug_symbols": "dY/dCoMwDIXfJde9cBf7wVcZQ2qNEghpie1giO++KIruYldpcvqd5EzQYVuGhqSPI9TPCVolZhoajsFnimLTaXawt01WRBvBSTcqeUXJUEthdvD2XNZPY/Ky1uzV1MoBSmfVDHtiXF6zO+jqP3q/bezjgK9Gv6zzgfTnXqigvsyLmZJvGbcMfZFwipQ/aVf20EljwK4oLnarZgu+",
   "file_map": {
     "50": {
       "source": "fn main(x: u32) -> pub bool {\n    let d: [&mut bool; 1] = [&mut true];\n    *d[x]\n}\n",

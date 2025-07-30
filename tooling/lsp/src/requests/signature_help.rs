@@ -4,7 +4,7 @@ use async_lsp::ResponseError;
 use async_lsp::lsp_types::{
     ParameterInformation, ParameterLabel, SignatureHelp, SignatureHelpParams, SignatureInformation,
 };
-use fm::{FileId, PathString};
+use fm::FileId;
 use noirc_errors::{Location, Span};
 use noirc_frontend::{
     ParsedModule, Type,
@@ -27,24 +27,20 @@ pub(crate) fn on_signature_help_request(
     state: &mut LspState,
     params: SignatureHelpParams,
 ) -> impl Future<Output = Result<Option<SignatureHelp>, ResponseError>> + use<> {
-    let uri = params.text_document_position_params.clone().text_document.uri;
-
     let result = process_request(state, params.text_document_position_params.clone(), |args| {
-        let path = PathString::from_path(uri.to_file_path().unwrap());
-        args.files.get_file_id(&path).and_then(|file_id| {
-            utils::position_to_byte_index(
-                args.files,
-                file_id,
-                &params.text_document_position_params.position,
-            )
-            .and_then(|byte_index| {
-                let file = args.files.get_file(file_id).unwrap();
-                let source = file.source();
-                let (parsed_module, _errors) = noirc_frontend::parse_program(source, file_id);
+        let file_id = args.location.file;
+        utils::position_to_byte_index(
+            args.files,
+            file_id,
+            &params.text_document_position_params.position,
+        )
+        .and_then(|byte_index| {
+            let file = args.files.get_file(file_id).unwrap();
+            let source = file.source();
+            let (parsed_module, _errors) = noirc_frontend::parse_program(source, file_id);
 
-                let mut finder = SignatureFinder::new(file_id, byte_index, args.interner);
-                finder.find(&parsed_module)
-            })
+            let mut finder = SignatureFinder::new(file_id, byte_index, args.interner);
+            finder.find(&parsed_module)
         })
     });
     future::ready(result)

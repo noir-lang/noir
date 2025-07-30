@@ -986,7 +986,7 @@ impl TypeVariable {
 
 /// TypeBindings are the mutable insides of a TypeVariable.
 /// They are either bound to some type, or are unbound.
-#[derive(Clone, PartialEq, Eq, Hash, Debug, PartialOrd, Ord)]
+#[derive(Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum TypeBinding {
     Bound(Type),
     Unbound(TypeVariableId, Kind),
@@ -1127,6 +1127,15 @@ impl std::fmt::Display for TypeVariableId {
 }
 
 impl std::fmt::Display for TypeBinding {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TypeBinding::Bound(typ) => typ.fmt(f),
+            TypeBinding::Unbound(id, _) => id.fmt(f),
+        }
+    }
+}
+
+impl std::fmt::Debug for TypeBinding {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             TypeBinding::Bound(typ) => typ.fmt(f),
@@ -1297,6 +1306,10 @@ impl Type {
 
     pub(crate) fn is_mutable_ref(&self) -> bool {
         matches!(self.follow_bindings_shallow().as_ref(), Type::Reference(_, true))
+    }
+
+    pub(crate) fn is_ref(&self) -> bool {
+        matches!(self.follow_bindings_shallow().as_ref(), Type::Reference(_, _))
     }
 
     /// True if this type can be used as a parameter to `main` or a contract function.
@@ -1867,14 +1880,17 @@ impl Type {
         run_simplifications: bool,
     ) -> Result<acvm::FieldElement, TypeCheckError> {
         if let Some((binding, binding_kind)) = self.get_inner_type_variable() {
-            if let TypeBinding::Bound(binding) = &*binding.borrow() {
-                if kind.unifies(&binding_kind) {
-                    return binding.evaluate_to_field_element_helper(
-                        &binding_kind,
-                        location,
-                        run_simplifications,
-                    );
+            match &*binding.borrow() {
+                TypeBinding::Bound(binding) => {
+                    if kind.unifies(&binding_kind) {
+                        return binding.evaluate_to_field_element_helper(
+                            &binding_kind,
+                            location,
+                            run_simplifications,
+                        );
+                    }
                 }
+                TypeBinding::Unbound(..) => (),
             }
         }
 
@@ -2621,20 +2637,48 @@ impl BinaryTypeOperator {
                     Err(TypeCheckError::ModuloOnFields { lhs: a, rhs: b, location })
                 }
             },
-            Some(_maximum_size) => {
-                let a = a.to_i128();
-                let b = b.to_i128();
+            Some(maximum_size) => {
+                if maximum_size.to_u128() == u128::MAX {
+                    // For u128 operations we need to use u128
+                    let a = a.to_u128();
+                    let b = b.to_u128();
 
-                let err = TypeCheckError::FailingBinaryOp { op: self, lhs: a, rhs: b, location };
-                let result = match self {
-                    BinaryTypeOperator::Addition => a.checked_add(b).ok_or(err)?,
-                    BinaryTypeOperator::Subtraction => a.checked_sub(b).ok_or(err)?,
-                    BinaryTypeOperator::Multiplication => a.checked_mul(b).ok_or(err)?,
-                    BinaryTypeOperator::Division => a.checked_div(b).ok_or(err)?,
-                    BinaryTypeOperator::Modulo => a.checked_rem(b).ok_or(err)?,
-                };
+                    let err = TypeCheckError::FailingBinaryOp {
+                        op: self,
+                        lhs: a.to_string(),
+                        rhs: b.to_string(),
+                        location,
+                    };
+                    let result = match self {
+                        BinaryTypeOperator::Addition => a.checked_add(b).ok_or(err)?,
+                        BinaryTypeOperator::Subtraction => a.checked_sub(b).ok_or(err)?,
+                        BinaryTypeOperator::Multiplication => a.checked_mul(b).ok_or(err)?,
+                        BinaryTypeOperator::Division => a.checked_div(b).ok_or(err)?,
+                        BinaryTypeOperator::Modulo => a.checked_rem(b).ok_or(err)?,
+                    };
 
-                Ok(result.into())
+                    Ok(result.into())
+                } else {
+                    // Every other type first in i128, allowing both positive and negative values
+                    let a = a.to_i128();
+                    let b = b.to_i128();
+
+                    let err = TypeCheckError::FailingBinaryOp {
+                        op: self,
+                        lhs: a.to_string(),
+                        rhs: b.to_string(),
+                        location,
+                    };
+                    let result = match self {
+                        BinaryTypeOperator::Addition => a.checked_add(b).ok_or(err)?,
+                        BinaryTypeOperator::Subtraction => a.checked_sub(b).ok_or(err)?,
+                        BinaryTypeOperator::Multiplication => a.checked_mul(b).ok_or(err)?,
+                        BinaryTypeOperator::Division => a.checked_div(b).ok_or(err)?,
+                        BinaryTypeOperator::Modulo => a.checked_rem(b).ok_or(err)?,
+                    };
+
+                    Ok(result.into())
+                }
             }
         }
     }
@@ -2713,7 +2757,13 @@ impl From<&Type> for PrintableType {
                     .expect("Cannot print variable sized strings");
                 PrintableType::String { length: size }
             }
-            Type::FmtString(_, _) => unreachable!("format strings cannot be printed"),
+            Type::FmtString(size, typ) => {
+                let dummy_location = Location::dummy();
+                let size = size
+                    .evaluate_to_u32(dummy_location)
+                    .expect("Cannot print variable sized strings");
+                PrintableType::FmtString { length: size, typ: Box::new(typ.as_ref().into()) }
+            }
             Type::Error => unreachable!(),
             Type::Unit => PrintableType::Unit,
             Type::Constant(_, _) => unreachable!(),
@@ -2779,7 +2829,7 @@ impl std::fmt::Debug for Type {
                         Kind::Numeric(typ) => write!(f, "Numeric({binding:?}: {typ:?})"),
                     }
                 } else {
-                    write!(f, "{}", binding.borrow())
+                    write!(f, "{:?}", binding.borrow())
                 }
             }
             Type::DataType(s, args) => {

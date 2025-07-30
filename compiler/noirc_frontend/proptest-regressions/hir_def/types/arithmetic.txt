@@ -5,3 +5,4 @@
 # It is recommended to check this file in to source control so that
 # everyone who runs the test benefits from these saved cases.
 cc fc27f4091dfa5f938973048209b5fcf22aefa1cfaffaaa3e349f30e9b1f93f49 # shrinks to infix_and_bindings = (((0: numeric bool) % (Numeric(Shared(RefCell { value: Unbound('2, Numeric(bool)) }): bool) + Numeric(Shared(RefCell { value: Unbound('0, Numeric(bool)) }): bool))), [('0, (0: numeric bool)), ('1, (0: numeric bool)), ('2, (0: numeric bool))])
+cc ebe53a1b6d6dda87e80761d4c56069bfc39f9f5e7e301e6a8f9e4fbbc33af85c # shrinks to infix_type_bindings = (((Numeric(Shared(RefCell { value: '2 }): bool) + (0: numeric bool)) - ((0: numeric bool) - (0: numeric bool))), bool, [('0, (0: numeric bool)), ('1, (0: numeric bool)), ('2, (0: numeric bool)), ('3, (0: numeric bool)), ('4, (0: numeric bool)), ('5, (0: numeric bool)), ('6, (0: numeric bool)), ('7, (0: numeric bool))])

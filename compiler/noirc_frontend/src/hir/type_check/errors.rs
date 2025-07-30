@@ -54,7 +54,7 @@ pub enum TypeCheckError {
         location: Location,
     },
     #[error("Evaluating `{op}` on `{lhs}`, `{rhs}` failed")]
-    FailingBinaryOp { op: BinaryTypeOperator, lhs: i128, rhs: i128, location: Location },
+    FailingBinaryOp { op: BinaryTypeOperator, lhs: String, rhs: String, location: Location },
     #[error("Type {typ:?} cannot be used in a {place:?}")]
     TypeCannotBeUsed { typ: Type, place: &'static str, location: Location },
     #[error("Expected type {expected_typ:?} is not the same as {expr_typ:?}")]
@@ -618,7 +618,7 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             }
             TypeCheckError::InvalidTypeForEntryPoint { location } => Diagnostic::simple_error(
                 "Only sized types may be used in the entry point to a program".to_string(),
-                "Slices, references, or any type containing them may not be used in main, contract functions, or foldable functions".to_string(), *location),
+                "Slices, references, or any type containing them may not be used in main, contract functions, test functions, fuzz functions or foldable functions".to_string(), *location),
             TypeCheckError::MismatchTraitImplNumParameters {
                 expected_num_parameters,
                 actual_num_parameters,

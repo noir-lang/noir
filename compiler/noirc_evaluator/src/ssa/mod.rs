@@ -176,6 +176,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
     );
     ssa_pass_builder.add_pass(Ssa::simplify_cfg, "Simplifying", vec![All, Debug]);
     ssa_pass_builder.add_pass(Ssa::mem2reg, "Mem2Reg", vec![All, Debug]);
+    ssa_pass_builder.add_pass(Ssa::simplify_cfg, "Simplifying", vec![All, Debug]);
     ssa_pass_builder.add_pass(Ssa::flatten_cfg, "Flattening", vec![All]);
     ssa_pass_builder.add_pass(Ssa::remove_bit_shifts, "Removing Bit Shifts", vec![All, Debug]);
     // Run mem2reg once more with the flattened CFG to catch any remaining loads/stores

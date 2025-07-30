@@ -725,7 +725,8 @@ impl Elaborator<'_> {
         let generics = segment.generics.map(|generics| {
             vecmap(generics, |generic| {
                 let location = generic.location;
-                let typ = self.use_type_with_kind(generic, &Kind::Any);
+                let wildcard_allowed = true;
+                let typ = self.use_type_with_kind(generic, &Kind::Any, wildcard_allowed);
                 Located::from(location, typ)
             })
         });
@@ -1003,8 +1004,47 @@ impl Elaborator<'_> {
         let (typ, bindings) =
             self.instantiate(t, bindings, generics, function_generic_count, location);
 
+        if let ImplKind::TraitItem(mut method) = ident.impl_kind {
+            method.constraint.apply_bindings(&bindings);
+            if method.assumed {
+                let trait_generics = method.constraint.trait_bound.trait_generics.clone();
+                let object_type = method.constraint.typ;
+                let trait_impl = TraitImplKind::Assumed { object_type, trait_generics };
+                self.interner.select_impl_for_expression(expr_id, trait_impl);
+            } else {
+                self.push_trait_constraint(
+                    method.constraint,
+                    expr_id,
+                    true, // this constraint should lead to choosing a trait impl method
+                );
+            }
+        }
+
         // Push any trait constraints required by this definition to the context
         // to be checked later when the type of this variable is further constrained.
+        //
+        // This must be done before the above trait constraint in case the above one further
+        // restricts types.
+        //
+        // For example, in this code:
+        //
+        // ```noir
+        // trait One {}
+        //
+        // trait Two<O: One> {
+        //     fn new() -> Self;
+        // }
+        //
+        // fn foo<O: One, T: Two<O>>() {
+        //     let _: T = Two::new();
+        // }
+        // ```
+        //
+        // when type-checking `Two::new` we'll have a return type `'2` which is constrained by `'2: Two<'1>`.
+        // Then the definition for `new` has a constraint on it, `O: One`, which translates to `'1: One`.
+        //
+        // If we try to find a trait implementation for `'1` before finding one for `'2` we'll never find it:
+        // once we find one for `'2`, `'1` will become bound and a trait implementation will be found.
         if let Some(definition) = self.interner.try_definition(ident.id) {
             if let DefinitionKind::Function(function) = definition.kind {
                 let function = self.interner.function_meta(&function);
@@ -1017,25 +1057,6 @@ impl Elaborator<'_> {
                         false, // This constraint shouldn't lead to choosing a trait impl method
                     );
                 }
-            }
-        }
-
-        if let ImplKind::TraitItem(mut method) = ident.impl_kind {
-            method.constraint.apply_bindings(&bindings);
-            if method.assumed {
-                let trait_generics = method.constraint.trait_bound.trait_generics.clone();
-                let object_type = method.constraint.typ;
-                let trait_impl = TraitImplKind::Assumed { object_type, trait_generics };
-                self.interner.select_impl_for_expression(expr_id, trait_impl);
-            } else {
-                // Currently only one impl can be selected per expr_id, so this
-                // constraint needs to be pushed after any other constraints so
-                // that monomorphization can resolve this trait method to the correct impl.
-                self.push_trait_constraint(
-                    method.constraint,
-                    expr_id,
-                    true, // this constraint should lead to choosing a trait impl method
-                );
             }
         }
 
@@ -1142,7 +1163,8 @@ impl Elaborator<'_> {
     pub(super) fn elaborate_type_path(&mut self, path: TypePath) -> (ExprId, Type) {
         let typ_location = path.typ.location;
         let turbofish = path.turbofish;
-        let typ = self.use_type(path.typ);
+        let wildcard_allowed = true;
+        let typ = self.use_type(path.typ, wildcard_allowed);
         self.elaborate_type_path_impl(typ, path.item, turbofish, typ_location)
     }
 
