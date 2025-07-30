@@ -500,7 +500,7 @@ impl<'a> Context<'a> {
         let mut warnings = Vec::new();
         // Disable the side effects if the binary instruction does not require them
         let one = self.acir_context.add_constant(FieldElement::one());
-        let predicate = if instruction.requires_acir_gen_predicate(dfg) {
+        let predicate = if instruction.requires_acir_gen_predicate(dfg, &ssa.function_purities) {
             self.current_side_effects_enabled_var
         } else {
             one

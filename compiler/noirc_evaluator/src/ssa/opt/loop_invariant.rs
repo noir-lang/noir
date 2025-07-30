@@ -62,7 +62,7 @@ use crate::ssa::{
         types::{NumericType, Type},
         value::{Value, ValueId},
     },
-    opt::pure::Purity,
+    opt::pure::{FunctionPurities, Purity},
 };
 use acvm::{FieldElement, acir::AcirField};
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
@@ -74,22 +74,21 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn loop_invariant_code_motion(mut self) -> Ssa {
         for function in self.functions.values_mut() {
-            function.loop_invariant_code_motion();
+            function.loop_invariant_code_motion(&self.function_purities);
         }
-
         self
     }
 }
 
 impl Function {
-    pub(super) fn loop_invariant_code_motion(&mut self) {
-        Loops::find_all(self).hoist_loop_invariants(self);
+    pub(super) fn loop_invariant_code_motion(&mut self, purities: &FunctionPurities) {
+        Loops::find_all(self).hoist_loop_invariants(self, purities);
     }
 }
 
 impl Loops {
-    fn hoist_loop_invariants(mut self, function: &mut Function) {
-        let mut context = LoopInvariantContext::new(function);
+    fn hoist_loop_invariants(mut self, function: &mut Function, purities: &FunctionPurities) {
+        let mut context = LoopInvariantContext::new(function, purities);
 
         // Insert all loop bounds up front, so we can inspect both outer and nested loops.
         for loop_ in &self.yet_to_unroll {
@@ -151,7 +150,7 @@ impl Loop {
     }
 }
 
-struct LoopInvariantContext<'f> {
+struct LoopInvariantContext<'f, 'purities> {
     inserter: FunctionInserter<'f>,
     defined_in_loop: HashSet<ValueId>,
     loop_invariants: HashSet<ValueId>,
@@ -201,10 +200,12 @@ struct LoopInvariantContext<'f> {
     // Helper constants
     true_value: ValueId,
     false_value: ValueId,
+
+    purities: &'purities FunctionPurities,
 }
 
-impl<'f> LoopInvariantContext<'f> {
-    fn new(function: &'f mut Function) -> Self {
+impl<'f, 'purities> LoopInvariantContext<'f, 'purities> {
+    fn new(function: &'f mut Function, purities: &'purities FunctionPurities) -> Self {
         let cfg = ControlFlowGraph::with_function(function);
         let reversed_cfg = ControlFlowGraph::extended_reverse(function);
         let post_order = PostOrder::with_cfg(&reversed_cfg);
@@ -231,6 +232,7 @@ impl<'f> LoopInvariantContext<'f> {
             true_value,
             false_value,
             no_break: false,
+            purities,
         }
     }
 
@@ -282,7 +284,8 @@ impl<'f> LoopInvariantContext<'f> {
                     // If the block has already been labelled as impure, we do need to check the current
                     // instruction's side effects.
                     if !self.current_block_impure {
-                        self.current_block_impure = dfg[instruction_id].has_side_effects(dfg);
+                        self.current_block_impure =
+                            dfg[instruction_id].has_side_effects(dfg, self.purities);
                     }
                     self.inserter.push_instruction(instruction_id, *block);
                 }
@@ -324,7 +327,7 @@ impl<'f> LoopInvariantContext<'f> {
             dfg[*block]
                 .instructions()
                 .iter()
-                .any(|instruction| dfg[*instruction].has_side_effects(dfg))
+                .any(|instruction| dfg[*instruction].has_side_effects(dfg, self.purities))
         });
 
         // Reset the current block control dependent flag, the check will set it to true if needed.
@@ -521,7 +524,7 @@ impl<'f> LoopInvariantContext<'f> {
         }
 
         matches!(instruction, MakeArray { .. })
-            || can_be_hoisted(&instruction, self.inserter.function, false)
+            || can_be_hoisted(&instruction, self.inserter.function, false, self.purities)
             || self.can_be_hoisted_with_control_dependence(&instruction, self.inserter.function)
             || self.can_be_hoisted_from_loop_bounds(&instruction)
     }
@@ -533,7 +536,7 @@ impl<'f> LoopInvariantContext<'f> {
         instruction: &Instruction,
         function: &Function,
     ) -> bool {
-        can_be_hoisted(instruction, function, true)
+        can_be_hoisted(instruction, function, true, self.purities)
             && self.can_hoist_control_dependent_instruction()
     }
 
@@ -610,7 +613,7 @@ impl<'f> LoopInvariantContext<'f> {
             Call { func, .. } => {
                 let purity = match self.inserter.function.dfg[*func] {
                     Value::Intrinsic(intrinsic) => Some(intrinsic.purity()),
-                    Value::Function(id) => self.inserter.function.dfg.purity_of(id),
+                    Value::Function(id) => self.purities.get(&id).copied(),
                     _ => None,
                 };
                 matches!(purity, Some(Purity::PureWithPredicate))
@@ -1054,6 +1057,7 @@ fn can_be_hoisted(
     instruction: &Instruction,
     function: &Function,
     hoist_with_predicate: bool,
+    purities: &FunctionPurities,
 ) -> bool {
     use Instruction::*;
 
@@ -1069,7 +1073,7 @@ fn can_be_hoisted(
         Call { func, .. } => {
             let purity = match function.dfg[*func] {
                 Value::Intrinsic(intrinsic) => Some(intrinsic.purity()),
-                Value::Function(id) => function.dfg.purity_of(id),
+                Value::Function(id) => purities.get(&id).copied(),
                 _ => None,
             };
             match purity {
@@ -1100,7 +1104,8 @@ fn can_be_hoisted(
 
         // These can have different behavior depending on the predicate.
         Binary(_) | ArrayGet { .. } | ArraySet { .. } => {
-            hoist_with_predicate || !instruction.requires_acir_gen_predicate(&function.dfg)
+            hoist_with_predicate
+                || !instruction.requires_acir_gen_predicate(&function.dfg, purities)
         }
     }
 }

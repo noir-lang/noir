@@ -18,6 +18,7 @@ use crate::ssa::{
         instruction::Instruction,
         types::NumericType,
     },
+    opt::pure::FunctionPurities,
     ssa_gen::Ssa,
 };
 
@@ -26,14 +27,14 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn remove_enable_side_effects(mut self) -> Ssa {
         for function in self.functions.values_mut() {
-            function.remove_enable_side_effects();
+            function.remove_enable_side_effects(&self.function_purities);
         }
         self
     }
 }
 
 impl Function {
-    pub(crate) fn remove_enable_side_effects(&mut self) {
+    pub(crate) fn remove_enable_side_effects(&mut self, purities: &FunctionPurities) {
         if matches!(self.runtime(), RuntimeType::Brillig(_)) {
             // Brillig functions do not make use of the `EnableSideEffects` instruction so are unaffected by this pass.
             return;
@@ -88,7 +89,7 @@ impl Function {
 
             // If we hit an instruction which is affected by the side effects var then we must insert the
             // `Instruction::EnableSideEffectsIf` before we insert this new instruction.
-            if instruction.requires_acir_gen_predicate(context.dfg) {
+            if instruction.requires_acir_gen_predicate(context.dfg, purities) {
                 if let Some(enable_side_effects_instruction_id) =
                     last_side_effects_enabled_instruction.take()
                 {
