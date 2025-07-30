@@ -1,92 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1753888446548,
+  "lastUpdate": 1753888521027,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "566de3f20199259e1594d778e47ad3550aa344cd",
-          "message": "fix(licm): Ensure that all nested loops the current block is part of are guaranteed to execute (#9249)",
-          "timestamp": "2025-07-21T09:18:17Z",
-          "tree_id": "74351d0506a127948c7b14d5e8c11e90b1fc62c6",
-          "url": "https://github.com/noir-lang/noir/commit/566de3f20199259e1594d778e47ad3550aa344cd"
-        },
-        "date": 1753091790948,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 235.33,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 543.32,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 208.99,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 1370,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 1460,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 1090,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 9380,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 9390,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 328.81,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 339.22,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 104.55,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 255.6,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -2099,6 +2015,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512_100_bytes",
             "value": 234.75,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "922efbdb30b35c7e93f8db829436fbe0a03ffae1",
+          "message": "fix: modulo overflow in comptime (#9348)",
+          "timestamp": "2025-07-30T14:43:05Z",
+          "tree_id": "59b169ae7402cf35c78fac04acbcbe9f21208608",
+          "url": "https://github.com/noir-lang/noir/commit/922efbdb30b35c7e93f8db829436fbe0a03ffae1"
+        },
+        "date": 1753888504423,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore_depth_10",
+            "value": 104.71,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 234.72,
             "unit": "MB"
           }
         ]
