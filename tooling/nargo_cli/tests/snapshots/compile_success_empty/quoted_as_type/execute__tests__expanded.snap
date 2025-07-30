@@ -13,7 +13,7 @@ fn main() {
 comptime fn macro() -> Quoted {
     let typ: Type = quote { Foo < Field >  }.as_type();
     quote {
-        let foo: typ = Foo {
+        let foo: $typ = Foo {
             
         }
         ;

@@ -15,7 +15,7 @@ pub fn foobar() {}
 comptime fn attr(_f: FunctionDefinition) -> Quoted {
     let serialized_len: Field = 1_Field;
     quote {
-        impl Serialize < serialized_len > for Field {
+        impl Serialize < $serialized_len > for Field {
             fn serialize() {
                 
             }

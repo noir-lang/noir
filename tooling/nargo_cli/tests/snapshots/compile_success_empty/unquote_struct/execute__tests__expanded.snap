@@ -16,11 +16,11 @@ fn foo(x: Field, y: u32) -> u32 {
 comptime fn output_struct(f: FunctionDefinition) -> Quoted {
     let fields: Quoted = f
         .parameters()
-        .map(|(name, typ): (Quoted, Type)| -> Quoted quote { name: typ,  })
+        .map(|(name, typ): (Quoted, Type)| -> Quoted quote { $name: $typ,  })
         .join(quote {  });
     quote {
         struct Foo {
-            fields
+            $fields
         }
         impl Foo {
             fn assert_equal(self) {

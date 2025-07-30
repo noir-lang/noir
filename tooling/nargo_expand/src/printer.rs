@@ -752,7 +752,11 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
 
     fn show_trait_bound(&mut self, bound: &ResolvedTraitBound) {
         let trait_ = self.interner.get_trait(bound.trait_id);
-        self.push_str(&trait_.name.to_string());
+        self.show_reference_to_module_def_id(
+            ModuleDefId::TraitId(trait_.id),
+            trait_.visibility,
+            true,
+        );
         self.show_trait_generics(&bound.trait_generics);
     }
 
@@ -1145,7 +1149,13 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
 
     fn show_quoted(&mut self, tokens: &[LocatedToken]) {
         self.push_str("quote {");
-        let string = tokens_to_string_with_indent(tokens, self.indent + 1, self.interner);
+        let preserve_unquote_markers = true;
+        let string = tokens_to_string_with_indent(
+            tokens,
+            self.indent + 1,
+            preserve_unquote_markers,
+            self.interner,
+        );
         if string.contains('\n') {
             self.push('\n');
             self.increase_indent();
