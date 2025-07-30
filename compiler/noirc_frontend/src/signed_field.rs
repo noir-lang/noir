@@ -60,10 +60,6 @@ impl SignedField {
         SignedField::new(value.into(), negative)
     }
 
-    pub fn try_to_u32(self) -> Option<u32> {
-        self.try_to_unsigned::<u32>()
-    }
-
     /// Convert a SignedField into an unsigned integer type (up to u128),
     /// returning None if the value does not fit (e.g. if it is negative).
     #[inline]

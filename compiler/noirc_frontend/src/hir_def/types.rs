@@ -1875,7 +1875,7 @@ impl Type {
     pub fn evaluate_to_u32(&self, location: Location) -> Result<u32, TypeCheckError> {
         self.evaluate_to_signed_field(&Kind::u32(), location).map(|signed_field| {
             signed_field
-                .try_to_u32()
+                .try_to_unsigned::<u32>()
                 .expect("ICE: size should have already been checked by evaluate_to_field_element")
         })
     }
