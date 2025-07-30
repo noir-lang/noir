@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1753895034120,
+  "lastUpdate": 1753895036062,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -13828,90 +13828,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "de536523e69a21733361ff0e9ff4748a0005e2a1",
-          "message": "feat: allow paths in l-values (#9254)",
-          "timestamp": "2025-07-21T12:55:49Z",
-          "tree_id": "0cc8be7688f33a1fce85eb368c30905176a6c130",
-          "url": "https://github.com/noir-lang/noir/commit/de536523e69a21733361ff0e9ff4748a0005e2a1"
-        },
-        "date": 1753104873699,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 716.6,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 1972.3,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 543,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 4943,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 3958.4,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 3881.2,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 32668.1,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 32702.3,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 187.1,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 398.6,
-            "unit": "KB"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 632.4,
-            "unit": "KB"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 622.9,
-            "unit": "KB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -15761,6 +15677,40 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/28abb682cf4001ab97dcafd3e9a111a281806be4"
         },
         "date": 1753889530065,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore-depth-10",
+            "value": 632.1,
+            "unit": "KB"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 525.2,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "4e13631500ed9aaecbd20aa80480b2f8bf547d03",
+          "message": "chore(docs): Add example for `$crate` in docs (#9361)",
+          "timestamp": "2025-07-30T16:33:32Z",
+          "tree_id": "b9d7c459fd592568c6ccee3297c166645afd8178",
+          "url": "https://github.com/noir-lang/noir/commit/4e13631500ed9aaecbd20aa80480b2f8bf547d03"
+        },
+        "date": 1753895015724,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
