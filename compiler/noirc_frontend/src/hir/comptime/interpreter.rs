@@ -647,9 +647,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 let location = self.elaborator.interner.expr_location(&id);
                 match associated_type
                     .typ
-                    .evaluate_to_field_element(&associated_type.typ.kind(), location)
+                    .evaluate_to_signed_field(&associated_type.typ.kind(), location)
                 {
-                    Ok(value) => self.evaluate_integer(value.into(), id),
+                    Ok(value) => self.evaluate_integer(value, id),
                     Err(err) => Err(InterpreterError::NonIntegerArrayLength {
                         typ: associated_type.typ.clone(),
                         err: Some(Box::new(err)),
@@ -665,7 +665,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     fn evaluate_numeric_generic(&self, value: Type, expected: &Type, id: ExprId) -> IResult<Value> {
         let location = self.elaborator.interner.id_location(id);
         let value = value
-            .evaluate_to_field_element(&Kind::Numeric(Box::new(expected.clone())), location)
+            .evaluate_to_signed_field(&Kind::Numeric(Box::new(expected.clone())), location)
             .map_err(|err| {
                 let typ = value;
                 let err = Some(Box::new(err));
@@ -673,7 +673,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 InterpreterError::NonIntegerArrayLength { typ, err, location }
             })?;
 
-        self.evaluate_integer(value.into(), id)
+        self.evaluate_integer(value, id)
     }
 
     fn evaluate_trait_item(&mut self, item: TraitItem, id: ExprId) -> IResult<Value> {
@@ -1632,7 +1632,6 @@ fn bounds_check(array: Value, index: Value, location: Location) -> IResult<(Vect
             let u64: Option<u64> = value.try_to_unsigned();
             u64.and_then(|value| value.try_into().ok()).ok_or_else(|| {
                 let typ = Type::default_int_type();
-                let value = SignedField::positive(value);
                 InterpreterError::IntegerOutOfRangeForType { value, typ, location }
             })?
         }

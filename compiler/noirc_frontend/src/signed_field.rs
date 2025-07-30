@@ -39,6 +39,14 @@ impl SignedField {
         self.is_negative
     }
 
+    pub fn is_zero(&self) -> bool {
+        self.field.is_zero()
+    }
+
+    pub fn is_one(&self) -> bool {
+        !self.is_negative && self.field.is_one()
+    }
+
     /// Convert a signed integer to a SignedField, carefully handling
     /// INT_MIN in the process. Note that to convert an unsigned integer
     /// you can call `SignedField::positive`.
@@ -97,6 +105,20 @@ impl SignedField {
 
     pub fn to_field_element(self) -> FieldElement {
         if self.is_negative { -self.field } else { self.field }
+    }
+
+    pub fn to_u128(self) -> u128 {
+        assert!(!self.is_negative());
+        self.to_field_element().to_u128()
+    }
+
+    pub fn to_i128(self) -> i128 {
+        if self.is_negative() {
+            let value = self.field.to_u128();
+            if value == ((i128::MAX as u128) + 1) { i128::MIN } else { -(value as i128) }
+        } else {
+            self.field.to_u128() as i128
+        }
     }
 }
 
@@ -183,15 +205,33 @@ impl PartialOrd for SignedField {
     }
 }
 
-impl From<FieldElement> for SignedField {
-    fn from(value: FieldElement) -> Self {
-        Self::new(value, false)
+impl From<u32> for SignedField {
+    fn from(value: u32) -> Self {
+        Self::new(value.into(), false)
     }
 }
 
-impl From<SignedField> for FieldElement {
-    fn from(value: SignedField) -> Self {
-        if value.is_negative { -value.field } else { value.field }
+impl From<u128> for SignedField {
+    fn from(value: u128) -> Self {
+        Self::new(value.into(), false)
+    }
+}
+
+impl From<i128> for SignedField {
+    fn from(value: i128) -> Self {
+        if value < 0 { Self::new((-value).into(), true) } else { Self::new(value.into(), false) }
+    }
+}
+
+impl From<usize> for SignedField {
+    fn from(value: usize) -> Self {
+        Self::new(value.into(), false)
+    }
+}
+
+impl From<FieldElement> for SignedField {
+    fn from(value: FieldElement) -> Self {
+        Self::new(value, false)
     }
 }
 
@@ -251,6 +291,8 @@ impl_unsigned_abs_for!(i128);
 
 #[cfg(test)]
 mod tests {
+    use acvm::{AcirField, FieldElement};
+
     use super::SignedField;
 
     #[test]
@@ -357,5 +399,28 @@ mod tests {
         assert_eq!(minus_six / minus_three, two); // negative / negative
         assert_eq!(zero / two, zero);
         assert_eq!(zero / minus_two, zero);
+    }
+
+    #[test]
+    fn is_zero() {
+        assert!(SignedField::zero().is_zero());
+        assert!(SignedField::negative(FieldElement::zero()).is_zero());
+        assert!(!SignedField::one().is_zero());
+    }
+
+    #[test]
+    fn is_one() {
+        assert!(SignedField::one().is_one());
+        assert!(!SignedField::negative(FieldElement::one()).is_one());
+        assert!(!SignedField::zero().is_one());
+    }
+
+    #[test]
+    fn to_i128() {
+        assert_eq!(SignedField::positive(FieldElement::from(i128::MAX)).to_i128(), i128::MAX);
+        assert_eq!(
+            SignedField::negative(FieldElement::from((i128::MAX as u128) + 1)).to_i128(),
+            i128::MIN
+        );
     }
 }

@@ -2,13 +2,12 @@
 
 use core::panic;
 
-use acvm::{AcirField, FieldElement};
-
 use crate::assert_no_errors;
 use crate::get_monomorphized;
 use crate::hir::type_check::TypeCheckError;
 use crate::hir_def::types::{BinaryTypeOperator, Type};
 use crate::monomorphization::errors::MonomorphizationError;
+use crate::signed_field::SignedField;
 use crate::tests::Expect;
 
 #[named]
@@ -142,8 +141,8 @@ fn arithmetic_generics_checked_cast_indirect_zeros() {
         }
         match err {
             TypeCheckError::ModuloOnFields { lhs, rhs, .. } => {
-                assert_eq!(lhs.clone(), FieldElement::zero());
-                assert_eq!(rhs.clone(), FieldElement::zero());
+                assert_eq!(lhs.clone(), SignedField::zero());
+                assert_eq!(rhs.clone(), SignedField::zero());
             }
             _ => panic!("expected ModuloOnFields, but found: {err:?}"),
         }

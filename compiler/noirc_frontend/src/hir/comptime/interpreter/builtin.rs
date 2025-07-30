@@ -963,7 +963,7 @@ fn to_le_radix(
     let (limb_count, element_type) = if let Type::Array(length, element_type) = return_type {
         if let Type::Constant(limb_count, kind) = *length {
             if kind.unifies(&Kind::u32()) {
-                (limb_count, element_type)
+                (limb_count.to_field_element(), element_type)
             } else {
                 return Err(InterpreterError::TypeAnnotationsNeededForMethodCall { location });
             }
