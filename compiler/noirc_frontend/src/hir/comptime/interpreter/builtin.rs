@@ -154,6 +154,7 @@ impl Interpreter<'_, '_> {
             "function_def_set_unconstrained" => {
                 function_def_set_unconstrained(self, arguments, location)
             }
+            "function_def_visibility" => function_def_visibility(interner, arguments, location),
             "module_add_item" => module_add_item(self, arguments, location),
             "module_eq" => module_eq(arguments, location),
             "module_functions" => module_functions(self, arguments, location),
@@ -2828,6 +2829,18 @@ fn function_def_set_unconstrained(
     modifiers.is_unconstrained = unconstrained;
 
     Ok(Value::Unit)
+}
+
+// fn visibility(self) -> Quoted
+fn function_def_visibility(
+    interner: &NodeInterner,
+    arguments: Vec<(Value, Location)>,
+    location: Location,
+) -> IResult<Value> {
+    let self_argument = check_one_argument(arguments, location)?;
+    let func_id = get_function_def(self_argument)?;
+    let visibility = interner.function_visibility(func_id);
+    Ok(visibility_to_quoted(visibility, location))
 }
 
 // fn add_item(self, item: Quoted)
