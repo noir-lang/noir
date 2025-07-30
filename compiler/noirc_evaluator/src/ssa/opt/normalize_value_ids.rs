@@ -64,10 +64,6 @@ struct IdMaps {
 
 impl Context {
     fn populate_functions(&mut self, functions: &BTreeMap<FunctionId, Function>) {
-        if functions.is_empty() {
-            return;
-        }
-
         for (id, function) in functions {
             self.functions.insert_with_id(|new_id| {
                 self.new_ids.function_ids.insert(*id, new_id);

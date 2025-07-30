@@ -564,11 +564,8 @@ impl<'brillig, 'purities> Context<'brillig, 'purities> {
             self.use_constraint_info && instruction.requires_acir_gen_predicate(dfg, self.purities);
         let predicate = predicate.then_some(side_effects_enabled_var);
 
-        results_for_instruction.get(&predicate)?.get(
-            block,
-            dom,
-            instruction.has_side_effects(dfg, self.purities),
-        )
+        let results = results_for_instruction.get(&predicate)?;
+        results.get(block, dom, instruction.has_side_effects(dfg, self.purities))
     }
 
     /// Checks if the given instruction is a call to a brillig function with all constant arguments.

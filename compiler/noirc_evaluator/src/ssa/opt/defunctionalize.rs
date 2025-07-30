@@ -416,9 +416,9 @@ fn find_dynamic_dispatches(func: &Function) -> BTreeSet<Signature> {
 /// - `variants_map`:  [Variants]
 ///
 /// # Returns
-/// - [ApplyFunctions] keyed by each function's signature _before_ functions are changed
-///   into field types. The inner apply function itself will have its defunctionalized type,
-///   with function values represented as field values.
+/// [ApplyFunctions] keyed by each function's signature _before_ functions are changed
+/// into field types. The inner apply function itself will have its defunctionalized type,
+/// with function values represented as field values.
 fn create_apply_functions(ssa: &mut Ssa, variants_map: Variants) -> ApplyFunctions {
     let mut apply_functions = HashMap::default();
 
