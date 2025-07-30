@@ -769,7 +769,8 @@
 <a href="#768" id="768">768</a>
 <a href="#769" id="769">769</a>
 <a href="#770" id="770">770</a>
-<a href="#771" id="771">771</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, rc::Rc, vec};
+<a href="#771" id="771">771</a>
+<a href="#772" id="772">772</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, rc::Rc, vec};
 
 <span class="kw">use </span>acvm::FieldElement;
 <span class="kw">use </span>im::Vector;
@@ -1491,16 +1492,17 @@
         </span>}
     }
 
-    <span class="doccomment">/// Copies an argument ensuring any references to struct/tuple fields are replaced with fresh ones.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>copy(<span class="self">self</span>) -&gt; Value {
+    <span class="doccomment">/// Structs and tuples store references to their fields internally which need to be manually
+    /// changed when moving them.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>move_struct(<span class="self">self</span>) -&gt; Value {
         <span class="kw">match </span><span class="self">self </span>{
-            Value::Tuple(fields) =&gt; {
-                Value::Tuple(vecmap(fields, |field| Shared::new(field.unwrap_or_clone().copy())))
-            }
+            Value::Tuple(fields) =&gt; Value::Tuple(vecmap(fields, |field| {
+                Shared::new(field.unwrap_or_clone().move_struct())
+            })),
             Value::Struct(fields, typ) =&gt; {
-                <span class="kw">let </span>fields = fields
-                    .into_iter()
-                    .map(|(name, field)| (name, Shared::new(field.unwrap_or_clone().copy())));
+                <span class="kw">let </span>fields = fields.into_iter().map(|(name, field)| {
+                    (name, Shared::new(field.unwrap_or_clone().move_struct()))
+                });
                 Value::Struct(fields.collect(), typ)
             }
             other =&gt; other,
