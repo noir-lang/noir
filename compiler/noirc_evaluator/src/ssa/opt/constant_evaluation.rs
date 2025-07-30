@@ -28,6 +28,7 @@ use crate::ssa::{
 };
 
 impl Ssa {
+    /// See [`constant_evaluation`][self] module for more information.
     pub(crate) fn constant_evaluation(mut self) -> Ssa {
         // Gather constant evaluation results per function
         let mut constant_evaluations = self
@@ -56,7 +57,6 @@ impl Function {
     /// This does not mutate the IR. The interpreter borrows the entire Ssa object so we split up
     /// the actual interpreter execution from the mutation of the IR.
     fn constant_evaluation(&self, ssa: &Ssa) -> HashMap<InstructionId, Vec<Value>> {
-        println!("{}", self.id());
         let mut instr_to_const_result = HashMap::default();
 
         // Only ACIR functions can be evaluated in this pass.
@@ -88,7 +88,7 @@ impl Function {
                 {
                     continue;
                 }
-                
+
                 let interpreter_args = arguments
                     .iter()
                     .map(|arg| Self::const_ir_value_to_interpreter_value(*arg, &self.dfg))
@@ -96,7 +96,7 @@ impl Function {
                 match ssa.interpret_function(
                     func.id(),
                     interpreter_args,
-                    InterpreterOptions::default(),
+                    InterpreterOptions { no_foreign_calls: true, ..Default::default() },
                     std::io::empty(),
                 ) {
                     Ok(values) => {

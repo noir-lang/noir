@@ -49,6 +49,8 @@ pub(crate) struct Interpreter<'ssa, W> {
 pub struct InterpreterOptions {
     /// If true, the interpreter will trace its execution.
     pub trace: bool,
+    /// If true, the interpreter treats calls all foreign function calls (e.g., `print`) as unknown
+    pub no_foreign_calls: bool,
 }
 
 struct CallContext {
@@ -751,6 +753,9 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                 }
                 Value::Intrinsic(intrinsic) => {
                     self.call_intrinsic(intrinsic, argument_ids, results)?
+                }
+                Value::ForeignFunction(name) if self.options.no_foreign_calls => {
+                    return Err(InterpreterError::UnknownForeignFunctionCall { name });
                 }
                 Value::ForeignFunction(name) if name == "print" => self.call_print(arguments)?,
                 Value::ForeignFunction(name) => {

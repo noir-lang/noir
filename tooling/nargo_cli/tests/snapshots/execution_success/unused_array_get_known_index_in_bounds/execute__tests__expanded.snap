@@ -1,0 +1,16 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main() {
+    // Safety: comment added by `nargo expand`
+    let result: Field = unsafe { foo([0_u8]) };
+    println(result);
+}
+
+unconstrained fn foo(bytes: [u8; 1]) -> Field {
+    for _ in 0_u32..bytes.len() {
+        let _: u8 = bytes[0_u32];
+    }
+    0_Field
+}

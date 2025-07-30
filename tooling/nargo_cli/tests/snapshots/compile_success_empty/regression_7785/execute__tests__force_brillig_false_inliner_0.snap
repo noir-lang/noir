@@ -8,7 +8,12 @@ expression: artifact
   "abi": {
     "parameters": [],
     "return_type": null,
-    "error_types": {}
+    "error_types": {
+      "14225679739041873922": {
+        "error_kind": "string",
+        "string": "Index out of bounds"
+      }
+    }
   },
   "bytecode": [
     "func 0",
@@ -17,7 +22,7 @@ expression: artifact
     "public parameters indices : []",
     "return value indices : []"
   ],
-  "debug_symbols": "XY5BCsQwCEXv4rqLWfcqw1BsaosgJtikMITefWyYQOlK/3/6tcJCc9km1jXuML4rzMYivE0SA2aO6m49B+hyykbkFty4byU00gyjFpEBDpTShvaE2mpGc/oagHTx6oErC13d+XGBge158UBjnIX+ci0abjR/Uyf942Qx0FKMrqTGPPsH",
+  "debug_symbols": "nZBBCoMwEEXvknUWpmi1XqUUiXGUQEjCmAhFvHtHMa0tFEpXkz8v7y9mZh20cWi07d3I6uvMWtTG6KExTsmgnaXtvHCWYhMQgFbswMnyEsEGVttoDGeTNHH7NHpptxkkEs04A9vRpMJeG1hfC3/Z2XdViPMuC1E+9eJ3v6iSX+b/+FWe/Mvpzb9Rkkrj58UmiVq2BvbYR6sONNx9IuniHp2CLiKsTRuj7gc=",
   "file_map": {},
   "names": [
     "main"
