@@ -246,7 +246,7 @@
 <span class="item-spacer"></span>    fn <a href="#method.visit_variable_type_expression" class="fn">visit_variable_type_expression</a>(&amp;mut self, _: &amp;<a class="struct" href="../struct.Path.html" title="struct noirc_frontend::ast::Path">Path</a>) -&gt; <a class="primitive" href="https://doc.rust-lang.org/1.85.0/std/primitive.bool.html">bool</a> { ... }
 <span class="item-spacer"></span>    fn <a href="#method.visit_constant_type_expression" class="fn">visit_constant_type_expression</a>(
         &amp;mut self,
-        _value: <a class="type" href="../../../acir_field/type.FieldElement.html" title="type acir_field::FieldElement">FieldElement</a>,
+        _value: FieldElement,
         _suffix: <a class="enum" href="https://doc.rust-lang.org/1.85.0/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="enum" href="../../lexer/token/enum.IntegerTypeSuffix.html" title="enum noirc_frontend::lexer::token::IntegerTypeSuffix">IntegerTypeSuffix</a>&gt;,
         _span: <a class="struct" href="../../hir/resolution/errors/struct.Span.html" title="struct noirc_frontend::hir::resolution::errors::Span">Span</a>,
     ) { ... }
@@ -417,7 +417,7 @@ will visit children of interest manually, or because no children are of interest
     _: &amp;<a class="enum" href="../enum.UnresolvedTypeExpression.html" title="enum noirc_frontend::ast::UnresolvedTypeExpression">UnresolvedTypeExpression</a>,
 ) -&gt; <a class="primitive" href="https://doc.rust-lang.org/1.85.0/std/primitive.bool.html">bool</a></h4></section><section id="method.visit_variable_type_expression" class="method"><a class="src rightside" href="../../../src/noirc_frontend/ast/visitor.rs.html#466-468">Source</a><h4 class="code-header">fn <a href="#method.visit_variable_type_expression" class="fn">visit_variable_type_expression</a>(&amp;mut self, _: &amp;<a class="struct" href="../struct.Path.html" title="struct noirc_frontend::ast::Path">Path</a>) -&gt; <a class="primitive" href="https://doc.rust-lang.org/1.85.0/std/primitive.bool.html">bool</a></h4></section><section id="method.visit_constant_type_expression" class="method"><a class="src rightside" href="../../../src/noirc_frontend/ast/visitor.rs.html#470-476">Source</a><h4 class="code-header">fn <a href="#method.visit_constant_type_expression" class="fn">visit_constant_type_expression</a>(
     &amp;mut self,
-    _value: <a class="type" href="../../../acir_field/type.FieldElement.html" title="type acir_field::FieldElement">FieldElement</a>,
+    _value: FieldElement,
     _suffix: <a class="enum" href="https://doc.rust-lang.org/1.85.0/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;<a class="enum" href="../../lexer/token/enum.IntegerTypeSuffix.html" title="enum noirc_frontend::lexer::token::IntegerTypeSuffix">IntegerTypeSuffix</a>&gt;,
     _span: <a class="struct" href="../../hir/resolution/errors/struct.Span.html" title="struct noirc_frontend::hir::resolution::errors::Span">Span</a>,
 )</h4></section><section id="method.visit_binary_type_expression" class="method"><a class="src rightside" href="../../../src/noirc_frontend/ast/visitor.rs.html#478-486">Source</a><h4 class="code-header">fn <a href="#method.visit_binary_type_expression" class="fn">visit_binary_type_expression</a>(

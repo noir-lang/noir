@@ -3145,7 +3145,20 @@
 <a href="#3144" id="3144">3144</a>
 <a href="#3145" id="3145">3145</a>
 <a href="#3146" id="3146">3146</a>
-<a href="#3147" id="3147">3147</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::rc::Rc;
+<a href="#3147" id="3147">3147</a>
+<a href="#3148" id="3148">3148</a>
+<a href="#3149" id="3149">3149</a>
+<a href="#3150" id="3150">3150</a>
+<a href="#3151" id="3151">3151</a>
+<a href="#3152" id="3152">3152</a>
+<a href="#3153" id="3153">3153</a>
+<a href="#3154" id="3154">3154</a>
+<a href="#3155" id="3155">3155</a>
+<a href="#3156" id="3156">3156</a>
+<a href="#3157" id="3157">3157</a>
+<a href="#3158" id="3158">3158</a>
+<a href="#3159" id="3159">3159</a>
+<a href="#3160" id="3160">3160</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::rc::Rc;
 
 <span class="kw">use </span>acvm::{AcirField, FieldElement};
 <span class="kw">use </span>builtin_helpers::{
@@ -3301,6 +3314,7 @@
             <span class="string">"function_def_set_unconstrained" </span>=&gt; {
                 function_def_set_unconstrained(<span class="self">self</span>, arguments, location)
             }
+            <span class="string">"function_def_visibility" </span>=&gt; function_def_visibility(interner, arguments, location),
             <span class="string">"module_add_item" </span>=&gt; module_add_item(<span class="self">self</span>, arguments, location),
             <span class="string">"module_eq" </span>=&gt; module_eq(arguments, location),
             <span class="string">"module_functions" </span>=&gt; module_functions(<span class="self">self</span>, arguments, location),
@@ -5975,6 +5989,18 @@
     modifiers.is_unconstrained = unconstrained;
 
     <span class="prelude-val">Ok</span>(Value::Unit)
+}
+
+<span class="comment">// fn visibility(self) -&gt; Quoted
+</span><span class="kw">fn </span>function_def_visibility(
+    interner: <span class="kw-2">&amp;</span>NodeInterner,
+    arguments: Vec&lt;(Value, Location)&gt;,
+    location: Location,
+) -&gt; IResult&lt;Value&gt; {
+    <span class="kw">let </span>self_argument = check_one_argument(arguments, location)<span class="question-mark">?</span>;
+    <span class="kw">let </span>func_id = get_function_def(self_argument)<span class="question-mark">?</span>;
+    <span class="kw">let </span>visibility = interner.function_visibility(func_id);
+    <span class="prelude-val">Ok</span>(visibility_to_quoted(visibility, location))
 }
 
 <span class="comment">// fn add_item(self, item: Quoted)
