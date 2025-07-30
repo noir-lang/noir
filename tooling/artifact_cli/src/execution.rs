@@ -221,6 +221,9 @@ fn append_input_value_to_string(input_value: &InputValue, abi_type: &AbiType, st
                 }
                 append_input_value_to_string(input_value, field_type, string);
             }
+            if input_values.len() == 1 {
+                string.push(',');
+            }
             string.push(')');
         }
         (AbiType::String { .. }, InputValue::String(value)) => {
