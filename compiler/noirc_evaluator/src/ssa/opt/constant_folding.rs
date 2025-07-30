@@ -629,6 +629,8 @@ impl<'brillig> Context<'brillig> {
             brillig_arguments.push(parameter);
         }
 
+        // let x = interpreter::
+
         // Check that the function returns (doesn't always fail)
         let Some(returns) = func.returns() else {
             return EvaluationResult::CannotEvaluate;

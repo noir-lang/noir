@@ -27,7 +27,7 @@ pub mod value;
 
 use value::Value;
 
-struct Interpreter<'ssa, W> {
+pub(crate) struct Interpreter<'ssa, W> {
     /// Contains each function called with `main` (or the first called function if
     /// the interpreter was manually invoked on a different function) at
     /// the front of the Vec.
@@ -88,7 +88,7 @@ impl Ssa {
         self.interpret_function(self.main_id, args, options, output)
     }
 
-    fn interpret_function<W: Write>(
+    pub fn interpret_function<W: Write>(
         &self,
         function: FunctionId,
         args: Vec<Value>,
@@ -102,7 +102,7 @@ impl Ssa {
 }
 
 impl<'ssa, W: Write> Interpreter<'ssa, W> {
-    fn new(ssa: &'ssa Ssa, options: InterpreterOptions, output: W) -> Self {
+    pub(crate) fn new(ssa: &'ssa Ssa, options: InterpreterOptions, output: W) -> Self {
         let call_stack = vec![CallContext::global_context()];
         Self { ssa, call_stack, side_effects_enabled: true, options, output }
     }

@@ -36,12 +36,6 @@ impl Ssa {
         self.dead_instruction_elimination_with_pruning(true, false)
     }
 
-    /// Post the Brillig generation we do not need to run this pass on Brillig functions.
-    #[tracing::instrument(level = "trace", skip(self))]
-    pub(crate) fn dead_instruction_elimination_acir(self) -> Ssa {
-        self.dead_instruction_elimination_with_pruning(true, true)
-    }
-
     /// The elimination of certain unused instructions assumes that the DIE pass runs after
     /// the flattening of the CFG, but if that's not the case then we should not eliminate
     /// them just yet.
@@ -286,6 +280,7 @@ impl Context {
                 // side effects ordering remains correct.
                 if function.runtime().is_acir()
                     && insert_out_of_bounds_checks
+                // if insert_out_of_bounds_checks
                     && instruction_might_result_in_out_of_bounds(function, instruction)
                 {
                     possible_index_out_of_bounds_indexes
@@ -1602,12 +1597,13 @@ mod test {
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.dead_instruction_elimination();
 
-        assert_ssa_snapshot!(ssa, @r"
+        assert_ssa_snapshot!(ssa, @r#"
         brillig(inline) fn main f0 {
           b0(v0: [Field; 3]):
+            constrain u1 0 == u1 1, "Index out of bounds"
             return v0
         }
-        ");
+        "#);
     }
 
     #[test]
