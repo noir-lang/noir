@@ -1755,8 +1755,7 @@
 <a href="#1754" id="1754">1754</a>
 <a href="#1755" id="1755">1755</a>
 <a href="#1756" id="1756">1756</a>
-<a href="#1757" id="1757">1757</a>
-<a href="#1758" id="1758">1758</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::VecDeque;
+<a href="#1757" id="1757">1757</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::VecDeque;
 <span class="kw">use </span>std::{collections::hash_map::Entry, rc::Rc};
 
 <span class="kw">use </span>acvm::AcirField;
@@ -2405,9 +2404,9 @@
                 <span class="kw">let </span>location = <span class="self">self</span>.elaborator.interner.expr_location(<span class="kw-2">&amp;</span>id);
                 <span class="kw">match </span>associated_type
                     .typ
-                    .evaluate_to_field_element(<span class="kw-2">&amp;</span>associated_type.typ.kind(), location)
+                    .evaluate_to_signed_field(<span class="kw-2">&amp;</span>associated_type.typ.kind(), location)
                 {
-                    <span class="prelude-val">Ok</span>(value) =&gt; <span class="self">self</span>.evaluate_integer(value.into(), id),
+                    <span class="prelude-val">Ok</span>(value) =&gt; <span class="self">self</span>.evaluate_integer(value, id),
                     <span class="prelude-val">Err</span>(err) =&gt; <span class="prelude-val">Err</span>(InterpreterError::NonIntegerArrayLength {
                         typ: associated_type.typ.clone(),
                         err: <span class="prelude-val">Some</span>(Box::new(err)),
@@ -2423,7 +2422,7 @@
     </span><span class="kw">fn </span>evaluate_numeric_generic(<span class="kw-2">&amp;</span><span class="self">self</span>, value: Type, expected: <span class="kw-2">&amp;</span>Type, id: ExprId) -&gt; IResult&lt;Value&gt; {
         <span class="kw">let </span>location = <span class="self">self</span>.elaborator.interner.id_location(id);
         <span class="kw">let </span>value = value
-            .evaluate_to_field_element(<span class="kw-2">&amp;</span>Kind::Numeric(Box::new(expected.clone())), location)
+            .evaluate_to_signed_field(<span class="kw-2">&amp;</span>Kind::Numeric(Box::new(expected.clone())), location)
             .map_err(|err| {
                 <span class="kw">let </span>typ = value;
                 <span class="kw">let </span>err = <span class="prelude-val">Some</span>(Box::new(err));
@@ -2431,7 +2430,7 @@
                 InterpreterError::NonIntegerArrayLength { typ, err, location }
             })<span class="question-mark">?</span>;
 
-        <span class="self">self</span>.evaluate_integer(value.into(), id)
+        <span class="self">self</span>.evaluate_integer(value, id)
     }
 
     <span class="kw">fn </span>evaluate_trait_item(<span class="kw-2">&amp;mut </span><span class="self">self</span>, item: TraitItem, id: ExprId) -&gt; IResult&lt;Value&gt; {
@@ -3390,7 +3389,6 @@
             <span class="kw">let </span>u64: <span class="prelude-ty">Option</span>&lt;u64&gt; = value.try_to_unsigned();
             u64.and_then(|value| value.try_into().ok()).ok_or_else(|| {
                 <span class="kw">let </span>typ = Type::default_int_type();
-                <span class="kw">let </span>value = SignedField::positive(value);
                 InterpreterError::IntegerOutOfRangeForType { value, typ, location }
             })<span class="question-mark">?
         </span>}

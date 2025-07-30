@@ -628,14 +628,15 @@
 <a href="#627" id="627">627</a>
 <a href="#628" id="628">628</a>
 <a href="#629" id="629">629</a>
-<a href="#630" id="630">630</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
+<a href="#630" id="630">630</a>
+<a href="#631" id="631">631</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{
     BinaryTypeOperator,
     ast::{GenericTypeArgs, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression},
     parser::{ParserError, labels::ParsingRuleLabel},
+    signed_field::SignedField,
     token::Token,
 };
 
-<span class="kw">use </span>acvm::acir::{AcirField, FieldElement};
 <span class="kw">use </span>noirc_errors::Location;
 
 <span class="kw">use super</span>::{Parser, parse_many::separated_by_comma_until_right_paren};
@@ -747,7 +748,7 @@
             <span class="kw">return match </span><span class="self">self</span>.parse_term_type_expression() {
                 <span class="prelude-val">Some</span>(rhs) =&gt; {
                     <span class="kw">let </span>lhs = UnresolvedTypeExpression::Constant(
-                        FieldElement::zero(),
+                        SignedField::zero(),
                         <span class="prelude-val">None</span>,
                         start_location,
                     );
@@ -798,7 +799,8 @@
     <span class="doccomment">/// ConstantTypeExpression = int
     </span><span class="kw">fn </span>parse_constant_type_expression(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;UnresolvedTypeExpression&gt; {
         <span class="kw">let </span>(int, suffix) = <span class="self">self</span>.eat_int()<span class="question-mark">?</span>;
-        <span class="prelude-val">Some</span>(UnresolvedTypeExpression::Constant(int, suffix, <span class="self">self</span>.previous_token_location))
+        <span class="kw">let </span>signed_field = SignedField::positive(int);
+        <span class="prelude-val">Some</span>(UnresolvedTypeExpression::Constant(signed_field, suffix, <span class="self">self</span>.previous_token_location))
     }
 
     <span class="doccomment">/// VariableTypeExpression = Path
@@ -887,7 +889,7 @@
             </span><span class="kw">return match </span><span class="self">self</span>.parse_term_type_expression() {
                 <span class="prelude-val">Some</span>(rhs) =&gt; {
                     <span class="kw">let </span>lhs = UnresolvedTypeExpression::Constant(
-                        FieldElement::zero(),
+                        SignedField::zero(),
                         <span class="prelude-val">None</span>,
                         start_location,
                     );

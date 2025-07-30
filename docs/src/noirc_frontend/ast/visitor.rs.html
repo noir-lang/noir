@@ -1689,9 +1689,7 @@
 <a href="#1688" id="1688">1688</a>
 <a href="#1689" id="1689">1689</a>
 <a href="#1690" id="1690">1690</a>
-<a href="#1691" id="1691">1691</a>
-<a href="#1692" id="1692">1692</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::FieldElement;
-<span class="kw">use </span>noirc_errors::{Location, Span};
+<a href="#1691" id="1691">1691</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::{Location, Span};
 
 <span class="kw">use crate</span>::{
     BinaryTypeOperator, ParsedModule,
@@ -2161,7 +2159,7 @@
 
     <span class="kw">fn </span>visit_constant_type_expression(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        _value: FieldElement,
+        _value: SignedField,
         _suffix: <span class="prelude-ty">Option</span>&lt;IntegerTypeSuffix&gt;,
         _span: Span,
     ) {
@@ -3243,8 +3241,8 @@
                     path.accept(visitor);
                 }
             }
-            UnresolvedTypeExpression::Constant(field_element, suffix, location) =&gt; {
-                visitor.visit_constant_type_expression(<span class="kw-2">*</span>field_element, <span class="kw-2">*</span>suffix, location.span);
+            UnresolvedTypeExpression::Constant(value, suffix, location) =&gt; {
+                visitor.visit_constant_type_expression(<span class="kw-2">*</span>value, <span class="kw-2">*</span>suffix, location.span);
             }
             UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, location) =&gt; {
                 <span class="kw">if </span>visitor.visit_binary_type_expression(lhs, <span class="kw-2">*</span>op, rhs, location.span) {

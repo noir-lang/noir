@@ -350,13 +350,13 @@
 <a href="#349" id="349">349</a>
 <a href="#350" id="350">350</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashSet;
 
-<span class="kw">use </span>acir::FieldElement;
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_frontend::{
     ast::{BinaryOpKind, IntegerBitSize},
     hir_def,
     monomorphization::ast::{BinaryOp, Type},
     shared::Signedness,
+    signed_field::SignedField,
 };
 <span class="kw">use </span>strum::IntoEnumIterator <span class="kw">as _</span>;
 
@@ -493,7 +493,7 @@
     <span class="comment">// Meet the expectations of `Type::evaluate_to_u32`.
     </span><span class="kw">let </span>size_const = |size: u32| {
         Box::new(HirType::Constant(
-            FieldElement::from(size),
+            SignedField::from(size),
             HirKind::Numeric(Box::new(HirType::Integer(
                 Signedness::Unsigned,
                 IntegerBitSize::ThirtyTwo,

@@ -2203,7 +2203,7 @@
 
         <span class="kw">let </span>value = <span class="kw">match </span>constant {
             Value::Bool(value) =&gt; SignedField::positive(value),
-            Value::Field(value) =&gt; SignedField::positive(value),
+            Value::Field(value) =&gt; value,
             Value::I8(value) =&gt; <span class="macro">signed_to_signed_field!</span>(value),
             Value::I16(value) =&gt; <span class="macro">signed_to_signed_field!</span>(value),
             Value::I32(value) =&gt; <span class="macro">signed_to_signed_field!</span>(value),

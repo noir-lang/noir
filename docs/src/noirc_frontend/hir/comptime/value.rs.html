@@ -763,16 +763,8 @@
 <a href="#762" id="762">762</a>
 <a href="#763" id="763">763</a>
 <a href="#764" id="764">764</a>
-<a href="#765" id="765">765</a>
-<a href="#766" id="766">766</a>
-<a href="#767" id="767">767</a>
-<a href="#768" id="768">768</a>
-<a href="#769" id="769">769</a>
-<a href="#770" id="770">770</a>
-<a href="#771" id="771">771</a>
-<a href="#772" id="772">772</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, rc::Rc, vec};
+<a href="#765" id="765">765</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, rc::Rc, vec};
 
-<span class="kw">use </span>acvm::FieldElement;
 <span class="kw">use </span>im::Vector;
 <span class="kw">use </span>iter_extended::{try_vecmap, vecmap};
 <span class="kw">use </span>noirc_errors::Location;
@@ -1438,23 +1430,17 @@
         }
     }
 
-    <span class="doccomment">/// Converts any non-negative `Value` into a `FieldElement`.
-    /// Returns `None` for negative integers and non-integral `Value`s.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>to_field_element(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;FieldElement&gt; {
+    <span class="doccomment">/// Converts any integral `Value` into a `SignedField`.
+    /// Returns `None` for non-integral `Value`s.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>to_signed_field(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;SignedField&gt; {
         <span class="kw">match </span><span class="self">self </span>{
-            <span class="self">Self</span>::Field(value) =&gt; {
-                <span class="kw">if </span>value.is_negative() {
-                    <span class="prelude-val">None
-                </span>} <span class="kw">else </span>{
-                    <span class="prelude-val">Some</span>(value.absolute_value())
-                }
-            }
+            <span class="self">Self</span>::Field(value) =&gt; <span class="prelude-val">Some</span>(<span class="kw-2">*</span>value),
 
             <span class="self">Self</span>::I8(value) =&gt; (<span class="kw-2">*</span>value &gt;= <span class="number">0</span>).then_some((<span class="kw-2">*</span>value <span class="kw">as </span>u128).into()),
             <span class="self">Self</span>::I16(value) =&gt; (<span class="kw-2">*</span>value &gt;= <span class="number">0</span>).then_some((<span class="kw-2">*</span>value <span class="kw">as </span>u128).into()),
             <span class="self">Self</span>::I32(value) =&gt; (<span class="kw-2">*</span>value &gt;= <span class="number">0</span>).then_some((<span class="kw-2">*</span>value <span class="kw">as </span>u128).into()),
             <span class="self">Self</span>::I64(value) =&gt; (<span class="kw-2">*</span>value &gt;= <span class="number">0</span>).then_some((<span class="kw-2">*</span>value <span class="kw">as </span>u128).into()),
-            <span class="self">Self</span>::U1(value) =&gt; <span class="prelude-val">Some</span>(FieldElement::from(<span class="kw-2">*</span>value)),
+            <span class="self">Self</span>::U1(value) =&gt; <span class="prelude-val">Some</span>(<span class="kw">if </span><span class="kw-2">*</span>value { SignedField::one() } <span class="kw">else </span>{ SignedField::zero() }),
             <span class="self">Self</span>::U8(value) =&gt; <span class="prelude-val">Some</span>((<span class="kw-2">*</span>value <span class="kw">as </span>u128).into()),
             <span class="self">Self</span>::U16(value) =&gt; <span class="prelude-val">Some</span>((<span class="kw-2">*</span>value <span class="kw">as </span>u128).into()),
             <span class="self">Self</span>::U32(value) =&gt; <span class="prelude-val">Some</span>((<span class="kw-2">*</span>value <span class="kw">as </span>u128).into()),

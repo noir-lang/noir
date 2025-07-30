@@ -1154,7 +1154,7 @@
             (Constant(value, kind), other) | (other, Constant(value, kind)) =&gt; {
                 <span class="kw">let </span>dummy_location = Location::dummy();
                 <span class="kw">let </span>other = other.substitute(bindings);
-                <span class="kw">if let </span><span class="prelude-val">Ok</span>(other_value) = other.evaluate_to_field_element(kind, dummy_location) {
+                <span class="kw">if let </span><span class="prelude-val">Ok</span>(other_value) = other.evaluate_to_signed_field(kind, dummy_location) {
                     <span class="kw">if </span><span class="kw-2">*</span>value == other_value &amp;&amp; kind.unifies(<span class="kw-2">&amp;</span>other.kind()) {
                         <span class="prelude-val">Ok</span>(())
                     } <span class="kw">else </span>{
@@ -1355,7 +1355,7 @@
                 <span class="kw">let </span>kind = lhs_lhs.infix_kind(lhs_rhs);
                 <span class="kw">let </span>dummy_location = Location::dummy();
                 <span class="kw">let </span>lhs_rhs = lhs_rhs.substitute(bindings);
-                <span class="kw">if let </span><span class="prelude-val">Ok</span>(value) = lhs_rhs.evaluate_to_field_element(<span class="kw-2">&amp;</span>kind, dummy_location) {
+                <span class="kw">if let </span><span class="prelude-val">Ok</span>(value) = lhs_rhs.evaluate_to_signed_field(<span class="kw-2">&amp;</span>kind, dummy_location) {
                     <span class="kw">let </span>lhs_rhs = Box::new(Type::Constant(value, kind));
                     <span class="kw">let </span>new_rhs =
                         Type::inverted_infix_expr(Box::new(other.clone()), lhs_op_inverse, lhs_rhs);

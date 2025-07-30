@@ -555,8 +555,7 @@
 <a href="#554" id="554">554</a>
 <a href="#555" id="555">555</a>
 <a href="#556" id="556">556</a>
-<a href="#557" id="557">557</a>
-<a href="#558" id="558">558</a></pre></div><pre class="rust"><code><span class="kw">use </span>fm::FileId;
+<a href="#557" id="557">557</a></pre></div><pre class="rust"><code><span class="kw">use </span>fm::FileId;
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::{Located, Location, Span};
 
@@ -575,7 +574,6 @@
 <span class="kw">use </span><span class="kw">crate</span>::hir_def::stmt::{HirLValue, HirPattern, HirStatement};
 <span class="kw">use </span><span class="kw">crate</span>::hir_def::types::{Type, TypeBinding};
 <span class="kw">use </span><span class="kw">crate</span>::node_interner::{DefinitionId, ExprId, NodeInterner, StmtId};
-<span class="kw">use </span><span class="kw">crate</span>::signed_field::SignedField;
 
 <span class="comment">// TODO:
 // - Full path for idents &amp; types
@@ -1092,7 +1090,7 @@
                 <span class="kw">let </span>length = <span class="kw">match </span>length {
                     Type::Constant(length, kind) =&gt; {
                         <span class="kw">let </span>suffix = kind.as_integer_type_suffix();
-                        <span class="kw">let </span>literal = Literal::Integer(SignedField::positive(<span class="kw-2">*</span>length), suffix);
+                        <span class="kw">let </span>literal = Literal::Integer(<span class="kw-2">*</span>length, suffix);
                         <span class="kw">let </span>expr_kind = ExpressionKind::Literal(literal);
                         Box::new(Expression::new(expr_kind, location))
                     }

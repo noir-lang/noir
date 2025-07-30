@@ -2677,9 +2677,7 @@
 <a href="#2676" id="2676">2676</a>
 <a href="#2677" id="2677">2677</a>
 <a href="#2678" id="2678">2678</a>
-<a href="#2679" id="2679">2679</a>
-<a href="#2680" id="2680">2680</a>
-<a href="#2681" id="2681">2681</a></pre></div><pre class="rust"><code><span class="doccomment">//! Coming after type checking, monomorphization is the last pass in Noir's frontend.
+<a href="#2679" id="2679">2679</a></pre></div><pre class="rust"><code><span class="doccomment">//! Coming after type checking, monomorphization is the last pass in Noir's frontend.
 //! It accepts the type checked HIR as input and produces a monomorphized AST as output.
 //! This file implements the pass itself, while the AST is defined in the ast module.
 //!
@@ -3811,11 +3809,10 @@
                 };
                 <span class="kw">match </span>associated_type
                     .typ
-                    .evaluate_to_field_element(<span class="kw-2">&amp;</span>associated_type.typ.kind(), location)
+                    .evaluate_to_signed_field(<span class="kw-2">&amp;</span>associated_type.typ.kind(), location)
                 {
                     <span class="prelude-val">Ok</span>(value) =&gt; {
                         <span class="kw">let </span>typ = <span class="self">Self</span>::convert_type(<span class="kw-2">&amp;</span>numeric_type, location)<span class="question-mark">?</span>;
-                        <span class="kw">let </span>value = SignedField::positive(value);
                         <span class="prelude-val">Ok</span>(ast::Expression::Literal(ast::Literal::Integer(value, typ, location)))
                     }
                     <span class="prelude-val">Err</span>(err) =&gt; <span class="prelude-val">Err</span>(MonomorphizationError::CannotComputeAssociatedConstant {
@@ -3838,7 +3835,7 @@
         location: Location,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;ast::Expression, MonomorphizationError&gt; {
         <span class="kw">let </span>expected_kind = Kind::Numeric(Box::new(expected_type.clone()));
-        <span class="kw">let </span>value = value.evaluate_to_field_element(<span class="kw-2">&amp;</span>expected_kind, location).map_err(|err| {
+        <span class="kw">let </span>value = value.evaluate_to_signed_field(<span class="kw-2">&amp;</span>expected_kind, location).map_err(|err| {
             MonomorphizationError::UnknownArrayLength {
                 length: value.follow_bindings(),
                 err,
@@ -3853,7 +3850,6 @@
         }
 
         <span class="kw">let </span>typ = <span class="self">Self</span>::convert_type(<span class="kw-2">&amp;</span>expected_type, location)<span class="question-mark">?</span>;
-        <span class="kw">let </span>value = SignedField::positive(value);
         <span class="prelude-val">Ok</span>(ast::Expression::Literal(ast::Literal::Integer(value, typ, location)))
     }
 
@@ -4251,11 +4247,11 @@
                 location,
             });
         }
-        <span class="kw">let </span>to_value = to.evaluate_to_field_element(<span class="kw-2">&amp;</span>to.kind(), location);
+        <span class="kw">let </span>to_value = to.evaluate_to_signed_field(<span class="kw-2">&amp;</span>to.kind(), location);
         <span class="kw">if </span>to_value.is_ok() {
             <span class="kw">let </span>skip_simplifications = <span class="bool-val">false</span>;
             <span class="kw">let </span>from_value =
-                from.evaluate_to_field_element_helper(<span class="kw-2">&amp;</span>to.kind(), location, skip_simplifications);
+                from.evaluate_to_signed_field_helper(<span class="kw-2">&amp;</span>to.kind(), location, skip_simplifications);
             <span class="kw">if </span>from_value.is_err() || from_value.unwrap() != to_value.clone().unwrap() {
                 <span class="kw">return </span><span class="prelude-val">Err</span>(MonomorphizationError::CheckedCastFailed {
                     actual: HirType::Constant(to_value.unwrap(), to.kind()),

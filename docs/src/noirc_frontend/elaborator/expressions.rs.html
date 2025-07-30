@@ -1576,8 +1576,7 @@
 <a href="#1575" id="1575">1575</a>
 <a href="#1576" id="1576">1576</a>
 <a href="#1577" id="1577">1577</a>
-<a href="#1578" id="1578">1578</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, FieldElement};
-<span class="kw">use </span>iter_extended::vecmap;
+<a href="#1578" id="1578">1578</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::{Located, Location};
 <span class="kw">use </span>rustc_hash::FxHashSet <span class="kw">as </span>HashSet;
 
@@ -1614,6 +1613,7 @@
         DefinitionId, DefinitionKind, ExprId, FuncId, InternedStatementKind, StmtId, TraitItemId,
     },
     shared::Signedness,
+    signed_field::SignedField,
     token::{FmtStrFragment, IntegerTypeSuffix, Tokens},
 };
 
@@ -1931,7 +1931,7 @@
                 <span class="kw">let </span>length = UnresolvedTypeExpression::from_expr(<span class="kw-2">*</span>length, location).unwrap_or_else(
                     |error| {
                         <span class="self">self</span>.push_err(ResolverError::ParserError(Box::new(error)));
-                        UnresolvedTypeExpression::Constant(FieldElement::zero(), <span class="prelude-val">None</span>, location)
+                        UnresolvedTypeExpression::Constant(SignedField::zero(), <span class="prelude-val">None</span>, location)
                     },
                 );
 

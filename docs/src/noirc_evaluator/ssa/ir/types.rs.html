@@ -456,20 +456,20 @@
         <span class="kw">match </span><span class="self">self </span>{
             NumericType::Unsigned { bit_size } =&gt; {
                 <span class="kw">let </span>max = <span class="kw">if </span>bit_size == <span class="number">128 </span>{ u128::MAX } <span class="kw">else </span>{ <span class="number">2u128</span>.pow(bit_size) - <span class="number">1 </span>};
-                <span class="kw">if </span>value.is_negative() {
-                    <span class="kw">return </span><span class="prelude-val">Some</span>(<span class="macro">format!</span>(<span class="string">"0..={max}"</span>));
-                }
-                <span class="kw">if </span>value.absolute_value() &lt;= max.into() { <span class="prelude-val">None </span>} <span class="kw">else </span>{ <span class="prelude-val">Some</span>(<span class="macro">format!</span>(<span class="string">"0..={max}"</span>)) }
+                <span class="kw">if </span>value.is_negative() || value &gt; SignedField::positive(max) {
+                    <span class="prelude-val">Some</span>(<span class="macro">format!</span>(<span class="string">"0..={max}"</span>))
+                } <span class="kw">else </span>{
+                    <span class="prelude-val">None
+                </span>}
             }
             NumericType::Signed { bit_size } =&gt; {
                 <span class="kw">let </span>min = <span class="number">2u128</span>.pow(bit_size - <span class="number">1</span>);
                 <span class="kw">let </span>max = <span class="number">2u128</span>.pow(bit_size - <span class="number">1</span>) - <span class="number">1</span>;
-                <span class="kw">let </span>target_max = <span class="kw">if </span>value.is_negative() { min } <span class="kw">else </span>{ max };
-                <span class="kw">if </span>value.absolute_value() &lt;= target_max.into() {
-                    <span class="prelude-val">None
-                </span>} <span class="kw">else </span>{
+                <span class="kw">if </span>value &gt; SignedField::positive(max) || value &lt; SignedField::negative(min) {
                     <span class="prelude-val">Some</span>(<span class="macro">format!</span>(<span class="string">"-{min}..={max}"</span>))
-                }
+                } <span class="kw">else </span>{
+                    <span class="prelude-val">None
+                </span>}
             }
             NumericType::NativeField =&gt; <span class="prelude-val">None</span>,
         }

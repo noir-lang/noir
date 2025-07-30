@@ -656,12 +656,12 @@
 <a href="#655" id="655">655</a>
 <a href="#656" id="656">656</a>
 <a href="#657" id="657">657</a>
-<a href="#658" id="658">658</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
+<a href="#658" id="658">658</a>
+<a href="#659" id="659">659</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
 
-<span class="kw">use </span>acvm::{AcirField, FieldElement};
 <span class="kw">use </span>noirc_errors::Location;
 
-<span class="kw">use crate</span>::{BinaryTypeOperator, Type};
+<span class="kw">use crate</span>::{BinaryTypeOperator, Type, signed_field::SignedField};
 
 <span class="kw">impl </span>Type {
     <span class="doccomment">/// Try to canonicalize the representation of this type.
@@ -728,7 +728,7 @@
                 <span class="kw">let </span>dummy_location = Location::dummy();
 
                 <span class="kw">let </span>evaluate = |typ: <span class="kw-2">&amp;</span>Type| {
-                    typ.evaluate_to_field_element_helper(<span class="kw-2">&amp;</span>kind, dummy_location, run_simplifications)
+                    typ.evaluate_to_signed_field_helper(<span class="kw-2">&amp;</span>kind, dummy_location, run_simplifications)
                 };
 
                 <span class="comment">// evaluate_to_field_element also calls canonicalize so if we just called
@@ -810,9 +810,9 @@
         </span><span class="kw">let </span><span class="kw-2">mut </span>sorted = BTreeMap::new();
 
         <span class="kw">let </span>zero_value = <span class="kw">if </span>op == BinaryTypeOperator::Addition {
-            FieldElement::zero()
+            SignedField::zero()
         } <span class="kw">else </span>{
-            FieldElement::one()
+            SignedField::one()
         };
         <span class="kw">let </span><span class="kw-2">mut </span>constant = zero_value;
 
@@ -951,16 +951,16 @@
     </span><span class="kw">fn </span>parse_partial_constant_expr(
         lhs: <span class="kw-2">&amp;</span>Type,
         rhs: <span class="kw-2">&amp;</span>Type,
-    ) -&gt; <span class="prelude-ty">Option</span>&lt;(Box&lt;Type&gt;, BinaryTypeOperator, FieldElement, FieldElement)&gt; {
+    ) -&gt; <span class="prelude-ty">Option</span>&lt;(Box&lt;Type&gt;, BinaryTypeOperator, SignedField, SignedField)&gt; {
         <span class="kw">let </span>kind = lhs.infix_kind(rhs);
         <span class="kw">let </span>dummy_location = Location::dummy();
-        <span class="kw">let </span>rhs = rhs.evaluate_to_field_element(<span class="kw-2">&amp;</span>kind, dummy_location).ok()<span class="question-mark">?</span>;
+        <span class="kw">let </span>rhs = rhs.evaluate_to_signed_field(<span class="kw-2">&amp;</span>kind, dummy_location).ok()<span class="question-mark">?</span>;
 
         <span class="kw">let </span>Type::InfixExpr(l_type, l_op, l_rhs, <span class="kw">_</span>) = lhs.follow_bindings() <span class="kw">else </span>{
             <span class="kw">return </span><span class="prelude-val">None</span>;
         };
 
-        <span class="kw">let </span>l_rhs = l_rhs.evaluate_to_field_element(<span class="kw-2">&amp;</span>kind, dummy_location).ok()<span class="question-mark">?</span>;
+        <span class="kw">let </span>l_rhs = l_rhs.evaluate_to_signed_field(<span class="kw-2">&amp;</span>kind, dummy_location).ok()<span class="question-mark">?</span>;
         <span class="prelude-val">Some</span>((l_type, l_op, l_rhs, rhs))
     }
 
@@ -997,7 +997,7 @@
                     &amp;&amp; l_const.to_i128().checked_rem(r_const.to_i128()) == <span class="prelude-val">Some</span>(<span class="number">0</span>);
 
                 <span class="comment">// If op is a division we need to ensure it divides evenly
-                </span><span class="kw">if </span>op == Division &amp;&amp; (r_const == FieldElement::zero() || !divides_evenly) {
+                </span><span class="kw">if </span>op == Division &amp;&amp; (r_const.is_zero() || !divides_evenly) {
                     <span class="prelude-val">None
                 </span>} <span class="kw">else </span>{
                     <span class="kw">let </span>dummy_location = Location::dummy();
@@ -1014,11 +1014,10 @@
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
-    <span class="kw">use </span>acvm::{AcirField, FieldElement};
-
     <span class="kw">use crate</span>::{
         NamedGeneric,
         hir_def::types::{BinaryTypeOperator, Kind, Type, TypeVariable, TypeVariableId},
+        signed_field::SignedField,
     };
 
     <span class="attr">#[test]
@@ -1034,7 +1033,7 @@
         <span class="kw">let </span>n_minus_one = Type::infix_expr(
             Box::new(n.clone()),
             BinaryTypeOperator::Subtraction,
-            Box::new(Type::Constant(FieldElement::one(), Kind::u32())),
+            Box::new(Type::Constant(SignedField::one(), Kind::u32())),
         );
         <span class="kw">let </span>checked_cast_n_minus_one =
             Type::CheckedCast { from: Box::new(n_minus_one.clone()), to: Box::new(n_minus_one) };
@@ -1042,7 +1041,7 @@
         <span class="kw">let </span>n_minus_one_plus_one = Type::infix_expr(
             Box::new(checked_cast_n_minus_one.clone()),
             BinaryTypeOperator::Addition,
-            Box::new(Type::Constant(FieldElement::one(), Kind::u32())),
+            Box::new(Type::Constant(SignedField::one(), Kind::u32())),
         );
 
         <span class="kw">let </span>canonicalized_typ = n_minus_one_plus_one.canonicalize();
@@ -1053,7 +1052,7 @@
         // the expression `1 + (N - 1)` to `N`.
 
         </span><span class="kw">let </span>one_plus_n_minus_one = Type::infix_expr(
-            Box::new(Type::Constant(FieldElement::one(), Kind::u32())),
+            Box::new(Type::Constant(SignedField::one(), Kind::u32())),
             BinaryTypeOperator::Addition,
             Box::new(checked_cast_n_minus_one),
         );
@@ -1068,7 +1067,7 @@
         <span class="kw">let </span>field_element_kind = Kind::numeric(Type::FieldElement);
         <span class="kw">let </span>x_var = TypeVariable::unbound(TypeVariableId(<span class="number">0</span>), field_element_kind.clone());
         <span class="kw">let </span>x_type = Type::TypeVariable(x_var.clone());
-        <span class="kw">let </span>one = Type::Constant(FieldElement::one(), field_element_kind.clone());
+        <span class="kw">let </span>one = Type::Constant(SignedField::one(), field_element_kind.clone());
 
         <span class="kw">let </span>lhs = Type::infix_expr(
             Box::new(x_type.clone()),
@@ -1083,7 +1082,7 @@
         <span class="kw">let </span>rhs = rhs.canonicalize();
 
         <span class="comment">// bind vars
-        </span><span class="kw">let </span>two = Type::Constant(FieldElement::from(<span class="number">2u128</span>), field_element_kind.clone());
+        </span><span class="kw">let </span>two = Type::Constant(SignedField::from(<span class="number">2u128</span>), field_element_kind.clone());
         x_var.bind(two);
 
         <span class="comment">// canonicalize (expect constant)
@@ -1116,6 +1115,7 @@
     <span class="kw">use </span><span class="kw">crate</span>::ast::IntegerBitSize;
     <span class="kw">use </span><span class="kw">crate</span>::hir_def::types::{BinaryTypeOperator, Kind, Type, TypeVariable, TypeVariableId};
     <span class="kw">use </span><span class="kw">crate</span>::shared::Signedness;
+    <span class="kw">use </span><span class="kw">crate</span>::signed_field::SignedField;
 
     <span class="macro">prop_compose!</span> {
         <span class="comment">// maximum_size must be non-zero
@@ -1184,8 +1184,10 @@
     ) -&gt; <span class="kw">impl </span>Strategy&lt;Value = Type&gt; {
         <span class="kw">let </span>leaf = <span class="macro">prop_oneof!</span>[
             arbitrary_variable(typ.clone(), num_variables),
-            arbitrary_value
-                .prop_map(<span class="kw">move </span>|value| Type::Constant(value, Kind::numeric(typ.clone()))),
+            arbitrary_value.prop_map(<span class="kw">move </span>|value| Type::Constant(
+                SignedField::positive(value),
+                Kind::numeric(typ.clone())
+            )),
         ];
 
         leaf.prop_recursive(
@@ -1219,7 +1221,7 @@
             <span class="kw">let </span>(infix_expr, typ, _value_generator) = infix_type_gen;
             <span class="kw">let </span>bindings: Vec&lt;<span class="kw">_</span>&gt; = first_n_variables(typ.clone(), num_variables)
                 .zip(values.iter().map(|value| {
-                    Type::Constant(<span class="kw-2">*</span>value, Kind::numeric(typ.clone()))
+                    Type::Constant(SignedField::positive(<span class="kw-2">*</span>value), Kind::numeric(typ.clone()))
                 }))
                 .collect();
             (infix_expr, typ, bindings)

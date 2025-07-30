@@ -3092,7 +3092,26 @@
 <a href="#3091" id="3091">3091</a>
 <a href="#3092" id="3092">3092</a>
 <a href="#3093" id="3093">3093</a>
-<a href="#3094" id="3094">3094</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, cell::RefCell, collections::BTreeSet, rc::Rc};
+<a href="#3094" id="3094">3094</a>
+<a href="#3095" id="3095">3095</a>
+<a href="#3096" id="3096">3096</a>
+<a href="#3097" id="3097">3097</a>
+<a href="#3098" id="3098">3098</a>
+<a href="#3099" id="3099">3099</a>
+<a href="#3100" id="3100">3100</a>
+<a href="#3101" id="3101">3101</a>
+<a href="#3102" id="3102">3102</a>
+<a href="#3103" id="3103">3103</a>
+<a href="#3104" id="3104">3104</a>
+<a href="#3105" id="3105">3105</a>
+<a href="#3106" id="3106">3106</a>
+<a href="#3107" id="3107">3107</a>
+<a href="#3108" id="3108">3108</a>
+<a href="#3109" id="3109">3109</a>
+<a href="#3110" id="3110">3110</a>
+<a href="#3111" id="3111">3111</a>
+<a href="#3112" id="3112">3112</a>
+<a href="#3113" id="3113">3113</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, cell::RefCell, collections::BTreeSet, rc::Rc};
 
 <span class="kw">use </span>fxhash::FxHashMap <span class="kw">as </span>HashMap;
 
@@ -3219,7 +3238,7 @@
     /// 1. an Array's size type variable
     ///    bind to an integer without special checks to bind it to a non-type.
     /// 2. values to be used at the type level
-    </span>Constant(FieldElement, Kind),
+    </span>Constant(SignedField, Kind),
 
     <span class="doccomment">/// The type of quoted code in macros. This is always a comptime-only type
     </span>Quoted(QuotedType),
@@ -3343,23 +3362,42 @@
         }
     }
 
+    <span class="kw">fn </span>integral_minimum_size(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;SignedField&gt; {
+        <span class="kw">match </span><span class="self">self</span>.follow_bindings() {
+            Kind::Any | Kind::IntegerOrField | Kind::Integer | Kind::Normal =&gt; <span class="prelude-val">None</span>,
+            <span class="self">Self</span>::Numeric(typ) =&gt; typ.integral_minimum_size(),
+        }
+    }
+
     <span class="doccomment">/// Ensure the given value fits in self.integral_maximum_size()
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>ensure_value_fits(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        value: FieldElement,
+        value: SignedField,
         location: Location,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;FieldElement, TypeCheckError&gt; {
-        <span class="kw">match </span><span class="self">self</span>.integral_maximum_size() {
-            <span class="prelude-val">None </span>=&gt; <span class="prelude-val">Ok</span>(value),
-            <span class="prelude-val">Some</span>(maximum_size) =&gt; (value &lt;= maximum_size).then_some(value).ok_or_else(|| {
-                TypeCheckError::OverflowingConstant {
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;SignedField, TypeCheckError&gt; {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(maximum_size) = <span class="self">self</span>.integral_maximum_size() {
+            <span class="kw">if </span>value &gt; SignedField::positive(maximum_size) {
+                <span class="kw">return </span><span class="prelude-val">Err</span>(TypeCheckError::OverflowingConstant {
                     value,
                     kind: <span class="self">self</span>.clone(),
                     maximum_size,
                     location,
-                }
-            }),
+                });
+            }
         }
+
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(minimum_size) = <span class="self">self</span>.integral_minimum_size() {
+            <span class="kw">if </span>value &lt; minimum_size {
+                <span class="kw">return </span><span class="prelude-val">Err</span>(TypeCheckError::UnderflowingConstant {
+                    value,
+                    kind: <span class="self">self</span>.clone(),
+                    minimum_size,
+                    location,
+                });
+            }
+        }
+
+        <span class="prelude-val">Ok</span>(value)
     }
 
     <span class="doccomment">/// Return the corresponding IntegerTypeSuffix if this is a numeric type kind.
@@ -4948,36 +4986,36 @@
     <span class="doccomment">/// If this type is a Type::Constant (used in array lengths), or is bound
     /// to a Type::Constant, return the constant as a u32.
     </span><span class="kw">pub fn </span>evaluate_to_u32(<span class="kw-2">&amp;</span><span class="self">self</span>, location: Location) -&gt; <span class="prelude-ty">Result</span>&lt;u32, TypeCheckError&gt; {
-        <span class="self">self</span>.evaluate_to_field_element(<span class="kw-2">&amp;</span>Kind::u32(), location).map(|field_element| {
-            field_element
-                .try_to_u32()
+        <span class="self">self</span>.evaluate_to_signed_field(<span class="kw-2">&amp;</span>Kind::u32(), location).map(|signed_field| {
+            signed_field
+                .try_to_unsigned::&lt;u32&gt;()
                 .expect(<span class="string">"ICE: size should have already been checked by evaluate_to_field_element"</span>)
         })
     }
 
     <span class="comment">// TODO(https://github.com/noir-lang/noir/issues/6260): remove
     // the unifies checks once all kinds checks are implemented?
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>evaluate_to_field_element(
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>evaluate_to_signed_field(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         kind: <span class="kw-2">&amp;</span>Kind,
         location: Location,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;acvm::FieldElement, TypeCheckError&gt; {
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;SignedField, TypeCheckError&gt; {
         <span class="kw">let </span>run_simplifications = <span class="bool-val">true</span>;
-        <span class="self">self</span>.evaluate_to_field_element_helper(kind, location, run_simplifications)
+        <span class="self">self</span>.evaluate_to_signed_field_helper(kind, location, run_simplifications)
     }
 
     <span class="doccomment">/// evaluate_to_field_element with optional generic arithmetic simplifications
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>evaluate_to_field_element_helper(
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>evaluate_to_signed_field_helper(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         kind: <span class="kw-2">&amp;</span>Kind,
         location: Location,
         run_simplifications: bool,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;acvm::FieldElement, TypeCheckError&gt; {
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;SignedField, TypeCheckError&gt; {
         <span class="kw">if let </span><span class="prelude-val">Some</span>((binding, binding_kind)) = <span class="self">self</span>.get_inner_type_variable() {
             <span class="kw">match </span><span class="kw-2">&amp;*</span>binding.borrow() {
                 TypeBinding::Bound(binding) =&gt; {
                     <span class="kw">if </span>kind.unifies(<span class="kw-2">&amp;</span>binding_kind) {
-                        <span class="kw">return </span>binding.evaluate_to_field_element_helper(
+                        <span class="kw">return </span>binding.evaluate_to_signed_field_helper(
                             <span class="kw-2">&amp;</span>binding_kind,
                             location,
                             run_simplifications,
@@ -5003,12 +5041,12 @@
             Type::InfixExpr(lhs, op, rhs, <span class="kw">_</span>) =&gt; {
                 <span class="kw">let </span>infix_kind = lhs.infix_kind(<span class="kw-2">&amp;</span>rhs);
                 <span class="kw">if </span>kind.unifies(<span class="kw-2">&amp;</span>infix_kind) {
-                    <span class="kw">let </span>lhs_value = lhs.evaluate_to_field_element_helper(
+                    <span class="kw">let </span>lhs_value = lhs.evaluate_to_signed_field_helper(
                         <span class="kw-2">&amp;</span>infix_kind,
                         location,
                         run_simplifications,
                     )<span class="question-mark">?</span>;
-                    <span class="kw">let </span>rhs_value = rhs.evaluate_to_field_element_helper(
+                    <span class="kw">let </span>rhs_value = rhs.evaluate_to_signed_field_helper(
                         <span class="kw-2">&amp;</span>infix_kind,
                         location,
                         run_simplifications,
@@ -5023,13 +5061,13 @@
                 }
             }
             Type::CheckedCast { from, to } =&gt; {
-                <span class="kw">let </span>to_value = to.evaluate_to_field_element(kind, location)<span class="question-mark">?</span>;
+                <span class="kw">let </span>to_value = to.evaluate_to_signed_field(kind, location)<span class="question-mark">?</span>;
 
                 <span class="comment">// if both 'to' and 'from' evaluate to a constant,
                 // return None unless they match
                 </span><span class="kw">let </span>skip_simplifications = <span class="bool-val">false</span>;
                 <span class="kw">if let </span><span class="prelude-val">Ok</span>(from_value) =
-                    from.evaluate_to_field_element_helper(kind, location, skip_simplifications)
+                    from.evaluate_to_signed_field_helper(kind, location, skip_simplifications)
                 {
                     <span class="kw">if </span>to_value == from_value {
                         <span class="prelude-val">Ok</span>(to_value)
@@ -5714,17 +5752,17 @@
     <span class="doccomment">/// Perform the actual rust numeric operation associated with this operator
     </span><span class="kw">pub fn </span>function(
         <span class="self">self</span>,
-        a: FieldElement,
-        b: FieldElement,
+        a: SignedField,
+        b: SignedField,
         kind: <span class="kw-2">&amp;</span>Kind,
         location: Location,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;FieldElement, TypeCheckError&gt; {
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;SignedField, TypeCheckError&gt; {
         <span class="kw">match </span>kind.follow_bindings().integral_maximum_size() {
             <span class="prelude-val">None </span>=&gt; <span class="kw">match </span><span class="self">self </span>{
                 BinaryTypeOperator::Addition =&gt; <span class="prelude-val">Ok</span>(a + b),
                 BinaryTypeOperator::Subtraction =&gt; <span class="prelude-val">Ok</span>(a - b),
                 BinaryTypeOperator::Multiplication =&gt; <span class="prelude-val">Ok</span>(a * b),
-                BinaryTypeOperator::Division =&gt; (b != FieldElement::zero())
+                BinaryTypeOperator::Division =&gt; (!b.is_zero())
                     .then(|| a / b)
                     .ok_or(TypeCheckError::DivisionByZero { lhs: a, rhs: b, location }),
                 BinaryTypeOperator::Modulo =&gt; {

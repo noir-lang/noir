@@ -781,8 +781,7 @@
 <a href="#780" id="780">780</a>
 <a href="#781" id="781">781</a>
 <a href="#782" id="782">782</a>
-<a href="#783" id="783">783</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::FieldElement;
-<span class="kw">pub use </span>noirc_errors::Span;
+<a href="#783" id="783">783</a></pre></div><pre class="rust"><code><span class="kw">pub use </span>noirc_errors::Span;
 <span class="kw">use </span>noirc_errors::{CustomDiagnostic <span class="kw">as </span>Diagnostic, Location};
 <span class="kw">use </span>thiserror::Error;
 
@@ -792,6 +791,7 @@
     elaborator::TypedPath,
     hir::{comptime::Value, type_check::TypeCheckError},
     parser::ParserError,
+    signed_field::SignedField,
     usage_tracker::UnusedItem,
 };
 
@@ -883,8 +883,8 @@
     </span>NegativeGlobalType { location: Location, global_value: Value },
     <span class="attr">#[error(<span class="string">"Globals used in a type position must be integers"</span>)]
     </span>NonIntegralGlobalType { location: Location, global_value: Value },
-    <span class="attr">#[error(<span class="string">"Global value `{global_value}` is larger than its kind's maximum value"</span>)]
-    </span>GlobalLargerThanKind { location: Location, global_value: FieldElement, kind: Kind },
+    <span class="attr">#[error(<span class="string">"Global value `{global_value}` does not fit its kind's range"</span>)]
+    </span>GlobalDoesNotFitItsType { location: Location, global_value: SignedField, kind: Kind },
     <span class="attr">#[error(<span class="string">"Self-referential types are not supported"</span>)]
     </span>SelfReferentialType { location: Location },
     <span class="attr">#[error(<span class="string">"#[no_predicates] attribute is only allowed on constrained functions"</span>)]
@@ -907,9 +907,9 @@
     </span>AssociatedConstantsMustBeNumeric { location: Location },
     <span class="attr">#[error(<span class="string">"Computing `{lhs} {op} {rhs}` failed with error {err}"</span>)]
     </span>BinaryOpError {
-        lhs: FieldElement,
+        lhs: SignedField,
         op: <span class="kw">crate</span>::BinaryTypeOperator,
-        rhs: FieldElement,
+        rhs: SignedField,
         err: Box&lt;TypeCheckError&gt;,
         location: Location,
     },
@@ -1001,7 +1001,7 @@
             | ResolverError::UnevaluatedGlobalType { location }
             | ResolverError::NegativeGlobalType { location, .. }
             | ResolverError::NonIntegralGlobalType { location, .. }
-            | ResolverError::GlobalLargerThanKind { location, .. }
+            | ResolverError::GlobalDoesNotFitItsType { location, .. }
             | ResolverError::SelfReferentialType { location }
             | ResolverError::UnquoteUsedOutsideQuote { location }
             | ResolverError::InvalidSyntaxInMacroCall { location }
@@ -1323,7 +1323,7 @@
                     <span class="kw-2">*</span>location,
                 )
             }
-            ResolverError::GlobalLargerThanKind { location, global_value, kind } =&gt; {
+            ResolverError::GlobalDoesNotFitItsType { location, global_value, kind } =&gt; {
                 Diagnostic::simple_error(
                     <span class="macro">format!</span>(<span class="string">"Global value `{global_value}` is larger than its kind's maximum value"</span>),
                     <span class="macro">format!</span>(<span class="string">"Global's kind inferred to be `{kind}`"</span>),

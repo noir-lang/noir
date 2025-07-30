@@ -611,13 +611,7 @@
 <a href="#610" id="610">610</a>
 <a href="#611" id="611">611</a>
 <a href="#612" id="612">612</a>
-<a href="#613" id="613">613</a>
-<a href="#614" id="614">614</a>
-<a href="#615" id="615">615</a>
-<a href="#616" id="616">616</a>
-<a href="#617" id="617">617</a>
-<a href="#618" id="618">618</a>
-<a href="#619" id="619">619</a></pre></div><pre class="rust"><code><span class="doccomment">//! The submodules of this module define the various data types required to
+<a href="#613" id="613">613</a></pre></div><pre class="rust"><code><span class="doccomment">//! The submodules of this module define the various data types required to
 //! represent Noir's Ast. Of particular importance are ExpressionKind and Statement
 //! which can be found in expression.rs and statement.rs respectively.
 //!
@@ -643,7 +637,6 @@
 <span class="attr">#[cfg(test)]
 </span><span class="kw">use </span>proptest_derive::Arbitrary;
 
-<span class="kw">use </span>acvm::FieldElement;
 <span class="kw">pub use </span>docs::<span class="kw-2">*</span>;
 <span class="kw">pub use </span>enumeration::<span class="kw-2">*</span>;
 <span class="kw">use </span>noirc_errors::Span;
@@ -653,6 +646,7 @@
 <span class="kw">pub use </span>type_alias::<span class="kw-2">*</span>;
 
 <span class="kw">use </span><span class="kw">crate</span>::QuotedType;
+<span class="kw">use </span><span class="kw">crate</span>::signed_field::SignedField;
 <span class="kw">use </span><span class="kw">crate</span>::token::IntegerTypeSuffix;
 <span class="kw">use crate</span>::{
     BinaryTypeOperator,
@@ -661,7 +655,6 @@
     shared::Signedness,
 };
 
-<span class="kw">use </span>acvm::acir::AcirField;
 <span class="kw">use </span>iter_extended::vecmap;
 
 <span class="kw">use </span>strum::IntoEnumIterator;
@@ -853,7 +846,7 @@
 </span><span class="attr">#[derive(Debug, PartialEq, Eq, Clone, Hash)]
 </span><span class="kw">pub enum </span>UnresolvedTypeExpression {
     Variable(Path),
-    Constant(FieldElement, <span class="prelude-ty">Option</span>&lt;IntegerTypeSuffix&gt;, Location),
+    Constant(SignedField, <span class="prelude-ty">Option</span>&lt;IntegerTypeSuffix&gt;, Location),
     BinaryOperation(
         Box&lt;UnresolvedTypeExpression&gt;,
         BinaryTypeOperator,
@@ -1144,17 +1137,12 @@
     <span class="kw">fn </span>from_expr_helper(expr: Expression) -&gt; <span class="prelude-ty">Result</span>&lt;UnresolvedTypeExpression, Expression&gt; {
         <span class="kw">match </span>expr.kind {
             ExpressionKind::Literal(Literal::Integer(int, suffix)) =&gt; {
-                <span class="kw">match </span>int.try_to_unsigned::&lt;u32&gt;() {
-                    <span class="prelude-val">Some</span>(int) =&gt; {
-                        <span class="prelude-val">Ok</span>(UnresolvedTypeExpression::Constant(int.into(), suffix, expr.location))
-                    }
-                    <span class="prelude-val">None </span>=&gt; <span class="prelude-val">Err</span>(expr),
-                }
+                <span class="prelude-val">Ok</span>(UnresolvedTypeExpression::Constant(int, suffix, expr.location))
             }
             ExpressionKind::Variable(path) =&gt; <span class="prelude-val">Ok</span>(UnresolvedTypeExpression::Variable(path)),
             ExpressionKind::Prefix(prefix) <span class="kw">if </span>prefix.operator == UnaryOp::Minus =&gt; {
                 <span class="kw">let </span>lhs = Box::new(UnresolvedTypeExpression::Constant(
-                    FieldElement::zero(),
+                    SignedField::zero(),
                     <span class="prelude-val">None</span>,
                     expr.location,
                 ));
