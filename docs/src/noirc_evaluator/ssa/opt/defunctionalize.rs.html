@@ -1644,7 +1644,20 @@
 <a href="#1643" id="1643">1643</a>
 <a href="#1644" id="1644">1644</a>
 <a href="#1645" id="1645">1645</a>
-<a href="#1646" id="1646">1646</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module defines the defunctionalization pass for the SSA IR.
+<a href="#1646" id="1646">1646</a>
+<a href="#1647" id="1647">1647</a>
+<a href="#1648" id="1648">1648</a>
+<a href="#1649" id="1649">1649</a>
+<a href="#1650" id="1650">1650</a>
+<a href="#1651" id="1651">1651</a>
+<a href="#1652" id="1652">1652</a>
+<a href="#1653" id="1653">1653</a>
+<a href="#1654" id="1654">1654</a>
+<a href="#1655" id="1655">1655</a>
+<a href="#1656" id="1656">1656</a>
+<a href="#1657" id="1657">1657</a>
+<a href="#1658" id="1658">1658</a>
+<a href="#1659" id="1659">1659</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module defines the defunctionalization pass for the SSA IR.
 //! Certain IR targets (e.g., Brillig and ACIR) do not support higher-order functions directly.
 //!
 //! The pass eliminates higher-order functions (a function which accepts function values as arguments or returns functions)
@@ -1694,6 +1707,7 @@
         types::{NumericType, Type},
         value::{Value, ValueId},
     },
+    opt::pure::Purity,
     ssa_gen::Ssa,
 };
 <span class="kw">use </span>fxhash::FxHashMap <span class="kw">as </span>HashMap;
@@ -1743,13 +1757,18 @@
         </span><span class="kw">let </span>variants = find_variants(<span class="kw-2">&amp;</span><span class="self">self</span>);
 
         <span class="comment">// Generate the apply functions for the provided variants
-        </span><span class="kw">let </span>apply_functions = create_apply_functions(<span class="kw-2">&amp;mut </span><span class="self">self</span>, variants);
+        </span><span class="kw">let </span>(apply_functions, purities) = create_apply_functions(<span class="kw-2">&amp;mut </span><span class="self">self</span>, variants);
 
         <span class="comment">// Setup the pass context
         </span><span class="kw">let </span>context = DefunctionalizationContext { apply_functions };
 
         <span class="comment">// Run defunctionalization over all functions in the SSA
         </span>context.defunctionalize_all(<span class="kw-2">&amp;mut </span><span class="self">self</span>);
+
+        <span class="kw">let </span>purities = Arc::new(purities);
+        <span class="kw">for </span>function <span class="kw">in </span><span class="self">self</span>.functions.values_mut() {
+            function.dfg.set_function_purities(purities.clone());
+        }
 
         <span class="comment">// Check that we have established the properties expected from this pass.
         </span><span class="attr">#[cfg(debug_assertions)]
@@ -2061,11 +2080,21 @@
 /// - `variants_map`:  [Variants]
 ///
 /// # Returns
-/// [ApplyFunctions] keyed by each function's signature _before_ functions are changed
-/// into field types. The inner apply function itself will have its defunctionalized type,
-/// with function values represented as field values.
-</span><span class="kw">fn </span>create_apply_functions(ssa: <span class="kw-2">&amp;mut </span>Ssa, variants_map: Variants) -&gt; ApplyFunctions {
+/// - [ApplyFunctions] keyed by each function's signature _before_ functions are changed
+///   into field types. The inner apply function itself will have its defunctionalized type,
+///   with function values represented as field values.
+/// - [HashMap&lt;FunctionId, Purity&gt;] with purities that must be set to all functions in the SSA,
+///   as this function might have created dummy pure functions.
+</span><span class="kw">fn </span>create_apply_functions(
+    ssa: <span class="kw-2">&amp;mut </span>Ssa,
+    variants_map: Variants,
+) -&gt; (ApplyFunctions, HashMap&lt;FunctionId, Purity&gt;) {
     <span class="kw">let </span><span class="kw-2">mut </span>apply_functions = HashMap::default();
+    <span class="kw">let </span><span class="kw-2">mut </span>purities = <span class="kw">if </span>ssa.functions.is_empty() {
+        HashMap::default()
+    } <span class="kw">else </span>{
+        (<span class="kw-2">*</span>ssa.functions.iter().next().unwrap().<span class="number">1</span>.dfg.function_purities).clone()
+    };
 
     <span class="kw">for </span>((signature, runtime), variants) <span class="kw">in </span>variants_map.into_iter() {
         <span class="kw">let </span>dispatches_to_multiple_functions = variants.len() &gt; <span class="number">1</span>;
@@ -2097,13 +2126,13 @@
             <span class="comment">// If no variants exist for a dynamic call we leave removing those dead calls and parameters to DIE.
             // However, we have to construct a dummy function for these dead calls as to keep a well formed SSA
             // and to not break the semantics of other SSA passes before DIE is reached.
-            </span>create_dummy_function(ssa, defunctionalized_signature, runtime)
+            </span>create_dummy_function(ssa, defunctionalized_signature, runtime, <span class="kw-2">&amp;mut </span>purities)
         };
         apply_functions
             .insert((signature, runtime), ApplyFunction { id, dispatches_to_multiple_functions });
     }
 
-    apply_functions
+    (apply_functions, purities)
 }
 
 <span class="doccomment">/// Transforms a [FunctionId] into a [FieldElement]
@@ -2146,11 +2175,9 @@
     // We will be borrowing `ssa` mutably so we need to fetch this shared information
     // before attempting to add a new function to the SSA.
     </span><span class="kw">let </span>globals = ssa.main().dfg.globals.clone();
-    <span class="kw">let </span>purities = ssa.main().dfg.function_purities.clone();
     ssa.add_fn(|id| {
         <span class="kw">let </span><span class="kw-2">mut </span>function_builder = FunctionBuilder::new(<span class="string">"apply"</span>.to_string(), id);
         function_builder.set_globals(globals);
-        function_builder.set_purities(purities);
 
         <span class="comment">// We want to push for apply functions to be inlined more aggressively;
         // they are expected to be optimized away by constants visible at the call site.
@@ -2283,6 +2310,7 @@
     ssa: <span class="kw-2">&amp;mut </span>Ssa,
     signature: Signature,
     caller_runtime: RuntimeType,
+    purities: <span class="kw-2">&amp;mut </span>HashMap&lt;FunctionId, Purity&gt;,
 ) -&gt; FunctionId {
     ssa.add_fn(|id| {
         <span class="kw">let </span><span class="kw-2">mut </span>function_builder = FunctionBuilder::new(<span class="string">"apply_dummy"</span>.to_string(), id);
@@ -2304,9 +2332,7 @@
         // As the dummy function is just meant to be a placeholder for any calls to
         // higher-order functions without variants, we want the function to be marked pure
         // so that dead instruction elimination can remove any calls to it.
-        </span><span class="kw">let </span><span class="kw-2">mut </span>purities = HashMap::default();
-        purities.insert(id, <span class="kw">super</span>::pure::Purity::Pure);
-        function_builder.set_purities(Arc::new(purities));
+        </span>purities.insert(id, Purity::Pure);
 
         <span class="kw">let </span>results =
             vecmap(signature.returns, |typ| make_dummy_return_data(<span class="kw-2">&amp;mut </span>function_builder, <span class="kw-2">&amp;</span>typ));
@@ -3285,7 +3311,7 @@
         <span class="kw">let </span>variants = find_variants(<span class="kw-2">&amp;</span>ssa);
         <span class="macro">assert_eq!</span>(variants.len(), <span class="number">2</span>);
 
-        <span class="kw">let </span>apply_functions = create_apply_functions(<span class="kw-2">&amp;mut </span>ssa, variants);
+        <span class="kw">let </span>(apply_functions, _purities) = create_apply_functions(<span class="kw-2">&amp;mut </span>ssa, variants);
         <span class="comment">// This was 1 before this bug was fixed.
         </span><span class="macro">assert_eq!</span>(apply_functions.len(), <span class="number">2</span>);
     }
