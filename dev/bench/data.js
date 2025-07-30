@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1753889266938,
+  "lastUpdate": 1753889385716,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -12005,48 +12005,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "127c4d18dbfbc8339a8f0271d1bcb33e9b8efebf",
-          "message": "fix: parse AsTraitPath in type expressions (#9258)",
-          "timestamp": "2025-07-21T12:52:40Z",
-          "tree_id": "bf92c9f87c3572ceca0b0cc02b2a2c0401d935dd",
-          "url": "https://github.com/noir-lang/noir/commit/127c4d18dbfbc8339a8f0271d1bcb33e9b8efebf"
-        },
-        "date": 1753103939465,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 247952,
-            "range": "± 604",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 218109,
-            "range": "± 2673",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2779269,
-            "range": "± 9976",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "de536523e69a21733361ff0e9ff4748a0005e2a1",
           "message": "feat: allow paths in l-values (#9254)",
@@ -14089,6 +14047,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2782208,
             "range": "± 1191",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "28abb682cf4001ab97dcafd3e9a111a281806be4",
+          "message": "fix: Prevent accidental tuple sharing in comptime code (#9313)",
+          "timestamp": "2025-07-30T15:02:09Z",
+          "tree_id": "69bf293b9d6ab4f070e44d5ceed1802d49768e4d",
+          "url": "https://github.com/noir-lang/noir/commit/28abb682cf4001ab97dcafd3e9a111a281806be4"
+        },
+        "date": 1753889369031,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 247815,
+            "range": "± 1230",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 221640,
+            "range": "± 1380",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2782012,
+            "range": "± 2858",
             "unit": "ns/iter"
           }
         ]
