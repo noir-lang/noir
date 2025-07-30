@@ -39,6 +39,14 @@ impl SignedField {
         self.is_negative
     }
 
+    pub fn is_zero(&self) -> bool {
+        self.field.is_zero()
+    }
+
+    pub fn is_one(&self) -> bool {
+        self.field.is_one()
+    }
+
     /// Convert a signed integer to a SignedField, carefully handling
     /// INT_MIN in the process. Note that to convert an unsigned integer
     /// you can call `SignedField::positive`.
@@ -50,6 +58,10 @@ impl SignedField {
         let negative = value.is_negative();
         let value = value.abs_u128();
         SignedField::new(value.into(), negative)
+    }
+
+    pub fn try_to_u32(self) -> Option<u32> {
+        self.try_to_unsigned::<u32>()
     }
 
     /// Convert a SignedField into an unsigned integer type (up to u128),
@@ -97,6 +109,14 @@ impl SignedField {
 
     pub fn to_field_element(self) -> FieldElement {
         if self.is_negative { -self.field } else { self.field }
+    }
+
+    pub fn to_u128(self) -> u128 {
+        self.to_field_element().to_u128()
+    }
+
+    pub fn to_i128(self) -> i128 {
+        self.to_field_element().to_i128()
     }
 }
 
@@ -180,6 +200,30 @@ impl Ord for SignedField {
 impl PartialOrd for SignedField {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.cmp(other))
+    }
+}
+
+impl From<u32> for SignedField {
+    fn from(value: u32) -> Self {
+        Self::new(value.into(), false)
+    }
+}
+
+impl From<u128> for SignedField {
+    fn from(value: u128) -> Self {
+        Self::new(value.into(), false)
+    }
+}
+
+impl From<i128> for SignedField {
+    fn from(value: i128) -> Self {
+        if value < 0 { Self::new((-value).into(), true) } else { Self::new(value.into(), false) }
+    }
+}
+
+impl From<usize> for SignedField {
+    fn from(value: usize) -> Self {
+        Self::new(value.into(), false)
     }
 }
 

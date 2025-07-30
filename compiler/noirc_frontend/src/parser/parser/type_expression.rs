@@ -2,10 +2,10 @@ use crate::{
     BinaryTypeOperator,
     ast::{GenericTypeArgs, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression},
     parser::{ParserError, labels::ParsingRuleLabel},
+    signed_field::SignedField,
     token::Token,
 };
 
-use acvm::acir::{AcirField, FieldElement};
 use noirc_errors::Location;
 
 use super::{Parser, parse_many::separated_by_comma_until_right_paren};
@@ -117,7 +117,7 @@ impl Parser<'_> {
             return match self.parse_term_type_expression() {
                 Some(rhs) => {
                     let lhs = UnresolvedTypeExpression::Constant(
-                        FieldElement::zero(),
+                        SignedField::zero(),
                         None,
                         start_location,
                     );
@@ -167,8 +167,10 @@ impl Parser<'_> {
 
     /// ConstantTypeExpression = int
     fn parse_constant_type_expression(&mut self) -> Option<UnresolvedTypeExpression> {
+        // TODO: allow negative integers
         let (int, suffix) = self.eat_int()?;
-        Some(UnresolvedTypeExpression::Constant(int, suffix, self.previous_token_location))
+        let signed_field = SignedField::positive(int);
+        Some(UnresolvedTypeExpression::Constant(signed_field, suffix, self.previous_token_location))
     }
 
     /// VariableTypeExpression = Path
@@ -257,7 +259,7 @@ impl Parser<'_> {
             return match self.parse_term_type_expression() {
                 Some(rhs) => {
                     let lhs = UnresolvedTypeExpression::Constant(
-                        FieldElement::zero(),
+                        SignedField::zero(),
                         None,
                         start_location,
                     );

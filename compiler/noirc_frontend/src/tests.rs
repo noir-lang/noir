@@ -4810,3 +4810,20 @@ fn cannot_assign_to_nested_struct() {
     "#;
     check_errors!(src);
 }
+
+#[named]
+#[test]
+fn associated_constant_with_negative_value() {
+    let src = r#"
+    trait Foo {
+        let N: i32;
+    }
+
+    impl Foo for Field {
+        let N: i32 = -1;
+    }
+
+    fn main() {}
+    "#;
+    assert_no_errors!(src);
+}

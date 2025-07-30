@@ -1,4 +1,3 @@
-use acvm::FieldElement;
 pub use noirc_errors::Span;
 use noirc_errors::{CustomDiagnostic as Diagnostic, Location};
 use thiserror::Error;
@@ -9,6 +8,7 @@ use crate::{
     elaborator::TypedPath,
     hir::{comptime::Value, type_check::TypeCheckError},
     parser::ParserError,
+    signed_field::SignedField,
     usage_tracker::UnusedItem,
 };
 
@@ -100,8 +100,8 @@ pub enum ResolverError {
     NegativeGlobalType { location: Location, global_value: Value },
     #[error("Globals used in a type position must be integers")]
     NonIntegralGlobalType { location: Location, global_value: Value },
-    #[error("Global value `{global_value}` is larger than its kind's maximum value")]
-    GlobalLargerThanKind { location: Location, global_value: FieldElement, kind: Kind },
+    #[error("Global value `{global_value}` does not fit its kind's range")]
+    GlobalDoesNotFitItsType { location: Location, global_value: SignedField, kind: Kind },
     #[error("Self-referential types are not supported")]
     SelfReferentialType { location: Location },
     #[error("#[no_predicates] attribute is only allowed on constrained functions")]
@@ -124,9 +124,9 @@ pub enum ResolverError {
     AssociatedConstantsMustBeNumeric { location: Location },
     #[error("Computing `{lhs} {op} {rhs}` failed with error {err}")]
     BinaryOpError {
-        lhs: FieldElement,
+        lhs: SignedField,
         op: crate::BinaryTypeOperator,
-        rhs: FieldElement,
+        rhs: SignedField,
         err: Box<TypeCheckError>,
         location: Location,
     },
@@ -218,7 +218,7 @@ impl ResolverError {
             | ResolverError::UnevaluatedGlobalType { location }
             | ResolverError::NegativeGlobalType { location, .. }
             | ResolverError::NonIntegralGlobalType { location, .. }
-            | ResolverError::GlobalLargerThanKind { location, .. }
+            | ResolverError::GlobalDoesNotFitItsType { location, .. }
             | ResolverError::SelfReferentialType { location }
             | ResolverError::UnquoteUsedOutsideQuote { location }
             | ResolverError::InvalidSyntaxInMacroCall { location }
@@ -540,7 +540,7 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
                     *location,
                 )
             }
-            ResolverError::GlobalLargerThanKind { location, global_value, kind } => {
+            ResolverError::GlobalDoesNotFitItsType { location, global_value, kind } => {
                 Diagnostic::simple_error(
                     format!("Global value `{global_value}` is larger than its kind's maximum value"),
                     format!("Global's kind inferred to be `{kind}`"),
