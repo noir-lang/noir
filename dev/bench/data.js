@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1753881157124,
+  "lastUpdate": 1753881159291,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -2268,90 +2268,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "9d4d1beeeee8377b9ec636ee01cdad13114dfc8d",
-          "message": "chore: clippy (#9246)",
-          "timestamp": "2025-07-18T14:13:38+01:00",
-          "tree_id": "589157e1a401ef06a7eedd67d770cfb19e3e40ca",
-          "url": "https://github.com/noir-lang/noir/commit/9d4d1beeeee8377b9ec636ee01cdad13114dfc8d"
-        },
-        "date": 1752844914115,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 2.032,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 8.13,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.58,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 17.7,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 15.36,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 20.94,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 208,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 213,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.742,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.85,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.784,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 1.906,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "80b04ec8eab3ca74fc6c9457ca1fd8828044675d",
           "message": "chore: enforce clippy in `ssa_fuzzer` (#9247)",
           "timestamp": "2025-07-18T14:44:46+01:00",
@@ -4501,6 +4417,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 1.591,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8264d307dc4f076f376ae616e84fb78a69744a9a",
+          "message": "fix: replace implicitly added named generics with fresh type vars in check_trait_impl_where_clause_matches_trait_where_clause (#9352)",
+          "timestamp": "2025-07-30T12:44:00Z",
+          "tree_id": "5d09a76b70391b6db23a5ad9d8d11b28b2fa23dc",
+          "url": "https://github.com/noir-lang/noir/commit/8264d307dc4f076f376ae616e84fb78a69744a9a"
+        },
+        "date": 1753881141234,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.776,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 1.628,
             "unit": "s"
           }
         ]
