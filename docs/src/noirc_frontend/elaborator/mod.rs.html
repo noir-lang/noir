@@ -2575,7 +2575,38 @@
 <a href="#2574" id="2574">2574</a>
 <a href="#2575" id="2575">2575</a>
 <a href="#2576" id="2576">2576</a>
-<a href="#2577" id="2577">2577</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
+<a href="#2577" id="2577">2577</a>
+<a href="#2578" id="2578">2578</a>
+<a href="#2579" id="2579">2579</a>
+<a href="#2580" id="2580">2580</a>
+<a href="#2581" id="2581">2581</a>
+<a href="#2582" id="2582">2582</a>
+<a href="#2583" id="2583">2583</a>
+<a href="#2584" id="2584">2584</a>
+<a href="#2585" id="2585">2585</a>
+<a href="#2586" id="2586">2586</a>
+<a href="#2587" id="2587">2587</a>
+<a href="#2588" id="2588">2588</a>
+<a href="#2589" id="2589">2589</a>
+<a href="#2590" id="2590">2590</a>
+<a href="#2591" id="2591">2591</a>
+<a href="#2592" id="2592">2592</a>
+<a href="#2593" id="2593">2593</a>
+<a href="#2594" id="2594">2594</a>
+<a href="#2595" id="2595">2595</a>
+<a href="#2596" id="2596">2596</a>
+<a href="#2597" id="2597">2597</a>
+<a href="#2598" id="2598">2598</a>
+<a href="#2599" id="2599">2599</a>
+<a href="#2600" id="2600">2600</a>
+<a href="#2601" id="2601">2601</a>
+<a href="#2602" id="2602">2602</a>
+<a href="#2603" id="2603">2603</a>
+<a href="#2604" id="2604">2604</a>
+<a href="#2605" id="2605">2605</a>
+<a href="#2606" id="2606">2606</a>
+<a href="#2607" id="2607">2607</a>
+<a href="#2608" id="2608">2608</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     cell::RefCell,
     collections::{BTreeMap, BTreeSet},
     rc::Rc,
@@ -2586,7 +2617,7 @@
     ast::{IdentOrQuotedType, ItemVisibility, UnresolvedType},
     graph::CrateGraph,
     hir::def_collector::dc_crate::UnresolvedTrait,
-    hir_def::traits::ResolvedTraitBound,
+    hir_def::traits::{NamedType, ResolvedTraitBound},
     node_interner::{GlobalValue, QuotedTypeId},
     token::SecondaryAttributeKind,
     usage_tracker::UsageTracker,
@@ -3969,9 +4000,24 @@
             <span class="kw">else </span>{
                 <span class="kw">continue</span>;
             };
+            <span class="kw">let </span>trait_constraint_trait_name = trait_constraint_trait.name.to_string();
 
             <span class="kw">let </span>trait_constraint_type = trait_constraint.typ.substitute(<span class="kw-2">&amp;</span>bindings);
             <span class="kw">let </span>trait_bound = <span class="kw-2">&amp;</span>trait_constraint.trait_bound;
+
+            <span class="kw">let </span><span class="kw-2">mut </span>named_generics = trait_bound.trait_generics.named.clone();
+
+            <span class="comment">// If the trait bound is over a trait that has associated types, the ones that
+            // aren't explicit will be in `named_generics` as implicitly added ones.
+            // If they are unbound, they won't be bound until monomorphization, in which cae
+            // the below trait implementation lookup will fail (an unbound named generic will
+            // never unify in this case). In this case we replace them with fresh type variables
+            // so they'll unify (the bindings aren't applied here so this is fine).
+            // If they are bound though, we won't replace them as we want to ensure the binding
+            // matches.
+            </span><span class="self">self</span>.replace_implicitly_added_unbound_named_generics_with_fresh_type_variables(
+                <span class="kw-2">&amp;mut </span>named_generics,
+            );
 
             <span class="kw">if </span><span class="self">self
                 </span>.interner
@@ -3979,12 +4025,12 @@
                     <span class="kw-2">&amp;</span>trait_constraint_type,
                     trait_bound.trait_id,
                     <span class="kw-2">&amp;</span>trait_bound.trait_generics.ordered,
-                    <span class="kw-2">&amp;</span>trait_bound.trait_generics.named,
+                    <span class="kw-2">&amp;</span>named_generics,
                 )
                 .is_err()
             {
                 <span class="kw">let </span>missing_trait =
-                    <span class="macro">format!</span>(<span class="string">"{}{}"</span>, trait_constraint_trait.name, trait_bound.trait_generics);
+                    <span class="macro">format!</span>(<span class="string">"{}{}"</span>, trait_constraint_trait_name, trait_bound.trait_generics);
                 <span class="self">self</span>.push_err(ResolverError::TraitNotImplemented {
                     impl_trait: impl_trait.clone(),
                     missing_trait,
@@ -3993,6 +4039,22 @@
                     missing_trait_location: trait_bound.location,
                 });
             }
+        }
+    }
+
+    <span class="kw">fn </span>replace_implicitly_added_unbound_named_generics_with_fresh_type_variables(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        named_generics: <span class="kw-2">&amp;mut </span>[NamedType],
+    ) {
+        <span class="kw">for </span>named_type <span class="kw">in </span>named_generics.iter_mut() {
+            <span class="kw">match </span><span class="kw-2">&amp;</span>named_type.typ {
+                Type::NamedGeneric(NamedGeneric { type_var, implicit: <span class="bool-val">true</span>, .. })
+                    <span class="kw">if </span>type_var.borrow().is_unbound() =&gt;
+                {
+                    named_type.typ = <span class="self">self</span>.interner.next_type_variable();
+                }
+                <span class="kw">_ </span>=&gt; (),
+            };
         }
     }
 
