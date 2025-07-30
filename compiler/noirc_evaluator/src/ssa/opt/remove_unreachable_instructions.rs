@@ -23,14 +23,14 @@ use crate::ssa::{
         types::{NumericType, Type},
         value::ValueId,
     },
-    opt::simple_optimization::SimpleOptimizationContext,
+    opt::{pure::FunctionPurities, simple_optimization::SimpleOptimizationContext},
     ssa_gen::Ssa,
 };
 
 impl Ssa {
     pub(crate) fn remove_unreachable_instructions(mut self) -> Ssa {
         for function in self.functions.values_mut() {
-            function.remove_unreachable_instructions();
+            function.remove_unreachable_instructions(&self.function_purities);
         }
         self
     }
@@ -48,7 +48,7 @@ enum Reachability {
 }
 
 impl Function {
-    fn remove_unreachable_instructions(&mut self) {
+    fn remove_unreachable_instructions(&mut self, purities: &FunctionPurities) {
         let func_id = self.id();
         // The current block we are currently processing
         let mut current_block_id = None;
@@ -86,7 +86,7 @@ impl Function {
             if current_block_reachability == Reachability::UnreachableUnderPredicate {
                 // Instructions that don't interact with the predicate should be left alone,
                 // because the `remove_enable_side_effects` pass might have moved the boundaries around them.
-                if !instruction.requires_acir_gen_predicate(context.dfg) {
+                if !instruction.requires_acir_gen_predicate(context.dfg, purities) {
                     return;
                 }
                 // Remove the current instruction and insert defaults for the results.

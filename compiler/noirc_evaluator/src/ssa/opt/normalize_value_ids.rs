@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, sync::Arc};
+use std::collections::BTreeMap;
 
 use crate::ssa::{
     ir::{
@@ -8,6 +8,7 @@ use crate::ssa::{
         post_order::PostOrder,
         value::{Value, ValueId},
     },
+    opt::pure::FunctionPurities,
     ssa_gen::Ssa,
 };
 use fxhash::FxHashMap as HashMap;
@@ -22,20 +23,26 @@ impl Ssa {
     /// may increase the ID counter so that later passes start at different offsets,
     /// even if they contain the same SSA code.
     pub fn normalize_ids(&mut self) {
-        let mut context = Context::default();
+        let mut context = Context {
+            old_purities: std::mem::take(&mut self.function_purities),
+            ..Context::default()
+        };
+
         context.populate_functions(&self.functions);
         for function in self.functions.values_mut() {
             context.normalize_ids(function);
         }
         self.functions = context.functions.into_btree();
+        self.function_purities = context.new_purities;
     }
 }
 
 #[derive(Default)]
 struct Context {
     functions: SparseMap<Function>,
-
     new_ids: IdMaps,
+    old_purities: FunctionPurities,
+    new_purities: FunctionPurities,
 }
 
 /// Maps from old ids to new ones.
@@ -61,24 +68,16 @@ impl Context {
             return;
         }
 
-        let old_purities = &functions.iter().next().unwrap().1.dfg.function_purities;
-        let mut new_purities = HashMap::default();
-
         for (id, function) in functions {
             self.functions.insert_with_id(|new_id| {
                 self.new_ids.function_ids.insert(*id, new_id);
 
-                if let Some(purity) = old_purities.get(id) {
-                    new_purities.insert(new_id, *purity);
+                if let Some(purity) = self.old_purities.get(id) {
+                    self.new_purities.insert(new_id, *purity);
                 }
 
                 Function::clone_signature(new_id, function)
             });
-        }
-
-        let new_purities = Arc::new(new_purities);
-        for new_id in self.new_ids.function_ids.values() {
-            self.functions[*new_id].dfg.set_function_purities(new_purities.clone());
         }
     }
 

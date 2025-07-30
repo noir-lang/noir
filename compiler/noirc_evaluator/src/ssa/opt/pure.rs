@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use fxhash::FxHashMap as HashMap;
 use petgraph::visit::DfsPostOrder;
 
@@ -29,19 +27,19 @@ impl Ssa {
     pub(crate) fn purity_analysis(mut self) -> Ssa {
         // First look through each function to get a baseline on its purity and collect
         // the functions it calls to build a call graph.
-        let purities: FunctionPurities =
-            self.functions.values().map(|function| (function.id(), function.is_pure())).collect();
+        let purities: FunctionPurities = self
+            .functions
+            .values()
+            .map(|function| (function.id(), function.is_pure(&self.function_purities)))
+            .collect();
 
         // Then transitively 'infect' any functions which call impure functions as also
         // impure.
         let call_graph = CallGraph::from_ssa(&self);
         let purities = analyze_call_graph(call_graph, purities);
-        let purities = Arc::new(purities);
 
-        // We're done, now store purities somewhere every dfg can find it.
-        for function in self.functions.values_mut() {
-            function.dfg.set_function_purities(purities.clone());
-        }
+        // We're done, now store purities
+        self.function_purities = purities;
 
         #[cfg(debug_assertions)]
         purity_analysis_post_check(&self);
@@ -58,9 +56,7 @@ impl Ssa {
 /// Otherwise panics.
 #[cfg(debug_assertions)]
 fn purity_analysis_post_check(ssa: &Ssa) {
-    if let Some((id, _)) =
-        ssa.functions.iter().find(|(id, function)| function.dfg.purity_of(**id).is_none())
-    {
+    if let Some(id) = ssa.functions.keys().find(|id| !ssa.function_purities.contains_key(*id)) {
         panic!("Function {id} does not have a purity status")
     }
 }
@@ -111,7 +107,7 @@ impl std::fmt::Display for Purity {
 }
 
 impl Function {
-    fn is_pure(&self) -> Purity {
+    fn is_pure(&self, purities: &FunctionPurities) -> Purity {
         let contains_reference = |value_id: &ValueId| {
             let typ = self.dfg.type_of_value(*value_id);
             typ.contains_reference()
@@ -150,7 +146,7 @@ impl Function {
                     ins @ (Instruction::Binary(_)
                     | Instruction::ArrayGet { .. }
                     | Instruction::ArraySet { .. }) => {
-                        if ins.requires_acir_gen_predicate(&self.dfg) {
+                        if ins.requires_acir_gen_predicate(&self.dfg, purities) {
                             result = Purity::PureWithPredicate;
                         }
                     }
@@ -347,7 +343,7 @@ mod test {
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.purity_analysis();
 
-        let purities = &ssa.main().dfg.function_purities;
+        let purities = &ssa.function_purities;
         assert_eq!(purities[&FunctionId::test_new(0)], Purity::Impure);
         assert_eq!(purities[&FunctionId::test_new(1)], Purity::Impure);
         assert_eq!(purities[&FunctionId::test_new(2)], Purity::Impure);
@@ -452,7 +448,7 @@ mod test {
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.purity_analysis();
 
-        let purities = &ssa.main().dfg.function_purities;
+        let purities = &ssa.function_purities;
         assert_eq!(purities[&FunctionId::test_new(0)], Purity::Impure);
         assert_eq!(purities[&FunctionId::test_new(1)], Purity::Impure);
         assert_eq!(purities[&FunctionId::test_new(2)], Purity::Impure);
@@ -475,7 +471,7 @@ mod test {
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.purity_analysis();
 
-        let purities = &ssa.main().dfg.function_purities;
+        let purities = &ssa.function_purities;
         assert_eq!(purities[&FunctionId::test_new(0)], Purity::PureWithPredicate);
         assert_eq!(purities[&FunctionId::test_new(1)], Purity::PureWithPredicate);
     }

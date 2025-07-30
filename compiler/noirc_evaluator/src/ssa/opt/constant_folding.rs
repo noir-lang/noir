@@ -41,7 +41,7 @@ use crate::{
             types::{NumericType, Type},
             value::{Value, ValueId, ValueMapping},
         },
-        opt::pure::Purity,
+        opt::pure::{FunctionPurities, Purity},
         ssa_gen::Ssa,
     },
 };
@@ -57,7 +57,7 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn fold_constants(mut self) -> Ssa {
         for function in self.functions.values_mut() {
-            function.constant_fold(false, None);
+            function.constant_fold(false, None, &self.function_purities);
         }
         self
     }
@@ -70,7 +70,7 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn fold_constants_using_constraints(mut self) -> Ssa {
         for function in self.functions.values_mut() {
-            function.constant_fold(true, None);
+            function.constant_fold(true, None, &self.function_purities);
         }
         self
     }
@@ -96,7 +96,7 @@ impl Ssa {
             if function.dfg.runtime().is_brillig() {
                 continue;
             }
-            function.constant_fold(false, brillig_info);
+            function.constant_fold(false, brillig_info, &self.function_purities);
         }
 
         self
@@ -106,12 +106,13 @@ impl Ssa {
 impl Function {
     /// The structure of this pass is simple:
     /// Go through each block and re-insert all instructions.
-    pub(crate) fn constant_fold(
+    fn constant_fold(
         &mut self,
         use_constraint_info: bool,
         brillig_info: Option<BrilligInfo>,
+        purities: &FunctionPurities,
     ) {
-        let mut context = Context::new(use_constraint_info, brillig_info);
+        let mut context = Context::new(use_constraint_info, brillig_info, purities);
         let mut dom = DominatorTree::with_function(self);
         context.block_queue.push_back(self.entry_block());
 
@@ -126,9 +127,10 @@ impl Function {
     }
 }
 
-struct Context<'a> {
+struct Context<'brillig, 'purities> {
+    purities: &'purities FunctionPurities,
     use_constraint_info: bool,
-    brillig_info: Option<BrilligInfo<'a>>,
+    brillig_info: Option<BrilligInfo<'brillig>>,
     /// Maps pre-folded ValueIds to the new ValueIds obtained by re-inserting the instruction.
     visited_blocks: HashSet<BasicBlockId>,
     block_queue: VecDeque<BasicBlockId>,
@@ -216,9 +218,14 @@ struct ResultCache {
     result: Option<(BasicBlockId, Vec<ValueId>)>,
 }
 
-impl<'brillig> Context<'brillig> {
-    fn new(use_constraint_info: bool, brillig_info: Option<BrilligInfo<'brillig>>) -> Self {
+impl<'brillig, 'purities> Context<'brillig, 'purities> {
+    fn new(
+        use_constraint_info: bool,
+        brillig_info: Option<BrilligInfo<'brillig>>,
+        purities: &'purities FunctionPurities,
+    ) -> Self {
         Self {
+            purities,
             use_constraint_info,
             brillig_info,
             visited_blocks: Default::default(),
@@ -508,13 +515,13 @@ impl<'brillig> Context<'brillig> {
         // we cache the results so we can reuse them if the same instruction appears again later in the block.
         // Others have side effects representing failure, which are implicit in the ACIR code and can also be deduplicated.
         let can_be_deduplicated =
-            can_be_deduplicated(&instruction, function, self.use_constraint_info);
+            can_be_deduplicated(&instruction, function, self.use_constraint_info, self.purities);
 
         // We also allow deduplicating MakeArray instructions that we have tracked which haven't
         // been mutated.
         if can_be_deduplicated || matches!(instruction, Instruction::MakeArray { .. }) {
-            let use_predicate =
-                self.use_constraint_info && instruction.requires_acir_gen_predicate(&function.dfg);
+            let use_predicate = self.use_constraint_info
+                && instruction.requires_acir_gen_predicate(&function.dfg, self.purities);
             let predicate = use_predicate.then_some(side_effects_enabled_var);
 
             // If we see this make_array again, we can reuse the current result.
@@ -553,10 +560,15 @@ impl<'brillig> Context<'brillig> {
         block: BasicBlockId,
     ) -> Option<CacheResult> {
         let results_for_instruction = self.cached_instruction_results.get(instruction)?;
-        let predicate = self.use_constraint_info && instruction.requires_acir_gen_predicate(dfg);
+        let predicate =
+            self.use_constraint_info && instruction.requires_acir_gen_predicate(dfg, self.purities);
         let predicate = predicate.then_some(side_effects_enabled_var);
 
-        results_for_instruction.get(&predicate)?.get(block, dom, instruction.has_side_effects(dfg))
+        results_for_instruction.get(&predicate)?.get(
+            block,
+            dom,
+            instruction.has_side_effects(dfg, self.purities),
+        )
     }
 
     /// Checks if the given instruction is a call to a brillig function with all constant arguments.
@@ -778,7 +790,7 @@ impl<'brillig> Context<'brillig> {
             Call { arguments, func } if function.runtime().is_brillig() => {
                 // If we pass a value to a function, it might get modified, making it unsafe for reuse after the call.
                 let Value::Function(func_id) = &function.dfg[*func] else { return };
-                if matches!(function.dfg.purity_of(*func_id), None | Some(Purity::Impure)) {
+                if matches!(self.purities.get(func_id).copied(), None | Some(Purity::Impure)) {
                     // Arrays passed to functions might be mutated by them if there are no `inc_rc` instructions
                     // placed *before* the call to protect them. Currently we don't track the ref count in this
                     // context, so be conservative and do not reuse any array shared with a callee.
@@ -909,6 +921,7 @@ pub(crate) fn can_be_deduplicated(
     instruction: &Instruction,
     function: &Function,
     deduplicate_with_predicate: bool,
+    purities: &FunctionPurities,
 ) -> bool {
     use Instruction::*;
 
@@ -924,7 +937,7 @@ pub(crate) fn can_be_deduplicated(
         Call { func, .. } => {
             let purity = match function.dfg[*func] {
                 Value::Intrinsic(intrinsic) => Some(intrinsic.purity()),
-                Value::Function(id) => function.dfg.purity_of(id),
+                Value::Function(id) => purities.get(&id).copied(),
                 _ => None,
             };
             match purity {
@@ -956,7 +969,8 @@ pub(crate) fn can_be_deduplicated(
         // with one that was disabled. See
         // https://github.com/noir-lang/noir/pull/4716#issuecomment-2047846328.
         Binary(_) | ArrayGet { .. } | ArraySet { .. } => {
-            deduplicate_with_predicate || !instruction.requires_acir_gen_predicate(&function.dfg)
+            deduplicate_with_predicate
+                || !instruction.requires_acir_gen_predicate(&function.dfg, purities)
         }
     }
 }
