@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1753881265696,
+  "lastUpdate": 1753881268684,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -6522,80 +6522,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "9d4d1beeeee8377b9ec636ee01cdad13114dfc8d",
-          "message": "chore: clippy (#9246)",
-          "timestamp": "2025-07-18T14:13:38+01:00",
-          "tree_id": "589157e1a401ef06a7eedd67d770cfb19e3e40ca",
-          "url": "https://github.com/noir-lang/noir/commit/9d4d1beeeee8377b9ec636ee01cdad13114dfc8d"
-        },
-        "date": 1752845444808,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 202,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 238.04,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 191.23,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 502.31,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 435.16,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1510,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 324.72,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 327.35,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 69.28,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 55.52,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "80b04ec8eab3ca74fc6c9457ca1fd8828044675d",
           "message": "chore: enforce clippy in `ssa_fuzzer` (#9247)",
           "timestamp": "2025-07-18T14:44:46+01:00",
@@ -8635,6 +8561,40 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/7d98dc2ec806c49e41c98fe54b314f85c37b5473"
         },
         "date": 1753817757652,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore_depth_10",
+            "value": 69.46,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 54.95,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8264d307dc4f076f376ae616e84fb78a69744a9a",
+          "message": "fix: replace implicitly added named generics with fresh type vars in check_trait_impl_where_clause_matches_trait_where_clause (#9352)",
+          "timestamp": "2025-07-30T12:44:00Z",
+          "tree_id": "5d09a76b70391b6db23a5ad9d8d11b28b2fa23dc",
+          "url": "https://github.com/noir-lang/noir/commit/8264d307dc4f076f376ae616e84fb78a69744a9a"
+        },
+        "date": 1753881251825,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
