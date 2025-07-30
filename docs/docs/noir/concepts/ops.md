@@ -27,6 +27,7 @@ sidebar_position: 3
 | -         |           Subtracts two private input types together           |            Types must be private input |
 | \*        |          Multiplies two private input types together           |            Types must be private input |
 | /         |            Divides two private input types together            |            Types must be private input |
+| \%        |              Modulo operation                                  |                  Types must be integer |
 | ^         |              XOR two private input types together              |                  Types must be integer |
 | &         |              AND two private input types together              |                  Types must be integer |
 | \|        |              OR two private input types together               |                  Types must be integer |
@@ -39,6 +40,9 @@ sidebar_position: 3
 | >=        | returns a bool if one value is more than or equal to the other | Upper bound must have a known bit size |
 | ==        |       returns a bool if one value is equal to the other        |       Both types must not be constants |
 | !=        |     returns a bool if one value is not equal to the other      |       Both types must not be constants |
+
+The modulo operator `%` will give an error when the right-hand side operand is zero, and will return `0` when the
+right-hand side operand is `1`, or `-1`.
 
 ### Predicate Operators
 
