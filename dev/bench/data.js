@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1753886174015,
+  "lastUpdate": 1753886189562,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -6232,80 +6232,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "163862677+noirwhal@users.noreply.github.com",
-            "name": "noirwhal",
-            "username": "noirwhal"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "08995dde1e96bf05f6d582a7a511fc2136c7d576",
-          "message": "chore: bump external pinned commits (#9256)\n\nCo-authored-by: noirwhal <tomfrench@aztecprotocol.com>",
-          "timestamp": "2025-07-21T10:03:17+01:00",
-          "tree_id": "9aca7946560ce303c50234d2f095a919dc9ef612",
-          "url": "https://github.com/noir-lang/noir/commit/08995dde1e96bf05f6d582a7a511fc2136c7d576"
-        },
-        "date": 1753089654119,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 202.03,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 238.06,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 191.26,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 502.33,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 435.19,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1510,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 324.74,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 327.38,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 69.28,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 55.52,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -8275,6 +8201,40 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/853607f779b65664ee85f350f3d25f5ceaeaf6cc"
         },
         "date": 1753885241126,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore_depth_10",
+            "value": 69.46,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 54.95,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "0550ee0bc29291264901222429201ed71e2accdd",
+          "message": "fix: handle short-syntax for trait constraints on trait generics (#9167)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-07-30T14:07:04Z",
+          "tree_id": "77cad3276dc0897e73a551d6c4551edb4040de89",
+          "url": "https://github.com/noir-lang/noir/commit/0550ee0bc29291264901222429201ed71e2accdd"
+        },
+        "date": 1753886172435,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
