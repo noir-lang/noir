@@ -1231,7 +1231,12 @@
 <a href="#1230" id="1230">1230</a>
 <a href="#1231" id="1231">1231</a>
 <a href="#1232" id="1232">1232</a>
-<a href="#1233" id="1233">1233</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
+<a href="#1233" id="1233">1233</a>
+<a href="#1234" id="1234">1234</a>
+<a href="#1235" id="1235">1235</a>
+<a href="#1236" id="1236">1236</a>
+<a href="#1237" id="1237">1237</a>
+<a href="#1238" id="1238">1238</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::{Located, Location};
 <span class="kw">use </span>rustc_hash::FxHashSet <span class="kw">as </span>HashSet;
 
@@ -2268,7 +2273,7 @@
         //     fn new() -&gt; Self;
         // }
         //
-        // fn foo&lt;O: One, T: Two&lt;O&gt;&gt;() {
+        // fn foo&lt;X: One, T: Two&lt;X&gt;&gt;() {
         //     let _: T = Two::new();
         // }
         // ```
@@ -2276,8 +2281,13 @@
         // when type-checking `Two::new` we'll have a return type `'2` which is constrained by `'2: Two&lt;'1&gt;`.
         // Then the definition for `new` has a constraint on it, `O: One`, which translates to `'1: One`.
         //
-        // If we try to find a trait implementation for `'1` before finding one for `'2` we'll never find it:
-        // once we find one for `'2`, `'1` will become bound and a trait implementation will be found.
+        // Because of the explicit type in the `let`, `'2` will be unified with `T`.
+        // Then we must first verify the constraint `'2: Two&lt;'1&gt;`, which is now `T: Two&lt;'1&gt;`, to find
+        // that the implementation is the assumed one `T: Two&lt;X&gt;` so that `'1` is bound to `X`.
+        // Then we can successfully verify the constraint `'1: One` which now became `X: One` which holds
+        // because of the assumed constraint.
+        //
+        // If we try to find a trait implementation for `'1` before finding one for `'2` we'll never find it.
         </span><span class="kw">if let </span><span class="prelude-val">Some</span>(definition) = <span class="self">self</span>.interner.try_definition(ident.id) {
             <span class="kw">if let </span>DefinitionKind::Function(function) = definition.kind {
                 <span class="kw">let </span>function = <span class="self">self</span>.interner.function_meta(<span class="kw-2">&amp;</span>function);
