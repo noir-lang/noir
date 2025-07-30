@@ -1,6 +1,6 @@
 
             [package]
-            name = "noirc_frontend_tests_associated_constant_with_negative_value"
+            name = "noirc_frontend_tests_associated_constant_with_subtraction_that_results_in_negative_value"
             type = "bin"
             authors = [""]
             

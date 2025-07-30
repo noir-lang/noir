@@ -1134,7 +1134,6 @@ impl<'interner> Monomorphizer<'interner> {
                 {
                     Ok(value) => {
                         let typ = Self::convert_type(&numeric_type, location)?;
-                        let value = SignedField::positive(value);
                         Ok(ast::Expression::Literal(ast::Literal::Integer(value, typ, location)))
                     }
                     Err(err) => Err(MonomorphizationError::CannotComputeAssociatedConstant {
@@ -1172,7 +1171,6 @@ impl<'interner> Monomorphizer<'interner> {
         }
 
         let typ = Self::convert_type(&expected_type, location)?;
-        let value = SignedField::positive(value);
         Ok(ast::Expression::Literal(ast::Literal::Integer(value, typ, location)))
     }
 

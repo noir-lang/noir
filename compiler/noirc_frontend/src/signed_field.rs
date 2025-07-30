@@ -233,12 +233,6 @@ impl From<FieldElement> for SignedField {
     }
 }
 
-impl From<SignedField> for FieldElement {
-    fn from(value: SignedField) -> Self {
-        if value.is_negative { -value.field } else { value.field }
-    }
-}
-
 impl std::fmt::Display for SignedField {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if self.is_negative {
