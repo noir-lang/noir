@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1753889199540,
+  "lastUpdate": 1753889204465,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -5952,80 +5952,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "67ac4563c3df74a5a464f6f097472551a6b8f7cb",
-          "message": "chore: add acir-gen unit tests per ssa instruction (2) (#9185)",
-          "timestamp": "2025-07-21T12:10:08Z",
-          "tree_id": "cbfb9f89f2e4111c634a07bc3255e90d16615a56",
-          "url": "https://github.com/noir-lang/noir/commit/67ac4563c3df74a5a464f6f097472551a6b8f7cb"
-        },
-        "date": 1753102164567,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 202.03,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 238.06,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 191.26,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 502.33,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 435.19,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1510,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 324.74,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 327.38,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 69.28,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 55.52,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -7915,6 +7841,40 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/922efbdb30b35c7e93f8db829436fbe0a03ffae1"
         },
         "date": 1753888508064,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore_depth_10",
+            "value": 69.46,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 54.95,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "5d6dd7e10dce9c47fbb1c3da822d40198bf3f118",
+          "message": "fix: perserve purities after SSA normalization (#9355)\n\nCo-authored-by: jfecher <jfecher11@gmail.com>",
+          "timestamp": "2025-07-30T14:58:35Z",
+          "tree_id": "1371f92c367de81aeca39c1ec8cc3631efc40f1c",
+          "url": "https://github.com/noir-lang/noir/commit/5d6dd7e10dce9c47fbb1c3da822d40198bf3f118"
+        },
+        "date": 1753889186316,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
