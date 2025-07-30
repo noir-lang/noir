@@ -361,7 +361,7 @@
 <a href="#360" id="360">360</a>
 <a href="#361" id="361">361</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, FieldElement};
 
-<span class="attr">#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+<span class="attr">#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, serde::Deserialize, serde::Serialize)]
 </span><span class="kw">pub struct </span>SignedField {
     field: FieldElement,
     is_negative: bool,

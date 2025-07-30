@@ -1540,7 +1540,13 @@
 <a href="#1539" id="1539">1539</a>
 <a href="#1540" id="1540">1540</a>
 <a href="#1541" id="1541">1541</a>
-<a href="#1542" id="1542">1542</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{cmp::Ordering, io::Write};
+<a href="#1542" id="1542">1542</a>
+<a href="#1543" id="1543">1543</a>
+<a href="#1544" id="1544">1544</a>
+<a href="#1545" id="1545">1545</a>
+<a href="#1546" id="1546">1546</a>
+<a href="#1547" id="1547">1547</a>
+<a href="#1548" id="1548">1548</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{cmp::Ordering, io::Write};
 
 <span class="kw">use super</span>::{
     Ssa,
@@ -2818,9 +2824,15 @@
             BinaryOp::Div =&gt; {
                 <span class="macro">apply_int_binop_opt!</span>(dfg, lhs, rhs, binary, num_traits::CheckedDiv::checked_div)
             }
-            BinaryOp::Mod =&gt; {
-                <span class="macro">apply_int_binop_opt!</span>(dfg, lhs, rhs, binary, num_traits::CheckedRem::checked_rem)
-            }
+            BinaryOp::Mod =&gt; <span class="kw">match </span>(lhs, rhs) {
+                (NumericValue::I8(i8::MIN), NumericValue::I8(-<span class="number">1</span>)) =&gt; NumericValue::I8(<span class="number">0</span>),
+                (NumericValue::I16(i16::MIN), NumericValue::I16(-<span class="number">1</span>)) =&gt; NumericValue::I16(<span class="number">0</span>),
+                (NumericValue::I32(i32::MIN), NumericValue::I32(-<span class="number">1</span>)) =&gt; NumericValue::I32(<span class="number">0</span>),
+                (NumericValue::I64(i64::MIN), NumericValue::I64(-<span class="number">1</span>)) =&gt; NumericValue::I64(<span class="number">0</span>),
+                <span class="kw">_ </span>=&gt; {
+                    <span class="macro">apply_int_binop_opt!</span>(dfg, lhs, rhs, binary, num_traits::CheckedRem::checked_rem)
+                }
+            },
             BinaryOp::Eq =&gt; <span class="macro">apply_int_comparison_op!</span>(lhs, rhs, binary, |a, b| a == b),
             BinaryOp::Lt =&gt; <span class="macro">apply_int_comparison_op!</span>(lhs, rhs, binary, |a, b| a &lt; b),
             BinaryOp::And =&gt; {
