@@ -173,14 +173,14 @@ impl Ssa {
 
         for function in self.functions.values_mut() {
             // Disabled due to failures
-            // #[cfg(debug_assertions)]
-            // flatten_cfg_pre_check(function);
+            #[cfg(debug_assertions)]
+            flatten_cfg_pre_check(function);
 
             flatten_function_cfg(function, &no_predicates);
 
             // Disabled as we're getting failures, I would expect this to pass however.
-            // #[cfg(debug_assertions)]
-            // flatten_cfg_post_check(function);
+            #[cfg(debug_assertions)]
+            flatten_cfg_post_check(function);
         }
         self
     }
@@ -1634,8 +1634,8 @@ mod test {
         // The original function is replaced by the following:
         let src = "
             acir(inline) fn main f1 {
-              b0():
-                jmpif u1 0 then: b1, else: b2
+              b0(v0: u1):
+                jmpif v0 then: b1, else: b2
               b1():
                 jmp b2()
               b2():
@@ -1648,7 +1648,9 @@ mod test {
         let ssa = ssa.flatten_cfg();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
-          b0():
+          b0(v0: u1):
+            enable_side_effects v0
+            v1 = not v0
             enable_side_effects u1 1
             constrain u1 0 == u1 1
             return
