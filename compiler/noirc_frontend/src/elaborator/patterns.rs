@@ -1043,7 +1043,7 @@ impl Elaborator<'_> {
         // when type-checking `Two::new` we'll have a return type `'2` which is constrained by `'2: Two<'1>`.
         // Then the definition for `new` has a constraint on it, `O: One`, which translates to `'1: One`.
         //
-        // Becuase of the explicit type in the `let`, `'2` will be unified with `T`.
+        // Because of the explicit type in the `let`, `'2` will be unified with `T`.
         // Then we must first verify the constraint `'2: Two<'1>`, which is now `T: Two<'1>`, to find
         // that the implementation is the assumed one `T: Two<X>` so that `'1` is bound to `X`.
         // Then we can successfully verify the constraint `'1: One` which now became `X: One` which holds
