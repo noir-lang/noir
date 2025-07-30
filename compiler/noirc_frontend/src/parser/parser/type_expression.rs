@@ -167,7 +167,6 @@ impl Parser<'_> {
 
     /// ConstantTypeExpression = int
     fn parse_constant_type_expression(&mut self) -> Option<UnresolvedTypeExpression> {
-        // TODO: allow negative integers
         let (int, suffix) = self.eat_int()?;
         let signed_field = SignedField::positive(int);
         Some(UnresolvedTypeExpression::Constant(signed_field, suffix, self.previous_token_location))
