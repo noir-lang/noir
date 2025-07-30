@@ -2,4 +2,4 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stdout
 ---
-[lambda_taking_lambda_regression_8543] Circuit output: Field(0)
+[lambda_taking_lambda_regression_8543] Circuit output: 0
