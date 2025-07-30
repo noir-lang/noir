@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1753889547609,
+  "lastUpdate": 1753889550459,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -2017,90 +2017,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "127c4d18dbfbc8339a8f0271d1bcb33e9b8efebf",
-          "message": "fix: parse AsTraitPath in type expressions (#9258)",
-          "timestamp": "2025-07-21T12:52:40Z",
-          "tree_id": "bf92c9f87c3572ceca0b0cc02b2a2c0401d935dd",
-          "url": "https://github.com/noir-lang/noir/commit/127c4d18dbfbc8339a8f0271d1bcb33e9b8efebf"
-        },
-        "date": 1753104312626,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 2.15,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 9.296,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.66,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 18.08,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 14.82,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 21.9,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 214,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 209,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.85,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.824,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.799,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 2.038,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "de536523e69a21733361ff0e9ff4748a0005e2a1",
           "message": "feat: allow paths in l-values (#9254)",
@@ -4001,6 +3917,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 1.649,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "28abb682cf4001ab97dcafd3e9a111a281806be4",
+          "message": "fix: Prevent accidental tuple sharing in comptime code (#9313)",
+          "timestamp": "2025-07-30T15:02:09Z",
+          "tree_id": "69bf293b9d6ab4f070e44d5ceed1802d49768e4d",
+          "url": "https://github.com/noir-lang/noir/commit/28abb682cf4001ab97dcafd3e9a111a281806be4"
+        },
+        "date": 1753889533345,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.75,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 1.768,
             "unit": "s"
           }
         ]
