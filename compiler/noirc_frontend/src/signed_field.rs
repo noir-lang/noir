@@ -44,7 +44,7 @@ impl SignedField {
     }
 
     pub fn is_one(&self) -> bool {
-        self.field.is_one()
+        !self.is_negative && self.field.is_one()
     }
 
     /// Convert a signed integer to a SignedField, carefully handling
@@ -285,6 +285,8 @@ impl_unsigned_abs_for!(i128);
 
 #[cfg(test)]
 mod tests {
+    use acvm::{AcirField, FieldElement};
+
     use super::SignedField;
 
     #[test]
@@ -391,5 +393,19 @@ mod tests {
         assert_eq!(minus_six / minus_three, two); // negative / negative
         assert_eq!(zero / two, zero);
         assert_eq!(zero / minus_two, zero);
+    }
+
+    #[test]
+    fn is_zero() {
+        assert!(SignedField::zero().is_zero());
+        assert!(SignedField::negative(FieldElement::zero()).is_zero());
+        assert!(!SignedField::one().is_zero());
+    }
+
+    #[test]
+    fn is_one() {
+        assert!(SignedField::one().is_one());
+        assert!(!SignedField::negative(FieldElement::one()).is_one());
+        assert!(!SignedField::zero().is_one());
     }
 }
