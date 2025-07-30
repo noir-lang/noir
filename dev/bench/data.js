@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1753818124805,
+  "lastUpdate": 1753881000738,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -12916,48 +12916,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "9d4d1beeeee8377b9ec636ee01cdad13114dfc8d",
-          "message": "chore: clippy (#9246)",
-          "timestamp": "2025-07-18T14:13:38+01:00",
-          "tree_id": "589157e1a401ef06a7eedd67d770cfb19e3e40ca",
-          "url": "https://github.com/noir-lang/noir/commit/9d4d1beeeee8377b9ec636ee01cdad13114dfc8d"
-        },
-        "date": 1752844567142,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 249562,
-            "range": "± 828",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 219031,
-            "range": "± 6546",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2779050,
-            "range": "± 2270",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "80b04ec8eab3ca74fc6c9457ca1fd8828044675d",
           "message": "chore: enforce clippy in `ssa_fuzzer` (#9247)",
           "timestamp": "2025-07-18T14:44:46+01:00",
@@ -14999,6 +14957,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2813143,
             "range": "± 3915",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8264d307dc4f076f376ae616e84fb78a69744a9a",
+          "message": "fix: replace implicitly added named generics with fresh type vars in check_trait_impl_where_clause_matches_trait_where_clause (#9352)",
+          "timestamp": "2025-07-30T12:44:00Z",
+          "tree_id": "5d09a76b70391b6db23a5ad9d8d11b28b2fa23dc",
+          "url": "https://github.com/noir-lang/noir/commit/8264d307dc4f076f376ae616e84fb78a69744a9a"
+        },
+        "date": 1753880984694,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 247694,
+            "range": "± 469",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 220338,
+            "range": "± 3057",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2783914,
+            "range": "± 5181",
             "unit": "ns/iter"
           }
         ]
