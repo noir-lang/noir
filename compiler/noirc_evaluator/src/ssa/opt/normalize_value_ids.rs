@@ -57,7 +57,10 @@ struct IdMaps {
 
 impl Context {
     fn populate_functions(&mut self, functions: &BTreeMap<FunctionId, Function>) {
-        let Some(old_purities) = &functions.iter().next().map(|f| &f.1.dfg.function_purities) else {
+        let Some(old_purities) = &functions.iter().next().map(|f| &f.1.dfg.function_purities)
+        else {
+            return;
+        };
             return;
         };
         let mut new_purities = HashMap::default();
