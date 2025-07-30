@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1753910125646,
+  "lastUpdate": 1753910128418,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -15270,90 +15270,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "3bec934937e3a7a8566ab0f436b06d0dced717bb",
-          "message": "fix: comptime code not mutating shared ref to struct field (#9250)\n\nCo-authored-by: Jake Fecher <jake@aztecprotocol.com>",
-          "timestamp": "2025-07-21T15:55:47Z",
-          "tree_id": "37b19baa82323adb7ac56d821ed84616bc6d442a",
-          "url": "https://github.com/noir-lang/noir/commit/3bec934937e3a7a8566ab0f436b06d0dced717bb"
-        },
-        "date": 1753115501243,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 15080,
-            "unit": "opcodes"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 68865,
-            "unit": "opcodes"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 11347,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 261916,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 201205,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 70748,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 1079444,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1080739,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1419,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-root",
-            "value": 3136,
-            "unit": "opcodes"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 5763,
-            "unit": "opcodes"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 22169,
-            "unit": "opcodes"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jc@joshcrites.com",
             "name": "josh crites",
             "username": "critesjosh"
@@ -17103,6 +17019,40 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/4a7bb06475e44cbdd5ea9393779843fbb49a106d"
         },
         "date": 1753909129897,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore-depth-10",
+            "value": 5763,
+            "unit": "opcodes"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 13173,
+            "unit": "opcodes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a3e0abab80a3fbdfb32fd346ac8873fa24dc6a1c",
+          "message": "feat: show circuit output as a value of the program's return type (#9364)",
+          "timestamp": "2025-07-30T20:44:41Z",
+          "tree_id": "9fdb9fcf41a30843a1a95cccb169e8e2d983b56e",
+          "url": "https://github.com/noir-lang/noir/commit/a3e0abab80a3fbdfb32fd346ac8873fa24dc6a1c"
+        },
+        "date": 1753910107030,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
