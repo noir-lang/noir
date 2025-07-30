@@ -29,7 +29,7 @@ impl Ssa {
     pub(crate) fn purity_analysis(mut self) -> Ssa {
         // First look through each function to get a baseline on its purity and collect
         // the functions it calls to build a call graph.
-        let purities: HashMap<_, _> =
+        let purities: FunctionPurities =
             self.functions.values().map(|function| (function.id(), function.is_pure())).collect();
 
         // Then transitively 'infect' any functions which call impure functions as also
