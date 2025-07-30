@@ -1,92 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1753915592546,
+  "lastUpdate": 1753915620921,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "jc@joshcrites.com",
-            "name": "josh crites",
-            "username": "critesjosh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "39a837906d40a728c0413f7ccc703df8e40f9716",
-          "message": "chore(docs): Add links to ACIR and source reference docs (#9260)",
-          "timestamp": "2025-07-21T16:27:50Z",
-          "tree_id": "8c468531c9338c14861c7b037e4c5c21fea8cf9a",
-          "url": "https://github.com/noir-lang/noir/commit/39a837906d40a728c0413f7ccc703df8e40f9716"
-        },
-        "date": 1753117851353,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 235.38,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 543.37,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 209.04,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 1370,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 1460,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 1080,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 9380,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 9380,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 326.97,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 337.38,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 104.57,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 255.76,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -1799,6 +1715,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512_100_bytes",
             "value": 234.79,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "7d48355fa729a7e3d862e7afb193494c6a9d5aed",
+          "message": "fix: allow constants in the type-system to be negative (#9360)",
+          "timestamp": "2025-07-30T22:16:29Z",
+          "tree_id": "2e07da79552430e7b3c1c7eae4b9ecd1bbffefd9",
+          "url": "https://github.com/noir-lang/noir/commit/7d48355fa729a7e3d862e7afb193494c6a9d5aed"
+        },
+        "date": 1753915603950,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore_depth_10",
+            "value": 104.72,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 234.72,
             "unit": "MB"
           }
         ]
