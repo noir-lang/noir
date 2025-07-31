@@ -14,7 +14,7 @@ use crate::ast::{
     Documented, Expression, FunctionDefinition, Ident, ItemVisibility, LetStatement,
     ModuleDeclaration, NoirEnumeration, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl,
     NoirTypeAlias, Pattern, TraitImplItemKind, TraitItem, TypeImpl, UnresolvedType,
-    UnresolvedTypeData, desugar_generic_trait_bounds,
+    UnresolvedTypeData, desugar_generic_trait_bounds, reorder_where_clause,
 };
 use crate::elaborator::PrimitiveType;
 use crate::hir::resolution::errors::ResolverError;
@@ -178,6 +178,7 @@ impl ModCollector<'_> {
 
         for mut r#impl in impls {
             desugar_generic_trait_bounds(&mut r#impl.generics, &mut r#impl.where_clause);
+            reorder_where_clause(&mut r#impl.where_clause);
 
             collect_impl(
                 &mut context.def_interner,
@@ -205,6 +206,7 @@ impl ModCollector<'_> {
                 &mut trait_impl.impl_generics,
                 &mut trait_impl.where_clause,
             );
+            reorder_where_clause(&mut trait_impl.where_clause);
 
             let (mut unresolved_functions, associated_types, associated_constants) =
                 collect_trait_impl_items(
@@ -302,6 +304,7 @@ impl ModCollector<'_> {
                 &mut noir_function.def.generics,
                 &mut noir_function.def.where_clause,
             );
+            reorder_where_clause(&mut noir_function.def.where_clause);
 
             unresolved_functions.push_fn(self.module_id, func_id, noir_function);
         }
@@ -453,6 +456,7 @@ impl ModCollector<'_> {
                 &mut trait_definition.generics,
                 &mut trait_definition.where_clause,
             );
+            reorder_where_clause(&mut trait_definition.where_clause);
 
             // Create the corresponding module for the trait namespace
             let trait_id = match self.push_child_module(
@@ -517,6 +521,7 @@ impl ModCollector<'_> {
             for item in &mut trait_definition.items {
                 if let TraitItem::Function { generics, where_clause, .. } = &mut item.item {
                     desugar_generic_trait_bounds(generics, where_clause);
+                    reorder_where_clause(where_clause);
                 }
             }
 
@@ -1330,6 +1335,8 @@ pub fn collect_impl(
         let func_id = interner.push_empty_fn();
         method.def.where_clause.extend(r#impl.where_clause.clone());
         desugar_generic_trait_bounds(&mut method.def.generics, &mut method.def.where_clause);
+        reorder_where_clause(&mut method.def.where_clause);
+
         let location = method.location();
         interner.push_function(func_id, &method.def, module_id, location);
         unresolved_functions.push_fn(module_id.local_id, func_id, method);
@@ -1458,6 +1465,7 @@ pub(crate) fn collect_trait_impl_items(
                     &mut impl_method.def.generics,
                     &mut impl_method.def.where_clause,
                 );
+                reorder_where_clause(&mut impl_method.def.where_clause);
                 unresolved_functions.push_fn(local_id, func_id, impl_method);
             }
             TraitImplItemKind::Constant(name, typ, expr) => {

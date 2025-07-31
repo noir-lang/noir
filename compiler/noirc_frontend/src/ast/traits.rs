@@ -323,3 +323,29 @@ pub(crate) fn desugar_generic_trait_bounds(
         }
     }
 }
+
+/// Reorders a where clause in-place so that simpler constraints come before more complex ones.
+/// The resulting where clause will have constraints in this order:
+/// 1. Paths without generics
+/// 2. Paths with generics
+/// 3. Everything else
+pub(crate) fn reorder_where_clause(where_clause: &mut Vec<UnresolvedTraitConstraint>) {
+    let mut paths_without_generics = Vec::new();
+    let mut paths_with_generics = Vec::new();
+    let mut others = Vec::new();
+
+    for clause in std::mem::take(where_clause) {
+        if let UnresolvedTypeData::Named(_, generics, _) = &clause.typ.typ {
+            if generics.is_empty() {
+                paths_without_generics.push(clause);
+            } else {
+                paths_with_generics.push(clause);
+            }
+        } else {
+            others.push(clause);
+        }
+    }
+    where_clause.extend(paths_without_generics);
+    where_clause.extend(paths_with_generics);
+    where_clause.extend(others);
+}
