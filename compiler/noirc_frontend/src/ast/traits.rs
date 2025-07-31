@@ -289,6 +289,15 @@ impl Display for TraitImplItemKind {
     }
 }
 
+/// Does both `desugar_generic_trait_bounds` and `reorder_where_clause`.
+pub(crate) fn desugar_generic_trait_bounds_and_reorder_where_clause(
+    generics: &mut Vec<UnresolvedGeneric>,
+    where_clause: &mut Vec<UnresolvedTraitConstraint>,
+) {
+    desugar_generic_trait_bounds(generics, where_clause);
+    reorder_where_clause(where_clause);
+}
+
 /// Moves trait bounds from generics into where clauses. For example:
 ///
 /// ```noir
@@ -300,7 +309,7 @@ impl Display for TraitImplItemKind {
 /// ```noir
 /// fn foo<T>(x: T) -> T where T: Trait {}
 /// ```
-pub(crate) fn desugar_generic_trait_bounds(
+fn desugar_generic_trait_bounds(
     generics: &mut Vec<UnresolvedGeneric>,
     where_clause: &mut Vec<UnresolvedTraitConstraint>,
 ) {
@@ -329,7 +338,7 @@ pub(crate) fn desugar_generic_trait_bounds(
 /// 1. Paths without generics
 /// 2. Paths with generics
 /// 3. Everything else
-pub(crate) fn reorder_where_clause(where_clause: &mut Vec<UnresolvedTraitConstraint>) {
+fn reorder_where_clause(where_clause: &mut Vec<UnresolvedTraitConstraint>) {
     let mut paths_without_generics = Vec::new();
     let mut paths_with_generics = Vec::new();
     let mut others = Vec::new();
