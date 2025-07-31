@@ -1394,8 +1394,11 @@ impl<'context> Elaborator<'context> {
             };
             let trait_constraint_trait_name = trait_constraint_trait.name.to_string();
 
-            let trait_constraint_type = trait_constraint.typ.substitute(&bindings);
-            let trait_bound = &trait_constraint.trait_bound;
+            let mut trait_constraint = trait_constraint.clone();
+            trait_constraint.apply_bindings(&bindings);
+
+            let trait_constraint_type = trait_constraint.typ;
+            let trait_bound = trait_constraint.trait_bound;
 
             let mut named_generics = trait_bound.trait_generics.named.clone();
 

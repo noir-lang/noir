@@ -2088,3 +2088,25 @@ fn trait_method_call_when_it_has_bounds_on_generic() {
     "#;
     assert_no_errors!(src);
 }
+
+#[named]
+#[test]
+fn trait_bound_constraining_two_generics() {
+    let src = r#"
+    pub trait Foo<U> {}
+
+    pub trait Baz<T, U>
+    where
+        T: Foo<U>,
+    {}
+
+    pub struct HasFoo1 {}
+    impl Foo<()> for HasFoo1 {}
+
+    pub struct HasBaz1 {}
+    impl Baz<HasFoo1, ()> for HasBaz1 {}
+
+    fn main() {}
+    "#;
+    assert_no_errors!(src);
+}
