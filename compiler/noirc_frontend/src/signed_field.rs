@@ -219,7 +219,13 @@ impl From<u128> for SignedField {
 
 impl From<i128> for SignedField {
     fn from(value: i128) -> Self {
-        if value < 0 { Self::new((-value).into(), true) } else { Self::new(value.into(), false) }
+        if value == i128::MIN {
+            Self::new(FieldElement::from((i128::MAX as u128) + 1), true)
+        } else if value < 0 {
+            Self::new((-value).into(), true)
+        } else {
+            Self::new(value.into(), false)
+        }
     }
 }
 
@@ -422,5 +428,12 @@ mod tests {
             SignedField::negative(FieldElement::from((i128::MAX as u128) + 1)).to_i128(),
             i128::MIN
         );
+    }
+
+    #[test]
+    fn from_i128() {
+        assert_eq!(SignedField::from(i128::MAX).to_i128(), i128::MAX);
+        assert_eq!(SignedField::from(i128::MIN).to_i128(), i128::MIN);
+        assert_eq!(SignedField::from(i128::MIN + 1).to_i128(), i128::MIN + 1);
     }
 }
