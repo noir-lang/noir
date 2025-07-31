@@ -2117,26 +2117,26 @@ fn trait_where_clause_associated_type_constraint_expected_order() {
     let src = r#"
     pub trait BarTrait {}
 
-    pub trait Foo<U> {
+    pub trait Foo {
         type Bar;
     }
 
-    pub trait Baz<T, U>
+    pub trait Baz<T>
     where
-        T: Foo<U>,
-        <T as Foo<U>>::Bar: BarTrait,
+        T: Foo,
+        <T as Foo>::Bar: BarTrait,
     {}
 
     pub struct HasBarTrait1 {}
     impl BarTrait for HasBarTrait1 {}
 
     pub struct HasFoo1 {}
-    impl Foo<()> for HasFoo1 {
+    impl Foo for HasFoo1 {
         type Bar = HasBarTrait1;
     }
 
     pub struct HasBaz1 {}
-    impl Baz<HasFoo1, ()> for HasBaz1 {}
+    impl Baz<HasFoo1> for HasBaz1 {}
 
     fn main() {}
     "#;
@@ -2149,26 +2149,26 @@ fn trait_where_clause_associated_type_constraint_unexpected_order() {
     let src = r#"
     pub trait BarTrait {}
 
-    pub trait Foo<U> {
+    pub trait Foo {
         type Bar;
     }
 
-    pub trait Baz<T, U>
+    pub trait Baz<T>
     where
-        <T as Foo<U>>::Bar: BarTrait,
-        T: Foo<U>,
+        <T as Foo>::Bar: BarTrait,
+        T: Foo,
     {}
 
     pub struct HasBarTrait1 {}
     impl BarTrait for HasBarTrait1 {}
 
     pub struct HasFoo1 {}
-    impl Foo<()> for HasFoo1 {
+    impl Foo for HasFoo1 {
         type Bar = HasBarTrait1;
     }
 
     pub struct HasBaz1 {}
-    impl Baz<HasFoo1, ()> for HasBaz1 {}
+    impl Baz<HasFoo1> for HasBaz1 {}
 
     fn main() {}
     "#;
