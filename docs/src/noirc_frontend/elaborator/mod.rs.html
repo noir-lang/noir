@@ -2606,7 +2606,23 @@
 <a href="#2605" id="2605">2605</a>
 <a href="#2606" id="2606">2606</a>
 <a href="#2607" id="2607">2607</a>
-<a href="#2608" id="2608">2608</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
+<a href="#2608" id="2608">2608</a>
+<a href="#2609" id="2609">2609</a>
+<a href="#2610" id="2610">2610</a>
+<a href="#2611" id="2611">2611</a>
+<a href="#2612" id="2612">2612</a>
+<a href="#2613" id="2613">2613</a>
+<a href="#2614" id="2614">2614</a>
+<a href="#2615" id="2615">2615</a>
+<a href="#2616" id="2616">2616</a>
+<a href="#2617" id="2617">2617</a>
+<a href="#2618" id="2618">2618</a>
+<a href="#2619" id="2619">2619</a>
+<a href="#2620" id="2620">2620</a>
+<a href="#2621" id="2621">2621</a>
+<a href="#2622" id="2622">2622</a>
+<a href="#2623" id="2623">2623</a>
+<a href="#2624" id="2624">2624</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     cell::RefCell,
     collections::{BTreeMap, BTreeSet},
     rc::Rc,
@@ -4002,8 +4018,11 @@
             };
             <span class="kw">let </span>trait_constraint_trait_name = trait_constraint_trait.name.to_string();
 
-            <span class="kw">let </span>trait_constraint_type = trait_constraint.typ.substitute(<span class="kw-2">&amp;</span>bindings);
-            <span class="kw">let </span>trait_bound = <span class="kw-2">&amp;</span>trait_constraint.trait_bound;
+            <span class="kw">let </span><span class="kw-2">mut </span>trait_constraint = trait_constraint.clone();
+            trait_constraint.apply_bindings(<span class="kw-2">&amp;</span>bindings);
+
+            <span class="kw">let </span>trait_constraint_type = trait_constraint.typ;
+            <span class="kw">let </span>trait_bound = trait_constraint.trait_bound;
 
             <span class="kw">let </span><span class="kw-2">mut </span>named_generics = trait_bound.trait_generics.named.clone();
 
@@ -4015,29 +4034,36 @@
             // so they'll unify (the bindings aren't applied here so this is fine).
             // If they are bound though, we won't replace them as we want to ensure the binding
             // matches.
+            //
+            // `bindings` is passed here because these implicitly added named generics might
+            // have a constraint on them later on and we want to remember what type they ended
+            // up being.
             </span><span class="self">self</span>.replace_implicitly_added_unbound_named_generics_with_fresh_type_variables(
                 <span class="kw-2">&amp;mut </span>named_generics,
+                <span class="kw-2">&amp;mut </span>bindings,
             );
 
-            <span class="kw">if </span><span class="self">self
-                </span>.interner
-                .try_lookup_trait_implementation(
-                    <span class="kw-2">&amp;</span>trait_constraint_type,
-                    trait_bound.trait_id,
-                    <span class="kw-2">&amp;</span>trait_bound.trait_generics.ordered,
-                    <span class="kw-2">&amp;</span>named_generics,
-                )
-                .is_err()
-            {
-                <span class="kw">let </span>missing_trait =
-                    <span class="macro">format!</span>(<span class="string">"{}{}"</span>, trait_constraint_trait_name, trait_bound.trait_generics);
-                <span class="self">self</span>.push_err(ResolverError::TraitNotImplemented {
-                    impl_trait: impl_trait.clone(),
-                    missing_trait,
-                    type_missing_trait: trait_constraint_type.to_string(),
-                    location: trait_impl.object_type.location,
-                    missing_trait_location: trait_bound.location,
-                });
+            <span class="kw">match </span><span class="self">self</span>.interner.try_lookup_trait_implementation(
+                <span class="kw-2">&amp;</span>trait_constraint_type,
+                trait_bound.trait_id,
+                <span class="kw-2">&amp;</span>trait_bound.trait_generics.ordered,
+                <span class="kw-2">&amp;</span>named_generics,
+            ) {
+                <span class="prelude-val">Ok</span>((<span class="kw">_</span>, impl_bindings, impl_instantiation_bindings)) =&gt; {
+                    bindings.extend(impl_bindings);
+                    bindings.extend(impl_instantiation_bindings);
+                }
+                <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; {
+                    <span class="kw">let </span>missing_trait =
+                        <span class="macro">format!</span>(<span class="string">"{}{}"</span>, trait_constraint_trait_name, trait_bound.trait_generics);
+                    <span class="self">self</span>.push_err(ResolverError::TraitNotImplemented {
+                        impl_trait: impl_trait.clone(),
+                        missing_trait,
+                        type_missing_trait: trait_constraint_type.to_string(),
+                        location: trait_impl.object_type.location,
+                        missing_trait_location: trait_bound.location,
+                    });
+                }
             }
         }
     }
@@ -4045,13 +4071,19 @@
     <span class="kw">fn </span>replace_implicitly_added_unbound_named_generics_with_fresh_type_variables(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         named_generics: <span class="kw-2">&amp;mut </span>[NamedType],
+        bindings: <span class="kw-2">&amp;mut </span>TypeBindings,
     ) {
         <span class="kw">for </span>named_type <span class="kw">in </span>named_generics.iter_mut() {
             <span class="kw">match </span><span class="kw-2">&amp;</span>named_type.typ {
                 Type::NamedGeneric(NamedGeneric { type_var, implicit: <span class="bool-val">true</span>, .. })
                     <span class="kw">if </span>type_var.borrow().is_unbound() =&gt;
                 {
-                    named_type.typ = <span class="self">self</span>.interner.next_type_variable();
+                    <span class="kw">let </span>type_var_id = type_var.id();
+                    <span class="kw">let </span>new_type_var_id = <span class="self">self</span>.interner.next_type_variable_id();
+                    <span class="kw">let </span>kind = type_var.kind();
+                    <span class="kw">let </span>new_type_var = TypeVariable::unbound(new_type_var_id, kind.clone());
+                    named_type.typ = Type::TypeVariable(new_type_var.clone());
+                    bindings.insert(type_var_id, (new_type_var, kind, named_type.typ.clone()));
                 }
                 <span class="kw">_ </span>=&gt; (),
             };
