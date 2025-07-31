@@ -2110,3 +2110,35 @@ fn trait_bound_constraining_two_generics() {
     "#;
     assert_no_errors!(src);
 }
+
+#[named]
+#[test]
+fn trait_where_clause_associated_type_constraint_expected_order() {
+    let src = r#"
+    pub trait BarTrait {}
+
+    pub trait Foo<U> {
+        type Bar;
+    }
+
+    pub trait Baz<T, U>
+    where
+        T: Foo<U>,
+        <T as Foo<U>>::Bar: BarTrait,
+    {}
+
+    pub struct HasBarTrait1 {}
+    impl BarTrait for HasBarTrait1 {}
+
+    pub struct HasFoo1 {}
+    impl Foo<()> for HasFoo1 {
+        type Bar = HasBarTrait1;
+    }
+
+    pub struct HasBaz1 {}
+    impl Baz<HasFoo1, ()> for HasBaz1 {}
+
+    fn main() {}
+    "#;
+    assert_no_errors!(src);
+}

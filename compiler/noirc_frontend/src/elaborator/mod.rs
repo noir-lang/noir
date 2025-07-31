@@ -1410,13 +1410,18 @@ impl<'context> Elaborator<'context> {
             // so they'll unify (the bindings aren't applied here so this is fine).
             // If they are bound though, we won't replace them as we want to ensure the binding
             // matches.
+            //
+            // `bindings` is passed here because these implicitly added named generics might
+            // have a constraint on them later on and we want to remember what type they ended
+            // up being.
             self.replace_implicitly_added_unbound_named_generics_with_fresh_type_variables(
                 &mut named_generics,
+                &mut bindings,
             );
 
             if self
                 .interner
-                .try_lookup_trait_implementation(
+                .lookup_trait_implementation(
                     &trait_constraint_type,
                     trait_bound.trait_id,
                     &trait_bound.trait_generics.ordered,
@@ -1440,13 +1445,19 @@ impl<'context> Elaborator<'context> {
     fn replace_implicitly_added_unbound_named_generics_with_fresh_type_variables(
         &mut self,
         named_generics: &mut [NamedType],
+        bindings: &mut TypeBindings,
     ) {
         for named_type in named_generics.iter_mut() {
             match &named_type.typ {
                 Type::NamedGeneric(NamedGeneric { type_var, implicit: true, .. })
                     if type_var.borrow().is_unbound() =>
                 {
-                    named_type.typ = self.interner.next_type_variable();
+                    let type_var_id = type_var.id();
+                    let new_type_var_id = self.interner.next_type_variable_id();
+                    let kind = type_var.kind();
+                    let new_type_var = TypeVariable::unbound(new_type_var_id, kind.clone());
+                    named_type.typ = Type::TypeVariable(new_type_var.clone());
+                    bindings.insert(type_var_id, (new_type_var, kind, named_type.typ.clone()));
                 }
                 _ => (),
             };
