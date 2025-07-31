@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1753967954681,
+  "lastUpdate": 1753967955976,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -1758,90 +1758,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "366149fbe94c206efc35ce0141e82a18888fd390",
-          "message": "fix(SSA): validate MakeArray instruction (#9183)\n\nCo-authored-by: Akosh Farkash <aakoshh@gmail.com>",
-          "timestamp": "2025-07-21T18:24:56Z",
-          "tree_id": "08c3eb92a1d8375910873b9a1f2873bd096d2844",
-          "url": "https://github.com/noir-lang/noir/commit/366149fbe94c206efc35ce0141e82a18888fd390"
-        },
-        "date": 1753124376856,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 2.104,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 8.494,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.592,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 17.96,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 14.78,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 21.22,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 201,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 205,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.73,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.882,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.751,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 1.889,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -3501,6 +3417,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 1.541,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "9846e1ebd6264ae33f23195c0aa6ccff6947692f",
+          "message": "fix: prevent `SignedField::from(i128::MIN)` from crashing (#9366)",
+          "timestamp": "2025-07-31T12:51:08Z",
+          "tree_id": "8e6a7502d11bc83d71fc616926b1d7a4e993b087",
+          "url": "https://github.com/noir-lang/noir/commit/9846e1ebd6264ae33f23195c0aa6ccff6947692f"
+        },
+        "date": 1753967936328,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.778,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 1.603,
             "unit": "s"
           }
         ]
