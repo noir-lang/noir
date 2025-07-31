@@ -744,6 +744,7 @@ impl<'a> FunctionContext<'a> {
                 let (reference, _) = self.extract_current_value_recursive(reference)?;
                 LValue::Dereference { reference }
             }
+            ast::LValue::Clone(lvalue) => self.extract_current_value(lvalue)?,
         })
     }
 
@@ -822,10 +823,6 @@ impl<'a> FunctionContext<'a> {
                     *location,
                     max_length,
                 )?;
-                element.clone().for_each(|value| {
-                    let value = value.eval(self);
-                    self.builder.increment_array_reference_count(value);
-                });
                 Ok((element, index_lvalue))
             }
             ast::LValue::MemberAccess { object, field_index: index } => {
@@ -838,6 +835,14 @@ impl<'a> FunctionContext<'a> {
                 let (reference, _) = self.extract_current_value_recursive(reference)?;
                 let dereferenced = self.dereference_lvalue(&reference, element_type);
                 Ok((dereferenced, LValue::Dereference { reference }))
+            }
+            ast::LValue::Clone(lvalue) => {
+                let (values, lvalue) = self.extract_current_value_recursive(lvalue)?;
+                values.clone().for_each(|value| {
+                    let value = value.eval(self);
+                    self.builder.increment_array_reference_count(value);
+                });
+                Ok((values, lvalue))
             }
         }
     }
