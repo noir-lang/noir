@@ -4,4 +4,4 @@ expression: stdout
 ---
 [(true, , )]
 [(true, , )]
-[empty_strings_in_composite_arrays] Circuit output: Field(0)
+[empty_strings_in_composite_arrays] Circuit output: false

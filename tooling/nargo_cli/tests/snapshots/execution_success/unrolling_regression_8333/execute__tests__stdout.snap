@@ -2,4 +2,4 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stdout
 ---
-[unrolling_regression_8333] Circuit output: Vec([Vec([Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0)]), Vec([Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0), Field(0)])])
+[unrolling_regression_8333] Circuit output: [[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]]

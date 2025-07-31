@@ -795,7 +795,7 @@ impl Elaborator<'_> {
 
         let value = match constant {
             Value::Bool(value) => SignedField::positive(value),
-            Value::Field(value) => SignedField::positive(value),
+            Value::Field(value) => value,
             Value::I8(value) => signed_to_signed_field!(value),
             Value::I16(value) => signed_to_signed_field!(value),
             Value::I32(value) => signed_to_signed_field!(value),

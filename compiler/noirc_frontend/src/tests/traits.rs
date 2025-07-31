@@ -1769,6 +1769,27 @@ fn as_trait_path_called_multiple_times_for_different_t_2() {
 
 #[named]
 #[test]
+fn short_syntax_for_trait_constraint_on_trait_generic() {
+    let src = r#"
+    pub trait Other {
+        fn other(self) {
+            let _ = self;
+        }
+    }
+
+    pub trait Trait<T: Other> {
+        fn foo(x: T) {
+            x.other();
+        }
+    }
+
+    fn main() {}
+    "#;
+    check_monomorphization_error!(src);
+}
+
+#[named]
+#[test]
 fn ambiguous_associated_type() {
     let src = r#"
     trait MyTrait {
@@ -2015,6 +2036,52 @@ fn associated_constant_mul_of_other_constants() {
     pub fn foo<let X: u32>() {
         let f = <[Field; X] as Deserialize>::deserialize;
         let _ = f([0; X]);
+    }
+
+    fn main() {}
+    "#;
+    assert_no_errors!(src);
+}
+
+#[named]
+#[test]
+fn trait_bound_with_associated_constant() {
+    let src = r#"
+    pub trait Other {
+        let N: u32;
+    }
+
+    pub trait Trait<T>
+    where
+        T: Other,
+    {}
+
+    impl Other for Field {
+        let N: u32 = 1;
+    }
+
+    impl Trait<Field> for i32 {}
+
+    fn main() {}
+    "#;
+    assert_no_errors!(src);
+}
+
+#[named]
+#[test]
+fn trait_method_call_when_it_has_bounds_on_generic() {
+    let src = r#"
+    trait BigNum {}
+
+    trait BigCurve<B>
+    where
+        B: BigNum,
+    {
+        fn new() -> Self;
+    }
+
+    pub fn foo<B: BigNum, Curve: BigCurve<B>>() {
+        let _: Curve = BigCurve::new();
     }
 
     fn main() {}

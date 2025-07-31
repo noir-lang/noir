@@ -532,8 +532,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     /// This will automatically dereference a mutable variable if used.
     pub fn evaluate(&mut self, id: ExprId) -> IResult<Value> {
         match self.evaluate_no_dereference(id)? {
-            Value::Pointer(elem, true, _) => Ok(elem.borrow().clone()),
-            other => Ok(other),
+            Value::Pointer(elem, true, _) => Ok(elem.unwrap_or_clone().move_struct()),
+            other => Ok(other.move_struct()),
         }
     }
 
@@ -647,9 +647,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 let location = self.elaborator.interner.expr_location(&id);
                 match associated_type
                     .typ
-                    .evaluate_to_field_element(&associated_type.typ.kind(), location)
+                    .evaluate_to_signed_field(&associated_type.typ.kind(), location)
                 {
-                    Ok(value) => self.evaluate_integer(value.into(), id),
+                    Ok(value) => self.evaluate_integer(value, id),
                     Err(err) => Err(InterpreterError::NonIntegerArrayLength {
                         typ: associated_type.typ.clone(),
                         err: Some(Box::new(err)),
@@ -665,7 +665,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     fn evaluate_numeric_generic(&self, value: Type, expected: &Type, id: ExprId) -> IResult<Value> {
         let location = self.elaborator.interner.id_location(id);
         let value = value
-            .evaluate_to_field_element(&Kind::Numeric(Box::new(expected.clone())), location)
+            .evaluate_to_signed_field(&Kind::Numeric(Box::new(expected.clone())), location)
             .map_err(|err| {
                 let typ = value;
                 let err = Some(Box::new(err));
@@ -673,7 +673,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 InterpreterError::NonIntegerArrayLength { typ, err, location }
             })?;
 
-        self.evaluate_integer(value.into(), id)
+        self.evaluate_integer(value, id)
     }
 
     fn evaluate_trait_item(&mut self, item: TraitItem, id: ExprId) -> IResult<Value> {
@@ -966,6 +966,29 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         Ok(Value::Enum(constructor.variant_index, fields, typ))
     }
 
+    fn evaluate_access(&mut self, access: HirMemberAccess, id: ExprId) -> IResult<Value> {
+        let lhs = self.evaluate_no_dereference(access.lhs)?;
+        let is_offset = access.is_offset && lhs.get_type().is_ref();
+        let (fields, struct_type) = self.get_fields(lhs, id)?;
+
+        let field = fields.get(access.rhs.as_string()).cloned().ok_or_else(|| {
+            let location = self.elaborator.interner.expr_location(&id);
+            let value = Value::Struct(fields, struct_type);
+            let field_name = access.rhs.into_string();
+            let typ = value.get_type().into_owned();
+            InterpreterError::ExpectedStructToHaveField { typ, field_name, location }
+        })?;
+
+        // Return a reference to the field so that `&mut foo.bar.baz` can use this reference.
+        // We set auto_deref to true so that when it is used elsewhere it is dereferenced
+        // automatically. In some cases in the frontend the leading `&mut` will cancel out
+        // with a field access which is expected to only offset into the struct and thus return
+        // a reference already. In this case we set auto_deref to false because the outer `&mut`
+        // will also be removed in that case so the pointer should be explicit.
+        let auto_deref = !is_offset;
+        Ok(Value::Pointer(field, auto_deref, false))
+    }
+
     fn get_fields(&mut self, value: Value, id: ExprId) -> IResult<(StructFields, Type)> {
         match value {
             Value::Struct(fields, typ) => Ok((fields, typ)),
@@ -990,34 +1013,10 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         }
     }
 
-    fn evaluate_access(&mut self, access: HirMemberAccess, id: ExprId) -> IResult<Value> {
-        let lhs = self.evaluate(access.lhs)?;
-        let is_offset = access.is_offset && lhs.get_type().is_ref();
-        let (fields, struct_type) = self.get_fields(lhs, id)?;
-
-        let field = fields.get(access.rhs.as_string()).cloned().ok_or_else(|| {
-            let location = self.elaborator.interner.expr_location(&id);
-            let value = Value::Struct(fields, struct_type);
-            let field_name = access.rhs.into_string();
-            let typ = value.get_type().into_owned();
-            InterpreterError::ExpectedStructToHaveField { typ, field_name, location }
-        })?;
-
-        // Return a reference to the field so that `&mut foo.bar.baz` can use this reference.
-        // We set auto_deref to true so that when it is used elsewhere it is dereferenced
-        // automatically. In some cases in the frontend the leading `&mut` will cancel out
-        // with a field access which is expected to only offset into the struct and thus return
-        // a reference already. In this case we set auto_deref to false because the outer `&mut`
-        // will also be removed in that case so the pointer should be explicit.
-        let auto_deref = !is_offset;
-        Ok(Value::Pointer(field, auto_deref, false))
-    }
-
     fn evaluate_call(&mut self, call: HirCallExpression, id: ExprId) -> IResult<Value> {
         let function = self.evaluate(call.func)?;
         let arguments = try_vecmap(call.arguments, |arg| {
-            let value = self.evaluate(arg)?.copy();
-            Ok((value, self.elaborator.interner.expr_location(&arg)))
+            Ok((self.evaluate(arg)?, self.elaborator.interner.expr_location(&arg)))
         })?;
         let location = self.elaborator.interner.expr_location(&id);
 
@@ -1633,7 +1632,6 @@ fn bounds_check(array: Value, index: Value, location: Location) -> IResult<(Vect
             let u64: Option<u64> = value.try_to_unsigned();
             u64.and_then(|value| value.try_into().ok()).ok_or_else(|| {
                 let typ = Type::default_int_type();
-                let value = SignedField::positive(value);
                 InterpreterError::IntegerOutOfRangeForType { value, typ, location }
             })?
         }
