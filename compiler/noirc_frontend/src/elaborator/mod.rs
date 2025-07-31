@@ -1419,25 +1419,27 @@ impl<'context> Elaborator<'context> {
                 &mut bindings,
             );
 
-            if self
-                .interner
-                .lookup_trait_implementation(
-                    &trait_constraint_type,
-                    trait_bound.trait_id,
-                    &trait_bound.trait_generics.ordered,
-                    &named_generics,
-                )
-                .is_err()
-            {
-                let missing_trait =
-                    format!("{}{}", trait_constraint_trait_name, trait_bound.trait_generics);
-                self.push_err(ResolverError::TraitNotImplemented {
-                    impl_trait: impl_trait.clone(),
-                    missing_trait,
-                    type_missing_trait: trait_constraint_type.to_string(),
-                    location: trait_impl.object_type.location,
-                    missing_trait_location: trait_bound.location,
-                });
+            match self.interner.try_lookup_trait_implementation(
+                &trait_constraint_type,
+                trait_bound.trait_id,
+                &trait_bound.trait_generics.ordered,
+                &named_generics,
+            ) {
+                Ok((_, impl_bindings, impl_instantiation_bindings)) => {
+                    bindings.extend(impl_bindings);
+                    bindings.extend(impl_instantiation_bindings);
+                }
+                Err(_) => {
+                    let missing_trait =
+                        format!("{}{}", trait_constraint_trait_name, trait_bound.trait_generics);
+                    self.push_err(ResolverError::TraitNotImplemented {
+                        impl_trait: impl_trait.clone(),
+                        missing_trait,
+                        type_missing_trait: trait_constraint_type.to_string(),
+                        location: trait_impl.object_type.location,
+                        missing_trait_location: trait_bound.location,
+                    });
+                }
             }
         }
     }
