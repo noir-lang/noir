@@ -49,7 +49,7 @@ pub(crate) struct Interpreter<'ssa, W> {
 pub struct InterpreterOptions {
     /// If true, the interpreter will trace its execution.
     pub trace: bool,
-    /// If true, the interpreter treats calls all foreign function calls (e.g., `print`) as unknown
+    /// If true, the interpreter treats all foreign function calls (e.g., `print`) as unknown
     pub no_foreign_calls: bool,
 }
 
