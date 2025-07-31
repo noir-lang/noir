@@ -529,8 +529,7 @@
 <a href="#528" id="528">528</a>
 <a href="#529" id="529">529</a>
 <a href="#530" id="530">530</a>
-<a href="#531" id="531">531</a>
-<a href="#532" id="532">532</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, sync::Arc};
+<a href="#531" id="531">531</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, sync::Arc};
 
 <span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
 
@@ -548,9 +547,8 @@
 <span class="kw">use </span><span class="kw">super</span>::simple_optimization::SimpleOptimizationContext;
 
 <span class="kw">impl </span>Ssa {
-    <span class="doccomment">/// Performs constant folding on each instruction.
-    ///
-    /// See [`constant_folding`][self] module for more information.
+    <span class="doccomment">/// Replaces Shl and Shr instructions with more primitive arithmetic instructions
+    /// since our backend doesn't directly support bit shifts.
     </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip(<span class="self">self</span>))]
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>remove_bit_shifts(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; Ssa {
         <span class="kw">for </span>function <span class="kw">in </span><span class="self">self</span>.functions.values_mut() {
@@ -561,8 +559,8 @@
 }
 
 <span class="kw">impl </span>Function {
-    <span class="doccomment">/// The structure of this pass is simple:
-    /// Go through each block and re-insert all instructions.
+    <span class="doccomment">/// Go through every instruction, replacing bit shifts with more primitive arithmetic
+    /// operations.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>remove_bit_shifts(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
         <span class="kw">if </span><span class="self">self</span>.runtime().is_brillig() {
             <span class="kw">return</span>;
