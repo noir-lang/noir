@@ -58,7 +58,7 @@ expression: artifact
     "unconstrained func 0",
     "[Const { destination: Direct(21), bit_size: Integer(U32), value: 1 }, Const { destination: Direct(20), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(21), offset_address: Direct(20) }, Const { destination: Direct(2), bit_size: Field, value: 0 }, BinaryFieldOp { destination: Direct(3), op: Equals, lhs: Direct(0), rhs: Direct(2) }, JumpIf { condition: Direct(3), location: 8 }, Const { destination: Direct(1), bit_size: Field, value: 1 }, BinaryFieldOp { destination: Direct(0), op: Div, lhs: Direct(1), rhs: Direct(0) }, Stop { return_data: HeapVector { pointer: Direct(20), size: Direct(21) } }]"
   ],
-  "debug_symbols": "nZLNroMgEIXfZdYsHKhafZWbG4OKDQlBQ+EmN8Z374ilP4smDZtzgOEbTsisMKo+XDptp/kK7c8KvdPG6Etn5kF6PVs6XTcGadt5pxQdwUudqEU6ZT20NhjD4E+aEC9dF2mje+moWjBQdiSnhpM2al9t7EkXn9FG3FksnnT5NY6IicdzDi8e74smh68f79dZfJP+Dpsyg+eYeI5VDs/rxAv+xv/STg7avQ0MIAVlwKOKqCdCGZRRK2hPDOqo56gNNWOAxWFEV2T8MHEYNaAMSB3qbQ/qtOyNuo/nFOzwMq3+f0mVNM+Lmwc1Bqf2oLFG0W8=",
+  "debug_symbols": "nZLBioMwEIbfZc45OLFq46ssi0QdSyBESZPCIn33HWOzbQ8Lxcv/J5l8wwwzK4zUx0tn3DRfof1aoffGWnPp7DzoYGbHr+tdQL52wRPxE7zEmVq0JxegddFaATdtY/p0XbRLHrTnaCGA3MjOCSdjaTvdxZMu/kdV+WCxeNLVxzgiZh7PR/jmj2/UEV7l3lFVB3iJmZdYH+Flk/lSvvHffNOD8W8DB+RCBcikZdITowKqpDW0PI4m6TmpgvYkAIvdmK7Y5G7lbpygZuMMWwM37Y3uLT3Wa4pueNm28LPkSN7Hxc8DjdHTVmiKcem/",
   "file_map": {
     "50": {
       "source": "// Regression test for https://github.com/noir-lang/noir/issues/3493\nfn main(x: u8) {\n    if x == 10 {\n        x + 255;\n    }\n    if x == 9 {\n        x << 7;\n    }\n    if x == 128 {\n        x * 3;\n    }\n    if x == 7 {\n        x - 8;\n    }\n}\n",

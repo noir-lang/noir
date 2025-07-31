@@ -180,8 +180,9 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
             // Remove any potentially unnecessary duplication from the Brillig entry point analysis.
             .and_then(Ssa::remove_unreachable_functions),
         SsaPass::new(Ssa::remove_truncate_after_range_check, "Removing Truncate after RangeCheck"),
-        SsaPass::new(Ssa::fold_constant_brillig_calls, "Constant Evaluation")
+        SsaPass::new(Ssa::fold_constant_brillig_calls, "Constant Fold Brillig Calls")
             .and_then(Ssa::remove_unreachable_functions),
+        SsaPass::new(Ssa::fold_constants, "Constant Folding"),
         // This pass makes transformations specific to Brillig generation.
         // It must be the last pass to either alter or add new instructions before Brillig generation,
         // as other semantics in the compiler can potentially break (e.g. inserting instructions).
