@@ -424,7 +424,20 @@
 <a href="#423" id="423">423</a>
 <a href="#424" id="424">424</a>
 <a href="#425" id="425">425</a>
-<a href="#426" id="426">426</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, FieldElement};
+<a href="#426" id="426">426</a>
+<a href="#427" id="427">427</a>
+<a href="#428" id="428">428</a>
+<a href="#429" id="429">429</a>
+<a href="#430" id="430">430</a>
+<a href="#431" id="431">431</a>
+<a href="#432" id="432">432</a>
+<a href="#433" id="433">433</a>
+<a href="#434" id="434">434</a>
+<a href="#435" id="435">435</a>
+<a href="#436" id="436">436</a>
+<a href="#437" id="437">437</a>
+<a href="#438" id="438">438</a>
+<a href="#439" id="439">439</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, FieldElement};
 
 <span class="attr">#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, serde::Deserialize, serde::Serialize)]
 </span><span class="kw">pub struct </span>SignedField {
@@ -645,7 +658,13 @@
 
 <span class="kw">impl </span>From&lt;i128&gt; <span class="kw">for </span>SignedField {
     <span class="kw">fn </span>from(value: i128) -&gt; <span class="self">Self </span>{
-        <span class="kw">if </span>value &lt; <span class="number">0 </span>{ <span class="self">Self</span>::new((-value).into(), <span class="bool-val">true</span>) } <span class="kw">else </span>{ <span class="self">Self</span>::new(value.into(), <span class="bool-val">false</span>) }
+        <span class="kw">if </span>value == i128::MIN {
+            <span class="self">Self</span>::new(FieldElement::from((i128::MAX <span class="kw">as </span>u128) + <span class="number">1</span>), <span class="bool-val">true</span>)
+        } <span class="kw">else if </span>value &lt; <span class="number">0 </span>{
+            <span class="self">Self</span>::new((-value).into(), <span class="bool-val">true</span>)
+        } <span class="kw">else </span>{
+            <span class="self">Self</span>::new(value.into(), <span class="bool-val">false</span>)
+        }
     }
 }
 
@@ -848,6 +867,13 @@
             SignedField::negative(FieldElement::from((i128::MAX <span class="kw">as </span>u128) + <span class="number">1</span>)).to_i128(),
             i128::MIN
         );
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>from_i128() {
+        <span class="macro">assert_eq!</span>(SignedField::from(i128::MAX).to_i128(), i128::MAX);
+        <span class="macro">assert_eq!</span>(SignedField::from(i128::MIN).to_i128(), i128::MIN);
+        <span class="macro">assert_eq!</span>(SignedField::from(i128::MIN + <span class="number">1</span>).to_i128(), i128::MIN + <span class="number">1</span>);
     }
 }
 </code></pre></div></section></main></body></html>
