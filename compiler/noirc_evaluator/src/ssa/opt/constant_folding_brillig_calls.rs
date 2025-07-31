@@ -11,7 +11,7 @@
 //! Most other constant evaluation occurs during [instruction simplification][crate::ssa::ir::dfg::simplify]
 //! and [constant folding][crate::ssa::opt::constant_folding].
 //! However, this constant evaluation is unable to remove calls to Brillig entry points with constant arguments
-//! as entry points are explicitly prevented from being inlined.  
+//! as entry points are explicitly prevented from being inlined.
 use fxhash::FxHashMap as HashMap;
 
 use crate::ssa::{
@@ -58,6 +58,9 @@ impl Function {
     /// the actual interpreter execution from the mutation of the IR.
     fn constant_evaluation(&self, ssa: &Ssa) -> HashMap<InstructionId, Vec<Value>> {
         let mut instr_to_const_result = HashMap::default();
+        // We must track the constant results of Brillig calls in case those results
+        // are used as the input to another Brillig call.
+        let mut const_result_values: HashMap<ValueId, Value> = HashMap::default();
 
         // Only ACIR functions can be evaluated in this pass.
         // Brillig non-entry points themselves are not subject to constant evaluation.
@@ -82,31 +85,45 @@ impl Function {
                 };
 
                 // Skip calls to non-Brillig functions
-                if !func.runtime().is_brillig()
-                    // Ensure all arguments to the call are constant
-                    || !arguments.iter().all(|argument| self.dfg.is_constant(*argument))
-                {
+                if !func.runtime().is_brillig() {
                     continue;
                 }
 
-                let interpreter_args = arguments
-                    .iter()
-                    .map(|arg| Self::const_ir_value_to_interpreter_value(*arg, &self.dfg))
-                    .collect();
-                match ssa.interpret_function(
+                let mut all_constants = true;
+                let mut interpreter_args = Vec::new();
+
+                for &arg in arguments {
+                    if let Some(val) = const_result_values.get(&arg) {
+                        interpreter_args.push(val.clone());
+                    } else if self.dfg.is_constant(arg) {
+                        interpreter_args
+                            .push(Self::const_ir_value_to_interpreter_value(arg, &self.dfg));
+                    } else {
+                        all_constants = false;
+                        break;
+                    }
+                }
+
+                // Ensure all arguments to the call are constant
+                if !all_constants {
+                    continue;
+                }
+
+                let Ok(result_values) = ssa.interpret_function(
                     func.id(),
                     interpreter_args,
                     InterpreterOptions { no_foreign_calls: true, ..Default::default() },
                     std::io::empty(),
-                ) {
-                    Ok(values) => {
-                        instr_to_const_result.insert(*instruction_id, values);
-                    }
-                    Err(_) => {
-                        // Failed to interpret (e.g., unsupported op, failed constrain, etc.)
-                        continue;
-                    }
+                ) else {
+                    continue;
+                };
+
+                let result_ids = self.dfg.instruction_results(*instruction_id);
+                for (val_id, const_val) in result_ids.iter().zip(&result_values) {
+                    const_result_values.insert(*val_id, const_val.clone());
                 }
+
+                instr_to_const_result.insert(*instruction_id, result_values);
             }
         }
         instr_to_const_result
@@ -468,6 +485,41 @@ mod test {
         acir(inline) fn main f0 {
           b0():
             return Field 5
+        }
+        ");
+    }
+
+    #[test]
+    fn folds_chained_brillig_calls_with_constants() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = call f1(Field 2, Field 3) -> Field
+            v1 = call f2(Field 10, v0) -> Field
+            return v1
+        }
+
+        brillig(inline) fn add f1 {
+          b0(v0: Field, v1: Field):
+            v2 = add v0, v1
+            return v2
+        }
+
+        brillig(inline) fn mul f2 {
+          b0(v0: Field, v1: Field):
+            v2 = mul v0, v1
+            return v2
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.fold_constant_brillig_calls();
+        let ssa = ssa.remove_unreachable_functions();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            return Field 50
         }
         ");
     }

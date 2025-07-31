@@ -1596,13 +1596,12 @@ mod test {
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.dead_instruction_elimination();
 
-        assert_ssa_snapshot!(ssa, @r#"
+        assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
           b0(v0: [Field; 3]):
-            constrain u1 0 == u1 1, "Index out of bounds"
             return v0
         }
-        "#);
+        ");
     }
 
     #[test]

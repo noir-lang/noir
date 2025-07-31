@@ -188,10 +188,14 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
             // A function can be potentially unreachable post-DIE if all calls to that function were removed.
             .and_then(Ssa::remove_unreachable_functions),
         SsaPass::new(Ssa::checked_to_unchecked, "Checked to unchecked"),
-        // SsaPass::new(Ssa::fold_constants, "Constant Folding"),
+        SsaPass::new(Ssa::fold_constants, "Constant Folding"),
         SsaPass::new(Ssa::fold_constant_brillig_calls, "Constant Fold Brillig Calls")
             .and_then(Ssa::remove_unreachable_functions),
         SsaPass::new(Ssa::fold_constants, "Constant Folding"),
+        SsaPass::new(Ssa::remove_unreachable_instructions, "Remove Unreachable Instructions")
+            // It could happen that we inlined all calls to a given brillig function.
+            // In that case it's unused so we can remove it. This is what we check next.
+            .and_then(Ssa::remove_unreachable_functions),
         SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination")
             // A function can be potentially unreachable post-DIE if all calls to that function were removed.
             .and_then(Ssa::remove_unreachable_functions),
