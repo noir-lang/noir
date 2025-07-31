@@ -28,7 +28,7 @@ use crate::ssa::{
 };
 
 impl Ssa {
-    /// See [`fold_constant_brillig_calls`][self] module for more information.
+    /// See [`constant_folding_brillig_calls`][self] module for more information.
     pub(crate) fn fold_constant_brillig_calls(mut self) -> Ssa {
         // Gather constant evaluation results per function
         let mut constant_evaluations = self

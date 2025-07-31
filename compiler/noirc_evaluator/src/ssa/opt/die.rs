@@ -280,7 +280,6 @@ impl Context {
                 // side effects ordering remains correct.
                 if function.runtime().is_acir()
                     && insert_out_of_bounds_checks
-                // if insert_out_of_bounds_checks
                     && instruction_might_result_in_out_of_bounds(function, instruction)
                 {
                     possible_index_out_of_bounds_indexes
