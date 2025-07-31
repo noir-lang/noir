@@ -28,8 +28,9 @@ use crate::ssa::{
 };
 
 impl Ssa {
-    /// See [`constant_folding_brillig_calls`][self] module for more information.
-    pub(crate) fn fold_constant_brillig_calls(mut self) -> Ssa {
+    /// See [`brillig_calls`][self] module for more information.
+    pub(super) fn fold_constant_brillig_calls(mut self) -> (Ssa, bool) {
+        let mut folded_calls = false;
         // Gather constant evaluation results per function
         let mut constant_evaluations = self
             .functions
@@ -43,10 +44,10 @@ impl Ssa {
                 continue;
             };
 
-            function.fold_constant_evaluation(constant_evaluations);
+            folded_calls |= function.fold_constant_evaluation(constant_evaluations);
         }
 
-        self
+        (self, folded_calls)
     }
 }
 
@@ -89,25 +90,23 @@ impl Function {
                     continue;
                 }
 
-                let mut all_constants = true;
-                let mut interpreter_args = Vec::new();
-
-                for &arg in arguments {
-                    if let Some(val) = const_result_values.get(&arg) {
-                        interpreter_args.push(val.clone());
-                    } else if self.dfg.is_constant(arg) {
-                        interpreter_args
-                            .push(Self::const_ir_value_to_interpreter_value(arg, &self.dfg));
-                    } else {
-                        all_constants = false;
-                        break;
-                    }
-                }
+                let all_constants = arguments
+                    .iter()
+                    .all(|arg| self.dfg.is_constant(*arg) || const_result_values.contains_key(arg));
 
                 // Ensure all arguments to the call are constant
                 if !all_constants {
                     continue;
                 }
+
+                let interpreter_args = arguments
+                    .iter()
+                    .map(|arg| {
+                        const_result_values.get(arg).cloned().unwrap_or_else(|| {
+                            Self::const_ir_value_to_interpreter_value(*arg, &self.dfg)
+                        })
+                    })
+                    .collect();
 
                 let Ok(result_values) = ssa.interpret_function(
                     func.id(),
@@ -131,10 +130,14 @@ impl Function {
 
     /// Replaces Brillig call instructions with constant results, based on interpreter output.
     /// The interpreter output is expected to be computed by the caller of this method.
+    ///
+    /// # Returns
+    /// A bool stating whether any calls were actually folded
     fn fold_constant_evaluation(
         &mut self,
         mut instr_to_const_result: HashMap<InstructionId, Vec<Value>>,
-    ) {
+    ) -> bool {
+        let mut folded_calls = false;
         self.simple_reachable_blocks_optimization(|context| {
             let Some(constant_results) = instr_to_const_result.remove(&context.instruction_id)
             else {
@@ -158,7 +161,10 @@ impl Function {
             }
 
             context.remove_current_instruction();
+
+            folded_calls |= true;
         });
+        folded_calls
     }
 
     /// Converts a constant [SSA value][IrValue] into an [interpreter value][Value] for execution.
@@ -267,7 +273,7 @@ mod test {
             ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.fold_constant_brillig_calls();
+        let (ssa, _) = ssa.fold_constant_brillig_calls();
         let ssa = ssa.remove_unreachable_functions();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
@@ -294,7 +300,7 @@ mod test {
             ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.fold_constant_brillig_calls();
+        let (ssa, _) = ssa.fold_constant_brillig_calls();
         let ssa = ssa.remove_unreachable_functions();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
@@ -322,7 +328,7 @@ mod test {
             ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.fold_constant_brillig_calls();
+        let (ssa, _) = ssa.fold_constant_brillig_calls();
         let ssa = ssa.remove_unreachable_functions();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
@@ -349,7 +355,7 @@ mod test {
             ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.fold_constant_brillig_calls();
+        let (ssa, _) = ssa.fold_constant_brillig_calls();
         let ssa = ssa.remove_unreachable_functions();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
@@ -377,7 +383,7 @@ mod test {
             ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.fold_constant_brillig_calls();
+        let (ssa, _) = ssa.fold_constant_brillig_calls();
         let ssa = ssa.remove_unreachable_functions();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
@@ -410,7 +416,7 @@ mod test {
             ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.fold_constant_brillig_calls();
+        let (ssa, _) = ssa.fold_constant_brillig_calls();
         let ssa = ssa.remove_unreachable_functions();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
@@ -440,7 +446,7 @@ mod test {
         ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.fold_constant_brillig_calls();
+        let (ssa, _) = ssa.fold_constant_brillig_calls();
         let ssa = ssa.remove_unreachable_functions();
         assert_ssa_snapshot!(ssa, @r"
         g0 = Field 2
@@ -477,7 +483,7 @@ mod test {
         ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.fold_constant_brillig_calls();
+        let (ssa, _) = ssa.fold_constant_brillig_calls();
         let ssa = ssa.remove_unreachable_functions();
         assert_ssa_snapshot!(ssa, @r"
         g0 = Field 2
@@ -513,7 +519,7 @@ mod test {
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.fold_constant_brillig_calls();
+        let (ssa, _) = ssa.fold_constant_brillig_calls();
         let ssa = ssa.remove_unreachable_functions();
 
         assert_ssa_snapshot!(ssa, @r"

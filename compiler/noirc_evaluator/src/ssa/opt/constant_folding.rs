@@ -34,6 +34,8 @@ use crate::ssa::{
 };
 use fxhash::FxHashMap as HashMap;
 
+mod brillig_calls;
+
 impl Ssa {
     /// Performs constant folding on each instruction.
     ///
@@ -61,11 +63,37 @@ impl Ssa {
         }
         self
     }
+
+    /// Performs constant folding on each instruction while also replacing calls to brillig functions
+    /// with all constant arguments by trying to evaluate those calls.
+    #[tracing::instrument(level = "trace", skip(self))]
+    pub(crate) fn fold_constants_using_brillig(mut self) -> Ssa {
+        // Set up Brillig constant call evaluation by folding any pre-existing constants
+        self = self.fold_constants();
+
+        loop {
+            let (after_brillig, brillig_changed) = self.fold_constant_brillig_calls();
+
+            self = after_brillig;
+
+            if !brillig_changed {
+                break;
+            }
+
+            // Run folding again based on any new constants
+            self = self.fold_constants();
+        }
+        self
+    }
 }
 
 impl Function {
     /// The structure of this pass is simple:
     /// Go through each block and re-insert all instructions.
+    ///
+    /// # Returns
+    /// A bool that states whether any constants were folded.
+    /// This is used to communicate with other passes.
     pub(crate) fn constant_fold(&mut self, use_constraint_info: bool) {
         let mut context = Context::new(use_constraint_info);
         let mut dom = DominatorTree::with_function(self);
