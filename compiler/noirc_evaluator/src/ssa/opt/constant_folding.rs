@@ -692,7 +692,6 @@ pub(crate) fn can_be_deduplicated(
 mod test {
     use crate::{
         assert_ssa_snapshot,
-        brillig::BrilligOptions,
         ssa::{
             Ssa,
             function_builder::FunctionBuilder,
