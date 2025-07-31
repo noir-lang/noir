@@ -2,4 +2,4 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stdout
 ---
-[global_nested_array_regression_9270] Circuit output: Vec([Vec([String("DS")]), Vec([String("EN")])])
+[global_nested_array_regression_9270] Circuit output: [["DS"], ["EN"]]
