@@ -1423,7 +1423,7 @@ mod tests {
         // This is just a test to ensure the case where `aliases.is_unknown()` is tested.
         // Here, `v8 = load v0 -> Field` cannot be removed and replaced with `Field 10`
         // because `v6` is passed to another function and we don't know what that reference
-        // points it, and it could potentially change the value of `v0`.
+        // points to, and it could potentially change the value of `v0`.
         let src = "
         brillig(inline) fn foo f0 {
           b0(v0: &mut Field):
