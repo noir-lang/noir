@@ -1,42 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1754072845950,
+  "lastUpdate": 1754072863410,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "ad165997e400549084efc4f1884a4f18948cb51e",
-          "message": "chore: Update noir-lang/sparse_array failures status (#9289)",
-          "timestamp": "2025-07-23T13:31:09+01:00",
-          "tree_id": "9efc1393068bf599c0656ad728284572ec0682f4",
-          "url": "https://github.com/noir-lang/noir/commit/ad165997e400549084efc4f1884a4f18948cb51e"
-        },
-        "date": 1753274501229,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore_depth_10",
-            "value": 104.57,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 255.54,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -1699,6 +1665,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512_100_bytes",
             "value": 234.78,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "2d3a30432debb5bc7c7ed0780103480e00c518c7",
+          "message": "fix(ssa): Do not check ArrayGet/Set as unreachable for Brillig (#9376)",
+          "timestamp": "2025-08-01T17:59:37Z",
+          "tree_id": "db2c95833c7f442038abc4b5e45d95d5ce20b8a9",
+          "url": "https://github.com/noir-lang/noir/commit/2d3a30432debb5bc7c7ed0780103480e00c518c7"
+        },
+        "date": 1754072845834,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore_depth_10",
+            "value": 104.72,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 234.77,
             "unit": "MB"
           }
         ]
