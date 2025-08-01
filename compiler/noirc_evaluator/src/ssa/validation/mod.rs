@@ -305,6 +305,20 @@ impl<'f> Validator<'f> {
                     }
                 }
             }
+            Instruction::Store { address, value } => {
+                let address_type = dfg.type_of_value(*address);
+                let Type::Reference(address_value_type) = address_type else {
+                    panic!("Store address must be a reference type, got {address_type}");
+                };
+
+                let value_type = dfg.type_of_value(*value);
+                if *address_value_type != value_type {
+                    panic!(
+                        "Store address type {} does not match value type {}",
+                        address_value_type, value_type
+                    );
+                }
+            }
             _ => (),
         }
     }
@@ -706,6 +720,20 @@ mod tests {
           b0():
             v0 = make_array [u8 1, Field 2, u8 3, u8 4] : [(u8, u8); 2]
             return v0
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "Store address type u8 does not match value type Field")]
+    fn store_has_incorrect_type() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut u8
+            store Field 1 at v0
+            return
         }
         ";
         let _ = Ssa::from_str(src).unwrap();

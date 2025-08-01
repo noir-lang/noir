@@ -2,4 +2,4 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stdout
 ---
-[cast_to_u64_regression_7776] Circuit output: Field(4891460686036598784)
+[cast_to_u64_regression_7776] Circuit output: 4891460686036598784

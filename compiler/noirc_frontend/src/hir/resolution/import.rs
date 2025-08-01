@@ -325,7 +325,11 @@ impl<'def_maps, 'usage_tracker, 'references_tracker>
             });
         }
 
-        let plain_or_crate = matches!(path.kind, PathKind::Plain | PathKind::Crate);
+        let first_segment_is_always_visible = match path.kind {
+            PathKind::Crate => true,
+            PathKind::Plain => self.importing_module == starting_module,
+            PathKind::Dep | PathKind::Super | PathKind::Resolved(_) => false,
+        };
 
         // The current module and module ID as we resolve path segments
         let mut current_module_id = starting_module;
@@ -377,9 +381,7 @@ impl<'def_maps, 'usage_tracker, 'references_tracker>
                 ModuleDefId::GlobalId(_) => panic!("globals cannot be in the type namespace"),
             };
 
-            // If the path is plain or crate, the first segment will always refer to
-            // something that's visible from the current module.
-            if !((plain_or_crate && index == 0)
+            if !((first_segment_is_always_visible && index == 0)
                 || self.item_in_module_is_visible(current_module_id, visibility))
             {
                 errors.push(PathResolutionError::Private(last_ident.clone()));

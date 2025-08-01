@@ -21,17 +21,17 @@ pub struct CircuitSimulator {
 
 impl CircuitSimulator {
     /// Simulate a symbolic solve for a circuit by keeping track of the witnesses that can be solved.
-    /// Returns false if the circuit cannot be solved
+    /// Returns the index of the opcode that cannot be solved, if any.
     #[tracing::instrument(level = "trace", skip_all)]
-    pub fn check_circuit<F: AcirField>(&mut self, circuit: &Circuit<F>) -> bool {
+    pub fn check_circuit<F: AcirField>(&mut self, circuit: &Circuit<F>) -> Option<usize> {
         let circuit_inputs = circuit.circuit_arguments();
         self.solvable_witness.extend(circuit_inputs.iter());
-        for op in &circuit.opcodes {
+        for (i, op) in circuit.opcodes.iter().enumerate() {
             if !self.try_solve(op) {
-                return false;
+                return Some(i);
             }
         }
-        true
+        None
     }
 
     /// Check if the Opcode can be solved, and if yes, add the solved witness to set of solvable witness
@@ -227,7 +227,7 @@ mod tests {
     fn reports_true_for_empty_circuit() {
         let empty_circuit = test_circuit(vec![], BTreeSet::default(), PublicInputs::default());
 
-        assert!(CircuitSimulator::default().check_circuit(&empty_circuit));
+        assert!(CircuitSimulator::default().check_circuit(&empty_circuit).is_none());
     }
 
     #[test]
@@ -245,7 +245,7 @@ mod tests {
             PublicInputs::default(),
         );
 
-        assert!(CircuitSimulator::default().check_circuit(&connected_circuit));
+        assert!(CircuitSimulator::default().check_circuit(&connected_circuit).is_none());
     }
 
     #[test]
@@ -273,7 +273,7 @@ mod tests {
             PublicInputs::default(),
         );
 
-        assert!(!CircuitSimulator::default().check_circuit(&disconnected_circuit));
+        assert!(CircuitSimulator::default().check_circuit(&disconnected_circuit).is_some());
     }
 
     #[test]
@@ -313,7 +313,7 @@ mod tests {
             PublicInputs::default(),
         );
 
-        assert!(!CircuitSimulator::default().check_circuit(&circuit));
+        assert!(CircuitSimulator::default().check_circuit(&circuit).is_some());
     }
 
     #[test]
@@ -335,6 +335,6 @@ mod tests {
             PublicInputs::default(),
         );
 
-        assert!(!CircuitSimulator::default().check_circuit(&circuit));
+        assert!(CircuitSimulator::default().check_circuit(&circuit).is_some());
     }
 }

@@ -40,7 +40,7 @@ expression: artifact
     "private parameters indices : [_0]",
     "public parameters indices : []",
     "return value indices : [_1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14, _15, _16, _17, _18, _19, _20, _21, _22, _23, _24, _25, _26, _27, _28, _29, _30, _31]",
-    "BRILLIG CALL func 0: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(0))], q_c: 0 }), Single(Expression { mul_terms: [], linear_combinations: [], q_c: 31 }), Single(Expression { mul_terms: [], linear_combinations: [], q_c: 256 })], outputs: [Array([Witness(32), Witness(33), Witness(34), Witness(35), Witness(36), Witness(37), Witness(38), Witness(39), Witness(40), Witness(41), Witness(42), Witness(43), Witness(44), Witness(45), Witness(46), Witness(47), Witness(48), Witness(49), Witness(50), Witness(51), Witness(52), Witness(53), Witness(54), Witness(55), Witness(56), Witness(57), Witness(58), Witness(59), Witness(60), Witness(61), Witness(62)])]",
+    "BRILLIG CALL func 0: inputs: [EXPR [ (1, _0) 0 ], EXPR [ 31 ], EXPR [ 256 ]], outputs: [[_32, _33, _34, _35, _36, _37, _38, _39, _40, _41, _42, _43, _44, _45, _46, _47, _48, _49, _50, _51, _52, _53, _54, _55, _56, _57, _58, _59, _60, _61, _62]]",
     "BLACKBOX::RANGE [(_35, 8)] []",
     "BLACKBOX::RANGE [(_36, 8)] []",
     "BLACKBOX::RANGE [(_37, 8)] []",

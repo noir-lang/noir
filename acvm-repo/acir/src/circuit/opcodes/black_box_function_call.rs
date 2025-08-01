@@ -89,7 +89,7 @@ impl<F: std::fmt::Display> std::fmt::Display for FunctionInput<F> {
                 write!(f, "({constant}, {})", self.num_bits)
             }
             ConstantOrWitnessEnum::Witness(witness) => {
-                write!(f, "(_{}, {})", witness.0, self.num_bits)
+                write!(f, "({}, {})", witness, self.num_bits)
             }
         }
     }
@@ -377,14 +377,19 @@ impl<F> BlackBoxFuncCall<F> {
 impl<F: Copy> BlackBoxFuncCall<F> {
     pub fn get_inputs_vec(&self) -> Vec<FunctionInput<F>> {
         match self {
-            BlackBoxFuncCall::AES128Encrypt { inputs, .. }
-            | BlackBoxFuncCall::Blake2s { inputs, .. }
+            BlackBoxFuncCall::Blake2s { inputs, .. }
             | BlackBoxFuncCall::Blake3 { inputs, .. }
             | BlackBoxFuncCall::BigIntFromLeBytes { inputs, .. }
             | BlackBoxFuncCall::Poseidon2Permutation { inputs, .. } => inputs.to_vec(),
 
             BlackBoxFuncCall::Keccakf1600 { inputs, .. } => inputs.to_vec(),
-
+            BlackBoxFuncCall::AES128Encrypt { inputs, iv, key, .. } => {
+                let mut all_inputs: Vec<FunctionInput<F>> =
+                    Vec::with_capacity(inputs.len() + iv.len() + key.len());
+                all_inputs.extend(**iv);
+                all_inputs.extend(**key);
+                all_inputs
+            }
             BlackBoxFuncCall::Sha256Compression { inputs, hash_values, .. } => {
                 inputs.iter().chain(hash_values.as_ref()).copied().collect()
             }

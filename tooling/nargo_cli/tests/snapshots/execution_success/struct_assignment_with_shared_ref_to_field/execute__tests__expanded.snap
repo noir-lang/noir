@@ -8,7 +8,7 @@ fn main() {
     assert(a);
     assert(b);
     assert(c);
-    assert(!d);
+    assert(d);
 }
 
 fn plain_store() -> bool {

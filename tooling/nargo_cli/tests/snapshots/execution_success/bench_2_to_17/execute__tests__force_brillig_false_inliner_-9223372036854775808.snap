@@ -6556,7 +6556,7 @@ expression: artifact
     "BLACKBOX::POSEIDON2_PERMUTATION [(_11423, 254), (_11424, 254), (_11425, 254), (_11422, 254)] [_11426, _11427, _11428, _11429]",
     "EXPR [ (1, _0) (1, _11426) (-1, _11430) 0 ]",
     "BLACKBOX::POSEIDON2_PERMUTATION [(_11430, 254), (_11427, 254), (_11428, 254), (_11429, 254)] [_11431, _11432, _11433, _11434]",
-    "BRILLIG CALL func 0: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(11431))], q_c: 0 })], outputs: [Simple(Witness(11435))]",
+    "BRILLIG CALL func 0: inputs: [EXPR [ (1, _11431) 0 ]], outputs: [_11435]",
     "EXPR [ (1, _11431, _11435) -1 ]",
     "unconstrained func 0",
     "[Const { destination: Direct(21), bit_size: Integer(U32), value: 1 }, Const { destination: Direct(20), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(21), offset_address: Direct(20) }, Const { destination: Direct(2), bit_size: Field, value: 0 }, BinaryFieldOp { destination: Direct(3), op: Equals, lhs: Direct(0), rhs: Direct(2) }, JumpIf { condition: Direct(3), location: 8 }, Const { destination: Direct(1), bit_size: Field, value: 1 }, BinaryFieldOp { destination: Direct(0), op: Div, lhs: Direct(1), rhs: Direct(0) }, Stop { return_data: HeapVector { pointer: Direct(20), size: Direct(21) } }]"

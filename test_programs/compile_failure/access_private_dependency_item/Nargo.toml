@@ -1,0 +1,8 @@
+[package]
+name = "access_private_dependency_item"
+type = "bin"
+authors = [""]
+compiler_version = ">=0.33.0"
+
+[dependencies]
+foo = { path = "./foo" }
