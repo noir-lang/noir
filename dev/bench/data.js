@@ -1,42 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1754063703601,
+  "lastUpdate": 1754063705264,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "72797635+Savio-Sou@users.noreply.github.com",
-            "name": "Savio",
-            "username": "Savio-Sou"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "aac99e244010bfeda30d5789d11c7f9c081cae03",
-          "message": "chore: Mark `sparse_array` and `noir_json_parser` as non-critical (#9282)",
-          "timestamp": "2025-07-23T13:20:00+01:00",
-          "tree_id": "9068e1f26bbe68ab36217bfb28f3ea7b3bab9eb0",
-          "url": "https://github.com/noir-lang/noir/commit/aac99e244010bfeda30d5789d11c7f9c081cae03"
-        },
-        "date": 1753274317969,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore_depth_10",
-            "value": 104.57,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 255.62,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -1699,6 +1665,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512_100_bytes",
             "value": 234.77,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "9797518a83a46e91a7c767ec637780a42dd21c9f",
+          "message": "chore: use SSA parser in all mem2reg tests (#9372)",
+          "timestamp": "2025-08-01T15:19:31Z",
+          "tree_id": "3a95cf2c87ab5928b19a14309fbff3ae35e2b0e3",
+          "url": "https://github.com/noir-lang/noir/commit/9797518a83a46e91a7c767ec637780a42dd21c9f"
+        },
+        "date": 1754063684370,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore_depth_10",
+            "value": 104.72,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 234.78,
             "unit": "MB"
           }
         ]
