@@ -198,6 +198,14 @@ impl Function {
                                 None => false, // The predicate is a variable
                             };
                         current_block_reachability = if is_predicate_constant_one {
+                            Reachability::Unreachable
+                        } else {
+                            Reachability::UnreachableUnderPredicate
+                        };
+
+                        if current_block_reachability == Reachability::Unreachable
+                            && context.dfg.runtime().is_acir()
+                        {
                             // If we have an array that contains references we no longer need to bother with resolution of those references.
                             // However, we want a trap to still be triggered by an OOB array access.
                             // Thus, we can replace our array with dummy numerics to avoid unnecessary allocations
@@ -235,11 +243,7 @@ impl Function {
                             );
                             // Remove the old failing array access in favor of the dummy one
                             context.remove_current_instruction();
-
-                            Reachability::Unreachable
-                        } else {
-                            Reachability::UnreachableUnderPredicate
-                        };
+                        }
                     }
                 }
                 _ => (),
