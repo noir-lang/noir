@@ -2529,7 +2529,11 @@
 <a href="#2528" id="2528">2528</a>
 <a href="#2529" id="2529">2529</a>
 <a href="#2530" id="2530">2530</a>
-<a href="#2531" id="2531">2531</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, rc::Rc};
+<a href="#2531" id="2531">2531</a>
+<a href="#2532" id="2532">2532</a>
+<a href="#2533" id="2533">2533</a>
+<a href="#2534" id="2534">2534</a>
+<a href="#2535" id="2535">2535</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, rc::Rc};
 
 <span class="kw">use </span>im::HashSet;
 <span class="kw">use </span>iter_extended::vecmap;
@@ -3308,6 +3312,10 @@
         expected_kind: <span class="kw-2">&amp;</span>Kind,
         location: Location,
     ) -&gt; Type {
+        <span class="kw">if </span>typ.has_cyclic_alias(<span class="kw-2">&amp;mut </span>HashSet::default()) {
+            <span class="self">self</span>.push_err(TypeCheckError::CyclicType { typ, location });
+            <span class="kw">return </span>Type::Error;
+        }
         <span class="kw">if </span>!typ.kind().unifies(expected_kind) {
             <span class="self">self</span>.push_err(TypeCheckError::TypeKindMismatch {
                 expected_kind: expected_kind.clone(),
