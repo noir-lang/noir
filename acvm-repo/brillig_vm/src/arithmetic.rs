@@ -11,7 +11,7 @@ use crate::memory::{MemoryTypeError, MemoryValue};
 
 #[derive(Debug, thiserror::Error)]
 pub(crate) enum BrilligArithmeticError {
-    #[error("Bit size for lhs {lhs_bit_size} does not match op bit size {op_bit_size}, hello 3")]
+    #[error("Bit size for lhs {lhs_bit_size} does not match op bit size {op_bit_size}, hello 4")]
     MismatchedLhsBitSize { lhs_bit_size: u32, op_bit_size: u32 },
     #[error("Bit size for rhs {rhs_bit_size} does not match op bit size {op_bit_size}")]
     MismatchedRhsBitSize { rhs_bit_size: u32, op_bit_size: u32 },
