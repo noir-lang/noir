@@ -932,7 +932,7 @@ mod test {
     }
 
     #[test]
-    fn do_not_transform_failing_array_access_in_brillig() {
+    fn do_not_transform_failing_array_access_to_constrain_in_brillig() {
         let src = "
         brillig(inline) predicate_pure fn main f0 {
           b0():
@@ -944,9 +944,18 @@ mod test {
             return v4
         }
         ";
-
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.remove_unreachable_instructions();
-        assert_normalized_ssa_equals(ssa, src);
+
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v0 = allocate -> &mut u8
+            store u8 0 at v0
+            v2 = make_array [u8 0, v0] : [(u8, &mut u8); 1]
+            constrain u1 0 == u1 1, "Index out of bounds, index is 2, length is 2"
+            unreachable
+        }
+        "#);
     }
 }
