@@ -422,7 +422,7 @@ mod test {
         fn signed_int_roundtrip(int: i128, bit_size in 0usize..=3) {
             let bit_sizes = [8,16,32,64];
             let bit_size = bit_sizes[bit_size];
-            let int = int % (1i128 << bit_size - 1);
+            let int = int % (1i128 << (bit_size - 1));
 
             let int_as_field = convert_signed_integer_to_field_element(int, bit_size);
             let recovered_int = try_convert_field_element_to_signed_integer(int_as_field, bit_size).unwrap();
