@@ -1016,8 +1016,52 @@ impl Elaborator<'_> {
         let (typ, bindings) =
             self.instantiate(t, bindings, generics, function_generic_count, location);
 
+        if let ImplKind::TraitItem(mut method) = ident.impl_kind {
+            method.constraint.apply_bindings(&bindings);
+            if method.assumed {
+                let trait_generics = method.constraint.trait_bound.trait_generics.clone();
+                let object_type = method.constraint.typ;
+                let trait_impl = TraitImplKind::Assumed { object_type, trait_generics };
+                self.interner.select_impl_for_expression(expr_id, trait_impl);
+            } else {
+                self.push_trait_constraint(
+                    method.constraint,
+                    expr_id,
+                    true, // this constraint should lead to choosing a trait impl method
+                );
+            }
+        }
+
         // Push any trait constraints required by this definition to the context
         // to be checked later when the type of this variable is further constrained.
+        //
+        // This must be done before the above trait constraint in case the above one further
+        // restricts types.
+        //
+        // For example, in this code:
+        //
+        // ```noir
+        // trait One {}
+        //
+        // trait Two<O: One> {
+        //     fn new() -> Self;
+        // }
+        //
+        // fn foo<X: One, T: Two<X>>() {
+        //     let _: T = Two::new();
+        // }
+        // ```
+        //
+        // when type-checking `Two::new` we'll have a return type `'2` which is constrained by `'2: Two<'1>`.
+        // Then the definition for `new` has a constraint on it, `O: One`, which translates to `'1: One`.
+        //
+        // Because of the explicit type in the `let`, `'2` will be unified with `T`.
+        // Then we must first verify the constraint `'2: Two<'1>`, which is now `T: Two<'1>`, to find
+        // that the implementation is the assumed one `T: Two<X>` so that `'1` is bound to `X`.
+        // Then we can successfully verify the constraint `'1: One` which now became `X: One` which holds
+        // because of the assumed constraint.
+        //
+        // If we try to find a trait implementation for `'1` before finding one for `'2` we'll never find it.
         if let Some(definition) = self.interner.try_definition(ident.id) {
             if let DefinitionKind::Function(function) = definition.kind {
                 let function = self.interner.function_meta(&function);
@@ -1030,25 +1074,6 @@ impl Elaborator<'_> {
                         false, // This constraint shouldn't lead to choosing a trait impl method
                     );
                 }
-            }
-        }
-
-        if let ImplKind::TraitItem(mut method) = ident.impl_kind {
-            method.constraint.apply_bindings(&bindings);
-            if method.assumed {
-                let trait_generics = method.constraint.trait_bound.trait_generics.clone();
-                let object_type = method.constraint.typ;
-                let trait_impl = TraitImplKind::Assumed { object_type, trait_generics };
-                self.interner.select_impl_for_expression(expr_id, trait_impl);
-            } else {
-                // Currently only one impl can be selected per expr_id, so this
-                // constraint needs to be pushed after any other constraints so
-                // that monomorphization can resolve this trait method to the correct impl.
-                self.push_trait_constraint(
-                    method.constraint,
-                    expr_id,
-                    true, // this constraint should lead to choosing a trait impl method
-                );
             }
         }
 

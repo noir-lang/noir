@@ -2,4 +2,4 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stdout
 ---
-[struct_array_inputs] Circuit output: Field(3)
+[struct_array_inputs] Circuit output: 0x03

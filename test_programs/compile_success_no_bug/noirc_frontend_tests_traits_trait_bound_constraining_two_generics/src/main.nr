@@ -1,0 +1,16 @@
+
+    pub trait Foo<U> {}
+
+    pub trait Baz<T, U>
+    where
+        T: Foo<U>,
+    {}
+
+    pub struct HasFoo1 {}
+    impl Foo<()> for HasFoo1 {}
+
+    pub struct HasBaz1 {}
+    impl Baz<HasFoo1, ()> for HasBaz1 {}
+
+    fn main() {}
+    

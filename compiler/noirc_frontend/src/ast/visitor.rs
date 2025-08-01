@@ -1,4 +1,3 @@
-use acvm::FieldElement;
 use noirc_errors::{Location, Span};
 
 use crate::{
@@ -469,7 +468,7 @@ pub trait Visitor {
 
     fn visit_constant_type_expression(
         &mut self,
-        _value: FieldElement,
+        _value: SignedField,
         _suffix: Option<IntegerTypeSuffix>,
         _span: Span,
     ) {
@@ -1551,8 +1550,8 @@ impl UnresolvedTypeExpression {
                     path.accept(visitor);
                 }
             }
-            UnresolvedTypeExpression::Constant(field_element, suffix, location) => {
-                visitor.visit_constant_type_expression(*field_element, *suffix, location.span);
+            UnresolvedTypeExpression::Constant(value, suffix, location) => {
+                visitor.visit_constant_type_expression(*value, *suffix, location.span);
             }
             UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, location) => {
                 if visitor.visit_binary_type_expression(lhs, *op, rhs, location.span) {
