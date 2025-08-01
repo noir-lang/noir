@@ -251,24 +251,24 @@ impl Function {
                                 context.remove_current_instruction();
                             }
                             (Reachability::Unreachable, false) => {
-                                let index = context.dfg.get_numeric_constant(*index).unwrap();
-                                let zero =
-                                    context.dfg.make_constant(0_u128.into(), NumericType::bool());
-                                let message = Some(ConstrainError::StaticString(format!(
-                                    "Index out of bounds, index is {index}, length is {}",
-                                    length.unwrap() * element_size.unwrap()
-                                )));
-                                let instruction = Instruction::Constrain(zero, one, message);
-                                let call_stack = context
-                                    .dfg
-                                    .get_instruction_call_stack_id(context.instruction_id);
+                                // let index = context.dfg.get_numeric_constant(*index).unwrap();
+                                // let zero =
+                                //     context.dfg.make_constant(0_u128.into(), NumericType::bool());
+                                // let message = Some(ConstrainError::StaticString(format!(
+                                //     "Index out of bounds, index is {index}, length is {}",
+                                //     length.unwrap() * element_size.unwrap()
+                                // )));
+                                // let instruction = Instruction::Constrain(zero, one, message);
+                                // let call_stack = context
+                                //     .dfg
+                                //     .get_instruction_call_stack_id(context.instruction_id);
 
-                                context.dfg.insert_instruction_and_results(
-                                    instruction,
-                                    block_id,
-                                    None,
-                                    call_stack,
-                                );
+                                // context.dfg.insert_instruction_and_results(
+                                //     instruction,
+                                //     block_id,
+                                //     None,
+                                //     call_stack,
+                                // );
                                 // Remove the old failing array access in favor of the constrain
                                 context.remove_current_instruction();
                             }
