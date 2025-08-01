@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1754073199966,
+  "lastUpdate": 1754077884369,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -10956,48 +10956,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "d2a51b685ace63a2251d3e0edfc5cda1f034dbef",
-          "message": "feat: add better handling for follow-on optimizations in `simplify_cfg` (#9276)",
-          "timestamp": "2025-07-23T12:18:46Z",
-          "tree_id": "5629b3728958187f59a2cb89517bf9378ecd42d4",
-          "url": "https://github.com/noir-lang/noir/commit/d2a51b685ace63a2251d3e0edfc5cda1f034dbef"
-        },
-        "date": 1753275484609,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 248720,
-            "range": "± 479",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 218678,
-            "range": "± 3906",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2779148,
-            "range": "± 1982",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jfecher11@gmail.com",
             "name": "jfecher",
             "username": "jfecher"
@@ -13049,6 +13007,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2788048,
             "range": "± 1468",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "639d8021753a3ec68002d23b49d6e2c1bd7730b4",
+          "message": "fix: forbid self-referencing type aliases (#9103)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-08-01T19:24:11Z",
+          "tree_id": "09f14cba74e1cd9b95e23fe00fc868acd2b3c75a",
+          "url": "https://github.com/noir-lang/noir/commit/639d8021753a3ec68002d23b49d6e2c1bd7730b4"
+        },
+        "date": 1754077867603,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 256433,
+            "range": "± 1147",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 231059,
+            "range": "± 2388",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2811408,
+            "range": "± 2003",
             "unit": "ns/iter"
           }
         ]
