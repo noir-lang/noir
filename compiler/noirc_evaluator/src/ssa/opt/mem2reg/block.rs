@@ -93,9 +93,8 @@ impl Block {
         let aliases = self.aliases.entry(expression.clone()).or_default();
 
         if aliases.is_unknown() {
-            // uh-oh, we don't know at all what this reference refers to, could be anything.
-            // Now we have to invalidate every reference we know of
-            self.invalidate_all_references();
+            assert!(self.references.is_empty());
+            assert!(self.last_stores.is_empty());
         } else if let Some(alias) = aliases.single_alias() {
             self.references.insert(alias, value);
         } else {
@@ -107,11 +106,6 @@ impl Block {
                 }
             });
         }
-    }
-
-    fn invalidate_all_references(&mut self) {
-        self.references.clear();
-        self.last_stores.clear();
     }
 
     pub(super) fn unify(mut self, other: &Self) -> Self {
