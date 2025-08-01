@@ -178,9 +178,7 @@ impl Function {
                     }
                 }
                 Instruction::ArrayGet { array, index, offset }
-                | Instruction::ArraySet { array, index, offset, .. }
-                    if context.dfg.runtime().is_acir() =>
-                {
+                | Instruction::ArraySet { array, index, offset, .. } => {
                     let array_or_slice_type = context.dfg.type_of_value(*array);
                     let array_op_always_fails = match &array_or_slice_type {
                         Type::Slice(_) => false,
@@ -204,48 +202,76 @@ impl Function {
                                 None => false, // The predicate is a variable
                             };
                         current_block_reachability = if is_predicate_constant_one {
-                            // If we have an array that contains references we no longer need to bother with resolution of those references.
-                            // However, we want a trap to still be triggered by an OOB array access.
-                            // Thus, we can replace our array with dummy numerics to avoid unnecessary allocations
-                            // making there way further down the compilation pipeline (e.g. ACIR where references are not supported).
-                            let (old_instruction, old_array, trap_array) = match array_or_slice_type
-                            {
-                                Type::Array(_, len) => {
-                                    let dummy_array_typ = Type::Array(
-                                        Arc::new(vec![Type::Numeric(NumericType::unsigned(1))]),
-                                        len,
-                                    );
-                                    (
-                                        instruction.clone(),
-                                        *array,
-                                        zeroed_value(
-                                            context.dfg,
-                                            func_id,
-                                            block_id,
-                                            &dummy_array_typ,
-                                        ),
-                                    )
-                                }
-                                _ => unreachable!("Expected an array type"),
-                            };
-                            let new_instruction = old_instruction.map_values(|value| {
-                                if value == old_array { trap_array } else { value }
-                            });
-                            let stack =
-                                context.dfg.get_instruction_call_stack_id(context.instruction_id);
-                            context.dfg.insert_instruction_and_results(
-                                new_instruction,
-                                block_id,
-                                Some(vec![Type::Numeric(NumericType::unsigned(1))]),
-                                stack,
-                            );
-                            // Remove the old failing array access in favor of the dummy one
-                            context.remove_current_instruction();
-
                             Reachability::Unreachable
                         } else {
                             Reachability::UnreachableUnderPredicate
                         };
+
+                        match (&current_block_reachability, context.dfg.runtime().is_acir()) {
+                            (Reachability::Unreachable, true) => {
+                                // If we have an array that contains references we no longer need to bother with resolution of those references.
+                                // However, we want a trap to still be triggered by an OOB array access.
+                                // Thus, we can replace our array with dummy numerics to avoid unnecessary allocations
+                                // making there way further down the compilation pipeline (e.g. ACIR where references are not supported).
+                                let (old_instruction, old_array, trap_array) =
+                                    match array_or_slice_type {
+                                        Type::Array(_, len) => {
+                                            let dummy_array_typ = Type::Array(
+                                                Arc::new(vec![Type::Numeric(
+                                                    NumericType::unsigned(1),
+                                                )]),
+                                                len,
+                                            );
+                                            (
+                                                instruction.clone(),
+                                                *array,
+                                                zeroed_value(
+                                                    context.dfg,
+                                                    func_id,
+                                                    block_id,
+                                                    &dummy_array_typ,
+                                                ),
+                                            )
+                                        }
+                                        _ => unreachable!("Expected an array type"),
+                                    };
+                                let new_instruction = old_instruction.map_values(|value| {
+                                    if value == old_array { trap_array } else { value }
+                                });
+                                let stack = context
+                                    .dfg
+                                    .get_instruction_call_stack_id(context.instruction_id);
+                                context.dfg.insert_instruction_and_results(
+                                    new_instruction,
+                                    block_id,
+                                    Some(vec![Type::Numeric(NumericType::unsigned(1))]),
+                                    stack,
+                                );
+                                // Remove the old failing array access in favor of the dummy one
+                                context.remove_current_instruction();
+                            }
+                            (Reachability::Unreachable, false) => {
+                                let zero =
+                                    context.dfg.make_constant(0_u128.into(), NumericType::bool());
+                                let message = Some(ConstrainError::StaticString(
+                                    "Index out of bounds".to_owned(),
+                                ));
+                                let instruction = Instruction::Constrain(zero, one, message);
+                                let call_stack = context
+                                    .dfg
+                                    .get_instruction_call_stack_id(context.instruction_id);
+
+                                context.dfg.insert_instruction_and_results(
+                                    instruction,
+                                    block_id,
+                                    None,
+                                    call_stack,
+                                );
+                                // Remove the old failing array access in favor of the dummy one
+                                context.remove_current_instruction();
+                            }
+                            _ => (),
+                        }
                     }
                 }
                 _ => (),
