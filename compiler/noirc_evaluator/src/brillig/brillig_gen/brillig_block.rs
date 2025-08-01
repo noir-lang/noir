@@ -918,47 +918,21 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
             }
             Instruction::IncrementRc { value } => {
                 let array_or_vector = self.convert_ssa_value(*value, dfg);
-                let rc_register = self.brillig_context.allocate_register();
-
-                // RC is always directly pointed by the array/vector pointer
-                self.brillig_context
-                    .load_instruction(rc_register, array_or_vector.extract_register());
-
-                // Ensure we're not incrementing from 0 back to 1
-                if self.brillig_context.enable_debug_assertions() {
-                    self.assert_rc_neq_zero(rc_register);
-                }
-
-                self.brillig_context.codegen_usize_op_in_place(
-                    rc_register,
-                    BrilligBinaryOp::Add,
-                    1,
+                let array_type = dfg.type_of_value(*value);
+                self.brillig_context.increment_rc(
+                    &array_type,
+                    array_or_vector.extract_register(),
+                    true,
                 );
-                self.brillig_context
-                    .store_instruction(array_or_vector.extract_register(), rc_register);
-                self.brillig_context.deallocate_register(rc_register);
             }
             Instruction::DecrementRc { value } => {
                 let array_or_vector = self.convert_ssa_value(*value, dfg);
-                let array_register = array_or_vector.extract_register();
-
-                let rc_register = self.brillig_context.allocate_register();
-                self.brillig_context.load_instruction(rc_register, array_register);
-
-                // Check that the refcount isn't already 0 before we decrement. If we allow it to underflow
-                // and become usize::MAX, and then return to 1, then it will indicate
-                // an array as mutable when it probably shouldn't be.
-                if self.brillig_context.enable_debug_assertions() {
-                    self.assert_rc_neq_zero(rc_register);
-                }
-
-                self.brillig_context.codegen_usize_op_in_place(
-                    rc_register,
-                    BrilligBinaryOp::Sub,
-                    1,
+                let array_type = dfg.type_of_value(*value);
+                self.brillig_context.increment_rc(
+                    &array_type,
+                    array_or_vector.extract_register(),
+                    false,
                 );
-                self.brillig_context.store_instruction(array_register, rc_register);
-                self.brillig_context.deallocate_register(rc_register);
             }
             Instruction::EnableSideEffectsIf { .. } => {
                 unreachable!("enable_side_effects not supported by brillig")
@@ -1081,30 +1055,6 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
             }
         }
         self.brillig_context.set_call_stack(CallStackId::root());
-    }
-
-    /// Debug utility method to determine whether an array's reference count (RC) is zero.
-    /// If RC's have drifted down to zero it means the RC increment/decrement instructions
-    /// have been written incorrectly.
-    ///
-    /// Should only be called if [BrilligContext::enable_debug_assertions] returns true.
-    fn assert_rc_neq_zero(&mut self, rc_register: MemoryAddress) {
-        let zero = SingleAddrVariable::new(self.brillig_context.allocate_register(), 32);
-
-        self.brillig_context.const_instruction(zero, FieldElement::zero());
-
-        let condition = SingleAddrVariable::new(self.brillig_context.allocate_register(), 1);
-
-        self.brillig_context.memory_op_instruction(
-            zero.address,
-            rc_register,
-            condition.address,
-            BrilligBinaryOp::Equals,
-        );
-        self.brillig_context.not_instruction(condition, condition);
-        self.brillig_context
-            .codegen_constrain(condition, Some("array ref-count underflow detected".to_owned()));
-        self.brillig_context.deallocate_single_addr(condition);
     }
 
     /// Internal method to codegen an [Instruction::Call] to a [Value::Function]

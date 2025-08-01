@@ -30,6 +30,8 @@ pub(crate) use instructions::BrilligBinaryOp;
 use noirc_errors::call_stack::CallStackId;
 use registers::{RegisterAllocator, ScratchSpace};
 
+use crate::ssa::ir::types::Type;
+
 use self::{artifact::BrilligArtifact, debug_show::DebugToString, registers::Stack};
 use acvm::{
     AcirField,
@@ -236,6 +238,107 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         self.deallocate_single_addr(right_is_negative);
         self.deallocate_single_addr(right_abs_value);
         self.deallocate_single_addr(result_is_negative);
+    }
+
+    /// Debug utility method to determine whether an array's reference count (RC) is zero.
+    /// If RC's have drifted down to zero it means the RC increment/decrement instructions
+    /// have been written incorrectly.
+    ///
+    /// Should only be called if [BrilligContext::enable_debug_assertions] returns true.
+    pub(crate) fn assert_rc_neq_zero(&mut self, rc_register: MemoryAddress) {
+        let zero = SingleAddrVariable::new(self.allocate_register(), 32);
+
+        self.const_instruction(zero, F::zero());
+
+        let condition = SingleAddrVariable::new(self.allocate_register(), 1);
+
+        self.memory_op_instruction(
+            zero.address,
+            rc_register,
+            condition.address,
+            BrilligBinaryOp::Equals,
+        );
+        self.not_instruction(condition, condition);
+        self.codegen_constrain(condition, Some("array ref-count underflow detected".to_owned()));
+        self.deallocate_single_addr(condition);
+    }
+
+    /// Modify the reference counter of array and slices, recursively for nested array
+    /// THe increment boolean input is true for incrementing the ref count, and false for decrementing
+    pub(crate) fn increment_rc(&mut self, typ: &Type, pointer: MemoryAddress, increment: bool) {
+        match typ {
+            Type::Reference(_) => unreachable!(),
+            Type::Array(items, len) => {
+                let register = self.allocate_register();
+                // Load the ref count: RC is always directly pointed by the array/vector pointer
+                self.load_instruction(register, pointer);
+
+                // Ensure we're not incrementing from 0 back to 1, or decrementing 0
+                if self.enable_debug_assertions() {
+                    self.assert_rc_neq_zero(register);
+                }
+                if increment {
+                    self.codegen_usize_op_in_place(register, BrilligBinaryOp::Add, 1);
+                } else {
+                    self.codegen_usize_op_in_place(register, BrilligBinaryOp::Sub, 1);
+                }
+
+                self.store_instruction(pointer, register);
+
+                // Increment array pointer for processing array elements
+                let iterator = self.allocate_register();
+                self.mov_instruction(iterator, pointer);
+                self.codegen_usize_op_in_place(iterator, BrilligBinaryOp::Add, 1);
+
+                //Increment ref count recursively for each array element
+                for _ in 0..*len as usize {
+                    for item in items.as_slice() {
+                        self.load_instruction(register, iterator);
+                        self.increment_rc(item, register, increment);
+
+                        self.codegen_usize_op_in_place(iterator, BrilligBinaryOp::Add, 1);
+                    }
+                }
+                self.deallocate_register(register);
+            }
+            Type::Slice(items) => {
+                let register = self.allocate_register();
+                // Load the ref count: RC is always directly pointed by the array/vector pointer
+                self.load_instruction(register, pointer);
+
+                // Ensure we're not incrementing from 0 back to 1, or decrementing 0
+                if self.enable_debug_assertions() {
+                    self.assert_rc_neq_zero(register);
+                }
+
+                if increment {
+                    self.codegen_usize_op_in_place(register, BrilligBinaryOp::Add, 1);
+                } else {
+                    self.codegen_usize_op_in_place(register, BrilligBinaryOp::Sub, 1);
+                }
+                self.store_instruction(pointer, register);
+                self.deallocate_register(register);
+                // Increment array pointer for processing array elements
+                let iterator = self.allocate_register();
+                self.mov_instruction(iterator, pointer);
+                self.codegen_usize_op_in_place(iterator, BrilligBinaryOp::Add, 1);
+                let slice_len = self.allocate_register();
+                self.load_instruction(slice_len, iterator);
+                self.codegen_usize_op_in_place(iterator, BrilligBinaryOp::Add, 2); // Length and capacity
+
+                let inner_pointer = self.allocate_register();
+                let body = |ctx: &mut BrilligContext<F, Registers>, _: SingleAddrVariable| {
+                    for item in items.as_slice() {
+                        ctx.load_instruction(inner_pointer, iterator);
+                        ctx.increment_rc(item, inner_pointer, increment);
+                        ctx.codegen_usize_op_in_place(iterator, BrilligBinaryOp::Add, 1);
+                    }
+                };
+                self.deallocate_register(inner_pointer);
+                self.codegen_for_loop(None, slice_len, None, body);
+            }
+            _ => (), //not an array; nothing to do
+        }
     }
 }
 
