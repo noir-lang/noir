@@ -1668,7 +1668,7 @@ mod test {
             v3 = cast v2 as u32
             v4 = truncate v3 to 1 bits, max_bit_size: 32
             v5 = cast v4 as u1
-            v6 = allocate -> &mut Field
+            v6 = allocate -> &mut u8
             store u8 0 at v6
             jmpif v5 then: b2, else: b1
           b2():
@@ -1712,7 +1712,7 @@ mod test {
             v3 = cast v2 as u32
             v4 = truncate v3 to 1 bits, max_bit_size: 32
             v5 = cast v4 as u1
-            v6 = allocate -> &mut Field
+            v6 = allocate -> &mut u8
             store u8 0 at v6
             enable_side_effects v5
             v8 = cast v2 as Field
@@ -1841,7 +1841,7 @@ mod test {
         let src = "
         acir(inline) fn main f0 {
           b0(v0: bool):
-            v1 = allocate -> &mut [Field; 1]
+            v1 = allocate -> &mut Field
             store Field 0 at v1
             jmpif v0 then: b1, else: b2
           b1():
@@ -1860,7 +1860,7 @@ mod test {
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: u1):
-            v1 = allocate -> &mut [Field; 1]
+            v1 = allocate -> &mut Field
             enable_side_effects v0
             v2 = not v0
             v3 = cast v0 as Field
