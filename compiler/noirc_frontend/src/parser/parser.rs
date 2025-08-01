@@ -479,6 +479,16 @@ impl<'a> Parser<'a> {
         self.at(Token::Keyword(keyword))
     }
 
+    fn at_whitespace(&self) -> bool {
+        matches!(self.token.token(), Token::Whitespace(_))
+    }
+
+    fn set_lexer_skip_whitespaces_flag(&mut self, flag: bool) {
+        if let TokenStream::Lexer(lexer) = &mut self.tokens {
+            lexer.set_skip_whitespaces_flag(flag);
+        };
+    }
+
     fn next_is(&self, token: Token) -> bool {
         self.next_token.token() == &token
     }
