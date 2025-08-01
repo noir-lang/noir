@@ -764,4 +764,47 @@ mod tests {
             None => panic!("Program failed to execute"),
         }
     }
+
+    #[test]
+    fn saving_program_and_witness() {
+        let arg_0_field = Argument { index: 0, value_type: ValueType::Field };
+        let arg_1_field = Argument { index: 1, value_type: ValueType::Field };
+        let add_block = InstructionBlock {
+            instructions: vec![Instruction::AddChecked { lhs: arg_0_field, rhs: arg_1_field }],
+        };
+        let main_func = FunctionData {
+            commands: vec![],
+            return_instruction_block_idx: 0,
+            return_type: ValueType::Field,
+        };
+        let data = FuzzerData {
+            instruction_blocks: vec![add_block],
+            functions: vec![main_func],
+            initial_witness: default_witness(),
+        };
+        let result = fuzz_target(data, FuzzerOptions::default()).unwrap();
+        let serialized_witness_map = result.witness_map.serialize().unwrap();
+        use serde_json;
+        let serialized_program = serde_json::to_string(&result.program).unwrap();
+        // Move "program" key to "bytecode" in the serialized JSON
+        let mut program_json: serde_json::Value =
+            serde_json::from_str(&serialized_program).unwrap();
+        if let Some(program_value) = program_json.get("program").cloned() {
+            program_json.as_object_mut().unwrap().remove("program");
+            program_json.as_object_mut().unwrap().insert("bytecode".to_string(), program_value);
+        }
+        let serialized_program = serde_json::to_string(&program_json).unwrap();
+        use std::fs::File;
+        use std::io::Write;
+
+        // Save the serialized witness map to a file
+        let mut witness_file =
+            File::create("target/noir.gz").expect("Failed to create witness_map.gz");
+        witness_file.write_all(&serialized_witness_map).expect("Failed to write witness map");
+
+        // Save the serialized program to a file
+        let mut program_file =
+            File::create("target/noir.json").expect("Failed to create program.json");
+        program_file.write_all(serialized_program.as_bytes()).expect("Failed to write program");
+    }
 }

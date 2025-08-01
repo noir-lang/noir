@@ -8,7 +8,7 @@ pub mod runner;
 use crate::compiler::compile_from_ssa;
 use crate::runner::{SsaExecutionError, execute_single};
 use acvm::FieldElement;
-use acvm::acir::native_types::WitnessMap;
+use acvm::acir::native_types::{WitnessMap, WitnessStack};
 use noirc_driver::CompileOptions;
 use noirc_evaluator::ssa::ssa_gen::{Ssa, validate_ssa};
 
@@ -16,7 +16,7 @@ pub fn execute_ssa(
     ssa: String,
     initial_witness: WitnessMap<FieldElement>,
     compile_options: CompileOptions,
-) -> Result<WitnessMap<FieldElement>, SsaExecutionError> {
+) -> Result<WitnessStack<FieldElement>, SsaExecutionError> {
     let ssa = Ssa::from_str(&ssa);
     match ssa {
         Ok(ssa) => {
@@ -54,7 +54,7 @@ mod tests {
         witness_map.insert(Witness(1), FieldElement::from(2_u32));
         let result = execute_ssa(ssa.to_string(), witness_map, CompileOptions::default());
         // 1 + 2 == 3
-        assert_eq!(result.unwrap()[&Witness(2)], FieldElement::from(3_u32));
+        assert_eq!(result.unwrap().peek().unwrap().witness[&Witness(2)], FieldElement::from(3_u32));
     }
 
     #[test]
@@ -70,7 +70,10 @@ mod tests {
         witness_map.insert(Witness(1), FieldElement::from(10_u32));
         let result = execute_ssa(ssa.to_string(), witness_map, CompileOptions::default());
         // 20 * 10 == 200
-        assert_eq!(result.unwrap()[&Witness(2)], FieldElement::from(200_u32));
+        assert_eq!(
+            result.unwrap().peek().unwrap().witness[&Witness(2)],
+            FieldElement::from(200_u32)
+        );
     }
 
     #[test]

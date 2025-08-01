@@ -2,18 +2,18 @@ use acvm::{
     FieldElement,
     acir::{
         circuit::Program,
-        native_types::{Witness, WitnessMap},
+        native_types::{Witness, WitnessMap, WitnessStack},
     },
 };
 use noir_ssa_executor::runner::execute_single;
 
 #[derive(Debug)]
 pub enum CompareResults {
-    Agree(WitnessMap<FieldElement>),
-    Disagree(WitnessMap<FieldElement>, WitnessMap<FieldElement>),
+    Agree(WitnessStack<FieldElement>),
+    Disagree(WitnessStack<FieldElement>, WitnessStack<FieldElement>),
     BothFailed(String, String),
-    AcirFailed(String, WitnessMap<FieldElement>),
-    BrilligFailed(String, WitnessMap<FieldElement>),
+    AcirFailed(String, WitnessStack<FieldElement>),
+    BrilligFailed(String, WitnessStack<FieldElement>),
 }
 
 /// High level function to execute the given ACIR and Brillig programs with the given initial witness
@@ -41,8 +41,10 @@ pub fn run_and_compare(
     match (acir_result, brillig_result) {
         (Ok(acir_witness), Ok(brillig_witness)) => {
             // we assume that if execution for both modes succeeds both programs returned something
-            let acir_result = acir_witness[return_witness_acir.unwrap()];
-            let brillig_result = brillig_witness[return_witness_brillig.unwrap()];
+            let acir_witness_map = acir_witness.peek().unwrap().witness.clone();
+            let brillig_witness_map = brillig_witness.peek().unwrap().witness.clone();
+            let acir_result = acir_witness_map[return_witness_acir.unwrap()];
+            let brillig_result = brillig_witness_map[return_witness_brillig.unwrap()];
             if acir_result == brillig_result {
                 CompareResults::Agree(acir_witness)
             } else {

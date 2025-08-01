@@ -19,7 +19,7 @@ use super::options::{FunctionContextOptions, FuzzerOptions};
 use super::program_context::FuzzerProgramContext;
 use super::{NUMBER_OF_PREDEFINED_VARIABLES, NUMBER_OF_VARIABLES_INITIAL};
 use acvm::FieldElement;
-use acvm::acir::native_types::WitnessMap;
+use acvm::acir::native_types::{WitnessMap, WitnessStack};
 use libfuzzer_sys::{arbitrary, arbitrary::Arbitrary};
 use noir_ssa_executor::runner::execute_single;
 use noir_ssa_fuzzer::runner::{CompareResults, run_and_compare};
@@ -53,14 +53,14 @@ pub(crate) struct Fuzzer {
 }
 
 pub(crate) struct FuzzerOutput {
-    pub(crate) witness_map: WitnessMap<FieldElement>,
+    pub(crate) witness_map: WitnessStack<FieldElement>,
     pub(crate) program: CompiledProgram,
 }
 
 impl FuzzerOutput {
     pub(crate) fn get_return_value(&self) -> FieldElement {
         let return_witness = self.program.program.functions[0].return_values.0.first().unwrap();
-        self.witness_map[return_witness]
+        self.witness_map.peek().unwrap().witness[return_witness]
     }
 }
 
@@ -185,7 +185,8 @@ impl Fuzzer {
                             "ACIR compiled and successfully executed, \
                             but brillig compilation failed. Execution result of \
                             acir only {:?}. Brillig compilation failed with: {:?}",
-                            acir_result[acir_return_witness], brillig_error
+                            acir_result.peek().unwrap().witness[acir_return_witness],
+                            brillig_error
                         );
                     }
                     Err(acir_error) => {
@@ -205,7 +206,8 @@ impl Fuzzer {
                             "Brillig compiled and successfully executed, \
                             but ACIR compilation failed. Execution result of \
                             brillig only {:?}. ACIR compilation failed with: {:?}",
-                            brillig_result[brillig_return_witness], acir_error
+                            brillig_result.peek().unwrap().witness[brillig_return_witness],
+                            acir_error
                         );
                     }
                     Err(brillig_error) => {
