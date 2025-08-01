@@ -175,10 +175,12 @@ impl Function {
                 }
                 Instruction::ArrayGet { array, index, offset }
                 | Instruction::ArraySet { array, index, offset, .. } => {
+                    let mut length = None;
                     let array_or_slice_type = context.dfg.type_of_value(*array);
                     let array_op_always_fails = match &array_or_slice_type {
                         Type::Slice(_) => false,
                         array_type @ Type::Array(_, len) => {
+                            length = Some(*len);
                             *len == 0
                                 || context.dfg.get_numeric_constant(*index).is_some_and(|index| {
                                     (index.try_to_u32().unwrap() - offset.to_u32())
@@ -248,23 +250,24 @@ impl Function {
                             }
                             (Reachability::Unreachable, false) => {
                                 dbg!(instruction.clone());
-                                // let zero =
-                                //     context.dfg.make_constant(0_u128.into(), NumericType::bool());
-                                // let message = Some(ConstrainError::StaticString(
-                                //     "Index out of bounds".to_owned(),
-                                // ));
-                                // let instruction = Instruction::Constrain(zero, one, message);
-                                // let call_stack = context
-                                //     .dfg
-                                //     .get_instruction_call_stack_id(context.instruction_id);
+                                let index = context.dfg.get_numeric_constant(*index).unwrap();
+                                let zero =
+                                    context.dfg.make_constant(0_u128.into(), NumericType::bool());
+                                let message = Some(ConstrainError::StaticString(
+                                    format!("Index out of bounds, index is {index}, length is {}", length.unwrap()),
+                                ));
+                                let instruction = Instruction::Constrain(zero, one, message);
+                                let call_stack = context
+                                    .dfg
+                                    .get_instruction_call_stack_id(context.instruction_id);
 
-                                // context.dfg.insert_instruction_and_results(
-                                //     instruction,
-                                //     block_id,
-                                //     None,
-                                //     call_stack,
-                                // );
-                                // Remove the old failing array access. We expect a preceding array OOB check in a well formed SSA.
+                                context.dfg.insert_instruction_and_results(
+                                    instruction,
+                                    block_id,
+                                    None,
+                                    call_stack,
+                                );
+                                // Remove the old failing array access in favor of the constrain
                                 context.remove_current_instruction();
                             }
                             _ => (),
