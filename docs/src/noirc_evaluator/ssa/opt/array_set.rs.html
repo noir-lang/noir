@@ -540,9 +540,9 @@
               b0():
                 v2 = make_array [Field 0, Field 0, Field 0, Field 0, Field 0] : [Field; 5]
                 v3 = make_array [v2, v2] : [[Field; 5]; 2]
-                v4 = allocate -&gt; &amp;mut [Field; 5]
+                v4 = allocate -&gt; &amp;mut [[Field; 5]; 2]
                 store v3 at v4
-                v5 = allocate -&gt; &amp;mut [Field; 5]
+                v5 = allocate -&gt; &amp;mut [[Field; 5]; 2]
                 store v3 at v5
                 jmp b1(u32 0)
               b1(v0: u32):
