@@ -912,7 +912,7 @@ mod tests {
           b0():
             v0 = allocate -> &mut Field
             store Field 0 at v0
-            v2 = allocate -> &mut Field
+            v2 = allocate -> &mut &mut Field
             store v0 at v2
             jmp b1(Field 0)
           b1(v3: Field):
@@ -1287,16 +1287,16 @@ mod tests {
     fn keep_last_store_in_make_array_returned_from_function_separate_blocks() {
         let src = "
         brillig(inline) fn main f0 {
-          b0(v0: u1):
-            v1 = call f1(v0) -> [&mut u1; 1]
-            v3 = array_get v1, index u32 0 -> &mut u1
+          b0(v0: u32):
+            v1 = call f1(v0) -> [&mut u32; 1]
+            v3 = array_get v1, index u32 0 -> &mut u32
             store u32 1 at v3
             v5 = load v3 -> u1
             return v5
         }
         brillig(inline_always) fn foo f1 {
-          b0(v0: u1):
-            v1 = allocate -> &mut u1
+          b0(v0: u32):
+            v1 = allocate -> &mut u32
             store v0 at v1
             v2 = allocate -> &mut u32
             store u32 0 at v2
@@ -1313,7 +1313,7 @@ mod tests {
             store v8 at v2
             jmp b5()
           b4():
-            v9 = make_array [v1] : [&mut u1; 1]
+            v9 = make_array [v1] : [&mut u32; 1]
             return v9
           b5():
             jmp b1()
