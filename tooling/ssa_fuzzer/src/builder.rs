@@ -231,9 +231,6 @@ impl FuzzerBuilder {
     /// Inserts a left shift instruction between two values
     /// The right hand side is cast to 8 bits
     pub fn insert_shl_instruction(&mut self, lhs: TypedValue, rhs: TypedValue) -> TypedValue {
-        // rhs must be 8bit, otherwise compiler will throw panic...
-        // TODO(sn): make something smarter than forcing rhs to be u8 and casting to u64 on field
-        let rhs = self.insert_cast(rhs, ValueType::U8);
         if !lhs.supports_shift() {
             return lhs;
         }
@@ -244,8 +241,6 @@ impl FuzzerBuilder {
     /// Inserts a right shift instruction between two values
     /// The right hand side is cast to 8 bits
     pub fn insert_shr_instruction(&mut self, lhs: TypedValue, rhs: TypedValue) -> TypedValue {
-        // TODO(sn): make something smarter than forcing rhs to be u8 and casting to u64 on field
-        let rhs = self.insert_cast(rhs, ValueType::U8);
         if !lhs.supports_shift() {
             return lhs;
         }
