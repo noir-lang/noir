@@ -14,7 +14,7 @@ use crate::ast::{
     Documented, Expression, FunctionDefinition, Ident, ItemVisibility, LetStatement,
     ModuleDeclaration, NoirEnumeration, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl,
     NoirTypeAlias, Pattern, TraitImplItemKind, TraitItem, TypeImpl, UnresolvedType,
-    UnresolvedTypeData, desugar_generic_trait_bounds,
+    UnresolvedTypeData, desugar_generic_trait_bounds_and_reorder_where_clause,
 };
 use crate::elaborator::PrimitiveType;
 use crate::hir::resolution::errors::ResolverError;
@@ -177,7 +177,10 @@ impl ModCollector<'_> {
         let module_id = ModuleId { krate, local_id: self.module_id };
 
         for mut r#impl in impls {
-            desugar_generic_trait_bounds(&mut r#impl.generics, &mut r#impl.where_clause);
+            desugar_generic_trait_bounds_and_reorder_where_clause(
+                &mut r#impl.generics,
+                &mut r#impl.where_clause,
+            );
 
             collect_impl(
                 &mut context.def_interner,
@@ -201,7 +204,7 @@ impl ModCollector<'_> {
         let mut errors = Vec::new();
 
         for mut trait_impl in impls {
-            desugar_generic_trait_bounds(
+            desugar_generic_trait_bounds_and_reorder_where_clause(
                 &mut trait_impl.impl_generics,
                 &mut trait_impl.where_clause,
             );
@@ -298,7 +301,7 @@ impl ModCollector<'_> {
             // With this method we iterate each function in the Crate and not each module
             // This may not be great because we have to pull the module_data for each function
             let mut noir_function = function.item;
-            desugar_generic_trait_bounds(
+            desugar_generic_trait_bounds_and_reorder_where_clause(
                 &mut noir_function.def.generics,
                 &mut noir_function.def.where_clause,
             );
@@ -382,6 +385,7 @@ impl ModCollector<'_> {
             // And store the TypeId -> TypeAlias mapping somewhere it is reachable
             let unresolved = UnresolvedTypeAlias {
                 file_id: self.file_id,
+                crate_id: krate,
                 module_id: self.module_id,
                 type_alias_def: type_alias,
             };
@@ -424,15 +428,8 @@ impl ModCollector<'_> {
             self.def_collector.items.type_aliases.insert(type_alias_id, unresolved);
 
             if context.def_interner.is_in_lsp_mode() {
-                let parent_module_id = ModuleId { krate, local_id: self.module_id };
                 let name = name.to_string();
-                context.def_interner.register_type_alias(
-                    type_alias_id,
-                    name,
-                    location,
-                    visibility,
-                    parent_module_id,
-                );
+                context.def_interner.register_type_alias(type_alias_id, name, location, visibility);
             }
         }
         errors
@@ -454,6 +451,11 @@ impl ModCollector<'_> {
             let location = trait_definition.location;
             let has_allow_dead_code =
                 trait_definition.attributes.iter().any(|attr| attr.kind.is_allow("dead_code"));
+
+            desugar_generic_trait_bounds_and_reorder_where_clause(
+                &mut trait_definition.generics,
+                &mut trait_definition.where_clause,
+            );
 
             // Create the corresponding module for the trait namespace
             let trait_id = match self.push_child_module(
@@ -517,7 +519,7 @@ impl ModCollector<'_> {
 
             for item in &mut trait_definition.items {
                 if let TraitItem::Function { generics, where_clause, .. } = &mut item.item {
-                    desugar_generic_trait_bounds(generics, where_clause);
+                    desugar_generic_trait_bounds_and_reorder_where_clause(generics, where_clause);
                 }
             }
 
@@ -556,10 +558,7 @@ impl ModCollector<'_> {
                             .push_function_definition(func_id, modifiers, trait_id.0, location);
 
                         let referenced = ReferenceId::Function(func_id);
-                        let module_id = Some(trait_id.0);
-                        context
-                            .def_interner
-                            .add_definition_location(referenced, location, module_id);
+                        context.def_interner.add_definition_location(referenced, location);
 
                         if !trait_item.doc_comments.is_empty() {
                             context.def_interner.set_doc_comments(
@@ -698,13 +697,11 @@ impl ModCollector<'_> {
             );
 
             if context.def_interner.is_in_lsp_mode() {
-                let parent_module_id = ModuleId { krate, local_id: self.module_id };
                 context.def_interner.register_trait(
                     trait_id,
                     name.to_string(),
                     location,
                     visibility,
-                    parent_module_id,
                 );
             }
 
@@ -1000,14 +997,7 @@ fn push_child_module(
         );
 
         if interner.is_in_lsp_mode() {
-            let parent_module_id = ModuleId { krate: def_map.krate(), local_id: parent };
-            interner.register_module(
-                mod_id,
-                location,
-                visibility,
-                mod_name.to_string(),
-                parent_module_id,
-            );
+            interner.register_module(mod_id, location, visibility, mod_name.to_string());
         }
     }
 
@@ -1201,7 +1191,7 @@ pub fn collect_struct(
     }
 
     if interner.is_in_lsp_mode() {
-        interner.register_type(id, name.to_string(), location, visibility, parent_module_id);
+        interner.register_type(id, name.to_string(), location, visibility);
     }
 
     Some((id, unresolved))
@@ -1305,7 +1295,7 @@ pub fn collect_enum(
     }
 
     if interner.is_in_lsp_mode() {
-        interner.register_type(id, name.to_string(), location, visibility, parent_module_id);
+        interner.register_type(id, name.to_string(), location, visibility);
     }
 
     Some((id, unresolved))
@@ -1342,7 +1332,11 @@ pub fn collect_impl(
 
         let func_id = interner.push_empty_fn();
         method.def.where_clause.extend(r#impl.where_clause.clone());
-        desugar_generic_trait_bounds(&mut method.def.generics, &mut method.def.where_clause);
+        desugar_generic_trait_bounds_and_reorder_where_clause(
+            &mut method.def.generics,
+            &mut method.def.where_clause,
+        );
+
         let location = method.location();
         interner.push_function(func_id, &method.def, module_id, location);
         unresolved_functions.push_fn(module_id.local_id, func_id, method);
@@ -1467,7 +1461,7 @@ pub(crate) fn collect_trait_impl_items(
                 let location = impl_method.location();
                 interner.push_function(func_id, &impl_method.def, module, location);
                 interner.set_doc_comments(ReferenceId::Function(func_id), item.doc_comments);
-                desugar_generic_trait_bounds(
+                desugar_generic_trait_bounds_and_reorder_where_clause(
                     &mut impl_method.def.generics,
                     &mut impl_method.def.where_clause,
                 );

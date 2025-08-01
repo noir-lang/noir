@@ -19,14 +19,18 @@ use crate::ssa::{
 };
 
 impl Ssa {
-    /// This pass removes `inc_rc` and `dec_rc` instructions
-    /// as long as there are no `array_set` instructions to an array
-    /// of the same type in between.
+    /// Replaces all `Instruction::IfElse` instructions with the result of a
+    /// value merger of the then and else values. The specifics of the value merger
+    /// depends on the type but is expected to be an equivalent value to the IfElse.
+    /// For example, on integers, the merger will be:
+    /// `then_condition * then_value + !then_condition * else_value`
+    /// which should zero out the branch that was not taken.
     ///
-    /// Note that this pass is very conservative since the array_set
-    /// instruction does not need to be to the same array. This is because
-    /// the given array may alias another array (e.g. function parameters or
-    /// a `load`ed array from a reference).
+    /// In general this is not possible for all types - notably references - which is
+    /// why the Noir frontend does not allow references to be returned from if expressions.
+    ///
+    /// Also note that `Instruction::IfElse` are first inserted after the flattening pass,
+    /// so before then this pass will have no effect.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn remove_if_else(mut self) -> RtResult<Ssa> {
         for function in self.functions.values_mut() {

@@ -8,6 +8,7 @@ use crate::ssa::ir::{
     function::FunctionId,
     instruction::Intrinsic,
     integer::IntegerConstant,
+    is_printable_byte,
     types::{CompositeType, NumericType, Type},
     value::ValueId,
 };
@@ -434,7 +435,34 @@ impl std::fmt::Display for ArrayValue {
         let rc = self.rc.borrow();
 
         let is_slice = if self.is_slice { "&" } else { "" };
-        write!(f, "rc{rc} {is_slice}[")?;
+        write!(f, "rc{rc} {is_slice}")?;
+
+        // Check if the array could be shown as a string literal
+        if self.element_types.len() == 1
+            && matches!(self.element_types[0], Type::Numeric(NumericType::Unsigned { bit_size: 8 }))
+        {
+            let printable = self.elements.borrow().iter().all(|value| {
+                matches!(value, Value::Numeric(NumericValue::U8(byte)) if is_printable_byte(*byte))
+            });
+            if printable {
+                let bytes = self
+                    .elements
+                    .borrow()
+                    .iter()
+                    .map(|value| {
+                        let Value::Numeric(NumericValue::U8(byte)) = value else {
+                            panic!("Expected U8 value in array, found {value}");
+                        };
+                        *byte
+                    })
+                    .collect::<Vec<_>>();
+                let string = String::from_utf8(bytes).unwrap();
+                write!(f, "b{string:?}")?;
+                return Ok(());
+            }
+        }
+
+        write!(f, "[")?;
 
         let length = self.elements.borrow().len() / self.element_types.len();
         if length == 0 {

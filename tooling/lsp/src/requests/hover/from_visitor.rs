@@ -15,11 +15,10 @@ use crate::{
 };
 
 pub(super) fn hover_from_visitor(
-    file_id: Option<FileId>,
+    file_id: FileId,
     position: Position,
     args: &ProcessRequestCallbackArgs,
 ) -> Option<Hover> {
-    let file_id = file_id?;
     let file = args.files.get_file(file_id)?;
     let source = file.source();
     let (parsed_module, _errors) = parse_program(source, file_id);

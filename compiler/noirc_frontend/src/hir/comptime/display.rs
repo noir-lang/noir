@@ -386,7 +386,8 @@ impl Display for ValuePrinter<'_, '_> {
             Value::Function(..) => write!(f, "(function)"),
             Value::Closure(..) => write!(f, "(closure)"),
             Value::Tuple(fields) => {
-                let fields = vecmap(fields, |field| field.display(self.interner).to_string());
+                let fields =
+                    vecmap(fields, |field| field.borrow().display(self.interner).to_string());
                 if fields.len() == 1 {
                     write!(f, "({},)", fields[0])
                 } else {
@@ -399,7 +400,7 @@ impl Display for ValuePrinter<'_, '_> {
                     other => other.to_string(),
                 };
                 let fields = vecmap(fields, |(name, value)| {
-                    format!("{}: {}", name, value.display(self.interner))
+                    format!("{}: {}", name, value.borrow().display(self.interner))
                 });
                 write!(f, "{typename} {{ {} }}", fields.join(", "))
             }
@@ -480,7 +481,7 @@ impl Display for ValuePrinter<'_, '_> {
                 write!(f, "{}", self.interner.function_name(function_id))
             }
             Value::ModuleDefinition(module_id) => {
-                if let Some(attributes) = self.interner.try_module_attributes(module_id) {
+                if let Some(attributes) = self.interner.try_module_attributes(*module_id) {
                     write!(f, "{}", &attributes.name)
                 } else {
                     write!(f, "(crate root)")
@@ -837,7 +838,7 @@ fn remove_interned_in_statement_kind(
 // Returns a new LValue where all Interned LValues have been turned into LValue.
 fn remove_interned_in_lvalue(interner: &NodeInterner, lvalue: LValue) -> LValue {
     match lvalue {
-        LValue::Ident(_) => lvalue,
+        LValue::Path(_) => lvalue,
         LValue::MemberAccess { object, field_name, location: span } => LValue::MemberAccess {
             object: Box::new(remove_interned_in_lvalue(interner, *object)),
             field_name,

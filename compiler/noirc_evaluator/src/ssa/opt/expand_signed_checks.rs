@@ -95,6 +95,7 @@ impl Context<'_, '_, '_> {
             lhs,
             rhs,
             BinaryOp::Add { unchecked: false },
+            "add",
             bit_size,
         );
         self.insert_cast(truncated, self.context.dfg.type_of_value(lhs).unwrap_numeric())
@@ -111,6 +112,7 @@ impl Context<'_, '_, '_> {
             lhs,
             rhs,
             BinaryOp::Sub { unchecked: false },
+            "subtract",
             bit_size,
         );
         self.insert_cast(truncated, self.context.dfg.type_of_value(lhs).unwrap_numeric())
@@ -128,6 +130,7 @@ impl Context<'_, '_, '_> {
             lhs,
             rhs,
             BinaryOp::Mul { unchecked: false },
+            "multiply",
             bit_size,
         );
         self.insert_cast(truncated, self.context.dfg.type_of_value(lhs).unwrap_numeric())
@@ -151,9 +154,9 @@ impl Context<'_, '_, '_> {
         lhs: ValueId,
         rhs: ValueId,
         operator: BinaryOp,
+        operation: &str,
         bit_size: u32,
     ) {
-        let is_sub = matches!(operator, BinaryOp::Sub { .. });
         let half_width = self.numeric_constant(
             FieldElement::from(2_i128.pow(bit_size - 1)),
             NumericType::unsigned(bit_size),
@@ -163,13 +166,13 @@ impl Context<'_, '_, '_> {
         let rhs_as_unsigned = self.insert_safe_cast(rhs, NumericType::unsigned(bit_size));
         let lhs_sign = self.insert_binary(lhs_as_unsigned, BinaryOp::Lt, half_width);
         let mut rhs_sign = self.insert_binary(rhs_as_unsigned, BinaryOp::Lt, half_width);
-        let message = if is_sub {
+        if matches!(operator, BinaryOp::Sub { .. }) {
             // lhs - rhs = lhs + (-rhs)
             rhs_sign = self.insert_not(rhs_sign);
-            "attempt to subtract with overflow".to_string()
-        } else {
-            "attempt to add with overflow".to_string()
-        };
+        }
+
+        let message = format!("attempt to {operation} with overflow");
+
         // same_sign is true if both operands have the same sign
         let same_sign = self.insert_binary(lhs_sign, BinaryOp::Eq, rhs_sign);
         match operator {
@@ -196,11 +199,7 @@ impl Context<'_, '_, '_> {
                 let product_field =
                     self.insert_binary(lhs_abs, BinaryOp::Mul { unchecked: true }, rhs_abs);
                 // It must not already overflow the bit_size
-                self.insert_range_check(
-                    product_field,
-                    bit_size,
-                    Some("attempt to multiply with overflow".to_string()),
-                );
+                self.insert_range_check(product_field, bit_size, Some(message.clone()));
                 let product = self.insert_safe_cast(product_field, NumericType::unsigned(bit_size));
 
                 // Then we check the signed product fits in a signed integer of bit_size-bits
@@ -585,7 +584,7 @@ mod tests {
             v32 = cast v31 as u32
             v33 = unchecked_add u32 2147483648, v32
             v34 = lt v30, v33
-            constrain v34 == u1 1, "attempt to add with overflow"
+            constrain v34 == u1 1, "attempt to multiply with overflow"
             v36 = cast v4 as i32
             return v36
         }

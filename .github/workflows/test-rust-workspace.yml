@@ -83,7 +83,7 @@ jobs:
             --partition count:${{ matrix.partition }}/4 \
             --profile $NEXTEST_PROFILE
         env:
-          NEXTEST_PROFILE: ${{ (github.event_name == 'merge_group' && 'merge-queue') || 'ci' }}
+          NEXTEST_PROFILE: ${{ (github.event_name == 'merge_group' && 'merge-queue') || (github.ref == 'refs/heads/master' && 'ci-master') || 'ci' }}
 
   # This is a job which depends on all test jobs and reports the overall status.
   # This allows us to add/remove test jobs without having to update the required workflows.

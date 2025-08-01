@@ -1,4 +1,3 @@
-use acvm::FieldElement;
 use noirc_errors::{Location, Span};
 
 use crate::{
@@ -338,7 +337,7 @@ pub trait Visitor {
         true
     }
 
-    fn visit_lvalue_ident(&mut self, _: &Ident) {}
+    fn visit_lvalue_path(&mut self, _: &Path) {}
 
     fn visit_lvalue_member_access(
         &mut self,
@@ -469,7 +468,7 @@ pub trait Visitor {
 
     fn visit_constant_type_expression(
         &mut self,
-        _value: FieldElement,
+        _value: SignedField,
         _suffix: Option<IntegerTypeSuffix>,
         _span: Span,
     ) {
@@ -1312,7 +1311,7 @@ impl LValue {
 
     pub fn accept_children(&self, visitor: &mut impl Visitor) {
         match self {
-            LValue::Ident(ident) => visitor.visit_lvalue_ident(ident),
+            LValue::Path(path) => visitor.visit_lvalue_path(path),
             LValue::MemberAccess { object, field_name, location } => {
                 if visitor.visit_lvalue_member_access(object, field_name, location.span) {
                     object.accept(visitor);
@@ -1551,8 +1550,8 @@ impl UnresolvedTypeExpression {
                     path.accept(visitor);
                 }
             }
-            UnresolvedTypeExpression::Constant(field_element, suffix, location) => {
-                visitor.visit_constant_type_expression(*field_element, *suffix, location.span);
+            UnresolvedTypeExpression::Constant(value, suffix, location) => {
+                visitor.visit_constant_type_expression(*value, *suffix, location.span);
             }
             UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, location) => {
                 if visitor.visit_binary_type_expression(lhs, *op, rhs, location.span) {

@@ -110,10 +110,12 @@ impl Context<'_> {
         // leaving an assertion that the side effect variable must be false.
         if self.has_zero_length(array, dfg) {
             // Zero result.
-            let results = dfg.instruction_results(instruction);
-            let res_typ = dfg.type_of_value(results[0]);
-            let zero = self.array_zero_value(&res_typ)?;
-            self.define_result(dfg, instruction, zero);
+            let result_ids = dfg.instruction_results(instruction);
+            for result_id in result_ids {
+                let res_typ = dfg.type_of_value(*result_id);
+                let zero_value = self.array_zero_value(&res_typ)?;
+                self.ssa_values.insert(*result_id, zero_value);
+            }
             // Make sure this code is disabled, or fail with "Index out of bounds".
             let msg = "Index out of bounds, array has size 0".to_string();
             let msg = self.acir_context.generate_assertion_message_payload(msg);
@@ -136,6 +138,7 @@ impl Context<'_> {
         // For simplicity we compute the offset only for simple arrays
         let is_simple_array = dfg.instruction_results(instruction).len() == 1
             && (array_has_constant_element_size(&array_typ) == Some(1));
+
         let offset = if is_simple_array {
             let result_type = dfg.type_of_value(dfg.instruction_results(instruction)[0]);
             match array_typ {
@@ -148,6 +151,7 @@ impl Context<'_> {
         } else {
             None
         };
+
         let (new_index, new_value) = self.convert_array_operation_inputs(
             array,
             dfg,
@@ -239,6 +243,13 @@ impl Context<'_> {
             // as if the predicate were true. This is as if the predicate were to resolve to false then
             // the result should not affect the rest of circuit execution.
             let value = array[index].clone();
+            // An `Array` might contain a `DynamicArray`, however if we define the result this way,
+            // we would bypass the array initialization and the handling of dynamic values that
+            // happens in `array_get_value`. Rather than repeat it here, let the non-special-case
+            // handling take over by returning `false`.
+            if matches!(value, AcirValue::DynamicArray(_)) {
+                return Ok(false);
+            }
             self.define_result(dfg, instruction, value);
             Ok(true)
         }

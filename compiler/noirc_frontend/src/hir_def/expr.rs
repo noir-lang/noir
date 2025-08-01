@@ -144,6 +144,20 @@ pub struct HirPrefixExpression {
     /// The trait method id for the operator trait method that corresponds to this operator,
     /// if such a trait exists (for example, there's no trait for the dereference operator).
     pub trait_method_id: Option<TraitItemId>,
+
+    /// If this is true we should skip this operation and directly return `rhs` instead.
+    /// This is used for compiling `&mut foo.bar.baz` where `foo.bar.baz` already returns
+    /// a reference and we do not want to create a new reference. Additionally, this node
+    /// is kept so that `nargo expand` still expands into the full `&mut foo.bar.baz` instead
+    /// of removing the leading `&mut`.
+    pub skip: bool,
+}
+
+impl HirPrefixExpression {
+    /// Creates a basic HirPrefixExpression with `trait_method_id = None` and `skip = false`
+    pub fn new(operator: UnaryOp, rhs: ExprId) -> Self {
+        Self { operator, rhs, trait_method_id: None, skip: false }
+    }
 }
 
 #[derive(Debug, Clone)]

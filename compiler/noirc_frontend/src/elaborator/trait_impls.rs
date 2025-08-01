@@ -248,7 +248,8 @@ impl Elaborator<'_> {
     ) -> Vec<(Ident, UnresolvedType, Kind)> {
         let mut associated_types = Vec::new();
         for (name, typ, expr) in trait_impl.associated_constants.drain(..) {
-            let resolved_type = self.resolve_type(typ);
+            let wildcard_allowed = false;
+            let resolved_type = self.resolve_type(typ, wildcard_allowed);
             let kind = Kind::Numeric(Box::new(resolved_type));
             let location = expr.location;
             let typ = match UnresolvedTypeExpression::from_expr(expr, location) {

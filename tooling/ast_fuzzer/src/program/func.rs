@@ -27,13 +27,11 @@ use noirc_frontend::{
     signed_field::SignedField,
 };
 
-use crate::Config;
-
 use super::{
-    CallableId, Context, VariableId, expr,
+    CallableId, Config, Context, VariableId, expr,
     freq::Freq,
     make_name,
-    scope::{Scope, ScopeStack, Variable},
+    scope::{Scope, ScopeStack, Stack, Variable},
     types,
 };
 
@@ -226,7 +224,7 @@ pub(super) struct FunctionContext<'a> {
     /// by locally defined variables. Block scopes add and remove layers.
     locals: ScopeStack<LocalId>,
     /// Indicate which local variables are derived from function inputs.
-    dynamics: BTreeSet<LocalId>,
+    dynamics: Stack<im::HashMap<LocalId, bool>>,
     /// Indicator of being in a loop (and hence able to generate
     /// break and continue statements)
     in_loop: bool,
@@ -248,19 +246,21 @@ impl<'a> FunctionContext<'a> {
         let next_local_id = decl.params.iter().map(|p| p.0.0 + 1).max().unwrap_or_default();
         let budget = ctx.config.max_function_size;
 
-        let globals = Scope::new(
+        let globals = Scope::from_variables(
             ctx.globals
                 .iter()
                 .map(|(id, (name, typ, _expr))| (*id, false, name.clone(), typ.clone())),
         );
 
-        let locals = ScopeStack::new(
+        // The function parameters are the base layer for local variables.
+        let locals = ScopeStack::from_variables(
             decl.params
                 .iter()
                 .map(|(id, mutable, name, typ, _vis)| (*id, *mutable, name.clone(), typ.clone())),
         );
 
-        let dynamics = locals.current().variable_ids().cloned().collect();
+        // Function parameters are by definition considered to be dynamic input.
+        let dynamics = Stack::new(locals.current().variable_ids().map(|id| (*id, true)).collect());
 
         // Collect all the functions we can call from this one.
         let mut call_targets = BTreeMap::new();
@@ -362,11 +362,42 @@ impl<'a> FunctionContext<'a> {
         id
     }
 
+    /// Enter a new local scope.
+    fn enter_scope(&mut self) {
+        self.locals.enter();
+        self.dynamics.enter();
+    }
+
+    /// Exit the current local scope.
+    fn exit_scope(&mut self) {
+        self.locals.exit();
+        self.dynamics.exit();
+    }
+
     /// Check if a variable is derived from dynamic input.
     ///
     /// A variable can become statically known after re-assignment.
     fn is_dynamic(&self, id: &LocalId) -> bool {
-        self.dynamics.contains(id)
+        self.dynamics.current().get(id).cloned().unwrap_or_default()
+    }
+
+    /// Mark a variable as dynamic or not dynamic.
+    fn set_dynamic(&mut self, id: LocalId, is_dynamic: bool) {
+        // When a dynamic variable is assigned a constant value, only the current
+        // scope and any future lower scopes are affected. After this scope we
+        // will revert to whatever it was before.
+        let is_new = self.dynamics.current_mut().insert(id, is_dynamic).is_none();
+
+        // Becoming dynamic is contagious: if we assign a dynamic value to a mutable
+        // variable in one of the branches of a conditional statement, we have to
+        // consider it dynamic in the outer scopes as well from then on.
+        if !is_new && is_dynamic {
+            for layer in self.dynamics.iter_mut() {
+                if layer.contains_key(&id) {
+                    layer.insert(id, true);
+                }
+            }
+        }
     }
 
     /// Check if a source type can be used inside a dynamic input context to produce some target type.
@@ -1014,7 +1045,7 @@ impl<'a> FunctionContext<'a> {
         // Only the last statement counts into whether the block is dynamic.
         let mut is_dyn = false;
 
-        self.locals.enter();
+        self.enter_scope();
         self.decrease_budget(1);
         for _ in 0..size - 1 {
             if self.budget == 0 {
@@ -1032,7 +1063,7 @@ impl<'a> FunctionContext<'a> {
             is_dyn = expr_dyn;
             stmts.push(expr);
         }
-        self.locals.exit();
+        self.exit_scope();
 
         Ok((Expression::Block(stmts), is_dyn))
     }
@@ -1144,9 +1175,7 @@ impl<'a> FunctionContext<'a> {
             self.locals.add(id, mutable, name.clone(), typ.clone());
         }
 
-        if is_dynamic {
-            self.dynamics.insert(id);
-        }
+        self.set_dynamic(id, is_dynamic);
 
         expr::let_var(id, mutable, name, expr)
     }
@@ -1202,12 +1231,12 @@ impl<'a> FunctionContext<'a> {
         // Generate the assigned value.
         let (expr, expr_dyn) = self.gen_expr(u, &lvalue.typ, self.max_depth(), Flags::TOP)?;
 
-        if lvalue.is_dyn || expr_dyn {
-            self.dynamics.insert(id);
+        if lvalue.is_dyn || expr_dyn || self.in_dynamic {
+            self.set_dynamic(id, true);
         } else if !lvalue.is_dyn && !expr_dyn && !lvalue.is_compound {
             // This value is no longer considered dynamic, unless we assigned to a member of an array or tuple,
             // in which case we don't know if other members have dynamic properties.
-            self.dynamics.remove(&id);
+            self.set_dynamic(id, false);
         }
 
         let assign =
@@ -1458,7 +1487,7 @@ impl<'a> FunctionContext<'a> {
         let idx_name = index_name(idx_id);
 
         // Add a scope which will hold the index variable.
-        self.locals.enter();
+        self.enter_scope();
         self.locals.add(idx_id, false, idx_name.clone(), idx_type.clone());
 
         // Decrease budget so we don't nest for loops endlessly.
@@ -1480,7 +1509,7 @@ impl<'a> FunctionContext<'a> {
         });
 
         // Remove the loop scope.
-        self.locals.exit();
+        self.exit_scope();
 
         Ok(expr)
     }
@@ -1775,7 +1804,7 @@ impl<'a> FunctionContext<'a> {
                 // matches on individual fields. We don't do that here, just make the fields available.
                 let constructor = Constructor::Tuple(vecmap(item_types, types::to_hir_type));
                 let mut arguments = Vec::new();
-                self.locals.enter();
+                self.enter_scope();
                 for item_type in item_types {
                     let item_id = self.next_local_id();
                     let item_name = format!("item_{}", local_name(item_id));
@@ -1787,7 +1816,7 @@ impl<'a> FunctionContext<'a> {
                 is_dyn |= branch_dyn;
                 let case = MatchCase { constructor, arguments, branch };
                 match_expr.cases.push(case);
-                self.locals.exit();
+                self.exit_scope();
                 // We must not generate a default, or the compiler will panic.
                 false
             }

@@ -337,6 +337,21 @@ fn mod_zero() {
 }
 
 #[test]
+fn regression_9336() {
+    let result = expect_value_with_args(
+        "
+        acir(inline) fn main f0 {
+          b0(v0: i8):
+            v1 = mod i8 -128, v0
+            return v1
+        }
+    ",
+        vec![Value::Numeric(NumericValue::I8(-1))],
+    );
+    assert_eq!(result, Value::Numeric(NumericValue::I8(0)));
+}
+
+#[test]
 fn eq() {
     let value = expect_value(
         "
@@ -868,7 +883,8 @@ fn array_get_disabled_by_enable_side_effects_if_index_is_not_known_to_be_safe() 
     "#,
         vec![Value::Numeric(NumericValue::U32(1))],
     );
-    assert_eq!(value, from_constant(0_u32.into(), NumericType::NativeField));
+    // If enable_side_effects is false, array get will retrieve the value at the first compatible index
+    assert_eq!(value, from_constant(1_u32.into(), NumericType::NativeField));
 }
 
 #[test]

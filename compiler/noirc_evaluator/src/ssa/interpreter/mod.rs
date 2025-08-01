@@ -873,18 +873,39 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         result: ValueId,
         side_effects_enabled: bool,
     ) -> IResult<()> {
-        let element = if side_effects_enabled {
-            let array = self.lookup_array_or_slice(array, "array get")?;
-            let index = self.lookup_u32(index, "array get index")?;
-            let index = index - offset.to_u32();
+        let array = self.lookup_array_or_slice(array, "array get")?;
+        let index = self.lookup_u32(index, "array get index")?;
+        let mut index = index - offset.to_u32();
+
+        let element = if array.elements.borrow().is_empty() {
+            // Accessing an array of 0-len is replaced by asserting
+            // the branch is not-taken during acir-gen and
+            // a zeroed type is used in case of array get
+            // So we can simply replace it with uninitialized value
+            if side_effects_enabled {
+                return Err(InterpreterError::IndexOutOfBounds { index, length: 0 });
+            } else {
+                let typ = self.dfg().type_of_value(result);
+                Value::uninitialized(&typ, result)
+            }
+        } else {
+            // An array_get with false side_effects_enabled is replaced
+            // by a load at a valid index during acir-gen.
+            if !side_effects_enabled {
+                // Find a valid index
+                let typ = self.dfg().type_of_value(result);
+                for (i, element) in array.elements.borrow().iter().enumerate() {
+                    if element.get_type() == typ {
+                        index = i as u32;
+                        break;
+                    }
+                }
+            }
             let elements = array.elements.borrow();
             let element = elements.get(index as usize).ok_or_else(|| {
                 InterpreterError::IndexOutOfBounds { index, length: elements.len() as u32 }
             })?;
             element.clone()
-        } else {
-            let typ = self.dfg().type_of_value(result);
-            Value::uninitialized(&typ, result)
         };
         self.define(result, element)?;
         Ok(())
@@ -1255,9 +1276,15 @@ impl<W: Write> Interpreter<'_, W> {
             BinaryOp::Div => {
                 apply_int_binop_opt!(dfg, lhs, rhs, binary, num_traits::CheckedDiv::checked_div)
             }
-            BinaryOp::Mod => {
-                apply_int_binop_opt!(dfg, lhs, rhs, binary, num_traits::CheckedRem::checked_rem)
-            }
+            BinaryOp::Mod => match (lhs, rhs) {
+                (NumericValue::I8(i8::MIN), NumericValue::I8(-1)) => NumericValue::I8(0),
+                (NumericValue::I16(i16::MIN), NumericValue::I16(-1)) => NumericValue::I16(0),
+                (NumericValue::I32(i32::MIN), NumericValue::I32(-1)) => NumericValue::I32(0),
+                (NumericValue::I64(i64::MIN), NumericValue::I64(-1)) => NumericValue::I64(0),
+                _ => {
+                    apply_int_binop_opt!(dfg, lhs, rhs, binary, num_traits::CheckedRem::checked_rem)
+                }
+            },
             BinaryOp::Eq => apply_int_comparison_op!(lhs, rhs, binary, |a, b| a == b),
             BinaryOp::Lt => apply_int_comparison_op!(lhs, rhs, binary, |a, b| a < b),
             BinaryOp::And => {

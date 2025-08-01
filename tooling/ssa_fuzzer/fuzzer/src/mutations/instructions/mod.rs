@@ -86,19 +86,19 @@ impl MutateVecInstructionBlock for InstructionBlockInstructionSwapMutation {
 pub(crate) fn mutate(vec_instruction_block: &mut Vec<InstructionBlock>, rng: &mut StdRng) {
     match BASIC_VECTOR_OF_INSTRUCTION_BLOCKS_MUTATION_CONFIGURATION.select(rng) {
         VectorOfInstructionBlocksMutationOptions::Random => {
-            RandomMutation::mutate(rng, vec_instruction_block)
+            RandomMutation::mutate(rng, vec_instruction_block);
         }
         VectorOfInstructionBlocksMutationOptions::InstructionBlockDeletion => {
-            InstructionBlockDeletionMutation::mutate(rng, vec_instruction_block)
+            InstructionBlockDeletionMutation::mutate(rng, vec_instruction_block);
         }
         VectorOfInstructionBlocksMutationOptions::InstructionBlockInsertion => {
-            InstructionBlockInsertionMutation::mutate(rng, vec_instruction_block)
+            InstructionBlockInsertionMutation::mutate(rng, vec_instruction_block);
         }
         VectorOfInstructionBlocksMutationOptions::InstructionBlockMutation => {
-            InstructionBlockInstructionMutation::mutate(rng, vec_instruction_block)
+            InstructionBlockInstructionMutation::mutate(rng, vec_instruction_block);
         }
         VectorOfInstructionBlocksMutationOptions::InstructionBlockSwap => {
-            InstructionBlockInstructionSwapMutation::mutate(rng, vec_instruction_block)
+            InstructionBlockInstructionSwapMutation::mutate(rng, vec_instruction_block);
         }
     }
 }

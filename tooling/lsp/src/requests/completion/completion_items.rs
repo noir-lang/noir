@@ -434,6 +434,7 @@ impl NodeFinder<'_> {
                 self.module_id,
                 current_module_parent_id,
                 self.interner,
+                self.def_maps,
             )?
         };
         let full_path = format!("{module_full_path}::{trait_name}");

@@ -797,6 +797,8 @@ impl ItemPrinter<'_, '_> {
                     if data_type.is_enum() {
                         self.show_type_name_as_data_type(&typ);
                         self.push_str("::");
+                        self.push_str(global_info.ident.as_str());
+                        return;
                     }
                 }
                 let use_import = true;

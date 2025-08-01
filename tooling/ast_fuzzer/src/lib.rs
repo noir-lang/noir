@@ -102,14 +102,14 @@ impl Default for Config {
             ("constrain", 4),
         ]);
         let stmt_freqs_brillig = Freqs::new(&[
-            ("break", 25),
+            ("break", 30),
             ("continue", 25),
             ("assign", 30),
             ("if", 10),
             ("match", 15),
-            ("for", 17),
-            ("loop", 17),
-            ("while", 17),
+            ("for", 30),
+            ("loop", 30),
+            ("while", 30),
             ("let", 20),
             ("call", 5),
             ("print", 15),

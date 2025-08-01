@@ -69,13 +69,13 @@ pub(crate) fn mutate_vec_fuzzer_command(
     match BASIC_FUZZER_COMMAND_MUTATION_CONFIGURATION.select(rng) {
         FuzzerCommandMutationOptions::Random => RandomMutation::mutate(rng, vec_fuzzer_command),
         FuzzerCommandMutationOptions::RemoveCommand => {
-            RemoveCommandMutation::mutate(rng, vec_fuzzer_command)
+            RemoveCommandMutation::mutate(rng, vec_fuzzer_command);
         }
         FuzzerCommandMutationOptions::AddCommand => {
-            AddCommandMutation::mutate(rng, vec_fuzzer_command)
+            AddCommandMutation::mutate(rng, vec_fuzzer_command);
         }
         FuzzerCommandMutationOptions::ReplaceCommand => {
-            ReplaceCommandMutation::mutate(rng, vec_fuzzer_command)
+            ReplaceCommandMutation::mutate(rng, vec_fuzzer_command);
         }
     }
 }

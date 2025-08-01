@@ -58,10 +58,10 @@ pub(crate) fn argument_mutator(argument: &mut Argument, rng: &mut StdRng) {
     match BASIC_ARGUMENT_MUTATION_CONFIGURATION.select(rng) {
         ArgumentMutationOptions::Random => RandomMutation::mutate(rng, argument),
         ArgumentMutationOptions::IncrementIndex => {
-            IncrementArgumentIndexMutation::mutate(rng, argument)
+            IncrementArgumentIndexMutation::mutate(rng, argument);
         }
         ArgumentMutationOptions::DecrementIndex => {
-            DecrementArgumentIndexMutation::mutate(rng, argument)
+            DecrementArgumentIndexMutation::mutate(rng, argument);
         }
         ArgumentMutationOptions::ChangeType => ChangeTypeMutation::mutate(rng, argument),
     }

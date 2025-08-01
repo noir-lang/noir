@@ -52,7 +52,7 @@ expression: artifact
     "public parameters indices : []",
     "return value indices : [_11, _12, _13, _14, _15, _16, _17, _18, _19, _20]",
     "INIT (id: 0, len: 10, witnesses: [_0, _1, _2, _3, _4, _5, _6, _7, _8, _9])",
-    "BRILLIG CALL func 0: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(10))], q_c: 4294967286 }), Single(Expression { mul_terms: [], linear_combinations: [], q_c: 4294967296 })], outputs: [Simple(Witness(21)), Simple(Witness(22))]",
+    "BRILLIG CALL func 0: inputs: [EXPR [ (1, _10) 4294967286 ], EXPR [ 4294967296 ]], outputs: [_21, _22]",
     "BLACKBOX::RANGE [(_22, 32)] []",
     "EXPR [ (1, _10) (-4294967296, _21) (-1, _22) 4294967286 ]",
     "EXPR [ (-1, _21) 0 ]",

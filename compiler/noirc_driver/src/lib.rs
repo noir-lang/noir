@@ -41,6 +41,7 @@ pub use contract::{CompiledContract, CompiledContractOutputs, ContractFunction};
 pub use debug::DebugFile;
 pub use noirc_frontend::graph::{CrateId, CrateName};
 pub use program::CompiledProgram;
+pub use stdlib::stdlib_paths_with_source;
 
 const STD_CRATE_NAME: &str = "std";
 const DEBUG_CRATE_NAME: &str = "__debug";
@@ -202,10 +203,16 @@ pub struct CompileOptions {
     #[arg(long, hide = true)]
     pub debug_compile_stdin: bool,
 
-    /// Unstable features to enable for this current build
+    /// Unstable features to enable for this current build.
+    ///
+    /// If non-empty, it disables unstable features required in crate manifests.
     #[arg(value_parser = clap::value_parser!(UnstableFeature))]
-    #[clap(long, short = 'Z', value_delimiter = ',')]
+    #[clap(long, short = 'Z', value_delimiter = ',', conflicts_with = "no_unstable_features")]
     pub unstable_features: Vec<UnstableFeature>,
+
+    /// Disable any unstable features required in crate manifests.
+    #[arg(long, conflicts_with = "unstable_features")]
+    pub no_unstable_features: bool,
 
     /// Used internally to avoid comptime println from producing output
     #[arg(long, hide = true)]
@@ -268,6 +275,7 @@ impl CompileOptions {
             debug_comptime_in_file: self.debug_comptime_in_file.as_deref(),
             pedantic_solving: self.pedantic_solving,
             enabled_unstable_features: &self.unstable_features,
+            disable_required_unstable_features: self.no_unstable_features,
         }
     }
 }
@@ -329,7 +337,7 @@ fn add_stdlib_source_to_file_manager(file_manager: &mut FileManager) {
     // on the stdlib. For other dependencies, we read the package.Dependencies file to add their file
     // contents to the file manager. However since the dependency on the stdlib is implicit, we need
     // to manually add it here.
-    let stdlib_paths_with_source = stdlib::stdlib_paths_with_source();
+    let stdlib_paths_with_source = stdlib_paths_with_source();
     for (path, source) in stdlib_paths_with_source {
         file_manager.add_file_with_source_canonical_path(Path::new(&path), source);
     }
@@ -412,6 +420,10 @@ pub fn check_crate(
     crate_id: CrateId,
     options: &CompileOptions,
 ) -> CompilationResult<()> {
+    if options.disable_comptime_printing {
+        context.disable_comptime_printing();
+    }
+
     let diagnostics = CrateDefMap::collect_defs(crate_id, context, options.frontend_options());
     let crate_files = context.crate_files(&crate_id);
     let warnings_and_errors: Vec<CustomDiagnostic> = diagnostics
@@ -479,8 +491,8 @@ pub fn compile_main(
     }
 
     if options.print_acir {
-        println!("Compiled ACIR for main (unoptimized):");
-        println!("{}", compiled_program.program);
+        noirc_errors::println_to_stdout!("Compiled ACIR for main (unoptimized):");
+        noirc_errors::println_to_stdout!("{}", compiled_program.program);
     }
 
     Ok((compiled_program, warnings))

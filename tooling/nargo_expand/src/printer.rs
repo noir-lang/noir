@@ -849,7 +849,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
                     if index != 0 {
                         self.push_str(", ");
                     }
-                    self.show_value(value);
+                    self.show_value(&value.borrow());
                 }
                 if values.len() == 1 {
                     self.push(',');
@@ -868,7 +868,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
                         self.write_indent();
                         self.push_str(name);
                         self.push_str(": ");
-                        self.show_value(value);
+                        self.show_value(&value.borrow());
                         self.push_str(",\n");
                     }
                     self.decrease_indent();
@@ -1123,7 +1123,8 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
 
         // Recurse on the parent module, but only if the parent module isn't the current module
         // (if so, we can already reach the definition just by printing its name)
-        let module_def_id_parent_module = get_parent_module(self.interner, module_def_id);
+        let module_def_id_parent_module =
+            get_parent_module(module_def_id, self.interner, self.def_maps);
         if module_def_id_parent_module != Some(self.module_id) {
             if let Some(module_def_id_parent_module) = module_def_id_parent_module {
                 let visibility = self
@@ -1186,7 +1187,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
     fn module_def_id_name(&self, module_def_id: ModuleDefId) -> String {
         match module_def_id {
             ModuleDefId::ModuleId(module_id) => {
-                let attributes = self.interner.try_module_attributes(&module_id);
+                let attributes = self.interner.try_module_attributes(module_id);
                 let name = attributes.map(|attributes| &attributes.name);
                 // A module might not have a name if it's the root module of a crate
                 name.cloned().unwrap_or_else(|| "crate".to_string())
@@ -1220,7 +1221,7 @@ impl<'context, 'string> ItemPrinter<'context, 'string> {
     fn module_def_id_visibility(&self, module_def_id: ModuleDefId) -> ItemVisibility {
         match module_def_id {
             ModuleDefId::ModuleId(module_id) => {
-                let attributes = self.interner.try_module_attributes(&module_id);
+                let attributes = self.interner.try_module_attributes(module_id);
                 attributes.map_or(ItemVisibility::Private, |a| a.visibility)
             }
             ModuleDefId::FunctionId(func_id) => {

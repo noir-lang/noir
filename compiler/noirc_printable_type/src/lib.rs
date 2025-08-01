@@ -42,6 +42,10 @@ pub enum PrintableType {
     String {
         length: u32,
     },
+    FmtString {
+        length: u32,
+        typ: Box<PrintableType>,
+    },
     Function {
         arguments: Vec<PrintableType>,
         return_type: Box<PrintableType>,
@@ -62,6 +66,7 @@ pub enum PrintableType {
 pub enum PrintableValue<F> {
     Field(F),
     String(String),
+    FmtString(String, Vec<PrintableValue<F>>),
     Vec { array_elements: Vec<PrintableValue<F>>, is_slice: bool },
     Struct(BTreeMap<String, PrintableValue<F>>),
     Other,
@@ -157,6 +162,15 @@ fn to_string<F: AcirField>(value: &PrintableValue<F>, typ: &PrintableType) -> Op
 
         (PrintableValue::String(s), PrintableType::String { .. }) => {
             output.push_str(s);
+        }
+
+        (PrintableValue::FmtString(template, values), PrintableType::FmtString { typ, .. }) => {
+            let PrintableType::Tuple { types } = typ.as_ref() else {
+                panic!("Expected type to be a Tuple for FmtString");
+            };
+            let template = template.to_string();
+            let args = values.iter().cloned().zip(types.iter().cloned()).collect::<Vec<_>>();
+            output.push_str(&PrintableValueDisplay::FmtString(template, args).to_string());
         }
 
         (PrintableValue::Struct(map), PrintableType::Struct { name, fields, .. }) => {
@@ -319,8 +333,29 @@ pub fn decode_printable_value<F: AcirField>(
         },
         PrintableType::String { length } => {
             let field_elements: Vec<F> = field_iterator.take(*length as usize).collect();
+            let string = decode_string_value(&field_elements);
+            PrintableValue::String(string)
+        }
+        PrintableType::FmtString { length, typ } => {
+            // First comes the template string, for which we know its length
+            let field_elements: Vec<F> = field_iterator.take(*length as usize).collect();
+            let string = decode_string_value(&field_elements);
 
-            PrintableValue::String(decode_string_value(&field_elements))
+            // Next comes the number of interpolated values
+            let tuple_length =
+                field_iterator.next().expect("Expected tuple length").to_u128() as usize;
+            let PrintableType::Tuple { types } = typ.as_ref() else {
+                panic!("Expected type to be a Tuple for FmtString");
+            };
+            assert_eq!(tuple_length, types.len());
+
+            // Next come the interpolated values
+            let values = types
+                .iter()
+                .map(|typ| decode_printable_value(field_iterator, typ))
+                .collect::<Vec<_>>();
+
+            PrintableValue::FmtString(string, values)
         }
         PrintableType::Struct { fields, .. } => {
             let mut struct_map = BTreeMap::new();

@@ -19,12 +19,19 @@ use super::options::{FunctionContextOptions, FuzzerOptions};
 use super::program_context::FuzzerProgramContext;
 use super::{NUMBER_OF_PREDEFINED_VARIABLES, NUMBER_OF_VARIABLES_INITIAL};
 use acvm::FieldElement;
+<<<<<<< HEAD
 use acvm::acir::native_types::{WitnessMap, WitnessStack};
+=======
+use acvm::acir::native_types::WitnessMap;
+>>>>>>> origin
 use libfuzzer_sys::{arbitrary, arbitrary::Arbitrary};
 use noir_ssa_executor::runner::execute_single;
 use noir_ssa_fuzzer::runner::{CompareResults, run_and_compare};
 use noir_ssa_fuzzer::typed_value::ValueType;
+<<<<<<< HEAD
 use noirc_driver::CompiledProgram;
+=======
+>>>>>>> origin
 use serde::{Deserialize, Serialize};
 
 #[derive(Arbitrary, Debug, Clone, Serialize, Deserialize)]
@@ -50,6 +57,7 @@ pub(crate) struct Fuzzer {
     pub(crate) context_non_constant: Option<FuzzerProgramContext>,
     pub(crate) context_non_constant_with_idempotent_morphing: Option<FuzzerProgramContext>,
     pub(crate) context_constant: Option<FuzzerProgramContext>,
+<<<<<<< HEAD
 }
 
 pub(crate) struct FuzzerOutput {
@@ -62,6 +70,8 @@ impl FuzzerOutput {
         let return_witness = self.program.program.functions[0].return_values.0.first().unwrap();
         self.witness_map.peek().unwrap().witness[return_witness]
     }
+=======
+>>>>>>> origin
 }
 
 impl Fuzzer {
@@ -126,7 +136,11 @@ impl Fuzzer {
     pub(crate) fn finalize_and_run(
         mut self,
         initial_witness: WitnessMap<FieldElement>,
+<<<<<<< HEAD
     ) -> Option<FuzzerOutput> {
+=======
+    ) -> Option<FieldElement> {
+>>>>>>> origin
         let mut non_constant_context = self.context_non_constant.take().unwrap();
         non_constant_context.finalize_program();
         let non_constant_result =

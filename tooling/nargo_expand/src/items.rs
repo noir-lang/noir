@@ -107,7 +107,7 @@ impl<'context> ItemBuilder<'context> {
     }
 
     pub(super) fn build_module(&mut self, module_id: ModuleId) -> Item {
-        let attributes = self.interner.try_module_attributes(&module_id);
+        let attributes = self.interner.try_module_attributes(module_id);
         let name = attributes.map(|attributes| attributes.name.clone());
         let module_data = &self.def_maps[&self.crate_id][module_id.local_id];
         let is_contract = module_data.is_contract;
