@@ -778,6 +778,7 @@ impl Elaborator<'_> {
         location: Location,
     ) -> Type {
         if typ.has_cyclic_alias(&mut HashSet::default()) {
+            self.push_err(TypeCheckError::CyclicType { typ, location });
             return Type::Error;
         }
         if !typ.kind().unifies(expected_kind) {
