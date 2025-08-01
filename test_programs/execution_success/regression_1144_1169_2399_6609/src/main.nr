@@ -87,7 +87,7 @@ fn bitshift_literal_4() -> u64 {
 
     bits
 }
-fn bitshift_variable(idx: u8) -> u64 {
+fn bitshift_variable(idx: u64) -> u64 {
     let mut bits: u64 = 0;
     bits |= 1 << idx;
 

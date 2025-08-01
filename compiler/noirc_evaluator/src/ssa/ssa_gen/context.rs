@@ -321,7 +321,6 @@ impl<'a> FunctionContext<'a> {
     fn check_overflow(
         &mut self,
         result: ValueId,
-        lhs: ValueId,
         rhs: ValueId,
         operator: BinaryOpKind,
         location: Location,
@@ -341,25 +340,12 @@ impl<'a> FunctionContext<'a> {
                 }
             }
             NumericType::Unsigned { bit_size } => {
-                let dfg = &self.builder.current_function.dfg;
-                let max_lhs_bits = dfg.get_value_max_num_bits(lhs);
-
                 match operator {
                     BinaryOpKind::Add | BinaryOpKind::Subtract | BinaryOpKind::Multiply => {
                         // Overflow check is deferred to acir-gen
                         result
                     }
-                    BinaryOpKind::ShiftLeft => {
-                        if let Some(rhs_const) = dfg.get_numeric_constant(rhs) {
-                            let bit_shift_size = rhs_const.to_u128() as u32;
-
-                            if max_lhs_bits + bit_shift_size <= bit_size {
-                                // `lhs` has been casted up from a smaller type such that shifting it by a constant
-                                // `rhs` is known not to exceed the maximum bit size.
-                                return result;
-                            }
-                        }
-
+                    BinaryOpKind::ShiftLeft | BinaryOpKind::ShiftRight => {
                         self.check_shift_overflow(result, rhs, bit_size, location);
                         result
                     }
@@ -383,10 +369,17 @@ impl<'a> FunctionContext<'a> {
         location: Location,
     ) -> ValueId {
         let one = self.builder.numeric_constant(FieldElement::one(), NumericType::bool());
-        assert!(self.builder.current_function.dfg.type_of_value(rhs) == Type::unsigned(8));
+        let rhs_type = self.builder.current_function.dfg.type_of_value(rhs);
 
-        let bit_size_field = FieldElement::from(bit_size as i128);
-        let max = self.builder.numeric_constant(bit_size_field, NumericType::unsigned(8));
+        let bit_size_field = if rhs_type.is_signed() {
+            assert!(bit_size > 1, "ICE - i1 is not a valid type");
+            FieldElement::from((bit_size - 1) as i128)
+        } else {
+            FieldElement::from(bit_size as i128)
+        };
+        let unsigned_typ = NumericType::unsigned(bit_size);
+        let max = self.builder.numeric_constant(bit_size_field, unsigned_typ);
+        let rhs = self.builder.insert_cast(rhs, unsigned_typ);
         let overflow = self.builder.insert_binary(rhs, BinaryOp::Lt, max);
         self.builder.set_location(location).insert_constrain(
             overflow,
@@ -421,8 +414,9 @@ impl<'a> FunctionContext<'a> {
                 | BinaryOpKind::Subtract
                 | BinaryOpKind::Multiply
                 | BinaryOpKind::ShiftLeft
+                | BinaryOpKind::ShiftRight
         ) {
-            result = self.check_overflow(result, lhs, rhs, operator, location);
+            result = self.check_overflow(result, rhs, operator, location);
         }
 
         if operator_requires_not(operator) {

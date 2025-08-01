@@ -73,14 +73,14 @@ expression: artifact
     "BLACKBOX::RANGE [(_19, 1)] []",
     "BLACKBOX::RANGE [(_20, 63)] []",
     "EXPR [ (1, _18) (-9223372036854775808, _19) (-1, _20) 0 ]",
-    "BRILLIG CALL func 0: inputs: [EXPR [ (-2, _18, _19) (1, _18) (18446744073709551616, _19) 0 ], EXPR [ 9223372036854775808 ]], outputs: [_21, _22]",
-    "BLACKBOX::RANGE [(_21, 1)] []",
-    "BLACKBOX::RANGE [(_22, 63)] []",
-    "EXPR [ (-2, _18, _19) (1, _18) (18446744073709551616, _19) (-9223372036854775808, _21) (-1, _22) 0 ]",
+    "BRILLIG CALL func 0: inputs: [EXPR [ (-2, _18, _19) (1, _18) (18446744073709551616, _19) 0 ], EXPR [ 4611686018427387904 ]], outputs: [_21, _22]",
+    "BLACKBOX::RANGE [(_21, 2)] []",
+    "BLACKBOX::RANGE [(_22, 62)] []",
+    "EXPR [ (-2, _18, _19) (1, _18) (18446744073709551616, _19) (-4611686018427387904, _21) (-1, _22) 0 ]",
     "BRILLIG CALL func 1: inputs: [EXPR [ (1, _21) 0 ]], outputs: [_23]",
     "EXPR [ (1, _21, _23) (1, _24) -1 ]",
     "EXPR [ (1, _21, _24) 0 ]",
-    "EXPR [ (2, _19, _21) (-18446744073709551616, _19) (-1, _21) (-1, _25) 18446744073709551616 ]",
+    "EXPR [ (-2, _19, _21) (18446744073709551616, _19) (1, _21) (-1, _25) 0 ]",
     "EXPR [ (-1, _24) (-1, _26) 1 ]",
     "BRILLIG CALL func 1: inputs: [EXPR [ (1, _22) 0 ]], outputs: [_27]",
     "EXPR [ (1, _22, _27) (1, _28) -1 ]",
@@ -99,7 +99,7 @@ expression: artifact
   "debug_symbols": "pZTNjoIwFEbfpesuaHsvP77KZGIqVkPSAKlgMjG++1z7iaOL2cCmByjnhLSkN3UMh/m87/rTcFG7r5s6pC7G7ryPQ+unbujl6e2u1XK7n1II8ki9zYs1+hT6Se36OUatrj7O+aXL6PvMySeZLbQK/VEowVMXw+Pqrv/s4n/VOveUrWteOq/xqVzjl8vH23KjX9kVvnPV03dEG/0168ev9WMyq3zz8u1Gv97m8+f6fcudb7v08ccro3Yi2Dy6PJJsnVYsC6hVmccqj7XakVaNxLQyBWAA0UuB+LWAAAZKoAJqoMmwBWAAC6BiUbGoWKk0ggqogSbDFYABLOAAAhhAxaHiUHGoECqECqFCqBAqhAqhQqgQKoQKo8KoMCqMCqPCqDAqjAqjwlIxj0Pj6lPnDzE8D6XT3LdvZ9T0My4zyyk2pqENxzmFx+7mOdnvXw==",
   "file_map": {
     "50": {
-      "source": "fn main(x: u64) {\n    let two: u64 = 2;\n    let three: u64 = 3;\n    // shifts on constant values\n    assert(two << 2 == 8);\n    assert((two << 3) / 8 == two);\n    assert((three >> 1) == 1);\n    // shifts on runtime values\n    assert(x << 1 == 128);\n    assert(x >> 2 == 16);\n\n    regression_2250();\n\n    //regression for 3481\n    assert(x << 63 == 0);\n\n    assert_eq(1_u64 << 32, 0x0100000000);\n\n    //regression for 6201\n    let a: i16 = -769;\n    assert_eq(a >> 3, -97);\n\n    regression_8310();\n\n    //regression 8791\n    assert(-(x as i64) >> 63 == -1);\n    assert(a >> 27 == -1);\n}\n\nfn regression_2250() {\n    let a: u1 = 1 >> 1;\n    assert(a == 0);\n\n    let b: u32 = 1 >> 32;\n    assert(b == 0);\n}\n\nfn regression_8310() {\n    let x: i64 = -356710612598522715;\n    let b = x >> 64;\n    assert(b == -1);\n}\n",
+      "source": "fn main(x: u64) {\n    let two: u64 = 2;\n    let three: u64 = 3;\n    // shifts on constant values\n    assert(two << 2 == 8);\n    assert((two << 3) / 8 == two);\n    assert((three >> 1) == 1);\n    // shifts on runtime values\n    assert(x << 1 == 128);\n    assert(x >> 2 == 16);\n\n    regression_2250();\n\n    //regression for 3481\n    assert(x << 63 == 0);\n\n    assert_eq(1_u64 << 32, 0x0100000000);\n\n    //regression for 6201\n    let a: i16 = -769;\n    assert_eq(a >> 3, -97);\n\n    regression_8310();\n\n    //regression 8791\n    assert(-(x as i64) >> 62 == -1);\n    assert(a >> 14 == -1);\n}\n\nfn regression_2250() {\n    let b: u32 = 1 >> 31;\n    assert(b == 0);\n}\n\nfn regression_8310() {\n    let x: i64 = -356710612598522715;\n    let b = x >> 62;\n    assert(b == -1);\n}\n",
       "path": ""
     }
   },
