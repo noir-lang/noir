@@ -102,10 +102,6 @@ impl Function {
                 return;
             }
 
-            // Certain instructions can only be marked unreachable if we have determined they failed under a constant predicate.
-            // It is not accurate to use `side_effects_condition` for marking Brillig predicates (which are determined by the CFG).
-            // Currently we only account for ACIR predicates, thus, any instruction that can result in marking
-            // `current_block_reachability` as `Reachability::UnreachableUnderPredicate` should be gated for only ACIR runtimes.
             match instruction {
                 Instruction::Constrain(lhs, rhs, _) => {
                     let Some(lhs_constant) = context.dfg.get_numeric_constant(*lhs) else {
