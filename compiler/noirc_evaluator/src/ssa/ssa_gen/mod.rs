@@ -470,12 +470,12 @@ impl FunctionContext<'_> {
             Type::Array(_, len) => {
                 // Out of bounds array accesses are guaranteed to fail in ACIR so this check is performed implicitly.
                 // We then only need to inject it for brillig functions.
-                let runtime = self.builder.current_function.runtime();
-                if runtime.is_brillig() {
+                // let runtime = self.builder.current_function.runtime();
+                // if runtime.is_brillig() {
                     let len =
                         self.builder.numeric_constant(*len as u128, NumericType::length_type());
                     self.codegen_access_check(index, len);
-                }
+                // }
             }
             Type::Slice(_) => {
                 // The slice length is dynamic however so we can't rely on it being equal to the underlying memory
