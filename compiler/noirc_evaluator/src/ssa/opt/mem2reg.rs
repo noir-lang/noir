@@ -806,12 +806,20 @@ mod tests {
           b0():
             v0 = allocate -> &mut Field
             store Field 1 at v0
-            return v0
+            v1 = load v0 -> Field
+            return v1
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.mem2reg();
-        assert_normalized_ssa_equals(ssa, src);
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn func f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            return Field 1
+        }
+        ");
     }
 
     #[test]
