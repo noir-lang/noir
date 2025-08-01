@@ -1,7 +1,7 @@
 use super::NUMBER_OF_PREDEFINED_VARIABLES;
 use super::NUMBER_OF_VARIABLES_INITIAL;
 use super::function_context::WitnessValue;
-use super::fuzzer::{Fuzzer, FuzzerData};
+use super::fuzzer::{Fuzzer, FuzzerData, FuzzerOutput};
 use super::options::FuzzerOptions;
 use acvm::FieldElement;
 use acvm::acir::native_types::{Witness, WitnessMap};
@@ -43,7 +43,7 @@ fn initialize_witness_map(
 }
 
 /// Creates ACIR and Brillig programs from the data, runs and compares them
-pub(crate) fn fuzz_target(data: FuzzerData, options: FuzzerOptions) -> Option<FieldElement> {
+pub(crate) fn fuzz_target(data: FuzzerData, options: FuzzerOptions) -> Option<FuzzerOutput> {
     // to triage
     if data.instruction_blocks.is_empty() {
         return None;
@@ -52,7 +52,7 @@ pub(crate) fn fuzz_target(data: FuzzerData, options: FuzzerOptions) -> Option<Fi
 
     let mut fuzzer = Fuzzer::new(data.instruction_blocks, values, options);
     for func in data.functions {
-        log::debug!("initial_witness: {witness_map:?}");
+        log::debug!("initial_witness: {:?}", witness_map);
         log::debug!("commands: {:?}", func.commands);
         fuzzer.process_function(func, types.clone());
     }
@@ -116,7 +116,7 @@ mod tests {
         let result = fuzz_target(data, FuzzerOptions::default());
         // we expect that this program executed successfully
         match result {
-            Some(result) => assert_eq!(result, FieldElement::from(1_u32)),
+            Some(result) => assert_eq!(result.get_return_value(), FieldElement::from(1_u32)),
             None => panic!("Program failed to execute"),
         }
 
@@ -141,7 +141,7 @@ mod tests {
         let result = fuzz_target(data, FuzzerOptions::default());
         // we expect that this program failed to execute
         if let Some(result) = result {
-            panic!("Program executed successfully with result: {result:?}");
+            panic!("Program executed successfully with result: {:?}", result.get_return_value());
         }
     }
 
@@ -208,7 +208,7 @@ mod tests {
         };
         let result = fuzz_target(data, FuzzerOptions::default());
         match result {
-            Some(result) => assert_eq!(result, FieldElement::from(4_u32)),
+            Some(result) => assert_eq!(result.get_return_value(), FieldElement::from(4_u32)),
             None => panic!("Program failed to execute"),
         }
     }
@@ -258,7 +258,7 @@ mod tests {
         };
         let result = fuzz_target(data, FuzzerOptions::default());
         match result {
-            Some(result) => assert_eq!(result, FieldElement::from(1024_u32)),
+            Some(result) => assert_eq!(result.get_return_value(), FieldElement::from(1024_u32)),
             None => panic!("Program failed to execute"),
         }
     }
@@ -326,7 +326,7 @@ mod tests {
         };
         let result = fuzz_target(data, FuzzerOptions::default());
         match result {
-            Some(result) => assert_eq!(result, FieldElement::from(131072_u32)),
+            Some(result) => assert_eq!(result.get_return_value(), FieldElement::from(131072_u32)),
             None => panic!("Program failed to execute"),
         }
     }
@@ -396,7 +396,7 @@ mod tests {
         };
         let result = fuzz_target(data, FuzzerOptions::default());
         match result {
-            Some(result) => assert_eq!(result, FieldElement::from(4096_u32)),
+            Some(result) => assert_eq!(result.get_return_value(), FieldElement::from(4096_u32)),
             None => panic!("Program failed to execute"),
         }
     }
@@ -466,7 +466,7 @@ mod tests {
         };
         let result = fuzz_target(data, FuzzerOptions::default());
         match result {
-            Some(result) => assert_eq!(result, FieldElement::from(22_u32)),
+            Some(result) => assert_eq!(result.get_return_value(), FieldElement::from(22_u32)),
             None => panic!("Program failed to execute"),
         }
 
@@ -501,7 +501,7 @@ mod tests {
         };
         let result = fuzz_target(data, FuzzerOptions::default());
         match result {
-            Some(result) => assert_eq!(result, FieldElement::from(2048_u32)),
+            Some(result) => assert_eq!(result.get_return_value(), FieldElement::from(2048_u32)),
             None => panic!("Program failed to execute"),
         }
     }
@@ -547,7 +547,7 @@ mod tests {
         };
         let result = fuzz_target(fuzzer_data, FuzzerOptions::default());
         match result {
-            Some(result) => assert_eq!(result, FieldElement::from(4_u32)),
+            Some(result) => assert_eq!(result.get_return_value(), FieldElement::from(4_u32)),
             None => panic!("Program failed to execute"),
         }
     }
@@ -625,7 +625,7 @@ mod tests {
         };
         let result = fuzz_target(fuzzer_data, FuzzerOptions::default());
         match result {
-            Some(result) => assert_eq!(result, FieldElement::from(12_u32)),
+            Some(result) => assert_eq!(result.get_return_value(), FieldElement::from(12_u32)),
             None => panic!("Program failed to execute"),
         }
     }
@@ -729,7 +729,7 @@ mod tests {
             FuzzerOptions::default(),
         );
         match result {
-            Some(result) => assert_eq!(result, FieldElement::from(4_u32)),
+            Some(result) => assert_eq!(result.get_return_value(), FieldElement::from(4_u32)),
             None => panic!("Program failed to execute"),
         }
 
@@ -745,9 +745,9 @@ mod tests {
             0,
             FuzzerFunctionCommand::InsertSimpleInstructionBlock { instruction_block_idx: 4 },
         ); // add true boolean
-        log::debug!("commands: {commands:?}");
+        log::debug!("commands: {:?}", commands);
         blocks.push(add_boolean_block);
-        log::debug!("blocks: {blocks:?}");
+        log::debug!("blocks: {:?}", blocks);
         let main_func = FunctionData {
             commands,
             return_instruction_block_idx: 3,
@@ -760,8 +760,51 @@ mod tests {
         };
         let result = fuzz_target(fuzzer_data, FuzzerOptions::default());
         match result {
-            Some(result) => assert_eq!(result, FieldElement::from(6_u32)),
+            Some(result) => assert_eq!(result.get_return_value(), FieldElement::from(6_u32)),
             None => panic!("Program failed to execute"),
         }
+    }
+
+    #[test]
+    fn saving_program_and_witness() {
+        let arg_0_field = Argument { index: 0, value_type: ValueType::Field };
+        let arg_1_field = Argument { index: 1, value_type: ValueType::Field };
+        let add_block = InstructionBlock {
+            instructions: vec![Instruction::AddChecked { lhs: arg_0_field, rhs: arg_1_field }],
+        };
+        let main_func = FunctionData {
+            commands: vec![],
+            return_instruction_block_idx: 0,
+            return_type: ValueType::Field,
+        };
+        let data = FuzzerData {
+            instruction_blocks: vec![add_block],
+            functions: vec![main_func],
+            initial_witness: default_witness(),
+        };
+        let result = fuzz_target(data, FuzzerOptions::default()).unwrap();
+        let serialized_witness_map = result.witness_map.serialize().unwrap();
+        use serde_json;
+        let serialized_program = serde_json::to_string(&result.program).unwrap();
+        // Move "program" key to "bytecode" in the serialized JSON
+        let mut program_json: serde_json::Value =
+            serde_json::from_str(&serialized_program).unwrap();
+        if let Some(program_value) = program_json.get("program").cloned() {
+            program_json.as_object_mut().unwrap().remove("program");
+            program_json.as_object_mut().unwrap().insert("bytecode".to_string(), program_value);
+        }
+        let serialized_program = serde_json::to_string(&program_json).unwrap();
+        use std::fs::File;
+        use std::io::Write;
+
+        // Save the serialized witness map to a file
+        let mut witness_file =
+            File::create("target/noir.gz").expect("Failed to create witness_map.gz");
+        witness_file.write_all(&serialized_witness_map).expect("Failed to write witness map");
+
+        // Save the serialized program to a file
+        let mut program_file =
+            File::create("target/noir.json").expect("Failed to create program.json");
+        program_file.write_all(serialized_program.as_bytes()).expect("Failed to write program");
     }
 }

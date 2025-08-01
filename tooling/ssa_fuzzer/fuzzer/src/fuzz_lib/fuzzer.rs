@@ -19,11 +19,19 @@ use super::options::{FunctionContextOptions, FuzzerOptions};
 use super::program_context::FuzzerProgramContext;
 use super::{NUMBER_OF_PREDEFINED_VARIABLES, NUMBER_OF_VARIABLES_INITIAL};
 use acvm::FieldElement;
+<<<<<<< HEAD
+use acvm::acir::native_types::{WitnessMap, WitnessStack};
+=======
 use acvm::acir::native_types::WitnessMap;
+>>>>>>> origin
 use libfuzzer_sys::{arbitrary, arbitrary::Arbitrary};
 use noir_ssa_executor::runner::execute_single;
 use noir_ssa_fuzzer::runner::{CompareResults, run_and_compare};
 use noir_ssa_fuzzer::typed_value::ValueType;
+<<<<<<< HEAD
+use noirc_driver::CompiledProgram;
+=======
+>>>>>>> origin
 use serde::{Deserialize, Serialize};
 
 #[derive(Arbitrary, Debug, Clone, Serialize, Deserialize)]
@@ -49,6 +57,21 @@ pub(crate) struct Fuzzer {
     pub(crate) context_non_constant: Option<FuzzerProgramContext>,
     pub(crate) context_non_constant_with_idempotent_morphing: Option<FuzzerProgramContext>,
     pub(crate) context_constant: Option<FuzzerProgramContext>,
+<<<<<<< HEAD
+}
+
+pub(crate) struct FuzzerOutput {
+    pub(crate) witness_map: WitnessStack<FieldElement>,
+    pub(crate) program: CompiledProgram,
+}
+
+impl FuzzerOutput {
+    pub(crate) fn get_return_value(&self) -> FieldElement {
+        let return_witness = self.program.program.functions[0].return_values.0.first().unwrap();
+        self.witness_map.peek().unwrap().witness[return_witness]
+    }
+=======
+>>>>>>> origin
 }
 
 impl Fuzzer {
@@ -113,20 +136,28 @@ impl Fuzzer {
     pub(crate) fn finalize_and_run(
         mut self,
         initial_witness: WitnessMap<FieldElement>,
+<<<<<<< HEAD
+    ) -> Option<FuzzerOutput> {
+=======
     ) -> Option<FieldElement> {
+>>>>>>> origin
         let mut non_constant_context = self.context_non_constant.take().unwrap();
         non_constant_context.finalize_program();
         let non_constant_result =
             Self::execute_and_compare(non_constant_context, initial_witness.clone());
+
         if let Some(context) = self.context_constant.take() {
             let mut constant_context = context;
             constant_context.finalize_program();
             let constant_result =
                 Self::execute_and_compare(constant_context, initial_witness.clone());
-            assert_eq!(
-                non_constant_result, constant_result,
-                "Non-constant and constant contexts should return the same result"
-            );
+            if non_constant_result.is_some() {
+                assert_eq!(
+                    non_constant_result.as_ref().unwrap().get_return_value(),
+                    constant_result?.get_return_value(),
+                    "Non-constant and constant contexts should return the same result"
+                );
+            }
         }
 
         if let Some(context) = self.context_non_constant_with_idempotent_morphing.take() {
@@ -134,11 +165,13 @@ impl Fuzzer {
             context_with_idempotent_morphing.finalize_program();
             let result_with_constrains =
                 Self::execute_and_compare(context_with_idempotent_morphing, initial_witness);
-            assert_eq!(
-                non_constant_result, result_with_constrains,
-                "Non-constant and idempotent morphing contexts should return the same result"
-            );
-            log::debug!("result_with_constrains: {result_with_constrains:?}");
+            if non_constant_result.is_some() {
+                assert_eq!(
+                    non_constant_result.as_ref().unwrap().get_return_value(),
+                    result_with_constrains?.get_return_value(),
+                    "Non-constant and idempotent morphing contexts should return the same result"
+                );
+            }
         }
         non_constant_result
     }
@@ -146,7 +179,7 @@ impl Fuzzer {
     fn execute_and_compare(
         context: FuzzerProgramContext,
         initial_witness: WitnessMap<FieldElement>,
-    ) -> Option<FieldElement> {
+    ) -> Option<FuzzerOutput> {
         let (acir_program, brillig_program) = context.get_programs();
         let (acir_program, brillig_program) = match (acir_program, brillig_program) {
             (Ok(acir), Ok(brillig)) => (acir, brillig),
@@ -166,7 +199,8 @@ impl Fuzzer {
                             "ACIR compiled and successfully executed, \
                             but brillig compilation failed. Execution result of \
                             acir only {:?}. Brillig compilation failed with: {:?}",
-                            acir_result[acir_return_witness], brillig_error
+                            acir_result.peek().unwrap().witness[acir_return_witness],
+                            brillig_error
                         );
                     }
                     Err(acir_error) => {
@@ -186,7 +220,8 @@ impl Fuzzer {
                             "Brillig compiled and successfully executed, \
                             but ACIR compilation failed. Execution result of \
                             brillig only {:?}. ACIR compilation failed with: {:?}",
-                            brillig_result[brillig_return_witness], acir_error
+                            brillig_result.peek().unwrap().witness[brillig_return_witness],
+                            acir_error
                         );
                     }
                     Err(brillig_error) => {
@@ -201,7 +236,9 @@ impl Fuzzer {
             run_and_compare(&acir_program.program, &brillig_program.program, initial_witness);
         log::debug!("Comparison result: {comparison_result:?}");
         match comparison_result {
-            CompareResults::Agree(result) => Some(result),
+            CompareResults::Agree(result) => {
+                Some(FuzzerOutput { witness_map: result, program: acir_program })
+            }
             CompareResults::Disagree(acir_return_value, brillig_return_value) => {
                 panic!(
                     "ACIR and Brillig programs returned different results: \

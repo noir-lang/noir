@@ -2,6 +2,7 @@
 
 mod fuzz_lib;
 mod mutations;
+mod utils;
 
 use bincode::serde::{borrow_decode_from_slice, encode_to_vec};
 use fuzz_lib::fuzz_target_lib::fuzz_target;
@@ -11,24 +12,27 @@ use libfuzzer_sys::Corpus;
 use mutations::mutate;
 use noirc_driver::CompileOptions;
 use rand::{SeedableRng, rngs::StdRng};
+use sha1::{Digest, Sha1};
+use utils::{push_fuzzer_output_to_queue, redis};
 
 const MAX_EXECUTION_TIME_TO_KEEP_IN_CORPUS: u64 = 3;
 
 libfuzzer_sys::fuzz_target!(|data: &[u8]| -> Corpus {
     let _ = env_logger::try_init();
+
     let mut compile_options = CompileOptions::default();
     if let Ok(triage_value) = std::env::var("TRIAGE") {
         match triage_value.as_str() {
             "FULL" => compile_options.show_ssa = true,
             "FINAL" => {
                 compile_options.show_ssa_pass =
-                    vec!["After Dead Instruction Elimination - ACIR".to_string()];
+                    vec!["After Dead Instruction Elimination - ACIR".to_string()]
             }
             "FIRST_AND_FINAL" => {
                 compile_options.show_ssa_pass = vec![
                     "After Removing Unreachable Functions (1)".to_string(),
                     "After Dead Instruction Elimination - ACIR".to_string(),
-                ];
+                ]
             }
             _ => (),
         }
@@ -42,11 +46,24 @@ libfuzzer_sys::fuzz_target!(|data: &[u8]| -> Corpus {
     };
     let options =
         FuzzerOptions { compile_options, instruction_options, ..FuzzerOptions::default() };
-    let data = borrow_decode_from_slice(data, bincode::config::legacy())
+    let fuzzer_data = borrow_decode_from_slice(data, bincode::config::legacy())
         .unwrap_or((FuzzerData::default(), 1337))
         .0;
     let start = std::time::Instant::now();
-    fuzz_target(data, options);
+    let fuzzer_output = fuzz_target(fuzzer_data, options);
+
+    if redis::ensure_redis_connection() && fuzzer_output.is_some() {
+        let fuzzer_output = fuzzer_output.unwrap();
+        let mut hasher = Sha1::new();
+        hasher.update(&data);
+        let sha1_hash = hasher.finalize();
+        let test_id = format!("{:x}", sha1_hash);
+        match push_fuzzer_output_to_queue(test_id, fuzzer_output) {
+            Ok(json_str) => log::debug!("{}", json_str),
+            Err(e) => log::error!("Failed to push to Redis queue: {}", e),
+        }
+    }
+
     if start.elapsed().as_secs() > MAX_EXECUTION_TIME_TO_KEEP_IN_CORPUS {
         return Corpus::Reject;
     }

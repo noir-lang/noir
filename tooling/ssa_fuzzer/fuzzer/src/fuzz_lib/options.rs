@@ -57,7 +57,7 @@ pub(crate) struct SsaBlockOptions {
 
 /// Options of the program context
 #[derive(Clone, Debug)]
-pub(crate) struct FunctionContextOptions {
+pub struct FunctionContextOptions {
     /// If false, we don't add constraints for idempotent morphing results
     pub(crate) idempotent_morphing_enabled: bool,
     /// Options for the program compilation
@@ -86,13 +86,14 @@ impl From<FunctionContextOptions> for SsaBlockOptions {
 
 /// Options for the fuzzer commands that can be used in the program context
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct FuzzerCommandOptions {
+pub struct FuzzerCommandOptions {
     /// If false, we don't insert jmp_if
     pub(crate) jmp_if_enabled: bool,
     /// If false, we don't insert jmp command
     pub(crate) jmp_block_enabled: bool,
     /// If false, we don't switch to the next block
     pub(crate) switch_to_next_block_enabled: bool,
+    /// If false, we don't insert loops
     pub(crate) loops_enabled: bool,
 }
 
