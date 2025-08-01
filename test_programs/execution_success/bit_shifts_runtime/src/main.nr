@@ -7,8 +7,6 @@ fn main(x: u64, y: u64, z: i16, u: i64) {
     assert(x >> y == 32);
     // regression tests for issue #8176, superseded by issue #8791
     assert(u >> (x as i64 - 2) == -1);
- 
-
 
     // Bit-shift with signed integers
     let mut a: i8 = y as i8;
@@ -20,12 +18,12 @@ fn main(x: u64, y: u64, z: i16, u: i64) {
     assert(a << 6 == -64);
     assert(a << -a == -2);
 
-    assert(x >> (x-1) == 0);
+    assert(x >> (x - 1) == 0);
 
     assert_eq(z >> 3, -97);
 
     assert(z >> 14 == -1);
-    let rhs = (if x as i16 > 14 {14} else {x as i16});
+    let rhs = (if x as i16 > 14 { 14 } else { x as i16 });
     assert(z >> rhs == -1);
     assert(-z >> rhs == 0);
 }

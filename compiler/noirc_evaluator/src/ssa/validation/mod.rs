@@ -373,8 +373,10 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Right-hand side of `shr` must be u8")]
-    fn disallows_shr_with_non_u8() {
+    #[should_panic(
+        expected = "Left-hand side and right-hand side of `shr` must have the same type"
+    )]
+    fn disallows_shr_with_different_type() {
         let src = "
         acir(inline) fn main f0 {
           b0():
@@ -386,8 +388,10 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Right-hand side of `shl` must be u8")]
-    fn disallows_shl_with_non_u8() {
+    #[should_panic(
+        expected = "Left-hand side and right-hand side of `shl` must have the same type"
+    )]
+    fn disallows_shl_with_different_type() {
         let src = "
         acir(inline) fn main f0 {
           b0():

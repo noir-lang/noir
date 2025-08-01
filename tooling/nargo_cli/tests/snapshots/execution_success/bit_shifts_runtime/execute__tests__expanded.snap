@@ -15,6 +15,7 @@ fn main(x: u64, y: u64, z: i16, u: i64) {
     assert((b >> a) == 32_i8);
     a = -a;
     assert((a << 6_i8) == -64_i8);
+    assert((a << -a) == -2_i8);
     assert((x >> (x - 1_u64)) == 0_u64);
     assert((z >> 3_i16) == -97_i16);
     assert((z >> 14_i16) == -1_i16);
@@ -25,9 +26,4 @@ fn main(x: u64, y: u64, z: i16, u: i64) {
     };
     assert((z >> rhs) == -1_i16);
     assert((-z >> rhs) == 0_i16);
-}
-
-#[test]
-fn toto() -> u32 {
-    8_u32 << 2_u32
 }
