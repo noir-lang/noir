@@ -1417,4 +1417,33 @@ mod tests {
         let ssa = ssa.mem2reg();
         assert_normalized_ssa_equals(ssa, src);
     }
+
+    #[test]
+    fn unknown_aliases() {
+        // This is just a test to ensure the case where `aliases.is_unknown()` is tested.
+        // Here, `v8 = load v0 -> Field` cannot be removed and replaced with `Field 10`
+        // because `v6` is passed to another function and we don't know what that reference
+        // points it, and it could potentially change the value of `v0`.
+        let src = "
+        brillig(inline) fn foo f0 {
+          b0(v0: &mut Field):
+            v2 = allocate -> &mut &mut Field
+            store v0 at v2
+            jmp b1(Field 0)
+          b1(v1: Field):
+            jmpif u1 0 then: b2, else: b3
+          b2():
+            store Field 10 at v0
+            v6 = load v2 -> &mut Field
+            call f0(v6)
+            v8 = load v0 -> Field
+            jmp b1(v8)
+          b3():
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
+        assert_normalized_ssa_equals(ssa, src);
+    }
 }
