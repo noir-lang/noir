@@ -1130,11 +1130,10 @@ impl<'interner> Monomorphizer<'interner> {
                 };
                 match associated_type
                     .typ
-                    .evaluate_to_field_element(&associated_type.typ.kind(), location)
+                    .evaluate_to_signed_field(&associated_type.typ.kind(), location)
                 {
                     Ok(value) => {
                         let typ = Self::convert_type(&numeric_type, location)?;
-                        let value = SignedField::positive(value);
                         Ok(ast::Expression::Literal(ast::Literal::Integer(value, typ, location)))
                     }
                     Err(err) => Err(MonomorphizationError::CannotComputeAssociatedConstant {
@@ -1157,7 +1156,7 @@ impl<'interner> Monomorphizer<'interner> {
         location: Location,
     ) -> Result<ast::Expression, MonomorphizationError> {
         let expected_kind = Kind::Numeric(Box::new(expected_type.clone()));
-        let value = value.evaluate_to_field_element(&expected_kind, location).map_err(|err| {
+        let value = value.evaluate_to_signed_field(&expected_kind, location).map_err(|err| {
             MonomorphizationError::UnknownArrayLength {
                 length: value.follow_bindings(),
                 err,
@@ -1172,7 +1171,6 @@ impl<'interner> Monomorphizer<'interner> {
         }
 
         let typ = Self::convert_type(&expected_type, location)?;
-        let value = SignedField::positive(value);
         Ok(ast::Expression::Literal(ast::Literal::Integer(value, typ, location)))
     }
 
@@ -1570,11 +1568,11 @@ impl<'interner> Monomorphizer<'interner> {
                 location,
             });
         }
-        let to_value = to.evaluate_to_field_element(&to.kind(), location);
+        let to_value = to.evaluate_to_signed_field(&to.kind(), location);
         if to_value.is_ok() {
             let skip_simplifications = false;
             let from_value =
-                from.evaluate_to_field_element_helper(&to.kind(), location, skip_simplifications);
+                from.evaluate_to_signed_field_helper(&to.kind(), location, skip_simplifications);
             if from_value.is_err() || from_value.unwrap() != to_value.clone().unwrap() {
                 return Err(MonomorphizationError::CheckedCastFailed {
                     actual: HirType::Constant(to_value.unwrap(), to.kind()),

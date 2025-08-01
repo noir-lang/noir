@@ -16,9 +16,8 @@ use crate::ssa::{
 use super::simple_optimization::SimpleOptimizationContext;
 
 impl Ssa {
-    /// Performs constant folding on each instruction.
-    ///
-    /// See [`constant_folding`][self] module for more information.
+    /// Replaces Shl and Shr instructions with more primitive arithmetic instructions
+    /// since our backend doesn't directly support bit shifts.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn remove_bit_shifts(mut self) -> Ssa {
         for function in self.functions.values_mut() {
@@ -29,8 +28,8 @@ impl Ssa {
 }
 
 impl Function {
-    /// The structure of this pass is simple:
-    /// Go through each block and re-insert all instructions.
+    /// Go through every instruction, replacing bit shifts with more primitive arithmetic
+    /// operations.
     pub(crate) fn remove_bit_shifts(&mut self) {
         if self.runtime().is_brillig() {
             return;

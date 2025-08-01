@@ -3379,6 +3379,7 @@ dependencies = [
  "noirc_artifacts_info",
  "noirc_driver",
  "noirc_errors",
+ "noirc_printable_type",
  "serde",
  "serde_json",
  "thiserror 1.0.69",

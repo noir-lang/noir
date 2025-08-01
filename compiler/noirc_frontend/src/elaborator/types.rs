@@ -668,7 +668,7 @@ impl Elaborator<'_> {
                     return None;
                 };
 
-                let Some(global_value) = global_value.to_field_element() else {
+                let Some(global_value) = global_value.to_signed_field() else {
                     let global_value = global_value.clone();
                     if global_value.is_integral() {
                         self.push_err(ResolverError::NegativeGlobalType { location, global_value });
@@ -682,7 +682,7 @@ impl Elaborator<'_> {
                 };
 
                 let Ok(global_value) = kind.ensure_value_fits(global_value, location) else {
-                    self.push_err(ResolverError::GlobalLargerThanKind {
+                    self.push_err(ResolverError::GlobalDoesNotFitItsType {
                         location,
                         global_value,
                         kind,
