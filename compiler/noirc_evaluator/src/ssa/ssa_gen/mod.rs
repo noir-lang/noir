@@ -476,8 +476,6 @@ impl FunctionContext<'_> {
                         self.builder.numeric_constant(*len as u128, NumericType::length_type());
                     self.codegen_access_check(index, len);
                 }
-                // let len = self.builder.numeric_constant(*len as u128, NumericType::length_type());
-                // self.codegen_access_check(index, len);
             }
             Type::Slice(_) => {
                 // The slice length is dynamic however so we can't rely on it being equal to the underlying memory
