@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1754072828497,
+  "lastUpdate": 1754072831789,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -13018,40 +13018,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "ad165997e400549084efc4f1884a4f18948cb51e",
-          "message": "chore: Update noir-lang/sparse_array failures status (#9289)",
-          "timestamp": "2025-07-23T13:31:09+01:00",
-          "tree_id": "9efc1393068bf599c0656ad728284572ec0682f4",
-          "url": "https://github.com/noir-lang/noir/commit/ad165997e400549084efc4f1884a4f18948cb51e"
-        },
-        "date": 1753274448429,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore-depth-10",
-            "value": 632.4,
-            "unit": "KB"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 622.9,
-            "unit": "KB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -14701,6 +14667,40 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/9797518a83a46e91a7c767ec637780a42dd21c9f"
         },
         "date": 1754063662250,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore-depth-10",
+            "value": 632.1,
+            "unit": "KB"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 525.2,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "2d3a30432debb5bc7c7ed0780103480e00c518c7",
+          "message": "fix(ssa): Do not check ArrayGet/Set as unreachable for Brillig (#9376)",
+          "timestamp": "2025-08-01T17:59:37Z",
+          "tree_id": "db2c95833c7f442038abc4b5e45d95d5ce20b8a9",
+          "url": "https://github.com/noir-lang/noir/commit/2d3a30432debb5bc7c7ed0780103480e00c518c7"
+        },
+        "date": 1754072812630,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
