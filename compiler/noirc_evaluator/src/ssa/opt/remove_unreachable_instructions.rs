@@ -177,10 +177,12 @@ impl Function {
                 Instruction::ArrayGet { array, index, offset }
                 | Instruction::ArraySet { array, index, offset, .. } => {
                     let mut length = None;
+                    let mut element_size = None;
                     let array_or_slice_type = context.dfg.type_of_value(*array);
                     let array_op_always_fails = match &array_or_slice_type {
                         Type::Slice(_) => false,
                         array_type @ Type::Array(_, len) => {
+                            element_size = Some(array_type.element_size() as u32);
                             length = Some(*len);
                             *len == 0
                                 || context.dfg.get_numeric_constant(*index).is_some_and(|index| {
@@ -257,7 +259,7 @@ impl Function {
                                     context.dfg.make_constant(0_u128.into(), NumericType::bool());
                                 let message = Some(ConstrainError::StaticString(format!(
                                     "Index out of bounds, index is {index}, length is {}",
-                                    length.unwrap()
+                                    length.unwrap() * element_size.unwrap()
                                 )));
                                 let instruction = Instruction::Constrain(zero, one, message);
                                 let call_stack = context
