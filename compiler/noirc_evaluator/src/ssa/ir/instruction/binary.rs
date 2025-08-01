@@ -142,6 +142,15 @@ pub(crate) fn eval_constant_binary_op(
                 return Failure("attempt to divide by zero".to_string());
             }
 
+            // Check for overflow
+            if operator == BinaryOp::Shl || operator == BinaryOp::Shr {
+                let op = binary_op_function_name(operator);
+
+                if rhs >= bit_size as u128 {
+                    return Failure(format!("attempt to {op} with overflow"));
+                }
+            }
+
             let Some(result) = function(lhs, rhs) else {
                 if let BinaryOp::Shl = operator {
                     return CouldNotEvaluate;
@@ -183,7 +192,6 @@ pub(crate) fn eval_constant_binary_op(
             let Some(rhs) = try_convert_field_element_to_signed_integer(rhs, bit_size) else {
                 return CouldNotEvaluate;
             };
-
             let result = function(lhs, rhs);
             let result = match operator {
                 BinaryOp::Div | BinaryOp::Mod if rhs == 0 => {
@@ -194,9 +202,10 @@ pub(crate) fn eval_constant_binary_op(
                     // and the operation should be handled by ACIR generation.
                     return Failure("attempt to divide by zero".to_string());
                 }
-                BinaryOp::Shr => {
-                    if rhs >= bit_size as i128 {
-                        if lhs >= 0 { 0 } else { -1 }
+                BinaryOp::Shr | BinaryOp::Shl => {
+                    if rhs >= (bit_size - 1) as i128 {
+                        let op = binary_op_function_name(operator);
+                        return Failure(format!("attempt to {op} with overflow"));
                     } else {
                         let Some(result) = result else {
                             return CouldNotEvaluate;
@@ -286,10 +295,14 @@ pub(crate) fn convert_signed_integer_to_field_element(int: i128, bit_size: u32) 
         // signed to u128 conversion
         FieldElement::from(int as u128)
     } else {
-        // We add an offset of `bit_size` bits to shift the negative values into the range [2^(bitsize-1), 2^bitsize)
-        assert!(bit_size < 128, "{bit_size} is too large");
-        let offset_int = (1i128 << bit_size) + int;
-        FieldElement::from(offset_int)
+        let two_complement = match bit_size {
+            8 => ((int as i8) as u8) as u128,
+            16 => ((int as i16) as u16) as u128,
+            32 => ((int as i32) as u32) as u128,
+            64 => ((int as i64) as u64) as u128,
+            _ => unreachable!("ICE - invalide bit size {bit_size} for signed integer"),
+        };
+        FieldElement::from(two_complement)
     }
 }
 

@@ -160,18 +160,6 @@ impl<'f> Validator<'f> {
                             panic!("Cannot use `lt` with field elements");
                         }
                     }
-                    BinaryOp::Shl => {
-                        if !matches!(rhs_type, Type::Numeric(NumericType::Unsigned { bit_size: 8 }))
-                        {
-                            panic!("Right-hand side of `shl` must be u8");
-                        }
-                    }
-                    BinaryOp::Shr => {
-                        if !matches!(rhs_type, Type::Numeric(NumericType::Unsigned { bit_size: 8 }))
-                        {
-                            panic!("Right-hand side of `shr` must be u8");
-                        }
-                    }
                     _ => {
                         if lhs_type != rhs_type {
                             panic!(

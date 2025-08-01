@@ -125,20 +125,20 @@ pub(super) fn evaluate_infix(
         };
     }
 
-    /// Generate matches for bit shifting, which in Noir only accepts `u8` for RHS.
+    /// Generate matches for bit shifting
     macro_rules! match_bitshift {
         (($lhs_value:ident as $lhs:ident $op:literal $rhs_value:ident as $rhs:ident) => $expr:expr) => {
             match_values! {
                 ($lhs_value as $lhs $op $rhs_value as $rhs) {
-                    (I8,  U8)      to I8   => $expr,
-                    (I16, U8)      to I16  => $expr,
-                    (I32, U8)      to I32  => $expr,
-                    (I64, U8)      to I64  => $expr,
+                    (I8,  I8)      to I8   => $expr,
+                    (I16, I16)      to I16  => $expr,
+                    (I32, I32)      to I32  => $expr,
+                    (I64, I64)      to I64  => $expr,
                     (U8,  U8)      to U8   => $expr,
-                    (U16, U8)      to U16  => $expr,
-                    (U32, U8)      to U32  => $expr,
-                    (U64, U8)      to U64  => $expr,
-                    (U128, U8)     to U128  => $expr,
+                    (U16, U16)      to U16  => $expr,
+                    (U32, U32)      to U32  => $expr,
+                    (U64, U64)      to U64  => $expr,
+                    (U128, U128)     to U128  => $expr,
                 }
             }
         };
@@ -206,7 +206,7 @@ pub(super) fn evaluate_infix(
             match_bitshift! {
                 (lhs_value as lhs ">>" rhs_value as rhs) => {
                     Some(
-                        lhs.checked_shr(rhs.into())
+                        lhs.checked_shr(rhs as u32)
                             .unwrap_or(
                                 // fallback based on whether we have a negative value
                                 if is_negative {
@@ -220,7 +220,7 @@ pub(super) fn evaluate_infix(
             }
         }
         BinaryOpKind::ShiftLeft => match_bitshift! {
-            (lhs_value as lhs "<<" rhs_value as rhs) => lhs.checked_shl(rhs.into())
+            (lhs_value as lhs "<<" rhs_value as rhs) => lhs.checked_shl(rhs as u32)
         },
         BinaryOpKind::Modulo => match_integer! {
             (lhs_value as lhs "%" rhs_value as rhs) => lhs.checked_rem(rhs)

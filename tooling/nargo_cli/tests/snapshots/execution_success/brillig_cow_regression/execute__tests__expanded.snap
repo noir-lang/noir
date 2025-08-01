@@ -62,16 +62,16 @@ impl U256 {
                 (
                     (
                         (
-                            (((bytes[0_u32] as u64) << 56_u8) + ((bytes[1_u32] as u64) << 48_u8))
-                                + ((bytes[2_u32] as u64) << 40_u8)
+                            (((bytes[0_u32] as u64) << 56_u64) + ((bytes[1_u32] as u64) << 48_u64))
+                                + ((bytes[2_u32] as u64) << 40_u64)
                         )
-                            + ((bytes[3_u32] as u64) << 32_u8)
+                            + ((bytes[3_u32] as u64) << 32_u64)
                     )
-                        + ((bytes[4_u32] as u64) << 24_u8)
+                        + ((bytes[4_u32] as u64) << 24_u64)
                 )
-                    + ((bytes[5_u32] as u64) << 16_u8)
+                    + ((bytes[5_u32] as u64) << 16_u64)
             )
-                + ((bytes[6_u32] as u64) << 8_u8)
+                + ((bytes[6_u32] as u64) << 8_u64)
         )
             + (bytes[7_u32] as u64);
         let high_1: u64 = (
@@ -79,16 +79,16 @@ impl U256 {
                 (
                     (
                         (
-                            (((bytes[8_u32] as u64) << 56_u8) + ((bytes[9_u32] as u64) << 48_u8))
-                                + ((bytes[10_u32] as u64) << 40_u8)
+                            (((bytes[8_u32] as u64) << 56_u64) + ((bytes[9_u32] as u64) << 48_u64))
+                                + ((bytes[10_u32] as u64) << 40_u64)
                         )
-                            + ((bytes[11_u32] as u64) << 32_u8)
+                            + ((bytes[11_u32] as u64) << 32_u64)
                     )
-                        + ((bytes[12_u32] as u64) << 24_u8)
+                        + ((bytes[12_u32] as u64) << 24_u64)
                 )
-                    + ((bytes[13_u32] as u64) << 16_u8)
+                    + ((bytes[13_u32] as u64) << 16_u64)
             )
-                + ((bytes[14_u32] as u64) << 8_u8)
+                + ((bytes[14_u32] as u64) << 8_u64)
         )
             + (bytes[15_u32] as u64);
         let low_0: u64 = (
@@ -96,16 +96,19 @@ impl U256 {
                 (
                     (
                         (
-                            (((bytes[16_u32] as u64) << 56_u8) + ((bytes[17_u32] as u64) << 48_u8))
-                                + ((bytes[18_u32] as u64) << 40_u8)
+                            (
+                                ((bytes[16_u32] as u64) << 56_u64)
+                                    + ((bytes[17_u32] as u64) << 48_u64)
+                            )
+                                + ((bytes[18_u32] as u64) << 40_u64)
                         )
-                            + ((bytes[19_u32] as u64) << 32_u8)
+                            + ((bytes[19_u32] as u64) << 32_u64)
                     )
-                        + ((bytes[20_u32] as u64) << 24_u8)
+                        + ((bytes[20_u32] as u64) << 24_u64)
                 )
-                    + ((bytes[21_u32] as u64) << 16_u8)
+                    + ((bytes[21_u32] as u64) << 16_u64)
             )
-                + ((bytes[22_u32] as u64) << 8_u8)
+                + ((bytes[22_u32] as u64) << 8_u64)
         )
             + (bytes[23_u32] as u64);
         let low_1: u64 = (
@@ -113,16 +116,19 @@ impl U256 {
                 (
                     (
                         (
-                            (((bytes[24_u32] as u64) << 56_u8) + ((bytes[25_u32] as u64) << 48_u8))
-                                + ((bytes[26_u32] as u64) << 40_u8)
+                            (
+                                ((bytes[24_u32] as u64) << 56_u64)
+                                    + ((bytes[25_u32] as u64) << 48_u64)
+                            )
+                                + ((bytes[26_u32] as u64) << 40_u64)
                         )
-                            + ((bytes[27_u32] as u64) << 32_u8)
+                            + ((bytes[27_u32] as u64) << 32_u64)
                     )
-                        + ((bytes[28_u32] as u64) << 24_u8)
+                        + ((bytes[28_u32] as u64) << 24_u64)
                 )
-                    + ((bytes[29_u32] as u64) << 16_u8)
+                    + ((bytes[29_u32] as u64) << 16_u64)
             )
-                + ((bytes[30_u32] as u64) << 8_u8)
+                + ((bytes[30_u32] as u64) << 8_u64)
         )
             + (bytes[31_u32] as u64);
         Self { inner: [high_0, high_1, low_0, low_1] }

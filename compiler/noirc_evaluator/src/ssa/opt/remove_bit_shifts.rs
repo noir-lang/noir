@@ -121,8 +121,7 @@ impl Context<'_, '_, '_> {
             (max_bit_size, pow)
         } else {
             // we use a predicate to nullify the result in case of overflow
-            let u8_type = NumericType::unsigned(8);
-            let bit_size_var = self.numeric_constant(FieldElement::from(bit_size as u128), u8_type);
+            let bit_size_var = self.numeric_constant(FieldElement::from(bit_size as u128), typ);
             let overflow = self.insert_binary(rhs, BinaryOp::Lt, bit_size_var);
             let predicate = self.insert_cast(overflow, NumericType::NativeField);
             let pow = self.pow(base, rhs);
@@ -256,9 +255,7 @@ impl Context<'_, '_, '_> {
     /// }
     fn pow(&mut self, lhs: ValueId, rhs: ValueId) -> ValueId {
         let typ = self.context.dfg.type_of_value(rhs);
-        let Type::Numeric(NumericType::Unsigned { bit_size }) = typ else {
-            unreachable!("Value must be unsigned in power operation");
-        };
+        let bit_size = typ.bit_size();
 
         let to_bits = self.context.dfg.import_intrinsic(Intrinsic::ToBits(Endian::Little));
         let result_types = vec![Type::Array(Arc::new(vec![Type::bool()]), bit_size)];
