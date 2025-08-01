@@ -26,13 +26,13 @@ libfuzzer_sys::fuzz_target!(|data: &[u8]| -> Corpus {
             "FULL" => compile_options.show_ssa = true,
             "FINAL" => {
                 compile_options.show_ssa_pass =
-                    vec!["After Dead Instruction Elimination - ACIR".to_string()]
+                    vec!["After Dead Instruction Elimination - ACIR".to_string()];
             }
             "FIRST_AND_FINAL" => {
                 compile_options.show_ssa_pass = vec![
                     "After Removing Unreachable Functions (1)".to_string(),
                     "After Dead Instruction Elimination - ACIR".to_string(),
-                ]
+                ];
             }
             _ => (),
         }
@@ -55,12 +55,12 @@ libfuzzer_sys::fuzz_target!(|data: &[u8]| -> Corpus {
     if redis::ensure_redis_connection() && fuzzer_output.is_some() {
         let fuzzer_output = fuzzer_output.unwrap();
         let mut hasher = Sha1::new();
-        hasher.update(&data);
+        hasher.update(data);
         let sha1_hash = hasher.finalize();
-        let test_id = format!("{:x}", sha1_hash);
+        let test_id = format!("{sha1_hash:x}");
         match push_fuzzer_output_to_queue(test_id, fuzzer_output) {
-            Ok(json_str) => log::debug!("{}", json_str),
-            Err(e) => log::error!("Failed to push to Redis queue: {}", e),
+            Ok(json_str) => log::debug!("{json_str}"),
+            Err(e) => log::error!("Failed to push to Redis queue: {e}"),
         }
     }
 

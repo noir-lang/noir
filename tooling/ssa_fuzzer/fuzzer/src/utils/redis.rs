@@ -3,7 +3,7 @@ use redis::{Client, Commands, Connection};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-pub struct RedisManager {
+pub(crate) struct RedisManager {
     client: Client,
     connection: Option<Connection>,
     reconnect_attempts: u32,
@@ -54,7 +54,7 @@ impl RedisManager {
         })
     }
 
-    pub fn execute_command<T, F>(&mut self, mut operation: F) -> RedisResult<T>
+    pub(crate) fn execute_command<T, F>(&mut self, mut operation: F) -> RedisResult<T>
     where
         F: FnMut(&mut Connection) -> RedisResult<T>,
     {
@@ -62,7 +62,7 @@ impl RedisManager {
             Ok(conn) => match operation(conn) {
                 Ok(result) => Ok(result),
                 Err(e) => {
-                    log::warn!("Redis operation failed: {}", e);
+                    log::warn!("Redis operation failed: {e}");
                     self.connection = None;
                     self.reconnect_attempts = 1;
 
@@ -70,8 +70,7 @@ impl RedisManager {
                         Ok(conn) => operation(conn),
                         Err(reconnect_err) => {
                             log::error!(
-                                "Failed to reconnect after operation failure: {}",
-                                reconnect_err
+                                "Failed to reconnect after operation failure: {reconnect_err}",
                             );
                             Err(e)
                         }
@@ -82,7 +81,7 @@ impl RedisManager {
         }
     }
 
-    pub fn push_to_queue(&mut self, queue_name: &str, value: &str) -> RedisResult<()> {
+    pub(crate) fn push_to_queue(&mut self, queue_name: &str, value: &str) -> RedisResult<()> {
         self.execute_command(|conn| conn.rpush(queue_name, value))
     }
 }
@@ -91,11 +90,11 @@ lazy_static::lazy_static! {
     static ref REDIS_MANAGER: Arc<Mutex<Option<RedisManager>>> = Arc::new(Mutex::new(None));
 }
 
-pub fn get_redis_manager() -> Arc<Mutex<Option<RedisManager>>> {
+pub(crate) fn get_redis_manager() -> Arc<Mutex<Option<RedisManager>>> {
     REDIS_MANAGER.clone()
 }
 
-pub fn ensure_redis_connection() -> bool {
+pub(crate) fn ensure_redis_connection() -> bool {
     let redis_url = match std::env::var("REDIS_URL") {
         Ok(url) => url,
         Err(_) => {
@@ -114,7 +113,7 @@ pub fn ensure_redis_connection() -> bool {
                 true
             }
             Err(e) => {
-                log::error!("Failed to create Redis manager: {}", e);
+                log::error!("Failed to create Redis manager: {e}");
                 false
             }
         }
@@ -123,7 +122,7 @@ pub fn ensure_redis_connection() -> bool {
     }
 }
 
-pub fn push_to_redis_queue(queue_name: &str, value: &str) -> RedisResult<()> {
+pub(crate) fn push_to_redis_queue(queue_name: &str, value: &str) -> RedisResult<()> {
     let manager = get_redis_manager();
     let mut manager_guard = manager.lock().unwrap();
 
