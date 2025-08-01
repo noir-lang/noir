@@ -1,7 +1,7 @@
 use super::NUMBER_OF_PREDEFINED_VARIABLES;
 use super::NUMBER_OF_VARIABLES_INITIAL;
 use super::function_context::WitnessValue;
-use super::fuzzer::{Fuzzer, FuzzerData};
+use super::fuzzer::{Fuzzer, FuzzerData, FuzzerOutput};
 use super::options::FuzzerOptions;
 use acvm::FieldElement;
 use acvm::acir::native_types::{Witness, WitnessMap};
@@ -43,7 +43,7 @@ fn initialize_witness_map(
 }
 
 /// Creates ACIR and Brillig programs from the data, runs and compares them
-pub(crate) fn fuzz_target(data: FuzzerData, options: FuzzerOptions) -> Option<FieldElement> {
+pub(crate) fn fuzz_target(data: FuzzerData, options: FuzzerOptions) -> Option<FuzzerOutput> {
     // to triage
     if data.instruction_blocks.is_empty() {
         return None;
@@ -116,7 +116,7 @@ mod tests {
         let result = fuzz_target(data, FuzzerOptions::default());
         // we expect that this program executed successfully
         match result {
-            Some(result) => assert_eq!(result, FieldElement::from(1_u32)),
+            Some(result) => assert_eq!(result.get_return_value(), FieldElement::from(1_u32)),
             None => panic!("Program failed to execute"),
         }
 
@@ -141,7 +141,7 @@ mod tests {
         let result = fuzz_target(data, FuzzerOptions::default());
         // we expect that this program failed to execute
         if let Some(result) = result {
-            panic!("Program executed successfully with result: {result:?}");
+            panic!("Program executed successfully with result: {:?}", result.get_return_value());
         }
     }
 
@@ -208,7 +208,7 @@ mod tests {
         };
         let result = fuzz_target(data, FuzzerOptions::default());
         match result {
-            Some(result) => assert_eq!(result, FieldElement::from(4_u32)),
+            Some(result) => assert_eq!(result.get_return_value(), FieldElement::from(4_u32)),
             None => panic!("Program failed to execute"),
         }
     }
@@ -258,7 +258,7 @@ mod tests {
         };
         let result = fuzz_target(data, FuzzerOptions::default());
         match result {
-            Some(result) => assert_eq!(result, FieldElement::from(1024_u32)),
+            Some(result) => assert_eq!(result.get_return_value(), FieldElement::from(1024_u32)),
             None => panic!("Program failed to execute"),
         }
     }
@@ -326,7 +326,7 @@ mod tests {
         };
         let result = fuzz_target(data, FuzzerOptions::default());
         match result {
-            Some(result) => assert_eq!(result, FieldElement::from(131072_u32)),
+            Some(result) => assert_eq!(result.get_return_value(), FieldElement::from(131072_u32)),
             None => panic!("Program failed to execute"),
         }
     }
@@ -396,7 +396,7 @@ mod tests {
         };
         let result = fuzz_target(data, FuzzerOptions::default());
         match result {
-            Some(result) => assert_eq!(result, FieldElement::from(4096_u32)),
+            Some(result) => assert_eq!(result.get_return_value(), FieldElement::from(4096_u32)),
             None => panic!("Program failed to execute"),
         }
     }
@@ -466,7 +466,7 @@ mod tests {
         };
         let result = fuzz_target(data, FuzzerOptions::default());
         match result {
-            Some(result) => assert_eq!(result, FieldElement::from(22_u32)),
+            Some(result) => assert_eq!(result.get_return_value(), FieldElement::from(22_u32)),
             None => panic!("Program failed to execute"),
         }
 
@@ -501,7 +501,7 @@ mod tests {
         };
         let result = fuzz_target(data, FuzzerOptions::default());
         match result {
-            Some(result) => assert_eq!(result, FieldElement::from(2048_u32)),
+            Some(result) => assert_eq!(result.get_return_value(), FieldElement::from(2048_u32)),
             None => panic!("Program failed to execute"),
         }
     }
@@ -547,7 +547,7 @@ mod tests {
         };
         let result = fuzz_target(fuzzer_data, FuzzerOptions::default());
         match result {
-            Some(result) => assert_eq!(result, FieldElement::from(4_u32)),
+            Some(result) => assert_eq!(result.get_return_value(), FieldElement::from(4_u32)),
             None => panic!("Program failed to execute"),
         }
     }
@@ -625,7 +625,7 @@ mod tests {
         };
         let result = fuzz_target(fuzzer_data, FuzzerOptions::default());
         match result {
-            Some(result) => assert_eq!(result, FieldElement::from(12_u32)),
+            Some(result) => assert_eq!(result.get_return_value(), FieldElement::from(12_u32)),
             None => panic!("Program failed to execute"),
         }
     }
@@ -729,7 +729,7 @@ mod tests {
             FuzzerOptions::default(),
         );
         match result {
-            Some(result) => assert_eq!(result, FieldElement::from(4_u32)),
+            Some(result) => assert_eq!(result.get_return_value(), FieldElement::from(4_u32)),
             None => panic!("Program failed to execute"),
         }
 
@@ -760,7 +760,7 @@ mod tests {
         };
         let result = fuzz_target(fuzzer_data, FuzzerOptions::default());
         match result {
-            Some(result) => assert_eq!(result, FieldElement::from(6_u32)),
+            Some(result) => assert_eq!(result.get_return_value(), FieldElement::from(6_u32)),
             None => panic!("Program failed to execute"),
         }
     }
