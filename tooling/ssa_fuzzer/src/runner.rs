@@ -2,18 +2,18 @@ use acvm::{
     FieldElement,
     acir::{
         circuit::Program,
-        native_types::{Witness, WitnessMap},
+        native_types::{Witness, WitnessMap, WitnessStack},
     },
 };
 use noir_ssa_executor::runner::execute_single;
 
 #[derive(Debug)]
 pub enum CompareResults {
-    Agree(FieldElement),
-    Disagree(FieldElement, FieldElement),
+    Agree(WitnessStack<FieldElement>),
+    Disagree(WitnessStack<FieldElement>, WitnessStack<FieldElement>),
     BothFailed(String, String),
-    AcirFailed(String, FieldElement),
-    BrilligFailed(String, FieldElement),
+    AcirFailed(String, WitnessStack<FieldElement>),
+    BrilligFailed(String, WitnessStack<FieldElement>),
 }
 
 /// High level function to execute the given ACIR and Brillig programs with the given initial witness
@@ -39,31 +39,27 @@ pub fn run_and_compare(
     // 2) acir execution failed, brillig execution succeeded
     // 3) acir execution succeeded, brillig execution failed
     match (acir_result, brillig_result) {
-        (Ok(acir_result), Ok(brillig_result)) => {
+        (Ok(acir_witness), Ok(brillig_witness)) => {
             // we assume that if execution for both modes succeeds both programs returned something
-            let acir_result = acir_result[return_witness_acir.unwrap()];
-            let brillig_result = brillig_result[return_witness_brillig.unwrap()];
+            let acir_witness_map = acir_witness.peek().unwrap().witness.clone();
+            let brillig_witness_map = brillig_witness.peek().unwrap().witness.clone();
+            let acir_result = acir_witness_map[return_witness_acir.unwrap()];
+            let brillig_result = brillig_witness_map[return_witness_brillig.unwrap()];
             if acir_result == brillig_result {
-                CompareResults::Agree(acir_result)
+                CompareResults::Agree(acir_witness)
             } else {
-                CompareResults::Disagree(acir_result, brillig_result)
+                CompareResults::Disagree(acir_witness, brillig_witness)
             }
         }
-        (Err(acir_error), Ok(brillig_result)) => match return_witness_brillig {
-            Some(return_witness) => {
-                let brillig_result = brillig_result[return_witness];
-                CompareResults::AcirFailed(acir_error.to_string(), brillig_result)
-            }
+        (Err(acir_error), Ok(brillig_witness)) => match return_witness_brillig {
+            Some(_) => CompareResults::AcirFailed(acir_error.to_string(), brillig_witness),
             None => CompareResults::BothFailed(
                 acir_error.to_string(),
                 "Brillig program does not return anything".into(),
             ),
         },
-        (Ok(acir_result), Err(brillig_error)) => match return_witness_acir {
-            Some(return_witness) => {
-                let acir_result = acir_result[return_witness];
-                CompareResults::BrilligFailed(brillig_error.to_string(), acir_result)
-            }
+        (Ok(acir_witness), Err(brillig_error)) => match return_witness_acir {
+            Some(_) => CompareResults::BrilligFailed(brillig_error.to_string(), acir_witness),
             None => CompareResults::BothFailed(
                 "ACIR program does not return anything".into(),
                 brillig_error.to_string(),
