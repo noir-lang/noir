@@ -478,6 +478,16 @@ impl Path {
             && self.segments.first().unwrap().generics.is_none()
     }
 
+    pub fn no_generic(&self) -> bool {
+        for segment in &self.segments {
+            if segment.generics.is_some() {
+                return false;
+            }
+        }
+
+        true
+    }
+
     pub fn as_ident(&self) -> Option<&Ident> {
         if !self.is_ident() {
             return None;

@@ -1,0 +1,19 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Expected a numeric expression, but got `Double<Double<N>>`
+  ┌─ src/main.nr:3:5
+  │
+3 │     type Quadruple<let N: u32>: u32 = Double<Double<N>>;
+  │     ---------------------------------------------------
+  │
+
+error: Type annotation needed
+  ┌─ src/main.nr:5:28
+  │
+5 │         let b: [u32; 12] = foo();
+  │                            --- Could not determine the value of the generic argument `N` declared on the function `foo`
+  │
+
+Aborting due to 2 previous errors

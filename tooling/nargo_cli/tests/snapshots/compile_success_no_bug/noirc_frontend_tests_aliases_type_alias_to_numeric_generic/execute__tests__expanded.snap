@@ -1,0 +1,18 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+type Double<let N: u32> = N * 2;
+
+fn main() {
+    let b: [u32; 6] = foo();
+    assert(b[0_u32] == 0_u32);
+}
+
+fn foo<let N: u32>() -> [u32; N * 2] {
+    let mut a: [u32; N * 2] = [0_u32; N * 2];
+    for i in 0_u32..N * 2_u32 {
+        a[i] = i;
+    }
+    a
+}

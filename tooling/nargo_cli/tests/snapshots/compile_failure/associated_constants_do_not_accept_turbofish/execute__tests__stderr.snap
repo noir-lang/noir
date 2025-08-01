@@ -2,18 +2,18 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
-error: Generic Associated Types (GATs) are currently unsupported in Noir
-  ┌─ src/main.nr:4:32
+error: Could not resolve 'Self' in path
+  ┌─ src/main.nr:4:25
   │
 4 │     fn foo() -> [Field; Self::N::<i32>] {
-  │                                ------- Cannot apply generics to an associated type
+  │                         ----
   │
 
-error: Generic Associated Types (GATs) are currently unsupported in Noir
-  ┌─ src/main.nr:5:20
+error: Could not resolve 'Self' in path
+  ┌─ src/main.nr:5:13
   │
 5 │         [0; Self::N::<i32>]
-  │                    ------- Cannot apply generics to an associated type
+  │             ----
   │
 
 Aborting due to 2 previous errors

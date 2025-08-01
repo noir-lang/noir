@@ -13,8 +13,8 @@ use rustc_hash::FxHashMap as HashMap;
 use crate::ast::{
     Documented, Expression, FunctionDefinition, Ident, ItemVisibility, LetStatement,
     ModuleDeclaration, NoirEnumeration, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl,
-    NoirTypeAlias, Pattern, TraitImplItemKind, TraitItem, TypeImpl, UnresolvedType,
-    UnresolvedTypeData, desugar_generic_trait_bounds_and_reorder_where_clause,
+    Pattern, TraitImplItemKind, TraitItem, TypeAlias, TypeImpl, UnresolvedType, UnresolvedTypeData,
+    desugar_generic_trait_bounds_and_reorder_where_clause,
 };
 use crate::elaborator::PrimitiveType;
 use crate::hir::resolution::errors::ResolverError;
@@ -371,7 +371,7 @@ impl ModCollector<'_> {
     fn collect_type_aliases(
         &mut self,
         context: &mut Context,
-        type_aliases: Vec<Documented<NoirTypeAlias>>,
+        type_aliases: Vec<Documented<TypeAlias>>,
         krate: CrateId,
     ) -> Vec<CompilationError> {
         let mut errors: Vec<CompilationError> = vec![];

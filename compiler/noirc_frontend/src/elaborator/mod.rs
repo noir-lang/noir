@@ -1815,18 +1815,52 @@ impl<'context> Elaborator<'context> {
 
         let name = &alias.type_alias_def.name;
         let visibility = alias.type_alias_def.visibility;
-        let location = alias.type_alias_def.typ.location;
+        let location = alias.type_alias_def.location;
 
         let generics = self.add_generics(&alias.type_alias_def.generics);
         self.current_item = Some(DependencyId::Alias(alias_id));
         let wildcard_allowed = false;
-        let typ = self.use_type(alias.type_alias_def.typ, wildcard_allowed);
+        let (typ, num_expr) = if let Some(num_type) = alias.type_alias_def.numeric_type {
+            let num_type = self.resolve_type(num_type, wildcard_allowed);
+            let kind = Kind::numeric(num_type);
+            let num_expr = alias.type_alias_def.typ.typ.try_into_expression();
+
+            if let Some(num_expr) = num_expr {
+                // Checks that the expression only references generics and constants
+                if !num_expr.is_valid_expression() {
+                    self.errors.push(CompilationError::ResolverError(
+                        ResolverError::RecursiveTypeAlias {
+                            location: alias.type_alias_def.numeric_location,
+                        },
+                    ));
+                    (Type::Error, None)
+                } else {
+                    (
+                        self.resolve_type_with_kind(
+                            alias.type_alias_def.typ,
+                            &kind,
+                            wildcard_allowed,
+                        ),
+                        Some(num_expr),
+                    )
+                }
+            } else {
+                self.errors.push(CompilationError::ResolverError(
+                    ResolverError::ExpectedNumericExpression {
+                        typ: alias.type_alias_def.typ.typ.to_string(),
+                        location,
+                    },
+                ));
+                (Type::Error, None)
+            }
+        } else {
+            (self.use_type(alias.type_alias_def.typ, wildcard_allowed), None)
+        };
 
         if visibility != ItemVisibility::Private {
             self.check_type_is_not_more_private_then_item(name, visibility, &typ, location);
         }
-
-        self.interner.set_type_alias(alias_id, typ, generics);
+        self.interner.set_type_alias(alias_id, typ, generics, num_expr);
         self.generics.clear();
     }
 
