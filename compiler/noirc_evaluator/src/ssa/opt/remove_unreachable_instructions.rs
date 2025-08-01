@@ -30,9 +30,9 @@ use crate::ssa::{
 impl Ssa {
     pub(crate) fn remove_unreachable_instructions(mut self) -> Ssa {
         for function in self.functions.values_mut() {
-            if function.runtime().is_brillig() {
-                continue;
-            }
+            // if function.runtime().is_brillig() {
+            //     continue;
+            // }
             function.remove_unreachable_instructions();
         }
         self
