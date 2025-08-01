@@ -253,9 +253,10 @@ impl Function {
                                 let index = context.dfg.get_numeric_constant(*index).unwrap();
                                 let zero =
                                     context.dfg.make_constant(0_u128.into(), NumericType::bool());
-                                let message = Some(ConstrainError::StaticString(
-                                    format!("Index out of bounds, index is {index}, length is {}", length.unwrap()),
-                                ));
+                                let message = Some(ConstrainError::StaticString(format!(
+                                    "Index out of bounds, index is {index}, length is {}",
+                                    length.unwrap()
+                                )));
                                 let instruction = Instruction::Constrain(zero, one, message);
                                 let call_stack = context
                                     .dfg
