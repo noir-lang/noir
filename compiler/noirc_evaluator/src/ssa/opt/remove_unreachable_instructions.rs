@@ -50,7 +50,6 @@ enum Reachability {
 impl Function {
     fn remove_unreachable_instructions(&mut self) {
         let func_id = self.id();
-        let name = self.name().to_owned();
         // The current block we are currently processing
         let mut current_block_id = None;
 
@@ -252,8 +251,6 @@ impl Function {
                                 context.remove_current_instruction();
                             }
                             (Reachability::Unreachable, false) => {
-                                dbg!(&name);
-                                dbg!(instruction.clone());
                                 let index = context.dfg.get_numeric_constant(*index).unwrap();
                                 let zero =
                                     context.dfg.make_constant(0_u128.into(), NumericType::bool());
