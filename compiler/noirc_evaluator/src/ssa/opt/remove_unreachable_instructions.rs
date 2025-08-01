@@ -175,14 +175,14 @@ impl Function {
                 }
                 Instruction::ArrayGet { array, index, offset }
                 | Instruction::ArraySet { array, index, offset, .. } => {
-                    let mut length = None;
-                    let mut element_size = None;
+                    // let mut length = None;
+                    // let mut element_size = None;
                     let array_or_slice_type = context.dfg.type_of_value(*array);
                     let array_op_always_fails = match &array_or_slice_type {
                         Type::Slice(_) => false,
                         array_type @ Type::Array(_, len) => {
-                            element_size = Some(array_type.element_size() as u32);
-                            length = Some(*len);
+                            // element_size = Some(array_type.element_size() as u32);
+                            // length = Some(*len);
                             *len == 0
                                 || context.dfg.get_numeric_constant(*index).is_some_and(|index| {
                                     (index.try_to_u32().unwrap() - offset.to_u32())
@@ -262,7 +262,6 @@ impl Function {
                                 // let call_stack = context
                                 //     .dfg
                                 //     .get_instruction_call_stack_id(context.instruction_id);
-
                                 // context.dfg.insert_instruction_and_results(
                                 //     instruction,
                                 //     block_id,
