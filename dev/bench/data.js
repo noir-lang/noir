@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1754063678425,
+  "lastUpdate": 1754063680382,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -13018,40 +13018,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "72797635+Savio-Sou@users.noreply.github.com",
-            "name": "Savio",
-            "username": "Savio-Sou"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "aac99e244010bfeda30d5789d11c7f9c081cae03",
-          "message": "chore: Mark `sparse_array` and `noir_json_parser` as non-critical (#9282)",
-          "timestamp": "2025-07-23T13:20:00+01:00",
-          "tree_id": "9068e1f26bbe68ab36217bfb28f3ea7b3bab9eb0",
-          "url": "https://github.com/noir-lang/noir/commit/aac99e244010bfeda30d5789d11c7f9c081cae03"
-        },
-        "date": 1753274260162,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore-depth-10",
-            "value": 632.4,
-            "unit": "KB"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 622.9,
-            "unit": "KB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -14701,6 +14667,40 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/cb6b7e34ece13f2b99a0dc3d845b3254f8c20c5f"
         },
         "date": 1753992227011,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore-depth-10",
+            "value": 632.1,
+            "unit": "KB"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 525.2,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "9797518a83a46e91a7c767ec637780a42dd21c9f",
+          "message": "chore: use SSA parser in all mem2reg tests (#9372)",
+          "timestamp": "2025-08-01T15:19:31Z",
+          "tree_id": "3a95cf2c87ab5928b19a14309fbff3ae35e2b0e3",
+          "url": "https://github.com/noir-lang/noir/commit/9797518a83a46e91a7c767ec637780a42dd21c9f"
+        },
+        "date": 1754063662250,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
