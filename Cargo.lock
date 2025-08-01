@@ -3169,6 +3169,7 @@ name = "nargo"
 version = "1.0.0-beta.9"
 dependencies = [
  "acvm",
+ "brillig",
  "fm",
  "iter-extended",
  "jsonrpsee",

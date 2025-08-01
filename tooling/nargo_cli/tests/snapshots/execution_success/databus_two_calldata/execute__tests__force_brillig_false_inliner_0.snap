@@ -89,7 +89,6 @@ expression: artifact
     "MEM (id: 5, read at: EXPR [ (1, _0) 0 ], value: EXPR [ (1, _16) 0 ]) ",
     "EXPR [ (1, _15) (1, _16) (-1, _17) 0 ]",
     "BLACKBOX::RANGE [(_17, 32)] []",
-    "BLACKBOX::RANGE [(_0, 2)] []",
     "EXPR [ (-1, _18) 0 ]",
     "INIT (id: 6, len: 4, witnesses: [_18, _18, _18, _18])",
     "MEM (id: 6, write EXPR [ (1, _17) 0 ] at: EXPR [ (1, _0) 0 ]) ",
@@ -97,13 +96,11 @@ expression: artifact
     "MEM (id: 5, read at: EXPR [ (1, _1) 0 ], value: EXPR [ (1, _20) 0 ]) ",
     "EXPR [ (1, _19) (1, _20) (-1, _21) 0 ]",
     "BLACKBOX::RANGE [(_21, 32)] []",
-    "BLACKBOX::RANGE [(_1, 2)] []",
     "MEM (id: 6, write EXPR [ (1, _21) 0 ] at: EXPR [ (1, _1) 0 ]) ",
     "MEM (id: 3, read at: EXPR [ (1, _2) 0 ], value: EXPR [ (1, _22) 0 ]) ",
     "MEM (id: 5, read at: EXPR [ (1, _2) 0 ], value: EXPR [ (1, _23) 0 ]) ",
     "EXPR [ (1, _22) (1, _23) (-1, _24) 0 ]",
     "BLACKBOX::RANGE [(_24, 32)] []",
-    "BLACKBOX::RANGE [(_2, 2)] []",
     "MEM (id: 6, write EXPR [ (1, _24) 0 ] at: EXPR [ (1, _2) 0 ]) ",
     "MEM (id: 5, read at: EXPR [ (1, _3) 0 ], value: EXPR [ (1, _25) 0 ]) ",
     "BLACKBOX::RANGE [(_3, 2)] []",
@@ -121,7 +118,7 @@ expression: artifact
     "EXPR [ (1, _14) (-1, _32) 0 ]",
     "INIT RETURNDATA (id: 4, len: 4, witnesses: [_11, _12, _13, _14])"
   ],
-  "debug_symbols": "pZPNboQgEIDfZc4cEPBvX6VpDCpuSAgaVjdpzL57R2axu4cmDb34KTPfjI6ww2j67dpZP803uHzs0AfrnL12bh70amePq/uDQXrs1mAMLsFLHK1FB+NXuPjNOQZ37baYdFu0j1x1wChnYPyIxIKTdea4e7Afm/+uSplkKYtTL//u12Xy6zbDV1w+fcWz/EIkv2j+1z/Ll017vj/P6S/r5Kuc+SuV5q9KkdWfn/3f/U980oMNbzsWavxkBk28tigxKDihQA0hCJKg4FIhSkJFoBpFQ14bMwUnUBUhYqaQMVOomClKilWEmtBQJlZpGEhOwCr4W6QgSIIilISKUBOwyrH77jpY3TvzPJzT5oeXs7p+LSmSTvMS5sGMWzDHlGIM5/YN",
+  "debug_symbols": "pZPNboQgEIDfhTMH/lzUV2kag4obEoKG1U0as+/ekVns7qFJQy9+ysw3oyPsZLT9du1cmOYbaT920kfnvbt2fh7M6uYAq/uDkvzYrdFaWCIvcbAWE21YSRs27ym5G7+lpNtiQuJqIkQZJTaMQCg4OW+Puwf9sdnvqpRZlpKfevV3X1fZ102Br5h8+ooV+Vxkn9f/61/ky7o535+V9Jc6+6pk/krl+atKFPVnZ/93/xOezODi244lGj6ZkjpdG5Ao4QzBQQMIhCTtBaAQFeKSNK5RqDGzSRAspQieUoRIKUJiTCGwioAqNUAjoAr8AdEkSIbgCIGQCIWAKsdGu5voTO/t8xxOWxhejuX6teRIPrhLnAc7btEeA0kxGNE3",
   "file_map": {
     "50": {
       "source": "// An simple program demonstrating two calldata array inputs and a single return data array. As an arbitrary example,\n// the return data is computed as a linear combination of the calldata.\nfn main(\n    mut x: [u32; 4],\n    y: call_data(0) [u32; 3],\n    z: call_data(1) [u32; 4],\n) -> return_data [u32; 4] {\n    let mut result = [0; 4];\n    for i in 0..3 {\n        let idx = x[i];\n        result[idx] = y[idx] + z[idx];\n    }\n    result[x[3]] = z[x[3]];\n    result\n}\n",

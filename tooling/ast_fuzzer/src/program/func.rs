@@ -36,7 +36,7 @@ use super::{
 };
 
 /// Use random strings to identify constraints.
-const CONSTRAIN_MSG_TYPE: Type = Type::String(3);
+const CONSTRAIN_MSG_TYPE: Type = Type::String(super::CONSTRAIN_MSG_LENGTH);
 
 /// We need to track whether expressions are coming from dynamic program inputs.
 type TrackedExpression = (Expression, bool);
