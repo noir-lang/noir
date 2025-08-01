@@ -129,9 +129,7 @@ impl Function {
                         current_block_reachability = Reachability::Unreachable;
                     }
                 }
-                Instruction::Binary(binary @ Binary { lhs, operator, rhs })
-                    if context.dfg.runtime().is_acir() =>
-                {
+                Instruction::Binary(binary @ Binary { lhs, operator, rhs }) => {
                     if let Some(message) =
                         binary_operation_always_fails(*lhs, *operator, *rhs, context)
                     {
