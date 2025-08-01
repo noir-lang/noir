@@ -1318,7 +1318,6 @@ impl<W: Write> Interpreter<'_, W> {
                         U16(lhs_value.checked_shl(rhs_value.into()).unwrap_or(0))
                     }
                     (U32(lhs_value), U32(rhs_value)) => {
-                        let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow)?;
                         U32(lhs_value.checked_shl(rhs_value).unwrap_or(0))
                     }
                     (U64(lhs_value), U64(rhs_value)) => {

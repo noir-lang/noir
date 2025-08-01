@@ -444,7 +444,7 @@ fn shl() {
         "
         acir(inline) fn main f0 {
           b0():
-            v0 = shl i8 3, u8 2
+            v0 = shl i8 3, i8 2
             return v0
         }
     ",

@@ -2,7 +2,6 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
-[compiler/noirc_evaluator/src/ssa/ssa_gen/context.rs:396:9] &bit_size_field = 64
 warning: unused variable h
   ┌─ src/main.nr:2:9
   │
