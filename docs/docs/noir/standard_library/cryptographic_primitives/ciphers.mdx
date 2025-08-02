@@ -20,7 +20,7 @@ fn main() {
     let input: [u8; 4] = [0, 12, 3, 15] // Random bytes, will be padded to 16 bytes.
     let iv: [u8; 16] = [0; 16]; // Initialisation vector
     let key: [u8; 16] = [0; 16] // AES key
-    let ciphertext = std::aes128::aes128_encrypt(inputs.as_bytes(), iv.as_bytes(), key.as_bytes()); // In this case, the output length will be 16 bytes.
+    let ciphertext = std::aes128::aes128_encrypt(inputs, iv, key); // In this case, the output length will be 16 bytes.
 }
 ```
 
