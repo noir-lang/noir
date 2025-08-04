@@ -209,24 +209,29 @@ impl<'f> PerFunctionContext<'f> {
         // This rule does not apply to reference parameters, which we must also check for before removing these stores.
         for (_, block) in self.blocks.iter() {
             for (store_address, store_instruction) in block.last_stores.iter() {
+                if self.load_addresses.contains(store_address) {
+                    continue;
+                }
+
+                let is_dereference = block
+                    .expressions
+                    .get(store_address)
+                    .is_some_and(|expression| matches!(expression, Expression::Dereference(_)));
+                if is_dereference {
+                    continue;
+                }
+
                 let store_alias_used = self.is_store_alias_used(
                     store_address,
                     block,
                     &all_terminator_values,
                     &per_func_block_params,
                 );
-
-                let is_dereference = block
-                    .expressions
-                    .get(store_address)
-                    .is_some_and(|expression| matches!(expression, Expression::Dereference(_)));
-
-                if !store_alias_used
-                    && !is_dereference
-                    && !self.load_addresses.contains(store_address)
-                {
-                    self.instructions_to_remove.insert(*store_instruction);
+                if store_alias_used {
+                    continue;
                 }
+
+                self.instructions_to_remove.insert(*store_instruction);
             }
         }
     }
