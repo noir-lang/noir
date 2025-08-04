@@ -948,7 +948,7 @@ mod test {
         let ssa = ssa.remove_unreachable_instructions();
 
         assert_ssa_snapshot!(ssa, @r#"
-        acir(inline) predicate_pure fn main f0 {
+        brillig(inline) predicate_pure fn main f0 {
           b0():
             v0 = allocate -> &mut u8
             store u8 0 at v0
