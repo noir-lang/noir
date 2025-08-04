@@ -9,7 +9,7 @@ use proptest_derive::Arbitrary;
 use acvm::{AcirField, FieldElement};
 
 use crate::{
-    ast::{IntegerBitSize, ItemVisibility},
+    ast::{BinaryOpKind, IntegerBitSize, ItemVisibility, UnresolvedTypeExpression},
     hir::{
         def_map::ModuleId,
         type_check::{TypeCheckError, generics::TraitGenerics},
@@ -713,6 +713,8 @@ pub struct TypeAlias {
     pub generics: Generics,
     pub visibility: ItemVisibility,
     pub location: Location,
+    /// Optional expression, used by type aliases to numeric generics
+    pub numeric_expr: Option<UnresolvedTypeExpression>,
     pub module_id: ModuleId,
 }
 
@@ -756,13 +758,19 @@ impl TypeAlias {
         visibility: ItemVisibility,
         module_id: ModuleId,
     ) -> TypeAlias {
-        TypeAlias { id, typ, name, location, generics, visibility, module_id }
+        TypeAlias { id, typ, name, location, generics, visibility, module_id, numeric_expr: None }
     }
 
-    pub fn set_type_and_generics(&mut self, new_typ: Type, new_generics: Generics) {
+    pub fn set_type_and_generics(
+        &mut self,
+        new_typ: Type,
+        new_generics: Generics,
+        num_expr: Option<UnresolvedTypeExpression>,
+    ) {
         assert_eq!(self.typ, Type::Error);
         self.typ = new_typ;
         self.generics = new_generics;
+        self.numeric_expr = num_expr;
     }
 
     pub fn get_type(&self, generic_args: &[Type]) -> Type {
@@ -858,6 +866,18 @@ pub enum BinaryTypeOperator {
     Multiplication,
     Division,
     Modulo,
+}
+
+impl BinaryTypeOperator {
+    pub fn operator_to_binary_op_kind_helper(&self) -> BinaryOpKind {
+        match self {
+            BinaryTypeOperator::Addition => BinaryOpKind::Add,
+            BinaryTypeOperator::Subtraction => BinaryOpKind::Subtract,
+            BinaryTypeOperator::Multiplication => BinaryOpKind::Multiply,
+            BinaryTypeOperator::Division => BinaryOpKind::Divide,
+            BinaryTypeOperator::Modulo => BinaryOpKind::Modulo,
+        }
+    }
 }
 
 /// A TypeVariable is a mutable reference that is either

@@ -154,18 +154,21 @@ const IGNORED_MINIMAL_EXECUTION_TESTS: [&str; 13] = [
 /// might not be worth it.
 /// Others are ignored because of existing bugs in `nargo expand`.
 /// As the bugs are fixed these tests should be removed from this list.
-const IGNORED_NARGO_EXPAND_EXECUTION_TESTS: [&str; 8] = [
+const IGNORED_NARGO_EXPAND_EXECUTION_TESTS: [&str; 10] = [
     // There's nothing special about this program but making it work with a custom entry would involve
     // having to parse the Nargo.toml file, etc., which is not worth it
     "custom_entry",
     // There's no "src/main.nr" here so it's trickier to make this work
     "diamond_deps_0",
     // bug
+    "numeric_type_alias",
     "negative_associated_constants",
     // bug
     "regression_9116",
     // There's no "src/main.nr" here so it's trickier to make this work
     "overlapping_dep_and_mod",
+    // bug
+    "regression_9116",
     // bug
     "trait_associated_constant",
     // There's no "src/main.nr" here so it's trickier to make this work
@@ -180,7 +183,7 @@ const TESTS_WITHOUT_STDOUT_CHECK: [&str; 0] = [];
 /// These tests are ignored because of existing bugs in `nargo expand`.
 /// As the bugs are fixed these tests should be removed from this list.
 /// (some are ignored on purpose for the same reason as `IGNORED_NARGO_EXPAND_EXECUTION_TESTS`)
-const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 13] = [
+const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 9] = [
     // bug
     "associated_type_bounds",
     // bug
@@ -199,21 +202,12 @@ const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 13] = [
     // There's no "src/main.nr" here so it's trickier to make this work
     "workspace_reexport_bug",
     // bug
-    "type_trait_method_call_multiple_candidates",
-    // bug
-    "alias_trait_method_call_multiple_candidates",
-    // bug
     "trait_call_in_global",
-    // bug
-    "comptime_traits",
-    // bug
-    "trait_multi_module_test",
 ];
 
 /// These tests are ignored because of existing bugs in `nargo expand`.
 /// As the bugs are fixed these tests should be removed from this list.
-const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_NO_BUG_TESTS: [&str; 15] = [
-    "noirc_frontend_tests_arithmetic_generics_checked_casts_do_not_prevent_canonicalization",
+const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_NO_BUG_TESTS: [&str; 14] = [
     "noirc_frontend_tests_check_trait_as_type_as_fn_parameter",
     "noirc_frontend_tests_check_trait_as_type_as_two_fn_parameters",
     "noirc_frontend_tests_enums_match_on_empty_enum",
@@ -226,14 +220,12 @@ const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_NO_BUG_TESTS: [&str; 15] = [
     "noirc_frontend_tests_u32_globals_as_sizes_in_types",
     // This creates a struct at comptime which, expanded, gives a visibility error
     "noirc_frontend_tests_visibility_visibility_bug_inside_comptime",
-    // bug
-    "noirc_frontend_tests_traits_associated_constant_sum_of_other_constants_3",
-    "noirc_frontend_tests_traits_trait_where_clause_associated_type_constraint_expected_order",
-    "noirc_frontend_tests_traits_trait_where_clause_associated_type_constraint_unexpected_order",
+    "noirc_frontend_tests_aliases_identity_numeric_type_alias_works",
+    "noirc_frontend_tests_aliases_type_alias_to_numeric_as_generic",
+    "noirc_frontend_tests_aliases_type_alias_to_numeric_generic",
 ];
 
-const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_WITH_BUG_TESTS: [&str; 1] =
-    ["noirc_frontend_tests_cast_negative_one_to_u8_size_checks"];
+const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_WITH_BUG_TESTS: [&str; 0] = [];
 
 fn read_test_cases(
     test_data_dir: &Path,
@@ -862,9 +854,8 @@ mod nargo_expand_{test_type} {{
     .unwrap();
 
     for (test_name, test_dir) in test_cases {
-        if ignore.contains(&test_name.as_str()) {
-            continue;
-        }
+        let should_panic =
+            if ignore.contains(&test_name.as_str()) { "#[should_panic]" } else { "" };
 
         let test_dir = test_dir.display();
 
@@ -872,6 +863,7 @@ mod nargo_expand_{test_type} {{
             test_file,
             r#"
     #[test]
+    {should_panic}
     fn test_{test_name}() {{
         let test_program_dir = PathBuf::from("{test_dir}");
         nargo_expand_compile(test_program_dir, "{test_type}");
