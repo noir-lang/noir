@@ -559,7 +559,9 @@ impl<'f> PerFunctionContext<'f> {
                         AliasSet::unknown()
                     };
 
-                    aliases.unify(&references.get_aliases_for_value(*value));
+                    if let Some(value_aliases) = references.get_aliases(*value) {
+                        aliases.unify(value_aliases);
+                    }
 
                     references.expressions.insert(result, expression);
                     references.aliases.insert(expression, aliases);

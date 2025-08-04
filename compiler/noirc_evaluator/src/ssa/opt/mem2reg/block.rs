@@ -1,5 +1,3 @@
-use std::borrow::Cow;
-
 use crate::ssa::ir::{
     function::Function,
     instruction::{Instruction, InstructionId},
@@ -251,19 +249,11 @@ impl Block {
     ) -> AliasSet {
         let mut aliases = AliasSet::known_empty();
         for value in values {
-            aliases.unify(&self.get_aliases_for_value(value));
-        }
-        aliases
-    }
-
-    pub(super) fn get_aliases_for_value(&self, value: ValueId) -> Cow<AliasSet> {
-        if let Some(expression) = self.expressions.get(&value) {
-            if let Some(aliases) = self.aliases.get(expression) {
-                return Cow::Borrowed(aliases);
+            if let Some(value_aliases) = self.get_aliases(value) {
+                aliases.unify(value_aliases);
             }
         }
-
-        Cow::Owned(AliasSet::unknown())
+        aliases
     }
 
     pub(super) fn set_last_load(&mut self, address: ValueId, instruction: InstructionId) {
