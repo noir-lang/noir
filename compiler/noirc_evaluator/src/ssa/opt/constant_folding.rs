@@ -127,10 +127,10 @@ impl Function {
     }
 }
 
-struct Context<'brillig, 'purities> {
-    purities: &'purities FunctionPurities,
+struct Context<'a> {
+    purities: &'a FunctionPurities,
     use_constraint_info: bool,
-    brillig_info: Option<BrilligInfo<'brillig>>,
+    brillig_info: Option<BrilligInfo<'a>>,
     /// Maps pre-folded ValueIds to the new ValueIds obtained by re-inserting the instruction.
     visited_blocks: HashSet<BasicBlockId>,
     block_queue: VecDeque<BasicBlockId>,
@@ -218,11 +218,11 @@ struct ResultCache {
     result: Option<(BasicBlockId, Vec<ValueId>)>,
 }
 
-impl<'brillig, 'purities> Context<'brillig, 'purities> {
+impl<'a> Context<'a> {
     fn new(
         use_constraint_info: bool,
-        brillig_info: Option<BrilligInfo<'brillig>>,
-        purities: &'purities FunctionPurities,
+        brillig_info: Option<BrilligInfo<'a>>,
+        purities: &'a FunctionPurities,
     ) -> Self {
         Self {
             purities,
