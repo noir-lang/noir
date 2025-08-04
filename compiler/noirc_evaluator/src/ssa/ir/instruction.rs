@@ -102,7 +102,7 @@ pub enum Intrinsic {
     /// result: an array whose elements are the decomposition of the argument into the `radix` base, in the endian order depending on the chosen variant.
     /// The type of the result gives the number of limbs to use for the decomposition.
     ToRadix(Endian),
-    /// BlackBox(BlackBoxFunc) - Calls a blackbox function. More details can be found here: [crate::circuit::opcodes::BlackBoxFuncCall]
+    /// BlackBox(BlackBoxFunc) - Calls a blackbox function. More details can be found here: [acvm-repo::acir::::circuit::opcodes::BlackBoxFuncCall]
     BlackBox(BlackBoxFunc),
     /// Hint(Hint) - Avoid its arguments to be removed by DIE.
     /// arguments: ... value id
