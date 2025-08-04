@@ -273,10 +273,12 @@ impl Block {
     pub(super) fn keep_last_load_for(&mut self, address: ValueId) {
         self.last_loads.remove(&address);
 
-        if let Some(aliases) = self.get_aliases(address).cloned() {
-            aliases.for_each(|alias| {
-                self.last_loads.remove(&alias);
-            });
+        if let Some(expr) = self.expressions.get(&address) {
+            if let Some(aliases) = self.aliases.get(expr) {
+                aliases.for_each(|alias| {
+                    self.last_loads.remove(&alias);
+                });
+            }
         }
     }
 }
