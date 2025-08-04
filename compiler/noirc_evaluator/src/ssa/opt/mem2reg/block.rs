@@ -42,19 +42,11 @@ pub(super) struct Block {
 /// An `Expression` here is used to represent a canonical key
 /// into the aliases map since otherwise two dereferences of the
 /// same address will be given different ValueIds.
-#[derive(Clone, Copy, PartialOrd, Ord, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialOrd, Ord, PartialEq, Eq, Hash)]
 pub(super) enum Expression {
     Dereference(ValueId),
+    ArrayElement(ValueId),
     Value(ValueId),
-}
-
-impl std::fmt::Debug for Expression {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Expression::Dereference(value) => write!(f, "&{value:?}"),
-            Expression::Value(value) => write!(f, "{value:?}"),
-        }
-    }
 }
 
 /// Every reference's value is either Known and can be optimized away, or Unknown.
