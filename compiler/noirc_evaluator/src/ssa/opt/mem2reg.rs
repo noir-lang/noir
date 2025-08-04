@@ -1076,7 +1076,7 @@ mod tests {
 
     #[test]
     fn keep_repeat_loads_with_alias_store() {
-        // v7, v8, and v9 alias one another. We want to make sure that a repeat load to v7 with a store
+        // v1, v2, and v3 alias one another. We want to make sure that a repeat load to v1 with a store
         // to its aliases in between the repeat loads does not remove those loads.
         let src = "
         acir(inline) fn main f0 {
