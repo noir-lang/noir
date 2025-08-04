@@ -1959,7 +1959,7 @@ impl<'interner> Monomorphizer<'interner> {
         Expression::Literal(Literal::Slice(arr_literal))
     }
 
-    fn queue_function(
+    pub fn queue_function(
         &mut self,
         id: node_interner::FuncId,
         expr_id: ExprId,
