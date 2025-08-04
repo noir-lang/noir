@@ -108,6 +108,20 @@ fn identity_numeric_type_alias_works() {
 
 #[named]
 #[test]
+#[should_panic]
+fn self_referring_type_alias_is_not_allowed() {
+    let src = r#"
+        pub type X = X;
+
+        fn main() {
+            let x: X = 1;
+        }
+      "#;
+    assert_no_errors!(src);
+}
+
+#[named]
+#[test]
 fn type_alias_to_numeric_generic() {
     let src = r#"
     type Double<let N: u32>: u32 = N * 2;
@@ -237,6 +251,21 @@ fn type_alias_to_numeric_as_generic() {
             b: [1; Double::<N>]
         }
     }
+    "#;
+    assert_no_errors!(src);
+}
+
+
+#[named]
+#[test]
+#[should_panic]
+fn self_referring_type_alias_with_generics_is_not_allowed() {
+    let src = r#"
+        type Id<T> = T;
+
+        fn main() {
+            let x: Id<Id<Field>> = 1;
+        }
     "#;
     assert_no_errors!(src);
 }
