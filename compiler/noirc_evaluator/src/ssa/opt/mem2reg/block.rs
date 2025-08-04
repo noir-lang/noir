@@ -45,7 +45,7 @@ pub(super) struct Block {
 #[derive(Debug, Clone, Copy, PartialOrd, Ord, PartialEq, Eq, Hash)]
 pub(super) enum Expression {
     Dereference(ValueId),
-    Other(ValueId),
+    Value(ValueId),
 }
 
 /// Every reference's value is either Known and can be optimized away, or Unknown.
@@ -88,7 +88,7 @@ impl Block {
     }
 
     fn set_value(&mut self, address: ValueId, value: ReferenceValue) {
-        let expression = self.expressions.entry(address).or_insert(Expression::Other(address));
+        let expression = self.expressions.entry(address).or_insert(Expression::Value(address));
         let aliases = self.aliases.entry(*expression).or_default();
 
         if aliases.is_unknown() {
@@ -159,7 +159,7 @@ impl Block {
     ) {
         if function.dfg.value_is_reference(result) {
             if let Some(known_address) = self.get_known_value(address) {
-                self.expressions.insert(result, Expression::Other(known_address));
+                self.expressions.insert(result, Expression::Value(known_address));
             } else {
                 let expression = Expression::Dereference(address);
                 self.expressions.insert(result, expression);

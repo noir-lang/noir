@@ -387,7 +387,7 @@ impl<'f> PerFunctionContext<'f> {
             let first = aliases.first();
             let first = first.expect("All parameters alias at least themselves or we early return");
 
-            let expression = Expression::Other(first);
+            let expression = Expression::Value(first);
             let previous = references.aliases.insert(expression, aliases.clone());
             assert!(previous.is_none());
 
@@ -517,7 +517,7 @@ impl<'f> PerFunctionContext<'f> {
             Instruction::Allocate => {
                 // Register the new reference
                 let result = self.inserter.function.dfg.instruction_results(instruction)[0];
-                let expression = Expression::Other(result);
+                let expression = Expression::Value(result);
                 references.expressions.insert(result, expression);
                 references.aliases.insert(expression, AliasSet::known(result));
             }
@@ -532,7 +532,7 @@ impl<'f> PerFunctionContext<'f> {
                     });
                     references.mark_value_used(array, self.inserter.function);
 
-                    let expression = Expression::Other(array);
+                    let expression = Expression::Value(array);
 
                     if let Some(aliases) = references.aliases.get_mut(&expression) {
                         aliases.insert(result);
@@ -547,7 +547,7 @@ impl<'f> PerFunctionContext<'f> {
                     let result = self.inserter.function.dfg.instruction_results(instruction)[0];
                     let array = *array;
 
-                    let expression = Expression::Other(array);
+                    let expression = Expression::Value(array);
 
                     let mut aliases = if let Some(aliases) = references.aliases.get_mut(&expression)
                     {
@@ -591,7 +591,7 @@ impl<'f> PerFunctionContext<'f> {
                 if Self::contains_references(typ) {
                     let array = self.inserter.function.dfg.instruction_results(instruction)[0];
 
-                    let expr = Expression::Other(array);
+                    let expr = Expression::Value(array);
                     references.expressions.insert(array, expr);
                     let aliases = references.aliases.entry(expr).or_insert(AliasSet::known_empty());
 
@@ -603,7 +603,7 @@ impl<'f> PerFunctionContext<'f> {
                 let result_type = self.inserter.function.dfg.type_of_value(result);
 
                 if Self::contains_references(&result_type) {
-                    let expr = Expression::Other(result);
+                    let expr = Expression::Value(result);
                     references.expressions.insert(result, expr);
                     references.aliases.insert(
                         expr,
@@ -640,7 +640,7 @@ impl<'f> PerFunctionContext<'f> {
 
     fn set_aliases(&self, references: &mut Block, address: ValueId, new_aliases: AliasSet) {
         let expression =
-            references.expressions.entry(address).or_insert(Expression::Other(address));
+            references.expressions.entry(address).or_insert(Expression::Value(address));
         let aliases = references.aliases.entry(*expression).or_default();
         *aliases = new_aliases;
     }
