@@ -318,7 +318,7 @@
 <span class="kw">use </span>noirc_frontend::{
     ast::{
         Ident, LetStatement, NoirEnumeration, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl,
-        NoirTypeAlias, Pattern, TraitImplItemKind, TraitItem, TypeImpl, Visitor,
+        Pattern, TraitImplItemKind, TraitItem, TypeAlias, TypeImpl, Visitor,
     },
     parser::ParsedSubModule,
 };
@@ -476,7 +476,7 @@
         <span class="bool-val">false
     </span>}
 
-    <span class="kw">fn </span>visit_noir_type_alias(<span class="kw-2">&amp;mut </span><span class="self">self</span>, alias: <span class="kw-2">&amp;</span>NoirTypeAlias, _span: Span) -&gt; bool {
+    <span class="kw">fn </span>visit_noir_type_alias(<span class="kw-2">&amp;mut </span><span class="self">self</span>, alias: <span class="kw-2">&amp;</span>TypeAlias, _span: Span) -&gt; bool {
         <span class="self">self</span>.push_symbol(<span class="kw-2">&amp;</span>alias.name, SymbolKind::STRUCT);
         <span class="bool-val">false
     </span>}

@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"struct":["NoirTypeAlias"]};
+window.SIDEBAR_ITEMS = {"struct":["TypeAlias"]};

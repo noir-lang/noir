@@ -316,7 +316,7 @@
 
 <span class="kw">use </span><span class="kw">crate</span>::ast::{
     Documented, Ident, ImportStatement, ItemVisibility, LetStatement, ModuleDeclaration,
-    NoirEnumeration, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl, NoirTypeAlias, TypeImpl,
+    NoirEnumeration, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl, TypeAlias, TypeImpl,
     UseTree,
 };
 <span class="kw">use </span><span class="kw">crate</span>::token::SecondaryAttribute;
@@ -337,7 +337,7 @@
     <span class="kw">pub </span>traits: Vec&lt;Documented&lt;NoirTrait&gt;&gt;,
     <span class="kw">pub </span>trait_impls: Vec&lt;NoirTraitImpl&gt;,
     <span class="kw">pub </span>impls: Vec&lt;TypeImpl&gt;,
-    <span class="kw">pub </span>type_aliases: Vec&lt;Documented&lt;NoirTypeAlias&gt;&gt;,
+    <span class="kw">pub </span>type_aliases: Vec&lt;Documented&lt;TypeAlias&gt;&gt;,
     <span class="kw">pub </span>globals: Vec&lt;(Documented&lt;LetStatement&gt;, ItemVisibility)&gt;,
 
     <span class="doccomment">/// Module declarations like `mod foo;`
@@ -461,7 +461,7 @@
     Trait(NoirTrait),
     TraitImpl(NoirTraitImpl),
     Impl(TypeImpl),
-    TypeAlias(NoirTypeAlias),
+    TypeAlias(TypeAlias),
     Global(LetStatement, ItemVisibility),
     ModuleDecl(ModuleDeclaration),
     Submodules(ParsedSubModule),
@@ -567,7 +567,7 @@
         <span class="self">self</span>.impls.push(r#impl);
     }
 
-    <span class="kw">fn </span>push_type_alias(<span class="kw-2">&amp;mut </span><span class="self">self</span>, type_alias: NoirTypeAlias, doc_comments: Vec&lt;String&gt;) {
+    <span class="kw">fn </span>push_type_alias(<span class="kw-2">&amp;mut </span><span class="self">self</span>, type_alias: TypeAlias, doc_comments: Vec&lt;String&gt;) {
         <span class="self">self</span>.type_aliases.push(Documented::new(type_alias, doc_comments));
     }
 

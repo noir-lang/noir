@@ -1027,7 +1027,11 @@
 <a href="#1026" id="1026">1026</a>
 <a href="#1027" id="1027">1027</a>
 <a href="#1028" id="1028">1028</a>
-<a href="#1029" id="1029">1029</a></pre></div><pre class="rust"><code><span class="kw">use </span>fm::FileId;
+<a href="#1029" id="1029">1029</a>
+<a href="#1030" id="1030">1030</a>
+<a href="#1031" id="1031">1031</a>
+<a href="#1032" id="1032">1032</a>
+<a href="#1033" id="1033">1033</a></pre></div><pre class="rust"><code><span class="kw">use </span>fm::FileId;
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::Location;
 <span class="kw">use </span>noirc_frontend::{
@@ -1039,9 +1043,9 @@
         FunctionReturnType, GenericTypeArgs, Ident, IdentOrQuotedType, IfExpression,
         IndexExpression, InfixExpression, LValue, Lambda, LetStatement, Literal, MatchExpression,
         MemberAccessExpression, MethodCallExpression, ModuleDeclaration, NoirEnumeration,
-        NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl, NoirTypeAlias, Param, Path,
-        PathSegment, Pattern, PrefixExpression, Statement, StatementKind, StructField, TraitBound,
-        TraitImplItem, TraitImplItemKind, TraitItem, TypeImpl, TypePath, UnresolvedGeneric,
+        NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl, Param, Path, PathSegment, Pattern,
+        PrefixExpression, Statement, StatementKind, StructField, TraitBound, TraitImplItem,
+        TraitImplItemKind, TraitItem, TypeAlias, TypeImpl, TypePath, UnresolvedGeneric,
         UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression,
         UnsafeExpression, UseTree, UseTreeKind, WhileStatement,
     },
@@ -1086,7 +1090,7 @@
         }
         ItemKind::Impl(type_impl) =&gt; ItemKind::Impl(type_impl_with_file(type_impl, file)),
         ItemKind::TypeAlias(noir_type_alias) =&gt; {
-            ItemKind::TypeAlias(noir_type_alias_with_file(noir_type_alias, file))
+            ItemKind::TypeAlias(type_alias_with_file(noir_type_alias, file))
         }
         ItemKind::Global(let_statement, item_visibility) =&gt; {
             ItemKind::Global(let_statement_with_file(let_statement, file), item_visibility)
@@ -1165,13 +1169,17 @@
     }
 }
 
-<span class="kw">fn </span>noir_type_alias_with_file(noir_type_alias: NoirTypeAlias, file: FileId) -&gt; NoirTypeAlias {
-    NoirTypeAlias {
-        name: ident_with_file(noir_type_alias.name, file),
-        generics: unresolved_generics_with_file(noir_type_alias.generics, file),
-        typ: unresolved_type_with_file(noir_type_alias.typ, file),
-        visibility: noir_type_alias.visibility,
-        location: location_with_file(noir_type_alias.location, file),
+<span class="kw">fn </span>type_alias_with_file(type_alias: TypeAlias, file: FileId) -&gt; TypeAlias {
+    TypeAlias {
+        name: ident_with_file(type_alias.name, file),
+        generics: unresolved_generics_with_file(type_alias.generics, file),
+        typ: unresolved_type_with_file(type_alias.typ, file),
+        visibility: type_alias.visibility,
+        location: location_with_file(type_alias.location, file),
+        numeric_type: type_alias
+            .numeric_type
+            .map(|num_type| unresolved_type_with_file(num_type, file)),
+        numeric_location: location_with_file(type_alias.numeric_location, file),
     }
 }
 

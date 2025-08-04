@@ -292,7 +292,13 @@
 <a href="#291" id="291">291</a>
 <a href="#292" id="292">292</a>
 <a href="#293" id="293">293</a>
-<a href="#294" id="294">294</a></pre></div><pre class="rust"><code><span class="doccomment">//! This crate represents utility methods which can be useful for testing in other crates
+<a href="#294" id="294">294</a>
+<a href="#295" id="295">295</a>
+<a href="#296" id="296">296</a>
+<a href="#297" id="297">297</a>
+<a href="#298" id="298">298</a>
+<a href="#299" id="299">299</a>
+<a href="#300" id="300">300</a></pre></div><pre class="rust"><code><span class="doccomment">//! This crate represents utility methods which can be useful for testing in other crates
 //! which also desire to compile the frontend.
 //!
 //! This module is split out from the `tests` module and has an additional `test_utils` feature
@@ -493,7 +499,13 @@
         }
     }
 
-    <span class="kw">let </span>error_to_bug_cases = [<span class="string">"cast_negative_one_to_u8_size_checks"</span>];
+    <span class="kw">let </span>error_to_bug_cases = [
+        <span class="string">"cast_negative_one_to_u8_size_checks"</span>,
+        <span class="string">"disallows_composing_numeric_type_aliases"</span>,
+        <span class="string">"disallows_numeric_type_aliases_to_expression_with_alias"</span>,
+        <span class="string">"disallows_numeric_type_aliases_to_expression_with_alias_2"</span>,
+        <span class="string">"disallows_numeric_type_aliases_to_type"</span>,
+    ];
     <span class="kw">if let </span>Expect::Success = expect {
         <span class="kw">if </span>error_to_bug_cases
             .iter()

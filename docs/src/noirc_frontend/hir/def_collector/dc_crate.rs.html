@@ -629,7 +629,7 @@
 <span class="kw">use </span><span class="kw">crate</span>::hir::Context;
 <span class="kw">use </span><span class="kw">crate</span>::hir::resolution::import::{ImportDirective, resolve_import};
 
-<span class="kw">use </span><span class="kw">crate</span>::ast::{Expression, NoirEnumeration};
+<span class="kw">use </span><span class="kw">crate</span>::ast::{Expression, NoirEnumeration, TypeAlias};
 <span class="kw">use </span><span class="kw">crate</span>::node_interner::{
     FuncId, GlobalId, ModuleAttributes, NodeInterner, ReferenceId, TraitId, TraitImplId,
     TypeAliasId, TypeId,
@@ -637,8 +637,8 @@
 
 <span class="kw">use </span><span class="kw">crate</span>::ast::{
     ExpressionKind, Ident, ItemVisibility, LetStatement, Literal, NoirFunction, NoirStruct,
-    NoirTrait, NoirTypeAlias, Path, PathSegment, UnresolvedGenerics, UnresolvedTraitConstraint,
-    UnresolvedType, UnsupportedNumericGenericType,
+    NoirTrait, Path, PathSegment, UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType,
+    UnsupportedNumericGenericType,
 };
 
 <span class="kw">use </span><span class="kw">crate</span>::elaborator::FrontendOptions;
@@ -726,7 +726,7 @@
     <span class="kw">pub </span>file_id: FileId,
     <span class="kw">pub </span>crate_id: CrateId,
     <span class="kw">pub </span>module_id: LocalModuleId,
-    <span class="kw">pub </span>type_alias_def: NoirTypeAlias,
+    <span class="kw">pub </span>type_alias_def: TypeAlias,
 }
 
 <span class="attr">#[derive(Debug, Clone)]

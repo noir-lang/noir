@@ -1698,9 +1698,9 @@
         CastExpression, ConstrainExpression, ConstructorExpression, Expression, ExpressionKind,
         ForLoopStatement, ForRange, Ident, IfExpression, IndexExpression, InfixExpression, LValue,
         Lambda, LetStatement, Literal, MemberAccessExpression, MethodCallExpression,
-        ModuleDeclaration, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl, NoirTypeAlias, Path,
-        PrefixExpression, Statement, StatementKind, TraitImplItem, TraitItem, TypeImpl, UseTree,
-        UseTreeKind,
+        ModuleDeclaration, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl, Path,
+        PrefixExpression, Statement, StatementKind, TraitImplItem, TraitItem, TypeImpl,
+        UnresolvedGeneric, UseTree, UseTreeKind,
     },
     node_interner::{
         ExprId, InternedExpressionKind, InternedPattern, InternedStatementKind,
@@ -1716,7 +1716,7 @@
 
 <span class="kw">use super</span>::{
     ForBounds, FunctionReturnType, GenericTypeArgs, ItemVisibility, MatchExpression,
-    NoirEnumeration, Pattern, TraitBound, TraitImplItemKind, TypePath, UnresolvedGeneric,
+    NoirEnumeration, Pattern, TraitBound, TraitImplItemKind, TypeAlias, TypePath,
     UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData,
     UnresolvedTypeExpression, UnsafeExpression,
 };
@@ -1839,7 +1839,7 @@
         <span class="bool-val">true
     </span>}
 
-    <span class="kw">fn </span>visit_noir_type_alias(<span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw">_</span>: <span class="kw-2">&amp;</span>NoirTypeAlias, <span class="kw">_</span>: Span) -&gt; bool {
+    <span class="kw">fn </span>visit_noir_type_alias(<span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw">_</span>: <span class="kw-2">&amp;</span>TypeAlias, <span class="kw">_</span>: Span) -&gt; bool {
         <span class="bool-val">true
     </span>}
 
@@ -2555,7 +2555,7 @@
     }
 }
 
-<span class="kw">impl </span>NoirTypeAlias {
+<span class="kw">impl </span>TypeAlias {
     <span class="kw">pub fn </span>accept(<span class="kw-2">&amp;</span><span class="self">self</span>, span: Span, visitor: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>Visitor) {
         <span class="kw">if </span>visitor.visit_noir_type_alias(<span class="self">self</span>, span) {
             <span class="self">self</span>.accept_children(visitor);

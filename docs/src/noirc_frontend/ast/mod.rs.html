@@ -611,7 +611,56 @@
 <a href="#610" id="610">610</a>
 <a href="#611" id="611">611</a>
 <a href="#612" id="612">612</a>
-<a href="#613" id="613">613</a></pre></div><pre class="rust"><code><span class="doccomment">//! The submodules of this module define the various data types required to
+<a href="#613" id="613">613</a>
+<a href="#614" id="614">614</a>
+<a href="#615" id="615">615</a>
+<a href="#616" id="616">616</a>
+<a href="#617" id="617">617</a>
+<a href="#618" id="618">618</a>
+<a href="#619" id="619">619</a>
+<a href="#620" id="620">620</a>
+<a href="#621" id="621">621</a>
+<a href="#622" id="622">622</a>
+<a href="#623" id="623">623</a>
+<a href="#624" id="624">624</a>
+<a href="#625" id="625">625</a>
+<a href="#626" id="626">626</a>
+<a href="#627" id="627">627</a>
+<a href="#628" id="628">628</a>
+<a href="#629" id="629">629</a>
+<a href="#630" id="630">630</a>
+<a href="#631" id="631">631</a>
+<a href="#632" id="632">632</a>
+<a href="#633" id="633">633</a>
+<a href="#634" id="634">634</a>
+<a href="#635" id="635">635</a>
+<a href="#636" id="636">636</a>
+<a href="#637" id="637">637</a>
+<a href="#638" id="638">638</a>
+<a href="#639" id="639">639</a>
+<a href="#640" id="640">640</a>
+<a href="#641" id="641">641</a>
+<a href="#642" id="642">642</a>
+<a href="#643" id="643">643</a>
+<a href="#644" id="644">644</a>
+<a href="#645" id="645">645</a>
+<a href="#646" id="646">646</a>
+<a href="#647" id="647">647</a>
+<a href="#648" id="648">648</a>
+<a href="#649" id="649">649</a>
+<a href="#650" id="650">650</a>
+<a href="#651" id="651">651</a>
+<a href="#652" id="652">652</a>
+<a href="#653" id="653">653</a>
+<a href="#654" id="654">654</a>
+<a href="#655" id="655">655</a>
+<a href="#656" id="656">656</a>
+<a href="#657" id="657">657</a>
+<a href="#658" id="658">658</a>
+<a href="#659" id="659">659</a>
+<a href="#660" id="660">660</a>
+<a href="#661" id="661">661</a>
+<a href="#662" id="662">662</a></pre></div><pre class="rust"><code><span class="doccomment">//! The submodules of this module define the various data types required to
 //! represent Noir's Ast. Of particular importance are ExpressionKind and Statement
 //! which can be found in expression.rs and statement.rs respectively.
 //!
@@ -627,6 +676,7 @@
 <span class="kw">mod </span>type_alias;
 <span class="kw">mod </span>visitor;
 
+<span class="kw">use </span>noirc_errors::Located;
 <span class="kw">use </span>noirc_errors::Location;
 <span class="kw">pub use </span>visitor::AttributeTarget;
 <span class="kw">pub use </span>visitor::Visitor;
@@ -1104,6 +1154,24 @@
             | UnresolvedTypeData::Error =&gt; <span class="bool-val">false</span>,
         }
     }
+
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>try_into_expression(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;UnresolvedTypeExpression&gt; {
+        <span class="kw">match </span><span class="self">self </span>{
+            UnresolvedTypeData::Expression(expr) =&gt; <span class="prelude-val">Some</span>(expr.clone()),
+            UnresolvedTypeData::Parenthesized(unresolved_type) =&gt; {
+                unresolved_type.typ.try_into_expression()
+            }
+            UnresolvedTypeData::Named(path, generics, <span class="kw">_</span>)
+                <span class="kw">if </span>path.is_ident() &amp;&amp; generics.is_empty() =&gt;
+            {
+                <span class="prelude-val">Some</span>(UnresolvedTypeExpression::Variable(path.clone()))
+            }
+            UnresolvedTypeData::AsTraitPath(as_trait_path) =&gt; {
+                <span class="prelude-val">Some</span>(UnresolvedTypeExpression::AsTraitPath(as_trait_path.clone()))
+            }
+            <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
+        }
+    }
 }
 
 <span class="kw">impl </span>UnresolvedTypeExpression {
@@ -1182,6 +1250,25 @@
         }
     }
 
+    <span class="kw">pub fn </span>to_expression_kind(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; ExpressionKind {
+        <span class="kw">match </span><span class="self">self </span>{
+            UnresolvedTypeExpression::Variable(path) =&gt; ExpressionKind::Variable(path.clone()),
+            UnresolvedTypeExpression::Constant(int, suffix, <span class="kw">_</span>) =&gt; {
+                ExpressionKind::Literal(Literal::Integer(<span class="kw-2">*</span>int, <span class="kw-2">*</span>suffix))
+            }
+            UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, location) =&gt; {
+                ExpressionKind::Infix(Box::new(InfixExpression {
+                    lhs: Expression { kind: lhs.to_expression_kind(), location: <span class="kw-2">*</span>location },
+                    operator: Located::from(<span class="kw-2">*</span>location, op.operator_to_binary_op_kind_helper()),
+                    rhs: Expression { kind: rhs.to_expression_kind(), location: <span class="kw-2">*</span>location },
+                }))
+            }
+            UnresolvedTypeExpression::AsTraitPath(path) =&gt; {
+                ExpressionKind::AsTraitPath(Box::new(<span class="kw-2">*</span>path.clone()))
+            }
+        }
+    }
+
     <span class="kw">fn </span>operator_allowed(op: BinaryOpKind) -&gt; bool {
         <span class="macro">matches!</span>(
             op,
@@ -1203,6 +1290,17 @@
             UnresolvedTypeExpression::Constant(..) | UnresolvedTypeExpression::AsTraitPath(<span class="kw">_</span>) =&gt; {
                 <span class="bool-val">false
             </span>}
+        }
+    }
+
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>is_valid_expression(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
+        <span class="kw">match </span><span class="self">self </span>{
+            UnresolvedTypeExpression::Variable(path) =&gt; path.no_generic(),
+            UnresolvedTypeExpression::Constant(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>) =&gt; <span class="bool-val">true</span>,
+            UnresolvedTypeExpression::BinaryOperation(lhs, <span class="kw">_</span>, rhs, <span class="kw">_</span>) =&gt; {
+                lhs.is_valid_expression() &amp;&amp; rhs.is_valid_expression()
+            }
+            UnresolvedTypeExpression::AsTraitPath(<span class="kw">_</span>) =&gt; <span class="bool-val">true</span>,
         }
     }
 }

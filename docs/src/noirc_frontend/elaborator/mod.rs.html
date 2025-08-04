@@ -2622,7 +2622,41 @@
 <a href="#2621" id="2621">2621</a>
 <a href="#2622" id="2622">2622</a>
 <a href="#2623" id="2623">2623</a>
-<a href="#2624" id="2624">2624</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
+<a href="#2624" id="2624">2624</a>
+<a href="#2625" id="2625">2625</a>
+<a href="#2626" id="2626">2626</a>
+<a href="#2627" id="2627">2627</a>
+<a href="#2628" id="2628">2628</a>
+<a href="#2629" id="2629">2629</a>
+<a href="#2630" id="2630">2630</a>
+<a href="#2631" id="2631">2631</a>
+<a href="#2632" id="2632">2632</a>
+<a href="#2633" id="2633">2633</a>
+<a href="#2634" id="2634">2634</a>
+<a href="#2635" id="2635">2635</a>
+<a href="#2636" id="2636">2636</a>
+<a href="#2637" id="2637">2637</a>
+<a href="#2638" id="2638">2638</a>
+<a href="#2639" id="2639">2639</a>
+<a href="#2640" id="2640">2640</a>
+<a href="#2641" id="2641">2641</a>
+<a href="#2642" id="2642">2642</a>
+<a href="#2643" id="2643">2643</a>
+<a href="#2644" id="2644">2644</a>
+<a href="#2645" id="2645">2645</a>
+<a href="#2646" id="2646">2646</a>
+<a href="#2647" id="2647">2647</a>
+<a href="#2648" id="2648">2648</a>
+<a href="#2649" id="2649">2649</a>
+<a href="#2650" id="2650">2650</a>
+<a href="#2651" id="2651">2651</a>
+<a href="#2652" id="2652">2652</a>
+<a href="#2653" id="2653">2653</a>
+<a href="#2654" id="2654">2654</a>
+<a href="#2655" id="2655">2655</a>
+<a href="#2656" id="2656">2656</a>
+<a href="#2657" id="2657">2657</a>
+<a href="#2658" id="2658">2658</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     cell::RefCell,
     collections::{BTreeMap, BTreeSet},
     rc::Rc,
@@ -4439,18 +4473,52 @@
 
         <span class="kw">let </span>name = <span class="kw-2">&amp;</span>alias.type_alias_def.name;
         <span class="kw">let </span>visibility = alias.type_alias_def.visibility;
-        <span class="kw">let </span>location = alias.type_alias_def.typ.location;
+        <span class="kw">let </span>location = alias.type_alias_def.location;
 
         <span class="kw">let </span>generics = <span class="self">self</span>.add_generics(<span class="kw-2">&amp;</span>alias.type_alias_def.generics);
         <span class="self">self</span>.current_item = <span class="prelude-val">Some</span>(DependencyId::Alias(alias_id));
         <span class="kw">let </span>wildcard_allowed = <span class="bool-val">false</span>;
-        <span class="kw">let </span>typ = <span class="self">self</span>.use_type(alias.type_alias_def.typ, wildcard_allowed);
+        <span class="kw">let </span>(typ, num_expr) = <span class="kw">if let </span><span class="prelude-val">Some</span>(num_type) = alias.type_alias_def.numeric_type {
+            <span class="kw">let </span>num_type = <span class="self">self</span>.resolve_type(num_type, wildcard_allowed);
+            <span class="kw">let </span>kind = Kind::numeric(num_type);
+            <span class="kw">let </span>num_expr = alias.type_alias_def.typ.typ.try_into_expression();
+
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(num_expr) = num_expr {
+                <span class="comment">// Checks that the expression only references generics and constants
+                </span><span class="kw">if </span>!num_expr.is_valid_expression() {
+                    <span class="self">self</span>.errors.push(CompilationError::ResolverError(
+                        ResolverError::RecursiveTypeAlias {
+                            location: alias.type_alias_def.numeric_location,
+                        },
+                    ));
+                    (Type::Error, <span class="prelude-val">None</span>)
+                } <span class="kw">else </span>{
+                    (
+                        <span class="self">self</span>.resolve_type_with_kind(
+                            alias.type_alias_def.typ,
+                            <span class="kw-2">&amp;</span>kind,
+                            wildcard_allowed,
+                        ),
+                        <span class="prelude-val">Some</span>(num_expr),
+                    )
+                }
+            } <span class="kw">else </span>{
+                <span class="self">self</span>.errors.push(CompilationError::ResolverError(
+                    ResolverError::ExpectedNumericExpression {
+                        typ: alias.type_alias_def.typ.typ.to_string(),
+                        location,
+                    },
+                ));
+                (Type::Error, <span class="prelude-val">None</span>)
+            }
+        } <span class="kw">else </span>{
+            (<span class="self">self</span>.use_type(alias.type_alias_def.typ, wildcard_allowed), <span class="prelude-val">None</span>)
+        };
 
         <span class="kw">if </span>visibility != ItemVisibility::Private {
             <span class="self">self</span>.check_type_is_not_more_private_then_item(name, visibility, <span class="kw-2">&amp;</span>typ, location);
         }
-
-        <span class="self">self</span>.interner.set_type_alias(alias_id, typ, generics);
+        <span class="self">self</span>.interner.set_type_alias(alias_id, typ, generics, num_expr);
         <span class="self">self</span>.generics.clear();
     }
 

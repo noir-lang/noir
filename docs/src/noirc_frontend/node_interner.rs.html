@@ -2700,7 +2700,14 @@
 <a href="#2699" id="2699">2699</a>
 <a href="#2700" id="2700">2700</a>
 <a href="#2701" id="2701">2701</a>
-<a href="#2702" id="2702">2702</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::borrow::Cow;
+<a href="#2702" id="2702">2702</a>
+<a href="#2703" id="2703">2703</a>
+<a href="#2704" id="2704">2704</a>
+<a href="#2705" id="2705">2705</a>
+<a href="#2706" id="2706">2706</a>
+<a href="#2707" id="2707">2707</a>
+<a href="#2708" id="2708">2708</a>
+<a href="#2709" id="2709">2709</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::borrow::Cow;
 <span class="kw">use </span>std::collections::HashSet;
 <span class="kw">use </span>std::fmt;
 <span class="kw">use </span>std::hash::Hash;
@@ -2718,6 +2725,7 @@
 <span class="kw">use </span><span class="kw">crate</span>::QuotedType;
 <span class="kw">use </span><span class="kw">crate</span>::ast::{
     ExpressionKind, Ident, LValue, Pattern, StatementKind, UnaryOp, UnresolvedTypeData,
+    UnresolvedTypeExpression,
 };
 <span class="kw">use </span><span class="kw">crate</span>::graph::CrateId;
 <span class="kw">use </span><span class="kw">crate</span>::hir::comptime;
@@ -3572,9 +3580,15 @@
         f(value);
     }
 
-    <span class="kw">pub fn </span>set_type_alias(<span class="kw-2">&amp;mut </span><span class="self">self</span>, type_id: TypeAliasId, typ: Type, generics: Generics) {
+    <span class="kw">pub fn </span>set_type_alias(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        type_id: TypeAliasId,
+        typ: Type,
+        generics: Generics,
+        num_expr: <span class="prelude-ty">Option</span>&lt;UnresolvedTypeExpression&gt;,
+    ) {
         <span class="kw">let </span>type_alias_type = <span class="kw-2">&amp;mut </span><span class="self">self</span>.type_aliases[type_id.<span class="number">0</span>];
-        type_alias_type.borrow_mut().set_type_and_generics(typ, generics);
+        type_alias_type.borrow_mut().set_type_and_generics(typ, generics, num_expr);
     }
 
     <span class="doccomment">/// Returns the interned statement corresponding to `stmt_id`
