@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1754302437951,
+  "lastUpdate": 1754302441224,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -1758,40 +1758,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "60222bb380da2c6840adb91317bee2ca4db30d2a",
-          "message": "feat: only inject \"out of bounds\" checks in brillig (#9200)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
-          "timestamp": "2025-07-23T14:47:03Z",
-          "tree_id": "2d76f63c55f4356c92ce0bd5502280cc85d12586",
-          "url": "https://github.com/noir-lang/noir/commit/60222bb380da2c6840adb91317bee2ca4db30d2a"
-        },
-        "date": 1753283712352,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.787,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 1.721,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "72797635+Savio-Sou@users.noreply.github.com",
             "name": "Savio",
             "username": "Savio-Sou"
@@ -3501,6 +3467,90 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 1.592,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d7e2c17ab196ffc0cc9774fc7270dd7681ce5c1f",
+          "message": "feat: type alias for numeric generics (#7583)\n\nCo-authored-by: TomAFrench <tom@tomfren.ch>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
+          "timestamp": "2025-08-04T09:41:30Z",
+          "tree_id": "b6b65140bf5573845712f8d7b686b04f2dd52d8c",
+          "url": "https://github.com/noir-lang/noir/commit/d7e2c17ab196ffc0cc9774fc7270dd7681ce5c1f"
+        },
+        "date": 1754302423087,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1.652,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 7.946,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.302,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 15.92,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 13.92,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 22.04,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 198,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 194,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.312,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.42,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.797,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 1.588,
             "unit": "s"
           }
         ]
