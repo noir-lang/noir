@@ -134,9 +134,9 @@ struct PerFunctionContext<'f> {
     /// from the middle of Vecs many times will be slower than a single call to `retain`.
     instructions_to_remove: HashSet<InstructionId>,
 
-    /// Track a value's last load across all blocks.
+    /// Tracks all addresses from which a value was loaded.
     /// If a value is not used in anymore loads we can remove the last store to that value.
-    last_loads: HashMap<ValueId, (InstructionId, BasicBlockId)>,
+    load_addresses: HashSet<ValueId>,
 
     /// Track whether a reference was passed into another instruction (e.g. Call)
     /// This is needed to determine whether we can remove a store.
@@ -159,7 +159,7 @@ impl<'f> PerFunctionContext<'f> {
             inserter: FunctionInserter::new(function),
             blocks: BTreeMap::new(),
             instructions_to_remove: HashSet::default(),
-            last_loads: HashMap::default(),
+            load_addresses: HashSet::default(),
             aliased_references: HashMap::default(),
             instruction_input_references: HashSet::default(),
         }
@@ -221,7 +221,7 @@ impl<'f> PerFunctionContext<'f> {
                     .get(store_address)
                     .is_some_and(|expression| matches!(expression, Expression::Dereference(_)));
 
-                if !self.last_loads.contains_key(store_address)
+                if !self.load_addresses.contains(store_address)
                     && !store_alias_used
                     && !is_dereference
                 {
@@ -341,8 +341,11 @@ impl<'f> PerFunctionContext<'f> {
             self.add_aliases_for_reference_parameters(block, &mut references);
         }
 
+        // dbg!(&references);
         for instruction in instructions {
+            // dbg!(&self.inserter.function.dfg[instruction]);
             self.analyze_instruction(block, &mut references, instruction);
+            // dbg!(&references);
         }
 
         self.handle_terminator(block, &mut references);
@@ -466,7 +469,7 @@ impl<'f> PerFunctionContext<'f> {
                 } else {
                     references.mark_value_used(address, self.inserter.function);
 
-                    self.last_loads.insert(address, (instruction, block_id));
+                    self.load_addresses.insert(address);
                 }
 
                 // Check whether the block has a repeat load from the same address (w/ no calls or stores in between the loads).
