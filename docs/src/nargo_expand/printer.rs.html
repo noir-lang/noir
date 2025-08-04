@@ -1281,7 +1281,17 @@
 <a href="#1280" id="1280">1280</a>
 <a href="#1281" id="1281">1281</a>
 <a href="#1282" id="1282">1282</a>
-<a href="#1283" id="1283">1283</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::{BTreeSet, HashMap};
+<a href="#1283" id="1283">1283</a>
+<a href="#1284" id="1284">1284</a>
+<a href="#1285" id="1285">1285</a>
+<a href="#1286" id="1286">1286</a>
+<a href="#1287" id="1287">1287</a>
+<a href="#1288" id="1288">1288</a>
+<a href="#1289" id="1289">1289</a>
+<a href="#1290" id="1290">1290</a>
+<a href="#1291" id="1291">1291</a>
+<a href="#1292" id="1292">1292</a>
+<a href="#1293" id="1293">1293</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::{BTreeSet, HashMap};
 
 <span class="kw">use </span>noirc_driver::CrateId;
 <span class="kw">use </span>noirc_frontend::{
@@ -2035,7 +2045,11 @@
 
     <span class="kw">fn </span>show_trait_bound(<span class="kw-2">&amp;mut </span><span class="self">self</span>, bound: <span class="kw-2">&amp;</span>ResolvedTraitBound) {
         <span class="kw">let </span>trait_ = <span class="self">self</span>.interner.get_trait(bound.trait_id);
-        <span class="self">self</span>.push_str(<span class="kw-2">&amp;</span>trait_.name.to_string());
+        <span class="self">self</span>.show_reference_to_module_def_id(
+            ModuleDefId::TraitId(trait_.id),
+            trait_.visibility,
+            <span class="bool-val">true</span>,
+        );
         <span class="self">self</span>.show_trait_generics(<span class="kw-2">&amp;</span>bound.trait_generics);
     }
 
@@ -2428,7 +2442,13 @@
 
     <span class="kw">fn </span>show_quoted(<span class="kw-2">&amp;mut </span><span class="self">self</span>, tokens: <span class="kw-2">&amp;</span>[LocatedToken]) {
         <span class="self">self</span>.push_str(<span class="string">"quote {"</span>);
-        <span class="kw">let </span>string = tokens_to_string_with_indent(tokens, <span class="self">self</span>.indent + <span class="number">1</span>, <span class="self">self</span>.interner);
+        <span class="kw">let </span>preserve_unquote_markers = <span class="bool-val">true</span>;
+        <span class="kw">let </span>string = tokens_to_string_with_indent(
+            tokens,
+            <span class="self">self</span>.indent + <span class="number">1</span>,
+            preserve_unquote_markers,
+            <span class="self">self</span>.interner,
+        );
         <span class="kw">if </span>string.contains(<span class="string">'\n'</span>) {
             <span class="self">self</span>.push(<span class="string">'\n'</span>);
             <span class="self">self</span>.increase_indent();
