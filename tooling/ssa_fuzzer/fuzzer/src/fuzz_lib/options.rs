@@ -93,6 +93,7 @@ pub(crate) struct FuzzerCommandOptions {
     pub(crate) jmp_block_enabled: bool,
     /// If false, we don't switch to the next block
     pub(crate) switch_to_next_block_enabled: bool,
+    /// If false, we don't insert loops
     pub(crate) loops_enabled: bool,
 }
 
