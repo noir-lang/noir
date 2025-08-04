@@ -1,42 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1754325046972,
+  "lastUpdate": 1754325150546,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "6cb434770ddc3bf601cb0803af01c71c1e5476c3",
-          "message": "fix: check associated types after validating where clause when looking up trait impls, plus some unification fixes (#9265)",
-          "timestamp": "2025-07-23T18:56:22Z",
-          "tree_id": "c6bc4ef5fc5d15cb2a2fd18334b9ac424db0684a",
-          "url": "https://github.com/noir-lang/noir/commit/6cb434770ddc3bf601cb0803af01c71c1e5476c3"
-        },
-        "date": 1753298718799,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore_depth_10",
-            "value": 104.56,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 234.54,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -1949,6 +1915,90 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512_100_bytes",
             "value": 234.79,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "fa4a48d76443043dc07f77e2a1d015ad03c5d9b7",
+          "message": "chore: Regression test for calling a mutable closure inside a mutable closure (#9384)",
+          "timestamp": "2025-08-04T15:51:56Z",
+          "tree_id": "3cf1594a6232fbae981a54e8684da44b75adfb54",
+          "url": "https://github.com/noir-lang/noir/commit/fa4a48d76443043dc07f77e2a1d015ad03c5d9b7"
+        },
+        "date": 1754325133427,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 238.19,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 547.36,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 212.08,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 1340,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 1420,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 1090,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 9340,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 9350,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 330.64,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 339.63,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 104.73,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 234.78,
             "unit": "MB"
           }
         ]
