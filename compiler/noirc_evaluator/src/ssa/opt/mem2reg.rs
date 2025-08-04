@@ -346,11 +346,8 @@ impl<'f> PerFunctionContext<'f> {
             self.add_aliases_for_reference_parameters(block, &mut references);
         }
 
-        // dbg!(&references);
         for instruction in instructions {
-            // dbg!(&self.inserter.function.dfg[instruction]);
             self.analyze_instruction(block, &mut references, instruction);
-            // dbg!(&references);
         }
 
         self.handle_terminator(block, &mut references);
