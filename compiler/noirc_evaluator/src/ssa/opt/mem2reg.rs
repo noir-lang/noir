@@ -386,7 +386,7 @@ impl<'f> PerFunctionContext<'f> {
             let first = aliases.first();
             let first = first.expect("All parameters alias at least themselves or we early return");
 
-            let expression = Expression::Value(first);
+            let expression = Expression::Other(first);
             let previous = references.aliases.insert(expression, aliases.clone());
             assert!(previous.is_none());
 
@@ -514,7 +514,7 @@ impl<'f> PerFunctionContext<'f> {
             Instruction::Allocate => {
                 // Register the new reference
                 let result = self.inserter.function.dfg.instruction_results(instruction)[0];
-                let expression = Expression::Value(result);
+                let expression = Expression::Other(result);
                 references.expressions.insert(result, expression);
                 references.aliases.insert(expression, AliasSet::known(result));
             }
@@ -529,7 +529,7 @@ impl<'f> PerFunctionContext<'f> {
                     });
                     references.mark_value_used(array, self.inserter.function);
 
-                    let expression = Expression::Value(array);
+                    let expression = Expression::Other(array);
 
                     if let Some(aliases) = references.aliases.get_mut(&expression) {
                         aliases.insert(result);
@@ -600,7 +600,7 @@ impl<'f> PerFunctionContext<'f> {
                 let result_type = self.inserter.function.dfg.type_of_value(result);
 
                 if Self::contains_references(&result_type) {
-                    let expr = Expression::Value(result);
+                    let expr = Expression::Other(result);
                     references.expressions.insert(result, expr);
                     references.aliases.insert(
                         expr,
@@ -637,7 +637,7 @@ impl<'f> PerFunctionContext<'f> {
 
     fn set_aliases(&self, references: &mut Block, address: ValueId, new_aliases: AliasSet) {
         let expression =
-            references.expressions.entry(address).or_insert(Expression::Value(address));
+            references.expressions.entry(address).or_insert(Expression::Other(address));
         let aliases = references.aliases.entry(*expression).or_default();
         *aliases = new_aliases;
     }
