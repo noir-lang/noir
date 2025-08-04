@@ -221,9 +221,9 @@ impl<'f> PerFunctionContext<'f> {
                     .get(store_address)
                     .is_some_and(|expression| matches!(expression, Expression::Dereference(_)));
 
-                if !self.load_addresses.contains(store_address)
-                    && !store_alias_used
+                if !store_alias_used
                     && !is_dereference
+                    && !self.load_addresses.contains(store_address)
                 {
                     self.instructions_to_remove.insert(*store_instruction);
                 }
