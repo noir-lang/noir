@@ -1827,11 +1827,7 @@
 <a href="#1826" id="1826">1826</a>
 <a href="#1827" id="1827">1827</a>
 <a href="#1828" id="1828">1828</a>
-<a href="#1829" id="1829">1829</a>
-<a href="#1830" id="1830">1830</a>
-<a href="#1831" id="1831">1831</a>
-<a href="#1832" id="1832">1832</a>
-<a href="#1833" id="1833">1833</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir` module contains all the logic necessary for noirc's ACIR-gen pass which
+<a href="#1829" id="1829">1829</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir` module contains all the logic necessary for noirc's ACIR-gen pass which
 //! generates the output ACIR program.
 //!
 //! # Usage
@@ -2639,17 +2635,13 @@
                         <span class="kw">let </span>outputs = <span class="self">self
                             </span>.convert_ssa_intrinsic_call(<span class="kw-2">*</span>intrinsic, arguments, dfg, result_ids)<span class="question-mark">?</span>;
 
-                        <span class="comment">// Issue #1438 causes this check to fail with intrinsics that return 0
-                        // results but the ssa form instead creates 1 unit result value.
-                        // assert_eq!(result_ids.len(), outputs.len());
-                        </span><span class="self">self</span>.handle_ssa_call_outputs(result_ids, outputs, dfg)<span class="question-mark">?</span>;
+                        <span class="macro">assert_eq!</span>(result_ids.len(), outputs.len());
+                        <span class="self">self</span>.handle_ssa_call_outputs(result_ids, outputs, dfg)<span class="question-mark">?</span>;
                     }
-                    Value::ForeignFunction(<span class="kw">_</span>) =&gt; {
-                        <span class="comment">// TODO: Remove this once elaborator is default frontend. This is now caught by a lint inside the frontend.
-                        </span><span class="kw">return </span><span class="prelude-val">Err</span>(RuntimeError::UnconstrainedOracleReturnToConstrained {
-                            call_stack: <span class="self">self</span>.acir_context.get_call_stack(),
-                        });
-                    }
+                    Value::ForeignFunction(<span class="kw">_</span>) =&gt; <span class="macro">unreachable!</span>(
+                        <span class="string">"Frontend should remove any oracle calls from constrained functions"
+                    </span>),
+
                     <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"expected calling a function but got {function_value:?}"</span>),
                 }
             }
