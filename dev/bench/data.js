@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1754321053863,
+  "lastUpdate": 1754321114545,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -5762,40 +5762,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "7408cbe9abf0d329def8f56cc21d5941436ceedb",
-          "message": "chore: Add fmtstr to coercions list (#9300)",
-          "timestamp": "2025-07-23T18:30:02Z",
-          "tree_id": "19bf402513c8032ae66248b70aa5d14ff6c42ac2",
-          "url": "https://github.com/noir-lang/noir/commit/7408cbe9abf0d329def8f56cc21d5941436ceedb"
-        },
-        "date": 1753297170364,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore_depth_10",
-            "value": 69.31,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 54.83,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -7565,6 +7531,80 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/1d8a104bcf2c9b733aed6092a161af20f0f6f5d9"
         },
         "date": 1754321002393,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 205,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 241.78,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 194.2,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 498.41,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 431.05,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1500,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 326.4,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 328.81,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 69.48,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 54.97,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "9b1b10fb8cf515b4238e2d3412e76e9737ae7193",
+          "message": "fix: some nargo expand fixes (#9324)",
+          "timestamp": "2025-08-04T14:35:44Z",
+          "tree_id": "1199a7fe77ad8c89b5a2dd070e4e8c36857e444c",
+          "url": "https://github.com/noir-lang/noir/commit/9b1b10fb8cf515b4238e2d3412e76e9737ae7193"
+        },
+        "date": 1754321097627,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
