@@ -192,13 +192,9 @@ impl<'f> PerFunctionContext<'f> {
                 // then that reference gets to keep its last store.
                 let typ = self.inserter.function.dfg.type_of_value(value);
                 if Self::contains_references(&typ) {
-                    if let Some(expression) = references.expressions.get(&value) {
-                        if let Some(aliases) = references.aliases.get(expression) {
-                            aliases.for_each(|alias| {
-                                all_terminator_values.insert(alias);
-                            });
-                        }
-                    }
+                    references.for_each_alias_of(value, |_, alias| {
+                        all_terminator_values.insert(alias);
+                    });
                 }
             });
         }
