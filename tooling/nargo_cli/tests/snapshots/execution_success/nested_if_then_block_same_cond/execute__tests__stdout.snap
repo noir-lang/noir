@@ -2,4 +2,4 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stdout
 ---
-[nested_if_then_block_same_cond] Circuit output: Vec([Field(1), Field(0)])
+[nested_if_then_block_same_cond] Circuit output: [true, false]

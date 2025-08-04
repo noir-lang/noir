@@ -2,4 +2,4 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stdout
 ---
-[regression_struct_array_conditional] Circuit output: Field(10)
+[regression_struct_array_conditional] Circuit output: 10

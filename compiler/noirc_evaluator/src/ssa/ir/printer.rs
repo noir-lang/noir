@@ -434,18 +434,21 @@ fn try_byte_array_to_string(elements: &Vector<ValueId>, dfg: &DataFlowGraph) -> 
             return None;
         }
         let byte: u8 = element as u8;
-        const FORM_FEED: u8 = 12; // This is the ASCII code for '\f', which isn't a valid escape sequence in strings
-        if byte != FORM_FEED
-            && (byte.is_ascii_alphanumeric()
-                || byte.is_ascii_punctuation()
-                || byte.is_ascii_whitespace())
-        {
+        if is_printable_byte(byte) {
             string.push(byte as char);
         } else {
             return None;
         }
     }
     Some(string)
+}
+
+pub fn is_printable_byte(byte: u8) -> bool {
+    const FORM_FEED: u8 = 12; // This is the ASCII code for '\f', which isn't a valid escape sequence in strings
+    byte != FORM_FEED
+        && (byte.is_ascii_alphanumeric()
+            || byte.is_ascii_punctuation()
+            || byte.is_ascii_whitespace())
 }
 
 fn result_types(dfg: &DataFlowGraph, results: &[ValueId]) -> String {

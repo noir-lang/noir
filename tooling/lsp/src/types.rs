@@ -18,7 +18,9 @@ pub(crate) use async_lsp::lsp_types::{
 pub(crate) mod request {
     use async_lsp::lsp_types::{InitializeParams, request::Request};
 
-    use crate::types::{NargoExpandParams, NargoExpandResult};
+    use crate::types::{
+        NargoExpandParams, NargoExpandResult, NargoStdSourceCodeParams, NargoStdSourceCodeResult,
+    };
 
     use super::{
         InitializeResult, NargoTestRunParams, NargoTestRunResult, NargoTestsParams,
@@ -61,6 +63,14 @@ pub(crate) mod request {
         type Params = NargoExpandParams;
         type Result = NargoExpandResult;
         const METHOD: &'static str = "nargo/expand";
+    }
+
+    #[derive(Debug)]
+    pub(crate) struct NargoStdSourceCode;
+    impl Request for NargoStdSourceCode {
+        type Params = NargoStdSourceCodeParams;
+        type Result = NargoStdSourceCodeResult;
+        const METHOD: &'static str = "nargo/std-source-code";
     }
 }
 
@@ -264,6 +274,14 @@ pub(crate) struct NargoExpandParams {
 }
 
 pub(crate) type NargoExpandResult = String;
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct NargoStdSourceCodeParams {
+    pub(crate) uri: Url,
+}
+
+pub(crate) type NargoStdSourceCodeResult = String;
 
 pub(crate) type CodeLensResult = Option<Vec<CodeLens>>;
 pub(crate) type GotoDefinitionResult = Option<async_lsp::lsp_types::GotoDefinitionResponse>;
