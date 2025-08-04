@@ -809,7 +809,6 @@ mod test {
             v1 = call f1() -> Field
             return v1
         }
-
         brillig(inline) fn bar f1 {
           b0():
             return Field 72

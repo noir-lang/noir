@@ -670,17 +670,17 @@ mod tests {
     fn multiple_return_blocks() {
         let src = "
         acir(inline) fn main f0 {
-        b0():
+          b0():
             v1 = call f1(u1 1) -> Field
             return v1
         }
 
         acir(inline) fn f1 f1 {
-        b0(v0: u1):
+          b0(v0: u1):
             jmpif v0 then: b1, else: b2
-        b1():
+          b1():
             return Field 1
-        b2():
+          b2():
             return Field 2
         }
         ";
