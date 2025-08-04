@@ -1243,7 +1243,9 @@
 <a href="#1242" id="1242">1242</a>
 <a href="#1243" id="1243">1243</a>
 <a href="#1244" id="1244">1244</a>
-<a href="#1245" id="1245">1245</a></pre></div><pre class="rust"><code><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>context;
+<a href="#1245" id="1245">1245</a>
+<a href="#1246" id="1246">1246</a>
+<a href="#1247" id="1247">1247</a></pre></div><pre class="rust"><code><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">mod </span>context;
 <span class="kw">mod </span>program;
 <span class="kw">mod </span>tests;
 <span class="kw">mod </span>value;
@@ -1669,8 +1671,10 @@
     }
 
     <span class="kw">fn </span>codegen_index(<span class="kw-2">&amp;mut </span><span class="self">self</span>, index: <span class="kw-2">&amp;</span>ast::Index) -&gt; <span class="prelude-ty">Result</span>&lt;Values, RuntimeError&gt; {
-        <span class="kw">let </span>array_or_slice = <span class="self">self</span>.codegen_expression(<span class="kw-2">&amp;</span>index.collection)<span class="question-mark">?</span>.into_value_list(<span class="self">self</span>);
-        <span class="kw">let </span>index_value = <span class="self">self</span>.codegen_non_tuple_expression(<span class="kw-2">&amp;</span>index.index)<span class="question-mark">?</span>;
+        <span class="comment">// Generate the index value first, it might modify the collection itself.
+        </span><span class="kw">let </span>index_value = <span class="self">self</span>.codegen_non_tuple_expression(<span class="kw-2">&amp;</span>index.index)<span class="question-mark">?</span>;
+        <span class="comment">// The code for the collection will load it if it's mutable. It must be after the index to see any modifications.
+        </span><span class="kw">let </span>array_or_slice = <span class="self">self</span>.codegen_expression(<span class="kw-2">&amp;</span>index.collection)<span class="question-mark">?</span>.into_value_list(<span class="self">self</span>);
         <span class="comment">// Slices are represented as a tuple in the form: (length, slice contents).
         // Thus, slices require two value ids for their representation.
         </span><span class="kw">let </span>(array, slice_length) = <span class="kw">if </span>array_or_slice.len() &gt; <span class="number">1 </span>{

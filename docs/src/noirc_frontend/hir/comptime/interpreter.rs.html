@@ -2686,13 +2686,13 @@
     }
 
     <span class="kw">fn </span>evaluate_index(<span class="kw-2">&amp;mut </span><span class="self">self</span>, index: HirIndexExpression, id: ExprId) -&gt; IResult&lt;Value&gt; {
+        <span class="kw">let </span>idx = <span class="self">self</span>.evaluate(index.index)<span class="question-mark">?</span>;
         <span class="kw">let </span>array = <span class="self">self</span>.evaluate(index.collection)<span class="question-mark">?</span>;
-        <span class="kw">let </span>index = <span class="self">self</span>.evaluate(index.index)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>location = <span class="self">self</span>.elaborator.interner.expr_location(<span class="kw-2">&amp;</span>id);
-        <span class="kw">let </span>(array, index) = bounds_check(array, index, location)<span class="question-mark">?</span>;
+        <span class="kw">let </span>(array, idx) = bounds_check(array, idx, location)<span class="question-mark">?</span>;
 
-        <span class="prelude-val">Ok</span>(array[index].clone())
+        <span class="prelude-val">Ok</span>(array[idx].clone())
     }
 
     <span class="kw">fn </span>evaluate_constructor(
