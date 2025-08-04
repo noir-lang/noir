@@ -104,12 +104,7 @@ impl Elaborator<'_> {
         kind: &Kind,
         wildcard_allowed: bool,
     ) -> Type {
-        self.resolve_type_with_kind_inner(
-            typ,
-            kind,
-            PathResolutionMode::MarkAsReferenced,
-            wildcard_allowed,
-        )
+        self.resolve_type_inner(typ, kind, PathResolutionMode::MarkAsReferenced, wildcard_allowed)
     }
 
     /// Translates an UnresolvedType into a Type and appends any
@@ -705,14 +700,19 @@ impl Elaborator<'_> {
     ) -> Type {
         match length {
             UnresolvedTypeExpression::Variable(path) => {
+                let mut ab = GenericTypeArgs::default();
+                // Use generics from path, if they exist
+                if let Some(last_segment) = path.segments.last() {
+                    if let Some(generics) = &last_segment.generics {
+                        ab.ordered_args = generics.clone();
+                    }
+                }
                 let path = self.validate_path(path);
                 let mode = PathResolutionMode::MarkAsReferenced;
-                let typ = self.resolve_named_type(
-                    path,
-                    GenericTypeArgs::default(),
-                    mode,
-                    wildcard_allowed,
-                );
+                let mut typ = self.resolve_named_type(path, ab, mode, wildcard_allowed);
+                if let Type::Alias(alias, vec) = typ {
+                    typ = alias.borrow().get_type(&vec);
+                }
                 self.check_kind(typ, expected_kind, location)
             }
             UnresolvedTypeExpression::Constant(int, suffix, _span) => {
@@ -777,6 +777,10 @@ impl Elaborator<'_> {
         expected_kind: &Kind,
         location: Location,
     ) -> Type {
+        if typ.has_cyclic_alias(&mut HashSet::default()) {
+            self.push_err(TypeCheckError::CyclicType { typ, location });
+            return Type::Error;
+        }
         if !typ.kind().unifies(expected_kind) {
             self.push_err(TypeCheckError::TypeKindMismatch {
                 expected_kind: expected_kind.clone(),
