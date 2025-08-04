@@ -154,18 +154,21 @@ const IGNORED_MINIMAL_EXECUTION_TESTS: [&str; 13] = [
 /// might not be worth it.
 /// Others are ignored because of existing bugs in `nargo expand`.
 /// As the bugs are fixed these tests should be removed from this list.
-const IGNORED_NARGO_EXPAND_EXECUTION_TESTS: [&str; 8] = [
+const IGNORED_NARGO_EXPAND_EXECUTION_TESTS: [&str; 10] = [
     // There's nothing special about this program but making it work with a custom entry would involve
     // having to parse the Nargo.toml file, etc., which is not worth it
     "custom_entry",
     // There's no "src/main.nr" here so it's trickier to make this work
     "diamond_deps_0",
     // bug
+    "numeric_type_alias",
     "negative_associated_constants",
     // bug
     "regression_9116",
     // There's no "src/main.nr" here so it's trickier to make this work
     "overlapping_dep_and_mod",
+    // bug
+    "regression_9116",
     // bug
     "trait_associated_constant",
     // There's no "src/main.nr" here so it's trickier to make this work
@@ -212,7 +215,7 @@ const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 13] = [
 
 /// These tests are ignored because of existing bugs in `nargo expand`.
 /// As the bugs are fixed these tests should be removed from this list.
-const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_NO_BUG_TESTS: [&str; 15] = [
+const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_NO_BUG_TESTS: [&str; 18] = [
     "noirc_frontend_tests_arithmetic_generics_checked_casts_do_not_prevent_canonicalization",
     "noirc_frontend_tests_check_trait_as_type_as_fn_parameter",
     "noirc_frontend_tests_check_trait_as_type_as_two_fn_parameters",
@@ -226,6 +229,9 @@ const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_NO_BUG_TESTS: [&str; 15] = [
     "noirc_frontend_tests_u32_globals_as_sizes_in_types",
     // This creates a struct at comptime which, expanded, gives a visibility error
     "noirc_frontend_tests_visibility_visibility_bug_inside_comptime",
+    "noirc_frontend_tests_aliases_identity_numeric_type_alias_works",
+    "noirc_frontend_tests_aliases_type_alias_to_numeric_as_generic",
+    "noirc_frontend_tests_aliases_type_alias_to_numeric_generic",
     // bug
     "noirc_frontend_tests_traits_associated_constant_sum_of_other_constants_3",
     "noirc_frontend_tests_traits_trait_where_clause_associated_type_constraint_expected_order",
