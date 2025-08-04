@@ -178,7 +178,12 @@
 <a href="#177" id="177">177</a>
 <a href="#178" id="178">178</a>
 <a href="#179" id="179">179</a>
-<a href="#180" id="180">180</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::circuit::ExpressionWidth;
+<a href="#180" id="180">180</a>
+<a href="#181" id="181">181</a>
+<a href="#182" id="182">182</a>
+<a href="#183" id="183">183</a>
+<a href="#184" id="184">184</a>
+<a href="#185" id="185">185</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::acir::circuit::ExpressionWidth;
 <span class="kw">use </span>bn254_blackbox_solver::Bn254BlackBoxSolver;
 <span class="kw">use </span>clap::Args;
 <span class="kw">use </span>iter_extended::vecmap;
@@ -241,6 +246,11 @@
 }
 
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>run(<span class="kw-2">mut </span>args: InfoCommand, workspace: Workspace) -&gt; <span class="prelude-ty">Result</span>&lt;(), CliError&gt; {
+    <span class="kw">if </span>args.json {
+        <span class="comment">// In order to have a machine readable output, we cannot allow the program to print arbitrary data to stdout.
+        </span>args.compile_options.disable_comptime_printing = <span class="bool-val">true</span>;
+    }
+
     <span class="kw">if </span>args.profile_execution {
         <span class="comment">// Execution profiling is only relevant with the Brillig VM
         // as a constrained circuit should have totally flattened control flow (e.g. loops and if statements).
