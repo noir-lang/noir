@@ -532,7 +532,7 @@ impl<'f> PerFunctionContext<'f> {
                     });
                     references.mark_value_used(array, self.inserter.function);
 
-                    let expression = Expression::ArrayElement(array);
+                    let expression = Expression::Other(array);
 
                     if let Some(aliases) = references.aliases.get_mut(&expression) {
                         aliases.insert(result);
@@ -547,7 +547,7 @@ impl<'f> PerFunctionContext<'f> {
                     let result = self.inserter.function.dfg.instruction_results(instruction)[0];
                     let array = *array;
 
-                    let expression = Expression::ArrayElement(array);
+                    let expression = Expression::Other(array);
 
                     let mut aliases = if let Some(aliases) = references.aliases.get_mut(&expression)
                     {
@@ -591,7 +591,7 @@ impl<'f> PerFunctionContext<'f> {
                 if Self::contains_references(typ) {
                     let array = self.inserter.function.dfg.instruction_results(instruction)[0];
 
-                    let expr = Expression::ArrayElement(array);
+                    let expr = Expression::Other(array);
                     references.expressions.insert(array, expr);
                     let aliases = references.aliases.entry(expr).or_insert(AliasSet::known_empty());
 

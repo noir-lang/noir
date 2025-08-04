@@ -45,7 +45,6 @@ pub(super) struct Block {
 #[derive(Debug, Clone, Copy, PartialOrd, Ord, PartialEq, Eq, Hash)]
 pub(super) enum Expression {
     Dereference(ValueId),
-    ArrayElement(ValueId),
     Other(ValueId),
 }
 
