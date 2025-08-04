@@ -8,7 +8,7 @@ use crate::ssa::ir::value::ValueId;
 ///
 /// Note that we distinguish between "definitely has no aliases" - `Some(BTreeSet::new())`, and
 /// "unknown which aliases this may refer to" - `None`.
-#[derive(Debug, Default, Clone)]
+#[derive(Default, Clone)]
 pub(super) struct AliasSet {
     aliases: Option<VecSet<[ValueId; 1]>>,
 }
@@ -95,5 +95,18 @@ impl AliasSet {
     /// used when you need an arbitrary ValueId from the alias set.
     pub(super) fn first(&self) -> Option<ValueId> {
         self.aliases.as_ref().and_then(|aliases| aliases.iter().next().copied())
+    }
+}
+
+impl std::fmt::Debug for AliasSet {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match &self.aliases {
+            None => write!(f, "Unknown"),
+            Some(aliases) => match aliases.len() {
+                0 => write!(f, "KnownEmpty"),
+                1 => write!(f, "{:?}", aliases.iter().next().unwrap()),
+                _ => write!(f, "{aliases:?}"),
+            },
+        }
     }
 }
