@@ -89,7 +89,7 @@ impl<T> std::fmt::Debug for Id<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         // Deliberately formatting as a tuple with 1 element here and omitting
         // the _marker: PhantomData field which would just clutter output
-        f.debug_tuple("Id").field(&self.index).finish()
+        write!(f, "Id({})", self.index)
     }
 }
 
