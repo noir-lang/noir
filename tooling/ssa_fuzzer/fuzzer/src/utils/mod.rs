@@ -7,13 +7,14 @@ fn fuzzer_output_to_json(fuzzer_output: FuzzerOutput) -> String {
     let program = fuzzer_output.program;
     let program_json = serde_json::to_string(&program).unwrap();
     let mut program_json: serde_json::Value = serde_json::from_str(&program_json).unwrap();
-    // bb takes the program from "bytecode" field, but default `CompiledProgram` serializer
+    // Noir program compiles into json, storing bytecode of the program
+    // to "bytecode" field, but default `CompiledProgram` serializer
     // serializes it to "program" field.
     if let Some(program_value) = program_json.get("program").cloned() {
         program_json.as_object_mut().unwrap().remove("program");
         program_json.as_object_mut().unwrap().insert("bytecode".to_string(), program_value);
     }
-    let witness_map_bytes = fuzzer_output.witness_map.serialize().unwrap();
+    let witness_map_bytes = fuzzer_output.witness_stack.serialize().unwrap();
     let witness_map_b64 = general_purpose::STANDARD.encode(&witness_map_bytes);
     let mut output_json = serde_json::Map::new();
     output_json.insert("program".to_string(), program_json.clone());
@@ -21,7 +22,8 @@ fn fuzzer_output_to_json(fuzzer_output: FuzzerOutput) -> String {
     serde_json::to_string(&output_json).unwrap()
 }
 
-pub(crate) fn push_fuzzer_output_to_queue(
+pub(crate) fn push_fuzzer_output_to_redis_queue(
+    queue_name: &str,
     test_id: String,
     fuzzer_output: FuzzerOutput,
 ) -> redis::RedisResult<String> {
@@ -32,7 +34,7 @@ pub(crate) fn push_fuzzer_output_to_queue(
     }
     let json_with_test_id = serde_json::to_string(&json_value).unwrap();
 
-    redis::push_to_redis_queue("fuzzer_output", &json_with_test_id)?;
+    redis::push_to_redis_queue(queue_name, &json_with_test_id)?;
 
     Ok(json_with_test_id)
 }

@@ -13,7 +13,7 @@ use mutations::mutate;
 use noirc_driver::CompileOptions;
 use rand::{SeedableRng, rngs::StdRng};
 use sha1::{Digest, Sha1};
-use utils::{push_fuzzer_output_to_queue, redis};
+use utils::{push_fuzzer_output_to_redis_queue, redis};
 
 const MAX_EXECUTION_TIME_TO_KEEP_IN_CORPUS: u64 = 3;
 
@@ -52,13 +52,15 @@ libfuzzer_sys::fuzz_target!(|data: &[u8]| -> Corpus {
     let start = std::time::Instant::now();
     let fuzzer_output = fuzz_target(fuzzer_data, options);
 
+    // If REDIS_URL is set and generated program is executed
     if redis::ensure_redis_connection() && fuzzer_output.is_some() {
+        // cargo-fuzz saves tests with name equal to sha1 of content
         let fuzzer_output = fuzzer_output.unwrap();
         let mut hasher = Sha1::new();
         hasher.update(data);
         let sha1_hash = hasher.finalize();
         let test_id = format!("{sha1_hash:x}");
-        match push_fuzzer_output_to_queue(test_id, fuzzer_output) {
+        match push_fuzzer_output_to_redis_queue("fuzzer_output", test_id, fuzzer_output) {
             Ok(json_str) => log::debug!("{json_str}"),
             Err(e) => log::error!("Failed to push to Redis queue: {e}"),
         }

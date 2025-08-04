@@ -53,14 +53,14 @@ pub(crate) struct Fuzzer {
 }
 
 pub(crate) struct FuzzerOutput {
-    pub(crate) witness_map: WitnessStack<FieldElement>,
+    pub(crate) witness_stack: WitnessStack<FieldElement>,
     pub(crate) program: CompiledProgram,
 }
 
 impl FuzzerOutput {
     pub(crate) fn get_return_value(&self) -> FieldElement {
         let return_witness = self.program.program.functions[0].return_values.0.first().unwrap();
-        self.witness_map.peek().unwrap().witness[return_witness]
+        self.witness_stack.peek().unwrap().witness[return_witness]
     }
 }
 
@@ -223,7 +223,7 @@ impl Fuzzer {
         log::debug!("Comparison result: {comparison_result:?}");
         match comparison_result {
             CompareResults::Agree(result) => {
-                Some(FuzzerOutput { witness_map: result, program: acir_program })
+                Some(FuzzerOutput { witness_stack: result, program: acir_program })
             }
             CompareResults::Disagree(acir_return_value, brillig_return_value) => {
                 panic!(
