@@ -1466,4 +1466,25 @@ mod tests {
         // We expect the program to be unchanged
         assert_normalized_ssa_equals(ssa, src);
     }
+
+    #[test]
+    fn does_not_remove_store_to_return_value() {
+        // The last store can't be removed as it stores a value in a function parameter
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 4 at v0
+            jmp b1()
+          b1():
+            return v0
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.mem2reg();
+        // We expect the program to be unchanged
+        assert_normalized_ssa_equals(ssa, src);
+    }
 }
