@@ -388,11 +388,11 @@ impl<'f> PerFunctionContext<'f> {
             let first = first.expect("All parameters alias at least themselves or we early return");
 
             let expression = Expression::Other(first);
-            let previous = references.aliases.insert(expression.clone(), aliases.clone());
+            let previous = references.aliases.insert(expression, aliases.clone());
             assert!(previous.is_none());
 
             aliases.for_each(|alias| {
-                let previous = references.expressions.insert(alias, expression.clone());
+                let previous = references.expressions.insert(alias, expression);
                 assert!(previous.is_none());
             });
         }
@@ -518,7 +518,7 @@ impl<'f> PerFunctionContext<'f> {
                 // Register the new reference
                 let result = self.inserter.function.dfg.instruction_results(instruction)[0];
                 let expression = Expression::Other(result);
-                references.expressions.insert(result, expression.clone());
+                references.expressions.insert(result, expression);
                 references.aliases.insert(expression, AliasSet::known(result));
             }
             Instruction::ArrayGet { array, .. } => {
@@ -532,7 +532,7 @@ impl<'f> PerFunctionContext<'f> {
                     });
                     references.mark_value_used(array, self.inserter.function);
 
-                    let expression = Expression::ArrayElement(Box::new(Expression::Other(array)));
+                    let expression = Expression::ArrayElement(array);
 
                     if let Some(aliases) = references.aliases.get_mut(&expression) {
                         aliases.insert(result);
@@ -547,7 +547,7 @@ impl<'f> PerFunctionContext<'f> {
                     let result = self.inserter.function.dfg.instruction_results(instruction)[0];
                     let array = *array;
 
-                    let expression = Expression::ArrayElement(Box::new(Expression::Other(array)));
+                    let expression = Expression::ArrayElement(array);
 
                     let mut aliases = if let Some(aliases) = references.aliases.get_mut(&expression)
                     {
@@ -564,7 +564,7 @@ impl<'f> PerFunctionContext<'f> {
 
                     aliases.unify(&references.get_aliases_for_value(*value));
 
-                    references.expressions.insert(result, expression.clone());
+                    references.expressions.insert(result, expression);
                     references.aliases.insert(expression, aliases);
 
                     // Similar to how we remember that we used a value in a `Store` instruction,
@@ -591,8 +591,8 @@ impl<'f> PerFunctionContext<'f> {
                 if Self::contains_references(typ) {
                     let array = self.inserter.function.dfg.instruction_results(instruction)[0];
 
-                    let expr = Expression::ArrayElement(Box::new(Expression::Other(array)));
-                    references.expressions.insert(array, expr.clone());
+                    let expr = Expression::ArrayElement(array);
+                    references.expressions.insert(array, expr);
                     let aliases = references.aliases.entry(expr).or_insert(AliasSet::known_empty());
 
                     self.add_array_aliases(elements, aliases);
@@ -604,7 +604,7 @@ impl<'f> PerFunctionContext<'f> {
 
                 if Self::contains_references(&result_type) {
                     let expr = Expression::Other(result);
-                    references.expressions.insert(result, expr.clone());
+                    references.expressions.insert(result, expr);
                     references.aliases.insert(
                         expr,
                         AliasSet::known_multiple(vec![*then_value, *else_value].into()),
@@ -641,7 +641,7 @@ impl<'f> PerFunctionContext<'f> {
     fn set_aliases(&self, references: &mut Block, address: ValueId, new_aliases: AliasSet) {
         let expression =
             references.expressions.entry(address).or_insert(Expression::Other(address));
-        let aliases = references.aliases.entry(expression.clone()).or_default();
+        let aliases = references.aliases.entry(*expression).or_default();
         *aliases = new_aliases;
     }
 
