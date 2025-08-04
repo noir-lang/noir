@@ -62,7 +62,7 @@ impl WorkspaceCommand for InfoCommand {
 
 pub(crate) fn run(mut args: InfoCommand, workspace: Workspace) -> Result<(), CliError> {
     if args.json {
-        // In order to have a machine readable output, we cannot allow the program print arbitrary data to stdout.
+        // In order to have a machine readable output, we cannot allow the program to print arbitrary data to stdout.
         args.compile_options.disable_comptime_printing = true;
     }
 
