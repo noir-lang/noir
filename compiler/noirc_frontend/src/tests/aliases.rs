@@ -255,7 +255,6 @@ fn type_alias_to_numeric_as_generic() {
     assert_no_errors!(src);
 }
 
-
 #[named]
 #[test]
 #[should_panic]
