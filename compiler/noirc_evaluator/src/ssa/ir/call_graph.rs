@@ -406,8 +406,7 @@ mod tests {
         for func_id in expected_recursive_ids {
             assert!(
                 recursive_functions.contains(&func_id),
-                "Function {:?} should be marked recursive",
-                func_id
+                "Function {func_id} should be marked recursive",
             );
         }
 
