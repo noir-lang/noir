@@ -14,6 +14,7 @@ mod traits;
 mod type_alias;
 mod visitor;
 
+use noirc_errors::Located;
 use noirc_errors::Location;
 pub use visitor::AttributeTarget;
 pub use visitor::Visitor;
@@ -491,6 +492,24 @@ impl UnresolvedTypeData {
             | UnresolvedTypeData::Error => false,
         }
     }
+
+    pub(crate) fn try_into_expression(&self) -> Option<UnresolvedTypeExpression> {
+        match self {
+            UnresolvedTypeData::Expression(expr) => Some(expr.clone()),
+            UnresolvedTypeData::Parenthesized(unresolved_type) => {
+                unresolved_type.typ.try_into_expression()
+            }
+            UnresolvedTypeData::Named(path, generics, _)
+                if path.is_ident() && generics.is_empty() =>
+            {
+                Some(UnresolvedTypeExpression::Variable(path.clone()))
+            }
+            UnresolvedTypeData::AsTraitPath(as_trait_path) => {
+                Some(UnresolvedTypeExpression::AsTraitPath(as_trait_path.clone()))
+            }
+            _ => None,
+        }
+    }
 }
 
 impl UnresolvedTypeExpression {
@@ -569,6 +588,25 @@ impl UnresolvedTypeExpression {
         }
     }
 
+    pub fn to_expression_kind(&self) -> ExpressionKind {
+        match self {
+            UnresolvedTypeExpression::Variable(path) => ExpressionKind::Variable(path.clone()),
+            UnresolvedTypeExpression::Constant(int, suffix, _) => {
+                ExpressionKind::Literal(Literal::Integer(*int, *suffix))
+            }
+            UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, location) => {
+                ExpressionKind::Infix(Box::new(InfixExpression {
+                    lhs: Expression { kind: lhs.to_expression_kind(), location: *location },
+                    operator: Located::from(*location, op.operator_to_binary_op_kind_helper()),
+                    rhs: Expression { kind: rhs.to_expression_kind(), location: *location },
+                }))
+            }
+            UnresolvedTypeExpression::AsTraitPath(path) => {
+                ExpressionKind::AsTraitPath(Box::new(*path.clone()))
+            }
+        }
+    }
+
     fn operator_allowed(op: BinaryOpKind) -> bool {
         matches!(
             op,
@@ -590,6 +628,17 @@ impl UnresolvedTypeExpression {
             UnresolvedTypeExpression::Constant(..) | UnresolvedTypeExpression::AsTraitPath(_) => {
                 false
             }
+        }
+    }
+
+    pub(crate) fn is_valid_expression(&self) -> bool {
+        match self {
+            UnresolvedTypeExpression::Variable(path) => path.no_generic(),
+            UnresolvedTypeExpression::Constant(_, _, _) => true,
+            UnresolvedTypeExpression::BinaryOperation(lhs, _, rhs, _) => {
+                lhs.is_valid_expression() && rhs.is_valid_expression()
+            }
+            UnresolvedTypeExpression::AsTraitPath(_) => true,
         }
     }
 }

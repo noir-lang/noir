@@ -1394,8 +1394,11 @@ impl<'context> Elaborator<'context> {
             };
             let trait_constraint_trait_name = trait_constraint_trait.name.to_string();
 
-            let trait_constraint_type = trait_constraint.typ.substitute(&bindings);
-            let trait_bound = &trait_constraint.trait_bound;
+            let mut trait_constraint = trait_constraint.clone();
+            trait_constraint.apply_bindings(&bindings);
+
+            let trait_constraint_type = trait_constraint.typ;
+            let trait_bound = trait_constraint.trait_bound;
 
             let mut named_generics = trait_bound.trait_generics.named.clone();
 
@@ -1407,29 +1410,36 @@ impl<'context> Elaborator<'context> {
             // so they'll unify (the bindings aren't applied here so this is fine).
             // If they are bound though, we won't replace them as we want to ensure the binding
             // matches.
+            //
+            // `bindings` is passed here because these implicitly added named generics might
+            // have a constraint on them later on and we want to remember what type they ended
+            // up being.
             self.replace_implicitly_added_unbound_named_generics_with_fresh_type_variables(
                 &mut named_generics,
+                &mut bindings,
             );
 
-            if self
-                .interner
-                .try_lookup_trait_implementation(
-                    &trait_constraint_type,
-                    trait_bound.trait_id,
-                    &trait_bound.trait_generics.ordered,
-                    &named_generics,
-                )
-                .is_err()
-            {
-                let missing_trait =
-                    format!("{}{}", trait_constraint_trait_name, trait_bound.trait_generics);
-                self.push_err(ResolverError::TraitNotImplemented {
-                    impl_trait: impl_trait.clone(),
-                    missing_trait,
-                    type_missing_trait: trait_constraint_type.to_string(),
-                    location: trait_impl.object_type.location,
-                    missing_trait_location: trait_bound.location,
-                });
+            match self.interner.try_lookup_trait_implementation(
+                &trait_constraint_type,
+                trait_bound.trait_id,
+                &trait_bound.trait_generics.ordered,
+                &named_generics,
+            ) {
+                Ok((_, impl_bindings, impl_instantiation_bindings)) => {
+                    bindings.extend(impl_bindings);
+                    bindings.extend(impl_instantiation_bindings);
+                }
+                Err(_) => {
+                    let missing_trait =
+                        format!("{}{}", trait_constraint_trait_name, trait_bound.trait_generics);
+                    self.push_err(ResolverError::TraitNotImplemented {
+                        impl_trait: impl_trait.clone(),
+                        missing_trait,
+                        type_missing_trait: trait_constraint_type.to_string(),
+                        location: trait_impl.object_type.location,
+                        missing_trait_location: trait_bound.location,
+                    });
+                }
             }
         }
     }
@@ -1437,13 +1447,19 @@ impl<'context> Elaborator<'context> {
     fn replace_implicitly_added_unbound_named_generics_with_fresh_type_variables(
         &mut self,
         named_generics: &mut [NamedType],
+        bindings: &mut TypeBindings,
     ) {
         for named_type in named_generics.iter_mut() {
             match &named_type.typ {
                 Type::NamedGeneric(NamedGeneric { type_var, implicit: true, .. })
                     if type_var.borrow().is_unbound() =>
                 {
-                    named_type.typ = self.interner.next_type_variable();
+                    let type_var_id = type_var.id();
+                    let new_type_var_id = self.interner.next_type_variable_id();
+                    let kind = type_var.kind();
+                    let new_type_var = TypeVariable::unbound(new_type_var_id, kind.clone());
+                    named_type.typ = Type::TypeVariable(new_type_var.clone());
+                    bindings.insert(type_var_id, (new_type_var, kind, named_type.typ.clone()));
                 }
                 _ => (),
             };
@@ -1799,18 +1815,52 @@ impl<'context> Elaborator<'context> {
 
         let name = &alias.type_alias_def.name;
         let visibility = alias.type_alias_def.visibility;
-        let location = alias.type_alias_def.typ.location;
+        let location = alias.type_alias_def.location;
 
         let generics = self.add_generics(&alias.type_alias_def.generics);
         self.current_item = Some(DependencyId::Alias(alias_id));
         let wildcard_allowed = false;
-        let typ = self.use_type(alias.type_alias_def.typ, wildcard_allowed);
+        let (typ, num_expr) = if let Some(num_type) = alias.type_alias_def.numeric_type {
+            let num_type = self.resolve_type(num_type, wildcard_allowed);
+            let kind = Kind::numeric(num_type);
+            let num_expr = alias.type_alias_def.typ.typ.try_into_expression();
+
+            if let Some(num_expr) = num_expr {
+                // Checks that the expression only references generics and constants
+                if !num_expr.is_valid_expression() {
+                    self.errors.push(CompilationError::ResolverError(
+                        ResolverError::RecursiveTypeAlias {
+                            location: alias.type_alias_def.numeric_location,
+                        },
+                    ));
+                    (Type::Error, None)
+                } else {
+                    (
+                        self.resolve_type_with_kind(
+                            alias.type_alias_def.typ,
+                            &kind,
+                            wildcard_allowed,
+                        ),
+                        Some(num_expr),
+                    )
+                }
+            } else {
+                self.errors.push(CompilationError::ResolverError(
+                    ResolverError::ExpectedNumericExpression {
+                        typ: alias.type_alias_def.typ.typ.to_string(),
+                        location,
+                    },
+                ));
+                (Type::Error, None)
+            }
+        } else {
+            (self.use_type(alias.type_alias_def.typ, wildcard_allowed), None)
+        };
 
         if visibility != ItemVisibility::Private {
             self.check_type_is_not_more_private_then_item(name, visibility, &typ, location);
         }
-
-        self.interner.set_type_alias(alias_id, typ, generics);
+        self.interner.set_type_alias(alias_id, typ, generics, num_expr);
         self.generics.clear();
     }
 
