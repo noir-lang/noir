@@ -517,8 +517,9 @@ impl<'f> PerFunctionContext<'f> {
             Instruction::Allocate => {
                 // Register the new reference
                 let result = self.inserter.function.dfg.instruction_results(instruction)[0];
-                references.expressions.insert(result, Expression::Other(result));
-                references.aliases.insert(Expression::Other(result), AliasSet::known(result));
+                let expression = Expression::Other(result);
+                references.expressions.insert(result, expression.clone());
+                references.aliases.insert(expression, AliasSet::known(result));
             }
             Instruction::ArrayGet { array, .. } => {
                 let result = self.inserter.function.dfg.instruction_results(instruction)[0];
