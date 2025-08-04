@@ -1,42 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1754321041463,
+  "lastUpdate": 1754321053863,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "4fbd81989fa0a434bbbe1b068a3f7a0bf1f4cc68",
-          "message": "chore: Add a helper function `fmtstr::as_quoted_str` (#9293)",
-          "timestamp": "2025-07-23T17:00:54Z",
-          "tree_id": "d9807b07914d003b0895a3c934e9642c285d676a",
-          "url": "https://github.com/noir-lang/noir/commit/4fbd81989fa0a434bbbe1b068a3f7a0bf1f4cc68"
-        },
-        "date": 1753291782329,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore_depth_10",
-            "value": 104.56,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 234.59,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -1849,6 +1815,90 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512_100_bytes",
             "value": 234.66,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "1d8a104bcf2c9b733aed6092a161af20f0f6f5d9",
+          "message": "fix: disable comptime printing when requesting json output (#9381)",
+          "timestamp": "2025-08-04T14:32:59Z",
+          "tree_id": "2bbd3cf89e832b8658cc6c7c64589838c2381237",
+          "url": "https://github.com/noir-lang/noir/commit/1d8a104bcf2c9b733aed6092a161af20f0f6f5d9"
+        },
+        "date": 1754321035497,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 238.21,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 547.36,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 212.08,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 1340,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 1420,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 1090,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 9340,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 9350,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 330.64,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 339.63,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 104.73,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 234.74,
             "unit": "MB"
           }
         ]
