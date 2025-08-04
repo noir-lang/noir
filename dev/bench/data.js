@@ -1,42 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1754326023433,
+  "lastUpdate": 1754326025942,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "ee66c987f6392c05e6b46cdd9560d38251b0fb24",
-          "message": "fix: disallow `_` in signatures and struct members (#9301)",
-          "timestamp": "2025-07-23T19:00:39Z",
-          "tree_id": "9c8bf2cc249556381101bfaecbd7d0613af6a6c1",
-          "url": "https://github.com/noir-lang/noir/commit/ee66c987f6392c05e6b46cdd9560d38251b0fb24"
-        },
-        "date": 1753299028674,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore_depth_10",
-            "value": 104.56,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 234.65,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -1999,6 +1965,90 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512_100_bytes",
             "value": 234.78,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "b61f5eb6f371ee8e51c2ac42de38ed821b084b1b",
+          "message": "fix(ssa_gen): Generate code for index before the collection (#9332)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-08-04T16:07:14Z",
+          "tree_id": "38b72e1d92c627a959392253cb4a652fc48df69b",
+          "url": "https://github.com/noir-lang/noir/commit/b61f5eb6f371ee8e51c2ac42de38ed821b084b1b"
+        },
+        "date": 1754326007715,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 238.19,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 547.36,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 212.08,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 1340,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 1420,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 1090,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 9340,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 9350,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 330.64,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 339.63,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 104.73,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 234.73,
             "unit": "MB"
           }
         ]
