@@ -36,12 +36,6 @@ impl Ssa {
         self.dead_instruction_elimination_with_pruning(true, false)
     }
 
-    /// Post the Brillig generation we do not need to run this pass on Brillig functions.
-    #[tracing::instrument(level = "trace", skip(self))]
-    pub(crate) fn dead_instruction_elimination_acir(self) -> Ssa {
-        self.dead_instruction_elimination_with_pruning(true, true)
-    }
-
     /// The elimination of certain unused instructions assumes that the DIE pass runs after
     /// the flattening of the CFG, but if that's not the case then we should not eliminate
     /// them just yet.
