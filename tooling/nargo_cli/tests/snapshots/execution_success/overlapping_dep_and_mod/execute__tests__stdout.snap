@@ -2,4 +2,4 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stdout
 ---
-[overlapping_dep_and_mod] Circuit output: Field(11)
+[overlapping_dep_and_mod] Circuit output: 0x0b

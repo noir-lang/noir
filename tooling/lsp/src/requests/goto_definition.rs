@@ -6,7 +6,6 @@ use crate::{LspState, types::GotoDefinitionResult};
 use async_lsp::ResponseError;
 
 use async_lsp::lsp_types;
-use fm::PathString;
 use lsp_types::request::GotoTypeDefinitionParams;
 use lsp_types::{GotoDefinitionParams, GotoDefinitionResponse};
 
@@ -33,11 +32,10 @@ fn on_goto_definition_inner(
     params: GotoDefinitionParams,
     return_type_location_instead: bool,
 ) -> Result<GotoDefinitionResult, ResponseError> {
-    let uri = params.text_document_position_params.text_document.uri.clone();
     let position = params.text_document_position_params.position;
     process_request(state, params.text_document_position_params, |args| {
-        let path = PathString::from_path(uri.to_file_path().unwrap());
-        let reference_id = args.files.get_file_id(&path).and_then(|file_id| {
+        let file_id = args.location.file;
+        let reference_id =
             utils::position_to_byte_index(args.files, file_id, &position).and_then(|byte_index| {
                 let file = args.files.get_file(file_id).unwrap();
                 let source = file.source();
@@ -50,8 +48,7 @@ fn on_goto_definition_inner(
                     args.def_maps,
                 );
                 finder.find(&parsed_module)
-            })
-        });
+            });
         let location = if let Some(reference_id) = reference_id {
             Some(args.interner.reference_location(reference_id))
         } else {

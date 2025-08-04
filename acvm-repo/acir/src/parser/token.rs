@@ -105,6 +105,20 @@ pub(crate) enum Keyword {
     Expression,
     /// BLACKBOX
     BlackBoxFuncCall,
+    /// MEM
+    MemoryOp,
+    /// INIT
+    MemoryInit,
+    /// BRILLIG
+    Brillig,
+    /// CALL
+    Call,
+    /// PREDICATE
+    Predicate,
+    /// CALLDATA
+    CallData,
+    /// RETURNDATA
+    ReturnData,
 }
 
 impl Keyword {
@@ -121,6 +135,13 @@ impl Keyword {
             "value" => Keyword::Value,
             "EXPR" => Keyword::Expression,
             "BLACKBOX" => Keyword::BlackBoxFuncCall,
+            "MEM" => Keyword::MemoryOp,
+            "INIT" => Keyword::MemoryInit,
+            "BRILLIG" => Keyword::Brillig,
+            "CALL" => Keyword::Call,
+            "PREDICATE" => Keyword::Predicate,
+            "CALLDATA" => Keyword::CallData,
+            "RETURNDATA" => Keyword::ReturnData,
             _ => return None,
         };
         Some(Token::Keyword(keyword))
@@ -141,6 +162,13 @@ impl std::fmt::Display for Keyword {
             Keyword::Value => write!(f, "value"),
             Keyword::Expression => write!(f, "EXPR"),
             Keyword::BlackBoxFuncCall => write!(f, "BLACKBOX"),
+            Keyword::MemoryOp => write!(f, "MEM"),
+            Keyword::MemoryInit => write!(f, "INIT"),
+            Keyword::Brillig => write!(f, "BRILLIG"),
+            Keyword::Call => write!(f, "CALL"),
+            Keyword::Predicate => write!(f, "PREDICATE"),
+            Keyword::CallData => write!(f, "CALLDATA"),
+            Keyword::ReturnData => write!(f, "RETURNDATA"),
         }
     }
 }
