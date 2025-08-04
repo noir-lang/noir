@@ -1,6 +1,7 @@
 use std::{borrow::Cow, cell::RefCell, collections::BTreeSet, rc::Rc};
 
 use fxhash::FxHashMap as HashMap;
+use im::HashSet;
 
 #[cfg(test)]
 use proptest_derive::Arbitrary;
@@ -8,7 +9,7 @@ use proptest_derive::Arbitrary;
 use acvm::{AcirField, FieldElement};
 
 use crate::{
-    ast::{IntegerBitSize, ItemVisibility},
+    ast::{BinaryOpKind, IntegerBitSize, ItemVisibility, UnresolvedTypeExpression},
     hir::{
         def_map::ModuleId,
         type_check::{TypeCheckError, generics::TraitGenerics},
@@ -712,6 +713,8 @@ pub struct TypeAlias {
     pub generics: Generics,
     pub visibility: ItemVisibility,
     pub location: Location,
+    /// Optional expression, used by type aliases to numeric generics
+    pub numeric_expr: Option<UnresolvedTypeExpression>,
     pub module_id: ModuleId,
 }
 
@@ -755,13 +758,19 @@ impl TypeAlias {
         visibility: ItemVisibility,
         module_id: ModuleId,
     ) -> TypeAlias {
-        TypeAlias { id, typ, name, location, generics, visibility, module_id }
+        TypeAlias { id, typ, name, location, generics, visibility, module_id, numeric_expr: None }
     }
 
-    pub fn set_type_and_generics(&mut self, new_typ: Type, new_generics: Generics) {
+    pub fn set_type_and_generics(
+        &mut self,
+        new_typ: Type,
+        new_generics: Generics,
+        num_expr: Option<UnresolvedTypeExpression>,
+    ) {
         assert_eq!(self.typ, Type::Error);
         self.typ = new_typ;
         self.generics = new_generics;
+        self.numeric_expr = num_expr;
     }
 
     pub fn get_type(&self, generic_args: &[Type]) -> Type {
@@ -857,6 +866,18 @@ pub enum BinaryTypeOperator {
     Multiplication,
     Division,
     Modulo,
+}
+
+impl BinaryTypeOperator {
+    pub fn operator_to_binary_op_kind_helper(&self) -> BinaryOpKind {
+        match self {
+            BinaryTypeOperator::Addition => BinaryOpKind::Add,
+            BinaryTypeOperator::Subtraction => BinaryOpKind::Subtract,
+            BinaryTypeOperator::Multiplication => BinaryOpKind::Multiply,
+            BinaryTypeOperator::Division => BinaryOpKind::Divide,
+            BinaryTypeOperator::Modulo => BinaryOpKind::Modulo,
+        }
+    }
 }
 
 /// A TypeVariable is a mutable reference that is either
@@ -1590,6 +1611,36 @@ impl Type {
             | Type::Forall(..)
             | Type::Quoted(..) => Kind::Normal,
             Type::Error => Kind::Any,
+        }
+    }
+
+    /// Determines if a type contains a self referring alias by tracking visited TypeAliasId.
+    ///
+    /// - `aliases` is a mutable set of TypeAliasId to track visited aliases
+    /// - it returns `true` if a cyclic alias is detected, `false` otherwise
+    pub fn has_cyclic_alias(&self, aliases: &mut HashSet<TypeAliasId>) -> bool {
+        match self {
+            Type::CheckedCast { to, .. } => to.has_cyclic_alias(aliases),
+            Type::NamedGeneric(NamedGeneric { type_var, .. }) => {
+                Type::TypeVariable(type_var.clone()).has_cyclic_alias(aliases)
+            }
+            Type::TypeVariable(var) => match &*var.borrow() {
+                TypeBinding::Bound(typ) => typ.has_cyclic_alias(aliases),
+                TypeBinding::Unbound(_, _) => false,
+            },
+            Type::InfixExpr(lhs, _op, rhs, _) => {
+                lhs.has_cyclic_alias(aliases) || rhs.has_cyclic_alias(aliases)
+            }
+            Type::Alias(def, generics) => {
+                let alias_id = def.borrow().id;
+                if aliases.contains(&alias_id) {
+                    true
+                } else {
+                    aliases.insert(alias_id);
+                    def.borrow().get_type(generics).has_cyclic_alias(aliases)
+                }
+            }
+            _ => false,
         }
     }
 
