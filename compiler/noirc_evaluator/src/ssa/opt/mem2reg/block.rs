@@ -188,18 +188,34 @@ impl Block {
         }
     }
 
+    pub(super) fn get_aliases(&self, address: ValueId) -> Option<&AliasSet> {
+        if let Some(expr) = self.expressions.get(&address) {
+            if let Some(aliases) = self.aliases.get(expr) {
+                return Some(aliases);
+            }
+        }
+        None
+    }
+
+    pub(super) fn get_aliases_mut(&mut self, address: ValueId) -> Option<&mut AliasSet> {
+        if let Some(expr) = self.expressions.get_mut(&address) {
+            if let Some(aliases) = self.aliases.get_mut(expr) {
+                return Some(aliases);
+            }
+        }
+        None
+    }
+
     /// Iterate through each known alias of the given address and apply the function `f` to each.
     pub(super) fn for_each_alias_of<T>(
         &mut self,
         address: ValueId,
         mut f: impl FnMut(&mut Self, ValueId) -> T,
     ) {
-        if let Some(expr) = self.expressions.get(&address) {
-            if let Some(aliases) = self.aliases.get(expr).cloned() {
-                aliases.for_each(|alias| {
-                    f(self, alias);
-                });
-            }
+        if let Some(aliases) = self.get_aliases(address).cloned() {
+            aliases.for_each(|alias| {
+                f(self, alias);
+            });
         }
     }
 
