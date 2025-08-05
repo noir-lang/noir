@@ -1510,4 +1510,41 @@ mod tests {
         // We expect the program to be unchanged
         assert_normalized_ssa_equals(ssa, src);
     }
+    #[test]
+    fn removes_last_store_in_single_block() {
+        // Even though v0 is a reference passed to a function, the store that comes next
+        // can be removed as it is later never read, and this is the only block in the function.
+        let src = "
+        brillig(inline) impure fn main f0 {
+          b0():
+            v0 = allocate -> &mut [Field; 2]
+            call f1(v0)
+            v1 = load v0 -> [Field; 2]
+            store v1 at v0
+            return
+        }
+
+        brillig(inline) impure fn append_note_hashes_with_logs f1 {
+          b0(v0: &mut [Field; 2]):
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.mem2reg();
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) impure fn main f0 {
+          b0():
+            v0 = allocate -> &mut [Field; 2]
+            call f1(v0)
+            v2 = load v0 -> [Field; 2]
+            return
+        }
+        brillig(inline) impure fn append_note_hashes_with_logs f1 {
+          b0(v0: &mut [Field; 2]):
+            return
+        }
+        ");
+    }
 }
