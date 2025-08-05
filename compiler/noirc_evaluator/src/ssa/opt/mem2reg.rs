@@ -536,6 +536,10 @@ impl<'f> PerFunctionContext<'f> {
                     if let Some(aliases) = references.aliases.get_mut(&expression) {
                         aliases.insert(result);
                     }
+
+                    // An array_get that returns a reference type is similar to loading from an address
+                    // that returns a reference, so we consider them equivalent.
+                    references.remember_dereference(self.inserter.function, array, result);
                 }
             }
             Instruction::ArraySet { array, value, .. } => {
@@ -1456,6 +1460,28 @@ mod tests {
             jmp b1()
           b1():
             store Field 4 at v0
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.mem2reg();
+        // We expect the program to be unchanged
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn does_not_remove_store_to_nested_function_parameter() {
+        // The last store can't be removed as it stores a value in a reference
+        // nested in a function parameter
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: [&mut Field; 1]):
+            v1 = array_get v0, index u32 0 -> &mut Field
+            jmp b1()
+          b1():
+            store Field 4 at v1
             return
         }
         ";
