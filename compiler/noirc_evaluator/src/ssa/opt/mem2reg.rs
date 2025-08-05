@@ -1487,4 +1487,27 @@ mod tests {
         // We expect the program to be unchanged
         assert_normalized_ssa_equals(ssa, src);
     }
+
+    #[test]
+    fn does_not_remove_store_to_address_used_in_terminator() {
+        // The store here shouldn't be removed as its address is eventually put inside
+        // an array that's used in a terminator value, `b1(v7)`.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v6 = allocate -> &mut u1
+            store u1 1 at v6
+            v7 = make_array [v6, Field 1] : [(&mut u1, Field); 1]
+            jmp b1(v7)
+          b1(v1: [(&mut u1, Field); 1]):
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.mem2reg();
+        // We expect the program to be unchanged
+        assert_normalized_ssa_equals(ssa, src);
+    }
 }
