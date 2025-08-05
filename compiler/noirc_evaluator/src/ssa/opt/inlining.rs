@@ -436,10 +436,8 @@ impl<'function> PerFunctionContext<'function> {
             }
             let translated_block_id = self.translate_block(source_block_id, &mut block_queue);
             self.context.builder.switch_to_block(translated_block_id);
-
             seen_blocks.insert(source_block_id);
             self.inline_block_instructions(ssa, source_block_id, should_inline_call)?;
-
             if let Some((block, values)) =
                 self.handle_terminator_instruction(source_block_id, &mut block_queue)
             {
@@ -509,9 +507,9 @@ impl<'function> PerFunctionContext<'function> {
                                 // can pollute the function they're being inlined into with `Instruction::EnabledSideEffects`,
                                 // resulting in predicates not being applied properly.
                                 //
-                                // Note that this doesn't cover the case in which there exists an `Instruction::EnabledSideEffects`
+                                // Note that this doesn't cover the case in which there exists an `Instruction::EnableSideEffectsIf`
                                 // within the function being inlined whilst the source function has not encountered one yet.
-                                // In practice this isn't an issue as the last `Instruction::EnabledSideEffects` in the
+                                // In practice this isn't an issue as the last `Instruction::EnableSideEffectsIf` in the
                                 // function being inlined will be to turn off predicates rather than to create one.
                                 if let Some(condition) = side_effects_enabled {
                                     self.context.builder.insert_enable_side_effects_if(condition);
@@ -772,7 +770,7 @@ impl<'function> PerFunctionContext<'function> {
 mod test {
     use crate::{
         assert_ssa_snapshot,
-        ssa::{Ssa, opt::assert_normalized_ssa_equals},
+        ssa::{Ssa, ir::instruction::TerminatorInstruction, opt::assert_normalized_ssa_equals},
     };
 
     #[test]
@@ -1029,5 +1027,233 @@ mod test {
             return v0
         }
         ");
+    }
+
+    #[test]
+    fn conditional_inlining_const_from_param_and_direct_constant() {
+        let src = "
+        brillig(inline) fn foo f0 {
+          b0():
+            v1 = call f1() -> Field
+            v2 = call f2(u1 1) -> Field
+            v3 = call f2(u1 0) -> Field
+            return v1, v2, v3
+        }
+
+        brillig(inline) fn bar f1 {
+          b0():
+            jmpif u1 1 then: b1, else: b2
+          b1():
+            jmp b3(Field 1)
+          b2():
+            jmp b3(Field 2)
+          b3(v3: Field):
+            return v3
+        }
+
+        brillig(inline) fn baz f2 {
+          b0(v0: u1):
+            jmpif v0 then: b1, else: b2
+          b1():
+            jmp b3(Field 1)
+          b2():
+            jmp b3(Field 2)
+          b3(v3: Field):
+            return v3
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.inline_functions(i64::MAX).unwrap();
+
+        // We expect a block from all calls to f1 and f2 to be pruned and that the constant argument to the f2 call
+        // is propagated to the jmpif conditional in b0.
+        // Field 1 to be returned from the first call to f2 and Field 2 should be returned from the second call to f2.
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn foo f0 {
+          b0():
+            jmp b1()
+          b1():
+            jmp b2(Field 1)
+          b2(v0: Field):
+            jmp b3()
+          b3():
+            jmp b4(Field 1)
+          b4(v2: Field):
+            jmp b5()
+          b5():
+            jmp b6(Field 2)
+          b6(v3: Field):
+            return v0, v2, v3
+        }
+        ");
+    }
+
+    #[test]
+    fn acir_global_arrays_are_inlined_with_new_value_ids() {
+        let src = "
+        g0 = Field 1
+        g1 = Field 2
+        g2 = make_array [Field 1, Field 2] : [Field; 2]
+
+        acir(inline) fn main f0 {
+          b0():
+            v0 = call f1() -> [Field; 2]
+            // v1 = array_get g2, index u32 1 -> Field
+            return v0
+        }
+        acir(inline) fn create_array f1 {
+          b0():
+            return g2
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.inline_functions(i64::MAX).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        g0 = Field 1
+        g1 = Field 2
+        g2 = make_array [Field 1, Field 2] : [Field; 2]
+
+        acir(inline) fn main f0 {
+          b0():
+            v3 = make_array [Field 1, Field 2] : [Field; 2]
+            return v3
+        }
+        ");
+    }
+
+    #[test]
+    fn brillig_global_arrays_keep_same_value_ids() {
+        let src = "
+        g0 = Field 1
+        g1 = Field 2
+        g2 = make_array [Field 1, Field 2] : [Field; 2]
+
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = call f1() -> [Field; 2]
+            // v1 = array_get g2, index u32 1 -> Field
+            return v0
+        }
+        brillig(inline) fn create_array f1 {
+          b0():
+            return g2
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.inline_functions(i64::MAX).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        g0 = Field 1
+        g1 = Field 2
+        g2 = make_array [Field 1, Field 2] : [Field; 2]
+
+        brillig(inline) fn main f0 {
+          b0():
+            return g2
+        }
+        ");
+    }
+
+    #[test]
+    fn acir_global_constants_are_inlined_with_new_value_ids() {
+        let src = "
+        g0 = Field 1
+
+        acir(inline) fn main f0 {
+          b0():
+            v0 = call f1() -> Field
+            return v0
+        }
+        acir(inline) fn get_constant f1 {
+          b0():
+            return g0
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.inline_functions(i64::MAX).unwrap();
+
+        // The string output of global constants resolve to their inner values, so we need to check whether they are globals explicitly.
+        let main = ssa.main();
+        let entry_block = main.entry_block();
+        let terminator = main.dfg[entry_block].unwrap_terminator();
+        let TerminatorInstruction::Return { return_values, .. } = terminator else {
+            panic!("Expected return");
+        };
+        assert_eq!(return_values.len(), 1);
+        // TODO(https://github.com/noir-lang/noir/issues/9408)
+        // assert!(!main.dfg.is_global(return_values[0]));
+
+        assert_ssa_snapshot!(ssa, @r"
+        g0 = Field 1
+
+        acir(inline) fn main f0 {
+          b0():
+            return Field 1
+        }
+        ");
+    }
+
+    #[test]
+    fn brillig_global_constants_keep_same_value_ids() {
+        let src = "
+        g0 = Field 1
+    
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = call f1() -> Field
+            return v0
+        }
+        brillig(inline) fn get_constant f1 {
+          b0():
+            return g0
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.inline_functions(i64::MAX).unwrap();
+
+        // The string output of global constants resolve to their inner values, so we need to check whether they are globals explicitly.
+        let main = ssa.main();
+        let entry_block = main.entry_block();
+        let terminator = main.dfg[entry_block].unwrap_terminator();
+        let TerminatorInstruction::Return { return_values, .. } = terminator else {
+            panic!("Expected return");
+        };
+        assert_eq!(return_values.len(), 1);
+        assert!(main.dfg.is_global(return_values[0]));
+
+        assert_ssa_snapshot!(ssa, @r"
+        g0 = Field 1
+
+        brillig(inline) fn main f0 {
+          b0():
+            return Field 1
+        }
+        ");
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "Unreachable terminator instruction should not exist during inlining"
+    )]
+    fn inlining_unreachable_block() {
+        let src = "
+        acir(inline) fn foo f0 {
+          b0():
+            v1 = call f1() -> Field
+            return v1
+        }
+
+        acir(inline) fn bar f1 {
+          b0():
+            unreachable
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let _ = ssa.inline_functions(i64::MAX).unwrap();
     }
 }

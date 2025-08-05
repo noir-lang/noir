@@ -453,4 +453,32 @@ mod tests {
         );
         assert!(tws[3] > std::cmp::max(tws[1], tws[2]), "ideally 'main' has the most weight");
     }
+
+    #[test]
+    fn no_predicates_marked_as_acir_entry_point() {
+        let src = "
+        acir(inline) fn main f0 {
+            b0(v0: u32):
+              v1 = call f1(v0) -> u32
+              return v1
+        }
+        acir(no_predicates) fn no_predicates f1 {
+            b0(v0: u32):
+              return v0
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let call_graph = CallGraph::from_ssa_weighted(&ssa);
+        let inline_infos_do_not_inline_no_pred =
+            compute_inline_infos(&ssa, &call_graph, false, i64::MAX);
+        let f1 = Id::test_new(1);
+
+        let f1_info =
+            inline_infos_do_not_inline_no_pred.get(&f1).expect("Should have f1 inline info");
+        assert!(f1_info.is_acir_entry_point);
+
+        let inline_infos_inline_no_pred = compute_inline_infos(&ssa, &call_graph, true, i64::MAX);
+        let f1_info = inline_infos_inline_no_pred.get(&f1).expect("Should have f1 inline info");
+        assert!(!f1_info.is_acir_entry_point);
+    }
 }
