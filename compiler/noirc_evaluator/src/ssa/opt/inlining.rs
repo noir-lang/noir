@@ -436,8 +436,10 @@ impl<'function> PerFunctionContext<'function> {
             }
             let translated_block_id = self.translate_block(source_block_id, &mut block_queue);
             self.context.builder.switch_to_block(translated_block_id);
+            
             seen_blocks.insert(source_block_id);
             self.inline_block_instructions(ssa, source_block_id, should_inline_call)?;
+
             if let Some((block, values)) =
                 self.handle_terminator_instruction(source_block_id, &mut block_queue)
             {
