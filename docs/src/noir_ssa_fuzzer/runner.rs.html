@@ -70,26 +70,22 @@
 <a href="#69" id="69">69</a>
 <a href="#70" id="70">70</a>
 <a href="#71" id="71">71</a>
-<a href="#72" id="72">72</a>
-<a href="#73" id="73">73</a>
-<a href="#74" id="74">74</a>
-<a href="#75" id="75">75</a>
-<a href="#76" id="76">76</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
+<a href="#72" id="72">72</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
     FieldElement,
     acir::{
         circuit::Program,
-        native_types::{Witness, WitnessMap},
+        native_types::{Witness, WitnessMap, WitnessStack},
     },
 };
 <span class="kw">use </span>noir_ssa_executor::runner::execute_single;
 
 <span class="attr">#[derive(Debug)]
 </span><span class="kw">pub enum </span>CompareResults {
-    Agree(FieldElement),
-    Disagree(FieldElement, FieldElement),
+    Agree(WitnessStack&lt;FieldElement&gt;),
+    Disagree(WitnessStack&lt;FieldElement&gt;, WitnessStack&lt;FieldElement&gt;),
     BothFailed(String, String),
-    AcirFailed(String, FieldElement),
-    BrilligFailed(String, FieldElement),
+    AcirFailed(String, WitnessStack&lt;FieldElement&gt;),
+    BrilligFailed(String, WitnessStack&lt;FieldElement&gt;),
 }
 
 <span class="doccomment">/// High level function to execute the given ACIR and Brillig programs with the given initial witness
@@ -115,31 +111,27 @@
     // 2) acir execution failed, brillig execution succeeded
     // 3) acir execution succeeded, brillig execution failed
     </span><span class="kw">match </span>(acir_result, brillig_result) {
-        (<span class="prelude-val">Ok</span>(acir_result), <span class="prelude-val">Ok</span>(brillig_result)) =&gt; {
+        (<span class="prelude-val">Ok</span>(acir_witness), <span class="prelude-val">Ok</span>(brillig_witness)) =&gt; {
             <span class="comment">// we assume that if execution for both modes succeeds both programs returned something
-            </span><span class="kw">let </span>acir_result = acir_result[return_witness_acir.unwrap()];
-            <span class="kw">let </span>brillig_result = brillig_result[return_witness_brillig.unwrap()];
+            </span><span class="kw">let </span>acir_witness_map = acir_witness.peek().unwrap().witness.clone();
+            <span class="kw">let </span>brillig_witness_map = brillig_witness.peek().unwrap().witness.clone();
+            <span class="kw">let </span>acir_result = acir_witness_map[return_witness_acir.unwrap()];
+            <span class="kw">let </span>brillig_result = brillig_witness_map[return_witness_brillig.unwrap()];
             <span class="kw">if </span>acir_result == brillig_result {
-                CompareResults::Agree(acir_result)
+                CompareResults::Agree(acir_witness)
             } <span class="kw">else </span>{
-                CompareResults::Disagree(acir_result, brillig_result)
+                CompareResults::Disagree(acir_witness, brillig_witness)
             }
         }
-        (<span class="prelude-val">Err</span>(acir_error), <span class="prelude-val">Ok</span>(brillig_result)) =&gt; <span class="kw">match </span>return_witness_brillig {
-            <span class="prelude-val">Some</span>(return_witness) =&gt; {
-                <span class="kw">let </span>brillig_result = brillig_result[return_witness];
-                CompareResults::AcirFailed(acir_error.to_string(), brillig_result)
-            }
+        (<span class="prelude-val">Err</span>(acir_error), <span class="prelude-val">Ok</span>(brillig_witness)) =&gt; <span class="kw">match </span>return_witness_brillig {
+            <span class="prelude-val">Some</span>(<span class="kw">_</span>) =&gt; CompareResults::AcirFailed(acir_error.to_string(), brillig_witness),
             <span class="prelude-val">None </span>=&gt; CompareResults::BothFailed(
                 acir_error.to_string(),
                 <span class="string">"Brillig program does not return anything"</span>.into(),
             ),
         },
-        (<span class="prelude-val">Ok</span>(acir_result), <span class="prelude-val">Err</span>(brillig_error)) =&gt; <span class="kw">match </span>return_witness_acir {
-            <span class="prelude-val">Some</span>(return_witness) =&gt; {
-                <span class="kw">let </span>acir_result = acir_result[return_witness];
-                CompareResults::BrilligFailed(brillig_error.to_string(), acir_result)
-            }
+        (<span class="prelude-val">Ok</span>(acir_witness), <span class="prelude-val">Err</span>(brillig_error)) =&gt; <span class="kw">match </span>return_witness_acir {
+            <span class="prelude-val">Some</span>(<span class="kw">_</span>) =&gt; CompareResults::BrilligFailed(brillig_error.to_string(), acir_witness),
             <span class="prelude-val">None </span>=&gt; CompareResults::BothFailed(
                 <span class="string">"ACIR program does not return anything"</span>.into(),
                 brillig_error.to_string(),

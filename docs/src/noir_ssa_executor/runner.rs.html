@@ -62,11 +62,7 @@
 <a href="#61" id="61">61</a>
 <a href="#62" id="62">62</a>
 <a href="#63" id="63">63</a>
-<a href="#64" id="64">64</a>
-<a href="#65" id="65">65</a>
-<a href="#66" id="66">66</a>
-<a href="#67" id="67">67</a>
-<a href="#68" id="68">68</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
+<a href="#64" id="64">64</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
     BlackBoxFunctionSolver, FieldElement,
     acir::{
         circuit::Program,
@@ -112,17 +108,13 @@
 </span><span class="kw">pub fn </span>execute_single(
     program: <span class="kw-2">&amp;</span>Program&lt;FieldElement&gt;,
     initial_witness: WitnessMap&lt;FieldElement&gt;,
-) -&gt; <span class="prelude-ty">Result</span>&lt;WitnessMap&lt;FieldElement&gt;, SsaExecutionError&gt; {
+) -&gt; <span class="prelude-ty">Result</span>&lt;WitnessStack&lt;FieldElement&gt;, SsaExecutionError&gt; {
     <span class="kw">let </span>result =
         std::panic::catch_unwind(|| execute::&lt;Bn254BlackBoxSolver&gt;(program, initial_witness));
 
     <span class="kw">match </span>result {
         <span class="prelude-val">Ok</span>(result) =&gt; <span class="kw">match </span>result {
-            <span class="prelude-val">Ok</span>(result) =&gt; <span class="prelude-val">Ok</span>(result
-                .peek()
-                .expect(<span class="string">"Should have at least one witness on the stack"</span>)
-                .witness
-                .clone()),
+            <span class="prelude-val">Ok</span>(result) =&gt; <span class="prelude-val">Ok</span>(result),
             <span class="prelude-val">Err</span>(e) =&gt; <span class="prelude-val">Err</span>(SsaExecutionError::ExecutionFailed(e)),
         },
         <span class="prelude-val">Err</span>(e) =&gt; {
