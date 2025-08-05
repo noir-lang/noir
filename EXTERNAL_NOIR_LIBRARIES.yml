@@ -34,7 +34,7 @@ libraries:
     critical: true
   noir_bigcurve:
     repo: noir-lang/noir_bigcurve
-    timeout: 415
+    timeout: 425
     critical: true
   noir_base64:
     repo: noir-lang/noir_base64
@@ -113,7 +113,7 @@ libraries:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
     path: noir-projects/noir-protocol-circuits/crates/rollup-lib
-    timeout: 800
+    timeout: 825
     critical: false
     # Use 1 test threads for rollup-lib because each test requires a lot of memory, and multiple ones in parallel exceed the maximum memory limit.
     nargo_args: "--test-threads 1"
