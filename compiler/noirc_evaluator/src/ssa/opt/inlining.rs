@@ -1135,7 +1135,7 @@ mod test {
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.inline_functions(i64::MAX).unwrap();
+        let ssa = ssa.inline_functions(i64::MIN).unwrap();
 
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
