@@ -178,7 +178,6 @@ impl<F: AcirField> GeneratedAcir<F> {
         func_name: BlackBoxFunc,
         function_inputs: &[Vec<FunctionInput<F>>],
         constant_inputs: Vec<F>,
-        constant_outputs: Vec<F>,
         num_bits: Option<u32>,
         outputs: Vec<Witness>,
     ) -> Result<(), InternalError> {
@@ -304,35 +303,6 @@ impl<F: AcirField> GeneratedAcir<F> {
                 key_hash: function_inputs[3].clone()[0],
                 proof_type: constant_inputs[0].to_u128() as u32,
                 predicate: function_inputs[4].clone()[0],
-            },
-            BlackBoxFunc::BigIntAdd => BlackBoxFuncCall::BigIntAdd {
-                lhs: constant_inputs[0].to_u128() as u32,
-                rhs: constant_inputs[1].to_u128() as u32,
-                output: constant_outputs[0].to_u128() as u32,
-            },
-            BlackBoxFunc::BigIntSub => BlackBoxFuncCall::BigIntSub {
-                lhs: constant_inputs[0].to_u128() as u32,
-                rhs: constant_inputs[1].to_u128() as u32,
-                output: constant_outputs[0].to_u128() as u32,
-            },
-            BlackBoxFunc::BigIntMul => BlackBoxFuncCall::BigIntMul {
-                lhs: constant_inputs[0].to_u128() as u32,
-                rhs: constant_inputs[1].to_u128() as u32,
-                output: constant_outputs[0].to_u128() as u32,
-            },
-            BlackBoxFunc::BigIntDiv => BlackBoxFuncCall::BigIntDiv {
-                lhs: constant_inputs[0].to_u128() as u32,
-                rhs: constant_inputs[1].to_u128() as u32,
-                output: constant_outputs[0].to_u128() as u32,
-            },
-            BlackBoxFunc::BigIntFromLeBytes => BlackBoxFuncCall::BigIntFromLeBytes {
-                inputs: function_inputs[0].clone(),
-                modulus: vecmap(constant_inputs, |c| c.to_u128() as u8),
-                output: constant_outputs[0].to_u128() as u32,
-            },
-            BlackBoxFunc::BigIntToLeBytes => BlackBoxFuncCall::BigIntToLeBytes {
-                input: constant_inputs[0].to_u128() as u32,
-                outputs,
             },
             BlackBoxFunc::Poseidon2Permutation => BlackBoxFuncCall::Poseidon2Permutation {
                 inputs: function_inputs[0].clone(),
@@ -723,16 +693,6 @@ fn black_box_func_expected_input_size(name: BlackBoxFunc) -> Option<usize> {
 
         // Addition over the embedded curve: input are coordinates (x1,y1,infinite1) and (x2,y2,infinite2) of the Grumpkin points
         BlackBoxFunc::EmbeddedCurveAdd => Some(6),
-
-        // Big integer operations take in 0 inputs. They use constants for their inputs.
-        BlackBoxFunc::BigIntAdd
-        | BlackBoxFunc::BigIntSub
-        | BlackBoxFunc::BigIntMul
-        | BlackBoxFunc::BigIntDiv
-        | BlackBoxFunc::BigIntToLeBytes => Some(0),
-
-        // FromLeBytes takes a variable array of bytes as input
-        BlackBoxFunc::BigIntFromLeBytes => None,
     }
 }
 
@@ -763,16 +723,6 @@ fn black_box_expected_output_size(name: BlackBoxFunc) -> Option<usize> {
         // Output of operations over the embedded curve
         // will be 2 field elements representing the point.
         BlackBoxFunc::MultiScalarMul | BlackBoxFunc::EmbeddedCurveAdd => Some(3),
-
-        // Big integer operations return a big integer
-        BlackBoxFunc::BigIntAdd
-        | BlackBoxFunc::BigIntSub
-        | BlackBoxFunc::BigIntMul
-        | BlackBoxFunc::BigIntDiv
-        | BlackBoxFunc::BigIntFromLeBytes => Some(0),
-
-        // ToLeBytes returns a variable array of bytes
-        BlackBoxFunc::BigIntToLeBytes => None,
 
         // Recursive aggregation has a variable number of outputs
         BlackBoxFunc::RecursiveAggregation => None,

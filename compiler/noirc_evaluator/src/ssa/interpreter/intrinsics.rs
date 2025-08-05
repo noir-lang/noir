@@ -334,16 +334,7 @@ impl<W: Write> Interpreter<'_, W> {
                     let result = new_embedded_curve_point(x, y, is_infinite)?;
                     Ok(vec![result])
                 }
-                acvm::acir::BlackBoxFunc::BigIntAdd
-                | acvm::acir::BlackBoxFunc::BigIntSub
-                | acvm::acir::BlackBoxFunc::BigIntMul
-                | acvm::acir::BlackBoxFunc::BigIntDiv
-                | acvm::acir::BlackBoxFunc::BigIntFromLeBytes
-                | acvm::acir::BlackBoxFunc::BigIntToLeBytes => {
-                    Err(InterpreterError::Internal(InternalError::UnexpectedInstruction {
-                        reason: "unused BigInt BlackBox function",
-                    }))
-                }
+
                 acvm::acir::BlackBoxFunc::Poseidon2Permutation => {
                     check_argument_count(args, 1, intrinsic)?;
                     let inputs = self

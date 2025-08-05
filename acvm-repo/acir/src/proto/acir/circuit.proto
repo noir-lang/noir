@@ -98,14 +98,8 @@ message BlackBoxFuncCall {
     EmbeddedCurveAdd embedded_curve_add = 10;
     Keccakf1600 keccak_f1600 = 11;
     RecursiveAggregation recursive_aggregation = 12;
-    BigIntAdd big_int_add = 13;
-    BigIntSub big_int_sub = 14;
-    BigIntMul big_int_mul = 15;
-    BigIntDiv big_int_div = 16;
-    BigIntFromLeBytes big_int_from_le_bytes = 17;
-    BigIntToLeBytes big_int_to_le_bytes = 18;
-    Poseidon2Permutation poseidon2_permutation = 19;
-    Sha256Compression sha256_compression = 20;
+    Poseidon2Permutation poseidon2_permutation = 13;
+    Sha256Compression sha256_compression = 14;
   }
   message AES128Encrypt {
     repeated FunctionInput inputs = 1;
@@ -169,35 +163,6 @@ message BlackBoxFuncCall {
     FunctionInput key_hash = 4;
     uint32 proof_type = 5;
     FunctionInput predicate = 6;
-  }
-  message BigIntAdd {
-    uint32 lhs = 1;
-    uint32 rhs = 2;
-    uint32 output = 3;
-  }
-  message BigIntSub {
-    uint32 lhs = 1;
-    uint32 rhs = 2;
-    uint32 output = 3;
-  }
-  message BigIntMul {
-    uint32 lhs = 1;
-    uint32 rhs = 2;
-    uint32 output = 3;
-  }
-  message BigIntDiv {
-    uint32 lhs = 1;
-    uint32 rhs = 2;
-    uint32 output = 3;
-  }
-  message BigIntFromLeBytes {
-    repeated FunctionInput inputs = 1;
-    bytes modulus = 2;
-    uint32 output = 3;
-  }
-  message BigIntToLeBytes {
-    uint32 input = 1;
-    repeated native.Witness outputs = 2;
   }
   message Poseidon2Permutation {
     repeated FunctionInput inputs = 1;
