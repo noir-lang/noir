@@ -1136,12 +1136,18 @@ mod test {
         ";
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.inline_functions(i64::MIN).unwrap();
-
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
           b0():
             return
         }
         ");
+
+        // Check that with a minimum inliner aggressiveness we do not inline a function
+        // not marked with `inline_always`
+        let no_inline_always_src = &src.replace("inline_always", "inline");
+        let ssa = Ssa::from_str(no_inline_always_src).unwrap();
+        let ssa = ssa.inline_functions(i64::MIN).unwrap();
+        assert_normalized_ssa_equals(ssa, no_inline_always_src);
     }
 }
