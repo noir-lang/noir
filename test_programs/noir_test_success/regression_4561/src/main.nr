@@ -61,7 +61,7 @@ struct TestTypeFoo {
 
 #[test]
 unconstrained fn complex_struct_return() {
-    OracleMock::mock("foo_return").returns((
+    let _ = OracleMock::mock("foo_return").returns((
         0, [[1, 2, 3], [4, 5, 6]],
         TestTypeFoo {
             a: 7,
