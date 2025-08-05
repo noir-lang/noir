@@ -436,7 +436,7 @@ impl<'function> PerFunctionContext<'function> {
             }
             let translated_block_id = self.translate_block(source_block_id, &mut block_queue);
             self.context.builder.switch_to_block(translated_block_id);
-            
+
             seen_blocks.insert(source_block_id);
             self.inline_block_instructions(ssa, source_block_id, should_inline_call)?;
 
@@ -1051,7 +1051,7 @@ mod test {
         ");
     }
 
-        #[test]
+    #[test]
     fn conditional_inlining_const_from_param_and_direct_constant() {
         let src = "
         brillig(inline) fn foo f0 {
@@ -1208,7 +1208,7 @@ mod test {
         assert_normalized_ssa_equals(ssa, no_inline_always_src);
     }
 
-        #[test]
+    #[test]
     fn acir_global_arrays_are_inlined_with_new_value_ids() {
         let src = "
         g0 = Field 1
