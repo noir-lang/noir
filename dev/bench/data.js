@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1754326105264,
+  "lastUpdate": 1754401587882,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -12226,48 +12226,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "6a2a28fe2b426570bedad9916129f0147e8604dd",
-          "message": "chore: add regression tests for #6383 (#9302)",
-          "timestamp": "2025-07-23T22:28:37Z",
-          "tree_id": "af7b5bdefd7028f0801195094d66f3e64069a7ca",
-          "url": "https://github.com/noir-lang/noir/commit/6a2a28fe2b426570bedad9916129f0147e8604dd"
-        },
-        "date": 1753311246574,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 248467,
-            "range": "± 645",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 220647,
-            "range": "± 3265",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2780351,
-            "range": "± 2139",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "f0731641b20bea7ed4bd52194b235b034022439a",
           "message": "chore(LSP): simplify code lens request handling (#9279)",
           "timestamp": "2025-07-23T23:08:48Z",
@@ -14309,6 +14267,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2782033,
             "range": "± 1314",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "84741533+defkit@users.noreply.github.com",
+            "name": "defkit",
+            "username": "defkit"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "532b51233729189e64fbe4db0dda58294d0fef6f",
+          "message": "feat(ssa_fuzzer): pushing generated program and witness to redis queue   (#9375)",
+          "timestamp": "2025-08-05T13:19:44Z",
+          "tree_id": "70ca7db90ad3c78deaa2bdc571fa75b155950f09",
+          "url": "https://github.com/noir-lang/noir/commit/532b51233729189e64fbe4db0dda58294d0fef6f"
+        },
+        "date": 1754401570266,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 251944,
+            "range": "± 359",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 224088,
+            "range": "± 4079",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2789649,
+            "range": "± 2191",
             "unit": "ns/iter"
           }
         ]
