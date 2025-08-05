@@ -455,30 +455,82 @@ mod tests {
     }
 
     #[test]
-    fn no_predicates_marked_as_acir_entry_point() {
+    fn mark_static_assertions_to_always_be_inlined() {
         let src = "
-        acir(inline) fn main f0 {
-            b0(v0: u32):
-              v1 = call f1(v0) -> u32
-              return v1
+        brillig(inline) fn main f0 {
+            b0():
+              call f1(Field 1)
+              return
         }
-        acir(no_predicates) fn no_predicates f1 {
-            b0(v0: u32):
-              return v0
+        brillig(inline) fn foo f1 {
+            b0(v0: Field):
+              call assert_constant(v0)
+              return
         }
         ";
+
         let ssa = Ssa::from_str(src).unwrap();
         let call_graph = CallGraph::from_ssa_weighted(&ssa);
-        let inline_infos_do_not_inline_no_pred =
-            compute_inline_infos(&ssa, &call_graph, false, i64::MAX);
-        let f1 = Id::test_new(1);
+        let infos = compute_inline_infos(&ssa, &call_graph, false, 0);
 
-        let f1_info =
-            inline_infos_do_not_inline_no_pred.get(&f1).expect("Should have f1 inline info");
-        assert!(f1_info.is_acir_entry_point);
+        let f1 = infos.get(&Id::test_new(1)).expect("f1 should be analyzed");
+        assert!(
+            f1.contains_static_assertion,
+            "f1 should be marked as containing a static assertion"
+        );
+        assert!(f1.should_inline, "f1 should be inlined due to static assertion");
+    }
 
-        let inline_infos_inline_no_pred = compute_inline_infos(&ssa, &call_graph, true, i64::MAX);
-        let f1_info = inline_infos_inline_no_pred.get(&f1).expect("Should have f1 inline info");
-        assert!(!f1_info.is_acir_entry_point);
+    #[test]
+    fn no_predicates() {
+        let src = "
+        acir(inline) fn main f0 {
+            b0():
+              call f1()
+              return
+        }
+        acir(no_predicates) fn no_predicates f1 {
+            b0():
+              return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let call_graph = CallGraph::from_ssa_weighted(&ssa);
+        let infos = compute_inline_infos(&ssa, &call_graph, false, 0);
+
+        let f1 = infos.get(&Id::test_new(1)).expect("Should analyze f1");
+        assert!(
+            !f1.should_inline,
+            "no_predicates functions should NOT be inlined if the flag is false"
+        );
+
+        let infos = compute_inline_infos(&ssa, &call_graph, true, 0);
+
+        let f1 = infos.get(&Id::test_new(1)).expect("Should analyze f1");
+        assert!(f1.should_inline, "no_predicates functions should be inlined if the flag is true");
+    }
+
+    #[test]
+    fn inline_always_functions_are_inlined() {
+        let src = "
+        brillig(inline) fn main f0 {
+            b0():
+              call f1()
+              return
+        }
+
+        brillig(inline_always) fn always_inline f1 {
+            b0():
+              return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let call_graph = CallGraph::from_ssa_weighted(&ssa);
+        let infos = compute_inline_infos(&ssa, &call_graph, false, 0);
+
+        let f1 = infos.get(&Id::test_new(1)).expect("Should analyze f1");
+        assert!(f1.should_inline, "inline_always functions should be inlined");
     }
 }
