@@ -44,17 +44,13 @@ fn execute<B: BlackBoxFunctionSolver<FieldElement> + Default>(
 pub fn execute_single(
     program: &Program<FieldElement>,
     initial_witness: WitnessMap<FieldElement>,
-) -> Result<WitnessMap<FieldElement>, SsaExecutionError> {
+) -> Result<WitnessStack<FieldElement>, SsaExecutionError> {
     let result =
         std::panic::catch_unwind(|| execute::<Bn254BlackBoxSolver>(program, initial_witness));
 
     match result {
         Ok(result) => match result {
-            Ok(result) => Ok(result
-                .peek()
-                .expect("Should have at least one witness on the stack")
-                .witness
-                .clone()),
+            Ok(result) => Ok(result),
             Err(e) => Err(SsaExecutionError::ExecutionFailed(e)),
         },
         Err(e) => {

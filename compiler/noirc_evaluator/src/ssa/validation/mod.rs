@@ -305,6 +305,20 @@ impl<'f> Validator<'f> {
                     }
                 }
             }
+            Instruction::Store { address, value } => {
+                let address_type = dfg.type_of_value(*address);
+                let Type::Reference(address_value_type) = address_type else {
+                    panic!("Store address must be a reference type, got {address_type}");
+                };
+
+                let value_type = dfg.type_of_value(*value);
+                if *address_value_type != value_type {
+                    panic!(
+                        "Store address type {} does not match value type {}",
+                        address_value_type, value_type
+                    );
+                }
+            }
             _ => (),
         }
     }
@@ -652,6 +666,28 @@ mod tests {
     }
 
     #[test]
+    #[should_panic(expected = "Function f1 has multiple return blocks")]
+    fn multiple_return_blocks() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v1 = call f1(u1 1) -> Field
+            return v1
+        }
+
+        acir(inline) fn f1 f1 {
+          b0(v0: u1):
+            jmpif v0 then: b1, else: b2
+          b1():
+            return Field 1
+          b2():
+            return Field 2
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
     #[should_panic(
         expected = "MakeArray returns an array of flattened length 2, but it has 3 elements"
     )]
@@ -706,6 +742,20 @@ mod tests {
           b0():
             v0 = make_array [u8 1, Field 2, u8 3, u8 4] : [(u8, u8); 2]
             return v0
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "Store address type u8 does not match value type Field")]
+    fn store_has_incorrect_type() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut u8
+            store Field 1 at v0
+            return
         }
         ";
         let _ = Ssa::from_str(src).unwrap();

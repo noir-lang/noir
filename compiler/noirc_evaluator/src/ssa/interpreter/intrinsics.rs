@@ -510,6 +510,9 @@ impl<W: Write> Interpreter<'_, W> {
         let mut new_elements = slice.elements.borrow().to_vec();
         let element_types = slice.element_types.clone();
 
+        // The slice might contain more elements than its length.
+        // We need to either insert before the extras, overwrite, or remove them.
+        new_elements.truncate(element_types.len() * length as usize);
         for arg in args.iter().skip(2) {
             new_elements.push(self.lookup(*arg)?);
         }
@@ -548,6 +551,10 @@ impl<W: Write> Interpreter<'_, W> {
         }
         check_slice_can_pop_all_element_types(args[1], &slice)?;
 
+        // The slice might contain more elements than its length.
+        // We want the last valid element, ignoring any extras following it.
+        // We don't ever access the extras, so we might as well remove any.
+        slice_elements.truncate(element_types.len() * length as usize);
         let mut popped_elements = vecmap(0..element_types.len(), |_| slice_elements.pop().unwrap());
         popped_elements.reverse();
 

@@ -1032,7 +1032,7 @@ mod test {
             inc_rc v4
             inc_rc v5
             v8 = call f1(v4) -> u32
-            v9 = allocate -> &mut u32
+            v9 = allocate -> &mut u1
             store u1 0 at v9
             v10 = load v9 -> u1
             v11 = array_get v4, index u32 0 -> u32

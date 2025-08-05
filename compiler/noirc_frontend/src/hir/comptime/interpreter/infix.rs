@@ -222,8 +222,14 @@ pub(super) fn evaluate_infix(
         BinaryOpKind::ShiftLeft => match_bitshift! {
             (lhs_value as lhs "<<" rhs_value as rhs) => lhs.checked_shl(rhs.into())
         },
-        BinaryOpKind::Modulo => match_integer! {
-            (lhs_value as lhs "%" rhs_value as rhs) => lhs.checked_rem(rhs)
+        BinaryOpKind::Modulo => match (&lhs_value, &rhs_value) {
+            (Value::I8(i8::MIN), Value::I8(-1)) => Ok(Value::I8(0)),
+            (Value::I16(i16::MIN), Value::I16(-1)) => Ok(Value::I16(0)),
+            (Value::I32(i32::MIN), Value::I32(-1)) => Ok(Value::I32(0)),
+            (Value::I64(i64::MIN), Value::I64(-1)) => Ok(Value::I64(0)),
+            _ => match_integer! {
+                (lhs_value as lhs "%" rhs_value as rhs) => lhs.checked_rem(rhs)
+            },
         },
     }
 }
@@ -247,6 +253,17 @@ mod test {
         let result = evaluate_infix(lhs, rhs, operator, location).unwrap();
 
         assert_eq!(result, Value::U128(170141183460469231731687303715884105727));
+    }
+
+    #[test]
+    fn regression_9336() {
+        let lhs = Value::I8(-128);
+        let rhs = Value::I8(-1);
+        let operator = HirBinaryOp { kind: BinaryOpKind::Modulo, location: Location::dummy() };
+        let location = Location::dummy();
+        let result = evaluate_infix(lhs, rhs, operator, location).unwrap();
+
+        assert_eq!(result, Value::I8(0));
     }
 
     #[test]

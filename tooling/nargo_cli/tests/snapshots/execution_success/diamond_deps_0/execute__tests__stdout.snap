@@ -2,4 +2,4 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stdout
 ---
-[diamond_deps_0] Circuit output: Field(7)
+[diamond_deps_0] Circuit output: 0x07

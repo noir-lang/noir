@@ -174,7 +174,9 @@ impl Function {
                     }
                 }
                 Instruction::ArrayGet { array, index, offset }
-                | Instruction::ArraySet { array, index, offset, .. } => {
+                | Instruction::ArraySet { array, index, offset, .. }
+                    if context.dfg.runtime().is_acir() =>
+                {
                     let array_or_slice_type = context.dfg.type_of_value(*array);
                     let array_op_always_fails = match &array_or_slice_type {
                         Type::Slice(_) => false,
@@ -895,5 +897,24 @@ mod test {
             unreachable
         }
         ");
+    }
+
+    #[test]
+    fn do_not_transform_failing_array_access_in_brillig() {
+        let src = "
+        brillig(inline) predicate_pure fn main f0 {
+          b0():
+            v0 = allocate -> &mut u8                      
+            store u8 0 at v0                               
+            v2 = make_array [u8 0, v0] : [(u8, &mut u8); 1]
+            v4 = array_get v2, index u32 2 -> u8         
+            v6 = array_get v2, index u32 3 -> &mut u8      
+            return v4
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.remove_unreachable_instructions();
+        assert_normalized_ssa_equals(ssa, src);
     }
 }

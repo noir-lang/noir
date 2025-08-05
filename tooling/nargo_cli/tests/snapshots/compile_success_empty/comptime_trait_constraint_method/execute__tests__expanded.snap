@@ -1,0 +1,36 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+mod moo {
+    pub trait Trait {
+        fn trait_method(self);
+    }
+
+    impl Trait for Field {
+        fn trait_method(self) {}
+    }
+
+    pub comptime fn attr(_: FunctionDefinition) -> Quoted {
+        let trait_constraint: TraitConstraint = quote { Trait }.as_trait_constraint();
+        let field: Type = quote { Field }.as_type();
+        let trait_impl: TraitImpl = field.get_trait_impl(trait_constraint).unwrap();
+        let method: TypedExpr = trait_impl.methods()[0_u32].as_typed_expr();
+        let x: Field = 1_Field;
+        quote {
+            pub fn bar() {
+                let _ = $x;
+                $method(1);
+            }
+        }
+    }
+}
+
+pub fn bar() {
+    let _: Field = 1_Field;
+    <Field as moo::Trait>::trait_method(1_Field);
+}
+
+fn main() {
+    bar();
+}
