@@ -110,17 +110,13 @@ impl Fuzzer {
                         assert_eq!(
                             first.get_return_value(),
                             second.get_return_value(),
-                            "Fuzzer modes {:?} and {:?} returned different results",
-                            k1,
-                            k2
+                            "Fuzzer modes {k1:?} and {k2:?} returned different results"
                         );
                     }
                     (Some(first), None) => {
                         panic!(
-                            "Mode {:?} executed with the result {:?}, but {:?} failed",
-                            k1,
-                            first.get_return_value(),
-                            k2
+                            "Mode {k1:?} executed with the result {:?}, but {k2:?} failed",
+                            first.get_return_value()
                         )
                     }
                     (None, Some(second)) => {
