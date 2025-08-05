@@ -584,7 +584,7 @@ fn test_load() {
 fn test_store() {
     let src = "
         acir(inline) fn main f0 {
-          b0(v0: Field):
+          b0(v0: &mut Field):
             store Field 1 at v0
             return
         }

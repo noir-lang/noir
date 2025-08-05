@@ -1,4 +1,3 @@
-use acvm::{AcirField, FieldElement};
 use iter_extended::vecmap;
 use noirc_errors::{Located, Location};
 use rustc_hash::FxHashSet as HashSet;
@@ -36,6 +35,7 @@ use crate::{
         DefinitionId, DefinitionKind, ExprId, FuncId, InternedStatementKind, StmtId, TraitItemId,
     },
     shared::Signedness,
+    signed_field::SignedField,
     token::{FmtStrFragment, IntegerTypeSuffix, Tokens},
 };
 
@@ -121,7 +121,7 @@ impl Elaborator<'_> {
 
     /// Elaborate a member access expression without adding the automatic dereferencing operations
     /// to it, treating it as an offset instead. This also returns a boolean indicating whether the
-    /// result skipped any required auto-derefs (and thus needs dereferencing to be used as a value
+    /// result skipped any required auto-dereferences (and thus needs dereferencing to be used as a value
     /// instead of a reference). This flag is used when `&mut foo.bar.baz` is used to cancel out
     /// the `&mut`.
     fn elaborate_reference_expression(&mut self, expr: Expression) -> (ExprId, Type, bool) {
@@ -353,7 +353,7 @@ impl Elaborator<'_> {
                 let length = UnresolvedTypeExpression::from_expr(*length, location).unwrap_or_else(
                     |error| {
                         self.push_err(ResolverError::ParserError(Box::new(error)));
-                        UnresolvedTypeExpression::Constant(FieldElement::zero(), None, location)
+                        UnresolvedTypeExpression::Constant(SignedField::zero(), None, location)
                     },
                 );
 
@@ -1067,7 +1067,7 @@ impl Elaborator<'_> {
         location: Location,
         is_offset: bool,
     ) -> (ExprId, Type, bool) {
-        // We don't need the boolean 'skipped auto-derefs' from elaborate_reference_expression
+        // We don't need the boolean 'skipped auto-dereferences' from elaborate_reference_expression
         // since if we have skipped any then `lhs_type` will be a reference and we will need to
         // skip the deref (if is_offset is true) here anyway to extract the field out of the reference.
         // This is more reliable than using the boolean return value here since the return value
@@ -1334,7 +1334,7 @@ impl Elaborator<'_> {
                         self.interner.next_type_variable_with_kind(Kind::Any)
                     }
                 } else {
-                    let wildcard_allowed = false;
+                    let wildcard_allowed = true;
                     self.resolve_type(typ, wildcard_allowed)
                 };
 
