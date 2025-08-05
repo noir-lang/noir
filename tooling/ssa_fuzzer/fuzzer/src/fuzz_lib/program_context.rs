@@ -171,6 +171,7 @@ impl FuzzerProgramContext {
     }
 }
 
+/// Creates [`FuzzerProgramContext`] from [`FuzzerMode`]
 pub(crate) fn program_context_by_mode(
     mode: FuzzerMode,
     instruction_blocks: Vec<InstructionBlock>,
@@ -205,6 +206,19 @@ pub(crate) fn program_context_by_mode(
             values,
             mode,
         ),
-        FuzzerMode::NonConstantWithoutDIE => unreachable!(),
+        FuzzerMode::NonConstantWithoutDIE => {
+            let mut options = options;
+            options.compile_options.skip_ssa_pass =
+                vec!["Dead Instruction Elimination".to_string()];
+            FuzzerProgramContext::new(
+                FunctionContextOptions {
+                    idempotent_morphing_enabled: true,
+                    ..FunctionContextOptions::from(&options)
+                },
+                instruction_blocks,
+                values,
+                mode,
+            )
+        }
     }
 }

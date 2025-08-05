@@ -15,6 +15,8 @@ use rand::{SeedableRng, rngs::StdRng};
 use sha1::{Digest, Sha1};
 use utils::{push_fuzzer_output_to_redis_queue, redis};
 
+use crate::fuzz_lib::options::FuzzerMode;
+
 const MAX_EXECUTION_TIME_TO_KEEP_IN_CORPUS: u64 = 3;
 
 libfuzzer_sys::fuzz_target!(|data: &[u8]| -> Corpus {
@@ -42,10 +44,12 @@ libfuzzer_sys::fuzz_target!(|data: &[u8]| -> Corpus {
     let instruction_options = InstructionOptions {
         shl_enabled: false,
         shr_enabled: false,
+        alloc_enabled: false,
         ..InstructionOptions::default()
     };
+    let modes = vec![FuzzerMode::NonConstant, FuzzerMode::NonConstantWithoutDIE];
     let options =
-        FuzzerOptions { compile_options, instruction_options, ..FuzzerOptions::default() };
+        FuzzerOptions { compile_options, instruction_options, modes, ..FuzzerOptions::default() };
     let fuzzer_data = borrow_decode_from_slice(data, bincode::config::legacy())
         .unwrap_or((FuzzerData::default(), 1337))
         .0;
