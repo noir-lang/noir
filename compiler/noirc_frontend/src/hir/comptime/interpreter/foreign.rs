@@ -406,7 +406,6 @@ mod tests {
                 let pedantic_solving = true;
                 match call_foreign(
                     interpreter.elaborator.interner,
-                    &mut interpreter.bigint_solver,
                     name,
                     Vec::new(),
                     Type::Unit,
