@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1754401587882,
+  "lastUpdate": 1754401994646,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -14328,40 +14328,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "6a2a28fe2b426570bedad9916129f0147e8604dd",
-          "message": "chore: add regression tests for #6383 (#9302)",
-          "timestamp": "2025-07-23T22:28:37Z",
-          "tree_id": "af7b5bdefd7028f0801195094d66f3e64069a7ca",
-          "url": "https://github.com/noir-lang/noir/commit/6a2a28fe2b426570bedad9916129f0147e8604dd"
-        },
-        "date": 1753311381550,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore-depth-10",
-            "value": 632.4,
-            "unit": "KB"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 525.2,
-            "unit": "KB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "f0731641b20bea7ed4bd52194b235b034022439a",
           "message": "chore(LSP): simplify code lens request handling (#9279)",
           "timestamp": "2025-07-23T23:08:48Z",
@@ -16301,6 +16267,90 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/b61f5eb6f371ee8e51c2ac42de38ed821b084b1b"
         },
         "date": 1754325491323,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 712.6,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 2036.6,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 539.3,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 4318.2,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 3330.5,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 3842.9,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 30725.2,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 30774,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 185.9,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 391.2,
+            "unit": "KB"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 632.1,
+            "unit": "KB"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 525.2,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "84741533+defkit@users.noreply.github.com",
+            "name": "defkit",
+            "username": "defkit"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "532b51233729189e64fbe4db0dda58294d0fef6f",
+          "message": "feat(ssa_fuzzer): pushing generated program and witness to redis queue   (#9375)",
+          "timestamp": "2025-08-05T13:19:44Z",
+          "tree_id": "70ca7db90ad3c78deaa2bdc571fa75b155950f09",
+          "url": "https://github.com/noir-lang/noir/commit/532b51233729189e64fbe4db0dda58294d0fef6f"
+        },
+        "date": 1754401976759,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
