@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1754402373066,
+  "lastUpdate": 1754402478923,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -6192,40 +6192,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "6a2a28fe2b426570bedad9916129f0147e8604dd",
-          "message": "chore: add regression tests for #6383 (#9302)",
-          "timestamp": "2025-07-23T22:28:37Z",
-          "tree_id": "af7b5bdefd7028f0801195094d66f3e64069a7ca",
-          "url": "https://github.com/noir-lang/noir/commit/6a2a28fe2b426570bedad9916129f0147e8604dd"
-        },
-        "date": 1753311424170,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore_depth_10",
-            "value": 69.31,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 54.83,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "f0731641b20bea7ed4bd52194b235b034022439a",
           "message": "chore(LSP): simplify code lens request handling (#9279)",
           "timestamp": "2025-07-23T23:08:48Z",
@@ -8105,6 +8071,80 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/b61f5eb6f371ee8e51c2ac42de38ed821b084b1b"
         },
         "date": 1754326006446,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 205,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 241.78,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 194.2,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 498.41,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 431.05,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1500,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 326.4,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 328.81,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 69.48,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 54.97,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "84741533+defkit@users.noreply.github.com",
+            "name": "defkit",
+            "username": "defkit"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "532b51233729189e64fbe4db0dda58294d0fef6f",
+          "message": "feat(ssa_fuzzer): pushing generated program and witness to redis queue   (#9375)",
+          "timestamp": "2025-08-05T13:19:44Z",
+          "tree_id": "70ca7db90ad3c78deaa2bdc571fa75b155950f09",
+          "url": "https://github.com/noir-lang/noir/commit/532b51233729189e64fbe4db0dda58294d0fef6f"
+        },
+        "date": 1754402461548,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
