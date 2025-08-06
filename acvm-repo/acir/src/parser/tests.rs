@@ -269,7 +269,7 @@ fn ecdsa_secp256k1() {
 }
 
 #[test]
-#[should_panic = "Expected 8 outputs for Sha256Compression outputs, found 7"]
+#[should_panic = "Expected 32 inputs for public_key_y, found 4"]
 fn ecdsa_secp256k1_missing_inputs() {
     let input_witnesses: Vec<String> = (0..100).map(|i| format!("_{i}")).collect();
     let inputs_str = input_witnesses.join(", ");
