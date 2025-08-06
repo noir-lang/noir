@@ -806,17 +806,13 @@ impl<'a> Context<'a> {
                         let outputs = self
                             .convert_ssa_intrinsic_call(*intrinsic, arguments, dfg, result_ids)?;
 
-                        // Issue #1438 causes this check to fail with intrinsics that return 0
-                        // results but the ssa form instead creates 1 unit result value.
-                        // assert_eq!(result_ids.len(), outputs.len());
+                        assert_eq!(result_ids.len(), outputs.len());
                         self.handle_ssa_call_outputs(result_ids, outputs, dfg)?;
                     }
-                    Value::ForeignFunction(_) => {
-                        // TODO: Remove this once elaborator is default frontend. This is now caught by a lint inside the frontend.
-                        return Err(RuntimeError::UnconstrainedOracleReturnToConstrained {
-                            call_stack: self.acir_context.get_call_stack(),
-                        });
-                    }
+                    Value::ForeignFunction(_) => unreachable!(
+                        "Frontend should remove any oracle calls from constrained functions"
+                    ),
+
                     _ => unreachable!("expected calling a function but got {function_value:?}"),
                 }
             }

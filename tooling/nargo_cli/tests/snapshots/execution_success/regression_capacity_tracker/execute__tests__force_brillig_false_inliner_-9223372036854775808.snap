@@ -1,6 +1,6 @@
 ---
 source: tooling/nargo_cli/tests/execute.rs
-assertion_line: 468
+assertion_line: 512
 expression: artifact
 ---
 {
@@ -106,7 +106,7 @@ expression: artifact
     "unconstrained func 1",
     "[Const { destination: Direct(21), bit_size: Integer(U32), value: 1 }, Const { destination: Direct(20), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(21), offset_address: Direct(20) }, Const { destination: Direct(2), bit_size: Field, value: 0 }, BinaryFieldOp { destination: Direct(3), op: Equals, lhs: Direct(0), rhs: Direct(2) }, JumpIf { condition: Direct(3), location: 8 }, Const { destination: Direct(1), bit_size: Field, value: 1 }, BinaryFieldOp { destination: Direct(0), op: Div, lhs: Direct(1), rhs: Direct(0) }, Stop { return_data: HeapVector { pointer: Direct(20), size: Direct(21) } }]"
   ],
-  "debug_symbols": "pZRNboMwEEbv4jUL/9vkKlUVOYlTIVmAHIhURbl7B884TRaVKmczDzDvAzzYN3aKh/VrP4zn6cJ2Hzd2yENKw9c+TcewDNMIV2/3jtXT/ZJjhEvsaRysOeQ4Lmw3ril17BrSWm66zGEsXEKGUd6xOJ6AEHgeUtyO7t2vzf9WldIkK+0fuvm/70T1e93ga+nI17Ll+Vroh9+/52vR4FtjyLeOv+mbBt/x2nwnVMvz+776sun7vX34suX9bZ1/51r650z9/5xvmX/P6/x79fr+n3AWjkN+WbGMs53smIBbOibh8zumStWlmlJtqa5UX2pfquAIgUBdgA9LQGiEQVgEZEB7hEf0BZIjBEIiFEIjDMIiMEViisQUhSkKUxSmKEgRMFlKEw3REh3RE3ukhjABfdCCKImKqIlbHkyftkRH9MQeaThRELe87e++hjyEQ4q0eZ7X8fi0ly7fcx2pu+2cp2M8rTluXSxj0Ncf",
+  "debug_symbols": "pZTdjoIwEEbfpddc9L/FV9lsTNW6IWmAVDDZGN99h87U1YtNNvVmjlDOB8xgb+wUD+vXfhjP04XtPm7skIeUhq99mo5hGaYRzt7uHauH+yXHCKfY0zpYc8hxXNhuXFPq2DWktVx0mcNYuIQMq7xjcTwBIfA8pLj9une/Nv9bVUqTrLR/6Ob/vhPV73WDr0W9v5b2Tb9/z9eiwbfGkG8df9M3Db7jdfhOqJb79331ZdP7e/vwZcvz29p/51rm50z9/pxv6b/ntf9evT7/JxyF45Bf/rGMs53smIBLOibh9TumStWlmlJtqa5UX2pfquAIgUBdgO8AGmEQFgEZMB7hEX2B5AiBkAiF0AiDsAhMkZgiMUVhisIUhSkKUgQ0S2miIVqiI3pij9QQJmAOWhAlURE1ccuD9mlLdERP7JGGEwVxy9u+7mvIQzikSJvneR2PT3vp8j3Xlbrbznk6xtOa4zbFsgZz/QE=",
   "file_map": {
     "50": {
       "source": "// Reference https://github.com/noir-lang/noir/issues/4395#issuecomment-2018948631\n// for context.\n// We were not accurately accounting for situations where the slice capacity tracker\n// was expecting a capacity from slice intrinsic results.\nfn main(expected: pub Field, first: Field, input: [Field; 20]) {\n    let mut hasher_slice = input.as_slice();\n    hasher_slice = hasher_slice.push_front(first);\n    assert(hasher_slice[0] == expected);\n    // We need a conditional based upon witnesses\n    // to force a store of the slice.\n    // If this successfully compiles it means we have stored\n    // the results of the slice intrinsics used above.\n    if expected as u32 > 10 {\n        hasher_slice[(expected - 10) as u32] = 100;\n    } else {\n        hasher_slice[expected as u32] = 100;\n    }\n    assert(hasher_slice[0] == expected);\n}\n",

@@ -92,14 +92,18 @@ mod tests {
         let acir_program = test_helper.acir_builder.compile(compile_options.clone()).unwrap();
         let brillig_program = test_helper.brillig_builder.compile(compile_options).unwrap();
 
+        let return_value = acir_program.program.functions[0].return_values.0.first().unwrap();
+
         let witness_map = get_witness_map(&[lhs, rhs]);
         let initial_witness = witness_map;
         let compare_results =
             run_and_compare(&acir_program.program, &brillig_program.program, initial_witness);
         // If not agree throw panic, it is not intended to happen in tests
         match compare_results {
-            CompareResults::Agree(result) => result,
+            CompareResults::Agree(result) => result.peek().unwrap().witness[return_value],
             CompareResults::Disagree(acir_result, brillig_result) => {
+                let acir_result = acir_result.peek().unwrap().witness[return_value];
+                let brillig_result = brillig_result.peek().unwrap().witness[return_value];
                 panic!(
                     "ACIR and Brillig results disagree: ACIR: {acir_result}, Brillig: {brillig_result}, lhs: {lhs}, rhs: {rhs}"
                 );
@@ -111,12 +115,12 @@ mod tests {
             }
             CompareResults::AcirFailed(acir_error, brillig_result) => {
                 panic!(
-                    "ACIR failed: ACIR: {acir_error}, Brillig: {brillig_result}, lhs: {lhs}, rhs: {rhs}"
+                    "ACIR failed: ACIR: {acir_error}, Brillig: {brillig_result:?}, lhs: {lhs}, rhs: {rhs}"
                 );
             }
             CompareResults::BrilligFailed(brillig_error, acir_result) => {
                 panic!(
-                    "Brillig failed: Brillig: {brillig_error}, ACIR: {acir_result}, lhs: {lhs}, rhs: {rhs}"
+                    "Brillig failed: Brillig: {brillig_error}, ACIR: {acir_result:?}, lhs: {lhs}, rhs: {rhs}"
                 );
             }
         }

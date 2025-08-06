@@ -64,8 +64,6 @@ pub enum RuntimeError {
     BigIntModulus { call_stack: CallStack },
     #[error("Slices cannot be returned from an unconstrained runtime to a constrained runtime")]
     UnconstrainedSliceReturnToConstrained { call_stack: CallStack },
-    #[error("All `oracle` methods should be wrapped in an unconstrained fn")]
-    UnconstrainedOracleReturnToConstrained { call_stack: CallStack },
     #[error(
         "Could not resolve some references to the array. All references must be resolved at compile time"
     )]
@@ -200,7 +198,6 @@ impl RuntimeError {
             | RuntimeError::NestedSlice { call_stack, .. }
             | RuntimeError::BigIntModulus { call_stack, .. }
             | RuntimeError::UnconstrainedSliceReturnToConstrained { call_stack }
-            | RuntimeError::UnconstrainedOracleReturnToConstrained { call_stack }
             | RuntimeError::ReturnedReferenceFromDynamicIf { call_stack }
             | RuntimeError::ReturnedFunctionFromDynamicIf { call_stack }
             | RuntimeError::BreakOrContinue { call_stack }

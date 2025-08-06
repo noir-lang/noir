@@ -57,7 +57,7 @@ comptime fn mapping_function(expr: Expr, f: FunctionDefinition) -> Option<Expr> 
                         arguments.push_front(quote { _context }.as_expr().unwrap());
                     let arguments: Quoted =
                         arguments.map(|arg: Expr| -> Quoted arg.quoted()).join(quote { ,  });
-                    Option::<Expr>::some(quote { name(arguments) }.as_expr().unwrap())
+                    Option::<Expr>::some(quote { $name($arguments) }.as_expr().unwrap())
                 } else {
                     Option::<Expr>::none()
                 }

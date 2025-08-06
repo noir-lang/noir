@@ -98,7 +98,7 @@ expression: artifact
     "unconstrained func 1",
     "[Const { destination: Direct(10), bit_size: Integer(U32), value: 2 }, Const { destination: Direct(11), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(10), offset_address: Direct(11) }, BinaryFieldOp { destination: Direct(2), op: IntegerDiv, lhs: Direct(0), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Mul, lhs: Direct(2), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Sub, lhs: Direct(0), rhs: Direct(1) }, Mov { destination: Direct(0), source: Direct(2) }, Stop { return_data: HeapVector { pointer: Direct(11), size: Direct(10) } }]"
   ],
-  "debug_symbols": "nZLBboQgEIbfZc4cBNFFX6VpDCpuSAgaFpo0xnfvOCzt7qHJZi//JwzfEMzsMJsxXQfrl/UG/ccOY7DO2evg1klHu3rc3Q8GZTnEYAxuwUMdrU0H4yP0PjnH4Eu7RIdum/bEqANWKwbGz0hsuFhnzq+D/dnV/6oqruK/cvOyzWt117ns3vHbtvgX9YYveLlf8Of7P3GlJxue/jdwPMhAUNaUkrKhbCkv0NcMFGVHyasMniEy6gyZ0WS0GbkHxyYS0RFElYFd5HE+KVg9OnOfgyX56WEs4vdWKmVwtrBOZk7BnE+iGj7yBw==",
+  "debug_symbols": "nZLBaoQwEIbfZc45GI0afZVSJGpcAiFKNikU8d07Tky7eygse/k/k8k3MDI7zHqMt8G4Zb1D/7HD6I215jbYdVLBrA5v94NBPg7Ba41X8FBHa1NeuwC9i9Yy+FI20qP7phwxKI/VgoF2MxIbLsbq8+tgf3bxvyqzK/mvXL9s80peOhfdO37TZL+Vb/glry+/5O2T/4knNRn/9L+B40MGJWVFKShryoayhb5iICk7Sl4k8IQyoUoQCXVCk5B6cGwiEB2hLBKwizjOkbxRo9XXHizRTQ9rEb63XMmLs/l10nP0+hyJajjkDw==",
   "file_map": {
     "50": {
       "source": "fn main(a: bool) -> pub ((u32, Field), (u32, Field)) {\n    let s0: [Field] = if a { &[10, 20] } else { &[30, 40, 50] };\n    let (s1, f) = s0.pop_back();\n    let s2 = s0.push_back(60);\n    ((s1.len(), f), (s2.len(), s2[2]))\n}\n",
