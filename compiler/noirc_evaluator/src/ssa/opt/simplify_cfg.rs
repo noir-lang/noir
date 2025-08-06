@@ -870,4 +870,83 @@ mod test {
         }
         ");
     }
+
+    #[test]
+    fn removes_unreachable_block() {
+        let src = r#"
+        brillig(inline) impure fn main f0 {
+          b0():
+            jmp b1()
+          b1():
+            return
+          b2():
+            jmp b1()
+        }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.simplify_cfg();
+
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) impure fn main f0 {
+          b0():
+            return
+        }
+        ");
+    }
+
+    #[test]
+    fn double_jmp_empty_blocks() {
+        let src = "
+        brillig(inline) fn test f0 {
+          b0():
+            jmp b1()
+          b1():
+            jmp b2()
+          b2():
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.simplify_cfg();
+        
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn test f0 {
+          b0():
+            return
+        }
+        ");
+    }
+
+    #[test]
+    fn deep_jmp_empty_blocks() {
+        let src = "
+        brillig(inline) fn test f0 {
+          b0():
+            jmp b1()
+          b1():
+            jmp b2()
+          b2():
+            jmp b3()
+          b3():
+            jmp b4()
+          b4():
+            jmp b5()
+          b5():
+            jmp b6()
+          b6():
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.simplify_cfg();
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn test f0 {
+          b0():
+            return
+        }
+        ");
+    }
 }
