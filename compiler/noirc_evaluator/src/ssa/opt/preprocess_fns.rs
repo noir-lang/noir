@@ -1,5 +1,7 @@
 //! Pre-process functions before inlining them into others.
 
+use std::collections::HashSet;
+
 use crate::ssa::{
     RuntimeError, Ssa,
     ir::{
@@ -53,7 +55,8 @@ impl Ssa {
             }
 
             // Start with an inline pass.
-            let mut function = function.inlined(&self, &should_inline_call)?;
+            let mut callees = HashSet::new();
+            let mut function = function.inlined(&self, &should_inline_call, &mut callees)?;
             // Help unrolling determine bounds.
             function.as_slice_optimization();
             // Prepare for unrolling

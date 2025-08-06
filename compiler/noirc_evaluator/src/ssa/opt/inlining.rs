@@ -100,7 +100,7 @@ impl Ssa {
             let dfg = &self.functions[id].dfg;
             info.is_inline_target(dfg).then_some(*id)
         });
-
+        let mut callees = HashSet::new();
         let should_inline_call = |callee: &Function| -> bool {
             match callee.runtime() {
                 RuntimeType::Acir(_) => {
@@ -122,8 +122,12 @@ impl Ssa {
         let mut new_functions = std::collections::BTreeMap::new();
         for entry_point in inline_targets {
             let function = &self.functions[&entry_point];
-            let inlined = function.inlined(&self, &should_inline_call)?;
+            let inlined = function.inlined(&self, &should_inline_call, &mut callees)?;
             new_functions.insert(entry_point, inlined);
+        }
+        for callee in callees {
+            // If we have callees that were not inlined, we need to keep them in the SSA.
+            new_functions.insert(callee, self.functions[&callee].clone());
         }
         self.functions = new_functions;
 
@@ -137,8 +141,9 @@ impl Function {
         &self,
         ssa: &Ssa,
         should_inline_call: &impl Fn(&Function) -> bool,
+        callees: &mut HashSet<FunctionId>,
     ) -> Result<Function, RuntimeError> {
-        InlineContext::new(ssa, self.id()).inline_all(ssa, &should_inline_call)
+        InlineContext::new(ssa, self.id()).inline_all(ssa, &should_inline_call, callees)
     }
 }
 
@@ -210,6 +215,7 @@ impl InlineContext {
         mut self,
         ssa: &Ssa,
         should_inline_call: &impl Fn(&Function) -> bool,
+        callees: &mut HashSet<FunctionId>,
     ) -> Result<Function, RuntimeError> {
         let entry_point = &ssa.functions[&self.entry_point];
 
@@ -234,7 +240,7 @@ impl InlineContext {
         }
 
         context.blocks.insert(context.source_function.entry_block(), entry_block);
-        context.inline_blocks(ssa, should_inline_call)?;
+        context.inline_blocks(ssa, should_inline_call, callees)?;
         // translate databus values
         let databus = entry_point.dfg.data_bus.map_values(|t| context.translate_value(t));
 
@@ -254,6 +260,7 @@ impl InlineContext {
         id: FunctionId,
         arguments: &[ValueId],
         should_inline_call: &impl Fn(&Function) -> bool,
+        callees: &mut HashSet<FunctionId>,
     ) -> Result<Vec<ValueId>, RuntimeError> {
         self.recursion_level += 1;
 
@@ -277,7 +284,7 @@ impl InlineContext {
         let current_block = context.context.builder.current_block();
         context.blocks.insert(source_function.entry_block(), current_block);
 
-        let return_values = context.inline_blocks(ssa, should_inline_call)?;
+        let return_values = context.inline_blocks(ssa, should_inline_call, callees)?;
         self.recursion_level -= 1;
         Ok(return_values)
     }
@@ -421,6 +428,7 @@ impl<'function> PerFunctionContext<'function> {
         &mut self,
         ssa: &Ssa,
         should_inline_call: &impl Fn(&Function) -> bool,
+        callees: &mut HashSet<FunctionId>,
     ) -> Result<Vec<ValueId>, RuntimeError> {
         let mut seen_blocks = HashSet::new();
         let mut block_queue = VecDeque::new();
@@ -438,7 +446,7 @@ impl<'function> PerFunctionContext<'function> {
             self.context.builder.switch_to_block(translated_block_id);
 
             seen_blocks.insert(source_block_id);
-            self.inline_block_instructions(ssa, source_block_id, should_inline_call)?;
+            self.inline_block_instructions(ssa, source_block_id, should_inline_call, callees)?;
 
             if let Some((block, values)) =
                 self.handle_terminator_instruction(source_block_id, &mut block_queue)
@@ -487,6 +495,7 @@ impl<'function> PerFunctionContext<'function> {
         ssa: &Ssa,
         block_id: BasicBlockId,
         should_inline_call: &impl Fn(&Function) -> bool,
+        callees: &mut HashSet<FunctionId>,
     ) -> Result<(), RuntimeError> {
         let mut side_effects_enabled: Option<ValueId> = None;
 
@@ -503,6 +512,7 @@ impl<'function> PerFunctionContext<'function> {
                                     func_id,
                                     arguments,
                                     should_inline_call,
+                                    callees,
                                 )?;
 
                                 // This is only relevant during handling functions with `InlineType::NoPredicates` as these
@@ -517,9 +527,11 @@ impl<'function> PerFunctionContext<'function> {
                                     self.context.builder.insert_enable_side_effects_if(condition);
                                 }
                             } else {
+                                callees.insert(callee.id());
                                 self.push_instruction(*id);
                             }
                         } else {
+                            callees.insert(func_id);
                             self.push_instruction(*id);
                         }
                     }
@@ -552,7 +564,8 @@ impl<'function> PerFunctionContext<'function> {
         match callee.runtime() {
             RuntimeType::Acir(inline_type) => {
                 // If the called function is acir, we inline if it's not an entry point
-                if inline_type.is_entry_point() {
+                // If it is called from brillig, it cannot be inlined because runtimes do not share the same semantic
+                if inline_type.is_entry_point() || self.entry_function.runtime().is_brillig() {
                     return None;
                 }
             }
@@ -575,6 +588,7 @@ impl<'function> PerFunctionContext<'function> {
         function: FunctionId,
         arguments: &[ValueId],
         should_inline_call: &impl Fn(&Function) -> bool,
+        callees: &mut HashSet<FunctionId>,
     ) -> Result<(), RuntimeError> {
         let old_results = self.source_function.dfg.instruction_results(call_id);
         let arguments = vecmap(arguments, |arg| self.translate_value(*arg));
@@ -591,7 +605,7 @@ impl<'function> PerFunctionContext<'function> {
 
         self.context.call_stack = new_call_stack;
         let new_results =
-            self.context.inline_function(ssa, function, &arguments, should_inline_call)?;
+            self.context.inline_function(ssa, function, &arguments, should_inline_call, callees)?;
         self.context.call_stack = self
             .context
             .builder
@@ -1149,5 +1163,39 @@ mod test {
         let ssa = Ssa::from_str(no_inline_always_src).unwrap();
         let ssa = ssa.inline_functions(i64::MIN).unwrap();
         assert_normalized_ssa_equals(ssa, no_inline_always_src);
+    }
+
+    #[test]
+    // We should not inline an ACIR function called from a Brillig function because ACIR and Brillig semantics are different.
+    fn inlining_acir_into_brillig_function() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32):
+            call f1(v0)
+            return
+        }
+        acir(inline) fn foo f1 {
+          b0(v0: u32):
+            v4 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+            v5 = array_get v4, index v0 -> Field
+            return
+  }
+        ";
+        let ssa = Ssa::from_str_no_validation(src).unwrap();
+        let ssa = ssa.inline_functions(i64::MAX).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: u32):
+            call f1(v0)
+            return
+        }
+        acir(inline) fn foo f1 {
+          b0(v0: u32):
+            v4 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+            v5 = array_get v4, index v0 -> Field
+            return
+        }
+        ");
     }
 }

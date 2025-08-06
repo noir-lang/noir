@@ -6,6 +6,8 @@
 //! - Contains no more than [MAX_INSTRUCTIONS] instructions
 //! - The function only has a single block (e.g. no control flow or conditional branches)
 //! - It is not marked with the [no predicates inline type][noirc_frontend::monomorphization::ast::InlineType::NoPredicates]
+use std::collections::HashSet;
+
 use iter_extended::btree_map;
 
 use crate::ssa::{
@@ -66,15 +68,20 @@ impl Ssa {
 
             true
         };
-
-        self.functions = btree_map(&self.functions, |(id, function)| {
+        let mut callees = HashSet::new();
+        let mut new_functions = btree_map(&self.functions, |(id, function)| {
             (
                 *id,
                 function
-                    .inlined(&self, &should_inline_call)
+                    .inlined(&self, &should_inline_call, &mut callees)
                     .expect("simple function should not be recursive"),
             )
         });
+        for callee in &callees {
+            // If we have callees that were not inlined, we need to keep them in the SSA.
+            new_functions.insert(*callee, self.functions[callee].clone());
+        }
+        self.functions = new_functions;
 
         self
     }
