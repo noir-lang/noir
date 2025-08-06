@@ -76,7 +76,7 @@ projects:
     compilation-timeout: 250
     execution-timeout: 40
     compilation-memory-limit: 10000
-    execution-memory-limit: 7000
+    execution-memory-limit: 1900
   rollup-merge:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
