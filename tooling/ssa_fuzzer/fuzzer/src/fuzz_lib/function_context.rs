@@ -289,8 +289,10 @@ impl<'a> FuzzerFunctionContext<'a> {
     /// SSA block can use variables from predecessor that is not in branch.
     /// Look [Self::find_closest_parent] for more details.
     fn store_variables(&mut self) {
-        self.stored_variables_for_block
-            .insert(self.current_block.block_id, self.current_block.context.stored_values.clone());
+        self.stored_variables_for_block.insert(
+            self.current_block.block_id,
+            self.current_block.context.stored_variables.clone(),
+        );
     }
 
     fn process_jmp_if_command(&mut self, block_then_idx: usize, block_else_idx: usize) {

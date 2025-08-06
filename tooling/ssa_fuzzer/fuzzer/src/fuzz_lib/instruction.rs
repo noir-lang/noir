@@ -24,7 +24,7 @@ pub(crate) struct Argument {
 /// Represents set of instructions
 ///
 /// For operations that take two arguments we ignore type of the second argument.
-#[derive(Arbitrary, Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Arbitrary, Debug, Clone, Serialize, Deserialize)]
 pub(crate) enum Instruction {
     /// Addition of two values
     AddChecked { lhs: Argument, rhs: Argument },
@@ -74,6 +74,15 @@ pub(crate) enum Instruction {
     /// Store value to mutable memory
     /// Stores value to memory with insert_store
     SetToMemory { memory_addr_index: usize, value: Argument },
+
+    /// Create array, only type of first argument is used
+    /// Other elements will be taken from stored variables of the same type
+    CreateArray { elements_indices: Vec<usize>, element_type: ValueType, is_references: bool },
+    /// Get element from array, index will be casted to u32
+    ArrayGet { array_index: usize, index: Argument },
+    /// Set element in array, index will be casted to u32
+    /// Value will be casted to the type of the array
+    ArraySet { array_index: usize, index: Argument, value_index: usize, mutable: bool },
 }
 
 /// Represents set of instructions

@@ -105,6 +105,7 @@ impl InstructionMutator for InstructionArgumentsMutation {
                     }
                 }
             }
+            _ => {}
         }
     }
 }

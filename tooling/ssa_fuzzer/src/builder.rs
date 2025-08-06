@@ -5,6 +5,7 @@ use noirc_driver::{CompileOptions, CompiledProgram};
 use noirc_evaluator::ssa::function_builder::FunctionBuilder;
 use noirc_evaluator::ssa::ir::basic_block::BasicBlockId;
 use noirc_evaluator::ssa::ir::function::{Function, RuntimeType};
+use noirc_evaluator::ssa::ir::instruction::ArrayOffset;
 use noirc_evaluator::ssa::ir::instruction::BinaryOp;
 use noirc_evaluator::ssa::ir::map::Id;
 use noirc_evaluator::ssa::ir::types::{NumericType, Type};
@@ -12,6 +13,7 @@ use noirc_evaluator::ssa::ir::value::Value;
 use noirc_frontend::monomorphization::ast::InlineType;
 use noirc_frontend::monomorphization::ast::InlineType as FrontendInlineType;
 use std::panic::AssertUnwindSafe;
+use std::sync::Arc;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -364,5 +366,90 @@ impl FuzzerBuilder {
             )
             .first()
             .unwrap()
+    }
+
+    /// Inserts a new array with the given elements and type
+    pub fn insert_array(&mut self, elements: Vec<TypedValue>, typ: Type) -> TypedValue {
+        let array_length = elements.len() as u32;
+        assert!(
+            elements.iter().all(|e| e.type_of_variable == typ.clone()),
+            "All elements must have the same type"
+        );
+        let res = self
+            .builder
+            .insert_make_array(elements.into_iter().map(|e| e.value_id).collect(), typ.clone());
+        TypedValue::new(res, Type::Array(Arc::new(vec![typ]), array_length))
+    }
+
+    /*fn insert_index_lt_array_length(&mut self, index: TypedValue, array: TypedValue) -> TypedValue {
+        match array.type_of_variable {
+            Type::Array(_, array_length) => {
+                let array_length_id = self
+                    .builder
+                    .numeric_constant(array_length, NumericType::Unsigned { bit_size: 32 });
+                let true_id =
+                    self.builder.numeric_constant(1_u32, NumericType::Unsigned { bit_size: 1 });
+                let index_lt_length =
+                    self.builder.insert_binary(index.value_id, BinaryOp::Lt, array_length_id);
+                self.builder.insert_constrain(index_lt_length, true_id, None);
+                TypedValue::new(index_lt_length, ValueType::Boolean.to_ssa_type())
+            }
+            _ => unreachable!("Array type expected"),
+        }
+    } */
+
+    fn insert_index_mod_array_length(
+        &mut self,
+        index: TypedValue,
+        array: TypedValue,
+    ) -> TypedValue {
+        match array.type_of_variable.clone() {
+            Type::Array(_, array_length) => {
+                let array_length_id = self
+                    .builder
+                    .numeric_constant(array_length, NumericType::Unsigned { bit_size: 32 });
+                let index_mod_length =
+                    self.builder.insert_binary(index.value_id, BinaryOp::Mod, array_length_id);
+                TypedValue::new(index_mod_length, ValueType::U32.to_ssa_type())
+            }
+            _ => unreachable!("Array type expected"),
+        }
+    }
+
+    pub fn insert_array_get(&mut self, array: TypedValue, index: TypedValue) -> TypedValue {
+        assert!(matches!(array.type_of_variable, Type::Array(_, _)));
+        assert!(index.type_of_variable == Type::Numeric(NumericType::Unsigned { bit_size: 32 }));
+        let index_mod_len = self.insert_index_mod_array_length(index.clone(), array.clone());
+        let res = self.builder.insert_array_get(
+            array.value_id,
+            index_mod_len.value_id,
+            ArrayOffset::None,
+            array.type_of_variable.clone(),
+        );
+        TypedValue::new(res, array.type_of_variable.clone())
+    }
+
+    pub fn insert_array_set(
+        &mut self,
+        array: TypedValue,
+        index: TypedValue,
+        value: TypedValue,
+        mutable: bool,
+    ) -> TypedValue {
+        assert!(matches!(array.type_of_variable, Type::Array(_, _)));
+        assert!(
+            value.type_of_variable == array.type_of_variable,
+            "Value type must match array type"
+        );
+        assert!(index.type_of_variable == Type::Numeric(NumericType::Unsigned { bit_size: 32 }));
+        let index_mod_len = self.insert_index_mod_array_length(index.clone(), array.clone());
+        let res = self.builder.insert_array_set(
+            array.value_id,
+            index_mod_len.value_id,
+            value.value_id,
+            mutable,
+            ArrayOffset::None,
+        );
+        TypedValue::new(res, array.type_of_variable.clone())
     }
 }
