@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1754408074561,
+  "lastUpdate": 1754492668343,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -12611,48 +12611,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "163862677+noirwhal@users.noreply.github.com",
-            "name": "noirwhal",
-            "username": "noirwhal"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "6abff2f16e1c1314ba30708d1cf032a536de3d19",
-          "message": "chore: Release Noir(1.0.0-beta.9) (#9184)\n\nCo-authored-by: noirwhal <tomfrench@aztecprotocol.com>",
-          "timestamp": "2025-07-24T13:22:16Z",
-          "tree_id": "9ac37df612afaa0133dfc8c8b551679aabf25f3d",
-          "url": "https://github.com/noir-lang/noir/commit/6abff2f16e1c1314ba30708d1cf032a536de3d19"
-        },
-        "date": 1753365132080,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 249956,
-            "range": "± 841",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 219995,
-            "range": "± 1546",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2787378,
-            "range": "± 1879",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -14704,6 +14662,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2784702,
             "range": "± 2652",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "84741533+defkit@users.noreply.github.com",
+            "name": "defkit",
+            "username": "defkit"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8eeda7ed2ce20689473c99ed8ca6f30c183725a4",
+          "message": "chore(ssa_fuzzer): refactor fuzzing modes + add fuzzing mode without DIE pass (#9401)",
+          "timestamp": "2025-08-06T14:39:16Z",
+          "tree_id": "d12245c3269796e4a3109294200b56823017e368",
+          "url": "https://github.com/noir-lang/noir/commit/8eeda7ed2ce20689473c99ed8ca6f30c183725a4"
+        },
+        "date": 1754492651104,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 248671,
+            "range": "± 1119",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 220843,
+            "range": "± 3015",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2784019,
+            "range": "± 1786",
             "unit": "ns/iter"
           }
         ]
