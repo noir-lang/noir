@@ -324,18 +324,8 @@ impl<'a> FuzzerFunctionContext<'a> {
         // creates new contexts of created blocks
         let mut parent_blocks_history = self.current_block.context.parent_blocks_history.clone();
         parent_blocks_history.push_front(self.current_block.block_id);
-        let mut block_then_context = BlockContext::new(
-            self.current_block.context.stored_values.clone(),
-            self.current_block.context.memory_addresses.clone(),
-            parent_blocks_history.clone(),
-            SsaBlockOptions::from(self.function_context_options.clone()),
-        );
-        let mut block_else_context = BlockContext::new(
-            self.current_block.context.stored_values.clone(),
-            self.current_block.context.memory_addresses.clone(),
-            parent_blocks_history,
-            SsaBlockOptions::from(self.function_context_options.clone()),
-        );
+        let mut block_then_context = BlockContext::new_from_context(&self.current_block.context);
+        let mut block_else_context = BlockContext::new_from_context(&self.current_block.context);
 
         // inserts instructions into created blocks
         self.switch_to_block(block_then_id);
@@ -582,12 +572,7 @@ impl<'a> FuzzerFunctionContext<'a> {
         self.insert_jmp_instruction(block_if_id, vec![start_id.clone()]);
 
         // fill body block with instructions
-        let mut block_body_context = BlockContext::new(
-            self.current_block.context.stored_values.clone(),
-            self.current_block.context.memory_addresses.clone(),
-            self.current_block.context.parent_blocks_history.clone(),
-            SsaBlockOptions::from(self.function_context_options.clone()),
-        );
+        let mut block_body_context = BlockContext::new_from_context(&self.current_block.context);
         self.switch_to_block(block_body_id);
         block_body_context.insert_instructions(
             self.acir_builder,

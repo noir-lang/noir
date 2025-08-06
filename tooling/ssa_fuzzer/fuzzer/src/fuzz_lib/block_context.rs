@@ -66,6 +66,16 @@ impl BlockContext {
         }
     }
 
+    pub(crate) fn new_from_context(context: &BlockContext) -> Self {
+        Self {
+            stored_values: context.stored_values.clone(),
+            memory_addresses: context.memory_addresses.clone(),
+            parent_blocks_history: context.parent_blocks_history.clone(),
+            children_blocks: context.children_blocks.clone(),
+            options: context.options.clone(),
+        }
+    }
+
     /// Inserts an instruction that takes a single argument
     fn insert_instruction_with_single_arg(
         &mut self,

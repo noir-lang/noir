@@ -4,6 +4,12 @@ use noir_ssa_fuzzer::typed_value::ValueType;
 use serde::{Deserialize, Serialize};
 
 #[derive(Arbitrary, Debug, Clone, Copy, Serialize, Deserialize)]
+pub(crate) struct Array {
+    pub(crate) size: usize,
+    pub(crate) element_type: ValueType,
+}
+
+#[derive(Arbitrary, Debug, Clone, Copy, Serialize, Deserialize)]
 pub(crate) struct Argument {
     /// Index of the argument in the context of stored variables of this type
     /// e.g. if we have variables with ids [0, 1] in u64 vector and variables with ids [5, 8] in fields vector
