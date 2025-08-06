@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1754493106936,
+  "lastUpdate": 1754493119118,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -14753,40 +14753,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "163862677+noirwhal@users.noreply.github.com",
-            "name": "noirwhal",
-            "username": "noirwhal"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "6abff2f16e1c1314ba30708d1cf032a536de3d19",
-          "message": "chore: Release Noir(1.0.0-beta.9) (#9184)\n\nCo-authored-by: noirwhal <tomfrench@aztecprotocol.com>",
-          "timestamp": "2025-07-24T13:22:16Z",
-          "tree_id": "9ac37df612afaa0133dfc8c8b551679aabf25f3d",
-          "url": "https://github.com/noir-lang/noir/commit/6abff2f16e1c1314ba30708d1cf032a536de3d19"
-        },
-        "date": 1753365340049,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore-depth-10",
-            "value": 632.4,
-            "unit": "KB"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 525.2,
-            "unit": "KB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -16836,6 +16802,90 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/b2713a99fca969a888ecf14ebee7db62499adef0"
         },
         "date": 1754407549215,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 712.6,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 2036.6,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 539.3,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 4318.2,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 3330.5,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 3842.9,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 30725.2,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 30774,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 185.9,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 391.2,
+            "unit": "KB"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 632.1,
+            "unit": "KB"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 525.2,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "84741533+defkit@users.noreply.github.com",
+            "name": "defkit",
+            "username": "defkit"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8eeda7ed2ce20689473c99ed8ca6f30c183725a4",
+          "message": "chore(ssa_fuzzer): refactor fuzzing modes + add fuzzing mode without DIE pass (#9401)",
+          "timestamp": "2025-08-06T14:39:16Z",
+          "tree_id": "d12245c3269796e4a3109294200b56823017e368",
+          "url": "https://github.com/noir-lang/noir/commit/8eeda7ed2ce20689473c99ed8ca6f30c183725a4"
+        },
+        "date": 1754493101540,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
