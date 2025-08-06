@@ -26,7 +26,7 @@ use noir_ssa_fuzzer::runner::{CompareResults, run_and_compare};
 use noir_ssa_fuzzer::typed_value::ValueType;
 use noirc_driver::CompiledProgram;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 #[derive(Arbitrary, Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct FuzzerData {
@@ -51,7 +51,7 @@ pub(crate) struct Fuzzer {
     pub(crate) contexts: Vec<FuzzerProgramContext>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Hash, Debug)]
 pub(crate) struct FuzzerOutput {
     pub(crate) witness_stack: WitnessStack<FieldElement>,
     pub(crate) program: CompiledProgram,
@@ -63,6 +63,14 @@ impl FuzzerOutput {
         self.witness_stack.peek().unwrap().witness[return_witness]
     }
 }
+
+impl PartialEq for FuzzerOutput {
+    fn eq(&self, other: &Self) -> bool {
+        self.witness_stack == other.witness_stack
+    }
+}
+
+impl Eq for FuzzerOutput {}
 
 impl Fuzzer {
     pub(crate) fn new(
@@ -101,36 +109,18 @@ impl Fuzzer {
                 Self::execute_and_compare(context, initial_witness.clone()),
             );
         }
-        for k1 in execution_results.keys() {
-            for k2 in execution_results.keys() {
-                let first_execution_result = &execution_results[k1];
-                let second_execution_result = &execution_results[k2];
-                match (first_execution_result, second_execution_result) {
-                    (Some(first), Some(second)) if k1 != k2 => {
-                        assert_eq!(
-                            first.get_return_value(),
-                            second.get_return_value(),
-                            "Fuzzer modes {k1:?} and {k2:?} returned different results"
-                        );
-                    }
-                    (Some(first), None) => {
-                        panic!(
-                            "Mode {k1:?} executed with the result {:?}, but {k2:?} failed",
-                            first.get_return_value()
-                        )
-                    }
-                    (None, Some(second)) => {
-                        panic!(
-                            "Mode {:?} failed, but {:?} executed with the result {:?}",
-                            k1,
-                            k2,
-                            second.get_return_value()
-                        )
-                    }
-                    // both failed
-                    _ => {}
+        let results_set = execution_results.values().collect::<HashSet<_>>();
+        if results_set.len() != 1 {
+            let mut panic_string = String::new();
+            for (mode, result) in execution_results {
+                if let Some(result) = result {
+                    panic_string
+                        .push_str(&format!("Mode {mode:?}: {:?}\n", result.get_return_value()));
+                } else {
+                    panic_string.push_str(&format!("Mode {mode:?} failed\n"));
                 }
             }
+            panic!("Fuzzer modes returned different results:\n{panic_string}");
         }
         execution_results.values().next().unwrap().clone()
     }
