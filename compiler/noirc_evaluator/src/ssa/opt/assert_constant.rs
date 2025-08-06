@@ -240,6 +240,22 @@ mod test {
     }
 
     #[test]
+    fn fail_on_unsuccessful_assert_constant() {
+        let src = r"
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            call assert_constant(v0)
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        assert!(matches!(
+            ssa.evaluate_static_assert_and_assert_constant().err().unwrap(),
+            RuntimeError::AssertConstantFailed { .. }
+        ));
+    }
+
+    #[test]
     fn do_not_fail_on_assert_constant_in_empty_loop() {
         let src = r"
         acir(inline) fn main f0 {
@@ -385,7 +401,7 @@ mod test {
           b0(v0: Field):
             v18 = make_array b"Assertion failed: {x}"
             v21 = make_array b"{\"kind\":\"field\"}"
-            call static_assert(u1 0, v18, Field 1, v0, v21, u1 1)	// src/main.nr:5:5
+            call static_assert(u1 0, v18, Field 1, v0, v21, u1 1)
             return
         }
         "#;
