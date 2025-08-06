@@ -369,10 +369,21 @@ impl FuzzerBuilder {
     }
 
     /// Inserts a new array with the given elements and type
-    pub fn insert_array(&mut self, elements: Vec<TypedValue>, typ: Type) -> TypedValue {
+    pub fn insert_array(&mut self, elements: Vec<TypedValue>, is_references: bool) -> TypedValue {
         let array_length = elements.len() as u32;
+        assert!(array_length > 0, "Array must have at least one element");
+        let element_type = elements[0].type_of_variable.clone();
+        let array_elements_type = if is_references {
+            Type::Array(
+                Arc::new(vec![Type::Reference(Arc::new(element_type.clone()))]),
+                array_length,
+            )
+        } else {
+            Type::Array(Arc::new(vec![element_type.clone()]), array_length)
+        };
+        let typ = array_elements_type.clone();
         assert!(
-            elements.iter().all(|e| e.type_of_variable == typ.clone()),
+            elements.iter().all(|e| e.type_of_variable == element_type),
             "All elements must have the same type"
         );
         let res = self
@@ -381,23 +392,8 @@ impl FuzzerBuilder {
         TypedValue::new(res, Type::Array(Arc::new(vec![typ]), array_length))
     }
 
-    /*fn insert_index_lt_array_length(&mut self, index: TypedValue, array: TypedValue) -> TypedValue {
-        match array.type_of_variable {
-            Type::Array(_, array_length) => {
-                let array_length_id = self
-                    .builder
-                    .numeric_constant(array_length, NumericType::Unsigned { bit_size: 32 });
-                let true_id =
-                    self.builder.numeric_constant(1_u32, NumericType::Unsigned { bit_size: 1 });
-                let index_lt_length =
-                    self.builder.insert_binary(index.value_id, BinaryOp::Lt, array_length_id);
-                self.builder.insert_constrain(index_lt_length, true_id, None);
-                TypedValue::new(index_lt_length, ValueType::Boolean.to_ssa_type())
-            }
-            _ => unreachable!("Array type expected"),
-        }
-    } */
-
+    /// Inserts a modulo operation between the index and the array length
+    /// Returns the id of the index modulo the array length
     fn insert_index_mod_array_length(
         &mut self,
         index: TypedValue,
@@ -416,17 +412,22 @@ impl FuzzerBuilder {
         }
     }
 
-    pub fn insert_array_get(&mut self, array: TypedValue, index: TypedValue) -> TypedValue {
-        assert!(matches!(array.type_of_variable, Type::Array(_, _)));
+    pub fn insert_array_get(
+        &mut self,
+        array: TypedValue,
+        index: TypedValue,
+        element_type: Type,
+    ) -> TypedValue {
         assert!(index.type_of_variable == Type::Numeric(NumericType::Unsigned { bit_size: 32 }));
         let index_mod_len = self.insert_index_mod_array_length(index.clone(), array.clone());
+        println!("index_mod_len: {:?}", index_mod_len);
         let res = self.builder.insert_array_get(
             array.value_id,
             index_mod_len.value_id,
             ArrayOffset::None,
-            array.type_of_variable.clone(),
+            element_type.clone(),
         );
-        TypedValue::new(res, array.type_of_variable.clone())
+        TypedValue::new(res, element_type)
     }
 
     pub fn insert_array_set(
@@ -437,10 +438,6 @@ impl FuzzerBuilder {
         mutable: bool,
     ) -> TypedValue {
         assert!(matches!(array.type_of_variable, Type::Array(_, _)));
-        assert!(
-            value.type_of_variable == array.type_of_variable,
-            "Value type must match array type"
-        );
         assert!(index.type_of_variable == Type::Numeric(NumericType::Unsigned { bit_size: 32 }));
         let index_mod_len = self.insert_index_mod_array_length(index.clone(), array.clone());
         let res = self.builder.insert_array_set(

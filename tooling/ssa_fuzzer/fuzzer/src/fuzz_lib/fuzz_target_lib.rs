@@ -764,4 +764,136 @@ mod tests {
             None => panic!("Program failed to execute"),
         }
     }
+
+    /// Test array get and set
+    /// fn main f0 {
+    ///     b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: u1, v6: u1):
+    ///       v7 = make_array [v0, v1, v2, v3, v4] : [Field; 5]
+    ///       v8 = truncate v0 to 32 bits, max_bit_size: 254
+    ///       v9 = cast v8 as u32
+    ///       v11 = mod v9, u32 5
+    ///       v12 = array_set v7, index v11, value v4
+    ///       v13 = truncate v0 to 32 bits, max_bit_size: 254
+    ///       v14 = cast v13 as u32
+    ///       v15 = mod v14, u32 5
+    ///       v16 = array_get v12, index v15 -> Field
+    ///       return v16
+    ///   }
+    #[test]
+    fn array_get_and_set() {
+        let arg_0_field = Argument { index: 0, value_type: ValueType::Field };
+        // create array [v0, v1]
+        let create_array_block = InstructionBlock {
+            instructions: vec![Instruction::CreateArray {
+                elements_indices: vec![0, 1, 2, 3, 4],
+                element_type: ValueType::Field,
+                is_references: false,
+            }],
+        };
+        // create new array setting new_array[0] = v4
+        let array_set_block = InstructionBlock {
+            instructions: vec![Instruction::ArraySet {
+                array_index: 0,
+                index: arg_0_field,
+                value_index: 4, // set v4
+                mutable: false,
+            }],
+        };
+        // get new_array[0]
+        let array_get_block = InstructionBlock {
+            instructions: vec![Instruction::ArrayGet { array_index: 1, index: arg_0_field }],
+        };
+        let instructions_blocks = vec![create_array_block, array_set_block, array_get_block];
+        let commands = vec![
+            FuzzerFunctionCommand::InsertSimpleInstructionBlock { instruction_block_idx: 0 },
+            FuzzerFunctionCommand::InsertSimpleInstructionBlock { instruction_block_idx: 1 },
+        ];
+        let main_func = FunctionData {
+            commands,
+            return_instruction_block_idx: 2,
+            return_type: ValueType::Field,
+        };
+        let fuzzer_data = FuzzerData {
+            instruction_blocks: instructions_blocks,
+            functions: vec![main_func],
+            initial_witness: default_witness(),
+        };
+        let result = fuzz_target(fuzzer_data, FuzzerOptions::default());
+        match result {
+            Some(result) => assert_eq!(result.get_return_value(), FieldElement::from(4_u32)),
+            None => panic!("Program failed to execute"),
+        }
+    }
+
+    /// Test that references in arrays work
+    /// fn main f0 {
+    ///     b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: u1, v6: u1):
+    ///       v7 = allocate -> &mut Field
+    ///       store v0 at v7
+    ///       v8 = make_array [v7] : [&mut Field; 1]
+    ///       store v1 at v7
+    ///       v9 = truncate v0 to 32 bits, max_bit_size: 254
+    ///       v10 = cast v9 as u32
+    ///       jmp b1()
+    ///     b1():
+    ///       v11 = load v7 -> Field
+    ///       return v11
+    ///   }
+    #[test]
+    fn test_reference_in_array() {
+        let _ = env_logger::try_init();
+        let arg_0_field = Argument { index: 0, value_type: ValueType::Field };
+        let arg_1_field = Argument { index: 1, value_type: ValueType::Field };
+
+        let load_to_memory_block =
+            InstructionBlock { instructions: vec![Instruction::AddToMemory { lhs: arg_0_field }] };
+        let set_to_memory_block = InstructionBlock {
+            instructions: vec![Instruction::SetToMemory {
+                memory_addr_index: 0,
+                value: arg_1_field,
+            }],
+        };
+        let create_array_block = InstructionBlock {
+            instructions: vec![Instruction::CreateArray {
+                elements_indices: vec![0],
+                element_type: ValueType::Field,
+                is_references: true,
+            }],
+        };
+        let get_from_array_block = InstructionBlock {
+            instructions: vec![Instruction::ArrayGet { array_index: 0, index: arg_0_field }],
+        };
+        let typed_memory_1 = Argument { index: 1, value_type: ValueType::Field };
+        let load_from_memory_block = InstructionBlock {
+            instructions: vec![Instruction::LoadFromMemory { memory_addr: typed_memory_1 }],
+        };
+        let instructions_blocks = vec![
+            load_to_memory_block,
+            create_array_block,
+            set_to_memory_block,
+            get_from_array_block,
+            load_from_memory_block,
+        ];
+        let commands = vec![
+            FuzzerFunctionCommand::InsertSimpleInstructionBlock { instruction_block_idx: 0 },
+            FuzzerFunctionCommand::InsertSimpleInstructionBlock { instruction_block_idx: 1 },
+            FuzzerFunctionCommand::InsertSimpleInstructionBlock { instruction_block_idx: 2 },
+            FuzzerFunctionCommand::InsertSimpleInstructionBlock { instruction_block_idx: 3 },
+        ];
+        let main_func = FunctionData {
+            commands,
+            return_instruction_block_idx: 4,
+            return_type: ValueType::Field,
+        };
+        let fuzzer_data = FuzzerData {
+            instruction_blocks: instructions_blocks,
+            functions: vec![main_func],
+            initial_witness: default_witness(),
+        };
+        let result = fuzz_target(fuzzer_data, FuzzerOptions::default());
+        match result {
+            Some(result) => assert_eq!(result.get_return_value(), FieldElement::from(1_u32)),
+            None => panic!("Program failed to execute"),
+        }
+    }
 }

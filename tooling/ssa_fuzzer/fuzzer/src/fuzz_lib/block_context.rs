@@ -7,12 +7,11 @@ use noir_ssa_fuzzer::{
 use noirc_evaluator::ssa::ir::basic_block::BasicBlockId;
 use noirc_evaluator::ssa::ir::function::Function;
 use noirc_evaluator::ssa::ir::map::Id;
-use noirc_evaluator::ssa::ir::value::ValueId;
 use std::collections::{HashMap, VecDeque};
 use std::iter::zip;
 
 #[derive(Debug, Clone)]
-struct StoredArray {
+pub(crate) struct StoredArray {
     array_id: TypedValue,
     element_type: ValueType,
     is_references: bool,
@@ -488,10 +487,10 @@ impl BlockContext {
                     _ => return,
                 };
                 // insert to both acir and brillig builders
-                let array = acir_builder.insert_array(elements.clone(), element_type.to_ssa_type());
+                let array = acir_builder.insert_array(elements.clone(), is_references);
                 assert_eq!(
                     array.value_id,
-                    brillig_builder.insert_array(elements, element_type.to_ssa_type()).value_id,
+                    brillig_builder.insert_array(elements, is_references).value_id,
                 );
                 self.stored_arrays.push(StoredArray {
                     array_id: array,
@@ -510,10 +509,13 @@ impl BlockContext {
                     _ => return,
                 };
                 let array_id = stored_array.array_id.clone();
-
+                println!("array_id: {:?}", array_id);
                 // get the index from the stored variables
-                let index =
-                    get_typed_value_from_map(&self.stored_variables, &ValueType::U32, index.index);
+                let index = get_typed_value_from_map(
+                    &self.stored_variables,
+                    &index.value_type,
+                    index.index,
+                );
                 let index = match index {
                     Some(index) => index,
                     _ => return,
@@ -524,12 +526,21 @@ impl BlockContext {
                     index_casted.value_id,
                     brillig_builder.insert_cast(index.clone(), ValueType::U32).value_id
                 );
+                println!("index: {:?}", index);
                 // insert array get to both acir and brillig builders
-                let value = acir_builder.insert_array_get(array_id.clone(), index_casted.clone());
+                let value = acir_builder.insert_array_get(
+                    array_id.clone(),
+                    index_casted.clone(),
+                    stored_array.element_type.to_ssa_type(),
+                );
                 assert_eq!(
                     value.value_id,
                     brillig_builder
-                        .insert_array_get(array_id.clone(), index_casted.clone())
+                        .insert_array_get(
+                            array_id.clone(),
+                            index_casted.clone(),
+                            stored_array.element_type.to_ssa_type(),
+                        )
                         .value_id,
                 );
                 // if we storing references, append the value to memory addresses, otherwise to stored variables
@@ -546,6 +557,7 @@ impl BlockContext {
                         value.clone(),
                     );
                 }
+                println!("array_get: {:?}", value);
             }
             Instruction::ArraySet { array_index, index, value_index, mutable } => {
                 if !self.options.instruction_options.array_set_enabled {
@@ -557,11 +569,15 @@ impl BlockContext {
                     Some(stored_array) => stored_array,
                     _ => return,
                 };
+                println!("stored_array: {:?}", stored_array);
                 let array_id = stored_array.array_id.clone();
 
                 // get the index from the stored variables
-                let index =
-                    get_typed_value_from_map(&self.stored_variables, &ValueType::U32, index.index);
+                let index = get_typed_value_from_map(
+                    &self.stored_variables,
+                    &index.value_type,
+                    index.index,
+                );
                 let index = match index {
                     Some(index) => index,
                     _ => return,
