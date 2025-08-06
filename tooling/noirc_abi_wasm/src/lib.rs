@@ -137,17 +137,24 @@ pub fn abi_decode_error(
     let mut abi: Abi =
         JsValueSerdeExt::into_serde(&JsValue::from(abi)).map_err(|err| err.to_string())?;
 
-    let raw_error: RawAssertionPayload<FieldElement> =
+    let raw_error: RawAssertionPayload<String> =
         JsValueSerdeExt::into_serde(&JsValue::from(raw_error)).map_err(|err| err.to_string())?;
+    // This is a hack to maintain allowing the user to provide the error data as an array of strings.
+    let error_data = raw_error
+        .data
+        .iter()
+        .map(|field| FieldElement::try_from_str(field))
+        .collect::<Option<Vec<_>>>()
+        .unwrap();
 
     let error_type = abi.error_types.remove(&raw_error.selector).expect("Missing error type");
     match error_type {
         AbiErrorType::FmtString { .. } => {
-            let string = display_abi_error(&raw_error.data, error_type).to_string();
+            let string = display_abi_error(&error_data, error_type).to_string();
             Ok(JsValue::from_str(&string))
         }
         AbiErrorType::Custom(typ) => {
-            let input_value = decode_value(&mut raw_error.data.into_iter(), &typ)?;
+            let input_value = decode_value(&mut error_data.into_iter(), &typ)?;
             let json_types = JsonTypes::try_from_input_value(&input_value, &typ)?;
             <JsValue as JsValueSerdeExt>::from_serde(&json_types)
                 .map_err(|err| err.to_string().into())
