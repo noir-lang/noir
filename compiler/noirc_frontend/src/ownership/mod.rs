@@ -355,7 +355,9 @@ impl Context {
             LValue::Index { array, index, element_type: _, location: _ } => {
                 self.handle_expression(index);
                 self.handle_lvalue(array);
-                **array = LValue::Clone(array.clone());
+                if !matches!(array.as_ref(), LValue::Ident(_)) {
+                    **array = LValue::Clone(array.clone());
+                }
             }
             LValue::MemberAccess { object, field_index: _ } => {
                 self.handle_lvalue(object);
