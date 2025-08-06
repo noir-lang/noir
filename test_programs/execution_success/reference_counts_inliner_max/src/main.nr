@@ -115,13 +115,13 @@ fn regression_7297() {
         // and mutations being optimized and removed so the original array ends up being aliased more.
         assert_eq(
             refcount_1,
-            6,
+            5,
             "There is 1 clone after `borrow_mut_two` and before `refcount_1` is defined (cloned before array_refcount call)",
         );
         assert_eq(
             refcount_2,
-            refcount_1 + 4,
-            "after refcount_1 we clone once in passing array to copy_mut, once to array_refcount after, and twice within copy_mut",
+            refcount_1 + 3,
+            "after refcount_1 we clone once in passing array to copy_mut, once to array_refcount after, and once within copy_mut",
         );
     }
 }
