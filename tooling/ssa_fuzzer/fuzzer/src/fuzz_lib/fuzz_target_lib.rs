@@ -839,6 +839,7 @@ mod tests {
     ///       v11 = load v7 -> Field
     ///       return v11
     ///   }
+    /// assert that return value is v1
     #[test]
     fn test_reference_in_array() {
         let _ = env_logger::try_init();

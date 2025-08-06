@@ -486,6 +486,9 @@ impl BlockContext {
                     Some(elements) => elements,
                     _ => return,
                 };
+                if elements.is_empty() {
+                    return;
+                }
                 // insert to both acir and brillig builders
                 let array = acir_builder.insert_array(elements.clone(), is_references);
                 assert_eq!(
@@ -500,6 +503,9 @@ impl BlockContext {
             }
             Instruction::ArrayGet { array_index, index } => {
                 if !self.options.instruction_options.array_get_enabled {
+                    return;
+                }
+                if self.stored_arrays.is_empty() {
                     return;
                 }
                 // get the array from the stored arrays
@@ -561,6 +567,9 @@ impl BlockContext {
             }
             Instruction::ArraySet { array_index, index, value_index, mutable } => {
                 if !self.options.instruction_options.array_set_enabled {
+                    return;
+                }
+                if self.stored_arrays.is_empty() {
                     return;
                 }
                 // get the array from the stored arrays
