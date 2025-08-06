@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1754493604734,
+  "lastUpdate": 1754506823357,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -12791,48 +12791,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "8d8dba46e2bd3788b67dcd785c94c17631de1b9c",
-          "message": "fix(ssa-interpreter): Return error if slice length is 0 during popping (#9308)",
-          "timestamp": "2025-07-24T14:52:48Z",
-          "tree_id": "78551bfe55f8a3977d8bc13a161cfbf0198b6851",
-          "url": "https://github.com/noir-lang/noir/commit/8d8dba46e2bd3788b67dcd785c94c17631de1b9c"
-        },
-        "date": 1753370348426,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 253768,
-            "range": "± 1076",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 221861,
-            "range": "± 3530",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2797229,
-            "range": "± 8083",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -14884,6 +14842,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2784019,
             "range": "± 1786",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "be181ad7053d6f7cc2f178f90107bb85bcdaf120",
+          "message": "chore(inlining): Unit tests for global values and conditional inlining (#9411)",
+          "timestamp": "2025-08-06T18:33:26Z",
+          "tree_id": "84773de77e4c03b3677a7a30b61c9273bb1ffc83",
+          "url": "https://github.com/noir-lang/noir/commit/be181ad7053d6f7cc2f178f90107bb85bcdaf120"
+        },
+        "date": 1754506802153,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 252438,
+            "range": "± 1646",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 229032,
+            "range": "± 504",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2785921,
+            "range": "± 4314",
             "unit": "ns/iter"
           }
         ]
