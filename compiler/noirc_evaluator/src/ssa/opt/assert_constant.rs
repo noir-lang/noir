@@ -20,9 +20,11 @@ use crate::{
 use super::unrolling::Loops;
 
 impl Ssa {
-    /// A simple SSA pass to go through each instruction and evaluate each call
-    /// to `assert_constant`, issuing an error if any arguments to the function are
-    /// not constants.
+    /// A simple SSA pass to go through each instruction and evaluate:
+    /// - each call to `assert_constant`, issuing an error if any arguments to the function
+    ///   are not constants
+    /// - each call to `static_assert`, issuing an error if the assertion does not hold,
+    ///   the value to test is not a constant, or the message is dynamic.
     ///
     /// Note that this pass must be placed directly before loop unrolling to be
     /// useful. Any optimization passes between this and loop unrolling will cause
