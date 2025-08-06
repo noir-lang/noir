@@ -1218,7 +1218,6 @@ mod test {
         acir(inline) fn main f0 {
           b0():
             v0 = call f1() -> [Field; 2]
-            // v1 = array_get g2, index u32 1 -> Field
             return v0
         }
         acir(inline) fn create_array f1 {
