@@ -130,7 +130,6 @@ mod test {
         let _ = ssa.as_slice_optimization();
     }
 
-
     /// TODO(https://github.com/noir-lang/noir/issues/9416): This test should be prevented during SSA validation
     /// Once type checking of intrinsic function calls is supported this test will have to be run against non-validated SSA.
     #[test]
