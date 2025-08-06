@@ -800,6 +800,26 @@ mod test {
     }
 
     #[test]
+    fn basic_inlining_brillig_not_inlined_into_acir() {
+        // This test matches the `basic_inlining` test exactly except that f1 is marked as a Brillig runtime.
+        // We expect that Brillig entry points (e.g., Brillig functions called from ACIR) should never be inlined.
+        let src = "
+        acir(inline) fn foo f0 {
+          b0():
+            v1 = call f1() -> Field
+            return v1
+        }
+        brillig(inline) fn bar f1 {
+          b0():
+            return Field 72
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.inline_functions(i64::MAX).unwrap();
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
     fn complex_inlining() {
         // This SSA is from issue #1327 which previously failed to inline properly
         let src = "
@@ -1029,5 +1049,105 @@ mod test {
             return v0
         }
         ");
+    }
+
+    #[test]
+    fn static_assertions_to_always_be_inlined() {
+        let src = "
+        brillig(inline) fn main f0 {
+            b0():
+              call f1(Field 1)
+              return
+        }
+        brillig(inline) fn foo f1 {
+            b0(v0: Field):
+              call assert_constant(v0)
+              return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.inline_functions(i64::MAX).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0():
+            return
+        }
+        ");
+    }
+
+    #[test]
+    fn no_predicates_flag_inactive() {
+        let src = "
+        acir(inline) fn main f0 {
+            b0():
+              call f1()
+              return
+        }
+        acir(no_predicates) fn no_predicates f1 {
+            b0():
+              return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.inline_functions(i64::MAX).unwrap();
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn no_predicates_flag_active() {
+        let src = "
+        acir(inline) fn main f0 {
+            b0():
+              call f1()
+              return
+        }
+        acir(no_predicates) fn no_predicates f1 {
+            b0():
+              return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.inline_functions_with_no_predicates(i64::MAX).unwrap();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            return
+        }
+        ");
+    }
+
+    #[test]
+    fn inline_always_function() {
+        let src = "
+        brillig(inline) fn main f0 {
+            b0():
+              call f1()
+              return
+        }
+
+        brillig(inline_always) fn always_inline f1 {
+            b0():
+              return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.inline_functions(i64::MIN).unwrap();
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0():
+            return
+        }
+        ");
+
+        // Check that with a minimum inliner aggressiveness we do not inline a function
+        // not marked with `inline_always`
+        let no_inline_always_src = &src.replace("inline_always", "inline");
+        let ssa = Ssa::from_str(no_inline_always_src).unwrap();
+        let ssa = ssa.inline_functions(i64::MIN).unwrap();
+        assert_normalized_ssa_equals(ssa, no_inline_always_src);
     }
 }

@@ -12,3 +12,4 @@ pub(crate) mod post_order;
 pub(crate) mod printer;
 pub mod types;
 pub mod value;
+pub use printer::is_printable_byte;

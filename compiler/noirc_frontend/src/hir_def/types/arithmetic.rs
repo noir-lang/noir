@@ -1,9 +1,8 @@
 use std::collections::BTreeMap;
 
-use acvm::{AcirField, FieldElement};
 use noirc_errors::Location;
 
-use crate::{BinaryTypeOperator, Type};
+use crate::{BinaryTypeOperator, Type, signed_field::SignedField};
 
 impl Type {
     /// Try to canonicalize the representation of this type.
@@ -70,7 +69,7 @@ impl Type {
                 let dummy_location = Location::dummy();
 
                 let evaluate = |typ: &Type| {
-                    typ.evaluate_to_field_element_helper(&kind, dummy_location, run_simplifications)
+                    typ.evaluate_to_signed_field_helper(&kind, dummy_location, run_simplifications)
                 };
 
                 // evaluate_to_field_element also calls canonicalize so if we just called
@@ -152,9 +151,9 @@ impl Type {
         let mut sorted = BTreeMap::new();
 
         let zero_value = if op == BinaryTypeOperator::Addition {
-            FieldElement::zero()
+            SignedField::zero()
         } else {
-            FieldElement::one()
+            SignedField::one()
         };
         let mut constant = zero_value;
 
@@ -293,16 +292,16 @@ impl Type {
     fn parse_partial_constant_expr(
         lhs: &Type,
         rhs: &Type,
-    ) -> Option<(Box<Type>, BinaryTypeOperator, FieldElement, FieldElement)> {
+    ) -> Option<(Box<Type>, BinaryTypeOperator, SignedField, SignedField)> {
         let kind = lhs.infix_kind(rhs);
         let dummy_location = Location::dummy();
-        let rhs = rhs.evaluate_to_field_element(&kind, dummy_location).ok()?;
+        let rhs = rhs.evaluate_to_signed_field(&kind, dummy_location).ok()?;
 
         let Type::InfixExpr(l_type, l_op, l_rhs, _) = lhs.follow_bindings() else {
             return None;
         };
 
-        let l_rhs = l_rhs.evaluate_to_field_element(&kind, dummy_location).ok()?;
+        let l_rhs = l_rhs.evaluate_to_signed_field(&kind, dummy_location).ok()?;
         Some((l_type, l_op, l_rhs, rhs))
     }
 
@@ -339,7 +338,7 @@ impl Type {
                     && l_const.to_i128().checked_rem(r_const.to_i128()) == Some(0);
 
                 // If op is a division we need to ensure it divides evenly
-                if op == Division && (r_const == FieldElement::zero() || !divides_evenly) {
+                if op == Division && (r_const.is_zero() || !divides_evenly) {
                     None
                 } else {
                     let dummy_location = Location::dummy();
@@ -356,11 +355,10 @@ impl Type {
 
 #[cfg(test)]
 mod tests {
-    use acvm::{AcirField, FieldElement};
-
     use crate::{
         NamedGeneric,
         hir_def::types::{BinaryTypeOperator, Kind, Type, TypeVariable, TypeVariableId},
+        signed_field::SignedField,
     };
 
     #[test]
@@ -376,7 +374,7 @@ mod tests {
         let n_minus_one = Type::infix_expr(
             Box::new(n.clone()),
             BinaryTypeOperator::Subtraction,
-            Box::new(Type::Constant(FieldElement::one(), Kind::u32())),
+            Box::new(Type::Constant(SignedField::one(), Kind::u32())),
         );
         let checked_cast_n_minus_one =
             Type::CheckedCast { from: Box::new(n_minus_one.clone()), to: Box::new(n_minus_one) };
@@ -384,7 +382,7 @@ mod tests {
         let n_minus_one_plus_one = Type::infix_expr(
             Box::new(checked_cast_n_minus_one.clone()),
             BinaryTypeOperator::Addition,
-            Box::new(Type::Constant(FieldElement::one(), Kind::u32())),
+            Box::new(Type::Constant(SignedField::one(), Kind::u32())),
         );
 
         let canonicalized_typ = n_minus_one_plus_one.canonicalize();
@@ -395,7 +393,7 @@ mod tests {
         // the expression `1 + (N - 1)` to `N`.
 
         let one_plus_n_minus_one = Type::infix_expr(
-            Box::new(Type::Constant(FieldElement::one(), Kind::u32())),
+            Box::new(Type::Constant(SignedField::one(), Kind::u32())),
             BinaryTypeOperator::Addition,
             Box::new(checked_cast_n_minus_one),
         );
@@ -410,7 +408,7 @@ mod tests {
         let field_element_kind = Kind::numeric(Type::FieldElement);
         let x_var = TypeVariable::unbound(TypeVariableId(0), field_element_kind.clone());
         let x_type = Type::TypeVariable(x_var.clone());
-        let one = Type::Constant(FieldElement::one(), field_element_kind.clone());
+        let one = Type::Constant(SignedField::one(), field_element_kind.clone());
 
         let lhs = Type::infix_expr(
             Box::new(x_type.clone()),
@@ -425,7 +423,7 @@ mod tests {
         let rhs = rhs.canonicalize();
 
         // bind vars
-        let two = Type::Constant(FieldElement::from(2u128), field_element_kind.clone());
+        let two = Type::Constant(SignedField::from(2u128), field_element_kind.clone());
         x_var.bind(two);
 
         // canonicalize (expect constant)
@@ -458,6 +456,7 @@ mod proptests {
     use crate::ast::IntegerBitSize;
     use crate::hir_def::types::{BinaryTypeOperator, Kind, Type, TypeVariable, TypeVariableId};
     use crate::shared::Signedness;
+    use crate::signed_field::SignedField;
 
     prop_compose! {
         // maximum_size must be non-zero
@@ -526,8 +525,10 @@ mod proptests {
     ) -> impl Strategy<Value = Type> {
         let leaf = prop_oneof![
             arbitrary_variable(typ.clone(), num_variables),
-            arbitrary_value
-                .prop_map(move |value| Type::Constant(value, Kind::numeric(typ.clone()))),
+            arbitrary_value.prop_map(move |value| Type::Constant(
+                SignedField::positive(value),
+                Kind::numeric(typ.clone())
+            )),
         ];
 
         leaf.prop_recursive(
@@ -561,7 +562,7 @@ mod proptests {
             let (infix_expr, typ, _value_generator) = infix_type_gen;
             let bindings: Vec<_> = first_n_variables(typ.clone(), num_variables)
                 .zip(values.iter().map(|value| {
-                    Type::Constant(*value, Kind::numeric(typ.clone()))
+                    Type::Constant(SignedField::positive(*value), Kind::numeric(typ.clone()))
                 }))
                 .collect();
             (infix_expr, typ, bindings)
