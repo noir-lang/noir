@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1754493119118,
+  "lastUpdate": 1754493130931,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -2158,40 +2158,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "163862677+noirwhal@users.noreply.github.com",
-            "name": "noirwhal",
-            "username": "noirwhal"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "6abff2f16e1c1314ba30708d1cf032a536de3d19",
-          "message": "chore: Release Noir(1.0.0-beta.9) (#9184)\n\nCo-authored-by: noirwhal <tomfrench@aztecprotocol.com>",
-          "timestamp": "2025-07-24T13:22:16Z",
-          "tree_id": "9ac37df612afaa0133dfc8c8b551679aabf25f3d",
-          "url": "https://github.com/noir-lang/noir/commit/6abff2f16e1c1314ba30708d1cf032a536de3d19"
-        },
-        "date": 1753365340010,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.761,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 1.741,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -4301,6 +4267,90 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 1.737,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "84741533+defkit@users.noreply.github.com",
+            "name": "defkit",
+            "username": "defkit"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8eeda7ed2ce20689473c99ed8ca6f30c183725a4",
+          "message": "chore(ssa_fuzzer): refactor fuzzing modes + add fuzzing mode without DIE pass (#9401)",
+          "timestamp": "2025-08-06T14:39:16Z",
+          "tree_id": "d12245c3269796e4a3109294200b56823017e368",
+          "url": "https://github.com/noir-lang/noir/commit/8eeda7ed2ce20689473c99ed8ca6f30c183725a4"
+        },
+        "date": 1754493113416,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1.724,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 8.022,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.406,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 18.08,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 13.94,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 20.94,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 218,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 211,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.362,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.47,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.77,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 1.748,
             "unit": "s"
           }
         ]
