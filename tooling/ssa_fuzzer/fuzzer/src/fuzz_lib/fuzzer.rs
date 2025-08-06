@@ -15,8 +15,8 @@
 
 use super::function_context::{FunctionData, WitnessValue};
 use super::instruction::InstructionBlock;
-use super::options::{FunctionContextOptions, FuzzerOptions};
-use super::program_context::FuzzerProgramContext;
+use super::options::{FuzzerMode, FuzzerOptions};
+use super::program_context::{FuzzerProgramContext, program_context_by_mode};
 use super::{NUMBER_OF_PREDEFINED_VARIABLES, NUMBER_OF_VARIABLES_INITIAL};
 use acvm::FieldElement;
 use acvm::acir::native_types::{WitnessMap, WitnessStack};
@@ -26,6 +26,7 @@ use noir_ssa_fuzzer::runner::{CompareResults, run_and_compare};
 use noir_ssa_fuzzer::typed_value::ValueType;
 use noirc_driver::CompiledProgram;
 use serde::{Deserialize, Serialize};
+use std::collections::{HashMap, HashSet};
 
 #[derive(Arbitrary, Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct FuzzerData {
@@ -47,11 +48,10 @@ impl Default for FuzzerData {
 }
 
 pub(crate) struct Fuzzer {
-    pub(crate) context_non_constant: Option<FuzzerProgramContext>,
-    pub(crate) context_non_constant_with_idempotent_morphing: Option<FuzzerProgramContext>,
-    pub(crate) context_constant: Option<FuzzerProgramContext>,
+    pub(crate) contexts: Vec<FuzzerProgramContext>,
 }
 
+#[derive(Clone, Debug)]
 pub(crate) struct FuzzerOutput {
     pub(crate) witness_stack: WitnessStack<FieldElement>,
     pub(crate) program: CompiledProgram,
@@ -70,96 +70,55 @@ impl Fuzzer {
         values: Vec<FieldElement>,
         options: FuzzerOptions,
     ) -> Self {
-        let context_constant = if options.constant_execution_enabled {
-            Some(FuzzerProgramContext::new_constant_context(
-                FunctionContextOptions {
-                    idempotent_morphing_enabled: false,
-                    ..FunctionContextOptions::from(&options)
-                },
+        let mut contexts = vec![];
+        for mode in &options.modes {
+            contexts.push(program_context_by_mode(
+                mode.clone(),
                 instruction_blocks.clone(),
                 values.clone(),
-            ))
-        } else {
-            None
-        };
-        let context_non_constant = Some(FuzzerProgramContext::new(
-            FunctionContextOptions {
-                idempotent_morphing_enabled: false,
-                ..FunctionContextOptions::from(&options)
-            },
-            instruction_blocks.clone(),
-            values.clone(),
-        ));
-        let context_non_constant_with_idempotent_morphing =
-            if options.constrain_idempotent_morphing_enabled {
-                Some(FuzzerProgramContext::new(
-                    FunctionContextOptions {
-                        idempotent_morphing_enabled: true,
-                        ..FunctionContextOptions::from(&options)
-                    },
-                    instruction_blocks.clone(),
-                    values.clone(),
-                ))
-            } else {
-                None
-            };
-        Self {
-            context_non_constant,
-            context_non_constant_with_idempotent_morphing,
-            context_constant,
+                options.clone(),
+            ));
         }
+        Self { contexts }
     }
 
     pub(crate) fn process_function(&mut self, function_data: FunctionData, types: Vec<ValueType>) {
-        if let Some(context) = &mut self.context_non_constant {
+        for context in &mut self.contexts {
             context.process_function(function_data.clone(), types.clone());
-        }
-        if let Some(context) = &mut self.context_non_constant_with_idempotent_morphing {
-            context.process_function(function_data.clone(), types.clone());
-        }
-        if let Some(context) = &mut self.context_constant {
-            context.process_function(function_data, types);
         }
     }
 
-    /// Finalizes the function for both contexts, executes and compares the results
+    /// Finalizes the function for contexts, executes and compares the results
     pub(crate) fn finalize_and_run(
-        mut self,
+        self,
         initial_witness: WitnessMap<FieldElement>,
     ) -> Option<FuzzerOutput> {
-        let mut non_constant_context = self.context_non_constant.take().unwrap();
-        non_constant_context.finalize_program();
-        let non_constant_result =
-            Self::execute_and_compare(non_constant_context, initial_witness.clone());
-
-        if let Some(context) = self.context_constant.take() {
-            let mut constant_context = context;
-            constant_context.finalize_program();
-            let constant_result =
-                Self::execute_and_compare(constant_context, initial_witness.clone());
-            if non_constant_result.is_some() {
-                assert_eq!(
-                    non_constant_result.as_ref().unwrap().get_return_value(),
-                    constant_result?.get_return_value(),
-                    "Non-constant and constant contexts should return the same result"
-                );
-            }
+        let mut execution_results: HashMap<FuzzerMode, Option<FuzzerOutput>> = HashMap::new();
+        for mut context in self.contexts {
+            context.finalize_program();
+            execution_results.insert(
+                context.get_mode(),
+                Self::execute_and_compare(context, initial_witness.clone()),
+            );
         }
+        let results_set = execution_results
+            .values()
+            .map(|result| -> Option<FieldElement> { result.as_ref().map(|r| r.get_return_value()) })
+            .collect::<HashSet<_>>();
 
-        if let Some(context) = self.context_non_constant_with_idempotent_morphing.take() {
-            let mut context_with_idempotent_morphing = context;
-            context_with_idempotent_morphing.finalize_program();
-            let result_with_constrains =
-                Self::execute_and_compare(context_with_idempotent_morphing, initial_witness);
-            if non_constant_result.is_some() {
-                assert_eq!(
-                    non_constant_result.as_ref().unwrap().get_return_value(),
-                    result_with_constrains?.get_return_value(),
-                    "Non-constant and idempotent morphing contexts should return the same result"
-                );
+        if results_set.len() != 1 {
+            let mut panic_string = String::new();
+            for (mode, result) in execution_results {
+                if let Some(result) = result {
+                    panic_string
+                        .push_str(&format!("Mode {mode:?}: {:?}\n", result.get_return_value()));
+                } else {
+                    panic_string.push_str(&format!("Mode {mode:?} failed\n"));
+                }
             }
+            panic!("Fuzzer modes returned different results:\n{panic_string}");
         }
-        non_constant_result
+        execution_results.values().next().unwrap().clone()
     }
 
     fn execute_and_compare(
