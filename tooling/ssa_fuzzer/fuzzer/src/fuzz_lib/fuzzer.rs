@@ -51,7 +51,7 @@ pub(crate) struct Fuzzer {
     pub(crate) contexts: Vec<FuzzerProgramContext>,
 }
 
-#[derive(Clone, Hash, Debug)]
+#[derive(Clone, Debug)]
 pub(crate) struct FuzzerOutput {
     pub(crate) witness_stack: WitnessStack<FieldElement>,
     pub(crate) program: CompiledProgram,
@@ -63,14 +63,6 @@ impl FuzzerOutput {
         self.witness_stack.peek().unwrap().witness[return_witness]
     }
 }
-
-impl PartialEq for FuzzerOutput {
-    fn eq(&self, other: &Self) -> bool {
-        self.witness_stack == other.witness_stack
-    }
-}
-
-impl Eq for FuzzerOutput {}
 
 impl Fuzzer {
     pub(crate) fn new(
@@ -109,7 +101,11 @@ impl Fuzzer {
                 Self::execute_and_compare(context, initial_witness.clone()),
             );
         }
-        let results_set = execution_results.values().collect::<HashSet<_>>();
+        let results_set = execution_results
+            .values()
+            .map(|result| -> Option<FieldElement> { result.as_ref().map(|r| r.get_return_value()) })
+            .collect::<HashSet<_>>();
+
         if results_set.len() != 1 {
             let mut panic_string = String::new();
             for (mode, result) in execution_results {
