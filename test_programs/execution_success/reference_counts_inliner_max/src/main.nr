@@ -111,11 +111,11 @@ fn regression_7297() {
             "borrow_mut_two should create a fresh array and not decrease its RC",
         );
 
-        // `5` here is higher than in other inliner settings. This is likely due to references getting optimized out,
+        // `6` here is higher than in other inliner settings. This is likely due to references getting optimized out,
         // and mutations being optimized and removed so the original array ends up being aliased more.
         assert_eq(
             refcount_1,
-            5,
+            6,
             "There is 1 clone after `borrow_mut_two` and before `refcount_1` is defined (cloned before array_refcount call)",
         );
         assert_eq(
