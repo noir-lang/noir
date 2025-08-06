@@ -6,7 +6,9 @@ mod tests {
         assert_ssa_snapshot,
         brillig::BrilligOptions,
         errors::RuntimeError,
-        ssa::{Ssa, SsaBuilder, SsaEvaluatorOptions, SsaLogging, primary_passes},
+        ssa::{
+            OptimizationLevel, Ssa, SsaBuilder, SsaEvaluatorOptions, SsaLogging, primary_passes,
+        },
     };
 
     fn run_all_passes(ssa: Ssa) -> Result<Ssa, RuntimeError> {
@@ -21,6 +23,7 @@ mod tests {
             skip_brillig_constraints_check: true,
             inliner_aggressiveness: 0,
             max_bytecode_increase_percent: None,
+            optimization_level: OptimizationLevel::All,
             skip_passes: Default::default(),
         };
 

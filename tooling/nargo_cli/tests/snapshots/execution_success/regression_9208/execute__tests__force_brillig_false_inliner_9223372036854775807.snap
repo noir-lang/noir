@@ -1,5 +1,6 @@
 ---
 source: tooling/nargo_cli/tests/execute.rs
+assertion_line: 512
 expression: artifact
 ---
 {
@@ -52,7 +53,7 @@ expression: artifact
     "unconstrained func 0",
     "[Const { destination: Direct(21), bit_size: Integer(U32), value: 1 }, Const { destination: Direct(20), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(21), offset_address: Direct(20) }, Const { destination: Direct(2), bit_size: Field, value: 0 }, BinaryFieldOp { destination: Direct(3), op: Equals, lhs: Direct(0), rhs: Direct(2) }, JumpIf { condition: Direct(3), location: 8 }, Const { destination: Direct(1), bit_size: Field, value: 1 }, BinaryFieldOp { destination: Direct(0), op: Div, lhs: Direct(1), rhs: Direct(0) }, Stop { return_data: HeapVector { pointer: Direct(20), size: Direct(21) } }]"
   ],
-  "debug_symbols": "nZHdCoMwDIXfJde90Po3fZUxpGqUQqlS28EQ332x2E0vBsOb0yYnXxOaBTps3FBL3Y8zVPcFGiOVkkOtxlZYOWrKLiuDENbWIFIKDj5RkzCoLVTaKcXgKZTzRfMktD+tMORGDFB3dNKDvVS43Vb2paPfaJ7tbME/cPY3fSt2Oo7SC3jMw+QxL67wSRn4tDzxD4pEK83puyGmQgbca+I1hYozyKBKGOReC9J1a2mkaBTua+qdbg9bs68pOGGvkxlb7JzBraX3aIg3",
+  "debug_symbols": "nZLdDoMgDIXfpddcKP5NX2VZDGo1JAQNwpLF+O6rRDa9WLJ4c6A9/SikLNBh44Za6n6cobov0BiplBxqNbbCylFTdlkZhLC2BpFScPCJmoRBbaHSTikGT6GcL5onof1qhSE3YoC6o5UO7KXCbbeyLx39RvNsZwv+gbO/6Vux03GUXsGTHb/lF+iYh3fHvLjCJ2Xg0/LEPygSrTSnYUFMhQy418RrChVnkEGVMsi9FqTr1tJI0Sjch9w73R5mbl9TcMKvmMzYYucMbi29R5d4Aw==",
   "file_map": {
     "50": {
       "source": "global G_A: [Field] = &[];\nfn main(a: u32) -> pub Field {\n    if a == 10 {\n        G_A[1_u32 % G_A.len()]\n    } else if a == 20 {\n        (a as Field)\n    } else {\n        -1\n    }\n}\n",

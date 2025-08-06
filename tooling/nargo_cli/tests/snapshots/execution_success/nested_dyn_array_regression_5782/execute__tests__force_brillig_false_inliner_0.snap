@@ -1,5 +1,6 @@
 ---
 source: tooling/nargo_cli/tests/execute.rs
+assertion_line: 512
 expression: artifact
 ---
 {
@@ -74,7 +75,7 @@ expression: artifact
     "MEM (id: 2, read at: EXPR [ (1, _2) 0 ], value: EXPR [ (1, _19) 0 ]) ",
     "EXPR [ (1, _19) -2 ]"
   ],
-  "debug_symbols": "pZTbboQgEED/ZZ55EJSL/krTbFjFDQlBw2qTxvjvHdxxu/vQpNEXjzCcEYfLAp27zreLj/1wh+ZjgWvyIfjbJQytnfwQsXdZGezNy5Scwy54iaM12uTiBE2cQ2DwZcO8DbqPNm6cbMJowcDFDokJex9cflvZr138rSpOrlJPWf7blnK39RlbFwdso8mu5Sm7PmBzbkjn/JBf6Kd/ZPZc70vOjTjpH/m+KCvyRVWe9NVJ/0j9hVK7r8053/A3/xNbtvXp7ZwDx0IzEDicQQlNyaCCBn9BosRA4flhoPEcMDDbs8YNyoAXD6BdI0TeN8iSWBElURE10RDrB0VB5MScD+cjcj6ckaiIkpjzVWsuQvL2GhzdWP0c25cLbPoe98h+xY1paF03J5eLsMWwLD8=",
+  "debug_symbols": "pZTbioMwEED/ZZ7zYGIu6q8sS0ltWgIhSqqFpfTfd2JHt31YKPHFYy5nGONk7nByx/ly8PE8XKH7usMx+RD85RCG3k5+iDh7fzBYh4cpOYdT8LKO1miTixN0cQ6Bwc2Gedl0HW1cONmEqxUDF09IDHj2weW3B/uzq/9VzcnVepPVx7ZSq2322KYqsBtDdqt22W2BzXlNOueyxK/M5pdkz+XmK1Him7VkeLPXL8lf1JJ8Ieudvt7pl/x/ofXqm2af3/A3/xtHtvfprU8Ax4NmIHA7gxo6LD4JHX6CQomBxvvHwOA9YtAszxbrmgGvnsg2JsNFLjdkTZRERdREQ2yI7ZOiInJijoepiBwPkxGSqIg5Xq6Om03eHoOjlneeY//SAaefcV1Ze+SYht6d5uTyKSxreC6/",
   "file_map": {
     "50": {
       "source": "fn main(mut array: [Field; 2], i: u32) {\n    assert_eq(array[i - 1], 5);\n    assert_eq(array[i], 10);\n\n    array[i] = 2;\n\n    let array2 = [array, array];\n\n    assert_eq(array2[0][0], 5);\n    assert_eq(array2[0][i], 2);\n    assert_eq(array2[i][0], 5);\n    assert_eq(array2[i][i], 2);\n}\n",
