@@ -54,7 +54,7 @@ libraries:
     critical: false
   sha256:
     repo: noir-lang/sha256
-    timeout: 3
+    timeout: 10
     critical: true
   sha512:
     repo: noir-lang/sha512
