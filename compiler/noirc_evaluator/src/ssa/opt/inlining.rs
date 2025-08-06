@@ -1098,12 +1098,12 @@ mod test {
             jmp b3()
           b3():
             jmp b4(Field 1)
-          b4(v2: Field):
+          b4(v1: Field):
             jmp b5()
           b5():
             jmp b6(Field 2)
-          b6(v3: Field):
-            return v0, v2, v3
+          b6(v2: Field):
+            return v0, v1, v2
         }
         ");
     }
@@ -1214,6 +1214,7 @@ mod test {
         g0 = Field 1
         g1 = Field 2
         g2 = make_array [Field 1, Field 2] : [Field; 2]
+
         acir(inline) fn main f0 {
           b0():
             v0 = call f1() -> [Field; 2]
@@ -1233,6 +1234,7 @@ mod test {
         g0 = Field 1
         g1 = Field 2
         g2 = make_array [Field 1, Field 2] : [Field; 2]
+
         acir(inline) fn main f0 {
           b0():
             v3 = make_array [Field 1, Field 2] : [Field; 2]
@@ -1247,6 +1249,7 @@ mod test {
         g0 = Field 1
         g1 = Field 2
         g2 = make_array [Field 1, Field 2] : [Field; 2]
+
         brillig(inline) fn main f0 {
           b0():
             v0 = call f1() -> [Field; 2]
@@ -1266,6 +1269,7 @@ mod test {
         g0 = Field 1
         g1 = Field 2
         g2 = make_array [Field 1, Field 2] : [Field; 2]
+
         brillig(inline) fn main f0 {
           b0():
             return g2
@@ -1277,6 +1281,7 @@ mod test {
     fn acir_global_constants_are_inlined_with_new_value_ids() {
         let src = "
         g0 = Field 1
+
         acir(inline) fn main f0 {
           b0():
             v0 = call f1() -> Field
@@ -1304,6 +1309,7 @@ mod test {
 
         assert_ssa_snapshot!(ssa, @r"
         g0 = Field 1
+
         acir(inline) fn main f0 {
           b0():
             return Field 1
@@ -1342,6 +1348,7 @@ mod test {
 
         assert_ssa_snapshot!(ssa, @r"
         g0 = Field 1
+        
         brillig(inline) fn main f0 {
           b0():
             return Field 1
