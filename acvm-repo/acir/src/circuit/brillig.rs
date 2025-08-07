@@ -41,6 +41,19 @@ pub enum BrilligInputs<F> {
     MemoryArray(BlockId),
 }
 
+impl<F: std::fmt::Display> std::fmt::Display for BrilligInputs<F> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            BrilligInputs::Single(expr) => write!(f, "{expr}"),
+            BrilligInputs::Array(exprs) => {
+                let joined = exprs.iter().map(|e| format!("{e}")).collect::<Vec<_>>().join(", ");
+                write!(f, "[{joined}]")
+            }
+            BrilligInputs::MemoryArray(block_id) => write!(f, "MemoryArray({})", block_id.0),
+        }
+    }
+}
+
 /// Outputs for the Brillig VM. Once the VM has completed
 /// execution, this will be the object that is returned.
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Debug, Hash)]
@@ -48,6 +61,19 @@ pub enum BrilligInputs<F> {
 pub enum BrilligOutputs {
     Simple(Witness),
     Array(Vec<Witness>),
+}
+
+impl std::fmt::Display for BrilligOutputs {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            BrilligOutputs::Simple(witness) => write!(f, "{witness}"),
+            BrilligOutputs::Array(witnesses) => {
+                let joined =
+                    witnesses.iter().map(|w| format!("{w}")).collect::<Vec<_>>().join(", ");
+                write!(f, "[{joined}]")
+            }
+        }
+    }
 }
 
 /// This is purely a wrapper struct around a list of Brillig opcode's which represents

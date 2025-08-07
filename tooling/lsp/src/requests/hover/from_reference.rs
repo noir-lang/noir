@@ -27,25 +27,19 @@ use crate::{
 };
 
 pub(super) fn hover_from_reference(
-    file_id: Option<FileId>,
+    file_id: FileId,
     position: Position,
     args: &ProcessRequestCallbackArgs,
 ) -> Option<Hover> {
-    file_id
-        .and_then(|file_id| {
-            utils::position_to_byte_index(args.files, file_id, &position).and_then(|byte_index| {
-                let file = args.files.get_file(file_id).unwrap();
-                let source = file.source();
-                let (parsed_module, _errors) = noirc_frontend::parse_program(source, file_id);
+    utils::position_to_byte_index(args.files, file_id, &position)
+        .and_then(|byte_index| {
+            let file = args.files.get_file(file_id).unwrap();
+            let source = file.source();
+            let (parsed_module, _errors) = noirc_frontend::parse_program(source, file_id);
 
-                let mut finder = AttributeReferenceFinder::new(
-                    file_id,
-                    byte_index,
-                    args.crate_id,
-                    args.def_maps,
-                );
-                finder.find(&parsed_module)
-            })
+            let mut finder =
+                AttributeReferenceFinder::new(file_id, byte_index, args.crate_id, args.def_maps);
+            finder.find(&parsed_module)
         })
         .or_else(|| args.interner.reference_at_location(args.location))
         .and_then(|reference| {
