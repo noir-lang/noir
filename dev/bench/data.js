@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1754574993320,
+  "lastUpdate": 1754580305275,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -13331,48 +13331,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "637e0601aa5dc0baa29934783e6ff7fdf8e24133",
-          "message": "fix(mem2reg): Register aliases when the `IfElse` result in a reference (#9305)",
-          "timestamp": "2025-07-24T17:17:46Z",
-          "tree_id": "c1ebaee6a39867b1fe52c5d065533bd2bcdeb906",
-          "url": "https://github.com/noir-lang/noir/commit/637e0601aa5dc0baa29934783e6ff7fdf8e24133"
-        },
-        "date": 1753378998090,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 247126,
-            "range": "± 527",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 217529,
-            "range": "± 910",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2787308,
-            "range": "± 1433",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -15424,6 +15382,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2785543,
             "range": "± 4965",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "dad2f9b5cf5da1e936937d0932558d07f5112710",
+          "message": "chore: update ex in docs (#9385)",
+          "timestamp": "2025-08-07T14:56:37Z",
+          "tree_id": "3cb005be96d48349d34e525725c44eba2e201534",
+          "url": "https://github.com/noir-lang/noir/commit/dad2f9b5cf5da1e936937d0932558d07f5112710"
+        },
+        "date": 1754580287528,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 257686,
+            "range": "± 1232",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 230318,
+            "range": "± 4791",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2816999,
+            "range": "± 18934",
             "unit": "ns/iter"
           }
         ]
