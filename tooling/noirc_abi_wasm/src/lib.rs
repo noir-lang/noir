@@ -137,14 +137,15 @@ pub fn abi_decode_error(
     let mut abi: Abi =
         JsValueSerdeExt::into_serde(&JsValue::from(abi)).map_err(|err| err.to_string())?;
 
-    let raw_error: RawAssertionPayload<Vec<u8>> =
+    let raw_error: RawAssertionPayload<String> =
         JsValueSerdeExt::into_serde(&JsValue::from(raw_error)).map_err(|err| err.to_string())?;
-    // `FieldElement` is represented as a byte array in JS so we must convert these into `FieldElements` manually.
+    // `FieldElement` is represented as a string in JS so we must convert these into `FieldElements` manually.
     let error_data = raw_error
         .data
         .iter()
-        .map(|field| FieldElement::from_be_bytes_reduce(field))
-        .collect::<Vec<_>>();
+        .map(|field| FieldElement::from_hex(field))
+        .collect::<Option<Vec<_>>>()
+        .unwrap();
 
     let error_type = abi.error_types.remove(&raw_error.selector).expect("Missing error type");
     match error_type {
