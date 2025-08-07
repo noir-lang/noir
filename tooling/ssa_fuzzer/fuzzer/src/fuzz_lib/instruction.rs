@@ -86,7 +86,7 @@ pub(crate) enum Instruction {
     /// Get element from array, index is constant
     ArrayGetWithConstantIndex { array_index: usize, index: usize },
     /// Set element in array, index is constant
-    /// Value will be casted to the type of the array
+    /// Value will be cast to the type of the array
     ArraySetWithConstantIndex {
         array_index: usize,
         index: usize,
