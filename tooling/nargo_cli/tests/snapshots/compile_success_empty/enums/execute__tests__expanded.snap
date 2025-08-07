@@ -1,0 +1,361 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main() {
+    primitive_tests();
+    foo_tests();
+    option_tests();
+    abc_tests();
+    match_on_structs();
+}
+
+fn primitive_tests() {
+    let x: i32 = -2_i32;
+    {
+        let internal___variable: i32 = x;
+        match internal___variable {
+            -3 => fail(),
+            -2 => (),
+            0 => fail(),
+            2 => fail(),
+            _ => {
+                let _: i32 = internal___variable;
+                fail()
+            },
+        }
+    };
+    {
+        let internal___variable: bool = true;
+        match internal___variable {
+            false => fail(),
+            true => (),
+        }
+    };
+    let i64_min: i64 = I64_MIN;
+    {
+        let internal___variable: i64 = i64_min;
+        match internal___variable {
+            9223372036854775807 => fail(),
+            -9223372036854775807 => fail(),
+            0 => fail(),
+            -9223372036854775808 => (),
+            _ => {
+                let _: i64 = internal___variable;
+                fail()
+            },
+        }
+    }
+}
+
+global I64_MIN: i64 = -9223372036854775808;
+
+enum Foo<T> {
+    A(Field, Field),
+    B(u32),
+    C(T),
+    D(),
+    E,
+}
+
+fn foo_tests() {
+    let _a: Foo<u8> = Foo::A::<u8>(1_Field, 2_Field);
+    let _b: Foo<u16> = Foo::B(3_u32);
+    let _c: Foo<Field> = Foo::C(4_Field);
+    let _d: fn() -> Foo<(i32, i32)> = Foo::D;
+    let _d: Foo<(i32, i32)> = Foo::D();
+    let _e: Foo<u16> = Foo::<T>::E;
+    let _e: Foo<u32> = Foo::<T>::E;
+    let _many_cs: [Foo<Field>; 3] = [1_Field, 2_Field, 3_Field].map(Foo::C);
+    {
+        let internal___variable: Foo<u16> = _b;
+        match internal___variable {
+            Foo::<u16>::B(internal_match_variable_0) => {
+                let x: u32 = internal_match_variable_0;
+                {
+                    assert(x == 3_u32);
+                }
+            },
+            Foo::<u16>::C(internal_match_variable_0) => {
+                let _: u16 = internal_match_variable_0;
+                fail()
+            },
+            _ => {
+                let _: Foo<u16> = internal___variable;
+                fail()
+            },
+        }
+    };
+    {
+        let internal___variable: Foo<Field> = _c;
+        match internal___variable {
+            Foo::<Field>::A(internal_match_variable_0, internal_match_variable_1) => match internal_match_variable_0 {
+                1 => {
+                    let _: Field = internal_match_variable_1;
+                    fail()
+                },
+                _ => {
+                    let _: Foo<Field> = internal___variable;
+                    fail()
+                },
+            },
+            Foo::<Field>::B(internal_match_variable_0) => {
+                let _: Foo<Field> = internal___variable;
+                fail()
+            },
+            Foo::<Field>::C(internal_match_variable_0) => match internal_match_variable_0 {
+                4 => (),
+                _ => {
+                    let _: Field = internal_match_variable_0;
+                    fail()
+                },
+            },
+            Foo::<Field>::D => {
+                let _: Foo<Field> = internal___variable;
+                fail()
+            },
+            Foo::<Field>::E => fail(),
+        }
+    }
+}
+
+fn fail() {
+    assert(false);
+}
+
+enum MyOption<T> {
+    None,
+    Maybe,
+    Some(T),
+}
+
+fn option_tests() {
+    let opt: MyOption<ABC> = MyOption::Some(ABC::C);
+    {
+        let internal___variable: MyOption<ABC> = opt;
+        match internal___variable {
+            MyOption::<ABC>::Some(internal_match_variable_0) => match internal_match_variable_0 {
+                ABC::D => fail(),
+                _ => {
+                    let x: ABC = internal_match_variable_0;
+                    {
+                        assert(x == ABC::C);
+                    }
+                },
+            },
+            _ => {
+                let _: MyOption<ABC> = internal___variable;
+                ()
+            },
+        }
+    }
+}
+
+enum ABC {
+    A,
+    B,
+    C,
+    D,
+    E,
+    F,
+}
+
+impl Eq for ABC {
+    fn eq(self, other: Self) -> bool {
+        {
+            let internal___variable: (Self, Self) = (self, other);
+            match internal___variable {
+                (internal_match_variable_0, internal_match_variable_1) => match internal_match_variable_1 {
+                    Self::A => match internal_match_variable_0 {
+                        Self::A => true,
+                        _ => {
+                            let _: (Self, Self) = internal___variable;
+                            false
+                        },
+                    },
+                    Self::B => match internal_match_variable_0 {
+                        Self::B => true,
+                        _ => {
+                            let _: (Self, Self) = internal___variable;
+                            false
+                        },
+                    },
+                    Self::C => match internal_match_variable_0 {
+                        Self::C => true,
+                        _ => {
+                            let _: (Self, Self) = internal___variable;
+                            false
+                        },
+                    },
+                    Self::D => match internal_match_variable_0 {
+                        Self::D => true,
+                        _ => {
+                            let _: (Self, Self) = internal___variable;
+                            false
+                        },
+                    },
+                    Self::E => match internal_match_variable_0 {
+                        Self::E => true,
+                        Self::F => {
+                            let _: (Self, Self) = internal___variable;
+                            false
+                        },
+                        _ => {
+                            let _: (Self, Self) = internal___variable;
+                            false
+                        },
+                    },
+                    Self::F => match internal_match_variable_0 {
+                        Self::F => true,
+                        _ => {
+                            let _: (Self, Self) = internal___variable;
+                            false
+                        },
+                    },
+                },
+            }
+        }
+    }
+}
+
+fn abc_tests() {
+    let mut tuple: (ABC, ABC) = (ABC::A, ABC::B);
+    let _: Field = {
+        let internal___variable: (ABC, ABC) = tuple;
+        match internal___variable {
+            (internal_match_variable_0, internal_match_variable_1) => match internal_match_variable_0 {
+                ABC::A => {
+                    let _: ABC = internal_match_variable_1;
+                    1_Field
+                },
+                ABC::B => match internal_match_variable_1 {
+                    ABC::A => {
+                        let _: ABC = internal_match_variable_0;
+                        2_Field
+                    },
+                    ABC::B => {
+                        let _: ABC = internal_match_variable_0;
+                        3_Field
+                    },
+                    ABC::C => {
+                        let _: ABC = internal_match_variable_0;
+                        4_Field
+                    },
+                    ABC::D => {
+                        let _: ABC = internal_match_variable_0;
+                        5_Field
+                    },
+                    ABC::E => 6_Field,
+                    ABC::F => {
+                        let _: (ABC, ABC) = internal___variable;
+                        0_Field
+                    },
+                },
+                ABC::C => match internal_match_variable_1 {
+                    ABC::A => {
+                        let _: ABC = internal_match_variable_0;
+                        2_Field
+                    },
+                    ABC::B => {
+                        let _: ABC = internal_match_variable_0;
+                        3_Field
+                    },
+                    ABC::C => {
+                        let _: ABC = internal_match_variable_0;
+                        4_Field
+                    },
+                    ABC::D => {
+                        let _: ABC = internal_match_variable_0;
+                        5_Field
+                    },
+                    ABC::E => {
+                        let _: (ABC, ABC) = internal___variable;
+                        0_Field
+                    },
+                    ABC::F => 7_Field,
+                },
+                _ => match internal_match_variable_1 {
+                    ABC::A => {
+                        let _: ABC = internal_match_variable_0;
+                        2_Field
+                    },
+                    ABC::B => {
+                        let _: ABC = internal_match_variable_0;
+                        3_Field
+                    },
+                    ABC::C => {
+                        let _: ABC = internal_match_variable_0;
+                        4_Field
+                    },
+                    ABC::D => {
+                        let _: ABC = internal_match_variable_0;
+                        5_Field
+                    },
+                    _ => {
+                        let _: (ABC, ABC) = internal___variable;
+                        0_Field
+                    },
+                },
+            },
+        }
+    };
+}
+
+fn match_on_structs() {
+    let foo: MyStruct = MyStruct { x: 10_i32, y: 20_Field };
+    {
+        let internal___variable: MyStruct = foo;
+        match internal___variable {
+            MyStruct { x: internal_match_variable_0, y: internal_match_variable_1 } => {
+                let y: Field = internal_match_variable_1;
+                {
+                    let x: i32 = internal_match_variable_0;
+                    {
+                        assert(x == 10_i32);
+                        assert(y == 20_Field);
+                    }
+                }
+            },
+        }
+    };
+    {
+        let internal___variable: MyOption<MyStruct> = MyOption::Some(foo);
+        match internal___variable {
+            MyOption::<MyStruct>::None => fail(),
+            MyOption::<MyStruct>::Maybe => fail(),
+            MyOption::<MyStruct>::Some(internal_match_variable_0) => match internal_match_variable_0 {
+                MyStruct { x: internal_match_variable_0, y: internal_match_variable_1 } => {
+                    let y2: Field = internal_match_variable_1;
+                    {
+                        let x2: i32 = internal_match_variable_0;
+                        {
+                            assert(x2 == 10_i32);
+                            assert(y2 == 20_Field);
+                        }
+                    }
+                },
+            },
+        }
+    }
+}
+
+struct MyStruct {
+    x: i32,
+    y: Field,
+}
+
+pub fn match_on_u32_type_var(a: u32) {
+    for i in 0_u32..5_u32 {
+        let _: str<3> = {
+            let internal___variable: u32 = i;
+            match internal___variable {
+                1 => "one",
+                2 => "two",
+                _ => {
+                    let _: u32 = internal___variable;
+                    "???"
+                },
+            }
+        };
+    }
+}
