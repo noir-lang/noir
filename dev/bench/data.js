@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1754598081254,
+  "lastUpdate": 1754598083127,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -2558,40 +2558,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "d35a7674e3182c0a02f20a9d2d7c78646c9d59fb",
-          "message": "chore: graceful handling of SIGPIPE (#9075)",
-          "timestamp": "2025-07-25T08:36:24Z",
-          "tree_id": "bbab9c97cda4fd3776e318ba343fb7f12f7c6974",
-          "url": "https://github.com/noir-lang/noir/commit/d35a7674e3182c0a02f20a9d2d7c78646c9d59fb"
-        },
-        "date": 1753434247750,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.772,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 1.732,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -5101,6 +5067,90 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 1.863,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "20c37b27e9c1f9aba064fd18cb7f254e5d10fa39",
+          "message": "fix(ownership): Increment reference count for nested array get in LHS assignment (#9347)\n\nCo-authored-by: Jake Fecher <jfecher11@gmail.com>\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-08-07T19:49:30Z",
+          "tree_id": "973bec84ca534579358fdb43465a319fe9256a84",
+          "url": "https://github.com/noir-lang/noir/commit/20c37b27e9c1f9aba064fd18cb7f254e5d10fa39"
+        },
+        "date": 1754598065853,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1.814,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 7.976,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.298,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 15.86,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 13.74,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 21.48,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 215,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 201,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.438,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.42,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.77,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 1.586,
             "unit": "s"
           }
         ]
