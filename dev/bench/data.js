@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1754591067086,
+  "lastUpdate": 1754597740529,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -14006,48 +14006,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "d35a7674e3182c0a02f20a9d2d7c78646c9d59fb",
-          "message": "chore: graceful handling of SIGPIPE (#9075)",
-          "timestamp": "2025-07-25T08:36:24Z",
-          "tree_id": "bbab9c97cda4fd3776e318ba343fb7f12f7c6974",
-          "url": "https://github.com/noir-lang/noir/commit/d35a7674e3182c0a02f20a9d2d7c78646c9d59fb"
-        },
-        "date": 1753434111573,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 255586,
-            "range": "± 781",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 230849,
-            "range": "± 4120",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2812373,
-            "range": "± 1732",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -16099,6 +16057,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2788354,
             "range": "± 1555",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "20c37b27e9c1f9aba064fd18cb7f254e5d10fa39",
+          "message": "fix(ownership): Increment reference count for nested array get in LHS assignment (#9347)\n\nCo-authored-by: Jake Fecher <jfecher11@gmail.com>\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-08-07T19:49:30Z",
+          "tree_id": "973bec84ca534579358fdb43465a319fe9256a84",
+          "url": "https://github.com/noir-lang/noir/commit/20c37b27e9c1f9aba064fd18cb7f254e5d10fa39"
+        },
+        "date": 1754597722395,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 245343,
+            "range": "± 350",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 217270,
+            "range": "± 3886",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2814352,
+            "range": "± 2381",
             "unit": "ns/iter"
           }
         ]
