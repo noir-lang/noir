@@ -93,7 +93,7 @@ fn display_function(
         writeln!(f, "{} fn {} {} {{", function.runtime(), function.name(), function.id())?;
     }
 
-    for block_id in function.reachable_blocks() {
+    for (block_id, _) in function.dfg.basic_blocks_iter() {
         display_block(&function.dfg, block_id, files, f)?;
     }
     write!(f, "}}")
