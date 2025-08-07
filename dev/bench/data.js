@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1754552997627,
+  "lastUpdate": 1754553001317,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -17465,40 +17465,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "4609eb2930ea9af40de494f38035c15fb48dd66b",
-          "message": "fix: top-level item in dependency isn't always visible (#9295)",
-          "timestamp": "2025-07-24T14:55:16Z",
-          "tree_id": "edd620b1fa7567c8e4adcf89d64ae471e9241de4",
-          "url": "https://github.com/noir-lang/noir/commit/4609eb2930ea9af40de494f38035c15fb48dd66b"
-        },
-        "date": 1753370683809,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore-depth-10",
-            "value": 5763,
-            "unit": "opcodes"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 13173,
-            "unit": "opcodes"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jfecher11@gmail.com",
             "name": "jfecher",
             "username": "jfecher"
@@ -19648,6 +19614,90 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/be181ad7053d6f7cc2f178f90107bb85bcdaf120"
         },
         "date": 1754507136453,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 14792,
+            "unit": "opcodes"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 68868,
+            "unit": "opcodes"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 11176,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 221419,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 159972,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 68110,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 963865,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 965153,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1411,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-root",
+            "value": 2631,
+            "unit": "opcodes"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 5763,
+            "unit": "opcodes"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 13173,
+            "unit": "opcodes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "089ab402114be41570aa62a9c66b337e71b755db",
+          "message": "chore: error on non constant inputs for Pedersen generators (#9389)",
+          "timestamp": "2025-08-07T07:18:27Z",
+          "tree_id": "99db793d908882666fb11b61ba4271aa6b9b28a5",
+          "url": "https://github.com/noir-lang/noir/commit/089ab402114be41570aa62a9c66b337e71b755db"
+        },
+        "date": 1754552983494,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
