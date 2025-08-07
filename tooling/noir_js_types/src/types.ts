@@ -31,7 +31,7 @@ export type AbiErrorType =
 // The payload for a raw assertion error returned on execution.
 export type RawAssertionPayload = {
   selector: string;
-  data: string[];
+  data: Uint8Array[];
 };
 
 /** An id for a file. It's assigned during compilation. */
