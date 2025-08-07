@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1754580629501,
+  "lastUpdate": 1754580631300,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -17785,40 +17785,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "637e0601aa5dc0baa29934783e6ff7fdf8e24133",
-          "message": "fix(mem2reg): Register aliases when the `IfElse` result in a reference (#9305)",
-          "timestamp": "2025-07-24T17:17:46Z",
-          "tree_id": "c1ebaee6a39867b1fe52c5d065533bd2bcdeb906",
-          "url": "https://github.com/noir-lang/noir/commit/637e0601aa5dc0baa29934783e6ff7fdf8e24133"
-        },
-        "date": 1753379135255,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore-depth-10",
-            "value": 5763,
-            "unit": "opcodes"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 13173,
-            "unit": "opcodes"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -20068,6 +20034,90 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/e30c3a128aa9a1fd438e278c9fde35cea7bff78e"
         },
         "date": 1754574510343,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 14792,
+            "unit": "opcodes"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 68868,
+            "unit": "opcodes"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 11176,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 221419,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 159972,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 68110,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 963865,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 965153,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1411,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-root",
+            "value": 2631,
+            "unit": "opcodes"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 5763,
+            "unit": "opcodes"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 13173,
+            "unit": "opcodes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "dad2f9b5cf5da1e936937d0932558d07f5112710",
+          "message": "chore: update ex in docs (#9385)",
+          "timestamp": "2025-08-07T14:56:37Z",
+          "tree_id": "3cb005be96d48349d34e525725c44eba2e201534",
+          "url": "https://github.com/noir-lang/noir/commit/dad2f9b5cf5da1e936937d0932558d07f5112710"
+        },
+        "date": 1754580612120,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
