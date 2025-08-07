@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1754552991483,
+  "lastUpdate": 1754552997627,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -4560,40 +4560,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "4609eb2930ea9af40de494f38035c15fb48dd66b",
-          "message": "fix: top-level item in dependency isn't always visible (#9295)",
-          "timestamp": "2025-07-24T14:55:16Z",
-          "tree_id": "edd620b1fa7567c8e4adcf89d64ae471e9241de4",
-          "url": "https://github.com/noir-lang/noir/commit/4609eb2930ea9af40de494f38035c15fb48dd66b"
-        },
-        "date": 1753370682151,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.02,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 0.1,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jfecher11@gmail.com",
             "name": "jfecher",
             "username": "jfecher"
@@ -6693,6 +6659,80 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 0.092,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "089ab402114be41570aa62a9c66b337e71b755db",
+          "message": "chore: error on non constant inputs for Pedersen generators (#9389)",
+          "timestamp": "2025-08-07T07:18:27Z",
+          "tree_id": "99db793d908882666fb11b61ba4271aa6b9b28a5",
+          "url": "https://github.com/noir-lang/noir/commit/089ab402114be41570aa62a9c66b337e71b755db"
+        },
+        "date": 1754552980239,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.015,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.155,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.01,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.269,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.161,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 13.2,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.002,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.004,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.019,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 0.118,
             "unit": "s"
           }
         ]
