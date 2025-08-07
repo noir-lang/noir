@@ -355,7 +355,8 @@ impl Context {
             LValue::Index { array, index, element_type: _, location: _ } => {
                 self.handle_expression(index);
                 self.handle_lvalue(array);
-                if !matches!(array.as_ref(), LValue::Ident(_)) {
+
+                if contains_dereference_or_index(array) {
                     **array = LValue::Clone(array.clone());
                 }
             }
@@ -369,6 +370,15 @@ impl Context {
             // handle the corresponding lvalue
             LValue::Clone(_) => unreachable!("LValue::Clone should only be inserted by this pass"),
         }
+    }
+}
+
+fn contains_dereference_or_index(lvalue: &LValue) -> bool {
+    match lvalue {
+        LValue::Ident(_) => false,
+        LValue::Index { .. } | LValue::Dereference { .. } => true,
+        LValue::MemberAccess { object, .. } => contains_dereference_or_index(object),
+        LValue::Clone(lvalue) => contains_dereference_or_index(lvalue),
     }
 }
 
