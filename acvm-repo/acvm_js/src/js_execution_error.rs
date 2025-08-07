@@ -11,7 +11,7 @@ use wasm_bindgen::prelude::{JsValue, wasm_bindgen};
 const EXECUTION_ERROR: &'static str = r#"
 export type RawAssertionPayload = {
     selector: string;
-    data: string[];
+    data: UInt8Array[];
 };
 
 export type ExecutionError = Error & {
