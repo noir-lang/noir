@@ -3580,9 +3580,9 @@
             Intrinsic::IsUnconstrained =&gt; {
                 <span class="macro">unreachable!</span>(<span class="string">"Expected is_unconstrained to be removed by this point"</span>)
             }
-            Intrinsic::DerivePedersenGenerators =&gt; {
-                <span class="macro">unreachable!</span>(<span class="string">"DerivePedersenGenerators can only be called with constants"</span>)
-            }
+            Intrinsic::DerivePedersenGenerators =&gt; <span class="prelude-val">Err</span>(RuntimeError::AssertConstantFailed {
+                call_stack: <span class="self">self</span>.acir_context.get_call_stack(),
+            }),
             Intrinsic::FieldLessThan =&gt; {
                 <span class="macro">unreachable!</span>(<span class="string">"FieldLessThan can only be called in unconstrained"</span>)
             }
