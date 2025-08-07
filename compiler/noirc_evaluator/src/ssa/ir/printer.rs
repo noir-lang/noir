@@ -15,7 +15,7 @@ use crate::ssa::{
 };
 
 use super::{
-    basic_block::BasicBlockId,
+    basic_block::{BasicBlock, BasicBlockId},
     dfg::DataFlowGraph,
     function::Function,
     instruction::{ConstrainError, Instruction, InstructionId, TerminatorInstruction},
@@ -93,8 +93,8 @@ fn display_function(
         writeln!(f, "{} fn {} {} {{", function.runtime(), function.name(), function.id())?;
     }
 
-    for (block_id, _) in function.dfg.basic_blocks_iter() {
-        display_block(&function.dfg, block_id, files, f)?;
+    for (block_id, block) in function.dfg.basic_blocks_iter() {
+        display_block(&function.dfg, block_id, block, files, f)?;
     }
     write!(f, "}}")
 }
@@ -103,11 +103,10 @@ fn display_function(
 fn display_block(
     dfg: &DataFlowGraph,
     block_id: BasicBlockId,
+    block: &BasicBlock,
     fm: Option<&fm::FileManager>,
     f: &mut Formatter,
 ) -> Result {
-    let block = &dfg[block_id];
-
     writeln!(f, "  {}({}):", block_id, value_list_with_types(dfg, block.parameters()))?;
 
     for instruction in block.instructions() {
