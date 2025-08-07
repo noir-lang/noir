@@ -325,7 +325,6 @@ impl<F: Copy> BlackBoxFuncCall<F> {
         match self {
             BlackBoxFuncCall::Blake2s { inputs, .. }
             | BlackBoxFuncCall::Blake3 { inputs, .. }
-            | BlackBoxFuncCall::BigIntFromLeBytes { inputs, .. }
             | BlackBoxFuncCall::Poseidon2Permutation { inputs, .. } => inputs.to_vec(),
 
             BlackBoxFuncCall::Keccakf1600 { inputs, .. } => inputs.to_vec(),
