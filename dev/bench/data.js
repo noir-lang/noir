@@ -1,42 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1754591045087,
+  "lastUpdate": 1754591064372,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "cb861f822639d790c8afc4de751fa513e810dcfa",
-          "message": "feat: return unsolvable opcode from `CircuitSimulator` (#8943)",
-          "timestamp": "2025-07-25T08:15:05Z",
-          "tree_id": "1b4d81e4f325b33fdae535cc121b071cf9f6b7e4",
-          "url": "https://github.com/noir-lang/noir/commit/cb861f822639d790c8afc4de751fa513e810dcfa"
-        },
-        "date": 1753433024263,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore_depth_10",
-            "value": 104.56,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 234.55,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -2499,6 +2465,90 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512_100_bytes",
             "value": 234.77,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c121513e7b2a3971cacf28f41eebf546918ef7e5",
+          "message": "chore: add some mem2reg unit tests (#9405)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
+          "timestamp": "2025-08-07T17:40:55Z",
+          "tree_id": "fd3f9f5a3b667c840e2d5c9ce14dfc20771ccc5b",
+          "url": "https://github.com/noir-lang/noir/commit/c121513e7b2a3971cacf28f41eebf546918ef7e5"
+        },
+        "date": 1754591046773,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 238.24,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 547.36,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 212.08,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 1340,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 1420,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 1090,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 9340,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 9340,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 330.64,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 339.63,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 104.73,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 234.75,
             "unit": "MB"
           }
         ]
