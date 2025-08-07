@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1754581455478,
+  "lastUpdate": 1754589297446,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -13651,48 +13651,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "42429ab17ac240f924754340b2d55d97b056d00e",
-          "message": "fix: allow nested fmtstr (#9309)",
-          "timestamp": "2025-07-24T19:50:38Z",
-          "tree_id": "eef2ee8f328460e75cddc2360aa22de358609603",
-          "url": "https://github.com/noir-lang/noir/commit/42429ab17ac240f924754340b2d55d97b056d00e"
-        },
-        "date": 1753388211573,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 267786,
-            "range": "± 1095",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 237810,
-            "range": "± 2099",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2816447,
-            "range": "± 854",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -15744,6 +15702,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2787242,
             "range": "± 12933",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "f90c10aa876f4d46fb89474b0f9af68aecd26e15",
+          "message": "chore(as_slice_length): Various unit tests (#9419)",
+          "timestamp": "2025-08-07T17:24:01Z",
+          "tree_id": "322f8701f624535c5e32cd1ea97aaf7311f9f992",
+          "url": "https://github.com/noir-lang/noir/commit/f90c10aa876f4d46fb89474b0f9af68aecd26e15"
+        },
+        "date": 1754589279666,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 252622,
+            "range": "± 807",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 221664,
+            "range": "± 2830",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2788965,
+            "range": "± 7674",
             "unit": "ns/iter"
           }
         ]
