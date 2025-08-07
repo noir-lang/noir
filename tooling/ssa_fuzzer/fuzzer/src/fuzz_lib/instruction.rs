@@ -81,7 +81,7 @@ pub(crate) enum Instruction {
     /// Get element from array, index will be casted to u32, only for arrays without references
     ArrayGet { array_index: usize, index: Argument },
     /// Set element in array, index will be casted to u32, only for arrays without references
-    /// Value will be casted to the type of the array
+    /// Value will be cast to the type of the array
     ArraySet { array_index: usize, index: Argument, value_index: usize, mutable: bool },
     /// Get element from array, index is constant
     ArrayGetWithConstantIndex { array_index: usize, index: usize },
