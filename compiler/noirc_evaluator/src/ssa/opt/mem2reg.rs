@@ -1469,7 +1469,7 @@ mod tests {
 
     #[test]
     fn does_not_remove_store_to_return_value() {
-        // The last store can't be removed as it stores a value in a function parameter
+        // The last store can't be removed as it stores into a reference that is returned
         let src = "
         acir(inline) fn main f0 {
           b0():
