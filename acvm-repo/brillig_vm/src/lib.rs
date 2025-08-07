@@ -17,7 +17,7 @@ use acir::brillig::{
 };
 use acvm_blackbox_solver::BlackBoxFunctionSolver;
 use arithmetic::{BrilligArithmeticError, evaluate_binary_field_op, evaluate_binary_int_op};
-use black_box::{BrilligBigIntSolver, evaluate_black_box};
+use black_box::evaluate_black_box;
 
 // Re-export `brillig`.
 pub use acir::brillig;
@@ -144,8 +144,6 @@ pub struct VM<'a, F, B: BlackBoxFunctionSolver<F>> {
     call_stack: Vec<usize>,
     /// The solver for blackbox functions
     black_box_solver: &'a B,
-    // The solver for big integers, it is used by the blackbox solver
-    bigint_solver: BrilligBigIntSolver,
     // Flag that determines whether we want to profile VM.
     profiling_active: bool,
     // Samples for profiling the VM execution.
@@ -176,8 +174,6 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
             }
             None => (false, Vec::new(), HashMap::new()),
         };
-        let bigint_solver =
-            BrilligBigIntSolver::with_pedantic_solving(black_box_solver.pedantic_solving());
         Self {
             calldata,
             program_counter: 0,
@@ -188,7 +184,6 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
             memory: Memory::default(),
             call_stack: Vec::new(),
             black_box_solver,
-            bigint_solver,
             profiling_active,
             profiling_samples: Vec::with_capacity(bytecode.len()),
             fuzzing_active,
@@ -610,12 +605,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                 self.increment_program_counter()
             }
             Opcode::BlackBox(black_box_op) => {
-                match evaluate_black_box(
-                    black_box_op,
-                    self.black_box_solver,
-                    &mut self.memory,
-                    &mut self.bigint_solver,
-                ) {
+                match evaluate_black_box(black_box_op, self.black_box_solver, &mut self.memory) {
                     Ok(()) => self.increment_program_counter(),
                     Err(e) => self.fail(e.to_string()),
                 }

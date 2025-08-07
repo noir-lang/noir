@@ -197,15 +197,9 @@ message BlackBoxOp {
     EcdsaSecp256r1 ecdsa_secp256r1 = 6;
     MultiScalarMul multi_scalar_mul = 7;
     EmbeddedCurveAdd embedded_curve_add = 8;
-    BigIntAdd big_int_add = 9;
-    BigIntSub big_int_sub = 10;
-    BigIntMul big_int_mul = 11;
-    BigIntDiv big_int_div = 12;
-    BigIntFromLeBytes big_int_from_le_bytes = 13;
-    BigIntToLeBytes big_int_to_le_bytes = 14;
-    Poseidon2Permutation poseidon2_permutation = 15;
-    Sha256Compression sha256_compression = 16;
-    ToRadix to_radix = 17;
+    Poseidon2Permutation poseidon2_permutation = 9;
+    Sha256Compression sha256_compression = 10;
+    ToRadix to_radix = 11;
   }
   message AES128Encrypt {
     HeapVector inputs = 1;
@@ -253,35 +247,6 @@ message BlackBoxOp {
     MemoryAddress input2_y = 5;
     MemoryAddress input2_infinite = 6;
     HeapArray result = 7;
-  }
-  message BigIntAdd {
-    MemoryAddress lhs = 1;
-    MemoryAddress rhs = 2;
-    MemoryAddress output = 3;
-  }
-  message BigIntSub {
-    MemoryAddress lhs = 1;
-    MemoryAddress rhs = 2;
-    MemoryAddress output = 3;
-  }
-  message BigIntMul {
-    MemoryAddress lhs = 1;
-    MemoryAddress rhs = 2;
-    MemoryAddress output = 3;
-  }
-  message BigIntDiv {
-    MemoryAddress lhs = 1;
-    MemoryAddress rhs = 2;
-    MemoryAddress output = 3;
-  }
-  message BigIntFromLeBytes {
-    HeapVector inputs = 1;
-    HeapVector modulus = 2;
-    MemoryAddress output = 3;
-  }
-  message BigIntToLeBytes {
-    MemoryAddress input = 1;
-    HeapVector output = 2;
   }
   message Poseidon2Permutation {
     HeapVector message = 1;

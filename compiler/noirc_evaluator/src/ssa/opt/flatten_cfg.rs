@@ -1044,15 +1044,6 @@ impl<'f> Context<'f> {
                         BlackBoxFunc::RANGE => unreachable!(
                             "RANGE should have been converted into `Instruction::RangeCheck`"
                         ),
-
-                        BlackBoxFunc::BigIntAdd
-                        | BlackBoxFunc::BigIntSub
-                        | BlackBoxFunc::BigIntMul
-                        | BlackBoxFunc::BigIntDiv
-                        | BlackBoxFunc::BigIntFromLeBytes
-                        | BlackBoxFunc::BigIntToLeBytes => {
-                            todo!("BigInt opcodes are not supported yet")
-                        }
                     },
 
                     _ => Instruction::Call { func, arguments },

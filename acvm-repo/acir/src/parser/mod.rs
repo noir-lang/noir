@@ -433,14 +433,6 @@ impl<'a> Parser<'a> {
 
                 BlackBoxFuncCall::Sha256Compression { inputs, hash_values, outputs }
             }
-            BlackBoxFunc::BigIntAdd
-            | BlackBoxFunc::BigIntSub
-            | BlackBoxFunc::BigIntMul
-            | BlackBoxFunc::BigIntDiv
-            | BlackBoxFunc::BigIntFromLeBytes
-            | BlackBoxFunc::BigIntToLeBytes => {
-                unreachable!("Set to be removed, thus they are not implemented")
-            }
         };
         Ok(func)
     }

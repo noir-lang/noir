@@ -5,16 +5,12 @@ use acir::{
 };
 use acvm_blackbox_solver::{blake2s, blake3, keccakf1600};
 
-use self::{
-    aes128::solve_aes128_encryption_opcode, bigint::AcvmBigIntSolver,
-    hash::solve_poseidon2_permutation_opcode,
-};
+use self::{aes128::solve_aes128_encryption_opcode, hash::solve_poseidon2_permutation_opcode};
 
 use super::{OpcodeNotSolvable, OpcodeResolutionError, insert_value};
 use crate::{BlackBoxFunctionSolver, pwg::input_to_value};
 
 mod aes128;
-pub(crate) mod bigint;
 mod embedded_curve_ops;
 mod hash;
 mod logic;
@@ -70,7 +66,6 @@ pub(crate) fn solve<F: AcirField>(
     backend: &impl BlackBoxFunctionSolver<F>,
     initial_witness: &mut WitnessMap<F>,
     bb_func: &BlackBoxFuncCall<F>,
-    bigint_solver: &mut AcvmBigIntSolver,
 ) -> Result<(), OpcodeResolutionError<F>> {
     let inputs = bb_func.get_inputs_vec();
     if !contains_all_inputs(initial_witness, &inputs) {
@@ -151,18 +146,6 @@ pub(crate) fn solve<F: AcirField>(
         }
         // Recursive aggregation will be entirely handled by the backend and is not solved by the ACVM
         BlackBoxFuncCall::RecursiveAggregation { .. } => Ok(()),
-        BlackBoxFuncCall::BigIntAdd { lhs, rhs, output }
-        | BlackBoxFuncCall::BigIntSub { lhs, rhs, output }
-        | BlackBoxFuncCall::BigIntMul { lhs, rhs, output }
-        | BlackBoxFuncCall::BigIntDiv { lhs, rhs, output } => {
-            bigint_solver.bigint_op(*lhs, *rhs, *output, bb_func.get_black_box_func())
-        }
-        BlackBoxFuncCall::BigIntFromLeBytes { inputs, modulus, output } => {
-            bigint_solver.bigint_from_bytes(inputs, modulus, *output, initial_witness)
-        }
-        BlackBoxFuncCall::BigIntToLeBytes { input, outputs } => {
-            bigint_solver.bigint_to_bytes(*input, outputs, initial_witness)
-        }
         BlackBoxFuncCall::Sha256Compression { inputs, hash_values, outputs } => {
             solve_sha_256_permutation_opcode(initial_witness, inputs, hash_values, outputs)
         }

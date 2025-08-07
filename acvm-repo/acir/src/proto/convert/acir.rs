@@ -367,31 +367,6 @@ where
                 proof_type: *proof_type,
                 predicate: Self::encode_some(predicate),
             }),
-            opcodes::BlackBoxFuncCall::BigIntAdd { lhs, rhs, output } => {
-                Value::BigIntAdd(BigIntAdd { lhs: *lhs, rhs: *rhs, output: *output })
-            }
-            opcodes::BlackBoxFuncCall::BigIntSub { lhs, rhs, output } => {
-                Value::BigIntSub(BigIntSub { lhs: *lhs, rhs: *rhs, output: *output })
-            }
-            opcodes::BlackBoxFuncCall::BigIntMul { lhs, rhs, output } => {
-                Value::BigIntMul(BigIntMul { lhs: *lhs, rhs: *rhs, output: *output })
-            }
-            opcodes::BlackBoxFuncCall::BigIntDiv { lhs, rhs, output } => {
-                Value::BigIntDiv(BigIntDiv { lhs: *lhs, rhs: *rhs, output: *output })
-            }
-            opcodes::BlackBoxFuncCall::BigIntFromLeBytes { inputs, modulus, output } => {
-                Value::BigIntFromLeBytes(BigIntFromLeBytes {
-                    inputs: Self::encode_vec(inputs),
-                    modulus: modulus.clone(),
-                    output: *output,
-                })
-            }
-            opcodes::BlackBoxFuncCall::BigIntToLeBytes { input, outputs } => {
-                Value::BigIntToLeBytes(BigIntToLeBytes {
-                    input: *input,
-                    outputs: Self::encode_vec(outputs),
-                })
-            }
             opcodes::BlackBoxFuncCall::Poseidon2Permutation { inputs, outputs } => {
                 Value::Poseidon2Permutation(Poseidon2Permutation {
                     inputs: Self::encode_vec(inputs),
@@ -497,37 +472,6 @@ where
                             predicate: Self::decode_some_wrap(&v.predicate, "predicate")?,
                         })
                     }
-                    Value::BigIntAdd(v) => Ok(opcodes::BlackBoxFuncCall::BigIntAdd {
-                        lhs: v.lhs,
-                        rhs: v.rhs,
-                        output: v.output,
-                    }),
-                    Value::BigIntSub(v) => Ok(opcodes::BlackBoxFuncCall::BigIntSub {
-                        lhs: v.lhs,
-                        rhs: v.rhs,
-                        output: v.output,
-                    }),
-                    Value::BigIntMul(v) => Ok(opcodes::BlackBoxFuncCall::BigIntMul {
-                        lhs: v.lhs,
-                        rhs: v.rhs,
-                        output: v.output,
-                    }),
-                    Value::BigIntDiv(v) => Ok(opcodes::BlackBoxFuncCall::BigIntDiv {
-                        lhs: v.lhs,
-                        rhs: v.rhs,
-                        output: v.output,
-                    }),
-                    Value::BigIntFromLeBytes(v) => {
-                        Ok(opcodes::BlackBoxFuncCall::BigIntFromLeBytes {
-                            inputs: Self::decode_vec_wrap(&v.inputs, "inputs")?,
-                            modulus: v.modulus.clone(),
-                            output: v.output,
-                        })
-                    }
-                    Value::BigIntToLeBytes(v) => Ok(opcodes::BlackBoxFuncCall::BigIntToLeBytes {
-                        input: v.input,
-                        outputs: Self::decode_vec_wrap(&v.outputs, "outputs")?,
-                    }),
                     Value::Poseidon2Permutation(v) => {
                         Ok(opcodes::BlackBoxFuncCall::Poseidon2Permutation {
                             inputs: Self::decode_vec_wrap(&v.inputs, "inputs")?,

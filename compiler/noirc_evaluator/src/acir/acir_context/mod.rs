@@ -32,7 +32,6 @@ use crate::{
     errors::{InternalBug, InternalError, RuntimeError, SsaReport},
 };
 
-mod big_int;
 mod black_box;
 mod brillig_call;
 mod generated_acir;
@@ -41,7 +40,6 @@ use super::{
     AcirDynamicArray, AcirValue,
     types::{AcirType, AcirVar},
 };
-use big_int::BigIntContext;
 
 pub use generated_acir::GeneratedAcir;
 pub(crate) use generated_acir::{BrilligStdLib, BrilligStdlibFunc};
@@ -67,9 +65,6 @@ pub(crate) struct AcirContext<F: AcirField, B: BlackBoxFunctionSolver<F>> {
     /// addition.
     pub(super) acir_ir: GeneratedAcir<F>,
 
-    /// The BigIntContext, used to generate identifiers for BigIntegers
-    big_int_ctx: BigIntContext,
-
     expression_width: ExpressionWidth,
 
     pub(super) warnings: Vec<SsaReport>,
@@ -83,7 +78,6 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
             vars: Default::default(),
             constant_witnesses: Default::default(),
             acir_ir: Default::default(),
-            big_int_ctx: Default::default(),
             expression_width: Default::default(),
             warnings: Default::default(),
         }

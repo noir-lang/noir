@@ -235,18 +235,6 @@ pub enum BlackBoxFuncCall<F> {
         /// A predicate (true or false) to disable the recursive verification
         predicate: FunctionInput<F>,
     },
-    /// BigInt addition
-    BigIntAdd { lhs: u32, rhs: u32, output: u32 },
-    /// BigInt subtraction
-    BigIntSub { lhs: u32, rhs: u32, output: u32 },
-    /// BigInt multiplication
-    BigIntMul { lhs: u32, rhs: u32, output: u32 },
-    /// BigInt division
-    BigIntDiv { lhs: u32, rhs: u32, output: u32 },
-    /// BigInt from le bytes
-    BigIntFromLeBytes { inputs: Vec<FunctionInput<F>>, modulus: Vec<u8>, output: u32 },
-    /// BigInt to le bytes
-    BigIntToLeBytes { input: u32, outputs: Vec<Witness> },
     /// Applies the Poseidon2 permutation function to the given state,
     /// outputting the permuted state.
     Poseidon2Permutation {
@@ -287,12 +275,6 @@ impl<F> BlackBoxFuncCall<F> {
             BlackBoxFuncCall::EmbeddedCurveAdd { .. } => BlackBoxFunc::EmbeddedCurveAdd,
             BlackBoxFuncCall::Keccakf1600 { .. } => BlackBoxFunc::Keccakf1600,
             BlackBoxFuncCall::RecursiveAggregation { .. } => BlackBoxFunc::RecursiveAggregation,
-            BlackBoxFuncCall::BigIntAdd { .. } => BlackBoxFunc::BigIntAdd,
-            BlackBoxFuncCall::BigIntSub { .. } => BlackBoxFunc::BigIntSub,
-            BlackBoxFuncCall::BigIntMul { .. } => BlackBoxFunc::BigIntMul,
-            BlackBoxFuncCall::BigIntDiv { .. } => BlackBoxFunc::BigIntDiv,
-            BlackBoxFuncCall::BigIntFromLeBytes { .. } => BlackBoxFunc::BigIntFromLeBytes,
-            BlackBoxFuncCall::BigIntToLeBytes { .. } => BlackBoxFunc::BigIntToLeBytes,
             BlackBoxFuncCall::Poseidon2Permutation { .. } => BlackBoxFunc::Poseidon2Permutation,
             BlackBoxFuncCall::Sha256Compression { .. } => BlackBoxFunc::Sha256Compression,
         }
@@ -331,16 +313,9 @@ impl<F> BlackBoxFuncCall<F> {
             | BlackBoxFuncCall::EmbeddedCurveAdd { outputs, .. } => {
                 vec![outputs.0, outputs.1, outputs.2]
             }
-            BlackBoxFuncCall::RANGE { .. }
-            | BlackBoxFuncCall::RecursiveAggregation { .. }
-            | BlackBoxFuncCall::BigIntFromLeBytes { .. }
-            | BlackBoxFuncCall::BigIntAdd { .. }
-            | BlackBoxFuncCall::BigIntSub { .. }
-            | BlackBoxFuncCall::BigIntMul { .. }
-            | BlackBoxFuncCall::BigIntDiv { .. } => {
+            BlackBoxFuncCall::RANGE { .. } | BlackBoxFuncCall::RecursiveAggregation { .. } => {
                 vec![]
             }
-            BlackBoxFuncCall::BigIntToLeBytes { outputs, .. } => outputs.to_vec(),
         }
     }
 }
@@ -350,7 +325,6 @@ impl<F: Copy> BlackBoxFuncCall<F> {
         match self {
             BlackBoxFuncCall::Blake2s { inputs, .. }
             | BlackBoxFuncCall::Blake3 { inputs, .. }
-            | BlackBoxFuncCall::BigIntFromLeBytes { inputs, .. }
             | BlackBoxFuncCall::Poseidon2Permutation { inputs, .. } => inputs.to_vec(),
 
             BlackBoxFuncCall::Keccakf1600 { inputs, .. } => inputs.to_vec(),
@@ -368,11 +342,7 @@ impl<F: Copy> BlackBoxFuncCall<F> {
                 vec![*lhs, *rhs]
             }
             BlackBoxFuncCall::RANGE { input, .. } => vec![*input],
-            BlackBoxFuncCall::BigIntAdd { .. }
-            | BlackBoxFuncCall::BigIntSub { .. }
-            | BlackBoxFuncCall::BigIntMul { .. }
-            | BlackBoxFuncCall::BigIntDiv { .. }
-            | BlackBoxFuncCall::BigIntToLeBytes { .. } => Vec::new(),
+
             BlackBoxFuncCall::MultiScalarMul { points, scalars, .. } => {
                 let mut inputs: Vec<FunctionInput<F>> =
                     Vec::with_capacity(points.len() + scalars.len());
@@ -699,30 +669,6 @@ mod arb {
                     },
                 );
 
-            let big_int_args = (any::<u32>(), any::<u32>(), any::<u32>());
-
-            let case_big_int_add = big_int_args
-                .prop_map(|(lhs, rhs, output)| BlackBoxFuncCall::BigIntAdd { lhs, rhs, output });
-
-            let case_big_int_sub = big_int_args
-                .prop_map(|(lhs, rhs, output)| BlackBoxFuncCall::BigIntSub { lhs, rhs, output });
-
-            let case_big_int_mul = big_int_args
-                .prop_map(|(lhs, rhs, output)| BlackBoxFuncCall::BigIntMul { lhs, rhs, output });
-
-            let case_big_int_div = big_int_args
-                .prop_map(|(lhs, rhs, output)| BlackBoxFuncCall::BigIntDiv { lhs, rhs, output });
-
-            let case_big_int_from_le_bytes = (input_vec.clone(), any::<Vec<u8>>(), any::<u32>())
-                .prop_map(|(inputs, modulus, output)| BlackBoxFuncCall::BigIntFromLeBytes {
-                    inputs,
-                    modulus,
-                    output,
-                });
-
-            let case_big_int_to_le_bytes = (any::<u32>(), witness_vec.clone())
-                .prop_map(|(input, outputs)| BlackBoxFuncCall::BigIntToLeBytes { input, outputs });
-
             let case_poseidon2_permutation =
                 (input_vec.clone(), witness_vec.clone()).prop_map(|(inputs, outputs)| {
                     BlackBoxFuncCall::Poseidon2Permutation { inputs, outputs }
@@ -749,12 +695,6 @@ mod arb {
                 case_embedded_curve_add,
                 case_keccakf1600,
                 case_recursive_aggregation,
-                case_big_int_add,
-                case_big_int_sub,
-                case_big_int_mul,
-                case_big_int_div,
-                case_big_int_from_le_bytes,
-                case_big_int_to_le_bytes,
                 case_poseidon2_permutation,
                 case_sha256_compression,
             ]

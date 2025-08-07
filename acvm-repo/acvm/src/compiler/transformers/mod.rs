@@ -462,16 +462,6 @@ where
                 self.fold_input(key_hash);
                 self.fold_input(predicate);
             }
-            BlackBoxFuncCall::BigIntAdd { .. }
-            | BlackBoxFuncCall::BigIntSub { .. }
-            | BlackBoxFuncCall::BigIntMul { .. }
-            | BlackBoxFuncCall::BigIntDiv { .. } => {}
-            BlackBoxFuncCall::BigIntFromLeBytes { inputs, modulus: _, output: _ } => {
-                self.fold_inputs(inputs.as_slice());
-            }
-            BlackBoxFuncCall::BigIntToLeBytes { input: _, outputs } => {
-                self.fold_many(outputs.iter());
-            }
             BlackBoxFuncCall::Poseidon2Permutation { inputs, outputs } => {
                 self.fold_inputs(inputs.as_slice());
                 self.fold_many(outputs.iter());

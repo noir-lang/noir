@@ -15,9 +15,7 @@ use acir::{
 use acvm_blackbox_solver::BlackBoxResolutionError;
 use brillig_vm::BranchToFeatureMap;
 
-use self::{
-    arithmetic::ExpressionSolver, blackbox::bigint::AcvmBigIntSolver, memory_op::MemoryOpSolver,
-};
+use self::{arithmetic::ExpressionSolver, memory_op::MemoryOpSolver};
 use crate::BlackBoxFunctionSolver;
 
 use thiserror::Error;
@@ -211,8 +209,6 @@ pub struct ACVM<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> {
     /// Stores the solver for memory operations acting on blocks of memory disambiguated by [block][`BlockId`].
     block_solvers: HashMap<BlockId, MemoryOpSolver<F>>,
 
-    bigint_solver: AcvmBigIntSolver,
-
     /// A list of opcodes which are to be executed by the ACVM.
     opcodes: &'a [Opcode<F>],
     /// Index of the next opcode to be executed.
@@ -258,12 +254,10 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
         assertion_payloads: &'a [(OpcodeLocation, AssertionPayload<F>)],
     ) -> Self {
         let status = if opcodes.is_empty() { ACVMStatus::Solved } else { ACVMStatus::InProgress };
-        let bigint_solver = AcvmBigIntSolver::with_pedantic_solving(backend.pedantic_solving());
         ACVM {
             status,
             backend,
             block_solvers: HashMap::default(),
-            bigint_solver,
             opcodes,
             instruction_pointer: 0,
             witness_map: initial_witness,
@@ -424,12 +418,9 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
         let opcode = &self.opcodes[self.instruction_pointer];
         let resolution = match opcode {
             Opcode::AssertZero(expr) => ExpressionSolver::solve(&mut self.witness_map, expr),
-            Opcode::BlackBoxFuncCall(bb_func) => blackbox::solve(
-                self.backend,
-                &mut self.witness_map,
-                bb_func,
-                &mut self.bigint_solver,
-            ),
+            Opcode::BlackBoxFuncCall(bb_func) => {
+                blackbox::solve(self.backend, &mut self.witness_map, bb_func)
+            }
             Opcode::MemoryInit { block_id, init, .. } => {
                 let solver = self.block_solvers.entry(*block_id).or_default();
                 solver.init(init, &self.witness_map)
