@@ -337,7 +337,14 @@ fn find_variants(ssa: &Ssa) -> Variants {
     for (dispatch_signature, caller_runtime) in dynamic_dispatches {
         let target_fns =
             signature_to_functions_as_value.get(&dispatch_signature).cloned().unwrap_or_default();
-        variants.insert((dispatch_signature, caller_runtime), target_fns);
+        variants.insert(
+            (dispatch_signature, caller_runtime),
+            target_fns
+                .iter()
+                .filter(|f| ssa.functions[f].runtime() == caller_runtime)
+                .cloned()
+                .collect(),
+        );
     }
 
     // We will now have fully constructed our variants map and can return it
