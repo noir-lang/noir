@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1754590238473,
+  "lastUpdate": 1754590550075,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -2517,40 +2517,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "cb861f822639d790c8afc4de751fa513e810dcfa",
-          "message": "feat: return unsolvable opcode from `CircuitSimulator` (#8943)",
-          "timestamp": "2025-07-25T08:15:05Z",
-          "tree_id": "1b4d81e4f325b33fdae535cc121b071cf9f6b7e4",
-          "url": "https://github.com/noir-lang/noir/commit/cb861f822639d790c8afc4de751fa513e810dcfa"
-        },
-        "date": 1753432996849,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.78,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 1.559,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "d35a7674e3182c0a02f20a9d2d7c78646c9d59fb",
           "message": "chore: graceful handling of SIGPIPE (#9075)",
@@ -5001,6 +4967,90 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 1.604,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c121513e7b2a3971cacf28f41eebf546918ef7e5",
+          "message": "chore: add some mem2reg unit tests (#9405)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
+          "timestamp": "2025-08-07T17:40:55Z",
+          "tree_id": "fd3f9f5a3b667c840e2d5c9ce14dfc20771ccc5b",
+          "url": "https://github.com/noir-lang/noir/commit/c121513e7b2a3971cacf28f41eebf546918ef7e5"
+        },
+        "date": 1754590532491,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1.702,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 7.93,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.298,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 16.7,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 14.42,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 21.16,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 211,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 193,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.378,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.58,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.78,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 1.863,
             "unit": "s"
           }
         ]
