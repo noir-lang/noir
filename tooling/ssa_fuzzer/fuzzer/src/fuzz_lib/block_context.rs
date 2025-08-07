@@ -514,8 +514,11 @@ impl BlockContext {
                     Some(stored_array) => stored_array,
                     _ => return,
                 };
+                // references are not supported for array get with dynamic index
+                if stored_array.is_references {
+                    return;
+                }
                 let array_id = stored_array.array_id.clone();
-                println!("array_id: {:?}", array_id);
                 // get the index from the stored variables
                 let index = get_typed_value_from_map(
                     &self.stored_variables,
@@ -532,7 +535,6 @@ impl BlockContext {
                     index_casted.value_id,
                     brillig_builder.insert_cast(index.clone(), ValueType::U32).value_id
                 );
-                println!("index: {:?}", index);
                 // insert array get to both acir and brillig builders
                 let value = acir_builder.insert_array_get(
                     array_id.clone(),
@@ -549,21 +551,11 @@ impl BlockContext {
                         )
                         .value_id,
                 );
-                // if we storing references, append the value to memory addresses, otherwise to stored variables
-                if stored_array.is_references {
-                    append_typed_value_to_map(
-                        &mut self.memory_addresses,
-                        &value.to_value_type(),
-                        value.clone(),
-                    );
-                } else {
-                    append_typed_value_to_map(
-                        &mut self.stored_variables,
-                        &value.to_value_type(),
-                        value.clone(),
-                    );
-                }
-                println!("array_get: {:?}", value);
+                append_typed_value_to_map(
+                    &mut self.stored_variables,
+                    &value.to_value_type(),
+                    value.clone(),
+                );
             }
             Instruction::ArraySet { array_index, index, value_index, mutable } => {
                 if !self.options.instruction_options.array_set_enabled {
@@ -578,7 +570,10 @@ impl BlockContext {
                     Some(stored_array) => stored_array,
                     _ => return,
                 };
-                println!("stored_array: {:?}", stored_array);
+                // references are not supported for array set with dynamic index
+                if stored_array.is_references {
+                    return;
+                }
                 let array_id = stored_array.array_id.clone();
 
                 // get the index from the stored variables
@@ -628,6 +623,113 @@ impl BlockContext {
                     is_references: stored_array.is_references,
                 });
             }
+            Instruction::ArrayGetWithConstantIndex { array_index, index } => {
+                if !self.options.instruction_options.array_get_enabled {
+                    return;
+                }
+                println!("array_index: {:?}", array_index);
+                println!("index: {:?}", index);
+                if self.stored_arrays.is_empty() {
+                    return;
+                }
+                println!("stored_arrays: {:?}", self.stored_arrays);
+                // get the array from the stored arrays
+                let stored_array = self.stored_arrays.get(array_index % self.stored_arrays.len());
+                let stored_array = match stored_array {
+                    Some(stored_array) => stored_array,
+                    _ => return,
+                };
+                let index_id = acir_builder.insert_constant(index, ValueType::U32);
+                assert_eq!(
+                    index_id.value_id,
+                    brillig_builder.insert_constant(index, ValueType::U32).value_id
+                );
+                let value = acir_builder.insert_array_get(
+                    stored_array.array_id.clone(),
+                    index_id.clone(),
+                    stored_array.element_type.to_ssa_type(),
+                );
+                assert_eq!(
+                    value.value_id,
+                    brillig_builder
+                        .insert_array_get(
+                            stored_array.array_id.clone(),
+                            index_id.clone(),
+                            stored_array.element_type.to_ssa_type()
+                        )
+                        .value_id
+                );
+                if !stored_array.is_references {
+                    append_typed_value_to_map(
+                        &mut self.stored_variables,
+                        &value.to_value_type(),
+                        value.clone(),
+                    );
+                } else {
+                    append_typed_value_to_map(
+                        &mut self.memory_addresses,
+                        &value.to_value_type(),
+                        value.clone(),
+                    );
+                }
+                println!("value: {:?}", value);
+                println!("memory_addresses: {:?}", self.memory_addresses);
+            }
+            Instruction::ArraySetWithConstantIndex { array_index, index, value_index, mutable } => {
+                if !self.options.instruction_options.array_set_enabled {
+                    return;
+                }
+                if self.stored_arrays.is_empty() {
+                    return;
+                }
+                // get the array from the stored arrays
+                let stored_array = self.stored_arrays.get(array_index % self.stored_arrays.len());
+                let stored_array = match stored_array {
+                    Some(stored_array) => stored_array,
+                    _ => return,
+                };
+                let index_id = acir_builder.insert_constant(index, ValueType::U32);
+                assert_eq!(
+                    index_id.value_id,
+                    brillig_builder.insert_constant(index, ValueType::U32).value_id
+                );
+                // get the value from the stored variables if not references, otherwise from memory addresses
+                let value = if !stored_array.is_references {
+                    get_typed_value_from_map(
+                        &self.stored_variables,
+                        &stored_array.element_type,
+                        value_index,
+                    )
+                } else {
+                    get_typed_value_from_map(
+                        &self.memory_addresses,
+                        &stored_array.element_type,
+                        value_index,
+                    )
+                };
+                let value = match value {
+                    Some(value) => value,
+                    _ => return,
+                };
+                // insert array set to both acir and brillig builders
+                let new_array = acir_builder.insert_array_set(
+                    stored_array.array_id.clone(),
+                    index_id.clone(),
+                    value.clone(),
+                    mutable,
+                );
+                assert_eq!(
+                    new_array.value_id,
+                    brillig_builder
+                        .insert_array_set(stored_array.array_id.clone(), index_id, value, mutable)
+                        .value_id
+                );
+                self.stored_arrays.push(StoredArray {
+                    array_id: new_array,
+                    element_type: stored_array.element_type,
+                    is_references: stored_array.is_references,
+                });
+            }
         }
     }
 
@@ -638,6 +740,7 @@ impl BlockContext {
         instructions: &Vec<Instruction>,
     ) {
         for instruction in instructions {
+            println!("instruction: {:?}", instruction);
             self.insert_instruction(acir_builder, brillig_builder, instruction.clone());
         }
     }

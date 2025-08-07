@@ -420,7 +420,6 @@ impl FuzzerBuilder {
     ) -> TypedValue {
         assert!(index.type_of_variable == Type::Numeric(NumericType::Unsigned { bit_size: 32 }));
         let index_mod_len = self.insert_index_mod_array_length(index.clone(), array.clone());
-        println!("index_mod_len: {:?}", index_mod_len);
         let res = self.builder.insert_array_get(
             array.value_id,
             index_mod_len.value_id,

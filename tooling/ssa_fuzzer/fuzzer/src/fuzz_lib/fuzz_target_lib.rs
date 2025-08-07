@@ -830,13 +830,14 @@ mod tests {
     ///     b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: u1, v6: u1):
     ///       v7 = allocate -> &mut Field
     ///       store v0 at v7
-    ///       v8 = make_array [v7] : [&mut Field; 1]
+    ///       v8 = allocate -> &mut Field
+    ///       store v2 at v8
+    ///       v9 = make_array [v7, v8, v7] : [&mut Field; 3]
     ///       store v1 at v7
-    ///       v9 = truncate v0 to 32 bits, max_bit_size: 254
-    ///       v10 = cast v9 as u32
+    ///       v10 = make_array [v7, v7, v7] : [&mut Field; 3]  <----- set v9, index 1, value v7
     ///       jmp b1()
     ///     b1():
-    ///       v11 = load v7 -> Field
+    ///       v11 = load v7 -> Field <---- its optimized load v10[1]
     ///       return v11
     ///   }
     /// assert that return value is v1
@@ -845,33 +846,46 @@ mod tests {
         let _ = env_logger::try_init();
         let arg_0_field = Argument { index: 0, value_type: ValueType::Field };
         let arg_1_field = Argument { index: 1, value_type: ValueType::Field };
+        let arg_2_field = Argument { index: 2, value_type: ValueType::Field };
 
-        let load_to_memory_block =
+        let add_to_memory_block =
             InstructionBlock { instructions: vec![Instruction::AddToMemory { lhs: arg_0_field }] };
+        let add_to_memory_block_2 =
+            InstructionBlock { instructions: vec![Instruction::AddToMemory { lhs: arg_2_field }] };
         let set_to_memory_block = InstructionBlock {
             instructions: vec![Instruction::SetToMemory {
                 memory_addr_index: 0,
                 value: arg_1_field,
             }],
         };
+        let set_to_array_block = InstructionBlock {
+            instructions: vec![Instruction::ArraySetWithConstantIndex {
+                array_index: 0,
+                index: 1,
+                value_index: 0,
+                mutable: false,
+            }],
+        };
         let create_array_block = InstructionBlock {
             instructions: vec![Instruction::CreateArray {
-                elements_indices: vec![0],
+                elements_indices: vec![0, 1, 2],
                 element_type: ValueType::Field,
                 is_references: true,
             }],
         };
         let get_from_array_block = InstructionBlock {
-            instructions: vec![Instruction::ArrayGet { array_index: 0, index: arg_0_field }],
+            instructions: vec![Instruction::ArrayGetWithConstantIndex { array_index: 1, index: 1 }],
         };
-        let typed_memory_1 = Argument { index: 1, value_type: ValueType::Field };
+        let typed_memory_2 = Argument { index: 2, value_type: ValueType::Field };
         let load_from_memory_block = InstructionBlock {
-            instructions: vec![Instruction::LoadFromMemory { memory_addr: typed_memory_1 }],
+            instructions: vec![Instruction::LoadFromMemory { memory_addr: typed_memory_2 }],
         };
         let instructions_blocks = vec![
-            load_to_memory_block,
+            add_to_memory_block,
+            add_to_memory_block_2,
             create_array_block,
             set_to_memory_block,
+            set_to_array_block,
             get_from_array_block,
             load_from_memory_block,
         ];
@@ -880,10 +894,12 @@ mod tests {
             FuzzerFunctionCommand::InsertSimpleInstructionBlock { instruction_block_idx: 1 },
             FuzzerFunctionCommand::InsertSimpleInstructionBlock { instruction_block_idx: 2 },
             FuzzerFunctionCommand::InsertSimpleInstructionBlock { instruction_block_idx: 3 },
+            FuzzerFunctionCommand::InsertSimpleInstructionBlock { instruction_block_idx: 4 },
+            FuzzerFunctionCommand::InsertSimpleInstructionBlock { instruction_block_idx: 5 },
         ];
         let main_func = FunctionData {
             commands,
-            return_instruction_block_idx: 4,
+            return_instruction_block_idx: 6,
             return_type: ValueType::Field,
         };
         let fuzzer_data = FuzzerData {

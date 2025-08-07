@@ -78,11 +78,21 @@ pub(crate) enum Instruction {
     /// Create array, only type of first argument is used
     /// Other elements will be taken from stored variables of the same type
     CreateArray { elements_indices: Vec<usize>, element_type: ValueType, is_references: bool },
-    /// Get element from array, index will be casted to u32
+    /// Get element from array, index will be casted to u32, only for arrays without references
     ArrayGet { array_index: usize, index: Argument },
-    /// Set element in array, index will be casted to u32
+    /// Set element in array, index will be casted to u32, only for arrays without references
     /// Value will be casted to the type of the array
     ArraySet { array_index: usize, index: Argument, value_index: usize, mutable: bool },
+    /// Get element from array, index is constant
+    ArrayGetWithConstantIndex { array_index: usize, index: usize },
+    /// Set element in array, index is constant
+    /// Value will be casted to the type of the array
+    ArraySetWithConstantIndex {
+        array_index: usize,
+        index: usize,
+        value_index: usize,
+        mutable: bool,
+    },
 }
 
 /// Represents set of instructions
