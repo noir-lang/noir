@@ -1510,6 +1510,7 @@ mod tests {
         // We expect the program to be unchanged
         assert_normalized_ssa_equals(ssa, src);
     }
+
     #[test]
     fn removes_last_store_in_single_block() {
         // Even though v0 is a reference passed to a function, the store that comes next
