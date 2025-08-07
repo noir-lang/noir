@@ -910,7 +910,7 @@ mod test {
 
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.simplify_cfg();
-        
+
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn test f0 {
           b0():
@@ -942,6 +942,7 @@ mod test {
 
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.simplify_cfg();
+
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn test f0 {
           b0():
