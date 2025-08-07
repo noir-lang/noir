@@ -412,6 +412,9 @@ impl FuzzerBuilder {
         }
     }
 
+    /// Inserts an array get instruction
+    ///
+    /// Index must be u32 and will be taken modulo the array length
     pub fn insert_array_get(
         &mut self,
         array: TypedValue,
@@ -429,6 +432,9 @@ impl FuzzerBuilder {
         TypedValue::new(res, element_type)
     }
 
+    /// Inserts an array set instruction
+    ///
+    /// Index must be u32 and will be taken modulo the array length
     pub fn insert_array_set(
         &mut self,
         array: TypedValue,

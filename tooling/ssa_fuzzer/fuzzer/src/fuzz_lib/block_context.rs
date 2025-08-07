@@ -627,12 +627,9 @@ impl BlockContext {
                 if !self.options.instruction_options.array_get_enabled {
                     return;
                 }
-                println!("array_index: {:?}", array_index);
-                println!("index: {:?}", index);
                 if self.stored_arrays.is_empty() {
                     return;
                 }
-                println!("stored_arrays: {:?}", self.stored_arrays);
                 // get the array from the stored arrays
                 let stored_array = self.stored_arrays.get(array_index % self.stored_arrays.len());
                 let stored_array = match stored_array {
@@ -672,8 +669,6 @@ impl BlockContext {
                         value.clone(),
                     );
                 }
-                println!("value: {:?}", value);
-                println!("memory_addresses: {:?}", self.memory_addresses);
             }
             Instruction::ArraySetWithConstantIndex { array_index, index, value_index, mutable } => {
                 if !self.options.instruction_options.array_set_enabled {
@@ -740,7 +735,6 @@ impl BlockContext {
         instructions: &Vec<Instruction>,
     ) {
         for instruction in instructions {
-            println!("instruction: {:?}", instruction);
             self.insert_instruction(acir_builder, brillig_builder, instruction.clone());
         }
     }

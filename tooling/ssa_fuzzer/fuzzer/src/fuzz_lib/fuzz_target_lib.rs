@@ -837,7 +837,7 @@ mod tests {
     ///       v10 = make_array [v7, v7, v7] : [&mut Field; 3]  <----- set v9, index 1, value v7
     ///       jmp b1()
     ///     b1():
-    ///       v11 = load v7 -> Field <---- its optimized load v10[1]
+    ///       v11 = load v7 -> Field <---- its simplified from  v11 = v10[1]; v12 = load v11
     ///       return v11
     ///   }
     /// assert that return value is v1
