@@ -664,7 +664,20 @@
 <a href="#663" id="663">663</a>
 <a href="#664" id="664">664</a>
 <a href="#665" id="665">665</a>
-<a href="#666" id="666">666</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, collections::BTreeMap, fmt::Display};
+<a href="#666" id="666">666</a>
+<a href="#667" id="667">667</a>
+<a href="#668" id="668">668</a>
+<a href="#669" id="669">669</a>
+<a href="#670" id="670">670</a>
+<a href="#671" id="671">671</a>
+<a href="#672" id="672">672</a>
+<a href="#673" id="673">673</a>
+<a href="#674" id="674">674</a>
+<a href="#675" id="675">675</a>
+<a href="#676" id="676">676</a>
+<a href="#677" id="677">677</a>
+<a href="#678" id="678">678</a>
+<a href="#679" id="679">679</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, collections::BTreeMap, fmt::Display};
 
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::{
@@ -1055,9 +1068,22 @@
 </span><span class="attr">#[derive(Debug, Clone, Hash)]
 </span><span class="kw">pub enum </span>LValue {
     Ident(Ident),
-    Index { array: Box&lt;LValue&gt;, index: Box&lt;Expression&gt;, element_type: Type, location: Location },
-    MemberAccess { object: Box&lt;LValue&gt;, field_index: usize },
-    Dereference { reference: Box&lt;LValue&gt;, element_type: Type },
+    Index {
+        array: Box&lt;LValue&gt;,
+        index: Box&lt;Expression&gt;,
+        element_type: Type,
+        location: Location,
+    },
+    MemberAccess {
+        object: Box&lt;LValue&gt;,
+        field_index: usize,
+    },
+    Dereference {
+        reference: Box&lt;LValue&gt;,
+        element_type: Type,
+    },
+    <span class="doccomment">/// Analogous to Expression::Clone. Clone the resulting lvalue after evaluating it.
+    </span>Clone(Box&lt;LValue&gt;),
 }
 
 <span class="kw">pub type </span>Parameters =

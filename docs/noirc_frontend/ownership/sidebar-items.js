@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["clone_expr","contains_array_or_str_type","unwrap_tuple_type"],"mod":["last_uses"],"struct":["Context"]};
+window.SIDEBAR_ITEMS = {"fn":["clone_expr","contains_array_or_str_type","contains_index","unwrap_tuple_type"],"mod":["last_uses"],"struct":["Context"]};

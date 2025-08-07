@@ -330,7 +330,13 @@
 <a href="#329" id="329">329</a>
 <a href="#330" id="330">330</a>
 <a href="#331" id="331">331</a>
-<a href="#332" id="332">332</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::monomorphization::ast::{Expression, Ident, LValue, Literal};
+<a href="#332" id="332">332</a>
+<a href="#333" id="333">333</a>
+<a href="#334" id="334">334</a>
+<a href="#335" id="335">335</a>
+<a href="#336" id="336">336</a>
+<a href="#337" id="337">337</a>
+<a href="#338" id="338">338</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::monomorphization::ast::{Expression, Ident, LValue, Literal};
 
 <span class="doccomment">/// Visit all identifiers under the [Expression].
 </span><span class="kw">pub fn </span>visit_ident_mut&lt;V&gt;(expr: <span class="kw-2">&amp;mut </span>Expression, v: <span class="kw-2">&amp;mut </span>V)
@@ -498,6 +504,9 @@
         LValue::Dereference { reference, .. } =&gt; {
             visit_lvalue_mut(reference.as_mut(), b, e, i);
         }
+        LValue::Clone(lvalue) =&gt; {
+            visit_lvalue_mut(lvalue, b, e, i);
+        }
     }
 }
 
@@ -659,6 +668,9 @@
         }
         LValue::Dereference { reference, .. } =&gt; {
             visit_lvalue(reference.as_ref(), b, e, i);
+        }
+        LValue::Clone(lvalue) =&gt; {
+            visit_lvalue(lvalue, b, e, i);
         }
     }
 }

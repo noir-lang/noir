@@ -640,7 +640,14 @@
 <a href="#639" id="639">639</a>
 <a href="#640" id="640">640</a>
 <a href="#641" id="641">641</a>
-<a href="#642" id="642">642</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module implements printing of the monomorphized AST, for debugging purposes.
+<a href="#642" id="642">642</a>
+<a href="#643" id="643">643</a>
+<a href="#644" id="644">644</a>
+<a href="#645" id="645">645</a>
+<a href="#646" id="646">646</a>
+<a href="#647" id="647">647</a>
+<a href="#648" id="648">648</a>
+<a href="#649" id="649">649</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module implements printing of the monomorphized AST, for debugging purposes.
 
 </span><span class="kw">use crate</span>::{
     ast::UnaryOp,
@@ -1265,6 +1272,13 @@
             LValue::Dereference { reference, .. } =&gt; {
                 <span class="macro">write!</span>(f, <span class="string">"*"</span>)<span class="question-mark">?</span>;
                 <span class="self">self</span>.print_lvalue(reference, f)
+            }
+            LValue::Clone(lvalue) =&gt; {
+                <span class="self">self</span>.print_lvalue(lvalue, f)<span class="question-mark">?</span>;
+                <span class="kw">if </span><span class="self">self</span>.show_clone_and_drop {
+                    <span class="macro">write!</span>(f, <span class="string">".clone()"</span>)<span class="question-mark">?
+                </span>}
+                <span class="prelude-val">Ok</span>(())
             }
         }
     }

@@ -1090,7 +1090,16 @@
 <a href="#1089" id="1089">1089</a>
 <a href="#1090" id="1090">1090</a>
 <a href="#1091" id="1091">1091</a>
-<a href="#1092" id="1092">1092</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
+<a href="#1092" id="1092">1092</a>
+<a href="#1093" id="1093">1093</a>
+<a href="#1094" id="1094">1094</a>
+<a href="#1095" id="1095">1095</a>
+<a href="#1096" id="1096">1096</a>
+<a href="#1097" id="1097">1097</a>
+<a href="#1098" id="1098">1098</a>
+<a href="#1099" id="1099">1099</a>
+<a href="#1100" id="1100">1100</a>
+<a href="#1101" id="1101">1101</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
 <span class="kw">use </span>std::sync::{Arc, Mutex, RwLock};
 
 <span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
@@ -1836,6 +1845,7 @@
                 <span class="kw">let </span>(reference, <span class="kw">_</span>) = <span class="self">self</span>.extract_current_value_recursive(reference)<span class="question-mark">?</span>;
                 LValue::Dereference { reference }
             }
+            ast::LValue::Clone(lvalue) =&gt; <span class="self">self</span>.extract_current_value(lvalue)<span class="question-mark">?</span>,
         })
     }
 
@@ -1926,6 +1936,14 @@
                 <span class="kw">let </span>(reference, <span class="kw">_</span>) = <span class="self">self</span>.extract_current_value_recursive(reference)<span class="question-mark">?</span>;
                 <span class="kw">let </span>dereferenced = <span class="self">self</span>.dereference_lvalue(<span class="kw-2">&amp;</span>reference, element_type);
                 <span class="prelude-val">Ok</span>((dereferenced, LValue::Dereference { reference }))
+            }
+            ast::LValue::Clone(lvalue) =&gt; {
+                <span class="kw">let </span>(values, lvalue) = <span class="self">self</span>.extract_current_value_recursive(lvalue)<span class="question-mark">?</span>;
+                values.clone().for_each(|value| {
+                    <span class="kw">let </span>value = value.eval(<span class="self">self</span>);
+                    <span class="self">self</span>.builder.increment_array_reference_count(value);
+                });
+                <span class="prelude-val">Ok</span>((values, lvalue))
             }
         }
     }

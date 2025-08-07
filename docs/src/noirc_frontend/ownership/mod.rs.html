@@ -398,7 +398,25 @@
 <a href="#397" id="397">397</a>
 <a href="#398" id="398">398</a>
 <a href="#399" id="399">399</a>
-<a href="#400" id="400">400</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module implements the "ownership analysis" compiler pass on the
+<a href="#400" id="400">400</a>
+<a href="#401" id="401">401</a>
+<a href="#402" id="402">402</a>
+<a href="#403" id="403">403</a>
+<a href="#404" id="404">404</a>
+<a href="#405" id="405">405</a>
+<a href="#406" id="406">406</a>
+<a href="#407" id="407">407</a>
+<a href="#408" id="408">408</a>
+<a href="#409" id="409">409</a>
+<a href="#410" id="410">410</a>
+<a href="#411" id="411">411</a>
+<a href="#412" id="412">412</a>
+<a href="#413" id="413">413</a>
+<a href="#414" id="414">414</a>
+<a href="#415" id="415">415</a>
+<a href="#416" id="416">416</a>
+<a href="#417" id="417">417</a>
+<a href="#418" id="418">418</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module implements the "ownership analysis" compiler pass on the
 //! monomorphized AST. It is run after monomorphization and before SSA-gen.
 //! At this point the monomorphized AST has no polymorphic types and all functions
 //! are specialized into either constrained or unconstrained versions. This pass
@@ -755,6 +773,10 @@
             LValue::Index { array, index, element_type: <span class="kw">_</span>, location: <span class="kw">_ </span>} =&gt; {
                 <span class="self">self</span>.handle_expression(index);
                 <span class="self">self</span>.handle_lvalue(array);
+
+                <span class="kw">if </span>contains_index(array) {
+                    <span class="kw-2">**</span>array = LValue::Clone(array.clone());
+                }
             }
             LValue::MemberAccess { object, field_index: <span class="kw">_ </span>} =&gt; {
                 <span class="self">self</span>.handle_lvalue(object);
@@ -762,7 +784,21 @@
             LValue::Dereference { reference, element_type: <span class="kw">_ </span>} =&gt; {
                 <span class="self">self</span>.handle_lvalue(reference);
             }
+            <span class="comment">// LValue::Clone isn't present before this pass and is only inserted after we already
+            // handle the corresponding lvalue
+            </span>LValue::Clone(<span class="kw">_</span>) =&gt; <span class="macro">unreachable!</span>(<span class="string">"LValue::Clone should only be inserted by this pass"</span>),
         }
+    }
+}
+
+<span class="kw">fn </span>contains_index(lvalue: <span class="kw-2">&amp;</span>LValue) -&gt; bool {
+    <span class="kw">use </span>LValue::<span class="kw-2">*</span>;
+    <span class="kw">match </span>lvalue {
+        Ident(<span class="kw">_</span>) =&gt; <span class="bool-val">false</span>,
+        Index { .. } =&gt; <span class="bool-val">true</span>,
+        Dereference { reference: lvalue, .. }
+        | MemberAccess { object: lvalue, .. }
+        | Clone(lvalue) =&gt; contains_index(lvalue),
     }
 }
 
