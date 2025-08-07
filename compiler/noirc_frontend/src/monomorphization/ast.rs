@@ -389,9 +389,22 @@ pub struct BinaryStatement {
 #[derive(Debug, Clone, Hash)]
 pub enum LValue {
     Ident(Ident),
-    Index { array: Box<LValue>, index: Box<Expression>, element_type: Type, location: Location },
-    MemberAccess { object: Box<LValue>, field_index: usize },
-    Dereference { reference: Box<LValue>, element_type: Type },
+    Index {
+        array: Box<LValue>,
+        index: Box<Expression>,
+        element_type: Type,
+        location: Location,
+    },
+    MemberAccess {
+        object: Box<LValue>,
+        field_index: usize,
+    },
+    Dereference {
+        reference: Box<LValue>,
+        element_type: Type,
+    },
+    /// Analogous to Expression::Clone. Clone the resulting lvalue after evaluating it.
+    Clone(Box<LValue>),
 }
 
 pub type Parameters =

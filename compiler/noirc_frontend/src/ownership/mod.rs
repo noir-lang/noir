@@ -355,6 +355,10 @@ impl Context {
             LValue::Index { array, index, element_type: _, location: _ } => {
                 self.handle_expression(index);
                 self.handle_lvalue(array);
+
+                if contains_index(array) {
+                    **array = LValue::Clone(array.clone());
+                }
             }
             LValue::MemberAccess { object, field_index: _ } => {
                 self.handle_lvalue(object);
@@ -362,7 +366,21 @@ impl Context {
             LValue::Dereference { reference, element_type: _ } => {
                 self.handle_lvalue(reference);
             }
+            // LValue::Clone isn't present before this pass and is only inserted after we already
+            // handle the corresponding lvalue
+            LValue::Clone(_) => unreachable!("LValue::Clone should only be inserted by this pass"),
         }
+    }
+}
+
+fn contains_index(lvalue: &LValue) -> bool {
+    use LValue::*;
+    match lvalue {
+        Ident(_) => false,
+        Index { .. } => true,
+        Dereference { reference: lvalue, .. }
+        | MemberAccess { object: lvalue, .. }
+        | Clone(lvalue) => contains_index(lvalue),
     }
 }
 
