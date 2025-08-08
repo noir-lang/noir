@@ -348,11 +348,9 @@ impl<'a> FunctionContext<'a> {
         }
     }
 
-    /// Overflow checks for bit-shift
-    /// We use Rust behavior for bit-shift:
-    /// If rhs is more or equal than the bit size, then we overflow
-    /// If not, we do not overflow and shift with 0 when bits are falling out of the bit size
-    fn check_shift_overflow(&mut self, rhs: ValueId) {
+    /// Insert constraints ensuring that the right-hand side of a bit-shift operation
+    /// is less than the bit size of the left-hand side.
+    fn enforce_bitshift_rhs_lt_bit_size(&mut self, rhs: ValueId) {
         let one = self.builder.numeric_constant(FieldElement::one(), NumericType::bool());
         let rhs_type = self.builder.current_function.dfg.type_of_value(rhs);
 
@@ -403,7 +401,7 @@ impl<'a> FunctionContext<'a> {
                 result = self.check_overflow(result, operator);
             }
             BinaryOpKind::ShiftLeft | BinaryOpKind::ShiftRight => {
-                self.check_shift_overflow(rhs);
+                self.enforce_bitshift_rhs_lt_bit_size(rhs);
                 result = self.check_overflow(result, operator);
             }
             _ => (),
