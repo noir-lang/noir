@@ -732,6 +732,7 @@ impl<'a> NodeFinder<'a> {
 
                 if is_primitive
                     && !method_call_is_visible(
+                        self.self_type.as_ref(),
                         typ,
                         func_id,
                         self.module_id,
