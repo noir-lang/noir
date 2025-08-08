@@ -194,6 +194,7 @@ impl Comparable for ssa::interpreter::errors::InterpreterError {
                 BinaryOp::Add { unchecked: false } => msg == "attempt to add with overflow",
                 BinaryOp::Sub { unchecked: false } => msg == "attempt to subtract with overflow",
                 BinaryOp::Mul { unchecked: false } => msg == "attempt to multiply with overflow",
+                BinaryOp::Shl | BinaryOp::Shr => msg == "attempt to bit-shift with overflow",
                 _ => false,
             },
             (
