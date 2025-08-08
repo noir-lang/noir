@@ -360,7 +360,8 @@ impl<F: Copy> BlackBoxFuncCall<F> {
                 public_key_y,
                 signature,
                 hashed_message,
-                ..
+                predicate,
+                output: _,
             } => {
                 let mut inputs = Vec::with_capacity(
                     public_key_x.len()
@@ -372,6 +373,7 @@ impl<F: Copy> BlackBoxFuncCall<F> {
                 inputs.extend(public_key_y.iter().copied());
                 inputs.extend(signature.iter().copied());
                 inputs.extend(hashed_message.iter().copied());
+                inputs.push(*predicate);
                 inputs
             }
             BlackBoxFuncCall::EcdsaSecp256r1 {
@@ -379,7 +381,8 @@ impl<F: Copy> BlackBoxFuncCall<F> {
                 public_key_y,
                 signature,
                 hashed_message,
-                ..
+                predicate,
+                output: _,
             } => {
                 let mut inputs = Vec::with_capacity(
                     public_key_x.len()
@@ -391,6 +394,7 @@ impl<F: Copy> BlackBoxFuncCall<F> {
                 inputs.extend(public_key_y.iter().copied());
                 inputs.extend(signature.iter().copied());
                 inputs.extend(hashed_message.iter().copied());
+                inputs.push(*predicate);
                 inputs
             }
             BlackBoxFuncCall::RecursiveAggregation {

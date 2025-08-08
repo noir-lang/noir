@@ -347,6 +347,7 @@ impl<'a> Parser<'a> {
             BlackBoxFunc::EcdsaSecp256k1 => {
                 let mut inputs = self.parse_blackbox_inputs()?;
 
+                let predicate = self.try_extract_tail::<1, _>(&mut inputs, "predicate")?[0];
                 let hashed_message =
                     self.try_extract_tail::<32, _>(&mut inputs, "hashed_message")?;
                 let signature = self.try_extract_tail::<64, _>(&mut inputs, "signature")?;
@@ -356,7 +357,6 @@ impl<'a> Parser<'a> {
                 let outputs = self.parse_witness_vector()?;
                 self.expect_len(&outputs, 1, "EcdsaSecp256k1", true)?;
                 let output = outputs[0];
-                let predicate = inputs[4];
 
                 BlackBoxFuncCall::EcdsaSecp256k1 {
                     public_key_x,
@@ -370,6 +370,7 @@ impl<'a> Parser<'a> {
             BlackBoxFunc::EcdsaSecp256r1 => {
                 let mut inputs = self.parse_blackbox_inputs()?;
 
+                let predicate = self.try_extract_tail::<1, _>(&mut inputs, "predicate")?[0];
                 let hashed_message =
                     self.try_extract_tail::<32, _>(&mut inputs, "hashed_message")?;
                 let signature = self.try_extract_tail::<64, _>(&mut inputs, "signature")?;
@@ -379,7 +380,6 @@ impl<'a> Parser<'a> {
                 let outputs = self.parse_witness_vector()?;
                 self.expect_len(&outputs, 1, "EcdsaSecp256r1", true)?;
                 let output = outputs[0];
-                let predicate = inputs[4];
 
                 BlackBoxFuncCall::EcdsaSecp256r1 {
                     public_key_x,
