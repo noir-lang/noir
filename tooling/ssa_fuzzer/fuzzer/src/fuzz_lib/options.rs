@@ -70,9 +70,10 @@ pub(crate) struct FunctionContextOptions {
     pub(crate) instruction_options: InstructionOptions,
     /// Options for the fuzzer commands that can be used in the SSA block
     pub(crate) fuzzer_command_options: FuzzerCommandOptions,
-
     /// Maximum number of iterations in the program
     pub(crate) max_iterations_num: usize,
+    /// If false, we don't simplify the program
+    pub(crate) simplifying_enabled: bool,
 }
 
 impl From<FunctionContextOptions> for SsaBlockOptions {
@@ -121,6 +122,9 @@ pub(crate) enum FuzzerMode {
     /// Standard mode without DIE SSA passes
     #[allow(dead_code)]
     NonConstantWithoutDIE,
+    /// Standard mode without simplifying
+    #[allow(dead_code)]
+    NonConstantWithoutSimplifying,
 }
 
 #[derive(Clone)]
@@ -132,6 +136,7 @@ pub(crate) struct FuzzerOptions {
     pub(crate) instruction_options: InstructionOptions,
     pub(crate) fuzzer_command_options: FuzzerCommandOptions,
     pub(crate) modes: Vec<FuzzerMode>,
+    pub(crate) simplifying_enabled: bool,
 }
 
 impl Default for FuzzerOptions {
@@ -144,6 +149,7 @@ impl Default for FuzzerOptions {
             instruction_options: InstructionOptions::default(),
             fuzzer_command_options: FuzzerCommandOptions::default(),
             modes: vec![FuzzerMode::NonConstant],
+            simplifying_enabled: true,
         }
     }
 }
@@ -158,6 +164,7 @@ impl From<&FuzzerOptions> for FunctionContextOptions {
             instruction_options: options.instruction_options,
             fuzzer_command_options: options.fuzzer_command_options,
             max_iterations_num: options.max_iterations_num,
+            simplifying_enabled: options.simplifying_enabled,
         }
     }
 }

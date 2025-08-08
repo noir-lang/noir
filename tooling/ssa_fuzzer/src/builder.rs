@@ -36,18 +36,20 @@ pub struct FuzzerBuilder {
 
 impl FuzzerBuilder {
     /// Creates a new FuzzerBuilder in ACIR context
-    pub fn new_acir() -> Self {
+    pub fn new_acir(simplifying_enabled: bool) -> Self {
         let main_id: Id<Function> = Id::new(0);
         let mut builder = FunctionBuilder::new("main".into(), main_id);
         builder.set_runtime(RuntimeType::Acir(FrontendInlineType::default()));
+        builder.simplify = simplifying_enabled;
         Self { builder }
     }
 
     /// Creates a new FuzzerBuilder in Brillig context
-    pub fn new_brillig() -> Self {
+    pub fn new_brillig(simplifying_enabled: bool) -> Self {
         let main_id: Id<Function> = Id::new(0);
         let mut builder = FunctionBuilder::new("main".into(), main_id);
         builder.set_runtime(RuntimeType::Brillig(FrontendInlineType::default()));
+        builder.simplify = simplifying_enabled;
         Self { builder }
     }
 
