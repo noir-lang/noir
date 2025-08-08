@@ -1,42 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1754666551680,
+  "lastUpdate": 1754666555806,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "37e8b2dba771efa742a492b6cafe3cde7de63bc0",
-          "message": "fix: substitute bindings in type before canonicalization (#9328)",
-          "timestamp": "2025-07-25T18:22:41Z",
-          "tree_id": "8cb072e439cb2fd66348642cac8606e21ad872c2",
-          "url": "https://github.com/noir-lang/noir/commit/37e8b2dba771efa742a492b6cafe3cde7de63bc0"
-        },
-        "date": 1753469952062,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore_depth_10",
-            "value": 104.56,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 234.58,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -2699,6 +2665,90 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512_100_bytes",
             "value": 234.7,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "163862677+noirwhal@users.noreply.github.com",
+            "name": "noirwhal",
+            "username": "noirwhal"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a24cfcc3822da1b9db40b63f88e967ead2fabd68",
+          "message": "chore: Release Noir(1.0.0-beta.10) (#9311)\n\nCo-authored-by: noirwhal <tomfrench@aztecprotocol.com>",
+          "timestamp": "2025-08-08T14:41:03Z",
+          "tree_id": "c45fb2d8d702d4a24c1faac5613afad40b107a6b",
+          "url": "https://github.com/noir-lang/noir/commit/a24cfcc3822da1b9db40b63f88e967ead2fabd68"
+        },
+        "date": 1754666537539,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 238.18,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 547.36,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 212.08,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 1340,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 1420,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 1090,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 9340,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 9350,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 330.64,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 339.63,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 104.73,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 234.77,
             "unit": "MB"
           }
         ]
