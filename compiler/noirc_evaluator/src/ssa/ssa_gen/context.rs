@@ -393,18 +393,22 @@ impl<'a> FunctionContext<'a> {
 
         self.builder.set_location(location);
 
+        if matches!(operator, BinaryOpKind::ShiftLeft | BinaryOpKind::ShiftRight) {
+            self.enforce_bitshift_rhs_lt_bit_size(rhs);
+        };
+
         let mut result = self.builder.insert_binary(lhs, op, rhs);
 
         // Check for integer overflow
-        match operator {
-            BinaryOpKind::Add | BinaryOpKind::Subtract | BinaryOpKind::Multiply => {
-                result = self.check_overflow(result, operator);
-            }
-            BinaryOpKind::ShiftLeft | BinaryOpKind::ShiftRight => {
-                self.enforce_bitshift_rhs_lt_bit_size(rhs);
-                result = self.check_overflow(result, operator);
-            }
-            _ => (),
+        if matches!(
+            operator,
+            BinaryOpKind::Add
+                | BinaryOpKind::Subtract
+                | BinaryOpKind::Multiply
+                | BinaryOpKind::ShiftLeft
+                | BinaryOpKind::ShiftRight
+        ) {
+            result = self.check_overflow(result, operator);
         };
 
         if operator_requires_not(operator) {
