@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1754654971339,
+  "lastUpdate": 1754654994258,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -16338,40 +16338,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "8f21710d7d1494c711e33aceba37391650996b9c",
-          "message": "fix: wildcard type should be allowed in lambda parameter types (#9325)",
-          "timestamp": "2025-07-25T14:18:01Z",
-          "tree_id": "2061667d669fcbfcd9c0023de96752dbad588908",
-          "url": "https://github.com/noir-lang/noir/commit/8f21710d7d1494c711e33aceba37391650996b9c"
-        },
-        "date": 1753454762645,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore-depth-10",
-            "value": 632.1,
-            "unit": "KB"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 525.2,
-            "unit": "KB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -18871,6 +18837,90 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/20c37b27e9c1f9aba064fd18cb7f254e5d10fa39"
         },
         "date": 1754598079419,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 712.6,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 2036.6,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 539.3,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 4318.2,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 3330.5,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 3842.9,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 30725.4,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 30773.9,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 185.9,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 391.2,
+            "unit": "KB"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 632.1,
+            "unit": "KB"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 525.2,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b7406ba8f22e15d17726849591e75eabaf2b396b",
+          "message": "chore: add link to issue on TODOs (#8307)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>\nCo-authored-by: Michael J Klein <michaeljklein@users.noreply.github.com>\nCo-authored-by: Michael J. Klein <lambdamichael@gmail.com>",
+          "timestamp": "2025-08-08T12:54:07+01:00",
+          "tree_id": "cf8ecd8272d48ebbe18f702433bb2ead4c5a7e16",
+          "url": "https://github.com/noir-lang/noir/commit/b7406ba8f22e15d17726849591e75eabaf2b396b"
+        },
+        "date": 1754654977236,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
