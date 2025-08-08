@@ -7,7 +7,7 @@
 //! - The function only has a single block (e.g. no control flow or conditional branches)
 //! - It is not marked with the [no predicates inline type][noirc_frontend::monomorphization::ast::InlineType::NoPredicates]
 
-use iter_extended::btree_map;
+use iter_extended::try_btree_map;
 
 use crate::ssa::{
     RuntimeError,
@@ -68,24 +68,11 @@ impl Ssa {
 
             true
         };
-
-        let mut result: Option<RuntimeError> = None;
-        self.functions = btree_map(&self.functions, |(id, function)| {
+        self.functions = try_btree_map(&self.functions, |(id, function)| {
             let inlined = function.inlined(&self, &should_inline_call);
-            (
-                *id,
-                if let Ok(new_function) = inlined {
-                    new_function
-                } else {
-                    result = inlined.err();
-                    function.clone()
-                },
-            )
-        });
+            inlined.map(|new_function| (*id, new_function))
+        })?;
 
-        if let Some(result) = result {
-            return Err(result);
-        }
         Ok(self)
     }
 }
