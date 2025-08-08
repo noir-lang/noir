@@ -1,4 +1,3 @@
-
 // docs:start:ecdsa_secp256k1
 /// Verifies a ECDSA signature over the secp256k1 curve.
 /// - inputs:
@@ -33,8 +32,7 @@ fn _verify_signature<let N: u32>(
     signature: [u8; 64],
     message_hash: [u8; N],
     predicate: bool,
-) -> bool
-{}
+) -> bool {}
 
 // docs:start:ecdsa_secp256k1_slice
 pub fn verify_signature_slice(
@@ -42,7 +40,6 @@ pub fn verify_signature_slice(
     public_key_y: [u8; 32],
     signature: [u8; 64],
     message_hash: [u8],
-
 ) -> bool
 // docs:end:ecdsa_secp256k1_slice
 {
@@ -56,5 +53,4 @@ fn _verify_signature_slice(
     signature: [u8; 64],
     message_hash: [u8],
     predicate: bool,
-) -> bool
-{}
+) -> bool {}

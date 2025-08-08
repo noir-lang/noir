@@ -1,4 +1,3 @@
-
 // docs:start:ecdsa_secp256r1
 pub fn verify_signature<let N: u32>(
     public_key_x: [u8; 32],
@@ -18,9 +17,7 @@ pub fn _verify_signature<let N: u32>(
     signature: [u8; 64],
     message_hash: [u8; N],
     predicate: bool,
-) -> bool
-{}
-
+) -> bool {}
 
 // docs:start:ecdsa_secp256r1_slice
 pub fn verify_signature_slice(
@@ -41,5 +38,4 @@ fn _verify_signature_slice(
     signature: [u8; 64],
     message_hash: [u8],
     predicate: bool,
-) -> bool
-{}
+) -> bool {}
