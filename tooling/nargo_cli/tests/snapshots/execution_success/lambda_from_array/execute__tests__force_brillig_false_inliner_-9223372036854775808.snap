@@ -518,7 +518,7 @@ expression: artifact
     "EXPR [ (1, _207, _245) (-25, _245) 0 ]",
     "BRILLIG CALL func 1: PREDICATE: EXPR [ (1, _245) 0 ]",
     "inputs: [EXPR [ 1 ], [EXPR [ 98 ], EXPR [ 105 ], EXPR [ 103 ]]], outputs: []",
-    "BLACKBOX::RANGE [(_124, 2)] []",
+    "BLACKBOX::RANGE [_124]:2 bits []",
     "MEM (id: 1, read at: EXPR [ (1, _124) 0 ], value: EXPR [ (1, _246) 0 ]) ",
     "BRILLIG CALL func 3: inputs: [EXPR [ (1, _246) -7 ]], outputs: [_247]",
     "EXPR [ (1, _246, _247) (-7, _247) (1, _248) -1 ]",
@@ -596,7 +596,7 @@ expression: artifact
     "EXPR [ (1, _246, _284) (-25, _284) 0 ]",
     "BRILLIG CALL func 1: PREDICATE: EXPR [ (1, _284) 0 ]",
     "inputs: [EXPR [ 1 ], [EXPR [ 98 ], EXPR [ 105 ], EXPR [ 103 ]]], outputs: []",
-    "BLACKBOX::RANGE [(_84, 2)] []",
+    "BLACKBOX::RANGE [_84]:2 bits []",
     "MEM (id: 1, read at: EXPR [ (1, _84) 0 ], value: EXPR [ (1, _285) 0 ]) ",
     "BRILLIG CALL func 3: inputs: [EXPR [ (1, _285) -7 ]], outputs: [_286]",
     "EXPR [ (1, _285, _286) (-7, _286) (1, _287) -1 ]",
@@ -911,7 +911,7 @@ expression: artifact
     "EXPR [ (1, _406, _444) (-25, _444) 0 ]",
     "BRILLIG CALL func 1: PREDICATE: EXPR [ (1, _444) 0 ]",
     "inputs: [EXPR [ 1 ], [EXPR [ 98 ], EXPR [ 105 ], EXPR [ 103 ]]], outputs: []",
-    "BLACKBOX::RANGE [(_0, 1)] []",
+    "BLACKBOX::RANGE [_0]:1 bits []",
     "MEM (id: 3, read at: EXPR [ (1, _0) 0 ], value: EXPR [ (1, _445) 0 ]) ",
     "BRILLIG CALL func 3: inputs: [EXPR [ (1, _445) -7 ]], outputs: [_446]",
     "EXPR [ (1, _445, _446) (-7, _446) (1, _447) -1 ]",
@@ -991,7 +991,7 @@ expression: artifact
     "inputs: [EXPR [ 1 ], [EXPR [ 98 ], EXPR [ 105 ], EXPR [ 103 ]]], outputs: []",
     "BRILLIG CALL func 2: inputs: [EXPR [ 1 ], EXPR [ 6 ]], outputs: []",
     "BRILLIG CALL func 4: inputs: [EXPR [ (1, _1) 4294967288 ], EXPR [ 4294967296 ]], outputs: [_484, _485]",
-    "BLACKBOX::RANGE [(_485, 32)] []",
+    "BLACKBOX::RANGE [_485]:32 bits []",
     "EXPR [ (1, _1) (-4294967296, _484) (-1, _485) 4294967288 ]",
     "EXPR [ (-1, _484) 0 ]",
     "BRILLIG CALL func 2: inputs: [EXPR [ 1 ], EXPR [ 6 ]], outputs: []",
@@ -1018,14 +1018,9 @@ expression: artifact
       "path": ""
     }
   },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "print_unconstrained",
-    "print_unconstrained",
-    "print_unconstrained",
-    "directive_invert",
-    "directive_integer_quotient"
-  ]
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
+  }
 }

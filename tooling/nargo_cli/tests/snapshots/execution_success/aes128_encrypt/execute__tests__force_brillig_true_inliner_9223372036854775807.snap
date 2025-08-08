@@ -89,10 +89,9 @@ expression: artifact
       "path": ""
     }
   },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "main"
-  ]
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
+  }
 }

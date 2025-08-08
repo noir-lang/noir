@@ -155,7 +155,7 @@ fn get_slice_intrinsic_acir(
     let ssa = Ssa::from_str(&src).unwrap();
     let brillig = ssa.to_brillig(&BrilligOptions::default());
 
-    let (acir_functions_with_pred, _brillig_functions, _, _) = ssa
+    let (acir_functions_with_pred, _brillig_functions, _) = ssa
         .into_acir(&brillig, &BrilligOptions::default(), ExpressionWidth::default())
         .expect("Should compile manually written SSA into ACIR");
     acir_functions_with_pred

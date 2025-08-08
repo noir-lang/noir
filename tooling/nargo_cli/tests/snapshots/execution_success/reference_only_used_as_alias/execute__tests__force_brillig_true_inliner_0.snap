@@ -55,10 +55,9 @@ expression: artifact
   ],
   "debug_symbols": "XY7dCoMwDIXfJde9cJvzwlcRkVijFEJbYisM8d2XygTZTZJzvvztMNGYl8H5OazQdjuM4pjdMnCwmFzw6u6HgUsOSYjUghvXqYhCPkHrM7OBDTmfTWtEf+aEorQyQH7SrAtnx1Sqo1eB1sn/xQ3F4cj0k3P29kbTJ17k+jhKsDRlobKpMKhKeOmDz8a8mt7AQ52urkz97o9y+Qs=",
   "file_map": {},
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "main"
-  ]
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
+  }
 }

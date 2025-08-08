@@ -52,12 +52,9 @@ expression: artifact
       "path": ""
     }
   },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "identity",
-    "identity_array",
-    "identity_struct"
-  ]
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
+  }
 }
