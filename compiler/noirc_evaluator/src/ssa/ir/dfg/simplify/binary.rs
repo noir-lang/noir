@@ -297,18 +297,19 @@ pub(super) fn simplify_binary(binary: &Binary, dfg: &mut DataFlowGraph) -> Simpl
         BinaryOp::Shr => {
             // Bit shifts by constants on unsigned types can be treated as divisions.
             if lhs_type.is_unsigned() {
-                if let Some(rhs_const) = rhs_value {
-                    if rhs_const >= FieldElement::from(lhs_type.bit_size() as u128) {
-                        // Shifting by the full width of the operand type, any unsigned `lhs` goes to zero.
+                // We restrict this to shifts by constants less than 128, as larger shifts are expected to trigger
+                // a overflow error.
+                if let Some(rhs_const) =
+                    rhs_value.filter(|rhs_const| *rhs_const < FieldElement::from(128u128))
+                {
+                    let two_pow_rhs = 1u128 << rhs_const.to_u128();
+                    let two_pow_rhs = dfg.make_constant(two_pow_rhs.into(), lhs_type);
 
-                        if lhs_type.is_unsigned() {
-                            let zero = dfg.make_constant(FieldElement::zero(), lhs_type);
-
-                            return SimplifyResult::SimplifiedTo(zero);
-                        }
-                    }
-
-                    return SimplifyResult::SimplifiedToInstruction(simplified);
+                    return SimplifyResult::SimplifiedToInstruction(Instruction::binary(
+                        BinaryOp::Div,
+                        lhs,
+                        two_pow_rhs,
+                    ));
                 }
             }
         }
