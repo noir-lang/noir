@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1754655650097,
+  "lastUpdate": 1754658926252,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -14366,48 +14366,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "dd0bc23a84ac756d23bca59d330ac81e3f599c0c",
-          "message": "fix(ssa_interpreter): `push_back` and `pop_back` to slices with padding (#9320)",
-          "timestamp": "2025-07-25T15:36:15Z",
-          "tree_id": "868581a4dfa9792046b210767ae00b82f7941edf",
-          "url": "https://github.com/noir-lang/noir/commit/dd0bc23a84ac756d23bca59d330ac81e3f599c0c"
-        },
-        "date": 1753460552508,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 258976,
-            "range": "± 589",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 233010,
-            "range": "± 3144",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2800559,
-            "range": "± 2860",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -16459,6 +16417,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2788101,
             "range": "± 7370",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "84741533+defkit@users.noreply.github.com",
+            "name": "defkit",
+            "username": "defkit"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8d80b281de40a7e270dcf84c2bed91fc249efde8",
+          "message": "feat(ssa_fuzzer): arrays support (#9427)\n\nCo-authored-by: Innokentii Sennovskii <isennovskiy@gmail.com>",
+          "timestamp": "2025-08-08T12:48:30Z",
+          "tree_id": "ac40ad1110c7e02000132eb372627be75f60414e",
+          "url": "https://github.com/noir-lang/noir/commit/8d80b281de40a7e270dcf84c2bed91fc249efde8"
+        },
+        "date": 1754658908620,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 249307,
+            "range": "± 818",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 222123,
+            "range": "± 10284",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2783394,
+            "range": "± 15631",
             "unit": "ns/iter"
           }
         ]
