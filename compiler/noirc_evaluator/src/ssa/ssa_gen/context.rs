@@ -318,13 +318,7 @@ impl<'a> FunctionContext<'a> {
     /// bit-shifts, because we will convert them to field multiplication
     ///
     /// If the result is signed, overflow will be checked during SSA optimization.
-    fn check_overflow(
-        &mut self,
-        result: ValueId,
-        rhs: ValueId,
-        operator: BinaryOpKind,
-        location: Location,
-    ) -> ValueId {
+    fn check_overflow(&mut self, result: ValueId, operator: BinaryOpKind) -> ValueId {
         let result_type = self.builder.current_function.dfg.type_of_value(result).unwrap_numeric();
         match result_type {
             NumericType::Signed { bit_size } => {
@@ -334,21 +328,18 @@ impl<'a> FunctionContext<'a> {
                         result
                     }
                     BinaryOpKind::ShiftLeft | BinaryOpKind::ShiftRight => {
-                        self.check_shift_overflow(result, rhs, bit_size, location)
+                        self.builder.insert_truncate(result, bit_size, bit_size + 1)
                     }
                     _ => unreachable!("operator {} should not overflow", operator),
                 }
             }
-            NumericType::Unsigned { bit_size } => {
+            NumericType::Unsigned { .. } => {
                 match operator {
                     BinaryOpKind::Add | BinaryOpKind::Subtract | BinaryOpKind::Multiply => {
                         // Overflow check is deferred to acir-gen
                         result
                     }
-                    BinaryOpKind::ShiftLeft | BinaryOpKind::ShiftRight => {
-                        self.check_shift_overflow(result, rhs, bit_size, location);
-                        result
-                    }
+                    BinaryOpKind::ShiftLeft | BinaryOpKind::ShiftRight => result,
 
                     _ => unreachable!("operator {} should not overflow", operator),
                 }
@@ -357,36 +348,31 @@ impl<'a> FunctionContext<'a> {
         }
     }
 
-    /// Overflow checks for bit-shift
-    /// We use Rust behavior for bit-shift:
-    /// If rhs is more or equal than the bit size, then we overflow
-    /// If not, we do not overflow and shift with 0 when bits are falling out of the bit size
-    fn check_shift_overflow(
-        &mut self,
-        result: ValueId,
-        rhs: ValueId,
-        bit_size: u32,
-        location: Location,
-    ) -> ValueId {
+    /// Insert constraints ensuring that the right-hand side of a bit-shift operation
+    /// is less than the bit size of the left-hand side.
+    fn enforce_bitshift_rhs_lt_bit_size(&mut self, rhs: ValueId) {
         let one = self.builder.numeric_constant(FieldElement::one(), NumericType::bool());
         let rhs_type = self.builder.current_function.dfg.type_of_value(rhs);
 
-        let bit_size_field = if rhs_type.is_signed() {
-            assert!(bit_size > 1, "ICE - i1 is not a valid type");
-            FieldElement::from((bit_size - 1) as i128)
-        } else {
-            FieldElement::from(bit_size as i128)
+        let assert_message = Some("attempt to bit-shift with overflow".to_owned());
+
+        let (bit_size, bit_size_field) = match rhs_type {
+            Type::Numeric(NumericType::Unsigned { bit_size }) => {
+                (bit_size, FieldElement::from(bit_size))
+            }
+            Type::Numeric(NumericType::Signed { bit_size }) => {
+                assert!(bit_size > 1, "ICE - i1 is not a valid type");
+
+                (bit_size, FieldElement::from(bit_size - 1))
+            }
+            _ => unreachable!("check_shift_overflow called with non-numeric type"),
         };
+
         let unsigned_typ = NumericType::unsigned(bit_size);
         let max = self.builder.numeric_constant(bit_size_field, unsigned_typ);
         let rhs = self.builder.insert_cast(rhs, unsigned_typ);
         let overflow = self.builder.insert_binary(rhs, BinaryOp::Lt, max);
-        self.builder.set_location(location).insert_constrain(
-            overflow,
-            one,
-            Some("attempt to bit-shift with overflow".to_owned().into()),
-        );
-        self.builder.insert_truncate(result, bit_size, bit_size + 1)
+        self.builder.insert_constrain(overflow, one, assert_message.map(Into::into));
     }
 
     /// Insert a binary instruction at the end of the current block.
@@ -405,7 +391,13 @@ impl<'a> FunctionContext<'a> {
             std::mem::swap(&mut lhs, &mut rhs);
         }
 
-        let mut result = self.builder.set_location(location).insert_binary(lhs, op, rhs);
+        self.builder.set_location(location);
+
+        if matches!(operator, BinaryOpKind::ShiftLeft | BinaryOpKind::ShiftRight) {
+            self.enforce_bitshift_rhs_lt_bit_size(rhs);
+        };
+
+        let mut result = self.builder.insert_binary(lhs, op, rhs);
 
         // Check for integer overflow
         if matches!(
@@ -416,8 +408,8 @@ impl<'a> FunctionContext<'a> {
                 | BinaryOpKind::ShiftLeft
                 | BinaryOpKind::ShiftRight
         ) {
-            result = self.check_overflow(result, rhs, operator, location);
-        }
+            result = self.check_overflow(result, operator);
+        };
 
         if operator_requires_not(operator) {
             result = self.builder.insert_not(result);
