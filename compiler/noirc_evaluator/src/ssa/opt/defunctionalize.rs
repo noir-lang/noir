@@ -44,7 +44,7 @@ use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
         function::{Function, FunctionId, RuntimeType, Signature},
-        instruction::{BinaryOp, Instruction},
+        instruction::{BinaryOp, ConstrainError, Instruction},
         types::{NumericType, Type},
         value::{Value, ValueId},
     },
@@ -76,7 +76,7 @@ struct ApplyFunction {
 
 /// All functions used as a value that share the same signature and runtime type
 /// Maps ([Signature], [RuntimeType]) -> Vec<[FunctionId]>
-type Variants = BTreeMap<(Signature, RuntimeType), Vec<FunctionId>>;
+type Variants = BTreeMap<(Signature, RuntimeType), Vec<(FunctionId, RuntimeType)>>;
 /// All generated apply functions for each grouping of function variants.
 /// Each apply function is handles a specific ([Signature], [RuntimeType]) group.
 /// Maps ([Signature], [RuntimeType]) -> [ApplyFunction]
@@ -334,17 +334,22 @@ fn find_variants(ssa: &Ssa) -> Variants {
     let mut variants: Variants = BTreeMap::new();
 
     // Further group function variant candidates by their caller runtime.
+    // The target functions are never tested against their runtime, which is assumed to be correct,
+    // but there is nothing which guarantees this.
+    // Filtering the functions by their runtime at this stage will not work because if the variant
+    // is empty, the apply function will create a dummy function. So instead of calling a function with a wrong runtime,
+    // we would end-up calling a dummy function.
+    // The solution is to add the runtime information to the variants map
+    // and defer to create_apply_function for handling the runtime checks.
     for (dispatch_signature, caller_runtime) in dynamic_dispatches {
-        let target_fns =
-            signature_to_functions_as_value.get(&dispatch_signature).cloned().unwrap_or_default();
-        variants.insert(
-            (dispatch_signature, caller_runtime),
-            target_fns
-                .iter()
-                .filter(|f| ssa.functions[f].runtime() == caller_runtime)
-                .cloned()
-                .collect(),
-        );
+        let target_fns = signature_to_functions_as_value
+            .get(&dispatch_signature)
+            .cloned()
+            .unwrap_or_default()
+            .into_iter()
+            .map(|f| (f, ssa.functions[&f].runtime()));
+        let target_fns: Vec<(FunctionId, RuntimeType)> = target_fns.collect();
+        variants.insert((dispatch_signature, caller_runtime), target_fns);
     }
 
     // We will now have fully constructed our variants map and can return it
@@ -469,7 +474,7 @@ fn create_apply_functions(
             create_apply_function(ssa, defunctionalized_signature, runtime, variants)
         } else if !variants.is_empty() {
             // If there is only variant, we can use it directly rather than creating a new apply function.
-            variants[0]
+            variants[0].0
         } else {
             // If no variants exist for a dynamic call we leave removing those dead calls and parameters to DIE.
             // However, we have to construct a dummy function for these dead calls as to keep a well formed SSA
@@ -515,7 +520,7 @@ fn create_apply_function(
     ssa: &mut Ssa,
     signature: Signature,
     caller_runtime: RuntimeType,
-    function_ids: Vec<FunctionId>,
+    function_ids: Vec<(FunctionId, RuntimeType)>,
 ) -> FunctionId {
     assert!(!function_ids.is_empty());
     // Clone the user-defined globals and the function purities mapping,
@@ -556,7 +561,7 @@ fn create_apply_function(
         // Switch back to the entry block to build the rest of the dispatch function
         function_builder.switch_to_block(entry_block);
 
-        for (index, function_id) in function_ids.iter().enumerate() {
+        for (index, (function_id, runtime)) in function_ids.iter().enumerate() {
             let is_last = index == function_ids.len() - 1;
             let mut next_function_block = None;
 
@@ -583,6 +588,22 @@ fn create_apply_function(
 
             // Call the function variant
             let target_function_value = function_builder.import_function(*function_id);
+            if runtime.is_acir() && caller_runtime.is_brillig() {
+                // Calling ACIR function from Brillig runtime is not allowed
+                // n.b: the ACIR/Brillig check done during inlining will also trigger an error
+                // but the error will 'panic' because this code is auto-generated
+                // and does not have proper location.
+                let zero = function_builder.field_constant(0_u128);
+                let one = function_builder.field_constant(1_u128);
+                function_builder.insert_constrain(
+                    zero,
+                    one,
+                    Some(ConstrainError::StaticString(
+                        "Error: Calling constrained function from unconstrained function"
+                            .to_string(),
+                    )),
+                );
+            }
             let call_results = function_builder
                 .insert_call(target_function_value, params_ids.clone(), signature.returns.clone())
                 .to_vec();
@@ -1662,5 +1683,81 @@ mod tests {
         let (apply_functions, _purities) = create_apply_functions(&mut ssa, variants);
         // This was 1 before this bug was fixed.
         assert_eq!(apply_functions.len(), 2);
+    }
+
+    #[test]
+    fn acir_variant_in_brillig() {
+        //The src code below correspond to this code:
+        // let f = if x == 1 { foo1 } else { foo };
+        // fn foo(x: Field) -> Field {
+        //     x * x
+        // }
+        // unconstrained fn foo1(x: Field) -> Field {
+        //     x * x
+        // }
+        // This code is invalid because foo1 and foo do not have compatible signatures.
+        // However, some generated code (e.g the zeroed impls generated by the frontend) may produce such code.
+        // We ensure that the apply function does not allow calling acir functions from a brillig function
+        let src = r#"
+      brillig(inline) fn main f0 {
+        b0(v0: Field, v1: Field, v2: Field):
+          v4 = allocate -> &mut Field
+          store v0 at v4
+          v5 = load v4 -> Field
+          v7 = eq v5, Field 1
+          jmpif v7 then: b1, else: b2
+        b1():
+          jmp b3(f1)
+        b2():
+          jmp b3(f3)
+        b3(v3: function):
+          v10 = load v4 -> Field
+          v12 = call f3(v10) -> Field
+          v13 = call v3(v12) -> Field
+          return
+      }
+      brillig(inline) fn foo1 f1 {
+        b0(v0: Field):
+          v1 = mul v0, v0
+          return v1
+      }
+      brillig(inline) fn foo2 f2 {
+        b0(v0: Field):
+          v1 = add v0, v0
+          return v1
+      }
+      acir(inline) fn foo f3 {
+        b0(v0: Field):
+          v1 = mul v0, v0
+          return v1
+      }
+       "#;
+
+        let mut ssa = Ssa::from_str_no_validation(src).unwrap();
+        let variants = find_variants(&ssa);
+        let (apply_functions, _purities) = create_apply_functions(&mut ssa, variants);
+        assert_eq!(apply_functions.len(), 1);
+        let apply = apply_functions.values().next().unwrap();
+        let apply_src = ssa.functions[&apply.id].to_string();
+
+        // The apply method forbids calling the acir function f3 by inserting a failing constraint before the call.
+        assert_eq!(
+            apply_src,
+            r#"brillig(inline_always) fn apply f4 {
+  b0(v0: Field, v1: Field):
+    v4 = eq v0, Field 1
+    jmpif v4 then: b3, else: b2
+  b2():
+    constrain v0 == Field 3
+    constrain Field 0 == Field 1, "Error: Calling constrained function from unconstrained function"
+    v11 = call f3(v1) -> Field
+    jmp b6(v11)
+  b3():
+    v6 = call f1(v1) -> Field
+    jmp b6(v6)
+  b6(v13: Field):
+    return v13
+}"#
+        );
     }
 }
