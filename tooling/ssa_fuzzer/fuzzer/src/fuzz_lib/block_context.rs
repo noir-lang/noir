@@ -206,11 +206,6 @@ impl BlockContext {
                     acir_result.value_id,
                     brillig_builder.insert_cast(value.clone(), type_).value_id
                 );
-                // Cast can return the same value as the original value, if cast type is forbidden, so we skip it
-                if self.stored_variables.get(&value.to_value_type()).unwrap().contains(&acir_result)
-                {
-                    return;
-                }
                 append_typed_value_to_map(
                     &mut self.stored_variables,
                     &acir_result.to_value_type(),

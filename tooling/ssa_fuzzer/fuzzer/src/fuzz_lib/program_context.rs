@@ -53,8 +53,9 @@ impl FuzzerProgramContext {
         values: Vec<FieldElement>,
         mode: FuzzerMode,
     ) -> Self {
-        let acir_builder = FuzzerBuilder::new_acir();
-        let brillig_builder = FuzzerBuilder::new_brillig();
+        let acir_builder = FuzzerBuilder::new_acir(program_context_options.simplifying_enabled);
+        let brillig_builder =
+            FuzzerBuilder::new_brillig(program_context_options.simplifying_enabled);
         Self {
             acir_builder,
             brillig_builder,
@@ -77,8 +78,9 @@ impl FuzzerProgramContext {
         values: Vec<FieldElement>,
         mode: FuzzerMode,
     ) -> Self {
-        let acir_builder = FuzzerBuilder::new_acir();
-        let brillig_builder = FuzzerBuilder::new_brillig();
+        let acir_builder = FuzzerBuilder::new_acir(program_context_options.simplifying_enabled);
+        let brillig_builder =
+            FuzzerBuilder::new_brillig(program_context_options.simplifying_enabled);
         Self {
             acir_builder,
             brillig_builder,
@@ -215,6 +217,16 @@ pub(crate) fn program_context_by_mode(
                     idempotent_morphing_enabled: true,
                     ..FunctionContextOptions::from(&options)
                 },
+                instruction_blocks,
+                values,
+                mode,
+            )
+        }
+        FuzzerMode::NonConstantWithoutSimplifying => {
+            let mut options = options;
+            options.simplifying_enabled = false;
+            FuzzerProgramContext::new(
+                FunctionContextOptions::from(&options),
                 instruction_blocks,
                 values,
                 mode,
