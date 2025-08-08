@@ -86,7 +86,7 @@ pub enum Intrinsic {
     SliceRemove,
     /// ApplyRangeConstraint - Enforces the `bit size` of the first argument via a range check.
     /// arguments: value id, bit size (constant)
-    /// result: applies a range check constraint to the input. It is substitued by a RangeCheck instruction during simplification.
+    /// result: applies a range check constraint to the input. It is substituted by a RangeCheck instruction during simplification.
     ApplyRangeConstraint,
     /// StrAsBytes - Convert a `str` into a byte array of type `[u8; N]`
     /// arguments: value id
@@ -116,7 +116,7 @@ pub enum Intrinsic {
     /// argument: ()
     /// result: true if execution is under unconstrained context, false else.
     IsUnconstrained,
-    /// DerivePedersenGenerators - Computes the Pedersen gnenrators
+    /// DerivePedersenGenerators - Computes the Pedersen generators
     /// arguments: domain_separator_string (constant string), starting_index (constant)
     /// result: array of elliptic curve points (Grumpkin) containing the generators.
     /// The type of the result gives the number of generators to compute.
@@ -132,7 +132,7 @@ pub enum Intrinsic {
     ArrayRefCount,
     /// SliceRefCount - Gives the reference count of the slice
     /// argument: slice (value id)
-    /// result: reference count of `slice`. In unconstrained context, the reference count is stored alongside the slive.
+    /// result: reference count of `slice`. In unconstrained context, the reference count is stored alongside the slice.
     /// in constrained context, it will be 0.
     SliceRefCount,
 }
