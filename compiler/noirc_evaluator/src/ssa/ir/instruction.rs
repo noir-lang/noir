@@ -56,17 +56,17 @@ pub enum Intrinsic {
     /// argument: value id
     /// result: (), panic if the argument does not resolve to a constant value
     AssertConstant,
-    /// StaticAssert - Enforce the first arugment to be true, at compile time
+    /// StaticAssert - Enforce the first argument to be true, at compile time
     /// arguments: boolean (value id), ...message. The message can be a `format string` of several arguments
     /// result: (), panic if the arguments do not resolve to constant values or if the first one is false.
     StaticAssert,
     /// SlicePushBack - Add elements at the end of a slice
     /// arguments:  slice length, slice contents, ...elements_to_push
-    /// result: a slice containings `slice contents,..elements_to_push`
+    /// result: a slice containing `slice contents,..elements_to_push`
     SlicePushBack,
     /// SlicePushFront - Add elements at the start of a slice
     /// arguments:  slice length, slice contents, ...elements_to_push
-    /// result: a slice containings `..elements_to_push, slice contents`
+    /// result: a slice containing `..elements_to_push, slice contents`
     SlicePushFront,
     /// SlicePopBack - Removes the last element of a slice
     /// arguments: slice length, slice contents
