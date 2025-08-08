@@ -797,11 +797,16 @@ mod tests {
                 index: arg_0_field,
                 value_index: 4, // set v4
                 mutable: false,
+                safe_index: true,
             }],
         };
         // get new_array[0]
         let array_get_block = InstructionBlock {
-            instructions: vec![Instruction::ArrayGet { array_index: 1, index: arg_0_field }],
+            instructions: vec![Instruction::ArrayGet {
+                array_index: 1,
+                index: arg_0_field,
+                safe_index: true,
+            }],
         };
         let instructions_blocks = vec![create_array_block, array_set_block, array_get_block];
         let commands = vec![
@@ -864,6 +869,7 @@ mod tests {
                 index: 1,
                 value_index: 0,
                 mutable: false,
+                safe_index: true,
             }],
         };
         let create_array_block = InstructionBlock {
@@ -874,7 +880,11 @@ mod tests {
             }],
         };
         let get_from_array_block = InstructionBlock {
-            instructions: vec![Instruction::ArrayGetWithConstantIndex { array_index: 1, index: 1 }],
+            instructions: vec![Instruction::ArrayGetWithConstantIndex {
+                array_index: 1,
+                index: 1,
+                safe_index: true,
+            }],
         };
         let typed_memory_2 = Argument { index: 2, value_type: ValueType::Field };
         let load_from_memory_block = InstructionBlock {

@@ -79,19 +79,30 @@ pub(crate) enum Instruction {
     /// Other elements will be taken from stored variables of the same type
     CreateArray { elements_indices: Vec<usize>, element_type: ValueType, is_references: bool },
     /// Get element from array, index will be casted to u32, only for arrays without references
-    ArrayGet { array_index: usize, index: Argument },
+    /// If safe_index is true, index will be taken modulo the size of the array
+    ArrayGet { array_index: usize, index: Argument, safe_index: bool },
     /// Set element in array, index will be casted to u32, only for arrays without references
     /// Value will be cast to the type of the array
-    ArraySet { array_index: usize, index: Argument, value_index: usize, mutable: bool },
+    /// If safe_index is true, index will be taken modulo the size of the array
+    ArraySet {
+        array_index: usize,
+        index: Argument,
+        value_index: usize,
+        mutable: bool,
+        safe_index: bool,
+    },
     /// Get element from array, index is constant
-    ArrayGetWithConstantIndex { array_index: usize, index: usize },
+    /// If safe_index is true, index will be taken modulo the size of the array
+    ArrayGetWithConstantIndex { array_index: usize, index: usize, safe_index: bool },
     /// Set element in array, index is constant
     /// Value will be cast to the type of the array
+    /// If safe_index is true, index will be taken modulo the size of the array
     ArraySetWithConstantIndex {
         array_index: usize,
         index: usize,
         value_index: usize,
         mutable: bool,
+        safe_index: bool,
     },
 }
 

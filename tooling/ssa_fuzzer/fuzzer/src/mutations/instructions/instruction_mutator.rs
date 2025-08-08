@@ -105,7 +105,13 @@ impl InstructionMutator for InstructionArgumentsMutation {
                     }
                 }
             }
-            _ => {}
+
+            // TODO(sn): Implement mutations for array instructions
+            Instruction::ArrayGet { .. }
+            | Instruction::ArraySet { .. }
+            | Instruction::CreateArray { .. }
+            | Instruction::ArrayGetWithConstantIndex { .. }
+            | Instruction::ArraySetWithConstantIndex { .. } => {}
         }
     }
 }

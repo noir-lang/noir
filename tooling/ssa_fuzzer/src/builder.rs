@@ -414,18 +414,24 @@ impl FuzzerBuilder {
 
     /// Inserts an array get instruction
     ///
-    /// Index must be u32 and will be taken modulo the array length
+    /// Index must be u32
+    /// If safe_index is true, index will be taken modulo the array length
     pub fn insert_array_get(
         &mut self,
         array: TypedValue,
         index: TypedValue,
         element_type: Type,
+        safe_index: bool,
     ) -> TypedValue {
         assert!(index.type_of_variable == Type::Numeric(NumericType::Unsigned { bit_size: 32 }));
-        let index_mod_len = self.insert_index_mod_array_length(index.clone(), array.clone());
+        let index = if safe_index {
+            self.insert_index_mod_array_length(index.clone(), array.clone())
+        } else {
+            index
+        };
         let res = self.builder.insert_array_get(
             array.value_id,
-            index_mod_len.value_id,
+            index.value_id,
             ArrayOffset::None,
             element_type.clone(),
         );
@@ -434,20 +440,26 @@ impl FuzzerBuilder {
 
     /// Inserts an array set instruction
     ///
-    /// Index must be u32 and will be taken modulo the array length
+    /// Index must be u32
+    /// If safe_index is true, index will be taken modulo the array length
     pub fn insert_array_set(
         &mut self,
         array: TypedValue,
         index: TypedValue,
         value: TypedValue,
         mutable: bool,
+        safe_index: bool,
     ) -> TypedValue {
         assert!(matches!(array.type_of_variable, Type::Array(_, _)));
         assert!(index.type_of_variable == Type::Numeric(NumericType::Unsigned { bit_size: 32 }));
-        let index_mod_len = self.insert_index_mod_array_length(index.clone(), array.clone());
+        let index = if safe_index {
+            self.insert_index_mod_array_length(index.clone(), array.clone())
+        } else {
+            index
+        };
         let res = self.builder.insert_array_set(
             array.value_id,
-            index_mod_len.value_id,
+            index.value_id,
             value.value_id,
             mutable,
             ArrayOffset::None,

@@ -501,8 +501,10 @@ impl BlockContext {
                     is_references,
                 });
             }
-            Instruction::ArrayGet { array_index, index } => {
-                if !self.options.instruction_options.array_get_enabled {
+            Instruction::ArrayGet { array_index, index, safe_index } => {
+                if !self.options.instruction_options.array_get_enabled
+                    || !self.options.instruction_options.create_array_enabled
+                {
                     return;
                 }
                 if self.stored_arrays.is_empty() {
@@ -540,6 +542,7 @@ impl BlockContext {
                     array_id.clone(),
                     index_casted.clone(),
                     stored_array.element_type.to_ssa_type(),
+                    safe_index,
                 );
                 assert_eq!(
                     value.value_id,
@@ -548,6 +551,7 @@ impl BlockContext {
                             array_id.clone(),
                             index_casted.clone(),
                             stored_array.element_type.to_ssa_type(),
+                            safe_index,
                         )
                         .value_id,
                 );
@@ -557,7 +561,7 @@ impl BlockContext {
                     value.clone(),
                 );
             }
-            Instruction::ArraySet { array_index, index, value_index, mutable } => {
+            Instruction::ArraySet { array_index, index, value_index, mutable, safe_index } => {
                 if !self.options.instruction_options.array_set_enabled {
                     return;
                 }
@@ -609,11 +613,12 @@ impl BlockContext {
                     index_casted.clone(),
                     value.clone(),
                     mutable,
+                    safe_index,
                 );
                 assert_eq!(
                     new_array.value_id,
                     brillig_builder
-                        .insert_array_set(array_id, index_casted, value, mutable)
+                        .insert_array_set(array_id, index_casted, value, mutable, safe_index)
                         .value_id
                 );
 
@@ -623,8 +628,10 @@ impl BlockContext {
                     is_references: stored_array.is_references,
                 });
             }
-            Instruction::ArrayGetWithConstantIndex { array_index, index } => {
-                if !self.options.instruction_options.array_get_enabled {
+            Instruction::ArrayGetWithConstantIndex { array_index, index, safe_index } => {
+                if !self.options.instruction_options.array_get_enabled
+                    || !self.options.instruction_options.create_array_enabled
+                {
                     return;
                 }
                 if self.stored_arrays.is_empty() {
@@ -645,6 +652,7 @@ impl BlockContext {
                     stored_array.array_id.clone(),
                     index_id.clone(),
                     stored_array.element_type.to_ssa_type(),
+                    safe_index,
                 );
                 assert_eq!(
                     value.value_id,
@@ -652,7 +660,8 @@ impl BlockContext {
                         .insert_array_get(
                             stored_array.array_id.clone(),
                             index_id.clone(),
-                            stored_array.element_type.to_ssa_type()
+                            stored_array.element_type.to_ssa_type(),
+                            safe_index,
                         )
                         .value_id
                 );
@@ -670,8 +679,16 @@ impl BlockContext {
                     );
                 }
             }
-            Instruction::ArraySetWithConstantIndex { array_index, index, value_index, mutable } => {
-                if !self.options.instruction_options.array_set_enabled {
+            Instruction::ArraySetWithConstantIndex {
+                array_index,
+                index,
+                value_index,
+                mutable,
+                safe_index,
+            } => {
+                if !self.options.instruction_options.array_set_enabled
+                    || !self.options.instruction_options.create_array_enabled
+                {
                     return;
                 }
                 if self.stored_arrays.is_empty() {
@@ -712,11 +729,18 @@ impl BlockContext {
                     index_id.clone(),
                     value.clone(),
                     mutable,
+                    safe_index,
                 );
                 assert_eq!(
                     new_array.value_id,
                     brillig_builder
-                        .insert_array_set(stored_array.array_id.clone(), index_id, value, mutable)
+                        .insert_array_set(
+                            stored_array.array_id.clone(),
+                            index_id,
+                            value,
+                            mutable,
+                            safe_index,
+                        )
                         .value_id
                 );
                 self.stored_arrays.push(StoredArray {
