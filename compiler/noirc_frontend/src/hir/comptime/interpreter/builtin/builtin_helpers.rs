@@ -1,17 +1,19 @@
 use std::hash::Hash;
 use std::{hash::Hasher, rc::Rc};
 
-use acvm::FieldElement;
-use iter_extended::try_vecmap;
+use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
 
+use crate::ast::{BinaryOp, ItemVisibility, UnaryOp};
 use crate::elaborator::Elaborator;
 use crate::hir::comptime::display::tokens_to_string;
+use crate::hir::comptime::value::StructFields;
 use crate::hir::comptime::value::unwrap_rc;
 use crate::hir::def_collector::dc_crate::CompilationError;
 use crate::lexer::Lexer;
 use crate::parser::{Parser, ParserError};
-use crate::token::{LocatedToken, SecondaryAttributeKind};
+use crate::signed_field::SignedField;
+use crate::token::{Keyword, LocatedToken, SecondaryAttributeKind};
 use crate::{DataType, Kind, Shared};
 use crate::{
     QuotedType, Type,
@@ -107,7 +109,7 @@ pub(crate) fn get_array(
 pub(crate) fn get_struct_fields(
     name: &str,
     (value, location): (Value, Location),
-) -> IResult<(HashMap<Rc<String>, Value>, Type)> {
+) -> IResult<(StructFields, Type)> {
     match value {
         Value::Struct(fields, typ) => Ok((fields, typ)),
         _ => {
@@ -116,6 +118,7 @@ pub(crate) fn get_struct_fields(
                 Ident::new(name.to_string(), location),
                 location,
                 Vec::new(),
+                ItemVisibility::Public,
             );
             let expected = Type::DataType(Shared::new(expected), Vec::new());
             type_mismatch(value, expected, location)
@@ -126,7 +129,7 @@ pub(crate) fn get_struct_fields(
 /// Get a specific field of a struct and apply a decoder function on it.
 pub(crate) fn get_struct_field<T>(
     field_name: &str,
-    struct_fields: &HashMap<Rc<String>, Value>,
+    struct_fields: &HashMap<Rc<String>, Shared<Value>>,
     struct_type: &Type,
     location: Location,
     f: impl Fn((Value, Location)) -> IResult<T>,
@@ -139,7 +142,7 @@ pub(crate) fn get_struct_field<T>(
             location,
         });
     };
-    f((value.clone(), location))
+    f((value.borrow().clone(), location))
 }
 
 pub(crate) fn get_bool((value, location): (Value, Location)) -> IResult<bool> {
@@ -229,7 +232,7 @@ pub(crate) fn get_ctstring((value, location): (Value, Location)) -> IResult<Rc<S
 pub(crate) fn get_tuple(
     interner: &NodeInterner,
     (value, location): (Value, Location),
-) -> IResult<Vec<Value>> {
+) -> IResult<Vec<Shared<Value>>> {
     match value {
         Value::Tuple(values) => Ok(values),
         value => {
@@ -240,7 +243,7 @@ pub(crate) fn get_tuple(
     }
 }
 
-pub(crate) fn get_field((value, location): (Value, Location)) -> IResult<FieldElement> {
+pub(crate) fn get_field((value, location): (Value, Location)) -> IResult<SignedField> {
     match value {
         Value::Field(value) => Ok(value),
         value => type_mismatch(value, Type::FieldElement, location),
@@ -527,8 +530,9 @@ pub(super) fn parse_tokens<'a, T, F>(
 where
     F: FnOnce(&mut Parser<'a>) -> T,
 {
-    Parser::for_tokens(quoted).parse_result(parsing_function).map_err(|mut errors| {
-        let error = Box::new(errors.swap_remove(0));
+    Parser::for_tokens(quoted).parse_result(parsing_function).map_err(|errors| {
+        let error = errors.into_iter().find(|error| !error.is_warning()).unwrap();
+        let error = Box::new(error);
         let tokens = tokens_to_string(&tokens, interner);
         InterpreterError::FailedToParseMacro { error, tokens, rule, location }
     })
@@ -636,7 +640,7 @@ pub(super) fn hash_item<T: Hash>(
     let mut hasher = std::collections::hash_map::DefaultHasher::new();
     item.hash(&mut hasher);
     let hash = hasher.finish();
-    Ok(Value::Field((hash as u128).into()))
+    Ok(Value::Field(SignedField::positive(hash as u128)))
 }
 
 pub(super) fn eq_item<T: Eq>(
@@ -678,6 +682,57 @@ pub(crate) fn to_struct(
     fields: impl IntoIterator<Item = (&'static str, Value)>,
     typ: Type,
 ) -> Value {
-    let fields = fields.into_iter().map(|(k, v)| (Rc::new(k.to_string()), v)).collect();
+    let fields =
+        fields.into_iter().map(|(k, v)| (Rc::new(k.to_string()), Shared::new(v))).collect();
     Value::Struct(fields, typ)
+}
+
+pub(crate) fn new_unary_op(operator: UnaryOp, typ: Type) -> Option<Value> {
+    // These values should match the values used in noir_stdlib/src/meta/op.nr
+    let unary_op_value: u128 = match operator {
+        UnaryOp::Minus => 0,
+        UnaryOp::Not => 1,
+        UnaryOp::Reference { mutable: true } => 2,
+        UnaryOp::Reference { mutable: false } => {
+            // `&` alone is experimental and currently hidden from the comptime API
+            return None;
+        }
+        UnaryOp::Dereference { .. } => 3,
+    };
+
+    let mut fields = HashMap::default();
+    fields.insert(
+        Rc::new("op".to_string()),
+        Shared::new(Value::Field(SignedField::positive(unary_op_value))),
+    );
+
+    Some(Value::Struct(fields, typ))
+}
+
+pub(crate) fn new_binary_op(operator: BinaryOp, typ: Type) -> Value {
+    // For the op value we use the enum member index, which should match noir_stdlib/src/meta/op.nr
+    let binary_op_value = operator.contents as u128;
+
+    let mut fields = HashMap::default();
+    fields.insert(
+        Rc::new("op".to_string()),
+        Shared::new(Value::Field(SignedField::positive(binary_op_value))),
+    );
+
+    Value::Struct(fields, typ)
+}
+
+pub(crate) fn visibility_to_quoted(visibility: ItemVisibility, location: Location) -> Value {
+    let tokens = match visibility {
+        ItemVisibility::Private => vec![],
+        ItemVisibility::PublicCrate => vec![
+            Token::Keyword(Keyword::Pub),
+            Token::LeftParen,
+            Token::Keyword(Keyword::Crate),
+            Token::RightParen,
+        ],
+        ItemVisibility::Public => vec![Token::Keyword(Keyword::Pub)],
+    };
+    let tokens = vecmap(tokens, |token| LocatedToken::new(token, location));
+    Value::Quoted(Rc::new(tokens))
 }

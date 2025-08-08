@@ -333,6 +333,15 @@ impl Parser<'_> {
                             Some(TestScope::ShouldFailWith { reason: None })
                         }
                     }
+                    "only_fail_with" => {
+                        self.eat_or_error(Token::Assign);
+                        if let Some(reason) = self.eat_str() {
+                            Some(TestScope::OnlyFailWith { reason })
+                        } else {
+                            self.expected_string();
+                            None
+                        }
+                    }
                     _ => None,
                 }
             } else {
@@ -684,6 +693,14 @@ mod tests {
         let src = "#[test(should_fail_with = \"reason\")]";
         let reason = Some("reason".to_string());
         let expected = FunctionAttributeKind::Test(TestScope::ShouldFailWith { reason });
+        parse_function_attribute_no_errors(src, expected);
+    }
+
+    #[test]
+    fn parses_attribute_test_only_fail_with() {
+        let src = "#[test(only_fail_with = \"reason\")]";
+        let reason = "reason".to_string();
+        let expected = FunctionAttributeKind::Test(TestScope::OnlyFailWith { reason });
         parse_function_attribute_no_errors(src, expected);
     }
 

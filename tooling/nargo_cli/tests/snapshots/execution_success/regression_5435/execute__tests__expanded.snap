@@ -1,0 +1,24 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(input: Field, enable: bool) {
+    if enable {
+        let hash: Field = no_predicate_function(input);
+        // Safety: comment added by `nargo expand`
+        unsafe { fail(hash) };
+    }
+}
+
+#[no_predicates]
+fn no_predicate_function(enable: Field) -> Field {
+    if enable == 0_Field {
+        1_Field
+    } else {
+        0_Field
+    }
+}
+
+unconstrained fn fail(_: Field) {
+    assert(false);
+}

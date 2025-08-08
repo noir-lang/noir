@@ -11,7 +11,7 @@ use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
         dfg::DataFlowGraph,
-        instruction::{Binary, BinaryOp, Endian, Hint, Instruction, Intrinsic},
+        instruction::{ArrayOffset, Binary, BinaryOp, Endian, Hint, Instruction, Intrinsic},
         types::{NumericType, Type},
         value::{Value, ValueId},
     },
@@ -138,7 +138,8 @@ pub(super) fn simplify_call(
                         slice.push_back(*elem);
                     }
 
-                    let new_slice_length = increment_slice_length(arguments[0], dfg, block);
+                    let new_slice_length =
+                        increment_slice_length(arguments[0], dfg, block, call_stack);
 
                     let new_slice = make_array(dfg, slice, element_type, block, call_stack);
                     return SimplifyResult::SimplifiedToMultiple(vec![new_slice_length, new_slice]);
@@ -156,7 +157,7 @@ pub(super) fn simplify_call(
                     slice.push_front(*elem);
                 }
 
-                let new_slice_length = increment_slice_length(arguments[0], dfg, block);
+                let new_slice_length = increment_slice_length(arguments[0], dfg, block, call_stack);
 
                 let new_slice = make_array(dfg, slice, element_type, block, call_stack);
                 SimplifyResult::SimplifiedToMultiple(vec![new_slice_length, new_slice])
@@ -196,7 +197,7 @@ pub(super) fn simplify_call(
                     slice.pop_front().expect("There are no elements in this slice to be removed")
                 });
 
-                let new_slice_length = decrement_slice_length(arguments[0], dfg, block);
+                let new_slice_length = decrement_slice_length(arguments[0], dfg, block, call_stack);
 
                 results.push(new_slice_length);
 
@@ -229,7 +230,7 @@ pub(super) fn simplify_call(
                     index += 1;
                 }
 
-                let new_slice_length = increment_slice_length(arguments[0], dfg, block);
+                let new_slice_length = increment_slice_length(arguments[0], dfg, block, call_stack);
 
                 let new_slice = make_array(dfg, slice, typ, block, call_stack);
                 SimplifyResult::SimplifiedToMultiple(vec![new_slice_length, new_slice])
@@ -267,7 +268,7 @@ pub(super) fn simplify_call(
                 let new_slice = make_array(dfg, slice, typ, block, call_stack);
                 results.insert(0, new_slice);
 
-                let new_slice_length = decrement_slice_length(arguments[0], dfg, block);
+                let new_slice_length = decrement_slice_length(arguments[0], dfg, block, call_stack);
 
                 results.insert(0, new_slice_length);
 
@@ -288,7 +289,7 @@ pub(super) fn simplify_call(
             }
         }
         Intrinsic::StaticAssert => {
-            if arguments.len() != 2 {
+            if arguments.len() < 2 {
                 panic!("ICE: static_assert called with wrong number of arguments")
             }
 
@@ -449,10 +450,10 @@ fn update_slice_length(
     dfg: &mut DataFlowGraph,
     operator: BinaryOp,
     block: BasicBlockId,
+    call_stack: CallStackId,
 ) -> ValueId {
     let one = dfg.make_constant(FieldElement::one(), NumericType::length_type());
     let instruction = Instruction::Binary(Binary { lhs: slice_len, operator, rhs: one });
-    let call_stack = dfg.get_value_call_stack_id(slice_len);
     dfg.insert_instruction_and_results(instruction, block, None, call_stack).first()
 }
 
@@ -460,16 +461,19 @@ fn increment_slice_length(
     slice_len: ValueId,
     dfg: &mut DataFlowGraph,
     block: BasicBlockId,
+    call_stack: CallStackId,
 ) -> ValueId {
-    update_slice_length(slice_len, dfg, BinaryOp::Add { unchecked: false }, block)
+    update_slice_length(slice_len, dfg, BinaryOp::Add { unchecked: false }, block, call_stack)
 }
 
 fn decrement_slice_length(
     slice_len: ValueId,
     dfg: &mut DataFlowGraph,
     block: BasicBlockId,
+    call_stack: CallStackId,
 ) -> ValueId {
-    update_slice_length(slice_len, dfg, BinaryOp::Sub { unchecked: true }, block)
+    // Simplifications only run if the length is a known non-zero constant, so the subtraction should never overflow.
+    update_slice_length(slice_len, dfg, BinaryOp::Sub { unchecked: true }, block, call_stack)
 }
 
 fn simplify_slice_push_back(
@@ -492,7 +496,7 @@ fn simplify_slice_push_back(
         .insert_instruction_and_results(len_not_equals_capacity_instr, block, None, call_stack)
         .first();
 
-    let new_slice_length = increment_slice_length(arguments[0], dfg, block);
+    let new_slice_length = increment_slice_length(arguments[0], dfg, block, call_stack);
 
     for elem in &arguments[2..] {
         slice.push_back(*elem);
@@ -506,6 +510,7 @@ fn simplify_slice_push_back(
         index: arguments[0],
         value: arguments[2],
         mutable: false,
+        offset: ArrayOffset::None,
     };
 
     let set_last_slice_value = dfg
@@ -518,12 +523,17 @@ fn simplify_slice_push_back(
 
     let mut value_merger = ValueMerger::new(dfg, block, &mut slice_sizes, call_stack);
 
-    let new_slice = value_merger.merge_values(
+    let Ok(new_slice) = value_merger.merge_values(
         len_not_equals_capacity,
         len_equals_capacity,
         set_last_slice_value,
         new_slice,
-    );
+    ) else {
+        // If we were to percolate up the error here, it'd get to insert_instruction and eventually
+        // all of ssa. Instead we just choose not to simplify the slice call since this should
+        // be a rare case.
+        return SimplifyResult::None;
+    };
 
     SimplifyResult::SimplifiedToMultiple(vec![new_slice_length, new_slice])
 }
@@ -539,7 +549,7 @@ fn simplify_slice_pop_back(
     let element_count = element_types.len();
     let mut results = VecDeque::with_capacity(element_count + 1);
 
-    let new_slice_length = decrement_slice_length(arguments[0], dfg, block);
+    let new_slice_length = decrement_slice_length(arguments[0], dfg, block, call_stack);
 
     let element_size =
         dfg.make_constant((element_count as u128).into(), NumericType::length_type());
@@ -549,21 +559,22 @@ fn simplify_slice_pop_back(
         Instruction::binary(BinaryOp::Mul { unchecked: true }, arguments[0], element_size);
     let mut flattened_len =
         dfg.insert_instruction_and_results(flattened_len_instr, block, None, call_stack).first();
-    flattened_len = decrement_slice_length(flattened_len, dfg, block);
 
     // We must pop multiple elements in the case of a slice of tuples
     // Iterating through element types in reverse here since we're popping from the end
     for element_type in element_types.iter().rev() {
-        let get_last_elem_instr =
-            Instruction::ArrayGet { array: arguments[1], index: flattened_len };
+        flattened_len = decrement_slice_length(flattened_len, dfg, block, call_stack);
+        let get_last_elem_instr = Instruction::ArrayGet {
+            array: arguments[1],
+            index: flattened_len,
+            offset: ArrayOffset::None,
+        };
 
         let element_type = Some(vec![element_type.clone()]);
         let get_last_elem = dfg
             .insert_instruction_and_results(get_last_elem_instr, block, element_type, call_stack)
             .first();
         results.push_front(get_last_elem);
-
-        flattened_len = decrement_slice_length(flattened_len, dfg, block);
     }
 
     results.push_front(arguments[1]);

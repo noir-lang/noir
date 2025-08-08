@@ -1,0 +1,6 @@
+[package]
+name = "lambda_taking_lambda_with_variant"
+type = "bin"
+authors = [""]
+
+[dependencies]

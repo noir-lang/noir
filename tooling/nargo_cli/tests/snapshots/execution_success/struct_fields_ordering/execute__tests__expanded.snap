@@ -1,0 +1,13 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+struct myStruct {
+    foo: u32,
+    bar: Field,
+}
+
+fn main(y: pub myStruct) {
+    assert(y.foo == 5_u32);
+    assert(y.bar == 7_Field);
+}

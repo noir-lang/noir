@@ -1,11 +1,12 @@
 use std::path::Path;
 
-use acir::{FieldElement, native_types::WitnessStack};
+use acir::{AcirField, FieldElement, native_types::WitnessStack};
 use acvm::BlackBoxFunctionSolver;
 use nargo::{NargoError, foreign_calls::ForeignCallExecutor};
-use noirc_abi::input_parser::InputValue;
+use noirc_abi::{AbiType, Sign, input_parser::InputValue};
 use noirc_artifacts::debug::DebugArtifact;
 use noirc_driver::CompiledProgram;
+use noirc_printable_type::format_field_string;
 
 use crate::{
     errors::CliError,
@@ -84,13 +85,15 @@ pub fn save_and_check_witness(
     witness_dir: Option<&Path>,
     witness_name: Option<&str>,
 ) -> Result<(), CliError> {
-    println!("[{}] Circuit witness successfully solved", circuit_name);
+    noirc_errors::println_to_stdout!("[{circuit_name}] Circuit witness successfully solved");
     // Save first, so that we can potentially look at the output if the expectations fail.
     if let Some(witness_dir) = witness_dir {
         save_witness(&results.witness_stack, circuit_name, witness_dir, witness_name)?;
     }
     if let Some(ref return_value) = results.return_values.actual_return {
-        println!("[{}] Circuit output: {return_value:?}", circuit_name);
+        let abi_type = &circuit.abi.return_type.as_ref().unwrap().abi_type;
+        let output_string = input_value_to_string(return_value, abi_type);
+        noirc_errors::println_to_stdout!("[{circuit_name}] Circuit output: {output_string}");
     }
     check_witness(circuit, results.return_values)
 }
@@ -112,7 +115,11 @@ pub fn save_witness(
         }
     }
 
-    println!("[{}] Witness saved to {}", circuit_name, witness_path.display());
+    noirc_errors::println_to_stdout!(
+        "[{}] Witness saved to {}",
+        circuit_name,
+        witness_path.display()
+    );
     Ok(())
 }
 
@@ -143,4 +150,87 @@ pub fn check_witness(
     }
 
     Ok(())
+}
+
+pub fn input_value_to_string(input_value: &InputValue, abi_type: &AbiType) -> String {
+    let mut string = String::new();
+    append_input_value_to_string(input_value, abi_type, &mut string);
+    string
+}
+
+fn append_input_value_to_string(input_value: &InputValue, abi_type: &AbiType, string: &mut String) {
+    match (abi_type, input_value) {
+        (AbiType::Field, InputValue::Field(field_element)) => {
+            string.push_str(&format_field_string(*field_element));
+        }
+        (AbiType::Array { length: _, typ }, InputValue::Vec(input_values)) => {
+            string.push('[');
+            for (index, input_value) in input_values.iter().enumerate() {
+                if index != 0 {
+                    string.push_str(", ");
+                }
+                append_input_value_to_string(input_value, typ, string);
+            }
+            string.push(']');
+        }
+        (AbiType::Integer { sign, width: bit_size }, InputValue::Field(f)) => match sign {
+            Sign::Unsigned => {
+                string.push_str(&f.to_string());
+            }
+            Sign::Signed => {
+                let bit_size = *bit_size;
+                let max =
+                    if bit_size == 128 { i128::MAX as u128 } else { (1 << (bit_size - 1)) - 1 };
+                if f.num_bits() > 128 || f.to_u128() > max {
+                    string.push('-');
+                    let f = FieldElement::from(2u32).pow(&bit_size.into()) - *f;
+                    string.push_str(&f.to_string());
+                } else {
+                    string.push_str(&f.to_string());
+                }
+            }
+        },
+        (AbiType::Boolean, InputValue::Field(field_element)) => {
+            if field_element.is_zero() {
+                string.push_str("false");
+            } else {
+                string.push_str("true");
+            }
+        }
+        (AbiType::Struct { path, fields: field_types }, InputValue::Struct(field_values)) => {
+            string.push_str(path);
+            string.push_str(" { ");
+            for (index, (field_name, field_value)) in field_values.iter().enumerate() {
+                if index != 0 {
+                    string.push_str(", ");
+                }
+                string.push_str(field_name);
+                string.push_str(": ");
+                let typ = &field_types.iter().find(|(name, _)| name == field_name).unwrap().1;
+                append_input_value_to_string(field_value, typ, string);
+            }
+            string.push_str(" }");
+        }
+        (AbiType::Tuple { fields }, InputValue::Vec(input_values)) => {
+            assert_eq!(fields.len(), input_values.len());
+
+            string.push('(');
+            for (index, (input_value, field_type)) in input_values.iter().zip(fields).enumerate() {
+                if index != 0 {
+                    string.push_str(", ");
+                }
+                append_input_value_to_string(input_value, field_type, string);
+            }
+            if input_values.len() == 1 {
+                string.push(',');
+            }
+            string.push(')');
+        }
+        (AbiType::String { .. }, InputValue::String(value)) => {
+            string.push_str(&format!("{value:?}"));
+        }
+        (_, _) => {
+            panic!("Unexpected InputValue-AbiType combination: {input_value:?} - {abi_type:?}");
+        }
+    }
 }

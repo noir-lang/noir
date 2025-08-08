@@ -1,1 +1,0 @@
-[as_witness] Circuit output: Field(42)

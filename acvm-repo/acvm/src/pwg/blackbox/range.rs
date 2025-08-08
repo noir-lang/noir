@@ -27,7 +27,7 @@ mod tests {
     use std::collections::BTreeMap;
 
     use acir::{
-        FieldElement,
+        AcirField, FieldElement,
         circuit::opcodes::FunctionInput,
         native_types::{Witness, WitnessMap},
     };
@@ -40,6 +40,13 @@ mod tests {
             WitnessMap::from(BTreeMap::from([(Witness(0), FieldElement::from(256u32))]));
         let input: FunctionInput<FieldElement> = FunctionInput::witness(Witness(0), 8);
         assert!(solve_range_opcode(&witness_map, &input, false).is_err());
+    }
+
+    #[test]
+    fn accepts_zero_for_zero_bits() {
+        let witness_map = WitnessMap::from(BTreeMap::from([(Witness(0), FieldElement::zero())]));
+        let input: FunctionInput<FieldElement> = FunctionInput::witness(Witness(0), 0);
+        assert!(solve_range_opcode(&witness_map, &input, false).is_ok());
     }
 
     #[test]

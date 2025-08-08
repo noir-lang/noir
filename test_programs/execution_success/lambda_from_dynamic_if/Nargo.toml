@@ -1,0 +1,6 @@
+[package]
+name = "lambda_from_dynamic_if"
+type = "bin"
+authors = [""]
+
+[dependencies]

@@ -1,23 +1,29 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
+use std::str::FromStr;
 use std::{collections::HashMap, future::Future};
 
+use crate::notifications::fake_stdlib_workspace;
+use crate::notifications::process_workspace;
 use crate::{PackageCacheData, insert_all_files_for_workspace_into_file_manager, parse_diff};
 use crate::{
     resolve_workspace_for_source_path,
     types::{CodeLensOptions, InitializeParams},
 };
 use async_lsp::{ErrorCode, ResponseError};
+use fm::FileId;
 use fm::{FileMap, PathString, codespan_files::Error};
 use lsp_types::{
     CodeActionKind, DeclarationCapability, Location, Position, TextDocumentPositionParams,
     TextDocumentSyncCapability, TextDocumentSyncKind, TypeDefinitionProviderCapability, Url,
     WorkDoneProgressOptions,
 };
+use nargo::package::Package;
+use nargo::workspace::Workspace;
 use nargo_fmt::Config;
 
 use noirc_frontend::ast::Ident;
-use noirc_frontend::graph::CrateId;
+use noirc_frontend::graph::{CrateGraph, CrateId};
 use noirc_frontend::hir::def_map::{CrateDefMap, ModuleId};
 use noirc_frontend::node_interner::ReferenceId;
 use noirc_frontend::parser::ParserError;
@@ -48,6 +54,7 @@ mod code_action;
 mod code_lens_request;
 mod completion;
 mod document_symbol;
+mod expand;
 mod goto_declaration;
 mod goto_definition;
 mod hover;
@@ -55,19 +62,21 @@ mod inlay_hint;
 mod references;
 mod rename;
 mod signature_help;
+mod std_source_code;
 mod test_run;
 mod tests;
 mod workspace_symbol;
 
 pub(crate) use {
-    code_action::on_code_action_request, code_lens_request::collect_lenses_for_package,
-    code_lens_request::on_code_lens_request, completion::on_completion_request,
-    document_symbol::on_document_symbol_request, goto_declaration::on_goto_declaration_request,
+    code_action::on_code_action_request, code_lens_request::on_code_lens_request,
+    completion::on_completion_request, document_symbol::on_document_symbol_request,
+    expand::on_expand_request, goto_declaration::on_goto_declaration_request,
     goto_definition::on_goto_definition_request, goto_definition::on_goto_type_definition_request,
     hover::on_hover_request, inlay_hint::on_inlay_hint_request, references::on_references_request,
     rename::on_prepare_rename_request, rename::on_rename_request,
-    signature_help::on_signature_help_request, test_run::on_test_run_request,
-    tests::on_tests_request, workspace_symbol::on_workspace_symbol_request,
+    signature_help::on_signature_help_request, std_source_code::on_std_source_code_request,
+    test_run::on_test_run_request, tests::on_tests_request,
+    workspace_symbol::on_workspace_symbol_request,
 };
 
 /// LSP client will send initialization request after the server has started.
@@ -352,7 +361,7 @@ fn read_format_config(file_path: Option<&Path>) -> Config {
         Some(file_path) => match Config::read(file_path) {
             Ok(config) => config,
             Err(err) => {
-                eprintln!("{}", err);
+                eprintln!("{err}");
                 Config::default()
             }
         },
@@ -390,12 +399,12 @@ fn position_to_location(
 ) -> Result<noirc_errors::Location, ResponseError> {
     let file_id = files.get_file_id(file_path).ok_or(ResponseError::new(
         ErrorCode::REQUEST_FAILED,
-        format!("Could not find file in file manager. File path: {:?}", file_path),
+        format!("Could not find file in file manager. File path: {file_path:?}"),
     ))?;
     let byte_index = position_to_byte_index(files, file_id, position).map_err(|err| {
         ResponseError::new(
             ErrorCode::REQUEST_FAILED,
-            format!("Could not convert position to byte index. Error: {:?}", err),
+            format!("Could not convert position to byte index. Error: {err:?}"),
         )
     })?;
 
@@ -431,26 +440,21 @@ fn character_to_line_offset(line: &str, character: u32) -> Result<usize, Error> 
     }
 }
 
-pub(crate) fn to_lsp_location<'a, F>(
-    files: &'a F,
-    file_id: F::FileId,
+pub(crate) fn to_lsp_location(
+    files: &FileMap,
+    file_id: FileId,
     definition_span: noirc_errors::Span,
-) -> Option<Location>
-where
-    F: fm::codespan_files::Files<'a> + ?Sized,
-{
+) -> Option<Location> {
     let range = crate::byte_span_to_range(files, file_id, definition_span.into())?;
-    let file_name = files.name(file_id).ok()?;
-
+    let file_name = files.get_absolute_name(file_id).ok()?;
     let path = file_name.to_string();
-
-    // `path` might be a relative path so we canonicalize it to get an absolute path
-    let path_buf = PathBuf::from(path);
-    let path_buf = path_buf.canonicalize().unwrap_or(path_buf);
-
-    let uri = Url::from_file_path(path_buf.to_str()?).ok()?;
-
-    Some(Location { uri, range })
+    if let Ok(uri) = Url::from_file_path(path.clone()) {
+        Some(Location { uri, range })
+    } else if path.starts_with("std/") {
+        Some(Location { uri: Url::from_str(&format!("noir-std://{path}")).unwrap(), range })
+    } else {
+        None
+    }
 }
 
 pub(crate) fn on_shutdown(
@@ -462,14 +466,22 @@ pub(crate) fn on_shutdown(
 
 pub(crate) struct ProcessRequestCallbackArgs<'a> {
     location: noirc_errors::Location,
+    workspace: &'a Workspace,
+    package: &'a Package,
     files: &'a FileMap,
     interner: &'a NodeInterner,
     package_cache: &'a HashMap<PathBuf, PackageCacheData>,
     crate_id: CrateId,
     crate_name: String,
-    dependencies: &'a Vec<Dependency>,
+    crate_graph: &'a CrateGraph,
     def_maps: &'a BTreeMap<CrateId, CrateDefMap>,
     usage_tracker: &'a UsageTracker,
+}
+
+impl<'a> ProcessRequestCallbackArgs<'a> {
+    pub(crate) fn dependencies(&self) -> &'a Vec<Dependency> {
+        &self.crate_graph[self.crate_id].dependencies
+    }
 }
 
 pub(crate) fn process_request<F, T>(
@@ -480,12 +492,27 @@ pub(crate) fn process_request<F, T>(
 where
     F: FnOnce(ProcessRequestCallbackArgs) -> T,
 {
-    let file_path =
-        text_document_position_params.text_document.uri.to_file_path().map_err(|_| {
+    let uri = text_document_position_params.text_document.uri.clone();
+
+    let (file_path, workspace) = if uri.scheme() == "noir-std" {
+        let workspace = fake_stdlib_workspace();
+        let file_path =
+            PathBuf::from_str(&format!("{}{}", uri.host().unwrap(), uri.path())).unwrap();
+        (file_path, workspace)
+    } else {
+        let file_path = uri.to_file_path().map_err(|_| {
             ResponseError::new(ErrorCode::REQUEST_FAILED, "URI is not a valid file path")
         })?;
 
-    let workspace = resolve_workspace_for_source_path(file_path.as_path()).unwrap();
+        let workspace = resolve_workspace_for_source_path(file_path.as_path()).unwrap();
+        (file_path, workspace)
+    };
+
+    // First type-check the workspace if needed
+    if state.workspaces_to_process.remove(&workspace.root_dir) {
+        let _ = process_workspace(state, &workspace, false);
+    }
+
     let package = crate::workspace_package_for_file(&workspace, &file_path).ok_or_else(|| {
         ResponseError::new(ErrorCode::REQUEST_FAILED, "Could not find package for file")
     })?;
@@ -520,12 +547,14 @@ where
 
     Ok(callback(ProcessRequestCallbackArgs {
         location,
+        workspace: &workspace,
+        package,
         files,
         interner,
         package_cache: &state.package_cache,
         crate_id,
         crate_name: package.name.to_string(),
-        dependencies: &crate_graph[crate_id].dependencies,
+        crate_graph,
         def_maps,
         usage_tracker,
     }))
@@ -585,12 +614,14 @@ where
 
     Ok(callback(ProcessRequestCallbackArgs {
         location,
+        workspace: &workspace,
+        package,
         files,
         interner,
         package_cache: &state.package_cache,
         crate_id,
         crate_name: package.name.to_string(),
-        dependencies: &context.crate_graph[crate_id].dependencies,
+        crate_graph: &context.crate_graph,
         def_maps,
         usage_tracker,
     }))
@@ -679,7 +710,7 @@ pub(crate) fn find_all_references(
 fn get_reference_name(reference: ReferenceId, interner: &NodeInterner) -> Option<String> {
     match reference {
         ReferenceId::Module(module_id) => {
-            Some(interner.try_module_attributes(&module_id)?.name.clone())
+            Some(interner.try_module_attributes(module_id)?.name.clone())
         }
         ReferenceId::Type(type_id) => Some(interner.get_type(type_id).borrow().name.to_string()),
         ReferenceId::StructMember(type_id, index) => {
@@ -689,6 +720,9 @@ fn get_reference_name(reference: ReferenceId, interner: &NodeInterner) -> Option
             Some(interner.get_type(type_id).borrow().variant_at(index).name.to_string())
         }
         ReferenceId::Trait(trait_id) => Some(interner.get_trait(trait_id).name.to_string()),
+        ReferenceId::TraitAssociatedType(id) => {
+            Some(interner.get_trait_associated_type(id).name.to_string())
+        }
         ReferenceId::Global(global_id) => Some(interner.get_global(global_id).ident.to_string()),
         ReferenceId::Function(func_id) => Some(interner.function_name(&func_id).to_string()),
         ReferenceId::Alias(type_alias_id) => {

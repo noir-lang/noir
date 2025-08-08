@@ -292,7 +292,8 @@ mod tests {
             v2 = cast v0 as i32
             v3 = cast v1 as i32
             v4 = add v2, v3
-            return v4
+            v5 = truncate v4 to 32 bits, max_bit_size: 33
+            return v5
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
@@ -307,7 +308,8 @@ mod tests {
           b0(v0: i16):
             v1 = cast v0 as i32
             v2 = sub i32 65536, v1
-            return v2
+            v3 = truncate v2 to 32 bits, max_bit_size: 33
+            return v3
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
@@ -322,6 +324,8 @@ mod tests {
           b0(v0: u1, v1: i32):
             v2 = cast v0 as i32
             v3 = mul v2, v1
+            v4 = cast v3 as u64
+            v6 = truncate v4 to 32 bits, max_bit_size: 64
             return v2
         }
         ";

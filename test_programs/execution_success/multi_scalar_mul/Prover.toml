@@ -5,6 +5,7 @@ scalars = [
     "0x30644e72e131a029b85045b68181585d2833e84879b9709143e1f593f0000000",
     "0x1b",
 ]
+return = { x = "0x1c8a6176be7ad60ed7cfa3165b21f7236f8248be3d0481bcccc0e96e32ec00ea", y = "0x1f96197d2991f3c6f2a249d2e5811178ddce4950f21e3d01f2d7d83611e7e784", is_infinite = false }
 
 [[points]]
 is_infinite = "0"

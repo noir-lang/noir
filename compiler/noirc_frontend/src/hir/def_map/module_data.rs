@@ -4,7 +4,7 @@ use noirc_errors::Location;
 
 use super::{ItemScope, LocalModuleId, ModuleDefId, ModuleId, PerNs};
 use crate::ast::{Ident, ItemVisibility};
-use crate::node_interner::{FuncId, GlobalId, TraitId, TypeAliasId, TypeId};
+use crate::node_interner::{FuncId, GlobalId, TraitAssociatedTypeId, TraitId, TypeAliasId, TypeId};
 use crate::token::SecondaryAttribute;
 
 /// Contains the actual contents of a module: its parent (if one exists),
@@ -153,6 +153,14 @@ impl ModuleData {
         self.traits_in_scope.insert(id, name.clone());
 
         self.declare(name, visibility, ModuleDefId::TraitId(id), None)
+    }
+
+    pub fn declare_trait_associated_type(
+        &mut self,
+        name: Ident,
+        id: TraitAssociatedTypeId,
+    ) -> Result<(), (Ident, Ident)> {
+        self.declare(name, ItemVisibility::Public, id.into(), None)
     }
 
     pub fn declare_child_module(

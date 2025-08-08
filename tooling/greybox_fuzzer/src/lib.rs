@@ -1,3 +1,7 @@
+#![forbid(unsafe_code)]
+#![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
+#![expect(unreachable_pub)] // This crate is full of issues related to this lint
+
 use core::panic;
 use std::{
     cmp::max,
@@ -75,7 +79,7 @@ struct FuzzTask {
 
 impl FuzzTask {
     /// Create a new FuzzTask where everything is given
-    pub fn new(
+    pub(crate) fn new(
         main_testcase_id: TestCaseId,
         additional_testcase_id: Option<TestCaseId>,
         seed: SimpleXorShiftRNGSeed,
@@ -84,7 +88,7 @@ impl FuzzTask {
     }
 
     /// Create a task for executing a testcase without mutation
-    pub fn mutationless(main_testcase_id: TestCaseId) -> Self {
+    pub(crate) fn without_mutation(main_testcase_id: TestCaseId) -> Self {
         Self {
             main_testcase_id,
             additional_testcase_id: None,
@@ -92,13 +96,13 @@ impl FuzzTask {
         }
     }
 
-    pub fn prng_seed(&self) -> SimpleXorShiftRNGSeed {
+    pub(crate) fn prng_seed(&self) -> SimpleXorShiftRNGSeed {
         self.seed
     }
-    pub fn main_id(&self) -> TestCaseId {
+    pub(crate) fn main_id(&self) -> TestCaseId {
         self.main_testcase_id
     }
-    pub fn additional_id(&self) -> Option<TestCaseId> {
+    pub(crate) fn additional_id(&self) -> Option<TestCaseId> {
         self.additional_testcase_id
     }
 }
@@ -122,7 +126,7 @@ struct FastParallelFuzzResult {
 }
 
 impl FastParallelFuzzResult {
-    pub fn new(
+    pub(crate) fn new(
         outcome: HarnessExecutionOutcome,
         new_coverage_detected: bool,
         failure_detected: bool,
@@ -141,30 +145,30 @@ impl FastParallelFuzzResult {
     }
 
     /// True if there is no need to perform the merge check
-    pub fn skip_check(&self) -> bool {
+    pub(crate) fn skip_check(&self) -> bool {
         !self.new_coverage_detected
     }
 
     /// Executing the testcase resulted in failure
-    pub fn failed(&self) -> bool {
+    pub(crate) fn failed(&self) -> bool {
         self.failure_detected
     }
 
     /// Get the outcome of the execution
-    pub fn outcome(&self) -> &HarnessExecutionOutcome {
+    pub(crate) fn outcome(&self) -> &HarnessExecutionOutcome {
         &self.outcome
     }
 
     /// Get mutation time
-    pub fn mutation_time(&self) -> u128 {
+    pub(crate) fn mutation_time(&self) -> u128 {
         self.mutation_time
     }
     /// Get acir execution time
-    pub fn acir_duration_micros(&self) -> u128 {
+    pub(crate) fn acir_duration_micros(&self) -> u128 {
         self.acir_duration_micros
     }
     /// Get brillig execution time
-    pub fn brillig_duration_micros(&self) -> u128 {
+    pub(crate) fn brillig_duration_micros(&self) -> u128 {
         self.brillig_duration_micros
     }
 }
@@ -206,56 +210,56 @@ struct Metrics {
 }
 
 impl Metrics {
-    pub fn increase_total_acir_duration_micros(&mut self, update: &u128) {
+    pub(crate) fn increase_total_acir_duration_micros(&mut self, update: &u128) {
         self.total_acir_execution_time += update;
     }
-    pub fn increase_total_brillig_duration_micros(&mut self, update: &u128) {
+    pub(crate) fn increase_total_brillig_duration_micros(&mut self, update: &u128) {
         self.total_brillig_execution_time += update;
     }
-    pub fn increase_total_mutation_time(&mut self, update: &u128) {
+    pub(crate) fn increase_total_mutation_time(&mut self, update: &u128) {
         self.total_mutation_time += update;
     }
     /// Tells if more time has been spent in brillig execution than in ACIR execution
-    pub fn is_brillig_dominating(&self) -> bool {
+    pub(crate) fn is_brillig_dominating(&self) -> bool {
         self.total_brillig_execution_time > self.total_acir_execution_time
     }
 
-    pub fn increase_processed_testcase_count(&mut self, update: &usize) {
+    pub(crate) fn increase_processed_testcase_count(&mut self, update: &usize) {
         self.processed_testcase_count += update;
     }
-    pub fn increment_removed_testcase_count(&mut self) {
+    fn increment_removed_testcase_count(&mut self) {
         self.removed_testcase_count += 1;
         self.removed_testcase_last_round = true;
     }
-    pub fn set_active_corpus_size(&mut self, new_size: usize) {
+    pub(crate) fn set_active_corpus_size(&mut self, new_size: usize) {
         self.active_corpus_size = new_size;
     }
-    pub fn set_last_round_size(&mut self, new_size: usize) {
+    pub(crate) fn set_last_round_size(&mut self, new_size: usize) {
         self.last_round_size = new_size;
     }
-    pub fn set_last_round_execution_time(&mut self, new_time: u128) {
+    pub(crate) fn set_last_round_execution_time(&mut self, new_time: u128) {
         self.last_round_execution_time = new_time;
     }
-    pub fn set_last_round_update_time(&mut self, new_time: u128) {
+    pub(crate) fn set_last_round_update_time(&mut self, new_time: u128) {
         self.last_round_update_time = new_time;
     }
-    pub fn set_num_threads(&mut self, count: usize) {
+    pub(crate) fn set_num_threads(&mut self, count: usize) {
         self.num_threads = count;
     }
 
-    pub fn increment_acir_brillig_discoveries(&mut self) {
+    pub(crate) fn increment_acir_brillig_discoveries(&mut self) {
         self.acir_brillig_discoveries += 1;
         self.found_new_with_acir_brillig = true;
         // Set pulse interval to zero so that metrics are printed immediately
         self.pulse_interval_millis = 0;
     }
-    pub fn increment_brillig_discoveries(&mut self) {
+    pub(crate) fn increment_brillig_discoveries(&mut self) {
         self.brillig_discoveries += 1;
         self.found_new_with_brillig = true;
         // Set pulse interval to zero so that metrics are printed immediately
         self.pulse_interval_millis = 0;
     }
-    pub fn refresh_round(&mut self) {
+    pub(crate) fn refresh_round(&mut self) {
         self.found_new_with_acir_brillig = false;
         self.found_new_with_brillig = false;
         self.removed_testcase_last_round = false;
@@ -274,6 +278,8 @@ pub struct FuzzedExecutorExecutionConfiguration {
     pub timeout: u64,
     /// Whether to output progress to stdout or not.
     pub show_progress: bool,
+    /// Maximum number of executions of ACIR and Brillig (default: no limit)
+    pub max_executions: usize,
 }
 
 pub enum FuzzedExecutorFailureConfiguration {
@@ -344,6 +350,9 @@ pub struct FuzzedExecutor<E, F> {
 
     /// Maximum time in seconds to spend fuzzing (default: no timeout)
     timeout: u64,
+
+    /// Maximum number of executions of ACIR and Brillig (default: no limit)
+    max_executions: usize,
 }
 pub struct AcirAndBrilligPrograms {
     pub acir_program: ProgramArtifact,
@@ -408,6 +417,7 @@ impl<
             ),
             timeout: fuzz_execution_config.timeout,
             metrics: Metrics::default(),
+            max_executions: fuzz_execution_config.max_executions,
         }
     }
 
@@ -478,7 +488,7 @@ impl<
         // Generate a seed for the campaign
         let seed = thread_rng().r#gen::<u64>();
 
-        // Init a fast PRNG used throughout the campain
+        // Init a fast PRNG used throughout the campaign
         let mut prng = XorShiftRng::seed_from_u64(seed);
 
         // Initialize the starting corpus
@@ -633,7 +643,7 @@ impl<
                 // If this is the initial processing round, then push testcases from the starting corpus into the set
                 testcase_set.reserve(starting_corpus_ids.len());
                 for id in starting_corpus_ids.iter() {
-                    testcase_set.push(FuzzTask::mutationless(*id));
+                    testcase_set.push(FuzzTask::without_mutation(*id));
                 }
             }
             let mutation_and_fuzzing_time_tracker = Instant::now();
@@ -770,7 +780,7 @@ impl<
                     .increase_total_brillig_duration_micros(&fast_result.brillig_duration_micros());
                 self.metrics.increase_total_mutation_time(&fast_result.mutation_time());
                 if !fast_result.skip_check() {
-                    analysis_queue.push(index)
+                    analysis_queue.push(index);
                 }
             }
 
@@ -965,6 +975,12 @@ impl<
                 if self.timeout > 0 && time_tracker.elapsed() >= Duration::from_secs(self.timeout) {
                     return FuzzTestResult::Success;
                 }
+                // Check if we've exceeded the maximum number of executions
+                if self.max_executions > 0
+                    && self.metrics.processed_testcase_count >= self.max_executions
+                {
+                    return FuzzTestResult::Success;
+                }
             }
 
             if self.minimize_corpus {
@@ -998,10 +1014,10 @@ impl<
             }) => {
                 let reason = match acir_failed {
                     true => {
-                        format!("ACIR failed while brillig executed with no issues: {}", status)
+                        format!("ACIR failed while brillig executed with no issues: {status}")
                     }
                     false => {
-                        format!("brillig failed while ACIR executed with no issues: {}", status)
+                        format!("brillig failed while ACIR executed with no issues: {status}")
                     }
                 };
 
@@ -1291,11 +1307,11 @@ fn display_starting_info(
     if minimize_corpus {
         write!(writer, "Attempting to minimize corpus for fuzzing harness ")?;
         writer.set_color(ColorSpec::new().set_fg(Some(Color::Blue)))?;
-        write!(writer, "{}", fuzzing_harness_name)?;
+        write!(writer, "{fuzzing_harness_name}")?;
         writer.reset()?;
         write!(writer, " of package ")?;
         writer.set_color(ColorSpec::new().set_fg(Some(Color::Blue)))?;
-        writeln!(writer, "{}", package_name)?;
+        writeln!(writer, "{package_name}")?;
         writer.reset()?;
         write!(writer, "Corpus path: \"")?;
         writer.set_color(ColorSpec::new().set_fg(Some(Color::Blue)))?;
@@ -1314,11 +1330,11 @@ fn display_starting_info(
     } else {
         write!(writer, "Starting fuzzing with harness ")?;
         writer.set_color(ColorSpec::new().set_fg(Some(Color::Blue)))?;
-        write!(writer, "{}", fuzzing_harness_name)?;
+        write!(writer, "{fuzzing_harness_name}")?;
         writer.reset()?;
         write!(writer, " of package ")?;
         writer.set_color(ColorSpec::new().set_fg(Some(Color::Blue)))?;
-        writeln!(writer, "{}", package_name)?;
+        writeln!(writer, "{package_name}")?;
         writer.reset()?;
         write!(writer, "Corpus path: \"")?;
         writer.set_color(ColorSpec::new().set_fg(Some(Color::Blue)))?;
@@ -1328,17 +1344,17 @@ fn display_starting_info(
     }
     write!(writer, "seed: ")?;
     writer.set_color(ColorSpec::new().set_fg(Some(Color::Blue)))?;
-    write!(writer, "{:#016x}", seed)?;
+    write!(writer, "{seed:#016x}")?;
     writer.reset()?;
 
     write!(writer, ", starting_corpus_size: ")?;
     writer.set_color(ColorSpec::new().set_fg(Some(Color::Blue)))?;
-    write!(writer, "{}", starting_corpus_size)?;
+    write!(writer, "{starting_corpus_size}")?;
     writer.reset()?;
 
     write!(writer, ", num_threads: ")?;
     writer.set_color(ColorSpec::new().set_fg(Some(Color::Blue)))?;
-    writeln!(writer, "{}", num_threads)?;
+    writeln!(writer, "{num_threads}")?;
     writer.reset()?;
 
     if abi_change_detected {
@@ -1372,7 +1388,7 @@ fn display_metrics(metrics: &Metrics) -> Result<(), std::io::Error> {
         } else if x > microseconds_in_millisecond {
             format!("{}ms", x / microseconds_in_millisecond)
         } else {
-            format!("{}us", x)
+            format!("{x}us")
         }
     };
     let format_count = |x: usize| {
@@ -1386,7 +1402,7 @@ fn display_metrics(metrics: &Metrics) -> Result<(), std::io::Error> {
         } else if x > thousand {
             format!("{}k", x / thousand)
         } else {
-            format!("{}", x)
+            format!("{x}")
         }
     };
     if metrics.found_new_with_acir_brillig || metrics.found_new_with_brillig {

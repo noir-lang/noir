@@ -10,7 +10,10 @@ use crate::ast::{
 use crate::node_interner::TraitId;
 use crate::token::SecondaryAttribute;
 
-use super::{Documented, GenericTypeArgs, ItemVisibility, UnresolvedGeneric, UnresolvedTypeData};
+use super::{
+    Documented, GenericTypeArgs, IdentOrQuotedType, ItemVisibility, UnresolvedGeneric,
+    UnresolvedTypeData,
+};
 
 /// AST node for trait definitions:
 /// `trait name<generics> { ... items ... }`
@@ -45,10 +48,10 @@ pub enum TraitItem {
     Constant {
         name: Ident,
         typ: UnresolvedType,
-        default_value: Option<Expression>,
     },
     Type {
         name: Ident,
+        bounds: Vec<TraitBound>,
     },
 }
 
@@ -144,12 +147,12 @@ impl Display for NoirTrait {
 
         if self.is_alias {
             let bounds = vecmap(&self.bounds, |bound| bound.to_string()).join(" + ");
-            return write!(f, " = {};", bounds);
+            return write!(f, " = {bounds};");
         }
 
         if !self.bounds.is_empty() {
             let bounds = vecmap(&self.bounds, |bound| bound.to_string()).join(" + ");
-            write!(f, ": {}", bounds)?;
+            write!(f, ": {bounds}")?;
         }
 
         let where_clause = vecmap(&self.where_clause, ToString::to_string);
@@ -207,16 +210,15 @@ impl Display for TraitItem {
 
                 if let Some(body) = body { write!(f, "{body}") } else { write!(f, ";") }
             }
-            TraitItem::Constant { name, typ, default_value } => {
-                write!(f, "let {name}: {typ}")?;
-
-                if let Some(default_value) = default_value {
-                    write!(f, "{default_value};")
+            TraitItem::Constant { name, typ } => write!(f, "let {name}: {typ};"),
+            TraitItem::Type { name, bounds } => {
+                if bounds.is_empty() {
+                    write!(f, "type {name};")
                 } else {
-                    write!(f, ";")
+                    let bounds = vecmap(bounds, |bound| bound.to_string()).join(" + ");
+                    write!(f, "type {name}: {bounds};")
                 }
             }
-            TraitItem::Type { name } => write!(f, "type {name};"),
         }
     }
 }
@@ -288,6 +290,15 @@ impl Display for TraitImplItemKind {
     }
 }
 
+/// Does both `desugar_generic_trait_bounds` and `reorder_where_clause`.
+pub(crate) fn desugar_generic_trait_bounds_and_reorder_where_clause(
+    generics: &mut Vec<UnresolvedGeneric>,
+    where_clause: &mut Vec<UnresolvedTraitConstraint>,
+) {
+    desugar_generic_trait_bounds(generics, where_clause);
+    reorder_where_clause(where_clause);
+}
+
 /// Moves trait bounds from generics into where clauses. For example:
 ///
 /// ```noir
@@ -299,12 +310,13 @@ impl Display for TraitImplItemKind {
 /// ```noir
 /// fn foo<T>(x: T) -> T where T: Trait {}
 /// ```
-pub(crate) fn desugar_generic_trait_bounds(
+fn desugar_generic_trait_bounds(
     generics: &mut Vec<UnresolvedGeneric>,
     where_clause: &mut Vec<UnresolvedTraitConstraint>,
 ) {
     for generic in generics {
-        let UnresolvedGeneric::Variable(ident, trait_bounds) = generic else {
+        let UnresolvedGeneric::Variable(IdentOrQuotedType::Ident(ident), trait_bounds) = generic
+        else {
             continue;
         };
 
@@ -320,4 +332,30 @@ pub(crate) fn desugar_generic_trait_bounds(
             where_clause.push(trait_constraint);
         }
     }
+}
+
+/// Reorders a where clause in-place so that simpler constraints come before more complex ones.
+/// The resulting where clause will have constraints in this order:
+/// 1. Paths without generics
+/// 2. Paths with generics
+/// 3. Everything else
+fn reorder_where_clause(where_clause: &mut Vec<UnresolvedTraitConstraint>) {
+    let mut paths_without_generics = Vec::new();
+    let mut paths_with_generics = Vec::new();
+    let mut others = Vec::new();
+
+    for clause in std::mem::take(where_clause) {
+        if let UnresolvedTypeData::Named(_, generics, _) = &clause.typ.typ {
+            if generics.is_empty() {
+                paths_without_generics.push(clause);
+            } else {
+                paths_with_generics.push(clause);
+            }
+        } else {
+            others.push(clause);
+        }
+    }
+    where_clause.extend(paths_without_generics);
+    where_clause.extend(paths_with_generics);
+    where_clause.extend(others);
 }

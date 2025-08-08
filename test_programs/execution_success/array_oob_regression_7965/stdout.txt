@@ -1,1 +1,0 @@
-[array_oob_regression_7965] Circuit output: Vec([])

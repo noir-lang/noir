@@ -1,0 +1,14 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+global THREE: u32 = 3;
+
+global EIGHT: u32 = 8;
+
+global SEVEN: u32 = 7;
+
+fn main() {
+    assert([0_Field; 8] == [0_Field; 8]);
+    assert([0_Field; 7] == [0_Field; 7]);
+}

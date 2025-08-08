@@ -1,15 +1,14 @@
-use acvm::{AcirField, FieldElement};
 use iter_extended::vecmap;
 use noirc_errors::{Located, Location};
 use rustc_hash::FxHashSet as HashSet;
 
 use crate::{
-    DataType, Kind, QuotedType, Shared, Type,
+    DataType, Kind, QuotedType, Shared, Type, TypeBindings, TypeVariable,
     ast::{
         ArrayLiteral, AsTraitPath, BinaryOpKind, BlockExpression, CallExpression, CastExpression,
         ConstrainExpression, ConstrainKind, ConstructorExpression, Expression, ExpressionKind,
-        Ident, IfExpression, IndexExpression, InfixExpression, ItemVisibility, Lambda, Literal,
-        MatchExpression, MemberAccessExpression, MethodCallExpression, Path, PathSegment,
+        Ident, IfExpression, IndexExpression, InfixExpression, IntegerBitSize, ItemVisibility,
+        Lambda, Literal, MatchExpression, MemberAccessExpression, MethodCallExpression,
         PrefixExpression, StatementKind, TraitBound, UnaryOp, UnresolvedTraitConstraint,
         UnresolvedTypeData, UnresolvedTypeExpression, UnsafeExpression,
     },
@@ -19,7 +18,7 @@ use crate::{
         resolution::{
             errors::ResolverError, import::PathResolutionError, visibility::method_call_is_visible,
         },
-        type_check::{TypeCheckError, generics::TraitGenerics},
+        type_check::{Source, TypeCheckError, generics::TraitGenerics},
     },
     hir_def::{
         expr::{
@@ -27,18 +26,24 @@ use crate::{
             HirConstrainExpression, HirConstructorExpression, HirExpression, HirIdent,
             HirIfExpression, HirIndexExpression, HirInfixExpression, HirLambda, HirLiteral,
             HirMatch, HirMemberAccess, HirMethodCallExpression, HirPrefixExpression, ImplKind,
-            TraitMethod,
+            TraitItem,
         },
         stmt::{HirLetStatement, HirPattern, HirStatement},
         traits::{ResolvedTraitBound, TraitConstraint},
     },
     node_interner::{
-        DefinitionId, DefinitionKind, ExprId, FuncId, InternedStatementKind, StmtId, TraitMethodId,
+        DefinitionId, DefinitionKind, ExprId, FuncId, InternedStatementKind, StmtId, TraitItemId,
     },
-    token::{FmtStrFragment, Tokens},
+    shared::Signedness,
+    signed_field::SignedField,
+    token::{FmtStrFragment, IntegerTypeSuffix, Tokens},
 };
 
-use super::{Elaborator, LambdaContext, UnsafeBlockStatus, UnstableFeature};
+use super::{
+    Elaborator, LambdaContext, UnsafeBlockStatus, UnstableFeature,
+    function_context::BindableTypeVariableKind,
+    path_resolution::{TypedPath, TypedPathSegment},
+};
 
 impl Elaborator<'_> {
     pub(crate) fn elaborate_expression(&mut self, expr: Expression) -> (ExprId, Type) {
@@ -50,6 +55,8 @@ impl Elaborator<'_> {
         expr: Expression,
         target_type: Option<&Type>,
     ) -> (ExprId, Type) {
+        let is_integer_literal = matches!(expr.kind, ExpressionKind::Literal(Literal::Integer(..)));
+
         let (hir_expr, typ) = match expr.kind {
             ExpressionKind::Literal(literal) => self.elaborate_literal(literal, expr.location),
             ExpressionKind::Block(block) => self.elaborate_block(block, target_type),
@@ -60,7 +67,8 @@ impl Elaborator<'_> {
             ExpressionKind::Constrain(constrain) => self.elaborate_constrain(constrain),
             ExpressionKind::Constructor(constructor) => self.elaborate_constructor(*constructor),
             ExpressionKind::MemberAccess(access) => {
-                return self.elaborate_member_access(*access, expr.location);
+                let (expr_id, typ, _) = self.elaborate_member_access(*access, expr.location, false);
+                return (expr_id, typ);
             }
             ExpressionKind::Cast(cast) => self.elaborate_cast(*cast, expr.location),
             ExpressionKind::Infix(infix) => return self.elaborate_infix(*infix, expr.location),
@@ -96,14 +104,36 @@ impl Elaborator<'_> {
                 (HirExpression::Error, Type::Error)
             }
             ExpressionKind::AsTraitPath(path) => {
-                return self.elaborate_as_trait_path(path);
+                return self.elaborate_as_trait_path(*path);
             }
-            ExpressionKind::TypePath(path) => return self.elaborate_type_path(path),
+            ExpressionKind::TypePath(path) => return self.elaborate_type_path(*path),
         };
         let id = self.interner.push_expr(hir_expr);
         self.interner.push_expr_location(id, expr.location);
         self.interner.push_expr_type(id, typ.clone());
+
+        if is_integer_literal {
+            self.push_integer_literal_expr_id(id);
+        }
+
         (id, typ)
+    }
+
+    /// Elaborate a member access expression without adding the automatic dereferencing operations
+    /// to it, treating it as an offset instead. This also returns a boolean indicating whether the
+    /// result skipped any required auto-dereferences (and thus needs dereferencing to be used as a value
+    /// instead of a reference). This flag is used when `&mut foo.bar.baz` is used to cancel out
+    /// the `&mut`.
+    fn elaborate_reference_expression(&mut self, expr: Expression) -> (ExprId, Type, bool) {
+        match expr.kind {
+            ExpressionKind::MemberAccess(access) => {
+                self.elaborate_member_access(*access, expr.location, true)
+            }
+            _ => {
+                let (expr_id, typ) = self.elaborate_expression(expr);
+                (expr_id, typ, false)
+            }
+        }
     }
 
     fn elaborate_interned_statement_as_expr(
@@ -151,13 +181,23 @@ impl Elaborator<'_> {
         let statements_len = block.statements.len();
         let mut statements = Vec::with_capacity(statements_len);
 
+        // If we found a break or continue statement, this holds its location (only for the first one)
+        let mut break_or_continue_location = None;
+        // When encountering a statement after a break or continue we'll error saying it's unreachable,
+        // but we only want to error for the first statement.
+        let mut errored_unreachable = false;
+
         for (i, statement) in block.statements.into_iter().enumerate() {
+            let location = statement.location;
             let statement_target_type = if i == statements_len - 1 { target_type } else { None };
             let (id, stmt_type) =
                 self.elaborate_statement_with_target_type(statement, statement_target_type);
+
             statements.push(id);
 
-            if let HirStatement::Semi(expr) = self.interner.statement(&id) {
+            let stmt = self.interner.statement(&id);
+
+            if let HirStatement::Semi(expr) = stmt {
                 let inner_expr_type = self.interner.id_type(expr);
                 let location = self.interner.expr_location(&expr);
 
@@ -167,8 +207,22 @@ impl Elaborator<'_> {
                 });
             }
 
+            let is_break_or_continue = matches!(stmt, HirStatement::Break | HirStatement::Continue);
+
+            if let Some(break_or_continue_location) = break_or_continue_location {
+                if !errored_unreachable {
+                    self.push_err(ResolverError::UnreachableStatement {
+                        location,
+                        break_or_continue_location,
+                    });
+                    errored_unreachable = true;
+                }
+            } else if is_break_or_continue {
+                break_or_continue_location = Some(location);
+            }
+
             if i + 1 == statements.len() {
-                block_type = stmt_type;
+                block_type = if is_break_or_continue { Type::Unit } else { stmt_type };
             }
         }
 
@@ -218,8 +272,8 @@ impl Elaborator<'_> {
         match literal {
             Literal::Unit => (Lit(HirLiteral::Unit), Type::Unit),
             Literal::Bool(b) => (Lit(HirLiteral::Bool(b)), Type::Bool),
-            Literal::Integer(integer) => {
-                (Lit(HirLiteral::Integer(integer)), self.polymorphic_integer_or_field())
+            Literal::Integer(integer, suffix) => {
+                (Lit(HirLiteral::Integer(integer)), self.integer_suffix_type(suffix))
             }
             Literal::Str(str) | Literal::RawStr(str, _) => {
                 let len = Type::Constant(str.len().into(), Kind::u32());
@@ -235,6 +289,24 @@ impl Elaborator<'_> {
         }
     }
 
+    fn integer_suffix_type(&mut self, suffix: Option<IntegerTypeSuffix>) -> Type {
+        use {Signedness::*, Type::Integer};
+        match suffix {
+            Some(IntegerTypeSuffix::I8) => Integer(Signed, IntegerBitSize::Eight),
+            Some(IntegerTypeSuffix::I16) => Integer(Signed, IntegerBitSize::Sixteen),
+            Some(IntegerTypeSuffix::I32) => Integer(Signed, IntegerBitSize::ThirtyTwo),
+            Some(IntegerTypeSuffix::I64) => Integer(Signed, IntegerBitSize::SixtyFour),
+            Some(IntegerTypeSuffix::U1) => Integer(Unsigned, IntegerBitSize::One),
+            Some(IntegerTypeSuffix::U8) => Integer(Unsigned, IntegerBitSize::Eight),
+            Some(IntegerTypeSuffix::U16) => Integer(Unsigned, IntegerBitSize::Sixteen),
+            Some(IntegerTypeSuffix::U32) => Integer(Unsigned, IntegerBitSize::ThirtyTwo),
+            Some(IntegerTypeSuffix::U64) => Integer(Unsigned, IntegerBitSize::SixtyFour),
+            Some(IntegerTypeSuffix::U128) => Integer(Unsigned, IntegerBitSize::HundredTwentyEight),
+            Some(IntegerTypeSuffix::Field) => Type::FieldElement,
+            None => self.polymorphic_integer_or_field(),
+        }
+    }
+
     fn elaborate_array_literal(
         &mut self,
         array_literal: ArrayLiteral,
@@ -243,7 +315,16 @@ impl Elaborator<'_> {
     ) -> (HirExpression, Type) {
         let (expr, elem_type, length) = match array_literal {
             ArrayLiteral::Standard(elements) => {
-                let first_elem_type = self.interner.next_type_variable();
+                let type_variable_id = self.interner.next_type_variable_id();
+                let type_variable = TypeVariable::unbound(type_variable_id, Kind::Any);
+                self.push_required_type_variable(
+                    type_variable.id(),
+                    Type::TypeVariable(type_variable.clone()),
+                    BindableTypeVariableKind::ArrayLiteral { is_array },
+                    location,
+                );
+
+                let first_elem_type = Type::TypeVariable(type_variable);
                 let first_location = elements.first().map(|elem| elem.location).unwrap_or(location);
 
                 let elements = vecmap(elements.into_iter().enumerate(), |(i, elem)| {
@@ -272,11 +353,13 @@ impl Elaborator<'_> {
                 let length = UnresolvedTypeExpression::from_expr(*length, location).unwrap_or_else(
                     |error| {
                         self.push_err(ResolverError::ParserError(Box::new(error)));
-                        UnresolvedTypeExpression::Constant(FieldElement::zero(), location)
+                        UnresolvedTypeExpression::Constant(SignedField::zero(), None, location)
                     },
                 );
 
-                let length = self.convert_expression_type(length, &Kind::u32(), location);
+                let wildcard_allowed = true;
+                let length =
+                    self.convert_expression_type(length, &Kind::u32(), location, wildcard_allowed);
                 let (repeated_element, elem_type) = self.elaborate_expression(*repeated_element);
 
                 let length_clone = length.clone();
@@ -303,29 +386,31 @@ impl Elaborator<'_> {
 
         for fragment in &fragments {
             if let FmtStrFragment::Interpolation(ident_name, location) = fragment {
-                let scope_tree = self.scopes.current_scope_tree();
-                let variable = scope_tree.find(ident_name);
+                let ident = Ident::new(ident_name.clone(), *location);
 
-                let hir_ident = if let Some((old_value, _)) = variable {
-                    old_value.num_times_used += 1;
-                    old_value.ident.clone()
-                } else if let Ok((definition_id, _)) =
-                    self.lookup_global(Path::from_single(ident_name.to_string(), *location))
-                {
-                    HirIdent::non_trait_method(definition_id, *location)
-                } else {
-                    self.push_err(ResolverError::VariableNotDeclared {
-                        name: ident_name.to_owned(),
-                        location: *location,
-                    });
-                    continue;
-                };
+                let (hir_ident, var_scope_index) =
+                    if let Ok((ident, var_scope_index)) = self.use_variable(&ident) {
+                        (ident, var_scope_index)
+                    } else if let Ok((definition_id, _)) = self
+                        .lookup_global(TypedPath::from_single(ident_name.to_string(), *location))
+                    {
+                        (HirIdent::non_trait_method(definition_id, *location), 0)
+                    } else {
+                        self.push_err(ResolverError::VariableNotDeclared {
+                            name: ident_name.to_owned(),
+                            location: *location,
+                        });
+                        continue;
+                    };
+
+                self.handle_hir_ident(&hir_ident, var_scope_index, *location);
 
                 let hir_expr = HirExpression::Ident(hir_ident.clone(), None);
                 let expr_id = self.interner.push_expr(hir_expr);
                 self.interner.push_expr_location(expr_id, *location);
                 let typ = self.type_check_variable(hir_ident, expr_id, None);
                 self.interner.push_expr_type(expr_id, typ.clone());
+
                 capture_types.push(typ);
                 fmt_str_idents.push(expr_id);
             }
@@ -338,36 +423,60 @@ impl Elaborator<'_> {
 
     fn elaborate_prefix(&mut self, prefix: PrefixExpression, location: Location) -> (ExprId, Type) {
         let rhs_location = prefix.rhs.location;
-
-        let (rhs, rhs_type) = self.elaborate_expression(prefix.rhs);
-        let trait_id = self.interner.get_prefix_operator_trait_method(&prefix.operator);
-
         let operator = prefix.operator;
+
+        let (rhs, rhs_type, skip_op) = if matches!(operator, UnaryOp::Reference { .. }) {
+            let (rhs, rhs_type, needs_deref) = self.elaborate_reference_expression(prefix.rhs);
+
+            // If the reference expression delayed a needed deref, we can skip the `&mut _`
+            // operation since the expression is already a reference.
+            (rhs, rhs_type, needs_deref)
+        } else {
+            let (rhs, rhs_type) = self.elaborate_expression(prefix.rhs);
+            (rhs, rhs_type, false)
+        };
+
+        let trait_method_id = self.interner.get_prefix_operator_trait_method(&operator);
 
         if let UnaryOp::Reference { mutable } = operator {
             if mutable {
-                self.check_can_mutate(rhs, rhs_location);
+                // If skip_op is set we already know we have a mutable reference
+                if !skip_op {
+                    self.check_can_mutate(rhs, rhs_location);
+                }
             } else {
                 self.use_unstable_feature(UnstableFeature::Ownership, location);
             }
         }
 
-        let expr =
-            HirExpression::Prefix(HirPrefixExpression { operator, rhs, trait_method_id: trait_id });
+        let expr = HirExpression::Prefix(HirPrefixExpression {
+            operator,
+            rhs,
+            trait_method_id,
+            skip: skip_op,
+        });
         let expr_id = self.interner.push_expr(expr);
         self.interner.push_expr_location(expr_id, location);
 
-        let result = self.prefix_operand_type_rules(&operator, &rhs_type, location);
-        let typ =
-            self.handle_operand_type_rules_result(result, &rhs_type, trait_id, expr_id, location);
+        let typ = if skip_op {
+            rhs_type
+        } else {
+            let result = self.prefix_operand_type_rules(&operator, &rhs_type, location);
+            self.handle_operand_type_rules_result(
+                result,
+                &rhs_type,
+                trait_method_id,
+                expr_id,
+                location,
+            )
+        };
 
         self.interner.push_expr_type(expr_id, typ.clone());
         (expr_id, typ)
     }
 
     pub(super) fn check_can_mutate(&mut self, expr_id: ExprId, location: Location) {
-        let expr = self.interner.expression(&expr_id);
-        match expr {
+        match self.interner.expression(&expr_id) {
             HirExpression::Ident(hir_ident, _) => {
                 if let Some(definition) = self.interner.try_definition(hir_ident.id) {
                     let name = definition.name.clone();
@@ -414,13 +523,12 @@ impl Elaborator<'_> {
 
         let (index, index_type) = self.elaborate_expression(index_expr.index);
 
-        self.push_index_to_check(index);
-
-        let expected = self.polymorphic_integer_or_field();
-        self.unify(&index_type, &expected, || TypeCheckError::TypeMismatch {
-            expected_typ: "an integer".to_owned(),
-            expr_typ: index_type.to_string(),
-            expr_location: location,
+        let expected = Type::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo);
+        self.unify(&index_type, &expected, || TypeCheckError::TypeMismatchWithSource {
+            expected: expected.clone(),
+            actual: index_type.clone(),
+            location,
+            source: Source::ArrayIndex,
         });
 
         // When writing `a[i]`, if `a : &mut ...` then automatically dereference `a` as many
@@ -544,12 +652,17 @@ impl Elaborator<'_> {
                         &mut object_type,
                         &mut object,
                     );
-
-                    self.resolve_function_turbofish_generics(
-                        &func_id,
-                        method_call.generics,
-                        location,
-                    )
+                    let generics = method_call.generics;
+                    let generics = generics.map(|generics| {
+                        vecmap(generics, |generic| {
+                            let location = generic.location;
+                            let wildcard_allowed = true;
+                            let typ =
+                                self.use_type_with_kind(generic, &Kind::Any, wildcard_allowed);
+                            Located::from(location, typ)
+                        })
+                    });
+                    self.resolve_function_turbofish_generics(&func_id, generics, location)
                 } else {
                     None
                 };
@@ -763,6 +876,7 @@ impl Elaborator<'_> {
             last_segment.generics = Some(generics.ordered_args);
         }
 
+        let path = self.validate_path(path);
         let last_segment = path.last_segment();
 
         let Some(typ) = self.lookup_type_or_error(path) else {
@@ -777,7 +891,7 @@ impl Elaborator<'_> {
         typ: Type,
         fields: Vec<(Ident, Expression)>,
         location: Location,
-        last_segment: Option<PathSegment>,
+        last_segment: Option<TypedPathSegment>,
     ) -> (HirExpression, Type) {
         let typ = typ.follow_bindings_shallow();
         let (r#type, generics) = match typ.as_ref() {
@@ -810,6 +924,19 @@ impl Elaborator<'_> {
                 last_segment.generics,
                 turbofish_location,
             );
+        }
+
+        // Each of the struct generics must be bound at the end of the function
+        let struct_id = r#type.borrow().id;
+        for (index, generic) in generics.iter().enumerate() {
+            if let Type::TypeVariable(type_variable) = generic {
+                self.push_required_type_variable(
+                    type_variable.id(),
+                    Type::TypeVariable(type_variable.clone()),
+                    BindableTypeVariableKind::StructGeneric { struct_id, index },
+                    location,
+                );
+            }
         }
 
         let struct_type = r#type.clone();
@@ -882,10 +1009,12 @@ impl Elaborator<'_> {
                     expected_type,
                     resolved,
                     field_location,
-                    || TypeCheckError::TypeMismatch {
-                        expected_typ: expected_type.to_string(),
-                        expr_typ: field_type.to_string(),
-                        expr_location: field_location,
+                    || {
+                        CompilationError::TypeError(TypeCheckError::TypeMismatch {
+                            expected_typ: expected_type.to_string(),
+                            expr_typ: field_type.to_string(),
+                            expr_location: field_location,
+                        })
                     },
                 );
             } else if seen_fields.contains(&field_name) {
@@ -927,20 +1056,33 @@ impl Elaborator<'_> {
         ret
     }
 
+    /// This method also returns whether or not its lhs still needs to be dereferenced depending on
+    /// `is_offset`:
+    /// - `is_offset = false`: Auto-dereferencing will occur, and this will always return false
+    /// - `is_offset = true`: Auto-dereferencing is disabled, and this will return true if the lhs
+    ///   is a reference.
     fn elaborate_member_access(
         &mut self,
         access: MemberAccessExpression,
         location: Location,
-    ) -> (ExprId, Type) {
-        let (lhs, lhs_type) = self.elaborate_expression(access.lhs);
+        is_offset: bool,
+    ) -> (ExprId, Type, bool) {
+        // We don't need the boolean 'skipped auto-dereferences' from elaborate_reference_expression
+        // since if we have skipped any then `lhs_type` will be a reference and we will need to
+        // skip the deref (if is_offset is true) here anyway to extract the field out of the reference.
+        // This is more reliable than using the boolean return value here since the return value
+        // doesn't account for reference variables which we need to account for.
+        let (lhs, lhs_type, _) = self.elaborate_reference_expression(access.lhs);
+        let is_reference = lhs_type.is_ref();
+
         let rhs = access.rhs;
         let rhs_location = rhs.location();
         // `is_offset` is only used when lhs is a reference and we want to return a reference to rhs
-        let access = HirMemberAccess { lhs, rhs, is_offset: false };
+        let access = HirMemberAccess { lhs, rhs, is_offset };
         let expr_id = self.intern_expr(HirExpression::MemberAccess(access.clone()), location);
         let typ = self.type_check_member_access(access, expr_id, lhs_type, rhs_location);
         self.interner.push_expr_type(expr_id, typ.clone());
-        (expr_id, typ)
+        (expr_id, typ, is_offset && is_reference)
     }
 
     pub fn intern_expr(&mut self, expr: HirExpression, location: Location) -> ExprId {
@@ -955,7 +1097,8 @@ impl Elaborator<'_> {
         location: Location,
     ) -> (HirExpression, Type) {
         let (lhs, lhs_type) = self.elaborate_expression(cast.lhs);
-        let r#type = self.resolve_type(cast.r#type);
+        let wildcard_allowed = false;
+        let r#type = self.resolve_type(cast.r#type, wildcard_allowed);
         let result = self.check_cast(&lhs, &lhs_type, &r#type, location);
         let expr = HirExpression::Cast(HirCastExpression { lhs, r#type });
         (expr, result)
@@ -995,32 +1138,31 @@ impl Elaborator<'_> {
         &mut self,
         result: Result<(Type, bool), TypeCheckError>,
         operand_type: &Type,
-        trait_id: Option<TraitMethodId>,
+        trait_method_id: Option<TraitItemId>,
         expr_id: ExprId,
         location: Location,
     ) -> Type {
         match result {
             Ok((typ, use_impl)) => {
                 if use_impl {
-                    let trait_id =
-                        trait_id.expect("ice: expected some trait_id when use_impl is true");
+                    let trait_method_id = trait_method_id
+                        .expect("ice: expected some trait_method_id when use_impl is true");
 
                     // Delay checking the trait constraint until the end of the function.
                     // Checking it now could bind an unbound type variable to any type
                     // that implements the trait.
-                    let constraint = TraitConstraint {
-                        typ: operand_type.clone(),
-                        trait_bound: ResolvedTraitBound {
-                            trait_id: trait_id.trait_id,
-                            trait_generics: TraitGenerics::default(),
-                            location,
-                        },
-                    };
-                    self.push_trait_constraint(
-                        constraint, expr_id,
-                        true, // this constraint should lead to choosing a trait impl
+                    let trait_id = trait_method_id.trait_id;
+                    let trait_generics = TraitGenerics::default();
+                    let trait_bound = ResolvedTraitBound { trait_id, trait_generics, location };
+                    let constraint = TraitConstraint { typ: operand_type.clone(), trait_bound };
+                    let select_impl = true; // this constraint should lead to choosing a trait impl
+                    self.push_trait_constraint(constraint, expr_id, select_impl);
+                    self.type_check_operator_method(
+                        expr_id,
+                        trait_method_id,
+                        operand_type,
+                        location,
                     );
-                    self.type_check_operator_method(expr_id, trait_id, operand_type, location);
                 }
                 typ
             }
@@ -1192,7 +1334,8 @@ impl Elaborator<'_> {
                         self.interner.next_type_variable_with_kind(Kind::Any)
                     }
                 } else {
-                    self.resolve_type(typ)
+                    let wildcard_allowed = true;
+                    self.resolve_type(typ, wildcard_allowed)
                 };
 
                 arg_types.push(typ.clone());
@@ -1377,7 +1520,8 @@ impl Elaborator<'_> {
             },
         };
 
-        let typ = self.use_type(constraint.typ.clone());
+        let wildcard_allowed = true;
+        let typ = self.use_type(constraint.typ.clone(), wildcard_allowed);
         let Some(trait_bound) = self.use_trait_bound(&constraint.trait_bound) else {
             // resolve_trait_bound only returns None if it has already issued an error, so don't
             // issue another here.
@@ -1388,7 +1532,12 @@ impl Elaborator<'_> {
         let constraint = TraitConstraint { typ, trait_bound };
 
         let the_trait = self.interner.get_trait(constraint.trait_bound.trait_id);
-        let Some(method) = the_trait.find_method(path.impl_item.as_str()) else {
+        let self_type = the_trait.self_type_typevar.clone();
+        let kind = the_trait.self_type_typevar.kind();
+
+        let Some(definition) =
+            the_trait.find_method_or_constant(path.impl_item.as_str(), self.interner)
+        else {
             let trait_name = the_trait.name.to_string();
             let method_name = path.impl_item.to_string();
             let location = path.impl_item.location();
@@ -1397,21 +1546,32 @@ impl Elaborator<'_> {
             return (error, Type::Error);
         };
 
-        let trait_method =
-            TraitMethod { method_id: method, constraint: constraint.clone(), assumed: true };
-
-        let definition_id = self.interner.trait_method_id(trait_method.method_id);
+        let trait_item = TraitItem { definition, constraint: constraint.clone(), assumed: false };
 
         let ident = HirIdent {
             location: path.impl_item.location(),
-            id: definition_id,
-            impl_kind: ImplKind::TraitMethod(trait_method),
+            id: definition,
+            impl_kind: ImplKind::TraitItem(trait_item),
         };
 
         let id = self.interner.push_expr(HirExpression::Ident(ident.clone(), None));
         self.interner.push_expr_location(id, location);
 
-        let typ = self.type_check_variable(ident, id, None);
+        let mut bindings = TypeBindings::default();
+
+        // In `<Type as Trait>::method` we know `Self` is `Type` so we bind that now
+        bindings.insert(self_type.id(), (self_type, kind, constraint.typ.clone()));
+
+        // TODO: set this to `true`. See https://github.com/noir-lang/noir/issues/8687
+        let push_required_type_variables = self.current_trait.is_none();
+
+        let typ = self.type_check_variable_with_bindings(
+            ident,
+            id,
+            None,
+            bindings,
+            push_required_type_variables,
+        );
         self.interner.push_expr_type(id, typ.clone());
         (id, typ)
     }

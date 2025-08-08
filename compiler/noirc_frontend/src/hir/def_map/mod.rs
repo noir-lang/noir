@@ -36,6 +36,11 @@ impl LocalModuleId {
     pub fn dummy_id() -> LocalModuleId {
         LocalModuleId(Index::dummy())
     }
+
+    /// Gets the index that underlies this local module ID.
+    pub fn as_index(self) -> Index {
+        self.0
+    }
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
@@ -387,7 +392,7 @@ impl TestFunction {
     pub fn should_fail(&self) -> bool {
         match self.scope {
             TestScope::ShouldFailWith { .. } => true,
-            TestScope::None => false,
+            TestScope::OnlyFailWith { .. } | TestScope::None => false,
         }
     }
 
@@ -397,6 +402,7 @@ impl TestFunction {
         match &self.scope {
             TestScope::None => None,
             TestScope::ShouldFailWith { reason } => reason.as_deref(),
+            TestScope::OnlyFailWith { reason } => Some(reason.as_str()),
         }
     }
 }

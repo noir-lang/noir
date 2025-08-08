@@ -134,6 +134,7 @@ fn check_errors_with_options(
     //
     //   ~~~ error message
     let mut secondary_spans_with_errors: Vec<(Span, String)> = Vec::new();
+
     // The byte at the start of this line
     let mut byte = 0;
     // The length of the last line, needed to go back to the byte at the beginning of the last line
@@ -158,7 +159,6 @@ fn check_errors_with_options(
         byte += line.len() + 1; // For '\n'
         last_line_length = line.len();
     }
-
     let mut primary_spans_with_errors: HashMap<Span, String> =
         primary_spans_with_errors.into_iter().collect();
 
@@ -203,10 +203,9 @@ fn check_errors_with_options(
         let secondary = error
             .secondaries
             .first()
-            .unwrap_or_else(|| panic!("Expected {:?} to have a secondary label", error));
+            .unwrap_or_else(|| panic!("Expected {error:?} to have a secondary label"));
         let span = secondary.location.span;
         let message = &error.message;
-
         let Some(expected_message) = primary_spans_with_errors.remove(&span) else {
             if let Some(message) = secondary_spans_with_errors.get(&span) {
                 report_all(context.file_manager.as_file_map(), &errors, false, false);
@@ -284,7 +283,7 @@ fn get_error_line_span_and_message(
 
     let chars = line.chars().collect::<Vec<_>>();
     let first_caret = chars.iter().position(|c| *c == char).unwrap();
-    let last_caret = chars.iter().rposition(|c| *c == char).unwrap();
+    let last_caret = chars.iter().rposition(|c| *c == char).unwrap(); // cSpell:disable-line
     let start = byte - last_line_length;
     let span = Span::from((start + first_caret - 1) as u32..(start + last_caret) as u32);
     let error = line.trim().trim_start_matches(char).trim().to_string();
@@ -453,13 +452,13 @@ fn check_trait_implementation_duplicate_method() {
     impl Default2 for Foo {
         // Duplicate trait methods should not compile
         fn default(x: Field, y: Field) -> Field {
-           ~~~~~~~ First trait associated function found here
+           ~~~~~~~ First trait associated item found here
             y + 2 * x
         }
         // Duplicate trait methods should not compile
         fn default(x: Field, y: Field) -> Field {
-           ^^^^^^^ Duplicate definitions of trait associated function with name default found
-           ~~~~~~~ Second trait associated function found here
+           ^^^^^^^ Duplicate definitions of trait associated item with name default found
+           ~~~~~~~ Second trait associated item found here
             x + 2 * y
         }
     }
@@ -1344,9 +1343,11 @@ fn break_and_continue_in_constrained_fn() {
 #[test]
 fn break_and_continue_outside_loop() {
     let src = r#"
-        unconstrained fn main() {
+        pub unconstrained fn foo() {
             continue;
             ^^^^^^^^^ continue is only allowed within loops
+        }
+        pub unconstrained fn bar() {
             break;
             ^^^^^^ break is only allowed within loops
         }
@@ -1591,8 +1592,8 @@ fn struct_numeric_generic_in_function() {
     }
 
     pub fn bar<let N: Foo>() {
-                   ^ N has a type of Foo. The only supported numeric generic types are `u1`, `u8`, `u16`, and `u32`.
-                   ~ Unsupported numeric generic type
+                      ^^^ N has a type of Foo. The only supported numeric generic types are `u1`, `u8`, `u16`, and `u32`.
+                      ~~~ Unsupported numeric generic type
         let _ = Foo { inner: 1 }; // silence Foo never constructed warning
     }
     "#;
@@ -1608,8 +1609,8 @@ fn struct_numeric_generic_in_struct() {
     }
 
     pub struct Bar<let N: Foo> { }
-                       ^ N has a type of Foo. The only supported numeric generic types are `u1`, `u8`, `u16`, and `u32`.
-                       ~ Unsupported numeric generic type
+                          ^^^ N has a type of Foo. The only supported numeric generic types are `u1`, `u8`, `u16`, and `u32`.
+                          ~~~ Unsupported numeric generic type
     "#;
     check_errors!(src);
 }
@@ -1619,8 +1620,8 @@ fn struct_numeric_generic_in_struct() {
 fn bool_numeric_generic() {
     let src = r#"
     pub fn read<let N: bool>() -> Field {
-                    ^ N has a type of bool. The only supported numeric generic types are `u1`, `u8`, `u16`, and `u32`.
-                    ~ Unsupported numeric generic type
+                       ^^^^ N has a type of bool. The only supported numeric generic types are `u1`, `u8`, `u16`, and `u32`.
+                       ~~~~ Unsupported numeric generic type
         if N {
             0
         } else {
@@ -1650,8 +1651,8 @@ fn numeric_generic_binary_operation_type_mismatch() {
 fn bool_generic_as_loop_bound() {
     let src = r#"
     pub fn read<let N: bool>() {
-                    ^ N has a type of bool. The only supported numeric generic types are `u1`, `u8`, `u16`, and `u32`.
-                    ~ Unsupported numeric generic type
+                       ^^^^ N has a type of bool. The only supported numeric generic types are `u1`, `u8`, `u16`, and `u32`.
+                       ~~~~ Unsupported numeric generic type
         let mut fields = [0; N];
                              ^ The numeric generic is not of type `u32`
                              ~ expected `u32`, found `bool`
@@ -1780,6 +1781,8 @@ fn numeric_generic_as_return_type() {
        ^^^ unused function foo
        ~~~ unused function
         x.zeroed()
+        ^^^^^^^^ Type annotation needed
+        ~~~~~~~~ Could not determine the type of the generic argument `T` declared on the function `zeroed`
     }
 
     fn main() {}
@@ -1962,6 +1965,8 @@ fn numeric_generic_u16_array_size() {
                     ^^^^^^^^^^ The numeric generic is not of type `u32`
                     ~~~~~~~~~~ expected `u32`, found `u16`
         len(fields)
+        ^^^ Type annotation needed
+        ~~~ Could not determine the value of the generic argument `N` declared on the function `len`
     }
     "#;
     check_errors!(src);
@@ -2030,6 +2035,30 @@ fn cast_negative_one_to_u8_size_checks() {
         }
     "#;
     assert_no_errors!(src);
+}
+
+#[named]
+#[test]
+fn cast_signed_i8_to_field_must_error() {
+    let src = r#"
+        fn main() {
+            assert((-1 as i8) as Field != 0);
+                   ^^^^^^^^^^^^^^^^^^^ Only unsigned integer types may be casted to Field
+        }
+    "#;
+    check_errors(src, Some(&format!("{}_1", function_path!())));
+}
+
+#[named]
+#[test]
+fn cast_signed_i32_to_field_must_error() {
+    let src = r#"
+        fn main(x: i32) {
+            assert(x as Field != 0);
+                   ^^^^^^^^^^ Only unsigned integer types may be casted to Field
+        }
+    "#;
+    check_errors(src, Some(&format!("{}_1", function_path!())));
 }
 
 #[named]
@@ -2145,7 +2174,7 @@ fn numeric_generics_value_kind_mismatch_u32_u64() {
             assert(self.len < MaxLen, "push out of bounds");
                    ^^^^^^^^^^^^^^^^^ Integers must have the same bit width LHS is 64, RHS is 32
             self.storage[self.len] = elem;
-                         ^^^^^^^^ Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+                         ^^^^^^^^ Indexing arrays and slices must be done with `u32`, not `u64`
             self.len += 1;
         }
     }
@@ -2402,53 +2431,6 @@ fn impl_stricter_than_trait_different_trait_generics() {
     }
 
     trait T2<C> {}
-    "#;
-    check_errors!(src);
-}
-
-#[named]
-#[test]
-fn impl_not_found_for_inner_impl() {
-    // We want to guarantee that we get a no impl found error
-    let src = r#"
-    trait Serialize<let N: u32> {
-        fn serialize(self) -> [Field; N];
-    }
-
-    trait ToField {
-        fn to_field(self) -> Field;
-    }
-
-    fn process_array<let N: u32>(array: [Field; N]) -> Field {
-        array[0]
-    }
-
-    fn serialize_thing<A, let N: u32>(thing: A) -> [Field; N] where A: Serialize<N> {
-        thing.serialize()
-    }
-
-    struct MyType<T> {
-        a: T,
-        b: T,
-    }
-
-    impl<T> Serialize<2> for MyType<T> where T: ToField {
-        fn serialize(self) -> [Field; 2] {
-            [ self.a.to_field(), self.b.to_field() ]
-        }
-    }
-
-    impl<T> MyType<T> {
-        fn do_thing_with_serialization_with_extra_steps(self) -> Field {
-            process_array(serialize_thing(self))
-                          ^^^^^^^^^^^^^^^ No matching impl found for `T: ToField`
-                          ~~~~~~~~~~~~~~~ No impl for `T: ToField`
-        }
-    }
-
-    fn main() {
-        let _ = MyType { a: 1, b: 1 }; // silence MyType never constructed warning
-    }
     "#;
     check_errors!(src);
 }
@@ -2995,11 +2977,11 @@ fn do_not_infer_globals_to_u32_from_type_use() {
                     ^^^^^^^^^^^^^^^^ The numeric generic is not of type `u32`
                     ~~~~~~~~~~~~~~~~ expected `u32`, found `Field`
             let _b: str<STR_LEN> = "hi";
-                    ^^^^^^^^^^^^ The numeric generic is not of type `u32`
-                    ~~~~~~~~~~~~ expected `u32`, found `Field`
+                        ^^^^^^^ The numeric generic is not of type `u32`
+                        ~~~~~~~ expected `u32`, found `Field`
             let _c: fmtstr<FMT_STR_LEN, _> = f"hi";
-                    ^^^^^^^^^^^^^^^^^^^^^^ The numeric generic is not of type `u32`
-                    ~~~~~~~~~~~~~~~~~~~~~~ expected `u32`, found `Field`
+                           ^^^^^^^^^^^ The numeric generic is not of type `u32`
+                           ~~~~~~~~~~~ expected `u32`, found `Field`
         }
     "#;
     check_errors!(src);
@@ -3025,7 +3007,7 @@ fn do_not_infer_partial_global_types() {
         pub global FORMATTED_VALUE: str<5> = "there";
         pub global FMT_STR: fmtstr<_, _> = f"hi {FORMATTED_VALUE}";
                    ^^^^^^^ Globals must have a specified type
-                                           ~~~~~~~~~~~~~~~~~~~~~~~ Inferred type is `fmtstr<20, (str<5>)>`
+                                           ~~~~~~~~~~~~~~~~~~~~~~~ Inferred type is `fmtstr<20, (str<5>,)>`
         pub global TUPLE_WITH_MULTIPLE: ([str<_>], [[Field; _]; 3]) = 
                    ^^^^^^^^^^^^^^^^^^^ Globals must have a specified type
             (&["hi"], [[]; 3]);
@@ -3231,7 +3213,7 @@ fn unconditional_recursion_fail() {
     // wouldn't panic due to infinite recursion, but the errors asserted here
     // come from the compilation checks, which does static analysis to catch the
     // problem before it even has a chance to cause a panic.
-    let srcs = vec![
+    let sources = vec![
         r#"
         fn main() {
            ^^^^ function `main` cannot return without recursing
@@ -3313,7 +3295,7 @@ fn unconditional_recursion_fail() {
         "#,
     ];
 
-    for (index, src) in srcs.into_iter().enumerate() {
+    for (index, src) in sources.into_iter().enumerate() {
         check_errors(src, Some(&format!("{}_{index}", function_path!())));
     }
 }
@@ -3321,7 +3303,7 @@ fn unconditional_recursion_fail() {
 #[named]
 #[test]
 fn unconditional_recursion_pass() {
-    let srcs = vec![
+    let sources = vec![
         r#"
         fn main() {
             if false { main(); }
@@ -3363,7 +3345,7 @@ fn unconditional_recursion_pass() {
         "#,
     ];
 
-    for (index, src) in srcs.into_iter().enumerate() {
+    for (index, src) in sources.into_iter().enumerate() {
         assert_no_errors(src, &format!("{}_{index}", function_path!()));
     }
 }
@@ -4415,19 +4397,6 @@ fn immutable_references_without_ownership_feature() {
 
 #[named]
 #[test]
-fn errors_on_invalid_integer_bit_size() {
-    let src = r#"
-    fn main() {
-        let _: u42 = 4;
-               ^^^ Use of invalid bit size 42
-               ~~~ Allowed bit sizes for integers are 1, 8, 16, 32, 64, 128
-    }
-    "#;
-    check_errors!(src);
-}
-
-#[named]
-#[test]
 fn mutable_reference_to_array_element_as_func_arg() {
     let src = r#"
     fn foo(x: &mut u32) {
@@ -4464,7 +4433,7 @@ fn object_type_must_be_known_in_method_call() {
 
 #[named]
 #[test]
-fn indexing_array_with_default_numeric_type_does_not_produce_a_warning() {
+fn indexing_array_with_default_numeric_type_does_not_produce_an_error() {
     let src = r#"
     fn main() {
         let index = 0;
@@ -4477,7 +4446,7 @@ fn indexing_array_with_default_numeric_type_does_not_produce_a_warning() {
 
 #[named]
 #[test]
-fn indexing_array_with_u32_does_not_produce_a_warning() {
+fn indexing_array_with_u32_does_not_produce_an_error() {
     let src = r#"
     fn main() {
         let index: u32 = 0;
@@ -4490,13 +4459,13 @@ fn indexing_array_with_u32_does_not_produce_a_warning() {
 
 #[named]
 #[test]
-fn indexing_array_with_non_u32_produces_a_warning() {
+fn indexing_array_with_non_u32_produces_an_error() {
     let src = r#"
     fn main() {
         let index: Field = 0;
         let array = [1, 2, 3];
         let _ = array[index];
-                      ^^^^^ Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+                      ^^^^^ Indexing arrays and slices must be done with `u32`, not `Field`
     }
     "#;
     check_errors!(src);
@@ -4504,13 +4473,13 @@ fn indexing_array_with_non_u32_produces_a_warning() {
 
 #[named]
 #[test]
-fn indexing_array_with_non_u32_on_lvalue_produces_a_warning() {
+fn indexing_array_with_non_u32_on_lvalue_produces_an_error() {
     let src = r#"
     fn main() {
         let index: Field = 0;
         let mut array = [1, 2, 3];
         array[index] = 0;
-              ^^^^^ Indexing an array or slice with a type other than `u32` is deprecated and will soon be an error
+              ^^^^^ Indexing arrays and slices must be done with `u32`, not `Field`
     }
     "#;
     check_errors!(src);
@@ -4518,7 +4487,7 @@ fn indexing_array_with_non_u32_on_lvalue_produces_a_warning() {
 
 #[named]
 #[test]
-fn cannot_determine_type_of_generic_argument_in_function_call() {
+fn cannot_determine_type_of_generic_argument_in_function_call_with_regular_generic() {
     let src = r#"
     fn foo<T>() {}
 
@@ -4530,7 +4499,7 @@ fn cannot_determine_type_of_generic_argument_in_function_call() {
     }
 
     "#;
-    check_monomorphization_error!(src);
+    check_errors!(src);
 }
 
 #[named]
@@ -4542,12 +4511,12 @@ fn cannot_determine_type_of_generic_argument_in_struct_constructor() {
     fn main()
     {
         let _ = Foo {};
-                ^^^^^^ Type annotation needed
-                ~~~~~~ Could not determine the type of the generic argument `T` declared on the struct `Foo`
+                ^^^ Type annotation needed
+                ~~~ Could not determine the type of the generic argument `T` declared on the struct `Foo`
     }
 
     "#;
-    check_monomorphization_error!(src);
+    check_errors!(src);
 }
 
 #[named]
@@ -4567,7 +4536,7 @@ fn cannot_determine_type_of_generic_argument_in_enum_constructor() {
 
     "#;
     let features = vec![UnstableFeature::Enums];
-    check_monomorphization_error_using_features!(src, &features);
+    check_errors_using_features!(src, &features);
 }
 
 #[named]
@@ -4579,14 +4548,14 @@ fn cannot_determine_type_of_generic_argument_in_function_call_for_generic_impl()
     impl<T> Foo<T> {
         fn one() {}
     }
-    
+
     fn main() {
         Foo::one();
              ^^^ Type annotation needed
              ~~~ Could not determine the type of the generic argument `T` declared on the struct `Foo`
     }
     "#;
-    check_monomorphization_error!(src);
+    check_errors!(src);
 }
 
 #[named]
@@ -4600,7 +4569,7 @@ fn unconstrained_type_parameter_in_impl() {
                 ~ Hint: remove the `U` type parameter
 
         fn main() {
-            let _ = Foo {};
+            let _ = Foo::<i32> {};
         }
         "#;
     check_errors!(src);
@@ -4671,5 +4640,172 @@ fn attempt_to_divide_by_zero_at_comptime() {
         }
 
         "#;
+    check_errors!(src);
+}
+
+#[named]
+#[test]
+fn same_name_in_types_and_values_namespace_works() {
+    let src = "
+    struct foo {}
+
+    fn foo(x: foo) -> foo {
+        x
+    }
+
+    fn main() {
+        let x: foo = foo {};
+        let _ = foo(x);
+    }
+    ";
+    assert_no_errors!(src);
+}
+
+#[named]
+#[test]
+fn only_one_private_error_when_name_in_types_and_values_namespace_collides() {
+    let src = "
+    mod moo {
+        struct foo {}
+
+        fn foo() {}
+    }
+
+    fn main() {
+        let _ = moo::foo {};
+                     ^^^ foo is private and not visible from the current module
+                     ~~~ foo is private
+        x
+        ^ cannot find `x` in this scope
+        ~ not found in this scope
+    }
+    ";
+    check_errors!(src);
+}
+
+#[named]
+#[test]
+fn cannot_determine_type_of_generic_argument_in_function_call_when_it_is_a_numeric_generic() {
+    let src = r#"
+    struct Foo<let N: u32> {
+        array: [Field; N],
+    }
+
+    impl<let N: u32> Foo<N> {
+        fn new() -> Self {
+            Self { array: [0; N] }
+        }
+    }
+
+    fn foo<let N: u32>() -> Foo<N> {
+        Foo::new()
+    }
+
+    fn main() {
+        let _ = foo();
+                ^^^ Type annotation needed
+                ~~~ Could not determine the value of the generic argument `N` declared on the function `foo`
+    }
+    "#;
+    let features = vec![UnstableFeature::Enums];
+    check_errors_using_features!(src, &features);
+}
+
+#[named]
+#[test]
+fn cannot_determine_array_type() {
+    let src = r#"
+    fn main() {
+        let _ = [];
+                ^^ Type annotation needed
+                ~~ Could not determine the type of the array
+    }
+    "#;
+    check_errors!(src);
+}
+
+#[named]
+#[test]
+fn cannot_determine_slice_type() {
+    let src = r#"
+    fn main() {
+        let _ = &[];
+                ^^^ Type annotation needed
+                ~~~ Could not determine the type of the slice
+    }
+    "#;
+    check_errors!(src);
+}
+
+#[named]
+#[test]
+fn overflowing_int_in_for_loop() {
+    let src = r#"
+    fn main() {
+        for _ in -2..-1 {}
+                 ^^ The value `-2` cannot fit into `u32` which has range `0..=4294967295`
+                     ^^ The value `-1` cannot fit into `u32` which has range `0..=4294967295`
+    }
+    "#;
+    check_errors!(src);
+}
+
+#[named]
+#[test]
+fn cannot_use_prefix_minus_on_u32() {
+    let src = r#"
+    fn main() {
+        let x: u32 = 1;
+        let _ = -x;
+                ^^ Cannot apply unary operator `-` to type `u32`
+    }
+    "#;
+    check_errors!(src);
+}
+
+#[named]
+#[test]
+fn static_method_with_generics_on_type_and_method() {
+    let src = r#"
+    struct Foo<T> {}
+
+    impl<T> Foo<T> {
+        fn static_method<U>() {}
+    }
+
+    fn main() {
+        Foo::<u8>::static_method::<Field>();
+    }
+    "#;
+    assert_no_errors!(src);
+}
+
+#[named]
+#[test]
+fn cannot_assign_to_module() {
+    let src = r#"
+    mod foo {}
+
+    fn main() {
+        foo = 1;
+        ^^^ expected value got module
+    }
+    "#;
+    check_errors!(src);
+}
+
+#[named]
+#[test]
+fn cannot_assign_to_nested_struct() {
+    let src = r#"
+    mod foo {
+        pub struct bar {}
+    }
+
+    fn main() {
+        foo::bar = 1;
+        ^^^^^^^^ expected value got type
+    }
+    "#;
     check_errors!(src);
 }

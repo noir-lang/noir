@@ -1,0 +1,64 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(x: u32) {
+    lambdas_in_array_literal(x - 1_u32);
+    lambdas_in_array_literal(x);
+    lambdas_in_array_literal(x + 2_u32);
+    lambdas_in_array_literal(x + 1_u32);
+    lambdas_in_slice_literal(x - 1_u32);
+    lambdas_in_slice_literal(x);
+    lambdas_in_slice_literal(x + 1_u32);
+    lambdas_in_slice_literal(x + 2_u32);
+    functions_in_array_literal(x - 1_u32);
+    functions_in_array_literal(x);
+    functions_in_slice_literal(x - 1_u32);
+    functions_in_slice_literal(x);
+    let example_lambda: fn(u8) -> u8 = |x: u8| -> u8 { x + 1_u8 };
+    let lambdas: [fn(u8) -> u8; 8] = [example_lambda; 8];
+    println(lambdas[0_u32](5_u8));
+    println(lambdas[x - 1_u32](5_u8));
+    let lambdas: [fn(()); 1] = [|_: ()| {}];
+    lambdas[0_u32](());
+    lambdas[x - 1_u32](());
+    let lambdas: [fn(())] = &[|_: ()| {}];
+    lambdas[0_u32](());
+    lambdas[x - 1_u32](());
+}
+
+fn lambdas_in_array_literal(x: u32) {
+    let xs: [fn(); 4] = [|| println("hi"), || println("bye"), || println("wow"), || println("big")];
+    xs[x]();
+}
+
+fn lambdas_in_slice_literal(x: u32) {
+    let xs: [fn()] = &[|| println("hi"), || println("bye"), || println("big"), || println("wow")];
+    xs[x]();
+}
+
+fn functions_in_array_literal(x: u32) {
+    let xs: [fn(); 2] = [foo, bar];
+    xs[x]();
+}
+
+fn functions_in_slice_literal(x: u32) {
+    let xs: [fn()] = &[baz, qux];
+    xs[x]();
+}
+
+fn foo() {
+    println("hi");
+}
+
+fn bar() {
+    println("bye");
+}
+
+fn baz() {
+    println("hi");
+}
+
+fn qux() {
+    println("bye");
+}

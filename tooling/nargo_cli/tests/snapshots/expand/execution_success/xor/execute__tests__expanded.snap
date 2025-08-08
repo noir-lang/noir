@@ -1,8 +1,0 @@
----
-source: tooling/nargo_cli/tests/execute.rs
-expression: expanded_code
----
-fn main(x: u32, y: pub u32) {
-    let m: u32 = x ^ y;
-    assert(m != 10);
-}

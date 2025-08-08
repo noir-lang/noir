@@ -292,8 +292,8 @@ mod tests {
     };
     use std::collections::BTreeSet;
 
-    fn check_circuit(circuit: Circuit<FieldElement>) -> Circuit<FieldElement> {
-        assert!(CircuitSimulator::default().check_circuit(&circuit));
+    fn must_check_circuit(circuit: Circuit<FieldElement>) -> Circuit<FieldElement> {
+        assert!(CircuitSimulator::default().check_circuit(&circuit).is_none());
         let mut merge_optimizer = MergeExpressionsOptimizer::new();
         let acir_opcode_positions = vec![0; 20];
         let (opcodes, _) =
@@ -301,7 +301,7 @@ mod tests {
         let mut optimized_circuit = circuit;
         optimized_circuit.opcodes = opcodes;
         // check that the circuit is still valid after optimization
-        assert!(CircuitSimulator::default().check_circuit(&optimized_circuit));
+        assert!(CircuitSimulator::default().check_circuit(&optimized_circuit).is_none());
         optimized_circuit
     }
 
@@ -346,7 +346,7 @@ mod tests {
             return_values: PublicInputs::default(),
             assert_messages: Default::default(),
         };
-        check_circuit(circuit);
+        must_check_circuit(circuit);
     }
 
     #[test]
@@ -442,7 +442,7 @@ mod tests {
             return_values: PublicInputs::default(),
             assert_messages: Default::default(),
         };
-        check_circuit(circuit);
+        must_check_circuit(circuit);
     }
 
     #[test]
@@ -487,7 +487,7 @@ mod tests {
             ..Default::default()
         };
 
-        let new_circuit = check_circuit(circuit.clone());
+        let new_circuit = must_check_circuit(circuit.clone());
         assert_eq!(circuit, new_circuit);
     }
 }

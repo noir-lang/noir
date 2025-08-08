@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, sync::Arc};
 
 use crate::ssa::{
     ir::{
@@ -57,11 +57,27 @@ struct IdMaps {
 
 impl Context {
     fn populate_functions(&mut self, functions: &BTreeMap<FunctionId, Function>) {
+        let Some(old_purities) = &functions.iter().next().map(|f| &f.1.dfg.function_purities)
+        else {
+            return;
+        };
+        let mut new_purities = HashMap::default();
+
         for (id, function) in functions {
             self.functions.insert_with_id(|new_id| {
                 self.new_ids.function_ids.insert(*id, new_id);
+
+                if let Some(purity) = old_purities.get(id) {
+                    new_purities.insert(new_id, *purity);
+                }
+
                 Function::clone_signature(new_id, function)
             });
+        }
+
+        let new_purities = Arc::new(new_purities);
+        for new_id in self.new_ids.function_ids.values() {
+            self.functions[*new_id].dfg.set_function_purities(new_purities.clone());
         }
     }
 
@@ -178,7 +194,7 @@ impl IdMaps {
             value @ Value::Instruction { instruction, .. } => {
                 *self.values.get(&old_value).unwrap_or_else(|| {
                     let instruction = &old_function.dfg[*instruction];
-                    unreachable!("Unmapped value with id {old_value}: {value:?}\n  from instruction: {instruction:?}, SSA: {old_function}")
+                    unreachable!("Unmapped value with id {old_value}: {value:?}\n  from instruction: {instruction:?}, from function: {}", old_function.id())
                 })
             }
 

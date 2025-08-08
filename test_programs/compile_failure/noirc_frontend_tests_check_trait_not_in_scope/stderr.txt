@@ -1,8 +1,0 @@
-error: Trait Default2 not found
-  ┌─ src/main.nr:7:10
-  │
-7 │     impl Default2 for Foo {
-  │          --------
-  │
-
-Aborting due to 1 previous error

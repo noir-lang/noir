@@ -56,7 +56,7 @@ pub enum ACVMStatus<F> {
     RequiresForeignCall(ForeignCallWaitInfo<F>),
 
     /// The ACVM has encountered a request for an ACIR [call][acir::circuit::Opcode]
-    /// to execute a separate ACVM instance. The result of the ACIR call must be passd back to the ACVM.
+    /// to execute a separate ACVM instance. The result of the ACIR call must be passed back to the ACVM.
     ///
     /// Once this is done, the ACVM can be restarted to solve the remaining opcodes.
     RequiresAcirCall(AcirCallWaitInfo<F>),
@@ -177,6 +177,12 @@ impl<F> From<BlackBoxResolutionError> for OpcodeResolutionError<F> {
         match value {
             BlackBoxResolutionError::Failed(func, reason) => {
                 OpcodeResolutionError::BlackBoxFunctionFailed(func, reason)
+            }
+            BlackBoxResolutionError::AssertFailed(error) => {
+                OpcodeResolutionError::UnsatisfiedConstrain {
+                    opcode_location: ErrorLocation::Unresolved,
+                    payload: Some(ResolvedAssertionPayload::String(error)),
+                }
             }
         }
     }

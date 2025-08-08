@@ -1,0 +1,15 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn some_func() {}
+
+mod foo {
+    use crate::some_func;
+
+    pub fn bar() {
+        some_func();
+    }
+}
+
+fn main() {}

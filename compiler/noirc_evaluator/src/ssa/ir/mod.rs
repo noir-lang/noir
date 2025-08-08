@@ -1,4 +1,5 @@
 pub mod basic_block;
+pub(crate) mod call_graph;
 pub(crate) mod cfg;
 pub(crate) mod dfg;
 pub(crate) mod dom;
@@ -11,3 +12,4 @@ pub(crate) mod post_order;
 pub(crate) mod printer;
 pub mod types;
 pub mod value;
+pub use printer::is_printable_byte;

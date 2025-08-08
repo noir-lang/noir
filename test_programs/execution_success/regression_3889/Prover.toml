@@ -1,3 +1,5 @@
+return = 18
+
 [works]
 a = "5"
 
@@ -7,4 +9,3 @@ a = "6"
 
 [also_fails]
 a = "7"
-

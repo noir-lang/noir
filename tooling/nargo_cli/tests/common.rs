@@ -1,3 +1,7 @@
+// This module is treated as an entrypoint as so any functions are considered dead code,
+// despite being used in other integration tests.
+#![allow(dead_code)]
+
 use std::path::Path;
 
 use nargo::parse_all;
@@ -27,7 +31,7 @@ fn prepare_snippet(source: String) -> (Context<'static, 'static>, CrateId) {
 ///
 /// Use `force_brillig` to test it as an unconstrained function without having to change the code.
 /// This is useful for methods that use the `runtime::is_unconstrained()` method to change their behavior.
-pub fn prepare_and_compile_snippet(
+pub(crate) fn prepare_and_compile_snippet(
     source: String,
     force_brillig: bool,
 ) -> CompilationResult<CompiledProgram> {

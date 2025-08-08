@@ -1,8 +1,0 @@
-error: Type `Bar` is more private than item `FooBar::value`
-  ┌─ src/main.nr:5:33
-  │
-5 │         pub struct FooBar { pub value: Foo<Bar> }
-  │                                 -----
-  │
-
-Aborting due to 1 previous error

@@ -96,7 +96,7 @@ pub fn embedded_curve_add(
             if point == ark_grumpkin::Affine::zero() {
                 return Err(BlackBoxResolutionError::Failed(
                     BlackBoxFunc::EmbeddedCurveAdd,
-                    format!("Infinite input: embedded_curve_add({}, {})", point1, point2),
+                    format!("Infinite input: embedded_curve_add({point1}, {point2})"),
                 ));
             }
         }

@@ -1,8 +1,0 @@
-error: cannot find `z` in this scope
-  ┌─ src/main.nr:4:25
-  │
-4 │             assert(y == z);
-  │                         - not found in this scope
-  │
-
-Aborting due to 1 previous error

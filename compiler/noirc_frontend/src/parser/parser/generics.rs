@@ -1,7 +1,7 @@
 use crate::{
     ast::{
-        GenericTypeArg, GenericTypeArgs, IntegerBitSize, UnresolvedGeneric, UnresolvedGenerics,
-        UnresolvedType, UnresolvedTypeData,
+        GenericTypeArg, GenericTypeArgs, IdentOrQuotedType, IntegerBitSize, UnresolvedGeneric,
+        UnresolvedGenerics, UnresolvedType, UnresolvedTypeData,
     },
     parser::{ParserErrorReason, labels::ParsingRuleLabel},
     shared::Signedness,
@@ -52,20 +52,13 @@ impl Parser<'_> {
             return Some(generic);
         }
 
-        if let Some(generic) = self.parse_numeric_generic() {
-            return Some(generic);
-        }
-
-        if let Some(generic) = self.parse_resolved_generic() {
-            return Some(generic);
-        }
-
-        None
+        self.parse_numeric_generic()
     }
 
     /// VariableGeneric = identifier ( ':' TraitBounds ) ?
     fn parse_variable_generic(&mut self, allow_trait_bounds: bool) -> Option<UnresolvedGeneric> {
-        let ident = self.eat_ident()?;
+        let ident = self.parse_ident_or_quoted()?;
+
         let trait_bounds = if self.eat_colon() {
             if !allow_trait_bounds {
                 self.push_error(
@@ -81,13 +74,27 @@ impl Parser<'_> {
         Some(UnresolvedGeneric::Variable(ident, trait_bounds))
     }
 
+    fn parse_ident_or_quoted(&mut self) -> Option<IdentOrQuotedType> {
+        if let Some(ident) = self.eat_ident() {
+            return Some(IdentOrQuotedType::Ident(ident));
+        }
+
+        let token = self.eat_kind(TokenKind::QuotedType)?;
+        match token.into_token() {
+            Token::QuotedType(id) => {
+                Some(IdentOrQuotedType::Quoted(id, self.previous_token_location))
+            }
+            _ => unreachable!(),
+        }
+    }
+
     /// NumericGeneric = 'let' identifier ':' Type
     fn parse_numeric_generic(&mut self) -> Option<UnresolvedGeneric> {
         if !self.eat_keyword(Keyword::Let) {
             return None;
         }
 
-        let ident = self.eat_ident()?;
+        let ident = self.parse_ident_or_quoted()?;
 
         if !self.eat_colon() {
             // If we didn't get a type after the colon, error and assume it's u32
@@ -95,34 +102,21 @@ impl Parser<'_> {
                 ParserErrorReason::MissingTypeForNumericGeneric,
                 self.current_token_location,
             );
+            let location = self.location_at_previous_token_end();
             let typ = UnresolvedType {
-                typ: UnresolvedTypeData::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo),
-                location: self.location_at_previous_token_end(),
+                typ: UnresolvedTypeData::integer(
+                    Signedness::Unsigned,
+                    IntegerBitSize::ThirtyTwo,
+                    location,
+                ),
+                location,
             };
             return Some(UnresolvedGeneric::Numeric { ident, typ });
         }
 
         let typ = self.parse_type_or_error();
-        if let UnresolvedTypeData::Integer(signedness, bit_size) = &typ.typ {
-            if matches!(signedness, Signedness::Signed)
-                || matches!(bit_size, IntegerBitSize::SixtyFour)
-            {
-                self.push_error(ParserErrorReason::ForbiddenNumericGenericType, typ.location);
-            }
-        }
 
         Some(UnresolvedGeneric::Numeric { ident, typ })
-    }
-
-    /// ResolvedGeneric = quoted_type
-    fn parse_resolved_generic(&mut self) -> Option<UnresolvedGeneric> {
-        let token = self.eat_kind(TokenKind::QuotedType)?;
-        match token.into_token() {
-            Token::QuotedType(id) => {
-                Some(UnresolvedGeneric::Resolved(id, self.previous_token_location))
-            }
-            _ => unreachable!(),
-        }
     }
 
     /// GenericTypeArgs = ( '<' GenericTypeArgsList? '>' )
@@ -170,7 +164,10 @@ impl Parser<'_> {
 
             self.eat_assign();
 
-            let typ = self.parse_type_or_error();
+            let Some(typ) = self.parse_type_or_type_expression() else {
+                self.expected_label(ParsingRuleLabel::TypeOrTypeExpression);
+                return None;
+            };
             return Some(GenericTypeArg::Named(ident, typ));
         }
 
@@ -187,14 +184,13 @@ impl Parser<'_> {
 #[cfg(test)]
 mod tests {
     use crate::{
-        ast::{GenericTypeArgs, IntegerBitSize, UnresolvedGeneric, UnresolvedTypeData},
+        ast::{GenericTypeArgs, UnresolvedGeneric},
         parser::{
             Parser, ParserErrorReason,
             parser::tests::{
                 expect_no_errors, get_single_error_reason, get_source_with_error_span,
             },
         },
-        shared::Signedness,
     };
 
     fn parse_generics_no_errors(src: &str) -> Vec<UnresolvedGeneric> {
@@ -236,10 +232,7 @@ mod tests {
             panic!("Expected generic numeric");
         };
         assert_eq!("B", ident.to_string());
-        assert_eq!(
-            typ.typ,
-            UnresolvedTypeData::Integer(Signedness::Unsigned, IntegerBitSize::ThirtyTwo)
-        );
+        assert_eq!(typ.typ.to_string(), "u32",);
 
         let generic = generics.remove(0);
         let UnresolvedGeneric::Variable(ident, trait_bounds) = generic else {
@@ -261,14 +254,16 @@ mod tests {
 
     #[test]
     fn parses_generic_type_args() {
-        let src = "<i32, X = Field>";
+        let src = "<i32, X = Field, Y = 1>";
         let generics = parse_generic_type_args_no_errors(src);
         assert!(!generics.is_empty());
         assert_eq!(generics.ordered_args.len(), 1);
         assert_eq!(generics.ordered_args[0].to_string(), "i32");
-        assert_eq!(generics.named_args.len(), 1);
+        assert_eq!(generics.named_args.len(), 2);
         assert_eq!(generics.named_args[0].0.to_string(), "X");
         assert_eq!(generics.named_args[0].1.to_string(), "Field");
+        assert_eq!(generics.named_args[1].0.to_string(), "Y");
+        assert_eq!(generics.named_args[1].1.to_string(), "1");
     }
 
     #[test]
@@ -288,19 +283,6 @@ mod tests {
         assert!(!generics.is_empty());
         assert_eq!(generics.ordered_args.len(), 1);
         assert_eq!(generics.ordered_args[0].to_string(), "1");
-    }
-
-    #[test]
-    fn parse_numeric_generic_error_if_invalid_integer() {
-        let src = "
-        <let N: u64>
-                ^^^
-        ";
-        let (src, span) = get_source_with_error_span(src);
-        let mut parser = Parser::for_str_with_dummy_file(&src);
-        parser.parse_generics(true);
-        let reason = get_single_error_reason(&parser.errors, span);
-        assert!(matches!(reason, ParserErrorReason::ForbiddenNumericGenericType));
     }
 
     #[test]

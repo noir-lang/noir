@@ -1,6 +1,6 @@
 use crate::{
     ast::Path,
-    token::{LocatedToken, Token, Tokens},
+    token::{Keyword, LocatedToken, Token, Tokens},
 };
 
 use super::Elaborator;
@@ -30,6 +30,13 @@ impl Elaborator<'_> {
                             let (expr_id, _) = self.elaborate_variable(path);
                             new_tokens
                                 .push(LocatedToken::new(Token::UnquoteMarker(expr_id), location));
+                        }
+                        // If we see `$crate` resolve the crate to the current crate now so it
+                        // stays even if the rest of the quote is unquoted elsewhere.
+                        Token::Keyword(Keyword::Crate) => {
+                            new_tokens.pop();
+                            let token = Token::InternedCrate(self.crate_id);
+                            new_tokens.push(LocatedToken::new(token, location));
                         }
                         other_next => new_tokens.push(LocatedToken::new(other_next, location)),
                     }

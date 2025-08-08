@@ -11,12 +11,12 @@ use async_lsp::lsp_types::{
 };
 use fm::{FileManager, FileMap};
 use fuzzy_matcher::{FuzzyMatcher, skim::SkimMatcherV2};
-use nargo::{insert_all_files_under_path_into_file_manager, parse_all};
+use nargo::{insert_all_files_under_path, parse_all};
 use noirc_errors::{Location, Span};
 use noirc_frontend::{
     ast::{
         Ident, LetStatement, NoirEnumeration, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl,
-        NoirTypeAlias, Pattern, TraitImplItemKind, TraitItem, TypeImpl, Visitor,
+        Pattern, TraitImplItemKind, TraitItem, TypeAlias, TypeImpl, Visitor,
     },
     parser::ParsedSubModule,
 };
@@ -42,7 +42,7 @@ pub(crate) fn on_workspace_symbol_request(
 
     // If the cache is not initialized yet, put all files in the workspace in the FileManager
     if !cache.initialized {
-        insert_all_files_under_path_into_file_manager(&mut file_manager, &root_path, &overrides);
+        insert_all_files_under_path(&mut file_manager, &root_path, Some(&overrides));
         cache.initialized = true;
     }
 
@@ -56,7 +56,7 @@ pub(crate) fn on_workspace_symbol_request(
             file_manager.add_file_with_source(path.as_path(), source.to_string());
         } else {
             let source = std::fs::read_to_string(path.as_path())
-                .unwrap_or_else(|_| panic!("could not read file {:?} into string", path));
+                .unwrap_or_else(|_| panic!("could not read file {path:?} into string"));
             file_manager.add_file_with_source(path.as_path(), source);
         }
     }
@@ -174,7 +174,7 @@ impl Visitor for WorkspaceSymbolGatherer<'_> {
         false
     }
 
-    fn visit_noir_type_alias(&mut self, alias: &NoirTypeAlias, _span: Span) -> bool {
+    fn visit_noir_type_alias(&mut self, alias: &TypeAlias, _span: Span) -> bool {
         self.push_symbol(&alias.name, SymbolKind::STRUCT);
         false
     }
@@ -262,7 +262,7 @@ mod tests {
         .unwrap();
 
         let WorkspaceSymbolResponse::Nested(symbols) = response else {
-            panic!("Expected Nested response, got {:?}", response);
+            panic!("Expected Nested response, got {response:?}");
         };
 
         assert_eq!(symbols.len(), 8);

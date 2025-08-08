@@ -1,0 +1,6 @@
+[package]
+name = "associated_constants_in_as_trait_expr"
+type = "bin"
+authors = [""]
+
+[dependencies]

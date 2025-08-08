@@ -1,0 +1,9 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(x: Field) -> pub Field {
+    let mut y: Field = 2_Field;
+    y = y + x;
+    y
+}

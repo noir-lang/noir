@@ -1,3 +1,4 @@
+//! The code generation logic for converting [crate::ssa] objects into their respective [Brillig] artifacts.  
 pub(crate) mod brillig_black_box;
 pub(crate) mod brillig_block;
 pub(crate) mod brillig_block_variables;
@@ -20,6 +21,24 @@ use super::{
 };
 use crate::{errors::InternalError, ssa::ir::function::Function};
 
+/// Generates a complete Brillig entry point artifact for a given SSA-level [Function], linking all dependencies.
+///
+/// This function is responsible for generating a final Brillig artifact corresponding to a compiled SSA [Function].
+/// It sets up the entry point context, registers input/output parameters, and recursively resolves and links
+/// all transitive Brillig function dependencies.
+///
+/// # Parameters
+/// - func: The SSA [Function] to compile as the entry point.
+/// - arguments: Brillig-compatible [BrilligParameter] inputs to the function
+/// - brillig: The [context structure][Brillig] of all known Brillig artifacts for dependency resolution.
+/// - options: Brillig compilation options (e.g., debug trace settings).
+///
+/// # Returns
+/// - Ok([GeneratedBrillig]): Fully linked artifact for the entry point that can be executed as a Brillig program.
+/// - Err([InternalError]): If linking fails to find a dependency
+///
+/// # Panics
+/// - If the global memory size for the function has not been precomputed.
 pub(crate) fn gen_brillig_for(
     func: &Function,
     arguments: Vec<BrilligParameter>,

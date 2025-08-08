@@ -1,0 +1,20 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+mod moo {
+    pub struct Bar {}
+
+    impl crate::Foo for Bar {
+        fn foo(self) {}
+    }
+}
+
+trait Foo {
+    fn foo(self);
+}
+
+fn main() {
+    let bar: moo::Bar = moo::Bar {};
+    bar.foo();
+}

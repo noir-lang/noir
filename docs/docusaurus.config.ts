@@ -68,6 +68,11 @@ export default {
           position: 'right',
         },
         {
+          href: 'https://noir-lang.github.io/noir/docs/acir/circuit/index.html',
+          label: 'ACIR reference',
+          position: 'right',
+        },
+        {
           type: 'docsVersionDropdown',
           position: 'left',
           dropdownActiveClassDisabled: true,
@@ -88,7 +93,7 @@ export default {
           items: [
             {
               label: 'Noir Forum',
-              href: 'https://discourse.aztec.network/c/noir/7',
+              href: 'https://forum.aztec.network/c/noir/7',
             },
             {
               label: 'Twitter',

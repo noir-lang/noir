@@ -1,8 +1,7 @@
-use crate::elaborator::FrontendOptions;
-
-use crate::assert_no_errors;
-use crate::tests::Expect;
-use crate::{check_errors, get_program_with_options};
+use crate::{
+    assert_no_errors, check_errors, check_monomorphization_error, elaborator::FrontendOptions,
+    get_program_with_options, tests::Expect,
+};
 
 #[named]
 #[test]
@@ -403,61 +402,6 @@ fn trait_alias_polymorphic_inheritance() {
         }"#;
 
     assert_no_errors!(src);
-}
-
-// TODO(https://github.com/noir-lang/noir/issues/6467): currently fails with the
-// same errors as the desugared version
-#[named]
-#[test]
-fn trait_alias_polymorphic_where_clause() {
-    let src = r#"
-        trait Foo {
-            fn foo(self) -> Self;
-        }
-
-        trait Bar<T> {
-            fn bar(self) -> T;
-        }
-
-        trait Baz {
-            fn baz(self) -> bool;
-        }
-
-        trait Qux<T> = Foo + Bar<T> where T: Baz;
-
-        fn qux<T, U>(x: T) -> bool where T: Qux<U> {
-            x.foo().bar().baz()
-            ^^^^^^^^^^^^^^^^^^^ No method named 'baz' found for type 'U'
-        }
-
-        impl Foo for Field {
-            fn foo(self) -> Self {
-                self + 1
-            }
-        }
-
-        impl Bar<bool> for Field {
-            fn bar(self) -> bool {
-                true
-            }
-        }
-
-        impl Baz for bool {
-            fn baz(self) -> bool {
-                self
-            }
-        }
-
-        fn main() {
-            assert(0.foo().bar().baz() == qux(0));
-                                          ^^^ No matching impl found for `T: Baz`
-                                          ~~~ No impl for `T: Baz`
-        }
-    "#;
-
-    // TODO(https://github.com/noir-lang/noir/issues/6467)
-    // assert_no_errors!(src);
-    check_errors!(src);
 }
 
 // TODO(https://github.com/noir-lang/noir/issues/6467): currently failing, so
@@ -1152,13 +1096,13 @@ fn error_on_duplicate_impl_with_associated_constant() {
 
         impl Foo for i32 {
              ~~~ Previous impl defined here
-            let Bar = 5;
+            let Bar: u32 = 5;
         }
 
         impl Foo for i32 {
                      ^^^ Impl for type `i32` overlaps with existing impl
                      ~~~ Overlapping impl
-            let Bar = 6;
+            let Bar: u32 = 6;
         }
 
         fn main() {}
@@ -1235,32 +1179,6 @@ fn calls_trait_method_using_struct_name_when_multiple_impls_exist() {
     }
     "#;
     assert_no_errors!(src);
-}
-
-#[named]
-#[test]
-fn calls_trait_method_using_struct_name_when_multiple_impls_exist_and_errors_turbofish() {
-    let src = r#"
-    trait From2<T> {
-        fn from2(input: T) -> Self;
-    }
-    struct U60Repr {}
-    impl From2<[Field; 3]> for U60Repr {
-        fn from2(_: [Field; 3]) -> Self {
-            U60Repr {}
-        }
-    }
-    impl From2<Field> for U60Repr {
-        fn from2(_: Field) -> Self {
-            U60Repr {}
-        }
-    }
-    fn main() {
-        let _ = U60Repr::<Field>::from2([1, 2, 3]);
-                                        ^^^^^^^^^ Expected type Field, found type [Field; 3]
-    }
-    "#;
-    check_errors!(src);
 }
 
 #[named]
@@ -1579,4 +1497,680 @@ fn errors_if_unconstrained_trait_definition_has_constrained_impl() {
     }
     "#;
     check_errors!(src);
+}
+
+#[named]
+#[test]
+fn accesses_associated_type_inside_trait_impl_using_self() {
+    let src = r#"
+    pub trait Trait {
+        let N: u32;
+
+        fn foo() -> u32;
+    }
+
+    impl Trait for i32 {
+        let N: u32 = 10;
+
+        fn foo() -> u32 {
+            Self::N
+        }
+    }
+
+    fn main() {
+        let _ = i32::foo();
+    }
+    "#;
+    assert_no_errors!(src);
+}
+
+#[named]
+#[test]
+fn accesses_associated_type_inside_trait_using_self() {
+    let src = r#"
+    pub trait Trait {
+        let N: u32;
+
+        fn foo() -> u32 {
+            Self::N
+        }
+    }
+
+    impl Trait for i32 {
+        let N: u32 = 10;
+    }
+
+    fn main() {
+        let _ = i32::foo();
+    }
+    "#;
+    assert_no_errors!(src);
+}
+
+#[named]
+#[test]
+fn serialize_test_with_a_previous_unrelated_definition() {
+    let src = r#"
+    // There used to be a bug where this unrelated definition would cause compilation to fail
+    // with a "No impl found" error.
+    pub trait Trait {}
+
+    trait Serialize {
+        let Size: u32;
+
+        fn serialize(self);
+    }
+
+    impl<A, B> Serialize for (A, B)
+    where
+        A: Serialize,
+        B: Serialize,
+    {
+        let Size: u32 = <A as Serialize>::Size + <B as Serialize>::Size;
+
+        fn serialize(self: Self) {
+            self.0.serialize();
+        }
+    }
+
+    impl Serialize for Field {
+        let Size: u32 = 1;
+
+        fn serialize(self) { }
+    }
+
+    fn main() {
+        let x = (((1, 2), 5), 9);
+        x.serialize();
+    }
+    "#;
+    check_monomorphization_error!(&src);
+}
+
+#[named]
+#[test]
+fn errors_on_incorrect_generics_in_type_trait_call() {
+    let src = r#"
+        trait From2<T> {
+        fn from2(input: T) -> Self;
+    }
+    struct U60Repr {}
+    impl From2<[Field; 3]> for U60Repr {
+        fn from2(_: [Field; 3]) -> Self {
+            U60Repr {}
+        }
+    }
+    impl From2<Field> for U60Repr {
+        fn from2(_: Field) -> Self {
+            U60Repr {}
+        }
+    }
+
+    fn main() {
+        let _ = U60Repr::<Field>::from2([1, 2, 3]);
+                       ^^^^^^^^^ struct U60Repr expects 0 generics but 1 was given
+    }
+    "#;
+    check_errors!(src);
+}
+
+#[named]
+#[test]
+fn trait_impl_with_child_constraint() {
+    let src = r#"
+    trait Parent {}
+
+    trait Child: Parent {
+        fn child() {}
+    }
+
+    pub struct Struct<T> {}
+
+    impl<T: Parent> Parent for Struct<T> {}
+    impl<T: Child> Child for Struct<T> {}
+
+    fn main() {}
+    "#;
+    assert_no_errors!(src);
+}
+
+#[named]
+#[test]
+fn trait_with_same_generic_in_different_default_methods() {
+    let src = r#"
+    pub trait Trait {
+        fn foo<let U: u32>(self, _msg: str<U>) { 
+            let _ = self; 
+        }
+
+        fn bar<let U: u32>(self, _msg: str<U>) {
+            let _ = self;
+        }
+    }
+
+    pub struct Struct {}
+
+    impl Trait for Struct {}
+
+    pub fn main() {
+        Struct {}.bar("Hello");
+    }
+    "#;
+    assert_no_errors!(src);
+}
+
+#[named]
+#[test]
+fn associated_constant_of_generic_type_used_in_another_associated_constant() {
+    let src = r#"
+    trait Serialize {
+        let N: u32;
+
+        fn serialize(self) -> [Field; N];
+    }
+
+    impl<let M: u32> Serialize for [Field; M] {
+        let N: u32 = M;
+
+        fn serialize(self) -> [Field; Self::N] {
+            self
+        }
+    }
+
+    struct Foo {}
+
+    impl Serialize for Foo {
+        let N: u32 = <[Field; 3] as Serialize>::N;
+
+        fn serialize(self) -> [Field; Self::N] {
+            [0; Self::N]
+        }
+    }
+
+    fn main() {
+        let _ = Foo {}.serialize();
+    }
+    "#;
+    check_monomorphization_error!(src);
+}
+
+#[named]
+#[test]
+fn associated_constant_of_generic_type_used_in_expression() {
+    let src = r#"
+    trait Serialize {
+        let N: u32;
+    }
+
+    impl<let M: u32> Serialize for [Field; M] {
+        let N: u32 = M;
+    }
+
+    fn main() {
+        let _ = <[Field; 3] as Serialize>::N;
+    }
+    "#;
+    check_monomorphization_error!(src);
+}
+
+#[named]
+#[test]
+fn as_trait_path_called_multiple_times_for_different_t_1() {
+    let src = r#"
+    pub trait Trait {
+        let N: u32;
+    }
+    impl Trait for Field {
+        let N: u32 = 1;
+    }
+    impl Trait for i32 {
+        let N: u32 = 999;
+    }
+    pub fn load<T>()
+    where
+        T: Trait,
+    {
+        let _ = <T as Trait>::N;
+    }
+    fn main() {
+        let _ = load::<Field>();
+        let _ = load::<i32>();
+    }
+    "#;
+    check_monomorphization_error!(src);
+}
+
+#[named]
+#[test]
+fn as_trait_path_called_multiple_times_for_different_t_2() {
+    let src = r#"
+    pub trait Trait {
+        let N: u32;
+    }
+    impl Trait for Field {
+        let N: u32 = 1;
+    }
+    impl Trait for i32 {
+        let N: u32 = 999;
+    }
+    pub fn load<T>()
+    where
+        T: Trait,
+    {
+        let _ = T::N;
+    }
+    fn main() {
+        let _ = load::<Field>();
+        let _ = load::<i32>();
+    }
+    "#;
+    check_monomorphization_error!(src);
+}
+
+#[named]
+#[test]
+fn short_syntax_for_trait_constraint_on_trait_generic() {
+    let src = r#"
+    pub trait Other {
+        fn other(self) {
+            let _ = self;
+        }
+    }
+
+    pub trait Trait<T: Other> {
+        fn foo(x: T) {
+            x.other();
+        }
+    }
+
+    fn main() {}
+    "#;
+    check_monomorphization_error!(src);
+}
+
+#[named]
+#[test]
+fn ambiguous_associated_type() {
+    let src = r#"
+    trait MyTrait {
+        type X;
+    }
+
+    fn main() {
+        let _: MyTrait::X = 1;
+               ^^^^^^^^^^ Ambiguous associated type
+               ~~~~~~~~~~ If there were a type named `Example` that implemented `MyTrait`, you could use the fully-qualified path: `<Example as MyTrait>::X`
+    }
+    "#;
+    check_errors!(src);
+}
+
+#[named]
+#[test]
+fn as_trait_path_self_type() {
+    let src = r#"
+    pub trait BigCurve<B> {
+        fn one() -> Self;
+    }
+
+    struct Bn254 {}
+
+    impl<B> BigCurve<B> for Bn254 {
+        fn one() -> Self { Bn254 {} }
+    }
+
+    fn main() {
+        let _ = <Bn254 as BigCurve<()>>::one();
+    }
+    "#;
+    assert_no_errors!(src);
+}
+
+#[named]
+#[test]
+fn suggests_importing_trait_via_reexport() {
+    let src = r#"
+    mod one {
+        mod two {
+            pub trait Trait {
+                fn method(self);
+            }
+
+            impl Trait for bool {
+                fn method(self) {}
+            }
+        }
+
+        pub use two::Trait;
+    }
+
+    fn main() {
+        true.method()
+        ^^^^^^^^^^^^^ trait `one::Trait` which provides `method` is implemented but not in scope, please import it
+    }
+    "#;
+    check_errors!(src);
+}
+
+#[named]
+#[test]
+fn suggests_importing_trait_via_module_reexport() {
+    let src = r#"
+    mod one {
+        mod two {
+            pub mod three {
+                pub trait Trait {
+                    fn method(self);
+                }
+
+                impl Trait for bool {
+                    fn method(self) {}
+                }
+            }
+        }
+
+        pub use two::three;
+    }
+
+    fn main() {
+        true.method()
+        ^^^^^^^^^^^^^ trait `one::three::Trait` which provides `method` is implemented but not in scope, please import it
+    }
+    "#;
+    check_errors!(src);
+}
+
+#[named]
+#[test]
+fn associated_constant_sum_of_other_constants() {
+    let src = r#"
+    pub trait Deserialize {
+        let N: u32;
+
+        fn deserialize(_: [Field; Self::N]);
+    }
+
+    impl Deserialize for Field {
+        let N: u32 = 1;
+
+        fn deserialize(_: [Field; Self::N]) {}
+    }
+
+    struct Gen<T> {}
+
+    impl<T> Deserialize for Gen<T>
+    where
+        T: Deserialize,
+    {
+        let N: u32 = <T as Deserialize>::N + <T as Deserialize>::N;
+
+        fn deserialize(_: [Field; Self::N]) {}
+    }
+
+    fn main() {
+        let f = <Gen<Field> as Deserialize>::deserialize;
+        f([0; 2]);
+    }
+    "#;
+    assert_no_errors!(src);
+}
+
+#[named]
+#[test]
+fn regression_9245_small_code() {
+    let src = r#"
+    pub trait From2<T> {}
+
+    impl<T> From2<T> for T {}
+
+    pub trait Into2<T> {}
+
+    impl From2<u8> for Field {}
+
+    impl<T: From2<U>, U> Into2<T> for U {}
+
+    fn foo<T: Into2<Field>>() {}
+
+    fn main() {
+        foo::<u8>();
+    }
+    "#;
+    assert_no_errors!(src);
+}
+
+#[named]
+#[test]
+fn associated_constant_sum_of_other_constants_2() {
+    let src = r#"
+    pub trait Deserialize {
+        let N: u32;
+
+        fn deserialize(_: [Field; N]);
+    }
+
+    impl Deserialize for Field {
+        let N: u32 = 1;
+
+        fn deserialize(_: [Field; Self::N]) {}
+    }
+
+    impl<T, let M: u32> Deserialize for [T; M]
+    where
+        T: Deserialize,
+    {
+        let N: u32 = <T as Deserialize>::N + M;
+
+        fn deserialize(_: [Field; Self::N]) {}
+    }
+
+    pub fn foo<let X: u32>() {
+        let f = <[Field; X] as Deserialize>::deserialize;
+        let _ = f([0; X + 1]);
+    }
+
+    fn main() {}
+    "#;
+    assert_no_errors!(src);
+}
+
+#[named]
+#[test]
+fn associated_constant_sum_of_other_constants_3() {
+    let src = r#"
+    pub trait Deserialize {
+        let N: u32;
+
+        fn deserialize(_: [Field; N]);
+    }
+
+    impl Deserialize for Field {
+        let N: u32 = 1;
+
+        fn deserialize(_: [Field; Self::N]) {}
+    }
+
+    impl<T, let M: u32> Deserialize for [T; M]
+    where
+        T: Deserialize,
+    {
+        let N: u32 = <T as Deserialize>::N + M - 1;
+
+        fn deserialize(_: [Field; Self::N]) {}
+    }
+
+    pub fn foo<let X: u32>() {
+        let f = <[Field; X] as Deserialize>::deserialize;
+        let _ = f([0; X]);
+    }
+
+    fn main() {}
+    "#;
+    assert_no_errors!(src);
+}
+
+#[named]
+#[test]
+fn associated_constant_mul_of_other_constants() {
+    let src = r#"
+    pub trait Deserialize {
+        let N: u32;
+
+        fn deserialize(_: [Field; N]);
+    }
+
+    impl Deserialize for Field {
+        let N: u32 = 1;
+
+        fn deserialize(_: [Field; Self::N]) {}
+    }
+
+    impl<T, let M: u32> Deserialize for [T; M]
+    where
+        T: Deserialize,
+    {
+        let N: u32 = <T as Deserialize>::N * M;
+
+        fn deserialize(_: [Field; Self::N]) {}
+    }
+
+    pub fn foo<let X: u32>() {
+        let f = <[Field; X] as Deserialize>::deserialize;
+        let _ = f([0; X]);
+    }
+
+    fn main() {}
+    "#;
+    assert_no_errors!(src);
+}
+
+#[named]
+#[test]
+fn trait_bound_with_associated_constant() {
+    let src = r#"
+    pub trait Other {
+        let N: u32;
+    }
+
+    pub trait Trait<T>
+    where
+        T: Other,
+    {}
+
+    impl Other for Field {
+        let N: u32 = 1;
+    }
+
+    impl Trait<Field> for i32 {}
+
+    fn main() {}
+    "#;
+    assert_no_errors!(src);
+}
+
+#[named]
+#[test]
+fn trait_method_call_when_it_has_bounds_on_generic() {
+    let src = r#"
+    trait BigNum {}
+
+    trait BigCurve<B>
+    where
+        B: BigNum,
+    {
+        fn new() -> Self;
+    }
+
+    pub fn foo<B: BigNum, Curve: BigCurve<B>>() {
+        let _: Curve = BigCurve::new();
+    }
+
+    fn main() {}
+    "#;
+    assert_no_errors!(src);
+}
+
+#[named]
+#[test]
+fn trait_bound_constraining_two_generics() {
+    let src = r#"
+    pub trait Foo<U> {}
+
+    pub trait Baz<T, U>
+    where
+        T: Foo<U>,
+    {}
+
+    pub struct HasFoo1 {}
+    impl Foo<()> for HasFoo1 {}
+
+    pub struct HasBaz1 {}
+    impl Baz<HasFoo1, ()> for HasBaz1 {}
+
+    fn main() {}
+    "#;
+    assert_no_errors!(src);
+}
+
+#[named]
+#[test]
+fn trait_where_clause_associated_type_constraint_expected_order() {
+    let src = r#"
+    pub trait BarTrait {}
+
+    pub trait Foo {
+        type Bar;
+    }
+
+    pub trait Baz<T>
+    where
+        T: Foo,
+        <T as Foo>::Bar: BarTrait,
+    {}
+
+    pub struct HasBarTrait1 {}
+    impl BarTrait for HasBarTrait1 {}
+
+    pub struct HasFoo1 {}
+    impl Foo for HasFoo1 {
+        type Bar = HasBarTrait1;
+    }
+
+    pub struct HasBaz1 {}
+    impl Baz<HasFoo1> for HasBaz1 {}
+
+    fn main() {}
+    "#;
+    assert_no_errors!(src);
+}
+
+#[named]
+#[test]
+fn trait_where_clause_associated_type_constraint_unexpected_order() {
+    let src = r#"
+    pub trait BarTrait {}
+
+    pub trait Foo {
+        type Bar;
+    }
+
+    pub trait Baz<T>
+    where
+        <T as Foo>::Bar: BarTrait,
+        T: Foo,
+    {}
+
+    pub struct HasBarTrait1 {}
+    impl BarTrait for HasBarTrait1 {}
+
+    pub struct HasFoo1 {}
+    impl Foo for HasFoo1 {
+        type Bar = HasBarTrait1;
+    }
+
+    pub struct HasBaz1 {}
+    impl Baz<HasFoo1> for HasBaz1 {}
+
+    fn main() {}
+    "#;
+    assert_no_errors!(src);
 }

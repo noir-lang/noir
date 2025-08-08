@@ -1,0 +1,8 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(x: i64) -> pub i64 {
+    let y: i64 = x / x;
+    x / y
+}

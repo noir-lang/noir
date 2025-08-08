@@ -36,7 +36,7 @@ pub(crate) struct Freq {
 }
 
 impl Freq {
-    pub fn new(u: &mut Unstructured, freqs: &Freqs) -> arbitrary::Result<Self> {
+    pub(crate) fn new(u: &mut Unstructured, freqs: &Freqs) -> arbitrary::Result<Self> {
         let x = u.choose_index(freqs.total())?;
         Ok(Self { freqs: freqs.clone(), x, accumulated: 0, disabled: 0 })
     }
@@ -44,7 +44,7 @@ impl Freq {
     /// Check if a key is enabled, based on the already checked cumulative values.
     ///
     /// To work correctly, `enabled` calls should come after `enabled_when`s.
-    pub fn enabled(&mut self, key: &str) -> bool {
+    pub(crate) fn enabled(&mut self, key: &str) -> bool {
         self.accumulated += self.freqs[key];
         self.passed()
     }
@@ -64,7 +64,7 @@ impl Freq {
     /// As a workaround, we should
     /// * check keys which are more likely to be disabled up front
     /// * have a default case at the end which is always enabled
-    pub fn enabled_when(&mut self, key: &str, cond: bool) -> bool {
+    pub(crate) fn enabled_when(&mut self, key: &str, cond: bool) -> bool {
         if cond {
             self.enabled(key)
         } else {

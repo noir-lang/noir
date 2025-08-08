@@ -16,8 +16,7 @@ use crate::ssa::function_builder::FunctionBuilder;
 use crate::ssa::ir::basic_block::BasicBlockId;
 use crate::ssa::ir::function::FunctionId as IrFunctionId;
 use crate::ssa::ir::function::{Function, RuntimeType};
-use crate::ssa::ir::instruction::BinaryOp;
-use crate::ssa::ir::instruction::Instruction;
+use crate::ssa::ir::instruction::{ArrayOffset, BinaryOp};
 use crate::ssa::ir::map::AtomicCounter;
 use crate::ssa::ir::types::{NumericType, Type};
 use crate::ssa::ir::value::ValueId;
@@ -153,7 +152,7 @@ impl<'a> FunctionContext<'a> {
     /// The returned parameter type list will be flattened, so any struct parameters will
     /// be returned as one entry for each field (recursively).
     fn add_parameters_to_scope(&mut self, parameters: &Parameters) {
-        for (id, mutable, _, typ) in parameters {
+        for (id, mutable, _, typ, _visibility) in parameters {
             self.add_parameter_to_scope(*id, typ, *mutable);
         }
     }
@@ -297,53 +296,20 @@ impl<'a> FunctionContext<'a> {
             });
         }
 
-        let value = if value.is_negative {
+        let value = if value.is_negative() {
             match numeric_type {
-                NumericType::NativeField => -value.field,
+                NumericType::NativeField => -value.absolute_value(),
                 NumericType::Signed { bit_size } | NumericType::Unsigned { bit_size } => {
                     assert!(bit_size < 128);
                     let base = 1_u128 << bit_size;
-                    FieldElement::from(base) - value.field
+                    FieldElement::from(base) - value.absolute_value()
                 }
             }
         } else {
-            value.field
+            value.absolute_value()
         };
 
         Ok(self.builder.numeric_constant(value, numeric_type))
-    }
-
-    /// helper function which add instructions to the block computing the absolute value of the
-    /// given signed integer input. When the input is negative, we return its two complement, and itself when it is positive.
-    fn absolute_value_helper(&mut self, input: ValueId, sign: ValueId, bit_size: u32) -> ValueId {
-        assert_eq!(self.builder.type_of_value(sign), Type::bool());
-
-        // We compute the absolute value of lhs
-        let bit_width = FieldElement::from(2_i128.pow(bit_size));
-        let bit_width = self.builder.numeric_constant(bit_width, NumericType::NativeField);
-        let sign_not = self.builder.insert_not(sign);
-
-        // We use unsafe casts here, this is fine as we're casting to a `field` type.
-        let as_field = self.builder.insert_cast(input, NumericType::NativeField);
-        let sign_field = self.builder.insert_cast(sign, NumericType::NativeField);
-
-        // All of these operations are unchecked because they deal with fields
-        let positive_predicate =
-            self.builder.insert_binary(sign_field, BinaryOp::Mul { unchecked: true }, as_field);
-        let two_complement =
-            self.builder.insert_binary(bit_width, BinaryOp::Sub { unchecked: true }, as_field);
-        let sign_not_field = self.builder.insert_cast(sign_not, NumericType::NativeField);
-        let negative_predicate = self.builder.insert_binary(
-            sign_not_field,
-            BinaryOp::Mul { unchecked: true },
-            two_complement,
-        );
-        // Unchecked addition because either `positive_predicate` or `negative_predicate` will be 0
-        self.builder.insert_binary(
-            positive_predicate,
-            BinaryOp::Add { unchecked: true },
-            negative_predicate,
-        )
     }
 
     /// Insert constraints ensuring that the operation does not overflow the bit size of the result
@@ -351,13 +317,7 @@ impl<'a> FunctionContext<'a> {
     /// If the result is unsigned, overflow will be checked during acir-gen (cf. issue #4456), except for
     /// bit-shifts, because we will convert them to field multiplication
     ///
-    /// If the result is signed, we just prepare it for check_signed_overflow() by casting it to
-    /// an unsigned value representing the signed integer.
-    /// We need to use a bigger bit size depending on the operation, in case the operation does overflow,
-    /// Then, we delegate the overflow checks to check_signed_overflow() and cast the result back to its type.
-    /// Note that we do NOT want to check for overflows here, only check_signed_overflow() is allowed to do so.
-    /// This is because an overflow might be valid. For instance if 'a' is a signed integer, then 'a - a', as an unsigned result will always
-    /// overflow the bit size, however the operation is still valid (i.e it is not a signed overflow)
+    /// If the result is signed, overflow will be checked during SSA optimization.
     fn check_overflow(
         &mut self,
         result: ValueId,
@@ -370,26 +330,9 @@ impl<'a> FunctionContext<'a> {
         match result_type {
             NumericType::Signed { bit_size } => {
                 match operator {
-                    BinaryOpKind::Add | BinaryOpKind::Subtract => {
-                        // Result is computed modulo the bit size
-                        let result = self.builder.insert_truncate(result, bit_size, bit_size + 1);
-                        let result = self.insert_safe_cast(
-                            result,
-                            NumericType::unsigned(bit_size),
-                            location,
-                        );
-
-                        self.check_signed_overflow(result, lhs, rhs, operator, bit_size, location);
-                        self.insert_safe_cast(result, result_type, location)
-                    }
-                    BinaryOpKind::Multiply => {
-                        // Result is computed modulo the bit size
-                        let mut result =
-                            self.builder.insert_cast(result, NumericType::unsigned(2 * bit_size));
-                        result = self.builder.insert_truncate(result, bit_size, 2 * bit_size);
-
-                        self.check_signed_overflow(result, lhs, rhs, operator, bit_size, location);
-                        self.insert_safe_cast(result, result_type, location)
+                    BinaryOpKind::Add | BinaryOpKind::Subtract | BinaryOpKind::Multiply => {
+                        // Overflow check is deferred to ssa pass
+                        result
                     }
                     BinaryOpKind::ShiftLeft | BinaryOpKind::ShiftRight => {
                         self.check_shift_overflow(result, rhs, bit_size, location)
@@ -404,7 +347,7 @@ impl<'a> FunctionContext<'a> {
                 match operator {
                     BinaryOpKind::Add | BinaryOpKind::Subtract | BinaryOpKind::Multiply => {
                         // Overflow check is deferred to acir-gen
-                        return result;
+                        result
                     }
                     BinaryOpKind::ShiftLeft => {
                         if let Some(rhs_const) = dfg.get_numeric_constant(rhs) {
@@ -418,12 +361,11 @@ impl<'a> FunctionContext<'a> {
                         }
 
                         self.check_shift_overflow(result, rhs, bit_size, location);
+                        result
                     }
 
                     _ => unreachable!("operator {} should not overflow", operator),
                 }
-
-                result
             }
             NumericType::NativeField => result,
         }
@@ -452,105 +394,6 @@ impl<'a> FunctionContext<'a> {
             Some("attempt to bit-shift with overflow".to_owned().into()),
         );
         self.builder.insert_truncate(result, bit_size, bit_size + 1)
-    }
-
-    /// Insert constraints ensuring that the operation does not overflow the bit size of the result
-    /// We assume that:
-    /// lhs and rhs are signed integers of bit size bit_size
-    /// result is the result of the operation, casted into an unsigned integer and not reduced
-    ///
-    /// overflow check for signed integer is less straightforward than for unsigned integers.
-    /// We first compute the sign of the operands, and then we use the following rules:
-    /// addition:   positive operands => result must be positive (i.e less than half the bit size)
-    ///             negative operands => result must be negative (i.e not positive)
-    ///             different sign => no overflow
-    /// multiplication:     we check that the product of the operands' absolute values does not overflow the bit size
-    ///                     then we check that the result has the proper sign, using the rule of signs
-    fn check_signed_overflow(
-        &mut self,
-        result: ValueId,
-        lhs: ValueId,
-        rhs: ValueId,
-        operator: BinaryOpKind,
-        bit_size: u32,
-        location: Location,
-    ) {
-        let is_sub = operator == BinaryOpKind::Subtract;
-        let half_width = self.builder.numeric_constant(
-            FieldElement::from(2_i128.pow(bit_size - 1)),
-            NumericType::unsigned(bit_size),
-        );
-        // We compute the sign of the operands. The overflow checks for signed integers depends on these signs
-        let lhs_as_unsigned = self.insert_safe_cast(lhs, NumericType::unsigned(bit_size), location);
-        let rhs_as_unsigned = self.insert_safe_cast(rhs, NumericType::unsigned(bit_size), location);
-        let lhs_sign = self.builder.insert_binary(lhs_as_unsigned, BinaryOp::Lt, half_width);
-        let mut rhs_sign = self.builder.insert_binary(rhs_as_unsigned, BinaryOp::Lt, half_width);
-        let message = if is_sub {
-            // lhs - rhs = lhs + (-rhs)
-            rhs_sign = self.builder.insert_not(rhs_sign);
-            "attempt to subtract with overflow".to_string()
-        } else {
-            "attempt to add with overflow".to_string()
-        };
-        // same_sign is true if both operands have the same sign
-        let same_sign = self.builder.insert_binary(lhs_sign, BinaryOp::Eq, rhs_sign);
-        match operator {
-            BinaryOpKind::Add | BinaryOpKind::Subtract => {
-                //Check the result has the same sign as its inputs
-                let result_sign = self.builder.insert_binary(result, BinaryOp::Lt, half_width);
-                let sign_diff = self.builder.insert_binary(result_sign, BinaryOp::Eq, lhs_sign);
-                // Unchecked multiplication because boolean inputs
-                let sign_diff_with_predicate = self.builder.insert_binary(
-                    sign_diff,
-                    BinaryOp::Mul { unchecked: true },
-                    same_sign,
-                );
-                let overflow_check = Instruction::Constrain(
-                    sign_diff_with_predicate,
-                    same_sign,
-                    Some(message.into()),
-                );
-                self.builder.set_location(location).insert_instruction(overflow_check, None);
-            }
-            BinaryOpKind::Multiply => {
-                // Overflow check for the multiplication:
-                // First we compute the absolute value of operands, and their product
-                let lhs_abs = self.absolute_value_helper(lhs, lhs_sign, bit_size);
-                let rhs_abs = self.absolute_value_helper(rhs, rhs_sign, bit_size);
-                // Unchecked mul because these are fields
-                let product_field =
-                    self.builder.insert_binary(lhs_abs, BinaryOp::Mul { unchecked: true }, rhs_abs);
-                // It must not already overflow the bit_size
-                self.builder.set_location(location).insert_range_check(
-                    product_field,
-                    bit_size,
-                    Some("attempt to multiply with overflow".to_string()),
-                );
-                let product =
-                    self.builder.insert_cast(product_field, NumericType::unsigned(bit_size));
-
-                // Then we check the signed product fits in a signed integer of bit_size-bits
-                let not_same = self.builder.insert_not(same_sign);
-                let not_same_sign_field =
-                    self.insert_safe_cast(not_same, NumericType::unsigned(bit_size), location);
-                // Unchecked add because adding 1 to half_width can't overflow
-                let positive_maximum_with_offset = self.builder.insert_binary(
-                    half_width,
-                    BinaryOp::Add { unchecked: true },
-                    not_same_sign_field,
-                );
-                let product_overflow_check =
-                    self.builder.insert_binary(product, BinaryOp::Lt, positive_maximum_with_offset);
-
-                let one = self.builder.numeric_constant(FieldElement::one(), NumericType::bool());
-                self.builder.set_location(location).insert_constrain(
-                    product_overflow_check,
-                    one,
-                    Some(message.into()),
-                );
-            }
-            _ => unreachable!("operator {} should not overflow", operator),
-        }
     }
 
     /// Insert a binary instruction at the end of the current block.
@@ -625,16 +468,145 @@ impl<'a> FunctionContext<'a> {
         location: Location,
     ) -> ValueId {
         self.builder.set_location(location);
+        let incoming_type = self.builder.type_of_value(value);
 
-        // To ensure that `value` is a valid `typ`, we insert an `Instruction::Truncate` instruction beforehand if
-        // we're narrowing the type size.
-        let incoming_type_size = self.builder.type_of_value(value).bit_size();
-        let target_type_size = typ.bit_size();
-        if target_type_size < incoming_type_size {
-            value = self.builder.insert_truncate(value, target_type_size, incoming_type_size);
-        }
-
-        self.builder.insert_cast(value, typ)
+        let result = match (&incoming_type, typ) {
+            // Casting to field is safe
+            (_, NumericType::NativeField) => value,
+            (
+                Type::Numeric(NumericType::Signed { bit_size: incoming_type_size }),
+                NumericType::Signed { bit_size: target_type_size },
+            ) => {
+                match target_type_size.cmp(incoming_type_size) {
+                    std::cmp::Ordering::Less => {
+                        // If target size is smaller, we do a truncation
+                        self.builder.insert_truncate(value, target_type_size, *incoming_type_size)
+                    }
+                    std::cmp::Ordering::Equal => value,
+                    std::cmp::Ordering::Greater => {
+                        // If target size is bigger, we do a sign extension:
+                        // When the value is negative, it is represented in 2-complement form; `2^s-v`, where `s` is the incoming bit size and `v` is the absolute value
+                        // Sign extension in this case will give `2^t-v`, where `t` is the target bit size
+                        // So we simply convert `2^s-v` into `2^t-v` by adding `2^t-2^s` to the value when the value is negative.
+                        // Casting s-bits signed v0 to t-bits will add the following instructions:
+                        // v1 = cast v0 to 's-bits unsigned'
+                        // v2 = lt v1, 2**(s-1)
+                        // v3 = not(v1)
+                        // v4 = cast v3 to 't-bits unsigned'
+                        // v5 = v3 * (2**t - 2**s)
+                        // v6 = cast v1 to 't-bits unsigned'
+                        // return v6 + v5
+                        let value_as_unsigned = self.insert_safe_cast(
+                            value,
+                            NumericType::unsigned(*incoming_type_size),
+                            location,
+                        );
+                        let half_width = self.builder.numeric_constant(
+                            FieldElement::from(2_u128.pow(incoming_type_size - 1)),
+                            NumericType::unsigned(*incoming_type_size),
+                        );
+                        // value_sign is 1 if the value is positive, 0 otherwise
+                        let value_sign =
+                            self.builder.insert_binary(value_as_unsigned, BinaryOp::Lt, half_width);
+                        let max_for_incoming_type_size = if *incoming_type_size == 128 {
+                            u128::MAX
+                        } else {
+                            2_u128.pow(*incoming_type_size) - 1
+                        };
+                        let max_for_target_type_size = if target_type_size == 128 {
+                            u128::MAX
+                        } else {
+                            2_u128.pow(target_type_size) - 1
+                        };
+                        let patch = self.builder.numeric_constant(
+                            FieldElement::from(
+                                max_for_target_type_size - max_for_incoming_type_size,
+                            ),
+                            NumericType::unsigned(target_type_size),
+                        );
+                        let mut is_negative_predicate = self.builder.insert_not(value_sign);
+                        is_negative_predicate = self.insert_safe_cast(
+                            is_negative_predicate,
+                            NumericType::unsigned(target_type_size),
+                            location,
+                        );
+                        // multiplication by a boolean cannot overflow
+                        let patch_with_sign_predicate = self.builder.insert_binary(
+                            patch,
+                            BinaryOp::Mul { unchecked: true },
+                            is_negative_predicate,
+                        );
+                        let value_as_unsigned = self.builder.insert_cast(
+                            value_as_unsigned,
+                            NumericType::unsigned(target_type_size),
+                        );
+                        // Patch the bit sign, which gives a `target_type_size` bit size value, so it does not overflow.
+                        self.builder.insert_binary(
+                            patch_with_sign_predicate,
+                            BinaryOp::Add { unchecked: true },
+                            value_as_unsigned,
+                        )
+                    }
+                }
+            }
+            (
+                Type::Numeric(NumericType::Unsigned { bit_size: incoming_type_size }),
+                NumericType::Unsigned { bit_size: target_type_size },
+            ) => {
+                // If target size is smaller, we do a truncation
+                if target_type_size < *incoming_type_size {
+                    value =
+                        self.builder.insert_truncate(value, target_type_size, *incoming_type_size);
+                }
+                value
+            }
+            // When casting a signed value to u1 we can truncate then cast
+            (
+                Type::Numeric(NumericType::Signed { bit_size: incoming_type_size }),
+                NumericType::Unsigned { bit_size: 1 },
+            ) => self.builder.insert_truncate(value, 1, *incoming_type_size),
+            // For mixed sign to unsigned or unsigned to sign;
+            // 1. we cast to the required type using the same signedness
+            // 2. then we switch the signedness
+            (
+                Type::Numeric(NumericType::Signed { bit_size: incoming_type_size }),
+                NumericType::Unsigned { bit_size: target_type_size },
+            ) => {
+                if *incoming_type_size != target_type_size {
+                    value = self.insert_safe_cast(
+                        value,
+                        NumericType::signed(target_type_size),
+                        location,
+                    );
+                }
+                value
+            }
+            (
+                Type::Numeric(NumericType::Unsigned { bit_size: incoming_type_size }),
+                NumericType::Signed { bit_size: target_type_size },
+            ) => {
+                if *incoming_type_size != target_type_size {
+                    value = self.insert_safe_cast(
+                        value,
+                        NumericType::unsigned(target_type_size),
+                        location,
+                    );
+                }
+                value
+            }
+            (
+                Type::Numeric(NumericType::NativeField),
+                NumericType::Unsigned { bit_size: target_type_size },
+            )
+            | (
+                Type::Numeric(NumericType::NativeField),
+                NumericType::Signed { bit_size: target_type_size },
+            ) => {
+                self.builder.insert_truncate(value, target_type_size, FieldElement::max_num_bits())
+            }
+            _ => unreachable!("Invalid cast from {} to {}", incoming_type, typ),
+        };
+        self.builder.insert_cast(result, typ)
     }
 
     /// Create a const offset of an address for an array load or store
@@ -663,11 +635,18 @@ impl<'a> FunctionContext<'a> {
     /// Looks up the value of a given local variable. Expects the variable to have
     /// been previously defined or panics otherwise.
     pub(super) fn lookup(&self, id: LocalId) -> Values {
-        self.definitions.get(&id).expect("lookup: variable not defined").clone()
+        self.definitions
+            .get(&id)
+            .unwrap_or_else(|| panic!("lookup: variable {id:?} not defined"))
+            .clone()
     }
 
     pub(super) fn lookup_global(&self, id: GlobalId) -> Values {
-        self.shared_context.globals.get(&id).expect("lookup_global: variable not defined").clone()
+        self.shared_context
+            .globals
+            .get(&id)
+            .unwrap_or_else(|| panic!("lookup_global: variable {id:?} not defined"))
+            .clone()
     }
 
     /// Extract the given field of the tuple. Panics if the given Values is not
@@ -765,6 +744,7 @@ impl<'a> FunctionContext<'a> {
                 let (reference, _) = self.extract_current_value_recursive(reference)?;
                 LValue::Dereference { reference }
             }
+            ast::LValue::Clone(lvalue) => self.extract_current_value(lvalue)?,
         })
     }
 
@@ -856,6 +836,14 @@ impl<'a> FunctionContext<'a> {
                 let dereferenced = self.dereference_lvalue(&reference, element_type);
                 Ok((dereferenced, LValue::Dereference { reference }))
             }
+            ast::LValue::Clone(lvalue) => {
+                let (values, lvalue) = self.extract_current_value_recursive(lvalue)?;
+                values.clone().for_each(|value| {
+                    let value = value.eval(self);
+                    self.builder.increment_array_reference_count(value);
+                });
+                Ok((values, lvalue))
+            }
         }
     }
 
@@ -936,7 +924,9 @@ impl<'a> FunctionContext<'a> {
 
         new_value.for_each(|value| {
             let value = value.eval(self);
-            array = self.builder.insert_array_set(array, index, value);
+            let mutable = false;
+            let offset = ArrayOffset::None;
+            array = self.builder.insert_array_set(array, index, value, mutable, offset);
             // Unchecked add because this can't overflow (it would have overflowed when creating the array)
             index = self.builder.insert_binary(index, BinaryOp::Add { unchecked: true }, one);
         });

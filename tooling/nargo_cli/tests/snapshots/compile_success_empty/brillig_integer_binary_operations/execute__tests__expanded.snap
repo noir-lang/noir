@@ -1,0 +1,73 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main() {
+    let x: u32 = 6_u32;
+    let y: u32 = 2_u32;
+    // Safety: comment added by `nargo expand`
+    unsafe {
+        assert((x + y) == add(x, y));
+        assert((x - y) == sub(x, y));
+        assert((x * y) == mul(x, y));
+        assert((x / y) == div(x, y));
+        assert(check_signed_div(6_i32, 2_i32, 3_i32));
+        assert(eq(1_u32, 2_u32) == false);
+        assert(eq(1_u32, 1_u32));
+        assert(lt(x, y) == false);
+        assert(lt(y, x));
+        assert((x & y) == and(x, y));
+        assert((x | y) == or(x, y));
+        assert(check_xor(x, y, 4_u32));
+        assert((x >> (y as u8)) == shr(x, y as u8));
+        assert((x << (y as u8)) == shl(x, y as u8));
+    }
+}
+
+unconstrained fn add(x: u32, y: u32) -> u32 {
+    x + y
+}
+
+unconstrained fn sub(x: u32, y: u32) -> u32 {
+    x - y
+}
+
+unconstrained fn mul(x: u32, y: u32) -> u32 {
+    x * y
+}
+
+unconstrained fn div(x: u32, y: u32) -> u32 {
+    x / y
+}
+
+unconstrained fn check_signed_div(x: i32, y: i32, result: i32) -> bool {
+    (x / y) == result
+}
+
+unconstrained fn eq(x: u32, y: u32) -> bool {
+    x == y
+}
+
+unconstrained fn lt(x: u32, y: u32) -> bool {
+    x < y
+}
+
+unconstrained fn and(x: u32, y: u32) -> u32 {
+    x & y
+}
+
+unconstrained fn or(x: u32, y: u32) -> u32 {
+    x | y
+}
+
+unconstrained fn check_xor(x: u32, y: u32, result: u32) -> bool {
+    (x ^ y) == result
+}
+
+unconstrained fn shr(x: u32, y: u8) -> u32 {
+    x >> y
+}
+
+unconstrained fn shl(x: u32, y: u8) -> u32 {
+    x << y
+}

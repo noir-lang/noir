@@ -1,3 +1,4 @@
+//! Codegen for converting SSA globals to Brillig bytecode.
 use std::collections::{BTreeMap, BTreeSet};
 
 use acvm::FieldElement;
@@ -46,7 +47,7 @@ pub(crate) struct BrilligGlobals {
 
 /// Mapping of SSA value ids to their Brillig allocations
 pub(crate) type SsaToBrilligGlobals = HashMap<ValueId, BrilligVariable>;
-
+/// Mapping of constant values shared across functions hoisted to the global memory space
 pub(crate) type HoistedConstantsToBrilligGlobals =
     HashMap<(FieldElement, NumericType), BrilligVariable>;
 /// Mapping of a constant value and the number of functions in which it occurs
@@ -324,11 +325,7 @@ mod tests {
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
-        // Need to run DIE to generate the used globals map, which is necessary for Brillig globals generation.
-        let mut ssa = ssa.dead_instruction_elimination();
-
-        let used_globals_map = std::mem::take(&mut ssa.used_globals);
-        let brillig = ssa.to_brillig_with_globals(&BrilligOptions::default(), used_globals_map);
+        let brillig = ssa.to_brillig(&BrilligOptions::default());
 
         assert_eq!(
             brillig.globals.len(),
@@ -442,12 +439,9 @@ mod tests {
 
         let ssa = Ssa::from_str(src).unwrap();
         // Need to run SSA pass that sets up Brillig array gets
-        let ssa = ssa.brillig_array_gets();
-        // Need to run DIE to generate the used globals map, which is necessary for Brillig globals generation.
-        let mut ssa = ssa.dead_instruction_elimination();
+        let ssa = ssa.brillig_array_get_and_set();
 
-        let used_globals_map = std::mem::take(&mut ssa.used_globals);
-        let brillig = ssa.to_brillig_with_globals(&BrilligOptions::default(), used_globals_map);
+        let brillig = ssa.to_brillig(&BrilligOptions::default());
 
         assert_eq!(
             brillig.globals.len(),
@@ -527,8 +521,6 @@ mod tests {
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
-        // Need to run DIE to generate the used globals map, which is necessary for Brillig globals generation.
-        let mut ssa = ssa.dead_instruction_elimination();
 
         // Show that the constants in each function have different SSA value IDs
         for (func_id, function) in &ssa.functions {
@@ -557,8 +549,7 @@ mod tests {
             }
         }
 
-        let used_globals_map = std::mem::take(&mut ssa.used_globals);
-        let brillig = ssa.to_brillig_with_globals(&BrilligOptions::default(), used_globals_map);
+        let brillig = ssa.to_brillig(&BrilligOptions::default());
 
         assert_eq!(brillig.globals.len(), 1, "Should have a single entry point");
         for (func_id, artifact) in brillig.globals {
@@ -617,11 +608,8 @@ mod tests {
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
-        // Need to run DIE to generate the used globals map, which is necessary for Brillig globals generation.
-        let mut ssa = ssa.dead_instruction_elimination();
 
-        let used_globals_map = std::mem::take(&mut ssa.used_globals);
-        let brillig = ssa.to_brillig_with_globals(&BrilligOptions::default(), used_globals_map);
+        let brillig = ssa.to_brillig(&BrilligOptions::default());
 
         assert_eq!(
             brillig.globals.len(),

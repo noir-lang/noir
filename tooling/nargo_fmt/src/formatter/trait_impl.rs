@@ -190,20 +190,6 @@ pub fn foo ( ) { }
     }
 
     #[test]
-    fn format_trait_impl_constant_without_type() {
-        let src = " mod moo { impl  Foo  for  Bar {  
-            let X =42 ;
-         } }";
-        let expected = "mod moo {
-    impl Foo for Bar {
-        let X = 42;
-    }
-}
-";
-        assert_format(src, expected);
-    }
-
-    #[test]
     fn format_trait_impl_constant_with_type() {
         let src = " mod moo { impl  Foo  for  Bar {  
             let X : i32=42 ;

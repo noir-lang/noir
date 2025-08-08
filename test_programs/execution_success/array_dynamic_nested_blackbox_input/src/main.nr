@@ -8,7 +8,7 @@ struct Foo {
     bar: Bar,
 }
 
-fn main(mut x: [Foo; 3], y: pub Field, hash_result: pub [u8; 32]) {
+fn main(mut x: [Foo; 3], y: pub u32, hash_result: pub [u8; 32]) {
     // Simple dynamic array set for entire inner most array
     x[y - 1].bar.inner = [106, 107, 10];
     let mut hash_input = x[y - 1].bar.inner;

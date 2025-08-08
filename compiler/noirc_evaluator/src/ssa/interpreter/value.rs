@@ -1,18 +1,26 @@
 use std::sync::Arc;
 
 use acvm::{AcirField, FieldElement};
-use iter_extended::vecmap;
+use iter_extended::{try_vecmap, vecmap};
 use noirc_frontend::Shared;
 
 use crate::ssa::ir::{
     function::FunctionId,
     instruction::Intrinsic,
+    integer::IntegerConstant,
+    is_printable_byte,
     types::{CompositeType, NumericType, Type},
     value::ValueId,
 };
 
+use super::IResult;
+
+/// Be careful when using `Clone`: `ArrayValue` and `ReferenceValue`
+/// are backed by a `Shared` data structure, and for example modifying
+/// an array element would be reflected in the original and the clone
+/// as well. Use `Value::snapshot` to make independent clones.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) enum Value {
+pub enum Value {
     Numeric(NumericValue),
     Reference(ReferenceValue),
     ArrayOrSlice(ArrayValue),
@@ -22,7 +30,7 @@ pub(crate) enum Value {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub(crate) enum NumericValue {
+pub enum NumericValue {
     Field(FieldElement),
 
     U1(bool),
@@ -39,7 +47,7 @@ pub(crate) enum NumericValue {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct ReferenceValue {
+pub struct ReferenceValue {
     /// This is included mostly for debugging to distinguish different
     /// ReferenceValues which store the same element.
     pub original_id: ValueId,
@@ -50,8 +58,8 @@ pub(crate) struct ReferenceValue {
     pub element_type: Arc<Type>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub(crate) struct ArrayValue {
+#[derive(Debug, Clone)]
+pub struct ArrayValue {
     pub elements: Shared<Vec<Value>>,
 
     /// The `Shared` type contains its own reference count but we need to track
@@ -73,7 +81,9 @@ impl Value {
                 Type::Slice(array.element_types.clone())
             }
             Value::ArrayOrSlice(array) => {
-                Type::Array(array.element_types.clone(), array.elements.borrow().len() as u32)
+                let len = array.elements.borrow().len().checked_div(array.element_types.len());
+                let len = len.unwrap_or(0) as u32;
+                Type::Array(array.element_types.clone(), len)
             }
             Value::Function(_) | Value::Intrinsic(_) | Value::ForeignFunction(_) => Type::Function,
         }
@@ -104,6 +114,13 @@ impl Value {
         }
     }
 
+    pub(crate) fn as_u64(&self) -> Option<u64> {
+        match self {
+            Value::Numeric(NumericValue::U64(value)) => Some(*value),
+            _ => None,
+        }
+    }
+
     pub(crate) fn as_numeric(&self) -> Option<NumericValue> {
         match self {
             Value::Numeric(value) => Some(*value),
@@ -125,8 +142,16 @@ impl Value {
         }
     }
 
-    pub(crate) fn from_constant(constant: FieldElement, typ: NumericType) -> Self {
-        Self::Numeric(NumericValue::from_constant(constant, typ))
+    pub(crate) fn from_constant(constant: FieldElement, typ: NumericType) -> IResult<Self> {
+        NumericValue::from_constant(constant, typ).map(Self::Numeric)
+    }
+
+    pub(crate) fn array_from_iter(
+        iter: impl IntoIterator<Item = FieldElement>,
+        typ: NumericType,
+    ) -> IResult<Self> {
+        let values = try_vecmap(iter, |v| Value::from_constant(v, typ))?;
+        Ok(Self::array(values, vec![Type::Numeric(typ)]))
     }
 
     // This is used in tests but shouldn't be cfg(test) only
@@ -135,7 +160,7 @@ impl Value {
         Self::Numeric(NumericValue::U1(value))
     }
 
-    pub(crate) fn array(elements: Vec<Value>, element_types: Vec<Type>) -> Self {
+    pub fn array(elements: Vec<Value>, element_types: Vec<Type>) -> Self {
         Self::ArrayOrSlice(ArrayValue {
             elements: Shared::new(elements),
             rc: Shared::new(1),
@@ -183,6 +208,41 @@ impl Value {
     pub(crate) fn as_field(&self) -> Option<FieldElement> {
         self.as_numeric()?.as_field()
     }
+
+    /// Clone the value in a way that modifications to it won't affect the original.
+    pub fn snapshot(&self) -> Self {
+        match self {
+            Value::Numeric(n) => Value::Numeric(*n),
+            Value::Reference(r) => {
+                let element = r.element.borrow().as_ref().map(|v| v.snapshot());
+                Value::Reference(ReferenceValue {
+                    original_id: r.original_id,
+                    element: Shared::new(element),
+                    element_type: r.element_type.clone(),
+                })
+            }
+            Value::ArrayOrSlice(a) => {
+                let elements = a.elements.borrow().iter().map(|v| v.snapshot()).collect();
+                Value::ArrayOrSlice(ArrayValue {
+                    elements: Shared::new(elements),
+                    rc: Shared::new(*a.rc.borrow()),
+                    element_types: a.element_types.clone(),
+                    is_slice: a.is_slice,
+                })
+            }
+            Value::Function(id) => Value::Function(*id),
+            Value::Intrinsic(i) => Value::Intrinsic(*i),
+            Value::ForeignFunction(s) => Value::ForeignFunction(s.clone()),
+        }
+    }
+
+    /// Take a snapshot of interpreter arguments.
+    ///
+    /// Useful when we want to use the same input to run the interpreter
+    /// after different SSA passes, without them affecting each other.
+    pub fn snapshot_args(args: &[Value]) -> Vec<Value> {
+        args.iter().map(|arg| arg.snapshot()).collect()
+    }
 }
 
 impl NumericValue {
@@ -203,7 +263,14 @@ impl NumericValue {
     }
 
     pub(crate) fn zero(typ: NumericType) -> Self {
-        Self::from_constant(FieldElement::zero(), typ)
+        Self::from_constant(FieldElement::zero(), typ).expect("zero should fit in every type")
+    }
+
+    pub(crate) fn neg_one(typ: NumericType) -> Self {
+        let neg_one = IntegerConstant::Signed { value: -1, bit_size: typ.bit_size() };
+        let (neg_one_constant, typ) = neg_one.into_numeric_constant();
+        Self::from_constant(neg_one_constant, typ)
+            .unwrap_or_else(|_| panic!("Negative one cannot fit in {typ}"))
     }
 
     pub(crate) fn as_field(&self) -> Option<FieldElement> {
@@ -227,42 +294,72 @@ impl NumericValue {
         }
     }
 
-    pub(crate) fn from_constant(constant: FieldElement, typ: NumericType) -> NumericValue {
+    pub fn from_constant(constant: FieldElement, typ: NumericType) -> IResult<NumericValue> {
+        use super::InternalError::{ConstantDoesNotFitInType, UnsupportedNumericType};
+        use super::InterpreterError::Internal;
+
+        let does_not_fit = Internal(ConstantDoesNotFitInType { constant, typ });
+
         match typ {
-            NumericType::NativeField => Self::Field(constant),
-            NumericType::Unsigned { bit_size: 1 } => Self::U1(constant.is_one()),
-            NumericType::Unsigned { bit_size: 8 } => {
-                Self::U8(constant.try_into_u128().unwrap().try_into().unwrap())
+            NumericType::NativeField => Ok(Self::Field(constant)),
+            NumericType::Unsigned { bit_size: 1 } => {
+                if constant.is_zero() || constant.is_one() {
+                    Ok(Self::U1(constant.is_one()))
+                } else {
+                    Err(does_not_fit)
+                }
             }
-            NumericType::Unsigned { bit_size: 16 } => {
-                Self::U16(constant.try_into_u128().unwrap().try_into().unwrap())
-            }
-            NumericType::Unsigned { bit_size: 32 } => {
-                Self::U32(constant.try_into_u128().unwrap().try_into().unwrap())
-            }
-            NumericType::Unsigned { bit_size: 64 } => {
-                Self::U64(constant.try_into_u128().unwrap().try_into().unwrap())
-            }
+            NumericType::Unsigned { bit_size: 8 } => constant
+                .try_into_u128()
+                .and_then(|x| x.try_into().ok())
+                .map(Self::U8)
+                .ok_or(does_not_fit),
+            NumericType::Unsigned { bit_size: 16 } => constant
+                .try_into_u128()
+                .and_then(|x| x.try_into().ok())
+                .map(Self::U16)
+                .ok_or(does_not_fit),
+            NumericType::Unsigned { bit_size: 32 } => constant
+                .try_into_u128()
+                .and_then(|x| x.try_into().ok())
+                .map(Self::U32)
+                .ok_or(does_not_fit),
+            NumericType::Unsigned { bit_size: 64 } => constant
+                .try_into_u128()
+                .and_then(|x| x.try_into().ok())
+                .map(Self::U64)
+                .ok_or(does_not_fit),
             NumericType::Unsigned { bit_size: 128 } => {
-                Self::U128(constant.try_into_u128().unwrap())
+                constant.try_into_u128().map(Self::U128).ok_or(does_not_fit)
             }
-            NumericType::Signed { bit_size: 8 } => {
-                Self::I8(constant.try_into_i128().unwrap().try_into().unwrap())
-            }
-            NumericType::Signed { bit_size: 16 } => {
-                Self::I16(constant.try_into_i128().unwrap().try_into().unwrap())
-            }
-            NumericType::Signed { bit_size: 32 } => {
-                Self::I32(constant.try_into_i128().unwrap().try_into().unwrap())
-            }
-            NumericType::Signed { bit_size: 64 } => {
-                Self::I64(constant.try_into_i128().unwrap().try_into().unwrap())
-            }
-            other => panic!("Unsupported numeric type: {other}"),
+            // Signed cases are a bit weird. We want to allow all values in the corresponding
+            // unsigned range so we have to cast to the unsigned type first to see if it fits.
+            // If it does, any values `>= 2^N / 2` for `iN` are interpreted as negative.
+            NumericType::Signed { bit_size: 8 } => constant
+                .try_into_u128()
+                .and_then(|x| u8::try_from(x).ok())
+                .map(|x| Self::I8(x as i8))
+                .ok_or(does_not_fit),
+            NumericType::Signed { bit_size: 16 } => constant
+                .try_into_u128()
+                .and_then(|x| u16::try_from(x).ok())
+                .map(|x| Self::I16(x as i16))
+                .ok_or(does_not_fit),
+            NumericType::Signed { bit_size: 32 } => constant
+                .try_into_u128()
+                .and_then(|x| u32::try_from(x).ok())
+                .map(|x| Self::I32(x as i32))
+                .ok_or(does_not_fit),
+            NumericType::Signed { bit_size: 64 } => constant
+                .try_into_u128()
+                .and_then(|x| u64::try_from(x).ok())
+                .map(|x| Self::I64(x as i64))
+                .ok_or(does_not_fit),
+            typ => Err(Internal(UnsupportedNumericType { typ })),
         }
     }
 
-    pub(crate) fn convert_to_field(&self) -> FieldElement {
+    pub fn convert_to_field(&self) -> FieldElement {
         match self {
             NumericValue::Field(field) => *field,
             NumericValue::U1(boolean) if *boolean => FieldElement::one(),
@@ -272,10 +369,22 @@ impl NumericValue {
             NumericValue::U32(value) => FieldElement::from(*value),
             NumericValue::U64(value) => FieldElement::from(*value),
             NumericValue::U128(value) => FieldElement::from(*value),
-            NumericValue::I8(value) => FieldElement::from(*value as i128),
-            NumericValue::I16(value) => FieldElement::from(*value as i128),
-            NumericValue::I32(value) => FieldElement::from(*value as i128),
-            NumericValue::I64(value) => FieldElement::from(*value as i128),
+            // Need to cast possibly negative values to the unsigned variants
+            // first to ensure they are zero-extended rather than sign-extended
+            NumericValue::I8(value) => FieldElement::from(*value as u8 as i128),
+            NumericValue::I16(value) => FieldElement::from(*value as u16 as i128),
+            NumericValue::I32(value) => FieldElement::from(*value as u32 as i128),
+            NumericValue::I64(value) => FieldElement::from(*value as u64 as i128),
+        }
+    }
+
+    pub fn is_negative(&self) -> bool {
+        match self {
+            NumericValue::I8(v) => *v < 0,
+            NumericValue::I16(v) => *v < 0,
+            NumericValue::I32(v) => *v < 0,
+            NumericValue::I64(v) => *v < 0,
+            _ => false,
         }
     }
 }
@@ -297,7 +406,7 @@ impl std::fmt::Display for NumericValue {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             NumericValue::Field(value) => write!(f, "Field {value}"),
-            NumericValue::U1(value) => write!(f, "u1 {value}"),
+            NumericValue::U1(value) => write!(f, "u1 {}", if *value { "1" } else { "0" }),
             NumericValue::U8(value) => write!(f, "u8 {value}"),
             NumericValue::U16(value) => write!(f, "u16 {value}"),
             NumericValue::U32(value) => write!(f, "u32 {value}"),
@@ -323,10 +432,78 @@ impl std::fmt::Display for ReferenceValue {
 
 impl std::fmt::Display for ArrayValue {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let elements = self.elements.borrow();
-        let elements = vecmap(elements.iter(), ToString::to_string).join(", ");
+        let rc = self.rc.borrow();
 
         let is_slice = if self.is_slice { "&" } else { "" };
-        write!(f, "rc{} {is_slice}[{elements}]", self.rc.borrow())
+        write!(f, "rc{rc} {is_slice}")?;
+
+        // Check if the array could be shown as a string literal
+        if self.element_types.len() == 1
+            && matches!(self.element_types[0], Type::Numeric(NumericType::Unsigned { bit_size: 8 }))
+        {
+            let printable = self.elements.borrow().iter().all(|value| {
+                matches!(value, Value::Numeric(NumericValue::U8(byte)) if is_printable_byte(*byte))
+            });
+            if printable {
+                let bytes = self
+                    .elements
+                    .borrow()
+                    .iter()
+                    .map(|value| {
+                        let Value::Numeric(NumericValue::U8(byte)) = value else {
+                            panic!("Expected U8 value in array, found {value}");
+                        };
+                        *byte
+                    })
+                    .collect::<Vec<_>>();
+                let string = String::from_utf8(bytes).unwrap();
+                write!(f, "b{string:?}")?;
+                return Ok(());
+            }
+        }
+
+        write!(f, "[")?;
+
+        let length = self.elements.borrow().len() / self.element_types.len();
+        if length == 0 {
+            // We show an array length zero like `[T; 0]` or `[(T1, T2, ...); 0]`
+            let element_types = if self.element_types.len() == 1 {
+                self.element_types[0].to_string()
+            } else {
+                let element_types =
+                    vecmap(self.element_types.iter(), ToString::to_string).join(", ");
+                format!("({element_types})")
+            };
+            write!(f, "{element_types}; {length}")?;
+        } else {
+            // Otherwise we show the elements, but try to group them if the element type is a composite type
+            // (that way the element types can be inferred from the elements)
+            let element_types_len = self.element_types.len();
+            for (index, element) in self.elements.borrow().iter().enumerate() {
+                if index > 0 {
+                    write!(f, ", ")?;
+                }
+                if element_types_len > 1 && index % element_types_len == 0 {
+                    write!(f, "(")?;
+                }
+                write!(f, "{element}")?;
+                if element_types_len > 1 && index % element_types_len == element_types_len - 1 {
+                    write!(f, ")")?;
+                }
+            }
+        }
+
+        write!(f, "]")
     }
 }
+
+impl PartialEq for ArrayValue {
+    fn eq(&self, other: &Self) -> bool {
+        // Don't compare RC
+        self.elements == other.elements
+            && self.element_types == other.element_types
+            && self.is_slice == other.is_slice
+    }
+}
+
+impl Eq for ArrayValue {}

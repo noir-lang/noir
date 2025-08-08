@@ -44,7 +44,7 @@ fn turbofish_numeric_generic_nested_method_call() {
     }
 
     fn bar<let N: u32>() -> [u8; N] {
-        let _ = Foo::static_method::<N>();
+        let _ = Foo::<u8>::static_method::<N>();
         let x: Foo<u8> = Foo { a: 0 };
         x.impl_method::<N>()
     }
@@ -364,6 +364,37 @@ fn trait_function_with_turbofish_on_trait_gives_error() {
     fn main() {
         let _: i32 = Foo::<bool>::foo(1);
                                       ^ Expected type bool, found type Field
+    }
+    "#;
+    check_errors!(src);
+}
+
+#[named]
+#[test]
+fn turbofish_named_numeric() {
+    let src = r#"
+    trait Bar {
+        let N: u32;
+    }
+
+    impl Bar for Field {
+        let N: u32 = 1;
+    }
+
+    impl Bar for i32 {
+        let N: u32 = 2;
+    }
+
+    fn foo<B>()
+    where
+        B: Bar<N = 1>,
+    {}
+
+    fn main() {
+        foo::<Field>();
+        foo::<i32>();
+        ^^^^^^^^^^ No matching impl found for `i32: Bar<N = 1>`
+        ~~~~~~~~~~ No impl for `i32: Bar<N = 1>`
     }
     "#;
     check_errors!(src);

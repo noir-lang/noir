@@ -1,0 +1,70 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+global HELLO_WORLD: str<11> = "hello world";
+
+fn main(message: pub str<11>, y: Field, hex_as_string: str<4>, hex_as_field: Field) {
+    let mut bad_message: str<11> = "hello world";
+    assert(message == "hello world");
+    assert(message == HELLO_WORLD);
+    let x: Field = 10_Field;
+    let z: Field = x * 5_Field;
+    println(10_Field);
+    print(10_Field);
+    println(z);
+    print(z);
+    println(x);
+    print(x);
+    let array: [Field; 5] = [1_Field, 2_Field, 3_Field, 5_Field, 8_Field];
+    assert(y == 5_Field);
+    println(array);
+    print(array);
+    bad_message = "hell\0\"world";
+    println(bad_message);
+    print(bad_message);
+    assert(message != bad_message);
+    let hash: std::embedded_curve_ops::EmbeddedCurvePoint = std::hash::pedersen_commitment([x]);
+    println(hash);
+    print(hash);
+    assert(hex_as_string == "0x41");
+    assert(hex_as_field == 65_Field);
+    assert(hex_as_field == 65_Field);
+    assert(hex_as_field != 1_Field);
+}
+
+#[test]
+fn test_prints_strings() {
+    let message: str<12> = "hello world!";
+    println(message);
+    println("goodbye world");
+    print(message);
+    print("\n");
+    print("goodbye world\n");
+}
+
+#[test]
+fn test_prints_array() {
+    let array: [Field; 5] = [1_Field, 2_Field, 3_Field, 5_Field, 8_Field];
+    let s: Test = Test { a: 1_Field, b: 2_Field, c: [3_Field, 4_Field] };
+    println(s);
+    println(array);
+    let hash: std::embedded_curve_ops::EmbeddedCurvePoint = std::hash::pedersen_commitment(array);
+    println(hash);
+}
+
+fn failed_constraint(hex_as_field: Field) {
+    println(hex_as_field);
+    assert(hex_as_field != 65_Field);
+}
+
+#[test]
+fn test_failed_constraint() {
+    failed_constraint(65_Field);
+}
+
+struct Test {
+    a: Field,
+    b: Field,
+    c: [Field; 2],
+}

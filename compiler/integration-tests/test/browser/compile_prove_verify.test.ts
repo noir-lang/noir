@@ -10,7 +10,7 @@ import { getFile } from './utils.js';
 
 const test_cases = [
   {
-    case: 'test_programs/execution_success/1_mul',
+    case: 'test_programs/execution_success/a_1_mul',
     numPublicInputs: 0,
   },
   {

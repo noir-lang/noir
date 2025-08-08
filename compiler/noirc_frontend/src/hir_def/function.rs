@@ -131,7 +131,12 @@ pub struct FuncMeta {
     // This flag is needed for the attribute check pass
     pub has_body: bool,
 
+    /// Trait constraints that were specified directly on this function.
     pub trait_constraints: Vec<TraitConstraint>,
+
+    /// Trait constraints that came either from a parent item (for example a where clause on a
+    /// trait or trait impl) or from constraints on implicitly added named generics.
+    pub extra_trait_constraints: Vec<TraitConstraint>,
 
     /// The type this method belongs to, if any
     pub type_id: Option<TypeId>,
@@ -221,5 +226,9 @@ impl FuncMeta {
             FunctionBody::Resolving => FunctionBody::Resolving,
             FunctionBody::Resolved => FunctionBody::Resolved,
         }
+    }
+
+    pub fn all_trait_constraints(&self) -> impl Iterator<Item = &TraitConstraint> {
+        self.trait_constraints.iter().chain(self.extra_trait_constraints.iter())
     }
 }

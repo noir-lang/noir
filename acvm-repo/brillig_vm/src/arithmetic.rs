@@ -1,3 +1,5 @@
+//! Implementations for [binary field operations][acir::brillig::Opcode::BinaryFieldOp] and
+//! [binary integer operations][acir::brillig::Opcode::BinaryIntOp].
 use std::ops::{BitAnd, BitOr, BitXor, Shl, Shr};
 
 use acir::AcirField;
@@ -201,6 +203,15 @@ pub(crate) fn evaluate_binary_int_op<F: AcirField>(
     }
 }
 
+/// Evaluates binary operations on 1-bit unsigned integers (booleans).
+///
+/// # Returns
+/// - Ok(result) if successful.
+/// - Err([BrilligArithmeticError::DivisionByZero]) if division by zero occurs.
+///
+/// # Panics
+/// If an operation other than Add, Sub, Mul, Div, And, Or, Xor, Equals, LessThan,
+/// or LessThanEquals is supplied as an argument.
 fn evaluate_binary_int_op_u1(
     op: &BinaryIntOp,
     lhs: bool,
@@ -225,6 +236,11 @@ fn evaluate_binary_int_op_u1(
     Ok(result)
 }
 
+/// Evaluates comparison operations (Equals, LessThan, LessThanEquals)
+/// between two values of an ordered type (e.g., fields are unordered).
+///
+/// # Panics
+/// If an unsupported operator is provided (i.e., not Equals, LessThan, or LessThanEquals).
 fn evaluate_binary_int_op_cmp<T: Ord + PartialEq>(op: &BinaryIntOp, lhs: T, rhs: T) -> bool {
     match op {
         BinaryIntOp::Equals => lhs == rhs,
@@ -234,6 +250,11 @@ fn evaluate_binary_int_op_cmp<T: Ord + PartialEq>(op: &BinaryIntOp, lhs: T, rhs:
     }
 }
 
+/// Evaluates shift operations (Shl, Shr) for unsigned integers.
+/// Ensures that shifting beyond the type width returns zero.
+///
+/// # Panics
+/// If an unsupported operator is provided (i.e., not Shl or Shr).
 fn evaluate_binary_int_op_shifts<T: From<u8> + Zero + Shl<Output = T> + Shr<Output = T>>(
     op: &BinaryIntOp,
     lhs: T,
@@ -252,6 +273,15 @@ fn evaluate_binary_int_op_shifts<T: From<u8> + Zero + Shl<Output = T> + Shr<Outp
     }
 }
 
+/// Evaluates arithmetic or bitwise operations on unsigned integer types,
+/// using wrapping arithmetic for [add][BinaryIntOp::Add], [sub][BinaryIntOp::Sub], and [mul][BinaryIntOp::Mul].
+///
+/// # Returns
+/// - Ok(result) if successful.
+/// - Err([BrilligArithmeticError::DivisionByZero]) if division by zero occurs.
+///
+/// # Panics
+/// If there an operation other than Add, Sub, Mul, Div, And, Or, Xor is supplied as an argument.
 fn evaluate_binary_int_op_arith<
     T: WrappingAdd
         + WrappingSub

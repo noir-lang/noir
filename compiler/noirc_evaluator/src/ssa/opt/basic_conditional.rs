@@ -200,7 +200,7 @@ fn block_cost(block: BasicBlockId, dfg: &DataFlowGraph) -> u32 {
             | Instruction::Store { .. }
             | Instruction::ArraySet { .. } => return u32::MAX,
 
-            Instruction::ArrayGet { array, index  } => {
+            Instruction::ArrayGet { array, index, offset: _  } => {
                 // A get can fail because of out-of-bound index
                 let mut in_bound = false;
                 // check if index is in bound
@@ -360,6 +360,9 @@ impl Context<'_> {
             TerminatorInstruction::Return { return_values, call_stack } => {
                 let return_values = vecmap(return_values, |value| self.inserter.resolve(value));
                 TerminatorInstruction::Return { return_values, call_stack }
+            }
+            TerminatorInstruction::Unreachable { call_stack } => {
+                TerminatorInstruction::Unreachable { call_stack }
             }
         };
         self.inserter.function.dfg.set_block_terminator(conditional.block_entry, new_terminator);

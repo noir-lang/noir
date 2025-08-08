@@ -1,9 +1,13 @@
 use std::{
+    cmp::max,
     collections::{BTreeMap, HashMap},
     fmt::Display,
     panic::{UnwindSafe, catch_unwind},
     path::PathBuf,
-    sync::{Mutex, mpsc},
+    sync::{
+        Mutex,
+        mpsc::{self, Sender},
+    },
     thread,
     time::Duration,
 };
@@ -14,7 +18,7 @@ use clap::Args;
 use fm::FileManager;
 use formatters::{Formatter, JsonFormatter, PrettyFormatter, TerseFormatter};
 use nargo::{
-    FuzzFolderConfig,
+    FuzzExecutionConfig, FuzzFolderConfig,
     foreign_calls::DefaultForeignCallBuilder,
     insert_all_files_for_workspace_into_file_manager,
     ops::{FuzzConfig, TestStatus, check_crate_and_report_errors},
@@ -92,6 +96,18 @@ pub(crate) struct TestCommand {
     /// If given, store the failing input in the given folder
     #[arg(long)]
     fuzzing_failure_dir: Option<String>,
+
+    /// Maximum time in seconds to spend fuzzing (default: 1 seconds)
+    #[arg(long, default_value_t = 1)]
+    fuzz_timeout: u64,
+
+    /// Maximum number of executions to run for each fuzz test (default: 100000)
+    #[arg(long, default_value_t = 100000)]
+    fuzz_max_executions: usize,
+
+    /// Show progress of fuzzing (default: false)
+    #[arg(long)]
+    fuzz_show_progress: bool,
 }
 
 impl WorkspaceCommand for TestCommand {
@@ -137,6 +153,7 @@ impl Display for Format {
 struct Test<'a> {
     name: String,
     package_name: String,
+    has_arguments: bool,
     runner: Box<dyn FnOnce() -> (TestStatus, String) + Send + UnwindSafe + 'a>,
 }
 
@@ -268,6 +285,65 @@ impl<'a> TestRunner<'a> {
         if all_passed { Ok(()) } else { Err(CliError::Generic(String::new())) }
     }
 
+    /// Process a chunk of tests sequentially and send the results to the main thread
+    /// We need this functions, because first we process the standard tests, and then the fuzz tests.
+    fn process_chunk_of_tests<I>(&self, iter_tests: &Mutex<I>, thread_sender: &Sender<TestResult>)
+    where
+        I: Iterator<Item = Test<'a>>,
+    {
+        loop {
+            // Get next test to process from the iterator.
+            let Some(test) = iter_tests.lock().unwrap().next() else {
+                break;
+            };
+
+            self.formatter
+                .test_start_async(&test.name, &test.package_name)
+                .expect("Could not display test start");
+
+            let time_before_test = std::time::Instant::now();
+            let (status, output) = match catch_unwind(test.runner) {
+                Ok((status, output)) => (status, output),
+                Err(err) => (
+                    TestStatus::Fail {
+                                    message:
+                                        // It seems `panic!("...")` makes the error be `&str`, so we handle this common case
+                                        if let Some(message) = err.downcast_ref::<&str>() {
+                                            message.to_string()
+                                        } else {
+                                            "An unexpected error happened".to_string()
+                                        },
+                                    error_diagnostic: None,
+                                },
+                    String::new(),
+                ),
+            };
+            let time_to_run = time_before_test.elapsed();
+
+            let test_result = TestResult {
+                name: test.name,
+                package_name: test.package_name,
+                status,
+                output,
+                time_to_run,
+            };
+
+            self.formatter
+                .test_end_async(
+                    &test_result,
+                    self.file_manager,
+                    self.args.show_output,
+                    self.args.compile_options.deny_warnings,
+                    self.args.compile_options.silence_warnings,
+                )
+                .expect("Could not display test start");
+
+            if thread_sender.send(test_result).is_err() {
+                break;
+            }
+        }
+    }
+
     /// Runs all tests. Returns `true` if all tests passed, `false` otherwise.
     fn run_all_tests(
         &self,
@@ -283,71 +359,58 @@ impl<'a> TestRunner<'a> {
         }
 
         let (sender, receiver) = mpsc::channel();
-        let iter = &Mutex::new(tests.into_iter());
+        let (standard_tests_finished_sender, standard_tests_finished_receiver) = mpsc::channel();
+        // Partition tests into standard and fuzz tests
+        let (iter_tests_without_arguments, iter_tests_with_arguments): (
+            Vec<Test<'a>>,
+            Vec<Test<'a>>,
+        ) = tests.into_iter().partition(|test| !test.has_arguments);
+
+        let iter_tests_without_arguments = &Mutex::new(iter_tests_without_arguments.into_iter());
+        let iter_tests_with_arguments = &Mutex::new(iter_tests_with_arguments.into_iter());
+
         thread::scope(|scope| {
             // Start worker threads
             for _ in 0..self.num_threads {
                 // Clone sender so it's dropped once the thread finishes
-                let thread_sender = sender.clone();
+                let test_result_thread_sender = sender.clone();
+                let standard_tests_finished_thread_sender = standard_tests_finished_sender.clone();
                 thread::Builder::new()
                     // Specify a larger-than-default stack size to prevent overflowing stack in large programs.
                     // (the default is 2MB)
                     .stack_size(STACK_SIZE)
                     .spawn_scoped(scope, move || {
-                        loop {
-                            // Get next test to process from the iterator.
-                            let Some(test) = iter.lock().unwrap().next() else {
-                                break;
-                            };
-
-                            self.formatter
-                                .test_start_async(&test.name, &test.package_name)
-                                .expect("Could not display test start");
-
-                            let time_before_test = std::time::Instant::now();
-                            let (status, output) = match catch_unwind(test.runner) {
-                                Ok((status, output)) => (status, output),
-                                Err(err) => (
-                                    TestStatus::Fail {
-                                    message:
-                                        // It seems `panic!("...")` makes the error be `&str`, so we handle this common case
-                                        if let Some(message) = err.downcast_ref::<&str>() {
-                                            message.to_string()
-                                        } else {
-                                            "An unexpected error happened".to_string()
-                                        },
-                                    error_diagnostic: None,
-                                },
-                                    String::new(),
-                                ),
-                            };
-                            let time_to_run = time_before_test.elapsed();
-
-                            let test_result = TestResult {
-                                name: test.name,
-                                package_name: test.package_name,
-                                status,
-                                output,
-                                time_to_run,
-                            };
-
-                            self.formatter
-                                .test_end_async(
-                                    &test_result,
-                                    self.file_manager,
-                                    self.args.show_output,
-                                    self.args.compile_options.deny_warnings,
-                                    self.args.compile_options.silence_warnings,
-                                )
-                                .expect("Could not display test start");
-
-                            if thread_sender.send(test_result).is_err() {
-                                break;
-                            }
-                        }
+                        self.process_chunk_of_tests(
+                            iter_tests_without_arguments,
+                            &test_result_thread_sender,
+                        );
+                        // Signal that we've finished processing the standard tests in this thread
+                        let _ = standard_tests_finished_thread_sender.send(());
                     })
                     .unwrap();
             }
+
+            let test_result_thread_sender = sender.clone();
+            thread::Builder::new()
+                .stack_size(STACK_SIZE)
+                .spawn_scoped(scope, move || {
+                    let mut standard_tests_threads_finished = 0;
+                    // Wait for at least half of the threads to finish processing the standard tests
+                    while standard_tests_finished_receiver.recv().is_ok() {
+                        standard_tests_threads_finished += 1;
+                        if standard_tests_threads_finished >= max(1, self.num_threads / 2) {
+                            break;
+                        }
+                    }
+
+                    // Process fuzz tests sequentially
+                    // Parallelism is handled by the fuzz tests themselves
+                    self.process_chunk_of_tests(
+                        iter_tests_with_arguments,
+                        &test_result_thread_sender,
+                    );
+                })
+                .unwrap();
 
             // Also drop main sender so the channel closes
             drop(sender);
@@ -506,7 +569,12 @@ impl<'a> TestRunner<'a> {
                         package_name_clone.clone(),
                     )
                 });
-                Test { name: test_name_copy, package_name: package_name_clone2, runner }
+                Test {
+                    name: test_name_copy,
+                    package_name: package_name_clone2,
+                    runner,
+                    has_arguments: test_function.has_arguments,
+                }
             })
             .collect();
 
@@ -560,6 +628,12 @@ impl<'a> TestRunner<'a> {
                 corpus_dir: self.args.corpus_dir.clone(),
                 minimized_corpus_dir: self.args.minimized_corpus_dir.clone(),
                 fuzzing_failure_dir: self.args.fuzzing_failure_dir.clone(),
+            },
+            execution_config: FuzzExecutionConfig {
+                num_threads: self.num_threads,
+                timeout: self.args.fuzz_timeout,
+                show_progress: self.args.fuzz_show_progress,
+                max_executions: self.args.fuzz_max_executions,
             },
         };
 

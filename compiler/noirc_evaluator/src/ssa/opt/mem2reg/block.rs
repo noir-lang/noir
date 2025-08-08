@@ -172,7 +172,7 @@ impl Block {
     }
 
     /// Iterate through each known alias of the given address and apply the function `f` to each.
-    fn for_each_alias_of<T>(
+    pub(super) fn for_each_alias_of<T>(
         &mut self,
         address: ValueId,
         mut f: impl FnMut(&mut Self, ValueId) -> T,

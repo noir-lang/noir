@@ -82,6 +82,7 @@ fn recursive_type_with_alias_errors() {
 #[named]
 #[test]
 fn mutually_recursive_types_error() {
+    // cSpell:disable
     let src = "
         fn main() {
             let _zero = Even::Zero;
@@ -99,6 +100,7 @@ fn mutually_recursive_types_error() {
             Succ(Even),
         }
         ";
+    // cSpell:enable
     let features = vec![UnstableFeature::Enums];
     check_monomorphization_error_using_features!(src, &features);
 }
@@ -107,7 +109,7 @@ fn mutually_recursive_types_error() {
 #[test]
 fn simple_closure_with_no_captured_variables() {
     let src = r#"
-    fn main() -> pub Field {
+    fn main(y: call_data(0) Field) -> pub Field {
         let x = 1;
         let closure = || x;
         closure()
@@ -116,22 +118,22 @@ fn simple_closure_with_no_captured_variables() {
 
     let program = get_monomorphized!(src, Expect::Success).unwrap();
     insta::assert_snapshot!(program, @r"
-    fn main$f0() -> pub Field {
-        let x$l0 = 1;
-        let closure$l3 = {
-            let closure_variable$l2 = {
-                let env$l1 = (x$l0);
-                (env$l1, lambda$f1)
+    fn main$f0(y$l0: call_data(0) Field) -> pub Field {
+        let x$l1 = 1;
+        let closure$l4 = {
+            let closure_variable$l3 = {
+                let env$l2 = (x$l1);
+                (env$l2, lambda$f1)
             };
-            closure_variable$l2
+            closure_variable$l3
         };
         {
-            let tmp$l4 = closure$l3;
-            tmp$l4.1(tmp$l4.0)
+            let tmp$l5 = closure$l4;
+            tmp$l5.1(tmp$l5.0)
         }
     }
-    fn lambda$f1(mut env$l1: (Field)) -> Field {
-        env$l1.0
+    fn lambda$f1(mut env$l2: (Field,)) -> Field {
+        env$l2.0
     }
     ");
 }

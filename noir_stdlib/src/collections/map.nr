@@ -1,7 +1,7 @@
 use crate::cmp::Eq;
 use crate::collections::bounded_vec::BoundedVec;
 use crate::default::Default;
-use crate::hash::{BuildHasher, Hash, Hasher};
+use crate::hash::{BuildHasher, Hash};
 use crate::option::Option;
 
 // We use load factor alpha_max = 0.75.
@@ -101,9 +101,9 @@ impl<K, V, let N: u32, B> HashMap<K, V, N, B> {
     /// assert(hashmap.is_empty());
     /// ```
     // docs:start:with_hasher
-    pub fn with_hasher<H>(_build_hasher: B) -> Self
+    pub fn with_hasher(_build_hasher: B) -> Self
     where
-        B: BuildHasher<H>,
+        B: BuildHasher,
     {
         // docs:end:with_hasher
         let _table = [Slot::default(); N];
@@ -141,11 +141,10 @@ impl<K, V, let N: u32, B> HashMap<K, V, N, B> {
     /// }
     /// ```
     // docs:start:contains_key
-    pub fn contains_key<H>(self, key: K) -> bool
+    pub fn contains_key(self, key: K) -> bool
     where
         K: Hash + Eq,
-        B: BuildHasher<H>,
-        H: Hasher,
+        B: BuildHasher,
     {
         // docs:end:contains_key
         self.get(key).is_some()
@@ -302,11 +301,10 @@ impl<K, V, let N: u32, B> HashMap<K, V, N, B> {
     /// map.iter_mut(|k, v| (k + 1, v * 2));
     /// ```
     // docs:start:iter_mut
-    pub fn iter_mut<H>(&mut self, f: fn(K, V) -> (K, V))
+    pub fn iter_mut(&mut self, f: fn(K, V) -> (K, V))
     where
         K: Eq + Hash,
-        B: BuildHasher<H>,
-        H: Hasher,
+        B: BuildHasher,
     {
         // docs:end:iter_mut
         let mut entries = self.entries();
@@ -340,11 +338,10 @@ impl<K, V, let N: u32, B> HashMap<K, V, N, B> {
     /// map.iter_keys_mut(|k| k * 2);
     /// ```
     // docs:start:iter_keys_mut
-    pub fn iter_keys_mut<H>(&mut self, f: fn(K) -> K)
+    pub fn iter_keys_mut(&mut self, f: fn(K) -> K)
     where
         K: Eq + Hash,
-        B: BuildHasher<H>,
-        H: Hasher,
+        B: BuildHasher,
     {
         // docs:end:iter_keys_mut
         let mut entries = self.entries();
@@ -470,11 +467,10 @@ impl<K, V, let N: u32, B> HashMap<K, V, N, B> {
     /// }
     /// ```
     // docs:start:get
-    pub fn get<H>(self, key: K) -> Option<V>
+    pub fn get(self, key: K) -> Option<V>
     where
         K: Eq + Hash,
-        B: BuildHasher<H>,
-        H: Hasher,
+        B: BuildHasher,
     {
         // docs:end:get
         let mut result = Option::none();
@@ -512,11 +508,10 @@ impl<K, V, let N: u32, B> HashMap<K, V, N, B> {
     /// assert(map.len() == 1);
     /// ```
     // docs:start:insert
-    pub fn insert<H>(&mut self, key: K, value: V)
+    pub fn insert(&mut self, key: K, value: V)
     where
         K: Eq + Hash,
-        B: BuildHasher<H>,
-        H: Hasher,
+        B: BuildHasher,
     {
         // docs:end:insert
         self.assert_load_factor();
@@ -568,11 +563,10 @@ impl<K, V, let N: u32, B> HashMap<K, V, N, B> {
     /// assert(map.is_empty());
     /// ```
     // docs:start:remove
-    pub fn remove<H>(&mut self, key: K)
+    pub fn remove(&mut self, key: K)
     where
         K: Eq + Hash,
-        B: BuildHasher<H>,
-        H: Hasher,
+        B: BuildHasher,
     {
         // docs:end:remove
         let hash = self.hash(key);
@@ -598,11 +592,10 @@ impl<K, V, let N: u32, B> HashMap<K, V, N, B> {
     }
 
     // Apply HashMap's hasher onto key to obtain pre-hash for probing.
-    fn hash<H>(self, key: K) -> u32
+    fn hash(self, key: K) -> u32
     where
         K: Hash,
-        B: BuildHasher<H>,
-        H: Hasher,
+        B: BuildHasher,
     {
         let mut hasher = self._build_hasher.build_hasher();
         key.hash(&mut hasher);
@@ -634,12 +627,11 @@ impl<K, V, let N: u32, B> HashMap<K, V, N, B> {
 // equal sets of key-value entries,
 // thus one is a subset of the other and vice versa.
 // docs:start:eq
-impl<K, V, let N: u32, B, H> Eq for HashMap<K, V, N, B>
+impl<K, V, let N: u32, B> Eq for HashMap<K, V, N, B>
 where
     K: Eq + Hash,
     V: Eq,
-    B: BuildHasher<H>,
-    H: Hasher,
+    B: BuildHasher,
 {
     /// Checks if two HashMaps are equal.
     ///
@@ -686,10 +678,9 @@ where
 }
 
 // docs:start:default
-impl<K, V, let N: u32, B, H> Default for HashMap<K, V, N, B>
+impl<K, V, let N: u32, B> Default for HashMap<K, V, N, B>
 where
-    B: BuildHasher<H> + Default,
-    H: Hasher + Default,
+    B: BuildHasher + Default,
 {
     /// Constructs an empty HashMap.
     ///

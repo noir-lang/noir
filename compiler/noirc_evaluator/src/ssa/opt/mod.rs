@@ -8,16 +8,17 @@ mod array_set;
 mod as_slice_length;
 mod assert_constant;
 mod basic_conditional;
-mod brillig_array_gets;
+mod brillig_array_get_and_set;
 pub(crate) mod brillig_entry_points;
 mod check_u128_mul_overflow;
 mod checked_to_unchecked;
 mod constant_folding;
 mod defunctionalize;
 mod die;
+mod expand_signed_checks;
 pub(crate) mod flatten_cfg;
 mod hint;
-mod inline_functions_with_at_most_one_instruction;
+mod inline_simple_functions;
 pub(crate) mod inlining;
 mod loop_invariant;
 mod make_constrain_not_equal;
@@ -30,7 +31,8 @@ mod remove_bit_shifts;
 mod remove_enable_side_effects;
 mod remove_if_else;
 mod remove_truncate_after_range_check;
-mod remove_unreachable;
+mod remove_unreachable_functions;
+mod remove_unreachable_instructions;
 mod simple_optimization;
 mod simplify_cfg;
 mod unrolling;
@@ -52,7 +54,7 @@ pub(crate) fn assert_normalized_ssa_equals(mut ssa: super::Ssa, expected: &str) 
     let mut expected_ssa = match Ssa::from_str(&expected) {
         Ok(ssa) => ssa,
         Err(err) => {
-            panic!("`expected` argument of `assert_ssa_equals` is not valid SSA:\n{:?}", err)
+            panic!("`expected` argument of `assert_ssa_equals` is not valid SSA:\n{err:?}")
         }
     };
 
@@ -64,10 +66,10 @@ pub(crate) fn assert_normalized_ssa_equals(mut ssa: super::Ssa, expected: &str) 
 
     ssa.normalize_ids();
 
-    let ssa = ssa.to_string();
+    let ssa = ssa.print_without_locations().to_string();
     let ssa = ssa.trim_end();
 
-    let expected_ssa = expected_ssa.to_string();
+    let expected_ssa = expected_ssa.print_without_locations().to_string();
     let expected_ssa = expected_ssa.trim_end();
 
     if ssa == expected_ssa {
@@ -83,11 +85,36 @@ pub(crate) fn assert_normalized_ssa_equals(mut ssa: super::Ssa, expected: &str) 
     similar_asserts::assert_eq!(expected_ssa, ssa);
 }
 
+/// Compare the textural representation of the SSA after normalizing its IDs to a snapshot.
+///
+/// # Example:
+///
+/// ```ignore
+/// let ssa = todo!();
+/// assert_ssa_snapshot!(ssa, @r"
+///   acir(inline) fn main f0 {
+///       b0(v0: Field):
+///         return v0
+///     }
+/// ");
+/// ```
+/// Or without taking ownership:
+/// ```ignore
+/// let mut ssa = todo!();
+/// assert_ssa_snapshot!(&mut ssa, @r"
+///   acir(inline) fn main f0 {
+///       b0(v0: Field):
+///         return v0
+///     }
+/// ");
+/// ```
 #[macro_export]
 macro_rules! assert_ssa_snapshot {
     ($ssa:expr, $($arg:tt)*) => {
+        #[allow(unused_mut)]
         let mut mut_ssa = $ssa;
         mut_ssa.normalize_ids();
-        insta::assert_snapshot!(mut_ssa, $($arg)*)
+        let ssa_string = mut_ssa.print_without_locations().to_string();
+        insta::assert_snapshot!(ssa_string, $($arg)*)
     };
 }

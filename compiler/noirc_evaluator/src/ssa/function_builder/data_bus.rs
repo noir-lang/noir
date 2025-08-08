@@ -2,6 +2,7 @@ use std::{collections::BTreeMap, sync::Arc};
 
 use crate::ssa::ir::{
     function::RuntimeType,
+    instruction::ArrayOffset,
     types::{NumericType, Type},
     value::{ValueId, ValueMapping},
 };
@@ -141,7 +142,12 @@ impl FunctionBuilder {
         assert!(databus.databus.is_none(), "initializing finalized call data");
         let typ = self.current_function.dfg[value].get_type().into_owned();
         match typ {
-            Type::Numeric(_) => {
+            Type::Numeric(numeric_type) => {
+                let value = if matches!(numeric_type, NumericType::NativeField) {
+                    value
+                } else {
+                    self.insert_cast(value, NumericType::NativeField)
+                };
                 databus.values.push_back(value);
                 databus.index += 1;
             }
@@ -156,7 +162,14 @@ impl FunctionBuilder {
                         let index_var = FieldElement::from(index as i128);
                         let index_var =
                             self.current_function.dfg.make_constant(index_var, length_type);
-                        let element = self.insert_array_get(value, index_var, subitem_typ.clone());
+                        // If we do not check for an empty array we will have an unused array get
+                        // as an array of length zero will not be actually added to the databus' values.
+                        if let Type::Array(_, 0) = subitem_typ {
+                            continue;
+                        }
+                        let offset = ArrayOffset::None;
+                        let element =
+                            self.insert_array_get(value, index_var, offset, subitem_typ.clone());
                         index += match subitem_typ {
                             Type::Array(_, _) | Type::Slice(_) => subitem_typ.element_size(),
                             Type::Numeric(_) => 1,
@@ -230,6 +243,7 @@ impl FunctionBuilder {
                 }
             }
         }
+
         // create the call-data-bus from the filtered lists
         let mut result = Vec::new();
         for id in databus_param.keys() {

@@ -1,6 +1,6 @@
 # AST fuzz targets
 
-This crate was created by `cargo fuzz init`. See more in https://rust-fuzz.github.io/book/cargo-fuzz/
+This crate was created by `cargo fuzz init`. See more in https://rust-fuzz.github.io/book/cargo-fuzz.html
 
 You can list the available targets with `cargo fuzz list`.
 

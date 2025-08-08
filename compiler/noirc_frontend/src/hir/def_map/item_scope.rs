@@ -70,6 +70,7 @@ impl ItemScope {
             ModuleDefId::TypeId(_) => add_item(&mut self.types),
             ModuleDefId::TypeAliasId(_) => add_item(&mut self.types),
             ModuleDefId::TraitId(_) => add_item(&mut self.types),
+            ModuleDefId::TraitAssociatedTypeId(_) => add_item(&mut self.types),
             ModuleDefId::GlobalId(_) => add_item(&mut self.values),
         }
     }

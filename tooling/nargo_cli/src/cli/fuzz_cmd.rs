@@ -70,8 +70,12 @@ pub(crate) struct FuzzCommand {
     oracle_resolver: Option<String>,
 
     /// Maximum time in seconds to spend fuzzing (default: no timeout)
-    #[arg(long)]
-    timeout: Option<u64>,
+    #[arg(long, default_value = "0")]
+    timeout: u64,
+
+    /// Maximum number of executions of ACIR and Brillig per harness (default: no limit)
+    #[arg(long, default_value = "0")]
+    max_executions: usize,
 }
 impl WorkspaceCommand for FuzzCommand {
     fn package_selection(&self) -> PackageSelection {
@@ -153,9 +157,10 @@ pub(crate) fn run(args: FuzzCommand, workspace: Workspace) -> Result<(), CliErro
         fuzzing_failure_dir: args.fuzzing_failure_dir,
     };
     let fuzz_execution_config = FuzzExecutionConfig {
-        timeout: args.timeout.unwrap_or(0),
+        timeout: args.timeout,
         num_threads: args.num_threads,
         show_progress: true,
+        max_executions: args.max_executions,
     };
 
     let fuzzing_reports: Vec<Vec<(String, FuzzingRunStatus)>> = workspace
@@ -489,13 +494,13 @@ fn display_fuzzing_report_and_store(
 
     if !status.failed() {
         writer.set_color(ColorSpec::new().set_fg(Some(Color::Green))).expect("Failed to set color");
-        write!(writer, "{} passed (didn't find any issues)", fuzzing_harness_name)
+        write!(writer, "{fuzzing_harness_name} passed (didn't find any issues)")
             .expect("Failed to write to stderr");
         writer.reset().expect("Failed to reset writer");
         writeln!(writer).expect("Failed to write to stderr");
     } else {
         writer.set_color(ColorSpec::new().set_fg(Some(Color::Red))).expect("Failed to set color");
-        write!(writer, "{} failed", fuzzing_harness_name).expect("Failed to write to stderr");
+        write!(writer, "{fuzzing_harness_name} failed").expect("Failed to write to stderr");
         writer.reset().expect("Failed to reset writer");
     }
 

@@ -1,0 +1,21 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+warning: unused trait MyTrait
+  ┌─ src/main.nr:1:7
+  │
+1 │ trait MyTrait {
+  │       ------- unused trait
+  │
+
+error: Duplicate definitions of trait associated item with name SomeType found
+  ┌─ src/main.nr:2:8
+  │
+2 │   type SomeType;
+  │        -------- First trait associated item found here
+3 │   type SomeType;
+  │        -------- Second trait associated item found here
+  │
+
+Aborting due to 1 previous error

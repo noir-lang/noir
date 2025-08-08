@@ -33,10 +33,10 @@ fn last_use_in_if_branches() {
     unconstrained fn main$f0(d$l0: [Field; 2]) -> () {
         if (len$f1(d$l0.clone()) == 2) {
             if (len$f1(d$l0.clone()) == 2) {
-                constrain eq$f2(d$l0, [5, 6]);
+                assert(eq$f2(d$l0, [5, 6]));
             }
         } else {
-            constrain eq$f2(d$l0, [5, 6]);
+            assert(eq$f2(d$l0, [5, 6]));
         }
     }
     unconstrained fn len$f1(arr$l1: [Field; 2]) -> u32 {

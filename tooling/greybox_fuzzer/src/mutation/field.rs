@@ -27,6 +27,8 @@
 //! There are configurations for determining probability of each top-level and low-level mutation
 //! Currently, the configurations are constant and "new" methods aren't used, but the architecture is prepared for easier introduction of MOpt (Mutation Optimization) technique in the future
 
+use std::sync::OnceLock;
+
 use super::configurations::{
     BASIC_FIELD_ELEMENT_DICTIONARY_UPDATE_CONFIGURATION,
     BASIC_FIELD_ELEMENT_POW_2_UPDATE_CONFIGURATION,
@@ -44,10 +46,25 @@ use rand_xorshift::XorShiftRng;
 const SMALL_VALUE_MAX: u64 = 0xff;
 const SMALL_VALUE_MIN: u64 = 1;
 
-static mut POWERS_OF_TWO_INITIALIZED: bool = false;
-static mut POWERS_OF_TWO: Vec<FieldElement> = Vec::new();
-static mut INVERSE_POWERS_OF_TWO: Vec<FieldElement> = Vec::new();
-static mut POWERS_OF_TWO_MINUS_ONE: Vec<FieldElement> = Vec::new();
+fn powers_of_two() -> &'static Vec<FieldElement> {
+    static INSTANCE: OnceLock<Vec<FieldElement>> = OnceLock::new();
+    INSTANCE.get_or_init(|| {
+        (1..=MAX_POW_2)
+            .map(|i| FieldElement::from(2i128).pow(&FieldElement::from(i)))
+            .collect::<Vec<FieldElement>>()
+    })
+}
+
+fn powers_of_two_minus_one() -> &'static Vec<FieldElement> {
+    static INSTANCE: OnceLock<Vec<FieldElement>> = OnceLock::new();
+    INSTANCE.get_or_init(|| powers_of_two().iter().map(|x| *x - FieldElement::one()).collect())
+}
+
+fn inverse_powers_of_two() -> &'static Vec<FieldElement> {
+    static INSTANCE: OnceLock<Vec<FieldElement>> = OnceLock::new();
+    INSTANCE
+        .get_or_init(|| powers_of_two().iter().map(|p| p.inverse()).collect::<Vec<FieldElement>>())
+}
 
 // We are using bn254 scalar field so 254 is enough
 const MAX_POW_2: usize = 254;
@@ -60,22 +77,6 @@ struct FieldMutator<'a> {
 impl<'a> FieldMutator<'a> {
     pub fn new(dictionary: &'a Vec<FieldElement>, prng: &'a mut XorShiftRng) -> Self {
         // Initialize powers of two if we haven't done that yet
-        unsafe {
-            if !POWERS_OF_TWO_INITIALIZED {
-                let powers_of_two = (1..=MAX_POW_2)
-                    .map(|i| FieldElement::from(2i128).pow(&FieldElement::from(i)))
-                    .collect::<Vec<FieldElement>>();
-                INVERSE_POWERS_OF_TWO =
-                    powers_of_two.iter().map(|p| p.inverse()).collect::<Vec<FieldElement>>();
-
-                POWERS_OF_TWO_MINUS_ONE =
-                    powers_of_two.iter().map(|x| *x - FieldElement::from(1i128)).collect();
-
-                POWERS_OF_TWO = powers_of_two;
-                POWERS_OF_TWO_INITIALIZED = true;
-            }
-        };
-
         assert!(!dictionary.is_empty());
         Self { dictionary, prng }
     }
@@ -89,12 +90,12 @@ impl<'a> FieldMutator<'a> {
             FieldElementSubstitutionMutationOptions::Dictionary => {
                 *self.dictionary.choose(self.prng).unwrap()
             }
-            FieldElementSubstitutionMutationOptions::PowerOfTwo => unsafe {
-                *POWERS_OF_TWO.choose(self.prng).unwrap()
-            },
-            FieldElementSubstitutionMutationOptions::PowerOfTwoMinusOne => unsafe {
-                *POWERS_OF_TWO_MINUS_ONE.choose(self.prng).unwrap()
-            },
+            FieldElementSubstitutionMutationOptions::PowerOfTwo => {
+                *powers_of_two().choose(self.prng).unwrap()
+            }
+            FieldElementSubstitutionMutationOptions::PowerOfTwoMinusOne => {
+                *powers_of_two_minus_one().choose(self.prng).unwrap()
+            }
         }
     }
 
@@ -107,9 +108,8 @@ impl<'a> FieldMutator<'a> {
 
     #[allow(static_mut_refs)]
     fn apply_pow_2_update(&mut self, element: FieldElement) -> FieldElement {
-        let chosen_power_of_two = unsafe { POWERS_OF_TWO.choose(self.prng).unwrap() };
-        let chosen_inverse_power_of_two =
-            unsafe { INVERSE_POWERS_OF_TWO.choose(self.prng).unwrap() };
+        let chosen_power_of_two = powers_of_two().choose(self.prng).unwrap();
+        let chosen_inverse_power_of_two = inverse_powers_of_two().choose(self.prng).unwrap();
         match BASIC_FIELD_ELEMENT_POW_2_UPDATE_CONFIGURATION.select(self.prng) {
             FieldElementPow2UpdateOptions::Addition => element + *chosen_power_of_two,
             FieldElementPow2UpdateOptions::Subtraction => element - *chosen_power_of_two,
@@ -176,7 +176,7 @@ impl<'a> FieldMutator<'a> {
 /// * `previous_input` - The input value to mutate, must be a Field variant
 /// * `dictionary` - A vector of interesting field element values to use in mutations
 /// * `prng` - Random number generator for selecting mutations
-pub fn mutate_field_input_value(
+pub(super) fn mutate_field_input_value(
     previous_input: &InputValue,
     dictionary: &Vec<FieldElement>,
     prng: &mut XorShiftRng,
@@ -209,8 +209,8 @@ mod tests {
                 || result == FieldElement::from(1u32)
                 || result == -FieldElement::from(1u32)
                 || result == FieldElement::from(42u32)
-                || unsafe { POWERS_OF_TWO.contains(&result) }
-                || unsafe { POWERS_OF_TWO_MINUS_ONE.contains(&result) }
+                || powers_of_two().contains(&result)
+                || powers_of_two_minus_one().contains(&result)
         );
     }
 
@@ -241,14 +241,12 @@ mod tests {
             // Verify result is different from input
             assert_ne!(result, element);
             // Result should be element combined with a power of 2 via +,-,*,/
-            assert!(unsafe {
-                POWERS_OF_TWO.iter().any(|p| {
-                    result == element + *p
-                        || result == element - *p
-                        || result == element * *p
-                        || result == element * p.inverse()
-                })
-            });
+            assert!(powers_of_two().iter().any(|p| {
+                result == element + *p
+                    || result == element - *p
+                    || result == element * *p
+                    || result == element * p.inverse()
+            }));
         }
     }
 

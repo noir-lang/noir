@@ -1,1 +1,0 @@
-Invalid package name `bad-name` found in test_programs/test_libraries/bad_name/Nargo.toml

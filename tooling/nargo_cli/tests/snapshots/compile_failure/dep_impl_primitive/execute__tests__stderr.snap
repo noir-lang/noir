@@ -1,0 +1,26 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+warning: unused import bad_impl
+  ┌─ src/main.nr:1:5
+  │
+1 │ use bad_impl;
+  │     -------- unused import
+  │
+
+error: Non-struct type used in impl
+  ┌─ test_programs/test_libraries/bad_impl/src/lib.nr:1:6
+  │
+1 │ impl Field {
+  │      ----- Only struct types may have implementation methods
+  │
+
+error: No method named 'something' found for type 'Field'
+  ┌─ src/main.nr:4:5
+  │
+4 │     x.something();
+  │     -------------
+  │
+
+Aborting due to 2 previous errors

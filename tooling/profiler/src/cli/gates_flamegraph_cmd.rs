@@ -105,9 +105,9 @@ fn run_with_provider<Provider: GatesProvider, Generator: FlamegraphGenerator>(
             .collect();
 
         let output_filename = if let Some(output_filename) = &output_filename {
-            format!("{}_{}_gates.svg", output_filename, function_name)
+            format!("{output_filename}_{function_name}_gates.svg")
         } else {
-            format!("{}_gates.svg", function_name)
+            format!("{function_name}_gates.svg")
         };
         flamegraph_generator.generate_flamegraph(
             samples,

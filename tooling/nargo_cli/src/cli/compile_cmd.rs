@@ -28,7 +28,7 @@ use rayon::prelude::*;
 
 /// Compile the program and its secret execution trace into ACIR format
 #[derive(Debug, Clone, Args)]
-pub(crate) struct CompileCommand {
+pub struct CompileCommand {
     #[clap(flatten)]
     pub(super) package_options: PackageOptions,
 
@@ -58,7 +58,8 @@ pub(crate) fn run(args: CompileCommand, workspace: Workspace) -> Result<(), CliE
         watch_workspace(&workspace, &args.compile_options)
             .map_err(|err| CliError::Generic(err.to_string()))?;
     } else {
-        compile_workspace_full(&workspace, &args.compile_options)?;
+        let debug_compile_stdin = None;
+        compile_workspace_full(&workspace, &args.compile_options, debug_compile_stdin)?;
     }
     Ok(())
 }
@@ -77,7 +78,8 @@ fn watch_workspace(workspace: &Workspace, compile_options: &CompileOptions) -> n
     let mut screen = std::io::stdout();
     write!(screen, "{}", termion::cursor::Save).unwrap();
     screen.flush().unwrap();
-    let _ = compile_workspace_full(workspace, compile_options);
+    let debug_compile_stdin = None;
+    let _ = compile_workspace_full(workspace, compile_options, debug_compile_stdin);
     for res in rx {
         let debounced_events = res.map_err(|mut err| err.remove(0))?;
 
@@ -98,7 +100,8 @@ fn watch_workspace(workspace: &Workspace, compile_options: &CompileOptions) -> n
         if noir_files_modified {
             write!(screen, "{}{}", termion::cursor::Restore, termion::clear::AfterCursor).unwrap();
             screen.flush().unwrap();
-            let _ = compile_workspace_full(workspace, compile_options);
+            let debug_compile_stdin = None;
+            let _ = compile_workspace_full(workspace, compile_options, debug_compile_stdin);
         }
     }
 
@@ -108,14 +111,13 @@ fn watch_workspace(workspace: &Workspace, compile_options: &CompileOptions) -> n
 }
 
 /// Parse all files in the workspace.
-fn parse_workspace(workspace: &Workspace, debug_compile_stdin: bool) -> (FileManager, ParsedFiles) {
+pub fn parse_workspace(
+    workspace: &Workspace,
+    debug_compile_stdin: Option<String>,
+) -> (FileManager, ParsedFiles) {
     let mut file_manager = workspace.new_file_manager();
 
-    if debug_compile_stdin {
-        let mut main_nr = String::new();
-        let stdin = std::io::stdin();
-        let mut stdin_handle = stdin.lock();
-        stdin_handle.read_to_string(&mut main_nr).expect("reading from stdin to succeed");
+    if let Some(main_nr) = debug_compile_stdin {
         file_manager.add_file_with_source(Path::new("src/main.nr"), main_nr);
     } else {
         insert_all_files_for_workspace_into_file_manager(workspace, &mut file_manager);
@@ -127,12 +129,20 @@ fn parse_workspace(workspace: &Workspace, debug_compile_stdin: bool) -> (FileMan
 
 /// Parse and compile the entire workspace, then report errors.
 /// This is the main entry point used by all other commands that need compilation.
-pub(super) fn compile_workspace_full(
+pub fn compile_workspace_full(
     workspace: &Workspace,
     compile_options: &CompileOptions,
+    debug_compile_stdin: Option<String>, // use this String as STDIN if present
 ) -> Result<(), CliError> {
-    let (workspace_file_manager, parsed_files) =
-        parse_workspace(workspace, compile_options.debug_compile_stdin);
+    let mut debug_compile_stdin = debug_compile_stdin;
+    if compile_options.debug_compile_stdin && debug_compile_stdin.is_none() {
+        let mut main_nr = String::new();
+        let stdin = std::io::stdin();
+        let mut stdin_handle = stdin.lock();
+        stdin_handle.read_to_string(&mut main_nr).expect("reading from stdin to succeed");
+        debug_compile_stdin = Some(main_nr);
+    }
+    let (workspace_file_manager, parsed_files) = parse_workspace(workspace, debug_compile_stdin);
 
     let compiled_workspace =
         compile_workspace(&workspace_file_manager, &parsed_files, workspace, compile_options);
@@ -400,7 +410,7 @@ mod tests {
 
         // This could be `.par_iter()` but then error messages are no longer reported
         test_workspaces.iter().for_each(|workspace| {
-            let debug_compile_stdin = false;
+            let debug_compile_stdin = None;
             let (file_manager, parsed_files) = parse_workspace(workspace, debug_compile_stdin);
             let binary_packages = workspace.into_iter().filter(|package| package.is_binary());
 

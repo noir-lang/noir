@@ -23,7 +23,7 @@ impl IntegerConstant {
                     .map(|value| Self::Signed { value, bit_size })
             }
             NumericType::Unsigned { bit_size } => {
-                Some(Self::Unsigned { value: field.to_u128(), bit_size })
+                field.try_into_u128().map(|value| Self::Unsigned { value, bit_size })
             }
             NumericType::NativeField => None,
         }
@@ -92,6 +92,13 @@ impl IntegerConstant {
         match self {
             Self::Signed { value, .. } => value.is_zero(),
             Self::Unsigned { value, .. } => value.is_zero(),
+        }
+    }
+
+    pub(crate) fn is_negative(&self) -> bool {
+        match self {
+            Self::Signed { value, .. } => value.is_negative(),
+            Self::Unsigned { .. } => false,
         }
     }
 }

@@ -120,7 +120,12 @@ impl JsonTypes {
                 JsonTypes::Array(fields)
             }
 
-            _ => return Err(InputParserError::AbiTypeMismatch(abi_type.clone())),
+            _ => {
+                return Err(InputParserError::AbiTypeMismatch(
+                    format!("{value:?}"),
+                    abi_type.clone(),
+                ));
+            }
         };
         Ok(json_value)
     }
@@ -212,7 +217,12 @@ impl InputValue {
                 InputValue::Vec(tuple_fields)
             }
 
-            (_, _) => return Err(InputParserError::AbiTypeMismatch(param_type.clone())),
+            (value, _) => {
+                return Err(InputParserError::AbiTypeMismatch(
+                    format!("{value:?}"),
+                    param_type.clone(),
+                ));
+            }
         };
 
         Ok(input_value)

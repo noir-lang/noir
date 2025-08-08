@@ -1,0 +1,7 @@
+[package]
+name = "binary"
+type = "bin"
+authors = [""]
+
+[dependencies]
+lib = { path = "./interned_crate_library" }

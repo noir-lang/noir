@@ -1,9 +1,18 @@
-use crate::ssa::ir::{
-    basic_block::BasicBlockId,
-    dfg::DataFlowGraph,
-    function::Function,
-    instruction::{Instruction, InstructionId},
-    value::{ValueId, ValueMapping},
+use noirc_errors::call_stack::CallStackId;
+
+use acvm::FieldElement;
+
+use crate::{
+    errors::RtResult,
+    ssa::ir::{
+        basic_block::BasicBlockId,
+        dfg::{DataFlowGraph, InsertInstructionResult},
+        function::Function,
+        instruction::{Instruction, InstructionId},
+        types::NumericType,
+        types::Type,
+        value::{ValueId, ValueMapping},
+    },
 };
 
 impl Function {
@@ -24,27 +33,60 @@ impl Function {
     where
         F: FnMut(&mut SimpleOptimizationContext<'_, '_>),
     {
-        let mut values_to_replace = ValueMapping::default();
+        self.simple_reachable_blocks_optimization_result(move |context| {
+            f(context);
+            Ok(())
+        })
+        .expect("`f` cannot error internally so this should be unreachable");
+    }
 
+    /// Performs a simple optimization according to the given callback, returning early if
+    /// an error occurred.
+    ///
+    /// The function's [`Function::reachable_blocks`] are traversed in turn, and instructions in those blocks
+    /// are then traversed in turn. For each one, `f` will be called with a context.
+    ///
+    /// The current instruction will be inserted at the end of the callback given to `mutate` unless
+    /// `remove_current_instruction` or `insert_current_instruction` are called.
+    ///
+    /// `insert_current_instruction` is useful if you need to insert new instructions after the current
+    /// one, so this can be done before the callback ends.
+    ///
+    /// `replace_value` can be used to replace a value with another one. This substitution will be
+    /// performed in all subsequent instructions.
+    pub(crate) fn simple_reachable_blocks_optimization_result<F>(
+        &mut self,
+        mut f: F,
+    ) -> RtResult<()>
+    where
+        F: FnMut(&mut SimpleOptimizationContext<'_, '_>) -> RtResult<()>,
+    {
+        let mut values_to_replace = ValueMapping::default();
+        let mut enable_side_effects =
+            self.dfg.make_constant(FieldElement::from(1_u128), NumericType::bool());
         for block_id in self.reachable_blocks() {
             let instruction_ids = self.dfg[block_id].take_instructions();
             self.dfg[block_id].instructions_mut().reserve(instruction_ids.len());
             for instruction_id in &instruction_ids {
                 let instruction_id = *instruction_id;
-
+                let instruction = &mut self.dfg[instruction_id];
                 if !values_to_replace.is_empty() {
-                    let instruction = &mut self.dfg[instruction_id];
                     instruction.replace_values(&values_to_replace);
                 }
-
+                if let Instruction::EnableSideEffectsIf { condition } = instruction {
+                    enable_side_effects = *condition;
+                }
+                let call_stack_id = self.dfg.get_instruction_call_stack_id(instruction_id);
                 let mut context = SimpleOptimizationContext {
                     block_id,
                     instruction_id,
+                    call_stack_id,
                     dfg: &mut self.dfg,
                     values_to_replace: &mut values_to_replace,
                     insert_current_instruction_at_callback_end: true,
+                    enable_side_effects,
                 };
-                f(&mut context);
+                f(&mut context)?;
 
                 if context.insert_current_instruction_at_callback_end {
                     self.dfg[block_id].insert_instruction(instruction_id);
@@ -55,6 +97,7 @@ impl Function {
         }
 
         self.dfg.data_bus.replace_values(&values_to_replace);
+        Ok(())
     }
 }
 
@@ -62,7 +105,9 @@ pub(crate) struct SimpleOptimizationContext<'dfg, 'mapping> {
     #[allow(unused)]
     pub(crate) block_id: BasicBlockId,
     pub(crate) instruction_id: InstructionId,
+    pub(crate) call_stack_id: CallStackId,
     pub(crate) dfg: &'dfg mut DataFlowGraph,
+    pub(crate) enable_side_effects: ValueId,
     values_to_replace: &'mapping mut ValueMapping,
     insert_current_instruction_at_callback_end: bool,
 }
@@ -92,7 +137,21 @@ impl SimpleOptimizationContext<'_, '_> {
     }
 
     /// Inserts an instruction in the current block right away.
-    pub(crate) fn insert_instruction(&mut self, instruction_id: InstructionId) {
+    pub(crate) fn insert_instruction(
+        &mut self,
+        instruction: Instruction,
+        ctrl_typevars: Option<Vec<Type>>,
+    ) -> InsertInstructionResult {
+        self.dfg.insert_instruction_and_results(
+            instruction,
+            self.block_id,
+            ctrl_typevars,
+            self.call_stack_id,
+        )
+    }
+
+    /// Inserts an instruction by id in the current block right away.
+    pub(crate) fn insert_instruction_by_id(&mut self, instruction_id: InstructionId) {
         self.dfg[self.block_id].insert_instruction(instruction_id);
     }
 

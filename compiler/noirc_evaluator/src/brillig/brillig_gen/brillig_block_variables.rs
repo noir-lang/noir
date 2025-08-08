@@ -1,3 +1,15 @@
+//! This module handles allocation, tracking, and lifetime management of variables
+//! within a Brillig compiled SSA basic block.
+//!
+//! [BlockVariables] maintains a set of SSA [ValueId]s that are live and available
+//! during the compilation of a single SSA block into Brillig instructions. It cooperates
+//! with the [FunctionContext] to manage the mapping from SSA values to [BrilligVariable]s
+//! and with the [BrilligContext] for allocating registers.
+//!
+//! Variables are:
+//! - Allocated when first defined in a block (if not already global or hoisted to the global space).
+//! - Cached for reuse to avoid redundant register allocation.
+//! - Deallocated explicitly when no longer needed (as determined by SSA liveness).
 use acvm::FieldElement;
 use fxhash::FxHashSet as HashSet;
 
@@ -19,6 +31,15 @@ use crate::{
 
 use super::brillig_fn::FunctionContext;
 
+/// Tracks SSA variables that are live and usable during Brillig compilation of a block.
+///
+/// This structure is meant to be instantiated per SSA basic block and initialized using the
+/// the set of live variables that must be available at the block's entry.
+///
+/// It implements:
+/// - A set of active [ValueId]s that are allocated and usable.
+/// - The interface to define new variables as needed for instructions within the block.
+/// - Utilities to remove, check, and retrieve variables during Brillig codegen.
 #[derive(Debug, Default)]
 pub(crate) struct BlockVariables {
     available_variables: HashSet<ValueId>,

@@ -1,0 +1,9 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main() {
+    let x: u64 = 1_u64;
+    let y: u8 = 2_u8;
+    assert((x << y) == 4_u64);
+}

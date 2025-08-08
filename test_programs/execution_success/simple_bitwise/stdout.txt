@@ -1,1 +1,0 @@
-[simple_bitwise] Circuit output: Field(24)

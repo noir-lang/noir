@@ -1,0 +1,15 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+unconstrained fn main() -> pub [i8; 2] {
+    if *func_5()[1_u32].0 {
+        [0_i8, 1_i8]
+    } else {
+        [2_i8, 3_i8]
+    }
+}
+
+unconstrained fn func_5() -> [(&mut bool, str<2>, str<4>, str<4>); 2] {
+    [(&mut true, "AB", "WTGS", "AELL"), (&mut false, "CD", "PKHQ", "LDWE")]
+}

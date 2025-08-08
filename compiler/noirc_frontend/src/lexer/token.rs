@@ -4,6 +4,7 @@ use std::fmt::{self, Display};
 
 use crate::{
     ast::{Expression, Path},
+    graph::CrateId,
     node_interner::{
         ExprId, InternedExpressionKind, InternedPattern, InternedStatementKind,
         InternedUnresolvedTypeData, QuotedTypeId,
@@ -18,14 +19,13 @@ use crate::{
 #[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
 pub enum BorrowedToken<'input> {
     Ident(&'input str),
-    Int(FieldElement),
+    Int(FieldElement, Option<IntegerTypeSuffix>),
     Bool(bool),
     Str(&'input str),
     /// the u8 is the number of hashes, i.e. r###..
     RawStr(&'input str, u8),
     FmtStr(&'input [FmtStrFragment], u32 /* length */),
     Keyword(Keyword),
-    IntType(IntType),
     AttributeStart {
         is_inner: bool,
         is_tag: bool,
@@ -39,6 +39,7 @@ pub enum BorrowedToken<'input> {
     InternedLValue(InternedExpressionKind),
     InternedUnresolvedTypeData(InternedUnresolvedTypeData),
     InternedPattern(InternedPattern),
+    InternedCrate(CrateId),
     /// <
     Less,
     /// <=
@@ -130,17 +131,50 @@ pub enum BorrowedToken<'input> {
     Invalid(char),
 }
 
+#[derive(PartialEq, Eq, Hash, Debug, Copy, Clone, PartialOrd, Ord)]
+pub enum IntegerTypeSuffix {
+    I8,
+    I16,
+    I32,
+    I64,
+    U1,
+    U8,
+    U16,
+    U32,
+    U64,
+    U128,
+    Field,
+}
+
+impl IntegerTypeSuffix {
+    pub(crate) fn as_type(&self) -> crate::Type {
+        use crate::{Type::Integer, ast::IntegerBitSize::*, shared::Signedness::*};
+        match self {
+            IntegerTypeSuffix::I8 => Integer(Signed, Eight),
+            IntegerTypeSuffix::I16 => Integer(Signed, Sixteen),
+            IntegerTypeSuffix::I32 => Integer(Signed, ThirtyTwo),
+            IntegerTypeSuffix::I64 => Integer(Signed, SixtyFour),
+            IntegerTypeSuffix::U1 => Integer(Unsigned, One),
+            IntegerTypeSuffix::U8 => Integer(Unsigned, Eight),
+            IntegerTypeSuffix::U16 => Integer(Unsigned, Sixteen),
+            IntegerTypeSuffix::U32 => Integer(Unsigned, ThirtyTwo),
+            IntegerTypeSuffix::U64 => Integer(Unsigned, SixtyFour),
+            IntegerTypeSuffix::U128 => Integer(Unsigned, HundredTwentyEight),
+            IntegerTypeSuffix::Field => crate::Type::FieldElement,
+        }
+    }
+}
+
 #[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
 pub enum Token {
     Ident(String),
-    Int(FieldElement),
+    Int(FieldElement, Option<IntegerTypeSuffix>),
     Bool(bool),
     Str(String),
     /// the u8 is the number of hashes, i.e. r###..
     RawStr(String, u8),
     FmtStr(Vec<FmtStrFragment>, u32 /* length */),
     Keyword(Keyword),
-    IntType(IntType),
     AttributeStart {
         is_inner: bool,
         is_tag: bool,
@@ -164,6 +198,8 @@ pub enum Token {
     InternedUnresolvedTypeData(InternedUnresolvedTypeData),
     /// A reference to an interned `Pattern`.
     InternedPattern(InternedPattern),
+    /// A reference to an existing crate. This is a result of using `$crate` in a macro
+    InternedCrate(CrateId),
     /// <
     Less,
     /// <=
@@ -262,7 +298,7 @@ pub enum Token {
 pub fn token_to_borrowed_token(token: &Token) -> BorrowedToken<'_> {
     match token {
         Token::Ident(s) => BorrowedToken::Ident(s),
-        Token::Int(n) => BorrowedToken::Int(*n),
+        Token::Int(n, suffix) => BorrowedToken::Int(*n, *suffix),
         Token::Bool(b) => BorrowedToken::Bool(*b),
         Token::Str(b) => BorrowedToken::Str(b),
         Token::FmtStr(b, length) => BorrowedToken::FmtStr(b, *length),
@@ -280,7 +316,7 @@ pub fn token_to_borrowed_token(token: &Token) -> BorrowedToken<'_> {
         Token::InternedLValue(id) => BorrowedToken::InternedLValue(*id),
         Token::InternedUnresolvedTypeData(id) => BorrowedToken::InternedUnresolvedTypeData(*id),
         Token::InternedPattern(id) => BorrowedToken::InternedPattern(*id),
-        Token::IntType(i) => BorrowedToken::IntType(i.clone()),
+        Token::InternedCrate(id) => BorrowedToken::InternedCrate(*id),
         Token::Less => BorrowedToken::Less,
         Token::LessEqual => BorrowedToken::LessEqual,
         Token::Greater => BorrowedToken::Greater,
@@ -345,10 +381,10 @@ impl Display for FmtStrFragment {
                     .replace('\0', "\\0")
                     .replace('\'', "\\'")
                     .replace('\"', "\\\"");
-                write!(f, "{}", string)
+                write!(f, "{string}")
             }
             FmtStrFragment::Interpolation(string, _) => {
-                write!(f, "{{{}}}", string)
+                write!(f, "{{{string}}}")
             }
         }
     }
@@ -471,7 +507,8 @@ impl fmt::Display for Token {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             Token::Ident(ref s) => write!(f, "{s}"),
-            Token::Int(n) => write!(f, "{}", n),
+            Token::Int(n, Some(suffix)) => write!(f, "{n}_{suffix}"),
+            Token::Int(n, None) => write!(f, "{n}"),
             Token::Bool(b) => write!(f, "{b}"),
             Token::Str(ref b) => write!(f, "{b:?}"),
             Token::FmtStr(ref b, _length) => write!(f, "f{b:?}"),
@@ -517,7 +554,7 @@ impl fmt::Display for Token {
                 write!(f, "(expr)")
             }
             Token::InternedUnresolvedTypeData(_) => write!(f, "(type)"),
-            Token::IntType(ref i) => write!(f, "{i}"),
+            Token::InternedCrate(_) => write!(f, "$crate"),
             Token::Less => write!(f, "<"),
             Token::LessEqual => write!(f, "<="),
             Token::Greater => write!(f, ">"),
@@ -559,6 +596,24 @@ impl fmt::Display for Token {
             Token::Invalid(c) => write!(f, "{c}"),
             Token::Whitespace(ref s) => write!(f, "{s}"),
             Token::UnquoteMarker(_) => write!(f, "(UnquoteMarker)"),
+        }
+    }
+}
+
+impl fmt::Display for IntegerTypeSuffix {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            IntegerTypeSuffix::I8 => write!(f, "i8"),
+            IntegerTypeSuffix::I16 => write!(f, "i16"),
+            IntegerTypeSuffix::I32 => write!(f, "i32"),
+            IntegerTypeSuffix::I64 => write!(f, "i64"),
+            IntegerTypeSuffix::U1 => write!(f, "u1"),
+            IntegerTypeSuffix::U8 => write!(f, "u8"),
+            IntegerTypeSuffix::U16 => write!(f, "u16"),
+            IntegerTypeSuffix::U32 => write!(f, "u32"),
+            IntegerTypeSuffix::U64 => write!(f, "u64"),
+            IntegerTypeSuffix::U128 => write!(f, "u128"),
+            IntegerTypeSuffix::Field => write!(f, "Field"),
         }
     }
 }
@@ -613,7 +668,7 @@ impl Token {
     pub fn kind(&self) -> TokenKind {
         match self {
             Token::Ident(_) => TokenKind::Ident,
-            Token::Int(_)
+            Token::Int(..)
             | Token::Bool(_)
             | Token::Str(_)
             | Token::RawStr(..)
@@ -732,6 +787,9 @@ pub enum TestScope {
     /// if it fails with the specified reason. If the reason is None, then
     /// the test must unconditionally fail
     ShouldFailWith { reason: Option<String> },
+    /// If a test has a scope of OnlyFailWith, then it can only fail
+    /// if it fails with the specified reason.
+    OnlyFailWith { reason: String },
     /// No scope is applied and so the test must pass
     None,
 }
@@ -744,11 +802,14 @@ impl fmt::Display for TestScope {
                 Some(failure_reason) => write!(f, "(should_fail_with = {failure_reason:?})"),
                 None => write!(f, "(should_fail)"),
             },
+            TestScope::OnlyFailWith { reason } => {
+                write!(f, "(only_fail_with = {reason:?})")
+            }
         }
     }
 }
 
-/// FuzzingScopr is used to specify additional annotations for fuzzing harnesses
+/// FuzzingScope is used to specify additional annotations for fuzzing harnesses
 #[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
 pub enum FuzzingScope {
     /// If the fuzzing harness has a scope of ShouldFailWith, then it should only pass
@@ -812,14 +873,31 @@ impl Attributes {
     }
 
     pub fn is_test_function(&self) -> bool {
-        matches!(self.function().map(|attr| &attr.kind), Some(FunctionAttributeKind::Test(_)))
+        self.as_test_function().is_some()
+    }
+
+    pub fn as_test_function(&self) -> Option<(&TestScope, Location)> {
+        self.function().and_then(|attr| {
+            if let FunctionAttributeKind::Test(scope) = &attr.kind {
+                Some((scope, attr.location))
+            } else {
+                None
+            }
+        })
     }
 
     pub fn is_fuzzing_harness(&self) -> bool {
-        matches!(
-            self.function().map(|attr| &attr.kind),
-            Some(FunctionAttributeKind::FuzzingHarness(_))
-        )
+        self.as_fuzzing_harness().is_some()
+    }
+
+    pub fn as_fuzzing_harness(&self) -> Option<(&FuzzingScope, Location)> {
+        self.function().and_then(|attr| {
+            if let FunctionAttributeKind::FuzzingHarness(scope) = &attr.kind {
+                Some((scope, attr.location))
+            } else {
+                None
+            }
+        })
     }
 
     /// True if these attributes mean the given function is an entry point function if it was
@@ -1059,7 +1137,7 @@ impl SecondaryAttributeKind {
             SecondaryAttributeKind::Deprecated(Some(note)) => {
                 format!("deprecated({note:?})")
             }
-            SecondaryAttributeKind::Tag(contents) => format!("'{}", contents),
+            SecondaryAttributeKind::Tag(contents) => format!("'{contents}"),
             SecondaryAttributeKind::Meta(meta) => meta.to_string(),
             SecondaryAttributeKind::ContractLibraryMethod => "contract_library_method".to_string(),
             SecondaryAttributeKind::Export => "export".to_string(),
@@ -1126,26 +1204,18 @@ pub enum Keyword {
     As,
     Assert,
     AssertEq,
-    Bool,
     Break,
     CallData,
-    Char,
     Comptime,
     Constrain,
     Continue,
     Contract,
     Crate,
-    CtString,
     Dep,
     Else,
     Enum,
-    EnumDefinition,
-    Expr,
-    Field,
     Fn,
     For,
-    FormatString,
-    FunctionDefinition,
     Global,
     If,
     Impl,
@@ -1154,28 +1224,16 @@ pub enum Keyword {
     Loop,
     Match,
     Mod,
-    Module,
     Mut,
     Pub,
-    Quoted,
     Return,
     ReturnData,
-    String,
     Struct,
-    StructDefinition,
     Super,
-    TopLevelItem,
     Trait,
-    TraitConstraint,
-    TraitDefinition,
-    TraitImpl,
     Type,
-    TypeDefinition,
-    TypedExpr,
-    TypeType,
     Unchecked,
     Unconstrained,
-    UnresolvedType,
     Unsafe,
     Use,
     Where,
@@ -1188,26 +1246,18 @@ impl fmt::Display for Keyword {
             Keyword::As => write!(f, "as"),
             Keyword::Assert => write!(f, "assert"),
             Keyword::AssertEq => write!(f, "assert_eq"),
-            Keyword::Bool => write!(f, "bool"),
             Keyword::Break => write!(f, "break"),
-            Keyword::Char => write!(f, "char"),
             Keyword::CallData => write!(f, "call_data"),
             Keyword::Comptime => write!(f, "comptime"),
             Keyword::Constrain => write!(f, "constrain"),
             Keyword::Continue => write!(f, "continue"),
             Keyword::Contract => write!(f, "contract"),
             Keyword::Crate => write!(f, "crate"),
-            Keyword::CtString => write!(f, "CtString"),
             Keyword::Dep => write!(f, "dep"),
             Keyword::Else => write!(f, "else"),
             Keyword::Enum => write!(f, "enum"),
-            Keyword::EnumDefinition => write!(f, "EnumDefinition"),
-            Keyword::Expr => write!(f, "Expr"),
-            Keyword::Field => write!(f, "Field"),
             Keyword::Fn => write!(f, "fn"),
             Keyword::For => write!(f, "for"),
-            Keyword::FormatString => write!(f, "fmtstr"),
-            Keyword::FunctionDefinition => write!(f, "FunctionDefinition"),
             Keyword::Global => write!(f, "global"),
             Keyword::If => write!(f, "if"),
             Keyword::Impl => write!(f, "impl"),
@@ -1216,28 +1266,16 @@ impl fmt::Display for Keyword {
             Keyword::Loop => write!(f, "loop"),
             Keyword::Match => write!(f, "match"),
             Keyword::Mod => write!(f, "mod"),
-            Keyword::Module => write!(f, "Module"),
             Keyword::Mut => write!(f, "mut"),
             Keyword::Pub => write!(f, "pub"),
-            Keyword::Quoted => write!(f, "Quoted"),
             Keyword::Return => write!(f, "return"),
             Keyword::ReturnData => write!(f, "return_data"),
-            Keyword::String => write!(f, "str"),
             Keyword::Struct => write!(f, "struct"),
-            Keyword::StructDefinition => write!(f, "StructDefinition"),
             Keyword::Super => write!(f, "super"),
-            Keyword::TopLevelItem => write!(f, "TopLevelItem"),
             Keyword::Trait => write!(f, "trait"),
-            Keyword::TraitConstraint => write!(f, "TraitConstraint"),
-            Keyword::TraitDefinition => write!(f, "TraitDefinition"),
-            Keyword::TraitImpl => write!(f, "TraitImpl"),
             Keyword::Type => write!(f, "type"),
-            Keyword::TypeDefinition => write!(f, "TypeDefinition"),
-            Keyword::TypedExpr => write!(f, "TypedExpr"),
-            Keyword::TypeType => write!(f, "Type"),
             Keyword::Unchecked => write!(f, "unchecked"),
             Keyword::Unconstrained => write!(f, "unconstrained"),
-            Keyword::UnresolvedType => write!(f, "UnresolvedType"),
             Keyword::Unsafe => write!(f, "unsafe"),
             Keyword::Use => write!(f, "use"),
             Keyword::Where => write!(f, "where"),
@@ -1253,26 +1291,18 @@ impl Keyword {
             "as" => Keyword::As,
             "assert" => Keyword::Assert,
             "assert_eq" => Keyword::AssertEq,
-            "bool" => Keyword::Bool,
             "break" => Keyword::Break,
             "call_data" => Keyword::CallData,
-            "char" => Keyword::Char,
             "comptime" => Keyword::Comptime,
             "constrain" => Keyword::Constrain,
             "continue" => Keyword::Continue,
             "contract" => Keyword::Contract,
             "crate" => Keyword::Crate,
-            "CtString" => Keyword::CtString,
             "dep" => Keyword::Dep,
             "else" => Keyword::Else,
             "enum" => Keyword::Enum,
-            "EnumDefinition" => Keyword::EnumDefinition,
-            "Expr" => Keyword::Expr,
-            "Field" => Keyword::Field,
             "fn" => Keyword::Fn,
             "for" => Keyword::For,
-            "fmtstr" => Keyword::FormatString,
-            "FunctionDefinition" => Keyword::FunctionDefinition,
             "global" => Keyword::Global,
             "if" => Keyword::If,
             "impl" => Keyword::Impl,
@@ -1281,28 +1311,16 @@ impl Keyword {
             "loop" => Keyword::Loop,
             "match" => Keyword::Match,
             "mod" => Keyword::Mod,
-            "Module" => Keyword::Module,
             "mut" => Keyword::Mut,
             "pub" => Keyword::Pub,
-            "Quoted" => Keyword::Quoted,
             "return" => Keyword::Return,
             "return_data" => Keyword::ReturnData,
-            "str" => Keyword::String,
             "struct" => Keyword::Struct,
             "super" => Keyword::Super,
-            "TopLevelItem" => Keyword::TopLevelItem,
             "trait" => Keyword::Trait,
-            "TraitConstraint" => Keyword::TraitConstraint,
-            "TraitDefinition" => Keyword::TraitDefinition,
-            "TraitImpl" => Keyword::TraitImpl,
             "type" => Keyword::Type,
-            "Type" => Keyword::TypeType,
-            "TypeDefinition" => Keyword::TypeDefinition,
-            "TypedExpr" => Keyword::TypedExpr,
-            "StructDefinition" => Keyword::StructDefinition,
             "unchecked" => Keyword::Unchecked,
             "unconstrained" => Keyword::Unconstrained,
-            "UnresolvedType" => Keyword::UnresolvedType,
             "unsafe" => Keyword::Unsafe,
             "use" => Keyword::Use,
             "where" => Keyword::Where,

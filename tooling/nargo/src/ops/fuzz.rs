@@ -32,6 +32,8 @@ pub struct FuzzExecutionConfig {
     pub timeout: u64,
     /// Whether to output progress to stdout or not.
     pub show_progress: bool,
+    /// Maximum number of executions of ACIR and Brillig (default: no limit)
+    pub max_executions: usize,
 }
 
 /// Folder configuration for fuzzing
@@ -208,6 +210,7 @@ where
                     num_threads: fuzz_execution_config.num_threads,
                     timeout: fuzz_execution_config.timeout,
                     show_progress: fuzz_execution_config.show_progress,
+                    max_executions: fuzz_execution_config.max_executions,
                 },
                 failure_configuration,
                 FuzzedExecutorFolderConfiguration {
@@ -305,7 +308,7 @@ where
                                         };
                                     }
                                     panic!(
-                                        "The program being executed or the system is flakey. Found a failing testcase that didn't fail on reexecution"
+                                        "The program being executed or the system is flakey. Found a failing testcase that didn't fail on re-execution"
                                     )
                                 }
                             }

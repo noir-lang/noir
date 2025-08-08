@@ -1,8 +1,8 @@
 use proptest::{
+    prelude::Rng,
     strategy::{NewTree, Strategy},
     test_runner::TestRunner,
 };
-use rand::Rng;
 
 type BinarySearch = proptest::num::i128::BinarySearch;
 
@@ -33,9 +33,9 @@ impl IntStrategy {
     fn generate_edge_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
         let rng = runner.rng();
 
-        let offset = rng.gen_range(0..4);
+        let offset = rng.random_range(0..4);
         // Choose if we want values around min, -0, +0, or max
-        let kind = rng.gen_range(0..4);
+        let kind = rng.random_range(0..4);
         let start = match kind {
             0 => self.type_min() + offset,
             1 => -offset - 1i128,
@@ -49,7 +49,7 @@ impl IntStrategy {
 
     fn generate_random_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
         let rng = runner.rng();
-        let start: i128 = rng.gen_range(self.type_min()..=self.type_max());
+        let start: i128 = rng.random_range(self.type_min()..=self.type_max());
         Ok(BinarySearch::new(start))
     }
 
@@ -70,7 +70,7 @@ impl Strategy for IntStrategy {
 
     fn new_tree(&self, runner: &mut TestRunner) -> NewTree<Self> {
         let total_weight = self.random_weight + self.edge_weight;
-        let bias = runner.rng().gen_range(0..total_weight);
+        let bias = runner.rng().random_range(0..total_weight);
         // randomly select one of 2 strategies
         match bias {
             x if x < self.edge_weight => self.generate_edge_tree(runner),

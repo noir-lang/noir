@@ -1,0 +1,6 @@
+[package]
+name = "a_6_array"
+type = "bin"
+authors = [""]
+
+[dependencies]

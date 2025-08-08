@@ -187,7 +187,15 @@ impl Parser<'_> {
             }
         };
 
-        let typ = self.parse_optional_type_annotation();
+        let typ = if self.eat_colon() {
+            self.parse_type_or_error()
+        } else {
+            self.push_error(
+                ParserErrorReason::MissingTypeForAssociatedConstant,
+                self.previous_token_location,
+            );
+            self.unspecified_type_at_previous_token_end()
+        };
 
         let expr = if self.eat_assign() {
             self.parse_expression_or_error()
@@ -438,7 +446,7 @@ mod tests {
         };
 
         assert_eq!(trait_name.to_string(), "Foo");
-        assert!(matches!(trait_impl.object_type.typ, UnresolvedTypeData::FieldElement));
+        assert_eq!(trait_impl.object_type.typ.to_string(), "Field");
         assert!(trait_impl.items.is_empty());
         assert!(trait_impl.impl_generics.is_empty());
     }
@@ -453,7 +461,7 @@ mod tests {
         };
 
         assert_eq!(trait_name.to_string(), "Foo");
-        assert!(matches!(trait_impl.object_type.typ, UnresolvedTypeData::FieldElement));
+        assert_eq!(trait_impl.object_type.typ.to_string(), "Field");
         assert!(trait_impl.items.is_empty());
         assert_eq!(trait_impl.impl_generics.len(), 1);
     }
@@ -531,6 +539,13 @@ mod tests {
         assert_eq!(name.to_string(), "x");
         assert_eq!(typ.to_string(), "Field");
         assert_eq!(expr.to_string(), "1");
+    }
+
+    #[test]
+    fn parse_trait_impl_with_let_missing_type() {
+        let src = "impl Foo for Field { let x = 1; }";
+        let (_, errors) = parse_program_with_dummy_file(src);
+        assert!(!errors.is_empty());
     }
 
     #[test]

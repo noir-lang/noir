@@ -249,7 +249,10 @@ pub fn embedded_curve_add_not_nul(
     assert(point1.x != point2.x);
     assert(!point1.is_infinite);
     assert(!point2.is_infinite);
-    embedded_curve_add_unsafe(point1, point2)
+    // Ensure is_infinite is comptime
+    let point1_1 = EmbeddedCurvePoint { x: point1.x, y: point1.y, is_infinite: false };
+    let point2_1 = EmbeddedCurvePoint { x: point2.x, y: point2.y, is_infinite: false };
+    embedded_curve_add_unsafe(point1_1, point2_1)
 }
 
 /// Unsafe ec addition
