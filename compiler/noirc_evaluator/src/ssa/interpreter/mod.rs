@@ -1345,8 +1345,12 @@ impl<W: Write> Interpreter<'_, W> {
                         I64(lhs_value.checked_shl(rhs_value).unwrap_or(0))
                     }
                     _ => {
-                        return Err(internal(InternalError::BitShiftShouldHaveSameType {
-                            operator: "<<",
+                        return Err(internal(InternalError::MismatchedTypesInBinaryOperator {
+                            lhs: lhs.to_string(),
+                            rhs: rhs.to_string(),
+                            operator: binary.operator,
+                            lhs_id: binary.lhs,
+                            rhs_id: binary.rhs,
                         }));
                     }
                 }
@@ -1408,8 +1412,12 @@ impl<W: Write> Interpreter<'_, W> {
                         lhs_value.checked_shr(rhs_value).map(I64).unwrap_or_else(fallback)
                     }
                     _ => {
-                        return Err(internal(InternalError::BitShiftShouldHaveSameType {
-                            operator: "<<",
+                        return Err(internal(InternalError::MismatchedTypesInBinaryOperator {
+                            lhs: lhs.to_string(),
+                            rhs: rhs.to_string(),
+                            operator: binary.operator,
+                            lhs_id: binary.lhs,
+                            rhs_id: binary.rhs,
                         }));
                     }
                 }

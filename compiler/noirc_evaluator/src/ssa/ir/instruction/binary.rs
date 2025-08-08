@@ -300,7 +300,7 @@ pub(crate) fn convert_signed_integer_to_field_element(int: i128, bit_size: u32) 
             16 => ((int as i16) as u16) as u128,
             32 => ((int as i32) as u32) as u128,
             64 => ((int as i64) as u64) as u128,
-            _ => unreachable!("ICE - invalide bit size {bit_size} for signed integer"),
+            _ => unreachable!("ICE - invalid bit size {bit_size} for signed integer"),
         };
         FieldElement::from(two_complement)
     }

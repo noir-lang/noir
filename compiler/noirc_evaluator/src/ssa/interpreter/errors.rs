@@ -115,8 +115,6 @@ pub enum InternalError {
         "Invalid bit size of `{bit_size}` given to truncate, maximum size allowed for unsigned values is {MAX_UNSIGNED_BIT_SIZE}"
     )]
     InvalidUnsignedTruncateBitSize { bit_size: u32 },
-    #[error("Operands of `{operator}` should have the same type`")]
-    BitShiftShouldHaveSameType { operator: &'static str },
     #[error(
         "Expected {expected_type} value in {instruction} but instead found `{value_id} = {value}`"
     )]
