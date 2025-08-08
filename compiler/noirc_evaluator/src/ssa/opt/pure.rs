@@ -179,6 +179,9 @@ impl Function {
                         }
                     }
 
+                    // Instruction::IncrementRc { .. }
+                    // | Instruction::DecrementRc { .. } => return Purity::Impure,
+
                     // The rest are always pure (including allocate, load, & store)
                     Instruction::Cast(_, _)
                     | Instruction::Not(_)
@@ -271,7 +274,7 @@ fn analyze_call_graph(
 mod test {
     use crate::{
         assert_ssa_snapshot,
-        ssa::{ir::function::FunctionId, opt::pure::Purity, ssa_gen::Ssa},
+        ssa::{interpreter::value::Value, ir::{function::FunctionId, types::NumericType}, opt::pure::Purity, ssa_gen::Ssa},
     };
 
     #[test]
@@ -529,9 +532,9 @@ mod test {
         assert_eq!(purities[&FunctionId::test_new(2)], Purity::Impure);
     }
 
+    /// TODO(https://github.com/noir-lang/noir/issues/9444)
     #[test]
     fn brillig_functions_never_pure() {
-        // TODO(https://github.com/noir-lang/noir/issues/9444)
         let src = "
         brillig(inline) fn main f0 {
           b0(v0: u1):
@@ -609,5 +612,47 @@ mod test {
             return
         }
         "#);
+    }
+            
+    ///TODO(https://github.com/noir-lang/noir/issues/9451): Remove the `should_panic` once the bug is fixed
+    #[test]
+    #[should_panic]
+    fn regression_array_pointer_mutation() {
+        // This test ensures that a function which mutates an array pointer is marked impure.
+        // This protects against future deduplication passes incorrectly assuming purity.
+        let src = r#"
+        brillig(inline) fn main f0 {
+          b0(v0: u32):
+            v3 = make_array [Field 1, Field 2] : [Field; 2]
+            v5 = call array_refcount(v3) -> u32
+            constrain v5 == u32 1
+            v8 = call f1(v3) -> [Field; 2]
+            v9 = call array_refcount(v3) -> u32
+            constrain v9 == u32 2
+            v11 = call f1(v3) -> [Field; 2]
+            v12 = call array_refcount(v3) -> u32
+            constrain v12 == u32 3
+            inc_rc v3
+            v15 = array_set v3, index v0, value Field 9
+            return v3, v15
+        }
+        brillig(inline) fn mutator f1 {
+          b0(v0: [Field; 2]):
+            inc_rc v0
+            v3 = array_set v0, index u32 0, value Field 5
+            return v3
+        }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        // Can uncomment to see that we do not fail when running constant folding before purity analysis
+        let ssa = ssa.fold_constants_using_constraints();        
+        let _ = ssa.interpret(vec![Value::from_constant(1_u32.into(), NumericType::unsigned(32)).unwrap()]).unwrap();
+        
+        let ssa = ssa.purity_analysis();
+        let _ = ssa.interpret(vec![Value::from_constant(1_u32.into(), NumericType::unsigned(32)).unwrap()]).unwrap();
+
+        let ssa = ssa.fold_constants_using_constraints();        
+        let _ = ssa.interpret(vec![Value::from_constant(1_u32.into(), NumericType::unsigned(32)).unwrap()]).unwrap();
     }
 }
