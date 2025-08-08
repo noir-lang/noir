@@ -55,23 +55,33 @@ impl Function {
             let lhs = *lhs;
             let rhs = *rhs;
             let operator = *operator;
+            let lhs_type = context.dfg.type_of_value(lhs);
 
             context.remove_current_instruction();
 
             let old_result = *context.dfg.instruction_results(instruction_id).first().unwrap();
 
-            let bit_size = match context.dfg.type_of_value(lhs) {
+            let bit_size = match lhs_type {
                 Type::Numeric(NumericType::Signed { bit_size })
                 | Type::Numeric(NumericType::Unsigned { bit_size }) => bit_size,
                 _ => unreachable!("ICE: right-shift attempted on non-integer"),
             };
 
             let mut bitshift_context = Context { context };
-            let new_result = if operator == BinaryOp::Shl {
+            let mut new_result = if operator == BinaryOp::Shl {
                 bitshift_context.insert_wrapping_shift_left(lhs, rhs, bit_size)
             } else {
                 bitshift_context.insert_shift_right(lhs, rhs, bit_size)
             };
+
+            if lhs_type.is_signed() {
+                let truncate = Instruction::Truncate {
+                    value: new_result,
+                    bit_size,
+                    max_bit_size: bit_size + 1,
+                };
+                new_result = context.insert_instruction(truncate, Some(vec![lhs_type])).first();
+            }
 
             context.replace_value(old_result, new_result);
         });

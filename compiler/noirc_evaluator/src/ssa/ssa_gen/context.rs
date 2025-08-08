@@ -363,15 +363,6 @@ impl<'a> FunctionContext<'a> {
 
         let mut result = self.builder.insert_binary(lhs, op, rhs);
 
-        if let (
-            BinaryOpKind::ShiftLeft | BinaryOpKind::ShiftRight,
-            NumericType::Signed { bit_size },
-        ) = (operator, self.builder.current_function.dfg.type_of_value(result).unwrap_numeric())
-        {
-            // TODO: inject this within the `remove_bit_shifts` pass.
-            result = self.builder.insert_truncate(result, bit_size, bit_size + 1);
-        };
-
         if operator_requires_not(operator) {
             result = self.builder.insert_not(result);
         }
