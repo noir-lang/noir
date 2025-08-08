@@ -86,7 +86,7 @@ pub enum Intrinsic {
     SliceRemove,
     /// ApplyRangeConstraint - Enforces the `bit size` of the first argument via a range check.
     /// arguments: value id, bit size (constant)
-    /// result: applies a range check constraint to the input. It is substituted by a RangeCheck instruction during simplification.
+    /// result: applies a range check constraint to the input. It is replaced by a RangeCheck instruction during simplification.
     ApplyRangeConstraint,
     /// StrAsBytes - Convert a `str` into a byte array of type `[u8; N]`
     /// arguments: value id
