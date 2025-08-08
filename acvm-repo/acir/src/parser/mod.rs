@@ -356,6 +356,7 @@ impl<'a> Parser<'a> {
                 let outputs = self.parse_witness_vector()?;
                 self.expect_len(&outputs, 1, "EcdsaSecp256k1", true)?;
                 let output = outputs[0];
+                let predicate = inputs[4];
 
                 BlackBoxFuncCall::EcdsaSecp256k1 {
                     public_key_x,
@@ -363,6 +364,7 @@ impl<'a> Parser<'a> {
                     signature,
                     hashed_message,
                     output,
+                    predicate,
                 }
             }
             BlackBoxFunc::EcdsaSecp256r1 => {
@@ -377,6 +379,7 @@ impl<'a> Parser<'a> {
                 let outputs = self.parse_witness_vector()?;
                 self.expect_len(&outputs, 1, "EcdsaSecp256r1", true)?;
                 let output = outputs[0];
+                let predicate = inputs[4];
 
                 BlackBoxFuncCall::EcdsaSecp256r1 {
                     public_key_x,
@@ -384,6 +387,7 @@ impl<'a> Parser<'a> {
                     signature,
                     hashed_message,
                     output,
+                    predicate,
                 }
             }
             BlackBoxFunc::MultiScalarMul => todo!(),

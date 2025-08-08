@@ -408,12 +408,14 @@ where
                 signature,
                 hashed_message,
                 output,
+                predicate,
             } => {
                 self.fold_inputs(public_key_x.as_slice());
                 self.fold_inputs(public_key_y.as_slice());
                 self.fold_inputs(signature.as_slice());
                 self.fold_inputs(hashed_message.as_slice());
                 self.fold(*output);
+                self.fold_input(predicate);
             }
             BlackBoxFuncCall::EcdsaSecp256r1 {
                 public_key_x,
@@ -421,12 +423,14 @@ where
                 signature,
                 hashed_message,
                 output,
+                predicate,
             } => {
                 self.fold_inputs(public_key_x.as_slice());
                 self.fold_inputs(public_key_y.as_slice());
                 self.fold_inputs(signature.as_slice());
                 self.fold_inputs(hashed_message.as_slice());
                 self.fold(*output);
+                self.fold_input(predicate);
             }
             BlackBoxFuncCall::MultiScalarMul { points, scalars, outputs } => {
                 self.fold_inputs(points.as_slice());
