@@ -366,13 +366,115 @@
 <a href="#365" id="365">365</a>
 <a href="#366" id="366">366</a>
 <a href="#367" id="367">367</a>
-<a href="#368" id="368">368</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::typed_value::{TypedValue, ValueType};
+<a href="#368" id="368">368</a>
+<a href="#369" id="369">369</a>
+<a href="#370" id="370">370</a>
+<a href="#371" id="371">371</a>
+<a href="#372" id="372">372</a>
+<a href="#373" id="373">373</a>
+<a href="#374" id="374">374</a>
+<a href="#375" id="375">375</a>
+<a href="#376" id="376">376</a>
+<a href="#377" id="377">377</a>
+<a href="#378" id="378">378</a>
+<a href="#379" id="379">379</a>
+<a href="#380" id="380">380</a>
+<a href="#381" id="381">381</a>
+<a href="#382" id="382">382</a>
+<a href="#383" id="383">383</a>
+<a href="#384" id="384">384</a>
+<a href="#385" id="385">385</a>
+<a href="#386" id="386">386</a>
+<a href="#387" id="387">387</a>
+<a href="#388" id="388">388</a>
+<a href="#389" id="389">389</a>
+<a href="#390" id="390">390</a>
+<a href="#391" id="391">391</a>
+<a href="#392" id="392">392</a>
+<a href="#393" id="393">393</a>
+<a href="#394" id="394">394</a>
+<a href="#395" id="395">395</a>
+<a href="#396" id="396">396</a>
+<a href="#397" id="397">397</a>
+<a href="#398" id="398">398</a>
+<a href="#399" id="399">399</a>
+<a href="#400" id="400">400</a>
+<a href="#401" id="401">401</a>
+<a href="#402" id="402">402</a>
+<a href="#403" id="403">403</a>
+<a href="#404" id="404">404</a>
+<a href="#405" id="405">405</a>
+<a href="#406" id="406">406</a>
+<a href="#407" id="407">407</a>
+<a href="#408" id="408">408</a>
+<a href="#409" id="409">409</a>
+<a href="#410" id="410">410</a>
+<a href="#411" id="411">411</a>
+<a href="#412" id="412">412</a>
+<a href="#413" id="413">413</a>
+<a href="#414" id="414">414</a>
+<a href="#415" id="415">415</a>
+<a href="#416" id="416">416</a>
+<a href="#417" id="417">417</a>
+<a href="#418" id="418">418</a>
+<a href="#419" id="419">419</a>
+<a href="#420" id="420">420</a>
+<a href="#421" id="421">421</a>
+<a href="#422" id="422">422</a>
+<a href="#423" id="423">423</a>
+<a href="#424" id="424">424</a>
+<a href="#425" id="425">425</a>
+<a href="#426" id="426">426</a>
+<a href="#427" id="427">427</a>
+<a href="#428" id="428">428</a>
+<a href="#429" id="429">429</a>
+<a href="#430" id="430">430</a>
+<a href="#431" id="431">431</a>
+<a href="#432" id="432">432</a>
+<a href="#433" id="433">433</a>
+<a href="#434" id="434">434</a>
+<a href="#435" id="435">435</a>
+<a href="#436" id="436">436</a>
+<a href="#437" id="437">437</a>
+<a href="#438" id="438">438</a>
+<a href="#439" id="439">439</a>
+<a href="#440" id="440">440</a>
+<a href="#441" id="441">441</a>
+<a href="#442" id="442">442</a>
+<a href="#443" id="443">443</a>
+<a href="#444" id="444">444</a>
+<a href="#445" id="445">445</a>
+<a href="#446" id="446">446</a>
+<a href="#447" id="447">447</a>
+<a href="#448" id="448">448</a>
+<a href="#449" id="449">449</a>
+<a href="#450" id="450">450</a>
+<a href="#451" id="451">451</a>
+<a href="#452" id="452">452</a>
+<a href="#453" id="453">453</a>
+<a href="#454" id="454">454</a>
+<a href="#455" id="455">455</a>
+<a href="#456" id="456">456</a>
+<a href="#457" id="457">457</a>
+<a href="#458" id="458">458</a>
+<a href="#459" id="459">459</a>
+<a href="#460" id="460">460</a>
+<a href="#461" id="461">461</a>
+<a href="#462" id="462">462</a>
+<a href="#463" id="463">463</a>
+<a href="#464" id="464">464</a>
+<a href="#465" id="465">465</a>
+<a href="#466" id="466">466</a>
+<a href="#467" id="467">467</a>
+<a href="#468" id="468">468</a>
+<a href="#469" id="469">469</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::typed_value::{TypedValue, ValueType};
 <span class="kw">use </span>acvm::FieldElement;
 <span class="kw">use </span>noir_ssa_executor::compiler::compile_from_ssa;
 <span class="kw">use </span>noirc_driver::{CompileOptions, CompiledProgram};
 <span class="kw">use </span>noirc_evaluator::ssa::function_builder::FunctionBuilder;
 <span class="kw">use </span>noirc_evaluator::ssa::ir::basic_block::BasicBlockId;
 <span class="kw">use </span>noirc_evaluator::ssa::ir::function::{Function, RuntimeType};
+<span class="kw">use </span>noirc_evaluator::ssa::ir::instruction::ArrayOffset;
 <span class="kw">use </span>noirc_evaluator::ssa::ir::instruction::BinaryOp;
 <span class="kw">use </span>noirc_evaluator::ssa::ir::map::Id;
 <span class="kw">use </span>noirc_evaluator::ssa::ir::types::{NumericType, Type};
@@ -380,6 +482,7 @@
 <span class="kw">use </span>noirc_frontend::monomorphization::ast::InlineType;
 <span class="kw">use </span>noirc_frontend::monomorphization::ast::InlineType <span class="kw">as </span>FrontendInlineType;
 <span class="kw">use </span>std::panic::AssertUnwindSafe;
+<span class="kw">use </span>std::sync::Arc;
 <span class="kw">use </span>thiserror::Error;
 
 <span class="attr">#[derive(Debug, Error)]
@@ -732,6 +835,105 @@
             )
             .first()
             .unwrap()
+    }
+
+    <span class="doccomment">/// Inserts a new array with the given elements and type
+    </span><span class="kw">pub fn </span>insert_array(<span class="kw-2">&amp;mut </span><span class="self">self</span>, elements: Vec&lt;TypedValue&gt;, is_references: bool) -&gt; TypedValue {
+        <span class="kw">let </span>array_length = elements.len() <span class="kw">as </span>u32;
+        <span class="macro">assert!</span>(array_length &gt; <span class="number">0</span>, <span class="string">"Array must have at least one element"</span>);
+        <span class="kw">let </span>element_type = elements[<span class="number">0</span>].type_of_variable.clone();
+        <span class="kw">let </span>array_elements_type = <span class="kw">if </span>is_references {
+            Type::Array(
+                Arc::new(<span class="macro">vec!</span>[Type::Reference(Arc::new(element_type.clone()))]),
+                array_length,
+            )
+        } <span class="kw">else </span>{
+            Type::Array(Arc::new(<span class="macro">vec!</span>[element_type.clone()]), array_length)
+        };
+        <span class="kw">let </span>typ = array_elements_type.clone();
+        <span class="macro">assert!</span>(
+            elements.iter().all(|e| e.type_of_variable == element_type),
+            <span class="string">"All elements must have the same type"
+        </span>);
+        <span class="kw">let </span>res = <span class="self">self
+            </span>.builder
+            .insert_make_array(elements.into_iter().map(|e| e.value_id).collect(), typ.clone());
+        TypedValue::new(res, Type::Array(Arc::new(<span class="macro">vec!</span>[typ]), array_length))
+    }
+
+    <span class="doccomment">/// Inserts a modulo operation between the index and the array length
+    /// Returns the id of the index modulo the array length
+    </span><span class="kw">fn </span>insert_index_mod_array_length(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        index: TypedValue,
+        array: TypedValue,
+    ) -&gt; TypedValue {
+        <span class="kw">match </span>array.type_of_variable.clone() {
+            Type::Array(<span class="kw">_</span>, array_length) =&gt; {
+                <span class="kw">let </span>array_length_id = <span class="self">self
+                    </span>.builder
+                    .numeric_constant(array_length, NumericType::Unsigned { bit_size: <span class="number">32 </span>});
+                <span class="kw">let </span>index_mod_length =
+                    <span class="self">self</span>.builder.insert_binary(index.value_id, BinaryOp::Mod, array_length_id);
+                TypedValue::new(index_mod_length, ValueType::U32.to_ssa_type())
+            }
+            <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"Array type expected"</span>),
+        }
+    }
+
+    <span class="doccomment">/// Inserts an array get instruction
+    ///
+    /// Index must be u32
+    /// If safe_index is true, index will be taken modulo the array length
+    </span><span class="kw">pub fn </span>insert_array_get(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        array: TypedValue,
+        index: TypedValue,
+        element_type: Type,
+        safe_index: bool,
+    ) -&gt; TypedValue {
+        <span class="macro">assert!</span>(index.type_of_variable == Type::Numeric(NumericType::Unsigned { bit_size: <span class="number">32 </span>}));
+        <span class="kw">let </span>index = <span class="kw">if </span>safe_index {
+            <span class="self">self</span>.insert_index_mod_array_length(index.clone(), array.clone())
+        } <span class="kw">else </span>{
+            index
+        };
+        <span class="kw">let </span>res = <span class="self">self</span>.builder.insert_array_get(
+            array.value_id,
+            index.value_id,
+            ArrayOffset::None,
+            element_type.clone(),
+        );
+        TypedValue::new(res, element_type)
+    }
+
+    <span class="doccomment">/// Inserts an array set instruction
+    ///
+    /// Index must be u32
+    /// If safe_index is true, index will be taken modulo the array length
+    </span><span class="kw">pub fn </span>insert_array_set(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        array: TypedValue,
+        index: TypedValue,
+        value: TypedValue,
+        mutable: bool,
+        safe_index: bool,
+    ) -&gt; TypedValue {
+        <span class="macro">assert!</span>(<span class="macro">matches!</span>(array.type_of_variable, Type::Array(<span class="kw">_</span>, <span class="kw">_</span>)));
+        <span class="macro">assert!</span>(index.type_of_variable == Type::Numeric(NumericType::Unsigned { bit_size: <span class="number">32 </span>}));
+        <span class="kw">let </span>index = <span class="kw">if </span>safe_index {
+            <span class="self">self</span>.insert_index_mod_array_length(index.clone(), array.clone())
+        } <span class="kw">else </span>{
+            index
+        };
+        <span class="kw">let </span>res = <span class="self">self</span>.builder.insert_array_set(
+            array.value_id,
+            index.value_id,
+            value.value_id,
+            mutable,
+            ArrayOffset::None,
+        );
+        TypedValue::new(res, array.type_of_variable.clone())
     }
 }
 </code></pre></div></section></main></body></html>
