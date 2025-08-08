@@ -331,7 +331,8 @@ impl Context {
             if let Definition::Builtin(name) = &ident.definition {
                 if name == "array_len" {
                     if let Some(Expression::Clone(array)) = call.arguments.get_mut(0) {
-                        let array = std::mem::replace(array.as_mut(), Expression::Literal(Literal::Unit));
+                        let array =
+                            std::mem::replace(array.as_mut(), Expression::Literal(Literal::Unit));
                         call.arguments[0] = array;
                     }
                 }
