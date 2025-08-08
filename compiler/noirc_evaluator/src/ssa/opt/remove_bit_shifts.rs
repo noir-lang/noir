@@ -6,7 +6,9 @@ use crate::ssa::{
     ir::{
         dfg::InsertInstructionResult,
         function::Function,
-        instruction::{ArrayOffset, Binary, BinaryOp, Endian, Instruction, Intrinsic},
+        instruction::{
+            ArrayOffset, Binary, BinaryOp, ConstrainError, Endian, Instruction, Intrinsic,
+        },
         types::{NumericType, Type},
         value::ValueId,
     },
@@ -104,6 +106,8 @@ impl Context<'_, '_, '_> {
         rhs: ValueId,
         bit_size: u32,
     ) -> ValueId {
+        self.enforce_bitshift_rhs_lt_bit_size(rhs);
+
         let base = self.field_constant(FieldElement::from(2_u128));
         let typ = self.context.dfg.type_of_value(lhs).unwrap_numeric();
         let (max_bit, pow) = if let Some(rhs_constant) = self.context.dfg.get_numeric_constant(rhs)
@@ -164,6 +168,8 @@ impl Context<'_, '_, '_> {
         rhs: ValueId,
         bit_size: u32,
     ) -> ValueId {
+        self.enforce_bitshift_rhs_lt_bit_size(rhs);
+
         let lhs_typ = self.context.dfg.type_of_value(lhs).unwrap_numeric();
         let base = self.field_constant(FieldElement::from(2_u128));
         let rhs_typ = self.context.dfg.type_of_value(rhs).unwrap_numeric();
@@ -253,6 +259,33 @@ impl Context<'_, '_, '_> {
         self.insert_binary(result, BinaryOp::Add { unchecked: true }, minus_one_or_zero)
     }
 
+    /// Insert constraints ensuring that the right-hand side of a bit-shift operation
+    /// is less than the bit size of the left-hand side.
+    fn enforce_bitshift_rhs_lt_bit_size(&mut self, rhs: ValueId) {
+        let one = self.numeric_constant(FieldElement::one(), NumericType::bool());
+        let rhs_type = self.context.dfg.type_of_value(rhs);
+
+        let assert_message = Some("attempt to bit-shift with overflow".to_owned().into());
+
+        let (bit_size, bit_size_field) = match rhs_type {
+            Type::Numeric(NumericType::Unsigned { bit_size }) => {
+                (bit_size, FieldElement::from(bit_size))
+            }
+            Type::Numeric(NumericType::Signed { bit_size }) => {
+                assert!(bit_size > 1, "ICE - i1 is not a valid type");
+
+                (bit_size, FieldElement::from(bit_size - 1))
+            }
+            _ => unreachable!("check_shift_overflow called with non-numeric type"),
+        };
+
+        let unsigned_typ = NumericType::unsigned(bit_size);
+        let max = self.numeric_constant(bit_size_field, unsigned_typ);
+        let rhs = self.insert_cast(rhs, unsigned_typ);
+        let overflow = self.insert_binary(rhs, BinaryOp::Lt, max);
+        self.insert_constrain(overflow, one, assert_message);
+    }
+
     /// Computes lhs^rhs via square&multiply, using the bits decomposition of rhs
     /// Pseudo-code of the computation:
     /// let mut r = 1;
@@ -310,6 +343,18 @@ impl Context<'_, '_, '_> {
         typ: NumericType,
     ) -> ValueId {
         self.context.dfg.make_constant(value.into(), typ)
+    }
+
+    /// Insert a binary instruction at the end of the current block.
+    /// Returns the result of the binary instruction.
+    pub(crate) fn insert_constrain(
+        &mut self,
+        lhs: ValueId,
+        rhs: ValueId,
+        constrain_error: Option<ConstrainError>,
+    ) -> ValueId {
+        let instruction = Instruction::Constrain(lhs, rhs, constrain_error);
+        self.context.insert_instruction(instruction, None).first()
     }
 
     /// Insert a binary instruction at the end of the current block.
