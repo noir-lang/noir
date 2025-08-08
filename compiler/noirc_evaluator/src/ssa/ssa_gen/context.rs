@@ -321,6 +321,7 @@ impl<'a> FunctionContext<'a> {
     fn check_overflow(
         &mut self,
         result: ValueId,
+        lhs: ValueId,
         rhs: ValueId,
         operator: BinaryOpKind,
         location: Location,
@@ -346,6 +347,20 @@ impl<'a> FunctionContext<'a> {
                         result
                     }
                     BinaryOpKind::ShiftLeft | BinaryOpKind::ShiftRight => {
+                        let dfg = &self.builder.current_function.dfg;
+                        let max_lhs_bits = dfg.get_value_max_num_bits(lhs);
+
+                        if let Some(rhs_const) = dfg.get_numeric_constant(rhs) {
+                            let bit_shift_size = rhs_const.to_u128() as u32;
+
+                            if max_lhs_bits + bit_shift_size <= bit_size {
+                                // `lhs` has been casted up from a smaller type such that shifting it by a constant
+
+                                // `rhs` is known not to exceed the maximum bit size.
+
+                                return result;
+                            }
+                        }
                         self.check_shift_overflow(result, rhs, bit_size, location);
                         result
                     }
@@ -416,7 +431,7 @@ impl<'a> FunctionContext<'a> {
                 | BinaryOpKind::ShiftLeft
                 | BinaryOpKind::ShiftRight
         ) {
-            result = self.check_overflow(result, rhs, operator, location);
+            result = self.check_overflow(result, lhs, rhs, operator, location);
         }
 
         if operator_requires_not(operator) {
