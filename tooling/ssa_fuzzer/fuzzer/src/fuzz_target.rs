@@ -47,7 +47,7 @@ libfuzzer_sys::fuzz_target!(|data: &[u8]| -> Corpus {
         alloc_enabled: false,
         ..InstructionOptions::default()
     };
-    let modes = vec![FuzzerMode::NonConstant];
+    let modes = vec![FuzzerMode::NonConstant, FuzzerMode::NonConstantWithoutSimplifying];
     let fuzzer_command_options =
         FuzzerCommandOptions { loops_enabled: false, ..FuzzerCommandOptions::default() };
     let options = FuzzerOptions {

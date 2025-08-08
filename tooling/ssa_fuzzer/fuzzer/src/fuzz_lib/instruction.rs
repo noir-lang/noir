@@ -24,7 +24,7 @@ pub(crate) struct Argument {
 /// Represents set of instructions
 ///
 /// For operations that take two arguments we ignore type of the second argument.
-#[derive(Arbitrary, Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Arbitrary, Debug, Clone, Serialize, Deserialize)]
 pub(crate) enum Instruction {
     /// Addition of two values
     AddChecked { lhs: Argument, rhs: Argument },
@@ -74,6 +74,36 @@ pub(crate) enum Instruction {
     /// Store value to mutable memory
     /// Stores value to memory with insert_store
     SetToMemory { memory_addr_index: usize, value: Argument },
+
+    /// Create array, only type of first argument is used
+    /// Other elements will be taken from stored variables of the same type
+    CreateArray { elements_indices: Vec<usize>, element_type: ValueType, is_references: bool },
+    /// Get element from array, index will be casted to u32, only for arrays without references
+    /// If safe_index is true, index will be taken modulo the size of the array
+    ArrayGet { array_index: usize, index: Argument, safe_index: bool },
+    /// Set element in array, index will be casted to u32, only for arrays without references
+    /// Value will be cast to the type of the array
+    /// If safe_index is true, index will be taken modulo the size of the array
+    ArraySet {
+        array_index: usize,
+        index: Argument,
+        value_index: usize,
+        mutable: bool,
+        safe_index: bool,
+    },
+    /// Get element from array, index is constant
+    /// If safe_index is true, index will be taken modulo the size of the array
+    ArrayGetWithConstantIndex { array_index: usize, index: usize, safe_index: bool },
+    /// Set element in array, index is constant
+    /// Value will be cast to the type of the array
+    /// If safe_index is true, index will be taken modulo the size of the array
+    ArraySetWithConstantIndex {
+        array_index: usize,
+        index: usize,
+        value_index: usize,
+        mutable: bool,
+        safe_index: bool,
+    },
 }
 
 /// Represents set of instructions

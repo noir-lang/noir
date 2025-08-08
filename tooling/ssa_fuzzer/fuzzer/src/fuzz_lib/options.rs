@@ -20,6 +20,9 @@ pub(crate) struct InstructionOptions {
     pub(crate) load_enabled: bool,
     pub(crate) store_enabled: bool,
     pub(crate) alloc_enabled: bool,
+    pub(crate) create_array_enabled: bool,
+    pub(crate) array_get_enabled: bool,
+    pub(crate) array_set_enabled: bool,
 }
 
 impl Default for InstructionOptions {
@@ -42,6 +45,9 @@ impl Default for InstructionOptions {
             load_enabled: true,
             store_enabled: true,
             alloc_enabled: true,
+            create_array_enabled: true,
+            array_get_enabled: true,
+            array_set_enabled: true,
         }
     }
 }
@@ -142,7 +148,7 @@ pub(crate) struct FuzzerOptions {
 impl Default for FuzzerOptions {
     fn default() -> Self {
         Self {
-            compile_options: CompileOptions { show_ssa: false, ..Default::default() },
+            compile_options: CompileOptions { show_ssa: true, ..Default::default() },
             max_ssa_blocks_num: 100,
             max_instructions_num: 1000,
             max_iterations_num: 1000,
