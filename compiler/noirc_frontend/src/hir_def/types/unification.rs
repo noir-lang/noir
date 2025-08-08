@@ -10,6 +10,7 @@ use crate::{
         types,
     },
     node_interner::{ExprId, NodeInterner},
+    signed_field::SignedField,
 };
 
 pub struct UnificationError;
@@ -296,6 +297,22 @@ impl Type {
                 } else {
                     Err(UnificationError)
                 }
+            }
+
+            (InfixExpr(lhs, BinaryTypeOperator::Multiplication, rhs, _), other)
+            | (other, InfixExpr(lhs, BinaryTypeOperator::Multiplication, rhs, _))
+                if lhs.is_bindable() && rhs.as_ref() == other =>
+            {
+                // If it's `type * var` = `type` we should try to unify `var` to `1`
+                lhs.try_unify(&Type::Constant(SignedField::one(), lhs.kind()), bindings)
+            }
+
+            (InfixExpr(lhs, BinaryTypeOperator::Multiplication, rhs, _), other)
+            | (other, InfixExpr(lhs, BinaryTypeOperator::Multiplication, rhs, _))
+                if rhs.is_bindable() && lhs.as_ref() == other =>
+            {
+                // If it's `var * type` = `type` we should try to unify `var` to `1`
+                rhs.try_unify(&Type::Constant(SignedField::one(), rhs.kind()), bindings)
             }
 
             (other_a, other_b) => {

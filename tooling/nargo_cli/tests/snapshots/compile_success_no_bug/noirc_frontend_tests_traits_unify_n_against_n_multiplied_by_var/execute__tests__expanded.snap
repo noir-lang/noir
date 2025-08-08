@@ -1,0 +1,43 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+trait Serialize {
+    let N: u32;
+
+    fn serialize(self) -> [u32; N];
+}
+
+impl Serialize for Field {
+    let N: u32 = 1;
+
+    fn serialize(self) -> [u32; 1] {
+        [0_u32; 1]
+    }
+}
+
+impl<let N: u32, T> Serialize for [T; N]
+where
+    T: Serialize,
+{
+    let N: u32 = N * <T as Serialize>::N;
+
+    fn serialize(self) -> [u32; N * <T as Serialize>::N] {
+        [0_u32; N * <T as Serialize>::N]
+    }
+}
+
+pub struct CompressedString<let N: u32> {
+    value: [Field; N],
+}
+
+impl<let N: u32> Serialize for CompressedString<N> {
+    let N: u32 = N;
+
+    fn serialize(self) -> [u32; N] {
+        let _: [u32; N] = self.value.serialize();
+        [0_u32; N]
+    }
+}
+
+fn main() {}
