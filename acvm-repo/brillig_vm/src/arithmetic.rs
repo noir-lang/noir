@@ -420,4 +420,30 @@ mod tests {
 
         evaluate_int_ops(test_ops, BinaryIntOp::Div, bit_size);
     }
+
+    #[test]
+    fn shl_test() {
+        let bit_size = IntegerBitSize::U8;
+
+        let test_ops = vec![
+            TestParams { a: 1, b: 8, result: 0 },
+            TestParams { a: 1, b: 7, result: 128 },
+            TestParams { a: 5, b: 7, result: 128 },
+        ];
+
+        evaluate_int_ops(test_ops, BinaryIntOp::Shl, bit_size);
+    }
+
+    #[test]
+    fn shr_test() {
+        let bit_size = IntegerBitSize::U8;
+
+        let test_ops = vec![
+            TestParams { a: 1, b: 8, result: 0 },
+            TestParams { a: 1, b: 0, result: 1 },
+            TestParams { a: 5, b: 1, result: 2 },
+        ];
+
+        evaluate_int_ops(test_ops, BinaryIntOp::Shr, bit_size);
+    }
 }
