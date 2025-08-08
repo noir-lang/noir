@@ -1076,7 +1076,7 @@ mod tests {
 
     #[test]
     fn keep_repeat_loads_with_alias_store() {
-        // v7, v8, and v9 alias one another. We want to make sure that a repeat load to v7 with a store
+        // v1, v2, and v3 alias one another. We want to make sure that a repeat load to v1 with a store
         // to its aliases in between the repeat loads does not remove those loads.
         let src = "
         acir(inline) fn main f0 {
@@ -1445,5 +1445,107 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.mem2reg();
         assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn does_not_remove_store_to_function_parameter() {
+        // The last store can't be removed as it stores a value in a function parameter
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: &mut Field):
+            jmp b1()
+          b1():
+            store Field 4 at v0
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.mem2reg();
+        // We expect the program to be unchanged
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn does_not_remove_store_to_return_value() {
+        // The last store can't be removed as it stores into a reference that is returned
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 4 at v0
+            jmp b1()
+          b1():
+            return v0
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.mem2reg();
+        // We expect the program to be unchanged
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn does_not_remove_store_to_address_used_in_terminator() {
+        // The store here shouldn't be removed as its address is eventually put inside
+        // an array that's used in a terminator value, `b1(v7)`.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v6 = allocate -> &mut u1
+            store u1 1 at v6
+            v7 = make_array [v6, Field 1] : [(&mut u1, Field); 1]
+            jmp b1(v7)
+          b1(v1: [(&mut u1, Field); 1]):
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.mem2reg();
+        // We expect the program to be unchanged
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn removes_last_store_in_single_block() {
+        // Even though v0 is a reference passed to a function, the store that comes next
+        // can be removed as it is later never read, and this is the only block in the function.
+        let src = "
+        brillig(inline) impure fn main f0 {
+          b0():
+            v0 = allocate -> &mut [Field; 2]
+            call f1(v0)
+            v1 = load v0 -> [Field; 2]
+            store v1 at v0
+            return
+        }
+
+        brillig(inline) impure fn append_note_hashes_with_logs f1 {
+          b0(v0: &mut [Field; 2]):
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.mem2reg();
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) impure fn main f0 {
+          b0():
+            v0 = allocate -> &mut [Field; 2]
+            call f1(v0)
+            v2 = load v0 -> [Field; 2]
+            return
+        }
+        brillig(inline) impure fn append_note_hashes_with_logs f1 {
+          b0(v0: &mut [Field; 2]):
+            return
+        }
+        ");
     }
 }
