@@ -9,12 +9,14 @@ use num_traits::{CheckedDiv, ToPrimitive, WrappingAdd, WrappingMul, WrappingSub,
 
 use crate::memory::{MemoryTypeError, MemoryValue};
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, PartialEq, thiserror::Error)]
 pub(crate) enum BrilligArithmeticError {
     #[error("Bit size for lhs {lhs_bit_size} does not match op bit size {op_bit_size}")]
     MismatchedLhsBitSize { lhs_bit_size: u32, op_bit_size: u32 },
     #[error("Bit size for rhs {rhs_bit_size} does not match op bit size {op_bit_size}")]
     MismatchedRhsBitSize { rhs_bit_size: u32, op_bit_size: u32 },
+    #[error("Attempted to shift by {shift_size} bits on a type of bit size {bit_size}")]
+    BitshiftOverflow { bit_size: u32, shift_size: u32 },
     #[error("Attempted to divide by zero")]
     DivisionByZero,
 }
@@ -165,23 +167,58 @@ pub(crate) fn evaluate_binary_int_op<F: AcirField>(
 
         BinaryIntOp::Shl | BinaryIntOp::Shr => match (lhs, rhs, bit_size) {
             (MemoryValue::U1(lhs), MemoryValue::U1(rhs), IntegerBitSize::U1) => {
-                let result = if !rhs { lhs } else { false };
-                Ok(MemoryValue::U1(result))
+                if rhs {
+                    Err(BrilligArithmeticError::BitshiftOverflow { bit_size: 1, shift_size: 1 })
+                } else {
+                    Ok(MemoryValue::U1(lhs))
+                }
             }
             (MemoryValue::U8(lhs), MemoryValue::U8(rhs), IntegerBitSize::U8) => {
-                Ok(MemoryValue::U8(evaluate_binary_int_op_shifts(op, lhs, rhs)))
+                if rhs < 8 {
+                    Ok(MemoryValue::U8(evaluate_binary_int_op_shifts(op, lhs, rhs)))
+                } else {
+                    Err(BrilligArithmeticError::BitshiftOverflow {
+                        bit_size: 8,
+                        shift_size: rhs as u32,
+                    })
+                }
             }
             (MemoryValue::U16(lhs), MemoryValue::U16(rhs), IntegerBitSize::U16) => {
-                Ok(MemoryValue::U16(evaluate_binary_int_op_shifts(op, lhs, rhs)))
+                if rhs < 16 {
+                    Ok(MemoryValue::U16(evaluate_binary_int_op_shifts(op, lhs, rhs)))
+                } else {
+                    Err(BrilligArithmeticError::BitshiftOverflow {
+                        bit_size: 8,
+                        shift_size: rhs as u32,
+                    })
+                }
             }
             (MemoryValue::U32(lhs), MemoryValue::U32(rhs), IntegerBitSize::U32) => {
-                Ok(MemoryValue::U32(evaluate_binary_int_op_shifts(op, lhs, rhs)))
+                if rhs < 32 {
+                    Ok(MemoryValue::U32(evaluate_binary_int_op_shifts(op, lhs, rhs)))
+                } else {
+                    Err(BrilligArithmeticError::BitshiftOverflow { bit_size: 8, shift_size: rhs })
+                }
             }
             (MemoryValue::U64(lhs), MemoryValue::U64(rhs), IntegerBitSize::U64) => {
-                Ok(MemoryValue::U64(evaluate_binary_int_op_shifts(op, lhs, rhs)))
+                if rhs < 64 {
+                    Ok(MemoryValue::U64(evaluate_binary_int_op_shifts(op, lhs, rhs)))
+                } else {
+                    Err(BrilligArithmeticError::BitshiftOverflow {
+                        bit_size: 8,
+                        shift_size: rhs as u32,
+                    })
+                }
             }
             (MemoryValue::U128(lhs), MemoryValue::U128(rhs), IntegerBitSize::U128) => {
-                Ok(MemoryValue::U128(evaluate_binary_int_op_shifts(op, lhs, rhs)))
+                if rhs < 128 {
+                    Ok(MemoryValue::U128(evaluate_binary_int_op_shifts(op, lhs, rhs)))
+                } else {
+                    Err(BrilligArithmeticError::BitshiftOverflow {
+                        bit_size: 8,
+                        shift_size: rhs as u32,
+                    })
+                }
             }
             _ => Err(BrilligArithmeticError::MismatchedLhsBitSize {
                 lhs_bit_size: lhs.bit_size().to_u32::<F>(),
@@ -425,25 +462,39 @@ mod tests {
     fn shl_test() {
         let bit_size = IntegerBitSize::U8;
 
-        let test_ops = vec![
-            TestParams { a: 1, b: 8, result: 0 },
-            TestParams { a: 1, b: 7, result: 128 },
-            TestParams { a: 5, b: 7, result: 128 },
-        ];
+        let test_ops =
+            vec![TestParams { a: 1, b: 7, result: 128 }, TestParams { a: 5, b: 7, result: 128 }];
 
         evaluate_int_ops(test_ops, BinaryIntOp::Shl, bit_size);
+
+        assert_eq!(
+            evaluate_binary_int_op(
+                &BinaryIntOp::Shl,
+                MemoryValue::<FieldElement>::U8(1u8),
+                MemoryValue::<FieldElement>::U8(8u8),
+                IntegerBitSize::U8
+            ),
+            Err(BrilligArithmeticError::BitshiftOverflow { bit_size: 8, shift_size: 8 })
+        );
     }
 
     #[test]
     fn shr_test() {
         let bit_size = IntegerBitSize::U8;
 
-        let test_ops = vec![
-            TestParams { a: 1, b: 8, result: 0 },
-            TestParams { a: 1, b: 0, result: 1 },
-            TestParams { a: 5, b: 1, result: 2 },
-        ];
+        let test_ops =
+            vec![TestParams { a: 1, b: 0, result: 1 }, TestParams { a: 5, b: 1, result: 2 }];
 
         evaluate_int_ops(test_ops, BinaryIntOp::Shr, bit_size);
+
+        assert_eq!(
+            evaluate_binary_int_op(
+                &BinaryIntOp::Shr,
+                MemoryValue::<FieldElement>::U8(1u8),
+                MemoryValue::<FieldElement>::U8(8u8),
+                IntegerBitSize::U8
+            ),
+            Err(BrilligArithmeticError::BitshiftOverflow { bit_size: 8, shift_size: 8 })
+        );
     }
 }
