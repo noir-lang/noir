@@ -23,9 +23,7 @@ pub(super) fn simplify_binary(binary: &Binary, dfg: &mut DataFlowGraph) -> Simpl
     let rhs_type = dfg.type_of_value(rhs).unwrap_numeric();
 
     let operator = binary.operator;
-    if operator != BinaryOp::Shl && operator != BinaryOp::Shr {
-        assert_eq!(lhs_type, rhs_type, "ICE - Binary instruction operands must have the same type");
-    }
+    assert_eq!(lhs_type, rhs_type, "ICE - Binary instruction operands must have the same type");
 
     let operator = if lhs_type == NumericType::NativeField {
         // Unchecked operations between fields don't make sense, so we convert those to non-unchecked
@@ -294,19 +292,8 @@ pub(super) fn simplify_binary(binary: &Binary, dfg: &mut DataFlowGraph) -> Simpl
                 return SimplifyResult::SimplifiedTo(zero);
             }
         }
-        BinaryOp::Shl => return SimplifyResult::SimplifiedToInstruction(simplified),
-        BinaryOp::Shr => {
-            // Bit shifts by constants can be treated as divisions.
-            if let Some(rhs_const) = rhs_value {
-                if rhs_const >= FieldElement::from(lhs_type.bit_size() as u128) {
-                    // Shifting by the full width of the operand type, any unsigned `lhs` goes to zero.
-                    if lhs_type.is_unsigned() {
-                        let zero = dfg.make_constant(FieldElement::zero(), lhs_type);
-                        return SimplifyResult::SimplifiedTo(zero);
-                    }
-                }
-                return SimplifyResult::SimplifiedToInstruction(simplified);
-            }
+        BinaryOp::Shl | BinaryOp::Shr => {
+            return SimplifyResult::SimplifiedToInstruction(simplified);
         }
     };
     SimplifyResult::SimplifiedToInstruction(simplified)

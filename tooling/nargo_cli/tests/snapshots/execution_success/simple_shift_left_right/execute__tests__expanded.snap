@@ -3,7 +3,7 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 fn main(x: u32) {
-    let z: u32 = x >> 4_u8;
-    let t: u32 = x << 4_u8;
-    assert(z == (t >> 8_u8));
+    let z: u32 = x >> 4_u32;
+    let t: u32 = x << 4_u32;
+    assert(z == (t >> 8_u32));
 }
