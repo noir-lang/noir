@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1754659306007,
+  "lastUpdate": 1754659789858,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -7862,40 +7862,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "dd0bc23a84ac756d23bca59d330ac81e3f599c0c",
-          "message": "fix(ssa_interpreter): `push_back` and `pop_back` to slices with padding (#9320)",
-          "timestamp": "2025-07-25T15:36:15Z",
-          "tree_id": "868581a4dfa9792046b210767ae00b82f7941edf",
-          "url": "https://github.com/noir-lang/noir/commit/dd0bc23a84ac756d23bca59d330ac81e3f599c0c"
-        },
-        "date": 1753460726534,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore_depth_10",
-            "value": 69.31,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 54.8,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -10265,6 +10231,80 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/b7406ba8f22e15d17726849591e75eabaf2b396b"
         },
         "date": 1754655498823,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 205,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 241.78,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 194.2,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 498.41,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 431.05,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1500,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 326.4,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 328.81,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 69.48,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 54.97,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "84741533+defkit@users.noreply.github.com",
+            "name": "defkit",
+            "username": "defkit"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8d80b281de40a7e270dcf84c2bed91fc249efde8",
+          "message": "feat(ssa_fuzzer): arrays support (#9427)\n\nCo-authored-by: Innokentii Sennovskii <isennovskiy@gmail.com>",
+          "timestamp": "2025-08-08T12:48:30Z",
+          "tree_id": "ac40ad1110c7e02000132eb372627be75f60414e",
+          "url": "https://github.com/noir-lang/noir/commit/8d80b281de40a7e270dcf84c2bed91fc249efde8"
+        },
+        "date": 1754659772745,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
