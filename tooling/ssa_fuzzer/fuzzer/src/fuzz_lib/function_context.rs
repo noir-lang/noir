@@ -104,6 +104,15 @@ pub(crate) enum FuzzerFunctionCommand {
     InsertFunctionCall { function_idx: usize, args: [usize; NUMBER_OF_VARIABLES_INITIAL as usize] },
 }
 
+/// Default command is InsertSimpleInstructionBlock with instruction_block_idx = 0
+///
+/// Only used for mutations
+impl Default for FuzzerFunctionCommand {
+    fn default() -> Self {
+        Self::InsertSimpleInstructionBlock { instruction_block_idx: 0 }
+    }
+}
+
 struct CycleInfo {
     block_iter_id: BasicBlockId,
     block_end_id: BasicBlockId,

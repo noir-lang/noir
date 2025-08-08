@@ -106,9 +106,21 @@ pub(crate) enum Instruction {
     },
 }
 
+/// Default instruction is XOR of two boolean values
+///
+/// Only used for mutations
+impl Default for Instruction {
+    fn default() -> Self {
+        Self::Xor {
+            lhs: Argument { index: 0, value_type: ValueType::Boolean },
+            rhs: Argument { index: 0, value_type: ValueType::Boolean },
+        }
+    }
+}
+
 /// Represents set of instructions
 /// NOT EQUAL TO SSA BLOCK
-#[derive(Arbitrary, Debug, Clone, Serialize, Deserialize)]
+#[derive(Arbitrary, Debug, Clone, Serialize, Deserialize, Default)]
 pub(crate) struct InstructionBlock {
     pub(crate) instructions: Vec<Instruction>,
 }
