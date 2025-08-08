@@ -358,7 +358,8 @@
 <a href="#357" id="357">357</a>
 <a href="#358" id="358">358</a>
 <a href="#359" id="359">359</a>
-<a href="#360" id="360">360</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
+<a href="#360" id="360">360</a>
+<a href="#361" id="361">361</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::fmt::Display;
 
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::Location;
@@ -496,7 +497,8 @@
     }
 }
 
-<span class="kw">impl </span>Display <span class="kw">for </span>NoirTrait {
+<span class="comment">// TODO(https://github.com/noir-lang/noir/issues/8306): display where clauses
+</span><span class="kw">impl </span>Display <span class="kw">for </span>NoirTrait {
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
         <span class="kw">let </span>generics = vecmap(<span class="kw-2">&amp;</span><span class="self">self</span>.generics, |generic| generic.to_string());
         <span class="kw">let </span>generics =
