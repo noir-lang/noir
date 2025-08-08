@@ -137,6 +137,7 @@ pub enum BlackBoxFuncCall<F> {
         signature: Box<[FunctionInput<F>; 64]>,
         hashed_message: Box<[FunctionInput<F>; 32]>,
         output: Witness,
+        predicate: FunctionInput<F>,
     },
     /// Verifies a ECDSA signature over the secp256r1 curve.
     ///
@@ -151,6 +152,7 @@ pub enum BlackBoxFuncCall<F> {
         signature: Box<[FunctionInput<F>; 64]>,
         hashed_message: Box<[FunctionInput<F>; 32]>,
         output: Witness,
+        predicate: FunctionInput<F>,
     },
     /// Multiple scalar multiplication (MSM) with a variable base/input point
     /// (P) of the embedded curve. An MSM multiplies the points and scalars and
@@ -358,7 +360,8 @@ impl<F: Copy> BlackBoxFuncCall<F> {
                 public_key_y,
                 signature,
                 hashed_message,
-                ..
+                predicate,
+                output: _,
             } => {
                 let mut inputs = Vec::with_capacity(
                     public_key_x.len()
@@ -370,6 +373,7 @@ impl<F: Copy> BlackBoxFuncCall<F> {
                 inputs.extend(public_key_y.iter().copied());
                 inputs.extend(signature.iter().copied());
                 inputs.extend(hashed_message.iter().copied());
+                inputs.push(*predicate);
                 inputs
             }
             BlackBoxFuncCall::EcdsaSecp256r1 {
@@ -377,7 +381,8 @@ impl<F: Copy> BlackBoxFuncCall<F> {
                 public_key_y,
                 signature,
                 hashed_message,
-                ..
+                predicate,
+                output: _,
             } => {
                 let mut inputs = Vec::with_capacity(
                     public_key_x.len()
@@ -389,6 +394,7 @@ impl<F: Copy> BlackBoxFuncCall<F> {
                 inputs.extend(public_key_y.iter().copied());
                 inputs.extend(signature.iter().copied());
                 inputs.extend(hashed_message.iter().copied());
+                inputs.push(*predicate);
                 inputs
             }
             BlackBoxFuncCall::RecursiveAggregation {
@@ -591,15 +597,17 @@ mod arb {
                 input_arr_64.clone(),
                 input_arr_32.clone(),
                 witness.clone(),
+                input.clone(),
             )
                 .prop_map(
-                    |(public_key_x, public_key_y, signature, hashed_message, output)| {
+                    |(public_key_x, public_key_y, signature, hashed_message, output, predicate)| {
                         BlackBoxFuncCall::EcdsaSecp256k1 {
                             public_key_x,
                             public_key_y,
                             signature,
                             hashed_message,
                             output,
+                            predicate,
                         }
                     },
                 );
@@ -610,15 +618,17 @@ mod arb {
                 input_arr_64.clone(),
                 input_arr_32.clone(),
                 witness.clone(),
+                input.clone(),
             )
                 .prop_map(
-                    |(public_key_x, public_key_y, signature, hashed_message, output)| {
+                    |(public_key_x, public_key_y, signature, hashed_message, output, predicate)| {
                         BlackBoxFuncCall::EcdsaSecp256r1 {
                             public_key_x,
                             public_key_y,
                             signature,
                             hashed_message,
                             output,
+                            predicate,
                         }
                     },
                 );

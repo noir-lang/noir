@@ -116,6 +116,7 @@ pub(crate) fn solve<F: AcirField>(
             signature,
             hashed_message: message,
             output,
+            ..
         } => secp256k1_prehashed(
             initial_witness,
             public_key_x,
@@ -130,6 +131,7 @@ pub(crate) fn solve<F: AcirField>(
             signature,
             hashed_message: message,
             output,
+            ..
         } => secp256r1_prehashed(
             initial_witness,
             public_key_x,

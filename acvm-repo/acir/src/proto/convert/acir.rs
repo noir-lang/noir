@@ -310,12 +310,14 @@ where
                 signature,
                 hashed_message,
                 output,
+                predicate,
             } => Value::EcdsaSecp256k1(EcdsaSecp256k1 {
                 public_key_x: Self::encode_vec(public_key_x.as_ref()),
                 public_key_y: Self::encode_vec(public_key_y.as_ref()),
                 signature: Self::encode_vec(signature.as_ref()),
                 hashed_message: Self::encode_vec(hashed_message.as_ref()),
                 output: Self::encode_some(output),
+                predicate: Self::encode_some(predicate),
             }),
             opcodes::BlackBoxFuncCall::EcdsaSecp256r1 {
                 public_key_x,
@@ -323,12 +325,14 @@ where
                 signature,
                 hashed_message,
                 output,
+                predicate,
             } => Value::EcdsaSecp256r1(EcdsaSecp256r1 {
                 public_key_x: Self::encode_vec(public_key_x.as_ref()),
                 public_key_y: Self::encode_vec(public_key_y.as_ref()),
                 signature: Self::encode_vec(signature.as_ref()),
                 hashed_message: Self::encode_vec(hashed_message.as_ref()),
                 output: Self::encode_some(output),
+                predicate: Self::encode_some(predicate),
             }),
             opcodes::BlackBoxFuncCall::MultiScalarMul { points, scalars, outputs } => {
                 let (w1, w2, w3) = outputs;
@@ -429,6 +433,7 @@ where
                             "hashed_message",
                         )?,
                         output: Self::decode_some_wrap(&v.output, "output")?,
+                        predicate: Self::decode_some_wrap(&v.predicate, "predicate")?,
                     }),
                     Value::EcdsaSecp256r1(v) => Ok(opcodes::BlackBoxFuncCall::EcdsaSecp256r1 {
                         public_key_x: Self::decode_box_arr_wrap(&v.public_key_x, "public_key_x")?,
@@ -439,6 +444,7 @@ where
                             "hashed_message",
                         )?,
                         output: Self::decode_some_wrap(&v.output, "output")?,
+                        predicate: Self::decode_some_wrap(&v.predicate, "predicate")?,
                     }),
                     Value::MultiScalarMul(v) => Ok(opcodes::BlackBoxFuncCall::MultiScalarMul {
                         points: Self::decode_vec_wrap(&v.points, "points")?,
