@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1754654966683,
+  "lastUpdate": 1754654971339,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -2608,40 +2608,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "8f21710d7d1494c711e33aceba37391650996b9c",
-          "message": "fix: wildcard type should be allowed in lambda parameter types (#9325)",
-          "timestamp": "2025-07-25T14:18:01Z",
-          "tree_id": "2061667d669fcbfcd9c0023de96752dbad588908",
-          "url": "https://github.com/noir-lang/noir/commit/8f21710d7d1494c711e33aceba37391650996b9c"
-        },
-        "date": 1753454764078,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.763,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 1.568,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -5201,6 +5167,90 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 1.586,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b7406ba8f22e15d17726849591e75eabaf2b396b",
+          "message": "chore: add link to issue on TODOs (#8307)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>\nCo-authored-by: Michael J Klein <michaeljklein@users.noreply.github.com>\nCo-authored-by: Michael J. Klein <lambdamichael@gmail.com>",
+          "timestamp": "2025-08-08T12:54:07+01:00",
+          "tree_id": "cf8ecd8272d48ebbe18f702433bb2ead4c5a7e16",
+          "url": "https://github.com/noir-lang/noir/commit/b7406ba8f22e15d17726849591e75eabaf2b396b"
+        },
+        "date": 1754654953783,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1.726,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 8.23,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.444,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 17,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 14.34,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 20.6,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 199,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 204,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.362,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.466,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.764,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 1.595,
             "unit": "s"
           }
         ]
