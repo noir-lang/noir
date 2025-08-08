@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1754598597610,
+  "lastUpdate": 1754654218268,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -14186,48 +14186,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "8f21710d7d1494c711e33aceba37391650996b9c",
-          "message": "fix: wildcard type should be allowed in lambda parameter types (#9325)",
-          "timestamp": "2025-07-25T14:18:01Z",
-          "tree_id": "2061667d669fcbfcd9c0023de96752dbad588908",
-          "url": "https://github.com/noir-lang/noir/commit/8f21710d7d1494c711e33aceba37391650996b9c"
-        },
-        "date": 1753454634074,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 253811,
-            "range": "± 955",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 229241,
-            "range": "± 3217",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2814247,
-            "range": "± 2187",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -16279,6 +16237,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2814352,
             "range": "± 2381",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b7406ba8f22e15d17726849591e75eabaf2b396b",
+          "message": "chore: add link to issue on TODOs (#8307)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>\nCo-authored-by: Michael J Klein <michaeljklein@users.noreply.github.com>\nCo-authored-by: Michael J. Klein <lambdamichael@gmail.com>",
+          "timestamp": "2025-08-08T12:54:07+01:00",
+          "tree_id": "cf8ecd8272d48ebbe18f702433bb2ead4c5a7e16",
+          "url": "https://github.com/noir-lang/noir/commit/b7406ba8f22e15d17726849591e75eabaf2b396b"
+        },
+        "date": 1754654200975,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 245561,
+            "range": "± 549",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 219826,
+            "range": "± 8246",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2788101,
+            "range": "± 7370",
             "unit": "ns/iter"
           }
         ]
