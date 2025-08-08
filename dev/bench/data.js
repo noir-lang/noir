@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1754666444159,
+  "lastUpdate": 1754666551680,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -8002,40 +8002,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "37e8b2dba771efa742a492b6cafe3cde7de63bc0",
-          "message": "fix: substitute bindings in type before canonicalization (#9328)",
-          "timestamp": "2025-07-25T18:22:41Z",
-          "tree_id": "8cb072e439cb2fd66348642cac8606e21ad872c2",
-          "url": "https://github.com/noir-lang/noir/commit/37e8b2dba771efa742a492b6cafe3cde7de63bc0"
-        },
-        "date": 1753469946904,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore_depth_10",
-            "value": 69.31,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 54.8,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "26174818+jialinli98@users.noreply.github.com",
             "name": "Jialin Li",
             "username": "jialinli98"
@@ -10445,6 +10411,80 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/8d80b281de40a7e270dcf84c2bed91fc249efde8"
         },
         "date": 1754659772745,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 205,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 241.78,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 194.2,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 498.41,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 431.05,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1500,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 326.4,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 328.81,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 69.48,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 54.97,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "163862677+noirwhal@users.noreply.github.com",
+            "name": "noirwhal",
+            "username": "noirwhal"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a24cfcc3822da1b9db40b63f88e967ead2fabd68",
+          "message": "chore: Release Noir(1.0.0-beta.10) (#9311)\n\nCo-authored-by: noirwhal <tomfrench@aztecprotocol.com>",
+          "timestamp": "2025-08-08T14:41:03Z",
+          "tree_id": "c45fb2d8d702d4a24c1faac5613afad40b107a6b",
+          "url": "https://github.com/noir-lang/noir/commit/a24cfcc3822da1b9db40b63f88e967ead2fabd68"
+        },
+        "date": 1754666534283,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
