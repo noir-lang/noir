@@ -63,17 +63,10 @@ impl CallGraph {
         let mut ids_to_indices = HashMap::default();
         let mut indices_to_ids = HashMap::default();
 
-        for dep in &dependencies {
-            let index = graph.add_node(*(dep.0));
-            ids_to_indices.insert(*(dep.0), index);
-            indices_to_ids.insert(index, *(dep.0));
-            for callee in dep.1.keys() {
-                if !ids_to_indices.contains_key(callee) {
-                    let callee_index = graph.add_node(*callee);
-                    ids_to_indices.insert(*callee, callee_index);
-                    indices_to_ids.insert(callee_index, *callee);
-                }
-            }
+        for function in dependencies.keys() {
+            let index = graph.add_node(*function);
+            ids_to_indices.insert(*function, index);
+            indices_to_ids.insert(index, *function);
         }
 
         // Create edges from caller -> called
