@@ -26,7 +26,6 @@ use super::{
         instruction::{ArrayOffset, ConstrainError, InstructionId, Intrinsic},
         types::NumericType,
     },
-    opt::pure::FunctionPurities,
     ssa_gen::Ssa,
 };
 
@@ -49,7 +48,6 @@ pub struct FunctionBuilder {
     pub simplify: bool,
 
     globals: Arc<GlobalsGraph>,
-    purities: Arc<FunctionPurities>,
 }
 
 impl FunctionBuilder {
@@ -67,7 +65,6 @@ impl FunctionBuilder {
             error_types: BTreeMap::default(),
             simplify: true,
             globals: Default::default(),
-            purities: Default::default(),
         }
     }
 
@@ -76,9 +73,7 @@ impl FunctionBuilder {
     pub fn from_existing(function: &Function, function_id: FunctionId) -> Self {
         let mut this = Self::new(function.name().to_owned(), function_id);
         this.set_globals(function.dfg.globals.clone());
-        this.purities = function.dfg.function_purities.clone();
         this.current_function.set_runtime(function.runtime());
-        this.current_function.dfg.set_function_purities(this.purities.clone());
         this
     }
 
@@ -107,11 +102,6 @@ impl FunctionBuilder {
         self.current_function.set_globals(self.globals.clone());
     }
 
-    pub fn set_purities(&mut self, purities: Arc<FunctionPurities>) {
-        self.purities = purities.clone();
-        self.current_function.dfg.set_function_purities(purities);
-    }
-
     /// Finish the current function and create a new function.
     ///
     /// A FunctionBuilder can always only work on one function at a time, so care
@@ -134,7 +124,6 @@ impl FunctionBuilder {
             self.current_function.dfg.call_stack_data.get_or_insert_locations(&call_stack);
         self.finished_functions.push(old_function);
 
-        self.current_function.dfg.set_function_purities(self.purities.clone());
         self.apply_globals();
     }
 

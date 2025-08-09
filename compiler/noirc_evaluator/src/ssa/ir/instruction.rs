@@ -10,7 +10,7 @@ use fxhash::FxHasher64;
 use iter_extended::vecmap;
 use noirc_frontend::hir_def::types::Type as HirType;
 
-use crate::ssa::opt::pure::Purity;
+use crate::ssa::opt::pure::{FunctionPurities, Purity};
 
 use super::{
     basic_block::BasicBlockId,
@@ -377,7 +377,11 @@ impl Instruction {
     }
 
     /// If true the instruction will depend on `enable_side_effects` context during acir-gen.
-    pub(crate) fn requires_acir_gen_predicate(&self, dfg: &DataFlowGraph) -> bool {
+    pub(crate) fn requires_acir_gen_predicate(
+        &self,
+        dfg: &DataFlowGraph,
+        purities: &FunctionPurities,
+    ) -> bool {
         match self {
             Instruction::Binary(binary) => binary.requires_acir_gen_predicate(dfg),
 
@@ -389,7 +393,7 @@ impl Instruction {
             Instruction::EnableSideEffectsIf { .. } | Instruction::ArraySet { .. } => true,
 
             Instruction::Call { func, .. } => match dfg[*func] {
-                Value::Function(id) => !matches!(dfg.purity_of(id), Some(Purity::Pure)),
+                Value::Function(id) => !matches!(purities.get(&id), Some(Purity::Pure)),
                 Value::Intrinsic(intrinsic) => {
                     // These utilize `noirc_evaluator::acir::Context::get_flattened_index` internally
                     // which uses the side effects predicate.
@@ -415,7 +419,11 @@ impl Instruction {
     }
 
     /// Indicates if the instruction has a side effect, ie. it can fail, or it interacts with memory.
-    pub(crate) fn has_side_effects(&self, dfg: &DataFlowGraph) -> bool {
+    pub(crate) fn has_side_effects(
+        &self,
+        dfg: &DataFlowGraph,
+        purities: &FunctionPurities,
+    ) -> bool {
         use Instruction::*;
 
         match self {
@@ -431,7 +439,7 @@ impl Instruction {
                 Value::Intrinsic(intrinsic) => intrinsic.has_side_effects(),
                 // Functions known to be pure have no side effects.
                 // `PureWithPredicates` functions may still have side effects.
-                Value::Function(function) => dfg.purity_of(function) != Some(Purity::Pure),
+                Value::Function(function) => purities.get(&function).copied() != Some(Purity::Pure),
                 _ => true, // Be conservative and assume other functions can have side effects.
             },
 

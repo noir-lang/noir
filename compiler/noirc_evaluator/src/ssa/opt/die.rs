@@ -18,7 +18,7 @@ use crate::ssa::{
         types::{NumericType, Type},
         value::{Value, ValueId},
     },
-    opt::pure::Purity,
+    opt::pure::{FunctionPurities, Purity},
     ssa_gen::Ssa,
 };
 
@@ -93,8 +93,12 @@ impl Ssa {
             .functions
             .par_iter_mut()
             .map(|(id, func)| {
-                let unused_params =
-                    func.dead_instruction_elimination(true, flattened, skip_brillig);
+                let unused_params = func.dead_instruction_elimination(
+                    true,
+                    flattened,
+                    skip_brillig,
+                    &self.function_purities,
+                );
                 let mut result = DIEResult::default();
 
                 result.unused_parameters.insert(*id, unused_params);
@@ -146,12 +150,13 @@ impl Function {
         insert_out_of_bounds_checks: bool,
         flattened: bool,
         skip_brillig: bool,
+        purities: &FunctionPurities,
     ) -> HashMap<BasicBlockId, Vec<ValueId>> {
         if skip_brillig && self.dfg.runtime().is_brillig() {
             return HashMap::default();
         }
 
-        let mut context = Context { flattened, ..Default::default() };
+        let mut context = Context::new(flattened, purities);
 
         context.mark_function_parameter_arrays_as_used(self);
 
@@ -190,7 +195,7 @@ impl Function {
         // instructions (we don't want to remove those checks, or instructions that are
         // dependencies of those checks)
         if inserted_out_of_bounds_checks {
-            return self.dead_instruction_elimination(false, flattened, skip_brillig);
+            return self.dead_instruction_elimination(false, flattened, skip_brillig, purities);
         }
 
         context.remove_rc_instructions(&mut self.dfg);
@@ -204,8 +209,8 @@ struct DIEResult {
     unused_parameters: HashMap<FunctionId, HashMap<BasicBlockId, Vec<ValueId>>>,
 }
 /// Per function context for tracking unused values and which instructions to remove.
-#[derive(Default)]
-struct Context {
+struct Context<'purities> {
+    purities: &'purities FunctionPurities,
     used_values: HashSet<ValueId>,
     instructions_to_remove: HashSet<InstructionId>,
 
@@ -234,7 +239,19 @@ struct Context {
     parameter_keep_list: HashMap<BasicBlockId, Vec<bool>>,
 }
 
-impl Context {
+impl<'purities> Context<'purities> {
+    fn new(flattened: bool, purities: &'purities FunctionPurities) -> Self {
+        Context {
+            purities,
+            flattened,
+            used_values: Default::default(),
+            instructions_to_remove: Default::default(),
+            rc_instructions: Default::default(),
+            rc_tracker: Default::default(),
+            parameter_keep_list: Default::default(),
+        }
+    }
+
     /// Steps backwards through the instruction of the given block, amassing a set of used values
     /// as it goes, and at the same time marking instructions for removal if they haven't appeared
     /// in the set thus far.
@@ -345,7 +362,7 @@ impl Context {
     fn is_unused(&self, instruction_id: InstructionId, function: &Function) -> bool {
         let instruction = &function.dfg[instruction_id];
 
-        if can_be_eliminated_if_unused(instruction, function, self.flattened) {
+        if can_be_eliminated_if_unused(instruction, function, self.flattened, self.purities) {
             let results = function.dfg.instruction_results(instruction_id);
             results.iter().all(|result| !self.used_values.contains(result))
         } else if let Instruction::Call { func, arguments } = instruction {
@@ -586,6 +603,7 @@ fn can_be_eliminated_if_unused(
     instruction: &Instruction,
     function: &Function,
     flattened: bool,
+    purities: &FunctionPurities,
 ) -> bool {
     use Instruction::*;
     match instruction {
@@ -598,7 +616,7 @@ fn can_be_eliminated_if_unused(
                 }
             } else {
                 // Checked binary operations can have different behavior depending on the predicate.
-                !instruction.requires_acir_gen_predicate(&function.dfg)
+                !instruction.requires_acir_gen_predicate(&function.dfg, purities)
             }
         }
 
@@ -641,7 +659,7 @@ fn can_be_eliminated_if_unused(
 
             // We use purity to determine whether functions contain side effects.
             // If we have an impure function, we cannot remove it even if it is unused.
-            Value::Function(function_id) => match function.dfg.purity_of(function_id) {
+            Value::Function(function_id) => match purities.get(&function_id).copied() {
                 Some(Purity::Pure) => true,
                 Some(Purity::PureWithPredicate) => false,
                 Some(Purity::Impure) => false,
