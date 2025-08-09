@@ -1,8 +1,11 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 use acir::{
     AcirField,
-    circuit::{AcirOpcodeLocation, AssertionPayload, Circuit, ExpressionWidth, OpcodeLocation},
+    circuit::{
+        AcirOpcodeLocation, AssertionPayload, Circuit, ExpressionWidth, OpcodeLocation,
+        brillig::BrilligFunctionId,
+    },
 };
 
 // The various passes that we can use over ACIR
@@ -92,13 +95,15 @@ fn transform_assert_messages<F: Clone>(
 pub fn compile<F: AcirField>(
     acir: Circuit<F>,
     expression_width: ExpressionWidth,
+    brillig_side_effects: &BTreeMap<BrilligFunctionId, bool>,
 ) -> (Circuit<F>, AcirTransformationMap) {
     let acir_opcode_positions = (0..acir.opcodes.len()).collect::<Vec<_>>();
 
-    let (acir, acir_opcode_positions) = optimize_internal(acir, acir_opcode_positions);
+    let (acir, acir_opcode_positions) =
+        optimize_internal(acir, acir_opcode_positions, brillig_side_effects);
 
     let (mut acir, acir_opcode_positions) =
-        transform_internal(acir, expression_width, acir_opcode_positions);
+        transform_internal(acir, expression_width, acir_opcode_positions, brillig_side_effects);
 
     let transformation_map = AcirTransformationMap::new(&acir_opcode_positions);
     acir.assert_messages = transform_assert_messages(acir.assert_messages, &transformation_map);
