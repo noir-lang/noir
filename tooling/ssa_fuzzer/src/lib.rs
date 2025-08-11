@@ -348,7 +348,7 @@ mod tests {
 
     #[test]
     fn regression_cast_without_truncate() {
-        let mut acir_builder = FuzzerBuilder::new_acir(true);
+        let mut acir_builder = FuzzerBuilder::new_acir(/*simplifying_enabled=*/true);
         let mut brillig_builder = FuzzerBuilder::new_brillig(true);
 
         let field_var_acir_id_1 =
