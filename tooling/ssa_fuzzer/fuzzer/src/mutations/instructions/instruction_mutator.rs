@@ -117,7 +117,7 @@ impl InstructionMutator for InstructionArgumentsMutation {
                     }
                 }
             }
-            Instruction::ArraySet { array_index, index, value_index, mutable, safe_index } => {
+            Instruction::ArraySet { array_index, index, value_index, safe_index } => {
                 match BASIC_ARRAY_SET_MUTATION_CONFIGURATION.select(rng) {
                     ArraySetMutationOptions::ArrayIndex => {
                         mutate_usize(array_index, rng, BASIC_USIZE_MUTATION_CONFIGURATION);
@@ -127,9 +127,6 @@ impl InstructionMutator for InstructionArgumentsMutation {
                     }
                     ArraySetMutationOptions::ValueIndex => {
                         mutate_usize(value_index, rng, BASIC_USIZE_MUTATION_CONFIGURATION);
-                    }
-                    ArraySetMutationOptions::Mutable => {
-                        mutate_bool(mutable, rng, BASIC_BOOL_MUTATION_CONFIGURATION);
                     }
                     ArraySetMutationOptions::SafeIndex => {
                         mutate_bool(safe_index, rng, BASIC_SAFE_INDEX_MUTATION_CONFIGURATION);
@@ -177,7 +174,6 @@ impl InstructionMutator for InstructionArgumentsMutation {
                 array_index,
                 index,
                 value_index,
-                mutable,
                 safe_index,
             } => match BASIC_ARRAY_SET_MUTATION_CONFIGURATION.select(rng) {
                 ArraySetMutationOptions::ArrayIndex => {
@@ -188,9 +184,6 @@ impl InstructionMutator for InstructionArgumentsMutation {
                 }
                 ArraySetMutationOptions::ValueIndex => {
                     mutate_usize(value_index, rng, BASIC_USIZE_MUTATION_CONFIGURATION);
-                }
-                ArraySetMutationOptions::Mutable => {
-                    mutate_bool(mutable, rng, BASIC_BOOL_MUTATION_CONFIGURATION);
                 }
                 ArraySetMutationOptions::SafeIndex => {
                     mutate_bool(safe_index, rng, BASIC_SAFE_INDEX_MUTATION_CONFIGURATION);
