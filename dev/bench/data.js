@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1754923004093,
+  "lastUpdate": 1754923101264,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -2958,40 +2958,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "21faf9648560b0f5943304833c44a2c5687f0d48",
-          "message": "fix: prevent invalid types in test/fuzz functions (#9343)",
-          "timestamp": "2025-07-28T18:28:59Z",
-          "tree_id": "ef7189439234db8ed7db1c85d780cadb13130988",
-          "url": "https://github.com/noir-lang/noir/commit/21faf9648560b0f5943304833c44a2c5687f0d48"
-        },
-        "date": 1753729000913,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.771,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 1.625,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -5901,6 +5867,90 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 1.661,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ab345b2f5a239e200ae6c3a6792f3bdcef540bcf",
+          "message": "feat(fuzz): Push and pop for slices (#9262)",
+          "timestamp": "2025-08-11T13:56:51Z",
+          "tree_id": "12bfd73fce42e88c77284194338bcce5ce31ce95",
+          "url": "https://github.com/noir-lang/noir/commit/ab345b2f5a239e200ae6c3a6792f3bdcef540bcf"
+        },
+        "date": 1754923083229,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1.826,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 7.948,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.314,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 16.24,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 13.84,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 22.98,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 207,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 197,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.482,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.716,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.81,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 1.606,
             "unit": "s"
           }
         ]
