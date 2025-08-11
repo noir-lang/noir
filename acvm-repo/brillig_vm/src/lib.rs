@@ -525,11 +525,50 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                     // resolved inputs back to the caller. Once the caller pushes to `foreign_call_results`,
                     // they can then make another call to the VM that starts at this opcode
                     // but has the necessary results to proceed with execution.
+
+                    // With slices we might have more items in the HeapVector than the semantic length
+                    // indicated by the field preceding the pointer to the vector in the inputs.
+                    // This happens when SSA merges slices of different length, which can result in
+                    // a vector that has room for the longer of the two, partially filled with items
+                    // from the shorter. There are ways to deal with this on the receiver side,
+                    // but it is cumbersome, and the cleanest solution is not to send the extra empty
+                    // items at all. To do this, however, we need infer which input is the vector length.
+                    let mut vector_length: Option<usize> = None;
+
                     let resolved_inputs = inputs
                         .iter()
                         .zip(input_value_types)
-                        .map(|(input, input_type)| self.get_memory_values(*input, input_type))
+                        .map(|(input, input_type)| {
+                            let mut input = self.get_memory_values(*input, input_type);
+                            // Truncate slices to their semantic length, which we remember from the preceding field.
+                            match input_type {
+                                HeapValueType::Simple(BitSize::Integer(IntegerBitSize::U32)) => {
+                                    // If we have a single u32 we may have a slice representation, so store this input.
+                                    // On the next iteration, if we have a vector then we know we have the dynamic length
+                                    // for that slice.
+                                    let ForeignCallParam::Single(length) = input else {
+                                        unreachable!("expected u32; got {input:?}");
+                                    };
+                                    vector_length = Some(length.to_u128() as usize);
+                                }
+                                HeapValueType::Vector { value_types } => {
+                                    if let Some(length) = vector_length {
+                                        let type_size = vector_element_size(value_types);
+                                        let mut fields = input.fields();
+                                        fields.truncate(length * type_size);
+                                        input = ForeignCallParam::Array(fields);
+                                    }
+                                    vector_length = None;
+                                }
+                                _ => {
+                                    // Otherwise we are not dealing with a u32 followed by a vector.
+                                    vector_length = None;
+                                }
+                            }
+                            input
+                        })
                         .collect::<Vec<_>>();
+
                     return self.wait_for_foreign_call(function.clone(), resolved_inputs);
                 }
 
@@ -654,6 +693,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
         self.status.clone()
     }
 
+    /// Get input data from memory to pass to foreign calls.
     fn get_memory_values(
         &self,
         input: ValueOrArray,
@@ -710,11 +750,15 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                 0 == size % value_types.len(),
                 "array/vector does not contain a whole number of elements"
             );
+
+            // We want to send vectors to foreign functions truncated to their semantic length.
+            let mut vector_length: Option<usize> = None;
+
             (0..size)
                 .zip(value_types.iter().cycle())
-                .flat_map(|(i, value_type)| {
+                .map(|(i, value_type)| {
                     let value_address = start.offset(i);
-                    match value_type {
+                    let values = match value_type {
                         HeapValueType::Simple(_) => {
                             vec![self.memory.read(value_address)]
                         }
@@ -739,7 +783,27 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                                 value_types,
                             )
                         }
+                    };
+                    (value_type, values)
+                })
+                .flat_map(|(value_type, mut values)| {
+                    match value_type {
+                        HeapValueType::Simple(BitSize::Integer(IntegerBitSize::U32)) => {
+                            vector_length = Some(values[0].to_usize());
+                        }
+                        HeapValueType::Vector { value_types } => {
+                            if let Some(length) = vector_length {
+                                let type_size = vector_element_size(value_types);
+                                values.truncate(length * type_size);
+                            }
+                            vector_length = None;
+                        }
+                        _ => {
+                            // Otherwise we are not dealing with a u32 followed by a vector.
+                            vector_length = None;
+                        }
                     }
+                    values
                 })
                 .collect::<Vec<_>>()
         }
@@ -1093,6 +1157,19 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
         self.memory.write(destination, negated_value);
         Ok(())
     }
+}
+
+/// Returns the total number of field elements required to represent the elements in the vector in memory.
+///
+/// Panics if the vector contains nested vectors. Such types are not supported and are rejected by the frontend.
+fn vector_element_size(value_types: &[HeapValueType]) -> usize {
+    value_types
+        .iter()
+        .map(|typ| {
+            typ.flattened_size()
+                .unwrap_or_else(|| panic!("unexpected nested dynamic element type: {typ:?}"))
+        })
+        .sum()
 }
 
 #[cfg(test)]
