@@ -146,7 +146,7 @@ impl<'a, F: AcirField> RangeOptimizer<'a, F> {
                             *memory_block_lengths_bit_size
                                 .get(block_id)
                                 .expect("memory must be initialized before any reads/writes"),
-                            false,
+                            true,
                         )
                     })
                 }
@@ -243,9 +243,11 @@ impl<'a, F: AcirField> RangeOptimizer<'a, F> {
     }
 }
 
+/// Calculate the maximum number of bits required to index a memory block of a certain size.
 fn memory_block_implied_max_bits(init: &[Witness]) -> u32 {
     let array_len = init.len() as u32;
-    32 - array_len.leading_zeros()
+    let max_index = array_len.saturating_sub(1);
+    32 - max_index.leading_zeros()
 }
 
 #[cfg(test)]
@@ -268,11 +270,11 @@ mod tests {
     #[test]
     fn correctly_calculates_memory_block_implied_max_bits() {
         assert_eq!(memory_block_implied_max_bits(&[]), 0);
-        assert_eq!(memory_block_implied_max_bits(&[Witness(0); 1]), 1);
-        assert_eq!(memory_block_implied_max_bits(&[Witness(0); 2]), 2);
+        assert_eq!(memory_block_implied_max_bits(&[Witness(0); 1]), 0);
+        assert_eq!(memory_block_implied_max_bits(&[Witness(0); 2]), 1);
         assert_eq!(memory_block_implied_max_bits(&[Witness(0); 3]), 2);
-        assert_eq!(memory_block_implied_max_bits(&[Witness(0); 4]), 3);
-        assert_eq!(memory_block_implied_max_bits(&[Witness(0); 8]), 4);
+        assert_eq!(memory_block_implied_max_bits(&[Witness(0); 4]), 2);
+        assert_eq!(memory_block_implied_max_bits(&[Witness(0); 8]), 3);
         assert_eq!(memory_block_implied_max_bits(&[Witness(0); u8::MAX as usize]), 8);
         assert_eq!(memory_block_implied_max_bits(&[Witness(0); u16::MAX as usize]), 16);
     }
