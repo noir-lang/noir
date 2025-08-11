@@ -43,7 +43,7 @@ use crate::{
 };
 
 use super::errors::{IResult, InterpreterError};
-use super::value::{Closure, Value, unwrap_rc};
+use super::value::{Closure, StructFields, Value, unwrap_rc};
 
 mod builtin;
 mod cast;
@@ -532,8 +532,8 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     /// This will automatically dereference a mutable variable if used.
     pub fn evaluate(&mut self, id: ExprId) -> IResult<Value> {
         match self.evaluate_no_dereference(id)? {
-            Value::Pointer(elem, true, _) => Ok(elem.borrow().clone()),
-            other => Ok(other),
+            Value::Pointer(elem, true, _) => Ok(elem.unwrap_or_clone().move_struct()),
+            other => Ok(other.move_struct()),
         }
     }
 
@@ -645,12 +645,11 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                     unreachable!("Expected associated type to be numeric");
                 };
                 let location = self.elaborator.interner.expr_location(&id);
-                match associated_type.typ.evaluate_to_field_element(
-                    &associated_type.typ.kind(),
-                    &TypeBindings::default(),
-                    location,
-                ) {
-                    Ok(value) => self.evaluate_integer(value.into(), id),
+                match associated_type
+                    .typ
+                    .evaluate_to_signed_field(&associated_type.typ.kind(), location)
+                {
+                    Ok(value) => self.evaluate_integer(value, id),
                     Err(err) => Err(InterpreterError::NonIntegerArrayLength {
                         typ: associated_type.typ.clone(),
                         err: Some(Box::new(err)),
@@ -666,11 +665,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     fn evaluate_numeric_generic(&self, value: Type, expected: &Type, id: ExprId) -> IResult<Value> {
         let location = self.elaborator.interner.id_location(id);
         let value = value
-            .evaluate_to_field_element(
-                &Kind::Numeric(Box::new(expected.clone())),
-                &TypeBindings::default(),
-                location,
-            )
+            .evaluate_to_signed_field(&Kind::Numeric(Box::new(expected.clone())), location)
             .map_err(|err| {
                 let typ = value;
                 let err = Some(Box::new(err));
@@ -678,7 +673,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
                 InterpreterError::NonIntegerArrayLength { typ, err, location }
             })?;
 
-        self.evaluate_integer(value.into(), id)
+        self.evaluate_integer(value, id)
     }
 
     fn evaluate_trait_item(&mut self, item: TraitItem, id: ExprId) -> IResult<Value> {
@@ -831,6 +826,10 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
             _ => self.evaluate(prefix.rhs)?,
         };
 
+        if prefix.skip {
+            return Ok(rhs);
+        }
+
         if self.elaborator.interner.get_selected_impl_for_expression(id).is_some() {
             self.evaluate_overloaded_prefix(prefix, rhs, id)
         } else {
@@ -930,13 +929,13 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     }
 
     fn evaluate_index(&mut self, index: HirIndexExpression, id: ExprId) -> IResult<Value> {
+        let idx = self.evaluate(index.index)?;
         let array = self.evaluate(index.collection)?;
-        let index = self.evaluate(index.index)?;
 
         let location = self.elaborator.interner.expr_location(&id);
-        let (array, index) = bounds_check(array, index, location)?;
+        let (array, idx) = bounds_check(array, idx, location)?;
 
-        Ok(array[index].clone())
+        Ok(array[idx].clone())
     }
 
     fn evaluate_constructor(
@@ -968,26 +967,9 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
     }
 
     fn evaluate_access(&mut self, access: HirMemberAccess, id: ExprId) -> IResult<Value> {
-        let (fields, struct_type) = match self.evaluate(access.lhs)? {
-            Value::Struct(fields, typ) => (fields, typ),
-            Value::Tuple(fields) => {
-                let (fields, field_types): (HashMap<Rc<String>, Shared<Value>>, Vec<Type>) = fields
-                    .into_iter()
-                    .enumerate()
-                    .map(|(i, field)| {
-                        let field_type = field.borrow().get_type().into_owned();
-                        let key_val_pair = (Rc::new(i.to_string()), field);
-                        (key_val_pair, field_type)
-                    })
-                    .unzip();
-                (fields, Type::Tuple(field_types))
-            }
-            value => {
-                let location = self.elaborator.interner.expr_location(&id);
-                let typ = value.get_type().into_owned();
-                return Err(InterpreterError::NonTupleOrStructInMemberAccess { typ, location });
-            }
-        };
+        let lhs = self.evaluate_no_dereference(access.lhs)?;
+        let is_offset = access.is_offset && lhs.get_type().is_ref();
+        let (fields, struct_type) = self.get_fields(lhs, id)?;
 
         let field = fields.get(access.rhs.as_string()).cloned().ok_or_else(|| {
             let location = self.elaborator.interner.expr_location(&id);
@@ -999,15 +981,42 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
 
         // Return a reference to the field so that `&mut foo.bar.baz` can use this reference.
         // We set auto_deref to true so that when it is used elsewhere it is dereferenced
-        // automatically.
-        Ok(Value::Pointer(field, true, false))
+        // automatically. In some cases in the frontend the leading `&mut` will cancel out
+        // with a field access which is expected to only offset into the struct and thus return
+        // a reference already. In this case we set auto_deref to false because the outer `&mut`
+        // will also be removed in that case so the pointer should be explicit.
+        let auto_deref = !is_offset;
+        Ok(Value::Pointer(field, auto_deref, false))
+    }
+
+    fn get_fields(&mut self, value: Value, id: ExprId) -> IResult<(StructFields, Type)> {
+        match value {
+            Value::Struct(fields, typ) => Ok((fields, typ)),
+            Value::Tuple(fields) => {
+                let (fields, field_types) = fields
+                    .into_iter()
+                    .enumerate()
+                    .map(|(i, field)| {
+                        let field_type = field.borrow().get_type().into_owned();
+                        let key_val_pair = (Rc::new(i.to_string()), field);
+                        (key_val_pair, field_type)
+                    })
+                    .unzip();
+                Ok((fields, Type::Tuple(field_types)))
+            }
+            Value::Pointer(element, ..) => self.get_fields(element.unwrap_or_clone(), id),
+            value => {
+                let location = self.elaborator.interner.expr_location(&id);
+                let typ = value.get_type().into_owned();
+                Err(InterpreterError::NonTupleOrStructInMemberAccess { typ, location })
+            }
+        }
     }
 
     fn evaluate_call(&mut self, call: HirCallExpression, id: ExprId) -> IResult<Value> {
         let function = self.evaluate(call.func)?;
         let arguments = try_vecmap(call.arguments, |arg| {
-            let value = self.evaluate(arg)?.copy();
-            Ok((value, self.elaborator.interner.expr_location(&arg)))
+            Ok((self.evaluate(arg)?, self.elaborator.interner.expr_location(&arg)))
         })?;
         let location = self.elaborator.interner.expr_location(&id);
 
@@ -1623,7 +1632,6 @@ fn bounds_check(array: Value, index: Value, location: Location) -> IResult<(Vect
             let u64: Option<u64> = value.try_to_unsigned();
             u64.and_then(|value| value.try_into().ok()).ok_or_else(|| {
                 let typ = Type::default_int_type();
-                let value = SignedField::positive(value);
                 InterpreterError::IntegerOutOfRangeForType { value, typ, location }
             })?
         }

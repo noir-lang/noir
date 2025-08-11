@@ -364,6 +364,7 @@ pub fn unary(op: UnaryOp, rhs: Expression, tgt_type: Type) -> Expression {
         rhs: Box::new(rhs),
         result_type: tgt_type,
         location: Location::dummy(),
+        skip: false,
     })
 }
 

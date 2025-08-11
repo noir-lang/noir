@@ -283,6 +283,11 @@ pub struct Unary {
     pub rhs: Box<Expression>,
     pub result_type: Type,
     pub location: Location,
+
+    /// Carried over from `HirPrefixExpression::skip`. This also flags whether we should directly
+    /// return `rhs` and skip performing this operation. Compared to replacing this node with rhs
+    /// directly, keeping this flag keeps `--show-monomorphized` output the same.
+    pub skip: bool,
 }
 
 pub type BinaryOp = BinaryOpKind;
@@ -384,9 +389,22 @@ pub struct BinaryStatement {
 #[derive(Debug, Clone, Hash)]
 pub enum LValue {
     Ident(Ident),
-    Index { array: Box<LValue>, index: Box<Expression>, element_type: Type, location: Location },
-    MemberAccess { object: Box<LValue>, field_index: usize },
-    Dereference { reference: Box<LValue>, element_type: Type },
+    Index {
+        array: Box<LValue>,
+        index: Box<Expression>,
+        element_type: Type,
+        location: Location,
+    },
+    MemberAccess {
+        object: Box<LValue>,
+        field_index: usize,
+    },
+    Dereference {
+        reference: Box<LValue>,
+        element_type: Type,
+    },
+    /// Analogous to Expression::Clone. Clone the resulting lvalue after evaluating it.
+    Clone(Box<LValue>),
 }
 
 pub type Parameters =

@@ -1,0 +1,32 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+trait Foo {
+    fn foo(self) -> Self;
+}
+
+impl Foo for Field {
+    fn foo(self) -> Self {
+        self
+    }
+}
+
+trait Baz: Foo {
+
+}
+
+impl<#T> Baz for #T where #T: Foo {
+
+}
+
+fn baz<T>(x: T) -> T where T: Baz {
+    x.foo()
+}
+
+fn main() {
+    let x: Field = 0_Field;
+    let _: Field = baz(x);
+}
+
+// Warning: the generated code has syntax errors

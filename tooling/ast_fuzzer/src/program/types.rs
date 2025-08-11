@@ -1,12 +1,12 @@
 use std::collections::HashSet;
 
-use acir::FieldElement;
 use iter_extended::vecmap;
 use noirc_frontend::{
     ast::{BinaryOpKind, IntegerBitSize},
     hir_def,
     monomorphization::ast::{BinaryOp, Type},
     shared::Signedness,
+    signed_field::SignedField,
 };
 use strum::IntoEnumIterator as _;
 
@@ -143,7 +143,7 @@ pub fn to_hir_type(typ: &Type) -> hir_def::types::Type {
     // Meet the expectations of `Type::evaluate_to_u32`.
     let size_const = |size: u32| {
         Box::new(HirType::Constant(
-            FieldElement::from(size),
+            SignedField::from(size),
             HirKind::Numeric(Box::new(HirType::Integer(
                 Signedness::Unsigned,
                 IntegerBitSize::ThirtyTwo,

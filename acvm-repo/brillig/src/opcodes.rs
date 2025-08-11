@@ -85,21 +85,22 @@ impl HeapValueType {
         HeapValueType::Simple(BitSize::Field)
     }
 
-    /// Returns the total number of field elements required to represent this type in memory
-    pub fn flattened_size(&self) -> usize {
+    /// Returns the total number of field elements required to represent this type in memory.
+    ///
+    /// Returns `None` for `Vector`, as their size is not statically known.
+    pub fn flattened_size(&self) -> Option<usize> {
         match self {
-            HeapValueType::Simple(_) => 1,
-
+            HeapValueType::Simple(_) => Some(1),
             HeapValueType::Array { value_types, size } => {
-                // Recursively compute the flattened size of all value types
-                let element_size: usize = value_types.iter().map(|ty| ty.flattened_size()).sum();
+                let element_size =
+                    value_types.iter().map(|t| t.flattened_size()).sum::<Option<usize>>();
 
-                element_size * size
+                // Multiply element size by number of elements.
+                element_size.map(|element_size| element_size * size)
             }
-
-            // The size of a vector is stored separately and should be handled by the caller of this method
-            HeapValueType::Vector { value_types } => {
-                value_types.iter().map(|ty| ty.flattened_size()).sum()
+            HeapValueType::Vector { .. } => {
+                // Vectors are dynamic, so we cannot determine their size statically.
+                None
             }
         }
     }

@@ -372,7 +372,12 @@ impl FunctionContext<'_> {
                 ))
             }
             UnaryOp::Reference { mutable: _ } => {
-                Ok(self.codegen_reference(&unary.rhs)?.map(|rhs| {
+                let rhs = self.codegen_reference(&unary.rhs)?;
+                // If skip is set then `rhs` is a member access expression which is already a reference
+                if unary.skip {
+                    return Ok(rhs);
+                }
+                Ok(rhs.map(|rhs| {
                     match rhs {
                         value::Value::Normal(value) => {
                             let rhs_type = self.builder.current_function.dfg.type_of_value(value);
@@ -419,8 +424,10 @@ impl FunctionContext<'_> {
     }
 
     fn codegen_index(&mut self, index: &ast::Index) -> Result<Values, RuntimeError> {
-        let array_or_slice = self.codegen_expression(&index.collection)?.into_value_list(self);
+        // Generate the index value first, it might modify the collection itself.
         let index_value = self.codegen_non_tuple_expression(&index.index)?;
+        // The code for the collection will load it if it's mutable. It must be after the index to see any modifications.
+        let array_or_slice = self.codegen_expression(&index.collection)?.into_value_list(self);
         // Slices are represented as a tuple in the form: (length, slice contents).
         // Thus, slices require two value ids for their representation.
         let (array, slice_length) = if array_or_slice.len() > 1 {
@@ -1073,6 +1080,17 @@ impl FunctionContext<'_> {
                 }
                 Intrinsic::SliceRemove => {
                     self.codegen_access_check(arguments[2], arguments[0]);
+                }
+                Intrinsic::SlicePopFront | Intrinsic::SlicePopBack => {
+                    // If the slice was empty, ACIR would fail appropriately as we check memory block sizes,
+                    // but for Brillig we need to lay down an explicit check. By doing this in the SSA we
+                    // might be able to optimize this away later.
+                    if self.builder.current_function.runtime().is_brillig() {
+                        let zero = self
+                            .builder
+                            .numeric_constant(0u32, NumericType::Unsigned { bit_size: 32 });
+                        self.codegen_access_check(zero, arguments[0]);
+                    }
                 }
                 _ => {
                     // Do nothing as the other intrinsics do not require checks
