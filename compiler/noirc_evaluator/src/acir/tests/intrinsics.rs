@@ -43,7 +43,7 @@ fn slice_push_front_not_affected_by_predicate() {
 }
 
 #[test]
-fn slice_pop_back_not_affected_by_predicate() {
+fn slice_pop_back_affected_by_predicate() {
     let func_with_pred = &get_slice_intrinsic_acir(
         "v9, v10, v11, v12",
         &Intrinsic::SlicePopBack.to_string(),
@@ -57,11 +57,11 @@ fn slice_pop_back_not_affected_by_predicate() {
         false,
     )[0];
     assert_eq!(func_with_pred.current_witness_index(), func_no_pred.current_witness_index());
-    assert_eq!(func_with_pred.opcodes(), func_no_pred.opcodes());
+    assert_ne!(func_with_pred.opcodes(), func_no_pred.opcodes());
 }
 
 #[test]
-fn slice_pop_front_not_affected_by_predicate() {
+fn slice_pop_front_affected_by_predicate() {
     let func_with_pred = &get_slice_intrinsic_acir(
         "v9, v10, v11, v12",
         &Intrinsic::SlicePopFront.to_string(),
@@ -75,7 +75,7 @@ fn slice_pop_front_not_affected_by_predicate() {
         false,
     )[0];
     assert_eq!(func_with_pred.current_witness_index(), func_no_pred.current_witness_index());
-    assert_eq!(func_with_pred.opcodes(), func_no_pred.opcodes());
+    assert_ne!(func_with_pred.opcodes(), func_no_pred.opcodes());
 }
 
 #[test]
