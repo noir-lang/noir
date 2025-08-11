@@ -2,4 +2,4 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stdout
 ---
-[conditional_regression_547] Circuit output: Field(1)
+[conditional_regression_547] Circuit output: 0x01

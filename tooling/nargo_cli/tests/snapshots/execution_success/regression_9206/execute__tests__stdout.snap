@@ -2,4 +2,4 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stdout
 ---
-[regression_9206] Circuit output: Field(0)
+[regression_9206] Circuit output: 0

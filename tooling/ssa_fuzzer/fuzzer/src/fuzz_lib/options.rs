@@ -20,6 +20,9 @@ pub(crate) struct InstructionOptions {
     pub(crate) load_enabled: bool,
     pub(crate) store_enabled: bool,
     pub(crate) alloc_enabled: bool,
+    pub(crate) create_array_enabled: bool,
+    pub(crate) array_get_enabled: bool,
+    pub(crate) array_set_enabled: bool,
 }
 
 impl Default for InstructionOptions {
@@ -42,6 +45,9 @@ impl Default for InstructionOptions {
             load_enabled: true,
             store_enabled: true,
             alloc_enabled: true,
+            create_array_enabled: true,
+            array_get_enabled: true,
+            array_set_enabled: true,
         }
     }
 }
@@ -93,6 +99,7 @@ pub(crate) struct FuzzerCommandOptions {
     pub(crate) jmp_block_enabled: bool,
     /// If false, we don't switch to the next block
     pub(crate) switch_to_next_block_enabled: bool,
+    /// If false, we don't insert loops
     pub(crate) loops_enabled: bool,
 }
 
@@ -107,29 +114,42 @@ impl Default for FuzzerCommandOptions {
     }
 }
 
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub(crate) enum FuzzerMode {
+    /// Standard mode
+    NonConstant,
+    /// Every argument of the program changed to its value (for constant folding)
+    #[allow(dead_code)]
+    Constant,
+    /// Standard mode with idempotent operations (e.g. res = a + b - b)
+    #[allow(dead_code)]
+    NonConstantWithIdempotentMorphing,
+    /// Standard mode without DIE SSA passes
+    #[allow(dead_code)]
+    NonConstantWithoutDIE,
+}
+
 #[derive(Clone)]
 pub(crate) struct FuzzerOptions {
-    pub(crate) constrain_idempotent_morphing_enabled: bool,
-    pub(crate) constant_execution_enabled: bool,
     pub(crate) compile_options: CompileOptions,
     pub(crate) max_ssa_blocks_num: usize,
     pub(crate) max_instructions_num: usize,
     pub(crate) max_iterations_num: usize,
     pub(crate) instruction_options: InstructionOptions,
     pub(crate) fuzzer_command_options: FuzzerCommandOptions,
+    pub(crate) modes: Vec<FuzzerMode>,
 }
 
 impl Default for FuzzerOptions {
     fn default() -> Self {
         Self {
-            constrain_idempotent_morphing_enabled: false,
-            constant_execution_enabled: false,
-            compile_options: CompileOptions { show_ssa: false, ..Default::default() },
+            compile_options: CompileOptions { show_ssa: true, ..Default::default() },
             max_ssa_blocks_num: 100,
             max_instructions_num: 1000,
             max_iterations_num: 1000,
             instruction_options: InstructionOptions::default(),
             fuzzer_command_options: FuzzerCommandOptions::default(),
+            modes: vec![FuzzerMode::NonConstant],
         }
     }
 }

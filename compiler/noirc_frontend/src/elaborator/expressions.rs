@@ -1,4 +1,3 @@
-use acvm::{AcirField, FieldElement};
 use iter_extended::vecmap;
 use noirc_errors::{Located, Location};
 use rustc_hash::FxHashSet as HashSet;
@@ -36,6 +35,7 @@ use crate::{
         DefinitionId, DefinitionKind, ExprId, FuncId, InternedStatementKind, StmtId, TraitItemId,
     },
     shared::Signedness,
+    signed_field::SignedField,
     token::{FmtStrFragment, IntegerTypeSuffix, Tokens},
 };
 
@@ -353,7 +353,7 @@ impl Elaborator<'_> {
                 let length = UnresolvedTypeExpression::from_expr(*length, location).unwrap_or_else(
                     |error| {
                         self.push_err(ResolverError::ParserError(Box::new(error)));
-                        UnresolvedTypeExpression::Constant(FieldElement::zero(), None, location)
+                        UnresolvedTypeExpression::Constant(SignedField::zero(), None, location)
                     },
                 );
 
