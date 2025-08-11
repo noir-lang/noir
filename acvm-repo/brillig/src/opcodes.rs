@@ -85,6 +85,9 @@ impl HeapValueType {
         HeapValueType::Simple(BitSize::Field)
     }
 
+    /// Returns the total number of field elements required to represent this type in memory.
+    ///
+    /// Returns `None` for `Vector`, as their size is not statically known.
     pub fn flattened_size(&self) -> Option<usize> {
         match self {
             HeapValueType::Simple(_) => Some(1),

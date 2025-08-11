@@ -1,3 +1,4 @@
+mod basic_types;
 mod configuration;
 mod functions;
 mod instructions;
