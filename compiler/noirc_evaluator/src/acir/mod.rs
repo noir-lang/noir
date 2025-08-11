@@ -1401,8 +1401,12 @@ impl<'a> Context<'a> {
 
                 let mut popped_elements = Vec::new();
                 for res in &result_ids[2..] {
-                    let elem =
-                        self.array_get_value(&dfg.type_of_value(*res), block_id, &mut var_index)?;
+                    let elem = self.array_get_value(
+                        &dfg.type_of_value(*res),
+                        block_id,
+                        &mut var_index,
+                        true,
+                    )?;
                     popped_elements.push(elem);
                 }
 
@@ -1443,8 +1447,12 @@ impl<'a> Context<'a> {
                 // In the case of non-nested slice the logic is simple as we do not
                 // need to account for the internal slice sizes or flattening the index.
                 for res in &result_ids[..element_size] {
-                    let element =
-                        self.array_get_value(&dfg.type_of_value(*res), block_id, &mut var_index)?;
+                    let element = self.array_get_value(
+                        &dfg.type_of_value(*res),
+                        block_id,
+                        &mut var_index,
+                        true,
+                    )?;
                     let elem_size = arrays::flattened_value_size(&element);
                     popped_elements_size += elem_size;
                     popped_elements.push(element);
@@ -1543,8 +1551,11 @@ impl<'a> Context<'a> {
                         self.acir_context.add_var(use_shifted_index_pred, use_current_index_pred)?
                     };
 
-                    let value_shifted_index =
-                        self.acir_context.read_from_memory(block_id, &shifted_index)?;
+                    let value_shifted_index = self.acir_context.read_from_memory(
+                        block_id,
+                        &shifted_index,
+                        Some(self.current_side_effects_enabled_var),
+                    )?;
 
                     // Final predicate to determine whether we are within the insertion bounds
                     let should_insert_value_pred =
@@ -1565,6 +1576,7 @@ impl<'a> Context<'a> {
                         result_block_id,
                         &current_index,
                         &new_value,
+                        Some(self.current_side_effects_enabled_var),
                     )?;
 
                     current_insert_index += 1;
@@ -1645,8 +1657,12 @@ impl<'a> Context<'a> {
                 // the index internally.
                 let mut temp_index = flat_user_index;
                 for res in &result_ids[2..(2 + element_size)] {
-                    let element =
-                        self.array_get_value(&dfg.type_of_value(*res), block_id, &mut temp_index)?;
+                    let element = self.array_get_value(
+                        &dfg.type_of_value(*res),
+                        block_id,
+                        &mut temp_index,
+                        true,
+                    )?;
                     let elem_size = arrays::flattened_value_size(&element);
                     popped_elements_size += elem_size;
                     popped_elements.push(element);
@@ -1673,8 +1689,11 @@ impl<'a> Context<'a> {
                         let shifted_index =
                             self.acir_context.add_constant(i + popped_elements_size);
 
-                        let value_shifted_index =
-                            self.acir_context.read_from_memory(block_id, &shifted_index)?;
+                        let value_shifted_index = self.acir_context.read_from_memory(
+                            block_id,
+                            &shifted_index,
+                            Some(self.current_side_effects_enabled_var),
+                        )?;
 
                         let use_shifted_value = self.acir_context.more_than_eq_var(
                             current_index,
@@ -1695,6 +1714,7 @@ impl<'a> Context<'a> {
                             result_block_id,
                             &current_index,
                             &new_value,
+                            Some(self.current_side_effects_enabled_var),
                         )?;
                     };
                 }

@@ -185,7 +185,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
                     // We generate witnesses corresponding to the array values
                     let index_var = self.add_constant(i);
 
-                    let value_read_var = self.read_from_memory(block_id, &index_var)?;
+                    let value_read_var = self.read_from_memory(block_id, &index_var, None)?;
                     let value_read = AcirValue::Var(value_read_var, AcirType::field());
 
                     self.brillig_array_input(var_expressions, value_read)?;

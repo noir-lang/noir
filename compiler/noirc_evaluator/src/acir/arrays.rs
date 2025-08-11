@@ -300,7 +300,7 @@ impl Context<'_> {
                 let mut dummy_predicate_index = predicate_index;
                 // We must setup the dummy value to match the type of the value we wish to store
                 let dummy =
-                    self.array_get_value(&store_type, block_id, &mut dummy_predicate_index)?;
+                    self.array_get_value(&store_type, block_id, &mut dummy_predicate_index, false)?;
 
                 Some(self.convert_array_set_store_value(&store_value, &dummy)?)
             }
@@ -368,7 +368,7 @@ impl Context<'_> {
                 let values = try_vecmap(0..*len, |i| {
                     let index_var = self.acir_context.add_constant(i);
 
-                    let read = self.acir_context.read_from_memory(*block_id, &index_var)?;
+                    let read = self.acir_context.read_from_memory(*block_id, &index_var, None)?;
                     Ok::<AcirValue, RuntimeError>(AcirValue::Var(read, AcirType::field()))
                 })?;
 
@@ -396,7 +396,7 @@ impl Context<'_> {
         typ: &Type,
     ) -> Result<AcirValue, RuntimeError> {
         match typ {
-            Type::Numeric(_) => self.array_get_value(typ, call_data_block, offset),
+            Type::Numeric(_) => self.array_get_value(typ, call_data_block, offset, false),
             Type::Array(arc, len) => {
                 let mut result = im::Vector::new();
                 for _i in 0..*len {
@@ -440,7 +440,7 @@ impl Context<'_> {
                 !res_typ.contains_slice_element(),
                 "ICE: Nested slice result found during ACIR generation"
             );
-            self.array_get_value(&res_typ, block_id, &mut var_index)?
+            self.array_get_value(&res_typ, block_id, &mut var_index, false)?
         };
 
         if let AcirValue::Var(value_var, typ) = &value {
@@ -474,12 +474,17 @@ impl Context<'_> {
         ssa_type: &Type,
         block_id: BlockId,
         var_index: &mut AcirVar,
+        use_predicate: bool,
     ) -> Result<AcirValue, RuntimeError> {
         let one = self.acir_context.add_constant(FieldElement::one());
         match ssa_type.clone() {
             Type::Numeric(numeric_type) => {
                 // Read the value from the array at the specified index
-                let read = self.acir_context.read_from_memory(block_id, var_index)?;
+                let read = self.acir_context.read_from_memory(
+                    block_id,
+                    var_index,
+                    use_predicate.then_some(self.current_side_effects_enabled_var),
+                )?;
 
                 // Increment the var_index in case of a nested array
                 *var_index = self.acir_context.add_var(*var_index, one)?;
@@ -491,13 +496,18 @@ impl Context<'_> {
                 let mut values = im::Vector::new();
                 for _ in 0..len {
                     for typ in element_types.as_ref() {
-                        values.push_back(self.array_get_value(typ, block_id, var_index)?);
+                        values.push_back(self.array_get_value(
+                            typ,
+                            block_id,
+                            var_index,
+                            use_predicate,
+                        )?);
                     }
                 }
                 Ok(AcirValue::Array(values))
             }
             Type::Reference(reference_type) => {
-                self.array_get_value(reference_type.as_ref(), block_id, var_index)
+                self.array_get_value(reference_type.as_ref(), block_id, var_index, use_predicate)
             }
             _ => unreachable!("ICE: Expected an array or numeric but got {ssa_type:?}"),
         }
@@ -620,7 +630,7 @@ impl Context<'_> {
         match value {
             AcirValue::Var(store_var, _) => {
                 // Write the new value into the new array at the specified index
-                self.acir_context.write_to_memory(block_id, var_index, store_var)?;
+                self.acir_context.write_to_memory(block_id, var_index, store_var, None)?;
                 // Increment the var_index in case of a nested array
                 *var_index = self.acir_context.add_var(*var_index, one)?;
             }
@@ -633,7 +643,8 @@ impl Context<'_> {
                 let values = try_vecmap(0..*len, |i| {
                     let index_var = self.acir_context.add_constant(i);
 
-                    let read = self.acir_context.read_from_memory(*inner_block_id, &index_var)?;
+                    let read =
+                        self.acir_context.read_from_memory(*inner_block_id, &index_var, None)?;
                     Ok::<AcirValue, RuntimeError>(AcirValue::Var(read, AcirType::field()))
                 })?;
                 self.array_set_value(&AcirValue::Array(values.into()), block_id, var_index)?;
@@ -779,8 +790,7 @@ impl Context<'_> {
     ) -> Result<im::Vector<AcirValue>, RuntimeError> {
         let init_values = try_vecmap(0..array_len, |i| {
             let index_var = self.acir_context.add_constant(i);
-
-            let read = self.acir_context.read_from_memory(source, &index_var)?;
+            let read = self.acir_context.read_from_memory(source, &index_var, None)?;
             Ok::<AcirValue, RuntimeError>(AcirValue::Var(read, AcirType::field()))
         })?;
         Ok(init_values.into())
@@ -815,7 +825,7 @@ impl Context<'_> {
                 self.acir_context.mul_var(var_index, self.current_side_effects_enabled_var)?;
 
             self.acir_context
-                .read_from_memory(element_type_sizes, &predicate_index)
+                .read_from_memory(element_type_sizes, &predicate_index, None)
                 .map_err(RuntimeError::from)
         }
     }
