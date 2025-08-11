@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1754926505327,
+  "lastUpdate": 1754926811265,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -8992,40 +8992,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "c0b92e68472ec05654cdcc1c1ad18e98ec651c4d",
-          "message": "fix: do u128 operations with u128, not i128 (#9345)",
-          "timestamp": "2025-07-28T20:04:11Z",
-          "tree_id": "6ddedec0ced5601d9c0e133ceea96884a1efb9fe",
-          "url": "https://github.com/noir-lang/noir/commit/c0b92e68472ec05654cdcc1c1ad18e98ec651c4d"
-        },
-        "date": 1753734762307,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore_depth_10",
-            "value": 69.46,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 54.95,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "18b01b396a854c55fef6c8aec5d617ea7b1cc849",
           "message": "feat(lsp): allow opening noir stdlib files (#9339)",
           "timestamp": "2025-07-28T20:14:00Z",
@@ -11705,6 +11671,80 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/ea9c9130e367a35d1f0eda03d995ce139b469481"
         },
         "date": 1754925452073,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 205,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 241.82,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 194.24,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 498.46,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 431.1,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1500,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 326.42,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 328.83,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 69.49,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 54.98,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "b7273d7a31f8e0cdc2d086e30ac3fede1f0ed46c",
+          "message": "feat(opt): Don't clone on array_len (#9440)",
+          "timestamp": "2025-08-11T14:48:05Z",
+          "tree_id": "ee07453e1102a6ad79b18670bf9d23b09a48bebd",
+          "url": "https://github.com/noir-lang/noir/commit/b7273d7a31f8e0cdc2d086e30ac3fede1f0ed46c"
+        },
+        "date": 1754926793563,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
