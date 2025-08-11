@@ -1,6 +1,6 @@
 use super::NUMBER_OF_VARIABLES_INITIAL;
 use super::block_context::BlockContext;
-use super::instruction::FunctionSignature;
+use super::instruction::FunctionInfo;
 use super::instruction::InstructionBlock;
 use super::options::{FunctionContextOptions, SsaBlockOptions};
 use acvm::FieldElement;
@@ -104,6 +104,15 @@ pub(crate) enum FuzzerFunctionCommand {
     InsertFunctionCall { function_idx: usize, args: [usize; NUMBER_OF_VARIABLES_INITIAL as usize] },
 }
 
+/// Default command is InsertSimpleInstructionBlock with instruction_block_idx = 0
+///
+/// Only used for mutations
+impl Default for FuzzerFunctionCommand {
+    fn default() -> Self {
+        Self::InsertSimpleInstructionBlock { instruction_block_idx: 0 }
+    }
+}
+
 struct CycleInfo {
     block_iter_id: BasicBlockId,
     block_end_id: BasicBlockId,
@@ -144,7 +153,7 @@ pub(crate) struct FuzzerFunctionContext<'a> {
     parent_iterations_count: usize,
 
     return_type: ValueType,
-    defined_functions: BTreeMap<Id<Function>, FunctionSignature>,
+    defined_functions: BTreeMap<Id<Function>, FunctionInfo>,
 }
 
 impl<'a> FuzzerFunctionContext<'a> {
@@ -155,7 +164,7 @@ impl<'a> FuzzerFunctionContext<'a> {
         instruction_blocks: &'a Vec<InstructionBlock>,
         context_options: FunctionContextOptions,
         return_type: ValueType,
-        defined_functions: BTreeMap<Id<Function>, FunctionSignature>,
+        defined_functions: BTreeMap<Id<Function>, FunctionInfo>,
         acir_builder: &'a mut FuzzerBuilder,
         brillig_builder: &'a mut FuzzerBuilder,
     ) -> Self {
@@ -204,7 +213,7 @@ impl<'a> FuzzerFunctionContext<'a> {
         instruction_blocks: &'a Vec<InstructionBlock>,
         context_options: FunctionContextOptions,
         return_type: ValueType,
-        defined_functions: BTreeMap<Id<Function>, FunctionSignature>,
+        defined_functions: BTreeMap<Id<Function>, FunctionInfo>,
         acir_builder: &'a mut FuzzerBuilder,
         brillig_builder: &'a mut FuzzerBuilder,
     ) -> Self {
@@ -303,8 +312,9 @@ impl<'a> FuzzerFunctionContext<'a> {
 
         self.store_variables();
 
-        if block_then_instruction_block.instructions.len()
-            + block_else_instruction_block.instructions.len()
+        if (block_then_instruction_block.instructions.len()
+            + block_else_instruction_block.instructions.len())
+            * self.parent_iterations_count
             + self.inserted_instructions_count
             > self.function_context_options.max_instructions_num
         {
@@ -411,7 +421,8 @@ impl<'a> FuzzerFunctionContext<'a> {
 
         // find instruction block to be inserted
         let block = self.instruction_blocks[block_idx % self.instruction_blocks.len()].clone();
-        if block.instructions.len() + self.inserted_instructions_count
+        if (block.instructions.len() + self.inserted_instructions_count)
+            * self.parent_iterations_count
             > self.function_context_options.max_instructions_num
         {
             return;
@@ -625,7 +636,8 @@ impl<'a> FuzzerFunctionContext<'a> {
             FuzzerFunctionCommand::InsertSimpleInstructionBlock { instruction_block_idx } => {
                 let instruction_block =
                     &self.instruction_blocks[instruction_block_idx % self.instruction_blocks.len()];
-                if self.inserted_instructions_count + instruction_block.instructions.len()
+                if (self.inserted_instructions_count + instruction_block.instructions.len())
+                    * self.parent_iterations_count
                     > self.function_context_options.max_instructions_num
                 {
                     return;
@@ -681,13 +693,23 @@ impl<'a> FuzzerFunctionContext<'a> {
                     .keys()
                     .nth(function_idx % num_of_defined_functions)
                     .unwrap();
-                let function_signature = self.defined_functions[&function_id].clone();
+                let function_info = self.defined_functions[&function_id].clone();
+                if function_info.max_unrolled_size == 0 {
+                    unreachable!("Encountered a function with no unrolled size");
+                }
+                let unrolled_size = function_info.max_unrolled_size * self.parent_iterations_count;
+                if self.inserted_instructions_count + unrolled_size
+                    > self.function_context_options.max_instructions_num
+                {
+                    return;
+                }
+                self.inserted_instructions_count += unrolled_size;
 
                 self.current_block.context.process_function_call(
                     self.acir_builder,
                     self.brillig_builder,
                     function_id,
-                    function_signature,
+                    function_info,
                     args,
                 );
             }
