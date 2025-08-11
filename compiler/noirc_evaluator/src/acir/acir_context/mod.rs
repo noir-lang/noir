@@ -1485,6 +1485,19 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         id
     }
 
+    /// Convert an optional predicate to an expression, adding it to the witnesses if necessary.
+    ///
+    /// Returns `None` if the predicate is a constant 1.
+    fn predicate_to_expression(
+        &mut self,
+        predicate: Option<AcirVar>,
+    ) -> Result<Option<Expression<F>>, InternalError> {
+        predicate
+            .filter(|v| !self.is_constant_one(v))
+            .map(|v| self.get_or_create_witness_var(v).and_then(|v| self.var_to_expression(v)))
+            .transpose()
+    }
+
     /// Returns a Variable that is constrained to be the result of reading
     /// from the memory `block_id` at the given `index`.
     pub(crate) fn read_from_memory(
@@ -1502,10 +1515,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         let value_read_witness = self.var_to_witness(value_read_var)?;
 
         // Optionally disable the operation with a predicate.
-        let predicate = predicate
-            .filter(|v| !self.is_constant_one(v))
-            .map(|v| self.var_to_expression(v))
-            .transpose()?;
+        let predicate = self.predicate_to_expression(predicate)?;
 
         // Add the memory read operation to the list of opcodes
         let op = MemOp::read_at_mem_index(index_witness.into(), value_read_witness);
@@ -1531,10 +1541,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         let value_write_witness = self.var_to_witness(value_write_var)?;
 
         // Optionally disable the operation with a predicate.
-        let predicate = predicate
-            .filter(|v| !self.is_constant_one(v))
-            .map(|v| self.var_to_expression(v))
-            .transpose()?;
+        let predicate = self.predicate_to_expression(predicate)?;
 
         // Add the memory write operation to the list of opcodes
         let op = MemOp::write_to_mem_index(index_witness.into(), value_write_witness.into());
