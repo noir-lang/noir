@@ -419,8 +419,8 @@
 
     <span class="kw">impl </span>TestHelper {
         <span class="kw">fn </span>new() -&gt; <span class="self">Self </span>{
-            <span class="kw">let </span>acir_builder = FuzzerBuilder::new_acir();
-            <span class="kw">let </span>brillig_builder = FuzzerBuilder::new_brillig();
+            <span class="kw">let </span>acir_builder = FuzzerBuilder::new_acir(<span class="comment">/*simplifying_enabled=*/ </span><span class="bool-val">true</span>);
+            <span class="kw">let </span>brillig_builder = FuzzerBuilder::new_brillig(<span class="comment">/*simplifying_enabled=*/ </span><span class="bool-val">true</span>);
 
             <span class="self">Self </span>{ acir_builder, brillig_builder }
         }
@@ -742,8 +742,8 @@
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>regression_cast_without_truncate() {
-        <span class="kw">let </span><span class="kw-2">mut </span>acir_builder = FuzzerBuilder::new_acir();
-        <span class="kw">let </span><span class="kw-2">mut </span>brillig_builder = FuzzerBuilder::new_brillig();
+        <span class="kw">let </span><span class="kw-2">mut </span>acir_builder = FuzzerBuilder::new_acir(<span class="comment">/*simplifying_enabled=*/ </span><span class="bool-val">true</span>);
+        <span class="kw">let </span><span class="kw-2">mut </span>brillig_builder = FuzzerBuilder::new_brillig(<span class="comment">/*simplifying_enabled=*/ </span><span class="bool-val">true</span>);
 
         <span class="kw">let </span>field_var_acir_id_1 =
             acir_builder.insert_variable(ValueType::Field.to_ssa_type()).value_id;

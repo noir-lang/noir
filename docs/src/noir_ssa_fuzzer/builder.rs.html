@@ -467,7 +467,8 @@
 <a href="#466" id="466">466</a>
 <a href="#467" id="467">467</a>
 <a href="#468" id="468">468</a>
-<a href="#469" id="469">469</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::typed_value::{TypedValue, ValueType};
+<a href="#469" id="469">469</a>
+<a href="#470" id="470">470</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::typed_value::{TypedValue, ValueType};
 <span class="kw">use </span>acvm::FieldElement;
 <span class="kw">use </span>noir_ssa_executor::compiler::compile_from_ssa;
 <span class="kw">use </span>noirc_driver::{CompileOptions, CompiledProgram};
@@ -507,18 +508,20 @@
 
 <span class="kw">impl </span>FuzzerBuilder {
     <span class="doccomment">/// Creates a new FuzzerBuilder in ACIR context
-    </span><span class="kw">pub fn </span>new_acir() -&gt; <span class="self">Self </span>{
+    </span><span class="kw">pub fn </span>new_acir(simplifying_enabled: bool) -&gt; <span class="self">Self </span>{
         <span class="kw">let </span>main_id: Id&lt;Function&gt; = Id::new(<span class="number">0</span>);
         <span class="kw">let </span><span class="kw-2">mut </span>builder = FunctionBuilder::new(<span class="string">"main"</span>.into(), main_id);
         builder.set_runtime(RuntimeType::Acir(FrontendInlineType::default()));
+        builder.simplify = simplifying_enabled;
         <span class="self">Self </span>{ builder }
     }
 
     <span class="doccomment">/// Creates a new FuzzerBuilder in Brillig context
-    </span><span class="kw">pub fn </span>new_brillig() -&gt; <span class="self">Self </span>{
+    </span><span class="kw">pub fn </span>new_brillig(simplifying_enabled: bool) -&gt; <span class="self">Self </span>{
         <span class="kw">let </span>main_id: Id&lt;Function&gt; = Id::new(<span class="number">0</span>);
         <span class="kw">let </span><span class="kw-2">mut </span>builder = FunctionBuilder::new(<span class="string">"main"</span>.into(), main_id);
         builder.set_runtime(RuntimeType::Brillig(FrontendInlineType::default()));
+        builder.simplify = simplifying_enabled;
         <span class="self">Self </span>{ builder }
     }
 
@@ -916,7 +919,6 @@
         array: TypedValue,
         index: TypedValue,
         value: TypedValue,
-        mutable: bool,
         safe_index: bool,
     ) -&gt; TypedValue {
         <span class="macro">assert!</span>(<span class="macro">matches!</span>(array.type_of_variable, Type::Array(<span class="kw">_</span>, <span class="kw">_</span>)));
@@ -930,7 +932,7 @@
             array.value_id,
             index.value_id,
             value.value_id,
-            mutable,
+            <span class="bool-val">false</span>,
             ArrayOffset::None,
         );
         TypedValue::new(res, array.type_of_variable.clone())
