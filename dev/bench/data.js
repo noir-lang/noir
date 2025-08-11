@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1754922292872,
+  "lastUpdate": 1754922296598,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -5870,40 +5870,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "606bf9baf10745dc0c2594633688ccfdedadef9f",
-          "message": "chore(lsp): avoid redundant type checking (#9337)",
-          "timestamp": "2025-07-28T18:08:57Z",
-          "tree_id": "a237ef63f43c6a1c8c5e9d70033b793b24007433",
-          "url": "https://github.com/noir-lang/noir/commit/606bf9baf10745dc0c2594633688ccfdedadef9f"
-        },
-        "date": 1753727743886,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.02,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 0.106,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "21faf9648560b0f5943304833c44a2c5687f0d48",
           "message": "fix: prevent invalid types in test/fuzz functions (#9343)",
           "timestamp": "2025-07-28T18:28:59Z",
@@ -8493,6 +8459,80 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-block-root",
             "value": 13.1,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.002,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.004,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.019,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 0.1,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "57778ea95e96d06eb61bb3846cf086850e01c9b0",
+          "message": "fix(brillig_vm): Remove slice padding for foreign call inputs (#9321)\n\nCo-authored-by: Akosh Farkash <aakoshh@gmail.com>",
+          "timestamp": "2025-08-11T13:43:00Z",
+          "tree_id": "113f347a620e8be3b38ff2ecd7ae0e52d0409b72",
+          "url": "https://github.com/noir-lang/noir/commit/57778ea95e96d06eb61bb3846cf086850e01c9b0"
+        },
+        "date": 1754922278336,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.013,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.155,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.01,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.263,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.162,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 12.7,
             "unit": "s"
           },
           {
