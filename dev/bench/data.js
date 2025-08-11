@@ -1,42 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1754925356824,
+  "lastUpdate": 1754925453927,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "4f733adf44501d52eea35d03c9761b27e295af0f",
-          "message": "chore(acir): ACIR parser error handling for blackbox inputs/outputs  (#9342)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
-          "timestamp": "2025-07-28T18:43:05Z",
-          "tree_id": "74c2f5d853c323c41b7dbe6fc266032b64b1b0eb",
-          "url": "https://github.com/noir-lang/noir/commit/4f733adf44501d52eea35d03c9761b27e295af0f"
-        },
-        "date": 1753729941086,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore_depth_10",
-            "value": 104.71,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 234.73,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -2999,6 +2965,90 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512_100_bytes",
             "value": 234.8,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "84741533+defkit@users.noreply.github.com",
+            "name": "defkit",
+            "username": "defkit"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "ea9c9130e367a35d1f0eda03d995ce139b469481",
+          "message": "feat(ssa_fuzzer): mode without instruction simplification + array instructions mutations + limits fix (#9438)\n\nCo-authored-by: Innokentii Sennovskii <isennovskiy@gmail.com>",
+          "timestamp": "2025-08-11T14:29:10Z",
+          "tree_id": "f8f0c42488a8a7f84970f7937ed60e4d3ac703fd",
+          "url": "https://github.com/noir-lang/noir/commit/ea9c9130e367a35d1f0eda03d995ce139b469481"
+        },
+        "date": 1754925436341,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 238.28,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 547.4,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 212.12,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 1340,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 1420,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 1090,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 9340,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 9350,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 330.5,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 339.67,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 104.74,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 234.7,
             "unit": "MB"
           }
         ]
