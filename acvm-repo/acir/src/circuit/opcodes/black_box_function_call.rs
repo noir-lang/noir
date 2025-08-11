@@ -136,8 +136,8 @@ pub enum BlackBoxFuncCall<F> {
         )]
         signature: Box<[FunctionInput<F>; 64]>,
         hashed_message: Box<[FunctionInput<F>; 32]>,
-        output: Witness,
         predicate: FunctionInput<F>,
+        output: Witness,
     },
     /// Verifies a ECDSA signature over the secp256r1 curve.
     ///
@@ -151,8 +151,8 @@ pub enum BlackBoxFuncCall<F> {
         )]
         signature: Box<[FunctionInput<F>; 64]>,
         hashed_message: Box<[FunctionInput<F>; 32]>,
-        output: Witness,
         predicate: FunctionInput<F>,
+        output: Witness,
     },
     /// Multiple scalar multiplication (MSM) with a variable base/input point
     /// (P) of the embedded curve. An MSM multiplies the points and scalars and

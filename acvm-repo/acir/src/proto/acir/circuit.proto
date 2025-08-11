@@ -133,16 +133,16 @@ message BlackBoxFuncCall {
     repeated FunctionInput public_key_y = 2;
     repeated FunctionInput signature = 3;
     repeated FunctionInput hashed_message = 4;
-    native.Witness output = 5;
-    FunctionInput predicate = 6;
+    FunctionInput predicate = 5;
+    native.Witness output = 6;
   }
   message EcdsaSecp256r1 {
     repeated FunctionInput public_key_x = 1;
     repeated FunctionInput public_key_y = 2;
     repeated FunctionInput signature = 3;
     repeated FunctionInput hashed_message = 4;
-    native.Witness output = 5;
-    FunctionInput predicate = 6;
+    FunctionInput predicate = 5;
+    native.Witness output = 6;
   }
   message MultiScalarMul {
     repeated FunctionInput points = 1;
