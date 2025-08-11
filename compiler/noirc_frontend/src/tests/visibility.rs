@@ -24,7 +24,7 @@ fn errors_if_type_alias_aliases_more_private_type() {
     let src = r#"
     struct Foo {}
     pub type Bar = Foo;
-                   ^^^ Type `Foo` is more private than item `Bar`
+    ^^^^^^^^^^^^^^^^^^ Type `Foo` is more private than item `Bar`
     pub fn no_unused_warnings() {
         let _: Bar = Foo {};
     }
@@ -40,7 +40,7 @@ fn errors_if_type_alias_aliases_more_private_type_in_generic() {
     pub struct Generic<T> { value: T }
     struct Foo {}
     pub type Bar = Generic<Foo>;
-                   ^^^^^^^^^^^^ Type `Foo` is more private than item `Bar`
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^ Type `Foo` is more private than item `Bar`
     pub fn no_unused_warnings() {
         let _ = Foo {};
         let _: Bar = Generic { value: Foo {} };
@@ -58,7 +58,7 @@ fn errors_if_pub_type_alias_leaks_private_type_in_generic() {
         struct Bar {}
         pub struct Foo<T> { pub value: T }
         pub type FooBar = Foo<Bar>;
-                          ^^^^^^^^ Type `Bar` is more private than item `FooBar`
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^ Type `Bar` is more private than item `FooBar`
 
         pub fn no_unused_warnings() {
             let _: FooBar = Foo { value: Bar {} };
@@ -260,7 +260,7 @@ fn errors_if_trying_to_access_public_function_inside_private_module() {
 
 #[named]
 #[test]
-fn warns_if_calling_private_struct_method() {
+fn errors_if_calling_private_struct_method() {
     let src = r#"
     mod moo {
         pub struct Foo {}
@@ -557,6 +557,31 @@ fn errors_if_accessing_private_struct_member_inside_function_generated_at_compti
 
     fn main(x: Bar) {
         let _ = bar_get_foo_inner(x);
+    }
+    "#;
+    check_errors!(src);
+}
+
+#[named]
+#[test]
+fn errors_on_use_of_private_exported_item() {
+    let src = r#"
+    mod foo {
+        mod bar {
+            pub fn baz() {}
+        }
+
+        use bar::baz;
+
+        pub fn qux() {
+            baz();
+        }
+    }
+
+    fn main() {
+        foo::baz();
+             ^^^ baz is private and not visible from the current module
+             ~~~ baz is private
     }
     "#;
     check_errors!(src);

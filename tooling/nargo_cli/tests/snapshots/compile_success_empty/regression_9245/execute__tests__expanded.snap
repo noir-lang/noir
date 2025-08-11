@@ -1,0 +1,44 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+pub trait Deserialize {
+    let N: u32;
+
+    fn deserialize(fields: [Field; N]) -> Self;
+}
+
+impl Deserialize for Field {
+    let N: u32 = 1;
+
+    fn deserialize(fields: [Self; 1]) -> Self {
+        fields[0_u32]
+    }
+}
+
+impl<let M: u32> Deserialize for [Field; M] {
+    let N: u32 = M;
+
+    fn deserialize(fields: Self) -> Self {
+        fields
+    }
+}
+
+pub struct Log<let O: u32> {
+    pub fields: [Field; O],
+}
+
+impl<let O: u32> Deserialize for Log<O> {
+    let N: u32 = O;
+
+    fn deserialize(fields: [Field; O]) -> Self {
+        Self { fields: <[Field; O] as Deserialize<N = O>>::deserialize(fields) }
+    }
+}
+
+fn main() {
+    let serialized: [Field; 10] =
+        [0_Field, 1_Field, 2_Field, 3_Field, 4_Field, 5_Field, 6_Field, 7_Field, 8_Field, 9_Field];
+    let log: Log<10> = Log::<10>::deserialize(serialized);
+    assert(serialized == log.fields);
+}

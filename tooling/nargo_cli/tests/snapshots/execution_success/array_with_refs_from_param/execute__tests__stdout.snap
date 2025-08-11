@@ -2,4 +2,4 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stdout
 ---
-[array_with_refs_from_param] Circuit output: Field(1)
+[array_with_refs_from_param] Circuit output: true

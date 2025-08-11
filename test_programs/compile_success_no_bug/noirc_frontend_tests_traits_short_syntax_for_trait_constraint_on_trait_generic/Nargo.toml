@@ -1,0 +1,7 @@
+
+            [package]
+            name = "noirc_frontend_tests_traits_short_syntax_for_trait_constraint_on_trait_generic"
+            type = "bin"
+            authors = [""]
+            
+            [dependencies]
