@@ -1548,4 +1548,26 @@ mod tests {
         }
         ");
     }
+
+    #[test]
+    fn does_not_remove_store_used_in_if_then() {
+        let src = "
+        brillig(inline) fn func f0 {
+          b0(v0: &mut u1, v1: u1):
+            v2 = allocate -> &mut u1
+            store v1 at v2
+            jmp b1()
+          b1():
+            v3 = not v1
+            v4 = if v1 then v0 else (if v3) v2
+            v6 = call f0(v4, v1) -> Field
+            return v6
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.mem2reg();
+        assert_normalized_ssa_equals(ssa, src);
+    }
 }
