@@ -1,4 +1,4 @@
-use super::instruction::{Argument, FunctionSignature, Instruction};
+use super::instruction::{Argument, FunctionInfo, Instruction};
 use super::options::SsaBlockOptions;
 use noir_ssa_fuzzer::{
     builder::{FuzzerBuilder, InstructionWithOneArg, InstructionWithTwoArgs},
@@ -559,7 +559,7 @@ impl BlockContext {
                     value.clone(),
                 );
             }
-            Instruction::ArraySet { array_index, index, value_index, mutable, safe_index } => {
+            Instruction::ArraySet { array_index, index, value_index, safe_index } => {
                 if !self.options.instruction_options.array_set_enabled {
                     return;
                 }
@@ -613,13 +613,12 @@ impl BlockContext {
                     array_id.clone(),
                     index_casted.clone(),
                     value.clone(),
-                    mutable,
                     safe_index,
                 );
                 assert_eq!(
                     new_array.value_id,
                     brillig_builder
-                        .insert_array_set(array_id, index_casted, value, mutable, safe_index)
+                        .insert_array_set(array_id, index_casted, value, safe_index)
                         .value_id
                 );
 
@@ -687,7 +686,6 @@ impl BlockContext {
                 array_index,
                 index,
                 value_index,
-                mutable,
                 safe_index,
             } => {
                 if !self.options.instruction_options.array_set_enabled
@@ -735,7 +733,6 @@ impl BlockContext {
                     stored_array.array_id.clone(),
                     index_id.clone(),
                     value.clone(),
-                    mutable,
                     safe_index,
                 );
                 assert_eq!(
@@ -745,7 +742,6 @@ impl BlockContext {
                             stored_array.array_id.clone(),
                             index_id,
                             value,
-                            mutable,
                             safe_index,
                         )
                         .value_id
@@ -839,7 +835,7 @@ impl BlockContext {
         acir_builder: &mut FuzzerBuilder,
         brillig_builder: &mut FuzzerBuilder,
         function_id: Id<Function>,
-        function_signature: FunctionSignature,
+        function_signature: FunctionInfo,
         args: &[usize],
     ) {
         // On SSA level you cannot just call a function by its id, you need to import it first

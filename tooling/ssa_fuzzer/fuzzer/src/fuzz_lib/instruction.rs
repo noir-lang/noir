@@ -84,13 +84,7 @@ pub(crate) enum Instruction {
     /// Set element in array, index will be casted to u32, only for arrays without references
     /// Value will be cast to the type of the array
     /// If safe_index is true, index will be taken modulo the size of the array
-    ArraySet {
-        array_index: usize,
-        index: Argument,
-        value_index: usize,
-        mutable: bool,
-        safe_index: bool,
-    },
+    ArraySet { array_index: usize, index: Argument, value_index: usize, safe_index: bool },
     /// Get element from array, index is constant
     /// If safe_index is true, index will be taken modulo the size of the array
     ArrayGetWithConstantIndex { array_index: usize, index: usize, safe_index: bool },
@@ -101,7 +95,6 @@ pub(crate) enum Instruction {
         array_index: usize,
         index: usize,
         value_index: usize,
-        mutable: bool,
         safe_index: bool,
     },
 }
@@ -126,7 +119,9 @@ pub(crate) struct InstructionBlock {
 }
 
 #[derive(Clone)]
-pub(crate) struct FunctionSignature {
+pub(crate) struct FunctionInfo {
     pub(crate) input_types: Vec<ValueType>,
     pub(crate) return_type: ValueType,
+    /// Max size of unrolled loops in the function
+    pub(crate) max_unrolled_size: usize,
 }
