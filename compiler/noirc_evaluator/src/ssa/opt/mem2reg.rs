@@ -742,238 +742,121 @@ impl<'f> PerFunctionContext<'f> {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
-
-    use acvm::{FieldElement, acir::AcirField};
-    use im::vector;
-
     use crate::{
         assert_ssa_snapshot,
-        ssa::{
-            Ssa,
-            function_builder::FunctionBuilder,
-            ir::{
-                basic_block::BasicBlockId,
-                dfg::DataFlowGraph,
-                instruction::{
-                    ArrayOffset, BinaryOp, Instruction, Intrinsic, TerminatorInstruction,
-                },
-                map::Id,
-                types::{NumericType, Type},
-            },
-            opt::assert_normalized_ssa_equals,
-        },
+        ssa::{Ssa, opt::assert_normalized_ssa_equals},
     };
 
     #[test]
     fn test_simple() {
-        // fn func() {
-        //   b0():
-        //     v0 = allocate
-        //     v1 = make_array [Field 1, Field 2]
-        //     store v1 in v0
-        //     v2 = load v0
-        //     v3 = array_get v2, index u32 1
-        //     return v3
-        // }
+        let src = "
+        acir(inline) fn func f0 {
+          b0():
+            v0 = allocate -> &mut [Field; 2]
+            v3 = make_array [Field 1, Field 1] : [Field; 2]
+            store v3 at v0
+            v4 = load v0 -> [Field; 2]
+            v5 = array_get v4, index u32 1 -> Field
+            return v5
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
 
-        let func_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("func".into(), func_id);
-        let v0 = builder.insert_allocate(Type::Array(Arc::new(vec![Type::field()]), 2));
-        let one = builder.numeric_constant(FieldElement::one(), NumericType::length_type());
-        let two = builder.field_constant(FieldElement::one());
-
-        let element_type = Arc::new(vec![Type::field()]);
-        let array_type = Type::Array(element_type, 2);
-        let v1 = builder.insert_make_array(vector![one, two], array_type.clone());
-
-        builder.insert_store(v0, v1);
-        let v2 = builder.insert_load(v0, array_type);
-        let offset = ArrayOffset::None;
-        let v3 = builder.insert_array_get(v2, one, offset, Type::field());
-        builder.terminate_with_return(vec![v3]);
-
-        let ssa = builder.finish().mem2reg().fold_constants();
-
-        let func = ssa.main();
-        let block_id = func.entry_block();
-
-        assert_eq!(count_loads(block_id, &func.dfg), 0);
-        assert_eq!(count_stores(block_id, &func.dfg), 0);
-
-        let ret_val_id = match func.dfg[block_id].terminator().unwrap() {
-            TerminatorInstruction::Return { return_values, .. } => return_values.first().unwrap(),
-            _ => unreachable!(),
-        };
-        assert_eq!(func.dfg[*ret_val_id], func.dfg[two]);
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn func f0 {
+          b0():
+            v0 = allocate -> &mut [Field; 2]
+            v2 = make_array [Field 1, Field 1] : [Field; 2]
+            return Field 1
+        }
+        ");
     }
 
     #[test]
     fn test_simple_with_call() {
-        // fn func {
-        //   b0():
-        //     v0 = allocate
-        //     store v0, Field 1
-        //     v1 = load v0
-        //     call f0(v0)
-        //     return v1
-        // }
+        let src = "
+        acir(inline) fn func f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 1 at v0
+            v2 = load v0 -> Field
+            call assert_constant(v0)
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
 
-        let func_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("func".into(), func_id);
-        let v0 = builder.insert_allocate(Type::field());
-        let one = builder.field_constant(FieldElement::one());
-        builder.insert_store(v0, one);
-        let v1 = builder.insert_load(v0, Type::field());
-        let f0 = builder.import_intrinsic_id(Intrinsic::AssertConstant);
-        builder.insert_call(f0, vec![v0], vec![]);
-        builder.terminate_with_return(vec![v1]);
-
-        let ssa = builder.finish().mem2reg();
-
-        let func = ssa.main();
-        let block_id = func.entry_block();
-
-        assert_eq!(count_loads(block_id, &func.dfg), 0);
-        assert_eq!(count_stores(block_id, &func.dfg), 1);
-
-        let ret_val_id = match func.dfg[block_id].terminator().unwrap() {
-            TerminatorInstruction::Return { return_values, .. } => return_values.first().unwrap(),
-            _ => unreachable!(),
-        };
-        assert_eq!(func.dfg[*ret_val_id], func.dfg[one]);
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn func f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 1 at v0
+            call assert_constant(v0)
+            return Field 1
+        }
+        ");
     }
 
     #[test]
     fn test_simple_with_return() {
-        // fn func {
-        //   b0():
-        //     v0 = allocate
-        //     store v0, Field 1
-        //     return v0
-        // }
-
-        let func_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("func".into(), func_id);
-        let v0 = builder.insert_allocate(Type::field());
-        let const_one = builder.field_constant(FieldElement::one());
-        builder.insert_store(v0, const_one);
-        builder.terminate_with_return(vec![v0]);
-
-        let ssa = builder.finish().mem2reg();
-
-        let func = ssa.main();
-        let block_id = func.entry_block();
-
-        // Store is needed by the return value, and can't be removed
-        assert_eq!(count_stores(block_id, &func.dfg), 1);
-        let instructions = func.dfg[block_id].instructions();
-        assert_eq!(instructions.len(), 2);
-
-        let ret_val_id = match func.dfg[block_id].terminator().unwrap() {
-            TerminatorInstruction::Return { return_values, .. } => *return_values.first().unwrap(),
-            _ => unreachable!(),
-        };
-
-        // Since the mem2reg pass simplifies as it goes, the id of the allocate instruction result
-        // is most likely no longer v0. We have to retrieve the new id here.
-        let allocate_id = func.dfg.instruction_results(instructions[0])[0];
-        assert_eq!(ret_val_id, allocate_id);
-    }
-
-    fn count_stores(block: BasicBlockId, dfg: &DataFlowGraph) -> usize {
-        dfg[block]
-            .instructions()
-            .iter()
-            .filter(|instruction_id| matches!(dfg[**instruction_id], Instruction::Store { .. }))
-            .count()
-    }
-
-    fn count_loads(block: BasicBlockId, dfg: &DataFlowGraph) -> usize {
-        dfg[block]
-            .instructions()
-            .iter()
-            .filter(|instruction_id| matches!(dfg[**instruction_id], Instruction::Load { .. }))
-            .count()
-    }
-
-    // Test that loads across multiple blocks are removed
-    #[test]
-    fn multiple_blocks() {
-        // fn main {
-        //   b0():
-        //     v0 = allocate
-        //     store Field 5 in v0
-        //     v1 = load v0
-        //     jmp b1(v1):
-        //   b1(v2: Field):
-        //     v3 = load v0
-        //     store Field 6 in v0
-        //     v4 = load v0
-        //     return v2, v3, v4
-        // }
-        let main_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("main".into(), main_id);
-
-        let v0 = builder.insert_allocate(Type::field());
-
-        let five = builder.field_constant(5u128);
-        builder.insert_store(v0, five);
-
-        let v1 = builder.insert_load(v0, Type::field());
-        let b1 = builder.insert_block();
-        builder.terminate_with_jmp(b1, vec![v1]);
-
-        builder.switch_to_block(b1);
-        let v2 = builder.add_block_parameter(b1, Type::field());
-        let v3 = builder.insert_load(v0, Type::field());
-
-        let six = builder.field_constant(6u128);
-        builder.insert_store(v0, six);
-        let v4 = builder.insert_load(v0, Type::field());
-
-        builder.terminate_with_return(vec![v2, v3, v4]);
-
-        let ssa = builder.finish();
-        assert_eq!(ssa.main().reachable_blocks().len(), 2);
-
-        // Expected result:
-        // acir fn main f0 {
-        //   b0():
-        //     v7 = allocate
-        //     jmp b1(Field 5)
-        //   b1(v3: Field):
-        //     return v3, Field 5, Field 6
-        // }
+        let src = "
+        acir(inline) fn func f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 1 at v0
+            v1 = load v0 -> Field
+            return v1
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.mem2reg();
 
-        let main = ssa.main();
-        assert_eq!(main.reachable_blocks().len(), 2);
-
-        // The loads should be removed
-        assert_eq!(count_loads(main.entry_block(), &main.dfg), 0);
-        assert_eq!(count_loads(b1, &main.dfg), 0);
-
-        // All stores are removed as there are no loads to the values being stored anywhere in the function.
-        assert_eq!(count_stores(main.entry_block(), &main.dfg), 0);
-        assert_eq!(count_stores(b1, &main.dfg), 0);
-
-        // The jmp to b1 should also be a constant 5 now
-        match main.dfg[main.entry_block()].terminator() {
-            Some(TerminatorInstruction::Jmp { arguments, .. }) => {
-                assert_eq!(arguments.len(), 1);
-                let argument =
-                    main.dfg.get_numeric_constant(arguments[0]).expect("Expected constant value");
-                assert_eq!(argument.to_u128(), 5);
-            }
-            _ => unreachable!(),
-        };
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn func f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            return Field 1
+        }
+        ");
     }
 
-    // Test that a load in a predecessor block has been removed if the value
-    // is later stored in a successor block
+    #[test]
+    fn multiple_blocks() {
+        // Test that loads across multiple blocks are removed
+        let src = "
+         acir(inline) fn main f0 {
+           b0():
+             v0 = allocate -> &mut Field
+             store Field 5 at v0
+             v2 = load v0 -> Field
+             jmp b1(v2)
+           b1(v3: Field):
+             v4 = load v0 -> Field
+             store Field 6 at v0
+             v6 = load v0 -> Field
+             return v3, v4, v6
+         }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            v1 = allocate -> &mut Field
+            jmp b1(Field 5)
+          b1(v0: Field):
+            return v0, Field 5, Field 6
+        }
+        ");
+    }
+
     #[test]
     fn load_aliases_in_predecessor_block() {
+        // Test that a load in a predecessor block has been removed if the value
+        // is later stored in a successor block
         let src = "
         acir(inline) fn main f0 {
           b0():
@@ -994,10 +877,6 @@ mod tests {
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
-        let main = ssa.main();
-
-        let instructions = main.dfg[main.entry_block()].instructions();
-        assert_eq!(instructions.len(), 6); // The final return is not counted
 
         // All loads should be removed
         // The first store is not removed as it is used as a nested reference in another store.
@@ -1028,91 +907,35 @@ mod tests {
         // Although the only instruction on v5 is a lone store without any loads,
         // v5 is an alias of the reference v0 which is stored in v2.
         // This test makes sure that we are not inadvertently removing stores to aliases across blocks.
-        //
-        // acir(inline) fn main f0 {
-        //     b0():
-        //       v0 = allocate
-        //       store Field 0 at v0
-        //       v2 = allocate
-        //       store v0 at v2
-        //       jmp b1(Field 0)
-        //     b1(v3: Field):
-        //       v4 = eq v3, Field 0
-        //       jmpif v4 then: b2, else: b3
-        //     b2():
-        //       v5 = load v2
-        //       store Field 2 at v5
-        //       v8 = add v3, Field 1
-        //       jmp b1(v8)
-        //     b3():
-        //       v9 = load v0
-        //       v10 = eq v9, Field 2
-        //       constrain v9 == Field 2
-        //       v11 = load v2
-        //       v12 = load v11
-        //       v13 = eq v12, Field 2
-        //       constrain v11 == Field 2
-        //       return
-        //   }
-        let main_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("main".into(), main_id);
-
-        let v0 = builder.insert_allocate(Type::field());
-        let zero = builder.field_constant(0u128);
-        builder.insert_store(v0, zero);
-
-        let v2 = builder.insert_allocate(Type::field());
-        // Construct alias
-        builder.insert_store(v2, v0);
-        let v2_type = builder.current_function.dfg.type_of_value(v2);
-        assert!(builder.current_function.dfg.value_is_reference(v2));
-
-        let b1 = builder.insert_block();
-        builder.terminate_with_jmp(b1, vec![zero]);
-
-        // Loop header
-        builder.switch_to_block(b1);
-        let v3 = builder.add_block_parameter(b1, Type::field());
-        let is_zero = builder.insert_binary(v3, BinaryOp::Eq, zero);
-
-        let b2 = builder.insert_block();
-        let b3 = builder.insert_block();
-        builder.terminate_with_jmpif(is_zero, b2, b3);
-
-        // Loop body
-        builder.switch_to_block(b2);
-        let v5 = builder.insert_load(v2, v2_type.clone());
-        let two = builder.field_constant(2u128);
-        builder.insert_store(v5, two);
-        let one = builder.field_constant(1u128);
-        let v3_plus_one = builder.insert_binary(v3, BinaryOp::Add { unchecked: false }, one);
-        builder.terminate_with_jmp(b1, vec![v3_plus_one]);
-
-        builder.switch_to_block(b3);
-        let v9 = builder.insert_load(v0, Type::field());
-        let _ = builder.insert_binary(v9, BinaryOp::Eq, two);
-
-        builder.insert_constrain(v9, two, None);
-        let v11 = builder.insert_load(v2, v2_type);
-        let v12 = builder.insert_load(v11, Type::field());
-
-        builder.insert_constrain(v12, two, None);
-        builder.terminate_with_return(vec![]);
-
-        let ssa = builder.finish();
-
-        // We expect the same result as above.
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 0 at v0
+            v2 = allocate -> &mut &mut Field
+            store v0 at v2
+            jmp b1(Field 0)
+          b1(v3: Field):
+            v4 = eq v3, Field 0
+            jmpif v4 then: b2, else: b3
+          b2():
+            v5 = load v2 -> &mut Field
+            store Field 2 at v5
+            v8 = add v3, Field 1
+            jmp b1(v8)
+          b3():
+            v9 = load v0 -> Field
+            v10 = eq v9, Field 2
+            constrain v9 == Field 2
+            v11 = load v2 -> &mut Field
+            v12 = load v11 -> Field
+            constrain v12 == Field 2
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.mem2reg();
-
-        let main = ssa.main();
-        assert_eq!(main.reachable_blocks().len(), 4);
-
-        // The stores from the original SSA should remain
-        assert_eq!(count_stores(main.entry_block(), &main.dfg), 2);
-        assert_eq!(count_stores(b2, &main.dfg), 1);
-
-        assert_eq!(count_loads(b2, &main.dfg), 1);
-        assert_eq!(count_loads(b3, &main.dfg), 3);
+        assert_normalized_ssa_equals(ssa, src);
     }
 
     #[test]
@@ -1120,39 +943,19 @@ mod tests {
         // Do not assume parameters are not aliased to each other.
         // The load below shouldn't be removed since `v0` could
         // be aliased to `v1`.
-        //
-        // fn main f0 {
-        //   b0(v0: &mut Field, v1: &mut Field):
-        //     store Field 0 at v0
-        //     store Field 1 at v1
-        //     v4 = load v0
-        //     constrain v4 == Field 1
-        //     return
-        // }
-        let main_id = Id::test_new(0);
-        let mut builder = FunctionBuilder::new("main".into(), main_id);
-
-        let field_ref = Type::Reference(Arc::new(Type::field()));
-        let v0 = builder.add_parameter(field_ref.clone());
-        let v1 = builder.add_parameter(field_ref.clone());
-
-        let zero = builder.field_constant(0u128);
-        let one = builder.field_constant(0u128);
-        builder.insert_store(v0, zero);
-        builder.insert_store(v1, one);
-
-        let v4 = builder.insert_load(v0, Type::field());
-        builder.insert_constrain(v4, one, None);
-        builder.terminate_with_return(Vec::new());
-
-        let ssa = builder.finish();
-        let main = ssa.main();
-        assert_eq!(count_loads(main.entry_block(), &main.dfg), 1);
-
-        // No change expected
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: &mut Field, v1: &mut Field):
+            store Field 0 at v0
+            store Field 0 at v1
+            v3 = load v0 -> Field
+            constrain v3 == Field 0
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.mem2reg();
-        let main = ssa.main();
-        assert_eq!(count_loads(main.entry_block(), &main.dfg), 1);
+        assert_normalized_ssa_equals(ssa, src);
     }
 
     #[test]
@@ -1273,7 +1076,7 @@ mod tests {
 
     #[test]
     fn keep_repeat_loads_with_alias_store() {
-        // v7, v8, and v9 alias one another. We want to make sure that a repeat load to v7 with a store
+        // v1, v2, and v3 alias one another. We want to make sure that a repeat load to v1 with a store
         // to its aliases in between the repeat loads does not remove those loads.
         let src = "
         acir(inline) fn main f0 {
@@ -1484,16 +1287,16 @@ mod tests {
     fn keep_last_store_in_make_array_returned_from_function_separate_blocks() {
         let src = "
         brillig(inline) fn main f0 {
-          b0(v0: u1):
-            v1 = call f1(v0) -> [&mut u1; 1]
-            v3 = array_get v1, index u32 0 -> &mut u1
+          b0(v0: u32):
+            v1 = call f1(v0) -> [&mut u32; 1]
+            v3 = array_get v1, index u32 0 -> &mut u32
             store u32 1 at v3
             v5 = load v3 -> u1
             return v5
         }
         brillig(inline_always) fn foo f1 {
-          b0(v0: u1):
-            v1 = allocate -> &mut u1
+          b0(v0: u32):
+            v1 = allocate -> &mut u32
             store v0 at v1
             v2 = allocate -> &mut u32
             store u32 0 at v2
@@ -1510,7 +1313,7 @@ mod tests {
             store v8 at v2
             jmp b5()
           b4():
-            v9 = make_array [v1] : [&mut u1; 1]
+            v9 = make_array [v1] : [&mut u32; 1]
             return v9
           b5():
             jmp b1()
@@ -1613,5 +1416,136 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.mem2reg();
         assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn unknown_aliases() {
+        // This is just a test to ensure the case where `aliases.is_unknown()` is tested.
+        // Here, `v8 = load v0 -> Field` cannot be removed and replaced with `Field 10`
+        // because `v6` is passed to another function and we don't know what that reference
+        // points to, and it could potentially change the value of `v0`.
+        let src = "
+        brillig(inline) fn foo f0 {
+          b0(v0: &mut Field):
+            v2 = allocate -> &mut &mut Field
+            store v0 at v2
+            jmp b1(Field 0)
+          b1(v1: Field):
+            jmpif u1 0 then: b2, else: b3
+          b2():
+            store Field 10 at v0
+            v6 = load v2 -> &mut Field
+            call f0(v6)
+            v8 = load v0 -> Field
+            jmp b1(v8)
+          b3():
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn does_not_remove_store_to_function_parameter() {
+        // The last store can't be removed as it stores a value in a function parameter
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: &mut Field):
+            jmp b1()
+          b1():
+            store Field 4 at v0
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.mem2reg();
+        // We expect the program to be unchanged
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn does_not_remove_store_to_return_value() {
+        // The last store can't be removed as it stores into a reference that is returned
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 4 at v0
+            jmp b1()
+          b1():
+            return v0
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.mem2reg();
+        // We expect the program to be unchanged
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn does_not_remove_store_to_address_used_in_terminator() {
+        // The store here shouldn't be removed as its address is eventually put inside
+        // an array that's used in a terminator value, `b1(v7)`.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v6 = allocate -> &mut u1
+            store u1 1 at v6
+            v7 = make_array [v6, Field 1] : [(&mut u1, Field); 1]
+            jmp b1(v7)
+          b1(v1: [(&mut u1, Field); 1]):
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.mem2reg();
+        // We expect the program to be unchanged
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn removes_last_store_in_single_block() {
+        // Even though v0 is a reference passed to a function, the store that comes next
+        // can be removed as it is later never read, and this is the only block in the function.
+        let src = "
+        brillig(inline) impure fn main f0 {
+          b0():
+            v0 = allocate -> &mut [Field; 2]
+            call f1(v0)
+            v1 = load v0 -> [Field; 2]
+            store v1 at v0
+            return
+        }
+
+        brillig(inline) impure fn append_note_hashes_with_logs f1 {
+          b0(v0: &mut [Field; 2]):
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.mem2reg();
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) impure fn main f0 {
+          b0():
+            v0 = allocate -> &mut [Field; 2]
+            call f1(v0)
+            v2 = load v0 -> [Field; 2]
+            return
+        }
+        brillig(inline) impure fn append_note_hashes_with_logs f1 {
+          b0(v0: &mut [Field; 2]):
+            return
+        }
+        ");
     }
 }

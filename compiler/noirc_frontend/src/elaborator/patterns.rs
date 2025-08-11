@@ -6,7 +6,7 @@ use crate::{
     DataType, Kind, Shared, Type, TypeAlias, TypeBindings,
     ast::{
         ERROR_IDENT, Expression, ExpressionKind, GenericTypeArgs, Ident, ItemVisibility, Path,
-        PathSegment, Pattern, TypePath,
+        PathSegment, Pattern, TypePath, UnresolvedTypeExpression,
     },
     elaborator::{
         Turbofish,
@@ -581,6 +581,18 @@ impl Elaborator<'_> {
         let (expr, item) = self.resolve_variable(variable);
         let definition_id = expr.id;
 
+        if let Some(PathResolutionItem::TypeAlias(alias)) = item {
+            // A type alias to a numeric generics is considered like a variable
+            // but it is not a real variable so it does not resolve to a valid Identifier
+            // In order to handle this, we retrieve the numeric generics expression that the type aliases to
+            let type_alias = self.interner.get_type_alias(alias);
+            if let Some(expr) = &type_alias.borrow().numeric_expr {
+                let expr = UnresolvedTypeExpression::to_expression_kind(expr);
+                let expr = Expression::new(expr, type_alias.borrow().location);
+                return self.elaborate_expression(expr);
+            }
+        }
+
         let (type_generics, self_generic) = if let Some(item) = item {
             self.resolve_item_turbofish_and_self_type(item)
         } else {
@@ -1035,7 +1047,7 @@ impl Elaborator<'_> {
         //     fn new() -> Self;
         // }
         //
-        // fn foo<O: One, T: Two<O>>() {
+        // fn foo<X: One, T: Two<X>>() {
         //     let _: T = Two::new();
         // }
         // ```
@@ -1043,8 +1055,13 @@ impl Elaborator<'_> {
         // when type-checking `Two::new` we'll have a return type `'2` which is constrained by `'2: Two<'1>`.
         // Then the definition for `new` has a constraint on it, `O: One`, which translates to `'1: One`.
         //
-        // If we try to find a trait implementation for `'1` before finding one for `'2` we'll never find it:
-        // once we find one for `'2`, `'1` will become bound and a trait implementation will be found.
+        // Because of the explicit type in the `let`, `'2` will be unified with `T`.
+        // Then we must first verify the constraint `'2: Two<'1>`, which is now `T: Two<'1>`, to find
+        // that the implementation is the assumed one `T: Two<X>` so that `'1` is bound to `X`.
+        // Then we can successfully verify the constraint `'1: One` which now became `X: One` which holds
+        // because of the assumed constraint.
+        //
+        // If we try to find a trait implementation for `'1` before finding one for `'2` we'll never find it.
         if let Some(definition) = self.interner.try_definition(ident.id) {
             if let DefinitionKind::Function(function) = definition.kind {
                 let function = self.interner.function_meta(&function);
@@ -1150,6 +1167,15 @@ impl Elaborator<'_> {
                 Err(_) => error,
             },
             None => match self.lookup_global(path) {
+                Ok((dummy_id, PathResolutionItem::TypeAlias(type_alias_id)))
+                    if dummy_id == DefinitionId::dummy_id() =>
+                {
+                    // Allow path which resolves to a type alias
+                    return Ok((
+                        (HirIdent::non_trait_method(dummy_id, location), 4),
+                        Some(PathResolutionItem::TypeAlias(type_alias_id)),
+                    ));
+                }
                 Ok((id, item)) => {
                     return Ok(((HirIdent::non_trait_method(id, location), 0), Some(item)));
                 }

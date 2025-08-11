@@ -34,9 +34,9 @@ pub enum Source {
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum TypeCheckError {
     #[error("Division by zero: {lhs} / {rhs}")]
-    DivisionByZero { lhs: FieldElement, rhs: FieldElement, location: Location },
+    DivisionByZero { lhs: SignedField, rhs: SignedField, location: Location },
     #[error("Modulo on Field elements: {lhs} % {rhs}")]
-    ModuloOnFields { lhs: FieldElement, rhs: FieldElement, location: Location },
+    ModuloOnFields { lhs: SignedField, rhs: SignedField, location: Location },
     #[error("The value `{expr}` cannot fit into `{ty}` which has range `{range}`")]
     IntegerLiteralDoesNotFitItsType {
         expr: SignedField,
@@ -48,9 +48,18 @@ pub enum TypeCheckError {
         "The value `{value}` cannot fit into `{kind}` which has a maximum size of `{maximum_size}`"
     )]
     OverflowingConstant {
-        value: FieldElement,
+        value: SignedField,
         kind: Kind,
         maximum_size: FieldElement,
+        location: Location,
+    },
+    #[error(
+        "The value `{value}` cannot fit into `{kind}` which has a minimum size of `{minimum_size}`"
+    )]
+    UnderflowingConstant {
+        value: SignedField,
+        kind: Kind,
+        minimum_size: SignedField,
         location: Location,
     },
     #[error("Evaluating `{op}` on `{lhs}`, `{rhs}` failed")]
@@ -67,8 +76,8 @@ pub enum TypeCheckError {
     TypeCanonicalizationMismatch {
         to: Type,
         from: Type,
-        to_value: FieldElement,
-        from_value: FieldElement,
+        to_value: SignedField,
+        from_value: SignedField,
         location: Location,
     },
     #[error("Expected {expected:?} found {found:?}")]
@@ -270,6 +279,7 @@ impl TypeCheckError {
             | TypeCheckError::ModuloOnFields { location, .. }
             | TypeCheckError::IntegerLiteralDoesNotFitItsType { location, .. }
             | TypeCheckError::OverflowingConstant { location, .. }
+            | TypeCheckError::UnderflowingConstant { location, .. }
             | TypeCheckError::FailingBinaryOp { location, .. }
             | TypeCheckError::TypeCannotBeUsed { location, .. }
             | TypeCheckError::TypeMismatch { expr_location: location, .. }
@@ -504,6 +514,7 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             | TypeCheckError::FieldComparison { location, .. }
             | TypeCheckError::IntegerLiteralDoesNotFitItsType { location, .. }
             | TypeCheckError::OverflowingConstant { location, .. }
+            | TypeCheckError::UnderflowingConstant { location, .. }
             | TypeCheckError::FailingBinaryOp { location, .. }
             | TypeCheckError::FieldModulo { location }
             | TypeCheckError::FieldNot { location }

@@ -1,0 +1,20 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(b: [i8; 2]) -> pub i8 {
+    let i: i8 = foo(b);
+    let c: i8 = 21_i8;
+    assert(i == c);
+    i
+}
+
+fn foo(mut b: [i8; 2]) -> i8 {
+    b[{
+        let d: i8 = 1_i8;
+        for _ in 0_u32..2_u32 {
+            b[0_u32] = b[1_u32] + d;
+        }
+        0_u32
+    }]
+}

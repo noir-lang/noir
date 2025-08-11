@@ -2,4 +2,4 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stdout
 ---
-[nested_array_with_refs] Circuit output: Field(0)
+[nested_array_with_refs] Circuit output: false
