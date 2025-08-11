@@ -18,6 +18,7 @@ use nargo::ops::{
 use nargo::package::{CrateName, Package};
 use nargo::workspace::Workspace;
 use nargo_toml::PackageSelection;
+use noir_artifact_cli::execution::input_value_to_string;
 use noir_artifact_cli::fs::inputs::read_inputs_from_file;
 use noir_artifact_cli::fs::witness::save_witness_to_dir;
 use noir_debugger::{DebugExecutionResult, DebugProject, RunParams};
@@ -277,7 +278,9 @@ fn decode_and_save_program_witness(
         &witness_stack.peek().expect("Should have at least one witness on the stack").witness;
 
     if let (_, Some(return_value)) = abi.decode(main_witness)? {
-        println!("[{package_name}] Circuit output: {return_value:?}");
+        let abi_type = &abi.return_type.as_ref().unwrap().abi_type;
+        let output_string = input_value_to_string(&return_value, abi_type);
+        println!("[{package_name}] Circuit output: {output_string}");
     }
 
     if let Some(witness_name) = target_witness_name {

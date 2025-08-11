@@ -2,4 +2,4 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stdout
 ---
-[while_loop_break_regression_8521] Circuit output: String("SQF")
+[while_loop_break_regression_8521] Circuit output: "SQF"

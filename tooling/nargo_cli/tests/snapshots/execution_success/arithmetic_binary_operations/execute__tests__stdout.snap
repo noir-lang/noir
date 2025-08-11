@@ -2,4 +2,4 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stdout
 ---
-[arithmetic_binary_operations] Circuit output: Field(10)
+[arithmetic_binary_operations] Circuit output: 0x0a

@@ -5,7 +5,7 @@ use async_lsp::lsp_types::{
     DocumentSymbol, DocumentSymbolParams, DocumentSymbolResponse, Location, Position, SymbolKind,
     TextDocumentPositionParams,
 };
-use fm::{FileId, FileMap, PathString};
+use fm::{FileId, FileMap};
 use noirc_errors::Span;
 use noirc_frontend::ast::TraitBound;
 use noirc_frontend::{
@@ -25,25 +25,20 @@ pub(crate) fn on_document_symbol_request(
     state: &mut LspState,
     params: DocumentSymbolParams,
 ) -> impl Future<Output = Result<Option<DocumentSymbolResponse>, ResponseError>> + use<> {
-    let Ok(file_path) = params.text_document.uri.to_file_path() else {
-        return future::ready(Ok(None));
-    };
-
     let text_document_position_params = TextDocumentPositionParams {
         text_document: params.text_document.clone(),
         position: Position { line: 0, character: 0 },
     };
 
     let result = process_request(state, text_document_position_params, |args| {
-        args.files.get_file_id(&PathString::from_path(file_path)).map(|file_id| {
-            let file = args.files.get_file(file_id).unwrap();
-            let source = file.source();
-            let (parsed_module, _errors) = noirc_frontend::parse_program(source, file_id);
+        let file_id = args.location.file;
+        let file = args.files.get_file(file_id).unwrap();
+        let source = file.source();
+        let (parsed_module, _errors) = noirc_frontend::parse_program(source, file_id);
 
-            let mut collector = DocumentSymbolCollector::new(file_id, args.files);
-            let symbols = collector.collect(&parsed_module);
-            DocumentSymbolResponse::Nested(symbols)
-        })
+        let mut collector = DocumentSymbolCollector::new(file_id, args.files);
+        let symbols = collector.collect(&parsed_module);
+        Some(DocumentSymbolResponse::Nested(symbols))
     });
 
     future::ready(result)

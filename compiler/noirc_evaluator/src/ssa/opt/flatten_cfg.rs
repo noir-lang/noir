@@ -172,10 +172,73 @@ impl Ssa {
         }
 
         for function in self.functions.values_mut() {
+            // Disabled due to failures
+            // #[cfg(debug_assertions)]
+            // flatten_cfg_pre_check(function);
+
             flatten_function_cfg(function, &no_predicates);
+
+            // Disabled as we're getting failures, I would expect this to pass however.
+            // #[cfg(debug_assertions)]
+            // flatten_cfg_post_check(function);
         }
         self
     }
+}
+
+/// Pre-check condition for [Ssa::flatten_cfg].
+///
+/// Succeeds if:
+///   - no block contains a jmpif with a constant condition.
+///
+/// Otherwise panics.
+#[cfg(debug_assertions)]
+#[allow(dead_code)]
+fn flatten_cfg_pre_check(function: &Function) {
+    function.reachable_blocks().iter().for_each(|block| {
+        if let TerminatorInstruction::JmpIf { condition, .. } =
+            function.dfg[*block].unwrap_terminator()
+        {
+            if function
+                .dfg
+                .get_numeric_constant(*condition)
+                .is_some_and(|c| c.is_zero() || c.is_one())
+            {
+                // We have this check here as if we do not, the flattening pass will generate groups of opcodes which are
+                // under a zero predicate. These opcodes are not always removed by the die pass and so bloat the code.
+                //
+                // We could add handling for this inside of the pass itself but it's simpler to just run `simplify_cfg`
+                // immediately before flattening.
+                panic!(
+                    "Function {} has a jmpif with a constant condition {condition}",
+                    function.id()
+                );
+            }
+        }
+    });
+}
+
+/// Post-check condition for [Ssa::flatten_cfg].
+///
+/// Panics if:
+///   - Any `enable_side_effects u1 0` instructions exist.
+///
+/// Otherwise succeeds.
+#[cfg(debug_assertions)]
+#[allow(dead_code)]
+fn flatten_cfg_post_check(function: &Function) {
+    function.reachable_blocks().iter().for_each(|block| {
+        function.dfg[*block].instructions().iter().for_each(|instruction| {
+            if let Instruction::EnableSideEffectsIf { condition } = function.dfg[*instruction] {
+                if function.dfg.get_numeric_constant(condition).is_some_and(|c| c.is_zero()) {
+                    panic!(
+                        "Function {} has an enable_side_effects u1 0 instruction",
+                        function.id()
+                    );
+                }
+            }
+        });
+    });
 }
 
 pub(crate) struct Context<'f> {
@@ -1605,7 +1668,7 @@ mod test {
             v3 = cast v2 as u32
             v4 = truncate v3 to 1 bits, max_bit_size: 32
             v5 = cast v4 as u1
-            v6 = allocate -> &mut Field
+            v6 = allocate -> &mut u8
             store u8 0 at v6
             jmpif v5 then: b2, else: b1
           b2():
@@ -1649,7 +1712,7 @@ mod test {
             v3 = cast v2 as u32
             v4 = truncate v3 to 1 bits, max_bit_size: 32
             v5 = cast v4 as u1
-            v6 = allocate -> &mut Field
+            v6 = allocate -> &mut u8
             store u8 0 at v6
             enable_side_effects v5
             v8 = cast v2 as Field
@@ -1778,7 +1841,7 @@ mod test {
         let src = "
         acir(inline) fn main f0 {
           b0(v0: bool):
-            v1 = allocate -> &mut [Field; 1]
+            v1 = allocate -> &mut Field
             store Field 0 at v1
             jmpif v0 then: b1, else: b2
           b1():
@@ -1797,7 +1860,7 @@ mod test {
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: u1):
-            v1 = allocate -> &mut [Field; 1]
+            v1 = allocate -> &mut Field
             enable_side_effects v0
             v2 = not v0
             v3 = cast v0 as Field

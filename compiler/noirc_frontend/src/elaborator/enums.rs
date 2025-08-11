@@ -553,7 +553,8 @@ impl Elaborator<'_> {
         variables_defined: &mut Vec<Ident>,
     ) -> Pattern {
         let location = constructor.typ.location;
-        let typ = self.resolve_type(constructor.typ);
+        let wildcard_allowed = true;
+        let typ = self.resolve_type(constructor.typ, wildcard_allowed);
 
         let Some((struct_name, mut expected_field_types)) =
             self.struct_name_and_field_types(&typ, location)
@@ -794,7 +795,7 @@ impl Elaborator<'_> {
 
         let value = match constant {
             Value::Bool(value) => SignedField::positive(value),
-            Value::Field(value) => SignedField::positive(value),
+            Value::Field(value) => value,
             Value::I8(value) => signed_to_signed_field!(value),
             Value::I16(value) => signed_to_signed_field!(value),
             Value::I32(value) => signed_to_signed_field!(value),

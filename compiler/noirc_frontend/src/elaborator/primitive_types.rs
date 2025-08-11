@@ -185,6 +185,7 @@ impl Elaborator<'_> {
         primitive_type: PrimitiveType,
         args: GenericTypeArgs,
         location: Location,
+        wildcard_allowed: bool,
     ) -> Type {
         match primitive_type {
             PrimitiveType::Bool
@@ -231,6 +232,7 @@ impl Elaborator<'_> {
                     item,
                     location,
                     PathResolutionMode::MarkAsReferenced,
+                    wildcard_allowed,
                 );
                 assert_eq!(args.len(), 1);
                 let length = args.pop().unwrap();
@@ -243,6 +245,7 @@ impl Elaborator<'_> {
                     item,
                     location,
                     PathResolutionMode::MarkAsReferenced,
+                    wildcard_allowed,
                 );
                 assert_eq!(args.len(), 2);
                 let element = args.pop().unwrap();

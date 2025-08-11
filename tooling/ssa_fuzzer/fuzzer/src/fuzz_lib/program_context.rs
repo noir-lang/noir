@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use super::function_context::{FunctionData, FuzzerFunctionContext};
 use super::instruction::{FunctionSignature, InstructionBlock};
-use super::options::FunctionContextOptions;
+use super::options::{FunctionContextOptions, FuzzerMode, FuzzerOptions};
 use acvm::FieldElement;
 use noir_ssa_fuzzer::{
     builder::{FuzzerBuilder, FuzzerBuilderError},
@@ -41,14 +41,17 @@ pub(crate) struct FuzzerProgramContext {
     ///
     /// Used for the constant mode (to replace variables in the main function with constants)
     values: Vec<FieldElement>,
+
+    mode: FuzzerMode,
 }
 
 impl FuzzerProgramContext {
     /// Creates a new FuzzerProgramContext
-    pub(crate) fn new(
+    fn new(
         program_context_options: FunctionContextOptions,
         instruction_blocks: Vec<InstructionBlock>,
         values: Vec<FieldElement>,
+        mode: FuzzerMode,
     ) -> Self {
         let acir_builder = FuzzerBuilder::new_acir();
         let brillig_builder = FuzzerBuilder::new_brillig();
@@ -63,14 +66,16 @@ impl FuzzerProgramContext {
             instruction_blocks,
             is_main_initialized: false,
             values,
+            mode,
         }
     }
 
     /// Creates a new FuzzerProgramContext where all inputs are constants
-    pub(crate) fn new_constant_context(
+    fn new_constant_context(
         program_context_options: FunctionContextOptions,
         instruction_blocks: Vec<InstructionBlock>,
         values: Vec<FieldElement>,
+        mode: FuzzerMode,
     ) -> Self {
         let acir_builder = FuzzerBuilder::new_acir();
         let brillig_builder = FuzzerBuilder::new_brillig();
@@ -85,6 +90,7 @@ impl FuzzerProgramContext {
             instruction_blocks,
             is_main_initialized: false,
             values,
+            mode,
         }
     }
 
@@ -158,5 +164,61 @@ impl FuzzerProgramContext {
             self.acir_builder.compile(self.program_context_options.compile_options.clone()),
             self.brillig_builder.compile(self.program_context_options.compile_options),
         )
+    }
+
+    pub(crate) fn get_mode(&self) -> FuzzerMode {
+        self.mode.clone()
+    }
+}
+
+/// Creates [`FuzzerProgramContext`] from [`FuzzerMode`]
+pub(crate) fn program_context_by_mode(
+    mode: FuzzerMode,
+    instruction_blocks: Vec<InstructionBlock>,
+    values: Vec<FieldElement>,
+    options: FuzzerOptions,
+) -> FuzzerProgramContext {
+    match mode {
+        FuzzerMode::Constant => FuzzerProgramContext::new_constant_context(
+            FunctionContextOptions {
+                idempotent_morphing_enabled: false,
+                ..FunctionContextOptions::from(&options)
+            },
+            instruction_blocks,
+            values,
+            mode,
+        ),
+        FuzzerMode::NonConstant => FuzzerProgramContext::new(
+            FunctionContextOptions {
+                idempotent_morphing_enabled: false,
+                ..FunctionContextOptions::from(&options)
+            },
+            instruction_blocks,
+            values,
+            mode,
+        ),
+        FuzzerMode::NonConstantWithIdempotentMorphing => FuzzerProgramContext::new(
+            FunctionContextOptions {
+                idempotent_morphing_enabled: true,
+                ..FunctionContextOptions::from(&options)
+            },
+            instruction_blocks,
+            values,
+            mode,
+        ),
+        FuzzerMode::NonConstantWithoutDIE => {
+            let mut options = options;
+            options.compile_options.skip_ssa_pass =
+                vec!["Dead Instruction Elimination".to_string()];
+            FuzzerProgramContext::new(
+                FunctionContextOptions {
+                    idempotent_morphing_enabled: true,
+                    ..FunctionContextOptions::from(&options)
+                },
+                instruction_blocks,
+                values,
+                mode,
+            )
+        }
     }
 }
