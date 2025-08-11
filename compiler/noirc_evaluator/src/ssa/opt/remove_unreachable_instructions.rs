@@ -77,9 +77,14 @@ impl Function {
             let instruction = context.instruction();
             if let Instruction::EnableSideEffectsIf { condition } = instruction {
                 side_effects_condition = *condition;
-                if current_block_reachability == Reachability::UnreachableUnderPredicate {
-                    current_block_reachability = Reachability::Reachable;
-                }
+                current_block_reachability =
+                    match context.dfg.get_numeric_constant(side_effects_condition) {
+                        Some(predicate) if predicate.is_zero() => {
+                            // We can replace side effecting instructions with defaults until the next predicate.
+                            Reachability::UnreachableUnderPredicate
+                        }
+                        _ => Reachability::Reachable,
+                    };
                 return;
             };
 
@@ -871,11 +876,11 @@ mod test {
         let src = "
         acir(inline) predicate_pure fn main f0 {
           b0():
-            v0 = allocate -> &mut u8                      
-            store u8 0 at v0                               
+            v0 = allocate -> &mut u8
+            store u8 0 at v0
             v2 = make_array [u8 0, v0] : [(u8, &mut u8); 1]
-            v4 = array_get v2, index u32 2 -> u8         
-            v6 = array_get v2, index u32 3 -> &mut u8      
+            v4 = array_get v2, index u32 2 -> u8
+            v6 = array_get v2, index u32 3 -> &mut u8
             return v4
         }
         ";
@@ -904,11 +909,11 @@ mod test {
         let src = "
         brillig(inline) predicate_pure fn main f0 {
           b0():
-            v0 = allocate -> &mut u8                      
-            store u8 0 at v0                               
+            v0 = allocate -> &mut u8
+            store u8 0 at v0
             v2 = make_array [u8 0, v0] : [(u8, &mut u8); 1]
-            v4 = array_get v2, index u32 2 -> u8         
-            v6 = array_get v2, index u32 3 -> &mut u8      
+            v4 = array_get v2, index u32 2 -> u8
+            v6 = array_get v2, index u32 3 -> &mut u8
             return v4
         }
         ";
