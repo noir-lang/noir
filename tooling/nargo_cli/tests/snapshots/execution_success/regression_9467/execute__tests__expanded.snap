@@ -1,0 +1,13 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+global G_A: [u32] = &[];
+
+fn main(b: bool) -> pub (u32, u32) {
+    if b {
+        (G_A.pop_front().0, G_A.remove(0_u32).1)
+    } else {
+        (1_u32, 1_u32)
+    }
+}
