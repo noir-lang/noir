@@ -564,7 +564,39 @@
 <a href="#563" id="563">563</a>
 <a href="#564" id="564">564</a>
 <a href="#565" id="565">565</a>
-<a href="#566" id="566">566</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#566" id="566">566</a>
+<a href="#567" id="567">567</a>
+<a href="#568" id="568">568</a>
+<a href="#569" id="569">569</a>
+<a href="#570" id="570">570</a>
+<a href="#571" id="571">571</a>
+<a href="#572" id="572">572</a>
+<a href="#573" id="573">573</a>
+<a href="#574" id="574">574</a>
+<a href="#575" id="575">575</a>
+<a href="#576" id="576">576</a>
+<a href="#577" id="577">577</a>
+<a href="#578" id="578">578</a>
+<a href="#579" id="579">579</a>
+<a href="#580" id="580">580</a>
+<a href="#581" id="581">581</a>
+<a href="#582" id="582">582</a>
+<a href="#583" id="583">583</a>
+<a href="#584" id="584">584</a>
+<a href="#585" id="585">585</a>
+<a href="#586" id="586">586</a>
+<a href="#587" id="587">587</a>
+<a href="#588" id="588">588</a>
+<a href="#589" id="589">589</a>
+<a href="#590" id="590">590</a>
+<a href="#591" id="591">591</a>
+<a href="#592" id="592">592</a>
+<a href="#593" id="593">593</a>
+<a href="#594" id="594">594</a>
+<a href="#595" id="595">595</a>
+<a href="#596" id="596">596</a>
+<a href="#597" id="597">597</a>
+<a href="#598" id="598">598</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![warn(unused_crate_dependencies, unused_extern_crates)]
 
 </span><span class="kw">use </span>std::{collections::BTreeMap, str};
@@ -858,7 +890,7 @@
     <span class="string">"0x"</span>.to_owned() + <span class="kw-2">&amp;</span>trimmed_field
 }
 
-<span class="doccomment">/// Assumes that `field_iterator` contains enough field elements in order to decode the [PrintableType]
+<span class="doccomment">/// Assumes that `field_iterator` contains enough field elements in order to decode the [PrintableType].
 </span><span class="kw">pub fn </span>decode_printable_value&lt;F: AcirField&gt;(
     field_iterator: <span class="kw-2">&amp;mut </span><span class="kw">impl </span>Iterator&lt;Item = F&gt;,
     typ: <span class="kw-2">&amp;</span>PrintableType,
@@ -868,13 +900,14 @@
         | PrintableType::SignedInteger { .. }
         | PrintableType::UnsignedInteger { .. }
         | PrintableType::Boolean =&gt; {
-            <span class="kw">let </span>field_element = field_iterator.next().unwrap();
+            <span class="kw">let </span>field_element = field_iterator.next().expect(<span class="string">"not enough data: expected bool"</span>);
 
             PrintableValue::Field(field_element)
         }
         PrintableType::Array { length, typ } =&gt; {
             <span class="kw">let </span>length = <span class="kw-2">*</span>length <span class="kw">as </span>usize;
             <span class="kw">let </span><span class="kw-2">mut </span>array_elements = Vec::with_capacity(length);
+
             <span class="kw">for _ in </span><span class="number">0</span>..length {
                 array_elements.push(decode_printable_value(field_iterator, typ));
             }
@@ -882,11 +915,12 @@
             PrintableValue::Vec { array_elements, is_slice: <span class="bool-val">false </span>}
         }
         PrintableType::Slice { typ } =&gt; {
-            <span class="kw">let </span>length = field_iterator
-                .next()
-                .expect(<span class="string">"not enough data to decode variable array length"</span>)
-                .to_u128() <span class="kw">as </span>usize;
+            <span class="kw">let </span>length =
+                field_iterator.next().expect(<span class="string">"not enough data: expected slice length"</span>).to_u128()
+                    <span class="kw">as </span>usize;
+
             <span class="kw">let </span><span class="kw-2">mut </span>array_elements = Vec::with_capacity(length);
+
             <span class="kw">for _ in </span><span class="number">0</span>..length {
                 array_elements.push(decode_printable_value(field_iterator, typ));
             }
@@ -937,7 +971,7 @@
         PrintableType::Function { env, .. } =&gt; {
             <span class="comment">// we want to consume the fields from the environment, but for now they are not actually printed
             </span><span class="kw">let </span>_env = decode_printable_value(field_iterator, env);
-            <span class="kw">let </span>func_id = field_iterator.next().unwrap();
+            <span class="kw">let </span>func_id = field_iterator.next().expect(<span class="string">"not enough data: expected function ID"</span>);
             PrintableValue::Field(func_id)
         }
         PrintableType::Reference { typ, .. } =&gt; {
@@ -946,7 +980,7 @@
         }
         PrintableType::Unit =&gt; PrintableValue::Field(F::zero()),
         PrintableType::Enum { name: <span class="kw">_</span>, variants } =&gt; {
-            <span class="kw">let </span>tag = field_iterator.next().unwrap();
+            <span class="kw">let </span>tag = field_iterator.next().expect(<span class="string">"not enough data: expected enum tag"</span>);
             <span class="kw">let </span>tag_value = tag.to_u128() <span class="kw">as </span>usize;
 
             <span class="kw">let </span>(_name, variant_types) = <span class="kw-2">&amp;</span>variants[tag_value];
@@ -978,7 +1012,17 @@
 }
 
 <span class="kw">impl</span>&lt;F: AcirField&gt; PrintableValueDisplay&lt;F&gt; {
-    <span class="kw">pub fn </span>try_from_params(
+    <span class="doccomment">/// Decode the print parameters after the first _newline_ flag has already been split.
+    ///
+    /// The last parameter is expected to be the flag indicating whether we are dealing
+    /// with a format string.
+    ///
+    /// We expect at least 3 arguments (tuples are passed as multiple values):
+    /// * normal: value.0, ..., value.i, meta, false
+    /// * formatted: msg, N, value1.0, ..., value1.i, ..., valueN.0, ..., valueN.j, meta1, ..., metaN, true
+    ///
+    /// The meta parts are JSON descriptors of the corresponding types, which guide the decoding.
+    </span><span class="kw">pub fn </span>try_from_params(
         foreign_call_inputs: <span class="kw-2">&amp;</span>[ForeignCallParam&lt;F&gt;],
     ) -&gt; <span class="prelude-ty">Result</span>&lt;PrintableValueDisplay&lt;F&gt;, TryFromParamsError&gt; {
         <span class="kw">let </span>(is_fmt_str, foreign_call_inputs) =
@@ -992,24 +1036,43 @@
     }
 }
 
-<span class="kw">fn </span>convert_string_inputs&lt;F: AcirField&gt;(
+<span class="doccomment">/// Flatten input parameters into a field vector.
+///
+/// Slices are expected to have exactly as many elements as indicated by their corresponding length,
+/// with any extra elements pruned by the caller already.
+</span><span class="kw">fn </span>flatten_inputs&lt;F: AcirField&gt;(input_values: <span class="kw-2">&amp;</span>[ForeignCallParam&lt;F&gt;]) -&gt; <span class="kw">impl </span>Iterator&lt;Item = F&gt; {
+    input_values.iter().flat_map(|param| param.fields())
+}
+
+<span class="doccomment">/// Decode parameters for a normal call, without format string.
+///
+/// It will have a single meta descriptor:
+///
+/// value.0, ..., value.i, meta
+</span><span class="kw">fn </span>convert_string_inputs&lt;F: AcirField&gt;(
     foreign_call_inputs: <span class="kw-2">&amp;</span>[ForeignCallParam&lt;F&gt;],
 ) -&gt; <span class="prelude-ty">Result</span>&lt;PrintableValueDisplay&lt;F&gt;, TryFromParamsError&gt; {
     <span class="comment">// Fetch the PrintableType from the foreign call input
     // The remaining input values should hold what is to be printed
     </span><span class="kw">let </span>(printable_type_as_values, input_values) =
         foreign_call_inputs.split_last().ok_or(TryFromParamsError::MissingForeignCallInputs)<span class="question-mark">?</span>;
+
     <span class="kw">let </span>printable_type = fetch_printable_type(printable_type_as_values)<span class="question-mark">?</span>;
 
     <span class="comment">// We must use a flat map here as each value in a struct will be in a separate input value
-    </span><span class="kw">let </span><span class="kw-2">mut </span>input_values_as_fields = input_values.iter().flat_map(|param| param.fields());
+    </span><span class="kw">let </span><span class="kw-2">mut </span>input_values_as_fields = flatten_inputs(input_values);
 
     <span class="kw">let </span>value = decode_printable_value(<span class="kw-2">&amp;mut </span>input_values_as_fields, <span class="kw-2">&amp;</span>printable_type);
 
     <span class="prelude-val">Ok</span>(PrintableValueDisplay::Plain(value, printable_type))
 }
 
-<span class="kw">fn </span>convert_fmt_string_inputs&lt;F: AcirField&gt;(
+<span class="doccomment">/// Decode parameters for a call with format string.
+///
+/// It will have the format message, followed by the number of arguments, and their values:
+///
+/// msg, N, value1.0, ..., value1.i, ..., valueN.0, ..., valueN.j, meta1, ..., metaN
+</span><span class="kw">fn </span>convert_fmt_string_inputs&lt;F: AcirField&gt;(
     foreign_call_inputs: <span class="kw-2">&amp;</span>[ForeignCallParam&lt;F&gt;],
 ) -&gt; <span class="prelude-ty">Result</span>&lt;PrintableValueDisplay&lt;F&gt;, TryFromParamsError&gt; {
     <span class="kw">let </span>(message, input_and_printable_types) =
@@ -1027,8 +1090,8 @@
 
     <span class="kw">let </span>types_start_at = input_and_printable_types.len() - num_values;
 
-    <span class="kw">let </span><span class="kw-2">mut </span>input_iter =
-        input_and_printable_types[<span class="number">0</span>..types_start_at].iter().flat_map(|param| param.fields());
+    <span class="kw">let </span><span class="kw-2">mut </span>input_iter = flatten_inputs(<span class="kw-2">&amp;</span>input_and_printable_types[<span class="number">0</span>..types_start_at]);
+
     <span class="kw">for </span>printable_type <span class="kw">in </span>input_and_printable_types.iter().skip(types_start_at) {
         <span class="kw">let </span>printable_type = fetch_printable_type(printable_type)<span class="question-mark">?</span>;
         <span class="kw">let </span>value = decode_printable_value(<span class="kw-2">&amp;mut </span>input_iter, <span class="kw-2">&amp;</span>printable_type);
@@ -1039,7 +1102,8 @@
     <span class="prelude-val">Ok</span>(PrintableValueDisplay::FmtString(message_as_string, output))
 }
 
-<span class="kw">fn </span>fetch_printable_type&lt;F: AcirField&gt;(
+<span class="doccomment">/// Decode the JSON type descriptor of the arguments passed to the print.
+</span><span class="kw">fn </span>fetch_printable_type&lt;F: AcirField&gt;(
     printable_type: <span class="kw-2">&amp;</span>ForeignCallParam&lt;F&gt;,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;PrintableType, TryFromParamsError&gt; {
     <span class="kw">let </span>printable_type_as_fields = printable_type.fields();

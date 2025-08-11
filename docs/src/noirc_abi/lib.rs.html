@@ -506,7 +506,12 @@
 <a href="#505" id="505">505</a>
 <a href="#506" id="506">506</a>
 <a href="#507" id="507">507</a>
-<a href="#508" id="508">508</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#508" id="508">508</a>
+<a href="#509" id="509">509</a>
+<a href="#510" id="510">510</a>
+<a href="#511" id="511">511</a>
+<a href="#512" id="512">512</a>
+<a href="#513" id="513">513</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
 </span><span class="kw">use </span>acvm::{
@@ -962,7 +967,12 @@
     String { string: String },
 }
 
-<span class="kw">pub fn </span>display_abi_error&lt;F: AcirField&gt;(
+<span class="doccomment">/// Decode the raw revert data according to some error type descriptor.
+///
+/// By contrast to how arguments are passed to foreign calls, the revert data is already flattened,
+/// so we don't have control over how we flatten the data before decoding, however note that slices
+/// are not allowed in revert data, so this shouldn't be a problem.
+</span><span class="kw">pub fn </span>display_abi_error&lt;F: AcirField&gt;(
     fields: <span class="kw-2">&amp;</span>[F],
     error_type: AbiErrorType,
 ) -&gt; PrintableValueDisplay&lt;F&gt; {
@@ -976,9 +986,9 @@
             };
             <span class="kw">let </span>_length_of_items = fields_iter.next();
             <span class="kw">let </span>items = item_types.into_iter().map(|abi_type| {
-                <span class="kw">let </span>printable_typ = (<span class="kw-2">&amp;</span>abi_type).into();
-                <span class="kw">let </span>decoded = decode_printable_value(<span class="kw-2">&amp;mut </span>fields_iter, <span class="kw-2">&amp;</span>printable_typ);
-                (decoded, printable_typ)
+                <span class="kw">let </span>printable_type = (<span class="kw-2">&amp;</span>abi_type).into();
+                <span class="kw">let </span>decoded = decode_printable_value(<span class="kw-2">&amp;mut </span>fields_iter, <span class="kw-2">&amp;</span>printable_type);
+                (decoded, printable_type)
             });
             PrintableValueDisplay::FmtString(string, items.collect())
         }

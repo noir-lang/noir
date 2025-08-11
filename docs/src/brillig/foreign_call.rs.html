@@ -61,10 +61,11 @@
 <a href="#60" id="60">60</a>
 <a href="#61" id="61">61</a>
 <a href="#62" id="62">62</a>
-<a href="#63" id="63">63</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir_field::AcirField;
+<a href="#63" id="63">63</a>
+<a href="#64" id="64">64</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir_field::AcirField;
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 
-<span class="doccomment">/// Single output of a [foreign call][crate::Opcode::ForeignCall].
+<span class="doccomment">/// Single input or output of a [foreign call][crate::Opcode::ForeignCall].
 </span><span class="attr">#[derive(Debug, PartialEq, Eq, Serialize, Deserialize, Clone)]
 #[serde(untagged)]
 </span><span class="kw">pub enum </span>ForeignCallParam&lt;F&gt; {
@@ -85,7 +86,8 @@
 }
 
 <span class="kw">impl</span>&lt;F: AcirField&gt; ForeignCallParam&lt;F&gt; {
-    <span class="kw">pub fn </span>fields(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;F&gt; {
+    <span class="doccomment">/// Convert the fields in the parameter into a vector, used to flatten data.
+    </span><span class="kw">pub fn </span>fields(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Vec&lt;F&gt; {
         <span class="kw">match </span><span class="self">self </span>{
             ForeignCallParam::Single(value) =&gt; <span class="macro">vec!</span>[<span class="kw-2">*</span>value],
             ForeignCallParam::Array(values) =&gt; values.to_vec(),

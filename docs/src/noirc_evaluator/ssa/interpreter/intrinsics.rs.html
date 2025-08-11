@@ -853,7 +853,24 @@
 <a href="#852" id="852">852</a>
 <a href="#853" id="853">853</a>
 <a href="#854" id="854">854</a>
-<a href="#855" id="855">855</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::io::Write;
+<a href="#855" id="855">855</a>
+<a href="#856" id="856">856</a>
+<a href="#857" id="857">857</a>
+<a href="#858" id="858">858</a>
+<a href="#859" id="859">859</a>
+<a href="#860" id="860">860</a>
+<a href="#861" id="861">861</a>
+<a href="#862" id="862">862</a>
+<a href="#863" id="863">863</a>
+<a href="#864" id="864">864</a>
+<a href="#865" id="865">865</a>
+<a href="#866" id="866">866</a>
+<a href="#867" id="867">867</a>
+<a href="#868" id="868">868</a>
+<a href="#869" id="869">869</a>
+<a href="#870" id="870">870</a>
+<a href="#871" id="871">871</a>
+<a href="#872" id="872">872</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::io::Write;
 
 <span class="kw">use </span>acvm::{AcirField, BlackBoxFunctionSolver, BlackBoxResolutionError, FieldElement};
 <span class="kw">use </span>bn254_blackbox_solver::derive_generators;
@@ -1543,8 +1560,7 @@
             <span class="comment">// Everything up to the first meta is part of _some_ value.
             // We'll let each parser take as many fields as they need.
             </span><span class="kw">let </span>meta_idx = args.len() - <span class="number">1 </span>- num_values;
-            <span class="kw">let </span>input_as_fields =
-                (<span class="number">3</span>..meta_idx).flat_map(|i| value_to_fields(<span class="kw-2">&amp;</span>args[i])).collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+            <span class="kw">let </span>input_as_fields = values_to_fields(<span class="kw-2">&amp;</span>args[<span class="number">3</span>..meta_idx]);
             <span class="kw">let </span>field_iterator = <span class="kw-2">&amp;mut </span>input_as_fields.into_iter();
 
             <span class="kw">let </span><span class="kw-2">mut </span>fragments = Vec::new();
@@ -1556,8 +1572,7 @@
             PrintableValueDisplay::FmtString(message, fragments)
         } <span class="kw">else </span>{
             <span class="kw">let </span>meta_idx = args.len() - <span class="number">2</span>;
-            <span class="kw">let </span>input_as_fields =
-                (<span class="number">1</span>..meta_idx).flat_map(|i| value_to_fields(<span class="kw-2">&amp;</span>args[i])).collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
+            <span class="kw">let </span>input_as_fields = values_to_fields(<span class="kw-2">&amp;</span>args[<span class="number">1</span>..meta_idx]);
             <span class="kw">let </span>printable_type = value_to_printable_type(<span class="kw-2">&amp;</span>args[meta_idx])<span class="question-mark">?</span>;
             <span class="kw">let </span>printable_value =
                 decode_printable_value(<span class="kw-2">&amp;mut </span>input_as_fields.into_iter(), <span class="kw-2">&amp;</span>printable_type);
@@ -1638,37 +1653,56 @@
     ))
 }
 
-<span class="doccomment">/// Convert a [Value] to a vector of [FieldElement] for printing.
-</span><span class="kw">fn </span>value_to_fields(value: <span class="kw-2">&amp;</span>Value) -&gt; Vec&lt;FieldElement&gt; {
-    <span class="kw">fn </span>go(value: <span class="kw-2">&amp;</span>Value, fields: <span class="kw-2">&amp;mut </span>Vec&lt;FieldElement&gt;) {
-        <span class="kw">match </span>value {
-            Value::Numeric(numeric_value) =&gt; fields.push(numeric_value.convert_to_field()),
-            Value::Reference(reference_value) =&gt; {
-                <span class="kw">if let </span><span class="prelude-val">Some</span>(value) = reference_value.element.borrow().as_ref() {
-                    go(value, fields);
+<span class="doccomment">/// Convert a slice of [Value] to a flattened vector of [FieldElement] for printing.
+///
+/// It takes a slice, rather than individual values, so that it can try to
+/// pair up `u32` fields indicating the size of a `Slice` with its elements
+/// following in the next value, and truncate the data to the semantic length.
+</span><span class="kw">fn </span>values_to_fields(values: <span class="kw-2">&amp;</span>[Value]) -&gt; Vec&lt;FieldElement&gt; {
+    <span class="kw">fn </span>go&lt;<span class="lifetime">'a</span>, I&gt;(values: I, fields: <span class="kw-2">&amp;mut </span>Vec&lt;FieldElement&gt;)
+    <span class="kw">where
+        </span>I: Iterator&lt;Item = <span class="kw-2">&amp;</span><span class="lifetime">'a </span>Value&gt;,
+    {
+        <span class="kw">let </span><span class="kw-2">mut </span>vector_length: <span class="prelude-ty">Option</span>&lt;usize&gt; = <span class="prelude-val">None</span>;
+        <span class="kw">for </span>value <span class="kw">in </span>values {
+            <span class="kw">match </span>value {
+                Value::Numeric(numeric_value) =&gt; fields.push(numeric_value.convert_to_field()),
+                Value::Reference(reference_value) =&gt; {
+                    <span class="kw">if let </span><span class="prelude-val">Some</span>(value) = reference_value.element.borrow().as_ref() {
+                        go(std::iter::once(value), fields);
+                    }
+                }
+                Value::ArrayOrSlice(array_value) =&gt; {
+                    <span class="kw">let </span>length = <span class="kw">match </span>vector_length {
+                        <span class="prelude-val">Some</span>(length) <span class="kw">if </span>array_value.is_slice =&gt; {
+                            length * array_value.element_types.len()
+                        }
+                        <span class="kw">_ </span>=&gt; array_value.elements.borrow().len(),
+                    };
+                    go(array_value.elements.borrow().iter().take(length), fields);
+                }
+                Value::Function(id) =&gt; {
+                    <span class="comment">// Based on `decode_printable_value` it will expect consume the environment as well,
+                    // but that's catered for the by the SSA generation: the env is passed as separate values.
+                    </span>fields.push(FieldElement::from(id.to_u32()));
+                }
+                Value::Intrinsic(x) =&gt; {
+                    <span class="macro">panic!</span>(<span class="string">"didn't expect to print intrinsics: {x}"</span>)
+                }
+                Value::ForeignFunction(x) =&gt; {
+                    <span class="macro">panic!</span>(<span class="string">"didn't expect to print foreign functions: {x}"</span>)
                 }
             }
-            Value::ArrayOrSlice(array_value) =&gt; {
-                <span class="kw">for </span>value <span class="kw">in </span>array_value.elements.borrow().iter() {
-                    go(value, fields);
-                }
-            }
-            Value::Function(id) =&gt; {
-                <span class="comment">// Based on `decode_printable_value` it will expect consume the environment as well,
-                // but that's catered for the by the SSA generation: the env is passed as separate values.
-                </span>fields.push(FieldElement::from(id.to_u32()));
-            }
-            Value::Intrinsic(x) =&gt; {
-                <span class="macro">panic!</span>(<span class="string">"didn't expect to print intrinsics: {x}"</span>)
-            }
-            Value::ForeignFunction(x) =&gt; {
-                <span class="macro">panic!</span>(<span class="string">"didn't expect to print foreign functions: {x}"</span>)
+            <span class="comment">// Chamber the length for a potential vector following it.
+            </span><span class="kw">if let </span>Value::Numeric(NumericValue::U32(length)) = value {
+                vector_length = <span class="prelude-val">Some</span>(<span class="kw-2">*</span>length <span class="kw">as </span>usize);
+            } <span class="kw">else </span>{
+                vector_length = <span class="prelude-val">None</span>;
             }
         }
     }
-
     <span class="kw">let </span><span class="kw-2">mut </span>fields = Vec::new();
-    go(value, <span class="kw-2">&amp;mut </span>fields);
+    go(values.iter(), <span class="kw-2">&amp;mut </span>fields);
     fields
 }
 
