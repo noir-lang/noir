@@ -243,6 +243,7 @@ impl<F: AcirField> GeneratedAcir<F> {
                         .try_into()
                         .expect("Compiler should generate correct size inputs"),
                     output: outputs[0],
+                    predicate: function_inputs[4].clone()[0],
                 }
             }
             BlackBoxFunc::EcdsaSecp256r1 => {
@@ -268,6 +269,7 @@ impl<F: AcirField> GeneratedAcir<F> {
                         .try_into()
                         .expect("Compiler should generate correct size inputs"),
                     output: outputs[0],
+                    predicate: function_inputs[4].clone()[0],
                 }
             }
             BlackBoxFunc::MultiScalarMul => BlackBoxFuncCall::MultiScalarMul {

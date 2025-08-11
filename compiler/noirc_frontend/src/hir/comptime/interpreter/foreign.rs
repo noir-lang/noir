@@ -181,7 +181,8 @@ fn ecdsa_secp256_verify(
     location: Location,
     f: impl Fn(&[u8], &[u8; 32], &[u8; 32], &[u8; 64]) -> Result<bool, BlackBoxResolutionError>,
 ) -> IResult<Value> {
-    let [pub_key_x, pub_key_y, sig, msg_hash] = check_arguments(arguments, location)?;
+    let [pub_key_x, pub_key_y, sig, msg_hash, predicate] = check_arguments(arguments, location)?;
+    assert_eq!(predicate.0, Value::Bool(true), "verify_signature predicate should be true");
 
     let (pub_key_x, _) = get_fixed_array_map(interner, pub_key_x, get_u8)?;
     let (pub_key_y, _) = get_fixed_array_map(interner, pub_key_y, get_u8)?;

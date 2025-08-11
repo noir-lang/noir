@@ -253,23 +253,23 @@ fn blake3() {
 
 #[test]
 fn ecdsa_secp256k1() {
-    let input_witnesses: Vec<String> = (0..160).map(|i| format!("_{i}")).collect();
+    let input_witnesses: Vec<String> = (0..161).map(|i| format!("_{i}")).collect();
     let inputs_str = input_witnesses.join(", ");
 
     let src = format!(
         "
-    current witness index : _160
+    current witness index : _161
     private parameters indices : []
     public parameters indices : []
     return value indices : []
-    BLACKBOX::ECDSA_SECP256K1 [{inputs_str}] [_160]
+    BLACKBOX::ECDSA_SECP256K1 [{inputs_str}] [_161]
     "
     );
     assert_circuit_roundtrip(&src);
 }
 
 #[test]
-#[should_panic = "Expected 32 inputs for public_key_y, found 4"]
+#[should_panic = "Expected 32 inputs for public_key_y, found 3"]
 fn ecdsa_secp256k1_missing_inputs() {
     let input_witnesses: Vec<String> = (0..100).map(|i| format!("_{i}")).collect();
     let inputs_str = input_witnesses.join(", ");
@@ -288,23 +288,23 @@ fn ecdsa_secp256k1_missing_inputs() {
 
 #[test]
 fn ecdsa_secp256r1() {
-    let input_witnesses: Vec<String> = (0..160).map(|i| format!("_{i}")).collect();
+    let input_witnesses: Vec<String> = (0..161).map(|i| format!("_{i}")).collect();
     let inputs_str = input_witnesses.join(", ");
 
     let src = format!(
         "
-    current witness index : _160
+    current witness index : _161
     private parameters indices : []
     public parameters indices : []
     return value indices : []
-    BLACKBOX::ECDSA_SECP256R1 [{inputs_str}] [_160]
+    BLACKBOX::ECDSA_SECP256R1 [{inputs_str}] [_161]
     "
     );
     assert_circuit_roundtrip(&src);
 }
 
 #[test]
-#[should_panic = "Expected 32 inputs for public_key_y, found 4"]
+#[should_panic = "Expected 32 inputs for public_key_y, found 3"]
 fn ecdsa_secp256r1_missing_inputs() {
     let input_witnesses: Vec<String> = (0..100).map(|i| format!("_{i}")).collect();
     let inputs_str = input_witnesses.join(", ");

@@ -2826,18 +2826,20 @@ namespace Acir {
             std::shared_ptr<std::array<Acir::FunctionInput, 64>> signature;
             std::shared_ptr<std::array<Acir::FunctionInput, 32>> hashed_message;
             Acir::Witness output;
+            Acir::FunctionInput predicate;
 
             friend bool operator==(const EcdsaSecp256k1&, const EcdsaSecp256k1&);
             std::vector<uint8_t> bincodeSerialize() const;
             static EcdsaSecp256k1 bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
-                packer.pack_map(5);
+                packer.pack_map(6);
                 packer.pack(std::make_pair("public_key_x", public_key_x));
                 packer.pack(std::make_pair("public_key_y", public_key_y));
                 packer.pack(std::make_pair("signature", signature));
                 packer.pack(std::make_pair("hashed_message", hashed_message));
                 packer.pack(std::make_pair("output", output));
+                packer.pack(std::make_pair("predicate", predicate));
             }
 
             void msgpack_unpack(msgpack::object const& o) {
@@ -2848,6 +2850,7 @@ namespace Acir {
                 Helpers::conv_fld_from_kvmap(kvmap, name, "signature", signature, false);
                 Helpers::conv_fld_from_kvmap(kvmap, name, "hashed_message", hashed_message, false);
                 Helpers::conv_fld_from_kvmap(kvmap, name, "output", output, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "predicate", predicate, false);
             }
         };
 
@@ -2857,18 +2860,20 @@ namespace Acir {
             std::shared_ptr<std::array<Acir::FunctionInput, 64>> signature;
             std::shared_ptr<std::array<Acir::FunctionInput, 32>> hashed_message;
             Acir::Witness output;
+            Acir::FunctionInput predicate;
 
             friend bool operator==(const EcdsaSecp256r1&, const EcdsaSecp256r1&);
             std::vector<uint8_t> bincodeSerialize() const;
             static EcdsaSecp256r1 bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
-                packer.pack_map(5);
+                packer.pack_map(6);
                 packer.pack(std::make_pair("public_key_x", public_key_x));
                 packer.pack(std::make_pair("public_key_y", public_key_y));
                 packer.pack(std::make_pair("signature", signature));
                 packer.pack(std::make_pair("hashed_message", hashed_message));
                 packer.pack(std::make_pair("output", output));
+                packer.pack(std::make_pair("predicate", predicate));
             }
 
             void msgpack_unpack(msgpack::object const& o) {
@@ -2879,6 +2884,7 @@ namespace Acir {
                 Helpers::conv_fld_from_kvmap(kvmap, name, "signature", signature, false);
                 Helpers::conv_fld_from_kvmap(kvmap, name, "hashed_message", hashed_message, false);
                 Helpers::conv_fld_from_kvmap(kvmap, name, "output", output, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "predicate", predicate, false);
             }
         };
 
@@ -5805,6 +5811,7 @@ namespace Acir {
         if (!(lhs.signature == rhs.signature)) { return false; }
         if (!(lhs.hashed_message == rhs.hashed_message)) { return false; }
         if (!(lhs.output == rhs.output)) { return false; }
+        if (!(lhs.predicate == rhs.predicate)) { return false; }
         return true;
     }
 
@@ -5833,6 +5840,7 @@ void serde::Serializable<Acir::BlackBoxFuncCall::EcdsaSecp256k1>::serialize(cons
     serde::Serializable<decltype(obj.signature)>::serialize(obj.signature, serializer);
     serde::Serializable<decltype(obj.hashed_message)>::serialize(obj.hashed_message, serializer);
     serde::Serializable<decltype(obj.output)>::serialize(obj.output, serializer);
+    serde::Serializable<decltype(obj.predicate)>::serialize(obj.predicate, serializer);
 }
 
 template <>
@@ -5844,6 +5852,7 @@ Acir::BlackBoxFuncCall::EcdsaSecp256k1 serde::Deserializable<Acir::BlackBoxFuncC
     obj.signature = serde::Deserializable<decltype(obj.signature)>::deserialize(deserializer);
     obj.hashed_message = serde::Deserializable<decltype(obj.hashed_message)>::deserialize(deserializer);
     obj.output = serde::Deserializable<decltype(obj.output)>::deserialize(deserializer);
+    obj.predicate = serde::Deserializable<decltype(obj.predicate)>::deserialize(deserializer);
     return obj;
 }
 
@@ -5855,6 +5864,7 @@ namespace Acir {
         if (!(lhs.signature == rhs.signature)) { return false; }
         if (!(lhs.hashed_message == rhs.hashed_message)) { return false; }
         if (!(lhs.output == rhs.output)) { return false; }
+        if (!(lhs.predicate == rhs.predicate)) { return false; }
         return true;
     }
 
@@ -5883,6 +5893,7 @@ void serde::Serializable<Acir::BlackBoxFuncCall::EcdsaSecp256r1>::serialize(cons
     serde::Serializable<decltype(obj.signature)>::serialize(obj.signature, serializer);
     serde::Serializable<decltype(obj.hashed_message)>::serialize(obj.hashed_message, serializer);
     serde::Serializable<decltype(obj.output)>::serialize(obj.output, serializer);
+    serde::Serializable<decltype(obj.predicate)>::serialize(obj.predicate, serializer);
 }
 
 template <>
@@ -5894,6 +5905,7 @@ Acir::BlackBoxFuncCall::EcdsaSecp256r1 serde::Deserializable<Acir::BlackBoxFuncC
     obj.signature = serde::Deserializable<decltype(obj.signature)>::deserialize(deserializer);
     obj.hashed_message = serde::Deserializable<decltype(obj.hashed_message)>::deserialize(deserializer);
     obj.output = serde::Deserializable<decltype(obj.output)>::deserialize(deserializer);
+    obj.predicate = serde::Deserializable<decltype(obj.predicate)>::deserialize(deserializer);
     return obj;
 }
 
