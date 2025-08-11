@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1754917967004,
+  "lastUpdate": 1754919221149,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -14906,48 +14906,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "2282832950b553ded6ab3924300d8ef3a2e625bf",
-          "message": "feat(acir): Parse ACIR memory and call opcodes (#9331)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
-          "timestamp": "2025-07-28T13:18:23Z",
-          "tree_id": "3f8dff691427bf1e3f0df293182db7c065d0c7aa",
-          "url": "https://github.com/noir-lang/noir/commit/2282832950b553ded6ab3924300d8ef3a2e625bf"
-        },
-        "date": 1753710271243,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 249725,
-            "range": "± 1249",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 220469,
-            "range": "± 3194",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2784243,
-            "range": "± 2042",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -16999,6 +16957,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2780101,
             "range": "± 5028",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "501988e746da0240d7af5d8026e5dd17a68e166b",
+          "message": "fix: allow calling private impl method defined on another module from… (#9449)",
+          "timestamp": "2025-08-11T12:42:14Z",
+          "tree_id": "c4474311849eaa0a69c65c065b74df71483f4549",
+          "url": "https://github.com/noir-lang/noir/commit/501988e746da0240d7af5d8026e5dd17a68e166b"
+        },
+        "date": 1754919203457,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 256488,
+            "range": "± 674",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 223996,
+            "range": "± 3155",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2780466,
+            "range": "± 1947",
             "unit": "ns/iter"
           }
         ]
