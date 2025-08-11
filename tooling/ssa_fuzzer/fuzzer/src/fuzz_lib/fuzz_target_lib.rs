@@ -48,6 +48,7 @@ pub(crate) fn fuzz_target(data: FuzzerData, options: FuzzerOptions) -> Option<Fu
     if data.instruction_blocks.is_empty() {
         return None;
     }
+    log::debug!("instruction_blocks: {:?}", data.instruction_blocks);
     let (witness_map, values, types) = initialize_witness_map(&data.initial_witness);
 
     let mut fuzzer = Fuzzer::new(data.instruction_blocks, values, options);

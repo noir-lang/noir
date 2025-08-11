@@ -502,6 +502,9 @@ impl BlockContext {
                 {
                     return;
                 }
+                if !safe_index && !self.options.instruction_options.insecure_get_set_enabled {
+                    return;
+                }
                 if self.stored_arrays.is_empty() {
                     return;
                 }
@@ -558,6 +561,9 @@ impl BlockContext {
             }
             Instruction::ArraySet { array_index, index, value_index, mutable, safe_index } => {
                 if !self.options.instruction_options.array_set_enabled {
+                    return;
+                }
+                if !safe_index && !self.options.instruction_options.insecure_get_set_enabled {
                     return;
                 }
                 if self.stored_arrays.is_empty() {
@@ -629,6 +635,9 @@ impl BlockContext {
                 {
                     return;
                 }
+                if !safe_index && !self.options.instruction_options.insecure_get_set_enabled {
+                    return;
+                }
                 if self.stored_arrays.is_empty() {
                     return;
                 }
@@ -684,6 +693,9 @@ impl BlockContext {
                 if !self.options.instruction_options.array_set_enabled
                     || !self.options.instruction_options.create_array_enabled
                 {
+                    return;
+                }
+                if !safe_index && !self.options.instruction_options.insecure_get_set_enabled {
                     return;
                 }
                 if self.stored_arrays.is_empty() {

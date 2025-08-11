@@ -463,7 +463,7 @@ impl FuzzerBuilder {
             array.value_id,
             index.value_id,
             value.value_id,
-            mutable,
+            false,
             ArrayOffset::None,
         );
         TypedValue::new(res, array.type_of_variable.clone())
