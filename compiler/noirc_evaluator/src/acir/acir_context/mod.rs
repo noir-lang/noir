@@ -1502,7 +1502,10 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         let value_read_witness = self.var_to_witness(value_read_var)?;
 
         // Optionally disable the operation with a predicate.
-        let predicate = predicate.map(|v| self.var_to_expression(v)).transpose()?;
+        let predicate = predicate
+            .filter(|v| !self.is_constant_one(v))
+            .map(|v| self.var_to_expression(v))
+            .transpose()?;
 
         // Add the memory read operation to the list of opcodes
         let op = MemOp::read_at_mem_index(index_witness.into(), value_read_witness);
@@ -1528,7 +1531,10 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         let value_write_witness = self.var_to_witness(value_write_var)?;
 
         // Optionally disable the operation with a predicate.
-        let predicate = predicate.map(|v| self.var_to_expression(v)).transpose()?;
+        let predicate = predicate
+            .filter(|v| !self.is_constant_one(v))
+            .map(|v| self.var_to_expression(v))
+            .transpose()?;
 
         // Add the memory write operation to the list of opcodes
         let op = MemOp::write_to_mem_index(index_witness.into(), value_write_witness.into());
