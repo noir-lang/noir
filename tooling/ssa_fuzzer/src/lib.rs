@@ -26,7 +26,7 @@ mod tests {
     impl TestHelper {
         fn new() -> Self {
             let acir_builder = FuzzerBuilder::new_acir(/*simplifying_enabled=*/true);
-            let brillig_builder = FuzzerBuilder::new_brillig(true);
+            let brillig_builder = FuzzerBuilder::new_brillig(/*simplifying_enabled=*/true);
 
             Self { acir_builder, brillig_builder }
         }
