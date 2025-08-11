@@ -502,7 +502,7 @@ impl BlockContext {
                 {
                     return;
                 }
-                if !safe_index && !self.options.instruction_options.insecure_get_set_enabled {
+                if !safe_index && !self.options.instruction_options.unsafe_get_set_enabled {
                     return;
                 }
                 if self.stored_arrays.is_empty() {
@@ -563,7 +563,7 @@ impl BlockContext {
                 if !self.options.instruction_options.array_set_enabled {
                     return;
                 }
-                if !safe_index && !self.options.instruction_options.insecure_get_set_enabled {
+                if !safe_index && !self.options.instruction_options.unsafe_get_set_enabled {
                     return;
                 }
                 if self.stored_arrays.is_empty() {
@@ -634,7 +634,7 @@ impl BlockContext {
                 {
                     return;
                 }
-                if !safe_index && !self.options.instruction_options.insecure_get_set_enabled {
+                if !safe_index && !self.options.instruction_options.unsafe_get_set_enabled {
                     return;
                 }
                 if self.stored_arrays.is_empty() {
@@ -693,7 +693,7 @@ impl BlockContext {
                 {
                     return;
                 }
-                if !safe_index && !self.options.instruction_options.insecure_get_set_enabled {
+                if !safe_index && !self.options.instruction_options.unsafe_get_set_enabled {
                     return;
                 }
                 if self.stored_arrays.is_empty() {
