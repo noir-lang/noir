@@ -54,7 +54,6 @@ expression: artifact
     "EXPR [ (-1, _5) 0 ]",
     "BRILLIG CALL func 1: inputs: [EXPR [ (1, _0) 0 ], EXPR [ 3 ]], outputs: [_6, _7]",
     "BLACKBOX::RANGE [(_6, 31)] []",
-    "BLACKBOX::RANGE [(_7, 2)] []",
     "EXPR [ (1, _7) (-1, _8) 1 ]",
     "BLACKBOX::RANGE [(_8, 2)] []",
     "EXPR [ (1, _0) (-3, _6) (-1, _7) 0 ]",
@@ -69,7 +68,7 @@ expression: artifact
     "unconstrained func 1",
     "[Const { destination: Direct(10), bit_size: Integer(U32), value: 2 }, Const { destination: Direct(11), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(10), offset_address: Direct(11) }, BinaryFieldOp { destination: Direct(2), op: IntegerDiv, lhs: Direct(0), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Mul, lhs: Direct(2), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Sub, lhs: Direct(0), rhs: Direct(1) }, Mov { destination: Direct(0), source: Direct(2) }, Stop { return_data: HeapVector { pointer: Direct(11), size: Direct(10) } }]"
   ],
-  "debug_symbols": "pZPNisMgEMffZc4eYtXm41WWJZjEFEFMsLqwhLz7TkxM28NCsZf5q+NvZmScBQbVhVur7TjdoflaoHPaGH1rzdRLryeLp8tKIG1b75TCI3jyIzVLp6yHxgZjCPxIE+Kl+yxtVC8degsCyg6oGHDURm2rlTzo4n+UVfyAOWcnLt7neUrOOM/gaXU9+IsQOfnZI38WX9WJr9lHPC+KLL46+bz6xcmXn/H0tX/fuJO9di8/FgReJHCFpiRQRltFW0dLi13oLhdo8HWUYZtR+C5iFwxB160up2Vn1DEOY7D903T43zl50vzMburVEJza6oo+rPQP",
+  "debug_symbols": "pZPBjoMgEIbfZc4cpGBFX2WzMajYkBA0FDbZGN99RxTbHjZp6GV+YPhmhgyzwKC6cGu1Hac7NF8LdE4bo2+tmXrp9WTxdFkJpG3rnVJ4BE9+pGbplPXQ2GAMgR9pQrx0n6WN6qVDb0FA2QEVA47aqG21kgdd/I8ywQ+Yc3bi5fs8T8kZ5xk8FdeDv5RlTn72yJ/FizrxNfuI50WRxYuTz6u/PPnqM56+9u8bd7LX7uXHQokXCVyhqQhU0Ypo62hpsQuFBp9FL9hfFLYL3wUj0HUryGnZGXXMwRhs/zQW/ndOnjQ4s5t6NQSntoKiD0v8Aw==",
   "file_map": {
     "50": {
       "source": "global G_A: [u16; 3] = [33700, 47314, 35095];\nglobal G_B: [u16; 3] = [59890, 17417, 14409];\nfn main(a: [u16; 3], b: [bool; 1]) -> pub bool {\n    // Safety: testing context\n    let res = unsafe { func_1(G_B, true) }[(((a[0] as u32) % (G_B[2] as u32)) % 1)];\n    if res {\n        // Safety: testing context\n        let c = unsafe { func_1(a, b[0]) };\n        b[0]\n    } else {\n        ((a[((a[0] as u32) % 3)] as u32) > ((24993 % G_A[1]) as u32))\n    }\n}\nunconstrained fn func_1(a: [u16; 3], b: bool) -> [bool; 1] {\n    [false]\n}\n",

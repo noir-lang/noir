@@ -103,7 +103,6 @@ expression: artifact
     "BLACKBOX::RANGE [(_24, 32)] []",
     "MEM (id: 6, write EXPR [ (1, _24) 0 ] at: EXPR [ (1, _2) 0 ]) ",
     "MEM (id: 5, read at: EXPR [ (1, _3) 0 ], value: EXPR [ (1, _25) 0 ]) ",
-    "BLACKBOX::RANGE [(_3, 2)] []",
     "MEM (id: 6, write EXPR [ (1, _25) 0 ] at: EXPR [ (1, _3) 0 ]) ",
     "MEM (id: 6, read at: EXPR [ (1, _18) 0 ], value: EXPR [ (1, _26) 0 ]) ",
     "EXPR [ (-1, _27) 1 ]",
@@ -118,7 +117,7 @@ expression: artifact
     "EXPR [ (1, _14) (-1, _32) 0 ]",
     "INIT RETURNDATA (id: 4, len: 4, witnesses: [_11, _12, _13, _14])"
   ],
-  "debug_symbols": "pZPNboQgEIDfhTMH/lzUV2kag4obEoKG1U0as+/ekVns7qFJQy9+ysw3oyPsZLT9du1cmOYbaT920kfnvbt2fh7M6uYAq/uDkvzYrdFaWCIvcbAWE21YSRs27ym5G7+lpNtiQuJqIkQZJTaMQCg4OW+Puwf9sdnvqpRZlpKfevV3X1fZ102Br5h8+ooV+Vxkn9f/61/ky7o535+V9Jc6+6pk/krl+atKFPVnZ/93/xOezODi244lGj6ZkjpdG5Ao4QzBQQMIhCTtBaAQFeKSNK5RqDGzSRAspQieUoRIKUJiTCGwioAqNUAjoAr8AdEkSIbgCIGQCIWAKsdGu5voTO/t8xxOWxhejuX6teRIPrhLnAc7btEeA0kxGNE3",
+  "debug_symbols": "pZPNboQgEIDfhTMH/lzRV2kag4obEoKG1U0as+/ekVns7qFJQy9+wsw3oxPYyWj77dq5MM030n7spI/Oe3ft/DyY1c0BdvcHJXnZrdFa2CIvcbAWE21YSRs27ym5G7+lpNtiQuJqIkQZJTaMQCg4OW+Ptwf9sdnvqpRZlpKfevV3v66yXzcFvmLy6StW5HORfa7/17/Il7o5v5+V9Jd19lXJ/JXK81eVKOrPzv7v/ieszODi24klNfwyJTo9G5Ao4QzBQQMIhCTtBaAQFeKSNF6joDGzSRAspQieUoRIKUJiTCGwioAqGgBVYPRCI5oEyRAcIRASAVWOE3Y30Zne2+cFnLYwvNzH9WvJkXxjlzgPdtyiPSaRYjCbbw==",
   "file_map": {
     "50": {
       "source": "// An simple program demonstrating two calldata array inputs and a single return data array. As an arbitrary example,\n// the return data is computed as a linear combination of the calldata.\nfn main(\n    mut x: [u32; 4],\n    y: call_data(0) [u32; 3],\n    z: call_data(1) [u32; 4],\n) -> return_data [u32; 4] {\n    let mut result = [0; 4];\n    for i in 0..3 {\n        let idx = x[i];\n        result[idx] = y[idx] + z[idx];\n    }\n    result[x[3]] = z[x[3]];\n    result\n}\n",
