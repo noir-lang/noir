@@ -449,7 +449,6 @@ impl FuzzerBuilder {
         array: TypedValue,
         index: TypedValue,
         value: TypedValue,
-        mutable: bool,
         safe_index: bool,
     ) -> TypedValue {
         assert!(matches!(array.type_of_variable, Type::Array(_, _)));
@@ -463,7 +462,7 @@ impl FuzzerBuilder {
             array.value_id,
             index.value_id,
             value.value_id,
-            mutable,
+            false,
             ArrayOffset::None,
         );
         TypedValue::new(res, array.type_of_variable.clone())
