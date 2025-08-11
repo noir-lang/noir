@@ -23,7 +23,7 @@ pub(crate) struct InstructionOptions {
     pub(crate) create_array_enabled: bool,
     pub(crate) array_get_enabled: bool,
     pub(crate) array_set_enabled: bool,
-    pub(crate) insecure_get_set_enabled: bool,
+    pub(crate) unsafe_get_set_enabled: bool,
 }
 
 impl Default for InstructionOptions {
@@ -49,7 +49,11 @@ impl Default for InstructionOptions {
             create_array_enabled: true,
             array_get_enabled: true,
             array_set_enabled: true,
+<<<<<<< HEAD
             insecure_get_set_enabled: false,
+=======
+            unsafe_get_set_enabled: false,
+>>>>>>> 172e55333b0b2ac5eea1c736cc8d83e67d35af3e
         }
     }
 }

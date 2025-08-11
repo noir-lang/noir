@@ -65,6 +65,7 @@ mod tests {
     use super::*;
     use crate::function_context::{FieldRepresentation, FunctionData, FuzzerFunctionCommand};
     use crate::instruction::{Argument, Instruction, InstructionBlock};
+    use acvm::AcirField;
     use libfuzzer_sys::{arbitrary, arbitrary::Arbitrary};
 
     fn default_witness() -> [WitnessValue; (NUMBER_OF_VARIABLES_INITIAL - 2) as usize] {
@@ -797,7 +798,6 @@ mod tests {
                 array_index: 0,
                 index: arg_0_field,
                 value_index: 4, // set v4
-                mutable: false,
                 safe_index: true,
             }],
         };
@@ -869,7 +869,6 @@ mod tests {
                 array_index: 0,
                 index: 1,
                 value_index: 0,
-                mutable: false,
                 safe_index: true,
             }],
         };
@@ -921,6 +920,107 @@ mod tests {
         let result = fuzz_target(fuzzer_data, FuzzerOptions::default());
         match result {
             Some(result) => assert_eq!(result.get_return_value(), FieldElement::from(1_u32)),
+            None => panic!("Program failed to execute"),
+        }
+    }
+
+    /// Test that the fuzzer doesn't insert too many instructions with function calls
+    ///
+    /// The most cursed test
+    /// Creates main and 2 functions
+    /// First function has cycle for 200 iterations for i in 1..200 {i *= i}
+    /// Second function has cycle for 10 iterations for i in 1..10  {i *= i}
+    /// Main function tries to insert second and first functions
+    /// If the second function is too big for the chosen configuration,
+    /// the fuzzer should insert only the second function and the result should be the output of the second function
+    /// Otherwise, the result should be the output of the first function
+    #[test]
+    fn test_does_not_insert_too_many_instructions_with_function_calls() {
+        let dummy_arg = Argument { index: 0, value_type: ValueType::I64 };
+        let dummy_block = InstructionBlock {
+            instructions: vec![Instruction::AddChecked { lhs: dummy_arg, rhs: dummy_arg }],
+        };
+        let arg_2_field = Argument { index: 2, value_type: ValueType::Field };
+        let arg_5_field = Argument { index: 5, value_type: ValueType::Field };
+        let arg_6_field = Argument { index: 6, value_type: ValueType::Field };
+
+        // v8 = allocate -> &mut Field (memory address)
+        // store v2 at v8
+        let add_to_memory_block =
+            InstructionBlock { instructions: vec![Instruction::AddToMemory { lhs: arg_2_field }] };
+        let typed_memory_0 = Argument { index: 0, value_type: ValueType::Field };
+        // load v8 -> Field (loads from first defined memory address, which is v8)
+        let load_block = InstructionBlock {
+            instructions: vec![Instruction::LoadFromMemory { memory_addr: typed_memory_0 }],
+        };
+        let load_mul_set_block = InstructionBlock {
+            instructions: vec![
+                Instruction::LoadFromMemory { memory_addr: typed_memory_0 }, // v13 = load v8 -> Field (loaded value is 5th defined field)
+                Instruction::MulChecked { lhs: arg_5_field, rhs: arg_2_field }, // v14 = mul v13, v2 (v14 -- 6th defined field)
+                Instruction::SetToMemory { memory_addr_index: 0, value: arg_6_field }, // store v14 at v8
+            ],
+        };
+        let commands_for_main = vec![
+            FuzzerFunctionCommand::InsertFunctionCall {
+                function_idx: 1, // second function has cycle for 10 iterations
+                args: [0, 1, 2, 3, 4, 0, 1],
+            }, // call function, should be skipped
+            FuzzerFunctionCommand::InsertFunctionCall {
+                function_idx: 0, // first function has cycle for 200 iterations
+                args: [0, 1, 2, 3, 4, 0, 1],
+            }, // call function, should be skipped
+        ];
+        let commands_for_function1 = vec![
+            FuzzerFunctionCommand::InsertSimpleInstructionBlock { instruction_block_idx: 0 }, // add v2 to memory
+            FuzzerFunctionCommand::InsertCycle { block_body_idx: 2, start_iter: 1, end_iter: 200 }, // for i in 1..200 do load_mul_set_block
+        ];
+        let commands_for_function2 = vec![
+            FuzzerFunctionCommand::InsertSimpleInstructionBlock { instruction_block_idx: 0 }, // add v2 to memory
+            FuzzerFunctionCommand::InsertCycle { block_body_idx: 2, start_iter: 1, end_iter: 10 }, // for i in 1..10 do load_mul_set_block
+        ];
+        let main_func = FunctionData {
+            commands: commands_for_main,
+            return_instruction_block_idx: 3, // dummy block
+            return_type: ValueType::Field,
+        };
+        let function_func = FunctionData {
+            commands: commands_for_function1,
+            return_instruction_block_idx: 1, // v12 = load v8 -> Field; return v12
+            return_type: ValueType::Field,
+        };
+        let function_func2 = FunctionData {
+            commands: commands_for_function2,
+            return_instruction_block_idx: 1, // v12 = load v8 -> Field; return v12
+            return_type: ValueType::Field,
+        };
+        let data = FuzzerData {
+            instruction_blocks: vec![
+                add_to_memory_block,
+                load_block,
+                load_mul_set_block,
+                dummy_block,
+            ],
+            functions: vec![main_func, function_func, function_func2],
+            initial_witness: default_witness(),
+        };
+        // with max 100 instructions only second function should be executed
+        let options = FuzzerOptions { max_instructions_num: 100, ..FuzzerOptions::default() };
+        let result = fuzz_target(data.clone(), options);
+        match result {
+            Some(result) => assert_eq!(result.get_return_value(), FieldElement::from(1024_u32)),
+            None => panic!("Program failed to execute"),
+        }
+        // with max 1000 instructions both functions should be executed
+        // and the result should be the output of the first function
+        let options = FuzzerOptions { max_instructions_num: 1000, ..FuzzerOptions::default() };
+        let result = fuzz_target(data.clone(), options);
+        match result {
+            Some(result) => {
+                assert_eq!(
+                    result.get_return_value(),
+                    FieldElement::from(2_u32).pow(&FieldElement::from(200_u32)) // 2^200
+                );
+            }
             None => panic!("Program failed to execute"),
         }
     }

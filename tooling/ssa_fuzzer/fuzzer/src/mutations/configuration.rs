@@ -228,16 +228,14 @@ pub(crate) enum ArraySetMutationOptions {
     ArrayIndex,
     Index,
     ValueIndex,
-    Mutable,
     SafeIndex,
 }
-pub(crate) type ArraySetMutationConfig = WeightedSelectionConfig<ArraySetMutationOptions, 5>;
+pub(crate) type ArraySetMutationConfig = WeightedSelectionConfig<ArraySetMutationOptions, 4>;
 pub(crate) const BASIC_ARRAY_SET_MUTATION_CONFIGURATION: ArraySetMutationConfig =
     ArraySetMutationConfig::new([
         (ArraySetMutationOptions::ArrayIndex, 5),
         (ArraySetMutationOptions::Index, 5),
         (ArraySetMutationOptions::ValueIndex, 5),
-        (ArraySetMutationOptions::Mutable, 1),
         (ArraySetMutationOptions::SafeIndex, 1),
     ]);
 
