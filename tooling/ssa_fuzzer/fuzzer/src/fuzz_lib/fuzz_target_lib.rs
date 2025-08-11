@@ -1019,7 +1019,7 @@ mod tests {
                 assert_eq!(
                     result.get_return_value(),
                     FieldElement::from(2_u32).pow(&FieldElement::from(200_u32)) // 2^200
-                )
+                );
             }
             None => panic!("Program failed to execute"),
         }
