@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1754920596274,
+  "lastUpdate": 1754920599385,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -2858,40 +2858,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "2282832950b553ded6ab3924300d8ef3a2e625bf",
-          "message": "feat(acir): Parse ACIR memory and call opcodes (#9331)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
-          "timestamp": "2025-07-28T13:18:23Z",
-          "tree_id": "3f8dff691427bf1e3f0df293182db7c065d0c7aa",
-          "url": "https://github.com/noir-lang/noir/commit/2282832950b553ded6ab3924300d8ef3a2e625bf"
-        },
-        "date": 1753710408967,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.771,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 1.551,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -5701,6 +5667,90 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 1.66,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "501988e746da0240d7af5d8026e5dd17a68e166b",
+          "message": "fix: allow calling private impl method defined on another module from… (#9449)",
+          "timestamp": "2025-08-11T12:42:14Z",
+          "tree_id": "c4474311849eaa0a69c65c065b74df71483f4549",
+          "url": "https://github.com/noir-lang/noir/commit/501988e746da0240d7af5d8026e5dd17a68e166b"
+        },
+        "date": 1754920581680,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1.716,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 7.738,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.312,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 15.7,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 14.16,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 20.52,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 194,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 197,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.398,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.5,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.771,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 1.568,
             "unit": "s"
           }
         ]
