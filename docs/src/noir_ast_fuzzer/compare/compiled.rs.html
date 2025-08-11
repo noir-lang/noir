@@ -321,7 +321,15 @@
 <a href="#320" id="320">320</a>
 <a href="#321" id="321">321</a>
 <a href="#322" id="322">322</a>
-<a href="#323" id="323">323</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare an arbitrary AST compiled into bytecode and executed with the VM.
+<a href="#323" id="323">323</a>
+<a href="#324" id="324">324</a>
+<a href="#325" id="325">325</a>
+<a href="#326" id="326">326</a>
+<a href="#327" id="327">327</a>
+<a href="#328" id="328">328</a>
+<a href="#329" id="329">329</a>
+<a href="#330" id="330">330</a>
+<a href="#331" id="331">331</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare an arbitrary AST compiled into bytecode and executed with the VM.
 </span><span class="kw">use </span>std::collections::BTreeMap;
 
 <span class="kw">use </span>acir::{FieldElement, native_types::WitnessStack};
@@ -501,6 +509,14 @@
                 AssertionFailed(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>),
                 SolvingError(OpcodeResolutionError::UnsatisfiedConstrain { .. }, <span class="kw">_</span>),
             ) =&gt; msg1.is_some_and(|msg| msg.contains(<span class="string">"divide by zero"</span>)),
+            (
+                SolvingError(OpcodeResolutionError::IndexOutOfBounds { .. }, <span class="kw">_</span>),
+                AssertionFailed(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>),
+            ) =&gt; msg2.is_some_and(|msg| msg.contains(<span class="string">"Index out of bounds"</span>)),
+            (
+                AssertionFailed(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>),
+                SolvingError(OpcodeResolutionError::IndexOutOfBounds { .. }, <span class="kw">_</span>),
+            ) =&gt; msg1.is_some_and(|msg| msg.contains(<span class="string">"Index out of bounds"</span>)),
             <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
         }
     }
