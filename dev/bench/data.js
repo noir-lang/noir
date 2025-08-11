@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1754919805464,
+  "lastUpdate": 1754919823686,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -17098,40 +17098,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "46a0d1806cb3600c90abdf56187234b953815d45",
-          "message": "fix(ssa_gen): Add constraint on slice length before popping (#9323)",
-          "timestamp": "2025-07-28T12:36:36Z",
-          "tree_id": "3396e4baefadd03e2c999284444f37ac3b56cecb",
-          "url": "https://github.com/noir-lang/noir/commit/46a0d1806cb3600c90abdf56187234b953815d45"
-        },
-        "date": 1753707894961,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore-depth-10",
-            "value": 632.1,
-            "unit": "KB"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 525.2,
-            "unit": "KB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -19881,6 +19847,90 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 389.2,
+            "unit": "KB"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 632.1,
+            "unit": "KB"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 525.2,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "galoretochka@gmail.com",
+            "name": "Galoretka",
+            "username": "Galoretka"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "b5a94e4bd6f564b69cd538b486d5aa9fb96de977",
+          "message": "fix: guard `Eq` for `[T]` to avoid OOB on length mismatch (#9453)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-08-11T12:31:54Z",
+          "tree_id": "eed1e926502c463075ea9d045bdef0192b14d42d",
+          "url": "https://github.com/noir-lang/noir/commit/b5a94e4bd6f564b69cd538b486d5aa9fb96de977"
+        },
+        "date": 1754919804818,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 709.8,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 2033.9,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 536.5,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 4315.2,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 3327.8,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 3843.4,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 30723.7,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 30772.2,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 183.6,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 389.4,
             "unit": "KB"
           },
           {
