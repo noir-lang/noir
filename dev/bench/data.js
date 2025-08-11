@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1754921580049,
+  "lastUpdate": 1754921764930,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -15276,48 +15276,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "606bf9baf10745dc0c2594633688ccfdedadef9f",
-          "message": "chore(lsp): avoid redundant type checking (#9337)",
-          "timestamp": "2025-07-28T18:08:57Z",
-          "tree_id": "a237ef63f43c6a1c8c5e9d70033b793b24007433",
-          "url": "https://github.com/noir-lang/noir/commit/606bf9baf10745dc0c2594633688ccfdedadef9f"
-        },
-        "date": 1753727626146,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 254037,
-            "range": "± 2731",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 227506,
-            "range": "± 5367",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2822841,
-            "range": "± 3279",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "21faf9648560b0f5943304833c44a2c5687f0d48",
           "message": "fix: prevent invalid types in test/fuzz functions (#9343)",
           "timestamp": "2025-07-28T18:28:59Z",
@@ -17359,6 +17317,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2780466,
             "range": "± 1947",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "57778ea95e96d06eb61bb3846cf086850e01c9b0",
+          "message": "fix(brillig_vm): Remove slice padding for foreign call inputs (#9321)\n\nCo-authored-by: Akosh Farkash <aakoshh@gmail.com>",
+          "timestamp": "2025-08-11T13:43:00Z",
+          "tree_id": "113f347a620e8be3b38ff2ecd7ae0e52d0409b72",
+          "url": "https://github.com/noir-lang/noir/commit/57778ea95e96d06eb61bb3846cf086850e01c9b0"
+        },
+        "date": 1754921746454,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 245177,
+            "range": "± 687",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 217846,
+            "range": "± 2838",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2774811,
+            "range": "± 1786",
             "unit": "ns/iter"
           }
         ]
