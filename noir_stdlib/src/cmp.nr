@@ -544,7 +544,7 @@ where
 }
 
 mod cmp_tests {
-    use crate::cmp::{max, min};
+    use super::{Eq, max, min};
 
     #[test]
     fn sanity_check_min() {
@@ -560,5 +560,12 @@ mod cmp_tests {
         assert_eq(max(0_u64, 0), 0);
         assert_eq(max(1_u64, 1), 1);
         assert_eq(max(255_u8, 0), 255);
+    }
+
+    #[test]
+    fn correctly_handles_unequal_length_slices() {
+        let slice_1 = &[0, 1, 2, 3];
+        let slice_2 = &[0, 1, 2];
+        assert(!slice_1.eq(slice_2));
     }
 }
