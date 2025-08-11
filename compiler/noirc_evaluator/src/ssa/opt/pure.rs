@@ -274,7 +274,12 @@ fn analyze_call_graph(
 mod test {
     use crate::{
         assert_ssa_snapshot,
-        ssa::{interpreter::value::Value, ir::{function::FunctionId, types::NumericType}, opt::pure::Purity, ssa_gen::Ssa},
+        ssa::{
+            interpreter::value::Value,
+            ir::{function::FunctionId, types::NumericType},
+            opt::pure::Purity,
+            ssa_gen::Ssa,
+        },
     };
 
     #[test]
@@ -613,7 +618,7 @@ mod test {
         }
         "#);
     }
-            
+
     ///TODO(https://github.com/noir-lang/noir/issues/9451): Remove the `should_panic` once the bug is fixed
     #[test]
     #[should_panic]
@@ -646,13 +651,19 @@ mod test {
 
         let ssa = Ssa::from_str(src).unwrap();
         // Can uncomment to see that we do not fail when running constant folding before purity analysis
-        let ssa = ssa.fold_constants_using_constraints();        
-        let _ = ssa.interpret(vec![Value::from_constant(1_u32.into(), NumericType::unsigned(32)).unwrap()]).unwrap();
-        
-        let ssa = ssa.purity_analysis();
-        let _ = ssa.interpret(vec![Value::from_constant(1_u32.into(), NumericType::unsigned(32)).unwrap()]).unwrap();
+        let ssa = ssa.fold_constants_using_constraints();
+        let _ = ssa
+            .interpret(vec![Value::from_constant(1_u32.into(), NumericType::unsigned(32)).unwrap()])
+            .unwrap();
 
-        let ssa = ssa.fold_constants_using_constraints();        
-        let _ = ssa.interpret(vec![Value::from_constant(1_u32.into(), NumericType::unsigned(32)).unwrap()]).unwrap();
+        let ssa = ssa.purity_analysis();
+        let _ = ssa
+            .interpret(vec![Value::from_constant(1_u32.into(), NumericType::unsigned(32)).unwrap()])
+            .unwrap();
+
+        let ssa = ssa.fold_constants_using_constraints();
+        let _ = ssa
+            .interpret(vec![Value::from_constant(1_u32.into(), NumericType::unsigned(32)).unwrap()])
+            .unwrap();
     }
 }
