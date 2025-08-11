@@ -393,7 +393,13 @@ impl Instruction {
                 Value::Intrinsic(intrinsic) => {
                     // These utilize `noirc_evaluator::acir::Context::get_flattened_index` internally
                     // which uses the side effects predicate.
-                    matches!(intrinsic, Intrinsic::SliceInsert | Intrinsic::SliceRemove)
+                    matches!(
+                        intrinsic,
+                        Intrinsic::SliceInsert
+                            | Intrinsic::SliceRemove
+                            | Intrinsic::SlicePopBack
+                            | Intrinsic::SlicePopFront
+                    )
                 }
                 _ => false,
             },
