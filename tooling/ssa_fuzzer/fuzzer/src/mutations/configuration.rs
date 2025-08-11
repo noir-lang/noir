@@ -135,7 +135,7 @@ pub(crate) enum VecMutationOptions {
     Insertion,
     Deletion,
     Swap,
-    Mutation,
+    ElementMutation,
     PushDefault,
 }
 pub(crate) type VecMutationConfig = WeightedSelectionConfig<VecMutationOptions, 6>;
@@ -145,7 +145,7 @@ pub(crate) const BASIC_VEC_MUTATION_CONFIGURATION: VecMutationConfig = VecMutati
     (VecMutationOptions::Insertion, 7),
     (VecMutationOptions::Deletion, 22),
     (VecMutationOptions::Swap, 20),
-    (VecMutationOptions::Mutation, 100),
+    (VecMutationOptions::ElementMutation, 100),
     (VecMutationOptions::PushDefault, 15),
 ]);
 

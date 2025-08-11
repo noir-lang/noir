@@ -146,7 +146,7 @@ pub(crate) fn mutate_vec<T>(
         VecMutationOptions::Insertion => RandomInsertion::mutate(rng, vec, mutate_element_function),
         VecMutationOptions::Deletion => RandomDeletion::mutate(rng, vec, mutate_element_function),
         VecMutationOptions::Swap => RandomSwap::mutate(rng, vec, mutate_element_function),
-        VecMutationOptions::Mutation => {
+        VecMutationOptions::ElementMutation => {
             RandomElementMutation::mutate(rng, vec, mutate_element_function);
         }
         VecMutationOptions::PushDefault => {
