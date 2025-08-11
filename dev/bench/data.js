@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1754905327893,
+  "lastUpdate": 1754917967004,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -14906,48 +14906,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "46a0d1806cb3600c90abdf56187234b953815d45",
-          "message": "fix(ssa_gen): Add constraint on slice length before popping (#9323)",
-          "timestamp": "2025-07-28T12:36:36Z",
-          "tree_id": "3396e4baefadd03e2c999284444f37ac3b56cecb",
-          "url": "https://github.com/noir-lang/noir/commit/46a0d1806cb3600c90abdf56187234b953815d45"
-        },
-        "date": 1753707755700,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 256512,
-            "range": "± 1117",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 228607,
-            "range": "± 1226",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2819505,
-            "range": "± 16724",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -16999,6 +16957,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2783385,
             "range": "± 3889",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "galoretochka@gmail.com",
+            "name": "Galoretka",
+            "username": "Galoretka"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "b5a94e4bd6f564b69cd538b486d5aa9fb96de977",
+          "message": "fix: guard `Eq` for `[T]` to avoid OOB on length mismatch (#9453)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-08-11T12:31:54Z",
+          "tree_id": "eed1e926502c463075ea9d045bdef0192b14d42d",
+          "url": "https://github.com/noir-lang/noir/commit/b5a94e4bd6f564b69cd538b486d5aa9fb96de977"
+        },
+        "date": 1754917949347,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 255201,
+            "range": "± 4860",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 224494,
+            "range": "± 1295",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2780101,
+            "range": "± 5028",
             "unit": "ns/iter"
           }
         ]
