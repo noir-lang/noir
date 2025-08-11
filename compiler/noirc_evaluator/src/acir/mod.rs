@@ -1757,9 +1757,9 @@ impl<'a> Context<'a> {
             Intrinsic::IsUnconstrained => {
                 unreachable!("Expected is_unconstrained to be removed by this point")
             }
-            Intrinsic::DerivePedersenGenerators => {
-                unreachable!("DerivePedersenGenerators can only be called with constants")
-            }
+            Intrinsic::DerivePedersenGenerators => Err(RuntimeError::AssertConstantFailed {
+                call_stack: self.acir_context.get_call_stack(),
+            }),
             Intrinsic::FieldLessThan => {
                 unreachable!("FieldLessThan can only be called in unconstrained")
             }

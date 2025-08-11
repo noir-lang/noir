@@ -455,6 +455,7 @@ impl LastUseContext {
             ast::LValue::Dereference { reference, element_type: _ } => {
                 self.track_variables_in_lvalue(reference);
             }
+            ast::LValue::Clone(_) => todo!(),
         }
     }
 }

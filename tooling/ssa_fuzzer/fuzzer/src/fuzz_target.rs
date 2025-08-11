@@ -7,13 +7,15 @@ mod utils;
 use bincode::serde::{borrow_decode_from_slice, encode_to_vec};
 use fuzz_lib::fuzz_target_lib::fuzz_target;
 use fuzz_lib::fuzzer::FuzzerData;
-use fuzz_lib::options::{FuzzerOptions, InstructionOptions};
+use fuzz_lib::options::{FuzzerCommandOptions, FuzzerOptions, InstructionOptions};
 use libfuzzer_sys::Corpus;
 use mutations::mutate;
 use noirc_driver::CompileOptions;
 use rand::{SeedableRng, rngs::StdRng};
 use sha1::{Digest, Sha1};
 use utils::{push_fuzzer_output_to_redis_queue, redis};
+
+use crate::fuzz_lib::options::FuzzerMode;
 
 const MAX_EXECUTION_TIME_TO_KEEP_IN_CORPUS: u64 = 3;
 
@@ -42,10 +44,19 @@ libfuzzer_sys::fuzz_target!(|data: &[u8]| -> Corpus {
     let instruction_options = InstructionOptions {
         shl_enabled: false,
         shr_enabled: false,
+        alloc_enabled: false,
         ..InstructionOptions::default()
     };
-    let options =
-        FuzzerOptions { compile_options, instruction_options, ..FuzzerOptions::default() };
+    let modes = vec![FuzzerMode::NonConstant];
+    let fuzzer_command_options =
+        FuzzerCommandOptions { loops_enabled: false, ..FuzzerCommandOptions::default() };
+    let options = FuzzerOptions {
+        compile_options,
+        instruction_options,
+        modes,
+        fuzzer_command_options,
+        ..FuzzerOptions::default()
+    };
     let fuzzer_data = borrow_decode_from_slice(data, bincode::config::legacy())
         .unwrap_or((FuzzerData::default(), 1337))
         .0;
