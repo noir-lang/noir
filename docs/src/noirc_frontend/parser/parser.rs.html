@@ -629,7 +629,12 @@
 <a href="#628" id="628">628</a>
 <a href="#629" id="629">629</a>
 <a href="#630" id="630">630</a>
-<a href="#631" id="631">631</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::FieldElement;
+<a href="#631" id="631">631</a>
+<a href="#632" id="632">632</a>
+<a href="#633" id="633">633</a>
+<a href="#634" id="634">634</a>
+<a href="#635" id="635">635</a>
+<a href="#636" id="636">636</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::FieldElement;
 <span class="kw">use </span>fm::FileId;
 <span class="kw">use </span>modifiers::Modifiers;
 <span class="kw">use </span>noirc_errors::{Location, Span};
@@ -851,7 +856,12 @@
                     }
                 },
                 <span class="prelude-val">Some</span>(<span class="prelude-val">Err</span>(lexer_error)) =&gt; <span class="self">self</span>.errors.push(lexer_error.into()),
-                <span class="prelude-val">None </span>=&gt; <span class="kw">return </span>(eof_located_token(), last_comments),
+                <span class="prelude-val">None </span>=&gt; {
+                    <span class="kw">let </span>end_span = Span::single_char(<span class="self">self</span>.current_token_location.span.end());
+                    <span class="kw">let </span>end_location = Location::new(end_span, <span class="self">self</span>.current_token_location.file);
+                    <span class="kw">let </span>end_token = LocatedToken::new(Token::EOF, end_location);
+                    <span class="kw">return </span>(end_token, last_comments);
+                }
             }
         }
     }
