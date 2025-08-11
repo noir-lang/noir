@@ -117,8 +117,8 @@ where
 {
     fn eq(self, other: [T]) -> bool {
         let mut result = self.len() == other.len();
-        for i in 0..self.len() {
-            if result {
+        if result {
+            for i in 0..self.len() {
                 result &= self[i].eq(other[i]);
             }
         }
