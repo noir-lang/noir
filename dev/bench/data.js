@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1754923637664,
+  "lastUpdate": 1754924349826,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -15616,48 +15616,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "4f733adf44501d52eea35d03c9761b27e295af0f",
-          "message": "chore(acir): ACIR parser error handling for blackbox inputs/outputs  (#9342)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
-          "timestamp": "2025-07-28T18:43:05Z",
-          "tree_id": "74c2f5d853c323c41b7dbe6fc266032b64b1b0eb",
-          "url": "https://github.com/noir-lang/noir/commit/4f733adf44501d52eea35d03c9761b27e295af0f"
-        },
-        "date": 1753729716411,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 248224,
-            "range": "± 301",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 221725,
-            "range": "± 2500",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2784347,
-            "range": "± 6401",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -17709,6 +17667,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2778549,
             "range": "± 2420",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "84741533+defkit@users.noreply.github.com",
+            "name": "defkit",
+            "username": "defkit"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "ea9c9130e367a35d1f0eda03d995ce139b469481",
+          "message": "feat(ssa_fuzzer): mode without instruction simplification + array instructions mutations + limits fix (#9438)\n\nCo-authored-by: Innokentii Sennovskii <isennovskiy@gmail.com>",
+          "timestamp": "2025-08-11T14:29:10Z",
+          "tree_id": "f8f0c42488a8a7f84970f7937ed60e4d3ac703fd",
+          "url": "https://github.com/noir-lang/noir/commit/ea9c9130e367a35d1f0eda03d995ce139b469481"
+        },
+        "date": 1754924331668,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 247013,
+            "range": "± 818",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 219019,
+            "range": "± 5794",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2776005,
+            "range": "± 1925",
             "unit": "ns/iter"
           }
         ]
