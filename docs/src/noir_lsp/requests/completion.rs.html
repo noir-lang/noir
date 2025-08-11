@@ -2047,7 +2047,8 @@
 <a href="#2046" id="2046">2046</a>
 <a href="#2047" id="2047">2047</a>
 <a href="#2048" id="2048">2048</a>
-<a href="#2049" id="2049">2049</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
+<a href="#2049" id="2049">2049</a>
+<a href="#2050" id="2050">2050</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     collections::{BTreeMap, HashMap, HashSet},
     future::{<span class="self">self</span>, Future},
     ops::Deref,
@@ -2781,6 +2782,7 @@
 
                 <span class="kw">if </span>is_primitive
                     &amp;&amp; !method_call_is_visible(
+                        <span class="self">self</span>.self_type.as_ref(),
                         typ,
                         func_id,
                         <span class="self">self</span>.module_id,
