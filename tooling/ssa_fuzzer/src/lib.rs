@@ -349,7 +349,7 @@ mod tests {
     #[test]
     fn regression_cast_without_truncate() {
         let mut acir_builder = FuzzerBuilder::new_acir(/*simplifying_enabled=*/true);
-        let mut brillig_builder = FuzzerBuilder::new_brillig(true);
+        let mut brillig_builder = FuzzerBuilder::new_brillig(/*simplifying_enabled=*/true);
 
         let field_var_acir_id_1 =
             acir_builder.insert_variable(ValueType::Field.to_ssa_type()).value_id;
