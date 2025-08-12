@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1754992699290,
+  "lastUpdate": 1754992701617,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18332,40 +18332,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "38997a82cb1f962a27b0aa4e76e4f84136c13f98",
-          "message": "chore: try printing byte arrays as strings in the SSA interpreter (#9346)",
-          "timestamp": "2025-07-29T13:10:45Z",
-          "tree_id": "0eebdf05ff11e1ceeff00a8696e0334ffe235d10",
-          "url": "https://github.com/noir-lang/noir/commit/38997a82cb1f962a27b0aa4e76e4f84136c13f98"
-        },
-        "date": 1753796372628,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore-depth-10",
-            "value": 632.1,
-            "unit": "KB"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 525.2,
-            "unit": "KB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "8349a40a27c7f10d51b8b8cb05e7ddf3d78f713f",
           "message": "chore: remove unused `compile_workspace` (#9353)",
@@ -21406,6 +21372,90 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/e54057dc34c7b675e329f23425ff25855e049358"
         },
         "date": 1754926886755,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 709.6,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 2033.6,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 536.4,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 4315.2,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 3327.7,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 3843.4,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 30723,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 30772,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 183.6,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 389.4,
+            "unit": "KB"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 632.1,
+            "unit": "KB"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 525.2,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "5675aff45f460f6975492725953b45b8a969a82d",
+          "message": "feat: mark slice variants of ecdsa verification as deprecated (#9458)",
+          "timestamp": "2025-08-12T09:26:42Z",
+          "tree_id": "ef3d7657b741580139f2dff930322c18631b0152",
+          "url": "https://github.com/noir-lang/noir/commit/5675aff45f460f6975492725953b45b8a969a82d"
+        },
+        "date": 1754992683133,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
