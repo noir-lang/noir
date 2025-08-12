@@ -144,7 +144,7 @@ pub(crate) fn eval_constant_binary_op(
 
             // Check for overflow
             if operator == BinaryOp::Shl || operator == BinaryOp::Shr {
-                let op = binary_op_function_name(operator);
+                let op = "bit-shift";
 
                 if rhs >= bit_size as u128 {
                     return Failure(format!("attempt to {op} with overflow"));
