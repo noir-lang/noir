@@ -256,6 +256,8 @@ impl<'a> Parser<'a> {
             ))];
         }
 
+        self.modifiers_not_followed_by_an_item(modifiers);
+
         vec![]
     }
 
@@ -400,5 +402,73 @@ mod tests {
         assert_eq!(module.items.len(), 1);
         let error = get_single_error(&errors, span);
         assert_snapshot!(error.to_string(), @"Expected an identifier but found ';'");
+    }
+
+    #[test]
+    fn errors_on_lonely_pub() {
+        let src = "
+        pub
+        ^^^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let (module, errors) = parse_program_with_dummy_file(&src);
+        assert!(module.items.is_empty());
+        let error = get_single_error(&errors, span);
+        assert_snapshot!(error.to_string(), @r"
+        Unexpected end of input in input
+        reason: Visibility `pub` is not followed by an item
+        secondary:
+        ");
+    }
+
+    #[test]
+    fn errors_on_lonely_unconstrained() {
+        let src = "
+        unconstrained
+        ^^^^^^^^^^^^^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let (module, errors) = parse_program_with_dummy_file(&src);
+        assert!(module.items.is_empty());
+        let error = get_single_error(&errors, span);
+        assert_snapshot!(error.to_string(), @r"
+        Unexpected end of input in input
+        reason: `unconstrained` is not followed by an item
+        secondary:
+        ");
+    }
+
+    #[test]
+    fn errors_on_lonely_comptime() {
+        let src = "
+        comptime
+        ^^^^^^^^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let (module, errors) = parse_program_with_dummy_file(&src);
+        assert!(module.items.is_empty());
+        let error = get_single_error(&errors, span);
+        assert_snapshot!(error.to_string(), @r"
+        Unexpected end of input in input
+        reason: `comptime` is not followed by an item
+        secondary:
+        ");
+    }
+
+    #[test]
+    fn errors_on_lonely_mut() {
+        let src = "
+        mut 
+        ^^^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let (module, errors) = parse_program_with_dummy_file(&src);
+        assert!(module.items.is_empty());
+        let error = get_single_error(&errors, span);
+        assert_snapshot!(error.to_string(), @r"
+        Unexpected end of input in input
+        reason: `mut` is not followed by an item
+        secondary:
+        ");
     }
 }
