@@ -125,25 +125,6 @@ pub(super) fn evaluate_infix(
         };
     }
 
-    /// Generate matches for bit shifting
-    macro_rules! match_bitshift {
-        (($lhs_value:ident as $lhs:ident $op:literal $rhs_value:ident as $rhs:ident) => $expr:expr) => {
-            match_values! {
-                ($lhs_value as $lhs $op $rhs_value as $rhs) {
-                    (I8,  I8)      to I8   => $expr,
-                    (I16, I16)      to I16  => $expr,
-                    (I32, I32)      to I32  => $expr,
-                    (I64, I64)      to I64  => $expr,
-                    (U8,  U8)      to U8   => $expr,
-                    (U16, U16)      to U16  => $expr,
-                    (U32, U32)      to U32  => $expr,
-                    (U64, U64)      to U64  => $expr,
-                    (U128, U128)     to U128  => $expr,
-                }
-            }
-        };
-    }
-
     #[allow(clippy::bool_comparison)]
     match operator.kind {
         BinaryOpKind::Add => match_arithmetic! {
@@ -201,25 +182,10 @@ pub(super) fn evaluate_infix(
         BinaryOpKind::Xor => match_bitwise! {
             (lhs_value as lhs "^" rhs_value as rhs) => lhs ^ rhs
         },
-        BinaryOpKind::ShiftRight => {
-            let is_negative = lhs_value.is_negative();
-            match_bitshift! {
-                (lhs_value as lhs ">>" rhs_value as rhs) => {
-                    Some(
-                        lhs.checked_shr(rhs as u32)
-                            .unwrap_or(
-                                // fallback based on whether we have a negative value
-                                if is_negative {
-                                    // !0 = -1 for signed types
-                                    !0
-                                } else {
-                                    0
-                                })
-                    )
-                }
-            }
+        BinaryOpKind::ShiftRight => match_integer! {
+            (lhs_value as lhs ">>" rhs_value as rhs) => lhs.checked_shr(rhs as u32)
         }
-        BinaryOpKind::ShiftLeft => match_bitshift! {
+        BinaryOpKind::ShiftLeft => match_integer! {
             (lhs_value as lhs "<<" rhs_value as rhs) => lhs.checked_shl(rhs as u32)
         },
         BinaryOpKind::Modulo => match (&lhs_value, &rhs_value) {
