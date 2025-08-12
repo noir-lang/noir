@@ -45,27 +45,34 @@ pub struct NargoErrorWithTypes(NargoError<FieldElement>, SsaErrorTypes);
 impl NargoErrorWithTypes {
     /// Copy of `NargoError::user_defined_failure_message` accepting `SsaErrorTypes` instead of ABI errors.
     fn user_defined_failure_message(&self) -> Option<String> {
-        match &self.0 {
-            NargoError::ExecutionError(error) => match error {
-                ExecutionError::AssertionFailed(payload, _, _) => match payload {
-                    ResolvedAssertionPayload::String(message) => Some(message.to_string()),
-                    ResolvedAssertionPayload::Raw(raw) => {
-                        let ssa_type = self.1.get(&raw.selector)?;
-                        match ssa_type {
-                            ErrorType::String(message) => Some(message.to_string()),
-                            ErrorType::Dynamic(_hir_type) => {
-                                // This would be the case if we have a format string that needs to be filled with the raw payload
-                                // decoded as ABI type. The code generator shouldn't produce this kind. It shouldn't be too difficult
-                                // to map the type, but the mapper in `crate::abi` doesn't handle format strings at the moment.
-                                panic!("didn't expect dynamic error types")
-                            }
+        let unwrap_payload = |payload: &ResolvedAssertionPayload<FieldElement>| {
+            match payload {
+                ResolvedAssertionPayload::String(message) => Some(message.to_string()),
+                ResolvedAssertionPayload::Raw(raw) => {
+                    let ssa_type = self.1.get(&raw.selector)?;
+                    match ssa_type {
+                        ErrorType::String(message) => Some(message.to_string()),
+                        ErrorType::Dynamic(_hir_type) => {
+                            // This would be the case if we have a format string that needs to be filled with the raw payload
+                            // decoded as ABI type. The code generator shouldn't produce this kind. It shouldn't be too difficult
+                            // to map the type, but the mapper in `crate::abi` doesn't handle format strings at the moment.
+                            panic!("didn't expect dynamic error types")
                         }
                     }
-                },
+                }
+            }
+        };
+
+        match &self.0 {
+            NargoError::ExecutionError(error) => match error {
+                ExecutionError::AssertionFailed(payload, _, _) => unwrap_payload(payload),
                 ExecutionError::SolvingError(error, _) => match error {
                     OpcodeResolutionError::BlackBoxFunctionFailed(_, reason) => {
                         Some(reason.to_string())
                     }
+                    OpcodeResolutionError::BrilligFunctionFailed {
+                        payload: Some(payload), ..
+                    } => unwrap_payload(payload),
                     _ => None,
                 },
             },
