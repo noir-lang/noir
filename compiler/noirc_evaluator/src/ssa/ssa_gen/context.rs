@@ -312,42 +312,6 @@ impl<'a> FunctionContext<'a> {
         Ok(self.builder.numeric_constant(value, numeric_type))
     }
 
-    /// Insert constraints ensuring that the operation does not overflow the bit size of the result
-    ///
-    /// If the result is unsigned, overflow will be checked during acir-gen (cf. issue #4456), except for
-    /// bit-shifts, because we will convert them to field multiplication
-    ///
-    /// If the result is signed, overflow will be checked during SSA optimization.
-    fn check_overflow(&mut self, result: ValueId, operator: BinaryOpKind) -> ValueId {
-        let result_type = self.builder.current_function.dfg.type_of_value(result).unwrap_numeric();
-        match result_type {
-            NumericType::Signed { bit_size } => {
-                match operator {
-                    BinaryOpKind::Add | BinaryOpKind::Subtract | BinaryOpKind::Multiply => {
-                        // Overflow check is deferred to ssa pass
-                        result
-                    }
-                    BinaryOpKind::ShiftLeft | BinaryOpKind::ShiftRight => {
-                        self.builder.insert_truncate(result, bit_size, bit_size + 1)
-                    }
-                    _ => unreachable!("operator {} should not overflow", operator),
-                }
-            }
-            NumericType::Unsigned { .. } => {
-                match operator {
-                    BinaryOpKind::Add | BinaryOpKind::Subtract | BinaryOpKind::Multiply => {
-                        // Overflow check is deferred to acir-gen
-                        result
-                    }
-                    BinaryOpKind::ShiftLeft | BinaryOpKind::ShiftRight => result,
-
-                    _ => unreachable!("operator {} should not overflow", operator),
-                }
-            }
-            NumericType::NativeField => result,
-        }
-    }
-
     /// Insert constraints ensuring that the right-hand side of a bit-shift operation
     /// is less than the bit size of the left-hand side.
     fn enforce_bitshift_rhs_lt_bit_size(&mut self, rhs: ValueId) {
@@ -400,15 +364,12 @@ impl<'a> FunctionContext<'a> {
         let mut result = self.builder.insert_binary(lhs, op, rhs);
 
         // Check for integer overflow
-        if matches!(
-            operator,
-            BinaryOpKind::Add
-                | BinaryOpKind::Subtract
-                | BinaryOpKind::Multiply
-                | BinaryOpKind::ShiftLeft
-                | BinaryOpKind::ShiftRight
-        ) {
-            result = self.check_overflow(result, operator);
+        if matches!(operator, |BinaryOpKind::ShiftLeft| BinaryOpKind::ShiftRight) {
+            let result_type =
+                self.builder.current_function.dfg.type_of_value(result).unwrap_numeric();
+            if let NumericType::Signed { bit_size } = result_type {
+                result = self.builder.insert_truncate(result, bit_size, bit_size + 1);
+            }
         };
 
         if operator_requires_not(operator) {
