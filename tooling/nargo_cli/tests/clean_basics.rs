@@ -5,10 +5,26 @@ use std::io::Write;
 use std::process::Command;
 use tempfile::TempDir;
 
-// Create a minimal Nargo.toml so workspace detection passes.
+// Create a minimal, valid Noir project so workspace detection passes.
 fn init_minimal_project(dir: &std::path::Path) {
+    // Minimal manifest: name, type, version
     let mut f = fs::File::create(dir.join("Nargo.toml")).unwrap();
-    writeln!(f, "[package]\nname=\"dummy\"\nversion=\"0.1.0\"\n").unwrap();
+    writeln!(
+        f,
+        r#"[package]
+name = "dummy"
+type = "bin"
+version = "0.1.0"
+"#
+    )
+    .unwrap();
+
+    // Optional but safe: ensure a source layout exists.
+    let src = dir.join("src");
+    fs::create_dir_all(&src).unwrap();
+    // Minimal main; clean doesn't use it, but it keeps the package shape correct.
+    let mut main = fs::File::create(src.join("main.nr")).unwrap();
+    writeln!(main, "fn main() {{}}").unwrap();
 }
 
 #[test]
@@ -50,9 +66,7 @@ fn dry_run_keeps_everything() {
 
     let mut cmd = Command::cargo_bin("nargo").unwrap();
     cmd.current_dir(tmp.path()).args(["clean", "--crs", "--dry-run"]);
-    cmd.assert()
-        .success()
-        .stdout(predicate::str::contains("Dry run:"));
+    cmd.assert().success().stdout(predicate::str::contains("Dry run:"));
 
     assert!(tmp.path().join("target/crs").exists());
 }

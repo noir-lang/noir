@@ -7,11 +7,11 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use clap::Args;
+use super::{LockType, WorkspaceCommand};
 use crate::errors::CliError;
+use clap::Args;
 use nargo::workspace::Workspace;
 use nargo_toml::PackageSelection;
-use super::{LockType, WorkspaceCommand};
 
 #[derive(Debug, Clone, Args)]
 #[command(about = "Clean build artifacts (target) and optional CRS caches.")]
@@ -47,20 +47,12 @@ pub(crate) struct PlannedPath {
 pub(crate) fn run(cmd: CleanCommand, workspace: Workspace) -> Result<(), CliError> {
     let (remove_target, remove_crs) = normalize_flags(&cmd);
 
-    let target_root = workspace
-        .target_dir
-        .clone()
-        .unwrap_or_else(|| workspace.root_dir.join("target"));
+    let target_root =
+        workspace.target_dir.clone().unwrap_or_else(|| workspace.root_dir.join("target"));
 
     let global_crs = possible_global_crs_dir();
-    let planned = plan_paths(
-        &workspace,
-        &target_root,
-        remove_target,
-        remove_crs,
-        &cmd,
-        global_crs.as_ref(),
-    )?;
+    let planned =
+        plan_paths(&workspace, &target_root, remove_target, remove_crs, &cmd, global_crs.as_ref())?;
 
     if planned.is_empty() {
         if cmd.verbose || cmd.dry_run {
@@ -115,11 +107,7 @@ pub(crate) fn run(cmd: CleanCommand, workspace: Workspace) -> Result<(), CliErro
         Err(CliError::Generic(format!(
             "Failed to remove {} path(s): {}",
             errors.len(),
-            errors
-                .iter()
-                .map(|(p, _)| p.display().to_string())
-                .collect::<Vec<_>>()
-                .join(", ")
+            errors.iter().map(|(p, _)| p.display().to_string()).collect::<Vec<_>>().join(", ")
         )))
     }
 }
@@ -146,15 +134,20 @@ fn plan_paths(
     global_crs: Option<&PathBuf>,
 ) -> Result<Vec<PlannedPath>, CliError> {
     let mut planned = Vec::new();
-    let workspace_root = workspace
-        .root_dir
-        .canonicalize()
-        .unwrap_or_else(|_| workspace.root_dir.clone());
 
+    // Canonicalize the workspace root if possible; otherwise use it as-is.
+    let workspace_root =
+        workspace.root_dir.canonicalize().unwrap_or_else(|_| workspace.root_dir.clone());
+
+    // Consider a path "within workspace" if:
+    // - It canonically resolves under the workspace root, or
+    // - It does not exist yet but lexically sits under the workspace root.
     let within_workspace = |p: &Path| {
-        p.canonicalize()
-            .map(|c| c.starts_with(&workspace_root))
-            .unwrap_or(false)
+        let abs = if p.is_absolute() { p.to_path_buf() } else { workspace.root_dir.join(p) };
+        match abs.canonicalize() {
+            Ok(canon) => canon.starts_with(&workspace_root),
+            Err(_) => abs.starts_with(&workspace_root),
+        }
     };
 
     if remove_target {
@@ -167,6 +160,7 @@ fn plan_paths(
         planned.push(PlannedPath { label: "target".into(), path: target_root.to_path_buf() });
     }
 
+    // Only schedule local CRS subdirectories if we are not removing the entire target.
     if remove_crs && !remove_target {
         for dir in ["crs", "srs"] {
             let p = target_root.join(dir);
@@ -176,12 +170,12 @@ fn plan_paths(
         }
     }
 
+    // Optionally include the global CRS directory; only with --force.
     if remove_crs {
         match (cmd.force, global_crs) {
-            (true, Some(p)) if p.is_dir() => planned.push(PlannedPath {
-                label: "global-crs".into(),
-                path: p.clone(),
-            }),
+            (true, Some(p)) if p.is_dir() => {
+                planned.push(PlannedPath { label: "global-crs".into(), path: p.clone() });
+            }
             (false, Some(p)) if p.is_dir() && cmd.verbose => {
                 println!(
                     "Global CRS cache at {} ({}) (use --force with --crs to remove)",
@@ -194,9 +188,10 @@ fn plan_paths(
         }
     }
 
+    // Deduplicate and sort for stable output.
     let mut seen = HashSet::new();
     planned.retain(|e| seen.insert(canonical_key(&e.path)));
-    planned.sort_by(|a, b| a.label.cmp(&b.label).then(a.path.cmp(&b.path)));
+    planned.sort_by_key(|e| (e.label.clone(), e.path.clone()));
 
     Ok(planned)
 }
@@ -223,12 +218,7 @@ fn possible_global_crs_dir() -> Option<PathBuf> {
         }
     }
     let home = home_dir()?;
-    for candidate in [home.join(".nargo/crs"), home.join(".cache/nargo/crs")] {
-        if candidate.is_dir() {
-            return Some(candidate);
-        }
-    }
-    None
+    [home.join(".nargo/crs"), home.join(".cache/nargo/crs")].into_iter().find(|p| p.is_dir())
 }
 
 fn home_dir() -> Option<PathBuf> {
@@ -282,9 +272,5 @@ fn human_size(bytes: u64) -> String {
         val /= 1024.0;
         idx += 1;
     }
-    if idx == 0 {
-        format!("{bytes} {}", UNITS[idx])
-    } else {
-        format!("{:.2} {}", val, UNITS[idx])
-    }
+    if idx == 0 { format!("{bytes} {}", UNITS[idx]) } else { format!("{:.2} {}", val, UNITS[idx]) }
 }
