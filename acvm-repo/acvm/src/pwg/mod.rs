@@ -8,18 +8,14 @@ use acir::{
     circuit::{
         AssertionPayload, ErrorSelector, ExpressionOrMemory, Opcode, OpcodeLocation,
         brillig::{BrilligBytecode, BrilligFunctionId},
-        opcodes::{
-            AcirFunctionId, BlockId, ConstantOrWitnessEnum, FunctionInput, InvalidInputBitSize,
-        },
+        opcodes::{AcirFunctionId, BlockId, FunctionInput, InvalidInputBitSize},
     },
     native_types::{Expression, Witness, WitnessMap},
 };
 use acvm_blackbox_solver::BlackBoxResolutionError;
 use brillig_vm::BranchToFeatureMap;
 
-use self::{
-    arithmetic::ExpressionSolver, blackbox::bigint::AcvmBigIntSolver, memory_op::MemoryOpSolver,
-};
+use self::{arithmetic::ExpressionSolver, memory_op::MemoryOpSolver};
 use crate::BlackBoxFunctionSolver;
 
 use thiserror::Error;
@@ -213,8 +209,6 @@ pub struct ACVM<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> {
     /// Stores the solver for memory operations acting on blocks of memory disambiguated by [block][`BlockId`].
     block_solvers: HashMap<BlockId, MemoryOpSolver<F>>,
 
-    bigint_solver: AcvmBigIntSolver,
-
     /// A list of opcodes which are to be executed by the ACVM.
     opcodes: &'a [Opcode<F>],
     /// Index of the next opcode to be executed.
@@ -260,12 +254,10 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
         assertion_payloads: &'a [(OpcodeLocation, AssertionPayload<F>)],
     ) -> Self {
         let status = if opcodes.is_empty() { ACVMStatus::Solved } else { ACVMStatus::InProgress };
-        let bigint_solver = AcvmBigIntSolver::with_pedantic_solving(backend.pedantic_solving());
         ACVM {
             status,
             backend,
             block_solvers: HashMap::default(),
-            bigint_solver,
             opcodes,
             instruction_pointer: 0,
             witness_map: initial_witness,
@@ -426,22 +418,19 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> ACVM<'a, F, B> {
         let opcode = &self.opcodes[self.instruction_pointer];
         let resolution = match opcode {
             Opcode::AssertZero(expr) => ExpressionSolver::solve(&mut self.witness_map, expr),
-            Opcode::BlackBoxFuncCall(bb_func) => blackbox::solve(
-                self.backend,
-                &mut self.witness_map,
-                bb_func,
-                &mut self.bigint_solver,
-            ),
+            Opcode::BlackBoxFuncCall(bb_func) => {
+                blackbox::solve(self.backend, &mut self.witness_map, bb_func)
+            }
             Opcode::MemoryInit { block_id, init, .. } => {
                 let solver = self.block_solvers.entry(*block_id).or_default();
                 solver.init(init, &self.witness_map)
             }
-            Opcode::MemoryOp { block_id, op, predicate } => {
+            Opcode::MemoryOp { block_id, op } => {
                 let solver = self.block_solvers.entry(*block_id).or_default();
                 solver.solve_memory_op(
                     op,
                     &mut self.witness_map,
-                    predicate,
+                    &None,
                     self.backend.pedantic_solving(),
                 )
             }
@@ -758,27 +747,33 @@ pub fn witness_to_value<F>(
 pub fn input_to_value<F: AcirField>(
     initial_witness: &WitnessMap<F>,
     input: FunctionInput<F>,
-    skip_bitsize_checks: bool,
 ) -> Result<F, OpcodeResolutionError<F>> {
-    match input.input() {
-        ConstantOrWitnessEnum::Witness(witness) => {
+    match input {
+        FunctionInput::Witness(witness) => {
             let initial_value = *witness_to_value(initial_witness, witness)?;
-            if skip_bitsize_checks || initial_value.num_bits() <= input.num_bits() {
-                Ok(initial_value)
-            } else {
-                let value_num_bits = initial_value.num_bits();
-                let value = initial_value.to_string();
-                Err(OpcodeResolutionError::InvalidInputBitSize {
-                    opcode_location: ErrorLocation::Unresolved,
-                    invalid_input_bit_size: InvalidInputBitSize {
-                        value,
-                        value_num_bits,
-                        max_bits: input.num_bits(),
-                    },
-                })
-            }
+            Ok(initial_value)
         }
-        ConstantOrWitnessEnum::Constant(value) => Ok(value),
+        FunctionInput::Constant(value) => Ok(value),
+    }
+}
+
+pub fn check_bit_size<F: AcirField>(
+    value: F,
+    num_bits: u32,
+) -> Result<(), OpcodeResolutionError<F>> {
+    if value.num_bits() <= num_bits {
+        Ok(())
+    } else {
+        let value_num_bits = value.num_bits();
+        let value = value.to_string();
+        Err(OpcodeResolutionError::InvalidInputBitSize {
+            opcode_location: ErrorLocation::Unresolved,
+            invalid_input_bit_size: InvalidInputBitSize {
+                value,
+                value_num_bits,
+                max_bits: num_bits,
+            },
+        })
     }
 }
 

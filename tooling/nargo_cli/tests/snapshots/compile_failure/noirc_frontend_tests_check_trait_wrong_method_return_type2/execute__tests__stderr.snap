@@ -2,11 +2,9 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
-error: Expected type Foo, found type Field
-   ┌─ src/main.nr:12:44
-   │
-12 │         fn default(x: Field, _y: Field) -> Field {
-   │                                            -----
-   │
+[31mThe application panicked (crashed).[0m
+Message:  [36mcalled `Result::unwrap()` on an `Err` value: ThreadPoolBuildError { kind: IOError(Os { code: 11, kind: WouldBlock, message: "Resource temporarily unavailable" }) }[0m
+Location: [35mtooling/nargo_cli/src/cli/compile_cmd.rs[0m:[35m257[0m
 
-Aborting due to 1 previous error
+This is a bug. We may have already fixed this in newer versions of Nargo so try searching for similar issues at https://github.com/noir-lang/noir/issues/.
+If there isn't an open issue for this bug, consider opening one at https://github.com/noir-lang/noir/issues/new?labels=bug&template=bug_report.yml

@@ -11,7 +11,7 @@ use acvm::{
         circuit::{
             Circuit, Opcode, Program,
             brillig::{BrilligBytecode, BrilligInputs},
-            opcodes::{BlackBoxFuncCall, ConstantOrWitnessEnum},
+            opcodes::{BlackBoxFuncCall, FunctionInput},
         },
         native_types::Expression,
     },
@@ -61,9 +61,9 @@ fn build_dictionary_from_circuit<F: AcirField>(circuit: &Circuit<F>) -> HashSet<
 
     for opcode in &circuit.opcodes {
         match opcode {
-            Opcode::AssertZero(expr)
-            | Opcode::Call { predicate: Some(expr), .. }
-            | Opcode::MemoryOp { predicate: Some(expr), .. } => insert_expr(&mut constants, expr),
+            Opcode::AssertZero(expr) | Opcode::Call { predicate: Some(expr), .. } => {
+                insert_expr(&mut constants, expr);
+            }
 
             Opcode::MemoryInit { init, .. } => insert_array_len(&mut constants, init),
 
@@ -83,18 +83,18 @@ fn build_dictionary_from_circuit<F: AcirField>(circuit: &Circuit<F>) -> HashSet<
                 }
             }
 
-            Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE { input })
-                if matches!(input.input(), ConstantOrWitnessEnum::Constant(..)) =>
+            Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE { input, num_bits })
+                if matches!(input, FunctionInput::Constant(..)) =>
             {
-                match input.input() {
-                    ConstantOrWitnessEnum::Constant(c) => {
-                        let field = 1u128.wrapping_shl(input.num_bits());
+                match input {
+                    FunctionInput::Constant(c) => {
+                        let field = 1u128.wrapping_shl(*num_bits);
                         constants.insert(F::from(field));
                         constants.insert(F::from(field - 1));
-                        constants.insert(c);
+                        constants.insert(*c);
                     }
                     _ => {
-                        let field = 1u128.wrapping_shl(input.num_bits());
+                        let field = 1u128.wrapping_shl(*num_bits);
                         constants.insert(F::from(field));
                         constants.insert(F::from(field - 1));
                     }

@@ -46,22 +46,22 @@ expression: artifact
     "private parameters indices : [_0, _1, _2, _3]",
     "public parameters indices : []",
     "return value indices : [_4]",
-    "BLACKBOX::RANGE [(_0, 16)] []",
-    "BLACKBOX::RANGE [(_1, 16)] []",
-    "BLACKBOX::RANGE [(_2, 16)] []",
+    "BLACKBOX::RANGE [_0]:16 bits []",
+    "BLACKBOX::RANGE [_1]:16 bits []",
+    "BLACKBOX::RANGE [_2]:16 bits []",
     "INIT (id: 0, len: 3, witnesses: [_0, _1, _2])",
-    "BLACKBOX::RANGE [(_3, 1)] []",
+    "BLACKBOX::RANGE [_3]:1 bits []",
     "EXPR [ (-1, _5) 0 ]",
     "BRILLIG CALL func 1: inputs: [EXPR [ (1, _0) 0 ], EXPR [ 3 ]], outputs: [_6, _7]",
-    "BLACKBOX::RANGE [(_6, 31)] []",
-    "BLACKBOX::RANGE [(_7, 2)] []",
+    "BLACKBOX::RANGE [_6]:31 bits []",
+    "BLACKBOX::RANGE [_7]:2 bits []",
     "EXPR [ (1, _7) (-1, _8) 1 ]",
-    "BLACKBOX::RANGE [(_8, 2)] []",
+    "BLACKBOX::RANGE [_8]:2 bits []",
     "EXPR [ (1, _0) (-3, _6) (-1, _7) 0 ]",
     "MEM (id: 0, read at: EXPR [ (1, _7) 0 ], value: EXPR [ (1, _9) 0 ]) ",
     "BRILLIG CALL func 1: inputs: [EXPR [ (-1, _9) 4294992289 ], EXPR [ 4294967296 ]], outputs: [_10, _11]",
-    "BLACKBOX::RANGE [(_10, 1)] []",
-    "BLACKBOX::RANGE [(_11, 32)] []",
+    "BLACKBOX::RANGE [_10]:1 bits []",
+    "BLACKBOX::RANGE [_11]:32 bits []",
     "EXPR [ (-1, _9) (-4294967296, _10) (-1, _11) 4294992289 ]",
     "EXPR [ (1, _4) (1, _10) -1 ]",
     "unconstrained func 0",
@@ -76,11 +76,9 @@ expression: artifact
       "path": ""
     }
   },
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "func_1",
-    "directive_integer_quotient"
-  ]
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
+  }
 }

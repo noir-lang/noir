@@ -996,7 +996,10 @@ impl<'f> Context<'f> {
                                 condition,
                                 call_stack,
                             );
-
+                            // TODO: We now use a predicate in order to disable the blackbox on the backend side
+                            // the predicates on the inputs above will be removed once the backend is updated
+                            arguments[4] =
+                                self.mul_by_condition(arguments[4], condition, call_stack);
                             Instruction::Call { func, arguments }
                         }
                         BlackBoxFunc::EcdsaSecp256r1 => {
@@ -1024,7 +1027,10 @@ impl<'f> Context<'f> {
                                 condition,
                                 call_stack,
                             );
-
+                            // TODO: We now use a predicate in order to disable the blackbox on the backend side
+                            // the predicates on the inputs above will be removed once the backend is updated
+                            arguments[4] =
+                                self.mul_by_condition(arguments[4], condition, call_stack);
                             Instruction::Call { func, arguments }
                         }
 
@@ -1044,15 +1050,6 @@ impl<'f> Context<'f> {
                         BlackBoxFunc::RANGE => unreachable!(
                             "RANGE should have been converted into `Instruction::RangeCheck`"
                         ),
-
-                        BlackBoxFunc::BigIntAdd
-                        | BlackBoxFunc::BigIntSub
-                        | BlackBoxFunc::BigIntMul
-                        | BlackBoxFunc::BigIntDiv
-                        | BlackBoxFunc::BigIntFromLeBytes
-                        | BlackBoxFunc::BigIntToLeBytes => {
-                            todo!("BigInt opcodes are not supported yet")
-                        }
                     },
 
                     _ => Instruction::Call { func, arguments },

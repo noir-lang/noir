@@ -334,26 +334,14 @@ impl<W: Write> Interpreter<'_, W> {
                     let result = new_embedded_curve_point(x, y, is_infinite)?;
                     Ok(vec![result])
                 }
-                acvm::acir::BlackBoxFunc::BigIntAdd
-                | acvm::acir::BlackBoxFunc::BigIntSub
-                | acvm::acir::BlackBoxFunc::BigIntMul
-                | acvm::acir::BlackBoxFunc::BigIntDiv
-                | acvm::acir::BlackBoxFunc::BigIntFromLeBytes
-                | acvm::acir::BlackBoxFunc::BigIntToLeBytes => {
-                    Err(InterpreterError::Internal(InternalError::UnexpectedInstruction {
-                        reason: "unused BigInt BlackBox function",
-                    }))
-                }
+
                 acvm::acir::BlackBoxFunc::Poseidon2Permutation => {
-                    check_argument_count(args, 2, intrinsic)?;
+                    check_argument_count(args, 1, intrinsic)?;
                     let inputs = self
                         .lookup_vec_field(args[0], "call Poseidon2Permutation BlackBox (inputs)")?;
-                    let length =
-                        self.lookup_u32(args[1], "call Poseidon2Permutation BlackBox (length)")?;
                     let solver = bn254_blackbox_solver::Bn254BlackBoxSolver(false);
-                    let result = solver
-                        .poseidon2_permutation(&inputs, length)
-                        .map_err(Self::convert_error)?;
+                    let result =
+                        solver.poseidon2_permutation(&inputs).map_err(Self::convert_error)?;
                     let result = Value::array_from_iter(result, NumericType::NativeField)?;
                     Ok(vec![result])
                 }

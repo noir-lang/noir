@@ -23,11 +23,9 @@ expression: artifact
   ],
   "debug_symbols": "pZTdisMgEIXfxetc+BuTvsqyBJOYIogJVgtL6LuvDU63u7BQpldmPPnmqDO6k9mO+Ty4sKwXcvrYyRid9+48+HUyya2hzO63hkA4pGhtmSJPeqE2E21I5BSy9w25Gp+Pny6bCceYTCwqbYgNcxlLwsV5e/+6NT80/R9lXFSYcfnA1eu85MArgeA5VZXnkmH8dQv+PcX4M1g/5+/yqP3zDnjRv+ePOj+hwV9ojL9gPfAC0z9SQf2lxqxf9qzyirYIXnXQP6rrMPyjfkpi6t+2svJth+k/TeHya/Z7/58lMpOLf1+cq4nOjN7WcMlhelLT1wYKvFhbXCc752jvmQ6t5P4G",
   "file_map": {},
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "sum_slice",
-    "sum_slice"
-  ]
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
+  }
 }

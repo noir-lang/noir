@@ -37,8 +37,9 @@ expression: artifact
   ],
   "debug_symbols": "pdLRCoMgFAbgd/G6C9M1slcZI6xOIYiKaTCid59FtjYYDHel5/x+By/OjDpo/FAL1esRVbcZNVZIKYZa6pY7oVXozkuGYlk7CxBa6JQHZbgF5VClvJQZmrj026PRcLWdjtuQ4gyB6sIZBvZCwnpbspfG3ykrd5tjdujiZ54ztnuCcYInpIieFimeRU/xJcFTEv9PaZni88MT+qe/vvl7qHgr7OfCTNwK3kjYy96r9pS6h4lJXDhjdQudt7BO2rIw+wk=",
   "file_map": {},
-  "names": [
-    "main"
-  ],
-  "brillig_names": []
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
+  }
 }
