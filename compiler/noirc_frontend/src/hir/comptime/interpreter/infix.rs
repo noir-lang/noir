@@ -184,7 +184,7 @@ pub(super) fn evaluate_infix(
         },
         BinaryOpKind::ShiftRight => match_integer! {
             (lhs_value as lhs ">>" rhs_value as rhs) => lhs.checked_shr(rhs as u32)
-        }
+        },
         BinaryOpKind::ShiftLeft => match_integer! {
             (lhs_value as lhs "<<" rhs_value as rhs) => lhs.checked_shl(rhs as u32)
         },
