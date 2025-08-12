@@ -243,12 +243,7 @@
 <a href="#242" id="242">242</a>
 <a href="#243" id="243">243</a>
 <a href="#244" id="244">244</a>
-<a href="#245" id="245">245</a>
-<a href="#246" id="246">246</a>
-<a href="#247" id="247">247</a>
-<a href="#248" id="248">248</a>
-<a href="#249" id="249">249</a>
-<a href="#250" id="250">250</a></pre></div><pre class="rust"><code><span class="doccomment">//! Noir Evaluator has two types of errors
+<a href="#245" id="245">245</a></pre></div><pre class="rust"><code><span class="doccomment">//! Noir Evaluator has two types of errors
 //!
 //! [RuntimeError]s that should be displayed to the user
 //!
@@ -352,9 +347,6 @@
                     InternalWarning::ReturnConstant { call_stack } =&gt; {
                         (<span class="string">"This variable contains a value which is constrained to be a constant. Consider removing this value as additional return values increase proving/verification time"</span>.to_string(), call_stack)
                     },
-                    InternalWarning::VerifyProof { call_stack } =&gt; {
-                        (<span class="string">"The validity of the proof passed to verify_proof(...) can only be checked by the proving backend, so witness execution will defer checking of these proofs to the proving backend. Passing an invalid proof is expected to cause the proving backend to either fail to generate a proof or generate a proof which fails verification"</span>.to_string(), call_stack)
-                    },
                 };
                 <span class="kw">let </span>call_stack = vecmap(call_stack, |location| location);
                 <span class="kw">let </span>location = call_stack.last().expect(<span class="string">"Expected RuntimeError to have a location"</span>);
@@ -392,8 +384,6 @@
 </span><span class="kw">pub enum </span>InternalWarning {
     <span class="attr">#[error(<span class="string">"Return variable contains a constant value"</span>)]
     </span>ReturnConstant { call_stack: CallStack },
-    <span class="attr">#[error(<span class="string">"Calling std::verify_proof(...) does not check that the provided proof is valid"</span>)]
-    </span>VerifyProof { call_stack: CallStack },
 }
 
 <span class="attr">#[derive(Debug, PartialEq, Eq, Clone, Error, Serialize, Deserialize, Hash)]
