@@ -1,5 +1,5 @@
 [package]
-name = "comptime_right_shift_no_overflow"
+name = "comptime_right_shift_overflow"
 type = "bin"
 authors = [""]
 

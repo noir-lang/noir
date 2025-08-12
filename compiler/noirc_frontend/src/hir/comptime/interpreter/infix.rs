@@ -310,17 +310,16 @@ mod test {
                 64 >> 255
             }
         "#;
-        let result = interpret(src);
-        // 255 % 64 == 63, so 64 >> 63 => 0
-        assert_eq!(result, Value::U64(0));
+        let result = interpret_expect_error(src);
+        assert!(matches!(result, InterpreterError::BinaryOperationOverflow { operator: ">>", .. }));
 
         let src = "
             comptime fn main() -> pub u32 {
                 1360887544 >> 141
             }
         ";
-        let result = interpret(src);
-        assert_eq!(result, Value::U32(0));
+        let result = interpret_expect_error(src);
+        assert!(matches!(result, InterpreterError::BinaryOperationOverflow { operator: ">>", .. }));
     }
 
     #[test]
@@ -338,17 +337,16 @@ mod test {
             -64 >> 255
         }
         ";
-        let result = interpret(src);
-        // 255 % 64 == 63, so 64 >> 63 => -1
-        assert_eq!(result, Value::I64(-1));
+        let result = interpret_expect_error(src);
+        assert!(matches!(result, InterpreterError::BinaryOperationOverflow { operator: ">>", .. }));
 
         let src = "
         comptime fn main() -> pub i32 {
             -1360887544 >> 141
         }
         ";
-        let result = interpret(src);
-        assert_eq!(result, Value::I32(-1));
+        let result = interpret_expect_error(src);
+        assert!(matches!(result, InterpreterError::BinaryOperationOverflow { operator: ">>", .. }));
     }
 
     #[test]
@@ -366,16 +364,16 @@ mod test {
             64 >> 255
         }
         ";
-        let result = interpret(src);
-        assert_eq!(result, Value::I64(0));
+        let result = interpret_expect_error(src);
+        assert!(matches!(result, InterpreterError::BinaryOperationOverflow { operator: ">>", .. }));
 
         let src = "
         comptime fn main() -> pub i32 {
             1360887544 >> 141
         }
         ";
-        let result = interpret(src);
-        assert_eq!(result, Value::I32(0));
+        let result = interpret_expect_error(src);
+        assert!(matches!(result, InterpreterError::BinaryOperationOverflow { operator: ">>", .. }));
     }
 
     #[test]
