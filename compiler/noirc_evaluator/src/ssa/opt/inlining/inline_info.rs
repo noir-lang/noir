@@ -14,6 +14,16 @@ use crate::ssa::{
     ssa_gen::Ssa,
 };
 
+/// The maximum number of instructions chosen below is an expert estimation of a "small" function
+/// in our SSA IR. Generally, inlining small functions with no control flow should enable further optimizations
+/// in the compiler while avoiding code size bloat.
+///
+/// For example, a common "simple" function is writing into a mutable reference.
+/// When that function has no control flow, it generally means we can expect all loads and stores within the
+/// function to be resolved upon inlining. Inlining this type of basic function both reduces the number of
+/// loads/stores to be executed and enables the compiler to continue optimizing at the inline site.
+const MAX_INSTRUCTIONS: usize = 10;
+
 /// Information about a function to aid the decision about whether to inline it or not.
 /// The final decision depends on what we're inlining it into.
 #[derive(Default, Debug)]
@@ -198,9 +208,12 @@ fn compute_function_should_be_inlined(
         return;
     }
 
-    let should_inline = (net_cost < aggressiveness)
+    let should_inline_no_pred_function =
+        runtime.is_no_predicates() && inline_no_predicates_functions;
+    let should_inline = total_weight < MAX_INSTRUCTIONS as i64
+        || net_cost < aggressiveness
         || runtime.is_inline_always()
-        || (runtime.is_no_predicates() && inline_no_predicates_functions)
+        || should_inline_no_pred_function
         || contains_static_assertion;
 
     info.should_inline = should_inline;

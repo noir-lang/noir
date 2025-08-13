@@ -990,12 +990,23 @@ mod test {
         let src = "
         brillig(inline) fn foo f0 {
           b0():
-            v1 = call f1() -> Field
+            v1 = call f1(Field 10, Field 10) -> Field
             return v1
         }
 
+        // We add a bunch of nonsense instructions here as to go over the weight threshold at which
+        // functions are always inlined. 
         brillig(inline) fn bar f1 {
-          b0():
+          b0(v0: Field, v1: Field):
+            v2  = add v0, v1
+            v3  = add v0, v1
+            v4  = add v0, v1
+            v5  = add v0, v1
+            v6  = add v0, v1
+            v7  = add v0, v1
+            v8  = add v0, v1
+            v9  = add v0, v1
+            v10 = add v0, v1
             return Field 72
         }
         ";
@@ -1025,6 +1036,14 @@ mod test {
           b2():
             jmp b3(Field 2)
           b3(v3: Field):
+            // We add a bunch of nonsense instructions here as to go over the weight threshold at which
+            // functions are always inlined. 
+            v4 = add v3, v3
+            v5 = add v3, v3
+            v6 = add v3, v3
+            v7 = add v3, v3
+            v8 = add v3, v3
+            v9 = add v3, v3
             return v3
         }
         ";
@@ -1046,6 +1065,12 @@ mod test {
           b1():
             jmp b2(Field 1)
           b2(v0: Field):
+            v2 = add v0, v0
+            v3 = add v0, v0
+            v4 = add v0, v0
+            v5 = add v0, v0
+            v6 = add v0, v0
+            v7 = add v0, v0
             return v0
         }
         ");
@@ -1182,13 +1207,24 @@ mod test {
         let src = "
         brillig(inline) fn main f0 {
             b0():
-              call f1()
+              call f1(Field 10, Field 10)
               return
         }
 
+        // We add a bunch of nonsense instructions here as to go over the weight threshold at which
+        // functions are always inlined. 
         brillig(inline_always) fn always_inline f1 {
-            b0():
-              return
+            b0(v0: Field, v1: Field):
+                v2  = add v0, v1
+                v3  = add v0, v1
+                v4  = add v0, v1
+                v5  = add v0, v1
+                v6  = add v0, v1
+                v7  = add v0, v1
+                v8  = add v0, v1
+                v9  = add v0, v1
+                v10 = add v0, v1
+                return
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
@@ -1373,5 +1409,266 @@ mod test {
         ";
         let ssa = Ssa::from_str(src).unwrap();
         let _ = ssa.inline_functions(i64::MAX).unwrap();
+    }
+}
+
+/// This test module contains tests specifically for inlining small functions which we always expect to be inlined.
+#[cfg(test)]
+mod simple_functions {
+    use crate::{
+        assert_ssa_snapshot,
+        ssa::{Ssa, opt::assert_normalized_ssa_equals},
+    };
+
+    fn assert_does_not_inline(src: &str) {
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.inline_functions(i64::MAX).unwrap();
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn inline_functions_with_zero_instructions() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: Field):
+            v2 = call f1(v0) -> Field
+            v3 = call f1(v0) -> Field
+            v4 = add v2, v3
+            return v4
+        }
+
+        brillig(inline) fn foo f1 {
+          b0(v0: Field):
+            return v0
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.inline_functions(i64::MIN).unwrap();
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = add v0, v0
+            return v1
+        }
+        ");
+    }
+
+    /// This test is here to make clear that this SSA pass does not attempt multiple passes.
+    #[test]
+    fn does_not_inline_functions_that_require_multiple_inlines() {
+        // f2 has greater than 10 instructions, which should prevent it from
+        // being inlined into f0 on the first run of this pass.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = call f2(v0) -> Field
+            return v1
+        }
+
+        brillig(inline) fn foo f1 {
+          b0(v0: Field):
+            return v0
+        }
+
+        brillig(inline) fn bar f2 {
+          b0(v0: Field):
+            v1 = call f1(v0) -> Field
+            v2 = call f1(v0) -> Field
+            v3 = call f1(v0) -> Field
+            v4 = call f1(v0) -> Field
+            v5 = call f1(v0) -> Field
+            v6 = call f1(v0) -> Field
+            v7 = call f1(v0) -> Field
+            v8 = call f1(v0) -> Field
+            v9 = call f1(v0) -> Field
+            v10 = call f1(v0) -> Field
+            v11 = add v1, v2
+            return v11
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let mut ssa = ssa.inline_functions(i64::MIN).unwrap();
+        assert_ssa_snapshot!(&mut ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = add v0, v0
+            return v1
+        }
+        ");
+    }
+
+    #[test]
+    fn inline_functions_with_one_instruction() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: Field):
+            v2 = call f1(v0) -> Field
+            v3 = call f1(v0) -> Field
+            v4 = add v2, v3
+            return v4
+        }
+
+        brillig(inline) fn foo f1 {
+          b0(v0: Field):
+            v2 = add v0, Field 1
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.inline_functions(i64::MIN).unwrap();
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: Field):
+            v2 = add v0, Field 1
+            v3 = add v0, Field 1
+            v4 = add v2, v3
+            return v4
+        }
+        ");
+    }
+
+    #[test]
+    fn does_not_inline_function_with_one_instruction_that_calls_itself() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = call f1(v0) -> Field
+            return v1
+        }
+
+        brillig(inline) fn foo f1 {
+          b0(v0: Field):
+            v1 = call f1(v0) -> Field
+            return v1
+        }
+        ";
+        assert_does_not_inline(src);
+    }
+
+    #[test]
+    fn does_not_inline_acir_functions_with_no_predicates() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v2 = call f1(v0) -> Field
+            v3 = call f1(v0) -> Field
+            v4 = add v2, v3
+            return v4
+        }
+
+        acir(no_predicates) fn foo f1 {
+          b0(v0: Field):
+            v2 = add v0, Field 1
+            return v2
+        }
+        ";
+        assert_does_not_inline(src);
+    }
+
+    #[test]
+    fn does_inline_brillig_functions_with_no_predicates() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: Field):
+            v2 = call f1(v0) -> Field
+            v3 = call f1(v0) -> Field
+            v4 = add v2, v3
+            return v4
+        }
+
+        brillig(no_predicates) fn foo f1 {
+          b0(v0: Field):
+            v2 = add v0, Field 1
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.inline_functions(i64::MIN).unwrap();
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: Field):
+            v2 = add v0, Field 1
+            v3 = add v0, Field 1
+            v4 = add v2, v3
+            return v4
+        }
+        ");
+    }
+
+    #[test]
+    fn does_not_inline_brillig_entry_point_functions() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v2 = call f1(v0) -> Field
+            v3 = call f1(v0) -> Field
+            v4 = add v2, v3
+            return v4
+        }
+        brillig(inline) fn foo f1 {
+          b0(v0: Field):
+            v2 = add v0, Field 1
+            return v2
+        }
+        ";
+        assert_does_not_inline(src);
+    }
+
+    #[test]
+    fn does_not_inline_mutually_recursive_functions_acir() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            call f1()
+            return
+        }
+        acir(inline) fn starter f1 {
+          b0():
+            call f2()
+            return
+        }
+        acir(inline) fn main f2 {
+          b0():
+            call f1()
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.inline_functions(i64::MIN);
+
+        let Err(err) = ssa else {
+            panic!("inline_functions cannot inline recursive functions");
+        };
+        insta::assert_snapshot!(err.to_string(), @"Attempted to recurse more than 1000 times during inlining function 'starter'");
+    }
+
+    #[test]
+    fn does_not_inline_mutually_recursive_functions_brillig() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            call f1()
+            return
+        }
+        brillig(inline) fn starter f1 {
+          b0():
+            call f2()
+            return
+        }
+        brillig(inline) fn ping f2 {
+          b0():
+            call f3()
+            return
+        }
+        brillig(inline) fn pong f3 {
+          b0():
+            call f2()
+            return
+        }
+        ";
+        assert_does_not_inline(src);
     }
 }
