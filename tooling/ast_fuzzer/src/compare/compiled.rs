@@ -159,6 +159,9 @@ impl Comparable for NargoErrorWithTypes {
                         || msg.contains("divisor of zero")
                         || msg.contains("division by zero")
                 })
+                || both(&msg1, &msg2, |msg| {
+                    msg.contains("Attempted to shift by") || msg.contains("bit-shift with overflow")
+                })
         } else {
             false
         };
