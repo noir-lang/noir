@@ -1982,6 +1982,7 @@ mod test {
           b0(v0: Field):
             v1 = call to_le_radix(v0, u32 256) -> [u8; 2]
             v2 = call to_le_radix(v0, u32 256) -> [u8; 3]
+            v3 = call to_le_radix(v0, u32 256) -> [u8; 2]
             return
         }
         ";
@@ -1989,7 +1990,15 @@ mod test {
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.fold_constants_using_constraints();
 
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v0: Field):
+            v3 = call to_le_radix(v0, u32 256) -> [u8; 2]
+            v4 = call to_le_radix(v0, u32 256) -> [u8; 3]
+            inc_rc v3
+            return
+        }
+        ");
     }
 
     #[test]
