@@ -123,7 +123,18 @@ impl Function {
             context.visited_blocks.insert(block);
             context.fold_constants_in_block(self, &mut dom, block);
         }
+
+        #[cfg(debug_assertions)]
+        constant_folding_post_check(&context, &self.dfg);
     }
+}
+
+#[cfg(debug_assertions)]
+fn constant_folding_post_check(context: &Context, dfg: &DataFlowGraph) {
+    assert!(
+        context.values_to_replace.value_types_are_consistent(dfg),
+        "Constant folding should not map a ValueId to another of a different type"
+    );
 }
 
 struct Context<'a> {
@@ -538,6 +549,11 @@ impl<'brillig> Context<'brillig> {
 
     /// Replaces a set of [`ValueId`]s inside the [`DataFlowGraph`] with another.
     fn replace_result_ids(&mut self, old_results: &[ValueId], new_results: &[ValueId]) {
+        debug_assert_eq!(
+            old_results.len(),
+            new_results.len(),
+            "Constant folding should never mutate instruction return type"
+        );
         for (old_result, new_result) in old_results.iter().zip(new_results) {
             self.values_to_replace.insert(*old_result, *new_result);
         }
@@ -1931,6 +1947,27 @@ mod test {
             return
         }
         ");
+    }
+
+    #[test]
+    fn does_not_deduplicate_calls_to_functions_which_differ_in_return_value_types() {
+        // We have a few intrinsics which have a generic return value (generally for array lengths), we want
+        // to avoid deduplicating these.
+        //
+        // This is not an issue for user code as these functions will be monomorphized whereas intrinsics haven't been.
+        let src = "
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v0: Field):
+            v1 = call to_le_radix(v0, u32 256) -> [u8; 2]
+            v2 = call to_le_radix(v0, u32 256) -> [u8; 3]
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.fold_constants_using_constraints();
+
+        assert_normalized_ssa_equals(ssa, src);
     }
 
     #[test]

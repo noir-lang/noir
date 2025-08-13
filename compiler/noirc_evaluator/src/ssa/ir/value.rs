@@ -4,7 +4,7 @@ use std::borrow::Cow;
 use acvm::FieldElement;
 use serde::{Deserialize, Serialize};
 
-use crate::ssa::ir::basic_block::BasicBlockId;
+use crate::ssa::ir::{basic_block::BasicBlockId, dfg::DataFlowGraph};
 
 use super::{
     function::FunctionId,
@@ -98,5 +98,13 @@ impl ValueMapping {
 
     pub(crate) fn is_empty(&self) -> bool {
         self.map.is_empty()
+    }
+
+    /// Returns true if all [`ValueId`]s are mapped to a [`ValueId`] of the same type.
+    ///
+    /// Mapping a [`ValueId`] to one of a different type implies a compilation error.
+    #[must_use]
+    pub(crate) fn value_types_are_consistent(&self, dfg: &DataFlowGraph) -> bool {
+        self.map.iter().all(|(from, to)| dfg.type_of_value(*from) == dfg.type_of_value(*to))
     }
 }
