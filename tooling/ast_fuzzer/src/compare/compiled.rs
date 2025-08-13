@@ -160,7 +160,7 @@ impl Comparable for NargoErrorWithTypes {
                         || msg.contains("division by zero")
                 })
                 || both(&msg1, &msg2, |msg| {
-                    msg.contains("Attempted to shift by") || msg.contains("bit-shift with overflow")
+                    msg.contains("attempted to shift by") || msg.contains("bit-shift with overflow")
                 })
         } else {
             false
@@ -337,5 +337,50 @@ impl CompareMorph {
 impl HasPrograms for CompareMorph {
     fn programs(&self) -> Vec<&Program> {
         vec![&self.program.0, &self.program.1]
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use std::collections::BTreeMap;
+
+    use acir::circuit::{ErrorSelector, brillig::BrilligFunctionId};
+    use acvm::pwg::{RawAssertionPayload, ResolvedAssertionPayload};
+    use nargo::errors::ExecutionError;
+
+    use super::{ErrorType, NargoErrorWithTypes};
+    use crate::compare::Comparable;
+
+    #[test]
+    fn matches_brillig_bitshift_error_with_other() {
+        let error = NargoErrorWithTypes(
+            nargo::NargoError::ExecutionError(ExecutionError::AssertionFailed(
+                ResolvedAssertionPayload::Raw(RawAssertionPayload {
+                    selector: ErrorSelector::new(14514982005979867414),
+                    data: vec![],
+                }),
+                Vec::new(),
+                Some(BrilligFunctionId(0)),
+            )),
+            BTreeMap::from_iter([(
+                ErrorSelector::new(14514982005979867414),
+                ErrorType::String("attempt to bit-shift with overflow".to_string()),
+            )]),
+        );
+        let brillig_error = NargoErrorWithTypes(
+            nargo::NargoError::ExecutionError(ExecutionError::AssertionFailed(
+                ResolvedAssertionPayload::String(
+                    "Attempted to shift by 4294958994 bits on a type of bit size 8".to_string(),
+                ),
+                Vec::new(),
+                Some(BrilligFunctionId(0)),
+            )),
+            BTreeMap::from_iter([(
+                ErrorSelector::new(14514982005979867414),
+                ErrorType::String("attempt to bit-shift with overflow".to_string()),
+            )]),
+        );
+
+        assert!(NargoErrorWithTypes::equivalent(&error, &brillig_error));
     }
 }
