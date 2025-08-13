@@ -186,6 +186,7 @@ fn compute_function_should_be_inlined(
 
     let neighbors = call_graph.graph().neighbors(index);
     let mut total_weight = compute_function_own_weight(function) as i64;
+    let instruction_weight = total_weight;
     for neighbor_index in neighbors {
         let callee = call_graph.indices_to_ids()[&neighbor_index];
         if inline_infos.get(&callee).is_some_and(|info| info.should_inline) {
@@ -210,7 +211,7 @@ fn compute_function_should_be_inlined(
 
     let should_inline_no_pred_function =
         runtime.is_no_predicates() && inline_no_predicates_functions;
-    let should_inline = total_weight < MAX_INSTRUCTIONS as i64
+    let should_inline = instruction_weight < MAX_INSTRUCTIONS as i64
         || net_cost < aggressiveness
         || runtime.is_inline_always()
         || should_inline_no_pred_function
