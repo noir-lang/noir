@@ -1,5 +1,5 @@
 [package]
-name = "inactive_signed_bitshift"
+name = "signed_bitshift"
 type = "bin"
 authors = [""]
 
