@@ -1548,4 +1548,71 @@ mod tests {
         }
         ");
     }
+
+    #[test]
+    fn does_not_remove_store_used_in_if_then() {
+        let src = "
+        brillig(inline) fn func f0 {
+          b0(v0: &mut u1, v1: u1):
+            v2 = allocate -> &mut u1
+            store v1 at v2
+            jmp b1()
+          b1():
+            v3 = not v1
+            v4 = if v1 then v0 else (if v3) v2
+            v6 = call f0(v4, v1) -> Field
+            return v6
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.mem2reg();
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn block_argument_is_alias_of_block_parameter_1() {
+        // Here the last load can't be replaced with `Field 0` as v0 and v1 are aliases of one another.
+        let src = "
+        brillig(inline) impure fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 0 at v0
+            jmp b1(v0)
+          b1(v1: &mut Field):
+            store Field 1 at v1
+            v2 = load v0 -> Field
+            return v2
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.mem2reg();
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn block_argument_is_alias_of_block_parameter_2() {
+        // Here the last load can't be replaced with `Field 1` as v0 and v1 are aliases of one another.
+        let src = "
+        brillig(inline) impure fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 0 at v0
+            jmp b1(v0)
+          b1(v1: &mut Field):
+            store Field 1 at v1
+            store Field 2 at v0
+            v2 = load v1 -> Field
+            return v2
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.mem2reg();
+        assert_normalized_ssa_equals(ssa, src);
+    }
 }
