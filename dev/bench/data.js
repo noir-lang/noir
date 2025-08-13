@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1755087491236,
+  "lastUpdate": 1755087494476,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3308,40 +3308,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "ccbea58c5c744383e320653f4062816e25cccdd2",
-          "message": "chore(ci): Update status of noir_json_parser (#9351)",
-          "timestamp": "2025-07-29T17:26:42Z",
-          "tree_id": "4b84da91e665c21d0716cfa9422c29f861776444",
-          "url": "https://github.com/noir-lang/noir/commit/ccbea58c5c744383e320653f4062816e25cccdd2"
-        },
-        "date": 1753811904132,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.769,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 1.54,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -6601,6 +6567,90 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 1.585,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "garmasholeksii@gmail.com",
+            "name": "GarmashAlex",
+            "username": "GarmashAlex"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b51b6164e5e49243bb65adb64638a821131568dd",
+          "message": "fix: remove shadowing in `BoundedVec::any` causing returning  false unconditionally (#9478)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-08-13T11:44:28Z",
+          "tree_id": "8d0ada42ca09d8f7bfc68114ec5182561acdb1c8",
+          "url": "https://github.com/noir-lang/noir/commit/b51b6164e5e49243bb65adb64638a821131568dd"
+        },
+        "date": 1755087477306,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1.752,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 7.724,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.328,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 16.22,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 14.22,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 21.88,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 199,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 198,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.39,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.51,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.814,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 1.536,
             "unit": "s"
           }
         ]
