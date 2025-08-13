@@ -391,7 +391,7 @@ impl FuzzerBuilder {
         let res = self
             .builder
             .insert_make_array(elements.into_iter().map(|e| e.value_id).collect(), typ.clone());
-        TypedValue::new(res, Type::Array(Arc::new(vec![typ]), array_length))
+        TypedValue::new(res, typ)
     }
 
     /// Inserts a to_le_radix intrinsic call that decomposes a field into little-endian radix representation
@@ -407,7 +407,7 @@ impl FuzzerBuilder {
         &mut self,
         field_value: TypedValue,
         radix: u32,
-        limb_count: u32,
+        limb_count: u8,
     ) -> TypedValue {
         assert!(field_value.is_field(), "to_le_radix requires a field value as input");
         let radix = self.builder.numeric_constant(radix, NumericType::Unsigned { bit_size: 32 });
@@ -416,7 +416,7 @@ impl FuzzerBuilder {
             .import_intrinsic("to_le_radix")
             .expect("to_le_radix intrinsic should be available");
         let element_type = Type::Numeric(NumericType::Unsigned { bit_size: 8 });
-        let result_type = Type::Array(Arc::new(vec![element_type.clone()]), limb_count);
+        let result_type = Type::Array(Arc::new(vec![element_type.clone()]), limb_count as u32);
         let result = self.builder.insert_call(
             intrinsic,
             vec![field_value.value_id, radix],
@@ -426,6 +426,14 @@ impl FuzzerBuilder {
         TypedValue::new(result[0], result_type)
     }
 
+    /// Inserts a from_le_radix hand-written function that composes a field from little-endian radix representation
+    ///
+    /// # Arguments
+    /// * `array` - The array of u8 values to compose into a field
+    /// * `radix` - The radix to use (must be a power of 2, between 2 and 256)
+    ///
+    /// # Returns
+    /// A field value representing the composed value
     pub fn insert_from_le_radix(&mut self, array: TypedValue, radix: u128) -> TypedValue {
         let array_size = match array.type_of_variable {
             Type::Array(_, array_size) => array_size,
@@ -455,6 +463,13 @@ impl FuzzerBuilder {
         TypedValue::new(agg, Type::Numeric(NumericType::NativeField))
     }
 
+    /// Inserts a blake2s hash intrinsic call
+    ///
+    /// # Arguments
+    /// * `input` - The array of u8 values to hash
+    ///
+    /// # Returns
+    /// An array of u8 values representing the blake2s hash
     pub fn insert_blake2s_hash(&mut self, input: TypedValue) -> TypedValue {
         match input.type_of_variable {
             Type::Array(type_of_array, _array_size) => {
@@ -480,6 +495,13 @@ impl FuzzerBuilder {
         TypedValue::new(result[0], return_type)
     }
 
+    /// Inserts a blake3 hash intrinsic call
+    ///
+    /// # Arguments
+    /// * `input` - The array of u8 values to hash
+    ///
+    /// # Returns
+    /// An array of u8 values representing the blake3 hash
     pub fn insert_blake3_hash(&mut self, input: TypedValue) -> TypedValue {
         match input.type_of_variable {
             Type::Array(type_of_array, _array_size) => {
@@ -500,13 +522,23 @@ impl FuzzerBuilder {
         TypedValue::new(result[0], return_type)
     }
 
-    pub fn insert_keccakf1600_hash(&mut self, input: TypedValue) -> TypedValue {
+    /// Inserts a keccakf1600 permutation intrinsic call
+    ///
+    /// # Arguments
+    /// * `input` - The array of u64 values to permute
+    ///
+    /// # Returns
+    /// An array of u64 values representing the keccakf1600 permutation
+    pub fn insert_keccakf1600_permutation(&mut self, input: TypedValue) -> TypedValue {
         match input.type_of_variable {
             Type::Array(type_of_array, array_size) => {
-                assert!(matches!(
-                    type_of_array[0],
-                    Type::Numeric(NumericType::Unsigned { bit_size: 64 })
-                ));
+                assert!(
+                    matches!(
+                        type_of_array[0],
+                        Type::Numeric(NumericType::Unsigned { bit_size: 64 })
+                    ),
+                    "keccakf1600 requires an array of u64 as input, but received {type_of_array:?}"
+                );
                 assert!(array_size == 25);
             }
             _ => unreachable!("keccakf1600 requires an array as input"),
@@ -523,6 +555,15 @@ impl FuzzerBuilder {
         TypedValue::new(result[0], return_type)
     }
 
+    /// Inserts a aes128_encrypt intrinsic call
+    ///
+    /// # Arguments
+    /// * `input` - The array of u8 values to encrypt
+    /// * `key` - The array of u8 values to use as key must be 16 bytes
+    /// * `iv` - The array of u8 values to use as iv must be 16 bytes
+    ///
+    /// # Returns
+    /// An array of u8 values representing the encrypted input
     pub fn insert_aes128_encrypt(
         &mut self,
         input: TypedValue,
@@ -567,12 +608,57 @@ impl FuzzerBuilder {
             Arc::new(vec![Type::Numeric(NumericType::Unsigned { bit_size: 8 })]),
             input_size + 16 - (input_size % 16),
         );
-        println!("input: {:?}", input.value_id);
-        println!("key: {:?}", key.value_id);
-        println!("iv: {:?}", iv.value_id);
         let result = self.builder.insert_call(
             intrinsic,
             vec![input.value_id, key.value_id, iv.value_id],
+            vec![return_type.clone()],
+        );
+        assert_eq!(result.len(), 1);
+        TypedValue::new(result[0], return_type)
+    }
+
+    /// Inserts a sha256 compression intrinsic call
+    ///
+    /// # Arguments
+    /// * `input` - The array of u32 values to compress must be 16 elements
+    /// * `state` - The array of u32 values to use as state must be 8 elements
+    ///
+    /// # Returns
+    /// An array of u32 values representing the compressed input (8 elements)
+    pub fn insert_sha256_compression(
+        &mut self,
+        input: TypedValue,
+        state: TypedValue,
+    ) -> TypedValue {
+        match input.type_of_variable {
+            Type::Array(type_of_array, array_size) => {
+                assert!(matches!(
+                    type_of_array[0],
+                    Type::Numeric(NumericType::Unsigned { bit_size: 32 })
+                ));
+                assert!(array_size == 16);
+            }
+            _ => unreachable!("sha256_compression requires an array as input"),
+        }
+        match state.type_of_variable {
+            Type::Array(type_of_array, array_size) => {
+                assert!(matches!(
+                    type_of_array[0],
+                    Type::Numeric(NumericType::Unsigned { bit_size: 32 })
+                ));
+                assert!(array_size == 8);
+            }
+            _ => unreachable!("sha256_compression requires an array as state"),
+        }
+        let return_type =
+            Type::Array(Arc::new(vec![Type::Numeric(NumericType::Unsigned { bit_size: 32 })]), 8);
+        let intrinsic = self
+            .builder
+            .import_intrinsic("sha256_compression")
+            .expect("sha256_compression intrinsic should be available");
+        let result = self.builder.insert_call(
+            intrinsic,
+            vec![input.value_id, state.value_id],
             vec![return_type.clone()],
         );
         assert_eq!(result.len(), 1);

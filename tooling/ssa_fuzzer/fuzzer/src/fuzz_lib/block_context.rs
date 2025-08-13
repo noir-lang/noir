@@ -492,19 +492,16 @@ impl BlockContext {
                     /*is constant =*/ false,
                     safe_index,
                 );
-                match value {
-                    Some((value, is_references)) => {
-                        if !is_references {
-                            append_typed_value_to_map(
-                                &mut self.stored_variables,
-                                &value.to_value_type(),
-                                value.clone(),
-                            );
-                        } else {
-                            panic!("References are not supported for array get with dynamic index");
-                        }
+                if let Some((value, is_references)) = value {
+                    if !is_references {
+                        append_typed_value_to_map(
+                            &mut self.stored_variables,
+                            &value.to_value_type(),
+                            value.clone(),
+                        );
+                    } else {
+                        panic!("References are not supported for array get with dynamic index");
                     }
-                    _ => return,
                 }
             }
             Instruction::ArraySet { array_index, index, value_index, safe_index } => {
@@ -537,18 +534,15 @@ impl BlockContext {
                     value_index,
                     safe_index,
                 );
-                match new_array {
-                    Some((new_array, is_references)) => {
-                        if is_references {
-                            panic!("References are not supported for array set with dynamic index");
-                        }
-                        self.stored_arrays.push(StoredArray {
-                            array_id: new_array.clone(),
-                            element_type: new_array.to_value_type(),
-                            is_references,
-                        });
+                if let Some((new_array, is_references)) = new_array {
+                    if is_references {
+                        panic!("References are not supported for array set with dynamic index");
                     }
-                    _ => return,
+                    self.stored_arrays.push(StoredArray {
+                        array_id: new_array.clone(),
+                        element_type: new_array.to_value_type(),
+                        is_references,
+                    });
                 }
             }
             Instruction::ArrayGetWithConstantIndex { array_index, index, safe_index } => {
@@ -566,23 +560,20 @@ impl BlockContext {
                     /*is constant =*/ true,
                     safe_index,
                 );
-                match value {
-                    Some((value, is_references)) => {
-                        if !is_references {
-                            append_typed_value_to_map(
-                                &mut self.stored_variables,
-                                &value.to_value_type(),
-                                value.clone(),
-                            );
-                        } else {
-                            append_typed_value_to_map(
-                                &mut self.memory_addresses,
-                                &value.to_value_type(),
-                                value.clone(),
-                            );
-                        }
+                if let Some((value, is_references)) = value {
+                    if !is_references {
+                        append_typed_value_to_map(
+                            &mut self.stored_variables,
+                            &value.to_value_type(),
+                            value.clone(),
+                        );
+                    } else {
+                        append_typed_value_to_map(
+                            &mut self.memory_addresses,
+                            &value.to_value_type(),
+                            value.clone(),
+                        );
                     }
-                    _ => return,
                 }
             }
             Instruction::ArraySetWithConstantIndex {
@@ -606,15 +597,12 @@ impl BlockContext {
                     value_index,
                     safe_index,
                 );
-                match new_array {
-                    Some((new_array, is_references)) => {
-                        self.stored_arrays.push(StoredArray {
-                            array_id: new_array.clone(),
-                            element_type: new_array.to_value_type(),
-                            is_references,
-                        });
-                    }
-                    _ => return,
+                if let Some((new_array, is_references)) = new_array {
+                    self.stored_arrays.push(StoredArray {
+                        array_id: new_array.clone(),
+                        element_type: new_array.to_value_type(),
+                        is_references,
+                    });
                 }
             }
             Instruction::FieldToBytesToField { field_idx } => {
@@ -640,17 +628,17 @@ impl BlockContext {
                     field.clone(),
                 );
             }
-            Instruction::Blake2sHash { field_idx } => {
+            Instruction::Blake2sHash { field_idx, limbs_count } => {
                 let input =
                     get_typed_value_from_map(&self.stored_variables, &ValueType::Field, field_idx);
                 let input = match input {
                     Some(input) => input,
                     _ => return,
                 };
-                let bytes = acir_builder.insert_to_le_radix(input.clone(), 256, 32);
+                let bytes = acir_builder.insert_to_le_radix(input.clone(), 256, limbs_count);
                 assert_eq!(
                     bytes.value_id,
-                    brillig_builder.insert_to_le_radix(input.clone(), 256, 32).value_id
+                    brillig_builder.insert_to_le_radix(input.clone(), 256, limbs_count).value_id
                 );
                 let hash = acir_builder.insert_blake2s_hash(bytes.clone());
                 assert_eq!(
@@ -668,17 +656,17 @@ impl BlockContext {
                     hash_as_field.clone(),
                 );
             }
-            Instruction::Blake3Hash { field_idx } => {
+            Instruction::Blake3Hash { field_idx, limbs_count } => {
                 let input =
                     get_typed_value_from_map(&self.stored_variables, &ValueType::Field, field_idx);
                 let input = match input {
                     Some(input) => input,
                     _ => return,
                 };
-                let bytes = acir_builder.insert_to_le_radix(input.clone(), 256, 32);
+                let bytes = acir_builder.insert_to_le_radix(input.clone(), 256, limbs_count);
                 assert_eq!(
                     bytes.value_id,
-                    brillig_builder.insert_to_le_radix(input.clone(), 256, 32).value_id
+                    brillig_builder.insert_to_le_radix(input.clone(), 256, limbs_count).value_id
                 );
                 let hash = acir_builder.insert_blake3_hash(bytes.clone());
                 assert_eq!(
@@ -696,8 +684,58 @@ impl BlockContext {
                     hash_as_field.clone(),
                 );
             }
-            Instruction::Keccakf1600Hash { field_idx } => {
-                unimplemented!("Keccakf1600Hash is not implemented");
+            Instruction::Keccakf1600Hash { u64_indices, load_elements_of_array } => {
+                let input = match self.insert_array(
+                    acir_builder,
+                    brillig_builder,
+                    u64_indices.to_vec(),
+                    ValueType::U64,
+                    false,
+                ) {
+                    Some(input) => input,
+                    _ => return,
+                };
+                let hash_array_u64 = acir_builder.insert_keccakf1600_permutation(input.clone());
+                assert_eq!(
+                    hash_array_u64.value_id,
+                    brillig_builder.insert_keccakf1600_permutation(input.clone()).value_id
+                );
+                self.stored_arrays.push(StoredArray {
+                    array_id: hash_array_u64.clone(),
+                    element_type: ValueType::U64,
+                    is_references: false,
+                });
+                if load_elements_of_array {
+                    for i in 0..25_u32 {
+                        let index = acir_builder.insert_constant(i, ValueType::U32);
+                        assert_eq!(
+                            index.value_id,
+                            brillig_builder.insert_constant(i, ValueType::U32).value_id
+                        );
+                        let value = acir_builder.insert_array_get(
+                            hash_array_u64.clone(),
+                            index.clone(),
+                            ValueType::U64.to_ssa_type(),
+                            false,
+                        );
+                        assert_eq!(
+                            value.value_id,
+                            brillig_builder
+                                .insert_array_get(
+                                    hash_array_u64.clone(),
+                                    index.clone(),
+                                    ValueType::U64.to_ssa_type(),
+                                    false,
+                                )
+                                .value_id
+                        );
+                        append_typed_value_to_map(
+                            &mut self.stored_variables,
+                            &value.to_value_type(),
+                            value.clone(),
+                        );
+                    }
+                }
             }
             Instruction::Aes128Encrypt { input_idx, input_limbs_count: _, key_idx, iv_idx } => {
                 let input = match get_typed_value_from_map(
@@ -761,6 +799,74 @@ impl BlockContext {
                     &encrypted_as_field.to_value_type(),
                     encrypted_as_field.clone(),
                 );
+            }
+            Instruction::Sha256Compression {
+                input_indices,
+                state_indices,
+                load_elements_of_array,
+            } => {
+                let input = match self.insert_array(
+                    acir_builder,
+                    brillig_builder,
+                    input_indices.to_vec(),
+                    ValueType::U32,
+                    false,
+                ) {
+                    Some(input) => input,
+                    _ => return,
+                };
+                let state = match self.insert_array(
+                    acir_builder,
+                    brillig_builder,
+                    state_indices.to_vec(),
+                    ValueType::U32,
+                    false,
+                ) {
+                    Some(state) => state,
+                    _ => return,
+                };
+                let compressed =
+                    acir_builder.insert_sha256_compression(input.clone(), state.clone());
+                assert_eq!(
+                    compressed.value_id,
+                    brillig_builder.insert_sha256_compression(input, state).value_id
+                );
+                self.stored_arrays.push(StoredArray {
+                    array_id: compressed.clone(),
+                    element_type: ValueType::U32,
+                    is_references: false,
+                });
+                if load_elements_of_array {
+                    for i in 0..8_u32 {
+                        let index = acir_builder.insert_constant(i, ValueType::U32);
+                        assert_eq!(
+                            index.value_id,
+                            brillig_builder.insert_constant(i, ValueType::U32).value_id
+                        );
+                        let value = acir_builder.insert_array_get(
+                            compressed.clone(),
+                            index.clone(),
+                            ValueType::U32.to_ssa_type(),
+                            false,
+                        );
+                        assert_eq!(
+                            value.value_id,
+                            brillig_builder
+                                .insert_array_get(
+                                    compressed.clone(),
+                                    index,
+                                    ValueType::U32.to_ssa_type(),
+                                    false
+                                )
+                                .value_id
+                        );
+                        append_typed_value_to_map(
+                            &mut self.stored_variables,
+                            &value.to_value_type(),
+                            value.clone(),
+                        );
+                    }
+                }
             }
         }
     }
@@ -886,6 +992,7 @@ impl BlockContext {
     /// # Returns
     /// * (TypedValue referencing the new array, is_references)
     /// * None if the instruction is not enabled or the array is not stored
+    #[allow(clippy::too_many_arguments)] // I don't want this refactoring
     fn insert_array_set(
         &mut self,
         acir_builder: &mut FuzzerBuilder,

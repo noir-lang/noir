@@ -1027,7 +1027,7 @@ mod tests {
 
     /// from_le_radix(to_le_radix(field)) == field
     #[test]
-    fn test_field_to_bytes_to_field() {
+    fn smoke_test_field_to_bytes_to_field() {
         let _ = env_logger::try_init();
         let field_to_bytes_to_field_block = InstructionBlock {
             instructions: vec![Instruction::FieldToBytesToField { field_idx: 1 }],
@@ -1061,11 +1061,11 @@ mod tests {
     /// }
     /// [nargo_tests] Circuit output: Field(-9211429028062209127175291049466917975585300944217240748738694765619842249938)
     #[test]
-    fn test_blake2s_hash() {
+    fn smoke_test_blake2s_hash() {
         let _ = env_logger::try_init();
-        let arg_0_field = Argument { index: 0, value_type: ValueType::Field };
-        let blake2s_hash_block =
-            InstructionBlock { instructions: vec![Instruction::Blake2sHash { field_idx: 0 }] };
+        let blake2s_hash_block = InstructionBlock {
+            instructions: vec![Instruction::Blake2sHash { field_idx: 0, limbs_count: 32 }],
+        };
         let instructions_blocks = vec![blake2s_hash_block];
         let commands = vec![];
         let main_func = FunctionData {
@@ -1100,11 +1100,11 @@ mod tests {
     /// }
     /// [nargo_tests] Circuit output: Field(11496696481601359239189947342432058980836600577383371976100559912527609453094)
     #[test]
-    fn test_blake3_hash() {
+    fn smoke_test_blake3_hash() {
         let _ = env_logger::try_init();
-        let arg_0_field = Argument { index: 0, value_type: ValueType::Field };
-        let blake3_hash_block =
-            InstructionBlock { instructions: vec![Instruction::Blake3Hash { field_idx: 0 }] };
+        let blake3_hash_block = InstructionBlock {
+            instructions: vec![Instruction::Blake3Hash { field_idx: 0, limbs_count: 32 }],
+        };
         let instructions_blocks = vec![blake3_hash_block];
         let commands = vec![];
         let main_func = FunctionData {
@@ -1139,9 +1139,8 @@ mod tests {
     ///
     /// [nargo_tests] Circuit output: Field(7228449286344697221705732525592563926191809635549234005020486075743434697058)
     #[test]
-    fn test_aes128_encrypt() {
+    fn smoke_test_aes128_encrypt() {
         let _ = env_logger::try_init();
-        let arg_0_field = Argument { index: 0, value_type: ValueType::Field };
         let aes128_encrypt_block = InstructionBlock {
             instructions: vec![Instruction::Aes128Encrypt {
                 input_idx: 0,
@@ -1171,6 +1170,88 @@ mod tests {
                 )
                 .unwrap()
             ),
+            None => panic!("Program failed to execute"),
+        }
+    }
+
+    /// fn main(a: Field, b: Field) -> pub u64 {
+    ///     let input: [u64; 25] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    ///     std::hash::keccakf1600(input)[24]
+    /// }
+    ///
+    /// [nargo_tests] Circuit output: Field(16929593379567477321)
+    #[test]
+    fn smoke_test_keccakf1600() {
+        let _ = env_logger::try_init();
+        // default witness are fields
+        // so take the first one and cast it to u64
+        let arg_0_field = Argument { index: 0, value_type: ValueType::Field };
+        let cast_block = InstructionBlock {
+            instructions: vec![Instruction::Cast { lhs: arg_0_field, type_: ValueType::U64 }],
+        };
+        // taking the first defined u64 variable which is v0 as u64
+        let keccakf1600_block = InstructionBlock {
+            instructions: vec![Instruction::Keccakf1600Hash {
+                u64_indices: [0; 25],
+                load_elements_of_array: true, // load all elements of the array into defined variables
+            }],
+        };
+        let instructions_blocks = vec![cast_block, keccakf1600_block];
+        let commands =
+            vec![FuzzerFunctionCommand::InsertSimpleInstructionBlock { instruction_block_idx: 0 }];
+        // this function will take the last defined u64, which is equal to the last element of the keccakf1600 permuted array
+        let main_func =
+            FunctionData { commands, return_instruction_block_idx: 1, return_type: ValueType::U64 };
+        let fuzzer_data = FuzzerData {
+            instruction_blocks: instructions_blocks,
+            functions: vec![main_func],
+            initial_witness: default_witness(),
+        };
+        let result = fuzz_target(fuzzer_data, FuzzerOptions::default());
+        match result {
+            Some(result) => {
+                assert_eq!(result.get_return_value(), FieldElement::from(16929593379567477321_u64));
+            }
+            None => panic!("Program failed to execute"),
+        }
+    }
+
+    /// fn main(a: Field, b: Field) -> pub u32 {
+    ///     let input: [u32; 16] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    ///     let state: [u32; 8] = [0, 0, 0, 0, 0, 0, 0, 0];
+    ///     std::hash::sha256_compression(input, state)[7]
+    /// }
+    ///
+    /// [nargo_tests] Circuit output: Field(3205228454)
+    #[test]
+    fn smoke_test_sha256_compression() {
+        let _ = env_logger::try_init();
+        let arg_0_field = Argument { index: 0, value_type: ValueType::Field };
+        let cast_block = InstructionBlock {
+            instructions: vec![Instruction::Cast { lhs: arg_0_field, type_: ValueType::U32 }],
+        };
+        let sha256_compression_block = InstructionBlock {
+            instructions: vec![Instruction::Sha256Compression {
+                input_indices: [0; 16],
+                state_indices: [0; 8],
+                load_elements_of_array: true,
+            }],
+        };
+        let instructions_blocks = vec![cast_block, sha256_compression_block];
+        let commands =
+            vec![FuzzerFunctionCommand::InsertSimpleInstructionBlock { instruction_block_idx: 0 }];
+        let main_func =
+            FunctionData { commands, return_instruction_block_idx: 1, return_type: ValueType::U32 };
+        let fuzzer_data = FuzzerData {
+            instruction_blocks: instructions_blocks,
+            functions: vec![main_func],
+            initial_witness: default_witness(),
+        };
+        let result = fuzz_target(fuzzer_data, FuzzerOptions::default());
+        match result {
+            Some(result) => {
+                assert_eq!(result.get_return_value(), FieldElement::from(3205228454_u32));
+            }
             None => panic!("Program failed to execute"),
         }
     }
