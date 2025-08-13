@@ -1570,4 +1570,49 @@ mod tests {
         let ssa = ssa.mem2reg();
         assert_normalized_ssa_equals(ssa, src);
     }
+
+    #[test]
+    fn block_argument_is_alias_of_block_parameter_1() {
+        // Here the last load can't be replaced with `Field 0` as v0 and v1 are aliases of one another.
+        let src = "
+        brillig(inline) impure fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 0 at v0
+            jmp b1(v0)
+          b1(v1: &mut Field):
+            store Field 1 at v1
+            v2 = load v0 -> Field
+            return v2
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.mem2reg();
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn block_argument_is_alias_of_block_parameter_2() {
+        // Here the last load can't be replaced with `Field 1` as v0 and v1 are aliases of one another.
+        let src = "
+        brillig(inline) impure fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 0 at v0
+            jmp b1(v0)
+          b1(v1: &mut Field):
+            store Field 1 at v1
+            store Field 2 at v0
+            v2 = load v1 -> Field
+            return v2
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.mem2reg();
+        assert_normalized_ssa_equals(ssa, src);
+    }
 }
