@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1755127995470,
+  "lastUpdate": 1755128480504,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -9832,40 +9832,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "7d98dc2ec806c49e41c98fe54b314f85c37b5473",
-          "message": "fix: push definition trait constraints after trait item constraint (#9354)",
-          "timestamp": "2025-07-29T19:07:45Z",
-          "tree_id": "35e85fb191052436457013799fff4aa1f4dd1d6e",
-          "url": "https://github.com/noir-lang/noir/commit/7d98dc2ec806c49e41c98fe54b314f85c37b5473"
-        },
-        "date": 1753817757652,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore_depth_10",
-            "value": 69.46,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 54.95,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "8264d307dc4f076f376ae616e84fb78a69744a9a",
           "message": "fix: replace implicitly added named generics with fresh type vars in check_trait_impl_where_clause_matches_trait_where_clause (#9352)",
           "timestamp": "2025-07-30T12:44:00Z",
@@ -12785,6 +12751,80 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/b51b6164e5e49243bb65adb64638a821131568dd"
         },
         "date": 1755087904266,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 205.02,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 241.84,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 194.26,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 498.48,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 431.12,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1500,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 326.44,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 328.85,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 69.51,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 55,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ee2ac1a04e85134079fbe557d4029d3f64aff7b6",
+          "message": "fix: assert types are not mutated in constant folding (#9481)",
+          "timestamp": "2025-08-13T23:00:16Z",
+          "tree_id": "ffe3cf0bae0ec1667de2161400b2ac0fcaa3926c",
+          "url": "https://github.com/noir-lang/noir/commit/ee2ac1a04e85134079fbe557d4029d3f64aff7b6"
+        },
+        "date": 1755128462133,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
