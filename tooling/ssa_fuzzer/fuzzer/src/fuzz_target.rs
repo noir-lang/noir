@@ -7,7 +7,7 @@ mod utils;
 use bincode::serde::{borrow_decode_from_slice, encode_to_vec};
 use fuzz_lib::fuzz_target_lib::fuzz_target;
 use fuzz_lib::fuzzer::FuzzerData;
-use fuzz_lib::options::{FuzzerOptions, InstructionOptions};
+use fuzz_lib::options::{FuzzerCommandOptions, FuzzerOptions, InstructionOptions};
 use libfuzzer_sys::Corpus;
 use mutations::mutate;
 use noirc_driver::CompileOptions;
@@ -45,11 +45,19 @@ libfuzzer_sys::fuzz_target!(|data: &[u8]| -> Corpus {
         shl_enabled: false,
         shr_enabled: false,
         alloc_enabled: false,
+        array_get_enabled: false,
         ..InstructionOptions::default()
     };
-    let modes = vec![FuzzerMode::NonConstant, FuzzerMode::NonConstantWithoutDIE];
-    let options =
-        FuzzerOptions { compile_options, instruction_options, modes, ..FuzzerOptions::default() };
+    let modes = vec![FuzzerMode::NonConstant];
+    let fuzzer_command_options =
+        FuzzerCommandOptions { loops_enabled: true, ..FuzzerCommandOptions::default() };
+    let options = FuzzerOptions {
+        compile_options,
+        instruction_options,
+        modes,
+        fuzzer_command_options,
+        ..FuzzerOptions::default()
+    };
     let fuzzer_data = borrow_decode_from_slice(data, bincode::config::legacy())
         .unwrap_or((FuzzerData::default(), 1337))
         .0;

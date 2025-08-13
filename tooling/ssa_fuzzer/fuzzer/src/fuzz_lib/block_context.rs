@@ -1,4 +1,4 @@
-use super::instruction::{Argument, FunctionSignature, Instruction};
+use super::instruction::{Argument, FunctionInfo, Instruction};
 use super::options::SsaBlockOptions;
 use noir_ssa_fuzzer::{
     builder::{FuzzerBuilder, InstructionWithOneArg, InstructionWithTwoArgs},
@@ -10,18 +10,27 @@ use noirc_evaluator::ssa::ir::map::Id;
 use std::collections::{HashMap, VecDeque};
 use std::iter::zip;
 
+#[derive(Debug, Clone)]
+pub(crate) struct StoredArray {
+    array_id: TypedValue,
+    element_type: ValueType,
+    is_references: bool,
+}
+
 /// Main context for the ssa block containing both ACIR and Brillig builders and their state
 /// It works with indices of variables Ids, because it cannot handle Ids logic for ACIR and Brillig
 #[derive(Debug, Clone)]
 pub(crate) struct BlockContext {
     /// Ids of the Program variables stored as TypedValue separated by type
-    pub(crate) stored_values: HashMap<ValueType, Vec<TypedValue>>,
+    pub(crate) stored_variables: HashMap<ValueType, Vec<TypedValue>>,
     /// Ids of typed addresses of memory (mutable variables)
     pub(crate) memory_addresses: HashMap<ValueType, Vec<TypedValue>>,
     /// Parent blocks history
     pub(crate) parent_blocks_history: VecDeque<BasicBlockId>,
     /// Children blocks
     pub(crate) children_blocks: Vec<BasicBlockId>,
+    /// Arrays stored in the block
+    pub(crate) stored_arrays: Vec<StoredArray>,
     /// Options for the block
     pub(crate) options: SsaBlockOptions,
 }
@@ -52,16 +61,17 @@ fn append_typed_value_to_map(
 
 impl BlockContext {
     pub(crate) fn new(
-        stored_values: HashMap<ValueType, Vec<TypedValue>>,
+        stored_variables: HashMap<ValueType, Vec<TypedValue>>,
         memory_addresses: HashMap<ValueType, Vec<TypedValue>>,
         parent_blocks_history: VecDeque<BasicBlockId>,
         options: SsaBlockOptions,
     ) -> Self {
         Self {
-            stored_values,
+            stored_variables,
             memory_addresses,
             parent_blocks_history,
             children_blocks: Vec::new(),
+            stored_arrays: Vec::new(),
             options,
         }
     }
@@ -74,7 +84,7 @@ impl BlockContext {
         arg: Argument,
         instruction: InstructionWithOneArg,
     ) {
-        let value = get_typed_value_from_map(&self.stored_values, &arg.value_type, arg.index);
+        let value = get_typed_value_from_map(&self.stored_variables, &arg.value_type, arg.index);
         let value = match value {
             Some(value) => value,
             _ => return,
@@ -83,7 +93,7 @@ impl BlockContext {
         // insert to brillig, assert id is the same
         assert_eq!(acir_result.value_id, instruction(brillig_builder, value).value_id);
         append_typed_value_to_map(
-            &mut self.stored_values,
+            &mut self.stored_variables,
             &acir_result.to_value_type(),
             acir_result,
         );
@@ -98,9 +108,11 @@ impl BlockContext {
         rhs: Argument,
         instruction: InstructionWithTwoArgs,
     ) {
-        let instr_lhs = get_typed_value_from_map(&self.stored_values, &lhs.value_type, lhs.index);
+        let instr_lhs =
+            get_typed_value_from_map(&self.stored_variables, &lhs.value_type, lhs.index);
         // We ignore type of the second argument, because all binary instructions must use the same type
-        let instr_rhs = get_typed_value_from_map(&self.stored_values, &lhs.value_type, rhs.index);
+        let instr_rhs =
+            get_typed_value_from_map(&self.stored_variables, &lhs.value_type, rhs.index);
         let (instr_lhs, instr_rhs) = match (instr_lhs, instr_rhs) {
             (Some(acir_lhs), Some(acir_rhs)) => (acir_lhs, acir_rhs),
             _ => return,
@@ -108,7 +120,7 @@ impl BlockContext {
         let result = instruction(acir_builder, instr_lhs.clone(), instr_rhs.clone());
         // insert to brillig, assert id of return is the same
         assert_eq!(result.value_id, instruction(brillig_builder, instr_lhs, instr_rhs).value_id);
-        append_typed_value_to_map(&mut self.stored_values, &result.to_value_type(), result);
+        append_typed_value_to_map(&mut self.stored_variables, &result.to_value_type(), result);
     }
 
     /// Inserts an instruction into both ACIR and Brillig programs
@@ -184,7 +196,7 @@ impl BlockContext {
                     return;
                 }
                 let value =
-                    get_typed_value_from_map(&self.stored_values, &lhs.value_type, lhs.index);
+                    get_typed_value_from_map(&self.stored_variables, &lhs.value_type, lhs.index);
                 let value = match value {
                     Some(value) => value,
                     _ => return,
@@ -194,12 +206,8 @@ impl BlockContext {
                     acir_result.value_id,
                     brillig_builder.insert_cast(value.clone(), type_).value_id
                 );
-                // Cast can return the same value as the original value, if cast type is forbidden, so we skip it
-                if self.stored_values.get(&value.to_value_type()).unwrap().contains(&acir_result) {
-                    return;
-                }
                 append_typed_value_to_map(
-                    &mut self.stored_values,
+                    &mut self.stored_variables,
                     &acir_result.to_value_type(),
                     acir_result,
                 );
@@ -307,8 +315,8 @@ impl BlockContext {
             Instruction::AddSubConstrain { lhs, rhs } => {
                 // inserts lhs' = lhs + rhs
                 let lhs_orig =
-                    get_typed_value_from_map(&self.stored_values, &ValueType::Field, lhs);
-                let rhs = get_typed_value_from_map(&self.stored_values, &ValueType::Field, rhs);
+                    get_typed_value_from_map(&self.stored_variables, &ValueType::Field, lhs);
+                let rhs = get_typed_value_from_map(&self.stored_variables, &ValueType::Field, rhs);
                 let (lhs_orig, rhs) = match (lhs_orig, rhs) {
                     (Some(lhs_orig), Some(rhs)) => (lhs_orig, rhs),
                     _ => return,
@@ -343,8 +351,8 @@ impl BlockContext {
             }
             Instruction::MulDivConstrain { lhs, rhs } => {
                 let lhs_orig =
-                    get_typed_value_from_map(&self.stored_values, &ValueType::Field, lhs);
-                let rhs = get_typed_value_from_map(&self.stored_values, &ValueType::Field, rhs);
+                    get_typed_value_from_map(&self.stored_variables, &ValueType::Field, lhs);
+                let rhs = get_typed_value_from_map(&self.stored_variables, &ValueType::Field, rhs);
                 let (lhs_orig, rhs) = match (lhs_orig, rhs) {
                     (Some(lhs_orig), Some(rhs)) => (lhs_orig, rhs),
                     _ => return,
@@ -379,12 +387,14 @@ impl BlockContext {
                     return;
                 }
 
-                let value =
-                    match get_typed_value_from_map(&self.stored_values, &lhs.value_type, lhs.index)
-                    {
-                        Some(value) => value,
-                        _ => return,
-                    };
+                let value = match get_typed_value_from_map(
+                    &self.stored_variables,
+                    &lhs.value_type,
+                    lhs.index,
+                ) {
+                    Some(value) => value,
+                    _ => return,
+                };
 
                 let addr = acir_builder.insert_add_to_memory(value.clone());
                 assert_eq!(
@@ -415,7 +425,7 @@ impl BlockContext {
                     "load from memory differs in ACIR and Brillig"
                 );
                 append_typed_value_to_map(
-                    &mut self.stored_values,
+                    &mut self.stored_variables,
                     &value.to_value_type(),
                     value.clone(),
                 );
@@ -433,14 +443,314 @@ impl BlockContext {
                     Some(addr) => addr,
                     _ => return,
                 };
-                let value =
-                    get_typed_value_from_map(&self.stored_values, &value.value_type, value.index);
+                let value = get_typed_value_from_map(
+                    &self.stored_variables,
+                    &value.value_type,
+                    value.index,
+                );
                 let value = match value {
                     Some(value) => value,
                     _ => return,
                 };
                 acir_builder.insert_set_to_memory(addr.clone(), value.clone());
                 brillig_builder.insert_set_to_memory(addr.clone(), value);
+            }
+
+            Instruction::CreateArray { elements_indices, element_type, is_references } => {
+                if !self.options.instruction_options.create_array_enabled {
+                    return;
+                }
+                // if we storing references, take values from memory addresses, otherwise from stored variables
+                let elements = if !is_references {
+                    elements_indices
+                        .iter()
+                        .map(|index| {
+                            get_typed_value_from_map(&self.stored_variables, &element_type, *index)
+                        })
+                        .collect::<Option<Vec<TypedValue>>>()
+                } else {
+                    elements_indices
+                        .iter()
+                        .map(|index| {
+                            get_typed_value_from_map(&self.memory_addresses, &element_type, *index)
+                        })
+                        .collect::<Option<Vec<TypedValue>>>()
+                };
+
+                let elements = match elements {
+                    Some(elements) => elements,
+                    _ => return,
+                };
+                if elements.is_empty() {
+                    return;
+                }
+                // insert to both acir and brillig builders
+                let array = acir_builder.insert_array(elements.clone(), is_references);
+                assert_eq!(
+                    array.value_id,
+                    brillig_builder.insert_array(elements, is_references).value_id,
+                );
+                self.stored_arrays.push(StoredArray {
+                    array_id: array,
+                    element_type,
+                    is_references,
+                });
+            }
+            Instruction::ArrayGet { array_index, index, safe_index } => {
+                if !self.options.instruction_options.array_get_enabled
+                    || !self.options.instruction_options.create_array_enabled
+                {
+                    return;
+                }
+                if !safe_index && !self.options.instruction_options.unsafe_get_set_enabled {
+                    return;
+                }
+                if self.stored_arrays.is_empty() {
+                    return;
+                }
+                // get the array from the stored arrays
+                let stored_array = self.stored_arrays.get(array_index % self.stored_arrays.len());
+                let stored_array = match stored_array {
+                    Some(stored_array) => stored_array,
+                    _ => return,
+                };
+                // references are not supported for array get with dynamic index
+                if stored_array.is_references {
+                    return;
+                }
+                let array_id = stored_array.array_id.clone();
+                // get the index from the stored variables
+                let index = get_typed_value_from_map(
+                    &self.stored_variables,
+                    &index.value_type,
+                    index.index,
+                );
+                let index = match index {
+                    Some(index) => index,
+                    _ => return,
+                };
+                // cast the index to u32
+                let index_casted = acir_builder.insert_cast(index.clone(), ValueType::U32);
+                assert_eq!(
+                    index_casted.value_id,
+                    brillig_builder.insert_cast(index.clone(), ValueType::U32).value_id
+                );
+                // insert array get to both acir and brillig builders
+                let value = acir_builder.insert_array_get(
+                    array_id.clone(),
+                    index_casted.clone(),
+                    stored_array.element_type.to_ssa_type(),
+                    safe_index,
+                );
+                assert_eq!(
+                    value.value_id,
+                    brillig_builder
+                        .insert_array_get(
+                            array_id.clone(),
+                            index_casted.clone(),
+                            stored_array.element_type.to_ssa_type(),
+                            safe_index,
+                        )
+                        .value_id,
+                );
+                append_typed_value_to_map(
+                    &mut self.stored_variables,
+                    &value.to_value_type(),
+                    value.clone(),
+                );
+            }
+            Instruction::ArraySet { array_index, index, value_index, safe_index } => {
+                if !self.options.instruction_options.array_set_enabled {
+                    return;
+                }
+                if !safe_index && !self.options.instruction_options.unsafe_get_set_enabled {
+                    return;
+                }
+                if self.stored_arrays.is_empty() {
+                    return;
+                }
+                // get the array from the stored arrays
+                let stored_array = self.stored_arrays.get(array_index % self.stored_arrays.len());
+                let stored_array = match stored_array {
+                    Some(stored_array) => stored_array,
+                    _ => return,
+                };
+                // references are not supported for array set with dynamic index
+                if stored_array.is_references {
+                    return;
+                }
+                let array_id = stored_array.array_id.clone();
+
+                // get the index from the stored variables
+                let index = get_typed_value_from_map(
+                    &self.stored_variables,
+                    &index.value_type,
+                    index.index,
+                );
+                let index = match index {
+                    Some(index) => index,
+                    _ => return,
+                };
+                // cast the index to u32
+                let index_casted = acir_builder.insert_cast(index.clone(), ValueType::U32);
+                assert_eq!(
+                    index_casted.value_id,
+                    brillig_builder.insert_cast(index.clone(), ValueType::U32).value_id
+                );
+
+                // get the value from the stored variables
+                let value = get_typed_value_from_map(
+                    &self.stored_variables,
+                    &stored_array.element_type,
+                    value_index,
+                );
+                let value = match value {
+                    Some(value) => value,
+                    _ => return,
+                };
+                // insert array set to both acir and brillig builders
+                let new_array = acir_builder.insert_array_set(
+                    array_id.clone(),
+                    index_casted.clone(),
+                    value.clone(),
+                    safe_index,
+                );
+                assert_eq!(
+                    new_array.value_id,
+                    brillig_builder
+                        .insert_array_set(array_id, index_casted, value, safe_index)
+                        .value_id
+                );
+
+                self.stored_arrays.push(StoredArray {
+                    array_id: new_array,
+                    element_type: stored_array.element_type,
+                    is_references: stored_array.is_references,
+                });
+            }
+            Instruction::ArrayGetWithConstantIndex { array_index, index, safe_index } => {
+                if !self.options.instruction_options.array_get_enabled
+                    || !self.options.instruction_options.create_array_enabled
+                {
+                    return;
+                }
+                if !safe_index && !self.options.instruction_options.unsafe_get_set_enabled {
+                    return;
+                }
+                if self.stored_arrays.is_empty() {
+                    return;
+                }
+                // get the array from the stored arrays
+                let stored_array = self.stored_arrays.get(array_index % self.stored_arrays.len());
+                let stored_array = match stored_array {
+                    Some(stored_array) => stored_array,
+                    _ => return,
+                };
+                let index_id = acir_builder.insert_constant(index, ValueType::U32);
+                assert_eq!(
+                    index_id.value_id,
+                    brillig_builder.insert_constant(index, ValueType::U32).value_id
+                );
+                let value = acir_builder.insert_array_get(
+                    stored_array.array_id.clone(),
+                    index_id.clone(),
+                    stored_array.element_type.to_ssa_type(),
+                    safe_index,
+                );
+                assert_eq!(
+                    value.value_id,
+                    brillig_builder
+                        .insert_array_get(
+                            stored_array.array_id.clone(),
+                            index_id.clone(),
+                            stored_array.element_type.to_ssa_type(),
+                            safe_index,
+                        )
+                        .value_id
+                );
+                if !stored_array.is_references {
+                    append_typed_value_to_map(
+                        &mut self.stored_variables,
+                        &value.to_value_type(),
+                        value.clone(),
+                    );
+                } else {
+                    append_typed_value_to_map(
+                        &mut self.memory_addresses,
+                        &value.to_value_type(),
+                        value.clone(),
+                    );
+                }
+            }
+            Instruction::ArraySetWithConstantIndex {
+                array_index,
+                index,
+                value_index,
+                safe_index,
+            } => {
+                if !self.options.instruction_options.array_set_enabled
+                    || !self.options.instruction_options.create_array_enabled
+                {
+                    return;
+                }
+                if !safe_index && !self.options.instruction_options.unsafe_get_set_enabled {
+                    return;
+                }
+                if self.stored_arrays.is_empty() {
+                    return;
+                }
+                // get the array from the stored arrays
+                let stored_array = self.stored_arrays.get(array_index % self.stored_arrays.len());
+                let stored_array = match stored_array {
+                    Some(stored_array) => stored_array,
+                    _ => return,
+                };
+                let index_id = acir_builder.insert_constant(index, ValueType::U32);
+                assert_eq!(
+                    index_id.value_id,
+                    brillig_builder.insert_constant(index, ValueType::U32).value_id
+                );
+                // get the value from the stored variables if not references, otherwise from memory addresses
+                let value = if !stored_array.is_references {
+                    get_typed_value_from_map(
+                        &self.stored_variables,
+                        &stored_array.element_type,
+                        value_index,
+                    )
+                } else {
+                    get_typed_value_from_map(
+                        &self.memory_addresses,
+                        &stored_array.element_type,
+                        value_index,
+                    )
+                };
+                let value = match value {
+                    Some(value) => value,
+                    _ => return,
+                };
+                // insert array set to both acir and brillig builders
+                let new_array = acir_builder.insert_array_set(
+                    stored_array.array_id.clone(),
+                    index_id.clone(),
+                    value.clone(),
+                    safe_index,
+                );
+                assert_eq!(
+                    new_array.value_id,
+                    brillig_builder
+                        .insert_array_set(
+                            stored_array.array_id.clone(),
+                            index_id,
+                            value,
+                            safe_index,
+                        )
+                        .value_id
+                );
+                self.stored_arrays.push(StoredArray {
+                    array_id: new_array,
+                    element_type: stored_array.element_type,
+                    is_references: stored_array.is_references,
+                });
             }
         }
     }
@@ -452,7 +762,7 @@ impl BlockContext {
         instructions: &Vec<Instruction>,
     ) {
         for instruction in instructions {
-            self.insert_instruction(acir_builder, brillig_builder, *instruction);
+            self.insert_instruction(acir_builder, brillig_builder, instruction.clone());
         }
     }
 
@@ -463,7 +773,7 @@ impl BlockContext {
         brillig_builder: &mut FuzzerBuilder,
         return_type: ValueType,
     ) {
-        let array_of_values_with_return_type = self.stored_values.get(&return_type);
+        let array_of_values_with_return_type = self.stored_variables.get(&return_type);
         let return_value = match array_of_values_with_return_type {
             Some(arr) => arr.iter().last(),
             _ => None,
@@ -476,7 +786,8 @@ impl BlockContext {
             _ => {
                 // If no last value was set, we take a boolean that is definitely set and cast it to the return type
                 let boolean_value =
-                    get_typed_value_from_map(&self.stored_values, &ValueType::Boolean, 0).unwrap();
+                    get_typed_value_from_map(&self.stored_variables, &ValueType::Boolean, 0)
+                        .unwrap();
                 let return_value = acir_builder.insert_cast(boolean_value.clone(), return_type);
                 assert_eq!(brillig_builder.insert_cast(boolean_value, return_type), return_value);
                 acir_builder.finalize_function(&return_value);
@@ -506,7 +817,7 @@ impl BlockContext {
     ) {
         // takes last boolean variable as condition
         let condition = self
-            .stored_values
+            .stored_variables
             .get(&ValueType::Boolean)
             .and_then(|values| values.last().cloned())
             .expect("Should have at least one boolean")
@@ -524,7 +835,7 @@ impl BlockContext {
         acir_builder: &mut FuzzerBuilder,
         brillig_builder: &mut FuzzerBuilder,
         function_id: Id<Function>,
-        function_signature: FunctionSignature,
+        function_signature: FunctionInfo,
         args: &[usize],
     ) {
         // On SSA level you cannot just call a function by its id, you need to import it first
@@ -535,7 +846,8 @@ impl BlockContext {
         // If we don't have some value of type of the argument, we skip the function call
         let mut values = vec![];
         for (value_type, index) in zip(function_signature.input_types, args) {
-            let value = match get_typed_value_from_map(&self.stored_values, &value_type, *index) {
+            let value = match get_typed_value_from_map(&self.stored_variables, &value_type, *index)
+            {
                 Some(value) => value,
                 None => return,
             };
@@ -556,7 +868,7 @@ impl BlockContext {
         };
         // Append the return value to stored_values map
         append_typed_value_to_map(
-            &mut self.stored_values,
+            &mut self.stored_variables,
             &function_signature.return_type,
             typed_ret_val,
         );
