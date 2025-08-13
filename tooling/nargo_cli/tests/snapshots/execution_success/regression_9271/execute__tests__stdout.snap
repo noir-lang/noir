@@ -1,0 +1,7 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stdout
+---
+&[(0, true, [1, 2]), (3, false, [4, 5])]
+(&[1, 0], true, &[100])
+[regression_9271] Circuit output: true

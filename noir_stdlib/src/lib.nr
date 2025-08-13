@@ -48,16 +48,6 @@ pub fn print<T>(input: T) {
     }
 }
 
-#[deprecated("This functions is deprecated in favour of external verification libraries. To verify Barretenberg proofs, it's recommended to use the library https://github.com/AztecProtocol/aztec-packages/tree/next/barretenberg/noir/bb_proof_verification")]
-pub fn verify_proof<let N: u32, let M: u32, let K: u32>(
-    verification_key: [Field; N],
-    proof: [Field; M],
-    public_inputs: [Field; K],
-    key_hash: Field,
-) {
-    verify_proof_internal(verification_key, proof, public_inputs, key_hash, 0);
-}
-
 /// Asserts the validity of the provided proof and public inputs against the provided verification key and hash.
 ///
 /// The ACVM cannot determine whether the provided proof is valid during execution as this requires knowledge of
