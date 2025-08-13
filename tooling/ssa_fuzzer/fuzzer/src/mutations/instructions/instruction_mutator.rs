@@ -189,6 +189,21 @@ impl InstructionMutator for InstructionArgumentsMutation {
                     mutate_bool(safe_index, rng, BASIC_SAFE_INDEX_MUTATION_CONFIGURATION);
                 }
             },
+            Instruction::FieldToBytesToField { field_idx } => {
+                mutate_usize(field_idx, rng, BASIC_USIZE_MUTATION_CONFIGURATION);
+            }
+            Instruction::Blake2sHash { field_idx } => {
+                mutate_usize(field_idx, rng, BASIC_USIZE_MUTATION_CONFIGURATION);
+            }
+            Instruction::Blake3Hash { field_idx } => {
+                mutate_usize(field_idx, rng, BASIC_USIZE_MUTATION_CONFIGURATION);
+            }
+            Instruction::Keccakf1600Hash { field_idx } => {
+                unimplemented!("Keccakf1600Hash is not implemented");
+            }
+            Instruction::Aes128Encrypt { input_idx, input_limbs_count, key_idx, iv_idx } => {
+                unimplemented!("Aes128Encrypt is not implemented");
+            }
         }
     }
 }

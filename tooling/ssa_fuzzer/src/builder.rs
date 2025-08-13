@@ -394,6 +394,191 @@ impl FuzzerBuilder {
         TypedValue::new(res, Type::Array(Arc::new(vec![typ]), array_length))
     }
 
+    /// Inserts a to_le_radix intrinsic call that decomposes a field into little-endian radix representation
+    ///
+    /// # Arguments
+    /// * `field_value` - The field value to decompose (must be a field type)
+    /// * `radix` - The radix to use (must be a power of 2, between 2 and 256)
+    /// * `limb_count` - Number of limbs in the result array
+    ///
+    /// # Returns
+    /// An array of u8 values representing the little-endian radix decomposition
+    pub fn insert_to_le_radix(
+        &mut self,
+        field_value: TypedValue,
+        radix: u32,
+        limb_count: u32,
+    ) -> TypedValue {
+        assert!(field_value.is_field(), "to_le_radix requires a field value as input");
+        let radix = self.builder.numeric_constant(radix, NumericType::Unsigned { bit_size: 32 });
+        let intrinsic = self
+            .builder
+            .import_intrinsic("to_le_radix")
+            .expect("to_le_radix intrinsic should be available");
+        let element_type = Type::Numeric(NumericType::Unsigned { bit_size: 8 });
+        let result_type = Type::Array(Arc::new(vec![element_type.clone()]), limb_count);
+        let result = self.builder.insert_call(
+            intrinsic,
+            vec![field_value.value_id, radix],
+            vec![result_type.clone()],
+        );
+
+        TypedValue::new(result[0], result_type)
+    }
+
+    pub fn insert_from_le_radix(&mut self, array: TypedValue, radix: u128) -> TypedValue {
+        let array_size = match array.type_of_variable {
+            Type::Array(_, array_size) => array_size,
+            _ => unreachable!("Array type expected"),
+        };
+        let mut exp = self.builder.numeric_constant(1_u32, NumericType::NativeField);
+        let mut agg = self.builder.numeric_constant(0_u32, NumericType::NativeField);
+        let radix = self.builder.numeric_constant(radix, NumericType::NativeField);
+        for i in 0..array_size {
+            let index = self.builder.numeric_constant(i, NumericType::Unsigned { bit_size: 32 });
+            let byte = self.builder.insert_array_get(
+                array.value_id,
+                index,
+                ArrayOffset::None,
+                Type::Numeric(NumericType::Unsigned { bit_size: 8 }),
+            );
+            let byte_as_field = self.builder.insert_cast(byte, NumericType::NativeField);
+            let byte_as_field_mul_exp =
+                self.builder.insert_binary(byte_as_field, BinaryOp::Mul { unchecked: true }, exp);
+            agg = self.builder.insert_binary(
+                agg,
+                BinaryOp::Add { unchecked: true },
+                byte_as_field_mul_exp,
+            );
+            exp = self.builder.insert_binary(exp, BinaryOp::Mul { unchecked: true }, radix);
+        }
+        TypedValue::new(agg, Type::Numeric(NumericType::NativeField))
+    }
+
+    pub fn insert_blake2s_hash(&mut self, input: TypedValue) -> TypedValue {
+        match input.type_of_variable {
+            Type::Array(type_of_array, _array_size) => {
+                assert!(
+                    matches!(
+                        type_of_array[0],
+                        Type::Numeric(NumericType::Unsigned { bit_size: 8 })
+                    ),
+                    "blake2s requires an array of u8 as input"
+                );
+            }
+            _ => unreachable!("blake2s requires an array as input"),
+        }
+        let intrinsic = self
+            .builder
+            .import_intrinsic("blake2s")
+            .expect("blake2s intrinsic should be available");
+        let return_type =
+            Type::Array(Arc::new(vec![Type::Numeric(NumericType::Unsigned { bit_size: 8 })]), 32);
+        let result =
+            self.builder.insert_call(intrinsic, vec![input.value_id], vec![return_type.clone()]);
+        assert_eq!(result.len(), 1);
+        TypedValue::new(result[0], return_type)
+    }
+
+    pub fn insert_blake3_hash(&mut self, input: TypedValue) -> TypedValue {
+        match input.type_of_variable {
+            Type::Array(type_of_array, _array_size) => {
+                assert!(matches!(
+                    type_of_array[0],
+                    Type::Numeric(NumericType::Unsigned { bit_size: 8 })
+                ));
+            }
+            _ => unreachable!("blake3 requires an array as input"),
+        }
+        let intrinsic =
+            self.builder.import_intrinsic("blake3").expect("blake3 intrinsic should be available");
+        let return_type =
+            Type::Array(Arc::new(vec![Type::Numeric(NumericType::Unsigned { bit_size: 8 })]), 32);
+        let result =
+            self.builder.insert_call(intrinsic, vec![input.value_id], vec![return_type.clone()]);
+        assert_eq!(result.len(), 1);
+        TypedValue::new(result[0], return_type)
+    }
+
+    pub fn insert_keccakf1600_hash(&mut self, input: TypedValue) -> TypedValue {
+        match input.type_of_variable {
+            Type::Array(type_of_array, array_size) => {
+                assert!(matches!(
+                    type_of_array[0],
+                    Type::Numeric(NumericType::Unsigned { bit_size: 64 })
+                ));
+                assert!(array_size == 25);
+            }
+            _ => unreachable!("keccakf1600 requires an array as input"),
+        }
+        let intrinsic = self
+            .builder
+            .import_intrinsic("keccakf1600")
+            .expect("keccakf1600 intrinsic should be available");
+        let return_type =
+            Type::Array(Arc::new(vec![Type::Numeric(NumericType::Unsigned { bit_size: 64 })]), 25);
+        let result =
+            self.builder.insert_call(intrinsic, vec![input.value_id], vec![return_type.clone()]);
+        assert_eq!(result.len(), 1);
+        TypedValue::new(result[0], return_type)
+    }
+
+    pub fn insert_aes128_encrypt(
+        &mut self,
+        input: TypedValue,
+        key: TypedValue,
+        iv: TypedValue,
+    ) -> TypedValue {
+        let input_size = match input.type_of_variable {
+            Type::Array(type_of_array, array_size) => {
+                assert!(matches!(
+                    type_of_array[0],
+                    Type::Numeric(NumericType::Unsigned { bit_size: 8 })
+                ));
+                array_size
+            }
+            _ => unreachable!("aes128_encrypt requires an array as input"),
+        };
+        match key.type_of_variable {
+            Type::Array(type_of_array, array_size) => {
+                assert!(matches!(
+                    type_of_array[0],
+                    Type::Numeric(NumericType::Unsigned { bit_size: 8 })
+                ));
+                assert!(array_size == 16);
+            }
+            _ => unreachable!("aes128_encrypt requires an array as key"),
+        }
+        match iv.type_of_variable {
+            Type::Array(type_of_array, array_size) => {
+                assert!(matches!(
+                    type_of_array[0],
+                    Type::Numeric(NumericType::Unsigned { bit_size: 8 })
+                ));
+                assert!(array_size == 16);
+            }
+            _ => unreachable!("aes128_encrypt requires an array as iv"),
+        }
+        let intrinsic = self
+            .builder
+            .import_intrinsic("aes128_encrypt")
+            .expect("aes128_encrypt intrinsic should be available");
+        let return_type = Type::Array(
+            Arc::new(vec![Type::Numeric(NumericType::Unsigned { bit_size: 8 })]),
+            input_size + 16 - (input_size % 16),
+        );
+        println!("input: {:?}", input.value_id);
+        println!("key: {:?}", key.value_id);
+        println!("iv: {:?}", iv.value_id);
+        let result = self.builder.insert_call(
+            intrinsic,
+            vec![input.value_id, key.value_id, iv.value_id],
+            vec![return_type.clone()],
+        );
+        assert_eq!(result.len(), 1);
+        TypedValue::new(result[0], return_type)
+    }
+
     /// Inserts a modulo operation between the index and the array length
     /// Returns the id of the index modulo the array length
     fn insert_index_mod_array_length(
@@ -451,7 +636,10 @@ impl FuzzerBuilder {
         value: TypedValue,
         safe_index: bool,
     ) -> TypedValue {
-        assert!(matches!(array.type_of_variable, Type::Array(_, _)));
+        let array_length = match array.type_of_variable {
+            Type::Array(_, array_length) => array_length,
+            _ => unreachable!("Array type expected"),
+        };
         assert!(index.type_of_variable == Type::Numeric(NumericType::Unsigned { bit_size: 32 }));
         let index = if safe_index {
             self.insert_index_mod_array_length(index.clone(), array.clone())
@@ -465,6 +653,9 @@ impl FuzzerBuilder {
             false,
             ArrayOffset::None,
         );
-        TypedValue::new(res, array.type_of_variable.clone())
+        TypedValue::new(
+            res,
+            Type::Array(Arc::new(vec![array.type_of_variable.clone()]), array_length),
+        )
     }
 }

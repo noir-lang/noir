@@ -1024,4 +1024,154 @@ mod tests {
             None => panic!("Program failed to execute"),
         }
     }
+
+    /// from_le_radix(to_le_radix(field)) == field
+    #[test]
+    fn test_field_to_bytes_to_field() {
+        let _ = env_logger::try_init();
+        let field_to_bytes_to_field_block = InstructionBlock {
+            instructions: vec![Instruction::FieldToBytesToField { field_idx: 1 }],
+        };
+        let instructions_blocks = vec![field_to_bytes_to_field_block];
+        let commands =
+            vec![FuzzerFunctionCommand::InsertSimpleInstructionBlock { instruction_block_idx: 0 }];
+        let main_func = FunctionData {
+            commands,
+            return_instruction_block_idx: 0,
+            return_type: ValueType::Field,
+        };
+        let fuzzer_data = FuzzerData {
+            instruction_blocks: instructions_blocks,
+            functions: vec![main_func],
+            initial_witness: default_witness(),
+        };
+        let result = fuzz_target(fuzzer_data, FuzzerOptions::default());
+        match result {
+            Some(result) => assert_eq!(result.get_return_value(), FieldElement::from(1_u32)),
+            None => panic!("Program failed to execute"),
+        }
+    }
+
+    /// blake2s(to_le_radix(0, 256, 32)) == blake2s computed with noir
+    ///
+    /// fn main(x: u8) -> pub Field {
+    ///     let x = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    ///     let hash = std::hash::blake2s(x);
+    ///     Field::from_le_bytes::<32>(hash)
+    /// }
+    /// [nargo_tests] Circuit output: Field(-9211429028062209127175291049466917975585300944217240748738694765619842249938)
+    #[test]
+    fn test_blake2s_hash() {
+        let _ = env_logger::try_init();
+        let arg_0_field = Argument { index: 0, value_type: ValueType::Field };
+        let blake2s_hash_block =
+            InstructionBlock { instructions: vec![Instruction::Blake2sHash { field_idx: 0 }] };
+        let instructions_blocks = vec![blake2s_hash_block];
+        let commands = vec![];
+        let main_func = FunctionData {
+            commands,
+            return_instruction_block_idx: 0,
+            return_type: ValueType::Field,
+        };
+        let fuzzer_data = FuzzerData {
+            instruction_blocks: instructions_blocks,
+            functions: vec![main_func],
+            initial_witness: default_witness(),
+        };
+        let result = fuzz_target(fuzzer_data, FuzzerOptions::default());
+        match result {
+            Some(result) => assert_eq!(
+                result.get_return_value(),
+                FieldElement::try_from_str(
+                    "-9211429028062209127175291049466917975585300944217240748738694765619842249938"
+                )
+                .unwrap()
+            ),
+            None => panic!("Program failed to execute"),
+        }
+    }
+
+    /// blake3(to_le_radix(0, 256, 32)) == blake3 computed with noir
+    ///
+    /// fn main(x: u8) -> pub Field {
+    ///     let x = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    ///     let hash = std::hash::blake3(x);
+    ///     Field::from_le_bytes::<32>(hash)
+    /// }
+    /// [nargo_tests] Circuit output: Field(11496696481601359239189947342432058980836600577383371976100559912527609453094)
+    #[test]
+    fn test_blake3_hash() {
+        let _ = env_logger::try_init();
+        let arg_0_field = Argument { index: 0, value_type: ValueType::Field };
+        let blake3_hash_block =
+            InstructionBlock { instructions: vec![Instruction::Blake3Hash { field_idx: 0 }] };
+        let instructions_blocks = vec![blake3_hash_block];
+        let commands = vec![];
+        let main_func = FunctionData {
+            commands,
+            return_instruction_block_idx: 0,
+            return_type: ValueType::Field,
+        };
+        let fuzzer_data = FuzzerData {
+            instruction_blocks: instructions_blocks,
+            functions: vec![main_func],
+            initial_witness: default_witness(),
+        };
+        let result = fuzz_target(fuzzer_data, FuzzerOptions::default());
+        match result {
+            Some(result) => assert_eq!(
+                result.get_return_value(),
+                FieldElement::try_from_str(
+                    "11496696481601359239189947342432058980836600577383371976100559912527609453094"
+                )
+                .unwrap()
+            ),
+            None => panic!("Program failed to execute"),
+        }
+    }
+
+    /// fn main() -> pub Field {
+    ///     let input: [u8; 16] = b.to_le_radix(256);
+    ///     let iv: [u8; 16] = b.to_le_radix(256);
+    ///     let key: [u8; 16] = b.to_le_radix(256);
+    ///     Field::from_le_bytes(std::aes128::aes128_encrypt(input, iv, key))
+    /// }
+    ///
+    /// [nargo_tests] Circuit output: Field(7228449286344697221705732525592563926191809635549234005020486075743434697058)
+    #[test]
+    fn test_aes128_encrypt() {
+        let _ = env_logger::try_init();
+        let arg_0_field = Argument { index: 0, value_type: ValueType::Field };
+        let aes128_encrypt_block = InstructionBlock {
+            instructions: vec![Instruction::Aes128Encrypt {
+                input_idx: 0,
+                input_limbs_count: 4,
+                key_idx: 0,
+                iv_idx: 0,
+            }],
+        };
+        let instructions_blocks = vec![aes128_encrypt_block];
+        let commands = vec![];
+        let main_func = FunctionData {
+            commands,
+            return_instruction_block_idx: 0,
+            return_type: ValueType::Field,
+        };
+        let fuzzer_data = FuzzerData {
+            instruction_blocks: instructions_blocks,
+            functions: vec![main_func],
+            initial_witness: default_witness(),
+        };
+        let result = fuzz_target(fuzzer_data, FuzzerOptions::default());
+        match result {
+            Some(result) => assert_eq!(
+                result.get_return_value(),
+                FieldElement::try_from_str(
+                    "7228449286344697221705732525592563926191809635549234005020486075743434697058"
+                )
+                .unwrap()
+            ),
+            None => panic!("Program failed to execute"),
+        }
+    }
 }

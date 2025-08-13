@@ -27,67 +27,138 @@ pub(crate) struct Argument {
 #[derive(Arbitrary, Debug, Clone, Serialize, Deserialize)]
 pub(crate) enum Instruction {
     /// Addition of two values
-    AddChecked { lhs: Argument, rhs: Argument },
+    AddChecked {
+        lhs: Argument,
+        rhs: Argument,
+    },
     /// Subtraction of two values
-    SubChecked { lhs: Argument, rhs: Argument },
+    SubChecked {
+        lhs: Argument,
+        rhs: Argument,
+    },
     /// Multiplication of two values
-    MulChecked { lhs: Argument, rhs: Argument },
+    MulChecked {
+        lhs: Argument,
+        rhs: Argument,
+    },
     /// Division of two values
-    Div { lhs: Argument, rhs: Argument },
+    Div {
+        lhs: Argument,
+        rhs: Argument,
+    },
     /// Equality comparison
-    Eq { lhs: Argument, rhs: Argument },
+    Eq {
+        lhs: Argument,
+        rhs: Argument,
+    },
     /// Modulo operation
-    Mod { lhs: Argument, rhs: Argument },
+    Mod {
+        lhs: Argument,
+        rhs: Argument,
+    },
     /// Bitwise NOT
-    Not { lhs: Argument },
+    Not {
+        lhs: Argument,
+    },
     /// Left shift
-    Shl { lhs: Argument, rhs: Argument },
+    Shl {
+        lhs: Argument,
+        rhs: Argument,
+    },
     /// Right shift
-    Shr { lhs: Argument, rhs: Argument },
+    Shr {
+        lhs: Argument,
+        rhs: Argument,
+    },
     /// Cast into type
-    Cast { lhs: Argument, type_: ValueType },
+    Cast {
+        lhs: Argument,
+        type_: ValueType,
+    },
     /// Bitwise AND
-    And { lhs: Argument, rhs: Argument },
+    And {
+        lhs: Argument,
+        rhs: Argument,
+    },
     /// Bitwise OR
-    Or { lhs: Argument, rhs: Argument },
+    Or {
+        lhs: Argument,
+        rhs: Argument,
+    },
     /// Bitwise XOR
-    Xor { lhs: Argument, rhs: Argument },
+    Xor {
+        lhs: Argument,
+        rhs: Argument,
+    },
 
     /// Less than comparison
-    Lt { lhs: Argument, rhs: Argument },
+    Lt {
+        lhs: Argument,
+        rhs: Argument,
+    },
 
     /// constrain(lhs == lhs + rhs - rhs), doesn't insert constraint if idempotent_morphing_enabled=false
     /// uses only fields variables
-    AddSubConstrain { lhs: usize, rhs: usize },
+    AddSubConstrain {
+        lhs: usize,
+        rhs: usize,
+    },
     /// constrain(lhs == lhs * rhs / rhs), doesn't insert constraint if idempotent_morphing_enabled=false
     /// uses only fields variables
-    MulDivConstrain { lhs: usize, rhs: usize },
+    MulDivConstrain {
+        lhs: usize,
+        rhs: usize,
+    },
 
     /// Store value to mutable memory
     /// Allocates memory for Argument.value_type type with insert_allocate
     /// Stores value to memory with insert_store
-    AddToMemory { lhs: Argument },
+    AddToMemory {
+        lhs: Argument,
+    },
     /// Load value from mutable memory
     /// Loads value from memory with insert_load, choosing memory address for type Argument.value_type and index Argument.index
     /// Returns value of type Argument.value_type
-    LoadFromMemory { memory_addr: Argument },
+    LoadFromMemory {
+        memory_addr: Argument,
+    },
     /// Store value to mutable memory
     /// Stores value to memory with insert_store
-    SetToMemory { memory_addr_index: usize, value: Argument },
+    SetToMemory {
+        memory_addr_index: usize,
+        value: Argument,
+    },
 
     /// Create array, only type of first argument is used
     /// Other elements will be taken from stored variables of the same type
-    CreateArray { elements_indices: Vec<usize>, element_type: ValueType, is_references: bool },
+    CreateArray {
+        elements_indices: Vec<usize>,
+        element_type: ValueType,
+        is_references: bool,
+    },
     /// Get element from array, index will be casted to u32, only for arrays without references
     /// If safe_index is true, index will be taken modulo the size of the array
-    ArrayGet { array_index: usize, index: Argument, safe_index: bool },
+    ArrayGet {
+        array_index: usize,
+        index: Argument,
+        safe_index: bool,
+    },
     /// Set element in array, index will be casted to u32, only for arrays without references
     /// Value will be cast to the type of the array
     /// If safe_index is true, index will be taken modulo the size of the array
-    ArraySet { array_index: usize, index: Argument, value_index: usize, safe_index: bool },
+    ArraySet {
+        array_index: usize,
+        index: Argument,
+        value_index: usize,
+        safe_index: bool,
+    },
     /// Get element from array, index is constant
     /// If safe_index is true, index will be taken modulo the size of the array
-    ArrayGetWithConstantIndex { array_index: usize, index: usize, safe_index: bool },
+    ArrayGetWithConstantIndex {
+        array_index: usize,
+        index: usize,
+        safe_index: bool,
+    },
     /// Set element in array, index is constant
     /// Value will be cast to the type of the array
     /// If safe_index is true, index will be taken modulo the size of the array
@@ -96,6 +167,28 @@ pub(crate) enum Instruction {
         index: usize,
         value_index: usize,
         safe_index: bool,
+    },
+    FieldToBytesToField {
+        field_idx: usize,
+    },
+
+    Blake2sHash {
+        field_idx: usize,
+    },
+
+    Blake3Hash {
+        field_idx: usize,
+    },
+
+    Keccakf1600Hash {
+        field_idx: usize,
+    },
+
+    Aes128Encrypt {
+        input_idx: usize,
+        input_limbs_count: u8,
+        key_idx: usize,
+        iv_idx: usize,
     },
 }
 
