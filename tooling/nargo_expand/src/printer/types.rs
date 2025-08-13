@@ -1,4 +1,6 @@
-use noirc_frontend::{NamedGeneric, Type, TypeBinding, hir::def_map::ModuleDefId};
+use noirc_frontend::{
+    NamedGeneric, Type, TypeBinding, ast::Constrainedness, hir::def_map::ModuleDefId,
+};
 
 use super::ItemPrinter;
 
@@ -152,8 +154,10 @@ impl ItemPrinter<'_, '_> {
                     self.push('<');
                 }
 
-                if *unconstrained {
-                    self.push_str("unconstrained ");
+                match unconstrained {
+                    Constrainedness::Constrained => todo!(),
+                    Constrainedness::Unconstrained => self.push_str("unconstrained "),
+                    Constrainedness::DualConstrained => self.push_str("?unconstrained "),
                 }
                 self.push_str("fn");
                 if **env != Type::Unit {

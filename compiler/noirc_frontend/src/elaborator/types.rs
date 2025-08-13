@@ -9,9 +9,9 @@ use crate::{
     Generics, Kind, NamedGeneric, ResolvedGeneric, Type, TypeBinding, TypeBindings,
     UnificationError,
     ast::{
-        AsTraitPath, BinaryOpKind, GenericTypeArgs, Ident, IntegerBitSize, PathKind, UnaryOp,
-        UnresolvedGeneric, UnresolvedGenerics, UnresolvedType, UnresolvedTypeData,
-        UnresolvedTypeExpression, WILDCARD_TYPE,
+        AsTraitPath, BinaryOpKind, Constrainedness, GenericTypeArgs, Ident, IntegerBitSize,
+        PathKind, UnaryOp, UnresolvedGeneric, UnresolvedGenerics, UnresolvedType,
+        UnresolvedTypeData, UnresolvedTypeExpression, WILDCARD_TYPE,
     },
     elaborator::UnstableFeature,
     hir::{
@@ -1205,8 +1205,15 @@ impl Elaborator<'_> {
                 let ret = self.interner.next_type_variable();
                 let args = vecmap(args, |(arg, _, _)| arg);
                 let env_type = self.interner.next_type_variable();
+
+                // Infer to a constrained function, somewhat arbitrarily.
+                let constrained = if self.in_constrained_function() {
+                    Constrainedness::Constrained
+                } else {
+                    Constrainedness::Unconstrained
+                };
                 let expected =
-                    Type::Function(args, Box::new(ret.clone()), Box::new(env_type), false);
+                    Type::Function(args, Box::new(ret.clone()), Box::new(env_type), constrained);
 
                 let expected_kind = expected.kind();
                 if let Err(error) = binding.try_bind(expected, &expected_kind, location) {
@@ -2086,18 +2093,19 @@ impl Elaborator<'_> {
         });
 
         let is_current_func_constrained = self.in_constrained_function();
+        let func_constrainedness = self.function_constrainedness(&func_type, call.func);
 
-        let func_type_is_unconstrained =
-            if let Type::Function(_args, _ret, _env, unconstrained) = &func_type {
-                *unconstrained
-            } else {
-                false
-            };
-
+        // Note: we don't consider `Constrainedness::DualConstrained` to be an unconstrained call.
+        // This only checks for calls which must be unconstrained/constrained.
         let is_unconstrained_call =
-            func_type_is_unconstrained || self.is_unconstrained_call(call.func);
-        let crossing_runtime_boundary = is_current_func_constrained && is_unconstrained_call;
-        if crossing_runtime_boundary {
+            matches!(func_constrainedness, Constrainedness::Unconstrained);
+
+        let acir_to_brillig = is_current_func_constrained && is_unconstrained_call;
+
+        use Constrainedness::{ Constrained, Unconstrained };
+
+        // Acir -> Brillig calls must be marked with `unsafe` and certain argument/return types are disallowed.
+        if is_current_func_constrained && func_constrainedness == Unconstrained {
             match self.unsafe_block_status {
                 UnsafeBlockStatus::NotInUnsafeBlock => {
                     self.push_err(TypeCheckError::Unsafe { location });
@@ -2124,11 +2132,22 @@ impl Elaborator<'_> {
             for error in errors {
                 self.push_err(error);
             }
+
+        // Brillig -> Acir are disallowed unless the function is known (first-class function values
+        // are disallowed)
+        } else if !is_current_func_constrained && func_constrainedness == Constrained {
+            if !Type::is_known_function(self.interner, call.func) {
+                self.push_err(TypeCheckError::UnconstrainedMismatch {
+                    item: "function".to_string(),
+                    expected: Constrainedness::Unconstrained,
+                    location,
+                });
+            }
         }
 
         let return_type = self.bind_function_type(func_type, args, location);
 
-        if crossing_runtime_boundary {
+        if acir_to_brillig {
             self.run_lint(|_| {
                 lints::unconstrained_function_return(&return_type, location).map(Into::into)
             });
@@ -2137,12 +2156,22 @@ impl Elaborator<'_> {
         return_type
     }
 
-    fn is_unconstrained_call(&self, expr: ExprId) -> bool {
+    /// Returns the constrainedness of the given function.
+    ///
+    /// `expr` is expected to be the function expression in a function call and if it is an `Ident`,
+    /// it is used to lookup the function's constrainedness. Otherwise, the function's type is used.
+    fn function_constrainedness(&self, function_type: &Type, expr: ExprId) -> Constrainedness {
         if let Some(func_id) = self.interner.lookup_function_from_expr(&expr) {
-            let modifiers = self.interner.function_modifiers(&func_id);
-            modifiers.is_unconstrained
-        } else {
-            false
+            if self.interner.function_modifiers(&func_id).is_unconstrained {
+                return Constrainedness::Unconstrained;
+            }
+        }
+
+        match function_type {
+            Type::Function(_args, _ret, _env, constrainedness) => *constrainedness,
+            // Functions with inferred types use the constrainedness from the current function
+            _ if self.in_constrained_function() => Constrainedness::Constrained,
+            _ => Constrainedness::Unconstrained,
         }
     }
 

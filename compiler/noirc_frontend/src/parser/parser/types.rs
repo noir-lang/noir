@@ -1,5 +1,5 @@
 use crate::{
-    ast::{GenericTypeArgs, UnresolvedType, UnresolvedTypeData},
+    ast::{Constrainedness, GenericTypeArgs, UnresolvedType, UnresolvedTypeData},
     parser::labels::ParsingRuleLabel,
     token::{Keyword, Token, TokenKind},
 };
@@ -8,15 +8,11 @@ use super::{Parser, parse_many::separated_by_comma_until_right_paren};
 
 impl Parser<'_> {
     pub(crate) fn parse_type_or_error(&mut self) -> UnresolvedType {
-        self.parse_type_or_error_impl(
-            true, // allow generics
-        )
+        self.parse_type_or_error_impl(true)
     }
 
     pub(crate) fn parse_type_or_error_without_generics(&mut self) -> UnresolvedType {
-        self.parse_type_or_error_impl(
-            false, // allow generics
-        )
+        self.parse_type_or_error_impl(false)
     }
 
     pub(crate) fn parse_type_or_error_impl(&mut self, allow_generics: bool) -> UnresolvedType {
@@ -118,16 +114,29 @@ impl Parser<'_> {
     }
 
     fn parse_function_type(&mut self) -> Option<UnresolvedTypeData> {
-        let unconstrained = self.eat_keyword(Keyword::Unconstrained);
+        let constrainedness = match (self.token.token(), self.next_token.token()) {
+            (Token::QuestionMark, Token::Keyword(Keyword::Unconstrained)) => {
+                self.bump();
+                self.bump();
+                Constrainedness::DualConstrained
+            }
+            (Token::Keyword(Keyword::Unconstrained), _) => {
+                self.bump();
+                Constrainedness::Unconstrained
+            }
+            _ => Constrainedness::Constrained,
+        };
 
         if !self.eat_keyword(Keyword::Fn) {
-            if unconstrained {
+            // If a previous keyword was given we can issue an error, otherwise we don't
+            // know if the user meant to write a function type or not.
+            if !matches!(constrainedness, Constrainedness::Constrained) {
                 self.expected_token(Token::Keyword(Keyword::Fn));
                 return Some(UnresolvedTypeData::Function(
                     Vec::new(),
                     Box::new(self.unspecified_type_at_previous_token_end()),
                     Box::new(self.unspecified_type_at_previous_token_end()),
-                    unconstrained,
+                    constrainedness,
                 ));
             }
 
@@ -149,7 +158,7 @@ impl Parser<'_> {
                 Vec::new(),
                 Box::new(self.unspecified_type_at_previous_token_end()),
                 Box::new(self.unspecified_type_at_previous_token_end()),
-                unconstrained,
+                constrainedness,
             ));
         }
 
@@ -165,7 +174,7 @@ impl Parser<'_> {
             UnresolvedTypeData::Unit.with_location(self.location_at_previous_token_end())
         };
 
-        Some(UnresolvedTypeData::Function(args, Box::new(ret), Box::new(env), unconstrained))
+        Some(UnresolvedTypeData::Function(args, Box::new(ret), Box::new(env), constrainedness))
     }
 
     fn parse_parameter(&mut self) -> Option<UnresolvedType> {
@@ -504,13 +513,13 @@ mod tests {
     fn parses_empty_function_type() {
         let src = "fn() -> Field";
         let typ = parse_type_no_errors(src);
-        let UnresolvedTypeData::Function(args, ret, env, unconstrained) = typ.typ else {
+        let UnresolvedTypeData::Function(args, ret, env, constrainedness) = typ.typ else {
             panic!("Expected a function type")
         };
         assert!(args.is_empty());
         assert_eq!(ret.typ.to_string(), "Field");
         assert!(matches!(env.typ, UnresolvedTypeData::Unit));
-        assert!(!unconstrained);
+        assert!(matches!(constrainedness, crate::ast::Constrainedness::Constrained));
     }
 
     #[test]
@@ -559,10 +568,10 @@ mod tests {
     fn parses_unconstrained_function_type() {
         let src = "unconstrained fn() -> Field";
         let typ = parse_type_no_errors(src);
-        let UnresolvedTypeData::Function(_args, _ret, _env, unconstrained) = typ.typ else {
+        let UnresolvedTypeData::Function(_args, _ret, _env, constrainedness) = typ.typ else {
             panic!("Expected a function type")
         };
-        assert!(unconstrained);
+        assert!(matches!(constrainedness, crate::ast::Constrainedness::Unconstrained));
     }
 
     #[test]

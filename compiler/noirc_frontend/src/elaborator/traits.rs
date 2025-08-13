@@ -6,9 +6,9 @@ use noirc_errors::Location;
 use crate::{
     NamedGeneric, ResolvedGeneric, Type, TypeBindings,
     ast::{
-        BlockExpression, FunctionDefinition, FunctionKind, FunctionReturnType, Ident,
-        ItemVisibility, NoirFunction, TraitBound, TraitItem, UnresolvedGeneric, UnresolvedGenerics,
-        UnresolvedTraitConstraint, UnresolvedType,
+        BlockExpression, Constrainedness, FunctionDefinition, FunctionKind, FunctionReturnType,
+        Ident, ItemVisibility, NoirFunction, TraitBound, TraitItem, UnresolvedGeneric,
+        UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType,
     },
     hir::{def_collector::dc_crate::UnresolvedTrait, type_check::TypeCheckError},
     hir_def::{
@@ -205,12 +205,18 @@ impl Elaborator<'_> {
                         None
                     };
 
+                    let constrainedness = if *is_unconstrained {
+                        Constrainedness::Unconstrained
+                    } else {
+                        Constrainedness::Constrained
+                    };
+
                     let no_environment = Box::new(Type::Unit);
                     let function_type = Type::Function(
                         arguments,
                         Box::new(return_type),
                         no_environment,
-                        *is_unconstrained,
+                        constrainedness,
                     );
 
                     functions.push(TraitFunction {

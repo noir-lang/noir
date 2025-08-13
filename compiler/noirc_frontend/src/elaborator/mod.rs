@@ -6,7 +6,7 @@ use std::{
 
 use crate::{
     DataType, NamedGeneric, StructField, TypeBindings,
-    ast::{IdentOrQuotedType, ItemVisibility, UnresolvedType},
+    ast::{Constrainedness, IdentOrQuotedType, ItemVisibility, UnresolvedType},
     graph::CrateGraph,
     hir::def_collector::dc_crate::UnresolvedTrait,
     hir_def::traits::{NamedType, ResolvedTraitBound},
@@ -1018,12 +1018,14 @@ impl<'context> Elaborator<'context> {
 
         let return_type = Box::new(self.use_type(func.return_type(), wildcard_allowed));
 
-        let mut typ = Type::Function(
-            parameter_types,
-            return_type,
-            Box::new(Type::Unit),
-            func.def.is_unconstrained,
-        );
+        let constrainedness = if func.def.is_unconstrained {
+            Constrainedness::Unconstrained
+        } else {
+            Constrainedness::Constrained
+        };
+
+        let mut typ =
+            Type::Function(parameter_types, return_type, Box::new(Type::Unit), constrainedness);
 
         if !generics.is_empty() {
             typ = Type::Forall(generics, Box::new(typ));

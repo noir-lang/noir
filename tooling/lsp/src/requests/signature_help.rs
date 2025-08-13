@@ -6,6 +6,7 @@ use async_lsp::lsp_types::{
 };
 use fm::FileId;
 use noirc_errors::{Location, Span};
+use noirc_frontend::ast::Constrainedness;
 use noirc_frontend::{
     ParsedModule, Type,
     ast::{
@@ -99,11 +100,11 @@ impl<'a> SignatureFinder<'a> {
             if let Type::Forall(_, forall_typ) = typ {
                 typ = *forall_typ;
             }
-            if let Type::Function(args, return_type, _, unconstrained) = typ {
+            if let Type::Function(args, return_type, _, constrainedness) = typ {
                 let signature_information = self.function_type_signature_information(
                     &args,
                     &return_type,
-                    unconstrained,
+                    constrainedness,
                     active_parameter,
                 );
                 self.set_signature_help(signature_information);
@@ -193,15 +194,13 @@ impl<'a> SignatureFinder<'a> {
         &self,
         args: &[Type],
         return_type: &Type,
-        unconstrained: bool,
+        constrainednes: Constrainedness,
         active_parameter: Option<u32>,
     ) -> SignatureInformation {
         let mut label = String::new();
         let mut parameters = Vec::new();
 
-        if unconstrained {
-            label.push_str("unconstrained ");
-        }
+        label.push_str(constrainednes.syntax_string());
         label.push_str("fn(");
         for (index, typ) in args.iter().enumerate() {
             if index > 0 {

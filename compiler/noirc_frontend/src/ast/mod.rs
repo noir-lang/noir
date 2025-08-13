@@ -146,7 +146,7 @@ pub enum UnresolvedTypeData {
         /*args:*/ Vec<UnresolvedType>,
         /*ret:*/ Box<UnresolvedType>,
         /*env:*/ Box<UnresolvedType>,
-        /*unconstrained:*/ bool,
+        /*unconstrained:*/ Constrainedness,
     ),
 
     /// An "as Trait" path leading to an associated type.
@@ -163,6 +163,38 @@ pub enum UnresolvedTypeData {
 
     Unspecified, // This is for when the user declares a variable without specifying it's type
     Error,
+}
+
+#[derive(Debug, PartialEq, Eq, Copy, Clone, Hash, PartialOrd, Ord)]
+pub enum Constrainedness {
+    Constrained,
+    Unconstrained,
+    DualConstrained,
+}
+
+impl Constrainedness {
+    /// Convert this `Constrainedness` to a string matching its source representation.
+    /// Compared to `to_string` this is identical except in the `Constrained` case where
+    /// the source representation is an empty string to match `fn()` versus `unconstrained fn()`.
+    ///
+    /// `syntax_string` will also include a trailing space after the keyword - if a keyword is present.
+    pub fn syntax_string(self) -> &'static str {
+        match self {
+            Constrainedness::Constrained => "",
+            Constrainedness::Unconstrained => "unconstrained ",
+            Constrainedness::DualConstrained => "?unconstrained ",
+        }
+    }
+}
+
+impl std::fmt::Display for Constrainedness {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Constrainedness::Constrained => write!(f, "constrained"),
+            Constrainedness::Unconstrained => write!(f, "unconstrained"),
+            Constrainedness::DualConstrained => write!(f, "?unconstrained"),
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
@@ -287,9 +319,11 @@ impl std::fmt::Display for UnresolvedTypeData {
                 }
             }
             Expression(expression) => expression.fmt(f),
-            Function(args, ret, env, unconstrained) => {
-                if *unconstrained {
-                    write!(f, "unconstrained ")?;
+            Function(args, ret, env, constrainedness) => {
+                match *constrainedness {
+                    Constrainedness::Constrained => (),
+                    Constrainedness::Unconstrained => write!(f, "unconstrained ")?,
+                    Constrainedness::DualConstrained => write!(f, "?unconstrained ")?,
                 }
 
                 let args = vecmap(args, ToString::to_string).join(", ");

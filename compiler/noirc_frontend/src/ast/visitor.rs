@@ -24,8 +24,8 @@ use crate::{
 };
 
 use super::{
-    ForBounds, FunctionReturnType, GenericTypeArgs, ItemVisibility, MatchExpression,
-    NoirEnumeration, Pattern, TraitBound, TraitImplItemKind, TypeAlias, TypePath,
+    Constrainedness, ForBounds, FunctionReturnType, GenericTypeArgs, ItemVisibility,
+    MatchExpression, NoirEnumeration, Pattern, TraitBound, TraitImplItemKind, TypeAlias, TypePath,
     UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData,
     UnresolvedTypeExpression, UnsafeExpression,
 };
@@ -412,7 +412,7 @@ pub trait Visitor {
         _args: &[UnresolvedType],
         _ret: &UnresolvedType,
         _env: &UnresolvedType,
-        _unconstrained: bool,
+        _constrained: Constrainedness,
         _span: Span,
     ) -> bool {
         true
@@ -1442,8 +1442,9 @@ impl UnresolvedType {
                     visit_unresolved_types(unresolved_types, visitor);
                 }
             }
-            UnresolvedTypeData::Function(args, ret, env, unconstrained) => {
-                if visitor.visit_function_type(args, ret, env, *unconstrained, self.location.span) {
+            UnresolvedTypeData::Function(args, ret, env, constrainedness) => {
+                if visitor.visit_function_type(args, ret, env, *constrainedness, self.location.span)
+                {
                     visit_unresolved_types(args, visitor);
                     ret.accept(visitor);
                     env.accept(visitor);

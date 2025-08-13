@@ -9,7 +9,7 @@
 //! The entry point to this pass is the `monomorphize` function which, starting from a given
 //! function, will monomorphize the entire reachable program.
 use crate::NamedGeneric;
-use crate::ast::{FunctionKind, IntegerBitSize, ItemVisibility, UnaryOp};
+use crate::ast::{Constrainedness, FunctionKind, IntegerBitSize, ItemVisibility, UnaryOp};
 use crate::hir::comptime::InterpreterError;
 use crate::hir::type_check::{NoMatchingImplFoundError, TypeCheckError};
 use crate::node_interner::{ExprId, GlobalValue, ImplSearchErrorKind, TraitItemId};
@@ -1415,23 +1415,38 @@ impl<'interner> Monomorphizer<'interner> {
                 ast::Type::Tuple(fields)
             }
 
-            HirType::Function(args, ret, env, unconstrained) => {
+            HirType::Function(args, ret, env, constrainedness) => {
                 let args =
                     try_vecmap(args, |x| Self::convert_type_helper(x, location, seen_types))?;
                 let ret = Box::new(Self::convert_type_helper(ret, location, seen_types)?);
                 let env = Self::convert_type_helper(env, location, seen_types)?;
-                match &env {
-                    ast::Type::Unit => {
-                        ast::Type::Function(args, ret, Box::new(env), *unconstrained)
+
+                let make_function = |is_unconstrained, args, ret, env| {
+                    use ast::Type::*;
+                    match &env {
+                        Unit => Function(args, ret, Box::new(env), is_unconstrained),
+                        Tuple(_) => Tuple(vec![
+                            env.clone(),
+                            Function(args, ret, Box::new(env), is_unconstrained),
+                        ]),
+                        _ => {
+                            unreachable!(
+                                "internal Type::Function env should be either a Unit or a Tuple, not {env}"
+                            )
+                        }
                     }
-                    ast::Type::Tuple(_elements) => ast::Type::Tuple(vec![
-                        env.clone(),
-                        ast::Type::Function(args, ret, Box::new(env), *unconstrained),
-                    ]),
-                    _ => {
-                        unreachable!(
-                            "internal Type::Function env should be either a Unit or a Tuple, not {env}"
-                        )
+                };
+
+                match constrainedness {
+                    Constrainedness::Constrained => make_function(false, args, ret, env),
+                    Constrainedness::Unconstrained => make_function(true, args, ret, env),
+                    Constrainedness::DualConstrained => {
+                        // dual constrained functions are represented as a tuple of both
+                        // a constrained and unconstrained version of the same function.
+                        let constrained =
+                            make_function(false, args.clone(), ret.clone(), env.clone());
+                        let unconstrained = make_function(true, args, ret, env);
+                        ast::Type::Tuple(vec![constrained, unconstrained])
                     }
                 }
             }

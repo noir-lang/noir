@@ -334,10 +334,8 @@ impl<'a> TraitImplMethodStubGenerator<'a> {
             Type::NamedGeneric(NamedGeneric { type_var, .. }) => {
                 self.append_type(&Type::TypeVariable(type_var.clone()));
             }
-            Type::Function(args, ret, env, unconstrained) => {
-                if *unconstrained {
-                    self.string.push_str("unconstrained ");
-                }
+            Type::Function(args, ret, env, constrainedness) => {
+                self.string.push_str(constrainedness.syntax_string());
                 self.string.push_str("fn");
 
                 if let Type::Unit = **env {

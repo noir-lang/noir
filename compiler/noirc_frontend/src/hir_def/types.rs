@@ -9,7 +9,9 @@ use proptest_derive::Arbitrary;
 use acvm::{AcirField, FieldElement};
 
 use crate::{
-    ast::{BinaryOpKind, IntegerBitSize, ItemVisibility, UnresolvedTypeExpression},
+    ast::{
+        BinaryOpKind, Constrainedness, IntegerBitSize, ItemVisibility, UnresolvedTypeExpression,
+    },
     hir::{
         def_map::ModuleId,
         type_check::{TypeCheckError, generics::TraitGenerics},
@@ -31,6 +33,7 @@ use super::traits::NamedType;
 mod arithmetic;
 mod unification;
 
+pub use unification::FunctionCoercionDirection;
 pub use unification::UnificationError;
 
 #[derive(Eq, Clone, Ord, PartialOrd)]
@@ -109,7 +112,7 @@ pub enum Type {
         Vec<Type>,
         /*return_type:*/ Box<Type>,
         /*environment:*/ Box<Type>,
-        /*unconstrained*/ bool,
+        /*constrainedness*/ Constrainedness,
     ),
 
     /// &T
@@ -681,7 +684,7 @@ impl DataType {
         assert_eq!(this.borrow().id, self.id);
         let generics = self.generic_types();
         let ret = Box::new(Type::DataType(this, generics));
-        Type::Function(args, ret, Box::new(Type::Unit), false)
+        Type::Function(args, ret, Box::new(Type::Unit), Constrainedness::Constrained)
     }
 
     /// Returns the function type of the variant at the given index of this enum.
@@ -1117,9 +1120,11 @@ impl std::fmt::Display for Type {
                 let typevars = vecmap(typevars, |var| var.id().to_string());
                 write!(f, "forall {}. {}", typevars.join(" "), typ)
             }
-            Type::Function(args, ret, env, unconstrained) => {
-                if *unconstrained {
-                    write!(f, "unconstrained ")?;
+            Type::Function(args, ret, env, constrainedness) => {
+                match *constrainedness {
+                    Constrainedness::Constrained => (),
+                    Constrainedness::Unconstrained => write!(f, "unconstrained ")?,
+                    Constrainedness::DualConstrained => write!(f, "?unconstrained ")?,
                 }
 
                 let closure_env_text = match **env {
@@ -2858,12 +2863,14 @@ impl From<&Type> for PrintableType {
             Type::CheckedCast { to, .. } => to.as_ref().into(),
             Type::NamedGeneric(..) => unreachable!(),
             Type::Forall(..) => unreachable!(),
-            Type::Function(arguments, return_type, env, unconstrained) => PrintableType::Function {
-                arguments: arguments.iter().map(|arg| arg.into()).collect(),
-                return_type: Box::new(return_type.as_ref().into()),
-                env: Box::new(env.as_ref().into()),
-                unconstrained: *unconstrained,
-            },
+            Type::Function(arguments, return_type, env, constrainedness) => {
+                PrintableType::Function {
+                    arguments: arguments.iter().map(|arg| arg.into()).collect(),
+                    return_type: Box::new(return_type.as_ref().into()),
+                    env: Box::new(env.as_ref().into()),
+                    unconstrained: matches!(constrainedness, Constrainedness::Unconstrained),
+                }
+            }
             Type::Reference(typ, mutable) => {
                 PrintableType::Reference { typ: Box::new(typ.as_ref().into()), mutable: *mutable }
             }
@@ -2949,8 +2956,10 @@ impl std::fmt::Debug for Type {
                 write!(f, "forall {}. {:?}", typevars.join(" "), typ)
             }
             Type::Function(args, ret, env, unconstrained) => {
-                if *unconstrained {
-                    write!(f, "unconstrained ")?;
+                match unconstrained {
+                    Constrainedness::Constrained => (),
+                    Constrainedness::Unconstrained => write!(f, "unconstrained ")?,
+                    Constrainedness::DualConstrained => write!(f, "?unconstrained ")?,
                 }
 
                 let closure_env_text = match **env {

@@ -7,7 +7,9 @@ use noirc_errors::CustomDiagnostic as Diagnostic;
 use noirc_errors::Location;
 use thiserror::Error;
 
+use crate::FunctionCoercionDirection;
 use crate::ast::BinaryOpKind;
+use crate::ast::Constrainedness;
 use crate::ast::{ConstrainKind, FunctionReturnType, Ident, IntegerBitSize};
 use crate::hir::resolution::errors::ResolverError;
 use crate::hir_def::traits::TraitConstraint;
@@ -99,7 +101,7 @@ pub enum TypeCheckError {
     #[error("{item} expects {expected} generics but {found} were given")]
     GenericCountMismatch { item: String, expected: usize, found: usize, location: Location },
     #[error("{item} has incompatible `unconstrained`")]
-    UnconstrainedMismatch { item: String, expected: bool, location: Location },
+    UnconstrainedMismatch { item: String, expected: Constrainedness, location: Location },
     #[error("Only integer and Field types may be casted to")]
     UnsupportedCast { location: Location },
     #[error("Only unsigned integer types may be casted to Field")]
@@ -204,7 +206,7 @@ pub enum TypeCheckError {
     )]
     Unsafe { location: Location },
     #[error("Converting an unconstrained fn to a non-unconstrained fn is unsafe")]
-    UnsafeFn { location: Location },
+    UnsafeFn { direction: FunctionCoercionDirection, location: Location },
     #[error("Expected a constant, but found `{typ}`")]
     NonConstantEvaluated { typ: Type, location: Location },
     #[error("Only sized types may be used in the entry point to a program")]
@@ -256,6 +258,8 @@ pub enum TypeCheckError {
     },
     #[error("Type annotation needed on array literal")]
     TypeAnnotationNeededOnArrayLiteral { is_array: bool, location: Location },
+    #[error("First-class constrained functions cannot be called from unconstrained code")]
+    ConstrainedCallFromUnconstrained { location: Location },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -330,7 +334,7 @@ impl TypeCheckError {
             | TypeCheckError::UnconstrainedReferenceToConstrained { location }
             | TypeCheckError::UnconstrainedSliceReturnToConstrained { location }
             | TypeCheckError::Unsafe { location }
-            | TypeCheckError::UnsafeFn { location }
+            | TypeCheckError::UnsafeFn { location, .. }
             | TypeCheckError::NonConstantEvaluated { location, .. }
             | TypeCheckError::InvalidTypeForEntryPoint { location }
             | TypeCheckError::MismatchTraitImplNumParameters { location, .. }
@@ -347,6 +351,7 @@ impl TypeCheckError {
             | TypeCheckError::NestedUnsafeBlock { location }
             | TypeCheckError::TupleMismatch { location, .. }
             | TypeCheckError::TypeAnnotationNeededOnItem { location, .. }
+            | TypeCheckError::ConstrainedCallFromUnconstrained { location }
             | TypeCheckError::TypeAnnotationNeededOnArrayLiteral { location, .. } => *location,
 
             TypeCheckError::DuplicateNamedTypeArg { name: ident, .. }
@@ -481,11 +486,7 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 Diagnostic::simple_error(msg, String::new(), *location)
             }
             TypeCheckError::UnconstrainedMismatch { item, expected, location } => {
-                let msg = if *expected {
-                    format!("{item} is expected to be unconstrained")
-                } else {
-                    format!("{item} is not expected to be unconstrained")
-                };
+                let msg = format!("{item} is expected to be {expected}");
                 Diagnostic::simple_error(msg, String::new(), *location)
             }
             TypeCheckError::InvalidCast { location, reason, .. } => {
@@ -674,8 +675,12 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             TypeCheckError::Unsafe { location } => {
                 Diagnostic::simple_error(error.to_string(), String::new(), *location)
             }
-            TypeCheckError::UnsafeFn { location } => {
-                Diagnostic::simple_error(error.to_string(), String::new(), *location)
+            TypeCheckError::UnsafeFn { direction, location } => {
+                let message = match direction {
+                    FunctionCoercionDirection::ConstrainedToUnconstrained => "Converting an unknown constrained fn to an unconstrained fn is prohibited",
+                    FunctionCoercionDirection::UnconstrainedToConstrained => "Converting an unconstrained fn to a non-unconstrained fn is unsafe",
+                };
+                Diagnostic::simple_error(message.to_string(), String::new(), *location)
             }
             TypeCheckError::UnspecifiedType { location } => {
                 Diagnostic::simple_error(error.to_string(), String::new(), *location)
@@ -769,7 +774,12 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
                 let array_or_slice = if *is_array { "array" } else { "slice" };
                 let secondary = format!("Could not determine the type of the {array_or_slice}");
                 Diagnostic::simple_error(message, secondary, *location)
-            }
+            },
+            TypeCheckError::ConstrainedCallFromUnconstrained { location } => {
+                let message = error.to_string();
+                let secondary = "Only function constants may be converted from constrained to unconstrained. If you need an unconstrained function parameter, use the `unconstrained fn` type. If you need it to be both constrained and unconstrained, use `?constrained fn`.".to_string();
+                Diagnostic::simple_error(message, secondary, *location)
+            },
         }
     }
 }

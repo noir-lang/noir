@@ -14,6 +14,7 @@ use petgraph::prelude::NodeIndex as PetGraphIndex;
 use rustc_hash::FxHashMap as HashMap;
 
 use crate::QuotedType;
+use crate::ast::Constrainedness;
 use crate::ast::{
     ExpressionKind, Ident, LValue, Pattern, StatementKind, UnaryOp, UnresolvedTypeData,
     UnresolvedTypeExpression,
@@ -2350,7 +2351,7 @@ impl NodeInterner {
         };
 
         let env = Box::new(Type::Unit);
-        (Type::Function(args, Box::new(ret.clone()), env, false), ret)
+        (Type::Function(args, Box::new(ret.clone()), env, Constrainedness::Constrained), ret)
     }
 
     /// Returns the type of a prefix operator (which is always a function), along with its return type.
@@ -2359,7 +2360,7 @@ impl NodeInterner {
         let args = vec![rhs_type];
         let ret = self.id_type(operator_expr);
         let env = Box::new(Type::Unit);
-        (Type::Function(args, Box::new(ret.clone()), env, false), ret)
+        (Type::Function(args, Box::new(ret.clone()), env, Constrainedness::Constrained), ret)
     }
 
     pub fn is_in_lsp_mode(&self) -> bool {

@@ -4,12 +4,13 @@ use noirc_errors::Location;
 
 use crate::{
     BinaryTypeOperator, Kind, QuotedType, Type, TypeBinding, TypeBindings, TypeVariable,
+    ast::Constrainedness,
     hir::{def_collector::dc_crate::CompilationError, type_check::TypeCheckError},
     hir_def::{
         expr::{HirCallExpression, HirExpression, HirIdent},
         types,
     },
-    node_interner::{ExprId, NodeInterner},
+    node_interner::{DefinitionKind, ExprId, NodeInterner},
 };
 
 pub struct UnificationError;
@@ -17,7 +18,13 @@ pub struct UnificationError;
 enum FunctionCoercionResult {
     NoCoercion,
     Coerced(Type),
-    UnconstrainedMismatch(Type),
+    UnconstrainedMismatch(Type, FunctionCoercionDirection),
+}
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum FunctionCoercionDirection {
+    ConstrainedToUnconstrained,
+    UnconstrainedToConstrained,
 }
 
 /// When unifying types we sometimes need to adjust the algorithm a bit.
@@ -529,15 +536,18 @@ impl Type {
         }
 
         // Try to coerce `fn (..) -> T` to `unconstrained fn (..) -> T`
-        match self.try_fn_to_unconstrained_fn_coercion(expected) {
+        match self.try_fn_to_unconstrained_fn_coercion(expected, expression, interner) {
             FunctionCoercionResult::NoCoercion => errors.push(make_error()),
             FunctionCoercionResult::Coerced(coerced_self) => {
                 coerced_self.unify_with_coercions(
                     expected, expression, location, interner, errors, make_error,
                 );
             }
-            FunctionCoercionResult::UnconstrainedMismatch(coerced_self) => {
-                errors.push(CompilationError::TypeError(TypeCheckError::UnsafeFn { location }));
+            FunctionCoercionResult::UnconstrainedMismatch(coerced_self, direction) => {
+                errors.push(CompilationError::TypeError(TypeCheckError::UnsafeFn {
+                    direction,
+                    location,
+                }));
 
                 coerced_self.unify_with_coercions(
                     expected, expression, location, interner, errors, make_error,
@@ -548,7 +558,16 @@ impl Type {
 
     // If `self` and `expected` are function types, tries to coerce `self` to `expected`.
     // Returns None if no coercion can be applied, otherwise returns `self` coerced to `expected`.
-    fn try_fn_to_unconstrained_fn_coercion(&self, expected: &Type) -> FunctionCoercionResult {
+    fn try_fn_to_unconstrained_fn_coercion(
+        &self,
+        expected: &Type,
+        expression: ExprId,
+        interner: &mut NodeInterner,
+    ) -> FunctionCoercionResult {
+        use crate::ast::Constrainedness::*;
+        use FunctionCoercionDirection::*;
+        use FunctionCoercionResult::*;
+
         // If `self` and `expected` are function types, `self` can be coerced to `expected`
         // if `self` is unconstrained and `expected` is not. The other way around is an error, though.
         if let (
@@ -559,12 +578,39 @@ impl Type {
             let coerced_type = Type::Function(params, ret, env, unconstrained_expected);
 
             match (unconstrained_self, unconstrained_expected) {
-                (true, true) | (false, false) => FunctionCoercionResult::NoCoercion,
-                (false, true) => FunctionCoercionResult::Coerced(coerced_type),
-                (true, false) => FunctionCoercionResult::UnconstrainedMismatch(coerced_type),
+                (Constrained, Constrained)
+                | (Unconstrained, Unconstrained)
+                | (DualConstrained, DualConstrained) => FunctionCoercionResult::NoCoercion,
+                (Constrained, Unconstrained | DualConstrained) => {
+                    // Only allow coercions if the source expression is a known function, not a
+                    // first-class one.
+                    if Self::is_known_function(interner, expression) {
+                        Coerced(coerced_type)
+                    } else {
+                        UnconstrainedMismatch(coerced_type, ConstrainedToUnconstrained)
+                    }
+                }
+                (Unconstrained, Constrained | DualConstrained) => {
+                    UnconstrainedMismatch(coerced_type, UnconstrainedToConstrained)
+                }
+                (DualConstrained, _) => Coerced(coerced_type),
             }
         } else {
-            FunctionCoercionResult::NoCoercion
+            NoCoercion
+        }
+    }
+
+    /// Returns true if a function is 'known' for the purpose of coercing a
+    /// constrained function to an unconstrained function.
+    pub fn is_known_function(interner: &mut NodeInterner, expression: ExprId) -> bool {
+        let expression = interner.expression(&expression);
+        match expression {
+            HirExpression::Ident(ident, _) => {
+                let definition = interner.definition(ident.id);
+                matches!(&definition.kind, DefinitionKind::Function(_))
+            }
+            HirExpression::Lambda(_) => true,
+            _ => false,
         }
     }
 
@@ -675,9 +721,11 @@ fn invoke_function_on_expression(
 
     interner.push_expr_location(func, location);
     interner.push_expr_type(expression, target_type.clone());
+    let args = vec![expression_type];
 
-    let func_type =
-        Type::Function(vec![expression_type], Box::new(target_type), Box::new(Type::Unit), false);
+    // This function is only used with constrained conversion functions
+    let constrained = Constrainedness::Constrained;
+    let func_type = Type::Function(args, Box::new(target_type), Box::new(Type::Unit), constrained);
     interner.push_expr_type(func, func_type);
 }
 

@@ -1,5 +1,5 @@
 use noirc_frontend::{
-    ast::{AsTraitPath, UnresolvedType, UnresolvedTypeData},
+    ast::{AsTraitPath, Constrainedness, UnresolvedType, UnresolvedTypeData},
     token::{Keyword, Token},
 };
 
@@ -97,10 +97,18 @@ impl Formatter<'_> {
 
                 self.write_right_paren();
             }
-            UnresolvedTypeData::Function(args, return_type, env, unconstrained) => {
-                if unconstrained {
-                    self.write_keyword(Keyword::Unconstrained);
-                    self.write_space();
+            UnresolvedTypeData::Function(args, return_type, env, constrainedness) => {
+                match constrainedness {
+                    Constrainedness::Constrained => (),
+                    Constrainedness::Unconstrained => {
+                        self.write_keyword(Keyword::Unconstrained);
+                        self.write_space();
+                    }
+                    Constrainedness::DualConstrained => {
+                        self.write_token(Token::QuestionMark);
+                        self.write_keyword(Keyword::Unconstrained);
+                        self.write_space();
+                    }
                 }
 
                 self.write_keyword(Keyword::Fn);

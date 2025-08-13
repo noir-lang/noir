@@ -570,15 +570,13 @@ fn func_meta_type_to_string(func_meta: &FuncMeta, name: &str, has_self_type: boo
 
     let is_enum_variant = func_meta.enum_variant_index.is_some();
 
-    if let Type::Function(args, ret, _env, unconstrained) = typ {
+    if let Type::Function(args, ret, _env, constrainedness) = typ {
         let mut string = String::new();
         if is_enum_variant {
             string.push_str(name);
             string.push('(');
         } else {
-            if *unconstrained {
-                string.push_str("unconstrained ");
-            }
+            string.push_str(constrainedness.syntax_string());
             string.push_str("fn(");
         }
         for (index, arg) in args.iter().enumerate() {

@@ -303,6 +303,7 @@ impl<'interner> TokenPrettyPrinter<'interner> {
             | Token::Pound
             | Token::Pipe
             | Token::Bang
+            | Token::QuestionMark
             | Token::DollarSign => {
                 write!(f, "{token}")
             }

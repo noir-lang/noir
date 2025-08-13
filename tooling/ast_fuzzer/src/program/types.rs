@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use iter_extended::vecmap;
 use noirc_frontend::{
-    ast::{BinaryOpKind, IntegerBitSize},
+    ast::{BinaryOpKind, Constrainedness, IntegerBitSize},
     hir_def,
     monomorphization::ast::{BinaryOp, Type},
     shared::Signedness,
@@ -165,12 +165,17 @@ pub fn to_hir_type(typ: &Type) -> hir_def::types::Type {
         Type::String(size) => HirType::String(size_const(*size)),
         Type::Array(size, typ) => HirType::Array(size_const(*size), Box::new(to_hir_type(typ))),
         Type::Tuple(items) => HirType::Tuple(items.iter().map(to_hir_type).collect()),
-        Type::Function(param_types, return_type, env_type, unconstrained) => HirType::Function(
-            vecmap(param_types, to_hir_type),
-            Box::new(to_hir_type(return_type)),
-            Box::new(to_hir_type(env_type)),
-            *unconstrained,
-        ),
+        Type::Function(param_types, return_type, env_type, unconstrained) => {
+            let param_types = vecmap(param_types, to_hir_type);
+            let return_type = Box::new(to_hir_type(return_type));
+            let env_type = Box::new(to_hir_type(env_type));
+            let constrainedness = if *unconstrained {
+                Constrainedness::Unconstrained
+            } else {
+                Constrainedness::Constrained
+            };
+            HirType::Function(param_types, return_type, env_type, constrainedness)
+        }
         Type::Reference(typ, mutable) => HirType::Reference(Box::new(to_hir_type(typ)), *mutable),
         Type::Slice(typ) => HirType::Slice(Box::new(to_hir_type(typ))),
         Type::FmtString(_, _) => {
