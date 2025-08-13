@@ -352,7 +352,7 @@ mod test {
     use crate::compare::Comparable;
 
     #[test]
-    fn matches_brillig_bitshift_error_with_other() {
+    fn matches_brillig_bitshift_error_with_acir_error() {
         let error = NargoErrorWithTypes(
             nargo::NargoError::ExecutionError(ExecutionError::AssertionFailed(
                 ResolvedAssertionPayload::Raw(RawAssertionPayload {
