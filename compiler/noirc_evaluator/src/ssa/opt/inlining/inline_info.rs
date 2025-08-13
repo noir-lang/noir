@@ -209,9 +209,12 @@ fn compute_function_should_be_inlined(
         return;
     }
 
+    let entry_block_id = function.entry_block();
+    let entry_block = &function.dfg[entry_block_id];
     let should_inline_no_pred_function =
         runtime.is_no_predicates() && inline_no_predicates_functions;
-    let should_inline = instruction_weight < MAX_INSTRUCTIONS as i64
+    let should_inline = (instruction_weight < MAX_INSTRUCTIONS as i64
+        && entry_block.successors().next().is_none())
         || net_cost < aggressiveness
         || runtime.is_inline_always()
         || should_inline_no_pred_function
