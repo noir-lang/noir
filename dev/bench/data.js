@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1755087923869,
+  "lastUpdate": 1755127646085,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -16871,48 +16871,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "7d98dc2ec806c49e41c98fe54b314f85c37b5473",
-          "message": "fix: push definition trait constraints after trait item constraint (#9354)",
-          "timestamp": "2025-07-29T19:07:45Z",
-          "tree_id": "35e85fb191052436457013799fff4aa1f4dd1d6e",
-          "url": "https://github.com/noir-lang/noir/commit/7d98dc2ec806c49e41c98fe54b314f85c37b5473"
-        },
-        "date": 1753817559284,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 256079,
-            "range": "± 1436",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 227433,
-            "range": "± 3820",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2813143,
-            "range": "± 3915",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "8264d307dc4f076f376ae616e84fb78a69744a9a",
           "message": "fix: replace implicitly added named generics with fresh type vars in check_trait_impl_where_clause_matches_trait_where_clause (#9352)",
           "timestamp": "2025-07-30T12:44:00Z",
@@ -18954,6 +18912,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2780738,
             "range": "± 1405",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "ee2ac1a04e85134079fbe557d4029d3f64aff7b6",
+          "message": "fix: assert types are not mutated in constant folding (#9481)",
+          "timestamp": "2025-08-13T23:00:16Z",
+          "tree_id": "ffe3cf0bae0ec1667de2161400b2ac0fcaa3926c",
+          "url": "https://github.com/noir-lang/noir/commit/ee2ac1a04e85134079fbe557d4029d3f64aff7b6"
+        },
+        "date": 1755127629163,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 246963,
+            "range": "± 660",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 219542,
+            "range": "± 2180",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2776812,
+            "range": "± 1780",
             "unit": "ns/iter"
           }
         ]
