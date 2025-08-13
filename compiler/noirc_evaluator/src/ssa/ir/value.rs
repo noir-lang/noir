@@ -104,6 +104,7 @@ impl ValueMapping {
     ///
     /// Mapping a [`ValueId`] to one of a different type implies a compilation error.
     #[must_use]
+    #[cfg(debug_assertions)]
     pub(crate) fn value_types_are_consistent(&self, dfg: &DataFlowGraph) -> bool {
         self.map.iter().all(|(from, to)| dfg.type_of_value(*from) == dfg.type_of_value(*to))
     }
