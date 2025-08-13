@@ -318,7 +318,7 @@ impl<'brillig> Context<'brillig> {
         // If a copy of this instruction exists earlier in the block, then reuse the previous results.
         let runtime_is_brillig = dfg.runtime().is_brillig();
         if let Some(cache_result) =
-            self.get_cached(dfg, dom, &instruction, *side_effects_enabled_var, block)
+            self.get_cached(dfg, dom, id, &instruction, *side_effects_enabled_var, block)
         {
             match cache_result {
                 CacheResult::Cached(cached) => {
@@ -564,6 +564,7 @@ impl<'brillig> Context<'brillig> {
         &self,
         dfg: &DataFlowGraph,
         dom: &mut DominatorTree,
+        id: InstructionId,
         instruction: &Instruction,
         side_effects_enabled_var: ValueId,
         block: BasicBlockId,
@@ -572,7 +573,28 @@ impl<'brillig> Context<'brillig> {
         let predicate = self.use_constraint_info && instruction.requires_acir_gen_predicate(dfg);
         let predicate = predicate.then_some(side_effects_enabled_var);
 
-        results_for_instruction.get(&predicate)?.get(block, dom, instruction.has_side_effects(dfg))
+        let cached_results = results_for_instruction.get(&predicate)?.get(
+            block,
+            dom,
+            instruction.has_side_effects(dfg),
+        );
+
+        cached_results.filter(|results| {
+            // This is a hacky solution to https://github.com/noir-lang/noir/issues/9477
+            // We explicitly check that the cached result values are of the same type as expected by the instruction
+            // being checked against the cache and reject if they differ.
+            if let CacheResult::Cached(results) = results {
+                let old_results = dfg.instruction_results(id).to_vec();
+
+                results.len() == old_results.len()
+                    && old_results
+                        .iter()
+                        .zip(results.iter())
+                        .all(|(old, new)| dfg.type_of_value(*old) == dfg.type_of_value(*new))
+            } else {
+                true
+            }
+        })
     }
 
     /// Checks if the given instruction is a call to a brillig function with all constant arguments.
