@@ -17,11 +17,11 @@ use crate::ssa::{
         dfg::DataFlowGraph,
         function::{Function, FunctionId},
         instruction::{
-            Binary, BinaryOp, ConstrainError, Instruction, TerminatorInstruction,
+            Binary, BinaryOp, ConstrainError, Instruction, Intrinsic, TerminatorInstruction,
             binary::{BinaryEvaluationResult, eval_constant_binary_op},
         },
         types::{NumericType, Type},
-        value::ValueId,
+        value::{Value, ValueId},
     },
     opt::simple_optimization::SimpleOptimizationContext,
     ssa_gen::Ssa,
@@ -89,18 +89,16 @@ impl Function {
                 if !instruction.requires_acir_gen_predicate(context.dfg) {
                     return;
                 }
-                // Remove the current instruction and insert defaults for the results.
-                context.remove_current_instruction();
-
-                let result_ids = context.dfg.instruction_results(context.instruction_id).to_vec();
-
-                for result_id in result_ids {
-                    let typ = &context.dfg.type_of_value(result_id);
-                    let default_value = zeroed_value(context.dfg, func_id, block_id, typ);
-                    context.replace_value(result_id, default_value);
-                }
+                remove_and_replace_with_defaults(context, func_id, block_id);
                 return;
             }
+
+            // Check if the current predicate is known to be enabled.
+            let is_predicate_constant_one =
+                || match context.dfg.get_numeric_constant(side_effects_condition) {
+                    Some(predicate) => predicate.is_one(),
+                    None => false, // The predicate is a variable
+                };
 
             match instruction {
                 Instruction::Constrain(lhs, rhs, _) => {
@@ -133,15 +131,8 @@ impl Function {
                         let requires_acir_gen_predicate =
                             binary.requires_acir_gen_predicate(context.dfg);
 
-                        // Check if the current predicate is known to be enabled.
-                        let is_predicate_constant_one =
-                            match context.dfg.get_numeric_constant(side_effects_condition) {
-                                Some(predicate) => predicate.is_one(),
-                                None => false, // The predicate is a variable
-                            };
-
                         let fails_under_predicate =
-                            requires_acir_gen_predicate && !is_predicate_constant_one;
+                            requires_acir_gen_predicate && !is_predicate_constant_one();
 
                         // Insert the instruction right away so we can add a constrain immediately after it
                         context.insert_current_instruction();
@@ -194,12 +185,7 @@ impl Function {
                     };
 
                     if array_op_always_fails {
-                        let is_predicate_constant_one =
-                            match context.dfg.get_numeric_constant(side_effects_condition) {
-                                Some(predicate) => predicate.is_one(),
-                                None => false, // The predicate is a variable
-                            };
-                        current_block_reachability = if is_predicate_constant_one {
+                        current_block_reachability = if is_predicate_constant_one() {
                             // If we have an array that contains references we no longer need to bother with resolution of those references.
                             // However, we want a trap to still be triggered by an OOB array access.
                             // Thus, we can replace our array with dummy numerics to avoid unnecessary allocations
@@ -242,6 +228,37 @@ impl Function {
                         } else {
                             Reachability::UnreachableUnderPredicate
                         };
+                    }
+                }
+                // Intrinsic Slice operations in ACIR on empty arrays need to be replaced with a (conditional) constraint.
+                Instruction::Call { func, arguments } if context.dfg.runtime().is_acir() => {
+                    if let Value::Intrinsic(Intrinsic::SlicePopBack | Intrinsic::SlicePopFront) =
+                        &context.dfg[*func]
+                    {
+                        let length = arguments.iter().next().unwrap_or_else(|| {
+                            unreachable!("slice operations have 2 arguments: [length, slice]")
+                        });
+                        let is_empty =
+                            context.dfg.get_numeric_constant(*length).is_some_and(|v| v.is_zero());
+                        // If the compiler knows the slice is empty, there is no point trying to pop from it, we know it will fail.
+                        // Barretenberg doesn't handle memory operations with predicates, so we can't rely on those to disable the operation
+                        // based on the current side effect variable. Instead we need to replace it with a conditional constraint.
+                        if is_empty {
+                            current_block_reachability = if is_predicate_constant_one() {
+                                // The instruction will always fail, so we can leave it in and mark the rest of the block unreachable.
+                                Reachability::Unreachable
+                            } else {
+                                insert_constraint(
+                                    context,
+                                    block_id,
+                                    side_effects_condition,
+                                    "Index out of bounds".to_string(),
+                                );
+                                remove_and_replace_with_defaults(context, func_id, block_id);
+
+                                Reachability::UnreachableUnderPredicate
+                            }
+                        }
                     }
                 }
                 _ => (),
@@ -342,6 +359,37 @@ fn zeroed_value(
         }
         Type::Function => dfg.import_function(func_id),
     }
+}
+
+/// Remove the current instruction and replace it with default values.
+fn remove_and_replace_with_defaults<'dfg, 'mapping>(
+    context: &mut SimpleOptimizationContext<'dfg, 'mapping>,
+    func_id: FunctionId,
+    block_id: BasicBlockId,
+) {
+    context.remove_current_instruction();
+
+    let result_ids = context.dfg.instruction_results(context.instruction_id).to_vec();
+
+    for result_id in result_ids {
+        let typ = &context.dfg.type_of_value(result_id);
+        let default_value = zeroed_value(context.dfg, func_id, block_id, typ);
+        context.replace_value(result_id, default_value);
+    }
+}
+
+/// Insert a `constrain 0 == <predicate>, "<msg>"` instruction.
+fn insert_constraint<'dfg, 'mapping>(
+    context: &mut SimpleOptimizationContext<'dfg, 'mapping>,
+    block_id: BasicBlockId,
+    predicate: ValueId,
+    msg: String,
+) {
+    let zero = context.dfg.make_constant(0_u128.into(), NumericType::bool());
+    let message = Some(ConstrainError::StaticString(msg));
+    let instruction = Instruction::Constrain(zero, predicate, message);
+    let call_stack = context.dfg.get_instruction_call_stack_id(context.instruction_id);
+    context.dfg.insert_instruction_and_results(instruction, block_id, None, call_stack);
 }
 
 #[cfg(test)]
@@ -871,11 +919,11 @@ mod test {
         let src = "
         acir(inline) predicate_pure fn main f0 {
           b0():
-            v0 = allocate -> &mut u8                      
-            store u8 0 at v0                               
+            v0 = allocate -> &mut u8
+            store u8 0 at v0
             v2 = make_array [u8 0, v0] : [(u8, &mut u8); 1]
-            v4 = array_get v2, index u32 2 -> u8         
-            v6 = array_get v2, index u32 3 -> &mut u8      
+            v4 = array_get v2, index u32 2 -> u8
+            v6 = array_get v2, index u32 3 -> &mut u8
             return v4
         }
         ";
@@ -904,11 +952,11 @@ mod test {
         let src = "
         brillig(inline) predicate_pure fn main f0 {
           b0():
-            v0 = allocate -> &mut u8                      
-            store u8 0 at v0                               
+            v0 = allocate -> &mut u8
+            store u8 0 at v0
             v2 = make_array [u8 0, v0] : [(u8, &mut u8); 1]
-            v4 = array_get v2, index u32 2 -> u8         
-            v6 = array_get v2, index u32 3 -> &mut u8      
+            v4 = array_get v2, index u32 2 -> u8
+            v6 = array_get v2, index u32 3 -> &mut u8
             return v4
         }
         ";

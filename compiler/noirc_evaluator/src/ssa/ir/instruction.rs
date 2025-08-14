@@ -391,9 +391,17 @@ impl Instruction {
             Instruction::Call { func, .. } => match dfg[*func] {
                 Value::Function(id) => !matches!(dfg.purity_of(id), Some(Purity::Pure)),
                 Value::Intrinsic(intrinsic) => {
-                    // These utilize `noirc_evaluator::acir::Context::get_flattened_index` internally
-                    // which uses the side effects predicate.
-                    matches!(intrinsic, Intrinsic::SliceInsert | Intrinsic::SliceRemove)
+                    match intrinsic {
+                        // These utilize `noirc_evaluator::acir::Context::get_flattened_index` internally
+                        // which uses the side effects predicate.
+                        Intrinsic::SliceInsert | Intrinsic::SliceRemove => true,
+                        // Technically these don't use the side effects predicate, but they fail on empty slices,
+                        // and by pretending that they require the predicate, we can preserve any current side
+                        // effect variable in the SSA and use it to optimize out memory operations that we know
+                        // would fail, but they shouldn't because they might be disabled.
+                        Intrinsic::SlicePopFront | Intrinsic::SlicePopBack => true,
+                        _ => false,
+                    }
                 }
                 _ => false,
             },
