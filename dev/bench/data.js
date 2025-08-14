@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1755199799989,
+  "lastUpdate": 1755199942084,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -7010,40 +7010,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "922efbdb30b35c7e93f8db829436fbe0a03ffae1",
-          "message": "fix: modulo overflow in comptime (#9348)",
-          "timestamp": "2025-07-30T14:43:05Z",
-          "tree_id": "59b169ae7402cf35c78fac04acbcbe9f21208608",
-          "url": "https://github.com/noir-lang/noir/commit/922efbdb30b35c7e93f8db829436fbe0a03ffae1"
-        },
-        "date": 1753888421034,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.019,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 0.104,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -10143,6 +10109,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 0.093,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3052aa0e75c4eacf173adc272c4a087bb184be30",
+          "message": "chore: restore noir libs in CI (#9499)",
+          "timestamp": "2025-08-14T20:27:13+01:00",
+          "tree_id": "e89b69bbc0a36f2925d56e7b85f1621eee87cfa4",
+          "url": "https://github.com/noir-lang/noir/commit/3052aa0e75c4eacf173adc272c4a087bb184be30"
+        },
+        "date": 1755199924253,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.02,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 0.101,
             "unit": "s"
           }
         ]
