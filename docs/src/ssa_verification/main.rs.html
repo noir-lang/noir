@@ -141,9 +141,7 @@
 <a href="#140" id="140">140</a>
 <a href="#141" id="141">141</a>
 <a href="#142" id="142">142</a>
-<a href="#143" id="143">143</a>
-<a href="#144" id="144">144</a>
-<a href="#145" id="145">145</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#143" id="143">143</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
 </span><span class="kw">mod </span>acir_instruction_builder;
@@ -227,8 +225,6 @@ Each test case generates formatted SSA representation and serialized ACIR output
     </span><span class="kw">let </span>u64_var = Variable { variable_type: VariableType::Unsigned, variable_size: <span class="number">64 </span>};
     <span class="comment">// 32 bit unsigned
     </span><span class="kw">let </span>u32_var = Variable { variable_type: VariableType::Unsigned, variable_size: <span class="number">32 </span>};
-    <span class="comment">// 8 bit unsigned
-    </span><span class="kw">let </span>u8_var = Variable { variable_type: VariableType::Unsigned, variable_size: <span class="number">8 </span>};
 
     <span class="comment">// Tests for bitvector operations with max bit size (128 bits)
     </span>all_artifacts.push(InstructionArtifacts::new_add(<span class="kw-2">&amp;</span>u128_var, <span class="kw-2">&amp;</span>u128_var));
@@ -267,9 +263,9 @@ Each test case generates formatted SSA representation and serialized ACIR output
     // shl truncates variable, so test different sizes
     // Too heavy to test 127 bits, but it just multiplies or divides by 2^rhs
     // Should work the same if div and mul are verified
-    </span>all_artifacts.push(InstructionArtifacts::new_shl(<span class="kw-2">&amp;</span>u64_var, <span class="kw-2">&amp;</span>u8_var));
-    all_artifacts.push(InstructionArtifacts::new_shr(<span class="kw-2">&amp;</span>u64_var, <span class="kw-2">&amp;</span>u8_var));
-    all_artifacts.push(InstructionArtifacts::new_shl(<span class="kw-2">&amp;</span>u32_var, <span class="kw-2">&amp;</span>u8_var));
+    </span>all_artifacts.push(InstructionArtifacts::new_shl(<span class="kw-2">&amp;</span>u64_var, <span class="kw-2">&amp;</span>u64_var));
+    all_artifacts.push(InstructionArtifacts::new_shr(<span class="kw-2">&amp;</span>u64_var, <span class="kw-2">&amp;</span>u64_var));
+    all_artifacts.push(InstructionArtifacts::new_shl(<span class="kw-2">&amp;</span>u32_var, <span class="kw-2">&amp;</span>u32_var));
 
     <span class="comment">// Test binary operations with 32 bits
     </span>all_artifacts.push(InstructionArtifacts::new_xor(<span class="kw-2">&amp;</span>u32_var, <span class="kw-2">&amp;</span>u32_var));

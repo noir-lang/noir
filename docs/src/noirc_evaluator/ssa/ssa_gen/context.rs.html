@@ -1046,60 +1046,7 @@
 <a href="#1045" id="1045">1045</a>
 <a href="#1046" id="1046">1046</a>
 <a href="#1047" id="1047">1047</a>
-<a href="#1048" id="1048">1048</a>
-<a href="#1049" id="1049">1049</a>
-<a href="#1050" id="1050">1050</a>
-<a href="#1051" id="1051">1051</a>
-<a href="#1052" id="1052">1052</a>
-<a href="#1053" id="1053">1053</a>
-<a href="#1054" id="1054">1054</a>
-<a href="#1055" id="1055">1055</a>
-<a href="#1056" id="1056">1056</a>
-<a href="#1057" id="1057">1057</a>
-<a href="#1058" id="1058">1058</a>
-<a href="#1059" id="1059">1059</a>
-<a href="#1060" id="1060">1060</a>
-<a href="#1061" id="1061">1061</a>
-<a href="#1062" id="1062">1062</a>
-<a href="#1063" id="1063">1063</a>
-<a href="#1064" id="1064">1064</a>
-<a href="#1065" id="1065">1065</a>
-<a href="#1066" id="1066">1066</a>
-<a href="#1067" id="1067">1067</a>
-<a href="#1068" id="1068">1068</a>
-<a href="#1069" id="1069">1069</a>
-<a href="#1070" id="1070">1070</a>
-<a href="#1071" id="1071">1071</a>
-<a href="#1072" id="1072">1072</a>
-<a href="#1073" id="1073">1073</a>
-<a href="#1074" id="1074">1074</a>
-<a href="#1075" id="1075">1075</a>
-<a href="#1076" id="1076">1076</a>
-<a href="#1077" id="1077">1077</a>
-<a href="#1078" id="1078">1078</a>
-<a href="#1079" id="1079">1079</a>
-<a href="#1080" id="1080">1080</a>
-<a href="#1081" id="1081">1081</a>
-<a href="#1082" id="1082">1082</a>
-<a href="#1083" id="1083">1083</a>
-<a href="#1084" id="1084">1084</a>
-<a href="#1085" id="1085">1085</a>
-<a href="#1086" id="1086">1086</a>
-<a href="#1087" id="1087">1087</a>
-<a href="#1088" id="1088">1088</a>
-<a href="#1089" id="1089">1089</a>
-<a href="#1090" id="1090">1090</a>
-<a href="#1091" id="1091">1091</a>
-<a href="#1092" id="1092">1092</a>
-<a href="#1093" id="1093">1093</a>
-<a href="#1094" id="1094">1094</a>
-<a href="#1095" id="1095">1095</a>
-<a href="#1096" id="1096">1096</a>
-<a href="#1097" id="1097">1097</a>
-<a href="#1098" id="1098">1098</a>
-<a href="#1099" id="1099">1099</a>
-<a href="#1100" id="1100">1100</a>
-<a href="#1101" id="1101">1101</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
+<a href="#1048" id="1048">1048</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
 <span class="kw">use </span>std::sync::{Arc, Mutex, RwLock};
 
 <span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
@@ -1413,88 +1360,31 @@
         <span class="prelude-val">Ok</span>(<span class="self">self</span>.builder.numeric_constant(value, numeric_type))
     }
 
-    <span class="doccomment">/// Insert constraints ensuring that the operation does not overflow the bit size of the result
-    ///
-    /// If the result is unsigned, overflow will be checked during acir-gen (cf. issue #4456), except for
-    /// bit-shifts, because we will convert them to field multiplication
-    ///
-    /// If the result is signed, overflow will be checked during SSA optimization.
-    </span><span class="kw">fn </span>check_overflow(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        result: ValueId,
-        lhs: ValueId,
-        rhs: ValueId,
-        operator: BinaryOpKind,
-        location: Location,
-    ) -&gt; ValueId {
-        <span class="kw">let </span>result_type = <span class="self">self</span>.builder.current_function.dfg.type_of_value(result).unwrap_numeric();
-        <span class="kw">match </span>result_type {
-            NumericType::Signed { bit_size } =&gt; {
-                <span class="kw">match </span>operator {
-                    BinaryOpKind::Add | BinaryOpKind::Subtract | BinaryOpKind::Multiply =&gt; {
-                        <span class="comment">// Overflow check is deferred to ssa pass
-                        </span>result
-                    }
-                    BinaryOpKind::ShiftLeft | BinaryOpKind::ShiftRight =&gt; {
-                        <span class="self">self</span>.check_shift_overflow(result, rhs, bit_size, location)
-                    }
-                    <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"operator {} should not overflow"</span>, operator),
-                }
-            }
-            NumericType::Unsigned { bit_size } =&gt; {
-                <span class="kw">let </span>dfg = <span class="kw-2">&amp;</span><span class="self">self</span>.builder.current_function.dfg;
-                <span class="kw">let </span>max_lhs_bits = dfg.get_value_max_num_bits(lhs);
-
-                <span class="kw">match </span>operator {
-                    BinaryOpKind::Add | BinaryOpKind::Subtract | BinaryOpKind::Multiply =&gt; {
-                        <span class="comment">// Overflow check is deferred to acir-gen
-                        </span>result
-                    }
-                    BinaryOpKind::ShiftLeft =&gt; {
-                        <span class="kw">if let </span><span class="prelude-val">Some</span>(rhs_const) = dfg.get_numeric_constant(rhs) {
-                            <span class="kw">let </span>bit_shift_size = rhs_const.to_u128() <span class="kw">as </span>u32;
-
-                            <span class="kw">if </span>max_lhs_bits + bit_shift_size &lt;= bit_size {
-                                <span class="comment">// `lhs` has been casted up from a smaller type such that shifting it by a constant
-                                // `rhs` is known not to exceed the maximum bit size.
-                                </span><span class="kw">return </span>result;
-                            }
-                        }
-
-                        <span class="self">self</span>.check_shift_overflow(result, rhs, bit_size, location);
-                        result
-                    }
-
-                    <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"operator {} should not overflow"</span>, operator),
-                }
-            }
-            NumericType::NativeField =&gt; result,
-        }
-    }
-
-    <span class="doccomment">/// Overflow checks for bit-shift
-    /// We use Rust behavior for bit-shift:
-    /// If rhs is more or equal than the bit size, then we overflow
-    /// If not, we do not overflow and shift with 0 when bits are falling out of the bit size
-    </span><span class="kw">fn </span>check_shift_overflow(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        result: ValueId,
-        rhs: ValueId,
-        bit_size: u32,
-        location: Location,
-    ) -&gt; ValueId {
+    <span class="doccomment">/// Insert constraints ensuring that the right-hand side of a bit-shift operation
+    /// is less than the bit size of the left-hand side.
+    </span><span class="kw">fn </span>enforce_bitshift_rhs_lt_bit_size(<span class="kw-2">&amp;mut </span><span class="self">self</span>, rhs: ValueId) {
         <span class="kw">let </span>one = <span class="self">self</span>.builder.numeric_constant(FieldElement::one(), NumericType::bool());
-        <span class="macro">assert!</span>(<span class="self">self</span>.builder.current_function.dfg.type_of_value(rhs) == Type::unsigned(<span class="number">8</span>));
+        <span class="kw">let </span>rhs_type = <span class="self">self</span>.builder.current_function.dfg.type_of_value(rhs);
 
-        <span class="kw">let </span>bit_size_field = FieldElement::from(bit_size <span class="kw">as </span>i128);
-        <span class="kw">let </span>max = <span class="self">self</span>.builder.numeric_constant(bit_size_field, NumericType::unsigned(<span class="number">8</span>));
+        <span class="kw">let </span>assert_message = <span class="prelude-val">Some</span>(<span class="string">"attempt to bit-shift with overflow"</span>.to_owned());
+
+        <span class="kw">let </span>(bit_size, bit_size_field) = <span class="kw">match </span>rhs_type {
+            Type::Numeric(NumericType::Unsigned { bit_size }) =&gt; {
+                (bit_size, FieldElement::from(bit_size))
+            }
+            Type::Numeric(NumericType::Signed { bit_size }) =&gt; {
+                <span class="macro">assert!</span>(bit_size &gt; <span class="number">1</span>, <span class="string">"ICE - i1 is not a valid type"</span>);
+
+                (bit_size, FieldElement::from(bit_size - <span class="number">1</span>))
+            }
+            <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"check_shift_overflow called with non-numeric type"</span>),
+        };
+
+        <span class="kw">let </span>unsigned_typ = NumericType::unsigned(bit_size);
+        <span class="kw">let </span>max = <span class="self">self</span>.builder.numeric_constant(bit_size_field, unsigned_typ);
+        <span class="kw">let </span>rhs = <span class="self">self</span>.builder.insert_cast(rhs, unsigned_typ);
         <span class="kw">let </span>overflow = <span class="self">self</span>.builder.insert_binary(rhs, BinaryOp::Lt, max);
-        <span class="self">self</span>.builder.set_location(location).insert_constrain(
-            overflow,
-            one,
-            <span class="prelude-val">Some</span>(<span class="string">"attempt to bit-shift with overflow"</span>.to_owned().into()),
-        );
-        <span class="self">self</span>.builder.insert_truncate(result, bit_size, bit_size + <span class="number">1</span>)
+        <span class="self">self</span>.builder.insert_constrain(overflow, one, assert_message.map(Into::into));
     }
 
     <span class="doccomment">/// Insert a binary instruction at the end of the current block.
@@ -1513,18 +1403,22 @@
             std::mem::swap(<span class="kw-2">&amp;mut </span>lhs, <span class="kw-2">&amp;mut </span>rhs);
         }
 
-        <span class="kw">let </span><span class="kw-2">mut </span>result = <span class="self">self</span>.builder.set_location(location).insert_binary(lhs, op, rhs);
+        <span class="self">self</span>.builder.set_location(location);
+
+        <span class="kw">if </span><span class="macro">matches!</span>(operator, BinaryOpKind::ShiftLeft | BinaryOpKind::ShiftRight) {
+            <span class="self">self</span>.enforce_bitshift_rhs_lt_bit_size(rhs);
+        };
+
+        <span class="kw">let </span><span class="kw-2">mut </span>result = <span class="self">self</span>.builder.insert_binary(lhs, op, rhs);
 
         <span class="comment">// Check for integer overflow
-        </span><span class="kw">if </span><span class="macro">matches!</span>(
-            operator,
-            BinaryOpKind::Add
-                | BinaryOpKind::Subtract
-                | BinaryOpKind::Multiply
-                | BinaryOpKind::ShiftLeft
-        ) {
-            result = <span class="self">self</span>.check_overflow(result, lhs, rhs, operator, location);
-        }
+        </span><span class="kw">if </span><span class="macro">matches!</span>(operator, |BinaryOpKind::ShiftLeft| BinaryOpKind::ShiftRight) {
+            <span class="kw">let </span>result_type =
+                <span class="self">self</span>.builder.current_function.dfg.type_of_value(result).unwrap_numeric();
+            <span class="kw">if let </span>NumericType::Signed { bit_size } = result_type {
+                result = <span class="self">self</span>.builder.insert_truncate(result, bit_size, bit_size + <span class="number">1</span>);
+            }
+        };
 
         <span class="kw">if </span>operator_requires_not(operator) {
             result = <span class="self">self</span>.builder.insert_not(result);

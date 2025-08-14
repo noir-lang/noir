@@ -702,9 +702,9 @@
         ),
         SsaPass::new(Ssa::simplify_cfg, <span class="string">"Simplifying"</span>),
         SsaPass::new(Ssa::mem2reg, <span class="string">"Mem2Reg"</span>),
+        SsaPass::new(Ssa::remove_bit_shifts, <span class="string">"Removing Bit Shifts"</span>),
         SsaPass::new(Ssa::simplify_cfg, <span class="string">"Simplifying"</span>),
         SsaPass::new(Ssa::flatten_cfg, <span class="string">"Flattening"</span>),
-        SsaPass::new(Ssa::remove_bit_shifts, <span class="string">"Removing Bit Shifts"</span>),
         <span class="comment">// Run mem2reg once more with the flattened CFG to catch any remaining loads/stores
         </span>SsaPass::new(Ssa::mem2reg, <span class="string">"Mem2Reg"</span>),
         <span class="comment">// Run the inlining pass again to handle functions with `InlineType::NoPredicates`.

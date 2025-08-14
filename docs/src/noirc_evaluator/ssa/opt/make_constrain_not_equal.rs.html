@@ -115,7 +115,7 @@
             <span class="kw">return</span>;
         }
 
-        <span class="self">self</span>.simple_reachable_blocks_optimization(|context| {
+        <span class="self">self</span>.simple_optimization(|context| {
             <span class="kw">let </span>instruction = context.instruction();
 
             <span class="kw">let </span>Instruction::Constrain(lhs, rhs, msg) = instruction <span class="kw">else </span>{

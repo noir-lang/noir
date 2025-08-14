@@ -433,23 +433,90 @@
 <a href="#432" id="432">432</a>
 <a href="#433" id="433">433</a>
 <a href="#434" id="434">434</a>
-<a href="#435" id="435">435</a></pre></div><pre class="rust"><code><span class="doccomment">//! Implementations for [binary field operations][acir::brillig::Opcode::BinaryFieldOp] and
+<a href="#435" id="435">435</a>
+<a href="#436" id="436">436</a>
+<a href="#437" id="437">437</a>
+<a href="#438" id="438">438</a>
+<a href="#439" id="439">439</a>
+<a href="#440" id="440">440</a>
+<a href="#441" id="441">441</a>
+<a href="#442" id="442">442</a>
+<a href="#443" id="443">443</a>
+<a href="#444" id="444">444</a>
+<a href="#445" id="445">445</a>
+<a href="#446" id="446">446</a>
+<a href="#447" id="447">447</a>
+<a href="#448" id="448">448</a>
+<a href="#449" id="449">449</a>
+<a href="#450" id="450">450</a>
+<a href="#451" id="451">451</a>
+<a href="#452" id="452">452</a>
+<a href="#453" id="453">453</a>
+<a href="#454" id="454">454</a>
+<a href="#455" id="455">455</a>
+<a href="#456" id="456">456</a>
+<a href="#457" id="457">457</a>
+<a href="#458" id="458">458</a>
+<a href="#459" id="459">459</a>
+<a href="#460" id="460">460</a>
+<a href="#461" id="461">461</a>
+<a href="#462" id="462">462</a>
+<a href="#463" id="463">463</a>
+<a href="#464" id="464">464</a>
+<a href="#465" id="465">465</a>
+<a href="#466" id="466">466</a>
+<a href="#467" id="467">467</a>
+<a href="#468" id="468">468</a>
+<a href="#469" id="469">469</a>
+<a href="#470" id="470">470</a>
+<a href="#471" id="471">471</a>
+<a href="#472" id="472">472</a>
+<a href="#473" id="473">473</a>
+<a href="#474" id="474">474</a>
+<a href="#475" id="475">475</a>
+<a href="#476" id="476">476</a>
+<a href="#477" id="477">477</a>
+<a href="#478" id="478">478</a>
+<a href="#479" id="479">479</a>
+<a href="#480" id="480">480</a>
+<a href="#481" id="481">481</a>
+<a href="#482" id="482">482</a>
+<a href="#483" id="483">483</a>
+<a href="#484" id="484">484</a>
+<a href="#485" id="485">485</a>
+<a href="#486" id="486">486</a>
+<a href="#487" id="487">487</a>
+<a href="#488" id="488">488</a>
+<a href="#489" id="489">489</a>
+<a href="#490" id="490">490</a>
+<a href="#491" id="491">491</a>
+<a href="#492" id="492">492</a>
+<a href="#493" id="493">493</a>
+<a href="#494" id="494">494</a>
+<a href="#495" id="495">495</a>
+<a href="#496" id="496">496</a>
+<a href="#497" id="497">497</a>
+<a href="#498" id="498">498</a>
+<a href="#499" id="499">499</a>
+<a href="#500" id="500">500</a></pre></div><pre class="rust"><code><span class="doccomment">//! Implementations for [binary field operations][acir::brillig::Opcode::BinaryFieldOp] and
 //! [binary integer operations][acir::brillig::Opcode::BinaryIntOp].
 </span><span class="kw">use </span>std::ops::{BitAnd, BitOr, BitXor, Shl, Shr};
 
 <span class="kw">use </span>acir::AcirField;
 <span class="kw">use </span>acir::brillig::{BinaryFieldOp, BinaryIntOp, BitSize, IntegerBitSize};
 <span class="kw">use </span>num_bigint::BigUint;
-<span class="kw">use </span>num_traits::{CheckedDiv, WrappingAdd, WrappingMul, WrappingSub, Zero};
+<span class="kw">use </span>num_traits::{CheckedDiv, ToPrimitive, WrappingAdd, WrappingMul, WrappingSub, Zero};
 
 <span class="kw">use </span><span class="kw">crate</span>::memory::{MemoryTypeError, MemoryValue};
 
-<span class="attr">#[derive(Debug, thiserror::Error)]
+<span class="attr">#[derive(Debug, PartialEq, thiserror::Error)]
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">enum </span>BrilligArithmeticError {
     <span class="attr">#[error(<span class="string">"Bit size for lhs {lhs_bit_size} does not match op bit size {op_bit_size}"</span>)]
     </span>MismatchedLhsBitSize { lhs_bit_size: u32, op_bit_size: u32 },
     <span class="attr">#[error(<span class="string">"Bit size for rhs {rhs_bit_size} does not match op bit size {op_bit_size}"</span>)]
     </span>MismatchedRhsBitSize { rhs_bit_size: u32, op_bit_size: u32 },
+    <span class="attr">#[error(<span class="string">"Attempted to shift by {shift_size} bits on a type of bit size {bit_size}"</span>)]
+    </span>BitshiftOverflow { bit_size: u32, shift_size: u32 },
     <span class="attr">#[error(<span class="string">"Attempted to divide by zero"</span>)]
     </span>DivisionByZero,
 }
@@ -598,43 +665,66 @@
             }
         }
 
-        BinaryIntOp::Shl | BinaryIntOp::Shr =&gt; {
-            <span class="kw">let </span>rhs = rhs.expect_u8().map_err(|error| <span class="kw">match </span>error {
-                MemoryTypeError::MismatchedBitSize { value_bit_size, expected_bit_size } =&gt; {
-                    BrilligArithmeticError::MismatchedRhsBitSize {
-                        rhs_bit_size: value_bit_size,
-                        op_bit_size: expected_bit_size,
-                    }
+        BinaryIntOp::Shl | BinaryIntOp::Shr =&gt; <span class="kw">match </span>(lhs, rhs, bit_size) {
+            (MemoryValue::U1(lhs), MemoryValue::U1(rhs), IntegerBitSize::U1) =&gt; {
+                <span class="kw">if </span>rhs {
+                    <span class="prelude-val">Err</span>(BrilligArithmeticError::BitshiftOverflow { bit_size: <span class="number">1</span>, shift_size: <span class="number">1 </span>})
+                } <span class="kw">else </span>{
+                    <span class="prelude-val">Ok</span>(MemoryValue::U1(lhs))
                 }
-                <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"MemoryTypeError NotInteger is only produced by to_u128"</span>),
-            })<span class="question-mark">?</span>;
-
-            <span class="kw">match </span>(lhs, bit_size) {
-                (MemoryValue::U1(lhs), IntegerBitSize::U1) =&gt; {
-                    <span class="kw">let </span>result = <span class="kw">if </span>rhs == <span class="number">0 </span>{ lhs } <span class="kw">else </span>{ <span class="bool-val">false </span>};
-                    <span class="prelude-val">Ok</span>(MemoryValue::U1(result))
-                }
-                (MemoryValue::U8(lhs), IntegerBitSize::U8) =&gt; {
-                    <span class="prelude-val">Ok</span>(MemoryValue::U8(evaluate_binary_int_op_shifts(op, lhs, rhs)))
-                }
-                (MemoryValue::U16(lhs), IntegerBitSize::U16) =&gt; {
-                    <span class="prelude-val">Ok</span>(MemoryValue::U16(evaluate_binary_int_op_shifts(op, lhs, rhs)))
-                }
-                (MemoryValue::U32(lhs), IntegerBitSize::U32) =&gt; {
-                    <span class="prelude-val">Ok</span>(MemoryValue::U32(evaluate_binary_int_op_shifts(op, lhs, rhs)))
-                }
-                (MemoryValue::U64(lhs), IntegerBitSize::U64) =&gt; {
-                    <span class="prelude-val">Ok</span>(MemoryValue::U64(evaluate_binary_int_op_shifts(op, lhs, rhs)))
-                }
-                (MemoryValue::U128(lhs), IntegerBitSize::U128) =&gt; {
-                    <span class="prelude-val">Ok</span>(MemoryValue::U128(evaluate_binary_int_op_shifts(op, lhs, rhs)))
-                }
-                <span class="kw">_ </span>=&gt; <span class="prelude-val">Err</span>(BrilligArithmeticError::MismatchedLhsBitSize {
-                    lhs_bit_size: lhs.bit_size().to_u32::&lt;F&gt;(),
-                    op_bit_size: bit_size.into(),
-                }),
             }
-        }
+            (MemoryValue::U8(lhs), MemoryValue::U8(rhs), IntegerBitSize::U8) =&gt; {
+                <span class="kw">if </span>rhs &lt; <span class="number">8 </span>{
+                    <span class="prelude-val">Ok</span>(MemoryValue::U8(evaluate_binary_int_op_shifts(op, lhs, rhs)))
+                } <span class="kw">else </span>{
+                    <span class="prelude-val">Err</span>(BrilligArithmeticError::BitshiftOverflow {
+                        bit_size: <span class="number">8</span>,
+                        shift_size: rhs <span class="kw">as </span>u32,
+                    })
+                }
+            }
+            (MemoryValue::U16(lhs), MemoryValue::U16(rhs), IntegerBitSize::U16) =&gt; {
+                <span class="kw">if </span>rhs &lt; <span class="number">16 </span>{
+                    <span class="prelude-val">Ok</span>(MemoryValue::U16(evaluate_binary_int_op_shifts(op, lhs, rhs)))
+                } <span class="kw">else </span>{
+                    <span class="prelude-val">Err</span>(BrilligArithmeticError::BitshiftOverflow {
+                        bit_size: <span class="number">8</span>,
+                        shift_size: rhs <span class="kw">as </span>u32,
+                    })
+                }
+            }
+            (MemoryValue::U32(lhs), MemoryValue::U32(rhs), IntegerBitSize::U32) =&gt; {
+                <span class="kw">if </span>rhs &lt; <span class="number">32 </span>{
+                    <span class="prelude-val">Ok</span>(MemoryValue::U32(evaluate_binary_int_op_shifts(op, lhs, rhs)))
+                } <span class="kw">else </span>{
+                    <span class="prelude-val">Err</span>(BrilligArithmeticError::BitshiftOverflow { bit_size: <span class="number">8</span>, shift_size: rhs })
+                }
+            }
+            (MemoryValue::U64(lhs), MemoryValue::U64(rhs), IntegerBitSize::U64) =&gt; {
+                <span class="kw">if </span>rhs &lt; <span class="number">64 </span>{
+                    <span class="prelude-val">Ok</span>(MemoryValue::U64(evaluate_binary_int_op_shifts(op, lhs, rhs)))
+                } <span class="kw">else </span>{
+                    <span class="prelude-val">Err</span>(BrilligArithmeticError::BitshiftOverflow {
+                        bit_size: <span class="number">8</span>,
+                        shift_size: rhs <span class="kw">as </span>u32,
+                    })
+                }
+            }
+            (MemoryValue::U128(lhs), MemoryValue::U128(rhs), IntegerBitSize::U128) =&gt; {
+                <span class="kw">if </span>rhs &lt; <span class="number">128 </span>{
+                    <span class="prelude-val">Ok</span>(MemoryValue::U128(evaluate_binary_int_op_shifts(op, lhs, rhs)))
+                } <span class="kw">else </span>{
+                    <span class="prelude-val">Err</span>(BrilligArithmeticError::BitshiftOverflow {
+                        bit_size: <span class="number">8</span>,
+                        shift_size: rhs <span class="kw">as </span>u32,
+                    })
+                }
+            }
+            <span class="kw">_ </span>=&gt; <span class="prelude-val">Err</span>(BrilligArithmeticError::MismatchedLhsBitSize {
+                lhs_bit_size: lhs.bit_size().to_u32::&lt;F&gt;(),
+                op_bit_size: bit_size.into(),
+            }),
+        },
     }
 }
 
@@ -690,19 +780,19 @@
 ///
 /// # Panics
 /// If an unsupported operator is provided (i.e., not Shl or Shr).
-</span><span class="kw">fn </span>evaluate_binary_int_op_shifts&lt;T: From&lt;u8&gt; + Zero + Shl&lt;Output = T&gt; + Shr&lt;Output = T&gt;&gt;(
+</span><span class="kw">fn </span>evaluate_binary_int_op_shifts&lt;T: ToPrimitive + Zero + Shl&lt;Output = T&gt; + Shr&lt;Output = T&gt;&gt;(
     op: <span class="kw-2">&amp;</span>BinaryIntOp,
     lhs: T,
-    rhs: u8,
+    rhs: T,
 ) -&gt; T {
     <span class="kw">match </span>op {
         BinaryIntOp::Shl =&gt; {
-            <span class="kw">let </span>rhs_usize: usize = rhs <span class="kw">as </span>usize;
-            <span class="kw">if </span>rhs_usize &gt;= <span class="number">8 </span>* size_of::&lt;T&gt;() { T::zero() } <span class="kw">else </span>{ lhs &lt;&lt; rhs.into() }
+            <span class="kw">let </span>rhs_usize: usize = rhs.to_usize().expect(<span class="string">"Could not convert rhs to usize"</span>);
+            <span class="kw">if </span>rhs_usize &gt;= <span class="number">8 </span>* size_of::&lt;T&gt;() { T::zero() } <span class="kw">else </span>{ lhs &lt;&lt; rhs }
         }
         BinaryIntOp::Shr =&gt; {
-            <span class="kw">let </span>rhs_usize: usize = rhs <span class="kw">as </span>usize;
-            <span class="kw">if </span>rhs_usize &gt;= <span class="number">8 </span>* size_of::&lt;T&gt;() { T::zero() } <span class="kw">else </span>{ lhs &gt;&gt; rhs.into() }
+            <span class="kw">let </span>rhs_usize: usize = rhs.to_usize().expect(<span class="string">"Could not convert rhs to usize"</span>);
+            <span class="kw">if </span>rhs_usize &gt;= <span class="number">8 </span>* size_of::&lt;T&gt;() { T::zero() } <span class="kw">else </span>{ lhs &gt;&gt; rhs }
         }
         <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"Operator not handled by this function: {op:?}"</span>),
     }
@@ -866,6 +956,46 @@
             <span class="macro">vec!</span>[TestParams { a: <span class="number">5</span>, b: <span class="number">3</span>, result: <span class="number">1 </span>}, TestParams { a: <span class="number">5</span>, b: <span class="number">10</span>, result: <span class="number">0 </span>}];
 
         evaluate_int_ops(test_ops, BinaryIntOp::Div, bit_size);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>shl_test() {
+        <span class="kw">let </span>bit_size = IntegerBitSize::U8;
+
+        <span class="kw">let </span>test_ops =
+            <span class="macro">vec!</span>[TestParams { a: <span class="number">1</span>, b: <span class="number">7</span>, result: <span class="number">128 </span>}, TestParams { a: <span class="number">5</span>, b: <span class="number">7</span>, result: <span class="number">128 </span>}];
+
+        evaluate_int_ops(test_ops, BinaryIntOp::Shl, bit_size);
+
+        <span class="macro">assert_eq!</span>(
+            evaluate_binary_int_op(
+                <span class="kw-2">&amp;</span>BinaryIntOp::Shl,
+                MemoryValue::&lt;FieldElement&gt;::U8(<span class="number">1u8</span>),
+                MemoryValue::&lt;FieldElement&gt;::U8(<span class="number">8u8</span>),
+                IntegerBitSize::U8
+            ),
+            <span class="prelude-val">Err</span>(BrilligArithmeticError::BitshiftOverflow { bit_size: <span class="number">8</span>, shift_size: <span class="number">8 </span>})
+        );
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>shr_test() {
+        <span class="kw">let </span>bit_size = IntegerBitSize::U8;
+
+        <span class="kw">let </span>test_ops =
+            <span class="macro">vec!</span>[TestParams { a: <span class="number">1</span>, b: <span class="number">0</span>, result: <span class="number">1 </span>}, TestParams { a: <span class="number">5</span>, b: <span class="number">1</span>, result: <span class="number">2 </span>}];
+
+        evaluate_int_ops(test_ops, BinaryIntOp::Shr, bit_size);
+
+        <span class="macro">assert_eq!</span>(
+            evaluate_binary_int_op(
+                <span class="kw-2">&amp;</span>BinaryIntOp::Shr,
+                MemoryValue::&lt;FieldElement&gt;::U8(<span class="number">1u8</span>),
+                MemoryValue::&lt;FieldElement&gt;::U8(<span class="number">8u8</span>),
+                IntegerBitSize::U8
+            ),
+            <span class="prelude-val">Err</span>(BrilligArithmeticError::BitshiftOverflow { bit_size: <span class="number">8</span>, shift_size: <span class="number">8 </span>})
+        );
     }
 }
 </code></pre></div></section></main></body></html>

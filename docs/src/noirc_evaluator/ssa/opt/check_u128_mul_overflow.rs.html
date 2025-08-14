@@ -351,7 +351,7 @@
             <span class="kw">return</span>;
         }
 
-        <span class="self">self</span>.simple_reachable_blocks_optimization(|context| {
+        <span class="self">self</span>.simple_optimization(|context| {
             context.insert_current_instruction();
 
             <span class="kw">let </span>block_id = context.block_id;

@@ -667,7 +667,7 @@
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>expand_signed_checks(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
         <span class="comment">// TODO: consider whether we can implement this more efficiently in brillig.
 
-        </span><span class="self">self</span>.simple_reachable_blocks_optimization(|context| {
+        </span><span class="self">self</span>.simple_optimization(|context| {
             <span class="kw">let </span>instruction_id = context.instruction_id;
             <span class="kw">let </span>instruction = context.instruction();
 

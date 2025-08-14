@@ -467,7 +467,7 @@
         <span class="comment">// Make sure this optimization runs when there's only one block
         </span><span class="macro">assert_eq!</span>(function.dfg[block].successors().count(), <span class="number">0</span>);
 
-        function.simple_reachable_blocks_optimization_result(|context| {
+        function.simple_optimization_result(|context| {
             <span class="kw">let </span>instruction_id = context.instruction_id;
             <span class="kw">let </span>instruction = context.instruction();
 

@@ -2214,11 +2214,7 @@
 <a href="#2213" id="2213">2213</a>
 <a href="#2214" id="2214">2214</a>
 <a href="#2215" id="2215">2215</a>
-<a href="#2216" id="2216">2216</a>
-<a href="#2217" id="2217">2217</a>
-<a href="#2218" id="2218">2218</a>
-<a href="#2219" id="2219">2219</a>
-<a href="#2220" id="2220">2220</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
+<a href="#2216" id="2216">2216</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>nargo::errors::Location;
 <span class="kw">use </span>std::{
     collections::{BTreeMap, BTreeSet, HashSet},
@@ -3216,16 +3212,12 @@
 
         <span class="comment">// Choose a type for the LHS and RHS.
         </span><span class="kw">let </span>lhs_type = u.choose_iter(lhs_opts)<span class="question-mark">?</span>.clone();
-        <span class="kw">let </span>rhs_type = <span class="kw">match </span>op {
-            BinaryOp::ShiftLeft | BinaryOp::ShiftRight =&gt; <span class="kw-2">&amp;</span>types::U8,
-            <span class="kw">_ </span>=&gt; <span class="kw-2">&amp;</span>lhs_type,
-        };
 
         <span class="comment">// Generate expressions for LHS and RHS.
         </span><span class="kw">let </span>(lhs_expr, lhs_dyn) =
             <span class="self">self</span>.gen_expr(u, <span class="kw-2">&amp;</span>lhs_type, max_depth.saturating_sub(<span class="number">1</span>), Flags::NESTED)<span class="question-mark">?</span>;
         <span class="kw">let </span>(rhs_expr, rhs_dyn) =
-            <span class="self">self</span>.gen_expr(u, rhs_type, max_depth.saturating_sub(<span class="number">1</span>), Flags::NESTED)<span class="question-mark">?</span>;
+            <span class="self">self</span>.gen_expr(u, <span class="kw-2">&amp;</span>lhs_type, max_depth.saturating_sub(<span class="number">1</span>), Flags::NESTED)<span class="question-mark">?</span>;
 
         <span class="kw">let </span><span class="kw-2">mut </span>expr = expr::binary(lhs_expr, op, rhs_expr);
 

@@ -159,8 +159,7 @@
 <a href="#158" id="158">158</a>
 <a href="#159" id="159">159</a>
 <a href="#160" id="160">160</a>
-<a href="#161" id="161">161</a>
-<a href="#162" id="162">162</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::call_stack::CallStackId;
+<a href="#161" id="161">161</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::call_stack::CallStackId;
 
 <span class="kw">use </span>acvm::FieldElement;
 
@@ -171,8 +170,8 @@
         dfg::{DataFlowGraph, InsertInstructionResult},
         function::Function,
         instruction::{Instruction, InstructionId},
-        types::NumericType,
-        types::Type,
+        post_order::PostOrder,
+        types::{NumericType, Type},
         value::{ValueId, ValueMapping},
     },
 };
@@ -180,7 +179,7 @@
 <span class="kw">impl </span>Function {
     <span class="doccomment">/// Performs a simple optimization according to the given callback.
     ///
-    /// The function's [`Function::reachable_blocks`] are traversed in turn, and instructions in those blocks
+    /// The function's reverse [post order][PostOrder] are traversed in turn, and instructions in those blocks
     /// are then traversed in turn. For each one, `f` will be called with a context.
     ///
     /// The current instruction will be inserted at the end of the callback given to `mutate` unless
@@ -191,11 +190,11 @@
     ///
     /// `replace_value` can be used to replace a value with another one. This substitution will be
     /// performed in all subsequent instructions.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>simple_reachable_blocks_optimization&lt;F&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw-2">mut </span>f: F)
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>simple_optimization&lt;F&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw-2">mut </span>f: F)
     <span class="kw">where
         </span>F: FnMut(<span class="kw-2">&amp;mut </span>SimpleOptimizationContext&lt;<span class="lifetime">'_</span>, <span class="lifetime">'_</span>&gt;),
     {
-        <span class="self">self</span>.simple_reachable_blocks_optimization_result(<span class="kw">move </span>|context| {
+        <span class="self">self</span>.simple_optimization_result(<span class="kw">move </span>|context| {
             f(context);
             <span class="prelude-val">Ok</span>(())
         })
@@ -205,7 +204,7 @@
     <span class="doccomment">/// Performs a simple optimization according to the given callback, returning early if
     /// an error occurred.
     ///
-    /// The function's [`Function::reachable_blocks`] are traversed in turn, and instructions in those blocks
+    /// The function's reverse [post order][PostOrder] are traversed in turn, and instructions in those blocks
     /// are then traversed in turn. For each one, `f` will be called with a context.
     ///
     /// The current instruction will be inserted at the end of the callback given to `mutate` unless
@@ -216,17 +215,16 @@
     ///
     /// `replace_value` can be used to replace a value with another one. This substitution will be
     /// performed in all subsequent instructions.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>simple_reachable_blocks_optimization_result&lt;F&gt;(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        <span class="kw-2">mut </span>f: F,
-    ) -&gt; RtResult&lt;()&gt;
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>simple_optimization_result&lt;F&gt;(<span class="kw-2">&amp;mut </span><span class="self">self</span>, <span class="kw-2">mut </span>f: F) -&gt; RtResult&lt;()&gt;
     <span class="kw">where
         </span>F: FnMut(<span class="kw-2">&amp;mut </span>SimpleOptimizationContext&lt;<span class="lifetime">'_</span>, <span class="lifetime">'_</span>&gt;) -&gt; RtResult&lt;()&gt;,
     {
         <span class="kw">let </span><span class="kw-2">mut </span>values_to_replace = ValueMapping::default();
         <span class="kw">let </span><span class="kw-2">mut </span>enable_side_effects =
             <span class="self">self</span>.dfg.make_constant(FieldElement::from(<span class="number">1_u128</span>), NumericType::bool());
-        <span class="kw">for </span>block_id <span class="kw">in </span><span class="self">self</span>.reachable_blocks() {
+        <span class="kw">let </span><span class="kw-2">mut </span>reverse_post_order = PostOrder::with_function(<span class="self">self</span>).into_vec();
+        reverse_post_order.reverse();
+        <span class="kw">for </span>block_id <span class="kw">in </span>reverse_post_order {
             <span class="kw">let </span>instruction_ids = <span class="self">self</span>.dfg[block_id].take_instructions();
             <span class="self">self</span>.dfg[block_id].instructions_mut().reserve(instruction_ids.len());
             <span class="kw">for </span>instruction_id <span class="kw">in </span><span class="kw-2">&amp;</span>instruction_ids {

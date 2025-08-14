@@ -661,7 +661,7 @@
 /// These are operations that commonly fail with random constants.
 </span><span class="kw">pub fn </span>can_binary_op_overflow(op: <span class="kw-2">&amp;</span>BinaryOp) -&gt; bool {
     <span class="kw">use </span>BinaryOpKind::<span class="kw-2">*</span>;
-    <span class="macro">matches!</span>(op, Add | Subtract | Multiply | ShiftLeft)
+    <span class="macro">matches!</span>(op, Add | Subtract | Multiply | ShiftLeft | ShiftRight)
 }
 
 <span class="doccomment">/// Can the binary operation fail because the RHS is zero.

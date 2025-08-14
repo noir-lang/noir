@@ -390,7 +390,7 @@
     <span class="kw">fn </span>checked_to_unchecked(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
         <span class="kw">let </span><span class="kw-2">mut </span>value_max_num_bits = HashMap::&lt;ValueId, u32&gt;::default();
 
-        <span class="self">self</span>.simple_reachable_blocks_optimization(|context| {
+        <span class="self">self</span>.simple_optimization(|context| {
             <span class="kw">let </span>instruction = context.instruction();
             <span class="kw">let </span>Instruction::Binary(binary) = instruction <span class="kw">else </span>{
                 <span class="kw">return</span>;

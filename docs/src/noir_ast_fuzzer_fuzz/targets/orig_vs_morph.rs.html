@@ -827,11 +827,7 @@
 <a href="#826" id="826">826</a>
 <a href="#827" id="827">827</a>
 <a href="#828" id="828">828</a>
-<a href="#829" id="829">829</a>
-<a href="#830" id="830">830</a>
-<a href="#831" id="831">831</a>
-<a href="#832" id="832">832</a>
-<a href="#833" id="833">833</a></pre></div><pre class="rust"><code><span class="doccomment">//! Perform random metamorphic mutations on the AST and check that the
+<a href="#829" id="829">829</a></pre></div><pre class="rust"><code><span class="doccomment">//! Perform random metamorphic mutations on the AST and check that the
 //! execution result does not change.
 
 </span><span class="kw">use </span>std::cell::{Cell, RefCell};
@@ -1571,14 +1567,10 @@
 
         <span class="comment">// Choose a type for the LHS and RHS.
         </span><span class="kw">let </span>lhs_type = u.choose_iter(type_options)<span class="question-mark">?</span>;
-        <span class="kw">let </span>rhs_type = <span class="kw">match </span>op {
-            BinaryOp::ShiftLeft | BinaryOp::ShiftRight =&gt; <span class="kw-2">&amp;</span>types::U8,
-            <span class="kw">_ </span>=&gt; lhs_type,
-        };
 
         <span class="comment">// Generate expressions for LHS and RHS.
         </span><span class="kw">let </span>lhs_expr = gen_expr(u, lhs_type, max_depth.saturating_sub(<span class="number">1</span>))<span class="question-mark">?</span>;
-        <span class="kw">let </span>rhs_expr = gen_expr(u, rhs_type, max_depth.saturating_sub(<span class="number">1</span>))<span class="question-mark">?</span>;
+        <span class="kw">let </span>rhs_expr = gen_expr(u, lhs_type, max_depth.saturating_sub(<span class="number">1</span>))<span class="question-mark">?</span>;
 
         <span class="kw">let </span><span class="kw-2">mut </span>expr = expr::binary(lhs_expr, op, rhs_expr);
 

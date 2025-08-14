@@ -2507,33 +2507,7 @@
 <a href="#2506" id="2506">2506</a>
 <a href="#2507" id="2507">2507</a>
 <a href="#2508" id="2508">2508</a>
-<a href="#2509" id="2509">2509</a>
-<a href="#2510" id="2510">2510</a>
-<a href="#2511" id="2511">2511</a>
-<a href="#2512" id="2512">2512</a>
-<a href="#2513" id="2513">2513</a>
-<a href="#2514" id="2514">2514</a>
-<a href="#2515" id="2515">2515</a>
-<a href="#2516" id="2516">2516</a>
-<a href="#2517" id="2517">2517</a>
-<a href="#2518" id="2518">2518</a>
-<a href="#2519" id="2519">2519</a>
-<a href="#2520" id="2520">2520</a>
-<a href="#2521" id="2521">2521</a>
-<a href="#2522" id="2522">2522</a>
-<a href="#2523" id="2523">2523</a>
-<a href="#2524" id="2524">2524</a>
-<a href="#2525" id="2525">2525</a>
-<a href="#2526" id="2526">2526</a>
-<a href="#2527" id="2527">2527</a>
-<a href="#2528" id="2528">2528</a>
-<a href="#2529" id="2529">2529</a>
-<a href="#2530" id="2530">2530</a>
-<a href="#2531" id="2531">2531</a>
-<a href="#2532" id="2532">2532</a>
-<a href="#2533" id="2533">2533</a>
-<a href="#2534" id="2534">2534</a>
-<a href="#2535" id="2535">2535</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, rc::Rc};
+<a href="#2509" id="2509">2509</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, rc::Rc};
 
 <span class="kw">use </span>im::HashSet;
 <span class="kw">use </span>iter_extended::vecmap;
@@ -2544,9 +2518,9 @@
     Generics, Kind, NamedGeneric, ResolvedGeneric, Type, TypeBinding, TypeBindings,
     UnificationError,
     ast::{
-        AsTraitPath, BinaryOpKind, GenericTypeArgs, Ident, IntegerBitSize, PathKind, UnaryOp,
-        UnresolvedGeneric, UnresolvedGenerics, UnresolvedType, UnresolvedTypeData,
-        UnresolvedTypeExpression, WILDCARD_TYPE,
+        AsTraitPath, BinaryOpKind, GenericTypeArgs, Ident, PathKind, UnaryOp, UnresolvedGeneric,
+        UnresolvedGenerics, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression,
+        WILDCARD_TYPE,
     },
     elaborator::UnstableFeature,
     hir::{
@@ -3993,20 +3967,6 @@
             <span class="comment">// Matches on TypeVariable must be first so that we follow any type
             // bindings.
             </span>(TypeVariable(int), other) | (other, TypeVariable(int)) =&gt; {
-                <span class="kw">if </span>op.kind == BinaryOpKind::ShiftLeft || op.kind == BinaryOpKind::ShiftRight {
-                    <span class="self">self</span>.unify(
-                        rhs_type,
-                        <span class="kw-2">&amp;</span>Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight),
-                        || TypeCheckError::InvalidShiftSize { location },
-                    );
-                    <span class="kw">let </span>use_impl = <span class="kw">if </span>lhs_type.is_numeric_value() {
-                        <span class="kw">let </span>integer_type = <span class="self">self</span>.polymorphic_integer();
-                        <span class="self">self</span>.bind_type_variables_for_infix(lhs_type, op, <span class="kw-2">&amp;</span>integer_type, location)
-                    } <span class="kw">else </span>{
-                        <span class="bool-val">true
-                    </span>};
-                    <span class="kw">return </span><span class="prelude-val">Ok</span>((lhs_type.clone(), use_impl));
-                }
                 <span class="kw">if let </span>TypeBinding::Bound(binding) = <span class="kw-2">&amp;*</span>int.borrow() {
                     <span class="kw">return </span><span class="self">self</span>.infix_operand_type_rules(binding, op, other, location);
                 }
@@ -4014,12 +3974,6 @@
                 <span class="prelude-val">Ok</span>((other.clone(), use_impl))
             }
             (Integer(sign_x, bit_width_x), Integer(sign_y, bit_width_y)) =&gt; {
-                <span class="kw">if </span>op.kind == BinaryOpKind::ShiftLeft || op.kind == BinaryOpKind::ShiftRight {
-                    <span class="kw">if </span><span class="kw-2">*</span>sign_y != Signedness::Unsigned || <span class="kw-2">*</span>bit_width_y != IntegerBitSize::Eight {
-                        <span class="kw">return </span><span class="prelude-val">Err</span>(TypeCheckError::InvalidShiftSize { location });
-                    }
-                    <span class="kw">return </span><span class="prelude-val">Ok</span>((Integer(<span class="kw-2">*</span>sign_x, <span class="kw-2">*</span>bit_width_x), <span class="bool-val">false</span>));
-                }
                 <span class="kw">if </span>sign_x != sign_y {
                     <span class="kw">return </span><span class="prelude-val">Err</span>(TypeCheckError::IntegerSignedness {
                         sign_x: <span class="kw-2">*</span>sign_x,
@@ -4070,12 +4024,6 @@
             },
 
             (lhs, rhs) =&gt; {
-                <span class="kw">if </span>op.kind == BinaryOpKind::ShiftLeft || op.kind == BinaryOpKind::ShiftRight {
-                    <span class="kw">if </span>rhs == <span class="kw-2">&amp;</span>Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight) {
-                        <span class="kw">return </span><span class="prelude-val">Ok</span>((lhs.clone(), <span class="bool-val">true</span>));
-                    }
-                    <span class="kw">return </span><span class="prelude-val">Err</span>(TypeCheckError::InvalidShiftSize { location });
-                }
                 <span class="self">self</span>.unify(lhs, rhs, || TypeCheckError::TypeMismatchWithSource {
                     expected: lhs.clone(),
                     actual: rhs.clone(),

@@ -160,7 +160,7 @@
         <span class="comment">// Keeps the minimum bit size a value was range-checked against
         </span><span class="kw">let </span><span class="kw-2">mut </span>range_checks: HashMap&lt;ValueId, u32&gt; = HashMap::default();
 
-        <span class="self">self</span>.simple_reachable_blocks_optimization(|context| {
+        <span class="self">self</span>.simple_optimization(|context| {
             <span class="kw">let </span>instruction_id = context.instruction_id;
             <span class="kw">let </span>instruction = context.instruction();
 

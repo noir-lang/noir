@@ -463,12 +463,7 @@
 <a href="#462" id="462">462</a>
 <a href="#463" id="463">463</a>
 <a href="#464" id="464">464</a>
-<a href="#465" id="465">465</a>
-<a href="#466" id="466">466</a>
-<a href="#467" id="467">467</a>
-<a href="#468" id="468">468</a>
-<a href="#469" id="469">469</a>
-<a href="#470" id="470">470</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::typed_value::{TypedValue, ValueType};
+<a href="#465" id="465">465</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::typed_value::{TypedValue, ValueType};
 <span class="kw">use </span>acvm::FieldElement;
 <span class="kw">use </span>noir_ssa_executor::compiler::compile_from_ssa;
 <span class="kw">use </span>noirc_driver::{CompileOptions, CompiledProgram};
@@ -705,9 +700,6 @@
     <span class="doccomment">/// Inserts a left shift instruction between two values
     /// The right hand side is cast to 8 bits
     </span><span class="kw">pub fn </span>insert_shl_instruction(<span class="kw-2">&amp;mut </span><span class="self">self</span>, lhs: TypedValue, rhs: TypedValue) -&gt; TypedValue {
-        <span class="comment">// rhs must be 8bit, otherwise compiler will throw panic...
-        // TODO(sn): make something smarter than forcing rhs to be u8 and casting to u64 on field
-        </span><span class="kw">let </span>rhs = <span class="self">self</span>.insert_cast(rhs, ValueType::U8);
         <span class="kw">if </span>!lhs.supports_shift() {
             <span class="kw">return </span>lhs;
         }
@@ -718,8 +710,6 @@
     <span class="doccomment">/// Inserts a right shift instruction between two values
     /// The right hand side is cast to 8 bits
     </span><span class="kw">pub fn </span>insert_shr_instruction(<span class="kw-2">&amp;mut </span><span class="self">self</span>, lhs: TypedValue, rhs: TypedValue) -&gt; TypedValue {
-        <span class="comment">// TODO(sn): make something smarter than forcing rhs to be u8 and casting to u64 on field
-        </span><span class="kw">let </span>rhs = <span class="self">self</span>.insert_cast(rhs, ValueType::U8);
         <span class="kw">if </span>!lhs.supports_shift() {
             <span class="kw">return </span>lhs;
         }

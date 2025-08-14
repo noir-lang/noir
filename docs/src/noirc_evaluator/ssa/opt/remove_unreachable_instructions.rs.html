@@ -1125,7 +1125,7 @@
         <span class="kw">let </span>one = <span class="self">self</span>.dfg.make_constant(<span class="number">1_u32</span>.into(), NumericType::bool());
         <span class="kw">let </span><span class="kw-2">mut </span>side_effects_condition = one;
 
-        <span class="self">self</span>.simple_reachable_blocks_optimization(|context| {
+        <span class="self">self</span>.simple_optimization(|context| {
             <span class="kw">let </span>block_id = context.block_id;
 
             <span class="kw">if </span>current_block_id != <span class="prelude-val">Some</span>(block_id) {

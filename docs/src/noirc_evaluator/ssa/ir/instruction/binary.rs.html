@@ -450,7 +450,22 @@
 <a href="#449" id="449">449</a>
 <a href="#450" id="450">450</a>
 <a href="#451" id="451">451</a>
-<a href="#452" id="452">452</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
+<a href="#452" id="452">452</a>
+<a href="#453" id="453">453</a>
+<a href="#454" id="454">454</a>
+<a href="#455" id="455">455</a>
+<a href="#456" id="456">456</a>
+<a href="#457" id="457">457</a>
+<a href="#458" id="458">458</a>
+<a href="#459" id="459">459</a>
+<a href="#460" id="460">460</a>
+<a href="#461" id="461">461</a>
+<a href="#462" id="462">462</a>
+<a href="#463" id="463">463</a>
+<a href="#464" id="464">464</a>
+<a href="#465" id="465">465</a>
+<a href="#466" id="466">466</a>
+<a href="#467" id="467">467</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
 <span class="kw">use </span>num_traits::ToPrimitive <span class="kw">as _</span>;
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 
@@ -594,6 +609,15 @@
                 <span class="kw">return </span>Failure(<span class="string">"attempt to divide by zero"</span>.to_string());
             }
 
+            <span class="comment">// Check for overflow
+            </span><span class="kw">if </span>operator == BinaryOp::Shl || operator == BinaryOp::Shr {
+                <span class="kw">let </span>op = <span class="string">"bit-shift"</span>;
+
+                <span class="kw">if </span>rhs &gt;= bit_size <span class="kw">as </span>u128 {
+                    <span class="kw">return </span>Failure(<span class="macro">format!</span>(<span class="string">"attempt to {op} with overflow"</span>));
+                }
+            }
+
             <span class="kw">let </span><span class="prelude-val">Some</span>(result) = function(lhs, rhs) <span class="kw">else </span>{
                 <span class="kw">if let </span>BinaryOp::Shl = operator {
                     <span class="kw">return </span>CouldNotEvaluate;
@@ -635,7 +659,6 @@
             <span class="kw">let </span><span class="prelude-val">Some</span>(rhs) = try_convert_field_element_to_signed_integer(rhs, bit_size) <span class="kw">else </span>{
                 <span class="kw">return </span>CouldNotEvaluate;
             };
-
             <span class="kw">let </span>result = function(lhs, rhs);
             <span class="kw">let </span>result = <span class="kw">match </span>operator {
                 BinaryOp::Div | BinaryOp::Mod <span class="kw">if </span>rhs == <span class="number">0 </span>=&gt; {
@@ -646,9 +669,10 @@
                     // and the operation should be handled by ACIR generation.
                     </span><span class="kw">return </span>Failure(<span class="string">"attempt to divide by zero"</span>.to_string());
                 }
-                BinaryOp::Shr =&gt; {
-                    <span class="kw">if </span>rhs &gt;= bit_size <span class="kw">as </span>i128 {
-                        <span class="kw">if </span>lhs &gt;= <span class="number">0 </span>{ <span class="number">0 </span>} <span class="kw">else </span>{ -<span class="number">1 </span>}
+                BinaryOp::Shr | BinaryOp::Shl =&gt; {
+                    <span class="kw">if </span>rhs &gt;= (bit_size - <span class="number">1</span>) <span class="kw">as </span>i128 {
+                        <span class="kw">let </span>op = binary_op_function_name(operator);
+                        <span class="kw">return </span>Failure(<span class="macro">format!</span>(<span class="string">"attempt to {op} with overflow"</span>));
                     } <span class="kw">else </span>{
                         <span class="kw">let </span><span class="prelude-val">Some</span>(result) = result <span class="kw">else </span>{
                             <span class="kw">return </span>CouldNotEvaluate;
@@ -738,10 +762,14 @@
         <span class="comment">// signed to u128 conversion
         </span>FieldElement::from(int <span class="kw">as </span>u128)
     } <span class="kw">else </span>{
-        <span class="comment">// We add an offset of `bit_size` bits to shift the negative values into the range [2^(bitsize-1), 2^bitsize)
-        </span><span class="macro">assert!</span>(bit_size &lt; <span class="number">128</span>, <span class="string">"{bit_size} is too large"</span>);
-        <span class="kw">let </span>offset_int = (<span class="number">1i128 </span>&lt;&lt; bit_size) + int;
-        FieldElement::from(offset_int)
+        <span class="kw">let </span>two_complement = <span class="kw">match </span>bit_size {
+            <span class="number">8 </span>=&gt; ((int <span class="kw">as </span>i8) <span class="kw">as </span>u8) <span class="kw">as </span>u128,
+            <span class="number">16 </span>=&gt; ((int <span class="kw">as </span>i16) <span class="kw">as </span>u16) <span class="kw">as </span>u128,
+            <span class="number">32 </span>=&gt; ((int <span class="kw">as </span>i32) <span class="kw">as </span>u32) <span class="kw">as </span>u128,
+            <span class="number">64 </span>=&gt; ((int <span class="kw">as </span>i64) <span class="kw">as </span>u64) <span class="kw">as </span>u128,
+            <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"ICE - invalid bit size {bit_size} for signed integer"</span>),
+        };
+        FieldElement::from(two_complement)
     }
 }
 
@@ -858,7 +886,9 @@
 
     <span class="macro">proptest!</span> {
         <span class="attr">#[test]
-        </span><span class="kw">fn </span>signed_int_roundtrip(int: i128, bit_size <span class="kw">in </span><span class="number">1u32</span>..=<span class="number">64</span>) {
+        </span><span class="kw">fn </span>signed_int_roundtrip(int: i128, bit_size <span class="kw">in </span><span class="number">0usize</span>..=<span class="number">3</span>) {
+            <span class="kw">let </span>bit_sizes = [<span class="number">8</span>,<span class="number">16</span>,<span class="number">32</span>,<span class="number">64</span>];
+            <span class="kw">let </span>bit_size = bit_sizes[bit_size];
             <span class="kw">let </span>int = int % (<span class="number">1i128 </span>&lt;&lt; (bit_size - <span class="number">1</span>));
 
             <span class="kw">let </span>int_as_field = convert_signed_integer_to_field_element(int, bit_size);
