@@ -190,6 +190,14 @@ impl Comparable for NargoErrorWithTypes {
                 AssertionFailed(_, _, _),
                 SolvingError(OpcodeResolutionError::UnsatisfiedConstrain { .. }, _),
             ) => msg1.is_some_and(|msg| msg.contains("divide by zero")),
+            (
+                SolvingError(OpcodeResolutionError::IndexOutOfBounds { .. }, _),
+                AssertionFailed(_, _, _),
+            ) => msg2.is_some_and(|msg| msg.contains("Index out of bounds")),
+            (
+                AssertionFailed(_, _, _),
+                SolvingError(OpcodeResolutionError::IndexOutOfBounds { .. }, _),
+            ) => msg1.is_some_and(|msg| msg.contains("Index out of bounds")),
             _ => false,
         }
     }
