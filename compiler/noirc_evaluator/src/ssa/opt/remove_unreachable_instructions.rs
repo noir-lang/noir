@@ -363,8 +363,8 @@ fn zeroed_value(
 }
 
 /// Remove the current instruction and replace it with default values.
-fn remove_and_replace_with_defaults<'dfg, 'mapping>(
-    context: &mut SimpleOptimizationContext<'dfg, 'mapping>,
+fn remove_and_replace_with_defaults(
+    context: &mut SimpleOptimizationContext<'_, '_>,
     func_id: FunctionId,
     block_id: BasicBlockId,
 ) {
@@ -380,8 +380,8 @@ fn remove_and_replace_with_defaults<'dfg, 'mapping>(
 }
 
 /// Insert a `constrain 0 == <predicate>, "<msg>"` instruction.
-fn insert_constraint<'dfg, 'mapping>(
-    context: &mut SimpleOptimizationContext<'dfg, 'mapping>,
+fn insert_constraint(
+    context: &mut SimpleOptimizationContext<'_, '_>,
     block_id: BasicBlockId,
     predicate: ValueId,
     msg: String,
