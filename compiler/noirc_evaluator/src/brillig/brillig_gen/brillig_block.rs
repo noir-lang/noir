@@ -1712,7 +1712,10 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                     rhs_does_not_overflow,
                     BrilligBinaryOp::LessThan,
                 );
-                ctx.codegen_constrain(rhs_does_not_overflow, None);
+                ctx.codegen_constrain(
+                    rhs_does_not_overflow,
+                    Some("attempt to bit-shift with overflow".to_string()),
+                );
 
                 let one = ctx.make_constant_instruction(1_u128.into(), left.bit_size);
 
