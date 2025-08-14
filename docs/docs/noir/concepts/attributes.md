@@ -103,7 +103,7 @@ Marks the functions for fuzzing. See [Fuzzer](../../tooling/fuzzer.md) for more 
 
 ### `oracle`
 
-Mark a function as _oracle_; meaning it is an external unconstrained function, implemented in noir_js. See [Unconstrained](./unconstrained.md) and [NoirJS](../../reference/NoirJS/noir_js/index.md) for more details.
+Mark a function as _oracle_; meaning it is an external unconstrained function, implemented in noir_js. See [Unconstrained](./unconstrained.md) for more details.
 
 ### `test`
 
