@@ -1649,9 +1649,9 @@ impl<'interner> Monomorphizer<'interner> {
         } else if let ast::Type::Tuple(elements) = t {
             if elements.len() == 2 {
                 match &elements[0] {
-                    ast::Type::Tuple(fields) if fields.len() == 2 => {
-                        matches!(elements[1], ast::Type::Function(..))
-                    },
+                    ast::Type::Tuple(inner_elements) if inner_elements.len() == 2 => {
+                        matches!(inner_elements[1], ast::Type::Function(..))
+                    }
                     _ => false,
                 }
             } else {
@@ -1741,9 +1741,10 @@ impl<'interner> Monomorphizer<'interner> {
             // monomorphization consistent regardless of whether the flag is set, since the type
             // of functions would also need to be updated, which affects how closures are detected,
             // etc.
-            let constrained = !self.force_unconstrained;
+            let is_unconstrained = self.force_unconstrained;
 
-            let old_value = std::mem::replace(&mut self.in_unconstrained_function, constrained);
+            let old_value =
+                std::mem::replace(&mut self.in_unconstrained_function, is_unconstrained);
             let constrained = f.clone()(self)?;
 
             self.in_unconstrained_function = true;
@@ -2537,7 +2538,10 @@ impl<'interner> Monomorphizer<'interner> {
     // Functions are represented as pairs of (constrained, unconstrained) versions of the same
     // function. When calling them we select the version that correspondsd to the current
     // runtime environment. See https://github.com/noir-lang/noir/issues/7289 for the reasoning.
-    fn extract_function(&mut self, function: ExprId) -> Result<ast::Expression, MonomorphizationError> {
+    fn extract_function(
+        &mut self,
+        function: ExprId,
+    ) -> Result<ast::Expression, MonomorphizationError> {
         // If it is a known function we can compile only the required version
         if let HirExpression::Ident(ident, generics) = self.interner.expression(&function) {
             // Check if this directly refers to a function
