@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1755190703389,
+  "lastUpdate": 1755199799989,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -17401,48 +17401,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "922efbdb30b35c7e93f8db829436fbe0a03ffae1",
-          "message": "fix: modulo overflow in comptime (#9348)",
-          "timestamp": "2025-07-30T14:43:05Z",
-          "tree_id": "59b169ae7402cf35c78fac04acbcbe9f21208608",
-          "url": "https://github.com/noir-lang/noir/commit/922efbdb30b35c7e93f8db829436fbe0a03ffae1"
-        },
-        "date": 1753888286798,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 250619,
-            "range": "± 1248",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 222934,
-            "range": "± 1498",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2784635,
-            "range": "± 1196",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -19494,6 +19452,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2785104,
             "range": "± 13174",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3052aa0e75c4eacf173adc272c4a087bb184be30",
+          "message": "chore: restore noir libs in CI (#9499)",
+          "timestamp": "2025-08-14T20:27:13+01:00",
+          "tree_id": "e89b69bbc0a36f2925d56e7b85f1621eee87cfa4",
+          "url": "https://github.com/noir-lang/noir/commit/3052aa0e75c4eacf173adc272c4a087bb184be30"
+        },
+        "date": 1755199782534,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 248040,
+            "range": "± 970",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 218744,
+            "range": "± 9801",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2776748,
+            "range": "± 20990",
             "unit": "ns/iter"
           }
         ]
