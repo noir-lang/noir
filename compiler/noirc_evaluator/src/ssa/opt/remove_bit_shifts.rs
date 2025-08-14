@@ -499,4 +499,87 @@ mod tests {
         }
         ");
     }
+
+    #[test]
+    fn follows_canonical_block_ordering() {
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            constrain u1 0 == u1 1, "attempt to bit-shift with overflow"
+            v4 = shr u8 1, u8 98
+            v6 = eq v4, u8 0
+            jmpif v6 then: b7, else: b8
+          b1():
+            jmp b3()
+          b2():
+            jmp b3()
+          b3():
+            v11 = eq v9, u8 1
+            jmpif v11 then: b4, else: b5
+          b4():
+            jmp b6()
+          b5():
+            jmp b6()
+          b6():
+            return
+          b7():
+            jmp b9()
+          b8():
+            jmp b9()
+          b9():
+            v7 = eq v4, u8 1
+            jmpif v7 then: b10, else: b11
+          b10():
+            jmp b12()
+          b11():
+            jmp b12()
+          b12():
+            v9 = shr u8 1, u8 99
+            v10 = eq v9, u8 0
+            jmpif v10 then: b1, else: b2
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.remove_bit_shifts();
+
+        // We expect v9 in b3 to be resolved to `u8 0`. Even though b12 has a higher value,
+        // it comes before b3 in the block ordering.
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            constrain u1 0 == u1 1, "attempt to bit-shift with overflow"
+            v2 = make_array [u1 0, u1 0, u1 0, u1 0] : [u1; 4]
+            v4 = eq u8 0, u8 0
+            jmpif v4 then: b7, else: b8
+          b1():
+            jmp b3()
+          b2():
+            jmp b3()
+          b3():
+            v9 = eq u8 0, u8 1
+            jmpif v9 then: b4, else: b5
+          b4():
+            jmp b6()
+          b5():
+            jmp b6()
+          b6():
+            return
+          b7():
+            jmp b9()
+          b8():
+            jmp b9()
+          b9():
+            v6 = eq u8 0, u8 1
+            jmpif v6 then: b10, else: b11
+          b10():
+            jmp b12()
+          b11():
+            jmp b12()
+          b12():
+            v7 = make_array [u1 0, u1 0, u1 0, u1 0] : [u1; 4]
+            v8 = eq u8 0, u8 0
+            jmpif v8 then: b1, else: b2
+        }
+        "#);
+    }
 }
