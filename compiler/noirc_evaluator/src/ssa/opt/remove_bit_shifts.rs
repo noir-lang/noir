@@ -52,6 +52,8 @@ impl Function {
             let rhs = *rhs;
             let operator = *operator;
 
+            let lhs_type = context.dfg.type_of_value(lhs).unwrap_numeric();
+
             context.remove_current_instruction();
 
             let old_result = *context.dfg.instruction_results(instruction_id).first().unwrap();
@@ -61,6 +63,12 @@ impl Function {
                 bitshift_context.insert_wrapping_shift_left(lhs, rhs)
             } else {
                 bitshift_context.insert_shift_right(lhs, rhs)
+            };
+
+            let new_result = if let NumericType::Signed { bit_size } = lhs_type {
+                bitshift_context.insert_truncate(new_result, bit_size, bit_size + 1)
+            } else {
+                new_result
             };
 
             context.replace_value(old_result, new_result);
