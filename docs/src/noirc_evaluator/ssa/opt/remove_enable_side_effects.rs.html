@@ -660,23 +660,23 @@
     }
 
     <span class="attr">#[test]
-    </span><span class="kw">fn </span>remove_enable_side_effects_for_slice_pop_back() {
+    </span><span class="kw">fn </span>keep_enable_side_effects_for_slice_pop_back() {
         <span class="kw">let </span>src = get_slice_intrinsic_src(
             <span class="string">"v13, v14, v15"</span>,
             <span class="kw-2">&amp;</span>Intrinsic::SlicePopBack.to_string(),
             <span class="string">") -&gt; (u32, [Field], Field)"</span>,
         );
-        verify_all_enable_side_effects_removed(<span class="kw-2">&amp;</span>src);
+        verify_ssa_unchanged(<span class="kw-2">&amp;</span>src);
     }
 
     <span class="attr">#[test]
-    </span><span class="kw">fn </span>remove_enable_side_effects_for_slice_pop_front() {
+    </span><span class="kw">fn </span>keep_enable_side_effects_for_slice_pop_front() {
         <span class="kw">let </span>src = get_slice_intrinsic_src(
             <span class="string">"v13, v14, v15"</span>,
             <span class="kw-2">&amp;</span>Intrinsic::SlicePopFront.to_string(),
             <span class="string">") -&gt; (Field, u32, [Field])"</span>,
         );
-        verify_all_enable_side_effects_removed(<span class="kw-2">&amp;</span>src);
+        verify_ssa_unchanged(<span class="kw-2">&amp;</span>src);
     }
 
     <span class="attr">#[test]
