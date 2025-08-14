@@ -81,7 +81,7 @@ Finally we're up for something cool. But before we can execute a Noir program, w
 This can be done by cd-ing into our circuit directory and running the `nargo compile` command.
 
 ```bash
-cd circuits
+cd circuit
 
 nargo compile
 ```
