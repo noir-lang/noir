@@ -408,7 +408,7 @@ mod tests {
 
         // Now check that calling the DIE -> parameter pruning feedback loop produces the same result
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.dead_instruction_elimination_with_pruning(false, false);
+        let ssa = ssa.dead_instruction_elimination_pre_flattening();
         assert_ssa_snapshot!(ssa, @r#"
         brillig(inline) predicate_pure fn main f0 {
           b0(v0: i16):

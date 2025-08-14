@@ -586,3 +586,53 @@ fn errors_on_use_of_private_exported_item() {
     "#;
     check_errors!(src);
 }
+
+#[named]
+#[test]
+fn private_impl_method_on_another_module_1() {
+    let src = r#"
+    pub mod bar {
+        pub struct Foo<T> {}
+    }
+
+    impl<T> bar::Foo<T> {
+        fn foo(self) {
+            let _ = self;
+        }
+
+        fn bar(self) {
+            self.foo();
+        }
+    }
+
+    fn main() {}
+    "#;
+    assert_no_errors!(src);
+}
+
+#[named]
+#[test]
+fn private_impl_method_on_another_module_2() {
+    let src = r#"
+    pub mod bar {
+        pub struct Foo<T> {}
+    }
+
+    impl bar::Foo<i32> {
+        fn foo(self) {
+            let _ = self;
+        }
+    }
+
+    impl bar::Foo<i64> {
+        fn bar(self) {
+            let _ = self;
+            let foo = bar::Foo::<i32> {};
+            foo.foo();
+        }
+    }
+
+    fn main() {}
+    "#;
+    assert_no_errors!(src);
+}

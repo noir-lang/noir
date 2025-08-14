@@ -5,6 +5,7 @@ use noirc_driver::{CompileOptions, CompiledProgram};
 use noirc_evaluator::ssa::function_builder::FunctionBuilder;
 use noirc_evaluator::ssa::ir::basic_block::BasicBlockId;
 use noirc_evaluator::ssa::ir::function::{Function, RuntimeType};
+use noirc_evaluator::ssa::ir::instruction::ArrayOffset;
 use noirc_evaluator::ssa::ir::instruction::BinaryOp;
 use noirc_evaluator::ssa::ir::map::Id;
 use noirc_evaluator::ssa::ir::types::{NumericType, Type};
@@ -12,6 +13,7 @@ use noirc_evaluator::ssa::ir::value::Value;
 use noirc_frontend::monomorphization::ast::InlineType;
 use noirc_frontend::monomorphization::ast::InlineType as FrontendInlineType;
 use std::panic::AssertUnwindSafe;
+use std::sync::Arc;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -36,18 +38,20 @@ pub struct FuzzerBuilder {
 
 impl FuzzerBuilder {
     /// Creates a new FuzzerBuilder in ACIR context
-    pub fn new_acir() -> Self {
+    pub fn new_acir(simplifying_enabled: bool) -> Self {
         let main_id: Id<Function> = Id::new(0);
         let mut builder = FunctionBuilder::new("main".into(), main_id);
         builder.set_runtime(RuntimeType::Acir(FrontendInlineType::default()));
+        builder.simplify = simplifying_enabled;
         Self { builder }
     }
 
     /// Creates a new FuzzerBuilder in Brillig context
-    pub fn new_brillig() -> Self {
+    pub fn new_brillig(simplifying_enabled: bool) -> Self {
         let main_id: Id<Function> = Id::new(0);
         let mut builder = FunctionBuilder::new("main".into(), main_id);
         builder.set_runtime(RuntimeType::Brillig(FrontendInlineType::default()));
+        builder.simplify = simplifying_enabled;
         Self { builder }
     }
 
@@ -364,5 +368,103 @@ impl FuzzerBuilder {
             )
             .first()
             .unwrap()
+    }
+
+    /// Inserts a new array with the given elements and type
+    pub fn insert_array(&mut self, elements: Vec<TypedValue>, is_references: bool) -> TypedValue {
+        let array_length = elements.len() as u32;
+        assert!(array_length > 0, "Array must have at least one element");
+        let element_type = elements[0].type_of_variable.clone();
+        let array_elements_type = if is_references {
+            Type::Array(
+                Arc::new(vec![Type::Reference(Arc::new(element_type.clone()))]),
+                array_length,
+            )
+        } else {
+            Type::Array(Arc::new(vec![element_type.clone()]), array_length)
+        };
+        let typ = array_elements_type.clone();
+        assert!(
+            elements.iter().all(|e| e.type_of_variable == element_type),
+            "All elements must have the same type"
+        );
+        let res = self
+            .builder
+            .insert_make_array(elements.into_iter().map(|e| e.value_id).collect(), typ.clone());
+        TypedValue::new(res, Type::Array(Arc::new(vec![typ]), array_length))
+    }
+
+    /// Inserts a modulo operation between the index and the array length
+    /// Returns the id of the index modulo the array length
+    fn insert_index_mod_array_length(
+        &mut self,
+        index: TypedValue,
+        array: TypedValue,
+    ) -> TypedValue {
+        match array.type_of_variable.clone() {
+            Type::Array(_, array_length) => {
+                let array_length_id = self
+                    .builder
+                    .numeric_constant(array_length, NumericType::Unsigned { bit_size: 32 });
+                let index_mod_length =
+                    self.builder.insert_binary(index.value_id, BinaryOp::Mod, array_length_id);
+                TypedValue::new(index_mod_length, ValueType::U32.to_ssa_type())
+            }
+            _ => unreachable!("Array type expected"),
+        }
+    }
+
+    /// Inserts an array get instruction
+    ///
+    /// Index must be u32
+    /// If safe_index is true, index will be taken modulo the array length
+    pub fn insert_array_get(
+        &mut self,
+        array: TypedValue,
+        index: TypedValue,
+        element_type: Type,
+        safe_index: bool,
+    ) -> TypedValue {
+        assert!(index.type_of_variable == Type::Numeric(NumericType::Unsigned { bit_size: 32 }));
+        let index = if safe_index {
+            self.insert_index_mod_array_length(index.clone(), array.clone())
+        } else {
+            index
+        };
+        let res = self.builder.insert_array_get(
+            array.value_id,
+            index.value_id,
+            ArrayOffset::None,
+            element_type.clone(),
+        );
+        TypedValue::new(res, element_type)
+    }
+
+    /// Inserts an array set instruction
+    ///
+    /// Index must be u32
+    /// If safe_index is true, index will be taken modulo the array length
+    pub fn insert_array_set(
+        &mut self,
+        array: TypedValue,
+        index: TypedValue,
+        value: TypedValue,
+        safe_index: bool,
+    ) -> TypedValue {
+        assert!(matches!(array.type_of_variable, Type::Array(_, _)));
+        assert!(index.type_of_variable == Type::Numeric(NumericType::Unsigned { bit_size: 32 }));
+        let index = if safe_index {
+            self.insert_index_mod_array_length(index.clone(), array.clone())
+        } else {
+            index
+        };
+        let res = self.builder.insert_array_set(
+            array.value_id,
+            index.value_id,
+            value.value_id,
+            false,
+            ArrayOffset::None,
+        );
+        TypedValue::new(res, array.type_of_variable.clone())
     }
 }

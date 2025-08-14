@@ -12,7 +12,6 @@ use std::collections::{BTreeMap, HashSet};
 use types::{AcirDynamicArray, AcirValue};
 
 use acvm::acir::{
-    BlackBoxFunc,
     circuit::{
         AssertionPayload, ExpressionWidth, OpcodeLocation, brillig::BrilligFunctionId,
         opcodes::AcirFunctionId,
@@ -675,7 +674,7 @@ impl<'a> Context<'a> {
         ssa: &Ssa,
         result_ids: &[ValueId],
     ) -> Result<Vec<SsaReport>, RuntimeError> {
-        let mut warnings = Vec::new();
+        let warnings = Vec::new();
 
         match instruction {
             Instruction::Call { func, arguments } => {
@@ -795,28 +794,16 @@ impl<'a> Context<'a> {
                         }
                     }
                     Value::Intrinsic(intrinsic) => {
-                        if matches!(
-                            intrinsic,
-                            Intrinsic::BlackBox(BlackBoxFunc::RecursiveAggregation)
-                        ) {
-                            warnings.push(SsaReport::Warning(InternalWarning::VerifyProof {
-                                call_stack: self.acir_context.get_call_stack(),
-                            }));
-                        }
                         let outputs = self
                             .convert_ssa_intrinsic_call(*intrinsic, arguments, dfg, result_ids)?;
 
-                        // Issue #1438 causes this check to fail with intrinsics that return 0
-                        // results but the ssa form instead creates 1 unit result value.
-                        // assert_eq!(result_ids.len(), outputs.len());
+                        assert_eq!(result_ids.len(), outputs.len());
                         self.handle_ssa_call_outputs(result_ids, outputs, dfg)?;
                     }
-                    Value::ForeignFunction(_) => {
-                        // TODO: Remove this once elaborator is default frontend. This is now caught by a lint inside the frontend.
-                        return Err(RuntimeError::UnconstrainedOracleReturnToConstrained {
-                            call_stack: self.acir_context.get_call_stack(),
-                        });
-                    }
+                    Value::ForeignFunction(_) => unreachable!(
+                        "Frontend should remove any oracle calls from constrained functions"
+                    ),
+
                     _ => unreachable!("expected calling a function but got {function_value:?}"),
                 }
             }
@@ -1755,9 +1742,9 @@ impl<'a> Context<'a> {
             Intrinsic::IsUnconstrained => {
                 unreachable!("Expected is_unconstrained to be removed by this point")
             }
-            Intrinsic::DerivePedersenGenerators => {
-                unreachable!("DerivePedersenGenerators can only be called with constants")
-            }
+            Intrinsic::DerivePedersenGenerators => Err(RuntimeError::AssertConstantFailed {
+                call_stack: self.acir_context.get_call_stack(),
+            }),
             Intrinsic::FieldLessThan => {
                 unreachable!("FieldLessThan can only be called in unconstrained")
             }

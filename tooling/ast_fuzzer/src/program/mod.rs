@@ -565,7 +565,10 @@ fn make_name(mut id: usize, is_global: bool) -> String {
         id /= 26;
     }
     name.reverse();
-    let name = name.into_iter().collect::<String>();
+    let mut name = name.into_iter().collect::<String>();
+    if matches!(name.as_str(), "as" | "if" | "fn" | "for" | "loop") {
+        name = format!("{name}_");
+    }
     if is_global { format!("G_{name}") } else { name }
 }
 
