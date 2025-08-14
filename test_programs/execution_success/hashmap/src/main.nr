@@ -211,8 +211,9 @@ fn test_iter_len_shrink_on_key_collision() {
     // Mutate all keys to the same value to force collisions.
     hashmap.iter_keys_mut(|_k: K| -> K { 0 });
 
-    assert(
-        hashmap.len() == 1,
+    assert_eq(
+        hashmap.len(),
+        1,
         "HashMap length should shrink to 1 after key collisions during iter_keys_mut.",
     );
 
