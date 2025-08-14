@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1755190659534,
+  "lastUpdate": 1755190661250,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -23005,40 +23005,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "0550ee0bc29291264901222429201ed71e2accdd",
-          "message": "fix: handle short-syntax for trait constraints on trait generics (#9167)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-07-30T14:07:04Z",
-          "tree_id": "77cad3276dc0897e73a551d6c4551edb4040de89",
-          "url": "https://github.com/noir-lang/noir/commit/0550ee0bc29291264901222429201ed71e2accdd"
-        },
-        "date": 1753886132318,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore-depth-10",
-            "value": 5763,
-            "unit": "opcodes"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 13173,
-            "unit": "opcodes"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -26490,6 +26456,40 @@ window.BENCHMARK_DATA = {
             "value": 2631,
             "unit": "opcodes"
           },
+          {
+            "name": "semaphore-depth-10",
+            "value": 5763,
+            "unit": "opcodes"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 13173,
+            "unit": "opcodes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f6fed8bd0154c937f11dfbd4a27bc893b9d3f5e9",
+          "message": "feat!: new semantic for bit-shifts  (#9373)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
+          "timestamp": "2025-08-14T16:29:48Z",
+          "tree_id": "6de27a92d49a55f5de423ff8822638b5fd963ed9",
+          "url": "https://github.com/noir-lang/noir/commit/f6fed8bd0154c937f11dfbd4a27bc893b9d3f5e9"
+        },
+        "date": 1755190640613,
+        "tool": "customSmallerIsBetter",
+        "benches": [
           {
             "name": "semaphore-depth-10",
             "value": 5763,
