@@ -1618,7 +1618,7 @@ mod tests {
 
     #[test]
     fn nested_alias_in_array() {
-      let src = "
+        let src = "
       acir(inline) fn regression_2445_deeper_ref f2 {
         b0():
           v0 = allocate -> &mut Field
@@ -1665,12 +1665,12 @@ mod tests {
           return
       }
       ";
-      let ssa = Ssa::from_str(src).unwrap();
-      let ssa = ssa.mem2reg();
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
 
-      // We expect the final references to both be resolved to `Field 2` and thus the constrain instructions
-      // will be trivially true and simplified out.
-      assert_ssa_snapshot!(ssa, @r"
+        // We expect the final references to both be resolved to `Field 2` and thus the constrain instructions
+        // will be trivially true and simplified out.
+        assert_ssa_snapshot!(ssa, @r"
       acir(inline) fn regression_2445_deeper_ref f0 {
         b0():
           v0 = allocate -> &mut Field
