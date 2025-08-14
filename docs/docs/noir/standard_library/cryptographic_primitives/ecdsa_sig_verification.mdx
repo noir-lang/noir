@@ -29,6 +29,12 @@ fn main(hashed_message : [u8;32], pub_key_x : [u8;32], pub_key_y : [u8;32], sign
 
 ## ecdsa_secp256k1::verify_signature_slice
 
+:::info
+
+This method is deprecated and will be removed in 1.0.0-beta.12
+
+:::
+
 Verifier for ECDSA Secp256k1 signatures where the message is a slice.
 
 #include_code ecdsa_secp256k1_slice noir_stdlib/src/ecdsa_secp256k1.nr rust
@@ -54,6 +60,12 @@ fn main(hashed_message : [u8;32], pub_key_x : [u8;32], pub_key_y : [u8;32], sign
 <BlackBoxInfo to="../black_box_fns"/>
 
 ## ecdsa_secp256r1::verify_signature
+
+:::info
+
+This method is deprecated and will be removed in 1.0.0-beta.12
+
+:::
 
 Verifier for ECDSA Secp256r1 signatures where the message is a slice.
 
