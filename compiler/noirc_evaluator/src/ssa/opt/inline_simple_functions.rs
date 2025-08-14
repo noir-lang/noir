@@ -27,6 +27,7 @@ use crate::ssa::{
 const MAX_INSTRUCTIONS: usize = 10;
 
 impl Ssa {
+    #[allow(dead_code)]
     /// See the [`inline_simple_functions`][self] module for more information.
     pub(crate) fn inline_simple_functions(mut self: Ssa) -> Ssa {
         let call_graph = CallGraph::from_ssa(&self);
