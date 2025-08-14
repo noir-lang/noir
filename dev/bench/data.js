@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1755185918429,
+  "lastUpdate": 1755185919906,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3467,40 +3467,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "853607f779b65664ee85f350f3d25f5ceaeaf6cc",
-          "message": "chore: enhance trait constraint comment (#9358)",
-          "timestamp": "2025-07-30T13:53:21Z",
-          "tree_id": "7be502cc93f40399ce2285d6bf3ed4a11b69a88a",
-          "url": "https://github.com/noir-lang/noir/commit/853607f779b65664ee85f350f3d25f5ceaeaf6cc"
-        },
-        "date": 1753885194971,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.773,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 1.564,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "0550ee0bc29291264901222429201ed71e2accdd",
           "message": "fix: handle short-syntax for trait constraints on trait generics (#9167)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
@@ -6901,6 +6867,90 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 1.669,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "4f8dbbc20bb40115d87c499154655ebe7e962099",
+          "message": "fix(ssa): Replace side effects with defaults when disabled (#9462)",
+          "timestamp": "2025-08-14T15:01:55Z",
+          "tree_id": "7d4f5a610dbfe8ae540db50f179ce4a8b67a1e10",
+          "url": "https://github.com/noir-lang/noir/commit/4f8dbbc20bb40115d87c499154655ebe7e962099"
+        },
+        "date": 1755185898653,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1.76,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 8.302,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.352,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 15.28,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 13.42,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 22.66,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 205,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 209,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.338,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.456,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.757,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 1.59,
             "unit": "s"
           }
         ]
