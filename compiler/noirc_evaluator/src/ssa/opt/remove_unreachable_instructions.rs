@@ -77,9 +77,14 @@ impl Function {
             let instruction = context.instruction();
             if let Instruction::EnableSideEffectsIf { condition } = instruction {
                 side_effects_condition = *condition;
-                if current_block_reachability == Reachability::UnreachableUnderPredicate {
-                    current_block_reachability = Reachability::Reachable;
-                }
+                current_block_reachability =
+                    match context.dfg.get_numeric_constant(side_effects_condition) {
+                        Some(predicate) if predicate.is_zero() => {
+                            // We can replace side effecting instructions with defaults until the next predicate.
+                            Reachability::UnreachableUnderPredicate
+                        }
+                        _ => Reachability::Reachable,
+                    };
                 return;
             };
 
@@ -545,8 +550,35 @@ mod test {
     }
 
     #[test]
-    fn replaces_instructions_following_sub_that_overflows_under_false_side_effects_condition_with_defaults()
+    fn replaces_instructions_following_sub_that_overflows_under_side_effects_condition_with_defaults()
      {
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1):
+            enable_side_effects v0
+            v1 = sub u32 0, u32 1
+            v2 = add v1, u32 1
+            return v2
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.remove_unreachable_instructions();
+
+        // The add is removed, because if we know that the sub is disabled and would fail, then we are dealing with
+        // default values all the way.
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1):
+            enable_side_effects v0
+            v3 = sub u32 0, u32 1
+            constrain u1 0 == v0, "attempt to subtract with overflow"
+            return u32 0
+        }
+        "#);
+    }
+
+    #[test]
+    fn replaces_instructions_following_disabled_side_effects_with_defaults() {
         let src = r#"
         acir(inline) predicate_pure fn main f0 {
           b0():
@@ -559,14 +591,11 @@ mod test {
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.remove_unreachable_instructions();
 
-        // No constraint will be added because we know that the sub is disabled, (it would be the trivial `0 == 0`).
-        // The add is removed, because if we know that the sub is disabled and would fail, then we are dealing with
-        // default values all the way.
+        // Both sub and add are removed because they cannot have side effects.
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) predicate_pure fn main f0 {
           b0():
             enable_side_effects u1 0
-            v3 = sub u32 0, u32 1
             return u32 0
         }
         ");
@@ -577,18 +606,28 @@ mod test {
      {
         let src = r#"
         acir(inline) predicate_pure fn main f0 {
-          b0():
-            enable_side_effects u1 0
-            v0 = sub u32 0, u32 1
-            enable_side_effects u1 0
-            v1 = add v0, u32 1
-            return v1
+          b0(v0: u1):
+            enable_side_effects v0
+            v1 = sub u32 0, u32 1
+            enable_side_effects u1 1
+            v2 = add v1, u32 1
+            return v2
         }
         "#;
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.remove_unreachable_instructions();
 
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1):
+            enable_side_effects v0
+            v3 = sub u32 0, u32 1
+            constrain u1 0 == v0, "attempt to subtract with overflow"
+            enable_side_effects u1 1
+            v6 = add v3, u32 1
+            return v6
+        }
+        "#);
     }
 
     #[test]
