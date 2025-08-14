@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1755186408567,
+  "lastUpdate": 1755190536432,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -17401,48 +17401,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "0550ee0bc29291264901222429201ed71e2accdd",
-          "message": "fix: handle short-syntax for trait constraints on trait generics (#9167)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-07-30T14:07:04Z",
-          "tree_id": "77cad3276dc0897e73a551d6c4551edb4040de89",
-          "url": "https://github.com/noir-lang/noir/commit/0550ee0bc29291264901222429201ed71e2accdd"
-        },
-        "date": 1753885951052,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 252939,
-            "range": "± 642",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 227257,
-            "range": "± 5422",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2786672,
-            "range": "± 10664",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -19494,6 +19452,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2814803,
             "range": "± 2717",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f6fed8bd0154c937f11dfbd4a27bc893b9d3f5e9",
+          "message": "feat!: new semantic for bit-shifts  (#9373)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
+          "timestamp": "2025-08-14T16:29:48Z",
+          "tree_id": "6de27a92d49a55f5de423ff8822638b5fd963ed9",
+          "url": "https://github.com/noir-lang/noir/commit/f6fed8bd0154c937f11dfbd4a27bc893b9d3f5e9"
+        },
+        "date": 1755190518555,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 247190,
+            "range": "± 3463",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 221006,
+            "range": "± 15878",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2785104,
+            "range": "± 13174",
             "unit": "ns/iter"
           }
         ]
