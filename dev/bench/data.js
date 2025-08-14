@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1755186309960,
+  "lastUpdate": 1755186406353,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -10111,40 +10111,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "853607f779b65664ee85f350f3d25f5ceaeaf6cc",
-          "message": "chore: enhance trait constraint comment (#9358)",
-          "timestamp": "2025-07-30T13:53:21Z",
-          "tree_id": "7be502cc93f40399ce2285d6bf3ed4a11b69a88a",
-          "url": "https://github.com/noir-lang/noir/commit/853607f779b65664ee85f350f3d25f5ceaeaf6cc"
-        },
-        "date": 1753885241126,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore_depth_10",
-            "value": 69.46,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 54.95,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "0550ee0bc29291264901222429201ed71e2accdd",
           "message": "fix: handle short-syntax for trait constraints on trait generics (#9167)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
@@ -13145,6 +13111,80 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/20a6467e324a4d1cc07f73dc55c2a49b8671989d"
         },
         "date": 1755183936803,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 205.02,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 241.84,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 194.26,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 498.48,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 431.12,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1500,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 326.44,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 328.85,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 69.51,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 55,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "4f8dbbc20bb40115d87c499154655ebe7e962099",
+          "message": "fix(ssa): Replace side effects with defaults when disabled (#9462)",
+          "timestamp": "2025-08-14T15:01:55Z",
+          "tree_id": "7d4f5a610dbfe8ae540db50f179ce4a8b67a1e10",
+          "url": "https://github.com/noir-lang/noir/commit/4f8dbbc20bb40115d87c499154655ebe7e962099"
+        },
+        "date": 1755186388222,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
