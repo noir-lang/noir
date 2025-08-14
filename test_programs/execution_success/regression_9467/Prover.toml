@@ -1,2 +1,2 @@
 b = false
-return = 1
+return = [1, 2]
