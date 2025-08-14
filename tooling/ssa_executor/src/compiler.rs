@@ -5,7 +5,7 @@ use noirc_evaluator::{
     errors::{InternalError, RuntimeError},
     ssa::{
         ArtifactsAndWarnings, SsaBuilder, SsaEvaluatorOptions, SsaProgramArtifact,
-        combine_artifacts, optimize_ssa_builder_into_acir, primary_passes, secondary_passes,
+        combine_artifacts, optimize_ssa_builder_into_acir, primary_passes,
         ssa_gen::{Ssa, validate_ssa},
     },
 };
@@ -46,12 +46,7 @@ pub fn optimize_ssa_into_acir(
             options.print_codegen_timings,
             None,
         );
-        optimize_ssa_builder_into_acir(
-            builder,
-            &options,
-            &primary_passes(&options),
-            secondary_passes,
-        )
+        optimize_ssa_builder_into_acir(builder, &options, &primary_passes(&options))
     }));
     std::panic::set_hook(previous_hook);
     match result {

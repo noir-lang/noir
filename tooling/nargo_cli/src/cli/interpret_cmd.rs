@@ -128,7 +128,7 @@ pub(crate) fn run(args: InterpretCommand, workspace: Workspace) -> Result<(), Cl
             }
         });
 
-        let interpreter_options = InterpreterOptions { trace: args.trace };
+        let interpreter_options = InterpreterOptions { trace: args.trace, ..Default::default() };
 
         print_and_interpret_ssa(
             ssa_options,
