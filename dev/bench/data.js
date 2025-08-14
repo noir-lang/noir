@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1755183987818,
+  "lastUpdate": 1755185464801,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -17230,48 +17230,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "853607f779b65664ee85f350f3d25f5ceaeaf6cc",
-          "message": "chore: enhance trait constraint comment (#9358)",
-          "timestamp": "2025-07-30T13:53:21Z",
-          "tree_id": "7be502cc93f40399ce2285d6bf3ed4a11b69a88a",
-          "url": "https://github.com/noir-lang/noir/commit/853607f779b65664ee85f350f3d25f5ceaeaf6cc"
-        },
-        "date": 1753885050372,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 248101,
-            "range": "± 488",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 220060,
-            "range": "± 6365",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2783684,
-            "range": "± 2526",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "0550ee0bc29291264901222429201ed71e2accdd",
           "message": "fix: handle short-syntax for trait constraints on trait generics (#9167)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
@@ -19314,6 +19272,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2798155,
             "range": "± 2476",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "4f8dbbc20bb40115d87c499154655ebe7e962099",
+          "message": "fix(ssa): Replace side effects with defaults when disabled (#9462)",
+          "timestamp": "2025-08-14T15:01:55Z",
+          "tree_id": "7d4f5a610dbfe8ae540db50f179ce4a8b67a1e10",
+          "url": "https://github.com/noir-lang/noir/commit/4f8dbbc20bb40115d87c499154655ebe7e962099"
+        },
+        "date": 1755185447322,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 270726,
+            "range": "± 454",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 244523,
+            "range": "± 2032",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2814803,
+            "range": "± 2717",
             "unit": "ns/iter"
           }
         ]
