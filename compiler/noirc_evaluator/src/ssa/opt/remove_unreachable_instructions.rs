@@ -231,6 +231,7 @@ impl Function {
                     }
                 }
                 // Intrinsic Slice operations in ACIR on empty arrays need to be replaced with a (conditional) constraint.
+                // In Brillig they will be protected by an access constraint, which, if known to fail, will make the block unreachable.
                 Instruction::Call { func, arguments } if context.dfg.runtime().is_acir() => {
                     if let Value::Intrinsic(Intrinsic::SlicePopBack | Intrinsic::SlicePopFront) =
                         &context.dfg[*func]
@@ -964,5 +965,58 @@ mod test {
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.remove_unreachable_instructions();
         assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn transforms_failing_slice_pop_with_constraint_and_default() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1):
+            v1 = make_array [] : [u32]
+            enable_side_effects v0
+            v4, v5, v6 = call slice_pop_front(u32 0, v1) -> (u32, u32, [u32])
+            enable_side_effects u1 1
+            return u32 1
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.remove_unreachable_instructions();
+
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1):
+            v1 = make_array [] : [u32]
+            enable_side_effects v0
+            constrain u1 0 == v0, "Index out of bounds"
+            v3 = make_array [] : [u32]
+            enable_side_effects u1 1
+            return u32 1
+        }
+        "#);
+    }
+
+    #[test]
+    fn do_not_transforms_failing_slice_pop_if_always_enabled() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1):
+            v1 = make_array [] : [u32]
+            v4, v5, v6 = call slice_pop_front(u32 0, v1) -> (u32, u32, [u32])
+            return v4
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.remove_unreachable_instructions();
+
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1):
+            v1 = make_array [] : [u32]
+            v4, v5, v6 = call slice_pop_front(u32 0, v1) -> (u32, u32, [u32])
+            unreachable
+        }
+        "#);
     }
 }
