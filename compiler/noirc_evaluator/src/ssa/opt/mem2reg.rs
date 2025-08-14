@@ -1615,4 +1615,73 @@ mod tests {
         let ssa = ssa.mem2reg();
         assert_normalized_ssa_equals(ssa, src);
     }
+
+    #[test]
+    fn nested_alias_in_array() {
+      let src = "
+      acir(inline) fn regression_2445_deeper_ref f2 {
+        b0():
+          v0 = allocate -> &mut Field
+          store Field 0 at v0
+          v2 = allocate -> &mut &mut Field
+          store v0 at v2
+          v3 = allocate -> &mut &mut &mut Field
+          store v2 at v3
+          v4 = make_array [v3, v3] : [&mut &mut &mut Field; 2]
+          v5 = allocate -> &mut [&mut &mut &mut Field; 2]
+          store v4 at v5
+          v6 = load v5 -> [&mut &mut &mut Field; 2]
+          v8 = array_get v6, index u32 0 -> &mut &mut &mut Field
+          v9 = load v8 -> &mut &mut Field
+          v10 = load v9 -> &mut Field
+          store Field 1 at v10
+          v12 = load v5 -> [&mut &mut &mut Field; 2]
+          v14 = array_get v12, index u32 1 -> &mut &mut &mut Field
+          v15 = load v14 -> &mut &mut Field
+          v16 = load v15 -> &mut Field
+          store Field 2 at v16
+          v18 = load v0 -> Field
+          v19 = eq v18, Field 2
+          constrain v18 == Field 2
+          v20 = load v3 -> &mut &mut Field
+          v21 = load v20 -> &mut Field
+          v22 = load v21 -> Field
+          v23 = eq v22, Field 2
+          constrain v22 == Field 2
+          v24 = load v5 -> [&mut &mut &mut Field; 2]
+          v25 = array_get v24, index u32 0 -> &mut &mut &mut Field
+          v26 = load v25 -> &mut &mut Field
+          v27 = load v26 -> &mut Field
+          v28 = load v27 -> Field
+          v29 = eq v28, Field 2
+          constrain v28 == Field 2
+          v30 = load v5 -> [&mut &mut &mut Field; 2]
+          v31 = array_get v30, index u32 1 -> &mut &mut &mut Field
+          v32 = load v31 -> &mut &mut Field
+          v33 = load v32 -> &mut Field
+          v34 = load v33 -> Field
+          v35 = eq v34, Field 2
+          constrain v34 == Field 2
+          return
+      }
+      ";
+      let ssa = Ssa::from_str(src).unwrap();
+      let ssa = ssa.mem2reg();
+
+      // We expect the final references to both be resolved to `Field 2` and thus the constrain instructions
+      // will be trivially true and simplified out.
+      assert_ssa_snapshot!(ssa, @r"
+      acir(inline) fn regression_2445_deeper_ref f0 {
+        b0():
+          v0 = allocate -> &mut Field
+          store Field 0 at v0
+          v2 = allocate -> &mut &mut Field
+          v3 = allocate -> &mut &mut &mut Field
+          v4 = make_array [v3, v3] : [&mut &mut &mut Field; 2]
+          v5 = allocate -> &mut [&mut &mut &mut Field; 2]
+          store Field 1 at v0
+          return
+      }
+      ");
+    }
 }
