@@ -245,20 +245,24 @@ impl Function {
                         // Barretenberg doesn't handle memory operations with predicates, so we can't rely on those to disable the operation
                         // based on the current side effect variable. Instead we need to replace it with a conditional constraint.
                         if is_empty {
-                            current_block_reachability = if is_predicate_constant_one() {
-                                // The instruction will always fail, so we can leave it in and mark the rest of the block unreachable.
+                            let always_fail = is_predicate_constant_one();
+
+                            // We might think that if the predicate is constant 1, we can leave the pop as it will always fail.
+                            // However by turning the block Unreachable, ACIR-gen would create empty bytecode and not fail the circuit.
+                            insert_constraint(
+                                context,
+                                block_id,
+                                side_effects_condition,
+                                "Index out of bounds".to_string(),
+                            );
+
+                            current_block_reachability = if always_fail {
+                                context.remove_current_instruction();
                                 Reachability::Unreachable
                             } else {
-                                insert_constraint(
-                                    context,
-                                    block_id,
-                                    side_effects_condition,
-                                    "Index out of bounds".to_string(),
-                                );
                                 remove_and_replace_with_defaults(context, func_id, block_id);
-
                                 Reachability::UnreachableUnderPredicate
-                            }
+                            };
                         }
                     }
                 }
@@ -997,7 +1001,7 @@ mod test {
     }
 
     #[test]
-    fn do_not_transforms_failing_slice_pop_if_always_enabled() {
+    fn transforms_failing_slice_pop_if_always_enabled() {
         let src = "
         acir(inline) predicate_pure fn main f0 {
           b0(v0: u1):
@@ -1014,7 +1018,7 @@ mod test {
         acir(inline) predicate_pure fn main f0 {
           b0(v0: u1):
             v1 = make_array [] : [u32]
-            v4, v5, v6 = call slice_pop_front(u32 0, v1) -> (u32, u32, [u32])
+            constrain u1 0 == u1 1, "Index out of bounds"
             unreachable
         }
         "#);
