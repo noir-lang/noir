@@ -29,11 +29,11 @@ impl Function {
     ///
     /// `replace_value` can be used to replace a value with another one. This substitution will be
     /// performed in all subsequent instructions.
-    pub(crate) fn simple_reachable_blocks_optimization<F>(&mut self, mut f: F)
+    pub(crate) fn simple_optimization<F>(&mut self, mut f: F)
     where
         F: FnMut(&mut SimpleOptimizationContext<'_, '_>),
     {
-        self.simple_reachable_blocks_optimization_result(move |context| {
+        self.simple_optimization_result(move |context| {
             f(context);
             Ok(())
         })
@@ -54,10 +54,7 @@ impl Function {
     ///
     /// `replace_value` can be used to replace a value with another one. This substitution will be
     /// performed in all subsequent instructions.
-    pub(crate) fn simple_reachable_blocks_optimization_result<F>(
-        &mut self,
-        mut f: F,
-    ) -> RtResult<()>
+    pub(crate) fn simple_optimization_result<F>(&mut self, mut f: F) -> RtResult<()>
     where
         F: FnMut(&mut SimpleOptimizationContext<'_, '_>) -> RtResult<()>,
     {
