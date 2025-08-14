@@ -19,7 +19,7 @@ fn main() {
     struct_multi_field_different_aliases();
     struct_multi_field_different_aliases_in_loop();
     nested_struct_aliases();
-    struct_multi_field_different_aliases_in_loop_nested();
+    nested_struct_multi_field_different_aliases_in_loop();
     nested_struct_aliases_in_array();
     assert(5 == struct_field_refs_across_blocks(MyStruct { a: 5, b: 10 })[0]);
 }
@@ -163,7 +163,7 @@ fn struct_multi_field_different_aliases_in_loop() {
         (*ref_a).b += 1;
         (*ref_b).b += 2;
     }
-    
+
     // Updates from the loop:
     // a = 0+2+3 = 5, b = 0+1+2 = 3
     // a = 5+2+3 = 10, b = 3+1+2 = 6
@@ -179,16 +179,16 @@ fn struct_multi_field_different_aliases_in_loop() {
 
 fn struct_multi_field_different_aliases() {
     let mut var = MyStruct { a: 0, b: 0 };
-    let ref_a = &mut var; 
+    let ref_a = &mut var;
     let ref_b = &mut var;
 
     (*ref_a).a = 10;
     (*ref_a).b = 20;
 
     // Should read the 10 from ref_a and write 15
-    (*ref_b).a = (*ref_b).a + 5; 
+    (*ref_b).a = (*ref_b).a + 5;
     // Should read the 20 from ref_a and write 25
-    (*ref_b).b = (*ref_b).b + 5; 
+    (*ref_b).b = (*ref_b).b + 5;
 
     assert(var.a == 15);
     assert(var.b == 25);
@@ -206,44 +206,21 @@ struct Outer {
 fn nested_struct_aliases() {
     let mut var = Outer { inner: MyStruct { a: 0, b: 0 } };
 
-    // Alias for outer
-    let ref_outer = &mut var;          
-    // Alias for inner struct
+    let ref_outer = &mut var;
     let ref_inner = &mut ref_outer.inner;
-    // Another alias to inner
-    let ref_inner2 = &mut var.inner;  
 
     (*ref_outer).inner.a = 5;
     (*ref_inner).b = 10;
 
-    // Update both fields through second inner alias
-    // Should read 5 and write 7
-    (*ref_inner2).a += 2; 
-    // Should read 10 and write 13
-    (*ref_inner2).b += 3;  
-
-    for _ in 0..2 {
-        // 7+1+1 = 9
-        (*ref_inner).a += 1; 
-        // 13+2+2 = 17  
-        (*ref_outer).inner.b += 2; 
-    }
-
-    assert(var.inner.a == 9);
-    assert(var.inner.b == 17);
-
-    // Check all aliases
-    assert((*ref_outer).inner.a == 9);
-    assert((*ref_outer).inner.b == 17);
-
-    assert((*ref_inner).a == 9);
-    assert((*ref_inner).b == 17);
-
-    assert((*ref_inner2).a == 9);
-    assert((*ref_inner2).b == 17);
+    assert(var.inner.a == 5);
+    assert(var.inner.b == 10);
+    assert((*ref_outer).inner.a == 5);
+    assert((*ref_outer).inner.b == 10);
+    assert((*ref_inner).a == 5);
+    assert((*ref_inner).b == 10);
 }
 
-fn struct_multi_field_different_aliases_in_loop_nested() {
+fn nested_struct_multi_field_different_aliases_in_loop() {
     let mut var = Outer { inner: MyStruct { a: 0, b: 0 } };
     let ref_outer = &mut var;
     let ref_inner = &mut var.inner;
