@@ -156,7 +156,7 @@ mod tests {
 
         let ssa = Ssa::from_str(src).unwrap();
         // DIE is necessary to fetch the block parameters liveness information
-        let (ssa, die_result) = ssa.dead_instruction_elimination_inner(false, false);
+        let (ssa, die_result) = ssa.dead_instruction_elimination_inner(false);
 
         assert!(die_result.unused_parameters.len() == 1);
         let function = die_result
@@ -208,7 +208,7 @@ mod tests {
 
         let ssa = Ssa::from_str(src).unwrap();
         // DIE is necessary to fetch the block parameters liveness information
-        let (ssa, die_result) = ssa.dead_instruction_elimination_inner(false, false);
+        let (ssa, die_result) = ssa.dead_instruction_elimination_inner(false);
 
         assert!(die_result.unused_parameters.len() == 1);
         let function = die_result
@@ -230,7 +230,7 @@ mod tests {
         assert_eq!(b3_unused[0].to_u32(), 2);
 
         let ssa = ssa.prune_dead_parameters(&die_result.unused_parameters);
-        let (ssa, _) = ssa.dead_instruction_elimination_inner(false, false);
+        let ssa = ssa.dead_instruction_elimination_pre_flattening();
 
         // We expect b3 to have no parameters anymore and both predecessors (b1 and b2)
         // should no longer pass any arguments to their terminator (which jumps to b3).
@@ -265,7 +265,7 @@ mod tests {
 
         let ssa = Ssa::from_str(src).unwrap();
         // DIE is necessary to fetch the block parameters liveness information
-        let (ssa, die_result) = ssa.dead_instruction_elimination_inner(false, false);
+        let (ssa, die_result) = ssa.dead_instruction_elimination_inner(false);
 
         assert!(die_result.unused_parameters.len() == 1);
         let function = die_result
@@ -343,7 +343,7 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
 
         // DIE is necessary to fetch the block parameters liveness information
-        let (ssa, die_result) = ssa.dead_instruction_elimination_inner(false, false);
+        let (ssa, die_result) = ssa.dead_instruction_elimination_inner(false);
 
         assert!(die_result.unused_parameters.len() == 1);
         let function = die_result
@@ -367,7 +367,7 @@ mod tests {
 
         let ssa = ssa.prune_dead_parameters(&die_result.unused_parameters);
 
-        let (ssa, die_result) = ssa.dead_instruction_elimination_inner(false, false);
+        let (ssa, die_result) = ssa.dead_instruction_elimination_inner(false);
 
         assert!(die_result.unused_parameters.len() == 1);
         let function = die_result
