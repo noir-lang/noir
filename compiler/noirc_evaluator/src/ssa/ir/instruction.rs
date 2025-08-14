@@ -765,7 +765,7 @@ impl Binary {
                 // for unsigned types (here we assume the type of binary.lhs is the same)
                 dfg.type_of_value(self.rhs).is_unsigned()
             }
-            BinaryOp::Div | BinaryOp::Mod => true,
+            BinaryOp::Div | BinaryOp::Mod | BinaryOp::Shl | BinaryOp::Shr => true,
             BinaryOp::Add { unchecked: true }
             | BinaryOp::Sub { unchecked: true }
             | BinaryOp::Mul { unchecked: true }
@@ -773,9 +773,7 @@ impl Binary {
             | BinaryOp::Lt
             | BinaryOp::And
             | BinaryOp::Or
-            | BinaryOp::Xor
-            | BinaryOp::Shl
-            | BinaryOp::Shr => false,
+            | BinaryOp::Xor => false,
         }
     }
 }

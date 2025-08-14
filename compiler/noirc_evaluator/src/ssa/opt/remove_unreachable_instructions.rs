@@ -60,7 +60,7 @@ impl Function {
         let one = self.dfg.make_constant(1_u32.into(), NumericType::bool());
         let mut side_effects_condition = one;
 
-        self.simple_reachable_blocks_optimization(|context| {
+        self.simple_optimization(|context| {
             let block_id = context.block_id;
 
             if current_block_id != Some(block_id) {

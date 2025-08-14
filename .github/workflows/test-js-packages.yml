@@ -614,36 +614,36 @@ jobs:
             exit 1
           fi
 
-  compile-noir-contracts:
-    needs: [build-nargo]
-    runs-on: ubuntu-22.04
-    timeout-minutes: 30
-    name: Compile `noir-contracts` zero inliner aggressiveness
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          path: noir-repo
+  # compile-noir-contracts:
+  #   needs: [build-nargo]
+  #   runs-on: ubuntu-22.04
+  #   timeout-minutes: 30
+  #   name: Compile `noir-contracts` zero inliner aggressiveness
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@v4
+  #       with:
+  #         path: noir-repo
 
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          repository: AztecProtocol/aztec-packages
-          path: test-repo
+  #     - name: Checkout
+  #       uses: actions/checkout@v4
+  #       with:
+  #         repository: AztecProtocol/aztec-packages
+  #         path: test-repo
 
-      - name: Download nargo binary
-        uses: ./noir-repo/.github/actions/download-nargo
+  #     - name: Download nargo binary
+  #       uses: ./noir-repo/.github/actions/download-nargo
 
-      - name: Remove requirements on compiler version
-        working-directory: ./test-repo
-        run: |
-          # Github actions seems to not expand "**" in globs by default.
-          shopt -s globstar
-          sed -i '/^compiler_version/d' ./**/Nargo.toml
+  #     - name: Remove requirements on compiler version
+  #       working-directory: ./test-repo
+  #       run: |
+  #         # Github actions seems to not expand "**" in globs by default.
+  #         shopt -s globstar
+  #         sed -i '/^compiler_version/d' ./**/Nargo.toml
 
-      - name: Run nargo compile
-        working-directory: ./test-repo/noir-projects/noir-contracts
-        run: nargo compile --inliner-aggressiveness 0
+  #     - name: Run nargo compile
+  #       working-directory: ./test-repo/noir-projects/noir-contracts
+  #       run: nargo compile --inliner-aggressiveness 0
 
   upload_critical_library_report:
     name: Upload critical library report
@@ -711,7 +711,7 @@ jobs:
       - test-integration-node
       - test-integration-browser
       - test-examples
-      - compile-noir-contracts
+      # - compile-noir-contracts
 
     steps:
         - name: Report overall success

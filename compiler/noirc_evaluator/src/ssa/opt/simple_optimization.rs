@@ -9,8 +9,8 @@ use crate::{
         dfg::{DataFlowGraph, InsertInstructionResult},
         function::Function,
         instruction::{Instruction, InstructionId},
-        types::NumericType,
-        types::Type,
+        post_order::PostOrder,
+        types::{NumericType, Type},
         value::{ValueId, ValueMapping},
     },
 };
@@ -18,7 +18,7 @@ use crate::{
 impl Function {
     /// Performs a simple optimization according to the given callback.
     ///
-    /// The function's [`Function::reachable_blocks`] are traversed in turn, and instructions in those blocks
+    /// The function's reverse [post order][PostOrder] are traversed in turn, and instructions in those blocks
     /// are then traversed in turn. For each one, `f` will be called with a context.
     ///
     /// The current instruction will be inserted at the end of the callback given to `mutate` unless
@@ -29,11 +29,11 @@ impl Function {
     ///
     /// `replace_value` can be used to replace a value with another one. This substitution will be
     /// performed in all subsequent instructions.
-    pub(crate) fn simple_reachable_blocks_optimization<F>(&mut self, mut f: F)
+    pub(crate) fn simple_optimization<F>(&mut self, mut f: F)
     where
         F: FnMut(&mut SimpleOptimizationContext<'_, '_>),
     {
-        self.simple_reachable_blocks_optimization_result(move |context| {
+        self.simple_optimization_result(move |context| {
             f(context);
             Ok(())
         })
@@ -43,7 +43,7 @@ impl Function {
     /// Performs a simple optimization according to the given callback, returning early if
     /// an error occurred.
     ///
-    /// The function's [`Function::reachable_blocks`] are traversed in turn, and instructions in those blocks
+    /// The function's reverse [post order][PostOrder] are traversed in turn, and instructions in those blocks
     /// are then traversed in turn. For each one, `f` will be called with a context.
     ///
     /// The current instruction will be inserted at the end of the callback given to `mutate` unless
@@ -54,17 +54,16 @@ impl Function {
     ///
     /// `replace_value` can be used to replace a value with another one. This substitution will be
     /// performed in all subsequent instructions.
-    pub(crate) fn simple_reachable_blocks_optimization_result<F>(
-        &mut self,
-        mut f: F,
-    ) -> RtResult<()>
+    pub(crate) fn simple_optimization_result<F>(&mut self, mut f: F) -> RtResult<()>
     where
         F: FnMut(&mut SimpleOptimizationContext<'_, '_>) -> RtResult<()>,
     {
         let mut values_to_replace = ValueMapping::default();
         let mut enable_side_effects =
             self.dfg.make_constant(FieldElement::from(1_u128), NumericType::bool());
-        for block_id in self.reachable_blocks() {
+        let mut reverse_post_order = PostOrder::with_function(self).into_vec();
+        reverse_post_order.reverse();
+        for block_id in reverse_post_order {
             let instruction_ids = self.dfg[block_id].take_instructions();
             self.dfg[block_id].instructions_mut().reserve(instruction_ids.len());
             for instruction_id in &instruction_ids {
