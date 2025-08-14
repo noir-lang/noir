@@ -147,6 +147,17 @@ impl Block {
         }
         self.references = intersection;
 
+        // Keep only the last loads present in both maps, if they map to the same InstructionId
+        let mut intersection = im::OrdMap::new();
+        for (value_id, instruction) in &other.last_loads {
+            if let Some(existing) = self.last_loads.get(value_id) {
+                if existing == instruction {
+                    intersection.insert(*value_id, *instruction);
+                }
+            }
+        }
+        self.last_loads = intersection;
+
         self
     }
 

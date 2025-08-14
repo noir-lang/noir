@@ -313,13 +313,6 @@ impl<'f> PerFunctionContext<'f> {
 
             first.last_stores.clear();
 
-            if predecessors.len() > 0 {
-                // Last loads are tracked per block. During unification we are creating a new block from the current one,
-                // so we must clear the last loads of the current block before we return the new block,
-                // but only if we have more than one predecessor (otherwise we can keep the ones from the previous block).
-                first.last_loads.clear();
-            }
-
             // Note that we have to start folding with the first block as the accumulator.
             // If we started with an empty block, an empty block union'd with any other block
             // is always also empty so we'd never be able to track any references across blocks.
@@ -1609,6 +1602,41 @@ mod tests {
             jmp b1()
           b1():
             return v1
+        }
+        ");
+    }
+
+    #[test]
+    fn reuses_last_load_from_multiple_indirect_predecessor_block() {
+        let src = r#"
+        brillig(inline) fn main f0 {
+          b0(v0: &mut Field, v1: u1):
+            v2 = load v0 -> Field
+            jmpif v1 then: b1, else: b2
+          b1():
+            jmp b3()
+          b2():
+            jmp b3()
+          b3():
+            v18 = load v0 -> Field
+            return v18
+        }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.mem2reg();
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: &mut Field, v1: u1):
+            v2 = load v0 -> Field
+            jmpif v1 then: b1, else: b2
+          b1():
+            jmp b3()
+          b2():
+            jmp b3()
+          b3():
+            return v2
         }
         ");
     }
