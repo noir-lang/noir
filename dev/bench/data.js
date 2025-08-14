@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1755128514226,
+  "lastUpdate": 1755182768529,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -17050,48 +17050,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "8264d307dc4f076f376ae616e84fb78a69744a9a",
-          "message": "fix: replace implicitly added named generics with fresh type vars in check_trait_impl_where_clause_matches_trait_where_clause (#9352)",
-          "timestamp": "2025-07-30T12:44:00Z",
-          "tree_id": "5d09a76b70391b6db23a5ad9d8d11b28b2fa23dc",
-          "url": "https://github.com/noir-lang/noir/commit/8264d307dc4f076f376ae616e84fb78a69744a9a"
-        },
-        "date": 1753880984694,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 247694,
-            "range": "± 469",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 220338,
-            "range": "± 3057",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2783914,
-            "range": "± 5181",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "853607f779b65664ee85f350f3d25f5ceaeaf6cc",
           "message": "chore: enhance trait constraint comment (#9358)",
@@ -19134,6 +19092,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2776812,
             "range": "± 1780",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "20a6467e324a4d1cc07f73dc55c2a49b8671989d",
+          "message": "fix(ssa): Replace pop from 0-length slice with constraint and defaults (#9489)",
+          "timestamp": "2025-08-14T14:14:24Z",
+          "tree_id": "1a6eca570dd62dd3894d001367fda3f03c1e7487",
+          "url": "https://github.com/noir-lang/noir/commit/20a6467e324a4d1cc07f73dc55c2a49b8671989d"
+        },
+        "date": 1755182750600,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 247991,
+            "range": "± 846",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 219591,
+            "range": "± 2549",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2798155,
+            "range": "± 2476",
             "unit": "ns/iter"
           }
         ]
