@@ -624,6 +624,13 @@ impl AstPrinter {
                 write!(f, "*")?;
                 self.print_lvalue(reference, f)
             }
+            LValue::Clone(lvalue) => {
+                self.print_lvalue(lvalue, f)?;
+                if self.show_clone_and_drop {
+                    write!(f, ".clone()")?
+                }
+                Ok(())
+            }
         }
     }
 }

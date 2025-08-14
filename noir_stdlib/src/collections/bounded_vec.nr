@@ -400,7 +400,6 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
                 ret |= predicate(self.storage[i]);
             }
         } else {
-            let mut ret = false;
             let mut exceeded_len = false;
             for i in 0..MaxLen {
                 exceeded_len |= i == self.len;
@@ -618,7 +617,7 @@ mod bounded_vec_tests {
         fn panics_when_reading_elements_past_end_of_vec() {
             let vec: BoundedVec<Field, 5> = BoundedVec::new();
 
-            crate::println(vec.get(0));
+            let _ = vec.get(0);
         }
     }
 
@@ -649,9 +648,34 @@ mod bounded_vec_tests {
         fn panics_when_writing_elements_past_end_of_vec() {
             let mut vec: BoundedVec<Field, 5> = BoundedVec::new();
             vec.set(0, 42);
+        }
+    }
 
-            // Need to use println to avoid DIE removing the write operation.
-            crate::println(vec.get(0));
+    mod any {
+        use crate::collections::bounded_vec::BoundedVec;
+
+        #[test]
+        fn returns_false_if_predicate_not_satisfied() {
+            let vec: BoundedVec<bool, 4> = BoundedVec::from_array([false, false, false, false]);
+            let result = vec.any(|value| value);
+
+            assert(!result);
+        }
+
+        #[test]
+        fn returns_true_if_predicate_satisfied() {
+            let vec: BoundedVec<bool, 4> = BoundedVec::from_array([false, false, true, true]);
+            let result = vec.any(|value| value);
+
+            assert(result);
+        }
+
+        #[test]
+        fn returns_false_on_empty_boundedvec() {
+            let vec: BoundedVec<bool, 0> = BoundedVec::new();
+            let result = vec.any(|value| value);
+
+            assert(!result);
         }
     }
 

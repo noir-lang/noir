@@ -220,7 +220,12 @@ impl<'a> Parser<'a> {
                     }
                 },
                 Some(Err(lexer_error)) => self.errors.push(lexer_error.into()),
-                None => return (eof_located_token(), last_comments),
+                None => {
+                    let end_span = Span::single_char(self.current_token_location.span.end());
+                    let end_location = Location::new(end_span, self.current_token_location.file);
+                    let end_token = LocatedToken::new(Token::EOF, end_location);
+                    return (end_token, last_comments);
+                }
             }
         }
     }

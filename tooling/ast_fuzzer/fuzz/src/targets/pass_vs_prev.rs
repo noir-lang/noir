@@ -66,7 +66,7 @@ fn clone_ssa(ssa: &Ssa) -> Ssa {
 mod tests {
     /// ```ignore
     /// NOIR_AST_FUZZER_SEED=0x6819c61400001000 \
-    /// NOIR_AST_FUZZER_SHOW_AST=1 \
+    /// RUST_LOG=debug \
     /// cargo test -p noir_ast_fuzzer_fuzz pass_vs_prev
     /// ```
     #[test]

@@ -453,4 +453,84 @@ mod tests {
         );
         assert!(tws[3] > std::cmp::max(tws[1], tws[2]), "ideally 'main' has the most weight");
     }
+
+    #[test]
+    fn mark_static_assertions_to_always_be_inlined() {
+        let src = "
+        brillig(inline) fn main f0 {
+            b0():
+              call f1(Field 1)
+              return
+        }
+        brillig(inline) fn foo f1 {
+            b0(v0: Field):
+              call assert_constant(v0)
+              return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let call_graph = CallGraph::from_ssa_weighted(&ssa);
+        let infos = compute_inline_infos(&ssa, &call_graph, false, 0);
+
+        let f1 = infos.get(&Id::test_new(1)).expect("f1 should be analyzed");
+        assert!(
+            f1.contains_static_assertion,
+            "f1 should be marked as containing a static assertion"
+        );
+        assert!(f1.should_inline, "f1 should be inlined due to static assertion");
+    }
+
+    #[test]
+    fn no_predicates() {
+        let src = "
+        acir(inline) fn main f0 {
+            b0():
+              call f1()
+              return
+        }
+        acir(no_predicates) fn no_predicates f1 {
+            b0():
+              return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let call_graph = CallGraph::from_ssa_weighted(&ssa);
+        let infos = compute_inline_infos(&ssa, &call_graph, false, 0);
+
+        let f1 = infos.get(&Id::test_new(1)).expect("Should analyze f1");
+        assert!(
+            !f1.should_inline,
+            "no_predicates functions should NOT be inlined if the flag is false"
+        );
+
+        let infos = compute_inline_infos(&ssa, &call_graph, true, 0);
+
+        let f1 = infos.get(&Id::test_new(1)).expect("Should analyze f1");
+        assert!(f1.should_inline, "no_predicates functions should be inlined if the flag is true");
+    }
+
+    #[test]
+    fn inline_always_functions_are_inlined() {
+        let src = "
+        brillig(inline) fn main f0 {
+            b0():
+              call f1()
+              return
+        }
+
+        brillig(inline_always) fn always_inline f1 {
+            b0():
+              return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let call_graph = CallGraph::from_ssa_weighted(&ssa);
+        let infos = compute_inline_infos(&ssa, &call_graph, false, 0);
+
+        let f1 = infos.get(&Id::test_new(1)).expect("Should analyze f1");
+        assert!(f1.should_inline, "inline_always functions should be inlined");
+    }
 }

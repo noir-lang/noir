@@ -102,9 +102,6 @@ impl From<SsaReport> for CustomDiagnostic {
                     InternalWarning::ReturnConstant { call_stack } => {
                         ("This variable contains a value which is constrained to be a constant. Consider removing this value as additional return values increase proving/verification time".to_string(), call_stack)
                     },
-                    InternalWarning::VerifyProof { call_stack } => {
-                        ("The validity of the proof passed to verify_proof(...) can only be checked by the proving backend, so witness execution will defer checking of these proofs to the proving backend. Passing an invalid proof is expected to cause the proving backend to either fail to generate a proof or generate a proof which fails verification".to_string(), call_stack)
-                    },
                 };
                 let call_stack = vecmap(call_stack, |location| location);
                 let location = call_stack.last().expect("Expected RuntimeError to have a location");
@@ -142,8 +139,6 @@ impl From<SsaReport> for CustomDiagnostic {
 pub enum InternalWarning {
     #[error("Return variable contains a constant value")]
     ReturnConstant { call_stack: CallStack },
-    #[error("Calling std::verify_proof(...) does not check that the provided proof is valid")]
-    VerifyProof { call_stack: CallStack },
 }
 
 #[derive(Debug, PartialEq, Eq, Clone, Error, Serialize, Deserialize, Hash)]

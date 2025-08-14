@@ -1,0 +1,23 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+pub mod bar {
+    pub struct Foo<T> {}
+
+    impl Foo<i32> {
+        fn foo(self) {
+            let _: Self = self;
+        }
+    }
+
+    impl Foo<i64> {
+        fn bar(self) {
+            let _: Self = self;
+            let foo: Foo<i32> = Foo::<i32> {};
+            foo.foo();
+        }
+    }
+}
+
+fn main() {}

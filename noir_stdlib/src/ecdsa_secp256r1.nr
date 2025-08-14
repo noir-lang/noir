@@ -9,6 +9,7 @@ pub fn verify_signature<let N: u32>(
 // docs:end:ecdsa_secp256r1
 {}
 
+#[deprecated("This method is deprecated and will be removed in 1.0.0-beta.12")]
 #[foreign(ecdsa_secp256r1)]
 // docs:start:ecdsa_secp256r1_slice
 pub fn verify_signature_slice(

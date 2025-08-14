@@ -20,9 +20,11 @@ use crate::{
 use super::unrolling::Loops;
 
 impl Ssa {
-    /// A simple SSA pass to go through each instruction and evaluate each call
-    /// to `assert_constant`, issuing an error if any arguments to the function are
-    /// not constants.
+    /// A simple SSA pass to go through each instruction and evaluate:
+    /// - each call to `assert_constant`, issuing an error if any arguments to the function
+    ///   are not constants
+    /// - each call to `static_assert`, issuing an error if the assertion does not hold,
+    ///   the value to test is not a constant, or the message is dynamic.
     ///
     /// Note that this pass must be placed directly before loop unrolling to be
     /// useful. Any optimization passes between this and loop unrolling will cause
@@ -217,6 +219,43 @@ mod test {
     use crate::{assert_ssa_snapshot, errors::RuntimeError, ssa::ssa_gen::Ssa};
 
     #[test]
+    fn do_not_fail_on_successful_assert_constant() {
+        let src = r"
+        acir(inline) fn main f0 {
+          b0():
+            call assert_constant(Field 1)
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.evaluate_static_assert_and_assert_constant().unwrap();
+
+        // The assertion held and it was removed from the SSA.
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            return
+        }
+        ");
+    }
+
+    #[test]
+    fn fail_on_unsuccessful_assert_constant() {
+        let src = r"
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            call assert_constant(v0)
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        assert!(matches!(
+            ssa.evaluate_static_assert_and_assert_constant().err().unwrap(),
+            RuntimeError::AssertConstantFailed { .. }
+        ));
+    }
+
+    #[test]
     fn do_not_fail_on_assert_constant_in_empty_loop() {
         let src = r"
         acir(inline) fn main f0 {
@@ -288,5 +327,89 @@ mod test {
             ssa.evaluate_static_assert_and_assert_constant().err().unwrap(),
             RuntimeError::AssertConstantFailed { .. }
         ));
+    }
+
+    #[test]
+    fn do_not_fail_on_successful_static_assert() {
+        let src = r#"
+        acir(inline) fn main f0 {
+        b0():
+            v13 = make_array b"Assertion failed"
+            v24 = make_array b"{\"kind\":\"string\",\"length\":16}"
+            call static_assert(u1 1, v13, v24, u1 0)
+            return
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.evaluate_static_assert_and_assert_constant().unwrap();
+
+        // The assertion held and it was removed from the SSA.
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) fn main f0 {
+          b0():
+            v13 = make_array b"Assertion failed"
+            v24 = make_array b"{\"kind\":\"string\",\"length\":16}"
+            return
+        }
+        "#);
+    }
+
+    #[test]
+    fn fail_on_unsuccessful_static_assert() {
+        let src = r#"
+        acir(inline) fn main f0 {
+        b0():
+            v13 = make_array b"Assertion failed"
+            v24 = make_array b"{\"kind\":\"string\",\"length\":16}"
+            call static_assert(u1 0, v13, v24, u1 0)
+            return
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let Err(RuntimeError::StaticAssertFailed { message, .. }) =
+            ssa.evaluate_static_assert_and_assert_constant()
+        else {
+            panic!("Expected a static assert failure");
+        };
+        assert_eq!(message, "Assertion failed");
+    }
+
+    #[test]
+    fn fail_on_static_assert_without_a_constant_value() {
+        let src = r#"
+        acir(inline) fn main f0 {
+        b0(v0: u1):
+            v13 = make_array b"Assertion failed"
+            v24 = make_array b"{\"kind\":\"string\",\"length\":16}"
+            call static_assert(v0, v13, v24, u1 0)
+            return
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let Err(RuntimeError::StaticAssertDynamicPredicate { message, .. }) =
+            ssa.evaluate_static_assert_and_assert_constant()
+        else {
+            panic!("Expected a static assert dynamic predicate failure");
+        };
+        assert_eq!(message, "Assertion failed");
+    }
+
+    #[test]
+    fn fail_on_static_assert_with_a_dynamic_message() {
+        let src = r#"
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v18 = make_array b"Assertion failed: {x}"
+            v21 = make_array b"{\"kind\":\"field\"}"
+            call static_assert(u1 0, v18, Field 1, v0, v21, u1 1)
+            return
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let Err(RuntimeError::StaticAssertDynamicMessage { .. }) =
+            ssa.evaluate_static_assert_and_assert_constant()
+        else {
+            panic!("Expected a static assert dynamic message failure");
+        };
     }
 }

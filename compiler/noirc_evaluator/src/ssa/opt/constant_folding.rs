@@ -123,7 +123,18 @@ impl Function {
             context.visited_blocks.insert(block);
             context.fold_constants_in_block(self, &mut dom, block);
         }
+
+        #[cfg(debug_assertions)]
+        constant_folding_post_check(&context, &self.dfg);
     }
+}
+
+#[cfg(debug_assertions)]
+fn constant_folding_post_check(context: &Context, dfg: &DataFlowGraph) {
+    assert!(
+        context.values_to_replace.value_types_are_consistent(dfg),
+        "Constant folding should not map a ValueId to another of a different type"
+    );
 }
 
 struct Context<'a> {
@@ -307,7 +318,7 @@ impl<'brillig> Context<'brillig> {
         // If a copy of this instruction exists earlier in the block, then reuse the previous results.
         let runtime_is_brillig = dfg.runtime().is_brillig();
         if let Some(cache_result) =
-            self.get_cached(dfg, dom, &instruction, *side_effects_enabled_var, block)
+            self.get_cached(dfg, dom, id, &instruction, *side_effects_enabled_var, block)
         {
             match cache_result {
                 CacheResult::Cached(cached) => {
@@ -538,6 +549,11 @@ impl<'brillig> Context<'brillig> {
 
     /// Replaces a set of [`ValueId`]s inside the [`DataFlowGraph`] with another.
     fn replace_result_ids(&mut self, old_results: &[ValueId], new_results: &[ValueId]) {
+        debug_assert_eq!(
+            old_results.len(),
+            new_results.len(),
+            "Constant folding should never mutate instruction return type"
+        );
         for (old_result, new_result) in old_results.iter().zip(new_results) {
             self.values_to_replace.insert(*old_result, *new_result);
         }
@@ -548,6 +564,7 @@ impl<'brillig> Context<'brillig> {
         &self,
         dfg: &DataFlowGraph,
         dom: &mut DominatorTree,
+        id: InstructionId,
         instruction: &Instruction,
         side_effects_enabled_var: ValueId,
         block: BasicBlockId,
@@ -556,7 +573,28 @@ impl<'brillig> Context<'brillig> {
         let predicate = self.use_constraint_info && instruction.requires_acir_gen_predicate(dfg);
         let predicate = predicate.then_some(side_effects_enabled_var);
 
-        results_for_instruction.get(&predicate)?.get(block, dom, instruction.has_side_effects(dfg))
+        let cached_results = results_for_instruction.get(&predicate)?.get(
+            block,
+            dom,
+            instruction.has_side_effects(dfg),
+        );
+
+        cached_results.filter(|results| {
+            // This is a hacky solution to https://github.com/noir-lang/noir/issues/9477
+            // We explicitly check that the cached result values are of the same type as expected by the instruction
+            // being checked against the cache and reject if they differ.
+            if let CacheResult::Cached(results) = results {
+                let old_results = dfg.instruction_results(id).to_vec();
+
+                results.len() == old_results.len()
+                    && old_results
+                        .iter()
+                        .zip(results.iter())
+                        .all(|(old, new)| dfg.type_of_value(*old) == dfg.type_of_value(*new))
+            } else {
+                true
+            }
+        })
     }
 
     /// Checks if the given instruction is a call to a brillig function with all constant arguments.
@@ -1928,6 +1966,36 @@ mod test {
             v5 = not v2
             enable_side_effects v5
             v6 = div v1, u32 2
+            return
+        }
+        ");
+    }
+
+    #[test]
+    fn does_not_deduplicate_calls_to_functions_which_differ_in_return_value_types() {
+        // We have a few intrinsics which have a generic return value (generally for array lengths), we want
+        // to avoid deduplicating these.
+        //
+        // This is not an issue for user code as these functions will be monomorphized whereas intrinsics haven't been.
+        let src = "
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v0: Field):
+            v1 = call to_le_radix(v0, u32 256) -> [u8; 2]
+            v2 = call to_le_radix(v0, u32 256) -> [u8; 3]
+            v3 = call to_le_radix(v0, u32 256) -> [u8; 2]
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.fold_constants_using_constraints();
+
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v0: Field):
+            v3 = call to_le_radix(v0, u32 256) -> [u8; 2]
+            v4 = call to_le_radix(v0, u32 256) -> [u8; 3]
+            inc_rc v3
             return
         }
         ");
