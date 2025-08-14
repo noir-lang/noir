@@ -61,8 +61,8 @@ fn main(x: Field, y: Field) {
     assert(p.first.array[0] != p.first.array[1]);
     // Nested structs
     let (struct_from_tuple, a_bool) = test_struct_in_tuple(true, x, y);
-    assert(struct_from_tuple.my_bool == true);
-    assert(a_bool == true);
+    assert(struct_from_tuple.my_bool);
+    assert(a_bool);
     assert(struct_from_tuple.my_int == 5);
     assert(struct_from_tuple.my_nest.a == 0);
     // Regression test for issue #670
