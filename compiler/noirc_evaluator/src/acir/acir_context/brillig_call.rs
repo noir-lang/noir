@@ -338,7 +338,7 @@ fn execute_brillig<F: AcirField, B: BlackBoxFunctionSolver<F>>(
     let mut vm = VM::new(calldata, code, blackbox_solver, profiling_active, None);
 
     // Run the Brillig VM on these inputs, bytecode, etc!
-    let vm_status = vm.process_opcodes();
+    let vm_status = vm.process_opcodes(Some(acvm::brillig_vm::DEFAULT_EXECUTION_LIMIT));
 
     // Check the status of the Brillig VM.
     // It may be finished, in-progress, failed, or may be waiting for results of a foreign call.
@@ -347,7 +347,12 @@ fn execute_brillig<F: AcirField, B: BlackBoxFunctionSolver<F>>(
         VMStatus::Finished { return_data_offset, return_data_size } => Some(
             vm.get_memory()[return_data_offset..(return_data_offset + return_data_size)].to_vec(),
         ),
-        VMStatus::InProgress => unreachable!("Brillig VM has not completed execution"),
+        VMStatus::InProgress => {
+            // The brillig bytecode didn't terminate before the opcode limit was reached.
+            // This is likely due to an infinite loop which is preventing the brillig function from completing.
+            // We then leave the opcode in place to not block compilation.
+            None
+        }
         VMStatus::Failure { .. } => {
             // TODO: Return an error stating that the brillig function failed.
             None
