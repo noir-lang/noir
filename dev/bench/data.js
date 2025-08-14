@@ -1,42 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1755199987246,
+  "lastUpdate": 1755199992612,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "922efbdb30b35c7e93f8db829436fbe0a03ffae1",
-          "message": "fix: modulo overflow in comptime (#9348)",
-          "timestamp": "2025-07-30T14:43:05Z",
-          "tree_id": "59b169ae7402cf35c78fac04acbcbe9f21208608",
-          "url": "https://github.com/noir-lang/noir/commit/922efbdb30b35c7e93f8db829436fbe0a03ffae1"
-        },
-        "date": 1753888504423,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore_depth_10",
-            "value": 104.71,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 234.72,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -3499,6 +3465,40 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512_100_bytes",
             "value": 234.78,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3052aa0e75c4eacf173adc272c4a087bb184be30",
+          "message": "chore: restore noir libs in CI (#9499)",
+          "timestamp": "2025-08-14T20:27:13+01:00",
+          "tree_id": "e89b69bbc0a36f2925d56e7b85f1621eee87cfa4",
+          "url": "https://github.com/noir-lang/noir/commit/3052aa0e75c4eacf173adc272c4a087bb184be30"
+        },
+        "date": 1755199974544,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "semaphore_depth_10",
+            "value": 104.76,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 234.73,
             "unit": "MB"
           }
         ]
