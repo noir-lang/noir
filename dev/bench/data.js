@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1755271315847,
+  "lastUpdate": 1755271323431,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -19603,40 +19603,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "4e13631500ed9aaecbd20aa80480b2f8bf547d03",
-          "message": "chore(docs): Add example for `$crate` in docs (#9361)",
-          "timestamp": "2025-07-30T16:33:32Z",
-          "tree_id": "b9d7c459fd592568c6ccee3297c166645afd8178",
-          "url": "https://github.com/noir-lang/noir/commit/4e13631500ed9aaecbd20aa80480b2f8bf547d03"
-        },
-        "date": 1753895015724,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore-depth-10",
-            "value": 632.1,
-            "unit": "KB"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 525.2,
-            "unit": "KB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -23086,6 +23052,90 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/29160ca8b880238cc13d755e769e5819426d3d1a"
         },
         "date": 1755270888034,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 709.1,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 2033.1,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 535.9,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 4318.4,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 3329.7,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 3846.6,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 30729.1,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 30774.8,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 187.1,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 388.9,
+            "unit": "KB"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 632.1,
+            "unit": "KB"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 525.2,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rodiondenmark@gmail.com",
+            "name": "Ragnar",
+            "username": "DeVikingMark"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "e3a8e9f955d61c4ef0c2900948e45595de9f3ebe",
+          "message": "fix(security): validate git references in GitHub dependency resolver (#9051)\n\nCo-authored-by: defkit <84741533+defkit@users.noreply.github.com>",
+          "timestamp": "2025-08-15T14:33:54Z",
+          "tree_id": "2c962fbe44bdfcbcdc229f5e29859ac8d3e7a0af",
+          "url": "https://github.com/noir-lang/noir/commit/e3a8e9f955d61c4ef0c2900948e45595de9f3ebe"
+        },
+        "date": 1755271305910,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
