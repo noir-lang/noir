@@ -95,7 +95,13 @@ impl Context<'_, '_, '_> {
 
         let pow = self.two_pow(rhs);
 
-        let max_bit = max_lhs_bits + max_bit_shift_size;
+        // We cap the maximum number of bits here to ensure that we don't try and truncate using a
+        // `max_bit_size` greater than what's allowable by the underlying `FieldElement` as this is meaningless.
+        //
+        // If `max_lhs_bits + max_bit_shift_size` were ever to exceed `FieldElement::max_num_bits()`,
+        // then the constraint on `rhs` in `self.two_pow` should be broken.
+        let max_bit =
+            std::cmp::min(max_lhs_bits + max_bit_shift_size, FieldElement::max_num_bits());
         if max_bit <= typ.bit_size() {
             let pow = self.insert_cast(pow, typ);
             // Unchecked mul as it can't overflow
@@ -465,6 +471,31 @@ mod tests {
                 v68 = truncate v67 to 32 bits, max_bit_size: 64
                 v69 = cast v68 as u32
                 return v69
+            }
+            "#);
+        }
+
+        #[test]
+        fn does_not_generate_invalid_truncation_on_overflowing_bitshift() {
+            // We want to ensure that the `max_bit_size` of the truncation does not exceed the field size.
+            let src = "
+            acir(inline) fn main f0 {
+              b0(v0: u32):
+                v2 = shl v0, u32 255
+                return v2
+            }
+            ";
+            let ssa = Ssa::from_str(src).unwrap();
+            let ssa = ssa.remove_bit_shifts();
+            assert_ssa_snapshot!(ssa, @r#"
+            acir(inline) fn main f0 {
+              b0(v0: u32):
+                constrain u1 0 == u1 1, "attempt to bit-shift with overflow"
+                v3 = cast v0 as Field
+                v5 = mul v3, Field -7768683996859727954953724731427871339010100868427821011365820555770860666883
+                v6 = truncate v5 to 32 bits, max_bit_size: 254
+                v7 = cast v6 as u32
+                return v7
             }
             "#);
         }
