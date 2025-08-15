@@ -310,7 +310,7 @@ mod tests {
             let bytecode = create_entry_point_bytecode(context, arguments, returns).byte_code;
 
             // Prepare flattened inputs.
-            let inputs = vec![vec![source_len.into()], source, vec![item_to_push]].concat();
+            let inputs = [vec![source_len.into()], source, vec![item_to_push]].concat();
 
             // Execute the byte code.
             let (vm, return_data_offset, return_data_size) = create_and_run_vm(inputs, &bytecode);
@@ -500,7 +500,7 @@ mod tests {
 
             let bytecode = create_entry_point_bytecode(context, arguments, returns).byte_code;
 
-            let inputs = vec![vec![source_len.into()], source].concat();
+            let inputs = [vec![source_len.into()], source].concat();
 
             let (vm, return_data_offset, return_data_size) = create_and_run_vm(inputs, &bytecode);
             // vector + removed item

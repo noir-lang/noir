@@ -461,6 +461,10 @@ fn convert_string_inputs<F: AcirField>(
 
     let printable_type = fetch_printable_type(printable_type_as_values)?;
 
+    for (i, v) in input_values.iter().enumerate() {
+        println!("args[{i}] = {v:?}");
+    }
+
     // We must use a flat map here as each value in a struct will be in a separate input value
     let mut input_values_as_fields = flatten_inputs(input_values);
 
