@@ -66,6 +66,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         self.brillig_context.deallocate_register(write_pointer);
     }
 
+    /// Read the memory starting at the pointer into successive variables.
     fn read_variables(&mut self, read_pointer: MemoryAddress, variables: &[BrilligVariable]) {
         for (index, variable) in variables.iter().enumerate() {
             self.brillig_context.load_instruction(variable.extract_register(), read_pointer);
@@ -79,6 +80,8 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         }
     }
 
+    /// Read the popped number of variables from the front of the source vector,
+    /// then create the target vector from the source by skipping the number of popped items.
     pub(crate) fn slice_pop_front_operation(
         &mut self,
         target_vector: BrilligVector,
@@ -419,7 +422,7 @@ mod tests {
     }
 
     #[test]
-    fn test_slice_pop_back_operation() {
+    fn test_slice_pop_operation() {
         fn test_case_pop(
             pop_back: bool,
             source_len: usize,
@@ -435,7 +438,11 @@ mod tests {
                 ),
             ];
             let result_length = source_len - 1;
-            assert_eq!(result_length, expected_return_array.len());
+            assert_eq!(
+                result_length,
+                expected_return_array.len(),
+                "expect return length to be 1 less than input"
+            );
             let result_length_with_metadata = result_length + 2; // Leading length and capacity
 
             // Entry points don't support returning slices, so we implicitly cast the vector to an array
@@ -497,21 +504,31 @@ mod tests {
 
             let (vm, return_data_offset, return_data_size) = create_and_run_vm(inputs, &bytecode);
             // vector + removed item
-            assert_eq!(return_data_size, result_length_with_metadata + 1);
+            assert_eq!(
+                return_data_size,
+                result_length_with_metadata + 1,
+                "expect return data size to be the metadata, the remaining items, plus 1 popped item"
+            );
 
             let mut return_data: Vec<FieldElement> = vm.get_memory()
                 [return_data_offset..(return_data_offset + return_data_size)]
                 .iter()
                 .map(|mem_val| mem_val.to_field())
                 .collect();
+
             let returned_item = return_data.remove(0);
-            assert_eq!(returned_item, expected_return_item);
+            assert_eq!(returned_item, expected_return_item, "expect the popped item to match");
 
             let returned_size = return_data.remove(0);
-            assert_eq!(returned_size, result_length.into());
+            assert_eq!(
+                returned_size,
+                result_length.into(),
+                "expect size to be 1 less than the input size"
+            );
+
             let _returned_capacity = return_data.remove(0);
 
-            assert_eq!(return_data, expected_return_array);
+            assert_eq!(return_data, expected_return_array, "expect the returned items to match");
         }
 
         test_case_pop(
@@ -547,12 +564,12 @@ mod tests {
             false,
             3,
             vec![
-                FieldElement::from(1_usize),
-                FieldElement::from(2_usize),
-                FieldElement::from(3_usize),
+                FieldElement::from(10_usize),
+                FieldElement::from(20_usize),
+                FieldElement::from(30_usize),
             ],
-            vec![FieldElement::from(2_usize), FieldElement::from(3_usize)],
-            FieldElement::from(1_usize),
+            vec![FieldElement::from(20_usize), FieldElement::from(30_usize)],
+            FieldElement::from(10_usize),
         );
         test_case_pop(
             false,

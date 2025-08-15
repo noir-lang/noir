@@ -86,29 +86,34 @@ pub(super) fn compile_vector_pop_front_procedure<F: AcirField + DebugToString>(
     brillig_context.codegen_branch(is_rc_one, |brillig_context, is_rc_one| {
         if is_rc_one {
             // We reuse the source vector, moving the metadata to the right (decreasing capacity)
+            // Set the target vector pointer to be the source plus the number of popped items.
             brillig_context.memory_op_instruction(
                 source_vector.pointer,
                 item_pop_count_arg,
                 target_vector.pointer,
                 BrilligBinaryOp::Add,
             );
+            // Decrease the source/target capacity by the number of popped items.
             brillig_context.memory_op_instruction(
                 source_capacity.address,
                 item_pop_count_arg,
                 source_capacity.address,
                 BrilligBinaryOp::Sub,
             );
+            // Re-initialize the metadata at the shifted position.
             brillig_context.codegen_initialize_vector_metadata(
                 target_vector,
                 target_size,
                 Some(source_capacity),
             );
         } else {
+            // We can't reuse the source vector, so allocate a new one.
             brillig_context.codegen_initialize_vector(target_vector, target_size, None);
 
             let target_vector_items_pointer =
                 brillig_context.codegen_make_vector_items_pointer(target_vector);
 
+            // Set the source pointer to copy from to the source items start plus the number of popped items.
             let source_copy_pointer = brillig_context.allocate_register();
             brillig_context.memory_op_instruction(
                 source_items_pointer.address,
