@@ -1254,6 +1254,10 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         instruction_id: InstructionId,
         arguments: &[ValueId],
     ) {
+        // Slice operations always look like `... = call slice_<op> source_len, source_vector, ...`
+        let source_len = self.convert_ssa_value(arguments[0], dfg);
+        let source_len = source_len.extract_single_addr();
+
         let slice_id = arguments[1];
         let element_size = dfg.type_of_value(slice_id).element_size();
         let source_vector = self.convert_ssa_value(slice_id, dfg).extract_vector();
@@ -1261,6 +1265,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         let results = dfg.instruction_results(instruction_id);
         match intrinsic {
             Value::Intrinsic(Intrinsic::SlicePushBack) => {
+                // target_len, target_slice = slice_push_back source_len, source_slice
                 let target_len = match self.variables.define_variable(
                     self.function_context,
                     self.brillig_context,
@@ -1283,12 +1288,8 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                     self.convert_ssa_value(*arg, dfg)
                 });
 
-                self.update_slice_length(
-                    target_len.address,
-                    arguments[0],
-                    dfg,
-                    BrilligBinaryOp::Add,
-                );
+                // target_len = source_len + 1
+                self.update_slice_length(target_len, source_len, BrilligBinaryOp::Add);
 
                 self.slice_push_back_operation(target_vector, source_vector, &item_values);
             }
@@ -1314,12 +1315,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                     self.convert_ssa_value(*arg, dfg)
                 });
 
-                self.update_slice_length(
-                    target_len.address,
-                    arguments[0],
-                    dfg,
-                    BrilligBinaryOp::Add,
-                );
+                self.update_slice_length(target_len, source_len, BrilligBinaryOp::Add);
 
                 self.slice_push_front_operation(target_vector, source_vector, &item_values);
             }
@@ -1352,12 +1348,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                     )
                 });
 
-                self.update_slice_length(
-                    target_len.address,
-                    arguments[0],
-                    dfg,
-                    BrilligBinaryOp::Sub,
-                );
+                self.update_slice_length(target_len, source_len, BrilligBinaryOp::Sub);
 
                 self.slice_pop_back_operation(target_vector, source_vector, &pop_variables);
             }
@@ -1389,12 +1380,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 );
                 let target_vector = target_variable.extract_vector();
 
-                self.update_slice_length(
-                    target_len.address,
-                    arguments[0],
-                    dfg,
-                    BrilligBinaryOp::Sub,
-                );
+                self.update_slice_length(target_len, source_len, BrilligBinaryOp::Sub);
 
                 self.slice_pop_front_operation(target_vector, source_vector, &pop_variables);
             }
@@ -1437,12 +1423,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                     self.convert_ssa_value(*arg, dfg)
                 });
 
-                self.update_slice_length(
-                    target_len.address,
-                    arguments[0],
-                    dfg,
-                    BrilligBinaryOp::Add,
-                );
+                self.update_slice_length(target_len, source_len, BrilligBinaryOp::Add);
 
                 self.slice_insert_operation(target_vector, source_vector, converted_index, &items);
                 self.brillig_context.deallocate_single_addr(converted_index);
@@ -1490,12 +1471,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                     )
                 });
 
-                self.update_slice_length(
-                    target_len.address,
-                    arguments[0],
-                    dfg,
-                    BrilligBinaryOp::Sub,
-                );
+                self.update_slice_length(target_len, source_len, BrilligBinaryOp::Sub);
 
                 self.slice_remove_operation(
                     target_vector,
@@ -1510,6 +1486,8 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         }
     }
 
+    /// Increase or decrease the slice length by 1.
+    ///
     /// Slices have a tuple structure (slice length, slice contents) to enable logic
     /// that uses dynamic slice lengths (such as with merging slices in the flattening pass).
     /// This method codegens an update to the slice length.
@@ -1525,15 +1503,11 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
     /// but if it's in SSA, there is a chance it can be optimized out.
     fn update_slice_length(
         &mut self,
-        target_len: MemoryAddress,
-        source_value: ValueId,
-        dfg: &DataFlowGraph,
+        target_len: SingleAddrVariable,
+        source_len: SingleAddrVariable,
         binary_op: BrilligBinaryOp,
     ) {
-        let source_len_variable = self.convert_ssa_value(source_value, dfg);
-        let source_len = source_len_variable.extract_single_addr();
-
-        self.brillig_context.codegen_usize_op(source_len.address, target_len, binary_op, 1);
+        self.brillig_context.codegen_usize_op(source_len.address, target_len.address, binary_op, 1);
     }
 
     /// Converts an SSA cast to a sequence of Brillig opcodes.
