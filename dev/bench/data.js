@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1755270926611,
+  "lastUpdate": 1755271000687,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3517,40 +3517,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "28abb682cf4001ab97dcafd3e9a111a281806be4",
-          "message": "fix: Prevent accidental tuple sharing in comptime code (#9313)",
-          "timestamp": "2025-07-30T15:02:09Z",
-          "tree_id": "69bf293b9d6ab4f070e44d5ceed1802d49768e4d",
-          "url": "https://github.com/noir-lang/noir/commit/28abb682cf4001ab97dcafd3e9a111a281806be4"
-        },
-        "date": 1753889533345,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.75,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 1.768,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "4e13631500ed9aaecbd20aa80480b2f8bf547d03",
           "message": "chore(docs): Add example for `$crate` in docs (#9361)",
@@ -7001,6 +6967,90 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 1.539,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "163862677+noirwhal@users.noreply.github.com",
+            "name": "noirwhal",
+            "username": "noirwhal"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "29160ca8b880238cc13d755e769e5819426d3d1a",
+          "message": "chore: bump external pinned commits (#9508)\n\nCo-authored-by: noirwhal <tomfrench@aztecprotocol.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-08-15T14:32:07Z",
+          "tree_id": "24cbbed83d36a8766500c197eb2531a5d7f0bded",
+          "url": "https://github.com/noir-lang/noir/commit/29160ca8b880238cc13d755e769e5819426d3d1a"
+        },
+        "date": 1755270982744,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1.68,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 7.752,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.312,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 15.46,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 13.7,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 22.26,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 201,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 201,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.34,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.496,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.891,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 1.748,
             "unit": "s"
           }
         ]
