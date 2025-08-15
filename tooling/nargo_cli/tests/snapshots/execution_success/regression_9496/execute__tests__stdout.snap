@@ -3,5 +3,7 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: stdout
 ---
 &[10, 10]
-(&[], 10)
-[regression_9496] Circuit output: (10, 10)
+&[]
+&[]
+&[20, 30]
+[regression_9496] Circuit output: (10, 10, 10, 10)
