@@ -1,5 +1,6 @@
 fn main(b: bool) -> pub u32 {
     let mut ctx_limit: u32 = 3_u32;
+    // safety:
     unsafe {
         func_2_proxy(if { b } { &[10] } else { &[20, 30] }, ctx_limit)
     }
