@@ -319,6 +319,7 @@ impl<K, V, let N: u32, B> HashMap<K, V, N, B> {
         }
 
         self._table = new_map._table;
+        self._len = new_map._len;
     }
 
     /// Iterates through the HashMap, mutating each key to the result returned from
@@ -356,6 +357,7 @@ impl<K, V, let N: u32, B> HashMap<K, V, N, B> {
         }
 
         self._table = new_map._table;
+        self._len = new_map._len;
     }
 
     /// Iterates through the HashMap, applying the given function to each value and mutating the
