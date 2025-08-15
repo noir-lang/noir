@@ -49,7 +49,7 @@ impl Function {
 
         let mut previous_block = None;
 
-        self.simple_reachable_blocks_optimization(|context| {
+        self.simple_optimization(|context| {
             if Some(context.block_id) != previous_block {
                 active_condition = one;
                 last_side_effects_enabled_instruction = None;
@@ -275,23 +275,23 @@ mod test {
     }
 
     #[test]
-    fn remove_enable_side_effects_for_slice_pop_back() {
+    fn keep_enable_side_effects_for_slice_pop_back() {
         let src = get_slice_intrinsic_src(
             "v13, v14, v15",
             &Intrinsic::SlicePopBack.to_string(),
             ") -> (u32, [Field], Field)",
         );
-        verify_all_enable_side_effects_removed(&src);
+        verify_ssa_unchanged(&src);
     }
 
     #[test]
-    fn remove_enable_side_effects_for_slice_pop_front() {
+    fn keep_enable_side_effects_for_slice_pop_front() {
         let src = get_slice_intrinsic_src(
             "v13, v14, v15",
             &Intrinsic::SlicePopFront.to_string(),
             ") -> (Field, u32, [Field])",
         );
-        verify_all_enable_side_effects_removed(&src);
+        verify_ssa_unchanged(&src);
     }
 
     #[test]
