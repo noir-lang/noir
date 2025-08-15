@@ -1,0 +1,15 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Duplicate definitions of trait associated item with name N found
+  ┌─ src/main.nr:2:9
+  │
+2 │     let N: u32;
+  │         - First trait associated item found here
+3 │ 
+4 │     fn N() {}
+  │        - Second trait associated item found here
+  │
+
+Aborting due to 1 previous error

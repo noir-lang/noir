@@ -142,7 +142,12 @@ impl FunctionBuilder {
         assert!(databus.databus.is_none(), "initializing finalized call data");
         let typ = self.current_function.dfg[value].get_type().into_owned();
         match typ {
-            Type::Numeric(_) => {
+            Type::Numeric(numeric_type) => {
+                let value = if matches!(numeric_type, NumericType::NativeField) {
+                    value
+                } else {
+                    self.insert_cast(value, NumericType::NativeField)
+                };
                 databus.values.push_back(value);
                 databus.index += 1;
             }

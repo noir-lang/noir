@@ -123,7 +123,18 @@ impl Function {
             context.visited_blocks.insert(block);
             context.fold_constants_in_block(self, &mut dom, block);
         }
+
+        #[cfg(debug_assertions)]
+        constant_folding_post_check(&context, &self.dfg);
     }
+}
+
+#[cfg(debug_assertions)]
+fn constant_folding_post_check(context: &Context, dfg: &DataFlowGraph) {
+    assert!(
+        context.values_to_replace.value_types_are_consistent(dfg),
+        "Constant folding should not map a ValueId to another of a different type"
+    );
 }
 
 struct Context<'a> {
@@ -307,7 +318,7 @@ impl<'brillig> Context<'brillig> {
         // If a copy of this instruction exists earlier in the block, then reuse the previous results.
         let runtime_is_brillig = dfg.runtime().is_brillig();
         if let Some(cache_result) =
-            self.get_cached(dfg, dom, &instruction, *side_effects_enabled_var, block)
+            self.get_cached(dfg, dom, id, &instruction, *side_effects_enabled_var, block)
         {
             match cache_result {
                 CacheResult::Cached(cached) => {
@@ -493,6 +504,7 @@ impl<'brillig> Context<'brillig> {
             let array_get =
                 Instruction::ArrayGet { array: instruction_results[0], index: *index, offset };
 
+            // If we encounter an array_get for this address, we know what the result will be.
             self.cached_instruction_results
                 .entry(array_get)
                 .or_default()
@@ -516,6 +528,7 @@ impl<'brillig> Context<'brillig> {
                 self.use_constraint_info && instruction.requires_acir_gen_predicate(&function.dfg);
             let predicate = use_predicate.then_some(side_effects_enabled_var);
 
+            // If we see this make_array again, we can reuse the current result.
             self.cached_instruction_results
                 .entry(instruction)
                 .or_default()
@@ -536,6 +549,11 @@ impl<'brillig> Context<'brillig> {
 
     /// Replaces a set of [`ValueId`]s inside the [`DataFlowGraph`] with another.
     fn replace_result_ids(&mut self, old_results: &[ValueId], new_results: &[ValueId]) {
+        debug_assert_eq!(
+            old_results.len(),
+            new_results.len(),
+            "Constant folding should never mutate instruction return type"
+        );
         for (old_result, new_result) in old_results.iter().zip(new_results) {
             self.values_to_replace.insert(*old_result, *new_result);
         }
@@ -546,6 +564,7 @@ impl<'brillig> Context<'brillig> {
         &self,
         dfg: &DataFlowGraph,
         dom: &mut DominatorTree,
+        id: InstructionId,
         instruction: &Instruction,
         side_effects_enabled_var: ValueId,
         block: BasicBlockId,
@@ -554,7 +573,28 @@ impl<'brillig> Context<'brillig> {
         let predicate = self.use_constraint_info && instruction.requires_acir_gen_predicate(dfg);
         let predicate = predicate.then_some(side_effects_enabled_var);
 
-        results_for_instruction.get(&predicate)?.get(block, dom, instruction.has_side_effects(dfg))
+        let cached_results = results_for_instruction.get(&predicate)?.get(
+            block,
+            dom,
+            instruction.has_side_effects(dfg),
+        );
+
+        cached_results.filter(|results| {
+            // This is a hacky solution to https://github.com/noir-lang/noir/issues/9477
+            // We explicitly check that the cached result values are of the same type as expected by the instruction
+            // being checked against the cache and reject if they differ.
+            if let CacheResult::Cached(results) = results {
+                let old_results = dfg.instruction_results(id).to_vec();
+
+                results.len() == old_results.len()
+                    && old_results
+                        .iter()
+                        .zip(results.iter())
+                        .all(|(old, new)| dfg.type_of_value(*old) == dfg.type_of_value(*new))
+            } else {
+                true
+            }
+        })
     }
 
     /// Checks if the given instruction is a call to a brillig function with all constant arguments.
@@ -627,8 +667,13 @@ impl<'brillig> Context<'brillig> {
             brillig_arguments.push(parameter);
         }
 
+        // Check that the function returns (doesn't always fail)
+        let Some(returns) = func.returns() else {
+            return EvaluationResult::CannotEvaluate;
+        };
+
         // Check that return value types are supported by brillig
-        for return_id in func.returns().iter() {
+        for return_id in returns {
             let typ = func.dfg.type_of_value(*return_id);
             if type_to_brillig_parameter(&typ).is_none() {
                 return EvaluationResult::CannotEvaluate;
@@ -724,33 +769,52 @@ impl<'brillig> Context<'brillig> {
     ) {
         use Instruction::{ArraySet, Call, MakeArray, Store};
 
-        let mut remove_if_array = |value: &ValueId| {
+        /// Recursively remove from the cache any array values.
+        fn go(
+            function: &Function,
+            cached_instruction_results: &mut InstructionResultCache,
+            value: &ValueId,
+        ) {
+            // We expect globals to be immutable, so we can cache those results indefinitely.
             if function.dfg.is_global(*value) {
-                // Early return as we expect globals to be immutable.
                 return;
             };
 
+            // We only care about arrays and slices. (`Store` can act on non-array values as well)
             if !function.dfg.type_of_value(*value).is_array() {
-                // Early return as we only care about arrays and slices. (`Store` can act on non-array values as well)
                 return;
             };
 
+            // Look up the original instruction that created the value, which is the cache key.
             let instruction = match &function.dfg[*value] {
                 Value::Instruction { instruction, .. } => &function.dfg[*instruction],
                 _ => return,
             };
 
+            // Remove the creator instruction from the cache.
             if matches!(instruction, MakeArray { .. } | Call { .. }) {
-                self.cached_instruction_results.remove(instruction);
+                cached_instruction_results.remove(instruction);
             }
-        };
+
+            // For arrays, we also want to invalidate the values, because multi-dimensional arrays
+            // can be passed around, and through them their sub-arrays might be modified.
+            if let MakeArray { elements, .. } = instruction {
+                for elem in elements {
+                    go(function, cached_instruction_results, elem);
+                }
+            }
+        }
+
+        let mut remove_if_array = |value| go(function, &mut self.cached_instruction_results, value);
 
         // Should we consider calls to slice_push_back and similar to be mutating operations as well?
         match instruction {
             Store { value, .. } | ArraySet { array: value, .. } => {
+                // If we write to a value, it's not safe for reuse, as its value has changed since its creation.
                 remove_if_array(value);
             }
             Call { arguments, func } if function.runtime().is_brillig() => {
+                // If we pass a value to a function, it might get modified, making it unsafe for reuse after the call.
                 let Value::Function(func_id) = &function.dfg[*func] else { return };
                 if matches!(function.dfg.purity_of(*func_id), None | Some(Purity::Impure)) {
                     // Arrays passed to functions might be mutated by them if there are no `inc_rc` instructions
@@ -1315,7 +1379,7 @@ mod test {
                 v2 = lt u32 1000, v0
                 jmpif v2 then: b1, else: b2
               b1():
-                v4 = shl v0, u8 1
+                v4 = shl v0, u32 1
                 v5 = lt v0, v4
                 constrain v5 == u1 1
                 jmp b2()
@@ -1323,7 +1387,7 @@ mod test {
                 v7 = lt u32 1000, v0
                 jmpif v7 then: b3, else: b4
               b3():
-                v8 = shl v0, u8 1
+                v8 = shl v0, u32 1
                 v9 = lt v0, v8
                 constrain v9 == u1 1
                 jmp b4()
@@ -1342,10 +1406,10 @@ mod test {
         brillig(inline) fn main f0 {
           b0(v0: u32):
             v2 = lt u32 1000, v0
-            v4 = shl v0, u8 1
+            v4 = shl v0, u32 1
             jmpif v2 then: b1, else: b2
           b1():
-            v5 = shl v0, u8 1
+            v5 = shl v0, u32 1
             v6 = lt v0, v5
             constrain v6 == u1 1
             jmp b2()
@@ -1428,7 +1492,7 @@ mod test {
 
             brillig(inline) fn one f1 {
               b0(v0: i32, v1: i32):
-                v2 = add v0, v1
+                v2 = unchecked_add v0, v1
                 v3 = truncate v2 to 32 bits, max_bit_size: 33
                 return v3
             }
@@ -1485,7 +1549,7 @@ mod test {
             }
 
             brillig(inline) fn one f1 {
-              b0(v0: Field, v1: i32, v2: i32, v3: Field):
+              b0(v0: Field, v1: i32, v2: Field, v3: i32):
                 v4 = make_array [v0, v1, v2, v3] : [(Field, i32); 2]
                 return v4
             }
@@ -1902,6 +1966,36 @@ mod test {
             v5 = not v2
             enable_side_effects v5
             v6 = div v1, u32 2
+            return
+        }
+        ");
+    }
+
+    #[test]
+    fn does_not_deduplicate_calls_to_functions_which_differ_in_return_value_types() {
+        // We have a few intrinsics which have a generic return value (generally for array lengths), we want
+        // to avoid deduplicating these.
+        //
+        // This is not an issue for user code as these functions will be monomorphized whereas intrinsics haven't been.
+        let src = "
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v0: Field):
+            v1 = call to_le_radix(v0, u32 256) -> [u8; 2]
+            v2 = call to_le_radix(v0, u32 256) -> [u8; 3]
+            v3 = call to_le_radix(v0, u32 256) -> [u8; 2]
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.fold_constants_using_constraints();
+
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v0: Field):
+            v3 = call to_le_radix(v0, u32 256) -> [u8; 2]
+            v4 = call to_le_radix(v0, u32 256) -> [u8; 3]
+            inc_rc v3
             return
         }
         ");

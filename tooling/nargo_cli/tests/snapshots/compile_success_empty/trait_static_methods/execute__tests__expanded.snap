@@ -1,0 +1,74 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+trait ATrait {
+    fn asd() -> Self;
+
+    fn static_method() -> Field {
+        ATrait::static_method_2()
+    }
+
+    fn static_method_2() -> Field {
+        100_Field
+    }
+}
+
+struct Foo {
+    x: Field,
+}
+
+impl ATrait for Foo {
+    fn asd() -> Self {
+        Self { x: 100_Field }
+    }
+
+    fn static_method() -> Field {
+        Self::static_method_2()
+    }
+
+    fn static_method_2() -> Field {
+        100_Field
+    }
+}
+
+struct Bar {
+    x: Field,
+}
+
+impl ATrait for Bar {
+    fn asd() -> Self {
+        Self { x: 100_Field }
+    }
+
+    fn static_method() -> Field {
+        Self::static_method_2()
+    }
+
+    fn static_method_2() -> Field {
+        200_Field
+    }
+}
+
+fn main() {
+    assert(Foo::static_method() == 100_Field);
+    assert(Bar::static_method() == 200_Field);
+    let zero: Field = <Field as MyDefault>::my_default();
+    assert(zero == 0_Field);
+}
+
+trait MyDefault {
+    fn my_default() -> Self;
+}
+
+impl MyDefault for (Field, Field) {
+    fn my_default() -> Self {
+        (0_Field, 0_Field)
+    }
+}
+
+impl MyDefault for Field {
+    fn my_default() -> Self {
+        0_Field
+    }
+}

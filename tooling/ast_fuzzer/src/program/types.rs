@@ -1,12 +1,12 @@
 use std::collections::HashSet;
 
-use acir::FieldElement;
 use iter_extended::vecmap;
 use noirc_frontend::{
     ast::{BinaryOpKind, IntegerBitSize},
     hir_def,
     monomorphization::ast::{BinaryOp, Type},
     shared::Signedness,
+    signed_field::SignedField,
 };
 use strum::IntoEnumIterator as _;
 
@@ -19,7 +19,7 @@ pub const U32: Type = Type::Integer(Signedness::Unsigned, IntegerBitSize::Thirty
 pub fn type_depth(typ: &Type) -> usize {
     match typ {
         Type::Field | Type::Bool | Type::String(_) | Type::Unit | Type::Integer(_, _) => 0,
-        Type::Array(_, typ) => 1 + type_depth(typ),
+        Type::Array(_, typ) | Type::Slice(typ) => 1 + type_depth(typ),
         Type::Tuple(types) => 1 + types.iter().map(type_depth).max().unwrap_or_default(),
         Type::Reference(typ, _) => 1 + type_depth(typ.as_ref()),
         _ => unreachable!("unexpected type: {typ}"),
@@ -52,6 +52,11 @@ pub fn can_be_main(typ: &Type) -> bool {
     }
 }
 
+/// Check if a variable with a given type can be used in a match.
+pub fn can_be_matched(typ: &Type) -> bool {
+    matches!(typ, Type::Unit | Type::Bool | Type::Field | Type::Integer(_, _) | Type::Tuple(_))
+}
+
 /// Collect all the sub-types produced by a type.
 ///
 /// It's like a _power set_ of the type.
@@ -66,9 +71,9 @@ pub fn types_produced(typ: &Type) -> HashSet<Type> {
         acc.insert(typ.clone());
 
         match typ {
-            Type::Array(len, typ) => {
+            Type::Array(len, item_type) => {
                 if *len > 0 {
-                    visit(acc, typ);
+                    visit(acc, item_type);
                 }
                 // Technically we could produce `[T; N]` from `[S; N]` if
                 // we can produce `T` from `S`, but let's ignore that;
@@ -78,9 +83,9 @@ pub fn types_produced(typ: &Type) -> HashSet<Type> {
                 // we might generate `[foo[1] as u64, 3u64]` instead of "mapping"
                 // over the entire foo. Same goes for tuples.
             }
-            Type::Tuple(types) => {
-                for typ in types {
-                    visit(acc, typ);
+            Type::Tuple(item_types) => {
+                for item_type in item_types {
+                    visit(acc, item_type);
                 }
             }
             Type::String(_) => {
@@ -114,8 +119,12 @@ pub fn types_produced(typ: &Type) -> HashSet<Type> {
                 // Maybe we can also cast to u1 or u8 etc?
                 acc.insert(Type::Field);
             }
-            Type::Slice(typ) => {
-                visit(acc, typ);
+            Type::Slice(item_type) => {
+                // pop_front -> (T, [T])
+                acc.insert(Type::Tuple(vec![item_type.as_ref().clone(), typ.clone()]));
+                // pop_back -> ([T], T)
+                acc.insert(Type::Tuple(vec![typ.clone(), item_type.as_ref().clone()]));
+                visit(acc, item_type);
             }
             Type::Reference(typ, _) => {
                 visit(acc, typ);
@@ -138,7 +147,7 @@ pub fn to_hir_type(typ: &Type) -> hir_def::types::Type {
     // Meet the expectations of `Type::evaluate_to_u32`.
     let size_const = |size: u32| {
         Box::new(HirType::Constant(
-            FieldElement::from(size),
+            SignedField::from(size),
             HirKind::Numeric(Box::new(HirType::Integer(
                 Signedness::Unsigned,
                 IntegerBitSize::ThirtyTwo,
@@ -163,7 +172,8 @@ pub fn to_hir_type(typ: &Type) -> hir_def::types::Type {
             *unconstrained,
         ),
         Type::Reference(typ, mutable) => HirType::Reference(Box::new(to_hir_type(typ)), *mutable),
-        Type::FmtString(_, _) | Type::Slice(_) => {
+        Type::Slice(typ) => HirType::Slice(Box::new(to_hir_type(typ))),
+        Type::FmtString(_, _) => {
             unreachable!("unexpected type converting to HIR: {}", typ)
         }
     }
@@ -225,6 +235,22 @@ pub fn contains_reference(typ: &Type) -> bool {
     }
 }
 
+/// Check if the type contains any references.
+pub fn contains_slice(typ: &Type) -> bool {
+    match typ {
+        Type::Slice(_) => true,
+        Type::Field
+        | Type::Integer(_, _)
+        | Type::Bool
+        | Type::String(_)
+        | Type::Unit
+        | Type::FmtString(_, _)
+        | Type::Function(_, _, _, _) => false,
+        Type::Array(_, typ) | Type::Reference(typ, _) => contains_slice(typ),
+        Type::Tuple(types) => types.iter().any(contains_slice),
+    }
+}
+
 /// Check if the type can be used with a `println` statement.
 pub fn is_printable(typ: &Type) -> bool {
     match typ {
@@ -281,7 +307,7 @@ pub fn can_binary_op_return(op: &BinaryOp, typ: &Type) -> bool {
 /// These are operations that commonly fail with random constants.
 pub fn can_binary_op_overflow(op: &BinaryOp) -> bool {
     use BinaryOpKind::*;
-    matches!(op, Add | Subtract | Multiply | ShiftLeft)
+    matches!(op, Add | Subtract | Multiply | ShiftLeft | ShiftRight)
 }
 
 /// Can the binary operation fail because the RHS is zero.

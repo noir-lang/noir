@@ -16,23 +16,19 @@ use noir_ast_fuzzer::rewrite::change_all_functions_into_unconstrained;
 
 pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
     let config = Config {
-        // Avoid using large integers in for loops that the frontend would reject.
-        avoid_large_int_literals: true,
-        // Also avoid negative integers, because the frontend rejects them for loops.
-        avoid_negative_int_literals: true,
         // Avoid break/continue
         avoid_loop_control: true,
+        // Match is not yet implemented in comptime.
+        avoid_match: true,
         // Has to only use expressions valid in comptime
         comptime_friendly: true,
         // Force brillig, to generate loops that the interpreter can do but ACIR cannot.
         force_brillig: true,
-        // Avoid overflows, divisions by zero and constraints for now, as we currently
-        // don't catch errors issued by the elaborator
-        avoid_overflow: true,
-        avoid_err_by_zero: true,
-        avoid_constrain: true,
-        // At the moment prints aren't recognized by elaborator
-        avoid_print: true,
+        // Allow overflows half the time.
+        avoid_overflow: u.arbitrary()?,
+        // Slices need some parts of the stdlib that we can't just append to the source
+        // the way it is currently done to support prints, because they are low level extensions.
+        avoid_slices: true,
         // Use lower limits because of the interpreter, to avoid stack overflow
         max_loop_size: 5,
         max_recursive_calls: 5,

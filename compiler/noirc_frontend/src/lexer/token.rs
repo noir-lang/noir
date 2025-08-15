@@ -381,10 +381,10 @@ impl Display for FmtStrFragment {
                     .replace('\0', "\\0")
                     .replace('\'', "\\'")
                     .replace('\"', "\\\"");
-                write!(f, "{}", string)
+                write!(f, "{string}")
             }
             FmtStrFragment::Interpolation(string, _) => {
-                write!(f, "{{{}}}", string)
+                write!(f, "{{{string}}}")
             }
         }
     }
@@ -809,7 +809,7 @@ impl fmt::Display for TestScope {
     }
 }
 
-/// FuzzingScopr is used to specify additional annotations for fuzzing harnesses
+/// FuzzingScope is used to specify additional annotations for fuzzing harnesses
 #[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
 pub enum FuzzingScope {
     /// If the fuzzing harness has a scope of ShouldFailWith, then it should only pass
@@ -1137,7 +1137,7 @@ impl SecondaryAttributeKind {
             SecondaryAttributeKind::Deprecated(Some(note)) => {
                 format!("deprecated({note:?})")
             }
-            SecondaryAttributeKind::Tag(contents) => format!("'{}", contents),
+            SecondaryAttributeKind::Tag(contents) => format!("'{contents}"),
             SecondaryAttributeKind::Meta(meta) => meta.to_string(),
             SecondaryAttributeKind::ContractLibraryMethod => "contract_library_method".to_string(),
             SecondaryAttributeKind::Export => "export".to_string(),

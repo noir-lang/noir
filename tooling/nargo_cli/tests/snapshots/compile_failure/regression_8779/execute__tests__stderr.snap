@@ -1,0 +1,14 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Only constant indices are supported when indexing an array containing reference values
+  ┌─ src/main.nr:3:6
+  │
+3 │     *d[x]
+  │      ----
+  │
+  = Call stack:
+    1. src/main.nr:3:6
+
+Aborting due to 1 previous error

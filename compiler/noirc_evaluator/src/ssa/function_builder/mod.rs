@@ -247,7 +247,7 @@ impl FunctionBuilder {
         self.current_block
     }
 
-    pub fn get_current_block_index(&mut self) -> BasicBlockId {
+    pub fn get_current_block_index(&self) -> BasicBlockId {
         self.current_block
     }
 

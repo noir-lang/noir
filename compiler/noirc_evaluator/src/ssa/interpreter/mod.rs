@@ -150,13 +150,11 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             let actual_type = value.get_type();
 
             if expected_type != actual_type {
-                return Err(InterpreterError::Internal(
-                    InternalError::ValueTypeDoesNotMatchReturnType {
-                        value_id: id,
-                        expected_type: expected_type.to_string(),
-                        actual_type: actual_type.to_string(),
-                    },
-                ));
+                return Err(internal(InternalError::ValueTypeDoesNotMatchReturnType {
+                    value_id: id,
+                    expected_type: expected_type.to_string(),
+                    actual_type: actual_type.to_string(),
+                }));
             }
         }
 
@@ -236,7 +234,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                 Some(TerminatorInstruction::Jmp { destination, arguments: jump_args, .. }) => {
                     block_id = *destination;
                     if self.options.trace {
-                        println!("jump to {}", block_id);
+                        println!("jump to {block_id}");
                     }
                     arguments = self.lookup_all(jump_args)?;
                 }
@@ -252,7 +250,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                         *else_destination
                     };
                     if self.options.trace {
-                        println!("jump to {}", block_id);
+                        println!("jump to {block_id}");
                     }
                     arguments = Vec::new();
                 }
@@ -511,9 +509,9 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                     let lhs_id = *lhs_id;
                     let rhs_id = *rhs_id;
                     let msg = if let Some(ConstrainError::StaticString(msg)) = constrain_error {
-                        format!(", \"{msg}\"")
+                        Some(msg.clone())
                     } else {
-                        "".to_string()
+                        None
                     };
                     return Err(InterpreterError::ConstrainEqFailed {
                         lhs,
@@ -534,9 +532,9 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                     let lhs_id = *lhs_id;
                     let rhs_id = *rhs_id;
                     let msg = if let Some(ConstrainError::StaticString(msg)) = constrain_error {
-                        format!(", \"{msg}\"")
+                        Some(msg.clone())
                     } else {
-                        "".to_string()
+                        None
                     };
                     return Err(InterpreterError::ConstrainNeFailed {
                         lhs,
@@ -714,17 +712,13 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             let actual_bits = bit_count;
             let max_bits = max_bit_size;
 
-            if let Some(message) = error_message {
-                Err(InterpreterError::RangeCheckFailedWithMessage {
-                    value,
-                    value_id,
-                    actual_bits,
-                    max_bits,
-                    message: message.clone(),
-                })
-            } else {
-                Err(InterpreterError::RangeCheckFailed { value, value_id, actual_bits, max_bits })
-            }
+            Err(InterpreterError::RangeCheckFailed {
+                value,
+                value_id,
+                actual_bits,
+                max_bits,
+                msg: error_message.cloned(),
+            })
         } else {
             Ok(())
         }
@@ -879,14 +873,39 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         result: ValueId,
         side_effects_enabled: bool,
     ) -> IResult<()> {
-        let element = if side_effects_enabled {
-            let array = self.lookup_array_or_slice(array, "array get")?;
-            let index = self.lookup_u32(index, "array get index")?;
-            let index = index - offset.to_u32();
-            array.elements.borrow()[index as usize].clone()
+        let array = self.lookup_array_or_slice(array, "array get")?;
+        let index = self.lookup_u32(index, "array get index")?;
+        let mut index = index - offset.to_u32();
+
+        let element = if array.elements.borrow().is_empty() {
+            // Accessing an array of 0-len is replaced by asserting
+            // the branch is not-taken during acir-gen and
+            // a zeroed type is used in case of array get
+            // So we can simply replace it with uninitialized value
+            if side_effects_enabled {
+                return Err(InterpreterError::IndexOutOfBounds { index, length: 0 });
+            } else {
+                let typ = self.dfg().type_of_value(result);
+                Value::uninitialized(&typ, result)
+            }
         } else {
-            let typ = self.dfg().type_of_value(result);
-            Value::uninitialized(&typ, result)
+            // An array_get with false side_effects_enabled is replaced
+            // by a load at a valid index during acir-gen.
+            if !side_effects_enabled {
+                // Find a valid index
+                let typ = self.dfg().type_of_value(result);
+                for (i, element) in array.elements.borrow().iter().enumerate() {
+                    if element.get_type() == typ {
+                        index = i as u32;
+                        break;
+                    }
+                }
+            }
+            let elements = array.elements.borrow();
+            let element = elements.get(index as usize).ok_or_else(|| {
+                InterpreterError::IndexOutOfBounds { index, length: elements.len() as u32 }
+            })?;
+            element.clone()
         };
         self.define(result, element)?;
         Ok(())
@@ -912,6 +931,11 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
 
             let should_mutate =
                 if self.in_unconstrained_context() { *array.rc.borrow() == 1 } else { mutable };
+
+            let len = array.elements.borrow().len();
+            if index as usize >= len {
+                return Err(InterpreterError::IndexOutOfBounds { index, length: len as u32 });
+            }
 
             if should_mutate {
                 array.elements.borrow_mut()[index as usize] = value;
@@ -1007,10 +1031,43 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         let elements = try_vecmap(elements, |element| self.lookup(*element))?;
         let is_slice = matches!(&result_type, Type::Slice(..));
 
+        // The number of elements in the array must be a multiple of the number of element types
+        let element_types = result_type.clone().element_types();
+        if element_types.is_empty() {
+            if !elements.is_empty() {
+                return Err(internal(InternalError::MakeArrayElementCountMismatch {
+                    result,
+                    elements_count: elements.len(),
+                    types_count: element_types.len(),
+                }));
+            }
+        } else if elements.len() % element_types.len() != 0 {
+            return Err(internal(InternalError::MakeArrayElementCountMismatch {
+                result,
+                elements_count: elements.len(),
+                types_count: element_types.len(),
+            }));
+        }
+
+        // Make sure each element's type matches the one in element_types
+        for (index, (element, expected_type)) in
+            elements.iter().zip(element_types.iter().cycle()).enumerate()
+        {
+            let actual_type = element.get_type();
+            if &actual_type != expected_type {
+                return Err(internal(InternalError::MakeArrayElementTypeMismatch {
+                    result,
+                    index,
+                    actual_type: actual_type.to_string(),
+                    expected_type: expected_type.to_string(),
+                }));
+            }
+        }
+
         let array = Value::ArrayOrSlice(ArrayValue {
             elements: Shared::new(elements),
             rc: Shared::new(1),
-            element_types: result_type.clone().element_types(),
+            element_types,
             is_slice,
         });
         self.define(result, array)
@@ -1091,7 +1148,7 @@ macro_rules! apply_int_binop_opt {
         let operator = binary.operator;
 
         let overflow = || {
-            if matches!(binary.operator, BinaryOp::Div | BinaryOp::Mod) {
+            if matches!(operator, BinaryOp::Div | BinaryOp::Mod) {
                 let lhs_id = binary.lhs;
                 let rhs_id = binary.rhs;
                 let lhs = lhs.to_string();
@@ -1100,7 +1157,7 @@ macro_rules! apply_int_binop_opt {
             } else {
                 let instruction =
                     format!("`{}` ({operator} {lhs}, {rhs})", display_binary(binary, $dfg));
-                InterpreterError::Overflow { instruction }
+                InterpreterError::Overflow { operator, instruction }
             }
         };
 
@@ -1181,7 +1238,7 @@ impl<W: Write> Interpreter<'_, W> {
             }));
         }
 
-        // Disable this instruction if it is side-effectful and side effects are disabled.
+        // Disable this instruction if it is side-effectual and side effects are disabled.
         if !side_effects_enabled {
             let zero = NumericValue::zero(lhs.get_type());
             return Ok(Value::Numeric(zero));
@@ -1198,32 +1255,20 @@ impl<W: Write> Interpreter<'_, W> {
         let dfg = self.dfg();
         let result = match binary.operator {
             BinaryOp::Add { unchecked: false } => {
-                if lhs.get_type().is_unsigned() {
-                    apply_int_binop_opt!(dfg, lhs, rhs, binary, num_traits::CheckedAdd::checked_add)
-                } else {
-                    apply_int_binop!(lhs, rhs, binary, num_traits::WrappingAdd::wrapping_add)
-                }
+                apply_int_binop_opt!(dfg, lhs, rhs, binary, num_traits::CheckedAdd::checked_add)
             }
             BinaryOp::Add { unchecked: true } => {
                 apply_int_binop!(lhs, rhs, binary, num_traits::WrappingAdd::wrapping_add)
             }
             BinaryOp::Sub { unchecked: false } => {
-                if lhs.get_type().is_unsigned() {
-                    apply_int_binop_opt!(dfg, lhs, rhs, binary, num_traits::CheckedSub::checked_sub)
-                } else {
-                    apply_int_binop!(lhs, rhs, binary, num_traits::WrappingSub::wrapping_sub)
-                }
+                apply_int_binop_opt!(dfg, lhs, rhs, binary, num_traits::CheckedSub::checked_sub)
             }
             BinaryOp::Sub { unchecked: true } => {
                 apply_int_binop!(lhs, rhs, binary, num_traits::WrappingSub::wrapping_sub)
             }
             BinaryOp::Mul { unchecked: false } => {
                 // Only unsigned multiplication has side effects
-                if lhs.get_type().is_unsigned() {
-                    apply_int_binop_opt!(dfg, lhs, rhs, binary, num_traits::CheckedMul::checked_mul)
-                } else {
-                    apply_int_binop!(lhs, rhs, binary, num_traits::WrappingMul::wrapping_mul)
-                }
+                apply_int_binop_opt!(dfg, lhs, rhs, binary, num_traits::CheckedMul::checked_mul)
             }
             BinaryOp::Mul { unchecked: true } => {
                 apply_int_binop!(lhs, rhs, binary, num_traits::WrappingMul::wrapping_mul)
@@ -1231,9 +1276,15 @@ impl<W: Write> Interpreter<'_, W> {
             BinaryOp::Div => {
                 apply_int_binop_opt!(dfg, lhs, rhs, binary, num_traits::CheckedDiv::checked_div)
             }
-            BinaryOp::Mod => {
-                apply_int_binop_opt!(dfg, lhs, rhs, binary, num_traits::CheckedRem::checked_rem)
-            }
+            BinaryOp::Mod => match (lhs, rhs) {
+                (NumericValue::I8(i8::MIN), NumericValue::I8(-1)) => NumericValue::I8(0),
+                (NumericValue::I16(i16::MIN), NumericValue::I16(-1)) => NumericValue::I16(0),
+                (NumericValue::I32(i32::MIN), NumericValue::I32(-1)) => NumericValue::I32(0),
+                (NumericValue::I64(i64::MIN), NumericValue::I64(-1)) => NumericValue::I64(0),
+                _ => {
+                    apply_int_binop_opt!(dfg, lhs, rhs, binary, num_traits::CheckedRem::checked_rem)
+                }
+            },
             BinaryOp::Eq => apply_int_comparison_op!(lhs, rhs, binary, |a, b| a == b),
             BinaryOp::Lt => apply_int_comparison_op!(lhs, rhs, binary, |a, b| a < b),
             BinaryOp::And => {
@@ -1246,34 +1297,62 @@ impl<W: Write> Interpreter<'_, W> {
                 apply_int_binop!(lhs, rhs, binary, std::ops::BitXor::bitxor)
             }
             BinaryOp::Shl => {
-                let Some(rhs) = rhs.as_u8() else {
-                    let rhs = rhs.to_string();
-                    return Err(internal(InternalError::RhsOfBitShiftShouldBeU8 {
-                        operator: "<<",
-                        rhs_id,
-                        rhs,
-                    }));
-                };
-
-                let rhs = rhs as u32;
                 use NumericValue::*;
-                match lhs {
-                    Field(_) => {
+                let instruction =
+                    format!("`{}` ({lhs} << {rhs})", display_binary(binary, self.dfg()));
+                let overflow = InterpreterError::Overflow { operator: BinaryOp::Shl, instruction };
+                match (lhs, rhs) {
+                    (Field(_), _) | (_, Field(_)) => {
                         return Err(internal(InternalError::UnsupportedOperatorForType {
                             operator: "<<",
                             typ: "Field",
                         }));
                     }
-                    U1(value) => U1(if rhs == 0 { value } else { false }),
-                    U8(value) => U8(value.checked_shl(rhs).unwrap_or(0)),
-                    U16(value) => U16(value.checked_shl(rhs).unwrap_or(0)),
-                    U32(value) => U32(value.checked_shl(rhs).unwrap_or(0)),
-                    U64(value) => U64(value.checked_shl(rhs).unwrap_or(0)),
-                    U128(value) => U128(value.checked_shl(rhs).unwrap_or(0)),
-                    I8(value) => I8(value.checked_shl(rhs).unwrap_or(0)),
-                    I16(value) => I16(value.checked_shl(rhs).unwrap_or(0)),
-                    I32(value) => I32(value.checked_shl(rhs).unwrap_or(0)),
-                    I64(value) => I64(value.checked_shl(rhs).unwrap_or(0)),
+                    (U1(lhs_value), U1(rhs_value)) => {
+                        U1(if !rhs_value { lhs_value } else { false })
+                    }
+                    (U8(lhs_value), U8(rhs_value)) => {
+                        U8(lhs_value.checked_shl(rhs_value.into()).unwrap_or(0))
+                    }
+                    (U16(lhs_value), U16(rhs_value)) => {
+                        U16(lhs_value.checked_shl(rhs_value.into()).unwrap_or(0))
+                    }
+                    (U32(lhs_value), U32(rhs_value)) => {
+                        U32(lhs_value.checked_shl(rhs_value).unwrap_or(0))
+                    }
+                    (U64(lhs_value), U64(rhs_value)) => {
+                        let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow)?;
+                        U64(lhs_value.checked_shl(rhs_value).unwrap_or(0))
+                    }
+                    (U128(lhs_value), U128(rhs_value)) => {
+                        let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow)?;
+                        U128(lhs_value.checked_shl(rhs_value).unwrap_or(0))
+                    }
+                    (I8(lhs_value), I8(rhs_value)) => {
+                        let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow)?;
+                        I8(lhs_value.checked_shl(rhs_value).unwrap_or(0))
+                    }
+                    (I16(lhs_value), I16(rhs_value)) => {
+                        let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow)?;
+                        I16(lhs_value.checked_shl(rhs_value).unwrap_or(0))
+                    }
+                    (I32(lhs_value), I32(rhs_value)) => {
+                        let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow)?;
+                        I32(lhs_value.checked_shl(rhs_value).unwrap_or(0))
+                    }
+                    (I64(lhs_value), I64(rhs_value)) => {
+                        let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow)?;
+                        I64(lhs_value.checked_shl(rhs_value).unwrap_or(0))
+                    }
+                    _ => {
+                        return Err(internal(InternalError::MismatchedTypesInBinaryOperator {
+                            lhs: lhs.to_string(),
+                            rhs: rhs.to_string(),
+                            operator: binary.operator,
+                            lhs_id: binary.lhs,
+                            rhs_id: binary.rhs,
+                        }));
+                    }
                 }
             }
             BinaryOp::Shr => {
@@ -1284,35 +1363,63 @@ impl<W: Write> Interpreter<'_, W> {
                         NumericValue::zero(lhs.get_type())
                     }
                 };
+                let instruction =
+                    format!("`{}` ({lhs} >> {rhs})", display_binary(binary, self.dfg()));
+                let overflow = InterpreterError::Overflow { operator: BinaryOp::Shr, instruction };
 
-                let Some(rhs) = rhs.as_u8() else {
-                    let rhs = rhs.to_string();
-                    return Err(internal(InternalError::RhsOfBitShiftShouldBeU8 {
-                        operator: ">>",
-                        rhs_id,
-                        rhs,
-                    }));
-                };
-
-                let rhs = rhs as u32;
                 use NumericValue::*;
-                match lhs {
-                    Field(_) => {
+                match (lhs, rhs) {
+                    (Field(_), _) | (_, Field(_)) => {
                         return Err(internal(InternalError::UnsupportedOperatorForType {
-                            operator: ">>",
+                            operator: "<<",
                             typ: "Field",
                         }));
                     }
-                    U1(value) => U1(if rhs == 0 { value } else { false }),
-                    U8(value) => value.checked_shr(rhs).map(U8).unwrap_or_else(fallback),
-                    U16(value) => value.checked_shr(rhs).map(U16).unwrap_or_else(fallback),
-                    U32(value) => value.checked_shr(rhs).map(U32).unwrap_or_else(fallback),
-                    U64(value) => value.checked_shr(rhs).map(U64).unwrap_or_else(fallback),
-                    U128(value) => value.checked_shr(rhs).map(U128).unwrap_or_else(fallback),
-                    I8(value) => value.checked_shr(rhs).map(I8).unwrap_or_else(fallback),
-                    I16(value) => value.checked_shr(rhs).map(I16).unwrap_or_else(fallback),
-                    I32(value) => value.checked_shr(rhs).map(I32).unwrap_or_else(fallback),
-                    I64(value) => value.checked_shr(rhs).map(I64).unwrap_or_else(fallback),
+                    (U1(lhs_value), U1(rhs_value)) => {
+                        U1(if !rhs_value { lhs_value } else { false })
+                    }
+                    (U8(lhs_value), U8(rhs_value)) => {
+                        lhs_value.checked_shr(rhs_value.into()).map(U8).unwrap_or_else(fallback)
+                    }
+                    (U16(lhs_value), U16(rhs_value)) => {
+                        lhs_value.checked_shr(rhs_value.into()).map(U16).unwrap_or_else(fallback)
+                    }
+                    (U32(lhs_value), U32(rhs_value)) => {
+                        lhs_value.checked_shr(rhs_value).map(U32).unwrap_or_else(fallback)
+                    }
+                    (U64(lhs_value), U64(rhs_value)) => {
+                        let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow)?;
+                        lhs_value.checked_shr(rhs_value).map(U64).unwrap_or_else(fallback)
+                    }
+                    (U128(lhs_value), U128(rhs_value)) => {
+                        let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow)?;
+                        lhs_value.checked_shr(rhs_value).map(U128).unwrap_or_else(fallback)
+                    }
+                    (I8(lhs_value), I8(rhs_value)) => {
+                        let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow)?;
+                        lhs_value.checked_shr(rhs_value).map(I8).unwrap_or_else(fallback)
+                    }
+                    (I16(lhs_value), I16(rhs_value)) => {
+                        let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow)?;
+                        lhs_value.checked_shr(rhs_value).map(I16).unwrap_or_else(fallback)
+                    }
+                    (I32(lhs_value), I32(rhs_value)) => {
+                        let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow)?;
+                        lhs_value.checked_shr(rhs_value).map(I32).unwrap_or_else(fallback)
+                    }
+                    (I64(lhs_value), I64(rhs_value)) => {
+                        let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow)?;
+                        lhs_value.checked_shr(rhs_value).map(I64).unwrap_or_else(fallback)
+                    }
+                    _ => {
+                        return Err(internal(InternalError::MismatchedTypesInBinaryOperator {
+                            lhs: lhs.to_string(),
+                            rhs: rhs.to_string(),
+                            operator: binary.operator,
+                            lhs_id: binary.lhs,
+                            rhs_id: binary.rhs,
+                        }));
+                    }
                 }
             }
         };
@@ -1359,7 +1466,8 @@ impl<W: Write> Interpreter<'_, W> {
     fn interpret_u1_binary_op(&mut self, lhs: bool, rhs: bool, binary: &Binary) -> IResult<Value> {
         let overflow = || {
             let instruction = format!("`{}` ({lhs} << {rhs})", display_binary(binary, self.dfg()));
-            InterpreterError::Overflow { instruction }
+            let operator = binary.operator;
+            InterpreterError::Overflow { operator, instruction }
         };
 
         let lhs_id = binary.lhs;
@@ -1420,18 +1528,18 @@ impl<W: Write> Interpreter<'_, W> {
             BinaryOp::Or => lhs | rhs,
             BinaryOp::Xor => lhs ^ rhs,
             BinaryOp::Shl => {
-                return Err(internal(InternalError::RhsOfBitShiftShouldBeU8 {
-                    operator: "<<",
-                    rhs_id,
-                    rhs: format!("u1 {}", rhs as u8),
-                }));
+                if rhs {
+                    false
+                } else {
+                    lhs
+                }
             }
             BinaryOp::Shr => {
-                return Err(internal(InternalError::RhsOfBitShiftShouldBeU8 {
-                    operator: ">>",
-                    rhs_id,
-                    rhs: format!("u1 {}", rhs as u8),
-                }));
+                if rhs {
+                    false
+                } else {
+                    lhs
+                }
             }
         };
         Ok(Value::Numeric(NumericValue::U1(result)))

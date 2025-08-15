@@ -67,7 +67,7 @@ impl BigIntSolver {
     ) -> Result<(), BlackBoxResolutionError> {
         if self.pedantic_solving {
             if !self.is_valid_modulus(modulus) {
-                panic!("--pedantic-solving: bigint_from_bytes: disallowed modulus {:?}", modulus);
+                panic!("--pedantic-solving: bigint_from_bytes: disallowed modulus {modulus:?}");
             }
             if inputs.len() > modulus.len() {
                 panic!(
@@ -115,7 +115,7 @@ impl BigIntSolver {
                         "Attempted to divide BigInt by zero".to_string(),
                     ));
                 }
-                lhs * rhs.modpow(&(&modulus - BigUint::from(2_u32)), &modulus)
+                lhs * rhs.modpow(&(&modulus - BigUint::from(2_u32)), &modulus) // cSpell:disable-line
             }
             _ => unreachable!("ICE - bigint_op must be called for an operation"),
         };
@@ -221,7 +221,7 @@ impl BigIntSolverWithId {
 #[test]
 fn all_allowed_bigint_moduli_are_prime() {
     use num_prime::Primality;
-    use num_prime::nt_funcs::is_prime;
+    use num_prime::nt_funcs::is_prime; // cSpell:disable-line
 
     for modulus in BigIntSolver::allowed_bigint_moduli() {
         let modulus = BigUint::from_bytes_le(&modulus);
@@ -232,8 +232,7 @@ fn all_allowed_bigint_moduli_are_prime() {
             Primality::Probable(probability) => {
                 if probability < 0.90 {
                     panic!(
-                        "not all allowed_bigint_moduli are prime within the allowed probability: {} < 0.90",
-                        probability
+                        "not all allowed_bigint_moduli are prime within the allowed probability: {probability} < 0.90"
                     );
                 }
             }

@@ -17,10 +17,7 @@ impl<T> MyEq for [T; 3]
 where
     T: MyEq,
 {
-    fn my_eq(self, other: Self) -> bool
-    where
-        T: MyEq,
-    {
+    fn my_eq(self, other: Self) -> bool {
         let mut ret: bool = true;
         for i in 0_u32..self.len() {
             ret = ret & self[i].my_eq(other[i]);

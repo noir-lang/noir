@@ -7,7 +7,7 @@ struct Foo {
 }
 
 mod nested {
-    fn foo(foo: super::Foo) -> Field {
+    fn foo(foo: crate::Foo) -> Field {
         foo.x
     }
 }

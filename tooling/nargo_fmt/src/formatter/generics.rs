@@ -35,7 +35,9 @@ impl Formatter<'_> {
         self.skip_comments_and_whitespace();
         match generic {
             UnresolvedGeneric::Variable(ident, trait_bounds) => {
-                self.write_identifier(ident);
+                let ident =
+                    ident.ident().expect("Resolved generics should not be present in the AST");
+                self.write_identifier(ident.clone());
                 if !trait_bounds.is_empty() {
                     self.write_token(Token::Colon);
                     self.write_space();
@@ -45,13 +47,12 @@ impl Formatter<'_> {
             UnresolvedGeneric::Numeric { ident, typ } => {
                 self.write_keyword(Keyword::Let);
                 self.write_space();
-                self.write_identifier(ident);
+                let ident =
+                    ident.ident().expect("Resolved generics should not be present in the AST");
+                self.write_identifier(ident.clone());
                 self.write_token(Token::Colon);
                 self.write_space();
                 self.format_type(typ);
-            }
-            UnresolvedGeneric::Resolved(..) => {
-                unreachable!("Resolved generics should not be present in the AST")
             }
         }
     }

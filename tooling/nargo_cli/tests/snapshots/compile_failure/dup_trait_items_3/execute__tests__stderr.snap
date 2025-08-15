@@ -9,13 +9,13 @@ warning: unused trait MyTrait
   │       ------- unused trait
   │
 
-error: Duplicate definitions of trait associated type with name SomeType found
+error: Duplicate definitions of trait associated item with name SomeType found
   ┌─ src/main.nr:2:8
   │
 2 │   type SomeType;
-  │        -------- First trait associated type found here
+  │        -------- First trait associated item found here
 3 │   type SomeType;
-  │        -------- Second trait associated type found here
+  │        -------- Second trait associated item found here
   │
 
 Aborting due to 1 previous error

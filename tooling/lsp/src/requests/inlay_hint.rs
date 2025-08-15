@@ -6,7 +6,7 @@ use async_lsp::lsp_types::{
     InlayHint, InlayHintKind, InlayHintLabel, InlayHintLabelPart, InlayHintParams, Position, Range,
     TextDocumentPositionParams, TextEdit,
 };
-use fm::{FileId, FileMap, PathString};
+use fm::{FileId, FileMap};
 use noirc_errors::{Location, Span};
 use noirc_frontend::{
     self, Kind, Type, TypeBinding, TypeVariable,
@@ -36,20 +36,18 @@ pub(crate) fn on_inlay_hint_request(
     let options = state.options.inlay_hints;
 
     let result = process_request(state, text_document_position_params, |args| {
-        let path = PathString::from_path(params.text_document.uri.to_file_path().unwrap());
-        args.files.get_file_id(&path).map(|file_id| {
-            let file = args.files.get_file(file_id).unwrap();
-            let source = file.source();
-            let (parsed_module, _errors) = noirc_frontend::parse_program(source, file_id);
+        let file_id = args.location.file;
+        let file = args.files.get_file(file_id).unwrap();
+        let source = file.source();
+        let (parsed_module, _errors) = noirc_frontend::parse_program(source, file_id);
 
-            let span = utils::range_to_byte_span(args.files, file_id, &params.range)
-                .map(|range| Span::from(range.start as u32..range.end as u32));
+        let span = utils::range_to_byte_span(args.files, file_id, &params.range)
+            .map(|range| Span::from(range.start as u32..range.end as u32));
 
-            let mut collector =
-                InlayHintCollector::new(args.files, file_id, args.interner, span, options);
-            parsed_module.accept(&mut collector);
-            collector.inlay_hints
-        })
+        let mut collector =
+            InlayHintCollector::new(args.files, file_id, args.interner, span, options);
+        parsed_module.accept(&mut collector);
+        Some(collector.inlay_hints)
     });
     future::ready(result)
 }
@@ -111,6 +109,7 @@ impl<'a> InlayHintCollector<'a> {
                     ReferenceId::Module(_)
                     | ReferenceId::Type(_)
                     | ReferenceId::Trait(_)
+                    | ReferenceId::TraitAssociatedType(_)
                     | ReferenceId::Function(_)
                     | ReferenceId::Alias(_)
                     | ReferenceId::Reference(..) => (),
@@ -143,7 +142,7 @@ impl<'a> InlayHintCollector<'a> {
             text_edits: if editable {
                 Some(vec![TextEdit {
                     range: Range { start: location.range.end, end: location.range.end },
-                    new_text: format!(": {}", typ),
+                    new_text: format!(": {typ}"),
                 }])
             } else {
                 None
@@ -274,7 +273,7 @@ impl<'a> InlayHintCollector<'a> {
     }
 
     fn push_parameter_hint(&mut self, position: Position, str: &str) {
-        self.push_text_hint(position, format!("{}: ", str));
+        self.push_text_hint(position, format!("{str}: "));
     }
 
     fn push_text_hint(&mut self, position: Position, str: String) {

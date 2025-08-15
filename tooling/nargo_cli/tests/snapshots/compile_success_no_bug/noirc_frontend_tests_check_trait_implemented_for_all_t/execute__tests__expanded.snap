@@ -25,11 +25,7 @@ where
     T: Default2,
     T: Eq2,
 {
-    fn is_default(self) -> bool
-    where
-        Self: Default2,
-        Self: Eq2,
-    {
+    fn is_default(self) -> bool {
         self.eq2(Self::default2())
     }
 }
@@ -46,7 +42,7 @@ impl Eq2 for Foo {
 
 impl Default2 for Foo {
     fn default2() -> Self {
-        Self { a: u64::default2() }
+        Self { a: <u64 as Default2>::default2() }
     }
 }
 

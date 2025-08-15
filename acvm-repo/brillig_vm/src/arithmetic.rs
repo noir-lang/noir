@@ -1,18 +1,22 @@
+//! Implementations for [binary field operations][acir::brillig::Opcode::BinaryFieldOp] and
+//! [binary integer operations][acir::brillig::Opcode::BinaryIntOp].
 use std::ops::{BitAnd, BitOr, BitXor, Shl, Shr};
 
 use acir::AcirField;
 use acir::brillig::{BinaryFieldOp, BinaryIntOp, BitSize, IntegerBitSize};
 use num_bigint::BigUint;
-use num_traits::{CheckedDiv, WrappingAdd, WrappingMul, WrappingSub, Zero};
+use num_traits::{CheckedDiv, ToPrimitive, WrappingAdd, WrappingMul, WrappingSub, Zero};
 
 use crate::memory::{MemoryTypeError, MemoryValue};
 
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, PartialEq, thiserror::Error)]
 pub(crate) enum BrilligArithmeticError {
     #[error("Bit size for lhs {lhs_bit_size} does not match op bit size {op_bit_size}")]
     MismatchedLhsBitSize { lhs_bit_size: u32, op_bit_size: u32 },
     #[error("Bit size for rhs {rhs_bit_size} does not match op bit size {op_bit_size}")]
     MismatchedRhsBitSize { rhs_bit_size: u32, op_bit_size: u32 },
+    #[error("Attempted to shift by {shift_size} bits on a type of bit size {bit_size}")]
+    BitshiftOverflow { bit_size: u32, shift_size: u32 },
     #[error("Attempted to divide by zero")]
     DivisionByZero,
 }
@@ -161,46 +165,78 @@ pub(crate) fn evaluate_binary_int_op<F: AcirField>(
             }
         }
 
-        BinaryIntOp::Shl | BinaryIntOp::Shr => {
-            let rhs = rhs.expect_u8().map_err(|error| match error {
-                MemoryTypeError::MismatchedBitSize { value_bit_size, expected_bit_size } => {
-                    BrilligArithmeticError::MismatchedRhsBitSize {
-                        rhs_bit_size: value_bit_size,
-                        op_bit_size: expected_bit_size,
-                    }
+        BinaryIntOp::Shl | BinaryIntOp::Shr => match (lhs, rhs, bit_size) {
+            (MemoryValue::U1(lhs), MemoryValue::U1(rhs), IntegerBitSize::U1) => {
+                if rhs {
+                    Err(BrilligArithmeticError::BitshiftOverflow { bit_size: 1, shift_size: 1 })
+                } else {
+                    Ok(MemoryValue::U1(lhs))
                 }
-                _ => unreachable!("MemoryTypeError NotInteger is only produced by to_u128"),
-            })?;
-
-            match (lhs, bit_size) {
-                (MemoryValue::U1(lhs), IntegerBitSize::U1) => {
-                    let result = if rhs == 0 { lhs } else { false };
-                    Ok(MemoryValue::U1(result))
-                }
-                (MemoryValue::U8(lhs), IntegerBitSize::U8) => {
-                    Ok(MemoryValue::U8(evaluate_binary_int_op_shifts(op, lhs, rhs)))
-                }
-                (MemoryValue::U16(lhs), IntegerBitSize::U16) => {
-                    Ok(MemoryValue::U16(evaluate_binary_int_op_shifts(op, lhs, rhs)))
-                }
-                (MemoryValue::U32(lhs), IntegerBitSize::U32) => {
-                    Ok(MemoryValue::U32(evaluate_binary_int_op_shifts(op, lhs, rhs)))
-                }
-                (MemoryValue::U64(lhs), IntegerBitSize::U64) => {
-                    Ok(MemoryValue::U64(evaluate_binary_int_op_shifts(op, lhs, rhs)))
-                }
-                (MemoryValue::U128(lhs), IntegerBitSize::U128) => {
-                    Ok(MemoryValue::U128(evaluate_binary_int_op_shifts(op, lhs, rhs)))
-                }
-                _ => Err(BrilligArithmeticError::MismatchedLhsBitSize {
-                    lhs_bit_size: lhs.bit_size().to_u32::<F>(),
-                    op_bit_size: bit_size.into(),
-                }),
             }
-        }
+            (MemoryValue::U8(lhs), MemoryValue::U8(rhs), IntegerBitSize::U8) => {
+                if rhs < 8 {
+                    Ok(MemoryValue::U8(evaluate_binary_int_op_shifts(op, lhs, rhs)))
+                } else {
+                    Err(BrilligArithmeticError::BitshiftOverflow {
+                        bit_size: 8,
+                        shift_size: rhs as u32,
+                    })
+                }
+            }
+            (MemoryValue::U16(lhs), MemoryValue::U16(rhs), IntegerBitSize::U16) => {
+                if rhs < 16 {
+                    Ok(MemoryValue::U16(evaluate_binary_int_op_shifts(op, lhs, rhs)))
+                } else {
+                    Err(BrilligArithmeticError::BitshiftOverflow {
+                        bit_size: 8,
+                        shift_size: rhs as u32,
+                    })
+                }
+            }
+            (MemoryValue::U32(lhs), MemoryValue::U32(rhs), IntegerBitSize::U32) => {
+                if rhs < 32 {
+                    Ok(MemoryValue::U32(evaluate_binary_int_op_shifts(op, lhs, rhs)))
+                } else {
+                    Err(BrilligArithmeticError::BitshiftOverflow { bit_size: 8, shift_size: rhs })
+                }
+            }
+            (MemoryValue::U64(lhs), MemoryValue::U64(rhs), IntegerBitSize::U64) => {
+                if rhs < 64 {
+                    Ok(MemoryValue::U64(evaluate_binary_int_op_shifts(op, lhs, rhs)))
+                } else {
+                    Err(BrilligArithmeticError::BitshiftOverflow {
+                        bit_size: 8,
+                        shift_size: rhs as u32,
+                    })
+                }
+            }
+            (MemoryValue::U128(lhs), MemoryValue::U128(rhs), IntegerBitSize::U128) => {
+                if rhs < 128 {
+                    Ok(MemoryValue::U128(evaluate_binary_int_op_shifts(op, lhs, rhs)))
+                } else {
+                    Err(BrilligArithmeticError::BitshiftOverflow {
+                        bit_size: 8,
+                        shift_size: rhs as u32,
+                    })
+                }
+            }
+            _ => Err(BrilligArithmeticError::MismatchedLhsBitSize {
+                lhs_bit_size: lhs.bit_size().to_u32::<F>(),
+                op_bit_size: bit_size.into(),
+            }),
+        },
     }
 }
 
+/// Evaluates binary operations on 1-bit unsigned integers (booleans).
+///
+/// # Returns
+/// - Ok(result) if successful.
+/// - Err([BrilligArithmeticError::DivisionByZero]) if division by zero occurs.
+///
+/// # Panics
+/// If an operation other than Add, Sub, Mul, Div, And, Or, Xor, Equals, LessThan,
+/// or LessThanEquals is supplied as an argument.
 fn evaluate_binary_int_op_u1(
     op: &BinaryIntOp,
     lhs: bool,
@@ -225,6 +261,11 @@ fn evaluate_binary_int_op_u1(
     Ok(result)
 }
 
+/// Evaluates comparison operations (Equals, LessThan, LessThanEquals)
+/// between two values of an ordered type (e.g., fields are unordered).
+///
+/// # Panics
+/// If an unsupported operator is provided (i.e., not Equals, LessThan, or LessThanEquals).
 fn evaluate_binary_int_op_cmp<T: Ord + PartialEq>(op: &BinaryIntOp, lhs: T, rhs: T) -> bool {
     match op {
         BinaryIntOp::Equals => lhs == rhs,
@@ -234,24 +275,38 @@ fn evaluate_binary_int_op_cmp<T: Ord + PartialEq>(op: &BinaryIntOp, lhs: T, rhs:
     }
 }
 
-fn evaluate_binary_int_op_shifts<T: From<u8> + Zero + Shl<Output = T> + Shr<Output = T>>(
+/// Evaluates shift operations (Shl, Shr) for unsigned integers.
+/// Ensures that shifting beyond the type width returns zero.
+///
+/// # Panics
+/// If an unsupported operator is provided (i.e., not Shl or Shr).
+fn evaluate_binary_int_op_shifts<T: ToPrimitive + Zero + Shl<Output = T> + Shr<Output = T>>(
     op: &BinaryIntOp,
     lhs: T,
-    rhs: u8,
+    rhs: T,
 ) -> T {
     match op {
         BinaryIntOp::Shl => {
-            let rhs_usize: usize = rhs as usize;
-            if rhs_usize >= 8 * size_of::<T>() { T::zero() } else { lhs << rhs.into() }
+            let rhs_usize: usize = rhs.to_usize().expect("Could not convert rhs to usize");
+            if rhs_usize >= 8 * size_of::<T>() { T::zero() } else { lhs << rhs }
         }
         BinaryIntOp::Shr => {
-            let rhs_usize: usize = rhs as usize;
-            if rhs_usize >= 8 * size_of::<T>() { T::zero() } else { lhs >> rhs.into() }
+            let rhs_usize: usize = rhs.to_usize().expect("Could not convert rhs to usize");
+            if rhs_usize >= 8 * size_of::<T>() { T::zero() } else { lhs >> rhs }
         }
         _ => unreachable!("Operator not handled by this function: {op:?}"),
     }
 }
 
+/// Evaluates arithmetic or bitwise operations on unsigned integer types,
+/// using wrapping arithmetic for [add][BinaryIntOp::Add], [sub][BinaryIntOp::Sub], and [mul][BinaryIntOp::Mul].
+///
+/// # Returns
+/// - Ok(result) if successful.
+/// - Err([BrilligArithmeticError::DivisionByZero]) if division by zero occurs.
+///
+/// # Panics
+/// If there an operation other than Add, Sub, Mul, Div, And, Or, Xor is supplied as an argument.
 fn evaluate_binary_int_op_arith<
     T: WrappingAdd
         + WrappingSub
@@ -401,5 +456,45 @@ mod tests {
             vec![TestParams { a: 5, b: 3, result: 1 }, TestParams { a: 5, b: 10, result: 0 }];
 
         evaluate_int_ops(test_ops, BinaryIntOp::Div, bit_size);
+    }
+
+    #[test]
+    fn shl_test() {
+        let bit_size = IntegerBitSize::U8;
+
+        let test_ops =
+            vec![TestParams { a: 1, b: 7, result: 128 }, TestParams { a: 5, b: 7, result: 128 }];
+
+        evaluate_int_ops(test_ops, BinaryIntOp::Shl, bit_size);
+
+        assert_eq!(
+            evaluate_binary_int_op(
+                &BinaryIntOp::Shl,
+                MemoryValue::<FieldElement>::U8(1u8),
+                MemoryValue::<FieldElement>::U8(8u8),
+                IntegerBitSize::U8
+            ),
+            Err(BrilligArithmeticError::BitshiftOverflow { bit_size: 8, shift_size: 8 })
+        );
+    }
+
+    #[test]
+    fn shr_test() {
+        let bit_size = IntegerBitSize::U8;
+
+        let test_ops =
+            vec![TestParams { a: 1, b: 0, result: 1 }, TestParams { a: 5, b: 1, result: 2 }];
+
+        evaluate_int_ops(test_ops, BinaryIntOp::Shr, bit_size);
+
+        assert_eq!(
+            evaluate_binary_int_op(
+                &BinaryIntOp::Shr,
+                MemoryValue::<FieldElement>::U8(1u8),
+                MemoryValue::<FieldElement>::U8(8u8),
+                IntegerBitSize::U8
+            ),
+            Err(BrilligArithmeticError::BitshiftOverflow { bit_size: 8, shift_size: 8 })
+        );
     }
 }

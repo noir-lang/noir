@@ -47,7 +47,7 @@ mod signature_help_tests {
 
     fn check_label(signature_label: &str, parameter_label: &ParameterLabel, expected_string: &str) {
         let ParameterLabel::LabelOffsets(offsets) = parameter_label else {
-            panic!("Expected label to be LabelOffsets, got {:?}", parameter_label);
+            panic!("Expected label to be LabelOffsets, got {parameter_label:?}");
         };
 
         assert_eq!(&signature_label[offsets[0] as usize..offsets[1] as usize], expected_string);

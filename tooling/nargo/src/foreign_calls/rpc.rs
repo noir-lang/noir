@@ -249,7 +249,7 @@ mod tests {
         let server = Server::builder().build("127.0.0.1:0").await?;
         let addr = server.local_addr()?;
         let handle = server.start(OracleResolverImpl.into_rpc());
-        let url = format!("http://{}", addr);
+        let url = format!("http://{addr}");
         // In this test we don't care about doing shutdown so let's it run forever.
         tokio::spawn(handle.stopped());
         Ok(url)

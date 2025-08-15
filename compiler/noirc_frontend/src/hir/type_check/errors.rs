@@ -34,9 +34,9 @@ pub enum Source {
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum TypeCheckError {
     #[error("Division by zero: {lhs} / {rhs}")]
-    DivisionByZero { lhs: FieldElement, rhs: FieldElement, location: Location },
+    DivisionByZero { lhs: SignedField, rhs: SignedField, location: Location },
     #[error("Modulo on Field elements: {lhs} % {rhs}")]
-    ModuloOnFields { lhs: FieldElement, rhs: FieldElement, location: Location },
+    ModuloOnFields { lhs: SignedField, rhs: SignedField, location: Location },
     #[error("The value `{expr}` cannot fit into `{ty}` which has range `{range}`")]
     IntegerLiteralDoesNotFitItsType {
         expr: SignedField,
@@ -48,13 +48,22 @@ pub enum TypeCheckError {
         "The value `{value}` cannot fit into `{kind}` which has a maximum size of `{maximum_size}`"
     )]
     OverflowingConstant {
-        value: FieldElement,
+        value: SignedField,
         kind: Kind,
         maximum_size: FieldElement,
         location: Location,
     },
+    #[error(
+        "The value `{value}` cannot fit into `{kind}` which has a minimum size of `{minimum_size}`"
+    )]
+    UnderflowingConstant {
+        value: SignedField,
+        kind: Kind,
+        minimum_size: SignedField,
+        location: Location,
+    },
     #[error("Evaluating `{op}` on `{lhs}`, `{rhs}` failed")]
-    FailingBinaryOp { op: BinaryTypeOperator, lhs: i128, rhs: i128, location: Location },
+    FailingBinaryOp { op: BinaryTypeOperator, lhs: String, rhs: String, location: Location },
     #[error("Type {typ:?} cannot be used in a {place:?}")]
     TypeCannotBeUsed { typ: Type, place: &'static str, location: Location },
     #[error("Expected type {expected_typ:?} is not the same as {expr_typ:?}")]
@@ -67,8 +76,8 @@ pub enum TypeCheckError {
     TypeCanonicalizationMismatch {
         to: Type,
         from: Type,
-        to_value: FieldElement,
-        from_value: FieldElement,
+        to_value: SignedField,
+        from_value: SignedField,
         location: Location,
     },
     #[error("Expected {expected:?} found {found:?}")]
@@ -93,6 +102,8 @@ pub enum TypeCheckError {
     UnconstrainedMismatch { item: String, expected: bool, location: Location },
     #[error("Only integer and Field types may be casted to")]
     UnsupportedCast { location: Location },
+    #[error("Only unsigned integer types may be casted to Field")]
+    UnsupportedFieldCast { location: Location },
     #[error("Index {index} is out of bounds for this tuple {lhs_type} of length {length}")]
     TupleIndexOutOfBounds { index: usize, lhs_type: Type, length: usize, location: Location },
     #[error("Variable `{name}` must be mutable to be assigned to")]
@@ -268,6 +279,7 @@ impl TypeCheckError {
             | TypeCheckError::ModuloOnFields { location, .. }
             | TypeCheckError::IntegerLiteralDoesNotFitItsType { location, .. }
             | TypeCheckError::OverflowingConstant { location, .. }
+            | TypeCheckError::UnderflowingConstant { location, .. }
             | TypeCheckError::FailingBinaryOp { location, .. }
             | TypeCheckError::TypeCannotBeUsed { location, .. }
             | TypeCheckError::TypeMismatch { expr_location: location, .. }
@@ -285,6 +297,7 @@ impl TypeCheckError {
             | TypeCheckError::GenericCountMismatch { location, .. }
             | TypeCheckError::UnconstrainedMismatch { location, .. }
             | TypeCheckError::UnsupportedCast { location }
+            | TypeCheckError::UnsupportedFieldCast { location }
             | TypeCheckError::TupleIndexOutOfBounds { location, .. }
             | TypeCheckError::VariableMustBeMutable { location, .. }
             | TypeCheckError::CannotMutateImmutableVariable { location, .. }
@@ -489,6 +502,7 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             TypeCheckError::ExpectedFunction { location, .. }
             | TypeCheckError::AccessUnknownMember { location, .. }
             | TypeCheckError::UnsupportedCast { location }
+            | TypeCheckError::UnsupportedFieldCast { location }
             | TypeCheckError::TupleIndexOutOfBounds { location, .. }
             | TypeCheckError::VariableMustBeMutable { location, .. }
             | TypeCheckError::CannotMutateImmutableVariable { location, .. }
@@ -500,6 +514,7 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             | TypeCheckError::FieldComparison { location, .. }
             | TypeCheckError::IntegerLiteralDoesNotFitItsType { location, .. }
             | TypeCheckError::OverflowingConstant { location, .. }
+            | TypeCheckError::UnderflowingConstant { location, .. }
             | TypeCheckError::FailingBinaryOp { location, .. }
             | TypeCheckError::FieldModulo { location }
             | TypeCheckError::FieldNot { location }
@@ -614,7 +629,7 @@ impl<'a> From<&'a TypeCheckError> for Diagnostic {
             }
             TypeCheckError::InvalidTypeForEntryPoint { location } => Diagnostic::simple_error(
                 "Only sized types may be used in the entry point to a program".to_string(),
-                "Slices, references, or any type containing them may not be used in main, contract functions, or foldable functions".to_string(), *location),
+                "Slices, references, or any type containing them may not be used in main, contract functions, test functions, fuzz functions or foldable functions".to_string(), *location),
             TypeCheckError::MismatchTraitImplNumParameters {
                 expected_num_parameters,
                 actual_num_parameters,

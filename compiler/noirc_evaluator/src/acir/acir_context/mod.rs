@@ -1047,7 +1047,9 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
 
             let bit_size = bit_size_u128(rhs_offset);
             // r = 2^bit_size - rhs_offset -1, is of bit size  'bit_size' by construction
-            let r = (1_u128 << bit_size) - rhs_offset - 1;
+            let two_pow_bit_size_minus_one =
+                if bit_size == 128 { u128::MAX } else { (1_u128 << bit_size) - 1 };
+            let r = two_pow_bit_size_minus_one - rhs_offset;
             // however, since it is a constant, we can compute it's actual bit size
             let r_bit_size = bit_size_u128(r);
 

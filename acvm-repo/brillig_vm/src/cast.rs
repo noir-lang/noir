@@ -1,3 +1,4 @@
+//! Implementation for the [cast operation][acir::brillig::Opcode::Cast].
 use acir::{
     AcirField,
     brillig::{BitSize, IntegerBitSize},

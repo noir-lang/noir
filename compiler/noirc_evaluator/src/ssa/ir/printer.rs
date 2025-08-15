@@ -57,7 +57,7 @@ impl Display for Printer<'_> {
                     panic!("Value::Global should only be in the function dfg");
                 }
                 Value::Function(id) => {
-                    writeln!(f, "{}", id)?;
+                    writeln!(f, "{id}")?;
                 }
                 _ => panic!("Expected only numeric constant or instruction"),
             };
@@ -229,7 +229,7 @@ fn display_instruction_buffer(
         if in_global_space {
             value_list = value_list.replace('v', "g");
         }
-        write!(buffer, "{} = ", value_list).map_err(|_| ())?;
+        write!(buffer, "{value_list} = ").map_err(|_| ())?;
     }
 
     display_instruction_inner(dfg, &dfg[instruction], results, in_global_space, &mut buffer)
@@ -276,7 +276,7 @@ fn write_location_information(
             else {
                 return Ok(());
             };
-            write!(buffer, ":{}", column_number)?;
+            write!(buffer, ":{column_number}")?;
         }
     }
     Ok(())
@@ -388,9 +388,9 @@ fn display_instruction_inner(
             {
                 if let Some(string) = try_byte_array_to_string(elements, dfg) {
                     if is_slice {
-                        return write!(f, "make_array &b{:?}", string);
+                        return write!(f, "make_array &b{string:?}");
                     } else {
-                        return write!(f, "make_array b{:?}", string);
+                        return write!(f, "make_array b{string:?}");
                     }
                 }
             }
@@ -405,7 +405,7 @@ fn display_instruction_inner(
                 if in_global_space {
                     value = value.replace('v', "g");
                 }
-                write!(f, "{}", value)?;
+                write!(f, "{value}")?;
             }
 
             write!(f, "] : {typ}")
@@ -434,18 +434,21 @@ fn try_byte_array_to_string(elements: &Vector<ValueId>, dfg: &DataFlowGraph) -> 
             return None;
         }
         let byte: u8 = element as u8;
-        const FORM_FEED: u8 = 12; // This is the ASCII code for '\f', which isn't a valid escape sequence in strings
-        if byte != FORM_FEED
-            && (byte.is_ascii_alphanumeric()
-                || byte.is_ascii_punctuation()
-                || byte.is_ascii_whitespace())
-        {
+        if is_printable_byte(byte) {
             string.push(byte as char);
         } else {
             return None;
         }
     }
     Some(string)
+}
+
+pub fn is_printable_byte(byte: u8) -> bool {
+    const FORM_FEED: u8 = 12; // This is the ASCII code for '\f', which isn't a valid escape sequence in strings
+    byte != FORM_FEED
+        && (byte.is_ascii_alphanumeric()
+            || byte.is_ascii_punctuation()
+            || byte.is_ascii_whitespace())
 }
 
 fn result_types(dfg: &DataFlowGraph, results: &[ValueId]) -> String {

@@ -19,10 +19,7 @@ impl<T> Child for Struct<T>
 where
     T: Child,
 {
-    fn child()
-    where
-        T: Child,
-    {}
+    fn child() {}
 }
 
 fn main() {}

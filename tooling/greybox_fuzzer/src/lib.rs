@@ -88,7 +88,7 @@ impl FuzzTask {
     }
 
     /// Create a task for executing a testcase without mutation
-    pub(crate) fn mutationless(main_testcase_id: TestCaseId) -> Self {
+    pub(crate) fn without_mutation(main_testcase_id: TestCaseId) -> Self {
         Self {
             main_testcase_id,
             additional_testcase_id: None,
@@ -488,7 +488,7 @@ impl<
         // Generate a seed for the campaign
         let seed = thread_rng().r#gen::<u64>();
 
-        // Init a fast PRNG used throughout the campain
+        // Init a fast PRNG used throughout the campaign
         let mut prng = XorShiftRng::seed_from_u64(seed);
 
         // Initialize the starting corpus
@@ -643,7 +643,7 @@ impl<
                 // If this is the initial processing round, then push testcases from the starting corpus into the set
                 testcase_set.reserve(starting_corpus_ids.len());
                 for id in starting_corpus_ids.iter() {
-                    testcase_set.push(FuzzTask::mutationless(*id));
+                    testcase_set.push(FuzzTask::without_mutation(*id));
                 }
             }
             let mutation_and_fuzzing_time_tracker = Instant::now();
@@ -1014,10 +1014,10 @@ impl<
             }) => {
                 let reason = match acir_failed {
                     true => {
-                        format!("ACIR failed while brillig executed with no issues: {}", status)
+                        format!("ACIR failed while brillig executed with no issues: {status}")
                     }
                     false => {
-                        format!("brillig failed while ACIR executed with no issues: {}", status)
+                        format!("brillig failed while ACIR executed with no issues: {status}")
                     }
                 };
 
@@ -1307,11 +1307,11 @@ fn display_starting_info(
     if minimize_corpus {
         write!(writer, "Attempting to minimize corpus for fuzzing harness ")?;
         writer.set_color(ColorSpec::new().set_fg(Some(Color::Blue)))?;
-        write!(writer, "{}", fuzzing_harness_name)?;
+        write!(writer, "{fuzzing_harness_name}")?;
         writer.reset()?;
         write!(writer, " of package ")?;
         writer.set_color(ColorSpec::new().set_fg(Some(Color::Blue)))?;
-        writeln!(writer, "{}", package_name)?;
+        writeln!(writer, "{package_name}")?;
         writer.reset()?;
         write!(writer, "Corpus path: \"")?;
         writer.set_color(ColorSpec::new().set_fg(Some(Color::Blue)))?;
@@ -1330,11 +1330,11 @@ fn display_starting_info(
     } else {
         write!(writer, "Starting fuzzing with harness ")?;
         writer.set_color(ColorSpec::new().set_fg(Some(Color::Blue)))?;
-        write!(writer, "{}", fuzzing_harness_name)?;
+        write!(writer, "{fuzzing_harness_name}")?;
         writer.reset()?;
         write!(writer, " of package ")?;
         writer.set_color(ColorSpec::new().set_fg(Some(Color::Blue)))?;
-        writeln!(writer, "{}", package_name)?;
+        writeln!(writer, "{package_name}")?;
         writer.reset()?;
         write!(writer, "Corpus path: \"")?;
         writer.set_color(ColorSpec::new().set_fg(Some(Color::Blue)))?;
@@ -1344,17 +1344,17 @@ fn display_starting_info(
     }
     write!(writer, "seed: ")?;
     writer.set_color(ColorSpec::new().set_fg(Some(Color::Blue)))?;
-    write!(writer, "{:#016x}", seed)?;
+    write!(writer, "{seed:#016x}")?;
     writer.reset()?;
 
     write!(writer, ", starting_corpus_size: ")?;
     writer.set_color(ColorSpec::new().set_fg(Some(Color::Blue)))?;
-    write!(writer, "{}", starting_corpus_size)?;
+    write!(writer, "{starting_corpus_size}")?;
     writer.reset()?;
 
     write!(writer, ", num_threads: ")?;
     writer.set_color(ColorSpec::new().set_fg(Some(Color::Blue)))?;
-    writeln!(writer, "{}", num_threads)?;
+    writeln!(writer, "{num_threads}")?;
     writer.reset()?;
 
     if abi_change_detected {
@@ -1388,7 +1388,7 @@ fn display_metrics(metrics: &Metrics) -> Result<(), std::io::Error> {
         } else if x > microseconds_in_millisecond {
             format!("{}ms", x / microseconds_in_millisecond)
         } else {
-            format!("{}us", x)
+            format!("{x}us")
         }
     };
     let format_count = |x: usize| {
@@ -1402,7 +1402,7 @@ fn display_metrics(metrics: &Metrics) -> Result<(), std::io::Error> {
         } else if x > thousand {
             format!("{}k", x / thousand)
         } else {
-            format!("{}", x)
+            format!("{x}")
         }
     };
     if metrics.found_new_with_acir_brillig || metrics.found_new_with_brillig {

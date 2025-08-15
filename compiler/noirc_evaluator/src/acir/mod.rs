@@ -12,7 +12,6 @@ use std::collections::{BTreeMap, HashSet};
 use types::{AcirDynamicArray, AcirValue};
 
 use acvm::acir::{
-    BlackBoxFunc,
     circuit::{
         AssertionPayload, ExpressionWidth, OpcodeLocation, brillig::BrilligFunctionId,
         opcodes::AcirFunctionId,
@@ -358,9 +357,10 @@ impl<'a> Context<'a> {
         let arguments = self.gen_brillig_parameters(dfg[main_func.entry_block()].parameters(), dfg);
 
         let witness_inputs = self.acir_context.extract_witness(&inputs);
+        let returns = main_func.returns().unwrap_or_default();
 
         let outputs: Vec<AcirType> =
-            vecmap(main_func.returns(), |result_id| dfg.type_of_value(*result_id).into());
+            vecmap(returns, |result_id| dfg.type_of_value(*result_id).into());
 
         let code =
             gen_brillig_for(main_func, arguments.clone(), self.brillig, self.brillig_options)?;
@@ -422,7 +422,7 @@ impl<'a> Context<'a> {
                     } else {
                         return Err(InternalError::Unexpected {
                             expected: "Block params should be an array".to_owned(),
-                            found: format!("Instead got {:?}", typ),
+                            found: format!("Instead got {typ:?}"),
                             call_stack: self.acir_context.get_call_stack(),
                         }
                         .into());
@@ -674,7 +674,7 @@ impl<'a> Context<'a> {
         ssa: &Ssa,
         result_ids: &[ValueId],
     ) -> Result<Vec<SsaReport>, RuntimeError> {
-        let mut warnings = Vec::new();
+        let warnings = Vec::new();
 
         match instruction {
             Instruction::Call { func, arguments } => {
@@ -794,28 +794,16 @@ impl<'a> Context<'a> {
                         }
                     }
                     Value::Intrinsic(intrinsic) => {
-                        if matches!(
-                            intrinsic,
-                            Intrinsic::BlackBox(BlackBoxFunc::RecursiveAggregation)
-                        ) {
-                            warnings.push(SsaReport::Warning(InternalWarning::VerifyProof {
-                                call_stack: self.acir_context.get_call_stack(),
-                            }));
-                        }
                         let outputs = self
                             .convert_ssa_intrinsic_call(*intrinsic, arguments, dfg, result_ids)?;
 
-                        // Issue #1438 causes this check to fail with intrinsics that return 0
-                        // results but the ssa form instead creates 1 unit result value.
-                        // assert_eq!(result_ids.len(), outputs.len());
+                        assert_eq!(result_ids.len(), outputs.len());
                         self.handle_ssa_call_outputs(result_ids, outputs, dfg)?;
                     }
-                    Value::ForeignFunction(_) => {
-                        // TODO: Remove this once elaborator is default frontend. This is now caught by a lint inside the frontend.
-                        return Err(RuntimeError::UnconstrainedOracleReturnToConstrained {
-                            call_stack: self.acir_context.get_call_stack(),
-                        });
-                    }
+                    Value::ForeignFunction(_) => unreachable!(
+                        "Frontend should remove any oracle calls from constrained functions"
+                    ),
+
                     _ => unreachable!("expected calling a function but got {function_value:?}"),
                 }
             }
@@ -1043,6 +1031,18 @@ impl<'a> Context<'a> {
         let lhs = self.convert_numeric_value(binary.lhs, dfg)?;
         let rhs = self.convert_numeric_value(binary.rhs, dfg)?;
         let binary_type = self.type_of_binary_operation(binary, dfg);
+
+        if binary_type.is_signed()
+            && matches!(
+                binary.operator,
+                BinaryOp::Add { unchecked: false }
+                    | BinaryOp::Sub { unchecked: false }
+                    | BinaryOp::Mul { unchecked: false }
+            )
+        {
+            panic!("Checked signed operations should all be removed before ACIRgen")
+        }
+
         let binary_type = AcirType::from(binary_type);
         let bit_count = binary_type.bit_size::<FieldElement>();
         let num_type = binary_type.to_numeric_type();
@@ -1286,7 +1286,9 @@ impl<'a> Context<'a> {
             }
             Intrinsic::ArrayLen => {
                 let len = match self.convert_value(arguments[0], dfg) {
-                    AcirValue::Var(_, _) => unreachable!("Non-array passed to array.len() method"),
+                    AcirValue::Var(_, _) => {
+                        unreachable!("Non-array passed to array.len() method")
+                    }
                     AcirValue::Array(values) => values.len(),
                     AcirValue::DynamicArray(array) => array.len,
                 };
@@ -1740,9 +1742,9 @@ impl<'a> Context<'a> {
             Intrinsic::IsUnconstrained => {
                 unreachable!("Expected is_unconstrained to be removed by this point")
             }
-            Intrinsic::DerivePedersenGenerators => {
-                unreachable!("DerivePedersenGenerators can only be called with constants")
-            }
+            Intrinsic::DerivePedersenGenerators => Err(RuntimeError::AssertConstantFailed {
+                call_stack: self.acir_context.get_call_stack(),
+            }),
             Intrinsic::FieldLessThan => {
                 unreachable!("FieldLessThan can only be called in unconstrained")
             }

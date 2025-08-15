@@ -1,72 +1,20 @@
-use super::base_context::FuzzerCommand;
-use super::fuzzer::Fuzzer;
-use super::instruction::InstructionBlock;
+use super::NUMBER_OF_PREDEFINED_VARIABLES;
+use super::NUMBER_OF_VARIABLES_INITIAL;
+use super::function_context::WitnessValue;
+use super::fuzzer::{Fuzzer, FuzzerData, FuzzerOutput};
 use super::options::FuzzerOptions;
-use super::{NUMBER_OF_PREDEFINED_VARIABLES, NUMBER_OF_VARIABLES_INITIAL};
 use acvm::FieldElement;
 use acvm::acir::native_types::{Witness, WitnessMap};
-use libfuzzer_sys::arbitrary;
-use libfuzzer_sys::arbitrary::Arbitrary;
 use noir_ssa_fuzzer::typed_value::ValueType;
-use serde::{Deserialize, Serialize};
-
-/// Field modulus has 254 bits, and FieldElement::from supports u128, so we use two unsigneds to represent a field element
-/// field = low + high * 2^128
-#[derive(Debug, Clone, Hash, Arbitrary, Serialize, Deserialize)]
-pub(crate) struct FieldRepresentation {
-    pub(crate) high: u128,
-    pub(crate) low: u128,
-}
-
-impl From<&FieldRepresentation> for FieldElement {
-    fn from(field: &FieldRepresentation) -> FieldElement {
-        let lower = FieldElement::from(field.low);
-        let upper = FieldElement::from(field.high);
-        lower + upper * (FieldElement::from(u128::MAX) + FieldElement::from(1_u128))
-    }
-}
-
-#[derive(Debug, Clone, Hash, Arbitrary, Serialize, Deserialize)]
-pub(crate) enum WitnessValue {
-    Field(FieldRepresentation),
-    U64(u64),
-    Boolean(bool),
-    I64(u64),
-    I32(u32),
-}
-
-/// Represents the data for the fuzzer
-/// `methods` - sequence of instructions to be added to the program
-/// `initial_witness` - initial witness values for the program as `FieldRepresentation`
-#[derive(Arbitrary, Debug, Serialize, Deserialize)]
-pub(crate) struct FuzzerData {
-    pub(crate) blocks: Vec<InstructionBlock>,
-    pub(crate) commands: Vec<FuzzerCommand>,
-    /// initial witness values for the program as `WitnessValue`
-    pub(crate) initial_witness:
-        [WitnessValue; (NUMBER_OF_VARIABLES_INITIAL - NUMBER_OF_PREDEFINED_VARIABLES) as usize],
-    pub(crate) return_instruction_block_idx: usize,
-}
-
-impl Default for FuzzerData {
-    fn default() -> Self {
-        Self {
-            blocks: vec![],
-            commands: vec![],
-            initial_witness: [const { WitnessValue::U64(0) };
-                (NUMBER_OF_VARIABLES_INITIAL - NUMBER_OF_PREDEFINED_VARIABLES) as usize],
-            return_instruction_block_idx: 0,
-        }
-    }
-}
 
 fn initialize_witness_map(
-    data: &FuzzerData,
+    initial_witness: &[WitnessValue;
+         (NUMBER_OF_VARIABLES_INITIAL - NUMBER_OF_PREDEFINED_VARIABLES) as usize],
 ) -> (WitnessMap<FieldElement>, Vec<FieldElement>, Vec<ValueType>) {
     let mut witness_map = WitnessMap::new();
     let mut values = vec![];
     let mut types = vec![];
-    for (i, witness_value) in data.initial_witness.iter().enumerate() {
+    for (i, witness_value) in initial_witness.iter().enumerate() {
         let (value, type_) = match witness_value {
             WitnessValue::Field(field) => (FieldElement::from(field), ValueType::Field),
             WitnessValue::U64(u64) => (FieldElement::from(*u64), ValueType::U64),
@@ -95,36 +43,30 @@ fn initialize_witness_map(
 }
 
 /// Creates ACIR and Brillig programs from the data, runs and compares them
-pub(crate) fn fuzz_target(data: FuzzerData, options: FuzzerOptions) -> Option<FieldElement> {
-    // If there are no blocks, [crate::base_context::FuzzerContext::get_return_witness] will try to take witness with index NUMBER_OF_VARIABLES_INITIAL
-    // But we only have our initial witness, and last index in resulting witness map is NUMBER_OF_VARIABLES_INITIAL - 1
-    // So we just skip this case
-    if data.blocks.is_empty() {
+pub(crate) fn fuzz_target(data: FuzzerData, options: FuzzerOptions) -> Option<FuzzerOutput> {
+    // to triage
+    if data.instruction_blocks.is_empty() {
         return None;
     }
-    for instr_block in &data.blocks {
-        if instr_block.instructions.is_empty() {
-            return None;
-        }
+    log::debug!("instruction_blocks: {:?}", data.instruction_blocks);
+    let (witness_map, values, types) = initialize_witness_map(&data.initial_witness);
+
+    let mut fuzzer = Fuzzer::new(data.instruction_blocks, values, options);
+    for func in data.functions {
+        log::debug!("initial_witness: {witness_map:?}");
+        log::debug!("commands: {:?}", func.commands);
+        fuzzer.process_function(func, types.clone());
     }
-
-    let (witness_map, values, types) = initialize_witness_map(&data);
-
-    // to triage
-    log::debug!("initial_witness: {:?}", witness_map);
-    log::debug!("commands: {:?}", data.commands);
-
-    let mut fuzzer = Fuzzer::new(types, values, data.blocks, options);
-    for command in data.commands {
-        fuzzer.process_fuzzer_command(command);
-    }
-    fuzzer.finalize_and_run(witness_map, data.return_instruction_block_idx)
+    fuzzer.finalize_and_run(witness_map)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::instruction::{Argument, Instruction};
+    use crate::function_context::{FieldRepresentation, FunctionData, FuzzerFunctionCommand};
+    use crate::instruction::{Argument, Instruction, InstructionBlock};
+    use acvm::AcirField;
+    use libfuzzer_sys::{arbitrary, arbitrary::Arbitrary};
 
     fn default_witness() -> [WitnessValue; (NUMBER_OF_VARIABLES_INITIAL - 2) as usize] {
         [
@@ -163,17 +105,20 @@ mod tests {
             instructions: vec![Instruction::AddChecked { lhs: arg_0_field, rhs: arg_1_field }],
         };
         let commands =
-            vec![FuzzerCommand::InsertJmpIfBlock { block_then_idx: 0, block_else_idx: 1 }];
+            vec![FuzzerFunctionCommand::InsertJmpIfBlock { block_then_idx: 0, block_else_idx: 1 }];
         let data = FuzzerData {
-            blocks: vec![failing_block.clone(), succeeding_block.clone()],
-            commands,
+            instruction_blocks: vec![failing_block.clone(), succeeding_block.clone()],
+            functions: vec![FunctionData {
+                commands,
+                return_instruction_block_idx: 1, // ends with non-failing block
+                return_type: ValueType::Field,
+            }],
             initial_witness: default_witness(),
-            return_instruction_block_idx: 1, // ends with non-failing block
         };
         let result = fuzz_target(data, FuzzerOptions::default());
         // we expect that this program executed successfully
         match result {
-            Some(result) => assert_eq!(result, FieldElement::from(1_u32)),
+            Some(result) => assert_eq!(result.get_return_value(), FieldElement::from(1_u32)),
             None => panic!("Program failed to execute"),
         }
 
@@ -183,19 +128,22 @@ mod tests {
             instructions: vec![Instruction::Or { lhs: arg_0_boolean, rhs: arg_1_boolean }],
         };
         let commands = vec![
-            FuzzerCommand::InsertSimpleInstructionBlock { instruction_block_idx: 2 }, // add boolean
-            FuzzerCommand::InsertJmpIfBlock { block_then_idx: 0, block_else_idx: 1 }, // jmpif
+            FuzzerFunctionCommand::InsertSimpleInstructionBlock { instruction_block_idx: 2 }, // add boolean
+            FuzzerFunctionCommand::InsertJmpIfBlock { block_then_idx: 0, block_else_idx: 1 }, // jmpif
         ];
         let data = FuzzerData {
-            blocks: vec![failing_block, succeeding_block, adding_bool_block],
-            commands,
+            instruction_blocks: vec![failing_block, succeeding_block, adding_bool_block],
+            functions: vec![FunctionData {
+                commands,
+                return_instruction_block_idx: 1, // ends with non-failing block
+                return_type: ValueType::Field,
+            }],
             initial_witness: default_witness(),
-            return_instruction_block_idx: 1, // ends with non-failing block
         };
         let result = fuzz_target(data, FuzzerOptions::default());
         // we expect that this program failed to execute
         if let Some(result) = result {
-            panic!("Program executed successfully with result: {:?}", result);
+            panic!("Program executed successfully with result: {:?}", result.get_return_value());
         }
     }
 
@@ -214,6 +162,7 @@ mod tests {
     /// v0 = 0, v2 = 2, so we expect that v10 = 4
     #[test]
     fn test_mutable_variable() {
+        let _ = env_logger::try_init();
         let arg_0_field = Argument { index: 0, value_type: ValueType::Field };
         let arg_2_field = Argument { index: 2, value_type: ValueType::Field };
         let arg_5_field = Argument { index: 5, value_type: ValueType::Field };
@@ -239,20 +188,29 @@ mod tests {
         };
 
         let commands = vec![
-            FuzzerCommand::InsertSimpleInstructionBlock { instruction_block_idx: 0 }, // add v0 to memory
-            FuzzerCommand::InsertSimpleInstructionBlock { instruction_block_idx: 3 }, // add v8 = v0 + v2 (6th field)
-            FuzzerCommand::InsertSimpleInstructionBlock { instruction_block_idx: 2 }, // set v6 to memory
-            FuzzerCommand::InsertSimpleInstructionBlock { instruction_block_idx: 1 }, // load from memory (v6)
+            FuzzerFunctionCommand::InsertSimpleInstructionBlock { instruction_block_idx: 0 }, // add v0 to memory
+            FuzzerFunctionCommand::InsertSimpleInstructionBlock { instruction_block_idx: 3 }, // add v8 = v0 + v2 (6th field)
+            FuzzerFunctionCommand::InsertSimpleInstructionBlock { instruction_block_idx: 2 }, // set v6 to memory
+            FuzzerFunctionCommand::InsertSimpleInstructionBlock { instruction_block_idx: 1 }, // load from memory (v6)
         ];
         let data = FuzzerData {
-            blocks: vec![add_to_memory_block, load_block, set_block, add_block, add_block_2],
-            commands,
+            instruction_blocks: vec![
+                add_to_memory_block,
+                load_block,
+                set_block,
+                add_block,
+                add_block_2,
+            ],
+            functions: vec![FunctionData {
+                commands,
+                return_instruction_block_idx: 4, // last block adds v2 to loaded value, returns the result
+                return_type: ValueType::Field,
+            }],
             initial_witness: default_witness(),
-            return_instruction_block_idx: 4, // last block adds v2 to loaded value, returns the result
         };
         let result = fuzz_target(data, FuzzerOptions::default());
         match result {
-            Some(result) => assert_eq!(result, FieldElement::from(4_u32)),
+            Some(result) => assert_eq!(result.get_return_value(), FieldElement::from(4_u32)),
             None => panic!("Program failed to execute"),
         }
     }
@@ -288,18 +246,21 @@ mod tests {
             ],
         };
         let commands = vec![
-            FuzzerCommand::InsertSimpleInstructionBlock { instruction_block_idx: 0 }, // add v2 to memory
-            FuzzerCommand::InsertCycle { block_body_idx: 2, start_iter: 1, end_iter: 10 }, // for i in 1..10 do load_mul_set_block
+            FuzzerFunctionCommand::InsertSimpleInstructionBlock { instruction_block_idx: 0 }, // add v2 to memory
+            FuzzerFunctionCommand::InsertCycle { block_body_idx: 2, start_iter: 1, end_iter: 10 }, // for i in 1..10 do load_mul_set_block
         ];
         let data = FuzzerData {
-            blocks: vec![add_to_memory_block, load_block, load_mul_set_block],
-            commands,
+            instruction_blocks: vec![add_to_memory_block, load_block, load_mul_set_block],
+            functions: vec![FunctionData {
+                commands,
+                return_instruction_block_idx: 1, // v12 = load v8 -> Field; return v12
+                return_type: ValueType::Field,
+            }],
             initial_witness: default_witness(),
-            return_instruction_block_idx: 1, // v12 = load v8 -> Field; return v12
         };
         let result = fuzz_target(data, FuzzerOptions::default());
         match result {
-            Some(result) => assert_eq!(result, FieldElement::from(1024_u32)),
+            Some(result) => assert_eq!(result.get_return_value(), FieldElement::from(1024_u32)),
             None => panic!("Program failed to execute"),
         }
     }
@@ -347,19 +308,27 @@ mod tests {
             ],
         };
         let commands = vec![
-            FuzzerCommand::InsertSimpleInstructionBlock { instruction_block_idx: 0 }, // add v2 to memory
-            FuzzerCommand::InsertCycle { block_body_idx: 2, start_iter: 0, end_iter: 4 }, // for i in 0..4 do load_mul_set_block
-            FuzzerCommand::InsertCycle { block_body_idx: 3, start_iter: 1, end_iter: 4 }, // for j in 1..4 do load_mul_set_block2 (added to previous loop)
+            FuzzerFunctionCommand::InsertSimpleInstructionBlock { instruction_block_idx: 0 }, // add v2 to memory
+            FuzzerFunctionCommand::InsertCycle { block_body_idx: 2, start_iter: 0, end_iter: 4 }, // for i in 0..4 do load_mul_set_block
+            FuzzerFunctionCommand::InsertCycle { block_body_idx: 3, start_iter: 1, end_iter: 4 }, // for j in 1..4 do load_mul_set_block2 (added to previous loop)
         ];
         let data = FuzzerData {
-            blocks: vec![add_to_memory_block, load_block, load_mul_set_block, load_mul_set_block2],
-            commands,
+            instruction_blocks: vec![
+                add_to_memory_block,
+                load_block,
+                load_mul_set_block,
+                load_mul_set_block2,
+            ],
+            functions: vec![FunctionData {
+                commands,
+                return_instruction_block_idx: 1, // v13 = load v9 -> Field; return v13
+                return_type: ValueType::Field,
+            }],
             initial_witness: default_witness(),
-            return_instruction_block_idx: 1, // v13 = load v9 -> Field; return v13
         };
         let result = fuzz_target(data, FuzzerOptions::default());
         match result {
-            Some(result) => assert_eq!(result, FieldElement::from(131072_u32)),
+            Some(result) => assert_eq!(result.get_return_value(), FieldElement::from(131072_u32)),
             None => panic!("Program failed to execute"),
         }
     }
@@ -413,20 +382,23 @@ mod tests {
         };
 
         let commands = vec![
-            FuzzerCommand::InsertSimpleInstructionBlock { instruction_block_idx: 0 }, // add v2 to memory
-            FuzzerCommand::InsertCycle { block_body_idx: 2, start_iter: 0, end_iter: 10 }, // for i in 0..10 do load_mul_set_block
-            FuzzerCommand::InsertJmpBlock { block_idx: 1 }, // if we in cycle body, jmp doesn't insert new block, just jumps to the end of the cycle
-            FuzzerCommand::InsertSimpleInstructionBlock { instruction_block_idx: 2 }, // load_mul_set_block
+            FuzzerFunctionCommand::InsertSimpleInstructionBlock { instruction_block_idx: 0 }, // add v2 to memory
+            FuzzerFunctionCommand::InsertCycle { block_body_idx: 2, start_iter: 0, end_iter: 10 }, // for i in 0..10 do load_mul_set_block
+            FuzzerFunctionCommand::InsertJmpBlock { block_idx: 1 }, // if we in cycle body, jmp doesn't insert new block, just jumps to the end of the cycle
+            FuzzerFunctionCommand::InsertSimpleInstructionBlock { instruction_block_idx: 2 }, // load_mul_set_block
         ];
         let data = FuzzerData {
-            blocks: vec![add_to_memory_block, load_block, load_mul_set_block],
-            commands,
+            instruction_blocks: vec![add_to_memory_block, load_block, load_mul_set_block],
+            functions: vec![FunctionData {
+                commands,
+                return_instruction_block_idx: 1,
+                return_type: ValueType::Field,
+            }],
             initial_witness: default_witness(),
-            return_instruction_block_idx: 1,
         };
         let result = fuzz_target(data, FuzzerOptions::default());
         match result {
-            Some(result) => assert_eq!(result, FieldElement::from(4096_u32)),
+            Some(result) => assert_eq!(result.get_return_value(), FieldElement::from(4096_u32)),
             None => panic!("Program failed to execute"),
         }
     }
@@ -476,24 +448,27 @@ mod tests {
             ],
         };
         let commands = vec![
-            FuzzerCommand::InsertSimpleInstructionBlock { instruction_block_idx: 0 }, // add v2 to memory
-            FuzzerCommand::InsertCycle { block_body_idx: 1, start_iter: 0, end_iter: 10 }, // for i in 0..10 do ...
-            FuzzerCommand::InsertJmpIfBlock { block_then_idx: 2, block_else_idx: 3 }, // if(LAST_BOOL) { load_mul_set_block } else { load_add_set_block }
+            FuzzerFunctionCommand::InsertSimpleInstructionBlock { instruction_block_idx: 0 }, // add v2 to memory
+            FuzzerFunctionCommand::InsertCycle { block_body_idx: 1, start_iter: 0, end_iter: 10 }, // for i in 0..10 do ...
+            FuzzerFunctionCommand::InsertJmpIfBlock { block_then_idx: 2, block_else_idx: 3 }, // if(LAST_BOOL) { load_mul_set_block } else { load_add_set_block }
         ];
         let data = FuzzerData {
-            blocks: vec![
+            instruction_blocks: vec![
                 add_to_memory_block.clone(),
                 load_block.clone(),
                 load_mul_set_block.clone(),
                 load_add_set_block.clone(),
             ],
-            commands: commands.clone(),
+            functions: vec![FunctionData {
+                commands: commands.clone(),
+                return_instruction_block_idx: 1,
+                return_type: ValueType::Field,
+            }],
             initial_witness: default_witness(),
-            return_instruction_block_idx: 1,
         };
         let result = fuzz_target(data, FuzzerOptions::default());
         match result {
-            Some(result) => assert_eq!(result, FieldElement::from(22_u32)),
+            Some(result) => assert_eq!(result.get_return_value(), FieldElement::from(22_u32)),
             None => panic!("Program failed to execute"),
         }
 
@@ -507,104 +482,545 @@ mod tests {
 
         // use the same commands, but add boolean block at the beginning
         let mut commands = commands;
-        commands
-            .insert(0, FuzzerCommand::InsertSimpleInstructionBlock { instruction_block_idx: 4 }); // add true boolean
+        commands.insert(
+            0,
+            FuzzerFunctionCommand::InsertSimpleInstructionBlock { instruction_block_idx: 4 },
+        ); // add true boolean
         let data = FuzzerData {
-            blocks: vec![
+            instruction_blocks: vec![
                 add_to_memory_block,
                 load_block,
                 load_mul_set_block,
                 load_add_set_block,
                 add_boolean_block,
             ],
-            commands,
+            functions: vec![FunctionData {
+                commands,
+                return_instruction_block_idx: 1,
+                return_type: ValueType::Field,
+            }],
             initial_witness: default_witness(),
-            return_instruction_block_idx: 1,
         };
         let result = fuzz_target(data, FuzzerOptions::default());
         match result {
-            Some(result) => assert_eq!(result, FieldElement::from(2048_u32)),
+            Some(result) => assert_eq!(result.get_return_value(), FieldElement::from(2048_u32)),
             None => panic!("Program failed to execute"),
         }
     }
 
-    /// fn main(x: Field, condition: bool) -> pub Field {
-    /// let mut y = x;
-    /// for i in 0..4 {
-    ///     if condition {
-    ///         for _ in 0..4 {
-    ///             y *= x;
-    ///         }
-    ///     }
-    ///    }
-    /// y
-    /// }
+    /// brillig(inline) fn main f0 {
+    ///    b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: u1, v6: u1):
+    ///      v8 = call f1(v0, v1, v2, v3, v4, v5, v6) -> Field
+    ///      return v8
+    ///  }
+    ///  brillig(inline_always) fn f1 f1 {
+    ///    b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: u1, v6: u1):
+    ///      v7 = add v2, v2
+    ///      return v7
+    ///  }
+    ///  
     #[test]
-    fn test_cycle_if_then_cycle() {
-        // this argument doesn't exist
-        // fuzzer doesn't support empty instruction blocks
-        let dummy_arg = Argument { index: 0, value_type: ValueType::I64 };
+    fn simple_function_call() {
+        let dummy_var = Argument { index: 2, value_type: ValueType::I64 };
         let arg_2_field = Argument { index: 2, value_type: ValueType::Field };
-        let arg_6_field = Argument { index: 5, value_type: ValueType::Field };
-        let arg_7_field = Argument { index: 6, value_type: ValueType::Field };
-        // v9 = allocate -> &mut Field
-        // store v2 at v9
-        let add_to_memory_block =
-            InstructionBlock { instructions: vec![Instruction::AddToMemory { lhs: arg_2_field }] };
-        let typed_memory_0 = Argument { index: 0, value_type: ValueType::Field };
-        let load_mul_set_block = InstructionBlock {
-            instructions: vec![
-                Instruction::LoadFromMemory { memory_addr: typed_memory_0 }, // v15 = load v9 -> Field (loaded value is 5th defined field in then block)
-                Instruction::MulChecked { lhs: arg_6_field, rhs: arg_2_field }, // v16 = mul v15, v2 (v16 -- 6th defined field in then block)
-                Instruction::SetToMemory { memory_addr_index: 0, value: arg_7_field }, // store v16 at v9
+        let add_block = InstructionBlock {
+            instructions: vec![Instruction::AddChecked { lhs: arg_2_field, rhs: arg_2_field }],
+        };
+        let dummy_block = InstructionBlock {
+            instructions: vec![Instruction::AddChecked { lhs: dummy_var, rhs: dummy_var }],
+        };
+        let args: [usize; 7] = [0, 1, 2, 3, 4, 0, 1];
+        let commands1 = vec![FuzzerFunctionCommand::InsertFunctionCall { function_idx: 0, args }];
+        let fuzzer_data = FuzzerData {
+            instruction_blocks: vec![dummy_block, add_block],
+            functions: vec![
+                FunctionData {
+                    commands: commands1,
+                    return_instruction_block_idx: 0,
+                    return_type: ValueType::Field,
+                },
+                FunctionData {
+                    commands: vec![],
+                    return_instruction_block_idx: 1,
+                    return_type: ValueType::Field,
+                },
             ],
+            initial_witness: default_witness(),
+        };
+        let result = fuzz_target(fuzzer_data, FuzzerOptions::default());
+        match result {
+            Some(result) => assert_eq!(result.get_return_value(), FieldElement::from(4_u32)),
+            None => panic!("Program failed to execute"),
+        }
+    }
+
+    /// main() { f1() + f2() } -> 8 + 4 => 12
+    /// f1() { let var = f2(); var + var } -> 4 + 4 => 8
+    /// f2(v2) { v2 + v2 } -> 2 + 2 => 4
+    ///
+    ///   brillig(inline) fn main f0 {
+    ///     b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: u1, v6: u1):
+    ///       v8 = call f1(v0, v1, v2, v3, v4, v5, v6) -> Field
+    ///       v10 = call f2(v0, v1, v2, v3, v4, v5, v6) -> Field
+    ///       v11 = add v8, v10
+    ///       return v11
+    ///   }
+    ///   brillig(inline_always) fn f1 f1 {
+    ///     b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: u1, v6: u1):
+    ///       v8 = call f2(v0, v1, v2, v3, v4, v5, v6) -> Field
+    ///       v9 = add v8, v8
+    ///       return v9
+    ///   }
+    ///   brillig(inline_always) fn f2 f2 {
+    ///     b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: u1, v6: u1):
+    ///       v7 = add v2, v2
+    ///       return v7
+    ///   }
+    #[test]
+    fn several_functions_several_calls() {
+        let dummy_var = Argument { index: 2, value_type: ValueType::I64 };
+        let arg_2_field = Argument { index: 2, value_type: ValueType::Field };
+        let arg_5_field = Argument { index: 5, value_type: ValueType::Field };
+        let arg_6_field = Argument { index: 6, value_type: ValueType::Field };
+        let dummy_block = InstructionBlock {
+            instructions: vec![Instruction::AddChecked { lhs: dummy_var, rhs: dummy_var }],
+        };
+        let add_block_f2 = InstructionBlock {
+            instructions: vec![Instruction::AddChecked { lhs: arg_2_field, rhs: arg_2_field }],
+        };
+        let add_block_f1 = InstructionBlock {
+            instructions: vec![Instruction::AddChecked { lhs: arg_5_field, rhs: arg_5_field }], // f2() + f2()
+        };
+        let add_block_main = InstructionBlock {
+            instructions: vec![Instruction::AddChecked { lhs: arg_5_field, rhs: arg_6_field }],
+        };
+
+        let args: [usize; 7] = [0, 1, 2, 3, 4, 0, 1];
+        let commands_for_main = vec![
+            FuzzerFunctionCommand::InsertFunctionCall { function_idx: 0, args },
+            FuzzerFunctionCommand::InsertFunctionCall { function_idx: 1, args },
+            FuzzerFunctionCommand::InsertSimpleInstructionBlock { instruction_block_idx: 0 },
+        ];
+        let main_func = FunctionData {
+            commands: commands_for_main,
+            return_instruction_block_idx: 3,
+            return_type: ValueType::Field,
+        };
+        // for f1 the only defined function is f2
+        let commands_for_f1 =
+            vec![FuzzerFunctionCommand::InsertFunctionCall { function_idx: 0, args }];
+        let f1_func = FunctionData {
+            commands: commands_for_f1,
+            return_instruction_block_idx: 1,
+            return_type: ValueType::Field,
+        };
+
+        let f2_func = FunctionData {
+            commands: vec![],
+            return_instruction_block_idx: 2,
+            return_type: ValueType::Field,
+        };
+        let fuzzer_data = FuzzerData {
+            instruction_blocks: vec![add_block_main, add_block_f1, add_block_f2, dummy_block],
+            functions: vec![main_func, f1_func, f2_func],
+            initial_witness: default_witness(),
+        };
+        let result = fuzz_target(fuzzer_data, FuzzerOptions::default());
+        match result {
+            Some(result) => assert_eq!(result.get_return_value(), FieldElement::from(12_u32)),
+            None => panic!("Program failed to execute"),
+        }
+    }
+
+    ///   brillig(inline) fn main f0 {
+    ///     b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: u1, v6: u1):
+    ///       v7 = allocate -> &mut Field
+    ///       store v0 at v7
+    ///       jmpif v6 then: b1, else: b2
+    ///     b1():
+    ///       v11 = call f1(v0, v1, v2, v3, v4, v5, v6) -> Field
+    ///       store v11 at v7
+    ///       jmp b3()
+    ///     b2():
+    ///       v9 = call f2(v0, v1, v2, v3, v4, v5, v6) -> Field
+    ///       store v9 at v7
+    ///       jmp b3()
+    ///     b3():
+    ///       v12 = load v7 -> Field
+    ///       return v12
+    ///   }
+    ///   brillig(inline_always) fn f1 f1 {
+    ///     b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: u1, v6: u1):
+    ///       v7 = add v3, v3
+    ///       return v7
+    ///   }
+    ///   brillig(inline_always) fn f2 f2 {
+    ///     b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: u1, v6: u1):
+    ///       v7 = add v2, v2
+    ///       return v7
+    ///   }
+    #[test]
+    fn call_in_if_else() {
+        let _ = env_logger::try_init();
+        let dummy_var = Argument { index: 2, value_type: ValueType::I64 };
+        let arg_2_field = Argument { index: 2, value_type: ValueType::Field };
+        let arg_3_field = Argument { index: 3, value_type: ValueType::Field };
+        let arg_5_field = Argument { index: 5, value_type: ValueType::Field };
+
+        let dummy_block = InstructionBlock {
+            instructions: vec![Instruction::AddChecked { lhs: dummy_var, rhs: dummy_var }],
+        };
+        let add_to_memory_block =
+            InstructionBlock { instructions: vec![Instruction::AddToMemory { lhs: arg_5_field }] };
+        let typed_memory_0 = Argument { index: 0, value_type: ValueType::Field };
+        let set_to_memory_block = InstructionBlock {
+            instructions: vec![Instruction::SetToMemory {
+                memory_addr_index: 0,
+                value: arg_5_field,
+            }],
         };
         let load_block = InstructionBlock {
             instructions: vec![Instruction::LoadFromMemory { memory_addr: typed_memory_0 }],
         };
-        let dummy_block = InstructionBlock {
-            instructions: vec![Instruction::AddChecked { lhs: dummy_arg, rhs: dummy_arg }],
+        let add_block_f2 = InstructionBlock {
+            instructions: vec![Instruction::AddChecked { lhs: arg_2_field, rhs: arg_2_field }], // v2 + v2
         };
-        let arg_0_boolean = Argument { index: 0, value_type: ValueType::Boolean };
-        let arg_1_boolean = Argument { index: 1, value_type: ValueType::Boolean };
-        let add_boolean_block = InstructionBlock {
-            instructions: vec![Instruction::Or { lhs: arg_0_boolean, rhs: arg_1_boolean }], // jmpif uses last defined boolean variable
-                                                                                            // [initialize_witness_map] func inserts two boolean variables itself, first is true, last is false
-                                                                                            // so by inserting new boolean = first | last, we will get last variable = true
+        let add_block_f1 = InstructionBlock {
+            instructions: vec![Instruction::AddChecked { lhs: arg_3_field, rhs: arg_3_field }], // v3 + v3
         };
-        let mut commands = vec![
-            FuzzerCommand::InsertSimpleInstructionBlock { instruction_block_idx: 0 }, // add v2 to memory
-            FuzzerCommand::InsertCycle { block_body_idx: 1, start_iter: 0, end_iter: 4 }, // for i in 0..4 do if ...
-            FuzzerCommand::InsertJmpIfBlock { block_then_idx: 1, block_else_idx: 1 }, // insert if and switch to then branch
-            FuzzerCommand::InsertCycle { block_body_idx: 2, start_iter: 0, end_iter: 4 }, // for i in 0..4 do load_mul_set
+        let f1_func = FunctionData {
+            commands: vec![],
+            return_instruction_block_idx: 4,
+            return_type: ValueType::Field,
+        };
+        let f2_func = FunctionData {
+            commands: vec![],
+            return_instruction_block_idx: 5,
+            return_type: ValueType::Field,
+        };
+
+        let args: [usize; 7] = [0, 1, 2, 3, 4, 0, 1];
+        let commands_for_main = vec![
+            FuzzerFunctionCommand::InsertSimpleInstructionBlock { instruction_block_idx: 1 }, // make memory address for fields
+            FuzzerFunctionCommand::InsertJmpIfBlock { block_then_idx: 0, block_else_idx: 0 }, // insert dummy blocks to then and else branches (doesn't insert any opcode)
+            FuzzerFunctionCommand::InsertFunctionCall { function_idx: 0, args }, // then call f1()
+            FuzzerFunctionCommand::InsertSimpleInstructionBlock { instruction_block_idx: 2 }, // store the result of f1 to memory
+            FuzzerFunctionCommand::SwitchToNextBlock,
+            FuzzerFunctionCommand::InsertFunctionCall { function_idx: 1, args }, // else call f2()
+            FuzzerFunctionCommand::InsertSimpleInstructionBlock { instruction_block_idx: 2 }, // store the result of f1 to memory
         ];
-        let mut blocks = vec![add_to_memory_block, dummy_block, load_mul_set_block, load_block];
-        let data = FuzzerData {
-            blocks: blocks.to_vec(),
-            commands: commands.clone(),
-            initial_witness: default_witness(),
-            return_instruction_block_idx: 3, // load stored field and return it
+        let mut blocks = vec![
+            dummy_block,
+            add_to_memory_block,
+            set_to_memory_block,
+            load_block,
+            add_block_f1,
+            add_block_f2,
+        ];
+        let main_func = FunctionData {
+            commands: commands_for_main.clone(),
+            return_instruction_block_idx: 3,
+            return_type: ValueType::Field,
         };
-        // last boolean is false, so this cycle does not execute
-        let result = fuzz_target(data, FuzzerOptions::default());
+        let result = fuzz_target(
+            FuzzerData {
+                instruction_blocks: blocks.clone(),
+                functions: vec![main_func, f1_func.clone(), f2_func.clone()],
+                initial_witness: default_witness(),
+            },
+            FuzzerOptions::default(),
+        );
         match result {
-            Some(result) => assert_eq!(result, FieldElement::from(2_u32)),
+            Some(result) => assert_eq!(result.get_return_value(), FieldElement::from(4_u32)),
             None => panic!("Program failed to execute"),
         }
 
-        // same program but with condition=true
-        commands
-            .insert(0, FuzzerCommand::InsertSimpleInstructionBlock { instruction_block_idx: 4 }); // set last boolean as true
-        blocks.push(add_boolean_block);
-        let data = FuzzerData {
-            blocks: blocks.to_vec(),
-            commands: commands.clone(),
-            initial_witness: default_witness(),
-            return_instruction_block_idx: 3, // load stored field and return it
+        let arg_0_boolean = Argument { index: 0, value_type: ValueType::Boolean };
+        let arg_1_boolean = Argument { index: 1, value_type: ValueType::Boolean };
+        let add_boolean_block = InstructionBlock {
+            instructions: vec![Instruction::Or { lhs: arg_0_boolean, rhs: arg_1_boolean }],
         };
-        let result = fuzz_target(data, FuzzerOptions::default());
+
+        // use the same commands, but add boolean block at the beginning
+        let mut commands = commands_for_main.clone();
+        commands.insert(
+            0,
+            FuzzerFunctionCommand::InsertSimpleInstructionBlock { instruction_block_idx: 4 },
+        ); // add true boolean
+        log::debug!("commands: {commands:?}");
+        blocks.push(add_boolean_block);
+        log::debug!("blocks: {blocks:?}");
+        let main_func = FunctionData {
+            commands,
+            return_instruction_block_idx: 3,
+            return_type: ValueType::Field,
+        };
+        let fuzzer_data = FuzzerData {
+            instruction_blocks: blocks.clone(),
+            functions: vec![main_func, f1_func, f2_func],
+            initial_witness: default_witness(),
+        };
+        let result = fuzz_target(fuzzer_data, FuzzerOptions::default());
         match result {
-            Some(result) => assert_eq!(result, FieldElement::from(2_u32.pow(17))),
+            Some(result) => assert_eq!(result.get_return_value(), FieldElement::from(6_u32)),
+            None => panic!("Program failed to execute"),
+        }
+    }
+
+    /// Test array get and set
+    /// fn main f0 {
+    ///     b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: u1, v6: u1):
+    ///       v7 = make_array [v0, v1, v2, v3, v4] : [Field; 5]
+    ///       v8 = truncate v0 to 32 bits, max_bit_size: 254
+    ///       v9 = cast v8 as u32
+    ///       v11 = mod v9, u32 5
+    ///       v12 = array_set v7, index v11, value v4
+    ///       v13 = truncate v0 to 32 bits, max_bit_size: 254
+    ///       v14 = cast v13 as u32
+    ///       v15 = mod v14, u32 5
+    ///       v16 = array_get v12, index v15 -> Field
+    ///       return v16
+    ///   }
+    #[test]
+    fn array_get_and_set() {
+        let arg_0_field = Argument { index: 0, value_type: ValueType::Field };
+        // create array [v0, v1]
+        let create_array_block = InstructionBlock {
+            instructions: vec![Instruction::CreateArray {
+                elements_indices: vec![0, 1, 2, 3, 4],
+                element_type: ValueType::Field,
+                is_references: false,
+            }],
+        };
+        // create new array setting new_array[0] = v4
+        let array_set_block = InstructionBlock {
+            instructions: vec![Instruction::ArraySet {
+                array_index: 0,
+                index: arg_0_field,
+                value_index: 4, // set v4
+                safe_index: true,
+            }],
+        };
+        // get new_array[0]
+        let array_get_block = InstructionBlock {
+            instructions: vec![Instruction::ArrayGet {
+                array_index: 1,
+                index: arg_0_field,
+                safe_index: true,
+            }],
+        };
+        let instructions_blocks = vec![create_array_block, array_set_block, array_get_block];
+        let commands = vec![
+            FuzzerFunctionCommand::InsertSimpleInstructionBlock { instruction_block_idx: 0 },
+            FuzzerFunctionCommand::InsertSimpleInstructionBlock { instruction_block_idx: 1 },
+        ];
+        let main_func = FunctionData {
+            commands,
+            return_instruction_block_idx: 2,
+            return_type: ValueType::Field,
+        };
+        let fuzzer_data = FuzzerData {
+            instruction_blocks: instructions_blocks,
+            functions: vec![main_func],
+            initial_witness: default_witness(),
+        };
+        let result = fuzz_target(fuzzer_data, FuzzerOptions::default());
+        match result {
+            Some(result) => assert_eq!(result.get_return_value(), FieldElement::from(4_u32)),
+            None => panic!("Program failed to execute"),
+        }
+    }
+
+    /// Test that references in arrays work
+    /// fn main f0 {
+    ///     b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: u1, v6: u1):
+    ///       v7 = allocate -> &mut Field
+    ///       store v0 at v7
+    ///       v8 = allocate -> &mut Field
+    ///       store v2 at v8
+    ///       v9 = make_array [v7, v8, v7] : [&mut Field; 3]
+    ///       store v1 at v7
+    ///       v10 = make_array [v7, v7, v7] : [&mut Field; 3]  <----- set v9, index 1, value v7
+    ///       jmp b1()
+    ///     b1():
+    ///       v11 = load v7 -> Field <---- its simplified from  v11 = v10[1]; v12 = load v11
+    ///       return v11
+    ///   }
+    /// assert that return value is v1
+    #[test]
+    fn test_reference_in_array() {
+        let _ = env_logger::try_init();
+        let arg_0_field = Argument { index: 0, value_type: ValueType::Field };
+        let arg_1_field = Argument { index: 1, value_type: ValueType::Field };
+        let arg_2_field = Argument { index: 2, value_type: ValueType::Field };
+
+        let add_to_memory_block =
+            InstructionBlock { instructions: vec![Instruction::AddToMemory { lhs: arg_0_field }] };
+        let add_to_memory_block_2 =
+            InstructionBlock { instructions: vec![Instruction::AddToMemory { lhs: arg_2_field }] };
+        let set_to_memory_block = InstructionBlock {
+            instructions: vec![Instruction::SetToMemory {
+                memory_addr_index: 0,
+                value: arg_1_field,
+            }],
+        };
+        let set_to_array_block = InstructionBlock {
+            instructions: vec![Instruction::ArraySetWithConstantIndex {
+                array_index: 0,
+                index: 1,
+                value_index: 0,
+                safe_index: true,
+            }],
+        };
+        let create_array_block = InstructionBlock {
+            instructions: vec![Instruction::CreateArray {
+                elements_indices: vec![0, 1, 2],
+                element_type: ValueType::Field,
+                is_references: true,
+            }],
+        };
+        let get_from_array_block = InstructionBlock {
+            instructions: vec![Instruction::ArrayGetWithConstantIndex {
+                array_index: 1,
+                index: 1,
+                safe_index: true,
+            }],
+        };
+        let typed_memory_2 = Argument { index: 2, value_type: ValueType::Field };
+        let load_from_memory_block = InstructionBlock {
+            instructions: vec![Instruction::LoadFromMemory { memory_addr: typed_memory_2 }],
+        };
+        let instructions_blocks = vec![
+            add_to_memory_block,
+            add_to_memory_block_2,
+            create_array_block,
+            set_to_memory_block,
+            set_to_array_block,
+            get_from_array_block,
+            load_from_memory_block,
+        ];
+        let commands = vec![
+            FuzzerFunctionCommand::InsertSimpleInstructionBlock { instruction_block_idx: 0 },
+            FuzzerFunctionCommand::InsertSimpleInstructionBlock { instruction_block_idx: 1 },
+            FuzzerFunctionCommand::InsertSimpleInstructionBlock { instruction_block_idx: 2 },
+            FuzzerFunctionCommand::InsertSimpleInstructionBlock { instruction_block_idx: 3 },
+            FuzzerFunctionCommand::InsertSimpleInstructionBlock { instruction_block_idx: 4 },
+            FuzzerFunctionCommand::InsertSimpleInstructionBlock { instruction_block_idx: 5 },
+        ];
+        let main_func = FunctionData {
+            commands,
+            return_instruction_block_idx: 6,
+            return_type: ValueType::Field,
+        };
+        let fuzzer_data = FuzzerData {
+            instruction_blocks: instructions_blocks,
+            functions: vec![main_func],
+            initial_witness: default_witness(),
+        };
+        let result = fuzz_target(fuzzer_data, FuzzerOptions::default());
+        match result {
+            Some(result) => assert_eq!(result.get_return_value(), FieldElement::from(1_u32)),
+            None => panic!("Program failed to execute"),
+        }
+    }
+
+    /// Test that the fuzzer doesn't insert too many instructions with function calls
+    ///
+    /// The most cursed test
+    /// Creates main and 2 functions
+    /// First function has cycle for 200 iterations for i in 1..200 {i *= i}
+    /// Second function has cycle for 10 iterations for i in 1..10  {i *= i}
+    /// Main function tries to insert second and first functions
+    /// If the second function is too big for the chosen configuration,
+    /// the fuzzer should insert only the second function and the result should be the output of the second function
+    /// Otherwise, the result should be the output of the first function
+    #[test]
+    fn test_does_not_insert_too_many_instructions_with_function_calls() {
+        let dummy_arg = Argument { index: 0, value_type: ValueType::I64 };
+        let dummy_block = InstructionBlock {
+            instructions: vec![Instruction::AddChecked { lhs: dummy_arg, rhs: dummy_arg }],
+        };
+        let arg_2_field = Argument { index: 2, value_type: ValueType::Field };
+        let arg_5_field = Argument { index: 5, value_type: ValueType::Field };
+        let arg_6_field = Argument { index: 6, value_type: ValueType::Field };
+
+        // v8 = allocate -> &mut Field (memory address)
+        // store v2 at v8
+        let add_to_memory_block =
+            InstructionBlock { instructions: vec![Instruction::AddToMemory { lhs: arg_2_field }] };
+        let typed_memory_0 = Argument { index: 0, value_type: ValueType::Field };
+        // load v8 -> Field (loads from first defined memory address, which is v8)
+        let load_block = InstructionBlock {
+            instructions: vec![Instruction::LoadFromMemory { memory_addr: typed_memory_0 }],
+        };
+        let load_mul_set_block = InstructionBlock {
+            instructions: vec![
+                Instruction::LoadFromMemory { memory_addr: typed_memory_0 }, // v13 = load v8 -> Field (loaded value is 5th defined field)
+                Instruction::MulChecked { lhs: arg_5_field, rhs: arg_2_field }, // v14 = mul v13, v2 (v14 -- 6th defined field)
+                Instruction::SetToMemory { memory_addr_index: 0, value: arg_6_field }, // store v14 at v8
+            ],
+        };
+        let commands_for_main = vec![
+            FuzzerFunctionCommand::InsertFunctionCall {
+                function_idx: 1, // second function has cycle for 10 iterations
+                args: [0, 1, 2, 3, 4, 0, 1],
+            }, // call function, should be skipped
+            FuzzerFunctionCommand::InsertFunctionCall {
+                function_idx: 0, // first function has cycle for 200 iterations
+                args: [0, 1, 2, 3, 4, 0, 1],
+            }, // call function, should be skipped
+        ];
+        let commands_for_function1 = vec![
+            FuzzerFunctionCommand::InsertSimpleInstructionBlock { instruction_block_idx: 0 }, // add v2 to memory
+            FuzzerFunctionCommand::InsertCycle { block_body_idx: 2, start_iter: 1, end_iter: 200 }, // for i in 1..200 do load_mul_set_block
+        ];
+        let commands_for_function2 = vec![
+            FuzzerFunctionCommand::InsertSimpleInstructionBlock { instruction_block_idx: 0 }, // add v2 to memory
+            FuzzerFunctionCommand::InsertCycle { block_body_idx: 2, start_iter: 1, end_iter: 10 }, // for i in 1..10 do load_mul_set_block
+        ];
+        let main_func = FunctionData {
+            commands: commands_for_main,
+            return_instruction_block_idx: 3, // dummy block
+            return_type: ValueType::Field,
+        };
+        let function_func = FunctionData {
+            commands: commands_for_function1,
+            return_instruction_block_idx: 1, // v12 = load v8 -> Field; return v12
+            return_type: ValueType::Field,
+        };
+        let function_func2 = FunctionData {
+            commands: commands_for_function2,
+            return_instruction_block_idx: 1, // v12 = load v8 -> Field; return v12
+            return_type: ValueType::Field,
+        };
+        let data = FuzzerData {
+            instruction_blocks: vec![
+                add_to_memory_block,
+                load_block,
+                load_mul_set_block,
+                dummy_block,
+            ],
+            functions: vec![main_func, function_func, function_func2],
+            initial_witness: default_witness(),
+        };
+        // with max 100 instructions only second function should be executed
+        let options = FuzzerOptions { max_instructions_num: 100, ..FuzzerOptions::default() };
+        let result = fuzz_target(data.clone(), options);
+        match result {
+            Some(result) => assert_eq!(result.get_return_value(), FieldElement::from(1024_u32)),
+            None => panic!("Program failed to execute"),
+        }
+        // with max 1000 instructions both functions should be executed
+        // and the result should be the output of the first function
+        let options = FuzzerOptions { max_instructions_num: 1000, ..FuzzerOptions::default() };
+        let result = fuzz_target(data.clone(), options);
+        match result {
+            Some(result) => {
+                assert_eq!(
+                    result.get_return_value(),
+                    FieldElement::from(2_u32).pow(&FieldElement::from(200_u32)) // 2^200
+                );
+            }
             None => panic!("Program failed to execute"),
         }
     }

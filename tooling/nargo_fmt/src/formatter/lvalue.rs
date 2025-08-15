@@ -11,7 +11,7 @@ impl Formatter<'_> {
         }
 
         match lvalue {
-            LValue::Ident(ident) => self.write_identifier(ident),
+            LValue::Path(path) => self.format_path(path),
             LValue::MemberAccess { object, field_name, location: _ } => {
                 self.format_lvalue(*object);
                 self.write_token(Token::Dot);

@@ -1,16 +1,19 @@
-use crate::compiler::compile_from_builder;
 use crate::typed_value::{TypedValue, ValueType};
 use acvm::FieldElement;
+use noir_ssa_executor::compiler::compile_from_ssa;
 use noirc_driver::{CompileOptions, CompiledProgram};
 use noirc_evaluator::ssa::function_builder::FunctionBuilder;
 use noirc_evaluator::ssa::ir::basic_block::BasicBlockId;
 use noirc_evaluator::ssa::ir::function::{Function, RuntimeType};
+use noirc_evaluator::ssa::ir::instruction::ArrayOffset;
 use noirc_evaluator::ssa::ir::instruction::BinaryOp;
 use noirc_evaluator::ssa::ir::map::Id;
 use noirc_evaluator::ssa::ir::types::{NumericType, Type};
 use noirc_evaluator::ssa::ir::value::Value;
+use noirc_frontend::monomorphization::ast::InlineType;
 use noirc_frontend::monomorphization::ast::InlineType as FrontendInlineType;
 use std::panic::AssertUnwindSafe;
+use std::sync::Arc;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -35,18 +38,20 @@ pub struct FuzzerBuilder {
 
 impl FuzzerBuilder {
     /// Creates a new FuzzerBuilder in ACIR context
-    pub fn new_acir() -> Self {
+    pub fn new_acir(simplifying_enabled: bool) -> Self {
         let main_id: Id<Function> = Id::new(0);
         let mut builder = FunctionBuilder::new("main".into(), main_id);
         builder.set_runtime(RuntimeType::Acir(FrontendInlineType::default()));
+        builder.simplify = simplifying_enabled;
         Self { builder }
     }
 
     /// Creates a new FuzzerBuilder in Brillig context
-    pub fn new_brillig() -> Self {
+    pub fn new_brillig(simplifying_enabled: bool) -> Self {
         let main_id: Id<Function> = Id::new(0);
         let mut builder = FunctionBuilder::new("main".into(), main_id);
         builder.set_runtime(RuntimeType::Brillig(FrontendInlineType::default()));
+        builder.simplify = simplifying_enabled;
         Self { builder }
     }
 
@@ -55,15 +60,13 @@ impl FuzzerBuilder {
         self,
         compile_options: CompileOptions,
     ) -> Result<CompiledProgram, FuzzerBuilderError> {
-        let result = std::panic::catch_unwind(AssertUnwindSafe(|| {
-            compile_from_builder(self.builder, &compile_options)
-        }));
+        let ssa = self.builder.finish();
+        let result =
+            std::panic::catch_unwind(AssertUnwindSafe(|| compile_from_ssa(ssa, &compile_options)));
         match result {
             Ok(result) => match result {
                 Ok(result) => Ok(result),
-                Err(e) => {
-                    Err(FuzzerBuilderError::RuntimeError(format!("Compilation error {:?}", e)))
-                }
+                Err(e) => Err(FuzzerBuilderError::RuntimeError(format!("Compilation error {e:?}"))),
             },
             Err(_) => Err(FuzzerBuilderError::RuntimeError("Compilation panicked".to_string())),
         }
@@ -91,11 +94,6 @@ impl FuzzerBuilder {
             BinaryOp::Add { unchecked: false },
             rhs.value_id,
         );
-        if lhs.to_value_type().bit_length() == 254 {
-            return TypedValue::new(res, lhs.type_of_variable);
-        }
-        let bit_size = lhs.to_value_type().bit_length();
-        let res = self.builder.insert_truncate(res, bit_size, bit_size + 1);
         TypedValue::new(res, lhs.type_of_variable)
     }
 
@@ -110,11 +108,6 @@ impl FuzzerBuilder {
             BinaryOp::Sub { unchecked: false },
             rhs.value_id,
         );
-        if lhs.to_value_type().bit_length() == 254 {
-            return TypedValue::new(res, lhs.type_of_variable);
-        }
-        let bit_size = lhs.to_value_type().bit_length();
-        let res = self.builder.insert_truncate(res, bit_size, bit_size + 1);
         TypedValue::new(res, lhs.type_of_variable)
     }
 
@@ -195,9 +188,6 @@ impl FuzzerBuilder {
                 init_bit_length,
             );
         }
-        if cast_type.bit_length() > value.to_value_type().bit_length() {
-            return value;
-        }
 
         let res = self.builder.insert_cast(value_id, cast_type.to_numeric_type());
         TypedValue::new(res, cast_type.to_ssa_type())
@@ -233,7 +223,7 @@ impl FuzzerBuilder {
         TypedValue::new(res, lhs.type_of_variable)
     }
 
-    /// Inserts a bitwise XOR instruction between two values    
+    /// Inserts a bitwise XOR instruction between two values
     pub fn insert_xor_instruction(&mut self, lhs: TypedValue, rhs: TypedValue) -> TypedValue {
         if !lhs.supports_bitwise() {
             return lhs;
@@ -245,9 +235,6 @@ impl FuzzerBuilder {
     /// Inserts a left shift instruction between two values
     /// The right hand side is cast to 8 bits
     pub fn insert_shl_instruction(&mut self, lhs: TypedValue, rhs: TypedValue) -> TypedValue {
-        // rhs must be 8bit, otherwise compiler will throw panic...
-        // TODO(sn): make something smarter than forcing rhs to be u8 and casting to u64 on field
-        let rhs = self.insert_cast(rhs, ValueType::U8);
         if !lhs.supports_shift() {
             return lhs;
         }
@@ -258,8 +245,6 @@ impl FuzzerBuilder {
     /// Inserts a right shift instruction between two values
     /// The right hand side is cast to 8 bits
     pub fn insert_shr_instruction(&mut self, lhs: TypedValue, rhs: TypedValue) -> TypedValue {
-        // TODO(sn): make something smarter than forcing rhs to be u8 and casting to u64 on field
-        let rhs = self.insert_cast(rhs, ValueType::U8);
         if !lhs.supports_shift() {
             return lhs;
         }
@@ -281,7 +266,7 @@ impl FuzzerBuilder {
     }
 
     /// Gets the index of the entry block
-    pub fn get_current_block(&mut self) -> BasicBlockId {
+    pub fn get_current_block(&self) -> BasicBlockId {
         self.builder.get_current_block_index()
     }
 
@@ -344,5 +329,137 @@ impl FuzzerBuilder {
 
     pub fn insert_set_to_memory(&mut self, memory_addr: TypedValue, value: TypedValue) {
         self.builder.insert_store(memory_addr.value_id, value.value_id);
+    }
+
+    /// Creates a new ACIR function with the given name and id with inline type InlineType::Inline
+    pub fn new_acir_function(&mut self, name: String, function_id: Id<Function>) {
+        // maybe use different inline type
+        self.builder.new_function(name, function_id, InlineType::Inline);
+    }
+
+    /// Creates a new Brillig function with the given name and id with inline type InlineType::Inline
+    pub fn new_brillig_function(&mut self, name: String, function_id: Id<Function>) {
+        self.builder.new_brillig_function(name, function_id, InlineType::Inline);
+    }
+
+    /// Inserts an import function with the given function id
+    pub fn insert_import(&mut self, function: Id<Function>) -> Id<Value> {
+        self.builder.import_function(function)
+    }
+
+    /// Inserts a call to the given function with the given arguments and result type
+    pub fn insert_call(
+        &mut self,
+        function: Id<Value>,
+        arguments: &[TypedValue],
+        result_type: ValueType,
+    ) -> Id<Value> {
+        *self
+            .builder
+            .insert_call(
+                function,
+                arguments.iter().map(|i| i.value_id).collect(),
+                vec![result_type.to_ssa_type()],
+            )
+            .first()
+            .unwrap()
+    }
+
+    /// Inserts a new array with the given elements and type
+    pub fn insert_array(&mut self, elements: Vec<TypedValue>, is_references: bool) -> TypedValue {
+        let array_length = elements.len() as u32;
+        assert!(array_length > 0, "Array must have at least one element");
+        let element_type = elements[0].type_of_variable.clone();
+        let array_elements_type = if is_references {
+            Type::Array(
+                Arc::new(vec![Type::Reference(Arc::new(element_type.clone()))]),
+                array_length,
+            )
+        } else {
+            Type::Array(Arc::new(vec![element_type.clone()]), array_length)
+        };
+        let typ = array_elements_type.clone();
+        assert!(
+            elements.iter().all(|e| e.type_of_variable == element_type),
+            "All elements must have the same type"
+        );
+        let res = self
+            .builder
+            .insert_make_array(elements.into_iter().map(|e| e.value_id).collect(), typ.clone());
+        TypedValue::new(res, Type::Array(Arc::new(vec![typ]), array_length))
+    }
+
+    /// Inserts a modulo operation between the index and the array length
+    /// Returns the id of the index modulo the array length
+    fn insert_index_mod_array_length(
+        &mut self,
+        index: TypedValue,
+        array: TypedValue,
+    ) -> TypedValue {
+        match array.type_of_variable.clone() {
+            Type::Array(_, array_length) => {
+                let array_length_id = self
+                    .builder
+                    .numeric_constant(array_length, NumericType::Unsigned { bit_size: 32 });
+                let index_mod_length =
+                    self.builder.insert_binary(index.value_id, BinaryOp::Mod, array_length_id);
+                TypedValue::new(index_mod_length, ValueType::U32.to_ssa_type())
+            }
+            _ => unreachable!("Array type expected"),
+        }
+    }
+
+    /// Inserts an array get instruction
+    ///
+    /// Index must be u32
+    /// If safe_index is true, index will be taken modulo the array length
+    pub fn insert_array_get(
+        &mut self,
+        array: TypedValue,
+        index: TypedValue,
+        element_type: Type,
+        safe_index: bool,
+    ) -> TypedValue {
+        assert!(index.type_of_variable == Type::Numeric(NumericType::Unsigned { bit_size: 32 }));
+        let index = if safe_index {
+            self.insert_index_mod_array_length(index.clone(), array.clone())
+        } else {
+            index
+        };
+        let res = self.builder.insert_array_get(
+            array.value_id,
+            index.value_id,
+            ArrayOffset::None,
+            element_type.clone(),
+        );
+        TypedValue::new(res, element_type)
+    }
+
+    /// Inserts an array set instruction
+    ///
+    /// Index must be u32
+    /// If safe_index is true, index will be taken modulo the array length
+    pub fn insert_array_set(
+        &mut self,
+        array: TypedValue,
+        index: TypedValue,
+        value: TypedValue,
+        safe_index: bool,
+    ) -> TypedValue {
+        assert!(matches!(array.type_of_variable, Type::Array(_, _)));
+        assert!(index.type_of_variable == Type::Numeric(NumericType::Unsigned { bit_size: 32 }));
+        let index = if safe_index {
+            self.insert_index_mod_array_length(index.clone(), array.clone())
+        } else {
+            index
+        };
+        let res = self.builder.insert_array_set(
+            array.value_id,
+            index.value_id,
+            value.value_id,
+            false,
+            ArrayOffset::None,
+        );
+        TypedValue::new(res, array.type_of_variable.clone())
     }
 }

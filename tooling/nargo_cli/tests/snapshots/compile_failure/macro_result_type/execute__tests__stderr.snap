@@ -2,7 +2,7 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
-error: trait `meta::ctstring::AsCtString` which provides `as_ctstring` is implemented but not in scope, please import it
+error: trait `std::meta::ctstring::AsCtString` which provides `as_ctstring` is implemented but not in scope, please import it
   ┌─ src/main.nr:4:25
   │
 4 │         let signature = "hello".as_ctstring();

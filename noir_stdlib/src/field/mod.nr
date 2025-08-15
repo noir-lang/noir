@@ -469,6 +469,16 @@ mod tests {
         }
     }
 
+    #[test(should_fail_with = "Field failed to decompose into specified 16 limbs")]
+    unconstrained fn not_enough_limbs_brillig() {
+        let _: [u8; 16] = 0x100000000000000000000000000000000.to_le_bytes();
+    }
+
+    #[test(should_fail_with = "Field failed to decompose into specified 16 limbs")]
+    fn not_enough_limbs() {
+        let _: [u8; 16] = 0x100000000000000000000000000000000.to_le_bytes();
+    }
+
     // TODO: Update this test to account for the Brillig restriction that the radix must be less than 512
     //#[test]
     //fn test_to_le_radix_brillig_512() {

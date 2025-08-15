@@ -9,6 +9,7 @@ use crate::ssa::{
         call_graph::{CallGraph, called_functions},
         dfg::DataFlowGraph,
         function::{Function, FunctionId},
+        instruction::{Instruction, Intrinsic},
     },
     ssa_gen::Ssa,
 };
@@ -21,6 +22,7 @@ pub(crate) struct InlineInfo {
     is_acir_entry_point: bool,
     is_recursive: bool,
     pub(crate) should_inline: bool,
+    pub(super) contains_static_assertion: bool,
     weight: i64,
     cost: i64,
 }
@@ -158,8 +160,22 @@ fn compute_function_should_be_inlined(
         return; // Already processed
     }
 
+    let function = &ssa.functions[&func_id];
+    let assert_constant_id = function.dfg.get_intrinsic(Intrinsic::AssertConstant).copied();
+    let static_assert_id = function.dfg.get_intrinsic(Intrinsic::StaticAssert).copied();
+    let contains_static_assertion = function.reachable_blocks().iter().any(|block| {
+        function.dfg[*block].instructions().iter().any(|instruction| {
+            match &function.dfg[*instruction] {
+                Instruction::Call { func, .. } => {
+                    Some(*func) == assert_constant_id || Some(*func) == static_assert_id
+                }
+                _ => false,
+            }
+        })
+    });
+
     let neighbors = call_graph.graph().neighbors(index);
-    let mut total_weight = compute_function_own_weight(&ssa.functions[&func_id]) as i64;
+    let mut total_weight = compute_function_own_weight(function) as i64;
     for neighbor_index in neighbors {
         let callee = call_graph.indices_to_ids()[&neighbor_index];
         if inline_infos.get(&callee).is_some_and(|info| info.should_inline) {
@@ -167,13 +183,14 @@ fn compute_function_should_be_inlined(
         }
     }
     let times = times_called[&func_id] as i64;
-    let interface_cost = compute_function_interface_cost(&ssa.functions[&func_id]) as i64;
+    let interface_cost = compute_function_interface_cost(function) as i64;
     let inline_cost = times.saturating_mul(total_weight);
     let retain_cost = times.saturating_mul(interface_cost) + total_weight;
     let net_cost = inline_cost.saturating_sub(retain_cost);
-    let runtime = ssa.functions[&func_id].runtime();
+    let runtime = function.runtime();
     let info = inline_infos.entry(func_id).or_default();
 
+    info.contains_static_assertion = contains_static_assertion;
     info.weight = total_weight;
     info.cost = net_cost;
 
@@ -183,7 +200,8 @@ fn compute_function_should_be_inlined(
 
     let should_inline = (net_cost < aggressiveness)
         || runtime.is_inline_always()
-        || (runtime.is_no_predicates() && inline_no_predicates_functions);
+        || (runtime.is_no_predicates() && inline_no_predicates_functions)
+        || contains_static_assertion;
 
     info.should_inline = should_inline;
 }
@@ -289,7 +307,7 @@ fn compute_function_own_weight(func: &Function) -> usize {
 
 /// Compute interface cost of a function based on the number of inputs and outputs.
 fn compute_function_interface_cost(func: &Function) -> usize {
-    func.parameters().len() + func.returns().len()
+    func.parameters().len() + func.returns().unwrap_or_default().len()
 }
 
 #[cfg(test)]
@@ -434,5 +452,85 @@ mod tests {
             "main"
         );
         assert!(tws[3] > std::cmp::max(tws[1], tws[2]), "ideally 'main' has the most weight");
+    }
+
+    #[test]
+    fn mark_static_assertions_to_always_be_inlined() {
+        let src = "
+        brillig(inline) fn main f0 {
+            b0():
+              call f1(Field 1)
+              return
+        }
+        brillig(inline) fn foo f1 {
+            b0(v0: Field):
+              call assert_constant(v0)
+              return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let call_graph = CallGraph::from_ssa_weighted(&ssa);
+        let infos = compute_inline_infos(&ssa, &call_graph, false, 0);
+
+        let f1 = infos.get(&Id::test_new(1)).expect("f1 should be analyzed");
+        assert!(
+            f1.contains_static_assertion,
+            "f1 should be marked as containing a static assertion"
+        );
+        assert!(f1.should_inline, "f1 should be inlined due to static assertion");
+    }
+
+    #[test]
+    fn no_predicates() {
+        let src = "
+        acir(inline) fn main f0 {
+            b0():
+              call f1()
+              return
+        }
+        acir(no_predicates) fn no_predicates f1 {
+            b0():
+              return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let call_graph = CallGraph::from_ssa_weighted(&ssa);
+        let infos = compute_inline_infos(&ssa, &call_graph, false, 0);
+
+        let f1 = infos.get(&Id::test_new(1)).expect("Should analyze f1");
+        assert!(
+            !f1.should_inline,
+            "no_predicates functions should NOT be inlined if the flag is false"
+        );
+
+        let infos = compute_inline_infos(&ssa, &call_graph, true, 0);
+
+        let f1 = infos.get(&Id::test_new(1)).expect("Should analyze f1");
+        assert!(f1.should_inline, "no_predicates functions should be inlined if the flag is true");
+    }
+
+    #[test]
+    fn inline_always_functions_are_inlined() {
+        let src = "
+        brillig(inline) fn main f0 {
+            b0():
+              call f1()
+              return
+        }
+
+        brillig(inline_always) fn always_inline f1 {
+            b0():
+              return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let call_graph = CallGraph::from_ssa_weighted(&ssa);
+        let infos = compute_inline_infos(&ssa, &call_graph, false, 0);
+
+        let f1 = infos.get(&Id::test_new(1)).expect("Should analyze f1");
+        assert!(f1.should_inline, "inline_always functions should be inlined");
     }
 }

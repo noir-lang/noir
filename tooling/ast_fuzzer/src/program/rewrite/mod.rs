@@ -1,4 +1,6 @@
-use noirc_frontend::monomorphization::ast::{Call, Expression, Function, Ident, Program, Type};
+use noirc_frontend::monomorphization::ast::{
+    Call, Expression, Function, Ident, LocalId, Program, Type,
+};
 
 use super::{
     expr, types,
@@ -13,23 +15,34 @@ pub(crate) use unreachable::remove_unreachable_functions;
 
 /// Find the next local ID and ident IDs (in that order) that we can use to add
 /// variables to a [Function] during mutations.
+///
+/// A more sophisticated alternative would be to return metadata along with the `Program`
+/// that contains these values, so we don't have to traverse the AST again, and keep
+/// the logic of what introduces new IDs in sync.
 pub fn next_local_and_ident_id(func: &Function) -> (u32, u32) {
     let mut next_local_id = func.parameters.iter().map(|p| p.0.0 + 1).max().unwrap_or_default();
     let mut next_ident_id = 0;
 
+    let mut acc_local_id = |id: LocalId| {
+        next_local_id = next_local_id.max(id.0 + 1);
+    };
+
     visit_expr(&func.body, &mut |expr| {
-        let local_id = match expr {
-            Expression::Let(let_) => Some(let_.id),
-            Expression::For(for_) => Some(for_.index_variable),
+        match expr {
             Expression::Ident(ident) => {
                 next_ident_id = next_ident_id.max(ident.id.0 + 1);
-                None
             }
-            _ => None,
+            Expression::Let(let_) => acc_local_id(let_.id),
+            Expression::For(for_) => acc_local_id(for_.index_variable),
+            Expression::Match(match_) => {
+                for case in &match_.cases {
+                    for (id, _) in &case.arguments {
+                        acc_local_id(*id);
+                    }
+                }
+            }
+            _ => {}
         };
-        if let Some(id) = local_id {
-            next_local_id = next_local_id.max(id.0 + 1);
-        }
         true
     });
     (next_local_id, next_ident_id)

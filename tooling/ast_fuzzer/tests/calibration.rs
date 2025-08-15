@@ -110,7 +110,7 @@ fn classify(expr: &Expression) -> Option<(&'static str, &'static str)> {
         Expression::Loop(_) => ("stmt", "loop"),
         Expression::While(_) => ("stmt", "while"),
         Expression::If(x) => (if x.typ == Type::Unit { "stmt" } else { "expr" }, "if"),
-        Expression::Match(_) => todo!("match"),
+        Expression::Match(x) => (if x.typ == Type::Unit { "stmt" } else { "expr" }, "match"),
         Expression::Call(x) => (if x.return_type == Type::Unit { "stmt" } else { "expr" }, "call"),
         Expression::Let(_) => ("stmt", "let"),
         Expression::Constrain(_, _, _) => ("stmt", "constrain"),

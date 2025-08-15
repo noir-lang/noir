@@ -1,0 +1,6 @@
+[package]
+name = "trait_associated_items_clash"
+type = "bin"
+authors = [""]
+
+[dependencies]

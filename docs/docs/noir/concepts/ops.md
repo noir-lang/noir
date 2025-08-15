@@ -27,11 +27,12 @@ sidebar_position: 3
 | -         |           Subtracts two private input types together           |            Types must be private input |
 | \*        |          Multiplies two private input types together           |            Types must be private input |
 | /         |            Divides two private input types together            |            Types must be private input |
+| \%        |              Modulo operation                                  |                  Types must be integer |
 | ^         |              XOR two private input types together              |                  Types must be integer |
 | &         |              AND two private input types together              |                  Types must be integer |
 | \|        |              OR two private input types together               |                  Types must be integer |
-| \<\<        |        Left shift an integer by another integer amount         | Types must be integer, shift must be u8 |
-| >>        |        Right shift an integer by another integer amount        | Types must be integer, shift must be u8 |
+| \<\<        |        Left shift an integer by another integer amount         | Types must be integer                |
+| >>        |        Right shift an integer by another integer amount        | Types must be integer                  |
 | !         |                     Bitwise not of a value                     |        Type must be integer or boolean |
 | \<         |       returns a bool if one value is less than the other       | Upper bound must have a known bit size |
 | \<=        | returns a bool if one value is less than or equal to the other | Upper bound must have a known bit size |
@@ -39,6 +40,9 @@ sidebar_position: 3
 | >=        | returns a bool if one value is more than or equal to the other | Upper bound must have a known bit size |
 | ==        |       returns a bool if one value is equal to the other        |       Both types must not be constants |
 | !=        |     returns a bool if one value is not equal to the other      |       Both types must not be constants |
+
+The modulo operator `%` will give an error when the right-hand side operand is zero, and will return `0` when the
+right-hand side operand is `1`, or `-1`.
 
 ### Predicate Operators
 
@@ -58,6 +62,10 @@ fn main(x : Field) {
 `&`.
 
 > `x & x` would not compile as `x` is a `Field` and not an integer type.
+
+Bit shifts left: `<<`, or right: `>>` require the right hand side operand to be less that the bit size `s` of the operands type:
+`x << y` or `x >> y` overflow if `x,y` are unsigned and `y >= s`
+`x << y` or `x >> y` overflow if `x,y` are signed and `y >= s-1`
 
 ### Logical Operators
 

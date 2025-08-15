@@ -8,8 +8,8 @@ pub struct MyType<A, B, C> {
 }
 
 pub struct I32AndField {
-    x: i32,
-    y: Field,
+    pub x: i32,
+    pub(crate) y: Field,
 }
 
 comptime fn my_comptime_fn(typ: TypeDefinition) {

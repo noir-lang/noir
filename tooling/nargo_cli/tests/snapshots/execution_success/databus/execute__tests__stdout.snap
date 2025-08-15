@@ -2,4 +2,4 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stdout
 ---
-[databus] Circuit output: Field(9)
+[databus] Circuit output: 9

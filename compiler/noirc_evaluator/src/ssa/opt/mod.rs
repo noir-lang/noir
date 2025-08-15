@@ -15,6 +15,7 @@ mod checked_to_unchecked;
 mod constant_folding;
 mod defunctionalize;
 mod die;
+mod expand_signed_checks;
 pub(crate) mod flatten_cfg;
 mod hint;
 mod inline_simple_functions;
@@ -53,7 +54,7 @@ pub(crate) fn assert_normalized_ssa_equals(mut ssa: super::Ssa, expected: &str) 
     let mut expected_ssa = match Ssa::from_str(&expected) {
         Ok(ssa) => ssa,
         Err(err) => {
-            panic!("`expected` argument of `assert_ssa_equals` is not valid SSA:\n{:?}", err)
+            panic!("`expected` argument of `assert_ssa_equals` is not valid SSA:\n{err:?}")
         }
     };
 

@@ -26,4 +26,6 @@ pub use logic::{bit_and, bit_xor};
 pub enum BlackBoxResolutionError {
     #[error("failed to solve blackbox function: {0}, reason: {1}")]
     Failed(BlackBoxFunc, String),
+    #[error("{0}")]
+    AssertFailed(String),
 }

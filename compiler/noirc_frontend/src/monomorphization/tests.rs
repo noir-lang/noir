@@ -82,6 +82,7 @@ fn recursive_type_with_alias_errors() {
 #[named]
 #[test]
 fn mutually_recursive_types_error() {
+    // cSpell:disable
     let src = "
         fn main() {
             let _zero = Even::Zero;
@@ -99,6 +100,7 @@ fn mutually_recursive_types_error() {
             Succ(Even),
         }
         ";
+    // cSpell:enable
     let features = vec![UnstableFeature::Enums];
     check_monomorphization_error_using_features!(src, &features);
 }

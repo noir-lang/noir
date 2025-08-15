@@ -1,6 +1,6 @@
 use arbitrary::Unstructured;
 use noirc_frontend::monomorphization::ast::Type;
-use std::fmt::Debug;
+use std::{fmt::Debug, vec};
 
 use super::{Name, types};
 
@@ -23,7 +23,7 @@ where
     K: Ord + Clone + Copy + Debug,
 {
     /// Create the initial scope from function parameters.
-    pub fn new(vars: impl Iterator<Item = (K, bool, Name, Type)>) -> Self {
+    pub fn from_variables(vars: impl Iterator<Item = (K, bool, Name, Type)>) -> Self {
         let mut scope = Self { variables: im::OrdMap::new(), producers: im::OrdMap::new() };
         for (id, mutable, name, typ) in vars {
             scope.add(id, mutable, name, typ);
@@ -114,7 +114,7 @@ where
 
     /// Get a variable in scope.
     pub fn get_variable(&self, id: &K) -> &Variable {
-        self.variables.get(id).unwrap_or_else(|| panic!("variable doesn't exist: {:?}", id))
+        self.variables.get(id).unwrap_or_else(|| panic!("variable doesn't exist: {id:?}"))
     }
 }
 
@@ -144,25 +144,26 @@ where
 }
 
 /// Scope stack as we exit and enter blocks
-pub struct ScopeStack<K: Ord>(Vec<Scope<K>>);
+pub struct Stack<T>(Vec<T>);
 
-impl<K> ScopeStack<K>
-where
-    K: Ord + Clone + Copy + Debug,
-{
-    /// Create a stack from the base variables.
-    pub fn new(vars: impl Iterator<Item = (K, bool, Name, Type)>) -> Self {
-        Self(vec![Scope::new(vars)])
+impl<T: Clone> Stack<T> {
+    /// Create a stack from the base layer.
+    pub fn new(base: T) -> Self {
+        Self(vec![base])
     }
 
     /// The top scope in the stack.
-    pub fn current(&self) -> &Scope<K> {
+    pub fn current(&self) -> &T {
         self.0.last().expect("there is always the base layer")
+    }
+
+    /// The top scope in the stack.
+    pub fn current_mut(&mut self) -> &mut T {
+        self.0.last_mut().expect("there is always the base layer")
     }
 
     /// Push a new scope on top of the current one.
     pub fn enter(&mut self) {
-        // Instead of shallow cloning an immutable map, we could loop through layers when looking up variables.
         self.0.push(self.current().clone());
     }
 
@@ -170,6 +171,24 @@ where
     pub fn exit(&mut self) {
         self.0.pop();
         assert!(!self.0.is_empty(), "never pop the base layer");
+    }
+
+    /// Iterate over the layers, starting the base layer.
+    pub fn iter_mut(&mut self) -> std::slice::IterMut<T> {
+        self.0.iter_mut()
+    }
+}
+
+/// Scope stack as we exit and enter blocks
+pub type ScopeStack<K> = Stack<Scope<K>>;
+
+impl<K> ScopeStack<K>
+where
+    K: Ord + Clone + Copy + Debug,
+{
+    /// Create a stack from the base variables.
+    pub fn from_variables(vars: impl Iterator<Item = (K, bool, Name, Type)>) -> Self {
+        Self(vec![Scope::from_variables(vars)])
     }
 
     /// Add a new variable to the current scope.
@@ -198,8 +217,9 @@ mod tests {
         let foo_type =
             Type::Tuple(vec![Type::Field, Type::Bool, Type::Array(4, Box::new(types::U32))]);
 
-        let mut stack =
-            ScopeStack::new([(LocalId(0), false, "foo".to_string(), foo_type)].into_iter());
+        let mut stack = ScopeStack::from_variables(
+            [(LocalId(0), false, "foo".to_string(), foo_type)].into_iter(),
+        );
 
         stack.enter();
         stack.add(LocalId(1), false, "bar".to_string(), Type::String(10));

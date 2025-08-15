@@ -68,7 +68,6 @@ where
     fn foo<T>(self, x: T)
     where
         T: Trait,
-        U: Trait,
     {
         self.baz();
         x.foo();

@@ -12,7 +12,9 @@ use crate::usage_tracker::UsageTracker;
 use std::collections::BTreeMap;
 
 use crate::ast::{Ident, ItemVisibility, Path, PathKind, PathSegment};
-use crate::hir::def_map::{CrateDefMap, LocalModuleId, ModuleData, ModuleDefId, ModuleId, PerNs};
+use crate::hir::def_map::{
+    CrateDefMap, DefMaps, LocalModuleId, ModuleData, ModuleDefId, ModuleId, PerNs,
+};
 
 use super::errors::ResolverError;
 use super::visibility::item_in_module_is_visible;
@@ -100,8 +102,7 @@ impl<'a> From<&'a PathResolutionError> for CustomDiagnostic {
             PathResolutionError::Unresolved(ident) => {
                 CustomDiagnostic::simple_error(error.to_string(), String::new(), ident.location())
             }
-            // This will be upgraded to an error in future versions
-            PathResolutionError::Private(ident) => CustomDiagnostic::simple_warning(
+            PathResolutionError::Private(ident) => CustomDiagnostic::simple_error(
                 error.to_string(),
                 format!("{ident} is private"),
                 ident.location(),
@@ -119,7 +120,7 @@ impl<'a> From<&'a PathResolutionError> for CustomDiagnostic {
                 CustomDiagnostic::simple_error(error.to_string(), String::new(), ident.location())
             }
             PathResolutionError::UnresolvedWithPossibleTraitsToImport { ident, traits } => {
-                let mut traits = vecmap(traits, |trait_name| format!("`{}`", trait_name));
+                let mut traits = vecmap(traits, |trait_name| format!("`{trait_name}`"));
                 traits.sort();
                 CustomDiagnostic::simple_error(
                     error.to_string(),
@@ -131,7 +132,7 @@ impl<'a> From<&'a PathResolutionError> for CustomDiagnostic {
                 )
             }
             PathResolutionError::MultipleTraitsInScope { ident, traits } => {
-                let mut traits = vecmap(traits, |trait_name| format!("`{}`", trait_name));
+                let mut traits = vecmap(traits, |trait_name| format!("`{trait_name}`"));
                 traits.sort();
                 CustomDiagnostic::simple_error(
                     error.to_string(),
@@ -162,7 +163,7 @@ impl<'a> From<&'a PathResolutionError> for CustomDiagnostic {
 pub fn resolve_import(
     path: Path,
     importing_module: ModuleId,
-    def_maps: &BTreeMap<CrateId, CrateDefMap>,
+    def_maps: &DefMaps,
     usage_tracker: &mut UsageTracker,
     references_tracker: Option<ReferencesTracker>,
 ) -> ImportResolutionResult {
@@ -195,7 +196,7 @@ fn path_segment_to_typed_path_segment(segment: PathSegment) -> TypedPathSegment 
 pub fn resolve_path_kind<'r>(
     path: TypedPath,
     importing_module: ModuleId,
-    def_maps: &BTreeMap<CrateId, CrateDefMap>,
+    def_maps: &DefMaps,
     references_tracker: Option<ReferencesTracker<'r>>,
 ) -> Result<(TypedPath, ModuleId, Option<ReferencesTracker<'r>>), PathResolutionError> {
     let mut solver =
@@ -324,7 +325,11 @@ impl<'def_maps, 'usage_tracker, 'references_tracker>
             });
         }
 
-        let plain_or_crate = matches!(path.kind, PathKind::Plain | PathKind::Crate);
+        let first_segment_is_always_visible = match path.kind {
+            PathKind::Crate => true,
+            PathKind::Plain => self.importing_module == starting_module,
+            PathKind::Dep | PathKind::Super | PathKind::Resolved(_) => false,
+        };
 
         // The current module and module ID as we resolve path segments
         let mut current_module_id = starting_module;
@@ -365,14 +370,18 @@ impl<'def_maps, 'usage_tracker, 'references_tracker>
                         kind: "type alias",
                     });
                 }
+                ModuleDefId::TraitAssociatedTypeId(..) => {
+                    return Err(PathResolutionError::NotAModule {
+                        ident: last_segment.ident.clone(),
+                        kind: "associated type",
+                    });
+                }
                 ModuleDefId::TraitId(id) => id.0,
                 ModuleDefId::FunctionId(_) => panic!("functions cannot be in the type namespace"),
                 ModuleDefId::GlobalId(_) => panic!("globals cannot be in the type namespace"),
             };
 
-            // If the path is plain or crate, the first segment will always refer to
-            // something that's visible from the current module.
-            if !((plain_or_crate && index == 0)
+            if !((first_segment_is_always_visible && index == 0)
                 || self.item_in_module_is_visible(current_module_id, visibility))
             {
                 errors.push(PathResolutionError::Private(last_ident.clone()));
@@ -419,7 +428,7 @@ impl<'def_maps, 'usage_tracker, 'references_tracker>
     }
 }
 
-fn get_module(def_maps: &BTreeMap<CrateId, CrateDefMap>, module: ModuleId) -> &ModuleData {
+fn get_module(def_maps: &DefMaps, module: ModuleId) -> &ModuleData {
     let message = "A crate should always be present for a given crate id";
     &def_maps.get(&module.krate).expect(message)[module.local_id]
 }

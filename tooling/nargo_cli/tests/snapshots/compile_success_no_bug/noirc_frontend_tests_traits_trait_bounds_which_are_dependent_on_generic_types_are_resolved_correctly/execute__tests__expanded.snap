@@ -20,10 +20,7 @@ impl<T> Foo for MyStruct<T>
 where
     T: MarkerTrait,
 {
-    fn foo(self) -> Field
-    where
-        T: MarkerTrait,
-    {
+    fn foo(self) -> Field {
         let _: Self = self;
         42_Field
     }
@@ -33,10 +30,7 @@ impl<T> Bar<T> for MyStruct<T>
 where
     T: MarkerTrait,
 {
-    fn bar(self) -> Field
-    where
-        T: MarkerTrait,
-    {
+    fn bar(self) -> Field {
         31415_Field
     }
 }

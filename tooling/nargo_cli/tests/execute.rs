@@ -390,7 +390,7 @@ mod tests {
         let temp_dir = tempfile::tempdir().unwrap().keep();
 
         // Copy everything from the original directory to the new directory
-        // (because some depdendencies might be there and might be needed for the expanded code to work)
+        // (because some dependencies might be there and might be needed for the expanded code to work)
         copy_dir_all(test_program_dir.clone(), temp_dir.clone()).unwrap();
 
         // Create a main file for the expanded code
@@ -451,7 +451,7 @@ mod tests {
         let temp_dir = tempfile::tempdir().unwrap().keep();
 
         // Copy everything from the original directory to the new directory
-        // (because some depdendencies might be there and might be needed for the expanded code to work)
+        // (because some dependencies might be there and might be needed for the expanded code to work)
         copy_dir_all(test_program_dir.clone(), temp_dir.clone()).unwrap();
 
         // Create a main file for the expanded code

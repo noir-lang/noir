@@ -2,7 +2,7 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stderr
 ---
-warning: foo is private and not visible from the current module
+error: foo is private and not visible from the current module
   ┌─ src/main.nr:9:22
   │
 9 │         let _ = moo::foo {};
@@ -16,4 +16,4 @@ error: cannot find `x` in this scope
    │         - not found in this scope
    │
 
-Aborting due to 1 previous error
+Aborting due to 2 previous errors

@@ -3,9 +3,10 @@
 use std::sync::Arc;
 
 use acvm::{AcirField, FieldElement};
+use insta::assert_snapshot;
 
 use crate::ssa::{
-    interpreter::value::NumericValue,
+    interpreter::value::{ArrayValue, NumericValue},
     ir::types::{NumericType, Type},
 };
 
@@ -69,6 +70,49 @@ pub(crate) fn from_constant(constant: FieldElement, typ: NumericType) -> Value {
 fn from_u32_slice(slice: &[u32], typ: NumericType) -> Value {
     let values = slice.iter().map(|v| from_constant((*v as u128).into(), typ)).collect();
     Value::array(values, vec![Type::Numeric(typ)])
+}
+
+#[test]
+fn value_snapshot_detaches_from_original() {
+    // Create a `[[bool; 2]; 2]` of all `false` values.
+    let v0 = {
+        let a0 = Value::array(vec![Value::bool(false), Value::bool(false)], vec![Type::bool()]);
+        let a1 = Value::array(vec![Value::bool(false), Value::bool(false)], vec![Type::bool()]);
+        Value::array(vec![a0, a1], vec![Type::Array(Arc::new(vec![Type::bool()]), 2)])
+    };
+    // Take a clone and a snapshot, to demonstrate the difference.
+    let v1 = v0.clone();
+    let v2 = v0.snapshot();
+
+    // Access `array[0][0]`
+    fn with_0_0<F>(value: &Value, f: F)
+    where
+        F: FnOnce(&mut bool),
+    {
+        let Value::ArrayOrSlice(ArrayValue { elements, .. }) = value else {
+            unreachable!("values are arrays")
+        };
+        let elements = elements.borrow_mut();
+        let value = &elements[0];
+        let Value::ArrayOrSlice(ArrayValue { elements, .. }) = value else {
+            unreachable!("inner values are arrays")
+        };
+        let mut elements = elements.borrow_mut();
+        let mut value = &mut elements[0];
+        let Value::Numeric(NumericValue::U1(b)) = &mut value else {
+            unreachable!("elements are bool");
+        };
+        f(b);
+    }
+
+    // Update the original.
+    with_0_0(&v0, |b| {
+        *b = true;
+    });
+    // The clone is also changed.
+    with_0_0(&v1, |b| assert!(*b));
+    // The snapshot is not changed.
+    with_0_0(&v2, |b| assert!(!(*b)));
 }
 
 #[test]
@@ -158,10 +202,10 @@ fn run_flattened_function() {
     let v1 = Value::array(v1_elements, v1_element_types);
 
     let result = expect_value_with_args(src, vec![Value::bool(true), v1.clone()]);
-    assert_eq!(result.to_string(), "rc1 [u1 false, u1 false]");
+    assert_snapshot!(result.to_string(), @"rc1 [u1 0, u1 0]");
 
     let result = expect_value_with_args(src, vec![Value::bool(false), v1]);
-    assert_eq!(result.to_string(), "rc1 [u1 false, u1 true]");
+    assert_snapshot!(result.to_string(), @"rc1 [u1 0, u1 1]");
 }
 
 #[test]
@@ -1604,7 +1648,7 @@ fn signed_integer_casting() {
     //  fn main() -> pub i8 {
     //      let a: i8 = 28;
     //      let b = (1, -a, 0);
-    //      let mut c = (a + (((b.1 as i64) << (b.2 as u8)) as i8));
+    //      let mut c = (a + (((b.1 as i64) << (b.2 as i64)) as i8));
     //      c = -c;
     //      c
     //  }
@@ -1621,7 +1665,7 @@ fn signed_integer_casting() {
           v9 = cast u8 228 as u64
           v10 = unchecked_add v8, v9
           v11 = cast v10 as i64
-          v13 = shl v11, u8 0
+          v13 = shl v11, i64 0
           v14 = truncate v13 to 64 bits, max_bit_size: 65
           v15 = truncate v14 to 8 bits, max_bit_size: 64
           v16 = cast v15 as i8

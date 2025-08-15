@@ -2,4 +2,4 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stdout
 ---
-[a_1327_concrete_in_generic] Circuit output: Field(1)
+[a_1327_concrete_in_generic] Circuit output: 0x01

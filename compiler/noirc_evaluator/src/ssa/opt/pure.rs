@@ -259,9 +259,9 @@ fn analyze_call_graph(
 
     // Any remaining functions are completely unreachable and are either recursive or mutually recursive.
     // As these functions will be removed from the program, we treat them as impure.
-    let unhandled_funcs: Vec<_> =
+    let unhandled_functions: Vec<_> =
         starting_purities.keys().filter(|func| !finished_purities.contains_key(*func)).collect();
-    for id in unhandled_funcs {
+    for id in unhandled_functions {
         finished_purities.insert(*id, Purity::Impure);
     }
 

@@ -680,6 +680,13 @@ Run the fuzzing harnesses for this program
   Possible values: `true`, `false`
 
 * `-Z`, `--unstable-features <UNSTABLE_FEATURES>` — Unstable features to enable for this current build
+
+* `--no-unstable-features` — Disable unstable features required by crates in their manifests
+
+  Default value: `false`
+
+  Possible values: `true`, `false`
+
 * `--oracle-resolver <ORACLE_RESOLVER>` — JSON RPC url to solve oracle calls
 * `--timeout <TIMEOUT>` — Maximum time in seconds to spend fuzzing (default: no timeout)
 
@@ -687,6 +694,7 @@ Run the fuzzing harnesses for this program
 * `--max-executions <MAX_EXECUTIONS>` — Maximum number of executions of ACIR and Brillig per harness (default: no limit)
 
   Default value: `0`
+
 
 
 
@@ -855,4 +863,3 @@ Generates a shell completion script for your favorite shell
     This document was generated automatically by
     <a href="https://crates.io/crates/clap-markdown"><code>clap-markdown</code></a>.
 </i></small>
-

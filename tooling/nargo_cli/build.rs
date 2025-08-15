@@ -5,12 +5,12 @@ use std::{env, fs};
 
 const GIT_COMMIT: &&str = &"GIT_COMMIT";
 
-fn main() {
+fn main() -> Result<(), String> {
     // Only use build_data if the environment variable isn't set.
     if env::var(GIT_COMMIT).is_err() {
-        build_data::set_GIT_COMMIT();
-        build_data::set_GIT_DIRTY();
-        build_data::no_debug_rebuilds();
+        build_data::set_GIT_COMMIT()?;
+        build_data::set_GIT_DIRTY()?;
+        build_data::no_debug_rebuilds()?;
     }
 
     let out_dir = env::var("OUT_DIR").unwrap();
@@ -27,8 +27,6 @@ fn main() {
 
     // Rebuild if the tests have changed
     println!("cargo:rerun-if-changed=tests");
-    // TODO: Running the tests changes the timestamps on test_programs files (file lock?).
-    // That has the knock-on effect of then needing to rebuild the tests after running the tests.
     println!("cargo:rerun-if-changed={}", test_dir.as_os_str().to_str().unwrap());
 
     generate_execution_success_tests(&mut test_file, &test_dir);
@@ -67,6 +65,8 @@ fn main() {
         &test_dir,
         &IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_WITH_BUG_TESTS,
     );
+
+    Ok(())
 }
 
 /// Some tests are explicitly ignored in brillig due to them failing.
@@ -119,19 +119,20 @@ const TESTS_WITH_EXPECTED_WARNINGS: [&str; 5] = [
 ];
 
 /// `nargo interpret` ignored tests, either because they don't currently work or
-/// becuase they are too slow to run.
+/// because they are too slow to run.
 const IGNORED_INTERPRET_EXECUTION_TESTS: [&str; 1] = [
     // slow
     "regression_4709",
 ];
 
 /// `nargo execute --minimal-ssa` ignored tests
-const IGNORED_MINIMAL_EXECUTION_TESTS: [&str; 12] = [
+const IGNORED_MINIMAL_EXECUTION_TESTS: [&str; 13] = [
     // internal error: entered unreachable code: unsupported function call type Intrinsic(AssertConstant)
     // These tests contain calls to `assert_constant`, which are evaluated and removed in the full SSA
     // pipeline, but in the minimal they are untouched, and trying to remove them causes a failure because
     // we don't have the other passes that would turn expressions into constants.
     "array_to_slice_constant_length",
+    "static_assert_empty_loop",
     "brillig_cow_regression",
     "brillig_pedersen",
     "import",
@@ -151,14 +152,21 @@ const IGNORED_MINIMAL_EXECUTION_TESTS: [&str; 12] = [
 /// might not be worth it.
 /// Others are ignored because of existing bugs in `nargo expand`.
 /// As the bugs are fixed these tests should be removed from this list.
-const IGNORED_NARGO_EXPAND_EXECUTION_TESTS: [&str; 6] = [
+const IGNORED_NARGO_EXPAND_EXECUTION_TESTS: [&str; 10] = [
     // There's nothing special about this program but making it work with a custom entry would involve
     // having to parse the Nargo.toml file, etc., which is not worth it
     "custom_entry",
     // There's no "src/main.nr" here so it's trickier to make this work
     "diamond_deps_0",
+    // bug
+    "numeric_type_alias",
+    "negative_associated_constants",
+    // bug
+    "regression_9116",
     // There's no "src/main.nr" here so it's trickier to make this work
     "overlapping_dep_and_mod",
+    // bug
+    "regression_9116",
     // bug
     "trait_associated_constant",
     // There's no "src/main.nr" here so it's trickier to make this work
@@ -173,7 +181,7 @@ const TESTS_WITHOUT_STDOUT_CHECK: [&str; 0] = [];
 /// These tests are ignored because of existing bugs in `nargo expand`.
 /// As the bugs are fixed these tests should be removed from this list.
 /// (some are ignored on purpose for the same reason as `IGNORED_NARGO_EXPAND_EXECUTION_TESTS`)
-const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 13] = [
+const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 9] = [
     // bug
     "associated_type_bounds",
     // bug
@@ -184,14 +192,6 @@ const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 13] = [
     // because it references another project by a relative path
     "reexports",
     // bug
-    "serialize_1",
-    // bug
-    "serialize_2",
-    // bug
-    "serialize_3",
-    // bug
-    "serialize_4",
-    // bug
     "trait_function_calls",
     // bug
     "trait_method_mut_self",
@@ -200,34 +200,30 @@ const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 13] = [
     // There's no "src/main.nr" here so it's trickier to make this work
     "workspace_reexport_bug",
     // bug
-    "nested_trait_associated_type_regression_8252",
+    "trait_call_in_global",
 ];
 
 /// These tests are ignored because of existing bugs in `nargo expand`.
 /// As the bugs are fixed these tests should be removed from this list.
-const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_NO_BUG_TESTS: [&str; 18] = [
-    "noirc_frontend_tests_arithmetic_generics_checked_casts_do_not_prevent_canonicalization",
+const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_NO_BUG_TESTS: [&str; 14] = [
     "noirc_frontend_tests_check_trait_as_type_as_fn_parameter",
     "noirc_frontend_tests_check_trait_as_type_as_two_fn_parameters",
     "noirc_frontend_tests_enums_match_on_empty_enum",
-    "noirc_frontend_tests_resolves_generic_type_argument_via_self",
-    "noirc_frontend_tests_traits_calls_trait_function_if_it_is_in_scope",
-    "noirc_frontend_tests_traits_calls_trait_function_if_it_is_only_candidate_in_scope",
-    "noirc_frontend_tests_traits_calls_trait_function_if_it_is_only_candidate_in_scope_in_nested_module_using_super",
-    "noirc_frontend_tests_traits_serialize_test_with_a_previous_unrelated_definition",
     "noirc_frontend_tests_traits_trait_alias_polymorphic_inheritance",
     "noirc_frontend_tests_traits_trait_alias_single_member",
     "noirc_frontend_tests_traits_trait_alias_two_members",
     "noirc_frontend_tests_traits_trait_impl_with_where_clause_with_trait_with_associated_numeric",
-    "noirc_frontend_tests_traits_trait_impl_with_where_clause_with_trait_with_associated_type",
     "noirc_frontend_tests_traits_accesses_associated_type_inside_trait_impl_using_self",
     "noirc_frontend_tests_traits_accesses_associated_type_inside_trait_using_self",
     "noirc_frontend_tests_u32_globals_as_sizes_in_types",
-    "noirc_frontend_tests_unused_items_considers_struct_as_constructed_if_trait_method_is_called",
+    // This creates a struct at comptime which, expanded, gives a visibility error
+    "noirc_frontend_tests_visibility_visibility_bug_inside_comptime",
+    "noirc_frontend_tests_aliases_identity_numeric_type_alias_works",
+    "noirc_frontend_tests_aliases_type_alias_to_numeric_as_generic",
+    "noirc_frontend_tests_aliases_type_alias_to_numeric_generic",
 ];
 
-const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_WITH_BUG_TESTS: [&str; 1] =
-    ["noirc_frontend_tests_cast_negative_one_to_u8_size_checks"];
+const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_WITH_BUG_TESTS: [&str; 0] = [];
 
 fn read_test_cases(
     test_data_dir: &Path,
@@ -459,7 +455,7 @@ fn generate_execution_failure_tests(test_file: &mut File, test_data_dir: &Path) 
             &test_dir,
             "execute",
             "execution_failure(nargo);",
-            &MatrixConfig::default(),
+            &MatrixConfig { vary_brillig: true, ..Default::default() },
         );
     }
     writeln!(test_file, "}}").unwrap();
@@ -511,7 +507,10 @@ fn generate_fuzzing_failure_tests(test_file: &mut File, test_data_dir: &Path) {
             &test_name,
             &test_dir,
             r#"
-                nargo.assert().failure().stderr(predicate::str::contains("Failing input"));
+                nargo.assert().failure().stderr(
+                    predicate::str::contains("Failing input").and(
+                    predicate::str::contains("got a different failing assertion").not())
+                );
             "#,
             240,
         );
@@ -784,7 +783,7 @@ fn generate_minimal_execution_success_tests(test_file: &mut File, test_data_dir:
     writeln!(test_file, "}}").unwrap();
 }
 
-/// Here we check, for every program in `test_programs/exeuction_success`, that:
+/// Here we check, for every program in `test_programs/execution_success`, that:
 /// 1. `nargo expand` works on it
 /// 2. That the output of the original program is the same as the output of the expanded program
 ///    (that is, we run `nargo execute` on the original program and the expanded program and compare the output)
@@ -853,9 +852,8 @@ mod nargo_expand_{test_type} {{
     .unwrap();
 
     for (test_name, test_dir) in test_cases {
-        if ignore.contains(&test_name.as_str()) {
-            continue;
-        }
+        let should_panic =
+            if ignore.contains(&test_name.as_str()) { "#[should_panic]" } else { "" };
 
         let test_dir = test_dir.display();
 
@@ -863,6 +861,7 @@ mod nargo_expand_{test_type} {{
             test_file,
             r#"
     #[test]
+    {should_panic}
     fn test_{test_name}() {{
         let test_program_dir = PathBuf::from("{test_dir}");
         nargo_expand_compile(test_program_dir, "{test_type}");

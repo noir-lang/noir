@@ -125,25 +125,6 @@ pub(super) fn evaluate_infix(
         };
     }
 
-    /// Generate matches for bit shifting, which in Noir only accepts `u8` for RHS.
-    macro_rules! match_bitshift {
-        (($lhs_value:ident as $lhs:ident $op:literal $rhs_value:ident as $rhs:ident) => $expr:expr) => {
-            match_values! {
-                ($lhs_value as $lhs $op $rhs_value as $rhs) {
-                    (I8,  U8)      to I8   => $expr,
-                    (I16, U8)      to I16  => $expr,
-                    (I32, U8)      to I32  => $expr,
-                    (I64, U8)      to I64  => $expr,
-                    (U8,  U8)      to U8   => $expr,
-                    (U16, U8)      to U16  => $expr,
-                    (U32, U8)      to U32  => $expr,
-                    (U64, U8)      to U64  => $expr,
-                    (U128, U8)     to U128  => $expr,
-                }
-            }
-        };
-    }
-
     #[allow(clippy::bool_comparison)]
     match operator.kind {
         BinaryOpKind::Add => match_arithmetic! {
@@ -201,29 +182,20 @@ pub(super) fn evaluate_infix(
         BinaryOpKind::Xor => match_bitwise! {
             (lhs_value as lhs "^" rhs_value as rhs) => lhs ^ rhs
         },
-        BinaryOpKind::ShiftRight => {
-            let is_negative = lhs_value.is_negative();
-            match_bitshift! {
-                (lhs_value as lhs ">>" rhs_value as rhs) => {
-                    Some(
-                        lhs.checked_shr(rhs.into())
-                            .unwrap_or(
-                                // fallback based on whether we have a negative value
-                                if is_negative {
-                                    // !0 = -1 for signed types
-                                    !0
-                                } else {
-                                    0
-                                })
-                    )
-                }
-            }
-        }
-        BinaryOpKind::ShiftLeft => match_bitshift! {
-            (lhs_value as lhs "<<" rhs_value as rhs) => lhs.checked_shl(rhs.into())
+        BinaryOpKind::ShiftRight => match_integer! {
+            (lhs_value as lhs ">>" rhs_value as rhs) => lhs.checked_shr(rhs as u32)
         },
-        BinaryOpKind::Modulo => match_integer! {
-            (lhs_value as lhs "%" rhs_value as rhs) => lhs.checked_rem(rhs)
+        BinaryOpKind::ShiftLeft => match_integer! {
+            (lhs_value as lhs "<<" rhs_value as rhs) => lhs.checked_shl(rhs as u32)
+        },
+        BinaryOpKind::Modulo => match (&lhs_value, &rhs_value) {
+            (Value::I8(i8::MIN), Value::I8(-1)) => Ok(Value::I8(0)),
+            (Value::I16(i16::MIN), Value::I16(-1)) => Ok(Value::I16(0)),
+            (Value::I32(i32::MIN), Value::I32(-1)) => Ok(Value::I32(0)),
+            (Value::I64(i64::MIN), Value::I64(-1)) => Ok(Value::I64(0)),
+            _ => match_integer! {
+                (lhs_value as lhs "%" rhs_value as rhs) => lhs.checked_rem(rhs)
+            },
         },
     }
 }
@@ -247,6 +219,17 @@ mod test {
         let result = evaluate_infix(lhs, rhs, operator, location).unwrap();
 
         assert_eq!(result, Value::U128(170141183460469231731687303715884105727));
+    }
+
+    #[test]
+    fn regression_9336() {
+        let lhs = Value::I8(-128);
+        let rhs = Value::I8(-1);
+        let operator = HirBinaryOp { kind: BinaryOpKind::Modulo, location: Location::dummy() };
+        let location = Location::dummy();
+        let result = evaluate_infix(lhs, rhs, operator, location).unwrap();
+
+        assert_eq!(result, Value::I8(0));
     }
 
     #[test]
@@ -327,17 +310,16 @@ mod test {
                 64 >> 255
             }
         "#;
-        let result = interpret(src);
-        // 255 % 64 == 63, so 64 >> 63 => 0
-        assert_eq!(result, Value::U64(0));
+        let result = interpret_expect_error(src);
+        assert!(matches!(result, InterpreterError::BinaryOperationOverflow { operator: ">>", .. }));
 
         let src = "
             comptime fn main() -> pub u32 {
                 1360887544 >> 141
             }
         ";
-        let result = interpret(src);
-        assert_eq!(result, Value::U32(0));
+        let result = interpret_expect_error(src);
+        assert!(matches!(result, InterpreterError::BinaryOperationOverflow { operator: ">>", .. }));
     }
 
     #[test]
@@ -355,17 +337,16 @@ mod test {
             -64 >> 255
         }
         ";
-        let result = interpret(src);
-        // 255 % 64 == 63, so 64 >> 63 => -1
-        assert_eq!(result, Value::I64(-1));
+        let result = interpret_expect_error(src);
+        assert!(matches!(result, InterpreterError::BinaryOperationOverflow { operator: ">>", .. }));
 
         let src = "
         comptime fn main() -> pub i32 {
             -1360887544 >> 141
         }
         ";
-        let result = interpret(src);
-        assert_eq!(result, Value::I32(-1));
+        let result = interpret_expect_error(src);
+        assert!(matches!(result, InterpreterError::BinaryOperationOverflow { operator: ">>", .. }));
     }
 
     #[test]
@@ -383,16 +364,16 @@ mod test {
             64 >> 255
         }
         ";
-        let result = interpret(src);
-        assert_eq!(result, Value::I64(0));
+        let result = interpret_expect_error(src);
+        assert!(matches!(result, InterpreterError::BinaryOperationOverflow { operator: ">>", .. }));
 
         let src = "
         comptime fn main() -> pub i32 {
             1360887544 >> 141
         }
         ";
-        let result = interpret(src);
-        assert_eq!(result, Value::I32(0));
+        let result = interpret_expect_error(src);
+        assert!(matches!(result, InterpreterError::BinaryOperationOverflow { operator: ">>", .. }));
     }
 
     #[test]

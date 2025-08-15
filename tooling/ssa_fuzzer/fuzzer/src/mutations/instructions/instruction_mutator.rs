@@ -3,15 +3,21 @@
 //! 1. Random (randomly select a new instruction)
 //! 2. Argument mutation
 
-use crate::fuzz_lib::instruction::{Argument, Instruction};
+use crate::fuzz_lib::instruction::Instruction;
+use crate::mutations::basic_types::{
+    bool::mutate_bool, usize::mutate_usize, value_type::mutate_value_type, vec::mutate_vec,
+};
 use crate::mutations::configuration::{
-    BASIC_INSTRUCTION_ARGUMENT_MUTATION_CONFIGURATION, BASIC_INSTRUCTION_MUTATION_CONFIGURATION,
-    InstructionArgumentMutationOptions, InstructionMutationOptions,
+    ArrayGetMutationOptions, ArraySetMutationOptions, BASIC_ARRAY_GET_MUTATION_CONFIGURATION,
+    BASIC_ARRAY_SET_MUTATION_CONFIGURATION, BASIC_BOOL_MUTATION_CONFIGURATION,
+    BASIC_CREATE_ARRAY_MUTATION_CONFIGURATION, BASIC_INSTRUCTION_ARGUMENT_MUTATION_CONFIGURATION,
+    BASIC_INSTRUCTION_MUTATION_CONFIGURATION, BASIC_SAFE_INDEX_MUTATION_CONFIGURATION,
+    BASIC_USIZE_MUTATION_CONFIGURATION, BASIC_VALUE_TYPE_MUTATION_CONFIGURATION,
+    BASIC_VEC_MUTATION_CONFIGURATION, CreateArrayMutationOptions,
+    InstructionArgumentMutationOptions, InstructionMutationOptions, SIZE_OF_SMALL_ARBITRARY_BUFFER,
 };
 use crate::mutations::instructions::argument_mutator::argument_mutator;
-use crate::mutations::instructions::type_mutations::type_mutator;
 use libfuzzer_sys::arbitrary::Unstructured;
-use noir_ssa_fuzzer::typed_value::ValueType;
 use rand::{Rng, rngs::StdRng};
 
 trait InstructionMutator {
@@ -22,7 +28,7 @@ trait InstructionMutator {
 struct RandomMutation;
 impl InstructionMutator for RandomMutation {
     fn mutate(rng: &mut StdRng, value: &mut Instruction) {
-        let mut bytes = [0u8; 17];
+        let mut bytes = [0u8; SIZE_OF_SMALL_ARBITRARY_BUFFER];
         rng.fill(&mut bytes);
         *value = Unstructured::new(&bytes).arbitrary().unwrap();
     }
@@ -70,7 +76,7 @@ impl InstructionMutator for InstructionArgumentsMutation {
                         argument_mutator(lhs, rng);
                     }
                     InstructionArgumentMutationOptions::Right => {
-                        type_mutator(type_, rng);
+                        mutate_value_type(type_, rng, BASIC_VALUE_TYPE_MUTATION_CONFIGURATION);
                     }
                 }
             }
@@ -80,10 +86,7 @@ impl InstructionMutator for InstructionArgumentsMutation {
                         argument_mutator(value, rng);
                     }
                     InstructionArgumentMutationOptions::Right => {
-                        let mut pseudo_argument =
-                            Argument { index: *memory_addr_index, value_type: ValueType::U64 };
-                        argument_mutator(&mut pseudo_argument, rng);
-                        *memory_addr_index = pseudo_argument.index;
+                        mutate_usize(memory_addr_index, rng, BASIC_USIZE_MUTATION_CONFIGURATION);
                     }
                 }
             }
@@ -92,19 +95,100 @@ impl InstructionMutator for InstructionArgumentsMutation {
             | Instruction::MulDivConstrain { lhs, rhs } => {
                 match BASIC_INSTRUCTION_ARGUMENT_MUTATION_CONFIGURATION.select(rng) {
                     InstructionArgumentMutationOptions::Left => {
-                        let mut pseudo_argument =
-                            Argument { index: *lhs, value_type: ValueType::U64 };
-                        argument_mutator(&mut pseudo_argument, rng);
-                        *lhs = pseudo_argument.index;
+                        mutate_usize(lhs, rng, BASIC_USIZE_MUTATION_CONFIGURATION);
                     }
                     InstructionArgumentMutationOptions::Right => {
-                        let mut pseudo_argument =
-                            Argument { index: *rhs, value_type: ValueType::U64 };
-                        argument_mutator(&mut pseudo_argument, rng);
-                        *rhs = pseudo_argument.index;
+                        mutate_usize(rhs, rng, BASIC_USIZE_MUTATION_CONFIGURATION);
                     }
                 }
             }
+
+            // Arrays
+            Instruction::ArrayGet { array_index, index, safe_index } => {
+                match BASIC_ARRAY_GET_MUTATION_CONFIGURATION.select(rng) {
+                    ArrayGetMutationOptions::ArrayIndex => {
+                        mutate_usize(array_index, rng, BASIC_USIZE_MUTATION_CONFIGURATION);
+                    }
+                    ArrayGetMutationOptions::Index => {
+                        argument_mutator(index, rng);
+                    }
+                    ArrayGetMutationOptions::SafeIndex => {
+                        mutate_bool(safe_index, rng, BASIC_SAFE_INDEX_MUTATION_CONFIGURATION);
+                    }
+                }
+            }
+            Instruction::ArraySet { array_index, index, value_index, safe_index } => {
+                match BASIC_ARRAY_SET_MUTATION_CONFIGURATION.select(rng) {
+                    ArraySetMutationOptions::ArrayIndex => {
+                        mutate_usize(array_index, rng, BASIC_USIZE_MUTATION_CONFIGURATION);
+                    }
+                    ArraySetMutationOptions::Index => {
+                        argument_mutator(index, rng);
+                    }
+                    ArraySetMutationOptions::ValueIndex => {
+                        mutate_usize(value_index, rng, BASIC_USIZE_MUTATION_CONFIGURATION);
+                    }
+                    ArraySetMutationOptions::SafeIndex => {
+                        mutate_bool(safe_index, rng, BASIC_SAFE_INDEX_MUTATION_CONFIGURATION);
+                    }
+                }
+            }
+            Instruction::CreateArray { elements_indices, element_type, is_references } => {
+                match BASIC_CREATE_ARRAY_MUTATION_CONFIGURATION.select(rng) {
+                    CreateArrayMutationOptions::ElementsIndices => {
+                        mutate_vec(
+                            elements_indices,
+                            rng,
+                            |index, rng| {
+                                mutate_usize(index, rng, BASIC_USIZE_MUTATION_CONFIGURATION);
+                            },
+                            BASIC_VEC_MUTATION_CONFIGURATION,
+                        );
+                    }
+                    CreateArrayMutationOptions::ElementType => {
+                        mutate_value_type(
+                            element_type,
+                            rng,
+                            BASIC_VALUE_TYPE_MUTATION_CONFIGURATION,
+                        );
+                    }
+                    CreateArrayMutationOptions::IsReferences => {
+                        mutate_bool(is_references, rng, BASIC_BOOL_MUTATION_CONFIGURATION);
+                    }
+                }
+            }
+            Instruction::ArrayGetWithConstantIndex { array_index, index, safe_index } => {
+                match BASIC_ARRAY_GET_MUTATION_CONFIGURATION.select(rng) {
+                    ArrayGetMutationOptions::ArrayIndex => {
+                        mutate_usize(array_index, rng, BASIC_USIZE_MUTATION_CONFIGURATION);
+                    }
+                    ArrayGetMutationOptions::Index => {
+                        mutate_usize(index, rng, BASIC_USIZE_MUTATION_CONFIGURATION);
+                    }
+                    ArrayGetMutationOptions::SafeIndex => {
+                        mutate_bool(safe_index, rng, BASIC_SAFE_INDEX_MUTATION_CONFIGURATION);
+                    }
+                }
+            }
+            Instruction::ArraySetWithConstantIndex {
+                array_index,
+                index,
+                value_index,
+                safe_index,
+            } => match BASIC_ARRAY_SET_MUTATION_CONFIGURATION.select(rng) {
+                ArraySetMutationOptions::ArrayIndex => {
+                    mutate_usize(array_index, rng, BASIC_USIZE_MUTATION_CONFIGURATION);
+                }
+                ArraySetMutationOptions::Index => {
+                    mutate_usize(index, rng, BASIC_USIZE_MUTATION_CONFIGURATION);
+                }
+                ArraySetMutationOptions::ValueIndex => {
+                    mutate_usize(value_index, rng, BASIC_USIZE_MUTATION_CONFIGURATION);
+                }
+                ArraySetMutationOptions::SafeIndex => {
+                    mutate_bool(safe_index, rng, BASIC_SAFE_INDEX_MUTATION_CONFIGURATION);
+                }
+            },
         }
     }
 }
@@ -113,7 +197,7 @@ pub(crate) fn instruction_mutator(instruction: &mut Instruction, rng: &mut StdRn
     match BASIC_INSTRUCTION_MUTATION_CONFIGURATION.select(rng) {
         InstructionMutationOptions::Random => RandomMutation::mutate(rng, instruction),
         InstructionMutationOptions::ArgumentMutation => {
-            InstructionArgumentsMutation::mutate(rng, instruction)
+            InstructionArgumentsMutation::mutate(rng, instruction);
         }
     }
 }

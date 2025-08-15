@@ -2,7 +2,10 @@ use noirc_errors::call_stack::CallStackId;
 use serde::{Deserialize, Serialize};
 use std::hash::{Hash, Hasher};
 
-use acvm::acir::{BlackBoxFunc, circuit::ErrorSelector};
+use acvm::{
+    AcirField,
+    acir::{BlackBoxFunc, circuit::ErrorSelector},
+};
 use fxhash::FxHasher64;
 use iter_extended::vecmap;
 use noirc_frontend::hir_def::types::Type as HirType;
@@ -388,9 +391,17 @@ impl Instruction {
             Instruction::Call { func, .. } => match dfg[*func] {
                 Value::Function(id) => !matches!(dfg.purity_of(id), Some(Purity::Pure)),
                 Value::Intrinsic(intrinsic) => {
-                    // These utilize `noirc_evaluator::acir::Context::get_flattened_index` internally
-                    // which uses the side effects predicate.
-                    matches!(intrinsic, Intrinsic::SliceInsert | Intrinsic::SliceRemove)
+                    match intrinsic {
+                        // These utilize `noirc_evaluator::acir::Context::get_flattened_index` internally
+                        // which uses the side effects predicate.
+                        Intrinsic::SliceInsert | Intrinsic::SliceRemove => true,
+                        // Technically these don't use the side effects predicate, but they fail on empty slices,
+                        // and by pretending that they require the predicate, we can preserve any current side
+                        // effect variable in the SSA and use it to optimize out memory operations that we know
+                        // would fail, but they shouldn't because they might be disabled.
+                        Intrinsic::SlicePopFront | Intrinsic::SlicePopBack => true,
+                        _ => false,
+                    }
                 }
                 _ => false,
             },
@@ -438,13 +449,17 @@ impl Instruction {
             // This should never be side-effectual
             MakeArray { .. } | Noop => false,
 
-            // Some binary math can overflow or underflow
+            // Some binary math can overflow or underflow.
             Binary(binary) => match binary.operator {
                 BinaryOp::Add { unchecked: false }
                 | BinaryOp::Sub { unchecked: false }
-                | BinaryOp::Mul { unchecked: false }
-                | BinaryOp::Div
-                | BinaryOp::Mod => true,
+                | BinaryOp::Mul { unchecked: false } => {
+                    let typ = dfg.type_of_value(binary.lhs);
+                    !matches!(typ, Type::Numeric(NumericType::NativeField))
+                }
+                BinaryOp::Div | BinaryOp::Mod => {
+                    dfg.get_numeric_constant(binary.rhs).is_none_or(|c| c.is_zero())
+                }
                 BinaryOp::Add { unchecked: true }
                 | BinaryOp::Sub { unchecked: true }
                 | BinaryOp::Mul { unchecked: true }
@@ -750,7 +765,7 @@ impl Binary {
                 // for unsigned types (here we assume the type of binary.lhs is the same)
                 dfg.type_of_value(self.rhs).is_unsigned()
             }
-            BinaryOp::Div | BinaryOp::Mod => true,
+            BinaryOp::Div | BinaryOp::Mod | BinaryOp::Shl | BinaryOp::Shr => true,
             BinaryOp::Add { unchecked: true }
             | BinaryOp::Sub { unchecked: true }
             | BinaryOp::Mul { unchecked: true }
@@ -758,9 +773,7 @@ impl Binary {
             | BinaryOp::Lt
             | BinaryOp::And
             | BinaryOp::Or
-            | BinaryOp::Xor
-            | BinaryOp::Shl
-            | BinaryOp::Shr => false,
+            | BinaryOp::Xor => false,
         }
     }
 }

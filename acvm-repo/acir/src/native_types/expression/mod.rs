@@ -53,10 +53,10 @@ impl<F: std::fmt::Display> std::fmt::Display for Expression<F> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "EXPR [ ")?;
         for i in &self.mul_terms {
-            write!(f, "({}, _{}, _{}) ", i.0, i.1.witness_index(), i.2.witness_index())?;
+            write!(f, "({}, {}, {}) ", i.0, i.1, i.2)?;
         }
         for i in &self.linear_combinations {
-            write!(f, "({}, _{}) ", i.0, i.1.witness_index())?;
+            write!(f, "({}, {}) ", i.0, i.1)?;
         }
         write!(f, "{}", self.q_c)?;
 
@@ -379,7 +379,7 @@ mod tests {
     use acir_field::{AcirField, FieldElement};
 
     #[test]
-    fn add_mul_smoketest() {
+    fn add_mul_smoke_test() {
         let a = Expression {
             mul_terms: vec![(FieldElement::from(2u128), Witness(1), Witness(2))],
             ..Default::default()

@@ -66,11 +66,11 @@ pub(crate) fn assert_format_with_config(src: &str, expected: &str, config: Confi
     let (parsed_module, errors) = parser::parse_program_with_dummy_file(src);
     let errors: Vec<_> = errors.into_iter().filter(|error| !error.is_warning()).collect();
     if !errors.is_empty() {
-        panic!("Expected no errors, got: {:?}", errors);
+        panic!("Expected no errors, got: {errors:?}");
     }
     let result = format(src, parsed_module, &config);
     if result != expected {
-        println!("Expected:\n~~~\n{}\n~~~\nGot:\n~~~\n{}\n~~~", expected, result);
+        println!("Expected:\n~~~\n{expected}\n~~~\nGot:\n~~~\n{result}\n~~~");
     }
 
     similar_asserts::assert_eq!(result, expected);
@@ -79,11 +79,11 @@ pub(crate) fn assert_format_with_config(src: &str, expected: &str, config: Confi
     let (parsed_module, errors) = parser::parse_program_with_dummy_file(src);
     let errors: Vec<_> = errors.into_iter().filter(|error| !error.is_warning()).collect();
     if !errors.is_empty() {
-        panic!("Expected no errors in idempotent check, got: {:?}", errors);
+        panic!("Expected no errors in idempotent check, got: {errors:?}");
     }
     let result = format(src, parsed_module, &config);
     if result != expected {
-        println!("Expected (idempotent):\n~~~\n{}\n~~~\nGot:\n~~~\n{}\n~~~", expected, result);
+        println!("Expected (idempotent):\n~~~\n{expected}\n~~~\nGot:\n~~~\n{result}\n~~~");
     }
     similar_asserts::assert_eq!(result, expected, "idempotent check failed");
 }
