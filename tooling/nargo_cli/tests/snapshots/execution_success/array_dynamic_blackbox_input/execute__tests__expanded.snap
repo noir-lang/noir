@@ -26,7 +26,7 @@ fn compute_root(leaf: [u8; 32], path: [u8; 64], _index: u32, root: [u8; 32]) {
             }
         }
         current = std::hash::blake3(hash_input);
-        index = index >> 1_u8;
+        index = index >> 1_u32;
     }
     assert(root == current);
 }
