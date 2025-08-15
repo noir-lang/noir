@@ -150,7 +150,7 @@ pub(super) fn compile_prepare_vector_push_procedure<F: AcirField + DebugToString
     }
 
     brillig_context.deallocate_single_addr(source_rc);
-    brillig_context.deallocate_single_addr(source_size);
+    brillig_context.deallocate_single_addr(source_size_);
     brillig_context.deallocate_single_addr(source_capacity);
     brillig_context.deallocate_single_addr(source_items_pointer);
     brillig_context.deallocate_single_addr(target_size);

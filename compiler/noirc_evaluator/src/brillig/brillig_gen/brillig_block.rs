@@ -1360,7 +1360,12 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
 
                 self.update_slice_length(target_len, source_len, BrilligBinaryOp::Sub);
 
-                self.slice_pop_back_operation(target_vector, source_vector, &pop_variables);
+                self.slice_pop_back_operation(
+                    target_vector,
+                    source_len,
+                    source_vector,
+                    &pop_variables,
+                );
             }
             Value::Intrinsic(Intrinsic::SlicePopFront) => {
                 let target_len = match self.variables.define_variable(
@@ -1392,7 +1397,12 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
 
                 self.update_slice_length(target_len, source_len, BrilligBinaryOp::Sub);
 
-                self.slice_pop_front_operation(target_vector, source_vector, &pop_variables);
+                self.slice_pop_front_operation(
+                    target_vector,
+                    source_len,
+                    source_vector,
+                    &pop_variables,
+                );
             }
             Value::Intrinsic(Intrinsic::SliceInsert) => {
                 let target_len = match self.variables.define_variable(

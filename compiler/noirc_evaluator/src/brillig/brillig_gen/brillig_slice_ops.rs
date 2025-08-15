@@ -82,6 +82,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
     pub(crate) fn slice_pop_front_operation(
         &mut self,
         target_vector: BrilligVector,
+        source_len: SingleAddrVariable,
         source_vector: BrilligVector,
         removed_items: &[BrilligVariable],
     ) {
@@ -90,6 +91,7 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
         self.brillig_context.deallocate_register(read_pointer);
 
         self.brillig_context.call_vector_pop_front_procedure(
+            source_len,
             source_vector,
             target_vector,
             removed_items.len(),
@@ -99,11 +101,13 @@ impl<Registers: RegisterAllocator> BrilligBlock<'_, Registers> {
     pub(crate) fn slice_pop_back_operation(
         &mut self,
         target_vector: BrilligVector,
+        source_len: SingleAddrVariable,
         source_vector: BrilligVector,
         removed_items: &[BrilligVariable],
     ) {
         let read_pointer = self.brillig_context.allocate_register();
         self.brillig_context.call_vector_pop_back_procedure(
+            source_len,
             source_vector,
             target_vector,
             read_pointer,
@@ -418,15 +422,19 @@ mod tests {
     fn test_slice_pop_back_operation() {
         fn test_case_pop(
             pop_back: bool,
-            array: Vec<FieldElement>,
+            source_len: usize,
+            source: Vec<FieldElement>,
             expected_return_array: Vec<FieldElement>,
             expected_return_item: FieldElement,
         ) {
-            let arguments = vec![BrilligParameter::Slice(
-                vec![BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE)],
-                array.len(),
-            )];
-            let result_length = array.len() - 1;
+            let arguments = vec![
+                BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
+                BrilligParameter::Slice(
+                    vec![BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE)],
+                    source.len(),
+                ),
+            ];
+            let result_length = source_len - 1;
             assert_eq!(result_length, expected_return_array.len());
             let result_length_with_metadata = result_length + 2; // Leading length and capacity
 
@@ -443,6 +451,10 @@ mod tests {
             let (_, mut function_context, mut context) = create_test_environment();
 
             // Allocate the parameters
+            let source_len_var = SingleAddrVariable {
+                address: context.allocate_register(),
+                bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
+            };
             let source_vector = BrilligVector { pointer: context.allocate_register() };
 
             // Allocate the results
@@ -464,12 +476,14 @@ mod tests {
             if pop_back {
                 block.slice_pop_back_operation(
                     target_vector,
+                    source_len_var,
                     source_vector,
                     &[BrilligVariable::SingleAddr(removed_item)],
                 );
             } else {
                 block.slice_pop_front_operation(
                     target_vector,
+                    source_len_var,
                     source_vector,
                     &[BrilligVariable::SingleAddr(removed_item)],
                 );
@@ -479,8 +493,9 @@ mod tests {
 
             let bytecode = create_entry_point_bytecode(context, arguments, returns).byte_code;
 
-            let (vm, return_data_offset, return_data_size) =
-                create_and_run_vm(array.clone(), &bytecode);
+            let inputs = vec![vec![source_len.into()], source].concat();
+
+            let (vm, return_data_offset, return_data_size) = create_and_run_vm(inputs, &bytecode);
             // vector + removed item
             assert_eq!(return_data_size, result_length_with_metadata + 1);
 
@@ -501,6 +516,7 @@ mod tests {
 
         test_case_pop(
             true,
+            3,
             vec![
                 FieldElement::from(1_usize),
                 FieldElement::from(2_usize),
@@ -509,15 +525,44 @@ mod tests {
             vec![FieldElement::from(1_usize), FieldElement::from(2_usize)],
             FieldElement::from(3_usize),
         );
-        test_case_pop(true, vec![FieldElement::from(1_usize)], vec![], FieldElement::from(1_usize));
+        test_case_pop(
+            true,
+            2,
+            vec![
+                FieldElement::from(1_usize),
+                FieldElement::from(2_usize),
+                FieldElement::from(3_usize),
+            ],
+            vec![FieldElement::from(1_usize)],
+            FieldElement::from(2_usize),
+        );
+        test_case_pop(
+            true,
+            1,
+            vec![FieldElement::from(1_usize)],
+            vec![],
+            FieldElement::from(1_usize),
+        );
         test_case_pop(
             false,
+            3,
             vec![
                 FieldElement::from(1_usize),
                 FieldElement::from(2_usize),
                 FieldElement::from(3_usize),
             ],
             vec![FieldElement::from(2_usize), FieldElement::from(3_usize)],
+            FieldElement::from(1_usize),
+        );
+        test_case_pop(
+            false,
+            2,
+            vec![
+                FieldElement::from(1_usize),
+                FieldElement::from(2_usize),
+                FieldElement::from(3_usize),
+            ],
+            vec![FieldElement::from(2_usize)],
             FieldElement::from(1_usize),
         );
     }

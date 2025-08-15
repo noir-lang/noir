@@ -14,16 +14,19 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     /// Pops items from the back of a vector, returning the new vector and the pointer to the popped items in read_pointer.
     pub(crate) fn call_vector_pop_back_procedure(
         &mut self,
+        source_len: SingleAddrVariable,
         source_vector: BrilligVector,
         destination_vector: BrilligVector,
         read_pointer: MemoryAddress,
         item_pop_count: usize,
     ) {
-        let source_vector_pointer_arg = MemoryAddress::direct(ScratchSpace::start());
-        let item_pop_count_arg = MemoryAddress::direct(ScratchSpace::start() + 1);
-        let new_vector_pointer_return = MemoryAddress::direct(ScratchSpace::start() + 2);
-        let read_pointer_return = MemoryAddress::direct(ScratchSpace::start() + 3);
+        let source_vector_length_arg = MemoryAddress::direct(ScratchSpace::start());
+        let source_vector_pointer_arg = MemoryAddress::direct(ScratchSpace::start() + 1);
+        let item_pop_count_arg = MemoryAddress::direct(ScratchSpace::start() + 2);
+        let new_vector_pointer_return = MemoryAddress::direct(ScratchSpace::start() + 3);
+        let read_pointer_return = MemoryAddress::direct(ScratchSpace::start() + 4);
 
+        self.mov_instruction(source_vector_length_arg, source_len.address);
         self.mov_instruction(source_vector_pointer_arg, source_vector.pointer);
         self.usize_const_instruction(item_pop_count_arg, item_pop_count.into());
 
@@ -37,12 +40,14 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
 pub(super) fn compile_vector_pop_back_procedure<F: AcirField + DebugToString>(
     brillig_context: &mut BrilligContext<F, ScratchSpace>,
 ) {
-    let source_vector_pointer_arg = MemoryAddress::direct(ScratchSpace::start());
-    let item_pop_count_arg = MemoryAddress::direct(ScratchSpace::start() + 1);
-    let new_vector_pointer_return = MemoryAddress::direct(ScratchSpace::start() + 2);
-    let read_pointer_return = MemoryAddress::direct(ScratchSpace::start() + 3);
+    let source_vector_length_arg = MemoryAddress::direct(ScratchSpace::start());
+    let source_vector_pointer_arg = MemoryAddress::direct(ScratchSpace::start() + 1);
+    let item_pop_count_arg = MemoryAddress::direct(ScratchSpace::start() + 2);
+    let new_vector_pointer_return = MemoryAddress::direct(ScratchSpace::start() + 3);
+    let read_pointer_return = MemoryAddress::direct(ScratchSpace::start() + 4);
 
     brillig_context.set_allocated_registers(vec![
+        source_vector_length_arg,
         source_vector_pointer_arg,
         item_pop_count_arg,
         new_vector_pointer_return,
@@ -53,7 +58,8 @@ pub(super) fn compile_vector_pop_back_procedure<F: AcirField + DebugToString>(
     let target_vector = BrilligVector { pointer: new_vector_pointer_return };
 
     // First we need to allocate the target vector decrementing the size by removed_items.len()
-    let source_size = brillig_context.codegen_make_vector_length(source_vector);
+    // We use the semantic length, rather than load the vector size from the meta-data.
+    let source_size = SingleAddrVariable::new_usize(source_vector_length_arg);
 
     let target_size = SingleAddrVariable::new_usize(brillig_context.allocate_register());
     brillig_context.memory_op_instruction(
@@ -104,6 +110,5 @@ pub(super) fn compile_vector_pop_back_procedure<F: AcirField + DebugToString>(
     brillig_context.deallocate_register(is_rc_one);
     brillig_context.deallocate_register(source_vector_items_pointer);
 
-    brillig_context.deallocate_single_addr(source_size);
     brillig_context.deallocate_single_addr(target_size);
 }
