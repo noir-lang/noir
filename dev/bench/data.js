@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1755270037817,
+  "lastUpdate": 1755270685873,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -17420,48 +17420,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "4a7bb06475e44cbdd5ea9393779843fbb49a106d",
-          "message": "feat: add `FunctionDefinition::visibility` (#9363)",
-          "timestamp": "2025-07-30T20:16:52Z",
-          "tree_id": "fe6148a81d5f95b8b857c961431912071d0ee4fe",
-          "url": "https://github.com/noir-lang/noir/commit/4a7bb06475e44cbdd5ea9393779843fbb49a106d"
-        },
-        "date": 1753908922856,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 250700,
-            "range": "± 949",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 224935,
-            "range": "± 4165",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2789634,
-            "range": "± 3575",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "a3e0abab80a3fbdfb32fd346ac8873fa24dc6a1c",
           "message": "feat: show circuit output as a value of the program's return type (#9364)",
@@ -19504,6 +19462,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2781233,
             "range": "± 2407",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "84741533+defkit@users.noreply.github.com",
+            "name": "defkit",
+            "username": "defkit"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "4c65b51266446b79cecd74335e4816951261f496",
+          "message": "feat(ssa_fuzzer): hash blackbox functions (#9479)\n\nCo-authored-by: Innokentii Sennovskii <isennovskiy@gmail.com>",
+          "timestamp": "2025-08-15T14:38:23Z",
+          "tree_id": "8e0d3c8b2b144b9a2a635af9659dcbe2030f0db8",
+          "url": "https://github.com/noir-lang/noir/commit/4c65b51266446b79cecd74335e4816951261f496"
+        },
+        "date": 1755270667391,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 247377,
+            "range": "± 455",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 218682,
+            "range": "± 4908",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2776705,
+            "range": "± 2320",
             "unit": "ns/iter"
           }
         ]
