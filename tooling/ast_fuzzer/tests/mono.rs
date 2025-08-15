@@ -43,6 +43,11 @@ fn arb_ast_roundtrip() {
             // and also rationalizes removes branches that can never be matched,
             // (like repeated patterns, superfluous defaults). For now ignore these.
             avoid_match: true,
+            // Since #9484 the monomorphizer represents function values as a pair of
+            // `(constrained, unconstrained)` where each element is a different runtime of the same
+            // function. The fuzzer has not yet been updated to mimic this so first-class functions
+            // are avoided for now.
+            avoid_lambdas: true,
             // The formatting of `unsafe { ` becomes `{ unsafe {` with extra line breaks.
             // Let's stick to just Brillig so there is no need for `unsafe` at all.
             force_brillig: true,
