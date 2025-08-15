@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1755270685873,
+  "lastUpdate": 1755270906441,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -19522,40 +19522,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "28abb682cf4001ab97dcafd3e9a111a281806be4",
-          "message": "fix: Prevent accidental tuple sharing in comptime code (#9313)",
-          "timestamp": "2025-07-30T15:02:09Z",
-          "tree_id": "69bf293b9d6ab4f070e44d5ceed1802d49768e4d",
-          "url": "https://github.com/noir-lang/noir/commit/28abb682cf4001ab97dcafd3e9a111a281806be4"
-        },
-        "date": 1753889530065,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore-depth-10",
-            "value": 632.1,
-            "unit": "KB"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 525.2,
-            "unit": "KB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "4e13631500ed9aaecbd20aa80480b2f8bf547d03",
           "message": "chore(docs): Add example for `$crate` in docs (#9361)",
@@ -22998,6 +22964,90 @@ window.BENCHMARK_DATA = {
         "date": 1755257770491,
         "tool": "customSmallerIsBetter",
         "benches": [
+          {
+            "name": "semaphore-depth-10",
+            "value": 632.1,
+            "unit": "KB"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 525.2,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "163862677+noirwhal@users.noreply.github.com",
+            "name": "noirwhal",
+            "username": "noirwhal"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "29160ca8b880238cc13d755e769e5819426d3d1a",
+          "message": "chore: bump external pinned commits (#9508)\n\nCo-authored-by: noirwhal <tomfrench@aztecprotocol.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-08-15T14:32:07Z",
+          "tree_id": "24cbbed83d36a8766500c197eb2531a5d7f0bded",
+          "url": "https://github.com/noir-lang/noir/commit/29160ca8b880238cc13d755e769e5819426d3d1a"
+        },
+        "date": 1755270888034,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 709.1,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 2033.1,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 535.9,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 4318.4,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 3329.7,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 3846.6,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 30729.1,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 30774.8,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 187.1,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 388.9,
+            "unit": "KB"
+          },
           {
             "name": "semaphore-depth-10",
             "value": 632.1,
