@@ -133,9 +133,11 @@ impl FuzzerProgramContext {
                             [*block_body_idx % self.instruction_blocks.len()]
                         .instructions
                         .len();
-                        let cycle_iterations_count =
-                            if end_iter > start_iter { end_iter - start_iter + 1 } else { 1 }
-                                as usize;
+                        let cycle_iterations_count = if end_iter > start_iter {
+                            (end_iter - start_iter).saturating_add(1)
+                        } else {
+                            1
+                        } as usize;
                         cycle_sizes.push(cycle_iterations_count);
                         iterations_before *= cycle_iterations_count;
                         max_unrolled_size += instruction_block_size * iterations_before;

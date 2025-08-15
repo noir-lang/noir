@@ -185,6 +185,14 @@ impl Fuzzer {
                 Some(FuzzerOutput { witness_stack: result, program: acir_program })
             }
             CompareResults::Disagree(acir_return_value, brillig_return_value) => {
+                let acir_return_witness =
+                    acir_program.program.functions[0].return_values.0.first().unwrap();
+                let brillig_return_witness =
+                    brillig_program.program.functions[0].return_values.0.first().unwrap();
+                let acir_return_value =
+                    acir_return_value.peek().unwrap().witness[acir_return_witness];
+                let brillig_return_value =
+                    brillig_return_value.peek().unwrap().witness[brillig_return_witness];
                 panic!(
                     "ACIR and Brillig programs returned different results: \
                     ACIR returned {acir_return_value:?}, Brillig returned {brillig_return_value:?}"

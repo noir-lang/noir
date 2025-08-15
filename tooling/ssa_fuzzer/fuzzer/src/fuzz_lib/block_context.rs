@@ -635,6 +635,9 @@ impl BlockContext {
                     Some(input) => input,
                     _ => return,
                 };
+                if limbs_count == 0 {
+                    return;
+                }
                 let bytes = acir_builder.insert_to_le_radix(input.clone(), 256, limbs_count);
                 assert_eq!(
                     bytes.value_id,
@@ -663,6 +666,9 @@ impl BlockContext {
                     Some(input) => input,
                     _ => return,
                 };
+                if limbs_count == 0 {
+                    return;
+                }
                 let bytes = acir_builder.insert_to_le_radix(input.clone(), 256, limbs_count);
                 assert_eq!(
                     bytes.value_id,
@@ -737,7 +743,10 @@ impl BlockContext {
                     }
                 }
             }
-            Instruction::Aes128Encrypt { input_idx, input_limbs_count: _, key_idx, iv_idx } => {
+            Instruction::Aes128Encrypt { input_idx, input_limbs_count, key_idx, iv_idx } => {
+                if input_limbs_count == 0 {
+                    return;
+                }
                 let input = match get_typed_value_from_map(
                     &self.stored_variables,
                     &ValueType::Field,
@@ -762,11 +771,13 @@ impl BlockContext {
                     Some(iv) => iv,
                     _ => return,
                 };
-                // TODO: input limbs are forced to be 16 rn https://github.com/noir-lang/noir/issues/9477
-                let input_bytes = acir_builder.insert_to_le_radix(input.clone(), 256, 16);
+                let input_bytes =
+                    acir_builder.insert_to_le_radix(input.clone(), 256, input_limbs_count);
                 assert_eq!(
                     input_bytes.value_id,
-                    brillig_builder.insert_to_le_radix(input.clone(), 256, 16).value_id
+                    brillig_builder
+                        .insert_to_le_radix(input.clone(), 256, input_limbs_count)
+                        .value_id
                 );
                 let key_bytes = acir_builder.insert_to_le_radix(key.clone(), 256, 16);
                 assert_eq!(
