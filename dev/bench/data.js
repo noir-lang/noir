@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1755271323431,
+  "lastUpdate": 1755271339355,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3505,40 +3505,6 @@ window.BENCHMARK_DATA = {
       }
     ],
     "Compilation Time": [
-      {
-        "commit": {
-          "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "4e13631500ed9aaecbd20aa80480b2f8bf547d03",
-          "message": "chore(docs): Add example for `$crate` in docs (#9361)",
-          "timestamp": "2025-07-30T16:33:32Z",
-          "tree_id": "b9d7c459fd592568c6ccee3297c166645afd8178",
-          "url": "https://github.com/noir-lang/noir/commit/4e13631500ed9aaecbd20aa80480b2f8bf547d03"
-        },
-        "date": 1753895013152,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.785,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 1.791,
-            "unit": "s"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -7051,6 +7017,90 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 1.748,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "rodiondenmark@gmail.com",
+            "name": "Ragnar",
+            "username": "DeVikingMark"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "e3a8e9f955d61c4ef0c2900948e45595de9f3ebe",
+          "message": "fix(security): validate git references in GitHub dependency resolver (#9051)\n\nCo-authored-by: defkit <84741533+defkit@users.noreply.github.com>",
+          "timestamp": "2025-08-15T14:33:54Z",
+          "tree_id": "2c962fbe44bdfcbcdc229f5e29859ac8d3e7a0af",
+          "url": "https://github.com/noir-lang/noir/commit/e3a8e9f955d61c4ef0c2900948e45595de9f3ebe"
+        },
+        "date": 1755271321698,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1.678,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 7.756,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.318,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 15.62,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 13.44,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 20.02,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 193,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 206,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.328,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.45,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.764,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 1.556,
             "unit": "s"
           }
         ]
