@@ -189,6 +189,15 @@ impl InstructionMutator for InstructionArgumentsMutation {
                     mutate_bool(safe_index, rng, BASIC_SAFE_INDEX_MUTATION_CONFIGURATION);
                 }
             },
+            Instruction::FieldToBytesToField { .. }
+            | Instruction::Blake2sHash { .. }
+            | Instruction::Blake3Hash { .. }
+            | Instruction::Keccakf1600Hash { .. }
+            | Instruction::Aes128Encrypt { .. }
+            | Instruction::Sha256Compression { .. } => {
+                // TODO: Implement mutations for these instructions
+                // doesn't leave it as unimplemented, because fuzzer will try to mutate it anyway
+            }
         }
     }
 }
