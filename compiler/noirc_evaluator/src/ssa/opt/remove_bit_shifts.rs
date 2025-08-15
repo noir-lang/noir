@@ -100,8 +100,10 @@ impl Context<'_, '_, '_> {
         //
         // If `max_lhs_bits + max_bit_shift_size` were ever to exceed `FieldElement::max_num_bits()`,
         // then the constraint on `rhs` in `self.two_pow` should be broken.
-        let max_bit =
-            std::cmp::min(max_lhs_bits + max_bit_shift_size, FieldElement::max_num_bits());
+        let max_bit = std::cmp::min(
+            max_lhs_bits.checked_add(max_bit_shift_size).unwrap_or(FieldElement::max_num_bits()),
+            FieldElement::max_num_bits(),
+        );
         if max_bit <= typ.bit_size() {
             let pow = self.insert_cast(pow, typ);
             // Unchecked mul as it can't overflow
