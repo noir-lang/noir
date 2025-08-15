@@ -311,7 +311,7 @@ pub fn can_binary_op_return(op: &BinaryOp, typ: &Type) -> bool {
 /// These are operations that commonly fail with random constants.
 pub fn can_binary_op_overflow(op: &BinaryOp) -> bool {
     use BinaryOpKind::*;
-    matches!(op, Add | Subtract | Multiply | ShiftLeft)
+    matches!(op, Add | Subtract | Multiply | ShiftLeft | ShiftRight)
 }
 
 /// Can the binary operation fail because the RHS is zero.
