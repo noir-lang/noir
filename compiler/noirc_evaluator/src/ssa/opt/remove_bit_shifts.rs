@@ -399,12 +399,12 @@ mod tests {
         #[test]
         fn removes_shl_with_constant_rhs() {
             let src = "
-        acir(inline) fn main f0 {
-          b0(v0: u32):
-            v2 = shl v0, u32 2
-            return v2
-        }
-        ";
+            acir(inline) fn main f0 {
+              b0(v0: u32):
+                v2 = shl v0, u32 2
+                return v2
+            }
+            ";
             let ssa = Ssa::from_str(src).unwrap();
             let ssa = ssa.remove_bit_shifts();
             assert_ssa_snapshot!(ssa, @r"
@@ -422,12 +422,12 @@ mod tests {
         #[test]
         fn removes_shl_with_non_constant_rhs() {
             let src = "
-        acir(inline) fn main f0 {
-          b0(v0: u32, v1: u32):
-            v2 = shl v0, v1
-            return v2
-        }
-        ";
+            acir(inline) fn main f0 {
+              b0(v0: u32, v1: u32):
+                v2 = shl v0, v1
+                return v2
+            }
+            ";
             let ssa = Ssa::from_str(src).unwrap();
             let ssa = ssa.remove_bit_shifts();
 
