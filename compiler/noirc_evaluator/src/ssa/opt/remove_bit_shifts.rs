@@ -393,45 +393,45 @@ fn remove_bit_shifts_post_check(func: &Function) {
 mod tests {
     use crate::{assert_ssa_snapshot, ssa::ssa_gen::Ssa};
 
-    #[test]
-    fn removes_shl_with_constant_rhs() {
-        let src = "
-        acir(inline) fn main f0 {
-          b0(v0: u32):
-            v2 = shl v0, u32 2
-            v3 = truncate v2 to 32 bits, max_bit_size: 33
-            return v2
-        }
-        ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.remove_bit_shifts();
-        assert_ssa_snapshot!(ssa, @r"
+    mod unsigned {
+        use super::*;
+
+        #[test]
+        fn removes_shl_with_constant_rhs() {
+            let src = "
+            acir(inline) fn main f0 {
+              b0(v0: u32):
+                v2 = shl v0, u32 2
+                return v2
+            }
+            ";
+            let ssa = Ssa::from_str(src).unwrap();
+            let ssa = ssa.remove_bit_shifts();
+            assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: u32):
             v1 = cast v0 as Field
             v3 = mul v1, Field 4
             v4 = truncate v3 to 32 bits, max_bit_size: 34
             v5 = cast v4 as u32
-            v6 = truncate v5 to 32 bits, max_bit_size: 33
             return v5
         }
         ");
-    }
-
-    #[test]
-    fn removes_shl_with_non_constant_rhs() {
-        let src = "
-        acir(inline) fn main f0 {
-          b0(v0: u32, v1: u32):
-            v2 = shl v0, v1
-            v3 = truncate v2 to 32 bits, max_bit_size: 33
-            return v2
         }
-        ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.remove_bit_shifts();
 
-        assert_ssa_snapshot!(ssa, @r"
+        #[test]
+        fn removes_shl_with_non_constant_rhs() {
+            let src = "
+            acir(inline) fn main f0 {
+              b0(v0: u32, v1: u32):
+                v2 = shl v0, v1
+                return v2
+            }
+            ";
+            let ssa = Ssa::from_str(src).unwrap();
+            let ssa = ssa.remove_bit_shifts();
+
+            assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: u32, v1: u32):
             v3 = lt v1, u32 32
@@ -494,10 +494,341 @@ mod tests {
             v68 = mul v67, v66
             v69 = truncate v68 to 32 bits, max_bit_size: 254
             v70 = cast v69 as u32
-            v71 = truncate v70 to 32 bits, max_bit_size: 33
             return v70
         }
         ");
+        }
+
+        #[test]
+        fn removes_shr_with_constant_rhs() {
+            let src = "
+            acir(inline) fn main f0 {
+              b0(v0: u32):
+                v2 = shr v0, u32 2
+                return v2
+            }
+            ";
+            let ssa = Ssa::from_str(src).unwrap();
+            let ssa = ssa.remove_bit_shifts();
+            assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v3 = make_array [u1 0, u1 1, u1 0, u1 0, u1 0, u1 0] : [u1; 6]
+            v5 = div v0, u32 4
+            return v5
+        }
+        ");
+        }
+
+        #[test]
+        fn removes_shr_with_non_constant_rhs() {
+            let src = "
+            acir(inline) fn main f0 {
+              b0(v0: u32, v1: u32):
+                v2 = shr v0, v1
+                return v2
+            }
+            ";
+            let ssa = Ssa::from_str(src).unwrap();
+            let ssa = ssa.remove_bit_shifts();
+
+            assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u32, v1: u32):
+            v3 = lt v1, u32 32
+            v4 = cast v3 as u32
+            v5 = cast v3 as u32
+            v6 = unchecked_mul v4, v1
+            v7 = cast v6 as Field
+            v9 = call to_le_bits(v7) -> [u1; 6]
+            v11 = array_get v9, index u32 5 -> u1
+            v12 = not v11
+            v13 = cast v11 as Field
+            v14 = cast v12 as Field
+            v16 = mul Field 2, v13
+            v17 = add v14, v16
+            v19 = array_get v9, index u32 4 -> u1
+            v20 = not v19
+            v21 = cast v19 as Field
+            v22 = cast v20 as Field
+            v23 = mul v17, v17
+            v24 = mul v23, v22
+            v25 = mul v23, Field 2
+            v26 = mul v25, v21
+            v27 = add v24, v26
+            v29 = array_get v9, index u32 3 -> u1
+            v30 = not v29
+            v31 = cast v29 as Field
+            v32 = cast v30 as Field
+            v33 = mul v27, v27
+            v34 = mul v33, v32
+            v35 = mul v33, Field 2
+            v36 = mul v35, v31
+            v37 = add v34, v36
+            v39 = array_get v9, index u32 2 -> u1
+            v40 = not v39
+            v41 = cast v39 as Field
+            v42 = cast v40 as Field
+            v43 = mul v37, v37
+            v44 = mul v43, v42
+            v45 = mul v43, Field 2
+            v46 = mul v45, v41
+            v47 = add v44, v46
+            v49 = array_get v9, index u32 1 -> u1
+            v50 = not v49
+            v51 = cast v49 as Field
+            v52 = cast v50 as Field
+            v53 = mul v47, v47
+            v54 = mul v53, v52
+            v55 = mul v53, Field 2
+            v56 = mul v55, v51
+            v57 = add v54, v56
+            v59 = array_get v9, index u32 0 -> u1
+            v60 = not v59
+            v61 = cast v59 as Field
+            v62 = cast v60 as Field
+            v63 = mul v57, v57
+            v64 = mul v63, v62
+            v65 = mul v63, Field 2
+            v66 = mul v65, v61
+            v67 = add v64, v66
+            v68 = cast v67 as u32
+            v69 = div v0, v68
+            v70 = unchecked_mul v5, v69
+            return v70
+        }
+        ");
+        }
+    }
+
+    mod signed {
+        use super::*;
+        #[test]
+        fn removes_shl_with_constant_rhs() {
+            let src = "
+            acir(inline) fn main f0 {
+              b0(v0: i32):
+                v2 = shl v0, i32 2
+                return v2
+            }
+            ";
+            let ssa = Ssa::from_str(src).unwrap();
+            let ssa = ssa.remove_bit_shifts();
+            assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: i32):
+            v1 = cast v0 as Field
+            v3 = mul v1, Field 4
+            v4 = truncate v3 to 32 bits, max_bit_size: 34
+            v5 = cast v4 as i32
+            return v5
+        }
+        ");
+        }
+
+        #[test]
+        fn removes_shl_with_non_constant_rhs() {
+            let src = "
+            acir(inline) fn main f0 {
+              b0(v0: i32, v1: i32):
+                v2 = shl v0, v1
+                return v2
+            }
+            ";
+            let ssa = Ssa::from_str(src).unwrap();
+            let ssa = ssa.remove_bit_shifts();
+
+            assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: i32, v1: i32):
+            v3 = lt v1, i32 32
+            v4 = cast v3 as Field
+            v5 = cast v1 as Field
+            v7 = call to_le_bits(v5) -> [u1; 6]
+            v9 = array_get v7, index u32 5 -> u1
+            v10 = not v9
+            v11 = cast v9 as Field
+            v12 = cast v10 as Field
+            v14 = mul Field 2, v11
+            v15 = add v12, v14
+            v17 = array_get v7, index u32 4 -> u1
+            v18 = not v17
+            v19 = cast v17 as Field
+            v20 = cast v18 as Field
+            v21 = mul v15, v15
+            v22 = mul v21, v20
+            v23 = mul v21, Field 2
+            v24 = mul v23, v19
+            v25 = add v22, v24
+            v27 = array_get v7, index u32 3 -> u1
+            v28 = not v27
+            v29 = cast v27 as Field
+            v30 = cast v28 as Field
+            v31 = mul v25, v25
+            v32 = mul v31, v30
+            v33 = mul v31, Field 2
+            v34 = mul v33, v29
+            v35 = add v32, v34
+            v37 = array_get v7, index u32 2 -> u1
+            v38 = not v37
+            v39 = cast v37 as Field
+            v40 = cast v38 as Field
+            v41 = mul v35, v35
+            v42 = mul v41, v40
+            v43 = mul v41, Field 2
+            v44 = mul v43, v39
+            v45 = add v42, v44
+            v47 = array_get v7, index u32 1 -> u1
+            v48 = not v47
+            v49 = cast v47 as Field
+            v50 = cast v48 as Field
+            v51 = mul v45, v45
+            v52 = mul v51, v50
+            v53 = mul v51, Field 2
+            v54 = mul v53, v49
+            v55 = add v52, v54
+            v57 = array_get v7, index u32 0 -> u1
+            v58 = not v57
+            v59 = cast v57 as Field
+            v60 = cast v58 as Field
+            v61 = mul v55, v55
+            v62 = mul v61, v60
+            v63 = mul v61, Field 2
+            v64 = mul v63, v59
+            v65 = add v62, v64
+            v66 = mul v4, v65
+            v67 = cast v0 as Field
+            v68 = mul v67, v66
+            v69 = truncate v68 to 32 bits, max_bit_size: 254
+            v70 = cast v69 as i32
+            return v70
+        }
+        ");
+        }
+
+        #[test]
+        fn removes_shr_with_constant_rhs() {
+            let src = "
+            acir(inline) fn main f0 {
+              b0(v0: i32):
+                v2 = shr v0, i32 2
+                return v2
+            }
+        ";
+            let ssa = Ssa::from_str(src).unwrap();
+            let ssa = ssa.remove_bit_shifts();
+            assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: i32):
+            v3 = make_array [u1 0, u1 1, u1 0, u1 0, u1 0, u1 0] : [u1; 6]
+            v5 = lt v0, i32 0
+            v6 = cast v5 as Field
+            v7 = cast v0 as Field
+            v8 = add v6, v7
+            v9 = truncate v8 to 32 bits, max_bit_size: 33
+            v10 = cast v9 as i32
+            v12 = div v10, i32 4
+            v13 = cast v5 as i32
+            v14 = unchecked_sub v12, v13
+            v15 = truncate v14 to 32 bits, max_bit_size: 33
+            v17 = unchecked_mul i32 4294967295, v13
+            return v15
+        }
+        ");
+        }
+
+        #[test]
+        fn removes_shr_with_non_constant_rhs() {
+            let src = "
+            acir(inline) fn main f0 {
+              b0(v0: i32, v1: i32):
+                v2 = shr v0, v1
+                return v2
+            }
+            ";
+            let ssa = Ssa::from_str(src).unwrap();
+            let ssa = ssa.remove_bit_shifts();
+
+            assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: i32, v1: i32):
+            v3 = lt v1, i32 32
+            v4 = cast v3 as i32
+            v5 = cast v3 as i32
+            v6 = unchecked_mul v4, v1
+            v7 = cast v6 as Field
+            v9 = call to_le_bits(v7) -> [u1; 6]
+            v11 = array_get v9, index u32 5 -> u1
+            v12 = not v11
+            v13 = cast v11 as Field
+            v14 = cast v12 as Field
+            v16 = mul Field 2, v13
+            v17 = add v14, v16
+            v19 = array_get v9, index u32 4 -> u1
+            v20 = not v19
+            v21 = cast v19 as Field
+            v22 = cast v20 as Field
+            v23 = mul v17, v17
+            v24 = mul v23, v22
+            v25 = mul v23, Field 2
+            v26 = mul v25, v21
+            v27 = add v24, v26
+            v29 = array_get v9, index u32 3 -> u1
+            v30 = not v29
+            v31 = cast v29 as Field
+            v32 = cast v30 as Field
+            v33 = mul v27, v27
+            v34 = mul v33, v32
+            v35 = mul v33, Field 2
+            v36 = mul v35, v31
+            v37 = add v34, v36
+            v39 = array_get v9, index u32 2 -> u1
+            v40 = not v39
+            v41 = cast v39 as Field
+            v42 = cast v40 as Field
+            v43 = mul v37, v37
+            v44 = mul v43, v42
+            v45 = mul v43, Field 2
+            v46 = mul v45, v41
+            v47 = add v44, v46
+            v49 = array_get v9, index u32 1 -> u1
+            v50 = not v49
+            v51 = cast v49 as Field
+            v52 = cast v50 as Field
+            v53 = mul v47, v47
+            v54 = mul v53, v52
+            v55 = mul v53, Field 2
+            v56 = mul v55, v51
+            v57 = add v54, v56
+            v59 = array_get v9, index u32 0 -> u1
+            v60 = not v59
+            v61 = cast v59 as Field
+            v62 = cast v60 as Field
+            v63 = mul v57, v57
+            v64 = mul v63, v62
+            v65 = mul v63, Field 2
+            v66 = mul v65, v61
+            v67 = add v64, v66
+            v68 = cast v67 as i32
+            v70 = lt v0, i32 0
+            v71 = cast v70 as Field
+            v72 = cast v0 as Field
+            v73 = add v71, v72
+            v74 = truncate v73 to 32 bits, max_bit_size: 33
+            v75 = cast v74 as i32
+            v76 = div v75, v68
+            v77 = cast v70 as i32
+            v78 = unchecked_sub v76, v77
+            v79 = truncate v78 to 32 bits, max_bit_size: 33
+            v81 = unchecked_mul i32 4294967295, v77
+            v83 = unchecked_sub i32 1, v5
+            v84 = unchecked_mul v81, v83
+            v85 = unchecked_mul v5, v79
+            v86 = unchecked_add v85, v84
+            return v86
+        }
+        ");
+        }
     }
 
     #[test]
