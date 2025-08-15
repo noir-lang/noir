@@ -82,9 +82,13 @@ impl Context<'_, '_, '_> {
         let typ = self.context.dfg.type_of_value(lhs).unwrap_numeric();
         let max_lhs_bits = self.context.dfg.get_value_max_num_bits(lhs);
         let max_bit_shift_size = self.context.dfg.get_numeric_constant(rhs).map_or_else(
-            || self.context.dfg.get_value_max_num_bits(rhs),
+            || {
+                // If we don't know `rhs`'s value then it could be anything up to the number
+                // of bits in the type, e.g. u32 means shifting by up to 32 bits as otherwise we get overflow.
+                self.context.dfg.get_value_max_num_bits(rhs)
+            },
             |rhs_constant| {
-                // Happy case is that we know precisely by how many bits the integer will increase
+                // Happy case is that we know precisely by how many bits we're shifting by.
                 rhs_constant.to_u128() as u32
             },
         );
