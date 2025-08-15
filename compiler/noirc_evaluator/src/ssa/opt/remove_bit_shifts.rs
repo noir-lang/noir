@@ -6,7 +6,9 @@ use crate::ssa::{
     ir::{
         dfg::InsertInstructionResult,
         function::Function,
-        instruction::{ArrayOffset, Binary, BinaryOp, Endian, Instruction, Intrinsic},
+        instruction::{
+            ArrayOffset, Binary, BinaryOp, ConstrainError, Endian, Instruction, Intrinsic,
+        },
         types::{NumericType, Type},
         value::ValueId,
     },
@@ -89,7 +91,6 @@ impl Context<'_, '_, '_> {
         rhs: ValueId,
         bit_size: u32,
     ) -> ValueId {
-        let base = self.field_constant(FieldElement::from(2_u128));
         let typ = self.context.dfg.type_of_value(lhs).unwrap_numeric();
         let (max_bit, pow) = if let Some(rhs_constant) = self.context.dfg.get_numeric_constant(rhs)
         {
@@ -118,7 +119,7 @@ impl Context<'_, '_, '_> {
             let bit_size_var = self.numeric_constant(FieldElement::from(bit_size as u128), typ);
             let overflow = self.insert_binary(rhs, BinaryOp::Lt, bit_size_var);
             let predicate = self.insert_cast(overflow, NumericType::NativeField);
-            let pow = self.pow(base, rhs, bit_size.ilog2() + 1);
+            let pow = self.two_pow(rhs, bit_size.ilog2() + 1);
 
             // Unchecked mul because `predicate` will be 1 or 0
             (
@@ -150,7 +151,6 @@ impl Context<'_, '_, '_> {
         bit_size: u32,
     ) -> ValueId {
         let lhs_typ = self.context.dfg.type_of_value(lhs).unwrap_numeric();
-        let base = self.field_constant(FieldElement::from(2_u128));
         let rhs_typ = self.context.dfg.type_of_value(rhs).unwrap_numeric();
         //Check whether rhs is less than the bit_size: if it's not then it will overflow and we will return 0 instead.
         let bit_size_value = self.numeric_constant(bit_size as u128, rhs_typ);
@@ -165,7 +165,7 @@ impl Context<'_, '_, '_> {
             BinaryOp::Mul { unchecked: true },
             rhs,
         );
-        let pow = self.pow(base, rhs, bit_size.ilog2() + 1);
+        let pow = self.two_pow(rhs, bit_size.ilog2() + 1);
         let pow = self.insert_cast(pow, lhs_typ);
 
         if lhs_typ.is_unsigned() {
@@ -238,25 +238,35 @@ impl Context<'_, '_, '_> {
         self.insert_binary(result, BinaryOp::Add { unchecked: true }, minus_one_or_zero)
     }
 
-    /// Computes lhs^rhs via square&multiply, using the bits decomposition of rhs
+    /// Computes 2^exponent via square&multiply, using the bits decomposition of exponent
     /// Pseudo-code of the computation:
     /// let mut r = 1;
-    /// let rhs_bits = to_bits(rhs);
+    /// let exponent_bits = to_bits(exponent);
     /// for i in 1 .. bit_size + 1 {
     ///     let r_squared = r * r;
-    ///     let b = rhs_bits[bit_size - i];
-    ///     r = (r_squared * lhs * b) + (1 - b) * r_squared;
+    ///     let b = exponent_bits[bit_size - i];
+    ///     r = if b { 2 * r_squared } else { r_squared };
     /// }
-    fn pow(&mut self, lhs: ValueId, rhs: ValueId, bit_size: u32) -> ValueId {
+    fn two_pow(&mut self, exponent: ValueId, bit_size: u32) -> ValueId {
+        // Require that exponent < bit_size, ensuring that `pow` returns a value consistent with `lhs`'s type.
+        self.enforce_bitshift_rhs_lt_bit_size(exponent);
+        let lhs_typ = self.context.dfg.type_of_value(exponent).unwrap_numeric();
+
+        if let Some(exponent_const) = self.context.dfg.get_numeric_constant(exponent) {
+            let pow = FieldElement::from(2u32).pow(&exponent_const);
+            return self.numeric_constant(pow, lhs_typ);
+        }
+
         let to_bits = self.context.dfg.import_intrinsic(Intrinsic::ToBits(Endian::Little));
         let result_types = vec![Type::Array(Arc::new(vec![Type::bool()]), bit_size)];
 
-        // A call to ToBits can only be done with a field argument (rhs is always u8 here)
-        let rhs_as_field = self.insert_cast(rhs, NumericType::NativeField);
-        let rhs_bits = self.insert_call(to_bits, vec![rhs_as_field], result_types);
+        // A call to ToBits can only be done with a field argument (exponent is always u8 here)
+        let exponent_as_field = self.insert_cast(exponent, NumericType::NativeField);
+        let exponent_bits = self.insert_call(to_bits, vec![exponent_as_field], result_types);
 
-        let rhs_bits = rhs_bits[0];
+        let exponent_bits = exponent_bits[0];
         let one = self.field_constant(FieldElement::one());
+        let two = self.field_constant(FieldElement::from(2u32));
         let mut r = one;
         // All operations are unchecked as we're acting on Field types (which are always unchecked)
         for i in 1..bit_size + 1 {
@@ -264,14 +274,14 @@ impl Context<'_, '_, '_> {
                 FieldElement::from((bit_size - i) as i128),
                 NumericType::length_type(),
             );
-            let b = self.insert_array_get(rhs_bits, idx, Type::bool());
+            let b = self.insert_array_get(exponent_bits, idx, Type::bool());
             let not_b = self.insert_not(b);
             let b = self.insert_cast(b, NumericType::NativeField);
             let not_b = self.insert_cast(not_b, NumericType::NativeField);
 
             let r_squared = self.insert_binary(r, BinaryOp::Mul { unchecked: true }, r);
             let r1 = self.insert_binary(r_squared, BinaryOp::Mul { unchecked: true }, not_b);
-            let a = self.insert_binary(r_squared, BinaryOp::Mul { unchecked: true }, lhs);
+            let a = self.insert_binary(r_squared, BinaryOp::Mul { unchecked: true }, two);
             let r2 = self.insert_binary(a, BinaryOp::Mul { unchecked: true }, b);
             r = self.insert_binary(r1, BinaryOp::Add { unchecked: true }, r2);
         }
@@ -282,6 +292,33 @@ impl Context<'_, '_, '_> {
         );
 
         r
+    }
+
+    /// Insert constraints ensuring that the right-hand side of a bit-shift operation
+    /// is less than the bit size of the left-hand side.
+    fn enforce_bitshift_rhs_lt_bit_size(&mut self, rhs: ValueId) {
+        let one = self.numeric_constant(FieldElement::one(), NumericType::bool());
+        let rhs_type = self.context.dfg.type_of_value(rhs);
+
+        let assert_message = Some("attempt to bit-shift with overflow".to_owned());
+
+        let (bit_size, bit_size_field) = match rhs_type {
+            Type::Numeric(NumericType::Unsigned { bit_size }) => {
+                (bit_size, FieldElement::from(bit_size))
+            }
+            Type::Numeric(NumericType::Signed { bit_size }) => {
+                assert!(bit_size > 1, "ICE - i1 is not a valid type");
+
+                (bit_size, FieldElement::from(bit_size - 1))
+            }
+            _ => unreachable!("check_shift_overflow called with non-numeric type"),
+        };
+
+        let unsigned_typ = NumericType::unsigned(bit_size);
+        let max = self.numeric_constant(bit_size_field, unsigned_typ);
+        let rhs = self.insert_cast(rhs, unsigned_typ);
+        let overflow = self.insert_binary(rhs, BinaryOp::Lt, max);
+        self.insert_constrain(overflow, one, assert_message.map(Into::into));
     }
 
     pub(crate) fn field_constant(&mut self, constant: FieldElement) -> ValueId {
@@ -313,6 +350,16 @@ impl Context<'_, '_, '_> {
     /// Returns the result of the instruction.
     pub(crate) fn insert_not(&mut self, rhs: ValueId) -> ValueId {
         self.context.insert_instruction(Instruction::Not(rhs), None).first()
+    }
+
+    /// Insert a constrain instruction at the end of the current block.
+    fn insert_constrain(
+        &mut self,
+        lhs: ValueId,
+        rhs: ValueId,
+        assert_message: Option<ConstrainError>,
+    ) {
+        self.context.insert_instruction(Instruction::Constrain(lhs, rhs, assert_message), None);
     }
 
     /// Insert a truncate instruction at the end of the current block.
@@ -431,72 +478,74 @@ mod tests {
             let ssa = Ssa::from_str(src).unwrap();
             let ssa = ssa.remove_bit_shifts();
 
-            assert_ssa_snapshot!(ssa, @r"
-        acir(inline) fn main f0 {
-          b0(v0: u32, v1: u32):
-            v3 = lt v1, u32 32
-            v4 = cast v3 as Field
-            v5 = cast v1 as Field
-            v7 = call to_le_bits(v5) -> [u1; 6]
-            v9 = array_get v7, index u32 5 -> u1
-            v10 = not v9
-            v11 = cast v9 as Field
-            v12 = cast v10 as Field
-            v14 = mul Field 2, v11
-            v15 = add v12, v14
-            v17 = array_get v7, index u32 4 -> u1
-            v18 = not v17
-            v19 = cast v17 as Field
-            v20 = cast v18 as Field
-            v21 = mul v15, v15
-            v22 = mul v21, v20
-            v23 = mul v21, Field 2
-            v24 = mul v23, v19
-            v25 = add v22, v24
-            v27 = array_get v7, index u32 3 -> u1
-            v28 = not v27
-            v29 = cast v27 as Field
-            v30 = cast v28 as Field
-            v31 = mul v25, v25
-            v32 = mul v31, v30
-            v33 = mul v31, Field 2
-            v34 = mul v33, v29
-            v35 = add v32, v34
-            v37 = array_get v7, index u32 2 -> u1
-            v38 = not v37
-            v39 = cast v37 as Field
-            v40 = cast v38 as Field
-            v41 = mul v35, v35
-            v42 = mul v41, v40
-            v43 = mul v41, Field 2
-            v44 = mul v43, v39
-            v45 = add v42, v44
-            v47 = array_get v7, index u32 1 -> u1
-            v48 = not v47
-            v49 = cast v47 as Field
-            v50 = cast v48 as Field
-            v51 = mul v45, v45
-            v52 = mul v51, v50
-            v53 = mul v51, Field 2
-            v54 = mul v53, v49
-            v55 = add v52, v54
-            v57 = array_get v7, index u32 0 -> u1
-            v58 = not v57
-            v59 = cast v57 as Field
-            v60 = cast v58 as Field
-            v61 = mul v55, v55
-            v62 = mul v61, v60
-            v63 = mul v61, Field 2
-            v64 = mul v63, v59
-            v65 = add v62, v64
-            v66 = mul v4, v65
-            v67 = cast v0 as Field
-            v68 = mul v67, v66
-            v69 = truncate v68 to 32 bits, max_bit_size: 254
-            v70 = cast v69 as u32
-            return v70
-        }
-        ");
+            assert_ssa_snapshot!(ssa, @r#"
+            acir(inline) fn main f0 {
+              b0(v0: u32, v1: u32):
+                v3 = lt v1, u32 32
+                v4 = cast v3 as Field
+                v5 = lt v1, u32 32
+                constrain v5 == u1 1, "attempt to bit-shift with overflow"
+                v7 = cast v1 as Field
+                v9 = call to_le_bits(v7) -> [u1; 6]
+                v11 = array_get v9, index u32 5 -> u1
+                v12 = not v11
+                v13 = cast v11 as Field
+                v14 = cast v12 as Field
+                v16 = mul Field 2, v13
+                v17 = add v14, v16
+                v19 = array_get v9, index u32 4 -> u1
+                v20 = not v19
+                v21 = cast v19 as Field
+                v22 = cast v20 as Field
+                v23 = mul v17, v17
+                v24 = mul v23, v22
+                v25 = mul v23, Field 2
+                v26 = mul v25, v21
+                v27 = add v24, v26
+                v29 = array_get v9, index u32 3 -> u1
+                v30 = not v29
+                v31 = cast v29 as Field
+                v32 = cast v30 as Field
+                v33 = mul v27, v27
+                v34 = mul v33, v32
+                v35 = mul v33, Field 2
+                v36 = mul v35, v31
+                v37 = add v34, v36
+                v39 = array_get v9, index u32 2 -> u1
+                v40 = not v39
+                v41 = cast v39 as Field
+                v42 = cast v40 as Field
+                v43 = mul v37, v37
+                v44 = mul v43, v42
+                v45 = mul v43, Field 2
+                v46 = mul v45, v41
+                v47 = add v44, v46
+                v49 = array_get v9, index u32 1 -> u1
+                v50 = not v49
+                v51 = cast v49 as Field
+                v52 = cast v50 as Field
+                v53 = mul v47, v47
+                v54 = mul v53, v52
+                v55 = mul v53, Field 2
+                v56 = mul v55, v51
+                v57 = add v54, v56
+                v59 = array_get v9, index u32 0 -> u1
+                v60 = not v59
+                v61 = cast v59 as Field
+                v62 = cast v60 as Field
+                v63 = mul v57, v57
+                v64 = mul v63, v62
+                v65 = mul v63, Field 2
+                v66 = mul v65, v61
+                v67 = add v64, v66
+                v68 = mul v4, v67
+                v69 = cast v0 as Field
+                v70 = mul v69, v68
+                v71 = truncate v70 to 32 bits, max_bit_size: 254
+                v72 = cast v71 as u32
+                return v72
+            }
+            "#);
         }
 
         #[test]
@@ -511,13 +560,12 @@ mod tests {
             let ssa = Ssa::from_str(src).unwrap();
             let ssa = ssa.remove_bit_shifts();
             assert_ssa_snapshot!(ssa, @r"
-        acir(inline) fn main f0 {
-          b0(v0: u32):
-            v3 = make_array [u1 0, u1 1, u1 0, u1 0, u1 0, u1 0] : [u1; 6]
-            v5 = div v0, u32 4
-            return v5
-        }
-        ");
+            acir(inline) fn main f0 {
+              b0(v0: u32):
+                v2 = div v0, u32 4
+                return v2
+            }
+            ");
         }
 
         #[test]
@@ -532,72 +580,74 @@ mod tests {
             let ssa = Ssa::from_str(src).unwrap();
             let ssa = ssa.remove_bit_shifts();
 
-            assert_ssa_snapshot!(ssa, @r"
-        acir(inline) fn main f0 {
-          b0(v0: u32, v1: u32):
-            v3 = lt v1, u32 32
-            v4 = cast v3 as u32
-            v5 = cast v3 as u32
-            v6 = unchecked_mul v4, v1
-            v7 = cast v6 as Field
-            v9 = call to_le_bits(v7) -> [u1; 6]
-            v11 = array_get v9, index u32 5 -> u1
-            v12 = not v11
-            v13 = cast v11 as Field
-            v14 = cast v12 as Field
-            v16 = mul Field 2, v13
-            v17 = add v14, v16
-            v19 = array_get v9, index u32 4 -> u1
-            v20 = not v19
-            v21 = cast v19 as Field
-            v22 = cast v20 as Field
-            v23 = mul v17, v17
-            v24 = mul v23, v22
-            v25 = mul v23, Field 2
-            v26 = mul v25, v21
-            v27 = add v24, v26
-            v29 = array_get v9, index u32 3 -> u1
-            v30 = not v29
-            v31 = cast v29 as Field
-            v32 = cast v30 as Field
-            v33 = mul v27, v27
-            v34 = mul v33, v32
-            v35 = mul v33, Field 2
-            v36 = mul v35, v31
-            v37 = add v34, v36
-            v39 = array_get v9, index u32 2 -> u1
-            v40 = not v39
-            v41 = cast v39 as Field
-            v42 = cast v40 as Field
-            v43 = mul v37, v37
-            v44 = mul v43, v42
-            v45 = mul v43, Field 2
-            v46 = mul v45, v41
-            v47 = add v44, v46
-            v49 = array_get v9, index u32 1 -> u1
-            v50 = not v49
-            v51 = cast v49 as Field
-            v52 = cast v50 as Field
-            v53 = mul v47, v47
-            v54 = mul v53, v52
-            v55 = mul v53, Field 2
-            v56 = mul v55, v51
-            v57 = add v54, v56
-            v59 = array_get v9, index u32 0 -> u1
-            v60 = not v59
-            v61 = cast v59 as Field
-            v62 = cast v60 as Field
-            v63 = mul v57, v57
-            v64 = mul v63, v62
-            v65 = mul v63, Field 2
-            v66 = mul v65, v61
-            v67 = add v64, v66
-            v68 = cast v67 as u32
-            v69 = div v0, v68
-            v70 = unchecked_mul v5, v69
-            return v70
-        }
-        ");
+            assert_ssa_snapshot!(ssa, @r#"
+            acir(inline) fn main f0 {
+              b0(v0: u32, v1: u32):
+                v3 = lt v1, u32 32
+                v4 = cast v3 as u32
+                v5 = cast v3 as u32
+                v6 = unchecked_mul v4, v1
+                v7 = lt v6, u32 32
+                constrain v7 == u1 1, "attempt to bit-shift with overflow"
+                v9 = cast v6 as Field
+                v11 = call to_le_bits(v9) -> [u1; 6]
+                v13 = array_get v11, index u32 5 -> u1
+                v14 = not v13
+                v15 = cast v13 as Field
+                v16 = cast v14 as Field
+                v18 = mul Field 2, v15
+                v19 = add v16, v18
+                v21 = array_get v11, index u32 4 -> u1
+                v22 = not v21
+                v23 = cast v21 as Field
+                v24 = cast v22 as Field
+                v25 = mul v19, v19
+                v26 = mul v25, v24
+                v27 = mul v25, Field 2
+                v28 = mul v27, v23
+                v29 = add v26, v28
+                v31 = array_get v11, index u32 3 -> u1
+                v32 = not v31
+                v33 = cast v31 as Field
+                v34 = cast v32 as Field
+                v35 = mul v29, v29
+                v36 = mul v35, v34
+                v37 = mul v35, Field 2
+                v38 = mul v37, v33
+                v39 = add v36, v38
+                v41 = array_get v11, index u32 2 -> u1
+                v42 = not v41
+                v43 = cast v41 as Field
+                v44 = cast v42 as Field
+                v45 = mul v39, v39
+                v46 = mul v45, v44
+                v47 = mul v45, Field 2
+                v48 = mul v47, v43
+                v49 = add v46, v48
+                v51 = array_get v11, index u32 1 -> u1
+                v52 = not v51
+                v53 = cast v51 as Field
+                v54 = cast v52 as Field
+                v55 = mul v49, v49
+                v56 = mul v55, v54
+                v57 = mul v55, Field 2
+                v58 = mul v57, v53
+                v59 = add v56, v58
+                v61 = array_get v11, index u32 0 -> u1
+                v62 = not v61
+                v63 = cast v61 as Field
+                v64 = cast v62 as Field
+                v65 = mul v59, v59
+                v66 = mul v65, v64
+                v67 = mul v65, Field 2
+                v68 = mul v67, v63
+                v69 = add v66, v68
+                v70 = cast v69 as u32
+                v71 = div v0, v70
+                v72 = unchecked_mul v5, v71
+                return v72
+            }
+            "#);
         }
     }
 
@@ -638,72 +688,75 @@ mod tests {
             let ssa = Ssa::from_str(src).unwrap();
             let ssa = ssa.remove_bit_shifts();
 
-            assert_ssa_snapshot!(ssa, @r"
-        acir(inline) fn main f0 {
-          b0(v0: i32, v1: i32):
-            v3 = lt v1, i32 32
-            v4 = cast v3 as Field
-            v5 = cast v1 as Field
-            v7 = call to_le_bits(v5) -> [u1; 6]
-            v9 = array_get v7, index u32 5 -> u1
-            v10 = not v9
-            v11 = cast v9 as Field
-            v12 = cast v10 as Field
-            v14 = mul Field 2, v11
-            v15 = add v12, v14
-            v17 = array_get v7, index u32 4 -> u1
-            v18 = not v17
-            v19 = cast v17 as Field
-            v20 = cast v18 as Field
-            v21 = mul v15, v15
-            v22 = mul v21, v20
-            v23 = mul v21, Field 2
-            v24 = mul v23, v19
-            v25 = add v22, v24
-            v27 = array_get v7, index u32 3 -> u1
-            v28 = not v27
-            v29 = cast v27 as Field
-            v30 = cast v28 as Field
-            v31 = mul v25, v25
-            v32 = mul v31, v30
-            v33 = mul v31, Field 2
-            v34 = mul v33, v29
-            v35 = add v32, v34
-            v37 = array_get v7, index u32 2 -> u1
-            v38 = not v37
-            v39 = cast v37 as Field
-            v40 = cast v38 as Field
-            v41 = mul v35, v35
-            v42 = mul v41, v40
-            v43 = mul v41, Field 2
-            v44 = mul v43, v39
-            v45 = add v42, v44
-            v47 = array_get v7, index u32 1 -> u1
-            v48 = not v47
-            v49 = cast v47 as Field
-            v50 = cast v48 as Field
-            v51 = mul v45, v45
-            v52 = mul v51, v50
-            v53 = mul v51, Field 2
-            v54 = mul v53, v49
-            v55 = add v52, v54
-            v57 = array_get v7, index u32 0 -> u1
-            v58 = not v57
-            v59 = cast v57 as Field
-            v60 = cast v58 as Field
-            v61 = mul v55, v55
-            v62 = mul v61, v60
-            v63 = mul v61, Field 2
-            v64 = mul v63, v59
-            v65 = add v62, v64
-            v66 = mul v4, v65
-            v67 = cast v0 as Field
-            v68 = mul v67, v66
-            v69 = truncate v68 to 32 bits, max_bit_size: 254
-            v70 = cast v69 as i32
-            return v70
-        }
-        ");
+            assert_ssa_snapshot!(ssa, @r#"
+            acir(inline) fn main f0 {
+              b0(v0: i32, v1: i32):
+                v3 = lt v1, i32 32
+                v4 = cast v3 as Field
+                v5 = cast v1 as u32
+                v7 = lt v5, u32 31
+                constrain v7 == u1 1, "attempt to bit-shift with overflow"
+                v9 = cast v1 as Field
+                v11 = call to_le_bits(v9) -> [u1; 6]
+                v13 = array_get v11, index u32 5 -> u1
+                v14 = not v13
+                v15 = cast v13 as Field
+                v16 = cast v14 as Field
+                v18 = mul Field 2, v15
+                v19 = add v16, v18
+                v21 = array_get v11, index u32 4 -> u1
+                v22 = not v21
+                v23 = cast v21 as Field
+                v24 = cast v22 as Field
+                v25 = mul v19, v19
+                v26 = mul v25, v24
+                v27 = mul v25, Field 2
+                v28 = mul v27, v23
+                v29 = add v26, v28
+                v31 = array_get v11, index u32 3 -> u1
+                v32 = not v31
+                v33 = cast v31 as Field
+                v34 = cast v32 as Field
+                v35 = mul v29, v29
+                v36 = mul v35, v34
+                v37 = mul v35, Field 2
+                v38 = mul v37, v33
+                v39 = add v36, v38
+                v41 = array_get v11, index u32 2 -> u1
+                v42 = not v41
+                v43 = cast v41 as Field
+                v44 = cast v42 as Field
+                v45 = mul v39, v39
+                v46 = mul v45, v44
+                v47 = mul v45, Field 2
+                v48 = mul v47, v43
+                v49 = add v46, v48
+                v51 = array_get v11, index u32 1 -> u1
+                v52 = not v51
+                v53 = cast v51 as Field
+                v54 = cast v52 as Field
+                v55 = mul v49, v49
+                v56 = mul v55, v54
+                v57 = mul v55, Field 2
+                v58 = mul v57, v53
+                v59 = add v56, v58
+                v61 = array_get v11, index u32 0 -> u1
+                v62 = not v61
+                v63 = cast v61 as Field
+                v64 = cast v62 as Field
+                v65 = mul v59, v59
+                v66 = mul v65, v64
+                v67 = mul v65, Field 2
+                v68 = mul v67, v63
+                v69 = add v66, v68
+                v70 = mul v4, v69
+                v71 = cast v0 as Field
+                v72 = mul v71, v70
+                v73 = truncate v72 to 32 bits, max_bit_size: 254
+                v74 = cast v73 as i32
+                return v74
+            }
+            "#);
         }
 
         #[test]
@@ -718,23 +771,22 @@ mod tests {
             let ssa = Ssa::from_str(src).unwrap();
             let ssa = ssa.remove_bit_shifts();
             assert_ssa_snapshot!(ssa, @r"
-        acir(inline) fn main f0 {
-          b0(v0: i32):
-            v3 = make_array [u1 0, u1 1, u1 0, u1 0, u1 0, u1 0] : [u1; 6]
-            v5 = lt v0, i32 0
-            v6 = cast v5 as Field
-            v7 = cast v0 as Field
-            v8 = add v6, v7
-            v9 = truncate v8 to 32 bits, max_bit_size: 33
-            v10 = cast v9 as i32
-            v12 = div v10, i32 4
-            v13 = cast v5 as i32
-            v14 = unchecked_sub v12, v13
-            v15 = truncate v14 to 32 bits, max_bit_size: 33
-            v17 = unchecked_mul i32 4294967295, v13
-            return v15
-        }
-        ");
+            acir(inline) fn main f0 {
+              b0(v0: i32):
+                v2 = lt v0, i32 0
+                v3 = cast v2 as Field
+                v4 = cast v0 as Field
+                v5 = add v3, v4
+                v6 = truncate v5 to 32 bits, max_bit_size: 33
+                v7 = cast v6 as i32
+                v9 = div v7, i32 4
+                v10 = cast v2 as i32
+                v11 = unchecked_sub v9, v10
+                v12 = truncate v11 to 32 bits, max_bit_size: 33
+                v14 = unchecked_mul i32 4294967295, v10
+                return v12
+            }
+            ");
         }
 
         #[test]
@@ -749,85 +801,88 @@ mod tests {
             let ssa = Ssa::from_str(src).unwrap();
             let ssa = ssa.remove_bit_shifts();
 
-            assert_ssa_snapshot!(ssa, @r"
-        acir(inline) fn main f0 {
-          b0(v0: i32, v1: i32):
-            v3 = lt v1, i32 32
-            v4 = cast v3 as i32
-            v5 = cast v3 as i32
-            v6 = unchecked_mul v4, v1
-            v7 = cast v6 as Field
-            v9 = call to_le_bits(v7) -> [u1; 6]
-            v11 = array_get v9, index u32 5 -> u1
-            v12 = not v11
-            v13 = cast v11 as Field
-            v14 = cast v12 as Field
-            v16 = mul Field 2, v13
-            v17 = add v14, v16
-            v19 = array_get v9, index u32 4 -> u1
-            v20 = not v19
-            v21 = cast v19 as Field
-            v22 = cast v20 as Field
-            v23 = mul v17, v17
-            v24 = mul v23, v22
-            v25 = mul v23, Field 2
-            v26 = mul v25, v21
-            v27 = add v24, v26
-            v29 = array_get v9, index u32 3 -> u1
-            v30 = not v29
-            v31 = cast v29 as Field
-            v32 = cast v30 as Field
-            v33 = mul v27, v27
-            v34 = mul v33, v32
-            v35 = mul v33, Field 2
-            v36 = mul v35, v31
-            v37 = add v34, v36
-            v39 = array_get v9, index u32 2 -> u1
-            v40 = not v39
-            v41 = cast v39 as Field
-            v42 = cast v40 as Field
-            v43 = mul v37, v37
-            v44 = mul v43, v42
-            v45 = mul v43, Field 2
-            v46 = mul v45, v41
-            v47 = add v44, v46
-            v49 = array_get v9, index u32 1 -> u1
-            v50 = not v49
-            v51 = cast v49 as Field
-            v52 = cast v50 as Field
-            v53 = mul v47, v47
-            v54 = mul v53, v52
-            v55 = mul v53, Field 2
-            v56 = mul v55, v51
-            v57 = add v54, v56
-            v59 = array_get v9, index u32 0 -> u1
-            v60 = not v59
-            v61 = cast v59 as Field
-            v62 = cast v60 as Field
-            v63 = mul v57, v57
-            v64 = mul v63, v62
-            v65 = mul v63, Field 2
-            v66 = mul v65, v61
-            v67 = add v64, v66
-            v68 = cast v67 as i32
-            v70 = lt v0, i32 0
-            v71 = cast v70 as Field
-            v72 = cast v0 as Field
-            v73 = add v71, v72
-            v74 = truncate v73 to 32 bits, max_bit_size: 33
-            v75 = cast v74 as i32
-            v76 = div v75, v68
-            v77 = cast v70 as i32
-            v78 = unchecked_sub v76, v77
-            v79 = truncate v78 to 32 bits, max_bit_size: 33
-            v81 = unchecked_mul i32 4294967295, v77
-            v83 = unchecked_sub i32 1, v5
-            v84 = unchecked_mul v81, v83
-            v85 = unchecked_mul v5, v79
-            v86 = unchecked_add v85, v84
-            return v86
-        }
-        ");
+            assert_ssa_snapshot!(ssa, @r#"
+            acir(inline) fn main f0 {
+              b0(v0: i32, v1: i32):
+                v3 = lt v1, i32 32
+                v4 = cast v3 as i32
+                v5 = cast v3 as i32
+                v6 = unchecked_mul v4, v1
+                v7 = cast v6 as u32
+                v9 = lt v7, u32 31
+                constrain v9 == u1 1, "attempt to bit-shift with overflow"
+                v11 = cast v6 as Field
+                v13 = call to_le_bits(v11) -> [u1; 6]
+                v15 = array_get v13, index u32 5 -> u1
+                v16 = not v15
+                v17 = cast v15 as Field
+                v18 = cast v16 as Field
+                v20 = mul Field 2, v17
+                v21 = add v18, v20
+                v23 = array_get v13, index u32 4 -> u1
+                v24 = not v23
+                v25 = cast v23 as Field
+                v26 = cast v24 as Field
+                v27 = mul v21, v21
+                v28 = mul v27, v26
+                v29 = mul v27, Field 2
+                v30 = mul v29, v25
+                v31 = add v28, v30
+                v33 = array_get v13, index u32 3 -> u1
+                v34 = not v33
+                v35 = cast v33 as Field
+                v36 = cast v34 as Field
+                v37 = mul v31, v31
+                v38 = mul v37, v36
+                v39 = mul v37, Field 2
+                v40 = mul v39, v35
+                v41 = add v38, v40
+                v43 = array_get v13, index u32 2 -> u1
+                v44 = not v43
+                v45 = cast v43 as Field
+                v46 = cast v44 as Field
+                v47 = mul v41, v41
+                v48 = mul v47, v46
+                v49 = mul v47, Field 2
+                v50 = mul v49, v45
+                v51 = add v48, v50
+                v53 = array_get v13, index u32 1 -> u1
+                v54 = not v53
+                v55 = cast v53 as Field
+                v56 = cast v54 as Field
+                v57 = mul v51, v51
+                v58 = mul v57, v56
+                v59 = mul v57, Field 2
+                v60 = mul v59, v55
+                v61 = add v58, v60
+                v63 = array_get v13, index u32 0 -> u1
+                v64 = not v63
+                v65 = cast v63 as Field
+                v66 = cast v64 as Field
+                v67 = mul v61, v61
+                v68 = mul v67, v66
+                v69 = mul v67, Field 2
+                v70 = mul v69, v65
+                v71 = add v68, v70
+                v72 = cast v71 as i32
+                v74 = lt v0, i32 0
+                v75 = cast v74 as Field
+                v76 = cast v0 as Field
+                v77 = add v75, v76
+                v78 = truncate v77 to 32 bits, max_bit_size: 33
+                v79 = cast v78 as i32
+                v80 = div v79, v72
+                v81 = cast v74 as i32
+                v82 = unchecked_sub v80, v81
+                v83 = truncate v82 to 32 bits, max_bit_size: 33
+                v85 = unchecked_mul i32 4294967295, v81
+                v87 = unchecked_sub i32 1, v5
+                v88 = unchecked_mul v85, v87
+                v89 = unchecked_mul v5, v83
+                v90 = unchecked_add v89, v88
+                return v90
+            }
+            "#);
         }
     }
 
@@ -879,16 +934,15 @@ mod tests {
         acir(inline) predicate_pure fn main f0 {
           b0():
             constrain u1 0 == u1 1, "attempt to bit-shift with overflow"
-            v2 = make_array [u1 0, u1 0, u1 0, u1 0] : [u1; 4]
-            v4 = eq u8 0, u8 0
-            jmpif v4 then: b7, else: b8
+            v3 = eq u8 0, u8 0
+            jmpif v3 then: b7, else: b8
           b1():
             jmp b3()
           b2():
             jmp b3()
           b3():
-            v9 = eq u8 0, u8 1
-            jmpif v9 then: b4, else: b5
+            v7 = eq u8 0, u8 1
+            jmpif v7 then: b4, else: b5
           b4():
             jmp b6()
           b5():
@@ -900,16 +954,15 @@ mod tests {
           b8():
             jmp b9()
           b9():
-            v6 = eq u8 0, u8 1
-            jmpif v6 then: b10, else: b11
+            v5 = eq u8 0, u8 1
+            jmpif v5 then: b10, else: b11
           b10():
             jmp b12()
           b11():
             jmp b12()
           b12():
-            v7 = make_array [u1 0, u1 0, u1 0, u1 0] : [u1; 4]
-            v8 = eq u8 0, u8 0
-            jmpif v8 then: b1, else: b2
+            v6 = eq u8 0, u8 0
+            jmpif v6 then: b1, else: b2
         }
         "#);
     }
