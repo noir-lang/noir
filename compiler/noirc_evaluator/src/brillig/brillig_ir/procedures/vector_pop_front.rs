@@ -43,6 +43,7 @@ pub(super) fn compile_vector_pop_front_procedure<F: AcirField + DebugToString>(
     let new_vector_pointer_return = MemoryAddress::direct(ScratchSpace::start() + 3);
 
     brillig_context.set_allocated_registers(vec![
+        source_vector_length_arg,
         source_vector_pointer_arg,
         item_pop_count_arg,
         new_vector_pointer_return,
