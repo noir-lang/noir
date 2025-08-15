@@ -1,6 +1,8 @@
+use std::collections::BTreeMap;
+
 use acir::{
     AcirField,
-    circuit::{Circuit, Opcode},
+    circuit::{Circuit, Opcode, brillig::BrilligFunctionId},
 };
 
 mod general;
@@ -18,12 +20,16 @@ use self::unused_memory::UnusedMemoryOptimizer;
 use super::{AcirTransformationMap, transform_assert_messages};
 
 /// Applies backend independent optimizations to a [`Circuit`].
-pub fn optimize<F: AcirField>(acir: Circuit<F>) -> (Circuit<F>, AcirTransformationMap) {
+pub fn optimize<F: AcirField>(
+    acir: Circuit<F>,
+    brillig_side_effects: &BTreeMap<BrilligFunctionId, bool>,
+) -> (Circuit<F>, AcirTransformationMap) {
     // Track original acir opcode positions throughout the transformation passes of the compilation
     // by applying the modifications done to the circuit opcodes and also to the opcode_positions (delete and insert)
     let acir_opcode_positions = (0..acir.opcodes.len()).collect();
 
-    let (mut acir, new_opcode_positions) = optimize_internal(acir, acir_opcode_positions);
+    let (mut acir, new_opcode_positions) =
+        optimize_internal(acir, acir_opcode_positions, brillig_side_effects);
 
     let transformation_map = AcirTransformationMap::new(&new_opcode_positions);
 
@@ -39,6 +45,7 @@ pub fn optimize<F: AcirField>(acir: Circuit<F>) -> (Circuit<F>, AcirTransformati
 pub(super) fn optimize_internal<F: AcirField>(
     acir: Circuit<F>,
     acir_opcode_positions: Vec<usize>,
+    brillig_side_effects: &BTreeMap<BrilligFunctionId, bool>,
 ) -> (Circuit<F>, Vec<usize>) {
     if acir.opcodes.len() == 1 && matches!(acir.opcodes[0], Opcode::BrilligCall { .. }) {
         info!("Program is fully unconstrained, skipping optimization pass");
@@ -70,7 +77,7 @@ pub(super) fn optimize_internal<F: AcirField>(
     // ConstantBackpropagationOptimizer::backpropagate_constants(acir, acir_opcode_positions);
 
     // Range optimization pass
-    let range_optimizer = RangeOptimizer::new(acir);
+    let range_optimizer = RangeOptimizer::new(acir, brillig_side_effects);
     let (acir, acir_opcode_positions) =
         range_optimizer.replace_redundant_ranges(acir_opcode_positions);
 
