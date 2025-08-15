@@ -12,8 +12,11 @@ use std::path::PathBuf;
 #[derive(Debug, Clone, Args)]
 pub(crate) struct InitCommand {
     /// Name of the package [default: current directory name]
-    #[clap(long)]
-    name: Option<CrateName>,
+    /// Can be given as a positional argument or via --name.
+    #[clap(value_name = "name", value_parser, required = false)]
+    #[clap(long, allow_hyphen_values = true)]
+    #[clap(index = 1)]
+    pub(crate) name: Option<CrateName>,
 
     /// Use a library template
     #[arg(long, conflicts_with = "bin", conflicts_with = "contract")]
