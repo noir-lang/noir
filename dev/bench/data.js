@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1755271341002,
+  "lastUpdate": 1755271345519,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -10341,40 +10341,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "28abb682cf4001ab97dcafd3e9a111a281806be4",
-          "message": "fix: Prevent accidental tuple sharing in comptime code (#9313)",
-          "timestamp": "2025-07-30T15:02:09Z",
-          "tree_id": "69bf293b9d6ab4f070e44d5ceed1802d49768e4d",
-          "url": "https://github.com/noir-lang/noir/commit/28abb682cf4001ab97dcafd3e9a111a281806be4"
-        },
-        "date": 1753889556073,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore_depth_10",
-            "value": 69.46,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 54.95,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "4e13631500ed9aaecbd20aa80480b2f8bf547d03",
           "message": "chore(docs): Add example for `$crate` in docs (#9361)",
@@ -13457,6 +13423,80 @@ window.BENCHMARK_DATA = {
         "date": 1755257798555,
         "tool": "customSmallerIsBetter",
         "benches": [
+          {
+            "name": "semaphore_depth_10",
+            "value": 69.51,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 55,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "163862677+noirwhal@users.noreply.github.com",
+            "name": "noirwhal",
+            "username": "noirwhal"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "29160ca8b880238cc13d755e769e5819426d3d1a",
+          "message": "chore: bump external pinned commits (#9508)\n\nCo-authored-by: noirwhal <tomfrench@aztecprotocol.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-08-15T14:32:07Z",
+          "tree_id": "24cbbed83d36a8766500c197eb2531a5d7f0bded",
+          "url": "https://github.com/noir-lang/noir/commit/29160ca8b880238cc13d755e769e5819426d3d1a"
+        },
+        "date": 1755271327428,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 206.72,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 243.54,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 195.96,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 500.27,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 432.9,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1500,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 328.2,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 330.56,
+            "unit": "MB"
+          },
           {
             "name": "semaphore_depth_10",
             "value": 69.51,
