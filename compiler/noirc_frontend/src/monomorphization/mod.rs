@@ -1161,6 +1161,7 @@ impl<'interner> Monomorphizer<'interner> {
     /// Note that this will refer to a single constrained or unconstrained version of the given
     /// function, it will never return a tuple of (constrained, unconstrained), but may return a
     /// tuple if the function is a closure.
+    #[allow(clippy::too_many_arguments)]
     fn function_reference(
         &mut self,
         mutable: bool,
@@ -1173,7 +1174,7 @@ impl<'interner> Monomorphizer<'interner> {
     ) -> Result<ast::Expression, MonomorphizationError> {
         let definition =
             self.lookup_function(func_id, expr_id, typ, &generics.unwrap_or_default(), None);
-        let typ = Self::convert_type(&typ, location)?;
+        let typ = Self::convert_type(typ, location)?;
         let location = Some(location);
         let id = self.next_ident_id();
         let ident = ast::Ident { location, mutable, definition, name, typ: typ.clone(), id };
