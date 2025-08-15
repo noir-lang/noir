@@ -43,7 +43,7 @@ fn is_valid_in_abi(typ: &Type) -> bool {
         Type::Field | Type::Bool | Type::String(_) | Type::Integer(_, _) => true,
 
         Type::Array(_, typ) => is_valid_in_abi(typ),
-        Type::Tuple { elements: items, .. } => items.iter().all(is_valid_in_abi),
+        Type::Tuple(items) => items.iter().all(is_valid_in_abi),
     }
 }
 
@@ -60,9 +60,7 @@ fn to_abi_type(typ: &Type) -> AbiType {
         },
         Type::Bool => AbiType::Boolean,
         Type::String(len) => AbiType::String { length: *len },
-        Type::Tuple { elements: items, .. } => {
-            AbiType::Tuple { fields: items.iter().map(to_abi_type).collect() }
-        }
+        Type::Tuple(items) => AbiType::Tuple { fields: items.iter().map(to_abi_type).collect() },
 
         _ => {
             if !is_valid_in_abi(typ) {

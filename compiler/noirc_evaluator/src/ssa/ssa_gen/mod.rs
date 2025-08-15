@@ -168,7 +168,7 @@ impl FunctionContext<'_> {
             Expression::While(while_) => self.codegen_while(while_),
             Expression::If(if_expr) => self.codegen_if(if_expr),
             Expression::Match(match_expr) => self.codegen_match(match_expr),
-            Expression::Tuple { elements, .. } => self.codegen_tuple(elements),
+            Expression::Tuple(tuple) => self.codegen_tuple(tuple),
             Expression::ExtractTupleField(tuple, index) => {
                 self.codegen_extract_tuple_field(tuple, *index)
             }

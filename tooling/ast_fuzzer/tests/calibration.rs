@@ -92,7 +92,7 @@ fn classify(expr: &Expression) -> Option<(&'static str, &'static str)> {
     let cat = match expr {
         Expression::Ident(_)
         | Expression::Cast(_)
-        | Expression::Tuple { .. }
+        | Expression::Tuple(_)
         | Expression::ExtractTupleField(_, _)
         | Expression::Index(_)
         | Expression::Semi(_)

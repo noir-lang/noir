@@ -173,13 +173,7 @@ impl AstPrinter {
             Expression::While(while_) => self.print_while(while_, f),
             Expression::If(if_expr) => self.print_if(if_expr, f),
             Expression::Match(match_expr) => self.print_match(match_expr, f),
-            Expression::Tuple { elements, is_function_runtime_pair } => {
-                if *is_function_runtime_pair {
-                    self.print_expr(&elements[0], f)
-                } else {
-                    self.print_tuple(elements, f)
-                }
-            }
+            Expression::Tuple(tuple) => self.print_tuple(tuple, f),
             Expression::ExtractTupleField(expr, index) => {
                 self.print_expr(expr, f)?;
                 write!(f, ".{index}")

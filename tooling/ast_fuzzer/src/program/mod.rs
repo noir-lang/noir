@@ -498,7 +498,7 @@ impl Context {
                     let types = (0..size)
                         .map(|_| gen_inner_type(self, u, is_slice_allowed))
                         .collect::<Result<Vec<_>, _>>()?;
-                    Type::tuple(types)
+                    Type::Tuple(types)
                 }
                 6 if is_slice_allowed && !self.config.avoid_slices => {
                     let typ = gen_inner_type(self, u, false)?;

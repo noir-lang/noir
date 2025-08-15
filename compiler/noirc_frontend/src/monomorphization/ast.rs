@@ -43,7 +43,7 @@ pub enum Expression {
     While(While),
     If(If),
     Match(Match),
-    Tuple { elements: Vec<Expression>, is_function_runtime_pair: bool },
+    Tuple(Vec<Expression>),
     ExtractTupleField(Box<Expression>, usize),
     Call(Call),
     Let(Let),
@@ -57,15 +57,6 @@ pub enum Expression {
 }
 
 impl Expression {
-    pub fn tuple(elements: Vec<Expression>) -> Expression {
-        Expression::Tuple { elements, is_function_runtime_pair: false }
-    }
-
-    pub fn function_runtime_pair(constrained: Expression, unconstrained: Expression) -> Expression {
-        let elements = vec![constrained, unconstrained];
-        Expression::Tuple { elements, is_function_runtime_pair: true }
-    }
-
     pub fn is_array_or_slice_literal(&self) -> bool {
         matches!(self, Expression::Literal(Literal::Array(_) | Literal::Slice(_)))
     }
@@ -102,13 +93,13 @@ impl Expression {
             Expression::Cast(cast) => borrowed(&cast.r#type),
             Expression::If(if_) => borrowed(&if_.typ),
             Expression::ExtractTupleField(x, idx) => match x.as_ref() {
-                Expression::Tuple { elements: xs, .. } => {
+                Expression::Tuple(xs) => {
                     assert!(xs.len() > *idx, "index out of bounds in tuple return type");
                     xs[*idx].return_type()
                 }
                 x => {
                     let typ = x.return_type()?;
-                    let Type::Tuple { elements: types, .. } = typ.as_ref() else {
+                    let Type::Tuple(types) = typ.as_ref() else {
                         unreachable!("unexpected type for tuple field extraction: {typ}");
                     };
                     assert!(types.len() > *idx, "index out of bounds in tuple return type");
@@ -119,7 +110,7 @@ impl Expression {
             Expression::Call(call) => borrowed(&call.return_type),
             Expression::Match(m) => borrowed(&m.typ),
 
-            Expression::Tuple { elements: xs, .. } => {
+            Expression::Tuple(xs) => {
                 let types = xs
                     .iter()
                     .filter_map(|x| x.return_type())
@@ -128,7 +119,7 @@ impl Expression {
                 if types.len() != xs.len() {
                     return None;
                 }
-                owned(Type::tuple(types))
+                owned(Type::Tuple(types))
             }
 
             Expression::For(_)
@@ -183,9 +174,7 @@ impl Expression {
                     && m.default_case.as_ref().is_none_or(|x| x.needs_type_inference_from_literal())
             }
 
-            Expression::Tuple { elements: xs, .. } => {
-                xs.iter().any(|x| x.needs_type_inference_from_literal())
-            }
+            Expression::Tuple(xs) => xs.iter().any(|x| x.needs_type_inference_from_literal()),
 
             Expression::ExtractTupleField(x, _) => x.needs_type_inference_from_literal(),
 
@@ -515,10 +504,7 @@ pub enum Type {
     String(/*len:*/ u32), // String(4) = str[4]
     FmtString(/*len:*/ u32, Box<Type>),
     Unit,
-    Tuple {
-        elements: Vec<Type>,
-        is_function_runtime_pair: bool,
-    },
+    Tuple(Vec<Type>),
     Slice(Box<Type>),
     Reference(Box<Type>, /*mutable:*/ bool),
     Function(
@@ -530,19 +516,9 @@ pub enum Type {
 }
 
 impl Type {
-    pub fn tuple(elements: Vec<Type>) -> Type {
-        Type::Tuple { elements, is_function_runtime_pair: false }
-    }
-
-    pub fn function_runtime_pair(constrained: Type, unconstrained: Type) -> Type {
-        Type::Tuple { elements: vec![constrained, unconstrained], is_function_runtime_pair: true }
-    }
-
     pub fn flatten(&self) -> Vec<Type> {
         match self {
-            Type::Tuple { elements, .. } => {
-                elements.iter().flat_map(|field| field.flatten()).collect()
-            }
+            Type::Tuple(fields) => fields.iter().flat_map(|field| field.flatten()).collect(),
             _ => vec![self.clone()],
         }
     }
@@ -675,16 +651,13 @@ impl std::fmt::Display for Type {
                 write!(f, "fmtstr<{len}, {elements}>")
             }
             Type::Unit => write!(f, "()"),
-            Type::Tuple { elements, is_function_runtime_pair: false } => {
+            Type::Tuple(elements) => {
                 let elements = vecmap(elements, ToString::to_string);
                 if elements.len() == 1 {
                     write!(f, "({},)", elements[0])
                 } else {
                     write!(f, "({})", elements.join(", "))
                 }
-            }
-            Type::Tuple { elements, is_function_runtime_pair: true } => {
-                write!(f, "{}", &elements[0])
             }
             Type::Function(args, ret, env, unconstrained) => {
                 if *unconstrained {

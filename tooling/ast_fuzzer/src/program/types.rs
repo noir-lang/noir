@@ -20,9 +20,7 @@ pub fn type_depth(typ: &Type) -> usize {
     match typ {
         Type::Field | Type::Bool | Type::String(_) | Type::Unit | Type::Integer(_, _) => 0,
         Type::Array(_, typ) | Type::Slice(typ) => 1 + type_depth(typ),
-        Type::Tuple { elements: types, .. } => {
-            1 + types.iter().map(type_depth).max().unwrap_or_default()
-        }
+        Type::Tuple(types) => 1 + types.iter().map(type_depth).max().unwrap_or_default(),
         Type::Reference(typ, _) => 1 + type_depth(typ.as_ref()),
         _ => unreachable!("unexpected type: {typ}"),
     }
@@ -48,7 +46,7 @@ pub fn can_be_main(typ: &Type) -> bool {
     match typ {
         Type::String(size) => *size > 0,
         Type::Array(size, typ) => *size > 0 && can_be_main(typ),
-        Type::Tuple { elements: types, .. } => types.iter().all(can_be_main),
+        Type::Tuple(types) => types.iter().all(can_be_main),
         Type::Bool | Type::Field | Type::Integer(_, _) => true,
         _ => false,
     }
@@ -56,7 +54,7 @@ pub fn can_be_main(typ: &Type) -> bool {
 
 /// Check if a variable with a given type can be used in a match.
 pub fn can_be_matched(typ: &Type) -> bool {
-    matches!(typ, Type::Unit | Type::Bool | Type::Field | Type::Integer(_, _) | Type::Tuple { .. })
+    matches!(typ, Type::Unit | Type::Bool | Type::Field | Type::Integer(_, _) | Type::Tuple(_))
 }
 
 /// Collect all the sub-types produced by a type.
@@ -85,7 +83,7 @@ pub fn types_produced(typ: &Type) -> HashSet<Type> {
                 // we might generate `[foo[1] as u64, 3u64]` instead of "mapping"
                 // over the entire foo. Same goes for tuples.
             }
-            Type::Tuple { elements: item_types, .. } => {
+            Type::Tuple(item_types) => {
                 for item_type in item_types {
                     visit(acc, item_type);
                 }
@@ -123,9 +121,9 @@ pub fn types_produced(typ: &Type) -> HashSet<Type> {
             }
             Type::Slice(item_type) => {
                 // pop_front -> (T, [T])
-                acc.insert(Type::tuple(vec![item_type.as_ref().clone(), typ.clone()]));
+                acc.insert(Type::Tuple(vec![item_type.as_ref().clone(), typ.clone()]));
                 // pop_back -> ([T], T)
-                acc.insert(Type::tuple(vec![typ.clone(), item_type.as_ref().clone()]));
+                acc.insert(Type::Tuple(vec![typ.clone(), item_type.as_ref().clone()]));
                 visit(acc, item_type);
             }
             Type::Reference(typ, _) => {
@@ -166,9 +164,7 @@ pub fn to_hir_type(typ: &Type) -> hir_def::types::Type {
         }
         Type::String(size) => HirType::String(size_const(*size)),
         Type::Array(size, typ) => HirType::Array(size_const(*size), Box::new(to_hir_type(typ))),
-        Type::Tuple { elements: items, .. } => {
-            HirType::Tuple(items.iter().map(to_hir_type).collect())
-        }
+        Type::Tuple(items) => HirType::Tuple(items.iter().map(to_hir_type).collect()),
         Type::Function(param_types, return_type, env_type, unconstrained) => HirType::Function(
             vecmap(param_types, to_hir_type),
             Box::new(to_hir_type(return_type)),
@@ -235,7 +231,7 @@ pub fn contains_reference(typ: &Type) -> bool {
         | Type::FmtString(_, _)
         | Type::Function(_, _, _, _) => false,
         Type::Array(_, typ) | Type::Slice(typ) => contains_reference(typ),
-        Type::Tuple { elements: types, .. } => types.iter().any(contains_reference),
+        Type::Tuple(types) => types.iter().any(contains_reference),
     }
 }
 
@@ -251,7 +247,7 @@ pub fn contains_slice(typ: &Type) -> bool {
         | Type::FmtString(_, _)
         | Type::Function(_, _, _, _) => false,
         Type::Array(_, typ) | Type::Reference(typ, _) => contains_slice(typ),
-        Type::Tuple { elements: types, .. } => types.iter().any(contains_slice),
+        Type::Tuple(types) => types.iter().any(contains_slice),
     }
 }
 
@@ -261,7 +257,7 @@ pub fn is_printable(typ: &Type) -> bool {
         Type::Reference(_, _) => false,
         Type::Field | Type::Integer(_, _) | Type::String(_) | Type::Bool | Type::Unit => true,
         Type::Slice(typ) | Type::Array(_, typ) | Type::FmtString(_, typ) => is_printable(typ),
-        Type::Tuple { elements: types, .. } => types.iter().all(is_printable),
+        Type::Tuple(types) => types.iter().all(is_printable),
         // Function signatures are printable, although they might differ when we force things to be Brillig.
         Type::Function(_, _, _, _) => true,
     }
