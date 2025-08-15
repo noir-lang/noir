@@ -1,8 +1,8 @@
-use std::collections::BTreeMap;
-
-use super::function_context::{FunctionData, FuzzerFunctionCommand, FuzzerFunctionContext};
-use super::instruction::{FunctionInfo, InstructionBlock};
-use super::options::{FunctionContextOptions, FuzzerMode, FuzzerOptions};
+use super::{
+    function_context::{FunctionData, FuzzerFunctionCommand, FuzzerFunctionContext},
+    instruction::{FunctionInfo, InstructionBlock},
+    options::{FunctionContextOptions, FuzzerMode, FuzzerOptions},
+};
 use acvm::FieldElement;
 use noir_ssa_fuzzer::{
     builder::{FuzzerBuilder, FuzzerBuilderError},
@@ -10,6 +10,7 @@ use noir_ssa_fuzzer::{
 };
 use noirc_driver::CompiledProgram;
 use noirc_evaluator::ssa::ir::{function::Function, map::Id};
+use std::collections::BTreeMap;
 
 struct StoredFunction {
     id: Id<Function>,

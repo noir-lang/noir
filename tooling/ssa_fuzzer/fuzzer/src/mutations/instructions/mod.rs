@@ -4,10 +4,11 @@ mod argument_mutator;
 mod instruction_block_mutator;
 mod instruction_mutator;
 
-use super::basic_types::vec::mutate_vec;
-use super::configuration::BASIC_VEC_MUTATION_CONFIGURATION;
 use crate::fuzz_lib::instruction::InstructionBlock;
-use instruction_block_mutator::instruction_block_mutator;
+use crate::mutations::{
+    basic_types::vec::mutate_vec, configuration::BASIC_VEC_MUTATION_CONFIGURATION,
+    instructions::instruction_block_mutator::instruction_block_mutator,
+};
 use rand::rngs::StdRng;
 
 pub(crate) fn mutate(vec_instruction_block: &mut Vec<InstructionBlock>, rng: &mut StdRng) {

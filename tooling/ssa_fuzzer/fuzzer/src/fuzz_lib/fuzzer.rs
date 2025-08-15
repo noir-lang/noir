@@ -13,17 +13,21 @@
 //!    - If programs return different results
 //!    - If one program fails to compile but the other executes successfully
 
-use super::function_context::{FunctionData, WitnessValue};
-use super::instruction::InstructionBlock;
-use super::options::{FuzzerMode, FuzzerOptions};
-use super::program_context::{FuzzerProgramContext, program_context_by_mode};
-use super::{NUMBER_OF_PREDEFINED_VARIABLES, NUMBER_OF_VARIABLES_INITIAL};
+use super::{
+    NUMBER_OF_PREDEFINED_VARIABLES, NUMBER_OF_VARIABLES_INITIAL,
+    function_context::{FunctionData, WitnessValue},
+    instruction::InstructionBlock,
+    options::{FuzzerMode, FuzzerOptions},
+    program_context::{FuzzerProgramContext, program_context_by_mode},
+};
 use acvm::FieldElement;
 use acvm::acir::native_types::{WitnessMap, WitnessStack};
 use libfuzzer_sys::{arbitrary, arbitrary::Arbitrary};
 use noir_ssa_executor::runner::execute_single;
-use noir_ssa_fuzzer::runner::{CompareResults, run_and_compare};
-use noir_ssa_fuzzer::typed_value::ValueType;
+use noir_ssa_fuzzer::{
+    runner::{CompareResults, run_and_compare},
+    typed_value::ValueType,
+};
 use noirc_driver::CompiledProgram;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};

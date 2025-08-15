@@ -1,12 +1,12 @@
-use super::instruction::{Argument, FunctionInfo, Instruction};
-use super::options::SsaBlockOptions;
+use super::{
+    instruction::{Argument, FunctionInfo, Instruction},
+    options::SsaBlockOptions,
+};
 use noir_ssa_fuzzer::{
     builder::{FuzzerBuilder, InstructionWithOneArg, InstructionWithTwoArgs},
     typed_value::{TypedValue, ValueType},
 };
-use noirc_evaluator::ssa::ir::basic_block::BasicBlockId;
-use noirc_evaluator::ssa::ir::function::Function;
-use noirc_evaluator::ssa::ir::map::Id;
+use noirc_evaluator::ssa::ir::{basic_block::BasicBlockId, function::Function, map::Id};
 use std::collections::{HashMap, VecDeque};
 use std::iter::zip;
 

@@ -4,19 +4,23 @@
 //! 2. Argument mutation
 
 use crate::fuzz_lib::instruction::Instruction;
-use crate::mutations::basic_types::{
-    bool::mutate_bool, usize::mutate_usize, value_type::mutate_value_type, vec::mutate_vec,
+use crate::mutations::{
+    basic_types::{
+        bool::mutate_bool, usize::mutate_usize, value_type::mutate_value_type, vec::mutate_vec,
+    },
+    configuration::{
+        ArrayGetMutationOptions, ArraySetMutationOptions, BASIC_ARRAY_GET_MUTATION_CONFIGURATION,
+        BASIC_ARRAY_SET_MUTATION_CONFIGURATION, BASIC_BOOL_MUTATION_CONFIGURATION,
+        BASIC_CREATE_ARRAY_MUTATION_CONFIGURATION,
+        BASIC_INSTRUCTION_ARGUMENT_MUTATION_CONFIGURATION,
+        BASIC_INSTRUCTION_MUTATION_CONFIGURATION, BASIC_SAFE_INDEX_MUTATION_CONFIGURATION,
+        BASIC_USIZE_MUTATION_CONFIGURATION, BASIC_VALUE_TYPE_MUTATION_CONFIGURATION,
+        BASIC_VEC_MUTATION_CONFIGURATION, CreateArrayMutationOptions,
+        InstructionArgumentMutationOptions, InstructionMutationOptions,
+        SIZE_OF_SMALL_ARBITRARY_BUFFER,
+    },
+    instructions::argument_mutator::argument_mutator,
 };
-use crate::mutations::configuration::{
-    ArrayGetMutationOptions, ArraySetMutationOptions, BASIC_ARRAY_GET_MUTATION_CONFIGURATION,
-    BASIC_ARRAY_SET_MUTATION_CONFIGURATION, BASIC_BOOL_MUTATION_CONFIGURATION,
-    BASIC_CREATE_ARRAY_MUTATION_CONFIGURATION, BASIC_INSTRUCTION_ARGUMENT_MUTATION_CONFIGURATION,
-    BASIC_INSTRUCTION_MUTATION_CONFIGURATION, BASIC_SAFE_INDEX_MUTATION_CONFIGURATION,
-    BASIC_USIZE_MUTATION_CONFIGURATION, BASIC_VALUE_TYPE_MUTATION_CONFIGURATION,
-    BASIC_VEC_MUTATION_CONFIGURATION, CreateArrayMutationOptions,
-    InstructionArgumentMutationOptions, InstructionMutationOptions, SIZE_OF_SMALL_ARBITRARY_BUFFER,
-};
-use crate::mutations::instructions::argument_mutator::argument_mutator;
 use libfuzzer_sys::arbitrary::Unstructured;
 use rand::{Rng, rngs::StdRng};
 

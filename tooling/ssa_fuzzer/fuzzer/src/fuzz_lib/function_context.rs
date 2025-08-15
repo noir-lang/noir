@@ -1,8 +1,9 @@
-use super::NUMBER_OF_VARIABLES_INITIAL;
-use super::block_context::BlockContext;
-use super::instruction::FunctionInfo;
-use super::instruction::InstructionBlock;
-use super::options::{FunctionContextOptions, SsaBlockOptions};
+use super::{
+    NUMBER_OF_VARIABLES_INITIAL,
+    block_context::BlockContext,
+    instruction::{FunctionInfo, InstructionBlock},
+    options::{FunctionContextOptions, SsaBlockOptions},
+};
 use acvm::FieldElement;
 use libfuzzer_sys::arbitrary;
 use libfuzzer_sys::arbitrary::Arbitrary;
@@ -10,12 +11,10 @@ use noir_ssa_fuzzer::{
     builder::FuzzerBuilder,
     typed_value::{TypedValue, ValueType},
 };
-use noirc_evaluator::ssa::ir::basic_block::BasicBlockId;
-use noirc_evaluator::ssa::ir::{function::Function, map::Id};
+use noirc_evaluator::ssa::ir::{basic_block::BasicBlockId, function::Function, map::Id};
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
 use std::{
-    collections::{HashMap, HashSet, VecDeque},
+    collections::{BTreeMap, HashMap, HashSet, VecDeque},
     hash::Hash,
 };
 

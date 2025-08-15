@@ -1,9 +1,10 @@
 //! This file contains mechanisms for deterministically mutating a given [InstructionBlock](crate::fuzz_lib::instruction::InstructionBlock) value
 
 use crate::fuzz_lib::instruction::InstructionBlock;
-use crate::mutations::basic_types::vec::mutate_vec;
-use crate::mutations::configuration::BASIC_VEC_MUTATION_CONFIGURATION;
-use crate::mutations::instructions::instruction_mutator::instruction_mutator;
+use crate::mutations::{
+    basic_types::vec::mutate_vec, configuration::BASIC_VEC_MUTATION_CONFIGURATION,
+    instructions::instruction_mutator::instruction_mutator,
+};
 use rand::rngs::StdRng;
 
 pub(crate) fn instruction_block_mutator(
