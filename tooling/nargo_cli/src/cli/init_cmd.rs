@@ -11,12 +11,19 @@ use std::path::PathBuf;
 /// Create a Noir project in the current directory.
 #[derive(Debug, Clone, Args)]
 pub(crate) struct InitCommand {
-    /// Name of the package [default: current directory name]
-    /// Can be given as a positional argument or via --name.
-    #[clap(value_name = "name", value_parser, required = false)]
-    #[clap(long, allow_hyphen_values = true)]
-    #[clap(index = 1)]
-    pub(crate) name: Option<CrateName>,
+    /// Name of the package as a positional argument
+    ///
+    /// If not provided, defaults to the current directory name.
+    /// Can also be set with the `--name` flag.
+    #[clap(value_name = "name", index = 1, required = false)]
+    pub(crate) name_positional: Option<CrateName>,
+
+    /// Name of the package using --name flag
+    ///
+    /// If not provided, will use the positional argument or
+    /// fall back to the current directory name.
+    #[clap(long, value_name = "name", required = false)]
+    pub(crate) name_flag: Option<CrateName>,
 
     /// Use a library template
     #[arg(long, conflicts_with = "bin", conflicts_with = "contract")]
@@ -36,7 +43,9 @@ const CONTRACT_EXAMPLE: &str = include_str!("./noir_template_files/contract.nr")
 const LIB_EXAMPLE: &str = include_str!("./noir_template_files/library.nr");
 
 pub(crate) fn run(args: InitCommand, config: NargoConfig) -> Result<(), CliError> {
-    let package_name = match args.name {
+    // Use the --name flag if given, else the positional, else default to directory name
+    let package_name = match args.name_flag.or(args.name_positional) {
+        // <-- CHANGED
         Some(name) => name,
         None => {
             let name = config.program_dir.file_name().unwrap().to_str().unwrap();
