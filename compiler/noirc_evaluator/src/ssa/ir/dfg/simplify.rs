@@ -649,13 +649,6 @@ mod tests {
         ";
         let ssa = Ssa::from_str_simplifying(src).unwrap();
 
-        assert_ssa_snapshot!(ssa, @r"
-        acir(inline) predicate_pure fn main f0 {
-          b0():
-            v2 = div i8 94, i8 19807040628566084398385987584
-            v3 = truncate v2 to 8 bits, max_bit_size: 9
-            return v3
-        }
-        ");
+        assert_normalized_ssa_equals(ssa, src);
     }
 }
