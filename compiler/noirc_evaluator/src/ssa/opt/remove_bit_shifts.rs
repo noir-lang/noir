@@ -52,8 +52,6 @@ impl Function {
             let rhs = *rhs;
             let operator = *operator;
 
-            let lhs_type = context.dfg.type_of_value(lhs).unwrap_numeric();
-
             context.remove_current_instruction();
 
             let old_result = *context.dfg.instruction_results(instruction_id).first().unwrap();
@@ -63,12 +61,6 @@ impl Function {
                 bitshift_context.insert_wrapping_shift_left(lhs, rhs)
             } else {
                 bitshift_context.insert_shift_right(lhs, rhs)
-            };
-
-            let new_result = if let NumericType::Signed { bit_size } = lhs_type {
-                bitshift_context.insert_truncate(new_result, bit_size, bit_size + 1)
-            } else {
-                new_result
             };
 
             context.replace_value(old_result, new_result);
@@ -622,15 +614,15 @@ mod tests {
             let ssa = Ssa::from_str(src).unwrap();
             let ssa = ssa.remove_bit_shifts();
             assert_ssa_snapshot!(ssa, @r"
-        acir(inline) fn main f0 {
-          b0(v0: i32):
-            v1 = cast v0 as Field
-            v3 = mul v1, Field 4
-            v4 = truncate v3 to 32 bits, max_bit_size: 34
-            v5 = cast v4 as i32
-            return v5
-        }
-        ");
+            acir(inline) fn main f0 {
+              b0(v0: i32):
+                v1 = cast v0 as Field
+                v3 = mul v1, Field 4
+                v4 = truncate v3 to 32 bits, max_bit_size: 34
+                v5 = cast v4 as i32
+                return v5
+            }
+            ");
         }
 
         #[test]
