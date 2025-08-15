@@ -63,6 +63,16 @@ impl TypedValue {
             Type::Numeric(NumericType::Signed { bit_size: 16 }) => ValueType::I16,
             Type::Numeric(NumericType::Signed { bit_size: 32 }) => ValueType::I32,
             Type::Numeric(NumericType::Signed { bit_size: 64 }) => ValueType::I64,
+            Type::Array(element_types, _) => {
+                // hack
+                // taking the first element type as the array type
+                TypedValue::new(Id::new(0), element_types.first().unwrap().clone()).to_value_type()
+            }
+            Type::Reference(element_type) => {
+                // hack
+                // type of the reference is the type of the element
+                TypedValue::new(Id::new(0), (**element_type).clone()).to_value_type()
+            }
             _ => unreachable!("Not numeric type {}", self.type_of_variable),
         }
     }
