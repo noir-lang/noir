@@ -101,12 +101,12 @@ pub fn gen_literal(
             }
             Expression::Literal(Literal::Slice(arr))
         }
-        Type::Tuple(items) => {
+        Type::Tuple { elements: items, .. } => {
             let mut values = Vec::new();
             for item_type in items {
                 values.push(gen_literal(u, item_type, config)?);
             }
-            Expression::Tuple(values)
+            Expression::tuple(values)
         }
         Type::Reference(typ, mutable) => {
             // In Noir we can return a reference for a value created in a function.

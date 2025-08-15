@@ -108,8 +108,8 @@ where
                 visit_expr_be_mut(case, b, e, i);
             }
         }
-        Expression::Tuple(exprs) => {
-            for expr in exprs.iter_mut() {
+        Expression::Tuple { elements, .. } => {
+            for expr in elements.iter_mut() {
                 visit_expr_be_mut(expr, b, e, i);
             }
         }
@@ -273,8 +273,8 @@ where
                 visit_expr_be(case, b, e, i);
             }
         }
-        Expression::Tuple(exprs) => {
-            for expr in exprs {
+        Expression::Tuple { elements, .. } => {
+            for expr in elements {
                 visit_expr_be(expr, b, e, i);
             }
         }

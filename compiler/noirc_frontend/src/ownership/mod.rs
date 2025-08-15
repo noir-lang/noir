@@ -110,7 +110,7 @@ impl Context {
             Expression::While(while_expr) => self.handle_while(while_expr),
             Expression::If(if_expr) => self.handle_if(if_expr),
             Expression::Match(match_expr) => self.handle_match(match_expr),
-            Expression::Tuple(elements) => self.handle_tuple(elements),
+            Expression::Tuple { elements, .. } => self.handle_tuple(elements),
             Expression::ExtractTupleField(..) => self.handle_extract_expression(expr),
             Expression::Call(call) => self.handle_call(call),
             Expression::Let(let_expr) => self.handle_let(let_expr),
@@ -418,13 +418,13 @@ fn contains_array_or_str_type(typ: &Type) -> bool {
 
         Type::Array(_, _) | Type::String(_) | Type::FmtString(_, _) | Type::Slice(_) => true,
 
-        Type::Tuple(elements) => elements.iter().any(contains_array_or_str_type),
+        Type::Tuple { elements, .. } => elements.iter().any(contains_array_or_str_type),
     }
 }
 
 fn unwrap_tuple_type(typ: Type) -> Option<Vec<Type>> {
     match typ {
-        Type::Tuple(elements) => Some(elements),
+        Type::Tuple { elements, .. } => Some(elements),
         // array accesses will automatically dereference so we do too
         Type::Reference(element, _) => unwrap_tuple_type(*element),
         _ => None,

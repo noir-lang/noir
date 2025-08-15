@@ -505,7 +505,7 @@ impl<'interner> Monomorphizer<'interner> {
                 Literal(FmtStr(
                     fragments,
                     fields.len() as u64,
-                    Box::new(ast::Expression::Tuple(fields)),
+                    Box::new(ast::Expression::tuple(fields)),
                 ))
             }
             HirExpression::Literal(HirLiteral::Bool(value)) => Literal(Bool(value)),
@@ -645,7 +645,7 @@ impl<'interner> Monomorphizer<'interner> {
 
             HirExpression::Tuple(fields) => {
                 let fields = try_vecmap(fields, |id| self.expr(id))?;
-                ast::Expression::Tuple(fields)
+                ast::Expression::tuple(fields)
             }
             HirExpression::Constructor(constructor) => self.constructor(constructor, expr)?,
 
@@ -885,7 +885,7 @@ impl<'interner> Monomorphizer<'interner> {
         });
 
         // Finally we can return the created Tuple from the new block
-        new_exprs.push(ast::Expression::Tuple(field_idents));
+        new_exprs.push(ast::Expression::tuple(field_idents));
         Ok(ast::Expression::Block(new_exprs))
     }
 
@@ -920,7 +920,7 @@ impl<'interner> Monomorphizer<'interner> {
                     Ok(self.zeroed_value_of_type(&typ, location))
                 })
             }?;
-            Ok(ast::Expression::Tuple(fields))
+            Ok(ast::Expression::tuple(fields))
         })?;
 
         let tag_value = FieldElement::from(constructor.variant_index);
@@ -928,7 +928,7 @@ impl<'interner> Monomorphizer<'interner> {
         let tag = ast::Literal::Integer(tag_value, ast::Type::Field, location);
         fields.insert(0, ast::Expression::Literal(tag));
 
-        Ok(ast::Expression::Tuple(fields))
+        Ok(ast::Expression::tuple(fields))
     }
 
     fn block(
@@ -1161,6 +1161,7 @@ impl<'interner> Monomorphizer<'interner> {
     /// Note that this will refer to a single constrained or unconstrained version of the given
     /// function, it will never return a tuple of (constrained, unconstrained), but may return a
     /// tuple if the function is a closure.
+    #[allow(clippy::too_many_arguments)]
     fn function_reference(
         &mut self,
         mutable: bool,
@@ -1173,7 +1174,7 @@ impl<'interner> Monomorphizer<'interner> {
     ) -> Result<ast::Expression, MonomorphizationError> {
         let definition =
             self.lookup_function(func_id, expr_id, typ, &generics.unwrap_or_default(), None);
-        let typ = Self::convert_type(&typ, location)?;
+        let typ = Self::convert_type(typ, location)?;
         let location = Some(location);
         let id = self.next_ident_id();
         let ident = ast::Ident { location, mutable, definition, name, typ: typ.clone(), id };
@@ -1183,7 +1184,7 @@ impl<'interner> Monomorphizer<'interner> {
             let ident_clone = Box::new(ident_expression.clone());
             let function = ast::Expression::ExtractTupleField(ident_clone, 0);
             let env = ast::Expression::ExtractTupleField(Box::new(ident_expression), 1);
-            Ok(ast::Expression::Tuple(vec![function, env]))
+            Ok(ast::Expression::tuple(vec![function, env]))
         } else {
             Ok(ident_expression)
         }
@@ -1425,7 +1426,7 @@ impl<'interner> Monomorphizer<'interner> {
                     })?;
 
                     seen_types.remove(&input_type);
-                    ast::Type::Tuple(fields)
+                    ast::Type::tuple(fields)
                 } else if let Some(variants) = def.get_variants(args) {
                     // Enums are represented as (tag, variant1, variant2, .., variantN)
                     let mut fields = vec![ast::Type::Field];
@@ -1433,10 +1434,10 @@ impl<'interner> Monomorphizer<'interner> {
                         let variant_fields = try_vecmap(variant_fields, |typ| {
                             Self::convert_type_helper(&typ, location, seen_types)
                         })?;
-                        fields.push(ast::Type::Tuple(variant_fields));
+                        fields.push(ast::Type::tuple(variant_fields));
                     }
                     seen_types.remove(&input_type);
-                    ast::Type::Tuple(fields)
+                    ast::Type::tuple(fields)
                 } else {
                     unreachable!("Data type has no body")
                 }
@@ -1455,7 +1456,7 @@ impl<'interner> Monomorphizer<'interner> {
             HirType::Tuple(fields) => {
                 let fields =
                     try_vecmap(fields, |x| Self::convert_type_helper(x, location, seen_types))?;
-                ast::Type::Tuple(fields)
+                ast::Type::tuple(fields)
             }
 
             HirType::Function(args, ret, env, _unconstrained) => {
@@ -1468,7 +1469,7 @@ impl<'interner> Monomorphizer<'interner> {
                     use ast::Type::*;
                     match &env {
                         Unit => Function(args, ret, Box::new(env), is_unconstrained),
-                        Tuple(_) => Tuple(vec![
+                        Tuple { .. } => ast::Type::tuple(vec![
                             env.clone(),
                             Function(args, ret, Box::new(env), is_unconstrained),
                         ]),
@@ -1484,7 +1485,7 @@ impl<'interner> Monomorphizer<'interner> {
                 // a constrained and unconstrained version of the same function.
                 let constrained = make_function(false, args.clone(), ret.clone(), env.clone());
                 let unconstrained = make_function(true, args, ret, env);
-                ast::Type::Tuple(vec![constrained, unconstrained])
+                ast::Type::function_runtime_pair(constrained, unconstrained)
             }
 
             // Lower both mutable & immutable references to the same reference type
@@ -1642,20 +1643,17 @@ impl<'interner> Monomorphizer<'interner> {
     /// containing functions.
     fn is_closure_type(&self, t: &ast::Type) -> bool {
         if let ast::Type::Function(_, _, env, _) = t {
-            matches!(env.as_ref(), ast::Type::Tuple(_captures))
+            matches!(env.as_ref(), ast::Type::Tuple { .. })
         // All functions should be a pair of (constrained, unconstrained), with
         // closures possibly represented in both. So we unpack the tuple and see
         // if `constrained` is also a tuple.
-        } else if let ast::Type::Tuple(elements) = t {
-            if elements.len() == 2 {
-                match &elements[0] {
-                    ast::Type::Tuple(inner_elements) if inner_elements.len() == 2 => {
-                        matches!(inner_elements[1], ast::Type::Function(..))
-                    }
-                    _ => false,
+        } else if let ast::Type::Tuple { elements, is_function_runtime_pair: true } = t {
+            assert_eq!(elements.len(), 2);
+            match &elements[0] {
+                ast::Type::Tuple { elements: inner_elements, .. } if inner_elements.len() == 2 => {
+                    matches!(inner_elements[1], ast::Type::Function(..))
                 }
-            } else {
-                false
+                _ => false,
             }
         } else {
             false
@@ -1751,7 +1749,7 @@ impl<'interner> Monomorphizer<'interner> {
             let unconstrained = f(self)?;
 
             self.in_unconstrained_function = old_value;
-            Ok(ast::Expression::Tuple(vec![constrained, unconstrained]))
+            Ok(ast::Expression::function_runtime_pair(constrained, unconstrained))
         }
     }
 
@@ -2153,7 +2151,7 @@ impl<'interner> Monomorphizer<'interner> {
         let env_local_id = self.next_local_id();
         let env_name = "env";
         let env_tuple =
-            ast::Expression::Tuple(try_vecmap(&lambda.captures, |capture| {
+            ast::Expression::tuple(try_vecmap(&lambda.captures, |capture| {
                 match capture.transitive_capture_index {
                     Some(field_index) => {
                         let lambda_ctx = self.lambda_envs_stack.last().expect(
@@ -2236,7 +2234,7 @@ impl<'interner> Monomorphizer<'interner> {
         self.push_function(id, function);
 
         let lambda_value =
-            ast::Expression::Tuple(vec![ast::Expression::Ident(env_ident), lambda_fn]);
+            ast::Expression::tuple(vec![ast::Expression::Ident(env_ident), lambda_fn]);
         let block_local_id = self.next_local_id();
         let block_ident_name = "closure_variable";
         let block_let_stmt = ast::Expression::Let(ast::Let {
@@ -2253,7 +2251,7 @@ impl<'interner> Monomorphizer<'interner> {
             mutable: false,
             definition: closure_definition,
             name: block_ident_name.to_string(),
-            typ: ast::Type::Tuple(vec![env_typ, lambda_fn_typ]),
+            typ: ast::Type::tuple(vec![env_typ, lambda_fn_typ]),
             id: self.next_ident_id(),
         });
 
@@ -2358,7 +2356,7 @@ impl<'interner> Monomorphizer<'interner> {
             ast::Type::FmtString(length, fields) => {
                 let zeroed_tuple = self.zeroed_value_of_type(fields, location);
                 let fields_len = match &zeroed_tuple {
-                    ast::Expression::Tuple(fields) => fields.len() as u64,
+                    ast::Expression::Tuple { elements, .. } => elements.len() as u64,
                     _ => unreachable!(
                         "ICE: format string fields should be structured in a tuple, but got a {zeroed_tuple}"
                     ),
@@ -2369,9 +2367,11 @@ impl<'interner> Monomorphizer<'interner> {
                     Box::new(zeroed_tuple),
                 ))
             }
-            ast::Type::Tuple(fields) => ast::Expression::Tuple(vecmap(fields, |field| {
-                self.zeroed_value_of_type(field, location)
-            })),
+            ast::Type::Tuple { elements: fields, .. } => {
+                ast::Expression::tuple(vecmap(fields, |field| {
+                    self.zeroed_value_of_type(field, location)
+                }))
+            }
             ast::Type::Function(parameter_types, ret_type, env, unconstrained) => self
                 .create_zeroed_function(parameter_types, ret_type, env, *unconstrained, location),
             ast::Type::Slice(element_type) => {
@@ -2558,7 +2558,7 @@ impl<'interner> Monomorphizer<'interner> {
         // If this is a tuple literal we can simplify directly. This lets us directly see
         // what function we're calling in some cases.
         match function {
-            ast::Expression::Tuple(mut elements) => {
+            ast::Expression::Tuple { mut elements, .. } => {
                 assert_eq!(elements.len(), 2);
                 Ok(elements.remove(index))
             }

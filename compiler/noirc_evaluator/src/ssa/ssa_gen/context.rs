@@ -204,7 +204,7 @@ impl<'a> FunctionContext<'a> {
     // otherwise we cannot move it multiple times each loop of vecmap.
     fn map_type_helper<T>(typ: &ast::Type, f: &mut dyn FnMut(Type) -> T) -> Tree<T> {
         match typ {
-            ast::Type::Tuple(fields) => {
+            ast::Type::Tuple { elements: fields, .. } => {
                 Tree::Branch(vecmap(fields, |field| Self::map_type_helper(field, f)))
             }
             ast::Type::Unit => Tree::empty(),
@@ -219,7 +219,7 @@ impl<'a> FunctionContext<'a> {
                 // then the encapsulated fields themselves
                 let final_fmt_str_fields =
                     vec![ast::Type::String(*len), ast::Type::Field, *fields.clone()];
-                let fmt_str_tuple = ast::Type::Tuple(final_fmt_str_fields);
+                let fmt_str_tuple = ast::Type::tuple(final_fmt_str_fields);
                 Self::map_type_helper(&fmt_str_tuple, f)
             }
             ast::Type::Slice(elements) => {
@@ -260,7 +260,7 @@ impl<'a> FunctionContext<'a> {
                 panic!("convert_non_tuple_type called on a fmt string: {typ}")
             }
             ast::Type::Unit => panic!("convert_non_tuple_type called on a unit type"),
-            ast::Type::Tuple(_) => panic!("convert_non_tuple_type called on a tuple: {typ}"),
+            ast::Type::Tuple { .. } => panic!("convert_non_tuple_type called on a tuple: {typ}"),
             ast::Type::Function(_, _, _, _) => Type::Function,
             ast::Type::Slice(_) => panic!("convert_non_tuple_type called on a slice: {typ}"),
             ast::Type::Reference(element, _) => {

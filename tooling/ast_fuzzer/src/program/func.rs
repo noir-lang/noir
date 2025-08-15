@@ -631,7 +631,7 @@ impl<'a> FunctionContext<'a> {
                     }
                     return Ok(Some((Expression::Literal(Literal::Array(arr)), arr_dyn)));
                 }
-                Type::Tuple(items) => {
+                Type::Tuple { elements: items, .. } => {
                     let mut values = Vec::with_capacity(items.len());
                     let mut tup_dyn = false;
                     for item_type in items {
@@ -640,7 +640,7 @@ impl<'a> FunctionContext<'a> {
                         tup_dyn |= item_dyn;
                         values.push(item);
                     }
-                    return Ok(Some((Expression::Tuple(values), tup_dyn)));
+                    return Ok(Some((Expression::tuple(values), tup_dyn)));
                 }
                 _ => {}
             }
@@ -761,7 +761,7 @@ impl<'a> FunctionContext<'a> {
                     max_depth,
                 )
             }
-            (Type::Slice(item_type), Type::Tuple(fields))
+            (Type::Slice(item_type), Type::Tuple { elements: fields, .. })
                 if fields.len() == 2
                     && &fields[0] == item_type.as_ref()
                     && &fields[1] == src_type =>
@@ -769,7 +769,7 @@ impl<'a> FunctionContext<'a> {
                 let pop_front = self.call_slice_pop(src_expr, src_type.clone(), true);
                 Ok(Some((pop_front, src_dyn)))
             }
-            (Type::Slice(item_type), Type::Tuple(fields))
+            (Type::Slice(item_type), Type::Tuple { elements: fields, .. })
                 if fields.len() == 2
                     && &fields[0] == src_type
                     && &fields[1] == item_type.as_ref() =>
@@ -862,7 +862,7 @@ impl<'a> FunctionContext<'a> {
                 };
                 Ok(Some((expr, is_dyn)))
             }
-            (Type::Tuple(items), _) => {
+            (Type::Tuple { elements: items, .. }, _) => {
                 // Any of the items might be able to produce the target type.
                 let mut opts = Vec::new();
                 for (i, item_type) in items.iter().enumerate() {
@@ -1168,7 +1168,7 @@ impl<'a> FunctionContext<'a> {
                     // (T, [T]) <- pop_front
                     vec![item_type.as_ref().clone(), typ.clone()]
                 };
-                typ = Type::Tuple(fields);
+                typ = Type::tuple(fields);
             }
         }
 
@@ -1327,7 +1327,7 @@ impl<'a> FunctionContext<'a> {
                 lvalue.statements = merge_statements(statements, lvalue.statements);
                 lvalue
             }
-            Type::Tuple(items) if bool::arbitrary(u)? => {
+            Type::Tuple { elements: items, .. } if bool::arbitrary(u)? => {
                 let idx = u.choose_index(items.len())?;
                 let typ = items[idx].clone();
                 let member = LValue::MemberAccess { object: Box::new(lvalue), field_index: idx };
@@ -1820,7 +1820,7 @@ impl<'a> FunctionContext<'a> {
                 // We won't have an exhaustive match with random integers, so we need a default.
                 true
             }
-            Type::Tuple(item_types) => {
+            Type::Tuple { elements: item_types, .. } => {
                 // There is only one case in the AST that we can generate, which is to unpack the tuple
                 // into its constituent fields. The compiler would do this, and then generate further
                 // matches on individual fields. We don't do that here, just make the fields available.
@@ -2138,7 +2138,7 @@ impl<'a> FunctionContext<'a> {
         } else {
             vec![slice_type.clone(), item_type]
         };
-        let return_type = Type::Tuple(fields);
+        let return_type = Type::tuple(fields);
         let func_ident = Ident {
             location: None,
             definition: Definition::Builtin(format!("slice_{name}")),
