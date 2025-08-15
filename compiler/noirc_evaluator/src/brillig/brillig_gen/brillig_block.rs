@@ -1291,7 +1291,12 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 // target_len = source_len + 1
                 self.update_slice_length(target_len, source_len, BrilligBinaryOp::Add);
 
-                self.slice_push_back_operation(target_vector, source_vector, &item_values);
+                self.slice_push_back_operation(
+                    target_vector,
+                    source_len,
+                    source_vector,
+                    &item_values,
+                );
             }
             Value::Intrinsic(Intrinsic::SlicePushFront) => {
                 let target_len = match self.variables.define_variable(
@@ -1317,7 +1322,12 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
 
                 self.update_slice_length(target_len, source_len, BrilligBinaryOp::Add);
 
-                self.slice_push_front_operation(target_vector, source_vector, &item_values);
+                self.slice_push_front_operation(
+                    target_vector,
+                    source_len,
+                    source_vector,
+                    &item_values,
+                );
             }
             Value::Intrinsic(Intrinsic::SlicePopBack) => {
                 let target_len = match self.variables.define_variable(
