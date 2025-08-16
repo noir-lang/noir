@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1755276470765,
+  "lastUpdate": 1755351763584,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18161,48 +18161,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "7d48355fa729a7e3d862e7afb193494c6a9d5aed",
-          "message": "fix: allow constants in the type-system to be negative (#9360)",
-          "timestamp": "2025-07-30T22:16:29Z",
-          "tree_id": "2e07da79552430e7b3c1c7eae4b9ecd1bbffefd9",
-          "url": "https://github.com/noir-lang/noir/commit/7d48355fa729a7e3d862e7afb193494c6a9d5aed"
-        },
-        "date": 1753915447460,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 253575,
-            "range": "± 552",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 229996,
-            "range": "± 3433",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2814643,
-            "range": "± 2251",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "9846e1ebd6264ae33f23195c0aa6ccff6947692f",
           "message": "fix: prevent `SignedField::from(i128::MIN)` from crashing (#9366)",
           "timestamp": "2025-07-31T12:51:08Z",
@@ -20244,6 +20202,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2806430,
             "range": "± 20542",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "9062697bbcefced22184c43998c1f966543e2b6b",
+          "message": "feat: simplify bitshift logic to remove leftover overflow handling (#9506)",
+          "timestamp": "2025-08-16T13:15:18Z",
+          "tree_id": "fc9cc760027688d93de1f91855dd32fbe0fb02cf",
+          "url": "https://github.com/noir-lang/noir/commit/9062697bbcefced22184c43998c1f966543e2b6b"
+        },
+        "date": 1755351745268,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 246238,
+            "range": "± 1849",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 218481,
+            "range": "± 2351",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2775988,
+            "range": "± 2098",
             "unit": "ns/iter"
           }
         ]
