@@ -85,17 +85,17 @@ fn enc<let N: u32>(value: [u8; N], value_length: Field) -> ([u8; 32], Field) {
 
 fn bitshift_literal_0() -> u64 {
     let mut bits: u64 = 0_u64;
-    bits = bits | (1_u64 << 0_u8);
+    bits = bits | (1_u64 << 0_u64);
     bits
 }
 
 fn bitshift_literal_4() -> u64 {
     let mut bits: u64 = 0_u64;
-    bits = bits | (1_u64 << 4_u8);
+    bits = bits | (1_u64 << 4_u64);
     bits
 }
 
-fn bitshift_variable(idx: u8) -> u64 {
+fn bitshift_variable(idx: u64) -> u64 {
     let mut bits: u64 = 0_u64;
     bits = bits | (1_u64 << idx);
     bits
@@ -134,9 +134,9 @@ fn main(x: [u8; 5], z: Field, u: i16, v: i16) {
     assert(result_0 == 1_u64);
     let result_4: u64 = bitshift_literal_4();
     assert(result_4 == 16_u64);
-    let result_0: u64 = bitshift_variable(0_u8);
+    let result_0: u64 = bitshift_variable(0_u64);
     assert(result_0 == 1_u64);
-    let result_4: u64 = bitshift_variable(4_u8);
+    let result_4: u64 = bitshift_variable(4_u64);
     assert(result_4 == 16_u64);
     assert((u % -13_i16) == 0_i16);
     assert((u % v) == 0_i16);

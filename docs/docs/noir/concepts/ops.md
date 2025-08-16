@@ -31,8 +31,8 @@ sidebar_position: 3
 | ^         |              XOR two private input types together              |                  Types must be integer |
 | &         |              AND two private input types together              |                  Types must be integer |
 | \|        |              OR two private input types together               |                  Types must be integer |
-| \<\<        |        Left shift an integer by another integer amount         | Types must be integer, shift must be u8 |
-| >>        |        Right shift an integer by another integer amount        | Types must be integer, shift must be u8 |
+| \<\<        |        Left shift an integer by another integer amount         | Types must be integer                |
+| >>        |        Right shift an integer by another integer amount        | Types must be integer                  |
 | !         |                     Bitwise not of a value                     |        Type must be integer or boolean |
 | \<         |       returns a bool if one value is less than the other       | Upper bound must have a known bit size |
 | \<=        | returns a bool if one value is less than or equal to the other | Upper bound must have a known bit size |
@@ -62,6 +62,10 @@ fn main(x : Field) {
 `&`.
 
 > `x & x` would not compile as `x` is a `Field` and not an integer type.
+
+Bit shifts left: `<<`, or right: `>>` require the right hand side operand to be less that the bit size `s` of the operands type:
+`x << y` or `x >> y` overflow if `x,y` are unsigned and `y >= s`
+`x << y` or `x >> y` overflow if `x,y` are signed and `y >= s-1`
 
 ### Logical Operators
 

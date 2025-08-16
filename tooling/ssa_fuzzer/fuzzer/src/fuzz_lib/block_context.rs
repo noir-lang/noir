@@ -457,39 +457,17 @@ impl BlockContext {
             }
 
             Instruction::CreateArray { elements_indices, element_type, is_references } => {
-                if !self.options.instruction_options.create_array_enabled {
-                    return;
-                }
-                // if we storing references, take values from memory addresses, otherwise from stored variables
-                let elements = if !is_references {
-                    elements_indices
-                        .iter()
-                        .map(|index| {
-                            get_typed_value_from_map(&self.stored_variables, &element_type, *index)
-                        })
-                        .collect::<Option<Vec<TypedValue>>>()
-                } else {
-                    elements_indices
-                        .iter()
-                        .map(|index| {
-                            get_typed_value_from_map(&self.memory_addresses, &element_type, *index)
-                        })
-                        .collect::<Option<Vec<TypedValue>>>()
-                };
-
-                let elements = match elements {
-                    Some(elements) => elements,
+                // insert to both acir and brillig builders
+                let array = match self.insert_array(
+                    acir_builder,
+                    brillig_builder,
+                    elements_indices,
+                    element_type,
+                    is_references,
+                ) {
+                    Some(array) => array,
                     _ => return,
                 };
-                if elements.is_empty() {
-                    return;
-                }
-                // insert to both acir and brillig builders
-                let array = acir_builder.insert_array(elements.clone(), is_references);
-                assert_eq!(
-                    array.value_id,
-                    brillig_builder.insert_array(elements, is_references).value_id,
-                );
                 self.stored_arrays.push(StoredArray {
                     array_id: array,
                     element_type,
@@ -497,90 +475,36 @@ impl BlockContext {
                 });
             }
             Instruction::ArrayGet { array_index, index, safe_index } => {
-                if !self.options.instruction_options.array_get_enabled
-                    || !self.options.instruction_options.create_array_enabled
-                {
-                    return;
-                }
-                if !safe_index && !self.options.instruction_options.unsafe_get_set_enabled {
-                    return;
-                }
-                if self.stored_arrays.is_empty() {
-                    return;
-                }
-                // get the array from the stored arrays
-                let stored_array = self.stored_arrays.get(array_index % self.stored_arrays.len());
-                let stored_array = match stored_array {
-                    Some(stored_array) => stored_array,
-                    _ => return,
-                };
-                // references are not supported for array get with dynamic index
-                if stored_array.is_references {
-                    return;
-                }
-                let array_id = stored_array.array_id.clone();
-                // get the index from the stored variables
-                let index = get_typed_value_from_map(
+                // insert array get to both acir and brillig builders
+                let index = match get_typed_value_from_map(
                     &self.stored_variables,
                     &index.value_type,
                     index.index,
-                );
-                let index = match index {
+                ) {
                     Some(index) => index,
                     _ => return,
                 };
-                // cast the index to u32
-                let index_casted = acir_builder.insert_cast(index.clone(), ValueType::U32);
-                assert_eq!(
-                    index_casted.value_id,
-                    brillig_builder.insert_cast(index.clone(), ValueType::U32).value_id
-                );
-                // insert array get to both acir and brillig builders
-                let value = acir_builder.insert_array_get(
-                    array_id.clone(),
-                    index_casted.clone(),
-                    stored_array.element_type.to_ssa_type(),
+                let value = self.insert_array_get(
+                    acir_builder,
+                    brillig_builder,
+                    array_index,
+                    index,
+                    /*is constant =*/ false,
                     safe_index,
                 );
-                assert_eq!(
-                    value.value_id,
-                    brillig_builder
-                        .insert_array_get(
-                            array_id.clone(),
-                            index_casted.clone(),
-                            stored_array.element_type.to_ssa_type(),
-                            safe_index,
-                        )
-                        .value_id,
-                );
-                append_typed_value_to_map(
-                    &mut self.stored_variables,
-                    &value.to_value_type(),
-                    value.clone(),
-                );
+                if let Some((value, is_references)) = value {
+                    if !is_references {
+                        append_typed_value_to_map(
+                            &mut self.stored_variables,
+                            &value.to_value_type(),
+                            value.clone(),
+                        );
+                    } else {
+                        panic!("References are not supported for array get with dynamic index");
+                    }
+                }
             }
             Instruction::ArraySet { array_index, index, value_index, safe_index } => {
-                if !self.options.instruction_options.array_set_enabled {
-                    return;
-                }
-                if !safe_index && !self.options.instruction_options.unsafe_get_set_enabled {
-                    return;
-                }
-                if self.stored_arrays.is_empty() {
-                    return;
-                }
-                // get the array from the stored arrays
-                let stored_array = self.stored_arrays.get(array_index % self.stored_arrays.len());
-                let stored_array = match stored_array {
-                    Some(stored_array) => stored_array,
-                    _ => return,
-                };
-                // references are not supported for array set with dynamic index
-                if stored_array.is_references {
-                    return;
-                }
-                let array_id = stored_array.array_id.clone();
-
                 // get the index from the stored variables
                 let index = get_typed_value_from_map(
                     &self.stored_variables,
@@ -599,87 +523,57 @@ impl BlockContext {
                 );
 
                 // get the value from the stored variables
-                let value = get_typed_value_from_map(
-                    &self.stored_variables,
-                    &stored_array.element_type,
-                    value_index,
-                );
-                let value = match value {
-                    Some(value) => value,
-                    _ => return,
-                };
+
                 // insert array set to both acir and brillig builders
-                let new_array = acir_builder.insert_array_set(
-                    array_id.clone(),
-                    index_casted.clone(),
-                    value.clone(),
+                let new_array = self.insert_array_set(
+                    acir_builder,
+                    brillig_builder,
+                    array_index,
+                    index_casted,
+                    /*index_is_constant =*/ false,
+                    value_index,
                     safe_index,
                 );
-                assert_eq!(
-                    new_array.value_id,
-                    brillig_builder
-                        .insert_array_set(array_id, index_casted, value, safe_index)
-                        .value_id
-                );
-
-                self.stored_arrays.push(StoredArray {
-                    array_id: new_array,
-                    element_type: stored_array.element_type,
-                    is_references: stored_array.is_references,
-                });
+                if let Some((new_array, is_references)) = new_array {
+                    if is_references {
+                        panic!("References are not supported for array set with dynamic index");
+                    }
+                    self.stored_arrays.push(StoredArray {
+                        array_id: new_array.clone(),
+                        element_type: new_array.to_value_type(),
+                        is_references,
+                    });
+                }
             }
             Instruction::ArrayGetWithConstantIndex { array_index, index, safe_index } => {
-                if !self.options.instruction_options.array_get_enabled
-                    || !self.options.instruction_options.create_array_enabled
-                {
-                    return;
-                }
-                if !safe_index && !self.options.instruction_options.unsafe_get_set_enabled {
-                    return;
-                }
-                if self.stored_arrays.is_empty() {
-                    return;
-                }
-                // get the array from the stored arrays
-                let stored_array = self.stored_arrays.get(array_index % self.stored_arrays.len());
-                let stored_array = match stored_array {
-                    Some(stored_array) => stored_array,
-                    _ => return,
-                };
+                // insert constant index
                 let index_id = acir_builder.insert_constant(index, ValueType::U32);
                 assert_eq!(
                     index_id.value_id,
                     brillig_builder.insert_constant(index, ValueType::U32).value_id
                 );
-                let value = acir_builder.insert_array_get(
-                    stored_array.array_id.clone(),
-                    index_id.clone(),
-                    stored_array.element_type.to_ssa_type(),
+                let value = self.insert_array_get(
+                    acir_builder,
+                    brillig_builder,
+                    array_index,
+                    index_id,
+                    /*is constant =*/ true,
                     safe_index,
                 );
-                assert_eq!(
-                    value.value_id,
-                    brillig_builder
-                        .insert_array_get(
-                            stored_array.array_id.clone(),
-                            index_id.clone(),
-                            stored_array.element_type.to_ssa_type(),
-                            safe_index,
-                        )
-                        .value_id
-                );
-                if !stored_array.is_references {
-                    append_typed_value_to_map(
-                        &mut self.stored_variables,
-                        &value.to_value_type(),
-                        value.clone(),
-                    );
-                } else {
-                    append_typed_value_to_map(
-                        &mut self.memory_addresses,
-                        &value.to_value_type(),
-                        value.clone(),
-                    );
+                if let Some((value, is_references)) = value {
+                    if !is_references {
+                        append_typed_value_to_map(
+                            &mut self.stored_variables,
+                            &value.to_value_type(),
+                            value.clone(),
+                        );
+                    } else {
+                        append_typed_value_to_map(
+                            &mut self.memory_addresses,
+                            &value.to_value_type(),
+                            value.clone(),
+                        );
+                    }
                 }
             }
             Instruction::ArraySetWithConstantIndex {
@@ -688,71 +582,476 @@ impl BlockContext {
                 value_index,
                 safe_index,
             } => {
-                if !self.options.instruction_options.array_set_enabled
-                    || !self.options.instruction_options.create_array_enabled
-                {
-                    return;
-                }
-                if !safe_index && !self.options.instruction_options.unsafe_get_set_enabled {
-                    return;
-                }
-                if self.stored_arrays.is_empty() {
-                    return;
-                }
-                // get the array from the stored arrays
-                let stored_array = self.stored_arrays.get(array_index % self.stored_arrays.len());
-                let stored_array = match stored_array {
-                    Some(stored_array) => stored_array,
-                    _ => return,
-                };
+                // insert constant index
                 let index_id = acir_builder.insert_constant(index, ValueType::U32);
                 assert_eq!(
                     index_id.value_id,
                     brillig_builder.insert_constant(index, ValueType::U32).value_id
                 );
-                // get the value from the stored variables if not references, otherwise from memory addresses
-                let value = if !stored_array.is_references {
-                    get_typed_value_from_map(
-                        &self.stored_variables,
-                        &stored_array.element_type,
-                        value_index,
-                    )
-                } else {
-                    get_typed_value_from_map(
-                        &self.memory_addresses,
-                        &stored_array.element_type,
-                        value_index,
-                    )
-                };
-                let value = match value {
-                    Some(value) => value,
-                    _ => return,
-                };
-                // insert array set to both acir and brillig builders
-                let new_array = acir_builder.insert_array_set(
-                    stored_array.array_id.clone(),
-                    index_id.clone(),
-                    value.clone(),
+                let new_array = self.insert_array_set(
+                    acir_builder,
+                    brillig_builder,
+                    array_index,
+                    index_id,
+                    /*index_is_constant =*/ true,
+                    value_index,
                     safe_index,
                 );
+                if let Some((new_array, is_references)) = new_array {
+                    self.stored_arrays.push(StoredArray {
+                        array_id: new_array.clone(),
+                        element_type: new_array.to_value_type(),
+                        is_references,
+                    });
+                }
+            }
+            Instruction::FieldToBytesToField { field_idx } => {
+                let field =
+                    get_typed_value_from_map(&self.stored_variables, &ValueType::Field, field_idx);
+                let field = match field {
+                    Some(field) => field,
+                    _ => return,
+                };
+                let bytes = acir_builder.insert_to_le_radix(field.clone(), 256, 32);
                 assert_eq!(
-                    new_array.value_id,
-                    brillig_builder
-                        .insert_array_set(
-                            stored_array.array_id.clone(),
-                            index_id,
-                            value,
-                            safe_index,
-                        )
-                        .value_id
+                    bytes.value_id,
+                    brillig_builder.insert_to_le_radix(field.clone(), 256, 32).value_id
+                );
+                let field = acir_builder.insert_from_le_radix(bytes.clone(), 256);
+                assert_eq!(
+                    field.value_id,
+                    brillig_builder.insert_from_le_radix(bytes.clone(), 256).value_id
+                );
+                append_typed_value_to_map(
+                    &mut self.stored_variables,
+                    &field.to_value_type(),
+                    field.clone(),
+                );
+            }
+            Instruction::Blake2sHash { field_idx, limbs_count } => {
+                let input =
+                    get_typed_value_from_map(&self.stored_variables, &ValueType::Field, field_idx);
+                let input = match input {
+                    Some(input) => input,
+                    _ => return,
+                };
+                let bytes = acir_builder.insert_to_le_radix(input.clone(), 256, limbs_count);
+                assert_eq!(
+                    bytes.value_id,
+                    brillig_builder.insert_to_le_radix(input.clone(), 256, limbs_count).value_id
+                );
+                let hash = acir_builder.insert_blake2s_hash(bytes.clone());
+                assert_eq!(
+                    hash.value_id,
+                    brillig_builder.insert_blake2s_hash(bytes.clone()).value_id
+                );
+                let hash_as_field = acir_builder.insert_from_le_radix(hash.clone(), 256);
+                assert_eq!(
+                    hash_as_field.value_id,
+                    brillig_builder.insert_from_le_radix(hash.clone(), 256).value_id
+                );
+                append_typed_value_to_map(
+                    &mut self.stored_variables,
+                    &hash_as_field.to_value_type(),
+                    hash_as_field.clone(),
+                );
+            }
+            Instruction::Blake3Hash { field_idx, limbs_count } => {
+                let input =
+                    get_typed_value_from_map(&self.stored_variables, &ValueType::Field, field_idx);
+                let input = match input {
+                    Some(input) => input,
+                    _ => return,
+                };
+                let bytes = acir_builder.insert_to_le_radix(input.clone(), 256, limbs_count);
+                assert_eq!(
+                    bytes.value_id,
+                    brillig_builder.insert_to_le_radix(input.clone(), 256, limbs_count).value_id
+                );
+                let hash = acir_builder.insert_blake3_hash(bytes.clone());
+                assert_eq!(
+                    hash.value_id,
+                    brillig_builder.insert_blake3_hash(bytes.clone()).value_id
+                );
+                let hash_as_field = acir_builder.insert_from_le_radix(hash.clone(), 256);
+                assert_eq!(
+                    hash_as_field.value_id,
+                    brillig_builder.insert_from_le_radix(hash.clone(), 256).value_id
+                );
+                append_typed_value_to_map(
+                    &mut self.stored_variables,
+                    &hash_as_field.to_value_type(),
+                    hash_as_field.clone(),
+                );
+            }
+            Instruction::Keccakf1600Hash { u64_indices, load_elements_of_array } => {
+                let input = match self.insert_array(
+                    acir_builder,
+                    brillig_builder,
+                    u64_indices.to_vec(),
+                    ValueType::U64,
+                    false,
+                ) {
+                    Some(input) => input,
+                    _ => return,
+                };
+                let hash_array_u64 = acir_builder.insert_keccakf1600_permutation(input.clone());
+                assert_eq!(
+                    hash_array_u64.value_id,
+                    brillig_builder.insert_keccakf1600_permutation(input.clone()).value_id
                 );
                 self.stored_arrays.push(StoredArray {
-                    array_id: new_array,
-                    element_type: stored_array.element_type,
-                    is_references: stored_array.is_references,
+                    array_id: hash_array_u64.clone(),
+                    element_type: ValueType::U64,
+                    is_references: false,
                 });
+                if load_elements_of_array {
+                    for i in 0..25_u32 {
+                        let index = acir_builder.insert_constant(i, ValueType::U32);
+                        assert_eq!(
+                            index.value_id,
+                            brillig_builder.insert_constant(i, ValueType::U32).value_id
+                        );
+                        let value = acir_builder.insert_array_get(
+                            hash_array_u64.clone(),
+                            index.clone(),
+                            ValueType::U64.to_ssa_type(),
+                            false,
+                        );
+                        assert_eq!(
+                            value.value_id,
+                            brillig_builder
+                                .insert_array_get(
+                                    hash_array_u64.clone(),
+                                    index.clone(),
+                                    ValueType::U64.to_ssa_type(),
+                                    false,
+                                )
+                                .value_id
+                        );
+                        append_typed_value_to_map(
+                            &mut self.stored_variables,
+                            &value.to_value_type(),
+                            value.clone(),
+                        );
+                    }
+                }
+            }
+            Instruction::Aes128Encrypt { input_idx, input_limbs_count: _, key_idx, iv_idx } => {
+                let input = match get_typed_value_from_map(
+                    &self.stored_variables,
+                    &ValueType::Field,
+                    input_idx,
+                ) {
+                    Some(input) => input,
+                    _ => return,
+                };
+                let key = match get_typed_value_from_map(
+                    &self.stored_variables,
+                    &ValueType::Field,
+                    key_idx,
+                ) {
+                    Some(key) => key,
+                    _ => return,
+                };
+                let iv = match get_typed_value_from_map(
+                    &self.stored_variables,
+                    &ValueType::Field,
+                    iv_idx,
+                ) {
+                    Some(iv) => iv,
+                    _ => return,
+                };
+                // TODO: input limbs are forced to be 16 rn https://github.com/noir-lang/noir/issues/9477
+                let input_bytes = acir_builder.insert_to_le_radix(input.clone(), 256, 16);
+                assert_eq!(
+                    input_bytes.value_id,
+                    brillig_builder.insert_to_le_radix(input.clone(), 256, 16).value_id
+                );
+                let key_bytes = acir_builder.insert_to_le_radix(key.clone(), 256, 16);
+                assert_eq!(
+                    key_bytes.value_id,
+                    brillig_builder.insert_to_le_radix(key.clone(), 256, 16).value_id
+                );
+                let iv_bytes = acir_builder.insert_to_le_radix(iv.clone(), 256, 16);
+                assert_eq!(
+                    iv_bytes.value_id,
+                    brillig_builder.insert_to_le_radix(iv.clone(), 256, 16).value_id
+                );
+                let encrypted = acir_builder.insert_aes128_encrypt(
+                    input_bytes.clone(),
+                    key_bytes.clone(),
+                    iv_bytes.clone(),
+                );
+                assert_eq!(
+                    encrypted.value_id,
+                    brillig_builder
+                        .insert_aes128_encrypt(input_bytes, key_bytes, iv_bytes)
+                        .value_id
+                );
+                let encrypted_as_field = acir_builder.insert_from_le_radix(encrypted.clone(), 256);
+                assert_eq!(
+                    encrypted_as_field.value_id,
+                    brillig_builder.insert_from_le_radix(encrypted.clone(), 256).value_id
+                );
+                append_typed_value_to_map(
+                    &mut self.stored_variables,
+                    &encrypted_as_field.to_value_type(),
+                    encrypted_as_field.clone(),
+                );
+            }
+            Instruction::Sha256Compression {
+                input_indices,
+                state_indices,
+                load_elements_of_array,
+            } => {
+                let input = match self.insert_array(
+                    acir_builder,
+                    brillig_builder,
+                    input_indices.to_vec(),
+                    ValueType::U32,
+                    false,
+                ) {
+                    Some(input) => input,
+                    _ => return,
+                };
+                let state = match self.insert_array(
+                    acir_builder,
+                    brillig_builder,
+                    state_indices.to_vec(),
+                    ValueType::U32,
+                    false,
+                ) {
+                    Some(state) => state,
+                    _ => return,
+                };
+                let compressed =
+                    acir_builder.insert_sha256_compression(input.clone(), state.clone());
+                assert_eq!(
+                    compressed.value_id,
+                    brillig_builder.insert_sha256_compression(input, state).value_id
+                );
+                self.stored_arrays.push(StoredArray {
+                    array_id: compressed.clone(),
+                    element_type: ValueType::U32,
+                    is_references: false,
+                });
+                if load_elements_of_array {
+                    for i in 0..8_u32 {
+                        let index = acir_builder.insert_constant(i, ValueType::U32);
+                        assert_eq!(
+                            index.value_id,
+                            brillig_builder.insert_constant(i, ValueType::U32).value_id
+                        );
+                        let value = acir_builder.insert_array_get(
+                            compressed.clone(),
+                            index.clone(),
+                            ValueType::U32.to_ssa_type(),
+                            false,
+                        );
+                        assert_eq!(
+                            value.value_id,
+                            brillig_builder
+                                .insert_array_get(
+                                    compressed.clone(),
+                                    index,
+                                    ValueType::U32.to_ssa_type(),
+                                    false
+                                )
+                                .value_id
+                        );
+                        append_typed_value_to_map(
+                            &mut self.stored_variables,
+                            &value.to_value_type(),
+                            value.clone(),
+                        );
+                    }
+                }
             }
         }
+    }
+
+    fn insert_array(
+        &mut self,
+        acir_builder: &mut FuzzerBuilder,
+        brillig_builder: &mut FuzzerBuilder,
+        elements_indices: Vec<usize>,
+        element_type: ValueType,
+        is_references: bool,
+    ) -> Option<TypedValue> {
+        if !self.options.instruction_options.create_array_enabled {
+            return None;
+        }
+        // if we storing references, take values from memory addresses, otherwise from stored variables
+        let elements = if !is_references {
+            elements_indices
+                .iter()
+                .map(|index| {
+                    get_typed_value_from_map(&self.stored_variables, &element_type, *index)
+                })
+                .collect::<Option<Vec<TypedValue>>>()
+        } else {
+            elements_indices
+                .iter()
+                .map(|index| {
+                    get_typed_value_from_map(&self.memory_addresses, &element_type, *index)
+                })
+                .collect::<Option<Vec<TypedValue>>>()
+        };
+
+        let elements = match elements {
+            Some(elements) => elements,
+            _ => return None,
+        };
+        if elements.is_empty() {
+            return None;
+        }
+        let array = acir_builder.insert_array(elements.clone(), is_references);
+        assert_eq!(array.value_id, brillig_builder.insert_array(elements, is_references).value_id);
+        Some(array)
+    }
+
+    /// Inserts an array get instruction
+    ///
+    /// # Arguments
+    ///
+    /// * `array_index` - Index of the array in the stored arrays
+    /// * `index` - Index of the element in the array
+    /// * `index_is_constant` - If true, the index is created from a constant
+    /// * `safe_index` - If true, the index will be taken modulo the array length
+    ///
+    /// # Returns
+    /// * (TypedValue, is_references)
+    /// * None if the instruction is not enabled or the array is not stored
+    fn insert_array_get(
+        &mut self,
+        acir_builder: &mut FuzzerBuilder,
+        brillig_builder: &mut FuzzerBuilder,
+        array_index: usize,
+        index: TypedValue,
+        index_is_constant: bool,
+        safe_index: bool,
+    ) -> Option<(TypedValue, bool)> {
+        if !self.options.instruction_options.array_get_enabled
+            || !self.options.instruction_options.create_array_enabled
+        {
+            return None;
+        }
+        if !safe_index && !self.options.instruction_options.unsafe_get_set_enabled {
+            return None;
+        }
+        if self.stored_arrays.is_empty() {
+            return None;
+        }
+        // get the array from the stored arrays
+        let stored_array = self.stored_arrays.get(array_index % self.stored_arrays.len());
+        let stored_array = match stored_array {
+            Some(stored_array) => stored_array,
+            _ => return None,
+        };
+        // references are not supported for array get with dynamic index
+        if stored_array.is_references && !index_is_constant {
+            return None;
+        }
+        let array_id = stored_array.array_id.clone();
+        // cast the index to u32
+        let index_casted = acir_builder.insert_cast(index.clone(), ValueType::U32);
+        assert_eq!(
+            index_casted.value_id,
+            brillig_builder.insert_cast(index.clone(), ValueType::U32).value_id
+        );
+        let value = acir_builder.insert_array_get(
+            array_id.clone(),
+            index_casted.clone(),
+            stored_array.element_type.to_ssa_type(),
+            safe_index,
+        );
+        assert_eq!(
+            value.value_id,
+            brillig_builder
+                .insert_array_get(
+                    array_id,
+                    index_casted,
+                    stored_array.element_type.to_ssa_type(),
+                    safe_index
+                )
+                .value_id
+        );
+        Some((value, stored_array.is_references))
+    }
+
+    /// Inserts an array set instruction
+    ///
+    /// # Arguments
+    ///
+    /// * `array_index` - Index of the array in the stored arrays
+    /// * `index` - Index of the element in the array
+    /// * `index_is_constant` - If true, the index is created from a constant
+    /// * `safe_index` - If true, the index will be taken modulo the array length
+    ///
+    /// # Returns
+    /// * (TypedValue referencing the new array, is_references)
+    /// * None if the instruction is not enabled or the array is not stored
+    #[allow(clippy::too_many_arguments)] // I don't want this refactoring
+    fn insert_array_set(
+        &mut self,
+        acir_builder: &mut FuzzerBuilder,
+        brillig_builder: &mut FuzzerBuilder,
+        array_index: usize,
+        index: TypedValue,
+        index_is_constant: bool,
+        value_index: usize,
+        safe_index: bool,
+    ) -> Option<(TypedValue, bool)> {
+        if !self.options.instruction_options.array_set_enabled {
+            return None;
+        }
+        if !safe_index && !self.options.instruction_options.unsafe_get_set_enabled {
+            return None;
+        }
+        if self.stored_arrays.is_empty() {
+            return None;
+        }
+        // get the array from the stored arrays
+        let stored_array = self.stored_arrays.get(array_index % self.stored_arrays.len());
+        let stored_array = match stored_array {
+            Some(stored_array) => stored_array,
+            _ => return None,
+        };
+        // references are not supported for array set with dynamic index
+        if stored_array.is_references && !index_is_constant {
+            return None;
+        }
+        let array_id = stored_array.array_id.clone();
+        // get the value from the stored variables if not references, otherwise from memory addresses
+        let value = if !stored_array.is_references {
+            get_typed_value_from_map(
+                &self.stored_variables,
+                &stored_array.element_type,
+                value_index,
+            )
+        } else {
+            get_typed_value_from_map(
+                &self.memory_addresses,
+                &stored_array.element_type,
+                value_index,
+            )
+        };
+        let value = match value {
+            Some(value) => value,
+            _ => return None,
+        };
+        let new_array = acir_builder.insert_array_set(
+            array_id.clone(),
+            index.clone(),
+            value.clone(),
+            safe_index,
+        );
+        assert_eq!(
+            new_array.value_id,
+            brillig_builder.insert_array_set(array_id, index, value, safe_index).value_id
+        );
+        Some((new_array, stored_array.is_references))
     }
 
     pub(crate) fn insert_instructions(

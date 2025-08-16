@@ -1,6 +1,5 @@
 [package]
-name = "comptime_right_shift_no_overflow"
+name = "bit_shifts"
 type = "bin"
 authors = [""]
-
 [dependencies]
