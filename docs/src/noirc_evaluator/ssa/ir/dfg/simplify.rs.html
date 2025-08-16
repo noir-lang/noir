@@ -632,7 +632,27 @@
 <a href="#631" id="631">631</a>
 <a href="#632" id="632">632</a>
 <a href="#633" id="633">633</a>
-<a href="#634" id="634">634</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ssa::{
+<a href="#634" id="634">634</a>
+<a href="#635" id="635">635</a>
+<a href="#636" id="636">636</a>
+<a href="#637" id="637">637</a>
+<a href="#638" id="638">638</a>
+<a href="#639" id="639">639</a>
+<a href="#640" id="640">640</a>
+<a href="#641" id="641">641</a>
+<a href="#642" id="642">642</a>
+<a href="#643" id="643">643</a>
+<a href="#644" id="644">644</a>
+<a href="#645" id="645">645</a>
+<a href="#646" id="646">646</a>
+<a href="#647" id="647">647</a>
+<a href="#648" id="648">648</a>
+<a href="#649" id="649">649</a>
+<a href="#650" id="650">650</a>
+<a href="#651" id="651">651</a>
+<a href="#652" id="652">652</a>
+<a href="#653" id="653">653</a>
+<a href="#654" id="654">654</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ssa::{
     ir::{
         basic_block::BasicBlockId,
         instruction::{
@@ -818,8 +838,10 @@
                         // =&gt; max_quotient_bits = max_numerator_bits - divisor_bits
                         //
                         // In order for the truncation to be a noop, we then require `max_quotient_bits &lt; bit_size`.
-                        </span><span class="kw">let </span>max_quotient_bits = max_numerator_bits - divisor_bits;
-                        <span class="kw">if </span>max_quotient_bits &lt; <span class="kw-2">*</span>bit_size { SimplifiedTo(<span class="kw-2">*</span>value) } <span class="kw">else </span>{ <span class="prelude-val">None </span>}
+                        </span><span class="kw">let </span>numerator_smaller_than_denominator = max_numerator_bits
+                            .checked_sub(divisor_bits)
+                            .is_some_and(|max_quotient_bits| max_quotient_bits &lt; <span class="kw-2">*</span>bit_size);
+                        <span class="kw">if </span>numerator_smaller_than_denominator { SimplifiedTo(<span class="kw-2">*</span>value) } <span class="kw">else </span>{ <span class="prelude-val">None </span>}
                     }
 
                     <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
@@ -1264,6 +1286,24 @@
             return v0
         }
         "#</span>);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>does_not_crash_on_truncated_division_with_large_denominators() {
+        <span class="comment">// There can be invalid division instructions which have extremely large denominators
+        // so we want to make sure that we handle this case when optimizing truncations.
+
+        </span><span class="kw">let </span>src = <span class="string">"
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v0 = div i8 94, i8 19807040628566084398385987584
+            v1 = truncate v0 to 8 bits, max_bit_size: 9
+            return v1
+        }
+        "</span>;
+        <span class="kw">let </span>ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_normalized_ssa_equals(ssa, src);
     }
 }
 </code></pre></div></section></main></body></html>

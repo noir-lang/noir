@@ -905,24 +905,16 @@
 <a href="#904" id="904">904</a>
 <a href="#905" id="905">905</a>
 <a href="#906" id="906">906</a>
-<a href="#907" id="907">907</a>
-<a href="#908" id="908">908</a>
-<a href="#909" id="909">909</a>
-<a href="#910" id="910">910</a>
-<a href="#911" id="911">911</a>
-<a href="#912" id="912">912</a>
-<a href="#913" id="913">913</a>
-<a href="#914" id="914">914</a>
-<a href="#915" id="915">915</a>
-<a href="#916" id="916">916</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, sync::Arc};
+<a href="#907" id="907">907</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, sync::Arc};
 
 <span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
 
 <span class="kw">use </span><span class="kw">crate</span>::ssa::{
     ir::{
-        dfg::InsertInstructionResult,
         function::Function,
-        instruction::{ArrayOffset, Binary, BinaryOp, Endian, Instruction, Intrinsic},
+        instruction::{
+            ArrayOffset, Binary, BinaryOp, ConstrainError, Endian, Instruction, Intrinsic,
+        },
         types::{NumericType, Type},
         value::ValueId,
     },
@@ -971,17 +963,11 @@
 
             <span class="kw">let </span>old_result = <span class="kw-2">*</span>context.dfg.instruction_results(instruction_id).first().unwrap();
 
-            <span class="kw">let </span>bit_size = <span class="kw">match </span>context.dfg.type_of_value(lhs) {
-                Type::Numeric(NumericType::Signed { bit_size })
-                | Type::Numeric(NumericType::Unsigned { bit_size }) =&gt; bit_size,
-                <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"ICE: right-shift attempted on non-integer"</span>),
-            };
-
             <span class="kw">let </span><span class="kw-2">mut </span>bitshift_context = Context { context };
             <span class="kw">let </span>new_result = <span class="kw">if </span>operator == BinaryOp::Shl {
-                bitshift_context.insert_wrapping_shift_left(lhs, rhs, bit_size)
+                bitshift_context.insert_wrapping_shift_left(lhs, rhs)
             } <span class="kw">else </span>{
-                bitshift_context.insert_shift_right(lhs, rhs, bit_size)
+                bitshift_context.insert_shift_right(lhs, rhs)
             };
 
             context.replace_value(old_result, new_result);
@@ -999,51 +985,33 @@
 <span class="kw">impl </span>Context&lt;<span class="lifetime">'_</span>, <span class="lifetime">'_</span>, <span class="lifetime">'_</span>&gt; {
     <span class="doccomment">/// Insert ssa instructions which computes lhs &lt;&lt; rhs by doing lhs*2^rhs
     /// and truncate the result to bit_size
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>insert_wrapping_shift_left(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        lhs: ValueId,
-        rhs: ValueId,
-        bit_size: u32,
-    ) -&gt; ValueId {
-        <span class="kw">let </span>base = <span class="self">self</span>.field_constant(FieldElement::from(<span class="number">2_u128</span>));
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>insert_wrapping_shift_left(<span class="kw-2">&amp;mut </span><span class="self">self</span>, lhs: ValueId, rhs: ValueId) -&gt; ValueId {
         <span class="kw">let </span>typ = <span class="self">self</span>.context.dfg.type_of_value(lhs).unwrap_numeric();
-        <span class="kw">let </span>(max_bit, pow) = <span class="kw">if let </span><span class="prelude-val">Some</span>(rhs_constant) = <span class="self">self</span>.context.dfg.get_numeric_constant(rhs)
-        {
-            <span class="comment">// Happy case is that we know precisely by how many bits the integer will
-            // increase: lhs_bit_size + rhs
-            </span><span class="kw">let </span>bit_shift_size = rhs_constant.to_u128() <span class="kw">as </span>u32;
+        <span class="kw">let </span>max_lhs_bits = <span class="self">self</span>.context.dfg.get_value_max_num_bits(lhs);
+        <span class="kw">let </span>max_bit_shift_size = <span class="self">self</span>.context.dfg.get_numeric_constant(rhs).map_or_else(
+            || {
+                <span class="comment">// If we don't know `rhs`'s value then it could be anything up to the number
+                // of bits in the type, e.g. u32 means shifting by up to 32 bits as otherwise we get overflow.
+                </span><span class="self">self</span>.context.dfg.get_value_max_num_bits(rhs)
+            },
+            |rhs_constant| {
+                <span class="comment">// Happy case is that we know precisely by how many bits we're shifting by.
+                </span>rhs_constant.to_u128() <span class="kw">as </span>u32
+            },
+        );
 
-            <span class="kw">let </span>(rhs_bit_size_pow_2, overflows) = <span class="number">2_u128</span>.overflowing_pow(bit_shift_size);
-            <span class="kw">if </span>overflows {
-                <span class="macro">assert!</span>(bit_size &lt; <span class="number">128</span>, <span class="string">"ICE - shift left with big integers are not supported"</span>);
-                <span class="kw">if </span>bit_size &lt; <span class="number">128 </span>{
-                    <span class="kw">let </span>zero = <span class="self">self</span>.numeric_constant(FieldElement::zero(), typ);
-                    <span class="kw">return </span>InsertInstructionResult::SimplifiedTo(zero).first();
-                }
-            }
-            <span class="kw">let </span>pow = <span class="self">self</span>.field_constant(FieldElement::from(rhs_bit_size_pow_2));
+        <span class="kw">let </span>pow = <span class="self">self</span>.two_pow(rhs);
 
-            <span class="kw">let </span>max_lhs_bits = <span class="self">self</span>.context.dfg.get_value_max_num_bits(lhs);
-            <span class="kw">let </span>max_bit_size = max_lhs_bits + bit_shift_size;
-            <span class="comment">// There is no point trying to truncate to more than the Field size.
-            // A higher `max_lhs_bits` input can come from trying to left-shift a Field.
-            </span><span class="kw">let </span>max_bit_size = max_bit_size.min(NumericType::NativeField.bit_size());
-            (max_bit_size, pow)
-        } <span class="kw">else </span>{
-            <span class="comment">// we use a predicate to nullify the result in case of overflow
-            </span><span class="kw">let </span>bit_size_var = <span class="self">self</span>.numeric_constant(FieldElement::from(bit_size <span class="kw">as </span>u128), typ);
-            <span class="kw">let </span>overflow = <span class="self">self</span>.insert_binary(rhs, BinaryOp::Lt, bit_size_var);
-            <span class="kw">let </span>predicate = <span class="self">self</span>.insert_cast(overflow, NumericType::NativeField);
-            <span class="kw">let </span>pow = <span class="self">self</span>.pow(base, rhs, bit_size.ilog2() + <span class="number">1</span>);
-
-            <span class="comment">// Unchecked mul because `predicate` will be 1 or 0
-            </span>(
-                FieldElement::max_num_bits(),
-                <span class="self">self</span>.insert_binary(predicate, BinaryOp::Mul { unchecked: <span class="bool-val">true </span>}, pow),
-            )
-        };
-
-        <span class="kw">if </span>max_bit &lt;= bit_size {
+        <span class="comment">// We cap the maximum number of bits here to ensure that we don't try and truncate using a
+        // `max_bit_size` greater than what's allowable by the underlying `FieldElement` as this is meaningless.
+        //
+        // If `max_lhs_bits + max_bit_shift_size` were ever to exceed `FieldElement::max_num_bits()`,
+        // then the constraint on `rhs` in `self.two_pow` should be broken.
+        </span><span class="kw">let </span>max_bit = std::cmp::min(
+            max_lhs_bits.checked_add(max_bit_shift_size).unwrap_or(FieldElement::max_num_bits()),
+            FieldElement::max_num_bits(),
+        );
+        <span class="kw">if </span>max_bit &lt;= typ.bit_size() {
             <span class="kw">let </span>pow = <span class="self">self</span>.insert_cast(pow, typ);
             <span class="comment">// Unchecked mul as it can't overflow
             </span><span class="self">self</span>.insert_binary(lhs, BinaryOp::Mul { unchecked: <span class="bool-val">true </span>}, pow)
@@ -1051,7 +1019,7 @@
             <span class="kw">let </span>lhs_field = <span class="self">self</span>.insert_cast(lhs, NumericType::NativeField);
             <span class="comment">// Unchecked mul as this is a wrapping operation that we later truncate
             </span><span class="kw">let </span>result = <span class="self">self</span>.insert_binary(lhs_field, BinaryOp::Mul { unchecked: <span class="bool-val">true </span>}, pow);
-            <span class="kw">let </span>result = <span class="self">self</span>.insert_truncate(result, bit_size, max_bit);
+            <span class="kw">let </span>result = <span class="self">self</span>.insert_truncate(result, typ.bit_size(), max_bit);
             <span class="self">self</span>.insert_cast(result, typ)
         }
     }
@@ -1059,135 +1027,100 @@
     <span class="doccomment">/// Insert ssa instructions which computes lhs &gt;&gt; rhs by doing lhs/2^rhs
     /// For negative signed integers, we do the division on the 1-complement representation of lhs,
     /// before converting back the result to the 2-complement representation.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>insert_shift_right(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        lhs: ValueId,
-        rhs: ValueId,
-        bit_size: u32,
-    ) -&gt; ValueId {
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>insert_shift_right(<span class="kw-2">&amp;mut </span><span class="self">self</span>, lhs: ValueId, rhs: ValueId) -&gt; ValueId {
         <span class="kw">let </span>lhs_typ = <span class="self">self</span>.context.dfg.type_of_value(lhs).unwrap_numeric();
-        <span class="kw">let </span>base = <span class="self">self</span>.field_constant(FieldElement::from(<span class="number">2_u128</span>));
-        <span class="kw">let </span>rhs_typ = <span class="self">self</span>.context.dfg.type_of_value(rhs).unwrap_numeric();
-        <span class="comment">//Check whether rhs is less than the bit_size: if it's not then it will overflow and we will return 0 instead.
-        </span><span class="kw">let </span>bit_size_value = <span class="self">self</span>.numeric_constant(bit_size <span class="kw">as </span>u128, rhs_typ);
-        <span class="kw">let </span>rhs_is_less_than_bit_size = <span class="self">self</span>.insert_binary(rhs, BinaryOp::Lt, bit_size_value);
-        <span class="kw">let </span>rhs_is_less_than_bit_size_with_rhs_typ =
-            <span class="self">self</span>.insert_cast(rhs_is_less_than_bit_size, rhs_typ);
-        <span class="kw">let </span>rhs_is_less_than_bit_size_with_lhs_typ =
-            <span class="self">self</span>.insert_cast(rhs_is_less_than_bit_size, lhs_typ);
-        <span class="comment">// Nullify rhs in case of overflow, to ensure that pow returns a value compatible with lhs
-        </span><span class="kw">let </span>rhs = <span class="self">self</span>.insert_binary(
-            rhs_is_less_than_bit_size_with_rhs_typ,
-            BinaryOp::Mul { unchecked: <span class="bool-val">true </span>},
-            rhs,
-        );
-        <span class="kw">let </span>pow = <span class="self">self</span>.pow(base, rhs, bit_size.ilog2() + <span class="number">1</span>);
+
+        <span class="kw">let </span>pow = <span class="self">self</span>.two_pow(rhs);
         <span class="kw">let </span>pow = <span class="self">self</span>.insert_cast(pow, lhs_typ);
 
-        <span class="kw">if </span>lhs_typ.is_unsigned() {
-            <span class="comment">// unsigned right bit shift is just a normal division
-            </span><span class="kw">let </span>result = <span class="self">self</span>.insert_binary(lhs, BinaryOp::Div, pow);
-            <span class="comment">// In case of overflow, pow is 1, because rhs was nullified, so we return explicitly 0.
-            </span><span class="kw">return </span><span class="self">self</span>.insert_binary(
-                rhs_is_less_than_bit_size_with_lhs_typ,
-                BinaryOp::Mul { unchecked: <span class="bool-val">true </span>},
-                result,
-            );
+        <span class="kw">match </span>lhs_typ {
+            NumericType::Unsigned { .. } =&gt; {
+                <span class="comment">// unsigned right bit shift is just a normal division
+                </span><span class="self">self</span>.insert_binary(lhs, BinaryOp::Div, pow)
+            }
+            NumericType::Signed { bit_size } =&gt; {
+                <span class="comment">// Get the sign of the operand; positive signed operand will just do a division as well
+                </span><span class="kw">let </span>zero =
+                    <span class="self">self</span>.numeric_constant(FieldElement::zero(), NumericType::signed(bit_size));
+                <span class="kw">let </span>lhs_sign = <span class="self">self</span>.insert_binary(lhs, BinaryOp::Lt, zero);
+                <span class="kw">let </span>lhs_sign_as_field = <span class="self">self</span>.insert_cast(lhs_sign, NumericType::NativeField);
+                <span class="kw">let </span>lhs_as_field = <span class="self">self</span>.insert_cast(lhs, NumericType::NativeField);
+                <span class="comment">// For negative numbers, convert to 1-complement using wrapping addition of a + 1
+                // Unchecked add as these are fields
+                </span><span class="kw">let </span>one_complement = <span class="self">self</span>.insert_binary(
+                    lhs_sign_as_field,
+                    BinaryOp::Add { unchecked: <span class="bool-val">true </span>},
+                    lhs_as_field,
+                );
+                <span class="kw">let </span>one_complement = <span class="self">self</span>.insert_truncate(one_complement, bit_size, bit_size + <span class="number">1</span>);
+                <span class="kw">let </span>one_complement =
+                    <span class="self">self</span>.insert_cast(one_complement, NumericType::signed(bit_size));
+                <span class="comment">// Performs the division on the 1-complement (or the operand if positive)
+                </span><span class="kw">let </span>shifted_complement = <span class="self">self</span>.insert_binary(one_complement, BinaryOp::Div, pow);
+                <span class="comment">// Convert back to 2-complement representation if operand is negative
+                </span><span class="kw">let </span>lhs_sign_as_int = <span class="self">self</span>.insert_cast(lhs_sign, lhs_typ);
+
+                <span class="comment">// The requirements for this to underflow are all of these:
+                // - lhs &lt; 0
+                // - ones_complement(lhs) / (2^rhs) == 0
+                // As the upper bit is set for the ones complement of negative numbers we'd need 2^rhs
+                // to be larger than the lhs bitsize for this to overflow.
+                </span><span class="kw">let </span>shifted = <span class="self">self</span>.insert_binary(
+                    shifted_complement,
+                    BinaryOp::Sub { unchecked: <span class="bool-val">true </span>},
+                    lhs_sign_as_int,
+                );
+                <span class="self">self</span>.insert_truncate(shifted, bit_size, bit_size + <span class="number">1</span>)
+            }
+
+            NumericType::NativeField =&gt; <span class="macro">unreachable!</span>(<span class="string">"Bit shifts are disallowed on `Field` type"</span>),
         }
-        <span class="comment">// Get the sign of the operand; positive signed operand will just do a division as well
-        </span><span class="kw">let </span>zero = <span class="self">self</span>.numeric_constant(FieldElement::zero(), NumericType::signed(bit_size));
-        <span class="kw">let </span>lhs_sign = <span class="self">self</span>.insert_binary(lhs, BinaryOp::Lt, zero);
-        <span class="kw">let </span>lhs_sign_as_field = <span class="self">self</span>.insert_cast(lhs_sign, NumericType::NativeField);
-        <span class="kw">let </span>lhs_as_field = <span class="self">self</span>.insert_cast(lhs, NumericType::NativeField);
-        <span class="comment">// For negative numbers, convert to 1-complement using wrapping addition of a + 1
-        // Unchecked add as these are fields
-        </span><span class="kw">let </span>one_complement =
-            <span class="self">self</span>.insert_binary(lhs_sign_as_field, BinaryOp::Add { unchecked: <span class="bool-val">true </span>}, lhs_as_field);
-        <span class="kw">let </span>one_complement = <span class="self">self</span>.insert_truncate(one_complement, bit_size, bit_size + <span class="number">1</span>);
-        <span class="kw">let </span>one_complement = <span class="self">self</span>.insert_cast(one_complement, NumericType::signed(bit_size));
-        <span class="comment">// Performs the division on the 1-complement (or the operand if positive)
-        </span><span class="kw">let </span>shifted_complement = <span class="self">self</span>.insert_binary(one_complement, BinaryOp::Div, pow);
-        <span class="comment">// Convert back to 2-complement representation if operand is negative
-        </span><span class="kw">let </span>lhs_sign_as_int = <span class="self">self</span>.insert_cast(lhs_sign, lhs_typ);
-
-        <span class="comment">// The requirements for this to underflow are all of these:
-        // - lhs &lt; 0
-        // - ones_complement(lhs) / (2^rhs) == 0
-        // As the upper bit is set for the ones complement of negative numbers we'd need 2^rhs
-        // to be larger than the lhs bitsize for this to overflow.
-        </span><span class="kw">let </span>shifted = <span class="self">self</span>.insert_binary(
-            shifted_complement,
-            BinaryOp::Sub { unchecked: <span class="bool-val">true </span>},
-            lhs_sign_as_int,
-        );
-        <span class="kw">let </span>result = <span class="self">self</span>.insert_truncate(shifted, bit_size, bit_size + <span class="number">1</span>);
-
-        <span class="comment">// Returns 0 or -1 in case of overflow:
-        // In  case of overflow, and because rhs was nullified, we need to
-        // return the correct value, which is 0 or -1 depending on the sign of lhs
-
-        // Computes -1, or 0 if lhs is positive: is the expected result if there is an overflow
-        </span><span class="kw">let </span>minus_one = <span class="self">self</span>.numeric_constant(
-            NumericType::Unsigned { bit_size }.max_value().expect(<span class="string">"Invalid bit size"</span>),
-            lhs_typ,
-        );
-        <span class="kw">let </span>minus_one_or_zero =
-            <span class="self">self</span>.insert_binary(minus_one, BinaryOp::Mul { unchecked: <span class="bool-val">true </span>}, lhs_sign_as_int);
-        <span class="comment">// -1, or 0 if lhs is positive or if there is no overflow
-        </span><span class="kw">let </span>one = <span class="self">self</span>.numeric_constant(FieldElement::one(), lhs_typ);
-        <span class="kw">let </span>no_overflow = <span class="self">self</span>.insert_binary(
-            one,
-            BinaryOp::Sub { unchecked: <span class="bool-val">true </span>},
-            rhs_is_less_than_bit_size_with_lhs_typ,
-        );
-        <span class="kw">let </span>minus_one_or_zero =
-            <span class="self">self</span>.insert_binary(minus_one_or_zero, BinaryOp::Mul { unchecked: <span class="bool-val">true </span>}, no_overflow);
-
-        <span class="comment">// predicated result: 0 if overflow, else: result
-        </span><span class="kw">let </span>result = <span class="self">self</span>.insert_binary(
-            rhs_is_less_than_bit_size_with_lhs_typ,
-            BinaryOp::Mul { unchecked: <span class="bool-val">true </span>},
-            result,
-        );
-
-        <span class="comment">// result + minus_one_or_zero gives the expected result in all cases
-        </span><span class="self">self</span>.insert_binary(result, BinaryOp::Add { unchecked: <span class="bool-val">true </span>}, minus_one_or_zero)
     }
 
-    <span class="doccomment">/// Computes lhs^rhs via square&amp;multiply, using the bits decomposition of rhs
+    <span class="doccomment">/// Computes 2^exponent via square&amp;multiply, using the bits decomposition of exponent
     /// Pseudo-code of the computation:
     /// let mut r = 1;
-    /// let rhs_bits = to_bits(rhs);
+    /// let exponent_bits = to_bits(exponent);
     /// for i in 1 .. bit_size + 1 {
     ///     let r_squared = r * r;
-    ///     let b = rhs_bits[bit_size - i];
-    ///     r = (r_squared * lhs * b) + (1 - b) * r_squared;
+    ///     let b = exponent_bits[bit_size - i];
+    ///     r = if b { 2 * r_squared } else { r_squared };
     /// }
-    </span><span class="kw">fn </span>pow(<span class="kw-2">&amp;mut </span><span class="self">self</span>, lhs: ValueId, rhs: ValueId, bit_size: u32) -&gt; ValueId {
+    </span><span class="kw">fn </span>two_pow(<span class="kw-2">&amp;mut </span><span class="self">self</span>, exponent: ValueId) -&gt; ValueId {
+        <span class="comment">// Require that exponent &lt; bit_size, ensuring that `pow` returns a value consistent with `lhs`'s type.
+        </span><span class="self">self</span>.enforce_bitshift_rhs_lt_bit_size(exponent);
+
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(exponent_const) = <span class="self">self</span>.context.dfg.get_numeric_constant(exponent) {
+            <span class="kw">let </span>pow = FieldElement::from(<span class="number">2u32</span>).pow(<span class="kw-2">&amp;</span>exponent_const);
+            <span class="kw">return </span><span class="self">self</span>.numeric_constant(pow, NumericType::NativeField);
+        }
+
         <span class="kw">let </span>to_bits = <span class="self">self</span>.context.dfg.import_intrinsic(Intrinsic::ToBits(Endian::Little));
-        <span class="kw">let </span>result_types = <span class="macro">vec!</span>[Type::Array(Arc::new(<span class="macro">vec!</span>[Type::bool()]), bit_size)];
+        <span class="kw">let </span>max_exponent_bits = <span class="self">self</span>.context.dfg.get_value_max_num_bits(exponent).ilog2() + <span class="number">1</span>;
+        <span class="kw">let </span>result_types = <span class="macro">vec!</span>[Type::Array(Arc::new(<span class="macro">vec!</span>[Type::bool()]), max_exponent_bits)];
 
-        <span class="comment">// A call to ToBits can only be done with a field argument (rhs is always u8 here)
-        </span><span class="kw">let </span>rhs_as_field = <span class="self">self</span>.insert_cast(rhs, NumericType::NativeField);
-        <span class="kw">let </span>rhs_bits = <span class="self">self</span>.insert_call(to_bits, <span class="macro">vec!</span>[rhs_as_field], result_types);
+        <span class="comment">// A call to ToBits can only be done with a field argument (exponent is always u8 here)
+        </span><span class="kw">let </span>exponent_as_field = <span class="self">self</span>.insert_cast(exponent, NumericType::NativeField);
+        <span class="kw">let </span>exponent_bits = <span class="self">self</span>.insert_call(to_bits, <span class="macro">vec!</span>[exponent_as_field], result_types);
 
-        <span class="kw">let </span>rhs_bits = rhs_bits[<span class="number">0</span>];
+        <span class="kw">let </span>exponent_bits = exponent_bits[<span class="number">0</span>];
         <span class="kw">let </span>one = <span class="self">self</span>.field_constant(FieldElement::one());
+        <span class="kw">let </span>two = <span class="self">self</span>.field_constant(FieldElement::from(<span class="number">2u32</span>));
         <span class="kw">let </span><span class="kw-2">mut </span>r = one;
         <span class="comment">// All operations are unchecked as we're acting on Field types (which are always unchecked)
-        </span><span class="kw">for </span>i <span class="kw">in </span><span class="number">1</span>..bit_size + <span class="number">1 </span>{
+        </span><span class="kw">for </span>i <span class="kw">in </span><span class="number">1</span>..max_exponent_bits + <span class="number">1 </span>{
             <span class="kw">let </span>idx = <span class="self">self</span>.numeric_constant(
-                FieldElement::from((bit_size - i) <span class="kw">as </span>i128),
+                FieldElement::from((max_exponent_bits - i) <span class="kw">as </span>i128),
                 NumericType::length_type(),
             );
-            <span class="kw">let </span>b = <span class="self">self</span>.insert_array_get(rhs_bits, idx, Type::bool());
+            <span class="kw">let </span>b = <span class="self">self</span>.insert_array_get(exponent_bits, idx, Type::bool());
             <span class="kw">let </span>not_b = <span class="self">self</span>.insert_not(b);
             <span class="kw">let </span>b = <span class="self">self</span>.insert_cast(b, NumericType::NativeField);
             <span class="kw">let </span>not_b = <span class="self">self</span>.insert_cast(not_b, NumericType::NativeField);
 
             <span class="kw">let </span>r_squared = <span class="self">self</span>.insert_binary(r, BinaryOp::Mul { unchecked: <span class="bool-val">true </span>}, r);
             <span class="kw">let </span>r1 = <span class="self">self</span>.insert_binary(r_squared, BinaryOp::Mul { unchecked: <span class="bool-val">true </span>}, not_b);
-            <span class="kw">let </span>a = <span class="self">self</span>.insert_binary(r_squared, BinaryOp::Mul { unchecked: <span class="bool-val">true </span>}, lhs);
+            <span class="kw">let </span>a = <span class="self">self</span>.insert_binary(r_squared, BinaryOp::Mul { unchecked: <span class="bool-val">true </span>}, two);
             <span class="kw">let </span>r2 = <span class="self">self</span>.insert_binary(a, BinaryOp::Mul { unchecked: <span class="bool-val">true </span>}, b);
             r = <span class="self">self</span>.insert_binary(r1, BinaryOp::Add { unchecked: <span class="bool-val">true </span>}, r2);
         }
@@ -1198,6 +1131,33 @@
         </span>);
 
         r
+    }
+
+    <span class="doccomment">/// Insert constraints ensuring that the right-hand side of a bit-shift operation
+    /// is less than the bit size of the left-hand side.
+    </span><span class="kw">fn </span>enforce_bitshift_rhs_lt_bit_size(<span class="kw-2">&amp;mut </span><span class="self">self</span>, rhs: ValueId) {
+        <span class="kw">let </span>one = <span class="self">self</span>.numeric_constant(FieldElement::one(), NumericType::bool());
+        <span class="kw">let </span>rhs_type = <span class="self">self</span>.context.dfg.type_of_value(rhs);
+
+        <span class="kw">let </span>assert_message = <span class="prelude-val">Some</span>(<span class="string">"attempt to bit-shift with overflow"</span>.to_owned());
+
+        <span class="kw">let </span>(bit_size, bit_size_field) = <span class="kw">match </span>rhs_type {
+            Type::Numeric(NumericType::Unsigned { bit_size }) =&gt; {
+                (bit_size, FieldElement::from(bit_size))
+            }
+            Type::Numeric(NumericType::Signed { bit_size }) =&gt; {
+                <span class="macro">assert!</span>(bit_size &gt; <span class="number">1</span>, <span class="string">"ICE - i1 is not a valid type"</span>);
+
+                (bit_size, FieldElement::from(bit_size - <span class="number">1</span>))
+            }
+            <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"check_shift_overflow called with non-numeric type"</span>),
+        };
+
+        <span class="kw">let </span>unsigned_typ = NumericType::unsigned(bit_size);
+        <span class="kw">let </span>max = <span class="self">self</span>.numeric_constant(bit_size_field, unsigned_typ);
+        <span class="kw">let </span>rhs = <span class="self">self</span>.insert_cast(rhs, unsigned_typ);
+        <span class="kw">let </span>overflow = <span class="self">self</span>.insert_binary(rhs, BinaryOp::Lt, max);
+        <span class="self">self</span>.insert_constrain(overflow, one, assert_message.map(Into::into));
     }
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>field_constant(<span class="kw-2">&amp;mut </span><span class="self">self</span>, constant: FieldElement) -&gt; ValueId {
@@ -1229,6 +1189,16 @@
     /// Returns the result of the instruction.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>insert_not(<span class="kw-2">&amp;mut </span><span class="self">self</span>, rhs: ValueId) -&gt; ValueId {
         <span class="self">self</span>.context.insert_instruction(Instruction::Not(rhs), <span class="prelude-val">None</span>).first()
+    }
+
+    <span class="doccomment">/// Insert a constrain instruction at the end of the current block.
+    </span><span class="kw">fn </span>insert_constrain(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        lhs: ValueId,
+        rhs: ValueId,
+        assert_message: <span class="prelude-ty">Option</span>&lt;ConstrainError&gt;,
+    ) {
+        <span class="self">self</span>.context.insert_instruction(Instruction::Constrain(lhs, rhs, assert_message), <span class="prelude-val">None</span>);
     }
 
     <span class="doccomment">/// Insert a truncate instruction at the end of the current block.
@@ -1347,72 +1317,96 @@
             <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
             <span class="kw">let </span>ssa = ssa.remove_bit_shifts();
 
-            <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
-        acir(inline) fn main f0 {
-          b0(v0: u32, v1: u32):
-            v3 = lt v1, u32 32
-            v4 = cast v3 as Field
-            v5 = cast v1 as Field
-            v7 = call to_le_bits(v5) -&gt; [u1; 6]
-            v9 = array_get v7, index u32 5 -&gt; u1
-            v10 = not v9
-            v11 = cast v9 as Field
-            v12 = cast v10 as Field
-            v14 = mul Field 2, v11
-            v15 = add v12, v14
-            v17 = array_get v7, index u32 4 -&gt; u1
-            v18 = not v17
-            v19 = cast v17 as Field
-            v20 = cast v18 as Field
-            v21 = mul v15, v15
-            v22 = mul v21, v20
-            v23 = mul v21, Field 2
-            v24 = mul v23, v19
-            v25 = add v22, v24
-            v27 = array_get v7, index u32 3 -&gt; u1
-            v28 = not v27
-            v29 = cast v27 as Field
-            v30 = cast v28 as Field
-            v31 = mul v25, v25
-            v32 = mul v31, v30
-            v33 = mul v31, Field 2
-            v34 = mul v33, v29
-            v35 = add v32, v34
-            v37 = array_get v7, index u32 2 -&gt; u1
-            v38 = not v37
-            v39 = cast v37 as Field
-            v40 = cast v38 as Field
-            v41 = mul v35, v35
-            v42 = mul v41, v40
-            v43 = mul v41, Field 2
-            v44 = mul v43, v39
-            v45 = add v42, v44
-            v47 = array_get v7, index u32 1 -&gt; u1
-            v48 = not v47
-            v49 = cast v47 as Field
-            v50 = cast v48 as Field
-            v51 = mul v45, v45
-            v52 = mul v51, v50
-            v53 = mul v51, Field 2
-            v54 = mul v53, v49
-            v55 = add v52, v54
-            v57 = array_get v7, index u32 0 -&gt; u1
-            v58 = not v57
-            v59 = cast v57 as Field
-            v60 = cast v58 as Field
-            v61 = mul v55, v55
-            v62 = mul v61, v60
-            v63 = mul v61, Field 2
-            v64 = mul v63, v59
-            v65 = add v62, v64
-            v66 = mul v4, v65
-            v67 = cast v0 as Field
-            v68 = mul v67, v66
-            v69 = truncate v68 to 32 bits, max_bit_size: 254
-            v70 = cast v69 as u32
-            return v70
+            <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r#"
+            acir(inline) fn main f0 {
+              b0(v0: u32, v1: u32):
+                v3 = lt v1, u32 32
+                constrain v3 == u1 1, "attempt to bit-shift with overflow"
+                v5 = cast v1 as Field
+                v7 = call to_le_bits(v5) -&gt; [u1; 6]
+                v9 = array_get v7, index u32 5 -&gt; u1
+                v10 = not v9
+                v11 = cast v9 as Field
+                v12 = cast v10 as Field
+                v14 = mul Field 2, v11
+                v15 = add v12, v14
+                v17 = array_get v7, index u32 4 -&gt; u1
+                v18 = not v17
+                v19 = cast v17 as Field
+                v20 = cast v18 as Field
+                v21 = mul v15, v15
+                v22 = mul v21, v20
+                v23 = mul v21, Field 2
+                v24 = mul v23, v19
+                v25 = add v22, v24
+                v27 = array_get v7, index u32 3 -&gt; u1
+                v28 = not v27
+                v29 = cast v27 as Field
+                v30 = cast v28 as Field
+                v31 = mul v25, v25
+                v32 = mul v31, v30
+                v33 = mul v31, Field 2
+                v34 = mul v33, v29
+                v35 = add v32, v34
+                v37 = array_get v7, index u32 2 -&gt; u1
+                v38 = not v37
+                v39 = cast v37 as Field
+                v40 = cast v38 as Field
+                v41 = mul v35, v35
+                v42 = mul v41, v40
+                v43 = mul v41, Field 2
+                v44 = mul v43, v39
+                v45 = add v42, v44
+                v47 = array_get v7, index u32 1 -&gt; u1
+                v48 = not v47
+                v49 = cast v47 as Field
+                v50 = cast v48 as Field
+                v51 = mul v45, v45
+                v52 = mul v51, v50
+                v53 = mul v51, Field 2
+                v54 = mul v53, v49
+                v55 = add v52, v54
+                v57 = array_get v7, index u32 0 -&gt; u1
+                v58 = not v57
+                v59 = cast v57 as Field
+                v60 = cast v58 as Field
+                v61 = mul v55, v55
+                v62 = mul v61, v60
+                v63 = mul v61, Field 2
+                v64 = mul v63, v59
+                v65 = add v62, v64
+                v66 = cast v0 as Field
+                v67 = mul v66, v65
+                v68 = truncate v67 to 32 bits, max_bit_size: 64
+                v69 = cast v68 as u32
+                return v69
+            }
+            "#</span>);
         }
-        "</span>);
+
+        <span class="attr">#[test]
+        </span><span class="kw">fn </span>does_not_generate_invalid_truncation_on_overflowing_bitshift() {
+            <span class="comment">// We want to ensure that the `max_bit_size` of the truncation does not exceed the field size.
+            </span><span class="kw">let </span>src = <span class="string">"
+            acir(inline) fn main f0 {
+              b0(v0: u32):
+                v2 = shl v0, u32 255
+                return v2
+            }
+            "</span>;
+            <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+            <span class="kw">let </span>ssa = ssa.remove_bit_shifts();
+            <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r#"
+            acir(inline) fn main f0 {
+              b0(v0: u32):
+                constrain u1 0 == u1 1, "attempt to bit-shift with overflow"
+                v3 = cast v0 as Field
+                v5 = mul v3, Field -7768683996859727954953724731427871339010100868427821011365820555770860666883
+                v6 = truncate v5 to 32 bits, max_bit_size: 254
+                v7 = cast v6 as u32
+                return v7
+            }
+            "#</span>);
         }
 
         <span class="attr">#[test]
@@ -1427,13 +1421,12 @@
             <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
             <span class="kw">let </span>ssa = ssa.remove_bit_shifts();
             <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
-        acir(inline) fn main f0 {
-          b0(v0: u32):
-            v3 = make_array [u1 0, u1 1, u1 0, u1 0, u1 0, u1 0] : [u1; 6]
-            v5 = div v0, u32 4
-            return v5
-        }
-        "</span>);
+            acir(inline) fn main f0 {
+              b0(v0: u32):
+                v2 = div v0, u32 4
+                return v2
+            }
+            "</span>);
         }
 
         <span class="attr">#[test]
@@ -1448,72 +1441,69 @@
             <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
             <span class="kw">let </span>ssa = ssa.remove_bit_shifts();
 
-            <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
-        acir(inline) fn main f0 {
-          b0(v0: u32, v1: u32):
-            v3 = lt v1, u32 32
-            v4 = cast v3 as u32
-            v5 = cast v3 as u32
-            v6 = unchecked_mul v4, v1
-            v7 = cast v6 as Field
-            v9 = call to_le_bits(v7) -&gt; [u1; 6]
-            v11 = array_get v9, index u32 5 -&gt; u1
-            v12 = not v11
-            v13 = cast v11 as Field
-            v14 = cast v12 as Field
-            v16 = mul Field 2, v13
-            v17 = add v14, v16
-            v19 = array_get v9, index u32 4 -&gt; u1
-            v20 = not v19
-            v21 = cast v19 as Field
-            v22 = cast v20 as Field
-            v23 = mul v17, v17
-            v24 = mul v23, v22
-            v25 = mul v23, Field 2
-            v26 = mul v25, v21
-            v27 = add v24, v26
-            v29 = array_get v9, index u32 3 -&gt; u1
-            v30 = not v29
-            v31 = cast v29 as Field
-            v32 = cast v30 as Field
-            v33 = mul v27, v27
-            v34 = mul v33, v32
-            v35 = mul v33, Field 2
-            v36 = mul v35, v31
-            v37 = add v34, v36
-            v39 = array_get v9, index u32 2 -&gt; u1
-            v40 = not v39
-            v41 = cast v39 as Field
-            v42 = cast v40 as Field
-            v43 = mul v37, v37
-            v44 = mul v43, v42
-            v45 = mul v43, Field 2
-            v46 = mul v45, v41
-            v47 = add v44, v46
-            v49 = array_get v9, index u32 1 -&gt; u1
-            v50 = not v49
-            v51 = cast v49 as Field
-            v52 = cast v50 as Field
-            v53 = mul v47, v47
-            v54 = mul v53, v52
-            v55 = mul v53, Field 2
-            v56 = mul v55, v51
-            v57 = add v54, v56
-            v59 = array_get v9, index u32 0 -&gt; u1
-            v60 = not v59
-            v61 = cast v59 as Field
-            v62 = cast v60 as Field
-            v63 = mul v57, v57
-            v64 = mul v63, v62
-            v65 = mul v63, Field 2
-            v66 = mul v65, v61
-            v67 = add v64, v66
-            v68 = cast v67 as u32
-            v69 = div v0, v68
-            v70 = unchecked_mul v5, v69
-            return v70
-        }
-        "</span>);
+            <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r#"
+            acir(inline) fn main f0 {
+              b0(v0: u32, v1: u32):
+                v3 = lt v1, u32 32
+                constrain v3 == u1 1, "attempt to bit-shift with overflow"
+                v5 = cast v1 as Field
+                v7 = call to_le_bits(v5) -&gt; [u1; 6]
+                v9 = array_get v7, index u32 5 -&gt; u1
+                v10 = not v9
+                v11 = cast v9 as Field
+                v12 = cast v10 as Field
+                v14 = mul Field 2, v11
+                v15 = add v12, v14
+                v17 = array_get v7, index u32 4 -&gt; u1
+                v18 = not v17
+                v19 = cast v17 as Field
+                v20 = cast v18 as Field
+                v21 = mul v15, v15
+                v22 = mul v21, v20
+                v23 = mul v21, Field 2
+                v24 = mul v23, v19
+                v25 = add v22, v24
+                v27 = array_get v7, index u32 3 -&gt; u1
+                v28 = not v27
+                v29 = cast v27 as Field
+                v30 = cast v28 as Field
+                v31 = mul v25, v25
+                v32 = mul v31, v30
+                v33 = mul v31, Field 2
+                v34 = mul v33, v29
+                v35 = add v32, v34
+                v37 = array_get v7, index u32 2 -&gt; u1
+                v38 = not v37
+                v39 = cast v37 as Field
+                v40 = cast v38 as Field
+                v41 = mul v35, v35
+                v42 = mul v41, v40
+                v43 = mul v41, Field 2
+                v44 = mul v43, v39
+                v45 = add v42, v44
+                v47 = array_get v7, index u32 1 -&gt; u1
+                v48 = not v47
+                v49 = cast v47 as Field
+                v50 = cast v48 as Field
+                v51 = mul v45, v45
+                v52 = mul v51, v50
+                v53 = mul v51, Field 2
+                v54 = mul v53, v49
+                v55 = add v52, v54
+                v57 = array_get v7, index u32 0 -&gt; u1
+                v58 = not v57
+                v59 = cast v57 as Field
+                v60 = cast v58 as Field
+                v61 = mul v55, v55
+                v62 = mul v61, v60
+                v63 = mul v61, Field 2
+                v64 = mul v63, v59
+                v65 = add v62, v64
+                v66 = cast v65 as u32
+                v67 = div v0, v66
+                return v67
+            }
+            "#</span>);
         }
     }
 
@@ -1554,72 +1544,72 @@
             <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
             <span class="kw">let </span>ssa = ssa.remove_bit_shifts();
 
-            <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
-        acir(inline) fn main f0 {
-          b0(v0: i32, v1: i32):
-            v3 = lt v1, i32 32
-            v4 = cast v3 as Field
-            v5 = cast v1 as Field
-            v7 = call to_le_bits(v5) -&gt; [u1; 6]
-            v9 = array_get v7, index u32 5 -&gt; u1
-            v10 = not v9
-            v11 = cast v9 as Field
-            v12 = cast v10 as Field
-            v14 = mul Field 2, v11
-            v15 = add v12, v14
-            v17 = array_get v7, index u32 4 -&gt; u1
-            v18 = not v17
-            v19 = cast v17 as Field
-            v20 = cast v18 as Field
-            v21 = mul v15, v15
-            v22 = mul v21, v20
-            v23 = mul v21, Field 2
-            v24 = mul v23, v19
-            v25 = add v22, v24
-            v27 = array_get v7, index u32 3 -&gt; u1
-            v28 = not v27
-            v29 = cast v27 as Field
-            v30 = cast v28 as Field
-            v31 = mul v25, v25
-            v32 = mul v31, v30
-            v33 = mul v31, Field 2
-            v34 = mul v33, v29
-            v35 = add v32, v34
-            v37 = array_get v7, index u32 2 -&gt; u1
-            v38 = not v37
-            v39 = cast v37 as Field
-            v40 = cast v38 as Field
-            v41 = mul v35, v35
-            v42 = mul v41, v40
-            v43 = mul v41, Field 2
-            v44 = mul v43, v39
-            v45 = add v42, v44
-            v47 = array_get v7, index u32 1 -&gt; u1
-            v48 = not v47
-            v49 = cast v47 as Field
-            v50 = cast v48 as Field
-            v51 = mul v45, v45
-            v52 = mul v51, v50
-            v53 = mul v51, Field 2
-            v54 = mul v53, v49
-            v55 = add v52, v54
-            v57 = array_get v7, index u32 0 -&gt; u1
-            v58 = not v57
-            v59 = cast v57 as Field
-            v60 = cast v58 as Field
-            v61 = mul v55, v55
-            v62 = mul v61, v60
-            v63 = mul v61, Field 2
-            v64 = mul v63, v59
-            v65 = add v62, v64
-            v66 = mul v4, v65
-            v67 = cast v0 as Field
-            v68 = mul v67, v66
-            v69 = truncate v68 to 32 bits, max_bit_size: 254
-            v70 = cast v69 as i32
-            return v70
-        }
-        "</span>);
+            <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r#"
+            acir(inline) fn main f0 {
+              b0(v0: i32, v1: i32):
+                v2 = cast v1 as u32
+                v4 = lt v2, u32 31
+                constrain v4 == u1 1, "attempt to bit-shift with overflow"
+                v6 = cast v1 as Field
+                v8 = call to_le_bits(v6) -&gt; [u1; 6]
+                v10 = array_get v8, index u32 5 -&gt; u1
+                v11 = not v10
+                v12 = cast v10 as Field
+                v13 = cast v11 as Field
+                v15 = mul Field 2, v12
+                v16 = add v13, v15
+                v18 = array_get v8, index u32 4 -&gt; u1
+                v19 = not v18
+                v20 = cast v18 as Field
+                v21 = cast v19 as Field
+                v22 = mul v16, v16
+                v23 = mul v22, v21
+                v24 = mul v22, Field 2
+                v25 = mul v24, v20
+                v26 = add v23, v25
+                v28 = array_get v8, index u32 3 -&gt; u1
+                v29 = not v28
+                v30 = cast v28 as Field
+                v31 = cast v29 as Field
+                v32 = mul v26, v26
+                v33 = mul v32, v31
+                v34 = mul v32, Field 2
+                v35 = mul v34, v30
+                v36 = add v33, v35
+                v38 = array_get v8, index u32 2 -&gt; u1
+                v39 = not v38
+                v40 = cast v38 as Field
+                v41 = cast v39 as Field
+                v42 = mul v36, v36
+                v43 = mul v42, v41
+                v44 = mul v42, Field 2
+                v45 = mul v44, v40
+                v46 = add v43, v45
+                v48 = array_get v8, index u32 1 -&gt; u1
+                v49 = not v48
+                v50 = cast v48 as Field
+                v51 = cast v49 as Field
+                v52 = mul v46, v46
+                v53 = mul v52, v51
+                v54 = mul v52, Field 2
+                v55 = mul v54, v50
+                v56 = add v53, v55
+                v58 = array_get v8, index u32 0 -&gt; u1
+                v59 = not v58
+                v60 = cast v58 as Field
+                v61 = cast v59 as Field
+                v62 = mul v56, v56
+                v63 = mul v62, v61
+                v64 = mul v62, Field 2
+                v65 = mul v64, v60
+                v66 = add v63, v65
+                v67 = cast v0 as Field
+                v68 = mul v67, v66
+                v69 = truncate v68 to 32 bits, max_bit_size: 64
+                v70 = cast v69 as i32
+                return v70
+            }
+            "#</span>);
         }
 
         <span class="attr">#[test]
@@ -1634,23 +1624,21 @@
             <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
             <span class="kw">let </span>ssa = ssa.remove_bit_shifts();
             <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
-        acir(inline) fn main f0 {
-          b0(v0: i32):
-            v3 = make_array [u1 0, u1 1, u1 0, u1 0, u1 0, u1 0] : [u1; 6]
-            v5 = lt v0, i32 0
-            v6 = cast v5 as Field
-            v7 = cast v0 as Field
-            v8 = add v6, v7
-            v9 = truncate v8 to 32 bits, max_bit_size: 33
-            v10 = cast v9 as i32
-            v12 = div v10, i32 4
-            v13 = cast v5 as i32
-            v14 = unchecked_sub v12, v13
-            v15 = truncate v14 to 32 bits, max_bit_size: 33
-            v17 = unchecked_mul i32 4294967295, v13
-            return v15
-        }
-        "</span>);
+            acir(inline) fn main f0 {
+              b0(v0: i32):
+                v2 = lt v0, i32 0
+                v3 = cast v2 as Field
+                v4 = cast v0 as Field
+                v5 = add v3, v4
+                v6 = truncate v5 to 32 bits, max_bit_size: 33
+                v7 = cast v6 as i32
+                v9 = div v7, i32 4
+                v10 = cast v2 as i32
+                v11 = unchecked_sub v9, v10
+                v12 = truncate v11 to 32 bits, max_bit_size: 33
+                return v12
+            }
+            "</span>);
         }
 
         <span class="attr">#[test]
@@ -1665,85 +1653,79 @@
             <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
             <span class="kw">let </span>ssa = ssa.remove_bit_shifts();
 
-            <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
-        acir(inline) fn main f0 {
-          b0(v0: i32, v1: i32):
-            v3 = lt v1, i32 32
-            v4 = cast v3 as i32
-            v5 = cast v3 as i32
-            v6 = unchecked_mul v4, v1
-            v7 = cast v6 as Field
-            v9 = call to_le_bits(v7) -&gt; [u1; 6]
-            v11 = array_get v9, index u32 5 -&gt; u1
-            v12 = not v11
-            v13 = cast v11 as Field
-            v14 = cast v12 as Field
-            v16 = mul Field 2, v13
-            v17 = add v14, v16
-            v19 = array_get v9, index u32 4 -&gt; u1
-            v20 = not v19
-            v21 = cast v19 as Field
-            v22 = cast v20 as Field
-            v23 = mul v17, v17
-            v24 = mul v23, v22
-            v25 = mul v23, Field 2
-            v26 = mul v25, v21
-            v27 = add v24, v26
-            v29 = array_get v9, index u32 3 -&gt; u1
-            v30 = not v29
-            v31 = cast v29 as Field
-            v32 = cast v30 as Field
-            v33 = mul v27, v27
-            v34 = mul v33, v32
-            v35 = mul v33, Field 2
-            v36 = mul v35, v31
-            v37 = add v34, v36
-            v39 = array_get v9, index u32 2 -&gt; u1
-            v40 = not v39
-            v41 = cast v39 as Field
-            v42 = cast v40 as Field
-            v43 = mul v37, v37
-            v44 = mul v43, v42
-            v45 = mul v43, Field 2
-            v46 = mul v45, v41
-            v47 = add v44, v46
-            v49 = array_get v9, index u32 1 -&gt; u1
-            v50 = not v49
-            v51 = cast v49 as Field
-            v52 = cast v50 as Field
-            v53 = mul v47, v47
-            v54 = mul v53, v52
-            v55 = mul v53, Field 2
-            v56 = mul v55, v51
-            v57 = add v54, v56
-            v59 = array_get v9, index u32 0 -&gt; u1
-            v60 = not v59
-            v61 = cast v59 as Field
-            v62 = cast v60 as Field
-            v63 = mul v57, v57
-            v64 = mul v63, v62
-            v65 = mul v63, Field 2
-            v66 = mul v65, v61
-            v67 = add v64, v66
-            v68 = cast v67 as i32
-            v70 = lt v0, i32 0
-            v71 = cast v70 as Field
-            v72 = cast v0 as Field
-            v73 = add v71, v72
-            v74 = truncate v73 to 32 bits, max_bit_size: 33
-            v75 = cast v74 as i32
-            v76 = div v75, v68
-            v77 = cast v70 as i32
-            v78 = unchecked_sub v76, v77
-            v79 = truncate v78 to 32 bits, max_bit_size: 33
-            v81 = unchecked_mul i32 4294967295, v77
-            v83 = unchecked_sub i32 1, v5
-            v84 = unchecked_mul v81, v83
-            v85 = unchecked_mul v5, v79
-            v86 = unchecked_add v85, v84
-            return v86
-        }
-        "</span>);
+            <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r#"
+            acir(inline) fn main f0 {
+              b0(v0: i32, v1: i32):
+                v2 = cast v1 as u32
+                v4 = lt v2, u32 31
+                constrain v4 == u1 1, "attempt to bit-shift with overflow"
+                v6 = cast v1 as Field
+                v8 = call to_le_bits(v6) -&gt; [u1; 6]
+                v10 = array_get v8, index u32 5 -&gt; u1
+                v11 = not v10
+                v12 = cast v10 as Field
+                v13 = cast v11 as Field
+                v15 = mul Field 2, v12
+                v16 = add v13, v15
+                v18 = array_get v8, index u32 4 -&gt; u1
+                v19 = not v18
+                v20 = cast v18 as Field
+                v21 = cast v19 as Field
+                v22 = mul v16, v16
+                v23 = mul v22, v21
+                v24 = mul v22, Field 2
+                v25 = mul v24, v20
+                v26 = add v23, v25
+                v28 = array_get v8, index u32 3 -&gt; u1
+                v29 = not v28
+                v30 = cast v28 as Field
+                v31 = cast v29 as Field
+                v32 = mul v26, v26
+                v33 = mul v32, v31
+                v34 = mul v32, Field 2
+                v35 = mul v34, v30
+                v36 = add v33, v35
+                v38 = array_get v8, index u32 2 -&gt; u1
+                v39 = not v38
+                v40 = cast v38 as Field
+                v41 = cast v39 as Field
+                v42 = mul v36, v36
+                v43 = mul v42, v41
+                v44 = mul v42, Field 2
+                v45 = mul v44, v40
+                v46 = add v43, v45
+                v48 = array_get v8, index u32 1 -&gt; u1
+                v49 = not v48
+                v50 = cast v48 as Field
+                v51 = cast v49 as Field
+                v52 = mul v46, v46
+                v53 = mul v52, v51
+                v54 = mul v52, Field 2
+                v55 = mul v54, v50
+                v56 = add v53, v55
+                v58 = array_get v8, index u32 0 -&gt; u1
+                v59 = not v58
+                v60 = cast v58 as Field
+                v61 = cast v59 as Field
+                v62 = mul v56, v56
+                v63 = mul v62, v61
+                v64 = mul v62, Field 2
+                v65 = mul v64, v60
+                v66 = add v63, v65
+                v67 = cast v66 as i32
+                v69 = lt v0, i32 0
+                v70 = cast v69 as Field
+                v71 = cast v0 as Field
+                v72 = add v70, v71
+                v73 = truncate v72 to 32 bits, max_bit_size: 33
+                v74 = cast v73 as i32
+                v75 = div v74, v67
+                v76 = cast v69 as i32
+                v77 = unchecked_sub v75, v76
+                v78 = truncate v77 to 32 bits, max_bit_size: 33
+                return v78
+            }
+            "#</span>);
         }
     }
 
@@ -1752,7 +1734,6 @@
         <span class="kw">let </span>src = <span class="string">r#"
         acir(inline) predicate_pure fn main f0 {
           b0():
-            constrain u1 0 == u1 1, "attempt to bit-shift with overflow"
             v4 = shr u8 1, u8 98
             v6 = eq v4, u8 0
             jmpif v6 then: b7, else: b8
@@ -1795,15 +1776,15 @@
         acir(inline) predicate_pure fn main f0 {
           b0():
             constrain u1 0 == u1 1, "attempt to bit-shift with overflow"
-            v2 = make_array [u1 0, u1 0, u1 0, u1 0] : [u1; 4]
-            v4 = eq u8 0, u8 0
-            jmpif v4 then: b7, else: b8
+            v4 = div u8 1, u8 0
+            v5 = eq v4, u8 0
+            jmpif v5 then: b7, else: b8
           b1():
             jmp b3()
           b2():
             jmp b3()
           b3():
-            v9 = eq u8 0, u8 1
+            v9 = eq v7, u8 1
             jmpif v9 then: b4, else: b5
           b4():
             jmp b6()
@@ -1816,15 +1797,16 @@
           b8():
             jmp b9()
           b9():
-            v6 = eq u8 0, u8 1
+            v6 = eq v4, u8 1
             jmpif v6 then: b10, else: b11
           b10():
             jmp b12()
           b11():
             jmp b12()
           b12():
-            v7 = make_array [u1 0, u1 0, u1 0, u1 0] : [u1; 4]
-            v8 = eq u8 0, u8 0
+            constrain u1 0 == u1 1, "attempt to bit-shift with overflow"
+            v7 = div u8 1, u8 0
+            v8 = eq v7, u8 0
             jmpif v8 then: b1, else: b2
         }
         "#</span>);
