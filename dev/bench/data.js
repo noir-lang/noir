@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1755356835430,
+  "lastUpdate": 1755357295814,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3758,40 +3758,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "9846e1ebd6264ae33f23195c0aa6ccff6947692f",
-          "message": "fix: prevent `SignedField::from(i128::MIN)` from crashing (#9366)",
-          "timestamp": "2025-07-31T12:51:08Z",
-          "tree_id": "8e6a7502d11bc83d71fc616926b1d7a4e993b087",
-          "url": "https://github.com/noir-lang/noir/commit/9846e1ebd6264ae33f23195c0aa6ccff6947692f"
-        },
-        "date": 1753967936328,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.778,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 1.603,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jfecher11@gmail.com",
             "name": "jfecher",
             "username": "jfecher"
@@ -7501,6 +7467,90 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 1.663,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "18f8faf3fcd156c152050fa09bba6e575fd01605",
+          "message": "chore: redo typo PR by Daulox92 (#9529)",
+          "timestamp": "2025-08-16T16:04:29+01:00",
+          "tree_id": "b7852354f3d9ef47668570b6bf63e7d367589e17",
+          "url": "https://github.com/noir-lang/noir/commit/18f8faf3fcd156c152050fa09bba6e575fd01605"
+        },
+        "date": 1755357278711,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1.696,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 7.746,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.33,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 15.64,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 13.4,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 20.3,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 190,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 194,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.318,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.44,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.772,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 1.722,
             "unit": "s"
           }
         ]
