@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1755352569337,
+  "lastUpdate": 1755352572160,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -10862,40 +10862,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "7d48355fa729a7e3d862e7afb193494c6a9d5aed",
-          "message": "fix: allow constants in the type-system to be negative (#9360)",
-          "timestamp": "2025-07-30T22:16:29Z",
-          "tree_id": "2e07da79552430e7b3c1c7eae4b9ecd1bbffefd9",
-          "url": "https://github.com/noir-lang/noir/commit/7d48355fa729a7e3d862e7afb193494c6a9d5aed"
-        },
-        "date": 1753915604777,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore_depth_10",
-            "value": 69.46,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 54.95,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "9846e1ebd6264ae33f23195c0aa6ccff6947692f",
           "message": "fix: prevent `SignedField::from(i128::MIN)` from crashing (#9366)",
           "timestamp": "2025-07-31T12:51:08Z",
@@ -14095,6 +14061,80 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/12465f3ae45cdbd96531889e9420ad02254e17f9"
         },
         "date": 1755276452241,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 206.74,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 243.56,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 195.97,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 500.28,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 432.92,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1500,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 328.22,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 330.57,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 69.53,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 55.02,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "9062697bbcefced22184c43998c1f966543e2b6b",
+          "message": "feat: simplify bitshift logic to remove leftover overflow handling (#9506)",
+          "timestamp": "2025-08-16T13:15:18Z",
+          "tree_id": "fc9cc760027688d93de1f91855dd32fbe0fb02cf",
+          "url": "https://github.com/noir-lang/noir/commit/9062697bbcefced22184c43998c1f966543e2b6b"
+        },
+        "date": 1755352551407,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
