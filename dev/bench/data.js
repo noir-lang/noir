@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1755538950969,
+  "lastUpdate": 1755539310873,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -7910,40 +7910,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "2d3a30432debb5bc7c7ed0780103480e00c518c7",
-          "message": "fix(ssa): Do not check ArrayGet/Set as unreachable for Brillig (#9376)",
-          "timestamp": "2025-08-01T17:59:37Z",
-          "tree_id": "db2c95833c7f442038abc4b5e45d95d5ce20b8a9",
-          "url": "https://github.com/noir-lang/noir/commit/2d3a30432debb5bc7c7ed0780103480e00c518c7"
-        },
-        "date": 1754072811518,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.019,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 0.098,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -11403,6 +11369,80 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 0.095,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "499e5cab6be0476e83554048724ca2d638b26c1b",
+          "message": "chore: move foreign call integration tests into proper integration test files (#9543)",
+          "timestamp": "2025-08-18T17:16:36Z",
+          "tree_id": "7030ab3c07ff4a956c21a868ea81c99140ce81aa",
+          "url": "https://github.com/noir-lang/noir/commit/499e5cab6be0476e83554048724ca2d638b26c1b"
+        },
+        "date": 1755539293311,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.015,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.155,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.01,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.264,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.16,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 13.4,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.002,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.004,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.019,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 0.102,
             "unit": "s"
           }
         ]
