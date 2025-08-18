@@ -3,5 +3,5 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 fn main(a: u8, b: u8) {
-    let h: u64 = ((a as u64) >> b) % (11912905567223247326_u64 * 14329851068374824036_u64);
+    let h: u64 = ((a as u64) >> (b as u64)) % (11912905567223247326_u64 * 14329851068374824036_u64);
 }

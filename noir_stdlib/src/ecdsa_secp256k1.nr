@@ -25,6 +25,7 @@ pub fn verify_signature<let N: u32>(
     _verify_signature(public_key_x, public_key_y, signature, message_hash, true)
 }
 
+#[deprecated("This method is deprecated and will be removed in 1.0.0-beta.12")]
 #[foreign(ecdsa_secp256k1)]
 fn _verify_signature<let N: u32>(
     public_key_x: [u8; 32],

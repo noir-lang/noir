@@ -391,15 +391,17 @@ impl Instruction {
             Instruction::Call { func, .. } => match dfg[*func] {
                 Value::Function(id) => !matches!(dfg.purity_of(id), Some(Purity::Pure)),
                 Value::Intrinsic(intrinsic) => {
-                    // These utilize `noirc_evaluator::acir::Context::get_flattened_index` internally
-                    // which uses the side effects predicate.
-                    // RecursiveAggregation includes the side effects predicate as input.
-                    matches!(
-                        intrinsic,
-                        Intrinsic::SliceInsert
-                            | Intrinsic::SliceRemove
-                            | Intrinsic::BlackBox(BlackBoxFunc::RecursiveAggregation)
-                    )
+                    match intrinsic {
+                        // These utilize `noirc_evaluator::acir::Context::get_flattened_index` internally
+                        // which uses the side effects predicate.
+                        Intrinsic::SliceInsert | Intrinsic::SliceRemove => true,
+                        // Technically these don't use the side effects predicate, but they fail on empty slices,
+                        // and by pretending that they require the predicate, we can preserve any current side
+                        // effect variable in the SSA and use it to optimize out memory operations that we know
+                        // would fail, but they shouldn't because they might be disabled.
+                        Intrinsic::SlicePopFront | Intrinsic::SlicePopBack => true,
+                        _ => false,
+                    }
                 }
                 _ => false,
             },
@@ -763,7 +765,7 @@ impl Binary {
                 // for unsigned types (here we assume the type of binary.lhs is the same)
                 dfg.type_of_value(self.rhs).is_unsigned()
             }
-            BinaryOp::Div | BinaryOp::Mod => true,
+            BinaryOp::Div | BinaryOp::Mod | BinaryOp::Shl | BinaryOp::Shr => true,
             BinaryOp::Add { unchecked: true }
             | BinaryOp::Sub { unchecked: true }
             | BinaryOp::Mul { unchecked: true }
@@ -771,9 +773,7 @@ impl Binary {
             | BinaryOp::Lt
             | BinaryOp::And
             | BinaryOp::Or
-            | BinaryOp::Xor
-            | BinaryOp::Shl
-            | BinaryOp::Shr => false,
+            | BinaryOp::Xor => false,
         }
     }
 }

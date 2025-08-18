@@ -12,7 +12,6 @@ use std::collections::{BTreeMap, HashSet};
 use types::{AcirDynamicArray, AcirValue};
 
 use acvm::acir::{
-    BlackBoxFunc,
     circuit::{
         AssertionPayload, ExpressionWidth, OpcodeLocation, brillig::BrilligFunctionId,
         opcodes::AcirFunctionId,
@@ -675,7 +674,7 @@ impl<'a> Context<'a> {
         ssa: &Ssa,
         result_ids: &[ValueId],
     ) -> Result<Vec<SsaReport>, RuntimeError> {
-        let mut warnings = Vec::new();
+        let warnings = Vec::new();
 
         match instruction {
             Instruction::Call { func, arguments } => {
@@ -795,14 +794,6 @@ impl<'a> Context<'a> {
                         }
                     }
                     Value::Intrinsic(intrinsic) => {
-                        if matches!(
-                            intrinsic,
-                            Intrinsic::BlackBox(BlackBoxFunc::RecursiveAggregation)
-                        ) {
-                            warnings.push(SsaReport::Warning(InternalWarning::VerifyProof {
-                                call_stack: self.acir_context.get_call_stack(),
-                            }));
-                        }
                         let outputs = self
                             .convert_ssa_intrinsic_call(*intrinsic, arguments, dfg, result_ids)?;
 
