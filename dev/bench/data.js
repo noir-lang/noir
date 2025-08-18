@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1755540724714,
+  "lastUpdate": 1755540729678,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11692,40 +11692,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "639d8021753a3ec68002d23b49d6e2c1bd7730b4",
-          "message": "fix: forbid self-referencing type aliases (#9103)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-08-01T19:24:11Z",
-          "tree_id": "09f14cba74e1cd9b95e23fe00fc868acd2b3c75a",
-          "url": "https://github.com/noir-lang/noir/commit/639d8021753a3ec68002d23b49d6e2c1bd7730b4"
-        },
-        "date": 1754078039751,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore_depth_10",
-            "value": 69.46,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 54.95,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "163862677+noirwhal@users.noreply.github.com",
             "name": "noirwhal",
             "username": "noirwhal"
@@ -15175,6 +15141,80 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/499e5cab6be0476e83554048724ca2d638b26c1b"
         },
         "date": 1755540095025,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 206.74,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 243.56,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 195.97,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 500.28,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 432.92,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1500,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 328.22,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 330.57,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 69.53,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 55.02,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "6fa1c0038f0512bb38d4d572ebf65958a4e79139",
+          "message": "chore: add tests to ensure that JSON serialization of foreign call values is unambiguous (#9548)",
+          "timestamp": "2025-08-18T18:50:46+01:00",
+          "tree_id": "80ca8e6aa2650ad374c008930735a425762da4a3",
+          "url": "https://github.com/noir-lang/noir/commit/6fa1c0038f0512bb38d4d572ebf65958a4e79139"
+        },
+        "date": 1755540710466,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
