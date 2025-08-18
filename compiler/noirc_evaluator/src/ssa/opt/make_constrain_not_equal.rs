@@ -1,3 +1,9 @@
+//! The goal of this SSA pass is to go through each [`Instruction::Constrain`],
+//! determine whether it's asserting two values are not equal, and if so replace it
+//! with a [`Instruction::ConstrainNotEqual`].
+//!
+//! Note that this pass must be placed after [`CFG flattening`](super::flatten_cfg)
+//! as the flattening pass cannot handle this instruction.
 use acvm::AcirField;
 
 use crate::ssa::{
@@ -10,11 +16,9 @@ use crate::ssa::{
 };
 
 impl Ssa {
-    /// A simple SSA pass to go through each [`Instruction::Constrain`], determine whether it's asserting
-    /// two values are not equal, and if so replace it with a [`Instruction::ConstrainNotEqual`].
+    /// Replaces [`Instruction::Constrain`] asserting two values are not equal with [`Instruction::ConstrainNotEqual`].
     ///
-    /// Note that this pass must be placed after CFG flattening as the flattening pass cannot
-    /// handle this instruction.
+    /// See the [`make_constrain_not_equal`](self) module for more information.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn make_constrain_not_equal_instructions(mut self) -> Ssa {
         for function in self.functions.values_mut() {
@@ -25,12 +29,24 @@ impl Ssa {
 }
 
 impl Function {
-    pub(crate) fn make_constrain_not_equal(&mut self) {
+    fn make_constrain_not_equal(&mut self) {
         if !self.runtime().is_acir() {
             return;
         }
 
         self.simple_optimization(|context| {
+            // This Noir code:
+            //
+            // ```noir
+            // assert(x != y)
+            // ```
+            //
+            // always translates to an SSA like this:
+            //
+            // ```ssa
+            // v0 = eq x, y
+            // constrain v0 == u1 0
+            // ```
             let instruction = context.instruction();
 
             let Instruction::Constrain(lhs, rhs, msg) = instruction else {
