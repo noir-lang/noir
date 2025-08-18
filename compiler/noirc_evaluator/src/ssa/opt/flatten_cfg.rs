@@ -1057,6 +1057,10 @@ impl<'f> Context<'f> {
 
                     _ => Instruction::Call { func, arguments },
                 },
+                Instruction::ConstrainNotEqual(..) => {
+                    // See [`crate::ssa::opt::make_constrain_not_equal`]
+                    panic!("ConstrainNotEqual should not happen during CFG flattening")
+                }
                 other => other,
             }
         } else {
