@@ -14,7 +14,7 @@ fn foo(is_brillig: fn() -> bool) {
         assert(brillig_function(is_brillig));
         assert(brillig_function2(is_brillig));
     };
-} 
+}
 
 fn acir_function(f: fn() -> bool) -> bool {
     f()
