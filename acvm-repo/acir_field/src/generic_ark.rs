@@ -144,7 +144,7 @@ macro_rules! field_wrapper {
                 $field::max_num_bytes()
             }
 
-            fn modulus() -> num_bigint::BigUint {
+            fn modulus() -> ::num_bigint::BigUint {
                 $field::modulus()
             }
 
