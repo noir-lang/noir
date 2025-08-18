@@ -179,9 +179,6 @@ impl Function {
                         }
                     }
 
-                    // Instruction::IncrementRc { .. }
-                    // | Instruction::DecrementRc { .. } => return Purity::Impure,
-
                     // The rest are always pure (including allocate, load, & store)
                     Instruction::Cast(_, _)
                     | Instruction::Not(_)
