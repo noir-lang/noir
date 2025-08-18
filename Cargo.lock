@@ -5601,6 +5601,8 @@ dependencies = [
  "serde",
  "serde_json",
  "sha1",
+ "strum",
+ "strum_macros",
 ]
 
 [[package]]
