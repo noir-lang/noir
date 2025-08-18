@@ -28,7 +28,7 @@ impl Function {
     fn checked_to_unchecked(&mut self) {
         let mut value_max_num_bits = HashMap::<ValueId, u32>::default();
 
-        self.simple_reachable_blocks_optimization(|context| {
+        self.simple_optimization(|context| {
             let instruction = context.instruction();
             let Instruction::Binary(binary) = instruction else {
                 return;
