@@ -53,11 +53,11 @@ run_if_available wasm-opt $NODE_WASM -o $NODE_WASM -O
 run_if_available wasm-opt $BROWSER_WASM -o $BROWSER_WASM -O
 
 # Auto-generate Node ESM wrapper
-WRAPPER_FILE="$NODE_DIR/noirc_abi_wasm_wrapper.js"
-TYPES_FILE="$NODE_DIR/noirc_abi_wasm.d.ts"
+WRAPPER_FILE="$NODE_DIR/acvm_js_wrapper.js"
+TYPES_FILE="$NODE_DIR/acvm_js.d.ts"
 
 echo "// Node wrapper for ESM support (auto-generated)" > "$WRAPPER_FILE"
-echo "import pkg from './noirc_abi_wasm.js';" >> "$WRAPPER_FILE"
+echo "import pkg from './acvm_js.js';" >> "$WRAPPER_FILE"
 echo "" >> "$WRAPPER_FILE"
 
 # Runtime exports (functions/constants)
