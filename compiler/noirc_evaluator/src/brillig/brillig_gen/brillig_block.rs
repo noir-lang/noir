@@ -1701,30 +1701,11 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
 
         self.brillig_context.codegen_branch(left_is_negative.address, |ctx, is_negative| {
             if is_negative {
-                // Assert right value is less than the left bit size.
-                // We only need to assert this here as the brillig shr opcode implies this constraint.
-                let rhs_does_not_overflow = SingleAddrVariable::new(ctx.allocate_register(), 1);
-                let lhs_bit_size =
-                    ctx.make_constant_instruction(left.bit_size.into(), right.bit_size);
-                ctx.binary_instruction(
-                    right,
-                    lhs_bit_size,
-                    rhs_does_not_overflow,
-                    BrilligBinaryOp::LessThan,
-                );
-                ctx.codegen_constrain(rhs_does_not_overflow, None);
-
                 let one = ctx.make_constant_instruction(1_u128.into(), left.bit_size);
 
                 // computes 2^right
-                let two = ctx.make_constant_instruction(2_u128.into(), left.bit_size);
-                let two_pow = ctx.make_constant_instruction(1_u128.into(), left.bit_size);
-                let right_u32 = SingleAddrVariable::new(ctx.allocate_register(), 32);
-                ctx.cast(right_u32, right);
-                let pow_body = |ctx: &mut BrilligContext<_, _>, _: SingleAddrVariable| {
-                    ctx.binary_instruction(two_pow, two, two_pow, BrilligBinaryOp::Mul);
-                };
-                ctx.codegen_for_loop(None, right_u32.address, None, pow_body);
+                let two_pow = SingleAddrVariable::new(ctx.allocate_register(), left.bit_size);
+                ctx.binary_instruction(one, right, two_pow, BrilligBinaryOp::Shl);
 
                 // Right shift using division on 1-complement
                 ctx.binary_instruction(left, one, result, BrilligBinaryOp::Add);
@@ -1733,11 +1714,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
 
                 // Clean-up
                 ctx.deallocate_single_addr(one);
-                ctx.deallocate_single_addr(two);
                 ctx.deallocate_single_addr(two_pow);
-                ctx.deallocate_single_addr(right_u32);
-
-                ctx.deallocate_single_addr(rhs_does_not_overflow);
             } else {
                 ctx.binary_instruction(left, right, result, BrilligBinaryOp::Shr);
             }
