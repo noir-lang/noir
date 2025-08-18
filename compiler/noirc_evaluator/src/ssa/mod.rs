@@ -164,7 +164,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
             move |ssa| ssa.unroll_loops_iteratively(options.max_bytecode_increase_percent),
             "Unrolling",
         ),
-        SsaPass::new(Ssa::make_constrain_not_equal_instructions, "Adding constrain not equal"),
+        SsaPass::new(Ssa::make_constrain_not_equal, "Adding constrain not equal"),
         SsaPass::new(Ssa::check_u128_mul_overflow, "Check u128 mul overflow"),
         // Simplifying the CFG can have a positive effect on mem2reg: every time we unify with a
         // yet-to-be-visited predecessor we forget known values; less blocks mean less unification.

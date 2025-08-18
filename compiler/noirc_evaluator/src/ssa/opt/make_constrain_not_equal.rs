@@ -20,7 +20,7 @@ impl Ssa {
     ///
     /// See the [`make_constrain_not_equal`](self) module for more information.
     #[tracing::instrument(level = "trace", skip(self))]
-    pub(crate) fn make_constrain_not_equal_instructions(mut self) -> Ssa {
+    pub(crate) fn make_constrain_not_equal(mut self) -> Ssa {
         for function in self.functions.values_mut() {
             function.make_constrain_not_equal();
         }
@@ -88,7 +88,7 @@ mod tests {
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.make_constrain_not_equal_instructions();
+        let ssa = ssa.make_constrain_not_equal();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: Field, v1: Field):
