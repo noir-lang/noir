@@ -17,6 +17,7 @@ use std::{
     collections::{BTreeMap, HashMap, HashSet, VecDeque},
     hash::Hash,
 };
+use strum_macros::EnumCount;
 
 const NUMBER_OF_BLOCKS_INSERTING_IN_JMP: usize = 1;
 const NUMBER_OF_BLOCKS_INSERTING_IN_JMP_IF: usize = 2;
@@ -77,7 +78,7 @@ impl Default for FunctionData {
 /// Represents set of commands for the fuzzer
 ///
 /// After executing all commands, terminates all blocks from current_block_queue with return
-#[derive(Arbitrary, Debug, Clone, Hash, Serialize, Deserialize)]
+#[derive(Arbitrary, Debug, Clone, Hash, Serialize, Deserialize, EnumCount)]
 pub(crate) enum FuzzerFunctionCommand {
     /// Adds instructions to current_block_context from stored instruction_blocks
     InsertSimpleInstructionBlock { instruction_block_idx: usize },
