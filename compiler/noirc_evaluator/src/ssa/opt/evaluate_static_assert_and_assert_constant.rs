@@ -164,11 +164,7 @@ fn evaluate_static_assert(
     // were passed to the built-in foreign call "print" functions.
     let mut foreign_call_params = Vec::with_capacity(arguments.len() - 1);
     for arg in arguments.iter().skip(1) {
-        if !function.dfg.is_constant(*arg) {
-            let call_stack = function.dfg.get_instruction_call_stack(instruction);
-            return Err(RuntimeError::StaticAssertDynamicMessage { call_stack });
-        }
-        append_foreign_call_param(*arg, &function.dfg, &mut foreign_call_params);
+        append_foreign_call_param(*arg, &function.dfg, instruction, &mut foreign_call_params)?;
     }
 
     if function.dfg.is_constant_true(arguments[0]) {
@@ -199,17 +195,21 @@ fn evaluate_static_assert(
 fn append_foreign_call_param(
     value: ValueId,
     dfg: &DataFlowGraph,
+    instruction: InstructionId,
     foreign_call_params: &mut Vec<ForeignCallParam<FieldElement>>,
-) {
+) -> Result<(), RuntimeError> {
     if let Some(field) = dfg.get_numeric_constant(value) {
         foreign_call_params.push(ForeignCallParam::Single(field));
+        Ok(())
     } else if let Some((values, _typ)) = dfg.get_array_constant(value) {
         let values = vecmap(values, |value| {
             dfg.get_numeric_constant(value).expect("ICE: expected constant value")
         });
         foreign_call_params.push(ForeignCallParam::Array(values));
+        Ok(())
     } else {
-        panic!("ICE: expected constant value");
+        let call_stack = dfg.get_instruction_call_stack(instruction);
+        Err(RuntimeError::StaticAssertDynamicMessage { call_stack })
     }
 }
 
