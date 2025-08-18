@@ -262,7 +262,7 @@ mod signature_help_tests {
     }
 
     #[test]
-    async fn test_signature_help_for_macro_atrribute() {
+    async fn test_signature_help_for_macro_attribute() {
         let src = r#"
             comptime fn foo(_: FunctionDefinition, x: i32, y: Field) { }
 
@@ -287,7 +287,7 @@ mod signature_help_tests {
     }
 
     #[test]
-    async fn test_signature_help_for_varargs_macro_atrribute() {
+    async fn test_signature_help_for_varargs_macro_attribute() {
         let src = r#"
             #[varargs]
             comptime fn foo(_: FunctionDefinition, x: i32, y: [Field]) { }
