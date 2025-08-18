@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1755522280480,
+  "lastUpdate": 1755522282401,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -3868,40 +3868,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "cb6b7e34ece13f2b99a0dc3d845b3254f8c20c5f",
-          "message": "fix: trait where clause check fixes (#9369)",
-          "timestamp": "2025-07-31T19:34:34Z",
-          "tree_id": "80c68aa050a218b871760a39df49d70392b68b2d",
-          "url": "https://github.com/noir-lang/noir/commit/cb6b7e34ece13f2b99a0dc3d845b3254f8c20c5f"
-        },
-        "date": 1753992227529,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.772,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 1.61,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "9797518a83a46e91a7c767ec637780a42dd21c9f",
           "message": "chore: use SSA parser in all mem2reg tests (#9372)",
           "timestamp": "2025-08-01T15:19:31Z",
@@ -7701,6 +7667,90 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 1.548,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "84741533+defkit@users.noreply.github.com",
+            "name": "defkit",
+            "username": "defkit"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "7c6b4e38637bea35e979849789b9260720403df7",
+          "message": "chore(ssa_fuzzer): reorganisation of tests + generative mutations (#9531)",
+          "timestamp": "2025-08-18T12:33:35Z",
+          "tree_id": "bc90ae08deb18af51d7d4f19563d7ed8db3933d7",
+          "url": "https://github.com/noir-lang/noir/commit/7c6b4e38637bea35e979849789b9260720403df7"
+        },
+        "date": 1755522264267,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1.686,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 7.7,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.3,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 15.3,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 13.56,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 20.94,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 208,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 206,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.358,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.472,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.771,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 1.752,
             "unit": "s"
           }
         ]
