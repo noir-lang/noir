@@ -1,3 +1,15 @@
+//! A simple SSA pass to go through each instruction and evaluate:
+//! - each call to `assert_constant`, issuing an error if any arguments to the function
+//!   are not constants
+//! - each call to `static_assert`, issuing an error if the assertion does not hold,
+//!   the value to test is not a constant, or the message is dynamic.
+//!
+//! Note that this pass must be placed directly before [`loop unrolling`](super::unrolling) to be
+//! useful. Any optimization passes between this and loop unrolling will cause
+//! the constants that this pass sees to be potentially different than the constants
+//! seen by loop unrolling. Furthermore, this pass cannot be a part of loop unrolling
+//! since we must go through every instruction to find all references to `assert_constant`
+//! while loop unrolling only touches blocks with loops in them.
 use acvm::{FieldElement, acir::brillig::ForeignCallParam};
 use fxhash::FxHashSet as HashSet;
 use iter_extended::vecmap;
@@ -20,18 +32,7 @@ use crate::{
 use super::unrolling::Loops;
 
 impl Ssa {
-    /// A simple SSA pass to go through each instruction and evaluate:
-    /// - each call to `assert_constant`, issuing an error if any arguments to the function
-    ///   are not constants
-    /// - each call to `static_assert`, issuing an error if the assertion does not hold,
-    ///   the value to test is not a constant, or the message is dynamic.
-    ///
-    /// Note that this pass must be placed directly before loop unrolling to be
-    /// useful. Any optimization passes between this and loop unrolling will cause
-    /// the constants that this pass sees to be potentially different than the constants
-    /// seen by loop unrolling. Furthermore, this pass cannot be a part of loop unrolling
-    /// since we must go through every instruction to find all references to `assert_constant`
-    /// while loop unrolling only touches blocks with loops in them.
+    /// See [`assert_constant`][self] module for more information.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn evaluate_static_assert_and_assert_constant(
         mut self,
