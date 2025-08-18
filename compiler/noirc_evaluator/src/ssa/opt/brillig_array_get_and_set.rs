@@ -28,6 +28,7 @@ use crate::{
 use super::simple_optimization::SimpleOptimizationContext;
 
 impl Ssa {
+    /// See [`brillig_array_get_and_set`][self] module for more information.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn brillig_array_get_and_set(mut self) -> Ssa {
         for function in self.functions.values_mut() {
@@ -84,12 +85,14 @@ impl Function {
     }
 }
 
+/// Given an array or slice value and a constant index, returns an offseted index
+/// together with which type of [`ArrayOffset`] was used to shift it.
 fn compute_index_and_offset(
     context: &mut SimpleOptimizationContext,
-    array: ValueId,
+    array_or_slice: ValueId,
     index_constant: FieldElement,
 ) -> (ValueId, ArrayOffset) {
-    let offset = if matches!(context.dfg.type_of_value(array), Type::Array(..)) {
+    let offset = if matches!(context.dfg.type_of_value(array_or_slice), Type::Array(..)) {
         ArrayOffset::Array
     } else {
         ArrayOffset::Slice
