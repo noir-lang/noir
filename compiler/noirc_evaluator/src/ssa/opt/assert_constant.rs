@@ -45,9 +45,7 @@ impl Ssa {
 }
 
 impl Function {
-    pub(crate) fn evaluate_static_assert_and_assert_constant(
-        &mut self,
-    ) -> Result<(), RuntimeError> {
+    fn evaluate_static_assert_and_assert_constant(&mut self) -> Result<(), RuntimeError> {
         let loops = Loops::find_all(self);
 
         let cfg = ControlFlowGraph::with_function(self);
