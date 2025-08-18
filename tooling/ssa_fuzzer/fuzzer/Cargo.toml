@@ -27,6 +27,8 @@ base64.workspace = true
 sha1 = "0.10.6"
 redis = "0.23"
 lazy_static = "1.4"
+strum_macros = "0.24"
+strum = "0.24"
 
 [dependencies.noir_ssa_fuzzer]
 path = "../"

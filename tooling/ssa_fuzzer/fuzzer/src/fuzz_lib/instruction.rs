@@ -2,7 +2,7 @@ use libfuzzer_sys::arbitrary;
 use libfuzzer_sys::arbitrary::Arbitrary;
 use noir_ssa_fuzzer::typed_value::ValueType;
 use serde::{Deserialize, Serialize};
-
+use strum_macros::EnumCount;
 #[derive(Arbitrary, Debug, Clone, Copy, Serialize, Deserialize)]
 pub(crate) struct Array {
     pub(crate) size: usize,
@@ -24,7 +24,7 @@ pub(crate) struct Argument {
 /// Represents set of instructions
 ///
 /// For operations that take two arguments we ignore type of the second argument.
-#[derive(Arbitrary, Debug, Clone, Serialize, Deserialize)]
+#[derive(Arbitrary, Debug, Clone, Serialize, Deserialize, EnumCount)]
 pub(crate) enum Instruction {
     /// Addition of two values
     AddChecked { lhs: Argument, rhs: Argument },

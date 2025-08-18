@@ -3586,6 +3586,8 @@ dependencies = [
  "noirc_frontend",
  "rand 0.8.5",
  "serde",
+ "strum",
+ "strum_macros",
  "thiserror 1.0.69",
 ]
 
@@ -5601,6 +5603,8 @@ dependencies = [
  "serde",
  "serde_json",
  "sha1",
+ "strum",
+ "strum_macros",
 ]
 
 [[package]]
