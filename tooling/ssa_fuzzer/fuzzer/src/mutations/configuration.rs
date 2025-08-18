@@ -381,6 +381,16 @@ pub(crate) const BASIC_GENERATE_VALUE_TYPE_CONFIGURATION: GenerateValueTypeConfi
         (GenerateValueType::I64, 1),
     ]);
 
+// Compile-time check that configuration has correct number of entries
+const _: () = {
+    use noir_ssa_fuzzer::typed_value::ValueType;
+    use strum::EnumCount;
+    assert!(
+        BASIC_GENERATE_VALUE_TYPE_CONFIGURATION.options_with_weights.len() == ValueType::COUNT,
+        "BASIC_GENERATE_VALUE_TYPE_CONFIGURATION must have an entry for every GenerateValueType variant"
+    );
+};
+
 #[derive(Copy, Clone, Debug)]
 pub(crate) enum GenerateCommand {
     InsertJmpIfBlock,

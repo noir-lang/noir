@@ -128,11 +128,11 @@ fn generate_random_instruction(rng: &mut StdRng) -> Instruction {
         }
         GenerateInstruction::Blake2sHash => Instruction::Blake2sHash {
             field_idx: rng.gen_range(usize::MIN..usize::MAX),
-            limbs_count: rng.gen_range(0..8),
+            limbs_count: rng.gen_range(u8::MIN..u8::MAX),
         },
         GenerateInstruction::Blake3Hash => Instruction::Blake3Hash {
             field_idx: rng.gen_range(usize::MIN..usize::MAX),
-            limbs_count: rng.gen_range(0..8),
+            limbs_count: rng.gen_range(u8::MIN..u8::MAX),
         },
         GenerateInstruction::Keccakf1600Hash => Instruction::Keccakf1600Hash {
             u64_indices: [rng.gen_range(usize::MIN..usize::MAX); 25],
@@ -143,7 +143,7 @@ fn generate_random_instruction(rng: &mut StdRng) -> Instruction {
         },
         GenerateInstruction::Aes128Encrypt => Instruction::Aes128Encrypt {
             input_idx: rng.gen_range(usize::MIN..usize::MAX),
-            input_limbs_count: rng.gen_range(0..8),
+            input_limbs_count: rng.gen_range(u8::MIN..u8::MAX),
             key_idx: rng.gen_range(usize::MIN..usize::MAX),
             iv_idx: rng.gen_range(usize::MIN..usize::MAX),
         },

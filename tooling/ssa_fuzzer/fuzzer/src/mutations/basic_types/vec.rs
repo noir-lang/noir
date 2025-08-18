@@ -60,7 +60,7 @@ impl RandomDeletion {
 /// Swap two random elements at random indices
 struct RandomSwap;
 impl RandomSwap {
-    fn mutate<T>(rng: &mut StdRng, vec: &mut Vec<T>) {
+    fn mutate<T>(rng: &mut StdRng, vec: &mut [T]) {
         if !vec.is_empty() {
             let index1 = rng.gen_range(0..vec.len());
             let index2 = rng.gen_range(0..vec.len());
@@ -74,7 +74,7 @@ struct RandomElementMutation;
 impl RandomElementMutation {
     fn mutate<T>(
         rng: &mut StdRng,
-        vec: &mut Vec<T>,
+        vec: &mut [T],
         mutate_element_function: impl Fn(&mut T, &mut StdRng),
     ) {
         if !vec.is_empty() {
@@ -107,7 +107,7 @@ pub(crate) fn mutate_vec<T>(
     match config.select(rng) {
         VecMutationOptions::Random => RandomMutation::mutate(rng, vec),
         VecMutationOptions::Insertion => {
-            RandomInsertion::mutate(rng, vec, generate_random_element_function)
+            RandomInsertion::mutate(rng, vec, generate_random_element_function);
         }
         VecMutationOptions::Deletion => RandomDeletion::mutate(rng, vec),
         VecMutationOptions::Swap => RandomSwap::mutate(rng, vec),
