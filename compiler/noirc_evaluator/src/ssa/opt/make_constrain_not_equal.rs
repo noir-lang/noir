@@ -18,7 +18,7 @@
 //! constrain v0 != v1
 //! ```
 //!
-//! When constraining with an equality in acirgen we need all the handling for the
+//! When constraining with an equality in ACIR generation we need all the handling for the
 //! case where the two values ARE equal. Rather than just asserting that an inverse
 //! exists for the difference between these two values we need to create two
 //! unnecessary witnesses - one which is unconstrained and the other constrained to

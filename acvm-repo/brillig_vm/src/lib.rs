@@ -2866,7 +2866,7 @@ mod tests {
     }
 
     #[test]
-    fn aborts_when_foreign_call_returns_data_which_doesnt_match_vector_elements() {
+    fn aborts_when_foreign_call_returns_data_which_does_not_match_vector_elements() {
         let calldata: Vec<FieldElement> = vec![];
 
         let opcodes = &[
