@@ -1,6 +1,0 @@
-[package]
-name = "myproject"
-type = "bin"
-authors = [""]
-
-[dependencies]
