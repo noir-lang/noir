@@ -19,6 +19,7 @@ use crate::{
     errors::RuntimeError,
     ssa::{
         ir::{
+            basic_block::BasicBlockId,
             cfg::ControlFlowGraph,
             dfg::DataFlowGraph,
             function::Function,
@@ -53,29 +54,7 @@ impl Function {
             return Ok(());
         }
 
-        let loops = Loops::find_all(self);
-
-        let cfg = ControlFlowGraph::with_function(self);
-        let mut blocks_within_empty_loop = HashSet::default();
-        for loop_ in loops.yet_to_unroll {
-            let Ok(pre_header) = loop_.get_pre_header(self, &cfg) else {
-                // If the loop does not have a preheader we skip checking whether the loop is empty
-                continue;
-            };
-            let const_bounds = loop_.get_const_bounds(self, pre_header);
-
-            let does_execute = const_bounds
-                .and_then(|(lower_bound, upper_bound)| {
-                    upper_bound.reduce(lower_bound, |u, l| u > l, |u, l| u > l)
-                })
-                // We default to `true` if the bounds are dynamic so that we still
-                // evaluate static assertion in dynamic loops.
-                .unwrap_or(true);
-
-            if !does_execute {
-                blocks_within_empty_loop.extend(loop_.blocks);
-            }
-        }
+        let blocks_within_empty_loop = get_blocks_within_empty_loop(self);
 
         for block in self.reachable_blocks() {
             // Unfortunately we can't just use instructions.retain(...) here since
@@ -100,6 +79,35 @@ impl Function {
         }
         Ok(())
     }
+}
+
+/// Returns all of a function's block that are part of empty loops.
+fn get_blocks_within_empty_loop(function: &Function) -> HashSet<BasicBlockId> {
+    let loops = Loops::find_all(function);
+
+    let cfg = ControlFlowGraph::with_function(function);
+    let mut blocks_within_empty_loop = HashSet::default();
+    for loop_ in loops.yet_to_unroll {
+        let Ok(pre_header) = loop_.get_pre_header(function, &cfg) else {
+            // If the loop does not have a preheader we skip checking whether the loop is empty
+            continue;
+        };
+        let const_bounds = loop_.get_const_bounds(function, pre_header);
+
+        let does_execute = const_bounds
+            .and_then(|(lower_bound, upper_bound)| {
+                upper_bound.reduce(lower_bound, |u, l| u > l, |u, l| u > l)
+            })
+            // We default to `true` if the bounds are dynamic so that we still
+            // evaluate static assertion in dynamic loops.
+            .unwrap_or(true);
+
+        if !does_execute {
+            blocks_within_empty_loop.extend(loop_.blocks);
+        }
+    }
+
+    blocks_within_empty_loop
 }
 
 /// During the loop unrolling pass we also evaluate calls to `assert_constant`.
