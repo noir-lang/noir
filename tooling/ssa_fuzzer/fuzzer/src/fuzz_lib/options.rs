@@ -150,14 +150,7 @@ pub(crate) struct FuzzerOptions {
 impl Default for FuzzerOptions {
     fn default() -> Self {
         Self {
-<<<<<<< HEAD
             compile_options: CompileOptions { show_ssa_pass: vec![], ..Default::default() },
-=======
-            compile_options: CompileOptions {
-                show_ssa_pass: vec!["Dead Instruction Elimination".to_string()],
-                ..Default::default()
-            },
->>>>>>> origin
             max_ssa_blocks_num: 100,
             max_instructions_num: 1000,
             max_iterations_num: 1000,

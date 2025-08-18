@@ -122,11 +122,7 @@ pub(crate) enum Instruction {
     /// AES-128 encrypt
     /// Takes input key and iv as fields, converts them to u8 arrays
     /// Input is converted to u8 array of size `input_limbs_count`
-<<<<<<< HEAD
-    /// Encrypts the input with AES-128 and convers encrypted array to field and stores it in the context
-=======
     /// Encrypts the input with AES-128 and converts encrypted array to field and stores it in the context
->>>>>>> origin
     Aes128Encrypt { input_idx: usize, input_limbs_count: u8, key_idx: usize, iv_idx: usize },
 
     /// SHA-256 compression
