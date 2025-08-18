@@ -504,23 +504,34 @@ impl AstPrinter {
         call: &super::ast::Call,
         f: &mut Formatter,
     ) -> Result<(), std::fmt::Error> {
+        let check_call = |unconstrained, definition: &_, name: &String| {
+            let is_unsafe = unconstrained && !self.in_unconstrained;
+            let special = match definition {
+                Definition::Oracle(s) if s == "print" => Some(SpecialCall::Print),
+                Definition::Builtin(s) if s.starts_with("array") || s.starts_with("slice") => {
+                    Some(SpecialCall::Object(name.clone()))
+                }
+                _ => None,
+            };
+            (is_unsafe, special)
+        };
+
         let (print_unsafe, special) = match call.func.as_ref() {
             Expression::Ident(Ident {
                 typ: Type::Function(_, _, _, unconstrained),
                 definition,
                 name,
                 ..
-            }) => {
-                let is_unsafe = *unconstrained && !self.in_unconstrained;
-                let special = match definition {
-                    Definition::Oracle(s) if s == "print" => Some(SpecialCall::Print),
-                    Definition::Builtin(s) if s.starts_with("array") || s.starts_with("slice") => {
-                        Some(SpecialCall::Object(name.clone()))
-                    }
-                    _ => None,
-                };
-                (is_unsafe, special)
-            }
+            }) => check_call(*unconstrained, definition, name),
+            Expression::Tuple(elements) => match elements.get(0) {
+                Some(Expression::Ident(Ident {
+                    typ: Type::Function(_, _, _, unconstrained),
+                    definition,
+                    name,
+                    ..
+                })) => check_call(*unconstrained, definition, name),
+                _ => (false, None),
+            },
             _ => (false, None),
         };
 
