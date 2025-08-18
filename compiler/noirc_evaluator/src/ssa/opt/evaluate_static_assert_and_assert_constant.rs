@@ -32,7 +32,7 @@ use crate::{
 use super::unrolling::Loops;
 
 impl Ssa {
-    /// See [`assert_constant`][self] module for more information.
+    /// See [`evaluate_static_assert_and_assert_constant`][self] module for more information.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn evaluate_static_assert_and_assert_constant(
         mut self,

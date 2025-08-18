@@ -6,7 +6,6 @@
 
 mod array_set;
 mod as_slice_length;
-mod assert_constant;
 mod basic_conditional;
 mod brillig_array_get_and_set;
 pub(crate) mod brillig_entry_points;
@@ -15,6 +14,7 @@ mod checked_to_unchecked;
 mod constant_folding;
 mod defunctionalize;
 mod die;
+mod evaluate_static_assert_and_assert_constant;
 mod expand_signed_checks;
 pub(crate) mod flatten_cfg;
 mod hint;
