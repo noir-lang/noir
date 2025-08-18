@@ -12,6 +12,8 @@
     "preserveConstEnums": true,
     "sourceMap": true,
     "resolveJsonModule": true,
-    "importHelpers": true
+    "importHelpers": true,
+    "declaration": true,
+    "allowJs": true
   }
 }

@@ -22,7 +22,7 @@
   "publishConfig": {
     "access": "public"
   },
-  "main": "./nodejs/noirc_abi_wasm.js",
+  "main": "./nodejs/noirc_abi_wasm_wrapper.js",
   "types": "./web/noirc_abi_wasm.d.ts",
   "module": "./web/noirc_abi_wasm.js",
   "sideEffects": false,
