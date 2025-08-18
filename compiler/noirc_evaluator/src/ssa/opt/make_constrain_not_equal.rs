@@ -4,6 +4,26 @@
 //!
 //! This pass is only applied to ACIR functions.
 //!
+//! For example, this SSA code:
+//!
+//! ```ssa
+//! v2 = eq v0, v1
+//! constrain v2 == u1 0
+//! ```
+//!
+//! will be replaced with this one:
+//!
+//! ```ssa
+//! v2 = eq v0, v1
+//! constrain v0 != v1
+//! ```
+//!
+//! When constraining with an equality in acirgen we need all the handling for the
+//! case where the two values ARE equal. Rather than just asserting that an inverse
+//! exists for the difference between these two values we need to create two
+//! unnecessary witnesses - one which is unconstrained and the other constrained to
+//! zero. This is unnecessary as we want the circuit to just fail in this case.
+//!
 //! Note that this pass must be placed after [`CFG flattening`](super::flatten_cfg)
 //! as the flattening pass cannot handle this instruction.
 use acvm::AcirField;
