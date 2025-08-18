@@ -54,11 +54,11 @@ impl Function {
 
                     let array = *array;
                     let index = *index;
-                    let Some(index_constant) = context.dfg.get_numeric_constant(index) else {
+                    let Some(constant_index) = context.dfg.get_numeric_constant(index) else {
                         return;
                     };
 
-                    let (index, offset) = compute_index_and_offset(context, array, index_constant);
+                    let (index, offset) = compute_index_and_offset(context, array, constant_index);
                     let new_instruction = Instruction::ArrayGet { array, index, offset };
                     context.replace_current_instruction_with(new_instruction);
                 }
@@ -70,11 +70,11 @@ impl Function {
                     let index = *index;
                     let value = *value;
                     let mutable = *mutable;
-                    let Some(index_constant) = context.dfg.get_numeric_constant(index) else {
+                    let Some(constant_index) = context.dfg.get_numeric_constant(index) else {
                         return;
                     };
 
-                    let (index, offset) = compute_index_and_offset(context, array, index_constant);
+                    let (index, offset) = compute_index_and_offset(context, array, constant_index);
                     let new_instruction =
                         Instruction::ArraySet { array, index, value, mutable, offset };
                     context.replace_current_instruction_with(new_instruction);
@@ -90,7 +90,7 @@ impl Function {
 fn compute_index_and_offset(
     context: &mut SimpleOptimizationContext,
     array_or_slice: ValueId,
-    index_constant: FieldElement,
+    constant_index: FieldElement,
 ) -> (ValueId, ArrayOffset) {
     let offset = if matches!(context.dfg.type_of_value(array_or_slice), Type::Array(..)) {
         ArrayOffset::Array
@@ -98,7 +98,7 @@ fn compute_index_and_offset(
         ArrayOffset::Slice
     };
     let index = context.dfg.make_constant(
-        index_constant + offset.to_u32().into(),
+        constant_index + offset.to_u32().into(),
         NumericType::unsigned(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
     );
     (index, offset)
