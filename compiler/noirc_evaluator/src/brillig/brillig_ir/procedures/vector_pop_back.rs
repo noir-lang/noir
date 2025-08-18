@@ -59,7 +59,12 @@ pub(super) fn compile_vector_pop_back_procedure<F: AcirField + DebugToString>(
 
     // First we need to allocate the target vector decrementing the size by removed_items.len()
     // We use the semantic length, rather than load the vector size from the meta-data.
-    let source_size = SingleAddrVariable::new_usize(source_vector_length_arg);
+    let source_size = SingleAddrVariable::new_usize(brillig_context.allocate_register());
+    brillig_context.codegen_vector_flattened_size(
+        source_size.address,
+        source_vector_length_arg,
+        item_pop_count_arg,
+    );
 
     let target_size = SingleAddrVariable::new_usize(brillig_context.allocate_register());
     brillig_context.memory_op_instruction(
@@ -110,5 +115,6 @@ pub(super) fn compile_vector_pop_back_procedure<F: AcirField + DebugToString>(
     brillig_context.deallocate_register(is_rc_one);
     brillig_context.deallocate_register(source_vector_items_pointer);
 
+    brillig_context.deallocate_single_addr(source_size);
     brillig_context.deallocate_single_addr(target_size);
 }

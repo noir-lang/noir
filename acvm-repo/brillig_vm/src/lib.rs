@@ -637,7 +637,8 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                 // Convert our destination_pointer to an address
                 let destination = self.memory.read_ref(*destination_pointer);
                 // Use our usize destination index to set the value in memory
-                self.memory.write(destination, self.memory.read(*source_address));
+                let value = self.memory.read(*source_address);
+                self.memory.write(destination, value);
                 self.increment_program_counter()
             }
             Opcode::Call { location } => {
@@ -1133,7 +1134,6 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
 
         let result_value = evaluate_binary_int_op(&op, lhs_value, rhs_value, bit_size)?;
         self.memory.write(result, result_value);
-
         self.fuzzing_trace_binary_int_op_comparison(&op, lhs_value, rhs_value, result_value);
         Ok(())
     }

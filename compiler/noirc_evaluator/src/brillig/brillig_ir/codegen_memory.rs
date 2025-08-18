@@ -354,6 +354,9 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     }
 
     /// Reads the metadata of a vector and stores it in the given variables
+    ///
+    /// If the `semantic_length_and_item_size` is given, then instead of reading the size from the
+    /// vector data structure, it is calculated as a multiplication of length and item size.
     pub(crate) fn codegen_read_vector_metadata(
         &mut self,
         vector: BrilligVector,
@@ -361,6 +364,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         size: SingleAddrVariable,
         capacity: SingleAddrVariable,
         items_pointer: SingleAddrVariable,
+        semantic_length_and_item_size: Option<(MemoryAddress, MemoryAddress)>,
     ) {
         assert!(rc.bit_size == BRILLIG_MEMORY_ADDRESSING_BIT_SIZE);
         assert!(size.bit_size == BRILLIG_MEMORY_ADDRESSING_BIT_SIZE);
@@ -370,12 +374,29 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         self.load_instruction(rc.address, vector.pointer);
         let read_pointer = self.allocate_register();
         self.codegen_usize_op(vector.pointer, read_pointer, BrilligBinaryOp::Add, 1);
-        self.load_instruction(size.address, read_pointer);
+        if let Some((length, item_size)) = semantic_length_and_item_size {
+            self.codegen_vector_flattened_size(size.address, length, item_size);
+        } else {
+            self.load_instruction(size.address, read_pointer);
+        }
         self.codegen_usize_op_in_place(read_pointer, BrilligBinaryOp::Add, 1);
         self.load_instruction(capacity.address, read_pointer);
         self.codegen_usize_op(read_pointer, items_pointer.address, BrilligBinaryOp::Add, 1);
 
         self.deallocate_register(read_pointer);
+    }
+
+    /// Generate code to calculate the flattened vector size from its semantic length and the item size.
+    ///
+    /// For example a `[(u32, bool)]` would have a flattened item size of 2, because each item consists of 2 values.
+    /// Such a vector with a semantic length of 3 would have a flattened size of 6.
+    pub(crate) fn codegen_vector_flattened_size(
+        &mut self,
+        destination: MemoryAddress,
+        length: MemoryAddress,
+        item_size: MemoryAddress,
+    ) {
+        self.memory_op_instruction(length, item_size, destination, BrilligBinaryOp::Mul);
     }
 
     /// Returns a pointer to the items of a given array

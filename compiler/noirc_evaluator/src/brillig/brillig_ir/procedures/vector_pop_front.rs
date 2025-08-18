@@ -53,19 +53,17 @@ pub(super) fn compile_vector_pop_front_procedure<F: AcirField + DebugToString>(
     let target_vector = BrilligVector { pointer: new_vector_pointer_return };
 
     let source_rc = SingleAddrVariable::new_usize(brillig_context.allocate_register());
-    let source_size_ = SingleAddrVariable::new_usize(brillig_context.allocate_register());
+    let source_size = SingleAddrVariable::new_usize(brillig_context.allocate_register());
     let source_capacity = SingleAddrVariable::new_usize(brillig_context.allocate_register());
     let source_items_pointer = SingleAddrVariable::new_usize(brillig_context.allocate_register());
     brillig_context.codegen_read_vector_metadata(
         source_vector,
         source_rc,
-        source_size_,
+        source_size,
         source_capacity,
         source_items_pointer,
+        Some((source_vector_length_arg, item_pop_count_arg)),
     );
-
-    // We use the semantic length, rather than the size from the metadata.
-    let source_size = SingleAddrVariable::new_usize(source_vector_length_arg);
 
     // target_size = source_size - item_pop_count
     let target_size = SingleAddrVariable::new_usize(brillig_context.allocate_register());
@@ -138,7 +136,7 @@ pub(super) fn compile_vector_pop_front_procedure<F: AcirField + DebugToString>(
 
     brillig_context.deallocate_single_addr(target_size);
     brillig_context.deallocate_single_addr(source_rc);
-    brillig_context.deallocate_single_addr(source_size_);
+    brillig_context.deallocate_single_addr(source_size);
     brillig_context.deallocate_single_addr(source_capacity);
     brillig_context.deallocate_single_addr(source_items_pointer);
 }
