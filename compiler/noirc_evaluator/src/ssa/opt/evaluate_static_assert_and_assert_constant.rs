@@ -46,6 +46,13 @@ impl Ssa {
 
 impl Function {
     fn evaluate_static_assert_and_assert_constant(&mut self) -> Result<(), RuntimeError> {
+        let assert_constant_id = self.dfg.get_intrinsic(Intrinsic::AssertConstant).copied();
+        let static_assert_id = self.dfg.get_intrinsic(Intrinsic::StaticAssert).copied();
+        if assert_constant_id.is_none() && static_assert_id.is_none() {
+            // If there are no calls to either intrinsic there's nothing to evaluate
+            return Ok(());
+        }
+
         let loops = Loops::find_all(self);
 
         let cfg = ControlFlowGraph::with_function(self);
@@ -78,7 +85,13 @@ impl Function {
 
             let inside_empty_loop = blocks_within_empty_loop.contains(&block);
             for instruction in instructions {
-                if check_instruction(self, instruction, inside_empty_loop)? {
+                if check_instruction(
+                    self,
+                    instruction,
+                    assert_constant_id,
+                    static_assert_id,
+                    inside_empty_loop,
+                )? {
                     filtered_instructions.push(instruction);
                 }
             }
@@ -98,18 +111,14 @@ impl Function {
 fn check_instruction(
     function: &mut Function,
     instruction: InstructionId,
+    assert_constant_id: Option<ValueId>,
+    static_assert_id: Option<ValueId>,
     inside_empty_loop: bool,
 ) -> Result<bool, RuntimeError> {
-    let assert_constant_id = function.dfg.get_intrinsic(Intrinsic::AssertConstant);
-    let static_assert_id = function.dfg.get_intrinsic(Intrinsic::StaticAssert);
-    if assert_constant_id.is_none() && static_assert_id.is_none() {
-        return Ok(true);
-    }
-
     match &function.dfg[instruction] {
         Instruction::Call { func, arguments } => {
-            let is_assert_constant = Some(*func) == assert_constant_id.copied();
-            let is_static_assert = Some(*func) == static_assert_id.copied();
+            let is_assert_constant = Some(*func) == assert_constant_id;
+            let is_static_assert = Some(*func) == static_assert_id;
 
             // Skip assertions inside known empty loops
             if inside_empty_loop && (is_assert_constant || is_static_assert) {
