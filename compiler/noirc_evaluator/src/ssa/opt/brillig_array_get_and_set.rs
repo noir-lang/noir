@@ -10,6 +10,8 @@
 //! is unnecessary as we already know the index. This pass looks for such array operations
 //! with constant indices and replaces their index with the appropriate offset.
 
+use acvm::FieldElement;
+
 use crate::{
     brillig::brillig_ir::BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
     ssa::{
@@ -51,11 +53,11 @@ impl Function {
 
                     let array = *array;
                     let index = *index;
-                    if !context.dfg.is_constant(index) {
+                    let Some(index_constant) = context.dfg.get_numeric_constant(index) else {
                         return;
-                    }
+                    };
 
-                    let (index, offset) = compute_index_and_offset(context, array, index);
+                    let (index, offset) = compute_index_and_offset(context, array, index_constant);
                     let new_instruction = Instruction::ArrayGet { array, index, offset };
                     context.replace_current_instruction_with(new_instruction);
                 }
@@ -67,11 +69,11 @@ impl Function {
                     let index = *index;
                     let value = *value;
                     let mutable = *mutable;
-                    if !context.dfg.is_constant(index) {
+                    let Some(index_constant) = context.dfg.get_numeric_constant(index) else {
                         return;
-                    }
+                    };
 
-                    let (index, offset) = compute_index_and_offset(context, array, index);
+                    let (index, offset) = compute_index_and_offset(context, array, index_constant);
                     let new_instruction =
                         Instruction::ArraySet { array, index, value, mutable, offset };
                     context.replace_current_instruction_with(new_instruction);
@@ -85,10 +87,8 @@ impl Function {
 fn compute_index_and_offset(
     context: &mut SimpleOptimizationContext,
     array: ValueId,
-    index: ValueId,
+    index_constant: FieldElement,
 ) -> (ValueId, ArrayOffset) {
-    let index_constant =
-        context.dfg.get_numeric_constant(index).expect("ICE: Expected constant index");
     let offset = if matches!(context.dfg.type_of_value(array), Type::Array(..)) {
         ArrayOffset::Array
     } else {
