@@ -79,14 +79,14 @@ impl<'de, T: PrimeField> Deserialize<'de> for FieldElement<T> {
         D: serde::Deserializer<'de>,
     {
         let s: Cow<'de, [u8]> = Deserialize::deserialize(deserializer)?;
-        if s.len() != T::MODULUS_BIT_SIZE.div_ceil(8) as usize {
-            return Err(serde::de::Error::custom(format!(
-                "Expected {} bytes, got {}",
-                T::MODULUS_BIT_SIZE.div_ceil(8),
-                s.len()
-            )));
+        if s.len() == T::MODULUS_BIT_SIZE.div_ceil(8) as usize {
+            Ok(Self::from_be_bytes_reduce(&s))
+        } else {
+            Err(serde::de::Error::invalid_length(
+                T::MODULUS_BIT_SIZE.div_ceil(8) as usize,
+                &s.len().to_string().as_str(),
+            ))
         }
-        Ok(Self::from_be_bytes_reduce(&s))
     }
 }
 
