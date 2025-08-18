@@ -1,11 +1,15 @@
 //! This file contains mechanisms for deterministically mutating a given [FuzzerFunctionCommand](crate::fuzz_lib::function_context::FuzzerFunctionCommand) value
 
 use crate::fuzz_lib::function_context::FuzzerFunctionCommand;
-use crate::mutations::basic_types::usize::mutate_usize;
-use crate::mutations::configuration::{
-    BASIC_INSERT_CYCLE_MUTATION_CONFIGURATION, BASIC_INSERT_FUNCTION_CALL_MUTATION_CONFIGURATION,
-    BASIC_INSERT_JMP_IF_BLOCK_MUTATION_CONFIGURATION, BASIC_USIZE_MUTATION_CONFIGURATION,
-    InsertCycleMutationOptions, InsertFunctionCallMutationOptions, InsertJmpIfBlockMutationOptions,
+use crate::mutations::{
+    basic_types::usize::mutate_usize,
+    configuration::{
+        BASIC_INSERT_CYCLE_MUTATION_CONFIGURATION,
+        BASIC_INSERT_FUNCTION_CALL_MUTATION_CONFIGURATION,
+        BASIC_INSERT_JMP_IF_BLOCK_MUTATION_CONFIGURATION, BASIC_USIZE_MUTATION_CONFIGURATION,
+        InsertCycleMutationOptions, InsertFunctionCallMutationOptions,
+        InsertJmpIfBlockMutationOptions,
+    },
 };
 use rand::Rng;
 use rand::rngs::StdRng;
