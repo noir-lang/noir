@@ -72,7 +72,11 @@ it('successfully processes simple brillig foreign call opcodes', async () => {
     return foreignCallOracleResponse;
   };
 
-  const solvedWitness: WitnessMap = await executeCircuit(foreignCallBytecode, foreignCallInitialWitnessMap, foreignCallHandler);
+  const solvedWitness: WitnessMap = await executeCircuit(
+    foreignCallBytecode,
+    foreignCallInitialWitnessMap,
+    foreignCallHandler,
+  );
 
   // Check that expected values were passed to oracle callback.
   expect(observedName).to.be.eq(foreignCallOracleCallName);
@@ -95,7 +99,11 @@ it('successfully processes complex brillig foreign call opcodes', async () => {
     return complexForeignCallOracleResponse;
   };
 
-  const solvedWitness: WitnessMap = await executeCircuit(complexForeignCallBytecode, complexForeignCallInitialWitnessMap, foreignCallHandler);
+  const solvedWitness: WitnessMap = await executeCircuit(
+    complexForeignCallBytecode,
+    complexForeignCallInitialWitnessMap,
+    foreignCallHandler,
+  );
 
   // Check that expected values were passed to oracle callback.
   expect(observedName).to.be.eq(complexForeignCallOracleCallName);
@@ -107,9 +115,13 @@ it('successfully processes complex brillig foreign call opcodes', async () => {
 });
 
 it('successfully executes a MultiScalarMul opcode', async () => {
-  const solvedWitness: WitnessMap = await executeCircuit(multiScalarMulBytecode, multiScalarMulInitialWitnessMap, () => {
-    throw Error('unexpected oracle');
-  });
+  const solvedWitness: WitnessMap = await executeCircuit(
+    multiScalarMulBytecode,
+    multiScalarMulInitialWitnessMap,
+    () => {
+      throw Error('unexpected oracle');
+    },
+  );
 
   expect(solvedWitness).to.be.deep.eq(multiScalarMulExpectedWitnessMap);
 });
