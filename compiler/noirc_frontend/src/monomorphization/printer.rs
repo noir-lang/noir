@@ -523,7 +523,7 @@ impl AstPrinter {
                 name,
                 ..
             }) => check_call(*unconstrained, definition, name),
-            Expression::Tuple(elements) => match elements.get(0) {
+            Expression::Tuple(elements) => match elements.first() {
                 Some(Expression::Ident(Ident {
                     typ: Type::Function(_, _, _, unconstrained),
                     definition,
