@@ -1,8 +1,8 @@
-use std::collections::BTreeMap;
-
-use super::function_context::{FunctionData, FuzzerFunctionCommand, FuzzerFunctionContext};
-use super::instruction::{FunctionInfo, InstructionBlock};
-use super::options::{FunctionContextOptions, FuzzerMode, FuzzerOptions};
+use super::{
+    function_context::{FunctionData, FuzzerFunctionCommand, FuzzerFunctionContext},
+    instruction::{FunctionInfo, InstructionBlock},
+    options::{FunctionContextOptions, FuzzerMode, FuzzerOptions},
+};
 use acvm::FieldElement;
 use noir_ssa_fuzzer::{
     builder::{FuzzerBuilder, FuzzerBuilderError},
@@ -10,6 +10,7 @@ use noir_ssa_fuzzer::{
 };
 use noirc_driver::CompiledProgram;
 use noirc_evaluator::ssa::ir::{function::Function, map::Id};
+use std::collections::BTreeMap;
 
 struct StoredFunction {
     id: Id<Function>,
@@ -133,9 +134,11 @@ impl FuzzerProgramContext {
                             [*block_body_idx % self.instruction_blocks.len()]
                         .instructions
                         .len();
-                        let cycle_iterations_count =
-                            if end_iter > start_iter { end_iter - start_iter + 1 } else { 1 }
-                                as usize;
+                        let cycle_iterations_count = if end_iter > start_iter {
+                            (end_iter - start_iter).saturating_add(1)
+                        } else {
+                            1
+                        } as usize;
                         cycle_sizes.push(cycle_iterations_count);
                         iterations_before *= cycle_iterations_count;
                         max_unrolled_size += instruction_block_size * iterations_before;

@@ -22,7 +22,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.85.0
@@ -50,7 +50,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.85.0
@@ -76,7 +76,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.85.0
@@ -102,7 +102,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install Yarn dependencies
         uses: ./.github/actions/setup
@@ -116,7 +116,7 @@ jobs:
 
     steps:
       - name: Checkout Noir repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.85.0
@@ -152,7 +152,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Download nargo binary
         uses: ./.github/actions/download-nargo
