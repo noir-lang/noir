@@ -2,6 +2,8 @@
 //! determine whether it's asserting two values are not equal, and if so replace it
 //! with a [`Instruction::ConstrainNotEqual`].
 //!
+//! This pass is only applied to ACIR functions.
+//!
 //! Note that this pass must be placed after [`CFG flattening`](super::flatten_cfg)
 //! as the flattening pass cannot handle this instruction.
 use acvm::AcirField;
