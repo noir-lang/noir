@@ -157,7 +157,7 @@ mod serialization_tests {
         let raw_responses: [(&str, Vec<ForeignCallParam<FieldElement>>); 3] = [
             ("[]", Vec::new()),
             (
-                "[\"0x0000000000000000000000000000000000000000000000000000000000000001\"]",
+                "[[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1]]",
                 vec![ForeignCallParam::Single(FieldElement::one())],
             ),
             ("[[]]", vec![ForeignCallParam::Array(Vec::new())]),
