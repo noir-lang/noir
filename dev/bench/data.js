@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1755513783931,
+  "lastUpdate": 1755521937442,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -18716,48 +18716,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "cb6b7e34ece13f2b99a0dc3d845b3254f8c20c5f",
-          "message": "fix: trait where clause check fixes (#9369)",
-          "timestamp": "2025-07-31T19:34:34Z",
-          "tree_id": "80c68aa050a218b871760a39df49d70392b68b2d",
-          "url": "https://github.com/noir-lang/noir/commit/cb6b7e34ece13f2b99a0dc3d845b3254f8c20c5f"
-        },
-        "date": 1753992100573,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 249234,
-            "range": "± 223",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 220852,
-            "range": "± 3342",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2787290,
-            "range": "± 3541",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "9797518a83a46e91a7c767ec637780a42dd21c9f",
           "message": "chore: use SSA parser in all mem2reg tests (#9372)",
           "timestamp": "2025-08-01T15:19:31Z",
@@ -20799,6 +20757,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2812380,
             "range": "± 1904",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "84741533+defkit@users.noreply.github.com",
+            "name": "defkit",
+            "username": "defkit"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "7c6b4e38637bea35e979849789b9260720403df7",
+          "message": "chore(ssa_fuzzer): reorganisation of tests + generative mutations (#9531)",
+          "timestamp": "2025-08-18T12:33:35Z",
+          "tree_id": "bc90ae08deb18af51d7d4f19563d7ed8db3933d7",
+          "url": "https://github.com/noir-lang/noir/commit/7c6b4e38637bea35e979849789b9260720403df7"
+        },
+        "date": 1755521919483,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 259894,
+            "range": "± 1022",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 228563,
+            "range": "± 1835",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2807583,
+            "range": "± 1541",
             "unit": "ns/iter"
           }
         ]
