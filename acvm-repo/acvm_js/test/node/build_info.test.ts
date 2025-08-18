@@ -1,7 +1,7 @@
 import { expect } from 'chai';
 import { BuildInfo, buildInfo } from '@noir-lang/acvm_js';
 import child_process from 'child_process';
-import pkg from '../../package.json';
+import pkg from '../../package.json' with { type: 'json' };
 
 it('returns the correct build info', () => {
   let revision: string;
