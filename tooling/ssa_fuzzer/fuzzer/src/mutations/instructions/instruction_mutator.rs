@@ -6,7 +6,13 @@
 use crate::fuzz_lib::instruction::Instruction;
 use crate::mutations::{
     basic_types::{
-        bool::mutate_bool, usize::mutate_usize, value_type::mutate_value_type, vec::mutate_vec,
+        bool::mutate_bool,
+        point::{generate_random_point, mutate_point},
+        scalar::generate_random_scalar,
+        scalar::mutate_scalar,
+        usize::mutate_usize,
+        value_type::mutate_value_type,
+        vec::mutate_vec,
     },
     configuration::{
         Aes128EncryptMutationOptions, ArrayGetMutationOptions, ArraySetMutationOptions,
@@ -14,9 +20,9 @@ use crate::mutations::{
         BASIC_ARRAY_SET_MUTATION_CONFIGURATION, BASIC_BLAKE_HASH_MUTATION_CONFIGURATION,
         BASIC_BOOL_MUTATION_CONFIGURATION, BASIC_CREATE_ARRAY_MUTATION_CONFIGURATION,
         BASIC_INSTRUCTION_ARGUMENT_MUTATION_CONFIGURATION,
-        BASIC_INSTRUCTION_MUTATION_CONFIGURATION, BASIC_SAFE_INDEX_MUTATION_CONFIGURATION,
-        BASIC_SHA256_COMPRESSION_MUTATION_CONFIGURATION, BASIC_USIZE_MUTATION_CONFIGURATION,
-        BASIC_VALUE_TYPE_MUTATION_CONFIGURATION, BASIC_VEC_MUTATION_CONFIGURATION,
+        BASIC_INSTRUCTION_MUTATION_CONFIGURATION, BASIC_SHA256_COMPRESSION_MUTATION_CONFIGURATION,
+        BASIC_USIZE_MUTATION_CONFIGURATION, BASIC_VALUE_TYPE_MUTATION_CONFIGURATION,
+        BASIC_VEC_MUTATION_CONFIGURATION, BOOL_MUTATION_CONFIGURATION_MOSTLY_TRUE,
         BlakeHashMutationOptions, CreateArrayMutationOptions, InstructionArgumentMutationOptions,
         InstructionMutationOptions, SIZE_OF_SMALL_ARBITRARY_BUFFER,
         Sha256CompressionMutationOptions,
@@ -115,7 +121,7 @@ impl InstructionArgumentsMutation {
                         argument_mutator(index, rng);
                     }
                     ArrayGetMutationOptions::SafeIndex => {
-                        mutate_bool(safe_index, rng, BASIC_SAFE_INDEX_MUTATION_CONFIGURATION);
+                        mutate_bool(safe_index, rng, BOOL_MUTATION_CONFIGURATION_MOSTLY_TRUE);
                     }
                 }
             }
@@ -131,7 +137,7 @@ impl InstructionArgumentsMutation {
                         mutate_usize(value_index, rng, BASIC_USIZE_MUTATION_CONFIGURATION);
                     }
                     ArraySetMutationOptions::SafeIndex => {
-                        mutate_bool(safe_index, rng, BASIC_SAFE_INDEX_MUTATION_CONFIGURATION);
+                        mutate_bool(safe_index, rng, BOOL_MUTATION_CONFIGURATION_MOSTLY_TRUE);
                     }
                 }
             }
@@ -169,7 +175,7 @@ impl InstructionArgumentsMutation {
                         mutate_usize(index, rng, BASIC_USIZE_MUTATION_CONFIGURATION);
                     }
                     ArrayGetMutationOptions::SafeIndex => {
-                        mutate_bool(safe_index, rng, BASIC_SAFE_INDEX_MUTATION_CONFIGURATION);
+                        mutate_bool(safe_index, rng, BOOL_MUTATION_CONFIGURATION_MOSTLY_TRUE);
                     }
                 }
             }
@@ -189,7 +195,7 @@ impl InstructionArgumentsMutation {
                     mutate_usize(value_index, rng, BASIC_USIZE_MUTATION_CONFIGURATION);
                 }
                 ArraySetMutationOptions::SafeIndex => {
-                    mutate_bool(safe_index, rng, BASIC_SAFE_INDEX_MUTATION_CONFIGURATION);
+                    mutate_bool(safe_index, rng, BOOL_MUTATION_CONFIGURATION_MOSTLY_TRUE);
                 }
             },
             Instruction::FieldToBytesToField { field_idx } => {
@@ -252,6 +258,29 @@ impl InstructionArgumentsMutation {
                         mutate_usize(iv_idx, rng, BASIC_USIZE_MUTATION_CONFIGURATION);
                     }
                 }
+            }
+            Instruction::PointAdd { p1, p2 } => {
+                match BASIC_INSTRUCTION_ARGUMENT_MUTATION_CONFIGURATION.select(rng) {
+                    InstructionArgumentMutationOptions::Left => {
+                        mutate_point(p1, rng);
+                    }
+                    InstructionArgumentMutationOptions::Right => {
+                        mutate_point(p2, rng);
+                    }
+                }
+            }
+
+            Instruction::MultiScalarMul { points_and_scalars } => {
+                mutate_vec(
+                    points_and_scalars,
+                    rng,
+                    |(point, scalar), rng| {
+                        mutate_point(point, rng);
+                        mutate_scalar(scalar, rng);
+                    },
+                    |rng| (generate_random_point(rng), generate_random_scalar(rng)),
+                    BASIC_VEC_MUTATION_CONFIGURATION,
+                );
             }
         }
     }

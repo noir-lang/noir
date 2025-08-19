@@ -1,4 +1,4 @@
-use crate::typed_value::{TypedValue, ValueType};
+use crate::typed_value::{Point, Scalar, TypedValue, ValueType};
 use acvm::FieldElement;
 use noir_ssa_executor::compiler::compile_from_ssa;
 use noirc_driver::{CompileOptions, CompiledProgram};
@@ -738,5 +738,185 @@ impl FuzzerBuilder {
             res,
             Type::Array(Arc::new(vec![array.type_of_variable.clone()]), array_length),
         )
+    }
+
+    /// Performs a curve point multiplication with a scalar
+    ///
+    /// # Arguments
+    /// * `scalar` - The scalar value to multiply
+    /// * `is_infinite` - The boolean value indicating if the resulting point is on the curve (setting it by ourself)
+    ///
+    /// # Returns
+    /// [`Point`] corresponding to `value` * G with overwritten on_curve value
+    pub fn base_scalar_mul(&mut self, scalar: Scalar, is_infinite: TypedValue) -> Point {
+        assert!(scalar.validate());
+        assert!(matches!(
+            is_infinite.type_of_variable,
+            Type::Numeric(NumericType::Unsigned { bit_size: 1 })
+        ));
+        let field_type = Type::Numeric(NumericType::NativeField);
+        let boolean_type = Type::Numeric(NumericType::Unsigned { bit_size: 1 });
+        let intrinsic = self
+            .builder
+            .import_intrinsic("multi_scalar_mul")
+            .expect("multi_scalar_mul intrinsic should be available");
+
+        // im recreating the point G every time, could be optimized to only do it once
+        let g_x_id = self.builder.numeric_constant(1_u32, NumericType::NativeField);
+        let g_y_id = self.builder.numeric_constant(
+            FieldElement::try_from_str(
+                "17631683881184975370165255887551781615748388533673675138860",
+            )
+            .unwrap(),
+            NumericType::NativeField,
+        );
+        let is_infinite_g_id =
+            self.builder.numeric_constant(0_u32, NumericType::Unsigned { bit_size: 1 });
+        let elements = vec![g_x_id, g_y_id, is_infinite_g_id].into_iter().collect();
+        let basic_point = self.builder.insert_make_array(
+            elements,
+            Type::Array(
+                Arc::new(vec![field_type.clone(), field_type.clone(), boolean_type.clone()]),
+                1,
+            ),
+        );
+        let scalar_id = self.builder.insert_make_array(
+            vec![scalar.lo.value_id, scalar.hi.value_id].into_iter().collect(),
+            Type::Array(Arc::new(vec![field_type.clone(), field_type.clone()]), 1),
+        );
+        let return_type = Type::Array(
+            Arc::new(vec![field_type.clone(), field_type.clone(), boolean_type.clone()]),
+            1,
+        );
+        let result = self.builder.insert_call(
+            intrinsic,
+            vec![basic_point, scalar_id],
+            vec![return_type.clone()],
+        );
+        assert_eq!(result.len(), 1);
+        let result = result[0];
+        let x_idx = self.builder.numeric_constant(0_u32, NumericType::Unsigned { bit_size: 32 });
+        let y_idx = self.builder.numeric_constant(1_u32, NumericType::Unsigned { bit_size: 32 });
+        let x = self.builder.insert_array_get(result, x_idx, ArrayOffset::None, field_type.clone());
+        let y = self.builder.insert_array_get(result, y_idx, ArrayOffset::None, field_type.clone());
+        Point {
+            x: TypedValue::new(x, field_type.clone()),
+            y: TypedValue::new(y, field_type),
+            is_infinite,
+        }
+    }
+
+    /// Creates a point from an affine x coordinate (scalar.lo, scalar.hi, is_infinite)
+    /// Mostly invalid
+    /// # Arguments
+    /// * `scalar` - The scalar value to take coordinates from
+    /// * `is_infinite` - The boolean value indicating if the resulting point is on the curve (setting it by ourself)
+    /// # Returns
+    /// Point (scalar.lo, scalar.hi, is_infinite)
+    pub fn create_point_from_scalar(&mut self, scalar: Scalar, is_infinite: TypedValue) -> Point {
+        assert!(scalar.validate());
+        assert!(matches!(
+            is_infinite.type_of_variable,
+            Type::Numeric(NumericType::Unsigned { bit_size: 1 })
+        ));
+        Point { x: scalar.lo, y: scalar.hi, is_infinite }
+    }
+
+    pub fn multi_scalar_mul(&mut self, points: Vec<Point>, scalars: Vec<Scalar>) -> Point {
+        assert_eq!(points.len(), scalars.len());
+        for point in &points {
+            assert!(point.validate());
+        }
+        for scalar in &scalars {
+            assert!(scalar.validate());
+        }
+
+        let field_type = Type::Numeric(NumericType::NativeField);
+        let boolean_type = Type::Numeric(NumericType::Unsigned { bit_size: 1 });
+        let intrinsic = self
+            .builder
+            .import_intrinsic("multi_scalar_mul")
+            .expect("multi_scalar_mul intrinsic should be available");
+        let point_ids = points.iter().flat_map(|p| p.to_id_vec()).collect::<Vec<_>>();
+        let scalar_ids = scalars.iter().flat_map(|s| s.to_id_vec()).collect::<Vec<_>>();
+        let point_ids_array = self.builder.insert_make_array(
+            point_ids.into_iter().collect(),
+            Type::Array(
+                Arc::new(vec![field_type.clone(), field_type.clone(), boolean_type.clone()]),
+                points.len() as u32,
+            ),
+        );
+        let scalar_ids_array = self.builder.insert_make_array(
+            scalar_ids.into_iter().collect(),
+            Type::Array(
+                Arc::new(vec![field_type.clone(), field_type.clone()]),
+                scalars.len() as u32,
+            ),
+        );
+        let return_type = Type::Array(
+            Arc::new(vec![field_type.clone(), field_type.clone(), boolean_type.clone()]),
+            1,
+        );
+        let result = self.builder.insert_call(
+            intrinsic,
+            vec![point_ids_array, scalar_ids_array],
+            vec![return_type.clone()],
+        );
+        assert_eq!(result.len(), 1);
+        let result = result[0];
+        let x_idx = self.builder.numeric_constant(0_u32, NumericType::Unsigned { bit_size: 32 });
+        let y_idx = self.builder.numeric_constant(1_u32, NumericType::Unsigned { bit_size: 32 });
+        let is_infinite_idx =
+            self.builder.numeric_constant(2_u32, NumericType::Unsigned { bit_size: 32 });
+        let x = self.builder.insert_array_get(result, x_idx, ArrayOffset::None, field_type.clone());
+        let y = self.builder.insert_array_get(result, y_idx, ArrayOffset::None, field_type.clone());
+        let is_infinite = self.builder.insert_array_get(
+            result,
+            is_infinite_idx,
+            ArrayOffset::None,
+            boolean_type.clone(),
+        );
+        Point {
+            x: TypedValue::new(x, field_type.clone()),
+            y: TypedValue::new(y, field_type),
+            is_infinite: TypedValue::new(is_infinite, boolean_type),
+        }
+    }
+
+    pub fn point_add(&mut self, p1: Point, p2: Point) -> Point {
+        assert!(p1.validate());
+        assert!(p2.validate());
+        let field_type = Type::Numeric(NumericType::NativeField);
+        let boolean_type = Type::Numeric(NumericType::Unsigned { bit_size: 1 });
+        let intrinsic = self
+            .builder
+            .import_intrinsic("embedded_curve_add")
+            .expect("embedded_curve_add intrinsic should be available");
+        let points_flattened = p1.to_id_vec().into_iter().chain(p2.to_id_vec()).collect::<Vec<_>>();
+        let return_type = Type::Array(
+            Arc::new(vec![field_type.clone(), field_type.clone(), boolean_type.clone()]),
+            1,
+        );
+        let result =
+            self.builder.insert_call(intrinsic, points_flattened, vec![return_type.clone()]);
+        assert_eq!(result.len(), 1);
+        let result = result[0];
+        let x_idx = self.builder.numeric_constant(0_u32, NumericType::Unsigned { bit_size: 32 });
+        let y_idx = self.builder.numeric_constant(1_u32, NumericType::Unsigned { bit_size: 32 });
+        let is_infinite_idx =
+            self.builder.numeric_constant(2_u32, NumericType::Unsigned { bit_size: 32 });
+        let x = self.builder.insert_array_get(result, x_idx, ArrayOffset::None, field_type.clone());
+        let y = self.builder.insert_array_get(result, y_idx, ArrayOffset::None, field_type.clone());
+        let is_infinite = self.builder.insert_array_get(
+            result,
+            is_infinite_idx,
+            ArrayOffset::None,
+            boolean_type.clone(),
+        );
+        Point {
+            x: TypedValue::new(x, field_type.clone()),
+            y: TypedValue::new(y, field_type),
+            is_infinite: TypedValue::new(is_infinite, boolean_type),
+        }
     }
 }

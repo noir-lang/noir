@@ -21,6 +21,23 @@ pub(crate) struct Argument {
     pub(crate) value_type: ValueType,
 }
 
+#[derive(Arbitrary, Debug, Clone, Copy, Serialize, Deserialize, Default)]
+pub(crate) struct Scalar {
+    pub(crate) field_lo_idx: usize,
+    pub(crate) field_hi_idx: usize,
+}
+
+#[derive(Arbitrary, Debug, Clone, Copy, Serialize, Deserialize, Default)]
+pub(crate) struct Point {
+    pub(crate) scalar: Scalar,
+    /// If true, the point will be derived from scalar multiplication using [`noir_ssa_fuzzer::builder::FuzzerBuilder::base_scalar_mul`]
+    /// Otherwise, the point will be derived from scalar values using [`noir_ssa_fuzzer::builder::FuzzerBuilder::create_point_from_scalar`]
+    pub(crate) derive_from_scalar_mul: bool,
+    pub(crate) is_infinite: bool,
+}
+
+pub(crate) type PointAndScalar = (Point, Scalar);
+
 /// Represents set of instructions
 ///
 /// For operations that take two arguments we ignore type of the second argument.
@@ -134,6 +151,12 @@ pub(crate) enum Instruction {
         state_indices: [usize; 8],
         load_elements_of_array: bool,
     },
+
+    /// Point addition
+    PointAdd { p1: Point, p2: Point },
+
+    /// Multi-scalar multiplication
+    MultiScalarMul { points_and_scalars: Vec<PointAndScalar> },
 }
 
 /// Default instruction is XOR of two boolean values
