@@ -883,6 +883,9 @@ impl BlockContext {
                 }
             }
             Instruction::PointAdd { p1, p2 } => {
+                if !self.options.instruction_options.point_add_enabled {
+                    return;
+                }
                 let p1 = self.ssa_point_from_instruction_point(acir_builder, brillig_builder, p1);
                 let p2 = self.ssa_point_from_instruction_point(acir_builder, brillig_builder, p2);
                 if p1.is_none() || p2.is_none() {
@@ -902,6 +905,9 @@ impl BlockContext {
                 }
             }
             Instruction::MultiScalarMul { points_and_scalars } => {
+                if !self.options.instruction_options.multi_scalar_mul_enabled {
+                    return;
+                }
                 let mut points_vec = Vec::new();
                 let mut scalars_vec = Vec::new();
                 for (p, s) in points_and_scalars.iter() {
