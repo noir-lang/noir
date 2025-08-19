@@ -26,3 +26,9 @@ yarn-error.log*
 package-lock.json
 versions.json
 .supermavenignore
+
+# Tutorials test
+tests/fixtures/browser/dist
+test-results
+playwright-report
+!tests/fixtures/browser/target/
