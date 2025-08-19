@@ -1,5 +1,6 @@
 ---
 title: Module
+description: Work with modules in `comptime`—query names, list functions/structs, detect contracts, and add new items.
 ---
 
 `std::meta::module` contains methods on the built-in `Module` type which represents a module in the source program.
@@ -10,19 +11,19 @@ declarations in the source program.
 
 ### add_item
 
-```rust title="add_item" showLineNumbers 
+```rust title="add_item" showLineNumbers
 pub comptime fn add_item(self, item: Quoted) {}
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/module.nr#L3-L5" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/module.nr#L3-L5</a></sub></sup>
 
 
-Adds a top-level item (a function, a struct, a global, etc.) to the module. 
-Adding multiple items in one go is also valid if the `Quoted` value has multiple items in it.  
+Adds a top-level item (a function, a struct, a global, etc.) to the module.
+Adding multiple items in one go is also valid if the `Quoted` value has multiple items in it.
 Note that the items are type-checked as if they are inside the module they are being added to.
 
 ### functions
 
-```rust title="functions" showLineNumbers 
+```rust title="functions" showLineNumbers
 pub comptime fn functions(self) -> [FunctionDefinition] {}
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/module.nr#L18-L20" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/module.nr#L18-L20</a></sub></sup>
@@ -32,7 +33,7 @@ Returns each function defined in the module.
 
 ### has_named_attribute
 
-```rust title="has_named_attribute" showLineNumbers 
+```rust title="has_named_attribute" showLineNumbers
 pub comptime fn has_named_attribute<let N: u32>(self, name: str<N>) -> bool {}
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/module.nr#L8-L10" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/module.nr#L8-L10</a></sub></sup>
@@ -42,7 +43,7 @@ Returns true if this module has a custom attribute with the given name.
 
 ### is_contract
 
-```rust title="is_contract" showLineNumbers 
+```rust title="is_contract" showLineNumbers
 pub comptime fn is_contract(self) -> bool {}
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/module.nr#L13-L15" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/module.nr#L13-L15</a></sub></sup>
@@ -52,7 +53,7 @@ pub comptime fn is_contract(self) -> bool {}
 
 ### name
 
-```rust title="name" showLineNumbers 
+```rust title="name" showLineNumbers
 pub comptime fn name(self) -> Quoted {}
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/module.nr#L28-L30" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/module.nr#L28-L30</a></sub></sup>
@@ -62,7 +63,7 @@ Returns the name of the module.
 
 ### structs
 
-```rust title="structs" showLineNumbers 
+```rust title="structs" showLineNumbers
 pub comptime fn structs(self) -> [TypeDefinition] {}
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/module.nr#L23-L25" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/module.nr#L23-L25</a></sub></sup>
