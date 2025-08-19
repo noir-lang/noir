@@ -7,7 +7,6 @@ sidebar_position: 0
 
 ## Installation
 
-### Installing Noir
 
 The easiest way to develop with Noir is using Nargo the CLI tool. It provides you the ability to start new projects, compile, execute and test Noir programs from the terminal.
 
@@ -73,7 +72,7 @@ With circuit compiled and witness generated, we're ready to prove.
 
 ## Next Steps - Proving backend
 
-Noir is a frontend zkDSL. It compiles a circuit, generates the witness and the ACIR. In order to prove and verify these programs, you'll need a proving backend.
+Noir is a high-level programming language for zero-knowledge proofs, which compiles your code into [ACIR](https://noir-lang.github.io/noir/docs/acir/circuit/index.html) and generates witnesses for further proof generations and verifications. In order to prove and verify your Noir programs, you'll need a proving backend.
 
 Proving backends provide you multiple tools. The most common backend for Noir is [Barretenberg](https://barretenberg.aztec.network). It allows you to:
 
@@ -82,4 +81,6 @@ Proving backends provide you multiple tools. The most common backend for Noir is
 - Generate a solidity contract that verifies your proof non-interactively
 - Check and compare circuit size
 
-Do visit [barretenberg.aztec.network](https://barretenberg.aztec.network), or use a different proving backend. Visit [Awesome Noir](https://github.com/noir-lang/awesome-noir/?tab=readme-ov-file#proving-backends) for a list of proving backends that work with Noir.
+Read [Barretenberg's Getting Started guide](https://barretenberg.aztec.network/docs/getting_started) to install and start using Noir with Barretenberg.
+
+Visit [Awesome Noir](https://github.com/noir-lang/awesome-noir/?tab=readme-ov-file#proving-backends) for a comprehensive list of proving backends that work with Noir.
