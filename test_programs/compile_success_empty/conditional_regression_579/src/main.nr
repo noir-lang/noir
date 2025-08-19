@@ -19,7 +19,7 @@ impl MyStruct579 {
 fn test(flag: bool) -> MyStruct579 {
     let mut my_struct = MyStruct579::new([0; 2]);
 
-    if flag == true {
+    if flag {
         my_struct = MyStruct579::new([1; 2]);
     }
     my_struct
