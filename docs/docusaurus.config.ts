@@ -1,5 +1,5 @@
 import type { Config } from '@docusaurus/types';
-
+const versions = require("./versions.json");
 const { themes } = require('prism-react-renderer');
 const lightTheme = themes.github;
 const darkTheme = themes.dracula;
@@ -211,6 +211,21 @@ export default {
         indexFormat: 'table',
         outputFileStrategy: 'members',
         membersWithOwnFile: ['Function', 'TypeAlias'],
+      },
+    ],
+    [
+      "docusaurus-plugin-llms",
+      {
+        generateLLMsTxt: true,
+        generateLLMsFullTxt: true,
+        docsDir: `versioned_docs/version-${versions[0]}/`,
+        title: "Aztec Protocol Documentation",
+        excludeImports: true,
+        ignoreFiles: [`versioned_docs/**/protocol-specs/*`],
+        version: versions[0],
+        pathTransformation: {
+          ignorePaths: ["docs"],
+        },
       },
     ],
   ],
