@@ -214,17 +214,17 @@ export default {
       },
     ],
     [
-      "docusaurus-plugin-llms",
+      'docusaurus-plugin-llms',
       {
         generateLLMsTxt: true,
         generateLLMsFullTxt: true,
         docsDir: `versioned_docs/version-${versions[0]}/`,
-        title: "Aztec Protocol Documentation",
+        title: 'Noir Language Documentation',
         excludeImports: true,
-        ignoreFiles: [`versioned_docs/**/protocol-specs/*`],
+        ignoreFiles: [],
         version: versions[0],
         pathTransformation: {
-          ignorePaths: ["docs"],
+          ignorePaths: ['docs'],
         },
       },
     ],
