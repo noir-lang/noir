@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1755593219082,
+  "lastUpdate": 1755593551711,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -4067,90 +4067,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "8146755d9a0fd0f6d469cc11f9359188b6aa36df",
-          "message": "chore: address TODO comments (#9379)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
-          "timestamp": "2025-08-04T12:44:27Z",
-          "tree_id": "0990e29ea67b4231c4a164042ad7105d2c4451ab",
-          "url": "https://github.com/noir-lang/noir/commit/8146755d9a0fd0f6d469cc11f9359188b6aa36df"
-        },
-        "date": 1754313407986,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 1.784,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 7.93,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.31,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 16.82,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 14.38,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 20.44,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 196,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 203,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.328,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.43,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.811,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 1.504,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "1d8a104bcf2c9b733aed6092a161af20f0f6f5d9",
           "message": "fix: disable comptime printing when requesting json output (#9381)",
@@ -8101,6 +8017,90 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 1.613,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "888f9a0871e1e99e9d733f4e438b023474606af7",
+          "message": "fix(brillig): Pass slice length to push and pop operations (#9507)",
+          "timestamp": "2025-08-19T08:20:50Z",
+          "tree_id": "c5eef165a13708028e67323ffbedd1fd39d72018",
+          "url": "https://github.com/noir-lang/noir/commit/888f9a0871e1e99e9d733f4e438b023474606af7"
+        },
+        "date": 1755593533643,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1.77,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 8.122,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.374,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 14.92,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 13.74,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 21.1,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 205,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 196,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.344,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.45,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.776,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 1.68,
             "unit": "s"
           }
         ]
