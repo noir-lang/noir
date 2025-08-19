@@ -1,15 +1,36 @@
-//! In the Brillig runtime arrays are represented as [RC, ...items],
-//! Certain operations such as array gets only utilize the items pointer.
-//! Without handling the items pointer offset in SSA, it is left to Brillig generation
-//! to offset the array pointer.
+//! This SSA pass adjusts constant indexes of array operations inside Brillig functions
+//! to avoid performing an extra binary operation.
 //!
-//! Slices are represented as Brillig vectors, where the items pointer instead starts at three rather than one.
+//! For example, if we have this SSA:
+//!
+//! ```ssa
+//! b0(v0: [Field; 10]):
+//!   v1 = array_get v0, index u32 3 -> Field
+//! ```
+//!
+//! Brillig would have to fetch the element at index 3 of the array. However,
+//! in the Brillig runtime arrays are represented as [RC, ...items],
+//! where `RC` holds the reference count of the array. That means that the final
+//! index that needs to be retrieved is 4, not 3. With the above operation
+//! the final Brillig code would have to add 1 to 3 to get the desired element.
+//!
+//! So, this pass will transform the above SSA into this:
+//!
+//! ```ssa
+//! b0(v0: [Field; 10]):
+//!   v1 = array_get v0, index u32 4 minus 1 -> Field
+//! ```
+//!
+//! Now the index to retrieve is 4 and there's no need to offset it in Brillig,
+//! avoiding one addition.
+//! The "minus 1" part is just there so that readers can understand that the index
+//! was offset and that the actual element index is 3. On the Brillig side,
+//! array operations with constant indexes are always assumed to have already been
+//! shifted.
+//!
+//! In the case of slices, these are represented as Brillig vectors, where the items
+//! pointer instead starts at three rather than one.
 //! A Brillig vector is represented as [RC, Size, Capacity, ...items].
-//!
-//! For array operations with constant indices adding an instruction to offset the pointer
-//! is unnecessary as we already know the index. This pass looks for such array operations
-//! with constant indices and replaces their index with the appropriate offset.
-
 use acvm::FieldElement;
 
 use crate::{
