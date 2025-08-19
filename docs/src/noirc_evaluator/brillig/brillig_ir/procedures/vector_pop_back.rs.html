@@ -107,7 +107,18 @@
 <a href="#106" id="106">106</a>
 <a href="#107" id="107">107</a>
 <a href="#108" id="108">108</a>
-<a href="#109" id="109">109</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::vec;
+<a href="#109" id="109">109</a>
+<a href="#110" id="110">110</a>
+<a href="#111" id="111">111</a>
+<a href="#112" id="112">112</a>
+<a href="#113" id="113">113</a>
+<a href="#114" id="114">114</a>
+<a href="#115" id="115">115</a>
+<a href="#116" id="116">116</a>
+<a href="#117" id="117">117</a>
+<a href="#118" id="118">118</a>
+<a href="#119" id="119">119</a>
+<a href="#120" id="120">120</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::vec;
 
 <span class="kw">use </span>acvm::{AcirField, acir::brillig::MemoryAddress};
 
@@ -123,16 +134,19 @@
     <span class="doccomment">/// Pops items from the back of a vector, returning the new vector and the pointer to the popped items in read_pointer.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>call_vector_pop_back_procedure(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        source_len: SingleAddrVariable,
         source_vector: BrilligVector,
         destination_vector: BrilligVector,
         read_pointer: MemoryAddress,
         item_pop_count: usize,
     ) {
-        <span class="kw">let </span>source_vector_pointer_arg = MemoryAddress::direct(ScratchSpace::start());
-        <span class="kw">let </span>item_pop_count_arg = MemoryAddress::direct(ScratchSpace::start() + <span class="number">1</span>);
-        <span class="kw">let </span>new_vector_pointer_return = MemoryAddress::direct(ScratchSpace::start() + <span class="number">2</span>);
-        <span class="kw">let </span>read_pointer_return = MemoryAddress::direct(ScratchSpace::start() + <span class="number">3</span>);
+        <span class="kw">let </span>source_vector_length_arg = MemoryAddress::direct(ScratchSpace::start());
+        <span class="kw">let </span>source_vector_pointer_arg = MemoryAddress::direct(ScratchSpace::start() + <span class="number">1</span>);
+        <span class="kw">let </span>item_pop_count_arg = MemoryAddress::direct(ScratchSpace::start() + <span class="number">2</span>);
+        <span class="kw">let </span>new_vector_pointer_return = MemoryAddress::direct(ScratchSpace::start() + <span class="number">3</span>);
+        <span class="kw">let </span>read_pointer_return = MemoryAddress::direct(ScratchSpace::start() + <span class="number">4</span>);
 
+        <span class="self">self</span>.mov_instruction(source_vector_length_arg, source_len.address);
         <span class="self">self</span>.mov_instruction(source_vector_pointer_arg, source_vector.pointer);
         <span class="self">self</span>.usize_const_instruction(item_pop_count_arg, item_pop_count.into());
 
@@ -146,12 +160,14 @@
 <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>compile_vector_pop_back_procedure&lt;F: AcirField + DebugToString&gt;(
     brillig_context: <span class="kw-2">&amp;mut </span>BrilligContext&lt;F, ScratchSpace&gt;,
 ) {
-    <span class="kw">let </span>source_vector_pointer_arg = MemoryAddress::direct(ScratchSpace::start());
-    <span class="kw">let </span>item_pop_count_arg = MemoryAddress::direct(ScratchSpace::start() + <span class="number">1</span>);
-    <span class="kw">let </span>new_vector_pointer_return = MemoryAddress::direct(ScratchSpace::start() + <span class="number">2</span>);
-    <span class="kw">let </span>read_pointer_return = MemoryAddress::direct(ScratchSpace::start() + <span class="number">3</span>);
+    <span class="kw">let </span>source_vector_length_arg = MemoryAddress::direct(ScratchSpace::start());
+    <span class="kw">let </span>source_vector_pointer_arg = MemoryAddress::direct(ScratchSpace::start() + <span class="number">1</span>);
+    <span class="kw">let </span>item_pop_count_arg = MemoryAddress::direct(ScratchSpace::start() + <span class="number">2</span>);
+    <span class="kw">let </span>new_vector_pointer_return = MemoryAddress::direct(ScratchSpace::start() + <span class="number">3</span>);
+    <span class="kw">let </span>read_pointer_return = MemoryAddress::direct(ScratchSpace::start() + <span class="number">4</span>);
 
     brillig_context.set_allocated_registers(<span class="macro">vec!</span>[
+        source_vector_length_arg,
         source_vector_pointer_arg,
         item_pop_count_arg,
         new_vector_pointer_return,
@@ -162,7 +178,13 @@
     <span class="kw">let </span>target_vector = BrilligVector { pointer: new_vector_pointer_return };
 
     <span class="comment">// First we need to allocate the target vector decrementing the size by removed_items.len()
-    </span><span class="kw">let </span>source_size = brillig_context.codegen_make_vector_length(source_vector);
+    // We use the semantic length, rather than load the vector size from the meta-data.
+    </span><span class="kw">let </span>source_size = SingleAddrVariable::new_usize(brillig_context.allocate_register());
+    brillig_context.codegen_vector_flattened_size(
+        source_size.address,
+        source_vector_length_arg,
+        item_pop_count_arg,
+    );
 
     <span class="kw">let </span>target_size = SingleAddrVariable::new_usize(brillig_context.allocate_register());
     brillig_context.memory_op_instruction(

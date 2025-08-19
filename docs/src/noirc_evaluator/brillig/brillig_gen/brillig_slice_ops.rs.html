@@ -716,7 +716,146 @@
 <a href="#715" id="715">715</a>
 <a href="#716" id="716">716</a>
 <a href="#717" id="717">717</a>
-<a href="#718" id="718">718</a></pre></div><pre class="rust"><code><span class="doccomment">//! Codegen for converting SSA slice intrinsic functions to Brillig bytecode.
+<a href="#718" id="718">718</a>
+<a href="#719" id="719">719</a>
+<a href="#720" id="720">720</a>
+<a href="#721" id="721">721</a>
+<a href="#722" id="722">722</a>
+<a href="#723" id="723">723</a>
+<a href="#724" id="724">724</a>
+<a href="#725" id="725">725</a>
+<a href="#726" id="726">726</a>
+<a href="#727" id="727">727</a>
+<a href="#728" id="728">728</a>
+<a href="#729" id="729">729</a>
+<a href="#730" id="730">730</a>
+<a href="#731" id="731">731</a>
+<a href="#732" id="732">732</a>
+<a href="#733" id="733">733</a>
+<a href="#734" id="734">734</a>
+<a href="#735" id="735">735</a>
+<a href="#736" id="736">736</a>
+<a href="#737" id="737">737</a>
+<a href="#738" id="738">738</a>
+<a href="#739" id="739">739</a>
+<a href="#740" id="740">740</a>
+<a href="#741" id="741">741</a>
+<a href="#742" id="742">742</a>
+<a href="#743" id="743">743</a>
+<a href="#744" id="744">744</a>
+<a href="#745" id="745">745</a>
+<a href="#746" id="746">746</a>
+<a href="#747" id="747">747</a>
+<a href="#748" id="748">748</a>
+<a href="#749" id="749">749</a>
+<a href="#750" id="750">750</a>
+<a href="#751" id="751">751</a>
+<a href="#752" id="752">752</a>
+<a href="#753" id="753">753</a>
+<a href="#754" id="754">754</a>
+<a href="#755" id="755">755</a>
+<a href="#756" id="756">756</a>
+<a href="#757" id="757">757</a>
+<a href="#758" id="758">758</a>
+<a href="#759" id="759">759</a>
+<a href="#760" id="760">760</a>
+<a href="#761" id="761">761</a>
+<a href="#762" id="762">762</a>
+<a href="#763" id="763">763</a>
+<a href="#764" id="764">764</a>
+<a href="#765" id="765">765</a>
+<a href="#766" id="766">766</a>
+<a href="#767" id="767">767</a>
+<a href="#768" id="768">768</a>
+<a href="#769" id="769">769</a>
+<a href="#770" id="770">770</a>
+<a href="#771" id="771">771</a>
+<a href="#772" id="772">772</a>
+<a href="#773" id="773">773</a>
+<a href="#774" id="774">774</a>
+<a href="#775" id="775">775</a>
+<a href="#776" id="776">776</a>
+<a href="#777" id="777">777</a>
+<a href="#778" id="778">778</a>
+<a href="#779" id="779">779</a>
+<a href="#780" id="780">780</a>
+<a href="#781" id="781">781</a>
+<a href="#782" id="782">782</a>
+<a href="#783" id="783">783</a>
+<a href="#784" id="784">784</a>
+<a href="#785" id="785">785</a>
+<a href="#786" id="786">786</a>
+<a href="#787" id="787">787</a>
+<a href="#788" id="788">788</a>
+<a href="#789" id="789">789</a>
+<a href="#790" id="790">790</a>
+<a href="#791" id="791">791</a>
+<a href="#792" id="792">792</a>
+<a href="#793" id="793">793</a>
+<a href="#794" id="794">794</a>
+<a href="#795" id="795">795</a>
+<a href="#796" id="796">796</a>
+<a href="#797" id="797">797</a>
+<a href="#798" id="798">798</a>
+<a href="#799" id="799">799</a>
+<a href="#800" id="800">800</a>
+<a href="#801" id="801">801</a>
+<a href="#802" id="802">802</a>
+<a href="#803" id="803">803</a>
+<a href="#804" id="804">804</a>
+<a href="#805" id="805">805</a>
+<a href="#806" id="806">806</a>
+<a href="#807" id="807">807</a>
+<a href="#808" id="808">808</a>
+<a href="#809" id="809">809</a>
+<a href="#810" id="810">810</a>
+<a href="#811" id="811">811</a>
+<a href="#812" id="812">812</a>
+<a href="#813" id="813">813</a>
+<a href="#814" id="814">814</a>
+<a href="#815" id="815">815</a>
+<a href="#816" id="816">816</a>
+<a href="#817" id="817">817</a>
+<a href="#818" id="818">818</a>
+<a href="#819" id="819">819</a>
+<a href="#820" id="820">820</a>
+<a href="#821" id="821">821</a>
+<a href="#822" id="822">822</a>
+<a href="#823" id="823">823</a>
+<a href="#824" id="824">824</a>
+<a href="#825" id="825">825</a>
+<a href="#826" id="826">826</a>
+<a href="#827" id="827">827</a>
+<a href="#828" id="828">828</a>
+<a href="#829" id="829">829</a>
+<a href="#830" id="830">830</a>
+<a href="#831" id="831">831</a>
+<a href="#832" id="832">832</a>
+<a href="#833" id="833">833</a>
+<a href="#834" id="834">834</a>
+<a href="#835" id="835">835</a>
+<a href="#836" id="836">836</a>
+<a href="#837" id="837">837</a>
+<a href="#838" id="838">838</a>
+<a href="#839" id="839">839</a>
+<a href="#840" id="840">840</a>
+<a href="#841" id="841">841</a>
+<a href="#842" id="842">842</a>
+<a href="#843" id="843">843</a>
+<a href="#844" id="844">844</a>
+<a href="#845" id="845">845</a>
+<a href="#846" id="846">846</a>
+<a href="#847" id="847">847</a>
+<a href="#848" id="848">848</a>
+<a href="#849" id="849">849</a>
+<a href="#850" id="850">850</a>
+<a href="#851" id="851">851</a>
+<a href="#852" id="852">852</a>
+<a href="#853" id="853">853</a>
+<a href="#854" id="854">854</a>
+<a href="#855" id="855">855</a>
+<a href="#856" id="856">856</a>
+<a href="#857" id="857">857</a></pre></div><pre class="rust"><code><span class="doccomment">//! Codegen for converting SSA slice intrinsic functions to Brillig bytecode.
 </span><span class="kw">use </span>acvm::acir::brillig::MemoryAddress;
 
 <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::{
@@ -744,11 +883,13 @@
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>slice_push_back_operation(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         target_vector: BrilligVector,
+        source_len: SingleAddrVariable,
         source_vector: BrilligVector,
         variables_to_insert: <span class="kw-2">&amp;</span>[BrilligVariable],
     ) {
         <span class="kw">let </span>write_pointer = <span class="self">self</span>.brillig_context.allocate_register();
         <span class="self">self</span>.brillig_context.call_prepare_vector_push_procedure(
+            source_len,
             source_vector,
             target_vector,
             write_pointer,
@@ -764,11 +905,13 @@
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>slice_push_front_operation(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         target_vector: BrilligVector,
+        source_len: SingleAddrVariable,
         source_vector: BrilligVector,
         variables_to_insert: <span class="kw-2">&amp;</span>[BrilligVariable],
     ) {
         <span class="kw">let </span>write_pointer = <span class="self">self</span>.brillig_context.allocate_register();
         <span class="self">self</span>.brillig_context.call_prepare_vector_push_procedure(
+            source_len,
             source_vector,
             target_vector,
             write_pointer,
@@ -780,7 +923,8 @@
         <span class="self">self</span>.brillig_context.deallocate_register(write_pointer);
     }
 
-    <span class="kw">fn </span>read_variables(<span class="kw-2">&amp;mut </span><span class="self">self</span>, read_pointer: MemoryAddress, variables: <span class="kw-2">&amp;</span>[BrilligVariable]) {
+    <span class="doccomment">/// Read the memory starting at the pointer into successive variables.
+    </span><span class="kw">fn </span>read_variables(<span class="kw-2">&amp;mut </span><span class="self">self</span>, read_pointer: MemoryAddress, variables: <span class="kw-2">&amp;</span>[BrilligVariable]) {
         <span class="kw">for </span>(index, variable) <span class="kw">in </span>variables.iter().enumerate() {
             <span class="self">self</span>.brillig_context.load_instruction(variable.extract_register(), read_pointer);
             <span class="kw">if </span>index != variables.len() - <span class="number">1 </span>{
@@ -793,9 +937,12 @@
         }
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>slice_pop_front_operation(
+    <span class="doccomment">/// Read the popped number of variables from the front of the source vector,
+    /// then create the target vector from the source by skipping the number of popped items.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>slice_pop_front_operation(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         target_vector: BrilligVector,
+        source_len: SingleAddrVariable,
         source_vector: BrilligVector,
         removed_items: <span class="kw-2">&amp;</span>[BrilligVariable],
     ) {
@@ -804,6 +951,7 @@
         <span class="self">self</span>.brillig_context.deallocate_register(read_pointer);
 
         <span class="self">self</span>.brillig_context.call_vector_pop_front_procedure(
+            source_len,
             source_vector,
             target_vector,
             removed_items.len(),
@@ -813,11 +961,13 @@
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>slice_pop_back_operation(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         target_vector: BrilligVector,
+        source_len: SingleAddrVariable,
         source_vector: BrilligVector,
         removed_items: <span class="kw-2">&amp;</span>[BrilligVariable],
     ) {
         <span class="kw">let </span>read_pointer = <span class="self">self</span>.brillig_context.allocate_register();
         <span class="self">self</span>.brillig_context.call_vector_pop_back_procedure(
+            source_len,
             source_vector,
             target_vector,
             read_pointer,
@@ -936,22 +1086,34 @@
     </span><span class="kw">fn </span>test_slice_push_operation() {
         <span class="kw">fn </span>test_case_push(
             push_back: bool,
-            array: Vec&lt;FieldElement&gt;,
+            source_len: usize,
+            source: Vec&lt;FieldElement&gt;,
             item_to_push: FieldElement,
             expected_return: Vec&lt;FieldElement&gt;,
         ) {
-            <span class="kw">let </span>arguments = <span class="macro">vec!</span>[
-                BrilligParameter::Slice(
+            <span class="comment">// Types of arguments passed to the entry point.
+            </span><span class="kw">let </span>arguments = <span class="macro">vec!</span>[
+                <span class="comment">// The input size semantic length.
+                </span>BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
+                <span class="comment">// The input slice of the array items, with a known size/capacity.
+                </span>BrilligParameter::Slice(
                     <span class="macro">vec!</span>[BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE)],
-                    array.len(),
+                    source.len(),
                 ),
-                BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
+                <span class="comment">// The item to push.
+                </span>BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
             ];
-            <span class="kw">let </span>result_length = array.len() + <span class="number">1</span>;
-            <span class="macro">assert_eq!</span>(result_length, expected_return.len());
-            <span class="kw">let </span>result_length_with_metadata = result_length + <span class="number">2</span>; <span class="comment">// Leading length and capacity
+            <span class="comment">// We expect 1 item to be pushed. The capacity might be more, depending on reuse.
+            </span><span class="kw">let </span>result_length = source_len + <span class="number">1</span>;
+            <span class="macro">assert_eq!</span>(
+                result_length,
+                expected_return.len(),
+                <span class="string">"expected return data should be 1 longer than the input"
+            </span>);
+            <span class="comment">// Returned data expected to be leading with length and capacity, followed by the items.
+            </span><span class="kw">let </span>result_length_with_metadata = result_length + <span class="number">2</span>;
 
-            // Entry points don't support returning slices, so we implicitly cast the vector to an array
+            <span class="comment">// Entry points don't support returning slices, so we implicitly cast the vector to an array
             // With the metadata at the start.
             </span><span class="kw">let </span>returns = <span class="macro">vec!</span>[BrilligParameter::Array(
                 <span class="macro">vec!</span>[BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE)],
@@ -961,7 +1123,11 @@
             <span class="kw">let </span>(<span class="kw">_</span>, <span class="kw-2">mut </span>function_context, <span class="kw-2">mut </span>context) = create_test_environment();
 
             <span class="comment">// Allocate the parameters
-            </span><span class="kw">let </span>source_vector = BrilligVector { pointer: context.allocate_register() };
+            </span><span class="kw">let </span>source_len_var = SingleAddrVariable {
+                address: context.allocate_register(),
+                bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
+            };
+            <span class="kw">let </span>source_vector = BrilligVector { pointer: context.allocate_register() };
             <span class="kw">let </span>item_to_insert = SingleAddrVariable {
                 address: context.allocate_register(),
                 bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
@@ -982,12 +1148,14 @@
             <span class="kw">if </span>push_back {
                 block.slice_push_back_operation(
                     target_vector,
+                    source_len_var,
                     source_vector,
                     <span class="kw-2">&amp;</span>[BrilligVariable::SingleAddr(item_to_insert)],
                 );
             } <span class="kw">else </span>{
                 block.slice_push_front_operation(
                     target_vector,
+                    source_len_var,
                     source_vector,
                     <span class="kw-2">&amp;</span>[BrilligVariable::SingleAddr(item_to_insert)],
                 );
@@ -995,24 +1163,39 @@
 
             context.codegen_return(<span class="kw-2">&amp;</span>[target_vector.pointer]);
 
-            <span class="kw">let </span>bytecode = create_entry_point_bytecode(context, arguments, returns).byte_code;
-            <span class="kw">let </span>(vm, return_data_offset, return_data_size) =
-                create_and_run_vm(array.into_iter().chain(<span class="macro">vec!</span>[item_to_push]).collect(), <span class="kw-2">&amp;</span>bytecode);
-            <span class="macro">assert_eq!</span>(return_data_size, result_length_with_metadata);
+            <span class="comment">// Compile to byte code.
+            </span><span class="kw">let </span>bytecode = create_entry_point_bytecode(context, arguments, returns).byte_code;
+
+            <span class="comment">// Prepare flattened inputs.
+            </span><span class="kw">let </span>inputs = [<span class="macro">vec!</span>[source_len.into()], source, <span class="macro">vec!</span>[item_to_push]].concat();
+
+            <span class="comment">// Execute the byte code.
+            </span><span class="kw">let </span>(vm, return_data_offset, return_data_size) = create_and_run_vm(inputs, <span class="kw-2">&amp;</span>bytecode);
+
+            <span class="macro">assert_eq!</span>(
+                return_data_size, result_length_with_metadata,
+                <span class="string">"expect result length to be data+meta"
+            </span>);
+
             <span class="kw">let </span><span class="kw-2">mut </span>returned_vector: Vec&lt;FieldElement&gt; = vm.get_memory()
                 [return_data_offset..(return_data_offset + result_length_with_metadata)]
                 .iter()
                 .map(|mem_val| mem_val.to_field())
                 .collect();
-            <span class="kw">let </span>returned_size = returned_vector.remove(<span class="number">0</span>);
-            <span class="macro">assert_eq!</span>(returned_size, result_length.into());
-            <span class="kw">let </span>_returned_capacity = returned_vector.remove(<span class="number">0</span>);
 
-            <span class="macro">assert_eq!</span>(returned_vector, expected_return);
+            <span class="kw">let </span>returned_size = returned_vector.remove(<span class="number">0</span>);
+            <span class="macro">assert_eq!</span>(returned_size, result_length.into(), <span class="string">"expect size to be input+1"</span>);
+
+            <span class="kw">let </span>_returned_capacity = returned_vector.remove(<span class="number">0</span>);
+            <span class="macro">assert_eq!</span>(
+                returned_vector, expected_return,
+                <span class="string">"expect items after size and capacity to be input+new"
+            </span>);
         }
 
         test_case_push(
             <span class="bool-val">true</span>,
+            <span class="number">3</span>,
             <span class="macro">vec!</span>[
                 FieldElement::from(<span class="number">1_usize</span>),
                 FieldElement::from(<span class="number">2_usize</span>),
@@ -1028,12 +1211,40 @@
         );
         test_case_push(
             <span class="bool-val">true</span>,
+            <span class="number">2</span>,
+            <span class="macro">vec!</span>[
+                FieldElement::from(<span class="number">1_usize</span>),
+                FieldElement::from(<span class="number">2_usize</span>),
+                FieldElement::from(<span class="number">3_usize</span>),
+            ],
+            FieldElement::from(<span class="number">27_usize</span>),
+            <span class="macro">vec!</span>[
+                FieldElement::from(<span class="number">1_usize</span>),
+                FieldElement::from(<span class="number">2_usize</span>),
+                FieldElement::from(<span class="number">27_usize</span>),
+            ],
+        );
+        test_case_push(
+            <span class="bool-val">true</span>,
+            <span class="number">1</span>,
+            <span class="macro">vec!</span>[
+                FieldElement::from(<span class="number">1_usize</span>),
+                FieldElement::from(<span class="number">2_usize</span>),
+                FieldElement::from(<span class="number">3_usize</span>),
+            ],
+            FieldElement::from(<span class="number">27_usize</span>),
+            <span class="macro">vec!</span>[FieldElement::from(<span class="number">1_usize</span>), FieldElement::from(<span class="number">27_usize</span>)],
+        );
+        test_case_push(
+            <span class="bool-val">true</span>,
+            <span class="number">0</span>,
             <span class="macro">vec!</span>[],
             FieldElement::from(<span class="number">27_usize</span>),
             <span class="macro">vec!</span>[FieldElement::from(<span class="number">27_usize</span>)],
         );
         test_case_push(
             <span class="bool-val">false</span>,
+            <span class="number">3</span>,
             <span class="macro">vec!</span>[
                 FieldElement::from(<span class="number">1_usize</span>),
                 FieldElement::from(<span class="number">2_usize</span>),
@@ -1049,6 +1260,18 @@
         );
         test_case_push(
             <span class="bool-val">false</span>,
+            <span class="number">1</span>,
+            <span class="macro">vec!</span>[
+                FieldElement::from(<span class="number">1_usize</span>),
+                FieldElement::from(<span class="number">2_usize</span>),
+                FieldElement::from(<span class="number">3_usize</span>),
+            ],
+            FieldElement::from(<span class="number">27_usize</span>),
+            <span class="macro">vec!</span>[FieldElement::from(<span class="number">27_usize</span>), FieldElement::from(<span class="number">1_usize</span>)],
+        );
+        test_case_push(
+            <span class="bool-val">false</span>,
+            <span class="number">0</span>,
             <span class="macro">vec!</span>[],
             FieldElement::from(<span class="number">27_usize</span>),
             <span class="macro">vec!</span>[FieldElement::from(<span class="number">27_usize</span>)],
@@ -1056,19 +1279,27 @@
     }
 
     <span class="attr">#[test]
-    </span><span class="kw">fn </span>test_slice_pop_back_operation() {
+    </span><span class="kw">fn </span>test_slice_pop_operation() {
         <span class="kw">fn </span>test_case_pop(
             pop_back: bool,
-            array: Vec&lt;FieldElement&gt;,
+            source_len: usize,
+            source: Vec&lt;FieldElement&gt;,
             expected_return_array: Vec&lt;FieldElement&gt;,
             expected_return_item: FieldElement,
         ) {
-            <span class="kw">let </span>arguments = <span class="macro">vec!</span>[BrilligParameter::Slice(
-                <span class="macro">vec!</span>[BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE)],
-                array.len(),
-            )];
-            <span class="kw">let </span>result_length = array.len() - <span class="number">1</span>;
-            <span class="macro">assert_eq!</span>(result_length, expected_return_array.len());
+            <span class="kw">let </span>arguments = <span class="macro">vec!</span>[
+                BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
+                BrilligParameter::Slice(
+                    <span class="macro">vec!</span>[BrilligParameter::SingleAddr(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE)],
+                    source.len(),
+                ),
+            ];
+            <span class="kw">let </span>result_length = source_len - <span class="number">1</span>;
+            <span class="macro">assert_eq!</span>(
+                result_length,
+                expected_return_array.len(),
+                <span class="string">"expect return length to be 1 less than input"
+            </span>);
             <span class="kw">let </span>result_length_with_metadata = result_length + <span class="number">2</span>; <span class="comment">// Leading length and capacity
 
             // Entry points don't support returning slices, so we implicitly cast the vector to an array
@@ -1084,7 +1315,11 @@
             <span class="kw">let </span>(<span class="kw">_</span>, <span class="kw-2">mut </span>function_context, <span class="kw-2">mut </span>context) = create_test_environment();
 
             <span class="comment">// Allocate the parameters
-            </span><span class="kw">let </span>source_vector = BrilligVector { pointer: context.allocate_register() };
+            </span><span class="kw">let </span>source_len_var = SingleAddrVariable {
+                address: context.allocate_register(),
+                bit_size: BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
+            };
+            <span class="kw">let </span>source_vector = BrilligVector { pointer: context.allocate_register() };
 
             <span class="comment">// Allocate the results
             </span><span class="kw">let </span>target_vector = BrilligVector { pointer: context.allocate_register() };
@@ -1105,12 +1340,14 @@
             <span class="kw">if </span>pop_back {
                 block.slice_pop_back_operation(
                     target_vector,
+                    source_len_var,
                     source_vector,
                     <span class="kw-2">&amp;</span>[BrilligVariable::SingleAddr(removed_item)],
                 );
             } <span class="kw">else </span>{
                 block.slice_pop_front_operation(
                     target_vector,
+                    source_len_var,
                     source_vector,
                     <span class="kw-2">&amp;</span>[BrilligVariable::SingleAddr(removed_item)],
                 );
@@ -1120,28 +1357,40 @@
 
             <span class="kw">let </span>bytecode = create_entry_point_bytecode(context, arguments, returns).byte_code;
 
-            <span class="kw">let </span>(vm, return_data_offset, return_data_size) =
-                create_and_run_vm(array.clone(), <span class="kw-2">&amp;</span>bytecode);
+            <span class="kw">let </span>inputs = [<span class="macro">vec!</span>[source_len.into()], source].concat();
+
+            <span class="kw">let </span>(vm, return_data_offset, return_data_size) = create_and_run_vm(inputs, <span class="kw-2">&amp;</span>bytecode);
             <span class="comment">// vector + removed item
-            </span><span class="macro">assert_eq!</span>(return_data_size, result_length_with_metadata + <span class="number">1</span>);
+            </span><span class="macro">assert_eq!</span>(
+                return_data_size,
+                result_length_with_metadata + <span class="number">1</span>,
+                <span class="string">"expect return data size to be the metadata, the remaining items, plus 1 popped item"
+            </span>);
 
             <span class="kw">let </span><span class="kw-2">mut </span>return_data: Vec&lt;FieldElement&gt; = vm.get_memory()
                 [return_data_offset..(return_data_offset + return_data_size)]
                 .iter()
                 .map(|mem_val| mem_val.to_field())
                 .collect();
+
             <span class="kw">let </span>returned_item = return_data.remove(<span class="number">0</span>);
-            <span class="macro">assert_eq!</span>(returned_item, expected_return_item);
+            <span class="macro">assert_eq!</span>(returned_item, expected_return_item, <span class="string">"expect the popped item to match"</span>);
 
             <span class="kw">let </span>returned_size = return_data.remove(<span class="number">0</span>);
-            <span class="macro">assert_eq!</span>(returned_size, result_length.into());
+            <span class="macro">assert_eq!</span>(
+                returned_size,
+                result_length.into(),
+                <span class="string">"expect size to be 1 less than the input size"
+            </span>);
+
             <span class="kw">let </span>_returned_capacity = return_data.remove(<span class="number">0</span>);
 
-            <span class="macro">assert_eq!</span>(return_data, expected_return_array);
+            <span class="macro">assert_eq!</span>(return_data, expected_return_array, <span class="string">"expect the returned items to match"</span>);
         }
 
         test_case_pop(
             <span class="bool-val">true</span>,
+            <span class="number">3</span>,
             <span class="macro">vec!</span>[
                 FieldElement::from(<span class="number">1_usize</span>),
                 FieldElement::from(<span class="number">2_usize</span>),
@@ -1150,15 +1399,44 @@
             <span class="macro">vec!</span>[FieldElement::from(<span class="number">1_usize</span>), FieldElement::from(<span class="number">2_usize</span>)],
             FieldElement::from(<span class="number">3_usize</span>),
         );
-        test_case_pop(<span class="bool-val">true</span>, <span class="macro">vec!</span>[FieldElement::from(<span class="number">1_usize</span>)], <span class="macro">vec!</span>[], FieldElement::from(<span class="number">1_usize</span>));
         test_case_pop(
-            <span class="bool-val">false</span>,
+            <span class="bool-val">true</span>,
+            <span class="number">2</span>,
             <span class="macro">vec!</span>[
                 FieldElement::from(<span class="number">1_usize</span>),
                 FieldElement::from(<span class="number">2_usize</span>),
                 FieldElement::from(<span class="number">3_usize</span>),
             ],
-            <span class="macro">vec!</span>[FieldElement::from(<span class="number">2_usize</span>), FieldElement::from(<span class="number">3_usize</span>)],
+            <span class="macro">vec!</span>[FieldElement::from(<span class="number">1_usize</span>)],
+            FieldElement::from(<span class="number">2_usize</span>),
+        );
+        test_case_pop(
+            <span class="bool-val">true</span>,
+            <span class="number">1</span>,
+            <span class="macro">vec!</span>[FieldElement::from(<span class="number">1_usize</span>)],
+            <span class="macro">vec!</span>[],
+            FieldElement::from(<span class="number">1_usize</span>),
+        );
+        test_case_pop(
+            <span class="bool-val">false</span>,
+            <span class="number">3</span>,
+            <span class="macro">vec!</span>[
+                FieldElement::from(<span class="number">10_usize</span>),
+                FieldElement::from(<span class="number">20_usize</span>),
+                FieldElement::from(<span class="number">30_usize</span>),
+            ],
+            <span class="macro">vec!</span>[FieldElement::from(<span class="number">20_usize</span>), FieldElement::from(<span class="number">30_usize</span>)],
+            FieldElement::from(<span class="number">10_usize</span>),
+        );
+        test_case_pop(
+            <span class="bool-val">false</span>,
+            <span class="number">2</span>,
+            <span class="macro">vec!</span>[
+                FieldElement::from(<span class="number">1_usize</span>),
+                FieldElement::from(<span class="number">2_usize</span>),
+                FieldElement::from(<span class="number">3_usize</span>),
+            ],
+            <span class="macro">vec!</span>[FieldElement::from(<span class="number">2_usize</span>)],
             FieldElement::from(<span class="number">1_usize</span>),
         );
     }

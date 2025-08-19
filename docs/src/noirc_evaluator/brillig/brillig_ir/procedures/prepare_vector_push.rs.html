@@ -221,7 +221,25 @@
 <a href="#220" id="220">220</a>
 <a href="#221" id="221">221</a>
 <a href="#222" id="222">222</a>
-<a href="#223" id="223">223</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::vec;
+<a href="#223" id="223">223</a>
+<a href="#224" id="224">224</a>
+<a href="#225" id="225">225</a>
+<a href="#226" id="226">226</a>
+<a href="#227" id="227">227</a>
+<a href="#228" id="228">228</a>
+<a href="#229" id="229">229</a>
+<a href="#230" id="230">230</a>
+<a href="#231" id="231">231</a>
+<a href="#232" id="232">232</a>
+<a href="#233" id="233">233</a>
+<a href="#234" id="234">234</a>
+<a href="#235" id="235">235</a>
+<a href="#236" id="236">236</a>
+<a href="#237" id="237">237</a>
+<a href="#238" id="238">238</a>
+<a href="#239" id="239">239</a>
+<a href="#240" id="240">240</a>
+<a href="#241" id="241">241</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::vec;
 
 <span class="kw">use </span>acvm::{AcirField, acir::brillig::MemoryAddress};
 
@@ -236,19 +254,26 @@
 <span class="kw">impl</span>&lt;F: AcirField + DebugToString, Registers: RegisterAllocator&gt; BrilligContext&lt;F, Registers&gt; {
     <span class="doccomment">/// Prepares a vector for a push operation, allocating a larger vector and copying the source vector into the destination vector.
     /// It returns the write pointer to where to put the new items.
+    ///
+    /// Brillig vectors have an inherent size and capacity, but their semantic length can be different,
+    /// and it's passed as a separate variable in SSA. When ACIR flattens vectors of unequal length,
+    /// it can be different from the size and capacity in the vector data structure itself.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>call_prepare_vector_push_procedure(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        source_len: SingleAddrVariable,
         source_vector: BrilligVector,
         destination_vector: BrilligVector,
         write_pointer: MemoryAddress,
         item_push_count: usize,
         back: bool,
     ) {
-        <span class="kw">let </span>source_vector_pointer_arg = MemoryAddress::direct(ScratchSpace::start());
-        <span class="kw">let </span>item_push_count_arg = MemoryAddress::direct(ScratchSpace::start() + <span class="number">1</span>);
-        <span class="kw">let </span>new_vector_pointer_return = MemoryAddress::direct(ScratchSpace::start() + <span class="number">2</span>);
-        <span class="kw">let </span>write_pointer_return = MemoryAddress::direct(ScratchSpace::start() + <span class="number">3</span>);
+        <span class="kw">let </span>source_vector_length_arg = MemoryAddress::direct(ScratchSpace::start());
+        <span class="kw">let </span>source_vector_pointer_arg = MemoryAddress::direct(ScratchSpace::start() + <span class="number">1</span>);
+        <span class="kw">let </span>item_push_count_arg = MemoryAddress::direct(ScratchSpace::start() + <span class="number">2</span>);
+        <span class="kw">let </span>new_vector_pointer_return = MemoryAddress::direct(ScratchSpace::start() + <span class="number">3</span>);
+        <span class="kw">let </span>write_pointer_return = MemoryAddress::direct(ScratchSpace::start() + <span class="number">4</span>);
 
+        <span class="self">self</span>.mov_instruction(source_vector_length_arg, source_len.address);
         <span class="self">self</span>.mov_instruction(source_vector_pointer_arg, source_vector.pointer);
         <span class="self">self</span>.usize_const_instruction(item_push_count_arg, item_push_count.into());
 
@@ -263,12 +288,14 @@
     brillig_context: <span class="kw-2">&amp;mut </span>BrilligContext&lt;F, ScratchSpace&gt;,
     push_back: bool,
 ) {
-    <span class="kw">let </span>source_vector_pointer_arg = MemoryAddress::direct(ScratchSpace::start());
-    <span class="kw">let </span>item_push_count_arg = MemoryAddress::direct(ScratchSpace::start() + <span class="number">1</span>);
-    <span class="kw">let </span>new_vector_pointer_return = MemoryAddress::direct(ScratchSpace::start() + <span class="number">2</span>);
-    <span class="kw">let </span>write_pointer_return = MemoryAddress::direct(ScratchSpace::start() + <span class="number">3</span>);
+    <span class="kw">let </span>source_vector_length_arg = MemoryAddress::direct(ScratchSpace::start());
+    <span class="kw">let </span>source_vector_pointer_arg = MemoryAddress::direct(ScratchSpace::start() + <span class="number">1</span>);
+    <span class="kw">let </span>item_push_count_arg = MemoryAddress::direct(ScratchSpace::start() + <span class="number">2</span>);
+    <span class="kw">let </span>new_vector_pointer_return = MemoryAddress::direct(ScratchSpace::start() + <span class="number">3</span>);
+    <span class="kw">let </span>write_pointer_return = MemoryAddress::direct(ScratchSpace::start() + <span class="number">4</span>);
 
     brillig_context.set_allocated_registers(<span class="macro">vec!</span>[
+        source_vector_length_arg,
         source_vector_pointer_arg,
         item_push_count_arg,
         new_vector_pointer_return,
@@ -288,9 +315,11 @@
         source_size,
         source_capacity,
         source_items_pointer,
+        <span class="prelude-val">Some</span>((source_vector_length_arg, item_push_count_arg)),
     );
 
-    <span class="kw">let </span>target_size = SingleAddrVariable::new_usize(brillig_context.allocate_register());
+    <span class="comment">// The target size is the source size plus the number of items we are pushing.
+    </span><span class="kw">let </span>target_size = SingleAddrVariable::new_usize(brillig_context.allocate_register());
     brillig_context.memory_op_instruction(
         source_size.address,
         item_push_count_arg,
@@ -308,38 +337,42 @@
         target_size,
     );
 
-    <span class="kw">let </span>target_vector_items_pointer =
+    <span class="comment">// Get the pointer to the start of the items in the target vector.
+    // This is adjusted below based on whether we push to the front or the back.
+    </span><span class="kw">let </span>target_vector_items_pointer =
         brillig_context.codegen_make_vector_items_pointer(target_vector);
 
     <span class="kw">if </span>push_back {
-        <span class="kw">let </span>was_reused = SingleAddrVariable::new(brillig_context.allocate_register(), <span class="number">1</span>);
+        <span class="comment">// If we are pushing to the back, we could be reusing the source vector of the RC was 1 and it had excess capacity.
+        </span><span class="kw">let </span>was_reused = SingleAddrVariable::new(brillig_context.allocate_register(), <span class="number">1</span>);
         brillig_context.memory_op_instruction(
             source_vector.pointer,
             target_vector.pointer,
             was_reused.address,
             BrilligBinaryOp::Equals,
         );
-
-        brillig_context.codegen_if_not(was_reused.address, |brillig_context| {
+        <span class="comment">// If we are not reusing the source, then we need to copy its items (up to its semantic length) to the target.
+        </span>brillig_context.codegen_if_not(was_reused.address, |brillig_context| {
             brillig_context.codegen_mem_copy(
                 source_items_pointer.address,
                 target_vector_items_pointer,
                 source_size,
             );
         });
-        <span class="comment">// Target vector is ready for push back at this point
+        <span class="comment">// Target vector is ready for push back at this point.
+        // The write pointer returned points after source-length number of items in the target vector.
         </span>brillig_context.memory_op_instruction(
             target_vector_items_pointer,
             source_size.address,
             write_pointer_return,
             BrilligBinaryOp::Add,
         );
-
         brillig_context.deallocate_single_addr(was_reused);
     } <span class="kw">else </span>{
         <span class="comment">// If push front we need to shift the items independently of it being reused or not
         </span><span class="kw">let </span>target_start = brillig_context.allocate_register();
-        brillig_context.memory_op_instruction(
+        <span class="comment">// Shift items by the number of items we want to push to the front.
+        </span>brillig_context.memory_op_instruction(
             target_vector_items_pointer,
             item_push_count_arg,
             target_start,
@@ -351,7 +384,8 @@
             source_size,
         );
         brillig_context.deallocate_register(target_start);
-        brillig_context.mov_instruction(write_pointer_return, target_vector_items_pointer);
+        <span class="comment">// The write pointer returned is the the first (now free) item in the target vector.
+        </span>brillig_context.mov_instruction(write_pointer_return, target_vector_items_pointer);
     }
 
     brillig_context.deallocate_single_addr(source_rc);
@@ -376,15 +410,16 @@
     target_vector: BrilligVector,
     target_size: SingleAddrVariable,
 ) {
-    <span class="kw">let </span>does_capacity_fit = SingleAddrVariable::new(brillig_context.allocate_register(), <span class="number">1</span>);
+    <span class="comment">// If the source capacity is at least as large than the target size, we can potentially reuse the source vector to write the new items.
+    </span><span class="kw">let </span>does_capacity_fit = SingleAddrVariable::new(brillig_context.allocate_register(), <span class="number">1</span>);
     brillig_context.memory_op_instruction(
         target_size.address,
         source_capacity.address,
         does_capacity_fit.address,
         BrilligBinaryOp::LessThanEquals,
     );
-
-    <span class="kw">let </span>is_rc_one = SingleAddrVariable::new(brillig_context.allocate_register(), <span class="number">1</span>);
+    <span class="comment">// We can only reuse the source vector if the ref-count is 1.
+    </span><span class="kw">let </span>is_rc_one = SingleAddrVariable::new(brillig_context.allocate_register(), <span class="number">1</span>);
     brillig_context.codegen_usize_op(
         source_rc.address,
         is_rc_one.address,
@@ -408,8 +443,9 @@
                         </span><span class="kw">if </span>brillig_context.count_arrays_copied {
                             brillig_context.codegen_increment_array_copy_counter();
                         }
-
-                        brillig_context.codegen_initialize_vector(
+                        <span class="comment">// We could not reuse the source vector, because there are other references to it.
+                        // Allocate a new vector with the target size and source capacity.
+                        </span>brillig_context.codegen_initialize_vector(
                             target_vector,
                             target_size,
                             <span class="prelude-val">Some</span>(source_capacity),

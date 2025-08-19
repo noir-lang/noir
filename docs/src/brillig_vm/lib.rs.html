@@ -3395,7 +3395,8 @@
                 <span class="comment">// Convert our destination_pointer to an address
                 </span><span class="kw">let </span>destination = <span class="self">self</span>.memory.read_ref(<span class="kw-2">*</span>destination_pointer);
                 <span class="comment">// Use our usize destination index to set the value in memory
-                </span><span class="self">self</span>.memory.write(destination, <span class="self">self</span>.memory.read(<span class="kw-2">*</span>source_address));
+                </span><span class="kw">let </span>value = <span class="self">self</span>.memory.read(<span class="kw-2">*</span>source_address);
+                <span class="self">self</span>.memory.write(destination, value);
                 <span class="self">self</span>.increment_program_counter()
             }
             Opcode::Call { location } =&gt; {
@@ -3891,7 +3892,6 @@
 
         <span class="kw">let </span>result_value = evaluate_binary_int_op(<span class="kw-2">&amp;</span>op, lhs_value, rhs_value, bit_size)<span class="question-mark">?</span>;
         <span class="self">self</span>.memory.write(result, result_value);
-
         <span class="self">self</span>.fuzzing_trace_binary_int_op_comparison(<span class="kw-2">&amp;</span>op, lhs_value, rhs_value, result_value);
         <span class="prelude-val">Ok</span>(())
     }

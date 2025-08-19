@@ -2291,13 +2291,7 @@
 <a href="#2290" id="2290">2290</a>
 <a href="#2291" id="2291">2291</a>
 <a href="#2292" id="2292">2292</a>
-<a href="#2293" id="2293">2293</a>
-<a href="#2294" id="2294">2294</a>
-<a href="#2295" id="2295">2295</a>
-<a href="#2296" id="2296">2296</a>
-<a href="#2297" id="2297">2297</a>
-<a href="#2298" id="2298">2298</a>
-<a href="#2299" id="2299">2299</a></pre></div><pre class="rust"><code><span class="doccomment">//! Module containing Brillig-gen logic specific to an SSA function's basic blocks.
+<a href="#2293" id="2293">2293</a></pre></div><pre class="rust"><code><span class="doccomment">//! Module containing Brillig-gen logic specific to an SSA function's basic blocks.
 </span><span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::artifact::Label;
 <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_ir::brillig_variable::{
     BrilligArray, BrilligVariable, BrilligVector, SingleAddrVariable, type_to_heap_value_type,
@@ -3553,6 +3547,10 @@
         instruction_id: InstructionId,
         arguments: <span class="kw-2">&amp;</span>[ValueId],
     ) {
+        <span class="comment">// Slice operations always look like `... = call slice_&lt;op&gt; source_len, source_vector, ...`
+        </span><span class="kw">let </span>source_len = <span class="self">self</span>.convert_ssa_value(arguments[<span class="number">0</span>], dfg);
+        <span class="kw">let </span>source_len = source_len.extract_single_addr();
+
         <span class="kw">let </span>slice_id = arguments[<span class="number">1</span>];
         <span class="kw">let </span>element_size = dfg.type_of_value(slice_id).element_size();
         <span class="kw">let </span>source_vector = <span class="self">self</span>.convert_ssa_value(slice_id, dfg).extract_vector();
@@ -3560,7 +3558,8 @@
         <span class="kw">let </span>results = dfg.instruction_results(instruction_id);
         <span class="kw">match </span>intrinsic {
             Value::Intrinsic(Intrinsic::SlicePushBack) =&gt; {
-                <span class="kw">let </span>target_len = <span class="kw">match </span><span class="self">self</span>.variables.define_variable(
+                <span class="comment">// target_len, target_slice = slice_push_back source_len, source_slice
+                </span><span class="kw">let </span>target_len = <span class="kw">match </span><span class="self">self</span>.variables.define_variable(
                     <span class="self">self</span>.function_context,
                     <span class="self">self</span>.brillig_context,
                     results[<span class="number">0</span>],
@@ -3582,14 +3581,15 @@
                     <span class="self">self</span>.convert_ssa_value(<span class="kw-2">*</span>arg, dfg)
                 });
 
-                <span class="self">self</span>.update_slice_length(
-                    target_len.address,
-                    arguments[<span class="number">0</span>],
-                    dfg,
-                    BrilligBinaryOp::Add,
-                );
+                <span class="comment">// target_len = source_len + 1
+                </span><span class="self">self</span>.update_slice_length(target_len, source_len, BrilligBinaryOp::Add);
 
-                <span class="self">self</span>.slice_push_back_operation(target_vector, source_vector, <span class="kw-2">&amp;</span>item_values);
+                <span class="self">self</span>.slice_push_back_operation(
+                    target_vector,
+                    source_len,
+                    source_vector,
+                    <span class="kw-2">&amp;</span>item_values,
+                );
             }
             Value::Intrinsic(Intrinsic::SlicePushFront) =&gt; {
                 <span class="kw">let </span>target_len = <span class="kw">match </span><span class="self">self</span>.variables.define_variable(
@@ -3613,14 +3613,14 @@
                     <span class="self">self</span>.convert_ssa_value(<span class="kw-2">*</span>arg, dfg)
                 });
 
-                <span class="self">self</span>.update_slice_length(
-                    target_len.address,
-                    arguments[<span class="number">0</span>],
-                    dfg,
-                    BrilligBinaryOp::Add,
-                );
+                <span class="self">self</span>.update_slice_length(target_len, source_len, BrilligBinaryOp::Add);
 
-                <span class="self">self</span>.slice_push_front_operation(target_vector, source_vector, <span class="kw-2">&amp;</span>item_values);
+                <span class="self">self</span>.slice_push_front_operation(
+                    target_vector,
+                    source_len,
+                    source_vector,
+                    <span class="kw-2">&amp;</span>item_values,
+                );
             }
             Value::Intrinsic(Intrinsic::SlicePopBack) =&gt; {
                 <span class="kw">let </span>target_len = <span class="kw">match </span><span class="self">self</span>.variables.define_variable(
@@ -3651,14 +3651,14 @@
                     )
                 });
 
-                <span class="self">self</span>.update_slice_length(
-                    target_len.address,
-                    arguments[<span class="number">0</span>],
-                    dfg,
-                    BrilligBinaryOp::Sub,
-                );
+                <span class="self">self</span>.update_slice_length(target_len, source_len, BrilligBinaryOp::Sub);
 
-                <span class="self">self</span>.slice_pop_back_operation(target_vector, source_vector, <span class="kw-2">&amp;</span>pop_variables);
+                <span class="self">self</span>.slice_pop_back_operation(
+                    target_vector,
+                    source_len,
+                    source_vector,
+                    <span class="kw-2">&amp;</span>pop_variables,
+                );
             }
             Value::Intrinsic(Intrinsic::SlicePopFront) =&gt; {
                 <span class="kw">let </span>target_len = <span class="kw">match </span><span class="self">self</span>.variables.define_variable(
@@ -3688,14 +3688,14 @@
                 );
                 <span class="kw">let </span>target_vector = target_variable.extract_vector();
 
-                <span class="self">self</span>.update_slice_length(
-                    target_len.address,
-                    arguments[<span class="number">0</span>],
-                    dfg,
-                    BrilligBinaryOp::Sub,
-                );
+                <span class="self">self</span>.update_slice_length(target_len, source_len, BrilligBinaryOp::Sub);
 
-                <span class="self">self</span>.slice_pop_front_operation(target_vector, source_vector, <span class="kw-2">&amp;</span>pop_variables);
+                <span class="self">self</span>.slice_pop_front_operation(
+                    target_vector,
+                    source_len,
+                    source_vector,
+                    <span class="kw-2">&amp;</span>pop_variables,
+                );
             }
             Value::Intrinsic(Intrinsic::SliceInsert) =&gt; {
                 <span class="kw">let </span>target_len = <span class="kw">match </span><span class="self">self</span>.variables.define_variable(
@@ -3736,12 +3736,7 @@
                     <span class="self">self</span>.convert_ssa_value(<span class="kw-2">*</span>arg, dfg)
                 });
 
-                <span class="self">self</span>.update_slice_length(
-                    target_len.address,
-                    arguments[<span class="number">0</span>],
-                    dfg,
-                    BrilligBinaryOp::Add,
-                );
+                <span class="self">self</span>.update_slice_length(target_len, source_len, BrilligBinaryOp::Add);
 
                 <span class="self">self</span>.slice_insert_operation(target_vector, source_vector, converted_index, <span class="kw-2">&amp;</span>items);
                 <span class="self">self</span>.brillig_context.deallocate_single_addr(converted_index);
@@ -3789,12 +3784,7 @@
                     )
                 });
 
-                <span class="self">self</span>.update_slice_length(
-                    target_len.address,
-                    arguments[<span class="number">0</span>],
-                    dfg,
-                    BrilligBinaryOp::Sub,
-                );
+                <span class="self">self</span>.update_slice_length(target_len, source_len, BrilligBinaryOp::Sub);
 
                 <span class="self">self</span>.slice_remove_operation(
                     target_vector,
@@ -3809,7 +3799,9 @@
         }
     }
 
-    <span class="doccomment">/// Slices have a tuple structure (slice length, slice contents) to enable logic
+    <span class="doccomment">/// Increase or decrease the slice length by 1.
+    ///
+    /// Slices have a tuple structure (slice length, slice contents) to enable logic
     /// that uses dynamic slice lengths (such as with merging slices in the flattening pass).
     /// This method codegens an update to the slice length.
     ///
@@ -3824,15 +3816,11 @@
     /// but if it's in SSA, there is a chance it can be optimized out.
     </span><span class="kw">fn </span>update_slice_length(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        target_len: MemoryAddress,
-        source_value: ValueId,
-        dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
+        target_len: SingleAddrVariable,
+        source_len: SingleAddrVariable,
         binary_op: BrilligBinaryOp,
     ) {
-        <span class="kw">let </span>source_len_variable = <span class="self">self</span>.convert_ssa_value(source_value, dfg);
-        <span class="kw">let </span>source_len = source_len_variable.extract_single_addr();
-
-        <span class="self">self</span>.brillig_context.codegen_usize_op(source_len.address, target_len, binary_op, <span class="number">1</span>);
+        <span class="self">self</span>.brillig_context.codegen_usize_op(source_len.address, target_len.address, binary_op, <span class="number">1</span>);
     }
 
     <span class="doccomment">/// Converts an SSA cast to a sequence of Brillig opcodes.

@@ -498,7 +498,29 @@
 <a href="#497" id="497">497</a>
 <a href="#498" id="498">498</a>
 <a href="#499" id="499">499</a>
-<a href="#500" id="500">500</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
+<a href="#500" id="500">500</a>
+<a href="#501" id="501">501</a>
+<a href="#502" id="502">502</a>
+<a href="#503" id="503">503</a>
+<a href="#504" id="504">504</a>
+<a href="#505" id="505">505</a>
+<a href="#506" id="506">506</a>
+<a href="#507" id="507">507</a>
+<a href="#508" id="508">508</a>
+<a href="#509" id="509">509</a>
+<a href="#510" id="510">510</a>
+<a href="#511" id="511">511</a>
+<a href="#512" id="512">512</a>
+<a href="#513" id="513">513</a>
+<a href="#514" id="514">514</a>
+<a href="#515" id="515">515</a>
+<a href="#516" id="516">516</a>
+<a href="#517" id="517">517</a>
+<a href="#518" id="518">518</a>
+<a href="#519" id="519">519</a>
+<a href="#520" id="520">520</a>
+<a href="#521" id="521">521</a>
+<a href="#522" id="522">522</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
     AcirField,
     acir::brillig::{HeapArray, HeapVector, MemoryAddress, ValueOrArray},
 };
@@ -810,7 +832,8 @@
         result
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>codegen_update_vector_length(
+    <span class="doccomment">/// Writes the value of new length to the length pointer of the vector.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>codegen_update_vector_length(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         vector: BrilligVector,
         new_length: SingleAddrVariable,
@@ -832,13 +855,14 @@
         result
     }
 
-    <span class="doccomment">/// Writes a pointer to the items of a given vector
+    <span class="doccomment">/// Writes the pointer to the items of a given vector to the `result`.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>codegen_vector_items_pointer(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         vector: BrilligVector,
         result: MemoryAddress,
     ) {
-        <span class="self">self</span>.codegen_usize_op(vector.pointer, result, BrilligBinaryOp::Add, <span class="number">3</span>);
+        <span class="comment">// Vector layout: [ref_count, size, capacity, items...]
+        </span><span class="self">self</span>.codegen_usize_op(vector.pointer, result, BrilligBinaryOp::Add, <span class="number">3</span>);
     }
 
     <span class="doccomment">/// Returns a pointer to the items of a given vector
@@ -852,6 +876,9 @@
     }
 
     <span class="doccomment">/// Reads the metadata of a vector and stores it in the given variables
+    ///
+    /// If the `semantic_length_and_item_size` is given, then instead of reading the size from the
+    /// vector data structure, it is calculated as a multiplication of length and item size.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>codegen_read_vector_metadata(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         vector: BrilligVector,
@@ -859,22 +886,39 @@
         size: SingleAddrVariable,
         capacity: SingleAddrVariable,
         items_pointer: SingleAddrVariable,
+        semantic_length_and_item_size: <span class="prelude-ty">Option</span>&lt;(MemoryAddress, MemoryAddress)&gt;,
     ) {
         <span class="macro">assert!</span>(rc.bit_size == BRILLIG_MEMORY_ADDRESSING_BIT_SIZE);
         <span class="macro">assert!</span>(size.bit_size == BRILLIG_MEMORY_ADDRESSING_BIT_SIZE);
         <span class="macro">assert!</span>(capacity.bit_size == BRILLIG_MEMORY_ADDRESSING_BIT_SIZE);
         <span class="macro">assert!</span>(items_pointer.bit_size == BRILLIG_MEMORY_ADDRESSING_BIT_SIZE);
-
-        <span class="self">self</span>.load_instruction(rc.address, vector.pointer);
-
+        <span class="comment">// Vector layout: [ref_count, size, capacity, items...]
+        </span><span class="self">self</span>.load_instruction(rc.address, vector.pointer);
         <span class="kw">let </span>read_pointer = <span class="self">self</span>.allocate_register();
         <span class="self">self</span>.codegen_usize_op(vector.pointer, read_pointer, BrilligBinaryOp::Add, <span class="number">1</span>);
-        <span class="self">self</span>.load_instruction(size.address, read_pointer);
+        <span class="kw">if let </span><span class="prelude-val">Some</span>((length, item_size)) = semantic_length_and_item_size {
+            <span class="self">self</span>.codegen_vector_flattened_size(size.address, length, item_size);
+        } <span class="kw">else </span>{
+            <span class="self">self</span>.load_instruction(size.address, read_pointer);
+        }
         <span class="self">self</span>.codegen_usize_op_in_place(read_pointer, BrilligBinaryOp::Add, <span class="number">1</span>);
         <span class="self">self</span>.load_instruction(capacity.address, read_pointer);
         <span class="self">self</span>.codegen_usize_op(read_pointer, items_pointer.address, BrilligBinaryOp::Add, <span class="number">1</span>);
 
         <span class="self">self</span>.deallocate_register(read_pointer);
+    }
+
+    <span class="doccomment">/// Generate code to calculate the flattened vector size from its semantic length and the item size.
+    ///
+    /// For example a `[(u32, bool)]` would have a flattened item size of 2, because each item consists of 2 values.
+    /// Such a vector with a semantic length of 3 would have a flattened size of 6.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>codegen_vector_flattened_size(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        destination: MemoryAddress,
+        length: MemoryAddress,
+        item_size: MemoryAddress,
+    ) {
+        <span class="self">self</span>.memory_op_instruction(length, item_size, destination, BrilligBinaryOp::Mul);
     }
 
     <span class="doccomment">/// Returns a pointer to the items of a given array
