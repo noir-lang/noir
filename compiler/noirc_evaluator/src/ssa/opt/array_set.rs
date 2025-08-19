@@ -12,6 +12,7 @@
 //! * flattening
 //! * removal of if-else instructions
 
+use core::panic;
 use std::mem;
 
 use crate::ssa::{
@@ -238,6 +239,11 @@ impl<'f> Context<'f> {
                         }
                     }
                 }
+                Instruction::IfElse { .. } => {
+                    panic!(
+                        "IfElse instructions are assumed to be removed before array_set optimization"
+                    )
+                }
                 _ => (),
             }
         }
@@ -438,9 +444,13 @@ mod tests {
         assert_ssa_does_not_change(src, Ssa::array_set_optimization);
     }
 
+    // Demonstrate that we assume that `IfElse` instructions have been
+    // removed by previous passes. Otherwise we would need to handle transitive
+    // relations between arrays.
     #[test]
-    #[should_panic = "instruction exists before"]
-    fn does_not_mutate_array_with_if_else() {
+    #[should_panic]
+    fn assumes_no_if_else() {
+        // v4 can be v1 or v2. v1 is returned, so v4 should not be mutated.
         let src = "
             acir(inline) predicate_pure fn main f0 {
               b0(v0: u1, v1: [u32; 2], v2: [u32; 2]):
@@ -450,6 +460,7 @@ mod tests {
                 return v1
             }
             ";
-        assert_ssa_does_not_change(src, Ssa::array_set_optimization);
+        let ssa = Ssa::from_str(src).unwrap();
+        let _ssa = ssa.array_set_optimization();
     }
 }
