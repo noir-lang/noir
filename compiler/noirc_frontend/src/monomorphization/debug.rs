@@ -39,11 +39,11 @@ impl Monomorphizer<'_> {
     /// different types for each instance at runtime.
     pub(super) fn patch_debug_instrumentation_call(
         &mut self,
-        original_func: Box<Expression>,
         call: &HirCallExpression,
+        function: &Expression,
         arguments: &mut [Expression],
     ) -> Result<(), MonomorphizationError> {
-        if let Expression::Ident(Ident { name, .. }) = original_func.as_ref() {
+        if let Expression::Ident(Ident { name, .. }) = function {
             if name == "__debug_var_assign" {
                 self.patch_debug_var_assign(call, arguments)?;
             } else if name == "__debug_var_drop" {
