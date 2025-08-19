@@ -1,3 +1,12 @@
+//! The purpose of the `array_set_optimization` SSA pass is to mark `ArraySet` instructions
+//! as mutable _iff_ the array is not potentially shared with the callers or callees of the
+//! function and won't be used again in the function itself either. In other words, if this
+//! is the last time we use this version of the array, we can mutate it in place, and avoid
+//! having to make a copy of it.
+//!
+//! This optimization only applies to ACIR. In Brillig we use ref-counting to decide when
+//! there are no other references to an array.
+
 use std::mem;
 
 use crate::ssa::{
