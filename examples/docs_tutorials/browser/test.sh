@@ -8,5 +8,8 @@ cd $(dirname $0)
 # Install dependencies
 yarn install --immutable
 
+# Install Playwright browsers
+yarn playwright install --with-deps
+
 # Run the tests (which include building)
 yarn test
