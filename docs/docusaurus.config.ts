@@ -222,10 +222,7 @@ export default {
         title: 'Noir Language Documentation',
         excludeImports: true,
         ignoreFiles: [],
-        version: versions[0],
-        pathTransformation: {
-          ignorePaths: ['docs'],
-        },
+        version: versions[0]
       },
     ],
   ],
