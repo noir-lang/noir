@@ -1,5 +1,4 @@
 use super::instruction::Point as InstructionPoint;
-use super::instruction::PointAndScalar as InstructionPointAndScalar;
 use super::instruction::Scalar as InstructionScalar;
 use super::{
     instruction::{Argument, FunctionInfo, Instruction},

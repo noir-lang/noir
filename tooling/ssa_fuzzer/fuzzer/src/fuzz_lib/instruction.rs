@@ -21,13 +21,13 @@ pub(crate) struct Argument {
     pub(crate) value_type: ValueType,
 }
 
-#[derive(Arbitrary, Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Arbitrary, Debug, Clone, Copy, Serialize, Deserialize, Default)]
 pub(crate) struct Scalar {
     pub(crate) field_lo_idx: usize,
     pub(crate) field_hi_idx: usize,
 }
 
-#[derive(Arbitrary, Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Arbitrary, Debug, Clone, Copy, Serialize, Deserialize, Default)]
 pub(crate) struct Point {
     pub(crate) scalar: Scalar,
     /// If true, the point will be derived from scalar multiplication using [`noir_ssa_fuzzer::builder::FuzzerBuilder::base_scalar_mul`]
