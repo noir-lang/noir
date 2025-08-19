@@ -56,7 +56,7 @@ touch circuit/src/main.nr circuit/Nargo.toml
 
 To make our program interesting, let's give it a real use-case scenario: Bob wants to prove he is older than 18, without disclosing his age. Open `main.nr` and write:
 
-#include_code age_check docs/tests/fixtures/browser/src/main.nr rust
+#include_code age_check examples/docs_tutorials/browser/src/main.nr rust
 
 This program accepts a private input called age, and simply proves this number is higher than 18. But to run this code, we need to give the compiler a `Nargo.toml` with at least a name and a type:
 
@@ -94,13 +94,13 @@ touch index.html index.js
 
 And add something useful to our HTML file:
 
-#include_code index docs/tests/fixtures/browser/index.html html
+#include_code index examples/docs_tutorials/browser/index.html html
 
 It _could_ be a beautiful UI... Depending on which universe you live in. In any case, we're using some scary CSS to make two boxes that will show cool things on the screen.
 
 As for the JS, real madmen could just `console.log` everything, but let's say we want to see things happening (the true initial purpose of JS... right?). Here's some boilerplate for that. Just paste it in `index.js`:
 
-#include_code show_function docs/tests/fixtures/browser/index.js js
+#include_code show_function examples/docs_tutorials/browser/index.js js
 
 :::info
 
@@ -125,17 +125,17 @@ At this point in the tutorial, your folder structure should look like this:
 
 We're starting with the good stuff now. We want to execute our circuit to get the witness, and then feed that witness to Barretenberg. Luckily, both packages are quite easy to work with. Let's import them at the top of the file:
 
-#include_code imports docs/tests/fixtures/browser/index.js js
+#include_code imports examples/docs_tutorials/browser/index.js js
 
 And instantiate them inside our try-catch block:
 
-#include_code init docs/tests/fixtures/browser/index.js js
+#include_code init examples/docs_tutorials/browser/index.js js
 
 ## Executing and proving
 
 Now for the app itself. We're capturing whatever is in the input when people press the submit button. Inside our `try` block, let's just grab that input and get its value. Noir will gladly execute it, and give us a witness:
 
-#include_code execute docs/tests/fixtures/browser/index.js js
+#include_code execute examples/docs_tutorials/browser/index.js js
 
 :::note
 
@@ -145,7 +145,7 @@ For the remainder of the tutorial, everything will be happening inside the `try`
 
 Now we're ready to prove stuff! Let's feed some inputs to our circuit and calculate the proof:
 
-#include_code prove docs/tests/fixtures/browser/index.js js
+#include_code prove examples/docs_tutorials/browser/index.js js
 
 Our program is technically **done** . You're probably eager to see stuff happening! To serve this in a convenient way, we can use a bundler like `vite` by creating a `vite.config.js` file:
 
@@ -156,7 +156,7 @@ touch vite.config.js
 Noir needs to load two WASM modules, but Vite doesn't include them by default in the bundle. We need to add the configuration below to `vite.config.js` to make it work.
 We also need to target ESNext since `bb.js` uses top-level await, which isn't supported in some browsers.
 
-#include_code config docs/tests/fixtures/browser/vite.config.js js
+#include_code config examples/docs_tutorials/browser/vite.config.js js
 
 This should be enough for vite. We don't even need to install it, just run:
 
@@ -176,7 +176,7 @@ By the way, if you're human, you shouldn't be able to understand anything on the
 
 Time to celebrate, yes! But we shouldn't trust machines so blindly. Let's add these lines to see our proof being verified:
 
-#include_code verify docs/tests/fixtures/browser/index.js js
+#include_code verify examples/docs_tutorials/browser/index.js js
 
 You have successfully generated a client-side Noir web app!
 

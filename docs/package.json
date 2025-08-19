@@ -10,21 +10,14 @@
     "version::stables": "ts-node ./scripts/setStable.ts",
     "serve": "serve build",
     "swizzle": "docusaurus swizzle",
-    "cut_version": "yarn version::stables && ./scripts/cut_version.sh",
-    "test:tutorial": "vite build -c tests/fixtures/browser/vite.config.js && playwright test tests/browser.test.ts",
-    "test": "yarn run test:tutorial"
+    "cut_version": "yarn version::stables && ./scripts/cut_version.sh"
   },
   "dependencies": {
-    "@aztec/bb.js": "0.87.0",
     "@cookbookdev/docsbot": "^4.24.9",
     "@docusaurus/core": "^3.7.0",
     "@docusaurus/preset-classic": "^3.7.0",
     "@easyops-cn/docusaurus-search-local": "^0.35.0",
     "@mdx-js/react": "^3.0.0",
-    "@noir-lang/noir_js": "workspace:*",
-    "@noir-lang/noirc_abi": "workspace:*",
-    "@noir-lang/types": "workspace:*",
-    "@playwright/test": "^1.54.2",
     "axios": "^1.9.0",
     "clsx": "^1.2.1",
     "hast-util-is-element": "^1.1.0",
@@ -33,8 +26,7 @@
     "react-dom": "^18.2.0",
     "react-spinners": "^0.13.8",
     "rehype-katex": "^7.0.0",
-    "remark-math": "^6.0.0",
-    "vite": "^7.0.6"
+    "remark-math": "^6.0.0"
   },
   "devDependencies": {
     "@docusaurus/module-type-aliases": "^3.7.0",

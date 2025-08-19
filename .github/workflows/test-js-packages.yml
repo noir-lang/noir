@@ -509,6 +509,12 @@ jobs:
         with:
           version: nightly-8660e5b941fe7f4d67e246cfd3dafea330fb53b1
 
+      - name: Install Yarn dependencies
+        uses: ./.github/actions/setup
+
+      - name: Install Playwright
+        uses: ./.github/actions/install-playwright
+  
       - name: Install `bb`
         run: |
           ./scripts/install_bb.sh
@@ -531,6 +537,10 @@ jobs:
 
       - name: Run `oracle_transcript`
         working-directory: ./examples/oracle_transcript
+        run: ./test.sh
+
+      - name: Run `browser`
+        working-directory: ./examples/docs_tutorials/browser
         run: ./test.sh
 
   external-repo-checks:
