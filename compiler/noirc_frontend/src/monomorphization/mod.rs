@@ -1658,7 +1658,7 @@ impl<'interner> Monomorphizer<'interner> {
         let mut arguments = try_vecmap(&call.arguments, |id| self.expr(*id))?;
         let hir_arguments = vecmap(&call.arguments, |id| self.interner.expression(id));
 
-        self.patch_debug_instrumentation_call(&call, &mut arguments)?;
+        self.patch_debug_instrumentation_call(original_func.clone(), &call, &mut arguments)?;
 
         let return_type = self.interner.id_type(id);
         let location = self.interner.expr_location(&id);
