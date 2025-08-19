@@ -6,6 +6,8 @@
 //!
 //! This optimization only applies to ACIR. In Brillig we use ref-counting to decide when
 //! there are no other references to an array.
+//!
+//! The pass is expected to run sometime after flattening, and be executed only once.
 
 use std::mem;
 
@@ -15,7 +17,6 @@ use crate::ssa::{
         dfg::DataFlowGraph,
         function::{Function, RuntimeType},
         instruction::{Instruction, InstructionId, TerminatorInstruction},
-        types::Type::{Array, Slice},
         value::ValueId,
     },
     ssa_gen::Ssa,
@@ -129,26 +130,30 @@ impl<'f> Context<'f> {
         }
     }
 
-    /// Builds the set of ArraySet instructions that can be made mutable
+    /// Remember this instruction as the last time the array has been read or written to.
+    ///
+    /// Any previous instruction marked to be made mutable needs to be cancelled,
+    /// as it turned out not to be the last use.
+    fn set_last_use(&mut self, array: ValueId, instruction_id: InstructionId) {
+        if let Some(existing) = self.array_to_last_use.insert(array, instruction_id) {
+            self.instructions_that_can_be_made_mutable.remove(&existing);
+        }
+    }
+
+    /// Builds the set of `ArraySet` instructions that can be made mutable
     /// because their input value is unused elsewhere afterward.
     fn analyze_last_uses(&mut self, block_id: BasicBlockId) {
         let block = &self.dfg[block_id];
 
         for instruction_id in block.instructions() {
             match &self.dfg[*instruction_id] {
+                // Reading an array constitutes as use, replacing any previous last use.
                 Instruction::ArrayGet { array, .. } => {
-                    let array = *array;
-
-                    if let Some(existing) = self.array_to_last_use.insert(array, *instruction_id) {
-                        self.instructions_that_can_be_made_mutable.remove(&existing);
-                    }
+                    self.set_last_use(*array, *instruction_id);
                 }
+                // Writing to an array is a use; mark it for mutation unless it might be shared.
                 Instruction::ArraySet { array, .. } => {
-                    let array = *array;
-
-                    if let Some(existing) = self.array_to_last_use.insert(array, *instruction_id) {
-                        self.instructions_that_can_be_made_mutable.remove(&existing);
-                    }
+                    self.set_last_use(*array, *instruction_id);
 
                     // If the array we are setting does not come from a load we can safely mark it mutable.
                     // If the array comes from a load we may potentially being mutating an array at a reference
@@ -162,16 +167,10 @@ impl<'f> Context<'f> {
                     // We also want to check that the array is not part of the terminator arguments, as this means it is used again.
                     let mut is_array_in_terminator = false;
                     terminator.for_each_value(|value| {
-                        // The terminator can contain original IDs, while the SSA has replaced the array value IDs; we need to resolve to compare.
-                        if !is_array_in_terminator && value == array {
-                            is_array_in_terminator = true;
-                        }
+                        is_array_in_terminator |= value == *array;
                     });
 
-                    let can_mutate = if let Some(is_from_param) = self.arrays_from_load.get(&array)
-                    {
-                        // If the array was loaded from a reference parameter, we cannot
-                        // safely mark that array mutable as it may be shared by another value.
+                    let can_mutate = if let Some(is_from_param) = self.arrays_from_load.get(array) {
                         !is_from_param && is_return_block
                     } else {
                         !is_array_in_terminator
@@ -181,23 +180,18 @@ impl<'f> Context<'f> {
                         self.instructions_that_can_be_made_mutable.insert(*instruction_id);
                     }
                 }
+                // Array arguments passed in calls constitute a use.
                 Instruction::Call { arguments, .. } => {
                     for argument in arguments {
-                        if matches!(self.dfg.type_of_value(*argument), Array { .. } | Slice { .. })
-                        {
-                            let argument = *argument;
-
-                            if let Some(existing) =
-                                self.array_to_last_use.insert(argument, *instruction_id)
-                            {
-                                self.instructions_that_can_be_made_mutable.remove(&existing);
-                            }
+                        if self.dfg.type_of_value(*argument).is_array() {
+                            self.set_last_use(*argument, *instruction_id);
                         }
                     }
                 }
+                // Arrays loaded from input references might be shared with the caller.
                 Instruction::Load { address } => {
                     let result = self.dfg.instruction_results(*instruction_id)[0];
-                    if matches!(self.dfg.type_of_value(result), Array { .. } | Slice { .. }) {
+                    if self.dfg.type_of_value(result).is_array() {
                         let is_reference_param =
                             self.dfg.block_parameters(block_id).contains(address);
                         self.arrays_from_load.insert(result, is_reference_param);
@@ -205,10 +199,8 @@ impl<'f> Context<'f> {
                 }
                 Instruction::MakeArray { elements, .. } => {
                     for element in elements {
-                        if let Some(existing) =
-                            self.array_to_last_use.insert(*element, *instruction_id)
-                        {
-                            self.instructions_that_can_be_made_mutable.remove(&existing);
+                        if self.dfg.type_of_value(*element).is_array() {
+                            self.set_last_use(*element, *instruction_id);
                         }
                     }
                 }
@@ -297,7 +289,7 @@ mod tests {
             ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        // We expect the same result as above
+        // The first array_set should not be mutable, but the second one can be.
         let ssa = ssa.array_set_optimization();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
