@@ -1,0 +1,24 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+trait Bar {
+    fn baz<let N: u32>();
+}
+
+impl Bar for Field {
+    fn baz<let N: u32>() {
+        let _: u32 = N;
+    }
+}
+
+fn foo<K>()
+where
+    K: Bar,
+{
+    K::baz::<2>();
+}
+
+fn main() {
+    foo::<Field>();
+}
