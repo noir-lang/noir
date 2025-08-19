@@ -1,8 +1,9 @@
-use super::NUMBER_OF_VARIABLES_INITIAL;
-use super::block_context::BlockContext;
-use super::instruction::FunctionInfo;
-use super::instruction::InstructionBlock;
-use super::options::{FunctionContextOptions, SsaBlockOptions};
+use super::{
+    NUMBER_OF_VARIABLES_INITIAL,
+    block_context::BlockContext,
+    instruction::{FunctionInfo, InstructionBlock},
+    options::{FunctionContextOptions, SsaBlockOptions},
+};
 use acvm::FieldElement;
 use libfuzzer_sys::arbitrary;
 use libfuzzer_sys::arbitrary::Arbitrary;
@@ -10,14 +11,13 @@ use noir_ssa_fuzzer::{
     builder::FuzzerBuilder,
     typed_value::{TypedValue, ValueType},
 };
-use noirc_evaluator::ssa::ir::basic_block::BasicBlockId;
-use noirc_evaluator::ssa::ir::{function::Function, map::Id};
+use noirc_evaluator::ssa::ir::{basic_block::BasicBlockId, function::Function, map::Id};
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
 use std::{
-    collections::{HashMap, HashSet, VecDeque},
+    collections::{BTreeMap, HashMap, HashSet, VecDeque},
     hash::Hash,
 };
+use strum_macros::EnumCount;
 
 const NUMBER_OF_BLOCKS_INSERTING_IN_JMP: usize = 1;
 const NUMBER_OF_BLOCKS_INSERTING_IN_JMP_IF: usize = 2;
@@ -78,7 +78,7 @@ impl Default for FunctionData {
 /// Represents set of commands for the fuzzer
 ///
 /// After executing all commands, terminates all blocks from current_block_queue with return
-#[derive(Arbitrary, Debug, Clone, Hash, Serialize, Deserialize)]
+#[derive(Arbitrary, Debug, Clone, Hash, Serialize, Deserialize, EnumCount)]
 pub(crate) enum FuzzerFunctionCommand {
     /// Adds instructions to current_block_context from stored instruction_blocks
     InsertSimpleInstructionBlock { instruction_block_idx: usize },

@@ -184,8 +184,10 @@ pub(crate) fn simplify(
                         // => max_quotient_bits = max_numerator_bits - divisor_bits
                         //
                         // In order for the truncation to be a noop, we then require `max_quotient_bits < bit_size`.
-                        let max_quotient_bits = max_numerator_bits - divisor_bits;
-                        if max_quotient_bits < *bit_size { SimplifiedTo(*value) } else { None }
+                        let numerator_smaller_than_denominator = max_numerator_bits
+                            .checked_sub(divisor_bits)
+                            .is_some_and(|max_quotient_bits| max_quotient_bits < *bit_size);
+                        if numerator_smaller_than_denominator { SimplifiedTo(*value) } else { None }
                     }
 
                     _ => None,
@@ -630,5 +632,23 @@ mod tests {
             return v0
         }
         "#);
+    }
+
+    #[test]
+    fn does_not_crash_on_truncated_division_with_large_denominators() {
+        // There can be invalid division instructions which have extremely large denominators
+        // so we want to make sure that we handle this case when optimizing truncations.
+
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v0 = div i8 94, i8 19807040628566084398385987584
+            v1 = truncate v0 to 8 bits, max_bit_size: 9
+            return v1
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+
+        assert_normalized_ssa_equals(ssa, src);
     }
 }

@@ -2,7 +2,7 @@ use libfuzzer_sys::arbitrary;
 use libfuzzer_sys::arbitrary::Arbitrary;
 use noir_ssa_fuzzer::typed_value::ValueType;
 use serde::{Deserialize, Serialize};
-
+use strum_macros::EnumCount;
 #[derive(Arbitrary, Debug, Clone, Copy, Serialize, Deserialize)]
 pub(crate) struct Array {
     pub(crate) size: usize,
@@ -24,7 +24,7 @@ pub(crate) struct Argument {
 /// Represents set of instructions
 ///
 /// For operations that take two arguments we ignore type of the second argument.
-#[derive(Arbitrary, Debug, Clone, Serialize, Deserialize)]
+#[derive(Arbitrary, Debug, Clone, Serialize, Deserialize, EnumCount)]
 pub(crate) enum Instruction {
     /// Addition of two values
     AddChecked { lhs: Argument, rhs: Argument },
@@ -96,6 +96,43 @@ pub(crate) enum Instruction {
         index: usize,
         value_index: usize,
         safe_index: bool,
+    },
+
+    /// Field to bytes to field
+    /// Takes field, converts it to le_bytes
+    /// Then converts the le_bytes to field and stores it in the context
+    FieldToBytesToField { field_idx: usize },
+
+    /// Blake2s hash
+    /// Takes field, converts it to le_bytes of the size specified by `limbs_count`
+    /// Then hashes it with blake2s and stores the hash from le_bytes in the context
+    Blake2sHash { field_idx: usize, limbs_count: u8 },
+
+    /// Blake3 hash
+    /// Takes field, converts it to le_bytes of the size specified by `limbs_count`
+    /// Then hashes it with blake3 and stores the hash from le_bytes in the context
+    Blake3Hash { field_idx: usize, limbs_count: u8 },
+
+    /// Keccakf1600 hash
+    /// Takes array of u64 values and permutes it with keccakf1600
+    /// Stores the permuted array in the context
+    /// If `load_elements_of_array` is true, loads all elements of the permuted array into defined variables
+    Keccakf1600Hash { u64_indices: [usize; 25], load_elements_of_array: bool },
+
+    /// AES-128 encrypt
+    /// Takes input key and iv as fields, converts them to u8 arrays
+    /// Input is converted to u8 array of size `input_limbs_count`
+    /// Encrypts the input with AES-128 and converts encrypted array to field and stores it in the context
+    Aes128Encrypt { input_idx: usize, input_limbs_count: u8, key_idx: usize, iv_idx: usize },
+
+    /// SHA-256 compression
+    /// Takes input and state as arrays of u32 values
+    /// Compresses the input with SHA-256 and stores the result in the context
+    /// If `load_elements_of_array` is true, loads all elements of the compressed array into defined variables
+    Sha256Compression {
+        input_indices: [usize; 16],
+        state_indices: [usize; 8],
+        load_elements_of_array: bool,
     },
 }
 
