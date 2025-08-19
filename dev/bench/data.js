@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1755625454617,
+  "lastUpdate": 1755625457941,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -4058,90 +4058,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "84741533+defkit@users.noreply.github.com",
-            "name": "defkit",
-            "username": "defkit"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "8eeda7ed2ce20689473c99ed8ca6f30c183725a4",
-          "message": "chore(ssa_fuzzer): refactor fuzzing modes + add fuzzing mode without DIE pass (#9401)",
-          "timestamp": "2025-08-06T14:39:16Z",
-          "tree_id": "d12245c3269796e4a3109294200b56823017e368",
-          "url": "https://github.com/noir-lang/noir/commit/8eeda7ed2ce20689473c99ed8ca6f30c183725a4"
-        },
-        "date": 1754493113416,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 1.724,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 8.022,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.406,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 18.08,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 13.94,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 20.94,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 218,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 211,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.362,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.47,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.77,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 1.748,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -8101,6 +8017,90 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 1.639,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "80501a8fc54f7483b4136c0040afa31e222ee5eb",
+          "message": "feat: remove redundant `enforce_bitshift_rhs_lt_bit_size` (#9561)",
+          "timestamp": "2025-08-19T17:10:55Z",
+          "tree_id": "ca2bfa9df77d20f82dbcc9982075aa89ec8ce3f4",
+          "url": "https://github.com/noir-lang/noir/commit/80501a8fc54f7483b4136c0040afa31e222ee5eb"
+        },
+        "date": 1755625438021,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1.734,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 7.692,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.348,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 16.3,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 14.12,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 21.18,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 191,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 204,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.424,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.546,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.774,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 1.538,
             "unit": "s"
           }
         ]
