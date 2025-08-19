@@ -12,6 +12,5 @@
     "preserveConstEnums": true,
     "sourceMap": true,
     "resolveJsonModule": true,
-    "importHelpers": true
   }
 }
