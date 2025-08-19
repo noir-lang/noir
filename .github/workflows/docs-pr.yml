@@ -85,6 +85,12 @@ jobs:
           ENV: staging # not really a secret, it will show in the footer anyway
         run: yarn workspaces foreach -Rpt --from docs run build
 
+      - name: Install playwright browsers
+        run: yarn workspace docs playwright install --with-deps
+
+      - name: Test docs
+        run: yarn workspace docs run test
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
