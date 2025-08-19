@@ -3,7 +3,6 @@ use crate::ssa::{
         function::Function,
         instruction::{Instruction, Intrinsic},
         types::{NumericType, Type},
-        value::Value,
     },
     ssa_gen::Ssa,
 };
@@ -28,6 +27,11 @@ impl Ssa {
 
 impl Function {
     pub(crate) fn as_slice_optimization(&mut self) {
+        // If `as_slice` isn't called in this function there's nothing to do
+        let Some(as_slice) = self.dfg.get_intrinsic(Intrinsic::AsSlice).copied() else {
+            return;
+        };
+
         self.simple_optimization(|context| {
             let instruction_id = context.instruction_id;
             let instruction = context.instruction();
@@ -37,9 +41,9 @@ impl Function {
                 _ => return,
             };
 
-            let Value::Intrinsic(Intrinsic::AsSlice) = context.dfg[*target_func] else {
+            if *target_func != as_slice {
                 return;
-            };
+            }
 
             let first_argument =
                 arguments.first().expect("AsSlice should always have one argument");

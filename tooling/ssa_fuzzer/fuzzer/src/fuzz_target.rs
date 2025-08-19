@@ -46,6 +46,9 @@ libfuzzer_sys::fuzz_target!(|data: &[u8]| -> Corpus {
         shr_enabled: false,
         alloc_enabled: false,
         array_get_enabled: false,
+        // https://github.com/noir-lang/noir/issues/9559
+        point_add_enabled: false,
+        multi_scalar_mul_enabled: false,
         ..InstructionOptions::default()
     };
     let modes = vec![FuzzerMode::NonConstant];

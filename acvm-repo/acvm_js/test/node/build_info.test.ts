@@ -1,7 +1,9 @@
 import { expect } from 'chai';
-import { BuildInfo, buildInfo } from '@noir-lang/acvm_js';
+import acvm_js from '@noir-lang/acvm_js';
+const { buildInfo } = acvm_js;
+
 import child_process from 'child_process';
-import pkg from '../../package.json';
+import pkg from '../../package.json' with { type: 'json' };
 
 it('returns the correct build info', () => {
   let revision: string;
@@ -13,7 +15,7 @@ it('returns the correct build info', () => {
     return;
   }
 
-  const info: BuildInfo = buildInfo();
+  const info = buildInfo();
 
   // TODO: enforce that `package.json` and `Cargo.toml` are consistent.
   expect(info.version).to.be.eq(pkg.version);

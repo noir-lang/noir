@@ -3,7 +3,8 @@
 use crate::fuzz_lib::instruction::{Argument, Instruction, InstructionBlock};
 use crate::mutations::{
     basic_types::{
-        bool::generate_random_bool, value_type::generate_random_value_type, vec::mutate_vec,
+        bool::generate_random_bool, point::generate_random_point, scalar::generate_random_scalar,
+        value_type::generate_random_value_type, vec::mutate_vec,
     },
     configuration::{
         BASIC_GENERATE_BOOL_CONFIGURATION, BASIC_GENERATE_INSTRUCTION_CONFIGURATION,
@@ -155,6 +156,15 @@ fn generate_random_instruction(rng: &mut StdRng) -> Instruction {
                 GENERATE_BOOL_CONFIGURATION_MOST_FALSE,
             ),
         },
+        GenerateInstruction::MultiScalarMul => Instruction::MultiScalarMul {
+            points_and_scalars: vec![
+                (generate_random_point(rng), generate_random_scalar(rng)),
+                (generate_random_point(rng), generate_random_scalar(rng)),
+            ],
+        },
+        GenerateInstruction::PointAdd => {
+            Instruction::PointAdd { p1: generate_random_point(rng), p2: generate_random_point(rng) }
+        }
     }
 }
 
