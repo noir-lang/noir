@@ -1,5 +1,6 @@
 ---
 title: Bounded Vectors
+description: Growable vectors with a fixed maximum length; safer and more efficient than slices, with rich methods for access and mutation.
 keywords: [noir, vector, bounded vector, slice]
 sidebar_position: 1
 ---
@@ -238,7 +239,7 @@ Example:
 pub fn from_array<Len>(array: [T; Len]) -> Self
 ```
 
-Creates a new vector, populating it with values derived from an array input. 
+Creates a new vector, populating it with values derived from an array input.
 The maximum length of the vector is determined based on the type signature.
 
 Example:
@@ -288,7 +289,7 @@ Example:
 pub fn map<U, Env>(self, f: fn[Env](T) -> U) -> BoundedVec<U, MaxLen>
 ```
 
-Creates a new vector of equal size by calling a closure on each element in this vector.  
+Creates a new vector of equal size by calling a closure on each element in this vector.
 
 Example:
 

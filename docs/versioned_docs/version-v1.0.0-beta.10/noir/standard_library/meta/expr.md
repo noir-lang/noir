@@ -1,5 +1,6 @@
 ---
 title: Expr
+description: Introspect and transform quoted expressions at compile time—inspect structure, resolve types, and modify sub-expressions.
 ---
 
 `std::meta::expr` contains methods on the built-in `Expr` type for quoted, syntactically valid expressions.
@@ -8,7 +9,7 @@ title: Expr
 
 ### as_array
 
-```rust title="as_array" showLineNumbers 
+```rust title="as_array" showLineNumbers
 pub comptime fn as_array(self) -> Option<[Expr]> {}
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/expr.nr#L10-L12" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/expr.nr#L10-L12</a></sub></sup>
@@ -18,7 +19,7 @@ If this expression is an array, this returns a slice of each element in the arra
 
 ### as_assert
 
-```rust title="as_assert" showLineNumbers 
+```rust title="as_assert" showLineNumbers
 pub comptime fn as_assert(self) -> Option<(Expr, Option<Expr>)> {}
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/expr.nr#L16-L18" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/expr.nr#L16-L18</a></sub></sup>
@@ -28,7 +29,7 @@ If this expression is an assert, this returns the assert expression and the opti
 
 ### as_assert_eq
 
-```rust title="as_assert_eq" showLineNumbers 
+```rust title="as_assert_eq" showLineNumbers
 pub comptime fn as_assert_eq(self) -> Option<(Expr, Expr, Option<Expr>)> {}
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/expr.nr#L23-L25" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/expr.nr#L23-L25</a></sub></sup>
@@ -39,7 +40,7 @@ expressions, together with the optional message.
 
 ### as_assign
 
-```rust title="as_assign" showLineNumbers 
+```rust title="as_assign" showLineNumbers
 pub comptime fn as_assign(self) -> Option<(Expr, Expr)> {}
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/expr.nr#L30-L32" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/expr.nr#L30-L32</a></sub></sup>
@@ -50,7 +51,7 @@ and right hand side in order.
 
 ### as_binary_op
 
-```rust title="as_binary_op" showLineNumbers 
+```rust title="as_binary_op" showLineNumbers
 pub comptime fn as_binary_op(self) -> Option<(Expr, BinaryOp, Expr)> {}
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/expr.nr#L37-L39" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/expr.nr#L37-L39</a></sub></sup>
@@ -61,7 +62,7 @@ return the left-hand side, operator, and the right-hand side of the operation.
 
 ### as_block
 
-```rust title="as_block" showLineNumbers 
+```rust title="as_block" showLineNumbers
 pub comptime fn as_block(self) -> Option<[Expr]> {}
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/expr.nr#L44-L46" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/expr.nr#L44-L46</a></sub></sup>
@@ -72,7 +73,7 @@ a slice containing each statement.
 
 ### as_bool
 
-```rust title="as_bool" showLineNumbers 
+```rust title="as_bool" showLineNumbers
 pub comptime fn as_bool(self) -> Option<bool> {}
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/expr.nr#L50-L52" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/expr.nr#L50-L52</a></sub></sup>
@@ -82,7 +83,7 @@ If this expression is a boolean literal, return that literal.
 
 ### as_cast
 
-```rust title="as_cast" showLineNumbers 
+```rust title="as_cast" showLineNumbers
 #[builtin(expr_as_cast)]
     pub comptime fn as_cast(self) -> Option<(Expr, UnresolvedType)> {}
 ```
@@ -94,7 +95,7 @@ expression and the type to cast to.
 
 ### as_comptime
 
-```rust title="as_comptime" showLineNumbers 
+```rust title="as_comptime" showLineNumbers
 pub comptime fn as_comptime(self) -> Option<[Expr]> {}
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/expr.nr#L64-L66" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/expr.nr#L64-L66</a></sub></sup>
@@ -105,7 +106,7 @@ return each statement in the block.
 
 ### as_constructor
 
-```rust title="as_constructor" showLineNumbers 
+```rust title="as_constructor" showLineNumbers
 pub comptime fn as_constructor(self) -> Option<(UnresolvedType, [(Quoted, Expr)])> {}
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/expr.nr#L71-L73" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/expr.nr#L71-L73</a></sub></sup>
@@ -116,7 +117,7 @@ return the type and the fields.
 
 ### as_for
 
-```rust title="as_for" showLineNumbers 
+```rust title="as_for" showLineNumbers
 pub comptime fn as_for(self) -> Option<(Quoted, Expr, Expr)> {}
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/expr.nr#L78-L80" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/expr.nr#L78-L80</a></sub></sup>
@@ -127,7 +128,7 @@ the expression and the for loop body.
 
 ### as_for_range
 
-```rust title="as_for" showLineNumbers 
+```rust title="as_for" showLineNumbers
 pub comptime fn as_for(self) -> Option<(Quoted, Expr, Expr)> {}
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/expr.nr#L78-L80" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/expr.nr#L78-L80</a></sub></sup>
@@ -138,7 +139,7 @@ the range start, the range end and the for loop body.
 
 ### as_function_call
 
-```rust title="as_function_call" showLineNumbers 
+```rust title="as_function_call" showLineNumbers
 pub comptime fn as_function_call(self) -> Option<(Expr, [Expr])> {}
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/expr.nr#L92-L94" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/expr.nr#L92-L94</a></sub></sup>
@@ -149,7 +150,7 @@ the function and a slice of each argument.
 
 ### as_if
 
-```rust title="as_if" showLineNumbers 
+```rust title="as_if" showLineNumbers
 pub comptime fn as_if(self) -> Option<(Expr, Expr, Option<Expr>)> {}
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/expr.nr#L100-L102" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/expr.nr#L100-L102</a></sub></sup>
@@ -161,7 +162,7 @@ return the condition, then branch, and else branch. If there is no else branch,
 
 ### as_index
 
-```rust title="as_index" showLineNumbers 
+```rust title="as_index" showLineNumbers
 pub comptime fn as_index(self) -> Option<(Expr, Expr)> {}
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/expr.nr#L107-L109" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/expr.nr#L107-L109</a></sub></sup>
@@ -172,7 +173,7 @@ array and the index.
 
 ### as_integer
 
-```rust title="as_integer" showLineNumbers 
+```rust title="as_integer" showLineNumbers
 pub comptime fn as_integer(self) -> Option<(Field, bool)> {}
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/expr.nr#L114-L116" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/expr.nr#L114-L116</a></sub></sup>
@@ -183,7 +184,7 @@ as well as whether the integer is negative (true) or not (false).
 
 ### as_lambda
 
-```rust title="as_lambda" showLineNumbers 
+```rust title="as_lambda" showLineNumbers
 pub comptime fn as_lambda(
         self,
     ) -> Option<([(Expr, Option<UnresolvedType>)], Option<UnresolvedType>, Expr)> {}
@@ -195,7 +196,7 @@ If this expression is a lambda, returns the parameters, return type and body.
 
 ### as_let
 
-```rust title="as_let" showLineNumbers 
+```rust title="as_let" showLineNumbers
 pub comptime fn as_let(self) -> Option<(Expr, Option<UnresolvedType>, Expr)> {}
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/expr.nr#L129-L131" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/expr.nr#L129-L131</a></sub></sup>
@@ -206,7 +207,7 @@ the optional type annotation, and the assigned expression.
 
 ### as_member_access
 
-```rust title="as_member_access" showLineNumbers 
+```rust title="as_member_access" showLineNumbers
 pub comptime fn as_member_access(self) -> Option<(Expr, Quoted)> {}
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/expr.nr#L136-L138" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/expr.nr#L136-L138</a></sub></sup>
@@ -217,7 +218,7 @@ expression and the field. The field will be represented as a quoted value.
 
 ### as_method_call
 
-```rust title="as_method_call" showLineNumbers 
+```rust title="as_method_call" showLineNumbers
 pub comptime fn as_method_call(self) -> Option<(Expr, Quoted, [UnresolvedType], [Expr])> {}
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/expr.nr#L143-L145" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/expr.nr#L143-L145</a></sub></sup>
@@ -228,7 +229,7 @@ the receiver, method name, a slice of each generic argument, and a slice of each
 
 ### as_repeated_element_array
 
-```rust title="as_repeated_element_array" showLineNumbers 
+```rust title="as_repeated_element_array" showLineNumbers
 pub comptime fn as_repeated_element_array(self) -> Option<(Expr, Expr)> {}
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/expr.nr#L150-L152" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/expr.nr#L150-L152</a></sub></sup>
@@ -239,7 +240,7 @@ the repeated element and the length expressions.
 
 ### as_repeated_element_slice
 
-```rust title="as_repeated_element_slice" showLineNumbers 
+```rust title="as_repeated_element_slice" showLineNumbers
 pub comptime fn as_repeated_element_slice(self) -> Option<(Expr, Expr)> {}
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/expr.nr#L157-L159" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/expr.nr#L157-L159</a></sub></sup>
@@ -250,7 +251,7 @@ the repeated element and the length expressions.
 
 ### as_slice
 
-```rust title="as_slice" showLineNumbers 
+```rust title="as_slice" showLineNumbers
 pub comptime fn as_slice(self) -> Option<[Expr]> {}
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/expr.nr#L164-L166" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/expr.nr#L164-L166</a></sub></sup>
@@ -261,7 +262,7 @@ return each element of the slice.
 
 ### as_tuple
 
-```rust title="as_tuple" showLineNumbers 
+```rust title="as_tuple" showLineNumbers
 pub comptime fn as_tuple(self) -> Option<[Expr]> {}
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/expr.nr#L171-L173" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/expr.nr#L171-L173</a></sub></sup>
@@ -272,7 +273,7 @@ return each element of the tuple.
 
 ### as_unary_op
 
-```rust title="as_unary_op" showLineNumbers 
+```rust title="as_unary_op" showLineNumbers
 pub comptime fn as_unary_op(self) -> Option<(UnaryOp, Expr)> {}
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/expr.nr#L178-L180" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/expr.nr#L178-L180</a></sub></sup>
@@ -283,7 +284,7 @@ return the unary operator as well as the right-hand side expression.
 
 ### as_unsafe
 
-```rust title="as_unsafe" showLineNumbers 
+```rust title="as_unsafe" showLineNumbers
 pub comptime fn as_unsafe(self) -> Option<[Expr]> {}
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/expr.nr#L185-L187" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/expr.nr#L185-L187</a></sub></sup>
@@ -294,7 +295,7 @@ return each statement inside in a slice.
 
 ### has_semicolon
 
-```rust title="has_semicolon" showLineNumbers 
+```rust title="has_semicolon" showLineNumbers
 pub comptime fn has_semicolon(self) -> bool {}
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/expr.nr#L206-L208" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/expr.nr#L206-L208</a></sub></sup>
@@ -317,7 +318,7 @@ comptime {
 
 ### is_break
 
-```rust title="is_break" showLineNumbers 
+```rust title="is_break" showLineNumbers
 pub comptime fn is_break(self) -> bool {}
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/expr.nr#L212-L214" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/expr.nr#L212-L214</a></sub></sup>
@@ -327,7 +328,7 @@ pub comptime fn is_break(self) -> bool {}
 
 ### is_continue
 
-```rust title="is_continue" showLineNumbers 
+```rust title="is_continue" showLineNumbers
 pub comptime fn is_continue(self) -> bool {}
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/expr.nr#L218-L220" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/expr.nr#L218-L220</a></sub></sup>
@@ -337,7 +338,7 @@ pub comptime fn is_continue(self) -> bool {}
 
 ### modify
 
-```rust title="modify" showLineNumbers 
+```rust title="modify" showLineNumbers
 pub comptime fn modify<Env>(self, f: fn[Env](Expr) -> Option<Expr>) -> Expr {
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/expr.nr#L229-L231" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/expr.nr#L229-L231</a></sub></sup>
@@ -353,7 +354,7 @@ for expressions that are integers, doubling them, would return `(&[2], &[4, 6])`
 
 ### quoted
 
-```rust title="quoted" showLineNumbers 
+```rust title="quoted" showLineNumbers
 pub comptime fn quoted(self) -> Quoted {
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/expr.nr#L266-L268" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/expr.nr#L266-L268</a></sub></sup>
@@ -363,18 +364,18 @@ Returns this expression as a `Quoted` value. It's the same as `quote { $self }`.
 
 ### resolve
 
-```rust title="resolve" showLineNumbers 
+```rust title="resolve" showLineNumbers
 pub comptime fn resolve(self, in_function: Option<FunctionDefinition>) -> TypedExpr {}
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/expr.nr#L282-L284" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/expr.nr#L282-L284</a></sub></sup>
 
 
-Resolves and type-checks this expression and returns the result as a `TypedExpr`. 
+Resolves and type-checks this expression and returns the result as a `TypedExpr`.
 
 The `in_function` argument specifies where the expression is resolved:
 - If it's `none`, the expression is resolved in the function where `resolve` was called
 - If it's `some`, the expression is resolved in the given function
 
-If any names used by this expression are not in scope or if there are any type errors, 
-this will give compiler errors as if the expression was written directly into 
+If any names used by this expression are not in scope or if there are any type errors,
+this will give compiler errors as if the expression was written directly into
 the current `comptime` function.

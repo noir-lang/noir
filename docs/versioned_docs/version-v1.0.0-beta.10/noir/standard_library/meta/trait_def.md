@@ -1,5 +1,6 @@
 ---
 title: TraitDefinition
+description: Work with trait definitions at compile time—convert to trait constraints and inspect basic properties.
 ---
 
 `std::meta::trait_def` contains methods on the built-in `TraitDefinition` type. This type
@@ -9,7 +10,7 @@ represents trait definitions such as `trait Foo { .. }` at the top-level of a pr
 
 ### as_trait_constraint
 
-```rust title="as_trait_constraint" showLineNumbers 
+```rust title="as_trait_constraint" showLineNumbers
 pub comptime fn as_trait_constraint(_self: Self) -> TraitConstraint {}
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/trait_def.nr#L6-L8" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/trait_def.nr#L6-L8</a></sub></sup>

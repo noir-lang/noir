@@ -1,5 +1,6 @@
 ---
 title: Quick Start
+description: Install Nargo, set up a proving backend, and build your first Noir program end-to-end—create a project, compile and execute it, then generate and verify a proof with Barretenberg.
 tags: []
 sidebar_position: 0
 ---
