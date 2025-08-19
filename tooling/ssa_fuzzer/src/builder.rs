@@ -772,8 +772,7 @@ impl FuzzerBuilder {
         );
         let is_infinite_g_id =
             self.builder.numeric_constant(0_u32, NumericType::Unsigned { bit_size: 1 });
-        let elements =
-            vec![g_x_id, g_y_id, is_infinite_g_id].into_iter().map(|e| e.into()).collect();
+        let elements = vec![g_x_id, g_y_id, is_infinite_g_id].into_iter().collect();
         let basic_point = self.builder.insert_make_array(
             elements,
             Type::Array(
@@ -782,7 +781,7 @@ impl FuzzerBuilder {
             ),
         );
         let scalar_id = self.builder.insert_make_array(
-            vec![scalar.lo.value_id, scalar.hi.value_id].into_iter().map(|e| e.into()).collect(),
+            vec![scalar.lo.value_id, scalar.hi.value_id].into_iter().collect(),
             Type::Array(Arc::new(vec![field_type.clone(), field_type.clone()]), 1),
         );
         let return_type = Type::Array(
@@ -838,17 +837,17 @@ impl FuzzerBuilder {
             .builder
             .import_intrinsic("multi_scalar_mul")
             .expect("multi_scalar_mul intrinsic should be available");
-        let point_ids = points.iter().map(|p| p.to_id_vec()).flatten().collect::<Vec<_>>();
-        let scalar_ids = scalars.iter().map(|s| s.to_id_vec()).flatten().collect::<Vec<_>>();
+        let point_ids = points.iter().flat_map(|p| p.to_id_vec()).collect::<Vec<_>>();
+        let scalar_ids = scalars.iter().flat_map(|s| s.to_id_vec()).collect::<Vec<_>>();
         let point_ids_array = self.builder.insert_make_array(
-            point_ids.into_iter().map(|e| e.into()).collect(),
+            point_ids.into_iter().collect(),
             Type::Array(
                 Arc::new(vec![field_type.clone(), field_type.clone(), boolean_type.clone()]),
                 points.len() as u32,
             ),
         );
         let scalar_ids_array = self.builder.insert_make_array(
-            scalar_ids.into_iter().map(|e| e.into()).collect(),
+            scalar_ids.into_iter().collect(),
             Type::Array(
                 Arc::new(vec![field_type.clone(), field_type.clone()]),
                 scalars.len() as u32,

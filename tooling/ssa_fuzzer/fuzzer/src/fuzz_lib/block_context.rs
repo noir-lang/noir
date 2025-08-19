@@ -960,10 +960,8 @@ impl BlockContext {
         brillig_builder: &mut FuzzerBuilder,
         point: InstructionPoint,
     ) -> Option<Point> {
-        let scalar = self.ssa_scalar_from_instruction_scalar(point.scalar.clone());
-        if scalar.is_none() {
-            return None;
-        }
+        let scalar = self.ssa_scalar_from_instruction_scalar(point.scalar);
+        scalar.as_ref()?; // wtf clippy forbid me to write if scalar.is_none() {return None}
         let scalar = scalar.unwrap();
         let is_infinite = acir_builder.insert_constant(point.is_infinite, ValueType::Boolean);
         assert_eq!(
