@@ -23,9 +23,9 @@ use crate::ssa::{
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 impl Ssa {
-    /// Map arrays with the last instruction that uses it
-    /// For this we simply process all the instructions in execution order
-    /// and update the map whenever there is a match
+    /// Finds the last instruction that writes to an array and modifies it
+    /// to do an in-place mutation instead of making a copy if there are
+    /// no potential shared references to it.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn array_set_optimization(mut self) -> Self {
         for func in self.functions.values_mut() {
@@ -44,11 +44,22 @@ impl Ssa {
 /// Pre-check condition for [Function::array_set_optimization].
 ///
 /// Panics if:
-///   - there already exists a mutable array set instruction.
+///   - An ACIR function contains more than 1 block, i.e. it hasn't been flattened yet.
+///   - There already exists a mutable array set instruction.
 #[cfg(debug_assertions)]
 fn array_set_optimization_pre_check(func: &Function) {
+    let reachable_blocks = func.reachable_blocks();
+
+    if func.runtime().is_acir() && !func.runtime().is_entry_point() {
+        assert_eq!(
+            reachable_blocks.len(),
+            1,
+            "Expected there to be 1 block remaining in Acir function for array_set optimization"
+        );
+    }
+
     // There should be no mutable array sets.
-    for block_id in func.reachable_blocks() {
+    for block_id in reachable_blocks {
         let instruction_ids = func.dfg[block_id].instructions();
         for instruction_id in instruction_ids {
             if matches!(func.dfg[*instruction_id], Instruction::ArraySet { mutable: true, .. }) {
@@ -61,7 +72,7 @@ fn array_set_optimization_pre_check(func: &Function) {
 /// Post-check condition for [Function::array_set_optimization].
 ///
 /// Panics if:
-///   - Mutable array_set optimization has been applied to Brillig function
+///   - Mutable array_set optimization has been applied to Brillig function.
 #[cfg(debug_assertions)]
 fn array_set_optimization_post_check(func: &Function) {
     // Brillig functions should be not have any mutable array sets.
@@ -81,27 +92,17 @@ fn array_set_optimization_post_check(func: &Function) {
 impl Function {
     pub(crate) fn array_set_optimization(&mut self) {
         if matches!(self.runtime(), RuntimeType::Brillig(_)) {
-            // Brillig is supposed to use refcounting to decide whether to mutate an array;
+            // Brillig is supposed to use ref-counting to decide whether to mutate an array;
             // array mutation was only meant for ACIR. We could use it with Brillig as well,
             // but then some of the optimizations that we can do in ACIR around shared
             // references have to be skipped, which makes it more cumbersome.
             return;
         }
 
-        let reachable_blocks = self.reachable_blocks();
-
-        if !self.runtime().is_entry_point() {
-            assert_eq!(
-                reachable_blocks.len(),
-                1,
-                "Expected there to be 1 block remaining in Acir function for array_set optimization"
-            );
-        }
-
         let mut context = Context::new(&self.dfg);
 
-        for block in reachable_blocks.iter() {
-            context.analyze_last_uses(*block);
+        for block in self.reachable_blocks() {
+            context.analyze_last_uses(block);
         }
 
         let instructions_to_update = mem::take(&mut context.instructions_that_can_be_made_mutable);
