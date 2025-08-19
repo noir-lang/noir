@@ -96,6 +96,12 @@ pub enum OpcodeNotSolvable<F> {
     MissingMemoryBlock(u32),
     #[error("expression has too many unknowns {0}")]
     ExpressionHasTooManyUnknowns(Expression<F>),
+    #[error("multiple unknowns across separate terms: mul={mul_unknown:?}, fan_in={fan_in_unknown:?}")]
+    MultipleUnknownsInSeparateTerms {
+        expression: Expression<F>,
+        mul_unknown: Witness,
+        fan_in_unknown: Witness,
+    },
 }
 
 /// Allows to point to a specific opcode as cause in errors.
