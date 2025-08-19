@@ -61,8 +61,6 @@ it('successfully verifies secp256k1 ECDSA signatures', async () => {
 });
 
 it('successfully verifies secp256r1 ECDSA signatures', async () => {
-  // const { ecdsa_secp256r1_test_cases } = await import('../shared/black_box_solvers');
-
   for (const testCase of ecdsa_secp256r1_test_cases) {
     const [[hashed_msg, pubkey_x, pubkey_y, signature], expectedResult] = testCase;
 
