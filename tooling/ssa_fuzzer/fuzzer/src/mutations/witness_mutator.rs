@@ -11,13 +11,9 @@ use crate::mutations::configuration::{
 use libfuzzer_sys::arbitrary::Unstructured;
 use rand::{Rng, rngs::StdRng};
 
-trait WitnessMutator {
-    fn mutate(rng: &mut StdRng, value: &mut WitnessValue);
-}
-
 /// Return new random witness value
 struct RandomMutation;
-impl WitnessMutator for RandomMutation {
+impl RandomMutation {
     fn mutate(rng: &mut StdRng, value: &mut WitnessValue) {
         let mut bytes = [0u8; 17];
         rng.fill(&mut bytes);
@@ -27,8 +23,8 @@ impl WitnessMutator for RandomMutation {
 
 /// Return witness value with max value
 struct MaxValueMutation;
-impl WitnessMutator for MaxValueMutation {
-    fn mutate(_rng: &mut StdRng, value: &mut WitnessValue) {
+impl MaxValueMutation {
+    fn mutate(value: &mut WitnessValue) {
         let mutated_value = match value {
             WitnessValue::Field(_) => WitnessValue::Field(FieldRepresentation {
                 high: 64323764613183177041862057485226039389,
@@ -45,8 +41,8 @@ impl WitnessMutator for MaxValueMutation {
 
 /// Return witness value with min value
 struct MinValueMutation;
-impl WitnessMutator for MinValueMutation {
-    fn mutate(_rng: &mut StdRng, value: &mut WitnessValue) {
+impl MinValueMutation {
+    fn mutate(value: &mut WitnessValue) {
         let mutated_value = match value {
             WitnessValue::Field(_) => WitnessValue::Field(FieldRepresentation { high: 0, low: 0 }),
             WitnessValue::U64(_) => WitnessValue::U64(0),
@@ -60,7 +56,7 @@ impl WitnessMutator for MinValueMutation {
 
 /// Add or subtract small value to/from witness value
 struct WitnessSmallAddSubMutation;
-impl WitnessMutator for WitnessSmallAddSubMutation {
+impl WitnessSmallAddSubMutation {
     fn mutate(rng: &mut StdRng, value: &mut WitnessValue) {
         let small_update: i128 = rng.gen_range(0..256);
         let sign: bool = rng.gen_range(0..2) == 0;
@@ -95,7 +91,7 @@ impl WitnessMutator for WitnessSmallAddSubMutation {
 
 /// Add or subtract power of two to/from witness value
 struct WitnessAddSubPowerOfTwoMutation;
-impl WitnessMutator for WitnessAddSubPowerOfTwoMutation {
+impl WitnessAddSubPowerOfTwoMutation {
     fn mutate(rng: &mut StdRng, value: &mut WitnessValue) {
         let exponent = rng.gen_range(0..254);
         let sign: bool = rng.gen_range(0..2) == 0;
@@ -144,8 +140,8 @@ impl WitnessMutator for WitnessAddSubPowerOfTwoMutation {
 pub(crate) fn mutate(witness_value: &mut WitnessValue, rng: &mut StdRng) {
     match BASIC_WITNESS_MUTATION_CONFIGURATION.select(rng) {
         WitnessMutationOptions::Random => RandomMutation::mutate(rng, witness_value),
-        WitnessMutationOptions::MaxValue => MaxValueMutation::mutate(rng, witness_value),
-        WitnessMutationOptions::MinValue => MinValueMutation::mutate(rng, witness_value),
+        WitnessMutationOptions::MaxValue => MaxValueMutation::mutate(witness_value),
+        WitnessMutationOptions::MinValue => MinValueMutation::mutate(witness_value),
         WitnessMutationOptions::SmallAddSub => {
             WitnessSmallAddSubMutation::mutate(rng, witness_value);
         }
