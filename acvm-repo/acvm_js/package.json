@@ -17,7 +17,7 @@
     "url": "https://github.com/noir-lang/noir/issues"
   },
   "license": "MIT",
-  "main": "./nodejs/acvm_js_wrapper.js",
+  "main": "./nodejs/acvm_js.js",
   "types": "./web/acvm_js.d.ts",
   "module": "./web/acvm_js.js",
   "files": [

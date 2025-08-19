@@ -52,42 +52,42 @@ run_or_fail wasm-bindgen $WASM_BINARY --out-dir $BROWSER_DIR --typescript --targ
 run_if_available wasm-opt $NODE_WASM -o $NODE_WASM -O
 run_if_available wasm-opt $BROWSER_WASM -o $BROWSER_WASM -O
 
-# Auto-generate Node ESM wrapper
-WRAPPER_FILE="$NODE_DIR/noirc_abi_wasm_wrapper.js"
-TYPES_FILE="$NODE_DIR/noirc_abi_wasm.d.ts"
+# # Auto-generate Node ESM wrapper
+# WRAPPER_FILE="$NODE_DIR/noirc_abi_wasm_wrapper.js"
+# TYPES_FILE="$NODE_DIR/noirc_abi_wasm.d.ts"
 
-echo "// Node wrapper for ESM support (auto-generated)" > "$WRAPPER_FILE"
-echo "import pkg from './noirc_abi_wasm.js';" >> "$WRAPPER_FILE"
-echo "" >> "$WRAPPER_FILE"
+# echo "// Node wrapper for ESM support (auto-generated)" > "$WRAPPER_FILE"
+# echo "import pkg from './noirc_abi_wasm.js';" >> "$WRAPPER_FILE"
+# echo "" >> "$WRAPPER_FILE"
 
-# Extract export names from the TypeScript definition for functions/constants
-echo "// Re-export everything from the original module" >> "$WRAPPER_FILE"
-echo "export const {" >> "$WRAPPER_FILE"
+# # Extract export names from the TypeScript definition for functions/constants
+# echo "// Re-export everything from the original module" >> "$WRAPPER_FILE"
+# echo "export const {" >> "$WRAPPER_FILE"
 
-# Pick only non-type exports
-grep -E '^export (const|function|class|var|let)' "$TYPES_FILE" \
-  | sed -E 's/^export (const|function|class|var|let) ([^(: ]+).*/  \2,/' \
-  >> "$WRAPPER_FILE"
+# # Pick only non-type exports
+# grep -E '^export (const|function|class|var|let)' "$TYPES_FILE" \
+#   | sed -E 's/^export (const|function|class|var|let) ([^(: ]+).*/  \2,/' \
+#   >> "$WRAPPER_FILE"
 
-echo "} = pkg;" >> "$WRAPPER_FILE"
-echo "" >> "$WRAPPER_FILE"
+# echo "} = pkg;" >> "$WRAPPER_FILE"
+# echo "" >> "$WRAPPER_FILE"
 
-# Type exports declared locally
-echo "// Re-export local TypeScript type aliases" >> "$WRAPPER_FILE"
-echo "export const {" >> "$WRAPPER_FILE"
+# # Type exports declared locally
+# echo "// Re-export local TypeScript type aliases" >> "$WRAPPER_FILE"
+# echo "export const {" >> "$WRAPPER_FILE"
 
-grep '^export type' "$TYPES_FILE" \
-  | sed -E 's/^export type ([^ =;]+).*/  \1,/' \
-  >> "$WRAPPER_FILE"
+# grep '^export type' "$TYPES_FILE" \
+#   | sed -E 's/^export type ([^ =;]+).*/  \1,/' \
+#   >> "$WRAPPER_FILE"
 
-echo "} = pkg;" >> "$WRAPPER_FILE"
-echo "" >> "$WRAPPER_FILE"
+# echo "} = pkg;" >> "$WRAPPER_FILE"
+# echo "" >> "$WRAPPER_FILE"
 
-# Type exports from other modules (e.g., @noir-lang/types)
-echo "// Re-export types from other modules as const from pkg" >> "$WRAPPER_FILE"
-grep -E '^export \{.*\} from ' "$TYPES_FILE" \
-  | sed -E 's/^export \{(.*)\} from .*/export const { \1 } = pkg;/' \
-  >> "$WRAPPER_FILE"
+# # Type exports from other modules (e.g., @noir-lang/types)
+# echo "// Re-export types from other modules as const from pkg" >> "$WRAPPER_FILE"
+# grep -E '^export \{.*\} from ' "$TYPES_FILE" \
+#   | sed -E 's/^export \{(.*)\} from .*/export const { \1 } = pkg;/' \
+#   >> "$WRAPPER_FILE"
 
-echo "" >> "$WRAPPER_FILE"
-echo "Wrapper generated at $WRAPPER_FILE"
+# echo "" >> "$WRAPPER_FILE"
+# echo "Wrapper generated at $WRAPPER_FILE"
