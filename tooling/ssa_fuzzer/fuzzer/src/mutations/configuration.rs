@@ -453,8 +453,10 @@ pub(crate) enum GenerateInstruction {
     Keccakf1600Hash,
     Aes128Encrypt,
     Sha256Compression,
+    PointAdd,
+    MultiScalarMul,
 }
-pub(crate) type GenerateInstructionConfig = WeightedSelectionConfig<GenerateInstruction, 30>;
+pub(crate) type GenerateInstructionConfig = WeightedSelectionConfig<GenerateInstruction, 32>;
 pub(crate) const BASIC_GENERATE_INSTRUCTION_CONFIGURATION: GenerateInstructionConfig =
     GenerateInstructionConfig::new([
         (GenerateInstruction::AddChecked, 100),
@@ -488,6 +490,8 @@ pub(crate) const BASIC_GENERATE_INSTRUCTION_CONFIGURATION: GenerateInstructionCo
         (GenerateInstruction::Keccakf1600Hash, 5),
         (GenerateInstruction::Aes128Encrypt, 5),
         (GenerateInstruction::Sha256Compression, 5),
+        (GenerateInstruction::PointAdd, 5),
+        (GenerateInstruction::MultiScalarMul, 5),
     ]);
 
 // Compile-time check that configuration has correct number of entries

@@ -155,6 +155,9 @@ fn generate_random_instruction(rng: &mut StdRng) -> Instruction {
                 GENERATE_BOOL_CONFIGURATION_MOST_FALSE,
             ),
         },
+        GenerateInstruction::MultiScalarMul { .. } | GenerateInstruction::PointAdd { .. } => {
+            unimplemented!()
+        }
     }
 }
 

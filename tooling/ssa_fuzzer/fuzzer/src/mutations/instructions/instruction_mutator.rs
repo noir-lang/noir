@@ -253,6 +253,9 @@ impl InstructionArgumentsMutation {
                     }
                 }
             }
+            Instruction::PointAdd { .. } | Instruction::MultiScalarMul { .. } => {
+                unimplemented!()
+            }
         }
     }
 }
