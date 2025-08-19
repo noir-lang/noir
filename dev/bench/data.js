@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1755603389571,
+  "lastUpdate": 1755603542706,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -19461,48 +19461,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "fa4a48d76443043dc07f77e2a1d015ad03c5d9b7",
-          "message": "chore: Regression test for calling a mutable closure inside a mutable closure (#9384)",
-          "timestamp": "2025-08-04T15:51:56Z",
-          "tree_id": "3cf1594a6232fbae981a54e8684da44b75adfb54",
-          "url": "https://github.com/noir-lang/noir/commit/fa4a48d76443043dc07f77e2a1d015ad03c5d9b7"
-        },
-        "date": 1754324286953,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 258733,
-            "range": "± 7614",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 228569,
-            "range": "± 3956",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2802517,
-            "range": "± 1351",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -21554,6 +21512,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2778393,
             "range": "± 1644",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a856dc0555f3788de2046665796b8a52a6f7f1dc",
+          "message": "chore: Revert \"chore: remove redundant `enforce_bitshift_rhs_lt_bit_size`\" (#9558)",
+          "timestamp": "2025-08-19T12:35:28+01:00",
+          "tree_id": "b8babafd4af337634a7ef23cf086b0ad0cd65921",
+          "url": "https://github.com/noir-lang/noir/commit/a856dc0555f3788de2046665796b8a52a6f7f1dc"
+        },
+        "date": 1755603524192,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 248777,
+            "range": "± 365",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 218551,
+            "range": "± 2479",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2781087,
+            "range": "± 1579",
             "unit": "ns/iter"
           }
         ]
