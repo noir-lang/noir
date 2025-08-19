@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1755616420515,
+  "lastUpdate": 1755616421939,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -8110,80 +8110,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "84741533+defkit@users.noreply.github.com",
-            "name": "defkit",
-            "username": "defkit"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "532b51233729189e64fbe4db0dda58294d0fef6f",
-          "message": "feat(ssa_fuzzer): pushing generated program and witness to redis queue   (#9375)",
-          "timestamp": "2025-08-05T13:19:44Z",
-          "tree_id": "70ca7db90ad3c78deaa2bdc571fa75b155950f09",
-          "url": "https://github.com/noir-lang/noir/commit/532b51233729189e64fbe4db0dda58294d0fef6f"
-        },
-        "date": 1754401978583,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.015,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.154,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.012,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.265,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 0.159,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 13.1,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.002,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.004,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.02,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 0.092,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -11683,6 +11609,80 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 0.103,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "84741533+defkit@users.noreply.github.com",
+            "name": "defkit",
+            "username": "defkit"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "110cb99cf0a2b4cb63bac994dfe34cd247d8ffad",
+          "message": "feat(ssa_fuzzer): embedded curve ops (#9557)",
+          "timestamp": "2025-08-19T14:41:21Z",
+          "tree_id": "a98a0df24bf48c408da4b7387d348be20097bf6c",
+          "url": "https://github.com/noir-lang/noir/commit/110cb99cf0a2b4cb63bac994dfe34cd247d8ffad"
+        },
+        "date": 1755616401895,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.014,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.156,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.01,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.265,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.162,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 13.5,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.002,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.004,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.019,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 0.104,
             "unit": "s"
           }
         ]
