@@ -110,7 +110,7 @@ use noirc_errors::call_stack::CallStackId;
 use super::unrolling::{Loop, Loops};
 
 impl Ssa {
-  /// See [`loop_invariant`][self] module for more information.
+    /// See [`loop_invariant`][self] module for more information.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn loop_invariant_code_motion(mut self) -> Ssa {
         for function in self.functions.values_mut() {
@@ -2605,40 +2605,7 @@ mod control_dependence {
         let ssa = Ssa::from_str(src).unwrap();
 
         let ssa = ssa.loop_invariant_code_motion();
-
-        assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) fn main f0 {
-          b0(v0: u32, v1: u32, v2: u32):
-            v4 = allocate -> &mut u32
-            store v0 at v4
-            v6 = eq v1, u32 4
-            jmp b1(u32 0)
-          b1(v3: u32):
-            v9 = lt v3, u32 5
-            jmpif v9 then: b2, else: b3
-          b2():
-            jmpif u1 1 then: b4, else: b5
-          b3():
-            v19 = load v4 -> u32
-            v20 = lt v1, v19
-            constrain v20 == u1 1
-            return
-          b4():
-            v11 = load v4 -> u32
-            v13 = add v11, u32 1
-            store v13 at v4
-            jmp b5()
-          b5():
-            v15 = lt u32 2, v3
-            v16 = unchecked_mul v6, v15
-            jmpif v16 then: b3, else: b6
-          b6():
-            v17 = lt v3, u32 4
-            constrain v17 == u1 1
-            v18 = unchecked_add v3, u32 1
-            jmp b1(v18)
-        }
-        ");
+        assert_normalized_ssa_equals(ssa, src);
     }
 
     #[test]
@@ -2988,7 +2955,6 @@ mod control_dependence {
         // They are code-gen as:
         //    `range_check v23 to 8 bits`
         //    `v24 = cast v23 as u8`
-
         let src = r"
         acir(inline) impure fn main f0 {
           b0(v0: u1, v1: i8):
@@ -3025,8 +2991,8 @@ mod control_dependence {
             v30 = cast v9 as i8
             jmp b5()
           b5():
-            v33 = unchecked_add v2, u32 1
-            jmp b1(v33)
+            v32 = unchecked_add v2, u32 1
+            jmp b1(v32)
         }
         ";
 
