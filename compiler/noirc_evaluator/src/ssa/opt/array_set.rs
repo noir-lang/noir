@@ -18,7 +18,7 @@ use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
         dfg::DataFlowGraph,
-        function::{Function, RuntimeType},
+        function::Function,
         instruction::{Instruction, InstructionId, TerminatorInstruction},
         value::ValueId,
     },
@@ -53,9 +53,14 @@ impl Ssa {
 ///   - There is an `IfElse` instruction which hasn't been removed yet.
 #[cfg(debug_assertions)]
 fn array_set_optimization_pre_check(func: &Function) {
+    // We only want to run this pass for ACIR.
+    if func.runtime().is_brillig() {
+        return;
+    }
+
     let reachable_blocks = func.reachable_blocks();
 
-    if func.runtime().is_acir() && !func.runtime().is_entry_point() {
+    if !func.runtime().is_entry_point() {
         assert_eq!(
             reachable_blocks.len(),
             1,
@@ -75,7 +80,7 @@ fn array_set_optimization_pre_check(func: &Function) {
                 }
                 // The pass might mutate an array result of an `IfElse` and thus modify the input even if it's used later,
                 // so we assert that such instructions have already been removed by the `remove_if_else` pass.
-                Instruction::IfElse { .. } if func.runtime().is_acir() => {
+                Instruction::IfElse { .. } => {
                     panic!("IfElse instruction exists before `array_set_optimization` pass");
                 }
                 _ => {}
@@ -106,7 +111,7 @@ fn array_set_optimization_post_check(func: &Function) {
 
 impl Function {
     pub(crate) fn array_set_optimization(&mut self) {
-        if matches!(self.runtime(), RuntimeType::Brillig(_)) {
+        if self.runtime().is_brillig() {
             // Brillig is supposed to use ref-counting to decide whether to mutate an array;
             // array mutation was only meant for ACIR. We could use it with Brillig as well,
             // but then some of the optimizations that we can do in ACIR around shared
@@ -156,25 +161,25 @@ impl<'f> Context<'f> {
 
     /// Builds the set of `ArraySet` instructions that can be made mutable
     /// because their input value is unused elsewhere afterward.
+    ///
+    /// Only expected to execute on ACIR functions.
     fn analyze_last_uses(&mut self, block_id: BasicBlockId) {
+        assert!(self.dfg.runtime().is_acir());
+
         let block = &self.dfg[block_id];
 
         let terminator = self.dfg[block_id].unwrap_terminator();
 
         // If we are in a return block we are not concerned about the array potentially being mutated again.
-        // In ACIR this should be the only kind of block we encounter, unless it's marked unreachable.
-        // Only keeping this flag for documentation purposes; as long as we don't run the pass on Brillig it could be removed.
-        let is_return_block = match terminator {
-            TerminatorInstruction::Return { .. } => true,
+        // In ACIR this should be the only kind of block we encounter, unless it's marked unreachable,
+        // in which case we don't need to optimize the array writes since we will end up with a failure anyway.
+        match terminator {
+            TerminatorInstruction::Return { .. } => {}
             TerminatorInstruction::Unreachable { .. } => {
-                // If the block will end up with a certain failure, we don't need to optimize array writes.
                 return;
             }
             other => {
-                if self.dfg.runtime().is_acir() {
-                    panic!("unexpected terminator in ACIR: {other:?}")
-                }
-                false
+                panic!("unexpected terminator in ACIR: {other:?}")
             }
         };
 
@@ -199,7 +204,7 @@ impl<'f> Context<'f> {
                     });
 
                     let can_mutate = if let Some(is_from_param) = self.arrays_from_load.get(array) {
-                        !is_from_param && is_return_block
+                        !is_from_param
                     } else {
                         !is_array_in_terminator
                     };
