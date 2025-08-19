@@ -452,10 +452,9 @@ fn shl() {
     assert_eq!(value, from_constant(12_u128.into(), NumericType::signed(8)));
 }
 
-/// shl does not error on overflow. It just returns zero.
 #[test]
 fn shl_overflow() {
-    let value = expect_value(
+    let error = expect_error(
         "
         acir(inline) fn main f0 {
           b0():
@@ -464,7 +463,7 @@ fn shl_overflow() {
         }
     ",
     );
-    assert_eq!(value, from_constant(0_u128.into(), NumericType::unsigned(8)));
+    assert!(matches!(error, InterpreterError::Overflow { .. }));
 }
 
 #[test]
@@ -511,9 +510,8 @@ fn shr_signed() {
 }
 
 #[test]
-/// shr on unsigned integer does not error on overflow. It just returns 0. See https://github.com/noir-lang/noir/pull/7509.
 fn shr_overflow_unsigned() {
-    let value = expect_value(
+    let error = expect_error(
         "
         acir(inline) fn main f0 {
           b0():
@@ -522,15 +520,12 @@ fn shr_overflow_unsigned() {
         }
     ",
     );
-    assert_eq!(value, from_constant(0_u128.into(), NumericType::unsigned(8)));
+    assert!(matches!(error, InterpreterError::Overflow { .. }));
 }
 
 #[test]
-/// shr on signed integers does not error on overflow.
-/// If the value being shifted is positive we return 0, and -1 if it is negative.
-/// See https://github.com/noir-lang/noir/pull/8805.
 fn shr_overflow_signed_negative_lhs() {
-    let value = expect_value(
+    let error = expect_error(
         "
         acir(inline) fn main f0 {
           b0():
@@ -539,14 +534,10 @@ fn shr_overflow_signed_negative_lhs() {
         }
     ",
     );
-
-    let neg_one = IntegerConstant::Signed { value: -1, bit_size: 8 };
-    let (neg_one_constant, typ) = neg_one.into_numeric_constant();
-    assert_eq!(value, from_constant(neg_one_constant, typ));
+    assert!(matches!(error, InterpreterError::Overflow { .. }));
 }
 
 #[test]
-/// shr on signed integers does error on negative rhs
 fn shr_overflow_signed_negative_rhs() {
     expect_error(
         "

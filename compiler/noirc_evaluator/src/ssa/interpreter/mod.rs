@@ -1312,37 +1312,37 @@ impl<W: Write> Interpreter<'_, W> {
                         U1(if !rhs_value { lhs_value } else { false })
                     }
                     (U8(lhs_value), U8(rhs_value)) => {
-                        U8(lhs_value.checked_shl(rhs_value.into()).unwrap_or(0))
+                        lhs_value.checked_shl(rhs_value.into()).map(U8).ok_or(overflow)?
                     }
                     (U16(lhs_value), U16(rhs_value)) => {
-                        U16(lhs_value.checked_shl(rhs_value.into()).unwrap_or(0))
+                        lhs_value.checked_shl(rhs_value.into()).map(U16).ok_or(overflow)?
                     }
                     (U32(lhs_value), U32(rhs_value)) => {
-                        U32(lhs_value.checked_shl(rhs_value).unwrap_or(0))
+                        lhs_value.checked_shl(rhs_value).map(U32).ok_or(overflow)?
                     }
                     (U64(lhs_value), U64(rhs_value)) => {
-                        let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow)?;
-                        U64(lhs_value.checked_shl(rhs_value).unwrap_or(0))
+                        let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow.clone())?;
+                        lhs_value.checked_shl(rhs_value).map(U64).ok_or(overflow)?
                     }
                     (U128(lhs_value), U128(rhs_value)) => {
-                        let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow)?;
-                        U128(lhs_value.checked_shl(rhs_value).unwrap_or(0))
+                        let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow.clone())?;
+                        lhs_value.checked_shl(rhs_value).map(U128).ok_or(overflow)?
                     }
                     (I8(lhs_value), I8(rhs_value)) => {
-                        let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow)?;
-                        I8(lhs_value.checked_shl(rhs_value).unwrap_or(0))
+                        let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow.clone())?;
+                        lhs_value.checked_shl(rhs_value).map(I8).ok_or(overflow)?
                     }
                     (I16(lhs_value), I16(rhs_value)) => {
-                        let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow)?;
-                        I16(lhs_value.checked_shl(rhs_value).unwrap_or(0))
+                        let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow.clone())?;
+                        lhs_value.checked_shl(rhs_value).map(I16).ok_or(overflow)?
                     }
                     (I32(lhs_value), I32(rhs_value)) => {
-                        let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow)?;
-                        I32(lhs_value.checked_shl(rhs_value).unwrap_or(0))
+                        let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow.clone())?;
+                        lhs_value.checked_shl(rhs_value).map(I32).ok_or(overflow)?
                     }
                     (I64(lhs_value), I64(rhs_value)) => {
-                        let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow)?;
-                        I64(lhs_value.checked_shl(rhs_value).unwrap_or(0))
+                        let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow.clone())?;
+                        lhs_value.checked_shl(rhs_value).map(I64).ok_or(overflow)?
                     }
                     _ => {
                         return Err(internal(InternalError::MismatchedTypesInBinaryOperator {
@@ -1356,13 +1356,6 @@ impl<W: Write> Interpreter<'_, W> {
                 }
             }
             BinaryOp::Shr => {
-                let fallback = || {
-                    if lhs.is_negative() {
-                        NumericValue::neg_one(lhs.get_type())
-                    } else {
-                        NumericValue::zero(lhs.get_type())
-                    }
-                };
                 let instruction =
                     format!("`{}` ({lhs} >> {rhs})", display_binary(binary, self.dfg()));
                 let overflow = InterpreterError::Overflow { operator: BinaryOp::Shr, instruction };
@@ -1379,37 +1372,37 @@ impl<W: Write> Interpreter<'_, W> {
                         U1(if !rhs_value { lhs_value } else { false })
                     }
                     (U8(lhs_value), U8(rhs_value)) => {
-                        lhs_value.checked_shr(rhs_value.into()).map(U8).unwrap_or_else(fallback)
+                        lhs_value.checked_shr(rhs_value.into()).map(U8).ok_or(overflow)?
                     }
                     (U16(lhs_value), U16(rhs_value)) => {
-                        lhs_value.checked_shr(rhs_value.into()).map(U16).unwrap_or_else(fallback)
+                        lhs_value.checked_shr(rhs_value.into()).map(U16).ok_or(overflow)?
                     }
                     (U32(lhs_value), U32(rhs_value)) => {
-                        lhs_value.checked_shr(rhs_value).map(U32).unwrap_or_else(fallback)
+                        lhs_value.checked_shr(rhs_value).map(U32).ok_or(overflow)?
                     }
                     (U64(lhs_value), U64(rhs_value)) => {
-                        let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow)?;
-                        lhs_value.checked_shr(rhs_value).map(U64).unwrap_or_else(fallback)
+                        let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow.clone())?;
+                        lhs_value.checked_shr(rhs_value).map(U64).ok_or(overflow)?
                     }
                     (U128(lhs_value), U128(rhs_value)) => {
-                        let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow)?;
-                        lhs_value.checked_shr(rhs_value).map(U128).unwrap_or_else(fallback)
+                        let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow.clone())?;
+                        lhs_value.checked_shr(rhs_value).map(U128).ok_or(overflow)?
                     }
                     (I8(lhs_value), I8(rhs_value)) => {
-                        let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow)?;
-                        lhs_value.checked_shr(rhs_value).map(I8).unwrap_or_else(fallback)
+                        let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow.clone())?;
+                        lhs_value.checked_shr(rhs_value).map(I8).ok_or(overflow)?
                     }
                     (I16(lhs_value), I16(rhs_value)) => {
-                        let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow)?;
-                        lhs_value.checked_shr(rhs_value).map(I16).unwrap_or_else(fallback)
+                        let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow.clone())?;
+                        lhs_value.checked_shr(rhs_value).map(I16).ok_or(overflow)?
                     }
                     (I32(lhs_value), I32(rhs_value)) => {
-                        let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow)?;
-                        lhs_value.checked_shr(rhs_value).map(I32).unwrap_or_else(fallback)
+                        let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow.clone())?;
+                        lhs_value.checked_shr(rhs_value).map(I32).ok_or(overflow)?
                     }
                     (I64(lhs_value), I64(rhs_value)) => {
-                        let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow)?;
-                        lhs_value.checked_shr(rhs_value).map(I64).unwrap_or_else(fallback)
+                        let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow.clone())?;
+                        lhs_value.checked_shr(rhs_value).map(I64).ok_or(overflow)?
                     }
                     _ => {
                         return Err(internal(InternalError::MismatchedTypesInBinaryOperator {
