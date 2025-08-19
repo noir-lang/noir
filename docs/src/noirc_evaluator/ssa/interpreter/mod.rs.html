@@ -1595,14 +1595,7 @@
 <a href="#1594" id="1594">1594</a>
 <a href="#1595" id="1595">1595</a>
 <a href="#1596" id="1596">1596</a>
-<a href="#1597" id="1597">1597</a>
-<a href="#1598" id="1598">1598</a>
-<a href="#1599" id="1599">1599</a>
-<a href="#1600" id="1600">1600</a>
-<a href="#1601" id="1601">1601</a>
-<a href="#1602" id="1602">1602</a>
-<a href="#1603" id="1603">1603</a>
-<a href="#1604" id="1604">1604</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{cmp::Ordering, io::Write};
+<a href="#1597" id="1597">1597</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{cmp::Ordering, io::Write};
 
 <span class="kw">use super</span>::{
     Ssa,
@@ -2916,38 +2909,38 @@
                         U1(<span class="kw">if </span>!rhs_value { lhs_value } <span class="kw">else </span>{ <span class="bool-val">false </span>})
                     }
                     (U8(lhs_value), U8(rhs_value)) =&gt; {
-                        U8(lhs_value.checked_shl(rhs_value.into()).unwrap_or(<span class="number">0</span>))
-                    }
+                        lhs_value.checked_shl(rhs_value.into()).map(U8).ok_or(overflow)<span class="question-mark">?
+                    </span>}
                     (U16(lhs_value), U16(rhs_value)) =&gt; {
-                        U16(lhs_value.checked_shl(rhs_value.into()).unwrap_or(<span class="number">0</span>))
-                    }
+                        lhs_value.checked_shl(rhs_value.into()).map(U16).ok_or(overflow)<span class="question-mark">?
+                    </span>}
                     (U32(lhs_value), U32(rhs_value)) =&gt; {
-                        U32(lhs_value.checked_shl(rhs_value).unwrap_or(<span class="number">0</span>))
-                    }
+                        lhs_value.checked_shl(rhs_value).map(U32).ok_or(overflow)<span class="question-mark">?
+                    </span>}
                     (U64(lhs_value), U64(rhs_value)) =&gt; {
-                        <span class="kw">let </span>rhs_value: u32 = rhs_value.try_into().map_err(|<span class="kw">_</span>| overflow)<span class="question-mark">?</span>;
-                        U64(lhs_value.checked_shl(rhs_value).unwrap_or(<span class="number">0</span>))
-                    }
+                        <span class="kw">let </span>rhs_value: u32 = rhs_value.try_into().map_err(|<span class="kw">_</span>| overflow.clone())<span class="question-mark">?</span>;
+                        lhs_value.checked_shl(rhs_value).map(U64).ok_or(overflow)<span class="question-mark">?
+                    </span>}
                     (U128(lhs_value), U128(rhs_value)) =&gt; {
-                        <span class="kw">let </span>rhs_value: u32 = rhs_value.try_into().map_err(|<span class="kw">_</span>| overflow)<span class="question-mark">?</span>;
-                        U128(lhs_value.checked_shl(rhs_value).unwrap_or(<span class="number">0</span>))
-                    }
+                        <span class="kw">let </span>rhs_value: u32 = rhs_value.try_into().map_err(|<span class="kw">_</span>| overflow.clone())<span class="question-mark">?</span>;
+                        lhs_value.checked_shl(rhs_value).map(U128).ok_or(overflow)<span class="question-mark">?
+                    </span>}
                     (I8(lhs_value), I8(rhs_value)) =&gt; {
-                        <span class="kw">let </span>rhs_value: u32 = rhs_value.try_into().map_err(|<span class="kw">_</span>| overflow)<span class="question-mark">?</span>;
-                        I8(lhs_value.checked_shl(rhs_value).unwrap_or(<span class="number">0</span>))
-                    }
+                        <span class="kw">let </span>rhs_value: u32 = rhs_value.try_into().map_err(|<span class="kw">_</span>| overflow.clone())<span class="question-mark">?</span>;
+                        lhs_value.checked_shl(rhs_value).map(I8).ok_or(overflow)<span class="question-mark">?
+                    </span>}
                     (I16(lhs_value), I16(rhs_value)) =&gt; {
-                        <span class="kw">let </span>rhs_value: u32 = rhs_value.try_into().map_err(|<span class="kw">_</span>| overflow)<span class="question-mark">?</span>;
-                        I16(lhs_value.checked_shl(rhs_value).unwrap_or(<span class="number">0</span>))
-                    }
+                        <span class="kw">let </span>rhs_value: u32 = rhs_value.try_into().map_err(|<span class="kw">_</span>| overflow.clone())<span class="question-mark">?</span>;
+                        lhs_value.checked_shl(rhs_value).map(I16).ok_or(overflow)<span class="question-mark">?
+                    </span>}
                     (I32(lhs_value), I32(rhs_value)) =&gt; {
-                        <span class="kw">let </span>rhs_value: u32 = rhs_value.try_into().map_err(|<span class="kw">_</span>| overflow)<span class="question-mark">?</span>;
-                        I32(lhs_value.checked_shl(rhs_value).unwrap_or(<span class="number">0</span>))
-                    }
+                        <span class="kw">let </span>rhs_value: u32 = rhs_value.try_into().map_err(|<span class="kw">_</span>| overflow.clone())<span class="question-mark">?</span>;
+                        lhs_value.checked_shl(rhs_value).map(I32).ok_or(overflow)<span class="question-mark">?
+                    </span>}
                     (I64(lhs_value), I64(rhs_value)) =&gt; {
-                        <span class="kw">let </span>rhs_value: u32 = rhs_value.try_into().map_err(|<span class="kw">_</span>| overflow)<span class="question-mark">?</span>;
-                        I64(lhs_value.checked_shl(rhs_value).unwrap_or(<span class="number">0</span>))
-                    }
+                        <span class="kw">let </span>rhs_value: u32 = rhs_value.try_into().map_err(|<span class="kw">_</span>| overflow.clone())<span class="question-mark">?</span>;
+                        lhs_value.checked_shl(rhs_value).map(I64).ok_or(overflow)<span class="question-mark">?
+                    </span>}
                     <span class="kw">_ </span>=&gt; {
                         <span class="kw">return </span><span class="prelude-val">Err</span>(internal(InternalError::MismatchedTypesInBinaryOperator {
                             lhs: lhs.to_string(),
@@ -2960,13 +2953,6 @@
                 }
             }
             BinaryOp::Shr =&gt; {
-                <span class="kw">let </span>fallback = || {
-                    <span class="kw">if </span>lhs.is_negative() {
-                        NumericValue::neg_one(lhs.get_type())
-                    } <span class="kw">else </span>{
-                        NumericValue::zero(lhs.get_type())
-                    }
-                };
                 <span class="kw">let </span>instruction =
                     <span class="macro">format!</span>(<span class="string">"`{}` ({lhs} &gt;&gt; {rhs})"</span>, display_binary(binary, <span class="self">self</span>.dfg()));
                 <span class="kw">let </span>overflow = InterpreterError::Overflow { operator: BinaryOp::Shr, instruction };
@@ -2983,38 +2969,38 @@
                         U1(<span class="kw">if </span>!rhs_value { lhs_value } <span class="kw">else </span>{ <span class="bool-val">false </span>})
                     }
                     (U8(lhs_value), U8(rhs_value)) =&gt; {
-                        lhs_value.checked_shr(rhs_value.into()).map(U8).unwrap_or_else(fallback)
-                    }
+                        lhs_value.checked_shr(rhs_value.into()).map(U8).ok_or(overflow)<span class="question-mark">?
+                    </span>}
                     (U16(lhs_value), U16(rhs_value)) =&gt; {
-                        lhs_value.checked_shr(rhs_value.into()).map(U16).unwrap_or_else(fallback)
-                    }
+                        lhs_value.checked_shr(rhs_value.into()).map(U16).ok_or(overflow)<span class="question-mark">?
+                    </span>}
                     (U32(lhs_value), U32(rhs_value)) =&gt; {
-                        lhs_value.checked_shr(rhs_value).map(U32).unwrap_or_else(fallback)
-                    }
+                        lhs_value.checked_shr(rhs_value).map(U32).ok_or(overflow)<span class="question-mark">?
+                    </span>}
                     (U64(lhs_value), U64(rhs_value)) =&gt; {
-                        <span class="kw">let </span>rhs_value: u32 = rhs_value.try_into().map_err(|<span class="kw">_</span>| overflow)<span class="question-mark">?</span>;
-                        lhs_value.checked_shr(rhs_value).map(U64).unwrap_or_else(fallback)
-                    }
+                        <span class="kw">let </span>rhs_value: u32 = rhs_value.try_into().map_err(|<span class="kw">_</span>| overflow.clone())<span class="question-mark">?</span>;
+                        lhs_value.checked_shr(rhs_value).map(U64).ok_or(overflow)<span class="question-mark">?
+                    </span>}
                     (U128(lhs_value), U128(rhs_value)) =&gt; {
-                        <span class="kw">let </span>rhs_value: u32 = rhs_value.try_into().map_err(|<span class="kw">_</span>| overflow)<span class="question-mark">?</span>;
-                        lhs_value.checked_shr(rhs_value).map(U128).unwrap_or_else(fallback)
-                    }
+                        <span class="kw">let </span>rhs_value: u32 = rhs_value.try_into().map_err(|<span class="kw">_</span>| overflow.clone())<span class="question-mark">?</span>;
+                        lhs_value.checked_shr(rhs_value).map(U128).ok_or(overflow)<span class="question-mark">?
+                    </span>}
                     (I8(lhs_value), I8(rhs_value)) =&gt; {
-                        <span class="kw">let </span>rhs_value: u32 = rhs_value.try_into().map_err(|<span class="kw">_</span>| overflow)<span class="question-mark">?</span>;
-                        lhs_value.checked_shr(rhs_value).map(I8).unwrap_or_else(fallback)
-                    }
+                        <span class="kw">let </span>rhs_value: u32 = rhs_value.try_into().map_err(|<span class="kw">_</span>| overflow.clone())<span class="question-mark">?</span>;
+                        lhs_value.checked_shr(rhs_value).map(I8).ok_or(overflow)<span class="question-mark">?
+                    </span>}
                     (I16(lhs_value), I16(rhs_value)) =&gt; {
-                        <span class="kw">let </span>rhs_value: u32 = rhs_value.try_into().map_err(|<span class="kw">_</span>| overflow)<span class="question-mark">?</span>;
-                        lhs_value.checked_shr(rhs_value).map(I16).unwrap_or_else(fallback)
-                    }
+                        <span class="kw">let </span>rhs_value: u32 = rhs_value.try_into().map_err(|<span class="kw">_</span>| overflow.clone())<span class="question-mark">?</span>;
+                        lhs_value.checked_shr(rhs_value).map(I16).ok_or(overflow)<span class="question-mark">?
+                    </span>}
                     (I32(lhs_value), I32(rhs_value)) =&gt; {
-                        <span class="kw">let </span>rhs_value: u32 = rhs_value.try_into().map_err(|<span class="kw">_</span>| overflow)<span class="question-mark">?</span>;
-                        lhs_value.checked_shr(rhs_value).map(I32).unwrap_or_else(fallback)
-                    }
+                        <span class="kw">let </span>rhs_value: u32 = rhs_value.try_into().map_err(|<span class="kw">_</span>| overflow.clone())<span class="question-mark">?</span>;
+                        lhs_value.checked_shr(rhs_value).map(I32).ok_or(overflow)<span class="question-mark">?
+                    </span>}
                     (I64(lhs_value), I64(rhs_value)) =&gt; {
-                        <span class="kw">let </span>rhs_value: u32 = rhs_value.try_into().map_err(|<span class="kw">_</span>| overflow)<span class="question-mark">?</span>;
-                        lhs_value.checked_shr(rhs_value).map(I64).unwrap_or_else(fallback)
-                    }
+                        <span class="kw">let </span>rhs_value: u32 = rhs_value.try_into().map_err(|<span class="kw">_</span>| overflow.clone())<span class="question-mark">?</span>;
+                        lhs_value.checked_shr(rhs_value).map(I64).ok_or(overflow)<span class="question-mark">?
+                    </span>}
                     <span class="kw">_ </span>=&gt; {
                         <span class="kw">return </span><span class="prelude-val">Err</span>(internal(InternalError::MismatchedTypesInBinaryOperator {
                             lhs: lhs.to_string(),
