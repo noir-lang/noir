@@ -2677,7 +2677,96 @@
 <a href="#2676" id="2676">2676</a>
 <a href="#2677" id="2677">2677</a>
 <a href="#2678" id="2678">2678</a>
-<a href="#2679" id="2679">2679</a></pre></div><pre class="rust"><code><span class="doccomment">//! Coming after type checking, monomorphization is the last pass in Noir's frontend.
+<a href="#2679" id="2679">2679</a>
+<a href="#2680" id="2680">2680</a>
+<a href="#2681" id="2681">2681</a>
+<a href="#2682" id="2682">2682</a>
+<a href="#2683" id="2683">2683</a>
+<a href="#2684" id="2684">2684</a>
+<a href="#2685" id="2685">2685</a>
+<a href="#2686" id="2686">2686</a>
+<a href="#2687" id="2687">2687</a>
+<a href="#2688" id="2688">2688</a>
+<a href="#2689" id="2689">2689</a>
+<a href="#2690" id="2690">2690</a>
+<a href="#2691" id="2691">2691</a>
+<a href="#2692" id="2692">2692</a>
+<a href="#2693" id="2693">2693</a>
+<a href="#2694" id="2694">2694</a>
+<a href="#2695" id="2695">2695</a>
+<a href="#2696" id="2696">2696</a>
+<a href="#2697" id="2697">2697</a>
+<a href="#2698" id="2698">2698</a>
+<a href="#2699" id="2699">2699</a>
+<a href="#2700" id="2700">2700</a>
+<a href="#2701" id="2701">2701</a>
+<a href="#2702" id="2702">2702</a>
+<a href="#2703" id="2703">2703</a>
+<a href="#2704" id="2704">2704</a>
+<a href="#2705" id="2705">2705</a>
+<a href="#2706" id="2706">2706</a>
+<a href="#2707" id="2707">2707</a>
+<a href="#2708" id="2708">2708</a>
+<a href="#2709" id="2709">2709</a>
+<a href="#2710" id="2710">2710</a>
+<a href="#2711" id="2711">2711</a>
+<a href="#2712" id="2712">2712</a>
+<a href="#2713" id="2713">2713</a>
+<a href="#2714" id="2714">2714</a>
+<a href="#2715" id="2715">2715</a>
+<a href="#2716" id="2716">2716</a>
+<a href="#2717" id="2717">2717</a>
+<a href="#2718" id="2718">2718</a>
+<a href="#2719" id="2719">2719</a>
+<a href="#2720" id="2720">2720</a>
+<a href="#2721" id="2721">2721</a>
+<a href="#2722" id="2722">2722</a>
+<a href="#2723" id="2723">2723</a>
+<a href="#2724" id="2724">2724</a>
+<a href="#2725" id="2725">2725</a>
+<a href="#2726" id="2726">2726</a>
+<a href="#2727" id="2727">2727</a>
+<a href="#2728" id="2728">2728</a>
+<a href="#2729" id="2729">2729</a>
+<a href="#2730" id="2730">2730</a>
+<a href="#2731" id="2731">2731</a>
+<a href="#2732" id="2732">2732</a>
+<a href="#2733" id="2733">2733</a>
+<a href="#2734" id="2734">2734</a>
+<a href="#2735" id="2735">2735</a>
+<a href="#2736" id="2736">2736</a>
+<a href="#2737" id="2737">2737</a>
+<a href="#2738" id="2738">2738</a>
+<a href="#2739" id="2739">2739</a>
+<a href="#2740" id="2740">2740</a>
+<a href="#2741" id="2741">2741</a>
+<a href="#2742" id="2742">2742</a>
+<a href="#2743" id="2743">2743</a>
+<a href="#2744" id="2744">2744</a>
+<a href="#2745" id="2745">2745</a>
+<a href="#2746" id="2746">2746</a>
+<a href="#2747" id="2747">2747</a>
+<a href="#2748" id="2748">2748</a>
+<a href="#2749" id="2749">2749</a>
+<a href="#2750" id="2750">2750</a>
+<a href="#2751" id="2751">2751</a>
+<a href="#2752" id="2752">2752</a>
+<a href="#2753" id="2753">2753</a>
+<a href="#2754" id="2754">2754</a>
+<a href="#2755" id="2755">2755</a>
+<a href="#2756" id="2756">2756</a>
+<a href="#2757" id="2757">2757</a>
+<a href="#2758" id="2758">2758</a>
+<a href="#2759" id="2759">2759</a>
+<a href="#2760" id="2760">2760</a>
+<a href="#2761" id="2761">2761</a>
+<a href="#2762" id="2762">2762</a>
+<a href="#2763" id="2763">2763</a>
+<a href="#2764" id="2764">2764</a>
+<a href="#2765" id="2765">2765</a>
+<a href="#2766" id="2766">2766</a>
+<a href="#2767" id="2767">2767</a>
+<a href="#2768" id="2768">2768</a></pre></div><pre class="rust"><code><span class="doccomment">//! Coming after type checking, monomorphization is the last pass in Noir's frontend.
 //! It accepts the type checked HIR as input and produces a monomorphized AST as output.
 //! This file implements the pass itself, while the AST is defined in the ast module.
 //!
@@ -4337,7 +4426,7 @@
         <span class="kw">let </span><span class="kw-2">mut </span>arguments = try_vecmap(<span class="kw-2">&amp;</span>call.arguments, |id| <span class="self">self</span>.expr(<span class="kw-2">*</span>id))<span class="question-mark">?</span>;
         <span class="kw">let </span>hir_arguments = vecmap(<span class="kw-2">&amp;</span>call.arguments, |id| <span class="self">self</span>.interner.expression(id));
 
-        <span class="self">self</span>.patch_debug_instrumentation_call(<span class="kw-2">&amp;</span>call, <span class="kw-2">&amp;mut </span>arguments)<span class="question-mark">?</span>;
+        <span class="self">self</span>.patch_debug_instrumentation_call(<span class="kw-2">&amp;</span>call, <span class="kw-2">&amp;</span>original_func, <span class="kw-2">&amp;mut </span>arguments)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>return_type = <span class="self">self</span>.interner.id_type(id);
         <span class="kw">let </span>location = <span class="self">self</span>.interner.expr_location(<span class="kw-2">&amp;</span>id);
@@ -5227,6 +5316,14 @@
                     // This is similar to what's done in `verify_trait_constraint` in the frontend.
                     </span><span class="kw">let </span><span class="kw-2">mut </span>bindings = interner.get_instantiation_bindings(expr_id).clone();
                     bindings.extend(instantiation_bindings);
+
+                    bind_trait_impl_func_generics_to_trait_func_generics(
+                        interner,
+                        method_id,
+                        impl_id,
+                        <span class="kw-2">&amp;mut </span>bindings,
+                    );
+
                     interner.store_instantiation_bindings(expr_id, bindings);
                     <span class="prelude-val">Ok</span>(impl_id)
                 }
@@ -5254,6 +5351,87 @@
                 }
             }
         }
+    }
+}
+
+<span class="doccomment">/// Binds direct generics on a trait impl function to those on a corresponding trait function.
+///
+/// Consider this code:
+///
+/// ```noir
+/// trait Bar {
+///     fn baz&lt;let N: u32&gt;();
+/// }
+///
+/// impl Bar for Field {
+///     fn baz&lt;let M: u32&gt;() {
+///         let _ = M;
+///     }
+/// }
+///
+/// fn foo&lt;K: Bar&gt;() {
+///     K::baz::&lt;2&gt;();
+/// }
+///
+/// fn main() {
+///     foo::&lt;Field&gt;();
+/// }
+/// ```
+///
+/// When type-checking `K::baz::&lt;2&gt;` the compiler will know that it corresponds
+/// to the method `baz` defined on the `Bar` trait, but won't yet know which
+/// trait implementation it refers to. The instantiation bindings for this
+/// will have the type variable `N` bound to `2`.
+///
+/// During monomorphization, on the specific call to `foo::&lt;Field&gt;()`,
+/// the compiler will know that `K` refers to `Field`, and that `K::baz::&lt;2&gt;`
+/// refers to the `baz` method on the `Field` impl for `Bar`. In that method
+/// the type variable `M` is unbound. Looking up its value will fail.
+/// However, we can bind `M` to `N`, so it eventually resolves to `2`,
+/// which is what this method does.
+</span><span class="kw">fn </span>bind_trait_impl_func_generics_to_trait_func_generics(
+    interner: <span class="kw-2">&amp;mut </span>NodeInterner,
+    method_id: TraitItemId,
+    impl_id: node_interner::TraitImplId,
+    bindings: <span class="kw-2">&amp;mut </span>TypeBindings,
+) {
+    <span class="comment">// We know the trait method this call resolves to
+    </span><span class="kw">let </span>trait_func_definition = interner.definition(method_id.item_id);
+    <span class="kw">let </span>DefinitionKind::Function(trait_func_id) = trait_func_definition.kind <span class="kw">else </span>{
+        <span class="kw">return</span>;
+    };
+    <span class="kw">let </span>trait_func_meta = interner.function_meta(<span class="kw-2">&amp;</span>trait_func_id);
+    <span class="kw">let </span>trait_func_name = interner.definition_name(method_id.item_id);
+
+    <span class="comment">// Find the corresponding trait impl method
+    </span><span class="kw">let </span>trait_impl = interner.get_trait_implementation(impl_id);
+    <span class="kw">let </span>trait_impl = trait_impl.borrow();
+    <span class="kw">let </span>trait_impl_func_id = trait_impl
+        .methods
+        .iter()
+        .find(|method| interner.function_name(method) == trait_func_name)
+        .expect(<span class="string">"Expected to find trait impl method"</span>);
+
+    <span class="comment">// Bind trait impl func generics to trait func generics
+    </span><span class="kw">let </span>trait_impl_func_meta = interner.function_meta(trait_impl_func_id);
+    <span class="kw">let </span>trait_impl_func_generics = <span class="kw-2">&amp;</span>trait_impl_func_meta.direct_generics;
+    <span class="kw">let </span>trait_func_generics = <span class="kw-2">&amp;</span>trait_func_meta.direct_generics;
+    <span class="macro">assert_eq!</span>(
+        trait_impl_func_generics.len(),
+        trait_func_generics.len(),
+        <span class="string">"Trait impl function generics and trait function generics should have the same length"
+    </span>);
+    <span class="kw">for </span>(trait_func_generic, trait_impl_func_generic) <span class="kw">in
+        </span>trait_func_generics.iter().zip(trait_impl_func_generics.iter())
+    {
+        <span class="kw">let </span>trait_impl_generic = <span class="kw-2">&amp;</span>trait_impl_func_generic.type_var;
+        bindings.entry(trait_impl_generic.id()).or_insert_with(|| {
+            (
+                trait_impl_generic.clone(),
+                trait_impl_generic.kind(),
+                Type::TypeVariable(trait_func_generic.type_var.clone()),
+            )
+        });
     }
 }
 

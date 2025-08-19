@@ -241,10 +241,10 @@
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>patch_debug_instrumentation_call(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         call: <span class="kw-2">&amp;</span>HirCallExpression,
+        function: <span class="kw-2">&amp;</span>Expression,
         arguments: <span class="kw-2">&amp;mut </span>[Expression],
     ) -&gt; <span class="prelude-ty">Result</span>&lt;(), MonomorphizationError&gt; {
-        <span class="kw">let </span>original_func = Box::new(<span class="self">self</span>.expr(call.func)<span class="question-mark">?</span>);
-        <span class="kw">if let </span>Expression::Ident(Ident { name, .. }) = original_func.as_ref() {
+        <span class="kw">if let </span>Expression::Ident(Ident { name, .. }) = function {
             <span class="kw">if </span>name == <span class="string">"__debug_var_assign" </span>{
                 <span class="self">self</span>.patch_debug_var_assign(call, arguments)<span class="question-mark">?</span>;
             } <span class="kw">else if </span>name == <span class="string">"__debug_var_drop" </span>{
