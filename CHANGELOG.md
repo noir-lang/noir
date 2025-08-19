@@ -1,5 +1,45 @@
 # Changelog
 
+## [1.0.0-beta.11](https://github.com/noir-lang/noir/compare/v1.0.0-beta.10...v1.0.0-beta.11) (2025-08-19)
+
+
+### ⚠ BREAKING CHANGES
+
+* new semantic for bit-shifts  ([#9373](https://github.com/noir-lang/noir/issues/9373))
+* remove `verify_proof` from stdlib ([#9472](https://github.com/noir-lang/noir/issues/9472))
+
+### Features
+
+* **fuzz:** Push and pop for slices ([#9262](https://github.com/noir-lang/noir/issues/9262)) ([ab345b2](https://github.com/noir-lang/noir/commit/ab345b2f5a239e200ae6c3a6792f3bdcef540bcf))
+* Mark slice variants of ecdsa verification as deprecated ([#9458](https://github.com/noir-lang/noir/issues/9458)) ([5675aff](https://github.com/noir-lang/noir/commit/5675aff45f460f6975492725953b45b8a969a82d))
+* New semantic for bit-shifts  ([#9373](https://github.com/noir-lang/noir/issues/9373)) ([f6fed8b](https://github.com/noir-lang/noir/commit/f6fed8bd0154c937f11dfbd4a27bc893b9d3f5e9))
+* **opt:** Don't clone on array_len ([#9440](https://github.com/noir-lang/noir/issues/9440)) ([b7273d7](https://github.com/noir-lang/noir/commit/b7273d7a31f8e0cdc2d086e30ac3fede1f0ed46c))
+* Remove saturating behaviour of signed bitshifts in brillig ([#9532](https://github.com/noir-lang/noir/issues/9532)) ([103f70a](https://github.com/noir-lang/noir/commit/103f70a5dac594374b68f54c82da0423d1415d74))
+* Simplify bitshift logic to remove leftover overflow handling ([#9506](https://github.com/noir-lang/noir/issues/9506)) ([9062697](https://github.com/noir-lang/noir/commit/9062697bbcefced22184c43998c1f966543e2b6b))
+* **ssa_fuzzer:** Hash blackbox functions ([#9479](https://github.com/noir-lang/noir/issues/9479)) ([4c65b51](https://github.com/noir-lang/noir/commit/4c65b51266446b79cecd74335e4816951261f496))
+* **ssa_fuzzer:** Mode without instruction simplification + array instructions mutations + limits fix ([#9438](https://github.com/noir-lang/noir/issues/9438)) ([ea9c913](https://github.com/noir-lang/noir/commit/ea9c9130e367a35d1f0eda03d995ce139b469481))
+
+
+### Bug Fixes
+
+* Allow calling private impl method defined on another module from… ([#9449](https://github.com/noir-lang/noir/issues/9449)) ([501988e](https://github.com/noir-lang/noir/commit/501988e746da0240d7af5d8026e5dd17a68e166b))
+* Assert types are not mutated in constant folding ([#9481](https://github.com/noir-lang/noir/issues/9481)) ([ee2ac1a](https://github.com/noir-lang/noir/commit/ee2ac1a04e85134079fbe557d4029d3f64aff7b6))
+* **brillig_vm:** Remove slice padding for foreign call inputs ([#9321](https://github.com/noir-lang/noir/issues/9321)) ([57778ea](https://github.com/noir-lang/noir/commit/57778ea95e96d06eb61bb3846cf086850e01c9b0))
+* **brillig:** Pass slice length to push and pop operations ([#9507](https://github.com/noir-lang/noir/issues/9507)) ([888f9a0](https://github.com/noir-lang/noir/commit/888f9a0871e1e99e9d733f4e438b023474606af7))
+* Guard `Eq` for `[T]` to avoid OOB on length mismatch ([#9453](https://github.com/noir-lang/noir/issues/9453)) ([b5a94e4](https://github.com/noir-lang/noir/commit/b5a94e4bd6f564b69cd538b486d5aa9fb96de977))
+* **LSP:** Don't crash on broken function definition ([#9441](https://github.com/noir-lang/noir/issues/9441)) ([e54057d](https://github.com/noir-lang/noir/commit/e54057dc34c7b675e329f23425ff25855e049358))
+* Remove shadowing in `BoundedVec::any` causing returning  false unconditionally ([#9478](https://github.com/noir-lang/noir/issues/9478)) ([b51b616](https://github.com/noir-lang/noir/commit/b51b6164e5e49243bb65adb64638a821131568dd))
+* Remove warning from `std::verify_proof_with_type` ([#9474](https://github.com/noir-lang/noir/issues/9474)) ([7503f37](https://github.com/noir-lang/noir/commit/7503f37c7c3d9f463d287a77b1037ee4b9dc5e3c))
+* **security:** Validate git references in GitHub dependency resolver ([#9051](https://github.com/noir-lang/noir/issues/9051)) ([e3a8e9f](https://github.com/noir-lang/noir/commit/e3a8e9f955d61c4ef0c2900948e45595de9f3ebe))
+* **ssa:** Replace pop from 0-length slice with constraint and defaults ([#9489](https://github.com/noir-lang/noir/issues/9489)) ([20a6467](https://github.com/noir-lang/noir/commit/20a6467e324a4d1cc07f73dc55c2a49b8671989d))
+* **ssa:** Replace side effects with defaults when disabled ([#9462](https://github.com/noir-lang/noir/issues/9462)) ([4f8dbbc](https://github.com/noir-lang/noir/commit/4f8dbbc20bb40115d87c499154655ebe7e962099))
+* Sync len after map rebuilds in iter_mut/iter_keys_mut for HashMap and UHashMap ([#9491](https://github.com/noir-lang/noir/issues/9491)) ([12465f3](https://github.com/noir-lang/noir/commit/12465f3ae45cdbd96531889e9420ad02254e17f9))
+
+
+### Miscellaneous Chores
+
+* Remove `verify_proof` from stdlib ([#9472](https://github.com/noir-lang/noir/issues/9472)) ([450ad5b](https://github.com/noir-lang/noir/commit/450ad5be73f49cc91f498d3e4d89ee98a8e41ec5))
+
 ## [1.0.0-beta.10](https://github.com/noir-lang/noir/compare/v1.0.0-beta.9...v1.0.0-beta.10) (2025-08-08)
 
 
