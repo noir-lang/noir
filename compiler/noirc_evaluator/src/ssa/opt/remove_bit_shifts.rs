@@ -124,6 +124,7 @@ impl Context<'_, '_, '_> {
         let lhs_typ = self.context.dfg.type_of_value(lhs).unwrap_numeric();
 
         let pow = self.two_pow(rhs);
+        let pow = self.insert_truncate(pow, lhs_typ.bit_size(), FieldElement::max_num_bits());
         let pow = self.insert_cast(pow, lhs_typ);
 
         match lhs_typ {
@@ -592,9 +593,10 @@ mod tests {
                 v63 = mul v61, Field 2
                 v64 = mul v63, v59
                 v65 = add v62, v64
-                v66 = cast v65 as u32
-                v67 = div v0, v66
-                return v67
+                v66 = truncate v65 to 32 bits, max_bit_size: 254
+                v67 = cast v66 as u32
+                v68 = div v0, v67
+                return v68
             }
             "#);
         }
@@ -805,18 +807,19 @@ mod tests {
                 v64 = mul v62, Field 2
                 v65 = mul v64, v60
                 v66 = add v63, v65
-                v67 = cast v66 as i32
-                v69 = lt v0, i32 0
-                v70 = cast v69 as Field
-                v71 = cast v0 as Field
-                v72 = add v70, v71
-                v73 = truncate v72 to 32 bits, max_bit_size: 33
-                v74 = cast v73 as i32
-                v75 = div v74, v67
-                v76 = cast v69 as i32
-                v77 = unchecked_sub v75, v76
-                v78 = truncate v77 to 32 bits, max_bit_size: 33
-                return v78
+                v67 = truncate v66 to 32 bits, max_bit_size: 254
+                v68 = cast v67 as i32
+                v70 = lt v0, i32 0
+                v71 = cast v70 as Field
+                v72 = cast v0 as Field
+                v73 = add v71, v72
+                v74 = truncate v73 to 32 bits, max_bit_size: 33
+                v75 = cast v74 as i32
+                v76 = div v75, v68
+                v77 = cast v70 as i32
+                v78 = unchecked_sub v76, v77
+                v79 = truncate v78 to 32 bits, max_bit_size: 33
+                return v79
             }
             "#);
         }
