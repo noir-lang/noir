@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1755626093257,
+  "lastUpdate": 1755634807694,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -19491,48 +19491,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "be181ad7053d6f7cc2f178f90107bb85bcdaf120",
-          "message": "chore(inlining): Unit tests for global values and conditional inlining (#9411)",
-          "timestamp": "2025-08-06T18:33:26Z",
-          "tree_id": "84773de77e4c03b3677a7a30b61c9273bb1ffc83",
-          "url": "https://github.com/noir-lang/noir/commit/be181ad7053d6f7cc2f178f90107bb85bcdaf120"
-        },
-        "date": 1754506802153,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 252438,
-            "range": "± 1646",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 229032,
-            "range": "± 504",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2785921,
-            "range": "± 4314",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -21584,6 +21542,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2781931,
             "range": "± 6725",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "66ba28ef33757afecc2d3fd62337117f84344913",
+          "message": "fix: bind trait impl func generics to trait func generics during monomorphization (#9566)",
+          "timestamp": "2025-08-19T19:48:07Z",
+          "tree_id": "f7d0965011a4ff085106394a49f9827f41310366",
+          "url": "https://github.com/noir-lang/noir/commit/66ba28ef33757afecc2d3fd62337117f84344913"
+        },
+        "date": 1755634789317,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 247851,
+            "range": "± 789",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 217493,
+            "range": "± 4616",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2778532,
+            "range": "± 11189",
             "unit": "ns/iter"
           }
         ]
