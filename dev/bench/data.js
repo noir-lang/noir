@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1755602785239,
+  "lastUpdate": 1755602870309,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -4058,90 +4058,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "9b1b10fb8cf515b4238e2d3412e76e9737ae7193",
-          "message": "fix: some nargo expand fixes (#9324)",
-          "timestamp": "2025-08-04T14:35:44Z",
-          "tree_id": "1199a7fe77ad8c89b5a2dd070e4e8c36857e444c",
-          "url": "https://github.com/noir-lang/noir/commit/9b1b10fb8cf515b4238e2d3412e76e9737ae7193"
-        },
-        "date": 1754320771801,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 1.706,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 7.776,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.338,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 16.92,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 13.72,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 20.42,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 191,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 189,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.364,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.426,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.782,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 1.64,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -8101,6 +8017,90 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 1.664,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jc@joshcrites.com",
+            "name": "josh crites",
+            "username": "critesjosh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "c7ae241ae1791b11c3470a26522efdbddfcdf469",
+          "message": "chore(docs): Add llms.txt plugin to docs  (#9552)",
+          "timestamp": "2025-08-19T10:55:43Z",
+          "tree_id": "86649acb2ec332bd8613309829788d57b611c264",
+          "url": "https://github.com/noir-lang/noir/commit/c7ae241ae1791b11c3470a26522efdbddfcdf469"
+        },
+        "date": 1755602853114,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1.72,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 7.608,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.304,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 16.38,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 13.16,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 21.08,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 196,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 201,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.364,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.494,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.797,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 1.542,
             "unit": "s"
           }
         ]
