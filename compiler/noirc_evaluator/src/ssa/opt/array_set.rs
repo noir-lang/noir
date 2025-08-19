@@ -159,6 +159,25 @@ impl<'f> Context<'f> {
     fn analyze_last_uses(&mut self, block_id: BasicBlockId) {
         let block = &self.dfg[block_id];
 
+        let terminator = self.dfg[block_id].unwrap_terminator();
+
+        // If we are in a return block we are not concerned about the array potentially being mutated again.
+        // In ACIR this should be the only kind of block we encounter, unless it's marked unreachable.
+        // Only keeping this flag for documentation purposes; as long as we don't run the pass on Brillig it could be removed.
+        let is_return_block = match terminator {
+            TerminatorInstruction::Return { .. } => true,
+            TerminatorInstruction::Unreachable { .. } => {
+                // If the block will end up with a certain failure, we don't need to optimize array writes.
+                return;
+            }
+            other => {
+                if self.dfg.runtime().is_acir() {
+                    panic!("unexpected terminator in ACIR: {other:?}")
+                }
+                false
+            }
+        };
+
         for instruction_id in block.instructions() {
             match &self.dfg[*instruction_id] {
                 // Reading an array constitutes as use, replacing any previous last use.
@@ -172,16 +191,6 @@ impl<'f> Context<'f> {
                     // If the array we are setting does not come from a load we can safely mark it mutable.
                     // If the array comes from a load we may potentially being mutating an array at a reference
                     // that is loaded from by other values.
-                    let terminator = self.dfg[block_id].unwrap_terminator();
-
-                    // If we are in a return block we are not concerned about the array potentially being mutated again.
-                    let is_return_block =
-                        matches!(terminator, TerminatorInstruction::Return { .. });
-
-                    assert!(
-                        is_return_block,
-                        "ACIR is only expected to have 1 block, which must be a return."
-                    );
 
                     // We also want to check that the array is not part of the terminator arguments, as this means it is used again.
                     let mut is_array_in_terminator = false;
@@ -405,6 +414,23 @@ mod tests {
                 return
             }
         ");
+    }
+
+    #[test]
+    fn does_not_mutate_arrays_in_unreachable_blocks() {
+        let src = "
+            acir(inline) fn main f0 {
+              b0():
+                v1 = make_array [Field 0] : [Field; 1]
+                v2 = allocate -> &mut [Field; 1]
+                store v1 at v2
+                v3 = load v2 -> [Field; 1]
+                v4 = array_set v3, index u32 0, value Field 1
+                constrain u1 0 == u1 1
+                unreachable
+            }
+            ";
+        assert_ssa_does_not_change(src, Ssa::array_set_optimization);
     }
 
     #[test]
