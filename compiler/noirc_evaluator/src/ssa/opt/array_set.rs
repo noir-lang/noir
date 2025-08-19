@@ -63,19 +63,19 @@ fn array_set_optimization_pre_check(func: &Function) {
         );
     }
 
-    // There should be no mutable array sets.
     for block_id in reachable_blocks {
         let instruction_ids = func.dfg[block_id].instructions();
         for instruction_id in instruction_ids {
             match func.dfg[*instruction_id] {
+                // There should be no mutable array sets.
                 Instruction::ArraySet { mutable: true, .. } => {
                     panic!(
                         "mutable ArraySet instruction exists before `array_set_optimization` pass"
                     );
                 }
-                Instruction::IfElse { .. } => {
-                    // The pass might mutate an array result of an `IfElse` and thus modify the input even if it's used later,
-                    // so we assert that such instructions have already been removed by the `remove_if_else` pass.
+                // The pass might mutate an array result of an `IfElse` and thus modify the input even if it's used later,
+                // so we assert that such instructions have already been removed by the `remove_if_else` pass.
+                Instruction::IfElse { .. } if func.runtime().is_acir() => {
                     panic!("IfElse instruction exists before `array_set_optimization` pass");
                 }
                 _ => {}
