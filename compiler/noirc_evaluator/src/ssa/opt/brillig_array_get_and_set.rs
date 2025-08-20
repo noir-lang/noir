@@ -119,7 +119,7 @@ impl Function {
     }
 }
 
-/// Given an array or slice value and a constant index, returns an offseted index
+/// Given an array or slice value and a constant index, returns an offset (shifted) index
 /// together with which type of [`ArrayOffset`] was used to shift it.
 fn compute_index_and_offset(
     context: &mut SimpleOptimizationContext,
