@@ -67,7 +67,7 @@ impl Context {
         // Make sure this optimization runs when there's only one block
         assert_eq!(function.dfg[block].successors().count(), 0);
 
-        function.simple_reachable_blocks_optimization_result(|context| {
+        function.simple_optimization_result(|context| {
             let instruction_id = context.instruction_id;
             let instruction = context.instruction();
 

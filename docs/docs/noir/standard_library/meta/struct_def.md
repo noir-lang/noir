@@ -1,5 +1,6 @@
 ---
 title: TypeDefinition
+description: Inspect and transform struct/enum type definitions—fields, generics, attributes, and module context.
 ---
 
 `std::meta::type_def` contains methods on the built-in `TypeDefinition` type.

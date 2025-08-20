@@ -1,13 +1,15 @@
 #![no_main]
 
-mod fuzz_lib;
+pub(crate) mod fuzz_lib;
 mod mutations;
 mod utils;
 
 use bincode::serde::{borrow_decode_from_slice, encode_to_vec};
-use fuzz_lib::fuzz_target_lib::fuzz_target;
-use fuzz_lib::fuzzer::FuzzerData;
-use fuzz_lib::options::{FuzzerOptions, InstructionOptions};
+use fuzz_lib::{
+    fuzz_target_lib::fuzz_target,
+    fuzzer::FuzzerData,
+    options::{FuzzerCommandOptions, FuzzerMode, FuzzerOptions, InstructionOptions},
+};
 use libfuzzer_sys::Corpus;
 use mutations::mutate;
 use noirc_driver::CompileOptions;
@@ -42,10 +44,23 @@ libfuzzer_sys::fuzz_target!(|data: &[u8]| -> Corpus {
     let instruction_options = InstructionOptions {
         shl_enabled: false,
         shr_enabled: false,
+        alloc_enabled: false,
+        array_get_enabled: false,
+        // https://github.com/noir-lang/noir/issues/9559
+        point_add_enabled: false,
+        multi_scalar_mul_enabled: false,
         ..InstructionOptions::default()
     };
-    let options =
-        FuzzerOptions { compile_options, instruction_options, ..FuzzerOptions::default() };
+    let modes = vec![FuzzerMode::NonConstant];
+    let fuzzer_command_options =
+        FuzzerCommandOptions { loops_enabled: true, ..FuzzerCommandOptions::default() };
+    let options = FuzzerOptions {
+        compile_options,
+        instruction_options,
+        modes,
+        fuzzer_command_options,
+        ..FuzzerOptions::default()
+    };
     let fuzzer_data = borrow_decode_from_slice(data, bincode::config::legacy())
         .unwrap_or((FuzzerData::default(), 1337))
         .0;

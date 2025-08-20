@@ -1,5 +1,6 @@
 ---
 title: Module
+description: Work with modules in `comptime`—query names, list functions/structs, detect contracts, and add new items.
 ---
 
 `std::meta::module` contains methods on the built-in `Module` type which represents a module in the source program.
@@ -12,8 +13,8 @@ declarations in the source program.
 
 #include_code add_item noir_stdlib/src/meta/module.nr rust
 
-Adds a top-level item (a function, a struct, a global, etc.) to the module. 
-Adding multiple items in one go is also valid if the `Quoted` value has multiple items in it.  
+Adds a top-level item (a function, a struct, a global, etc.) to the module.
+Adding multiple items in one go is also valid if the `Quoted` value has multiple items in it.
 Note that the items are type-checked as if they are inside the module they are being added to.
 
 ### functions

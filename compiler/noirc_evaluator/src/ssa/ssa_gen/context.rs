@@ -312,90 +312,6 @@ impl<'a> FunctionContext<'a> {
         Ok(self.builder.numeric_constant(value, numeric_type))
     }
 
-    /// Insert constraints ensuring that the operation does not overflow the bit size of the result
-    ///
-    /// If the result is unsigned, overflow will be checked during acir-gen (cf. issue #4456), except for
-    /// bit-shifts, because we will convert them to field multiplication
-    ///
-    /// If the result is signed, overflow will be checked during SSA optimization.
-    fn check_overflow(
-        &mut self,
-        result: ValueId,
-        lhs: ValueId,
-        rhs: ValueId,
-        operator: BinaryOpKind,
-        location: Location,
-    ) -> ValueId {
-        let result_type = self.builder.current_function.dfg.type_of_value(result).unwrap_numeric();
-        match result_type {
-            NumericType::Signed { bit_size } => {
-                match operator {
-                    BinaryOpKind::Add | BinaryOpKind::Subtract | BinaryOpKind::Multiply => {
-                        // Overflow check is deferred to ssa pass
-                        result
-                    }
-                    BinaryOpKind::ShiftLeft | BinaryOpKind::ShiftRight => {
-                        self.check_shift_overflow(result, rhs, bit_size, location)
-                    }
-                    _ => unreachable!("operator {} should not overflow", operator),
-                }
-            }
-            NumericType::Unsigned { bit_size } => {
-                let dfg = &self.builder.current_function.dfg;
-                let max_lhs_bits = dfg.get_value_max_num_bits(lhs);
-
-                match operator {
-                    BinaryOpKind::Add | BinaryOpKind::Subtract | BinaryOpKind::Multiply => {
-                        // Overflow check is deferred to acir-gen
-                        result
-                    }
-                    BinaryOpKind::ShiftLeft => {
-                        if let Some(rhs_const) = dfg.get_numeric_constant(rhs) {
-                            let bit_shift_size = rhs_const.to_u128() as u32;
-
-                            if max_lhs_bits + bit_shift_size <= bit_size {
-                                // `lhs` has been casted up from a smaller type such that shifting it by a constant
-                                // `rhs` is known not to exceed the maximum bit size.
-                                return result;
-                            }
-                        }
-
-                        self.check_shift_overflow(result, rhs, bit_size, location);
-                        result
-                    }
-
-                    _ => unreachable!("operator {} should not overflow", operator),
-                }
-            }
-            NumericType::NativeField => result,
-        }
-    }
-
-    /// Overflow checks for bit-shift
-    /// We use Rust behavior for bit-shift:
-    /// If rhs is more or equal than the bit size, then we overflow
-    /// If not, we do not overflow and shift with 0 when bits are falling out of the bit size
-    fn check_shift_overflow(
-        &mut self,
-        result: ValueId,
-        rhs: ValueId,
-        bit_size: u32,
-        location: Location,
-    ) -> ValueId {
-        let one = self.builder.numeric_constant(FieldElement::one(), NumericType::bool());
-        assert!(self.builder.current_function.dfg.type_of_value(rhs) == Type::unsigned(8));
-
-        let bit_size_field = FieldElement::from(bit_size as i128);
-        let max = self.builder.numeric_constant(bit_size_field, NumericType::unsigned(8));
-        let overflow = self.builder.insert_binary(rhs, BinaryOp::Lt, max);
-        self.builder.set_location(location).insert_constrain(
-            overflow,
-            one,
-            Some("attempt to bit-shift with overflow".to_owned().into()),
-        );
-        self.builder.insert_truncate(result, bit_size, bit_size + 1)
-    }
-
     /// Insert a binary instruction at the end of the current block.
     /// Converts the form of the binary instruction as necessary
     /// (e.g. swapping arguments, inserting a not) to represent it in the IR.
@@ -412,18 +328,18 @@ impl<'a> FunctionContext<'a> {
             std::mem::swap(&mut lhs, &mut rhs);
         }
 
-        let mut result = self.builder.set_location(location).insert_binary(lhs, op, rhs);
+        self.builder.set_location(location);
+
+        let mut result = self.builder.insert_binary(lhs, op, rhs);
 
         // Check for integer overflow
-        if matches!(
-            operator,
-            BinaryOpKind::Add
-                | BinaryOpKind::Subtract
-                | BinaryOpKind::Multiply
-                | BinaryOpKind::ShiftLeft
-        ) {
-            result = self.check_overflow(result, lhs, rhs, operator, location);
-        }
+        if matches!(operator, |BinaryOpKind::ShiftLeft| BinaryOpKind::ShiftRight) {
+            let result_type =
+                self.builder.current_function.dfg.type_of_value(result).unwrap_numeric();
+            if let NumericType::Signed { bit_size } = result_type {
+                result = self.builder.insert_truncate(result, bit_size, bit_size + 1);
+            }
+        };
 
         if operator_requires_not(operator) {
             result = self.builder.insert_not(result);
@@ -744,6 +660,7 @@ impl<'a> FunctionContext<'a> {
                 let (reference, _) = self.extract_current_value_recursive(reference)?;
                 LValue::Dereference { reference }
             }
+            ast::LValue::Clone(lvalue) => self.extract_current_value(lvalue)?,
         })
     }
 
@@ -834,6 +751,14 @@ impl<'a> FunctionContext<'a> {
                 let (reference, _) = self.extract_current_value_recursive(reference)?;
                 let dereferenced = self.dereference_lvalue(&reference, element_type);
                 Ok((dereferenced, LValue::Dereference { reference }))
+            }
+            ast::LValue::Clone(lvalue) => {
+                let (values, lvalue) = self.extract_current_value_recursive(lvalue)?;
+                values.clone().for_each(|value| {
+                    let value = value.eval(self);
+                    self.builder.increment_array_reference_count(value);
+                });
+                Ok((values, lvalue))
             }
         }
     }

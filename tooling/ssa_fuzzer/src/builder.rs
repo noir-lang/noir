@@ -1,10 +1,11 @@
-use crate::typed_value::{TypedValue, ValueType};
+use crate::typed_value::{Point, Scalar, TypedValue, ValueType};
 use acvm::FieldElement;
 use noir_ssa_executor::compiler::compile_from_ssa;
 use noirc_driver::{CompileOptions, CompiledProgram};
 use noirc_evaluator::ssa::function_builder::FunctionBuilder;
 use noirc_evaluator::ssa::ir::basic_block::BasicBlockId;
 use noirc_evaluator::ssa::ir::function::{Function, RuntimeType};
+use noirc_evaluator::ssa::ir::instruction::ArrayOffset;
 use noirc_evaluator::ssa::ir::instruction::BinaryOp;
 use noirc_evaluator::ssa::ir::map::Id;
 use noirc_evaluator::ssa::ir::types::{NumericType, Type};
@@ -12,6 +13,7 @@ use noirc_evaluator::ssa::ir::value::Value;
 use noirc_frontend::monomorphization::ast::InlineType;
 use noirc_frontend::monomorphization::ast::InlineType as FrontendInlineType;
 use std::panic::AssertUnwindSafe;
+use std::sync::Arc;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -36,18 +38,20 @@ pub struct FuzzerBuilder {
 
 impl FuzzerBuilder {
     /// Creates a new FuzzerBuilder in ACIR context
-    pub fn new_acir() -> Self {
+    pub fn new_acir(simplifying_enabled: bool) -> Self {
         let main_id: Id<Function> = Id::new(0);
         let mut builder = FunctionBuilder::new("main".into(), main_id);
         builder.set_runtime(RuntimeType::Acir(FrontendInlineType::default()));
+        builder.simplify = simplifying_enabled;
         Self { builder }
     }
 
     /// Creates a new FuzzerBuilder in Brillig context
-    pub fn new_brillig() -> Self {
+    pub fn new_brillig(simplifying_enabled: bool) -> Self {
         let main_id: Id<Function> = Id::new(0);
         let mut builder = FunctionBuilder::new("main".into(), main_id);
         builder.set_runtime(RuntimeType::Brillig(FrontendInlineType::default()));
+        builder.simplify = simplifying_enabled;
         Self { builder }
     }
 
@@ -231,9 +235,6 @@ impl FuzzerBuilder {
     /// Inserts a left shift instruction between two values
     /// The right hand side is cast to 8 bits
     pub fn insert_shl_instruction(&mut self, lhs: TypedValue, rhs: TypedValue) -> TypedValue {
-        // rhs must be 8bit, otherwise compiler will throw panic...
-        // TODO(sn): make something smarter than forcing rhs to be u8 and casting to u64 on field
-        let rhs = self.insert_cast(rhs, ValueType::U8);
         if !lhs.supports_shift() {
             return lhs;
         }
@@ -244,8 +245,6 @@ impl FuzzerBuilder {
     /// Inserts a right shift instruction between two values
     /// The right hand side is cast to 8 bits
     pub fn insert_shr_instruction(&mut self, lhs: TypedValue, rhs: TypedValue) -> TypedValue {
-        // TODO(sn): make something smarter than forcing rhs to be u8 and casting to u64 on field
-        let rhs = self.insert_cast(rhs, ValueType::U8);
         if !lhs.supports_shift() {
             return lhs;
         }
@@ -364,5 +363,560 @@ impl FuzzerBuilder {
             )
             .first()
             .unwrap()
+    }
+
+    /// Inserts a new array with the given elements and type
+    pub fn insert_array(&mut self, elements: Vec<TypedValue>, is_references: bool) -> TypedValue {
+        let array_length = elements.len() as u32;
+        assert!(array_length > 0, "Array must have at least one element");
+        let element_type = elements[0].type_of_variable.clone();
+        let array_elements_type = if is_references {
+            Type::Array(
+                Arc::new(vec![Type::Reference(Arc::new(element_type.clone()))]),
+                array_length,
+            )
+        } else {
+            Type::Array(Arc::new(vec![element_type.clone()]), array_length)
+        };
+        let typ = array_elements_type.clone();
+        assert!(
+            elements.iter().all(|e| e.type_of_variable == element_type),
+            "All elements must have the same type"
+        );
+        let res = self
+            .builder
+            .insert_make_array(elements.into_iter().map(|e| e.value_id).collect(), typ.clone());
+        TypedValue::new(res, typ)
+    }
+
+    /// Inserts a to_le_radix intrinsic call that decomposes a field into little-endian radix representation
+    ///
+    /// # Arguments
+    /// * `field_value` - The field value to decompose (must be a field type)
+    /// * `radix` - The radix to use (must be a power of 2, between 2 and 256)
+    /// * `limb_count` - Number of limbs in the result array
+    ///
+    /// # Returns
+    /// An array of u8 values representing the little-endian radix decomposition
+    pub fn insert_to_le_radix(
+        &mut self,
+        field_value: TypedValue,
+        radix: u32,
+        limb_count: u8,
+    ) -> TypedValue {
+        assert!(field_value.is_field(), "to_le_radix requires a field value as input");
+        let radix = self.builder.numeric_constant(radix, NumericType::Unsigned { bit_size: 32 });
+        let intrinsic = self
+            .builder
+            .import_intrinsic("to_le_radix")
+            .expect("to_le_radix intrinsic should be available");
+        let element_type = Type::Numeric(NumericType::Unsigned { bit_size: 8 });
+        let result_type = Type::Array(Arc::new(vec![element_type.clone()]), limb_count as u32);
+        let result = self.builder.insert_call(
+            intrinsic,
+            vec![field_value.value_id, radix],
+            vec![result_type.clone()],
+        );
+
+        TypedValue::new(result[0], result_type)
+    }
+
+    /// Inserts a from_le_radix hand-written function that composes a field from little-endian radix representation
+    ///
+    /// # Arguments
+    /// * `array` - The array of u8 values to compose into a field
+    /// * `radix` - The radix to use (must be a power of 2, between 2 and 256)
+    ///
+    /// # Returns
+    /// A field value representing the composed value
+    pub fn insert_from_le_radix(&mut self, array: TypedValue, radix: u128) -> TypedValue {
+        let array_size = match array.type_of_variable {
+            Type::Array(_, array_size) => array_size,
+            _ => unreachable!("Array type expected"),
+        };
+        let mut exp = self.builder.numeric_constant(1_u32, NumericType::NativeField);
+        let mut agg = self.builder.numeric_constant(0_u32, NumericType::NativeField);
+        let radix = self.builder.numeric_constant(radix, NumericType::NativeField);
+        for i in 0..array_size {
+            let index = self.builder.numeric_constant(i, NumericType::Unsigned { bit_size: 32 });
+            let byte = self.builder.insert_array_get(
+                array.value_id,
+                index,
+                ArrayOffset::None,
+                Type::Numeric(NumericType::Unsigned { bit_size: 8 }),
+            );
+            let byte_as_field = self.builder.insert_cast(byte, NumericType::NativeField);
+            let byte_as_field_mul_exp =
+                self.builder.insert_binary(byte_as_field, BinaryOp::Mul { unchecked: true }, exp);
+            agg = self.builder.insert_binary(
+                agg,
+                BinaryOp::Add { unchecked: true },
+                byte_as_field_mul_exp,
+            );
+            exp = self.builder.insert_binary(exp, BinaryOp::Mul { unchecked: true }, radix);
+        }
+        TypedValue::new(agg, Type::Numeric(NumericType::NativeField))
+    }
+
+    /// Inserts a blake2s hash intrinsic call
+    ///
+    /// # Arguments
+    /// * `input` - The array of u8 values to hash
+    ///
+    /// # Returns
+    /// An array of u8 values representing the blake2s hash
+    pub fn insert_blake2s_hash(&mut self, input: TypedValue) -> TypedValue {
+        match input.type_of_variable {
+            Type::Array(type_of_array, _array_size) => {
+                assert!(
+                    matches!(
+                        type_of_array[0],
+                        Type::Numeric(NumericType::Unsigned { bit_size: 8 })
+                    ),
+                    "blake2s requires an array of u8 as input"
+                );
+            }
+            _ => unreachable!("blake2s requires an array as input"),
+        }
+        let intrinsic = self
+            .builder
+            .import_intrinsic("blake2s")
+            .expect("blake2s intrinsic should be available");
+        let return_type =
+            Type::Array(Arc::new(vec![Type::Numeric(NumericType::Unsigned { bit_size: 8 })]), 32);
+        let result =
+            self.builder.insert_call(intrinsic, vec![input.value_id], vec![return_type.clone()]);
+        assert_eq!(result.len(), 1);
+        TypedValue::new(result[0], return_type)
+    }
+
+    /// Inserts a blake3 hash intrinsic call
+    ///
+    /// # Arguments
+    /// * `input` - The array of u8 values to hash
+    ///
+    /// # Returns
+    /// An array of u8 values representing the blake3 hash
+    pub fn insert_blake3_hash(&mut self, input: TypedValue) -> TypedValue {
+        match input.type_of_variable {
+            Type::Array(type_of_array, _array_size) => {
+                assert!(matches!(
+                    type_of_array[0],
+                    Type::Numeric(NumericType::Unsigned { bit_size: 8 })
+                ));
+            }
+            _ => unreachable!("blake3 requires an array as input"),
+        }
+        let intrinsic =
+            self.builder.import_intrinsic("blake3").expect("blake3 intrinsic should be available");
+        let return_type =
+            Type::Array(Arc::new(vec![Type::Numeric(NumericType::Unsigned { bit_size: 8 })]), 32);
+        let result =
+            self.builder.insert_call(intrinsic, vec![input.value_id], vec![return_type.clone()]);
+        assert_eq!(result.len(), 1);
+        TypedValue::new(result[0], return_type)
+    }
+
+    /// Inserts a keccakf1600 permutation intrinsic call
+    ///
+    /// # Arguments
+    /// * `input` - The array of u64 values to permute
+    ///
+    /// # Returns
+    /// An array of u64 values representing the keccakf1600 permutation
+    pub fn insert_keccakf1600_permutation(&mut self, input: TypedValue) -> TypedValue {
+        match input.type_of_variable {
+            Type::Array(type_of_array, array_size) => {
+                assert!(
+                    matches!(
+                        type_of_array[0],
+                        Type::Numeric(NumericType::Unsigned { bit_size: 64 })
+                    ),
+                    "keccakf1600 requires an array of u64 as input, but received {type_of_array:?}"
+                );
+                assert!(array_size == 25);
+            }
+            _ => unreachable!("keccakf1600 requires an array as input"),
+        }
+        let intrinsic = self
+            .builder
+            .import_intrinsic("keccakf1600")
+            .expect("keccakf1600 intrinsic should be available");
+        let return_type =
+            Type::Array(Arc::new(vec![Type::Numeric(NumericType::Unsigned { bit_size: 64 })]), 25);
+        let result =
+            self.builder.insert_call(intrinsic, vec![input.value_id], vec![return_type.clone()]);
+        assert_eq!(result.len(), 1);
+        TypedValue::new(result[0], return_type)
+    }
+
+    /// Inserts a aes128_encrypt intrinsic call
+    ///
+    /// # Arguments
+    /// * `input` - The array of u8 values to encrypt
+    /// * `key` - The array of u8 values to use as key must be 16 bytes
+    /// * `iv` - The array of u8 values to use as iv must be 16 bytes
+    ///
+    /// # Returns
+    /// An array of u8 values representing the encrypted input
+    pub fn insert_aes128_encrypt(
+        &mut self,
+        input: TypedValue,
+        key: TypedValue,
+        iv: TypedValue,
+    ) -> TypedValue {
+        let input_size = match input.type_of_variable {
+            Type::Array(type_of_array, array_size) => {
+                assert!(matches!(
+                    type_of_array[0],
+                    Type::Numeric(NumericType::Unsigned { bit_size: 8 })
+                ));
+                array_size
+            }
+            _ => unreachable!("aes128_encrypt requires an array as input"),
+        };
+        match key.type_of_variable {
+            Type::Array(type_of_array, array_size) => {
+                assert!(matches!(
+                    type_of_array[0],
+                    Type::Numeric(NumericType::Unsigned { bit_size: 8 })
+                ));
+                assert!(array_size == 16);
+            }
+            _ => unreachable!("aes128_encrypt requires an array as key"),
+        }
+        match iv.type_of_variable {
+            Type::Array(type_of_array, array_size) => {
+                assert!(matches!(
+                    type_of_array[0],
+                    Type::Numeric(NumericType::Unsigned { bit_size: 8 })
+                ));
+                assert!(array_size == 16);
+            }
+            _ => unreachable!("aes128_encrypt requires an array as iv"),
+        }
+        let intrinsic = self
+            .builder
+            .import_intrinsic("aes128_encrypt")
+            .expect("aes128_encrypt intrinsic should be available");
+        let return_type = Type::Array(
+            Arc::new(vec![Type::Numeric(NumericType::Unsigned { bit_size: 8 })]),
+            input_size + 16 - (input_size % 16),
+        );
+        let result = self.builder.insert_call(
+            intrinsic,
+            vec![input.value_id, key.value_id, iv.value_id],
+            vec![return_type.clone()],
+        );
+        assert_eq!(result.len(), 1);
+        TypedValue::new(result[0], return_type)
+    }
+
+    /// Inserts a sha256 compression intrinsic call
+    ///
+    /// # Arguments
+    /// * `input` - The array of u32 values to compress must be 16 elements
+    /// * `state` - The array of u32 values to use as state must be 8 elements
+    ///
+    /// # Returns
+    /// An array of u32 values representing the compressed input (8 elements)
+    pub fn insert_sha256_compression(
+        &mut self,
+        input: TypedValue,
+        state: TypedValue,
+    ) -> TypedValue {
+        match input.type_of_variable {
+            Type::Array(type_of_array, array_size) => {
+                assert!(matches!(
+                    type_of_array[0],
+                    Type::Numeric(NumericType::Unsigned { bit_size: 32 })
+                ));
+                assert!(array_size == 16);
+            }
+            _ => unreachable!("sha256_compression requires an array as input"),
+        }
+        match state.type_of_variable {
+            Type::Array(type_of_array, array_size) => {
+                assert!(matches!(
+                    type_of_array[0],
+                    Type::Numeric(NumericType::Unsigned { bit_size: 32 })
+                ));
+                assert!(array_size == 8);
+            }
+            _ => unreachable!("sha256_compression requires an array as state"),
+        }
+        let return_type =
+            Type::Array(Arc::new(vec![Type::Numeric(NumericType::Unsigned { bit_size: 32 })]), 8);
+        let intrinsic = self
+            .builder
+            .import_intrinsic("sha256_compression")
+            .expect("sha256_compression intrinsic should be available");
+        let result = self.builder.insert_call(
+            intrinsic,
+            vec![input.value_id, state.value_id],
+            vec![return_type.clone()],
+        );
+        assert_eq!(result.len(), 1);
+        TypedValue::new(result[0], return_type)
+    }
+
+    /// Inserts a modulo operation between the index and the array length
+    /// Returns the id of the index modulo the array length
+    fn insert_index_mod_array_length(
+        &mut self,
+        index: TypedValue,
+        array: TypedValue,
+    ) -> TypedValue {
+        match array.type_of_variable.clone() {
+            Type::Array(_, array_length) => {
+                let array_length_id = self
+                    .builder
+                    .numeric_constant(array_length, NumericType::Unsigned { bit_size: 32 });
+                let index_mod_length =
+                    self.builder.insert_binary(index.value_id, BinaryOp::Mod, array_length_id);
+                TypedValue::new(index_mod_length, ValueType::U32.to_ssa_type())
+            }
+            _ => unreachable!("Array type expected"),
+        }
+    }
+
+    /// Inserts an array get instruction
+    ///
+    /// Index must be u32
+    /// If safe_index is true, index will be taken modulo the array length
+    pub fn insert_array_get(
+        &mut self,
+        array: TypedValue,
+        index: TypedValue,
+        element_type: Type,
+        safe_index: bool,
+    ) -> TypedValue {
+        assert!(index.type_of_variable == Type::Numeric(NumericType::Unsigned { bit_size: 32 }));
+        let index = if safe_index {
+            self.insert_index_mod_array_length(index.clone(), array.clone())
+        } else {
+            index
+        };
+        let res = self.builder.insert_array_get(
+            array.value_id,
+            index.value_id,
+            ArrayOffset::None,
+            element_type.clone(),
+        );
+        TypedValue::new(res, element_type)
+    }
+
+    /// Inserts an array set instruction
+    ///
+    /// Index must be u32
+    /// If safe_index is true, index will be taken modulo the array length
+    pub fn insert_array_set(
+        &mut self,
+        array: TypedValue,
+        index: TypedValue,
+        value: TypedValue,
+        safe_index: bool,
+    ) -> TypedValue {
+        let array_length = match array.type_of_variable {
+            Type::Array(_, array_length) => array_length,
+            _ => unreachable!("Array type expected"),
+        };
+        assert!(index.type_of_variable == Type::Numeric(NumericType::Unsigned { bit_size: 32 }));
+        let index = if safe_index {
+            self.insert_index_mod_array_length(index.clone(), array.clone())
+        } else {
+            index
+        };
+        let res = self.builder.insert_array_set(
+            array.value_id,
+            index.value_id,
+            value.value_id,
+            false,
+            ArrayOffset::None,
+        );
+        TypedValue::new(
+            res,
+            Type::Array(Arc::new(vec![array.type_of_variable.clone()]), array_length),
+        )
+    }
+
+    /// Performs a curve point multiplication with a scalar
+    ///
+    /// # Arguments
+    /// * `scalar` - The scalar value to multiply
+    /// * `is_infinite` - The boolean value indicating if the resulting point is on the curve (setting it by ourself)
+    ///
+    /// # Returns
+    /// [`Point`] corresponding to `value` * G with overwritten on_curve value
+    pub fn base_scalar_mul(&mut self, scalar: Scalar, is_infinite: TypedValue) -> Point {
+        assert!(scalar.validate());
+        assert!(matches!(
+            is_infinite.type_of_variable,
+            Type::Numeric(NumericType::Unsigned { bit_size: 1 })
+        ));
+        let field_type = Type::Numeric(NumericType::NativeField);
+        let boolean_type = Type::Numeric(NumericType::Unsigned { bit_size: 1 });
+        let intrinsic = self
+            .builder
+            .import_intrinsic("multi_scalar_mul")
+            .expect("multi_scalar_mul intrinsic should be available");
+
+        // im recreating the point G every time, could be optimized to only do it once
+        let g_x_id = self.builder.numeric_constant(1_u32, NumericType::NativeField);
+        let g_y_id = self.builder.numeric_constant(
+            FieldElement::try_from_str(
+                "17631683881184975370165255887551781615748388533673675138860",
+            )
+            .unwrap(),
+            NumericType::NativeField,
+        );
+        let is_infinite_g_id =
+            self.builder.numeric_constant(0_u32, NumericType::Unsigned { bit_size: 1 });
+        let elements = vec![g_x_id, g_y_id, is_infinite_g_id].into_iter().collect();
+        let basic_point = self.builder.insert_make_array(
+            elements,
+            Type::Array(
+                Arc::new(vec![field_type.clone(), field_type.clone(), boolean_type.clone()]),
+                1,
+            ),
+        );
+        let scalar_id = self.builder.insert_make_array(
+            vec![scalar.lo.value_id, scalar.hi.value_id].into_iter().collect(),
+            Type::Array(Arc::new(vec![field_type.clone(), field_type.clone()]), 1),
+        );
+        let return_type = Type::Array(
+            Arc::new(vec![field_type.clone(), field_type.clone(), boolean_type.clone()]),
+            1,
+        );
+        let result = self.builder.insert_call(
+            intrinsic,
+            vec![basic_point, scalar_id],
+            vec![return_type.clone()],
+        );
+        assert_eq!(result.len(), 1);
+        let result = result[0];
+        let x_idx = self.builder.numeric_constant(0_u32, NumericType::Unsigned { bit_size: 32 });
+        let y_idx = self.builder.numeric_constant(1_u32, NumericType::Unsigned { bit_size: 32 });
+        let x = self.builder.insert_array_get(result, x_idx, ArrayOffset::None, field_type.clone());
+        let y = self.builder.insert_array_get(result, y_idx, ArrayOffset::None, field_type.clone());
+        Point {
+            x: TypedValue::new(x, field_type.clone()),
+            y: TypedValue::new(y, field_type),
+            is_infinite,
+        }
+    }
+
+    /// Creates a point from an affine x coordinate (scalar.lo, scalar.hi, is_infinite)
+    /// Mostly invalid
+    /// # Arguments
+    /// * `scalar` - The scalar value to take coordinates from
+    /// * `is_infinite` - The boolean value indicating if the resulting point is on the curve (setting it by ourself)
+    /// # Returns
+    /// Point (scalar.lo, scalar.hi, is_infinite)
+    pub fn create_point_from_scalar(&mut self, scalar: Scalar, is_infinite: TypedValue) -> Point {
+        assert!(scalar.validate());
+        assert!(matches!(
+            is_infinite.type_of_variable,
+            Type::Numeric(NumericType::Unsigned { bit_size: 1 })
+        ));
+        Point { x: scalar.lo, y: scalar.hi, is_infinite }
+    }
+
+    pub fn multi_scalar_mul(&mut self, points: Vec<Point>, scalars: Vec<Scalar>) -> Point {
+        assert_eq!(points.len(), scalars.len());
+        for point in &points {
+            assert!(point.validate());
+        }
+        for scalar in &scalars {
+            assert!(scalar.validate());
+        }
+
+        let field_type = Type::Numeric(NumericType::NativeField);
+        let boolean_type = Type::Numeric(NumericType::Unsigned { bit_size: 1 });
+        let intrinsic = self
+            .builder
+            .import_intrinsic("multi_scalar_mul")
+            .expect("multi_scalar_mul intrinsic should be available");
+        let point_ids = points.iter().flat_map(|p| p.to_id_vec()).collect::<Vec<_>>();
+        let scalar_ids = scalars.iter().flat_map(|s| s.to_id_vec()).collect::<Vec<_>>();
+        let point_ids_array = self.builder.insert_make_array(
+            point_ids.into_iter().collect(),
+            Type::Array(
+                Arc::new(vec![field_type.clone(), field_type.clone(), boolean_type.clone()]),
+                points.len() as u32,
+            ),
+        );
+        let scalar_ids_array = self.builder.insert_make_array(
+            scalar_ids.into_iter().collect(),
+            Type::Array(
+                Arc::new(vec![field_type.clone(), field_type.clone()]),
+                scalars.len() as u32,
+            ),
+        );
+        let return_type = Type::Array(
+            Arc::new(vec![field_type.clone(), field_type.clone(), boolean_type.clone()]),
+            1,
+        );
+        let result = self.builder.insert_call(
+            intrinsic,
+            vec![point_ids_array, scalar_ids_array],
+            vec![return_type.clone()],
+        );
+        assert_eq!(result.len(), 1);
+        let result = result[0];
+        let x_idx = self.builder.numeric_constant(0_u32, NumericType::Unsigned { bit_size: 32 });
+        let y_idx = self.builder.numeric_constant(1_u32, NumericType::Unsigned { bit_size: 32 });
+        let is_infinite_idx =
+            self.builder.numeric_constant(2_u32, NumericType::Unsigned { bit_size: 32 });
+        let x = self.builder.insert_array_get(result, x_idx, ArrayOffset::None, field_type.clone());
+        let y = self.builder.insert_array_get(result, y_idx, ArrayOffset::None, field_type.clone());
+        let is_infinite = self.builder.insert_array_get(
+            result,
+            is_infinite_idx,
+            ArrayOffset::None,
+            boolean_type.clone(),
+        );
+        Point {
+            x: TypedValue::new(x, field_type.clone()),
+            y: TypedValue::new(y, field_type),
+            is_infinite: TypedValue::new(is_infinite, boolean_type),
+        }
+    }
+
+    pub fn point_add(&mut self, p1: Point, p2: Point) -> Point {
+        assert!(p1.validate());
+        assert!(p2.validate());
+        let field_type = Type::Numeric(NumericType::NativeField);
+        let boolean_type = Type::Numeric(NumericType::Unsigned { bit_size: 1 });
+        let intrinsic = self
+            .builder
+            .import_intrinsic("embedded_curve_add")
+            .expect("embedded_curve_add intrinsic should be available");
+        let points_flattened = p1.to_id_vec().into_iter().chain(p2.to_id_vec()).collect::<Vec<_>>();
+        let return_type = Type::Array(
+            Arc::new(vec![field_type.clone(), field_type.clone(), boolean_type.clone()]),
+            1,
+        );
+        let result =
+            self.builder.insert_call(intrinsic, points_flattened, vec![return_type.clone()]);
+        assert_eq!(result.len(), 1);
+        let result = result[0];
+        let x_idx = self.builder.numeric_constant(0_u32, NumericType::Unsigned { bit_size: 32 });
+        let y_idx = self.builder.numeric_constant(1_u32, NumericType::Unsigned { bit_size: 32 });
+        let is_infinite_idx =
+            self.builder.numeric_constant(2_u32, NumericType::Unsigned { bit_size: 32 });
+        let x = self.builder.insert_array_get(result, x_idx, ArrayOffset::None, field_type.clone());
+        let y = self.builder.insert_array_get(result, y_idx, ArrayOffset::None, field_type.clone());
+        let is_infinite = self.builder.insert_array_get(
+            result,
+            is_infinite_idx,
+            ArrayOffset::None,
+            boolean_type.clone(),
+        );
+        Point {
+            x: TypedValue::new(x, field_type.clone()),
+            y: TypedValue::new(y, field_type),
+            is_infinite: TypedValue::new(is_infinite, boolean_type),
+        }
     }
 }

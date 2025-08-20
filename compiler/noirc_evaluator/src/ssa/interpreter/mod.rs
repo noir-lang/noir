@@ -1297,73 +1297,122 @@ impl<W: Write> Interpreter<'_, W> {
                 apply_int_binop!(lhs, rhs, binary, std::ops::BitXor::bitxor)
             }
             BinaryOp::Shl => {
-                let Some(rhs) = rhs.as_u8() else {
-                    let rhs = rhs.to_string();
-                    return Err(internal(InternalError::RhsOfBitShiftShouldBeU8 {
-                        operator: "<<",
-                        rhs_id,
-                        rhs,
-                    }));
-                };
-
-                let rhs = rhs as u32;
                 use NumericValue::*;
-                match lhs {
-                    Field(_) => {
+                let instruction =
+                    format!("`{}` ({lhs} << {rhs})", display_binary(binary, self.dfg()));
+                let overflow = InterpreterError::Overflow { operator: BinaryOp::Shl, instruction };
+                match (lhs, rhs) {
+                    (Field(_), _) | (_, Field(_)) => {
                         return Err(internal(InternalError::UnsupportedOperatorForType {
                             operator: "<<",
                             typ: "Field",
                         }));
                     }
-                    U1(value) => U1(if rhs == 0 { value } else { false }),
-                    U8(value) => U8(value.checked_shl(rhs).unwrap_or(0)),
-                    U16(value) => U16(value.checked_shl(rhs).unwrap_or(0)),
-                    U32(value) => U32(value.checked_shl(rhs).unwrap_or(0)),
-                    U64(value) => U64(value.checked_shl(rhs).unwrap_or(0)),
-                    U128(value) => U128(value.checked_shl(rhs).unwrap_or(0)),
-                    I8(value) => I8(value.checked_shl(rhs).unwrap_or(0)),
-                    I16(value) => I16(value.checked_shl(rhs).unwrap_or(0)),
-                    I32(value) => I32(value.checked_shl(rhs).unwrap_or(0)),
-                    I64(value) => I64(value.checked_shl(rhs).unwrap_or(0)),
+                    (U1(lhs_value), U1(rhs_value)) => {
+                        U1(if !rhs_value { lhs_value } else { false })
+                    }
+                    (U8(lhs_value), U8(rhs_value)) => {
+                        lhs_value.checked_shl(rhs_value.into()).map(U8).ok_or(overflow)?
+                    }
+                    (U16(lhs_value), U16(rhs_value)) => {
+                        lhs_value.checked_shl(rhs_value.into()).map(U16).ok_or(overflow)?
+                    }
+                    (U32(lhs_value), U32(rhs_value)) => {
+                        lhs_value.checked_shl(rhs_value).map(U32).ok_or(overflow)?
+                    }
+                    (U64(lhs_value), U64(rhs_value)) => {
+                        let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow.clone())?;
+                        lhs_value.checked_shl(rhs_value).map(U64).ok_or(overflow)?
+                    }
+                    (U128(lhs_value), U128(rhs_value)) => {
+                        let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow.clone())?;
+                        lhs_value.checked_shl(rhs_value).map(U128).ok_or(overflow)?
+                    }
+                    (I8(lhs_value), I8(rhs_value)) => {
+                        let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow.clone())?;
+                        lhs_value.checked_shl(rhs_value).map(I8).ok_or(overflow)?
+                    }
+                    (I16(lhs_value), I16(rhs_value)) => {
+                        let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow.clone())?;
+                        lhs_value.checked_shl(rhs_value).map(I16).ok_or(overflow)?
+                    }
+                    (I32(lhs_value), I32(rhs_value)) => {
+                        let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow.clone())?;
+                        lhs_value.checked_shl(rhs_value).map(I32).ok_or(overflow)?
+                    }
+                    (I64(lhs_value), I64(rhs_value)) => {
+                        let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow.clone())?;
+                        lhs_value.checked_shl(rhs_value).map(I64).ok_or(overflow)?
+                    }
+                    _ => {
+                        return Err(internal(InternalError::MismatchedTypesInBinaryOperator {
+                            lhs: lhs.to_string(),
+                            rhs: rhs.to_string(),
+                            operator: binary.operator,
+                            lhs_id: binary.lhs,
+                            rhs_id: binary.rhs,
+                        }));
+                    }
                 }
             }
             BinaryOp::Shr => {
-                let fallback = || {
-                    if lhs.is_negative() {
-                        NumericValue::neg_one(lhs.get_type())
-                    } else {
-                        NumericValue::zero(lhs.get_type())
-                    }
-                };
+                let instruction =
+                    format!("`{}` ({lhs} >> {rhs})", display_binary(binary, self.dfg()));
+                let overflow = InterpreterError::Overflow { operator: BinaryOp::Shr, instruction };
 
-                let Some(rhs) = rhs.as_u8() else {
-                    let rhs = rhs.to_string();
-                    return Err(internal(InternalError::RhsOfBitShiftShouldBeU8 {
-                        operator: ">>",
-                        rhs_id,
-                        rhs,
-                    }));
-                };
-
-                let rhs = rhs as u32;
                 use NumericValue::*;
-                match lhs {
-                    Field(_) => {
+                match (lhs, rhs) {
+                    (Field(_), _) | (_, Field(_)) => {
                         return Err(internal(InternalError::UnsupportedOperatorForType {
-                            operator: ">>",
+                            operator: "<<",
                             typ: "Field",
                         }));
                     }
-                    U1(value) => U1(if rhs == 0 { value } else { false }),
-                    U8(value) => value.checked_shr(rhs).map(U8).unwrap_or_else(fallback),
-                    U16(value) => value.checked_shr(rhs).map(U16).unwrap_or_else(fallback),
-                    U32(value) => value.checked_shr(rhs).map(U32).unwrap_or_else(fallback),
-                    U64(value) => value.checked_shr(rhs).map(U64).unwrap_or_else(fallback),
-                    U128(value) => value.checked_shr(rhs).map(U128).unwrap_or_else(fallback),
-                    I8(value) => value.checked_shr(rhs).map(I8).unwrap_or_else(fallback),
-                    I16(value) => value.checked_shr(rhs).map(I16).unwrap_or_else(fallback),
-                    I32(value) => value.checked_shr(rhs).map(I32).unwrap_or_else(fallback),
-                    I64(value) => value.checked_shr(rhs).map(I64).unwrap_or_else(fallback),
+                    (U1(lhs_value), U1(rhs_value)) => {
+                        U1(if !rhs_value { lhs_value } else { false })
+                    }
+                    (U8(lhs_value), U8(rhs_value)) => {
+                        lhs_value.checked_shr(rhs_value.into()).map(U8).ok_or(overflow)?
+                    }
+                    (U16(lhs_value), U16(rhs_value)) => {
+                        lhs_value.checked_shr(rhs_value.into()).map(U16).ok_or(overflow)?
+                    }
+                    (U32(lhs_value), U32(rhs_value)) => {
+                        lhs_value.checked_shr(rhs_value).map(U32).ok_or(overflow)?
+                    }
+                    (U64(lhs_value), U64(rhs_value)) => {
+                        let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow.clone())?;
+                        lhs_value.checked_shr(rhs_value).map(U64).ok_or(overflow)?
+                    }
+                    (U128(lhs_value), U128(rhs_value)) => {
+                        let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow.clone())?;
+                        lhs_value.checked_shr(rhs_value).map(U128).ok_or(overflow)?
+                    }
+                    (I8(lhs_value), I8(rhs_value)) => {
+                        let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow.clone())?;
+                        lhs_value.checked_shr(rhs_value).map(I8).ok_or(overflow)?
+                    }
+                    (I16(lhs_value), I16(rhs_value)) => {
+                        let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow.clone())?;
+                        lhs_value.checked_shr(rhs_value).map(I16).ok_or(overflow)?
+                    }
+                    (I32(lhs_value), I32(rhs_value)) => {
+                        let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow.clone())?;
+                        lhs_value.checked_shr(rhs_value).map(I32).ok_or(overflow)?
+                    }
+                    (I64(lhs_value), I64(rhs_value)) => {
+                        let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow.clone())?;
+                        lhs_value.checked_shr(rhs_value).map(I64).ok_or(overflow)?
+                    }
+                    _ => {
+                        return Err(internal(InternalError::MismatchedTypesInBinaryOperator {
+                            lhs: lhs.to_string(),
+                            rhs: rhs.to_string(),
+                            operator: binary.operator,
+                            lhs_id: binary.lhs,
+                            rhs_id: binary.rhs,
+                        }));
+                    }
                 }
             }
         };
@@ -1472,18 +1521,18 @@ impl<W: Write> Interpreter<'_, W> {
             BinaryOp::Or => lhs | rhs,
             BinaryOp::Xor => lhs ^ rhs,
             BinaryOp::Shl => {
-                return Err(internal(InternalError::RhsOfBitShiftShouldBeU8 {
-                    operator: "<<",
-                    rhs_id,
-                    rhs: format!("u1 {}", rhs as u8),
-                }));
+                if rhs {
+                    false
+                } else {
+                    lhs
+                }
             }
             BinaryOp::Shr => {
-                return Err(internal(InternalError::RhsOfBitShiftShouldBeU8 {
-                    operator: ">>",
-                    rhs_id,
-                    rhs: format!("u1 {}", rhs as u8),
-                }));
+                if rhs {
+                    false
+                } else {
+                    lhs
+                }
             }
         };
         Ok(Value::Numeric(NumericValue::U1(result)))

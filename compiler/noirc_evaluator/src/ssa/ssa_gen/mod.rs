@@ -1084,16 +1084,19 @@ impl FunctionContext<'_> {
                 Intrinsic::SliceRemove => {
                     self.codegen_access_check(arguments[2], arguments[0]);
                 }
-                Intrinsic::SlicePopFront | Intrinsic::SlicePopBack => {
-                    // If the slice was empty, ACIR would fail appropriately as we check memory block sizes,
-                    // but for Brillig we need to lay down an explicit check. By doing this in the SSA we
-                    // might be able to optimize this away later.
-                    if self.builder.current_function.runtime().is_brillig() {
-                        let zero = self
-                            .builder
-                            .numeric_constant(0u32, NumericType::Unsigned { bit_size: 32 });
-                        self.codegen_access_check(zero, arguments[0]);
-                    }
+                Intrinsic::SlicePopFront | Intrinsic::SlicePopBack
+                    if self.builder.current_function.runtime().is_brillig() =>
+                {
+                    // We need to put in a constraint to protect against accessing empty slices:
+                    // * In Brillig this is essential, otherwise it would read an unrelated piece of memory.
+                    // * In ACIR we do have protection against reading empty slices (it returns "Index Out of Bounds"), so we don't get invalid reads.
+                    //   The memory operations in ACIR ignore the side effect variables, so even if we added a constraint here, it could still fail
+                    //   when it inevitably tries to read from an empty slice anyway. We have to handle that by removing operations which are known
+                    //   to fail and replace them with conditional constraints that do take the side effect into account.
+                    // By doing this in the SSA we might be able to optimize this away later.
+                    let zero =
+                        self.builder.numeric_constant(0u32, NumericType::Unsigned { bit_size: 32 });
+                    self.codegen_access_check(zero, arguments[0]);
                 }
                 _ => {
                     // Do nothing as the other intrinsics do not require checks
