@@ -9,9 +9,9 @@ use crate::{
     Generics, Kind, NamedGeneric, ResolvedGeneric, Type, TypeBinding, TypeBindings,
     UnificationError,
     ast::{
-        AsTraitPath, BinaryOpKind, Constrainedness, GenericTypeArgs, Ident, IntegerBitSize,
-        PathKind, UnaryOp, UnresolvedGeneric, UnresolvedGenerics, UnresolvedType,
-        UnresolvedTypeData, UnresolvedTypeExpression, WILDCARD_TYPE,
+        AsTraitPath, BinaryOpKind, Constrainedness, GenericTypeArgs, Ident, PathKind, UnaryOp,
+        UnresolvedGeneric, UnresolvedGenerics, UnresolvedType, UnresolvedTypeData,
+        UnresolvedTypeExpression, WILDCARD_TYPE,
     },
     elaborator::UnstableFeature,
     hir::{
@@ -1465,20 +1465,6 @@ impl Elaborator<'_> {
             // Matches on TypeVariable must be first so that we follow any type
             // bindings.
             (TypeVariable(int), other) | (other, TypeVariable(int)) => {
-                if op.kind == BinaryOpKind::ShiftLeft || op.kind == BinaryOpKind::ShiftRight {
-                    self.unify(
-                        rhs_type,
-                        &Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight),
-                        || TypeCheckError::InvalidShiftSize { location },
-                    );
-                    let use_impl = if lhs_type.is_numeric_value() {
-                        let integer_type = self.polymorphic_integer();
-                        self.bind_type_variables_for_infix(lhs_type, op, &integer_type, location)
-                    } else {
-                        true
-                    };
-                    return Ok((lhs_type.clone(), use_impl));
-                }
                 if let TypeBinding::Bound(binding) = &*int.borrow() {
                     return self.infix_operand_type_rules(binding, op, other, location);
                 }
@@ -1486,12 +1472,6 @@ impl Elaborator<'_> {
                 Ok((other.clone(), use_impl))
             }
             (Integer(sign_x, bit_width_x), Integer(sign_y, bit_width_y)) => {
-                if op.kind == BinaryOpKind::ShiftLeft || op.kind == BinaryOpKind::ShiftRight {
-                    if *sign_y != Signedness::Unsigned || *bit_width_y != IntegerBitSize::Eight {
-                        return Err(TypeCheckError::InvalidShiftSize { location });
-                    }
-                    return Ok((Integer(*sign_x, *bit_width_x), false));
-                }
                 if sign_x != sign_y {
                     return Err(TypeCheckError::IntegerSignedness {
                         sign_x: *sign_x,
@@ -1542,12 +1522,6 @@ impl Elaborator<'_> {
             },
 
             (lhs, rhs) => {
-                if op.kind == BinaryOpKind::ShiftLeft || op.kind == BinaryOpKind::ShiftRight {
-                    if rhs == &Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight) {
-                        return Ok((lhs.clone(), true));
-                    }
-                    return Err(TypeCheckError::InvalidShiftSize { location });
-                }
                 self.unify(lhs, rhs, || TypeCheckError::TypeMismatchWithSource {
                     expected: lhs.clone(),
                     actual: rhs.clone(),
@@ -2097,12 +2071,11 @@ impl Elaborator<'_> {
 
         // Note: we don't consider `Constrainedness::DualConstrained` to be an unconstrained call.
         // This only checks for calls which must be unconstrained/constrained.
-        let is_unconstrained_call =
-            matches!(func_constrainedness, Constrainedness::Unconstrained);
+        let is_unconstrained_call = matches!(func_constrainedness, Constrainedness::Unconstrained);
 
         let acir_to_brillig = is_current_func_constrained && is_unconstrained_call;
 
-        use Constrainedness::{ Constrained, Unconstrained };
+        use Constrainedness::{Constrained, Unconstrained};
 
         // Acir -> Brillig calls must be marked with `unsafe` and certain argument/return types are disallowed.
         if is_current_func_constrained && func_constrainedness == Unconstrained {

@@ -40,7 +40,7 @@ impl Ssa {
 
 impl Function {
     pub(super) fn brillig_array_get_and_set(&mut self) {
-        self.simple_reachable_blocks_optimization(|context| {
+        self.simple_optimization(|context| {
             let instruction = context.instruction();
             match instruction {
                 Instruction::ArrayGet { array, index, offset } => {

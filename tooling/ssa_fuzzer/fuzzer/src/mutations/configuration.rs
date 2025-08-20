@@ -188,8 +188,10 @@ pub(crate) type BoolMutationConfig = WeightedSelectionConfig<BoolMutationOptions
 pub(crate) const BASIC_BOOL_MUTATION_CONFIGURATION: BoolMutationConfig =
     BoolMutationConfig::new([(BoolMutationOptions::True, 1), (BoolMutationOptions::False, 1)]);
 
-pub(crate) const BASIC_SAFE_INDEX_MUTATION_CONFIGURATION: BoolMutationConfig =
+pub(crate) const BOOL_MUTATION_CONFIGURATION_MOSTLY_TRUE: BoolMutationConfig =
     BoolMutationConfig::new([(BoolMutationOptions::True, 1000), (BoolMutationOptions::False, 1)]);
+pub(crate) const BOOL_MUTATION_CONFIGURATION_MOSTLY_FALSE: BoolMutationConfig =
+    BoolMutationConfig::new([(BoolMutationOptions::True, 1), (BoolMutationOptions::False, 1000)]);
 
 #[derive(Copy, Clone, Debug)]
 pub(crate) enum UsizeMutationOptions {
@@ -292,3 +294,240 @@ pub(crate) const BASIC_INSERT_FUNCTION_CALL_MUTATION_CONFIGURATION:
     (InsertFunctionCallMutationOptions::FunctionIdx, 1),
     (InsertFunctionCallMutationOptions::Args, 7),
 ]);
+
+#[derive(Copy, Clone, Debug)]
+pub(crate) enum BlakeHashMutationOptions {
+    FieldIdx,
+    LimbsCount,
+}
+pub(crate) type Blake2sHashMutationConfig = WeightedSelectionConfig<BlakeHashMutationOptions, 2>;
+pub(crate) const BASIC_BLAKE_HASH_MUTATION_CONFIGURATION: Blake2sHashMutationConfig =
+    Blake2sHashMutationConfig::new([
+        (BlakeHashMutationOptions::FieldIdx, 1),
+        (BlakeHashMutationOptions::LimbsCount, 1),
+    ]);
+
+#[derive(Copy, Clone, Debug)]
+pub(crate) enum Sha256CompressionMutationOptions {
+    InputIndices,
+    StateIndices,
+    LoadElementsOfArray,
+}
+pub(crate) type Sha256CompressionMutationConfig =
+    WeightedSelectionConfig<Sha256CompressionMutationOptions, 3>;
+pub(crate) const BASIC_SHA256_COMPRESSION_MUTATION_CONFIGURATION: Sha256CompressionMutationConfig =
+    Sha256CompressionMutationConfig::new([
+        (Sha256CompressionMutationOptions::InputIndices, 1),
+        (Sha256CompressionMutationOptions::StateIndices, 1),
+        (Sha256CompressionMutationOptions::LoadElementsOfArray, 1),
+    ]);
+
+#[derive(Copy, Clone, Debug)]
+pub(crate) enum Aes128EncryptMutationOptions {
+    InputIdx,
+    InputLimbsCount,
+    KeyIdx,
+    IvIdx,
+}
+pub(crate) type Aes128EncryptMutationConfig =
+    WeightedSelectionConfig<Aes128EncryptMutationOptions, 4>;
+pub(crate) const BASIC_AES_128_ENCRYPT_MUTATION_CONFIGURATION: Aes128EncryptMutationConfig =
+    Aes128EncryptMutationConfig::new([
+        (Aes128EncryptMutationOptions::InputIdx, 1),
+        (Aes128EncryptMutationOptions::InputLimbsCount, 1),
+        (Aes128EncryptMutationOptions::KeyIdx, 1),
+        (Aes128EncryptMutationOptions::IvIdx, 1),
+    ]);
+
+#[derive(Copy, Clone, Debug)]
+pub(crate) enum ScalarMutationOptions {
+    FieldLoIdx,
+    FieldHiIdx,
+}
+pub(crate) type ScalarMutationConfig = WeightedSelectionConfig<ScalarMutationOptions, 2>;
+pub(crate) const BASIC_SCALAR_MUTATION_CONFIGURATION: ScalarMutationConfig =
+    ScalarMutationConfig::new([
+        (ScalarMutationOptions::FieldLoIdx, 1),
+        (ScalarMutationOptions::FieldHiIdx, 1),
+    ]);
+
+#[derive(Copy, Clone, Debug)]
+pub(crate) enum PointMutationOptions {
+    Scalar,
+    DeriveFromScalarMul,
+    IsInfinite,
+}
+pub(crate) type PointMutationConfig = WeightedSelectionConfig<PointMutationOptions, 3>;
+pub(crate) const BASIC_POINT_MUTATION_CONFIGURATION: PointMutationConfig =
+    PointMutationConfig::new([
+        (PointMutationOptions::Scalar, 1),
+        (PointMutationOptions::DeriveFromScalarMul, 1),
+        (PointMutationOptions::IsInfinite, 1),
+    ]);
+
+// =================== GENERATION CONFIGURATIONS ==================
+#[derive(Copy, Clone, Debug)]
+pub(crate) enum GenerateBool {
+    True,
+    False,
+}
+pub(crate) type GenerateBoolConfig = WeightedSelectionConfig<GenerateBool, 2>;
+pub(crate) const BASIC_GENERATE_BOOL_CONFIGURATION: GenerateBoolConfig =
+    GenerateBoolConfig::new([(GenerateBool::True, 1), (GenerateBool::False, 1)]);
+pub(crate) const GENERATE_BOOL_CONFIGURATION_MOST_TRUE: GenerateBoolConfig =
+    GenerateBoolConfig::new([(GenerateBool::True, 999), (GenerateBool::False, 1)]);
+pub(crate) const GENERATE_BOOL_CONFIGURATION_MOST_FALSE: GenerateBoolConfig =
+    GenerateBoolConfig::new([(GenerateBool::True, 1), (GenerateBool::False, 999)]);
+
+#[derive(Copy, Clone, Debug)]
+pub(crate) enum GenerateValueType {
+    Field,
+    Boolean,
+    U8,
+    U16,
+    U32,
+    U64,
+    U128,
+    I8,
+    I16,
+    I32,
+    I64,
+}
+pub(crate) type GenerateValueTypeConfig = WeightedSelectionConfig<GenerateValueType, 11>;
+pub(crate) const BASIC_GENERATE_VALUE_TYPE_CONFIGURATION: GenerateValueTypeConfig =
+    GenerateValueTypeConfig::new([
+        (GenerateValueType::Field, 1),
+        (GenerateValueType::Boolean, 1),
+        (GenerateValueType::U8, 1),
+        (GenerateValueType::U16, 1),
+        (GenerateValueType::U32, 1),
+        (GenerateValueType::U64, 1),
+        (GenerateValueType::U128, 1),
+        (GenerateValueType::I8, 1),
+        (GenerateValueType::I16, 1),
+        (GenerateValueType::I32, 1),
+        (GenerateValueType::I64, 1),
+    ]);
+
+// Compile-time check that configuration has correct number of entries
+const _: () = {
+    use noir_ssa_fuzzer::typed_value::ValueType;
+    use strum::EnumCount;
+    assert!(
+        BASIC_GENERATE_VALUE_TYPE_CONFIGURATION.options_with_weights.len() == ValueType::COUNT,
+        "BASIC_GENERATE_VALUE_TYPE_CONFIGURATION must have an entry for every GenerateValueType variant"
+    );
+};
+
+#[derive(Copy, Clone, Debug)]
+pub(crate) enum GenerateCommand {
+    InsertJmpIfBlock,
+    InsertJmpBlock,
+    InsertCycle,
+    InsertFunctionCall,
+    InsertSimpleInstructionBlock,
+    SwitchToNextBlock,
+}
+pub(crate) type GenerateCommandConfig = WeightedSelectionConfig<GenerateCommand, 6>;
+pub(crate) const BASIC_GENERATE_COMMAND_CONFIGURATION: GenerateCommandConfig =
+    GenerateCommandConfig::new([
+        (GenerateCommand::InsertJmpIfBlock, 1),
+        (GenerateCommand::InsertJmpBlock, 1),
+        (GenerateCommand::InsertCycle, 1),
+        (GenerateCommand::InsertFunctionCall, 1),
+        (GenerateCommand::InsertSimpleInstructionBlock, 1),
+        (GenerateCommand::SwitchToNextBlock, 1),
+    ]);
+// Compile-time check that configuration has correct number of entries
+const _: () = {
+    use crate::fuzz_lib::function_context::FuzzerFunctionCommand;
+    use strum::EnumCount;
+    assert!(
+        BASIC_GENERATE_COMMAND_CONFIGURATION.options_with_weights.len()
+            == FuzzerFunctionCommand::COUNT,
+        "BASIC_GENERATE_COMMAND_CONFIGURATION must have an entry for every FuzzerFunctionCommand variant"
+    );
+};
+
+#[derive(Copy, Clone, Debug)]
+pub(crate) enum GenerateInstruction {
+    AddChecked,
+    SubChecked,
+    MulChecked,
+    Div,
+    Eq,
+    Mod,
+    Not,
+    Shl,
+    Shr,
+    Cast,
+    And,
+    Or,
+    Xor,
+    Lt,
+    AddSubConstrain,
+    MulDivConstrain,
+    AddToMemory,
+    LoadFromMemory,
+    SetToMemory,
+    CreateArray,
+    ArrayGet,
+    ArraySet,
+    ArrayGetWithConstantIndex,
+    ArraySetWithConstantIndex,
+    FieldToBytesToField,
+    Blake2sHash,
+    Blake3Hash,
+    Keccakf1600Hash,
+    Aes128Encrypt,
+    Sha256Compression,
+    PointAdd,
+    MultiScalarMul,
+}
+pub(crate) type GenerateInstructionConfig = WeightedSelectionConfig<GenerateInstruction, 32>;
+pub(crate) const BASIC_GENERATE_INSTRUCTION_CONFIGURATION: GenerateInstructionConfig =
+    GenerateInstructionConfig::new([
+        (GenerateInstruction::AddChecked, 100),
+        (GenerateInstruction::SubChecked, 100),
+        (GenerateInstruction::MulChecked, 100),
+        (GenerateInstruction::Div, 100),
+        (GenerateInstruction::Eq, 100),
+        (GenerateInstruction::Mod, 100),
+        (GenerateInstruction::Not, 100),
+        (GenerateInstruction::Shl, 100),
+        (GenerateInstruction::Shr, 100),
+        (GenerateInstruction::Cast, 100),
+        (GenerateInstruction::And, 100),
+        (GenerateInstruction::Or, 100),
+        (GenerateInstruction::Xor, 100),
+        (GenerateInstruction::Lt, 100),
+        (GenerateInstruction::AddSubConstrain, 100),
+        (GenerateInstruction::MulDivConstrain, 100),
+        (GenerateInstruction::AddToMemory, 100),
+        (GenerateInstruction::LoadFromMemory, 100),
+        (GenerateInstruction::SetToMemory, 100),
+        (GenerateInstruction::CreateArray, 100),
+        (GenerateInstruction::ArrayGet, 100),
+        (GenerateInstruction::ArraySet, 100),
+        (GenerateInstruction::ArrayGetWithConstantIndex, 100),
+        (GenerateInstruction::ArraySetWithConstantIndex, 100),
+        // generating this instruction with smaller probability, because they are too heavy
+        (GenerateInstruction::FieldToBytesToField, 5),
+        (GenerateInstruction::Blake2sHash, 5),
+        (GenerateInstruction::Blake3Hash, 5),
+        (GenerateInstruction::Keccakf1600Hash, 5),
+        (GenerateInstruction::Aes128Encrypt, 5),
+        (GenerateInstruction::Sha256Compression, 5),
+        (GenerateInstruction::PointAdd, 5),
+        (GenerateInstruction::MultiScalarMul, 5),
+    ]);
+
+// Compile-time check that configuration has correct number of entries
+const _: () = {
+    use crate::fuzz_lib::instruction::Instruction;
+    use strum::EnumCount;
+    assert!(
+        BASIC_GENERATE_INSTRUCTION_CONFIGURATION.options_with_weights.len() == Instruction::COUNT,
+        "BASIC_GENERATE_INSTRUCTION_CONFIGURATION must have an entry for every Instruction variant"
+    );
+};

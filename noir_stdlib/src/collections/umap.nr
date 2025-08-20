@@ -210,6 +210,7 @@ impl<K, V, B> UHashMap<K, V, B> {
         }
 
         self._table = new_map._table;
+        self._len = new_map._len;
     }
 
     // For each key applies mutator function.
@@ -229,6 +230,7 @@ impl<K, V, B> UHashMap<K, V, B> {
         }
 
         self._table = new_map._table;
+        self._len = new_map._len;
     }
 
     // For each value applies mutator function.

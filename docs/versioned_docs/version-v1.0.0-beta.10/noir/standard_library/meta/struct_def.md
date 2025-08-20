@@ -1,5 +1,6 @@
 ---
 title: TypeDefinition
+description: Inspect and transform struct/enum type definitions—fields, generics, attributes, and module context.
 ---
 
 `std::meta::type_def` contains methods on the built-in `TypeDefinition` type.
@@ -9,7 +10,7 @@ This type corresponds to `struct Name { field1: Type1, ... }` and `enum Name { V
 
 ### add_attribute
 
-```rust title="add_attribute" showLineNumbers 
+```rust title="add_attribute" showLineNumbers
 pub comptime fn add_attribute<let N: u32>(self, attribute: str<N>) {}
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/type_def.nr#L5-L7" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/type_def.nr#L5-L7</a></sub></sup>
@@ -19,7 +20,7 @@ Adds an attribute to the data type.
 
 ### add_generic
 
-```rust title="add_generic" showLineNumbers 
+```rust title="add_generic" showLineNumbers
 pub comptime fn add_generic<let N: u32>(self, generic_name: str<N>) -> Type {}
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/type_def.nr#L10-L12" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/type_def.nr#L10-L12</a></sub></sup>
@@ -37,7 +38,7 @@ that are not used in function signatures.
 
 Example:
 
-```rust title="add-generic-example" showLineNumbers 
+```rust title="add-generic-example" showLineNumbers
 comptime fn add_generic(s: TypeDefinition) {
         assert_eq(s.generics().len(), 0);
         let new_generic = s.add_generic("T");
@@ -54,7 +55,7 @@ comptime fn add_generic(s: TypeDefinition) {
 
 ### as_type
 
-```rust title="as_type" showLineNumbers 
+```rust title="as_type" showLineNumbers
 pub comptime fn as_type(self) -> Type {}
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/type_def.nr#L17-L19" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/type_def.nr#L17-L19</a></sub></sup>
@@ -65,7 +66,7 @@ any generics, the generics are also included as-is.
 
 ### generics
 
-```rust title="generics" showLineNumbers 
+```rust title="generics" showLineNumbers
 pub comptime fn generics(self) -> [(Type, Option<Type>)] {}
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/type_def.nr#L29-L31" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/type_def.nr#L29-L31</a></sub></sup>
@@ -98,7 +99,7 @@ comptime fn example(foo: TypeDefinition) {
 
 ### fields
 
-```rust title="fields" showLineNumbers 
+```rust title="fields" showLineNumbers
 pub comptime fn fields(self, generic_args: [Type]) -> [(Quoted, Type, Quoted)] {}
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/type_def.nr#L37-L39" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/type_def.nr#L37-L39</a></sub></sup>
@@ -110,7 +111,7 @@ provided generic arguments.
 
 ### fields_as_written
 
-```rust title="fields_as_written" showLineNumbers 
+```rust title="fields_as_written" showLineNumbers
 pub comptime fn fields_as_written(self) -> [(Quoted, Type, Quoted)] {}
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/type_def.nr#L46-L48" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/type_def.nr#L46-L48</a></sub></sup>
@@ -123,7 +124,7 @@ function if possible.
 
 ### has_named_attribute
 
-```rust title="has_named_attribute" showLineNumbers 
+```rust title="has_named_attribute" showLineNumbers
 pub comptime fn has_named_attribute<let N: u32>(self, name: str<N>) -> bool {}
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/type_def.nr#L22-L24" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/type_def.nr#L22-L24</a></sub></sup>
@@ -133,7 +134,7 @@ Returns true if this type has a custom attribute with the given name.
 
 ### module
 
-```rust title="module" showLineNumbers 
+```rust title="module" showLineNumbers
 pub comptime fn module(self) -> Module {}
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/type_def.nr#L51-L53" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/type_def.nr#L51-L53</a></sub></sup>
@@ -143,7 +144,7 @@ Returns the module where the type is defined.
 
 ### name
 
-```rust title="name" showLineNumbers 
+```rust title="name" showLineNumbers
 pub comptime fn name(self) -> Quoted {}
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/type_def.nr#L56-L58" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/type_def.nr#L56-L58</a></sub></sup>
@@ -156,7 +157,7 @@ not be the full path to the type definition, nor will it include any generics.
 
 ### set_fields
 
-```rust title="set_fields" showLineNumbers 
+```rust title="set_fields" showLineNumbers
 pub comptime fn set_fields(self, new_fields: [(Quoted, Type, Quoted)]) {}
 ```
 > <sup><sub><a href="https://github.com/noir-lang/noir/blob/master/noir_stdlib/src/meta/type_def.nr#L65-L67" target="_blank" rel="noopener noreferrer">Source code: noir_stdlib/src/meta/type_def.nr#L65-L67</a></sub></sup>

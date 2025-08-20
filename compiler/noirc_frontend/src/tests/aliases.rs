@@ -108,16 +108,17 @@ fn identity_numeric_type_alias_works() {
 
 #[named]
 #[test]
-#[should_panic]
 fn self_referring_type_alias_is_not_allowed() {
     let src = r#"
         pub type X = X;
 
         fn main() {
-            let x: X = 1;
+            let _: X = 1;
+                   ^ Binding `X` here to the `_` inside would create a cyclic type
+                   ~ Cyclic types have unlimited size and are prohibited in Noir
         }
       "#;
-    assert_no_errors!(src);
+    check_errors!(src);
 }
 
 #[named]
@@ -257,14 +258,15 @@ fn type_alias_to_numeric_as_generic() {
 
 #[named]
 #[test]
-#[should_panic]
 fn self_referring_type_alias_with_generics_is_not_allowed() {
     let src = r#"
         type Id<T> = T;
 
         fn main() {
-            let x: Id<Id<Field>> = 1;
+            let _: Id<Id<Field>> = 1;
+                   ^^ Binding `Id<Id<Field>>` here to the `_` inside would create a cyclic type
+                   ~~ Cyclic types have unlimited size and are prohibited in Noir
         }
     "#;
-    assert_no_errors!(src);
+    check_errors!(src);
 }

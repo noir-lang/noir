@@ -738,14 +738,10 @@ mod helpers {
 
         // Choose a type for the LHS and RHS.
         let lhs_type = u.choose_iter(type_options)?;
-        let rhs_type = match op {
-            BinaryOp::ShiftLeft | BinaryOp::ShiftRight => &types::U8,
-            _ => lhs_type,
-        };
 
         // Generate expressions for LHS and RHS.
         let lhs_expr = gen_expr(u, lhs_type, max_depth.saturating_sub(1))?;
-        let rhs_expr = gen_expr(u, rhs_type, max_depth.saturating_sub(1))?;
+        let rhs_expr = gen_expr(u, lhs_type, max_depth.saturating_sub(1))?;
 
         let mut expr = expr::binary(lhs_expr, op, rhs_expr);
 

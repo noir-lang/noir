@@ -36,7 +36,7 @@ use super::{
 };
 
 /// Use random strings to identify constraints.
-const CONSTRAIN_MSG_TYPE: Type = Type::String(3);
+const CONSTRAIN_MSG_TYPE: Type = Type::String(super::CONSTRAIN_MSG_LENGTH);
 
 /// We need to track whether expressions are coming from dynamic program inputs.
 type TrackedExpression = (Expression, bool);
@@ -996,16 +996,12 @@ impl<'a> FunctionContext<'a> {
 
         // Choose a type for the LHS and RHS.
         let lhs_type = u.choose_iter(lhs_opts)?.clone();
-        let rhs_type = match op {
-            BinaryOp::ShiftLeft | BinaryOp::ShiftRight => &types::U8,
-            _ => &lhs_type,
-        };
 
         // Generate expressions for LHS and RHS.
         let (lhs_expr, lhs_dyn) =
             self.gen_expr(u, &lhs_type, max_depth.saturating_sub(1), Flags::NESTED)?;
         let (rhs_expr, rhs_dyn) =
-            self.gen_expr(u, rhs_type, max_depth.saturating_sub(1), Flags::NESTED)?;
+            self.gen_expr(u, &lhs_type, max_depth.saturating_sub(1), Flags::NESTED)?;
 
         let mut expr = expr::binary(lhs_expr, op, rhs_expr);
 

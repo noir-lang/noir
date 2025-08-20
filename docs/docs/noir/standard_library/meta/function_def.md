@@ -1,5 +1,6 @@
 ---
 title: FunctionDefinition
+description: Inspect and mutate function definitions in `comptime`—read signatures, body, attributes, and adjust parameters or return types.
 ---
 
 `std::meta::function_def` contains methods on the built-in `FunctionDefinition` type representing

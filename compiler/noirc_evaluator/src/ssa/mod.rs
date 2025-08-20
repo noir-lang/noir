@@ -141,9 +141,9 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
         ),
         SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
         SsaPass::new(Ssa::mem2reg, "Mem2Reg"),
+        SsaPass::new(Ssa::remove_bit_shifts, "Removing Bit Shifts"),
         SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
         SsaPass::new(Ssa::flatten_cfg, "Flattening"),
-        SsaPass::new(Ssa::remove_bit_shifts, "Removing Bit Shifts"),
         // Run mem2reg once more with the flattened CFG to catch any remaining loads/stores
         SsaPass::new(Ssa::mem2reg, "Mem2Reg"),
         // Run the inlining pass again to handle functions with `InlineType::NoPredicates`.
@@ -514,8 +514,11 @@ pub fn convert_generated_acir_into_circuit(
         brillig_procedure_locs,
     );
 
+    // We don't have Brillig info available here yet.
+    let brillig_side_effects = BTreeMap::new();
     // Perform any ACIR-level optimizations
-    let (optimized_circuit, transformation_map) = acvm::compiler::optimize(circuit);
+    let (optimized_circuit, transformation_map) =
+        acvm::compiler::optimize(circuit, &brillig_side_effects);
     debug_info.update_acir(transformation_map);
 
     SsaCircuitArtifact {

@@ -6,7 +6,7 @@ fn test_bitshift() {
     let c = comptime {
         let a: i32 = 10;
         let b: u32 = 4;
-        a << b as u8
+        a << b as i32
     };
     assert_eq(c, 160);
 }

@@ -4,6 +4,6 @@ expression: expanded_code
 ---
 fn main() {
     let x: u64 = 1_u64;
-    let y: u8 = 2_u8;
+    let y: u64 = 2_u64;
     assert((x << y) == 4_u64);
 }
