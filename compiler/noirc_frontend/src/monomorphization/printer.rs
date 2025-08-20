@@ -502,7 +502,7 @@ impl AstPrinter {
     fn get_called_function(expr: &Expression) -> Option<(bool, &Definition, &String)> {
         let is_unconstrained = |typ: &Type| match typ {
             Type::Function(_, _, _, unconstrained) => *unconstrained,
-            Type::Tuple(elems) => match elems.first() {
+            Type::Tuple(elements) => match elements.first() {
                 Some(Type::Function(_, _, _, unconstrained)) => *unconstrained,
                 _ => false,
             },

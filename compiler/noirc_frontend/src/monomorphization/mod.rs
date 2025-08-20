@@ -2537,7 +2537,7 @@ impl<'interner> Monomorphizer<'interner> {
     }
 
     // Functions are represented as pairs of (constrained, unconstrained) versions of the same
-    // function. When calling them we select the version that correspondsd to the current
+    // function. When calling them we select the version that corresponds to the current
     // runtime environment. See https://github.com/noir-lang/noir/issues/7289 for the reasoning.
     fn extract_function(
         &mut self,
