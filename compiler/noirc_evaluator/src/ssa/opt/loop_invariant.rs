@@ -1359,22 +1359,22 @@ mod test {
           b0(v0: i32):
             jmp b1(i32 0)
           b1(v1: i32):
-            v23 = lt v1, i32 3
-            jmpif v23 then: b3, else: b2
+            v5 = lt v1, i32 3
+            jmpif v5 then: b3, else: b2
           b2():
             return
           b3():
-            v24 = unchecked_mul v1, i32 5
+            v7 = unchecked_mul v1, i32 5
             jmp b4(i32 0)
           b4(v2: i32):
-            v25 = lt v2, i32 2
-            jmpif v25 then: b6, else: b5
+            v9 = lt v2, i32 2
+            jmpif v9 then: b6, else: b5
           b5():
-            v27 = unchecked_add v1, i32 1
-            jmp b1(v27)
+            v12 = unchecked_add v1, i32 1
+            jmp b1(v12)
           b6():
-            v26 = unchecked_add v2, i32 1
-            jmp b4(v26)
+            v11 = unchecked_add v2, i32 1
+            jmp b4(v11)
         }
         ");
     }
@@ -1707,20 +1707,20 @@ mod test {
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: u32, v1: u32):
-            v27 = make_array [Field 1, Field 2, Field 3, Field 4, Field 5] : [Field; 5]
+            v8 = make_array [Field 1, Field 2, Field 3, Field 4, Field 5] : [Field; 5]
             jmp b1(u32 0)
           b1(v2: u32):
-            v28 = lt v2, u32 5
-            jmpif v28 then: b3, else: b2
+            v11 = lt v2, u32 5
+            jmpif v11 then: b3, else: b2
           b2():
             return
           b3():
-            v29 = allocate -> &mut [Field; 5]
-            v30 = add v1, v2
-            v31 = array_set v27, index v30, value Field 128
-            call f1(v31)
-            v32 = unchecked_add v2, u32 1
-            jmp b1(v32)
+            v12 = allocate -> &mut [Field; 5]
+            v13 = add v1, v2
+            v15 = array_set v8, index v13, value Field 128
+            call f1(v15)
+            v18 = unchecked_add v2, u32 1
+            jmp b1(v18)
         }
         acir(inline) fn foo f1 {
           b0(v0: [Field; 5]):
