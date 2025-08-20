@@ -43,14 +43,20 @@ struct Validator<'f> {
     /// Tracks the last value that was checked against an array length
     /// Maps (index being checked -> length of the array)
     array_oob_checks: HashMap<ValueId, ValueId>,
-    /// Helper for when we have an always failing constrain preceding an 
+    /// Helper for when we have an always failing constrain preceding an
     /// OOB array access with a constant index.
     contains_always_failing_constrain: bool,
 }
 
 impl<'f> Validator<'f> {
     fn new(function: &'f Function, ssa: &'f Ssa) -> Self {
-        Self { function, ssa, range_checks: HashMap::default(), array_oob_checks: HashMap::default(), contains_always_failing_constrain: false }
+        Self {
+            function,
+            ssa,
+            range_checks: HashMap::default(),
+            array_oob_checks: HashMap::default(),
+            contains_always_failing_constrain: false,
+        }
     }
 
     /// Enforces that every cast from Field -> unsigned/signed integer must obey the following invariants:
@@ -129,9 +135,9 @@ impl<'f> Validator<'f> {
         }
     }
 
-    /// Array accesses in Brillig do not have any side effects and can operate over invalid data 
-    /// when executed in isolation. These accesses must be preceded by separate explicit out of bounds (OOB) 
-    /// checks to maintain semantic correctness. 
+    /// Array accesses in Brillig do not have any side effects and can operate over invalid data
+    /// when executed in isolation. These accesses must be preceded by separate explicit out of bounds (OOB)
+    /// checks to maintain semantic correctness.
     fn validate_brillig_array_access_oob_check(&mut self, instruction_id: InstructionId) {
         if self.function.runtime().is_acir() {
             return;
@@ -164,8 +170,8 @@ impl<'f> Validator<'f> {
                     return;
                 }
 
-                // If we do not have a constant index which has been simplified to a single constrain, 
-                // we need to check whether we have an OOB check in the appropriate pattern. 
+                // If we do not have a constant index which has been simplified to a single constrain,
+                // we need to check whether we have an OOB check in the appropriate pattern.
                 // That pattern being that the index is less than the array length.
                 let Value::Instruction { instruction, .. } = &dfg[*lhs] else {
                     return;
@@ -181,7 +187,8 @@ impl<'f> Validator<'f> {
 
                 self.array_oob_checks.insert(binary.lhs, binary.rhs);
             }
-            Instruction::ArrayGet { array, index, .. } | Instruction::ArraySet { array, index, .. } => {
+            Instruction::ArrayGet { array, index, .. }
+            | Instruction::ArraySet { array, index, .. } => {
                 // We only care about guaranteeing that unsafe array accesses are well-formed with the appropriate checks
                 let false = dfg.is_safe_index(*index, *array) else {
                     return;
@@ -199,9 +206,15 @@ impl<'f> Validator<'f> {
                 };
 
                 let array_len = dfg.try_get_array_length(*array);
-                if let (Some(checked_len), Some(typ_len)) = (dfg.get_numeric_constant(*length), array_len) {
-                    assert_eq!(checked_len.try_to_u32().unwrap(), typ_len, "Expected the array length specified in the type to match the array OOB check upper bound");
-                } 
+                if let (Some(checked_len), Some(typ_len)) =
+                    (dfg.get_numeric_constant(*length), array_len)
+                {
+                    assert_eq!(
+                        checked_len.try_to_u32().unwrap(),
+                        typ_len,
+                        "Expected the array length specified in the type to match the array OOB check upper bound"
+                    );
+                }
             }
             _ => {
                 // Other instructions do not matter for this check
@@ -860,7 +873,9 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "A possibly failing array access does not have a preceding OOB check")]
+    #[should_panic(
+        expected = "A possibly failing array access does not have a preceding OOB check"
+    )]
     fn invalid_array_get_oob_constant_index_brillig() {
         let src = r"
         brillig(inline) fn main f0 {
@@ -889,7 +904,9 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "A possibly failing array access does not have a preceding OOB check")]
+    #[should_panic(
+        expected = "A possibly failing array access does not have a preceding OOB check"
+    )]
     fn invalid_array_get_oob_dynamic_index_brillig() {
         let src = "
         acir(inline) fn main f0 {
@@ -903,7 +920,9 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "A possibly failing array access does not have a preceding OOB check")]
+    #[should_panic(
+        expected = "A possibly failing array access does not have a preceding OOB check"
+    )]
     fn invalid_array_get_oob_dynamic_different_index_brillig() {
         let src = "
         brillig(inline) fn main f0 {
@@ -919,7 +938,9 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Expected the array length specified in the type to match the array OOB check upper bound")]
+    #[should_panic(
+        expected = "Expected the array length specified in the type to match the array OOB check upper bound"
+    )]
     fn invalid_array_get_oob_dynamic_different_array_len_brillig() {
         let src = "
         brillig(inline) fn main f0 {
@@ -935,7 +956,9 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "A possibly failing array access does not have a preceding OOB check")]
+    #[should_panic(
+        expected = "A possibly failing array access does not have a preceding OOB check"
+    )]
     fn invalid_array_get_oob_dynamic_index_bad_constrain_brillig() {
         let src = "
         brillig(inline) fn main f0 {
@@ -951,7 +974,9 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "A possibly failing array access does not have a preceding OOB check")]
+    #[should_panic(
+        expected = "A possibly failing array access does not have a preceding OOB check"
+    )]
     fn invalid_array_set_oob_dynamic_index() {
         let src = "
         brillig(inline) fn main f0 {
