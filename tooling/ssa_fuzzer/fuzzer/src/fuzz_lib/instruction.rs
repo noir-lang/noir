@@ -157,6 +157,24 @@ pub(crate) enum Instruction {
 
     /// Multi-scalar multiplication
     MultiScalarMul { points_and_scalars: Vec<PointAndScalar> },
+
+    /// ECDSA secp256r1
+    EcdsaSecp256r1 {
+        msg: Vec<u8>,
+        corrupt_hash: bool,
+        corrupt_pubkey_x: bool,
+        corrupt_pubkey_y: bool,
+        corrupt_signature: bool,
+    },
+
+    /// ECDSA secp256k1
+    EcdsaSecp256k1 {
+        msg: Vec<u8>,
+        corrupt_hash: bool,
+        corrupt_pubkey_x: bool,
+        corrupt_pubkey_y: bool,
+        corrupt_signature: bool,
+    },
 }
 
 /// Default instruction is XOR of two boolean values

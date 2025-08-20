@@ -1,6 +1,7 @@
 //! This file contains mechanisms for deterministically mutating a given [InstructionBlock](crate::fuzz_lib::instruction::InstructionBlock) value
 
 use crate::fuzz_lib::instruction::{Argument, Instruction, InstructionBlock};
+use crate::mutations::configuration::SIZE_OF_LARGE_ARBITRARY_BUFFER;
 use crate::mutations::{
     basic_types::{
         bool::generate_random_bool, point::generate_random_point, scalar::generate_random_scalar,
@@ -15,7 +16,7 @@ use crate::mutations::{
     instructions::instruction_mutator::instruction_mutator,
 };
 use libfuzzer_sys::arbitrary::Unstructured;
-use rand::{Rng, rngs::StdRng};
+use rand::{Rng, RngCore, rngs::StdRng};
 
 fn generate_random_argument(rng: &mut StdRng) -> Argument {
     let mut buf = [0u8; SIZE_OF_SMALL_ARBITRARY_BUFFER];
@@ -164,6 +165,35 @@ fn generate_random_instruction(rng: &mut StdRng) -> Instruction {
         },
         GenerateInstruction::PointAdd => {
             Instruction::PointAdd { p1: generate_random_point(rng), p2: generate_random_point(rng) }
+        }
+
+        GenerateInstruction::EcdsaSecp256r1 => {
+            let mut msg = [0; SIZE_OF_LARGE_ARBITRARY_BUFFER];
+            rng.fill_bytes(&mut msg);
+            Instruction::EcdsaSecp256r1 {
+                msg: msg.to_vec(),
+                corrupt_hash: generate_random_bool(rng, GENERATE_BOOL_CONFIGURATION_MOST_FALSE),
+                corrupt_pubkey_x: generate_random_bool(rng, GENERATE_BOOL_CONFIGURATION_MOST_FALSE),
+                corrupt_pubkey_y: generate_random_bool(rng, GENERATE_BOOL_CONFIGURATION_MOST_FALSE),
+                corrupt_signature: generate_random_bool(
+                    rng,
+                    GENERATE_BOOL_CONFIGURATION_MOST_FALSE,
+                ),
+            }
+        }
+        GenerateInstruction::EcdsaSecp256k1 => {
+            let mut msg = [0; SIZE_OF_LARGE_ARBITRARY_BUFFER];
+            rng.fill_bytes(&mut msg);
+            Instruction::EcdsaSecp256k1 {
+                msg: msg.to_vec(),
+                corrupt_hash: generate_random_bool(rng, GENERATE_BOOL_CONFIGURATION_MOST_FALSE),
+                corrupt_pubkey_x: generate_random_bool(rng, GENERATE_BOOL_CONFIGURATION_MOST_FALSE),
+                corrupt_pubkey_y: generate_random_bool(rng, GENERATE_BOOL_CONFIGURATION_MOST_FALSE),
+                corrupt_signature: generate_random_bool(
+                    rng,
+                    GENERATE_BOOL_CONFIGURATION_MOST_FALSE,
+                ),
+            }
         }
     }
 }
