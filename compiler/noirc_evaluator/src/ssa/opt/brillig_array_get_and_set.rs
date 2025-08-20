@@ -30,7 +30,20 @@
 //!
 //! In the case of slices, these are represented as Brillig vectors, where the items
 //! pointer instead starts at three rather than one.
-//! A Brillig vector is represented as [RC, Size, Capacity, ...items].
+//! A Brillig vector is represented as [RC, Size, Capacity, ...items]. So for a slice
+//! this pass will transform this:
+//!
+//! ```ssa
+//! b0(v0: [Field]):
+//!   v1 = array_get v0, index u32 3 -> Field
+//! ```
+//!
+//! to this:
+//!
+//! ```ssa
+//! b0(v0: [Field]):
+//!   v1 = array_get v0, index u32 6 minus 3 -> Field
+//! ```
 use acvm::FieldElement;
 
 use crate::{
