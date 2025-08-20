@@ -410,6 +410,8 @@ mod test {
         ";
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.remove_paired_rc();
+        // This pass is very conservative and only looks for inc_rc's in the entry block and dec_rc's in the exit block
+        // The dec_rc is not in the return block so we do not expect the rc pair to be removed.
         assert_normalized_ssa_equals(ssa, src);
     }
 
@@ -430,6 +432,8 @@ mod test {
         ";
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.remove_paired_rc();
+        // As the program has an RC pair where the increment is in the entry block and
+        // the decrement is in the return block this pair is safe to remove.
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn foo f0 {
           b0(v0: [Field; 2]):
