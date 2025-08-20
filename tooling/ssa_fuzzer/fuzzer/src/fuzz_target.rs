@@ -42,9 +42,10 @@ libfuzzer_sys::fuzz_target!(|data: &[u8]| -> Corpus {
 
     // Disable some instructions with bugs that are not fixed yet
     let instruction_options = InstructionOptions {
-        shl_enabled: false,
+        // https://github.com/noir-lang/noir/issues/9583
         shr_enabled: false,
-        alloc_enabled: false,
+        shl_enabled: false,
+        // https://github.com/noir-lang/noir/issues/9452
         array_get_enabled: false,
         // https://github.com/noir-lang/noir/issues/9559
         point_add_enabled: false,
