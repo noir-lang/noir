@@ -460,6 +460,7 @@ impl Instruction {
                 BinaryOp::Div | BinaryOp::Mod => {
                     dfg.get_numeric_constant(binary.rhs).is_none_or(|c| c.is_zero())
                 }
+                BinaryOp::Shl | BinaryOp::Shr => true,
                 BinaryOp::Add { unchecked: true }
                 | BinaryOp::Sub { unchecked: true }
                 | BinaryOp::Mul { unchecked: true }
@@ -467,9 +468,7 @@ impl Instruction {
                 | BinaryOp::Lt
                 | BinaryOp::And
                 | BinaryOp::Or
-                | BinaryOp::Xor
-                | BinaryOp::Shl
-                | BinaryOp::Shr => false,
+                | BinaryOp::Xor => false,
             },
 
             // These don't have side effects
