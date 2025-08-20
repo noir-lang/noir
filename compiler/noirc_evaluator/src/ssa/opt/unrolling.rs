@@ -15,31 +15,31 @@
 //!
 //! ACIR/Brillig differences within this pass:
 //!   - Brillig functions may contain loops using `continue` or `break` which this pass does not
-//!   support the unrolling of (running the pass on such functions is not an error).
+//!     support the unrolling of (running the pass on such functions is not an error).
 //!   - Unrolling may be reverted for brillig functions if the increase in instruction count is
-//!   greater than `max_bytecode_increase_percent` (if set).
+//!     greater than `max_bytecode_increase_percent` (if set).
 //!   - In ACIR functions, reference count instructions are removed if present (they only have
-//!   effects in brillig functions so are superfluous in ACIR).
+//!     effects in brillig functions so are superfluous in ACIR).
 //!   - Differing post-conditions (see below).
 //!
 //! Relevance to other passes:
 //!   - Loop unrolling is a required pass for constrained code (ACIR functions) since ACIR itself
-//!   does not contain any branching constructs.
+//!     does not contain any branching constructs.
 //!   - Loop unrolling must occur before flattening on ACIR functions
 //!   - Since unrolling may fail on loops that fail to unroll, any simplification passes before it
-//!   which affect loop bounds may affect which code fails to compile. One important optimization
-//!   in this category is mem2reg which may simplify mutable variables, including those potentially
-//!   used as loop bounds, into a form which loop unrolling may better identify.
+//!     which affect loop bounds may affect which code fails to compile. One important optimization
+//!     in this category is mem2reg which may simplify mutable variables, including those potentially
+//!     used as loop bounds, into a form which loop unrolling may better identify.
 //!
 //! Conditions:
 //!   - Pre-conditions: No explicit pre-conditions strictly required to run this pass but in
-//!   practice since other passes affect this passes ability to unroll loops, some passes such as
-//!   inlining and mem2reg are required before running this on arbitrary noir code.
+//!     practice since other passes affect this passes ability to unroll loops, some passes such as
+//!     inlining and mem2reg are required before running this on arbitrary noir code.
 //!   - Post-condition (ACIR-only): All loops in ACIR functions should be unrolled when this pass is
-//!   completed successfully. Any loops that are not unrolled (e.g. because of a mutable variable
-//!   used in the loop condition whose value is unknown) will result in an error.
+//!     completed successfully. Any loops that are not unrolled (e.g. because of a mutable variable
+//!     used in the loop condition whose value is unknown) will result in an error.
 //!   - Post-condition (Brillig-only): If `max_bytecode_increase_percent` is set, the instruction count
-//!   of each function should increase by no more than that percentage compared to before the pass.
+//!     of each function should increase by no more than that percentage compared to before the pass.
 use std::collections::BTreeSet;
 
 use acvm::acir::AcirField;
