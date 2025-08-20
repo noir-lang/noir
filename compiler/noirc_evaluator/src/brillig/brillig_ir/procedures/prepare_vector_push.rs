@@ -13,19 +13,26 @@ use crate::brillig::brillig_ir::{
 impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<F, Registers> {
     /// Prepares a vector for a push operation, allocating a larger vector and copying the source vector into the destination vector.
     /// It returns the write pointer to where to put the new items.
+    ///
+    /// Brillig vectors have an inherent size and capacity, but their semantic length can be different,
+    /// and it's passed as a separate variable in SSA. When ACIR flattens vectors of unequal length,
+    /// it can be different from the size and capacity in the vector data structure itself.
     pub(crate) fn call_prepare_vector_push_procedure(
         &mut self,
+        source_len: SingleAddrVariable,
         source_vector: BrilligVector,
         destination_vector: BrilligVector,
         write_pointer: MemoryAddress,
         item_push_count: usize,
         back: bool,
     ) {
-        let source_vector_pointer_arg = MemoryAddress::direct(ScratchSpace::start());
-        let item_push_count_arg = MemoryAddress::direct(ScratchSpace::start() + 1);
-        let new_vector_pointer_return = MemoryAddress::direct(ScratchSpace::start() + 2);
-        let write_pointer_return = MemoryAddress::direct(ScratchSpace::start() + 3);
+        let source_vector_length_arg = MemoryAddress::direct(ScratchSpace::start());
+        let source_vector_pointer_arg = MemoryAddress::direct(ScratchSpace::start() + 1);
+        let item_push_count_arg = MemoryAddress::direct(ScratchSpace::start() + 2);
+        let new_vector_pointer_return = MemoryAddress::direct(ScratchSpace::start() + 3);
+        let write_pointer_return = MemoryAddress::direct(ScratchSpace::start() + 4);
 
+        self.mov_instruction(source_vector_length_arg, source_len.address);
         self.mov_instruction(source_vector_pointer_arg, source_vector.pointer);
         self.usize_const_instruction(item_push_count_arg, item_push_count.into());
 
@@ -40,12 +47,14 @@ pub(super) fn compile_prepare_vector_push_procedure<F: AcirField + DebugToString
     brillig_context: &mut BrilligContext<F, ScratchSpace>,
     push_back: bool,
 ) {
-    let source_vector_pointer_arg = MemoryAddress::direct(ScratchSpace::start());
-    let item_push_count_arg = MemoryAddress::direct(ScratchSpace::start() + 1);
-    let new_vector_pointer_return = MemoryAddress::direct(ScratchSpace::start() + 2);
-    let write_pointer_return = MemoryAddress::direct(ScratchSpace::start() + 3);
+    let source_vector_length_arg = MemoryAddress::direct(ScratchSpace::start());
+    let source_vector_pointer_arg = MemoryAddress::direct(ScratchSpace::start() + 1);
+    let item_push_count_arg = MemoryAddress::direct(ScratchSpace::start() + 2);
+    let new_vector_pointer_return = MemoryAddress::direct(ScratchSpace::start() + 3);
+    let write_pointer_return = MemoryAddress::direct(ScratchSpace::start() + 4);
 
     brillig_context.set_allocated_registers(vec![
+        source_vector_length_arg,
         source_vector_pointer_arg,
         item_push_count_arg,
         new_vector_pointer_return,
@@ -65,8 +74,10 @@ pub(super) fn compile_prepare_vector_push_procedure<F: AcirField + DebugToString
         source_size,
         source_capacity,
         source_items_pointer,
+        Some((source_vector_length_arg, item_push_count_arg)),
     );
 
+    // The target size is the source size plus the number of items we are pushing.
     let target_size = SingleAddrVariable::new_usize(brillig_context.allocate_register());
     brillig_context.memory_op_instruction(
         source_size.address,
@@ -85,10 +96,13 @@ pub(super) fn compile_prepare_vector_push_procedure<F: AcirField + DebugToString
         target_size,
     );
 
+    // Get the pointer to the start of the items in the target vector.
+    // This is adjusted below based on whether we push to the front or the back.
     let target_vector_items_pointer =
         brillig_context.codegen_make_vector_items_pointer(target_vector);
 
     if push_back {
+        // If we are pushing to the back, we could be reusing the source vector of the RC was 1 and it had excess capacity.
         let was_reused = SingleAddrVariable::new(brillig_context.allocate_register(), 1);
         brillig_context.memory_op_instruction(
             source_vector.pointer,
@@ -96,7 +110,7 @@ pub(super) fn compile_prepare_vector_push_procedure<F: AcirField + DebugToString
             was_reused.address,
             BrilligBinaryOp::Equals,
         );
-
+        // If we are not reusing the source, then we need to copy its items (up to its semantic length) to the target.
         brillig_context.codegen_if_not(was_reused.address, |brillig_context| {
             brillig_context.codegen_mem_copy(
                 source_items_pointer.address,
@@ -104,18 +118,19 @@ pub(super) fn compile_prepare_vector_push_procedure<F: AcirField + DebugToString
                 source_size,
             );
         });
-        // Target vector is ready for push back at this point
+        // Target vector is ready for push back at this point.
+        // The write pointer returned points after source-length number of items in the target vector.
         brillig_context.memory_op_instruction(
             target_vector_items_pointer,
             source_size.address,
             write_pointer_return,
             BrilligBinaryOp::Add,
         );
-
         brillig_context.deallocate_single_addr(was_reused);
     } else {
         // If push front we need to shift the items independently of it being reused or not
         let target_start = brillig_context.allocate_register();
+        // Shift items by the number of items we want to push to the front.
         brillig_context.memory_op_instruction(
             target_vector_items_pointer,
             item_push_count_arg,
@@ -128,6 +143,7 @@ pub(super) fn compile_prepare_vector_push_procedure<F: AcirField + DebugToString
             source_size,
         );
         brillig_context.deallocate_register(target_start);
+        // The write pointer returned is the the first (now free) item in the target vector.
         brillig_context.mov_instruction(write_pointer_return, target_vector_items_pointer);
     }
 
@@ -153,6 +169,7 @@ pub(crate) fn reallocate_vector_for_insertion<
     target_vector: BrilligVector,
     target_size: SingleAddrVariable,
 ) {
+    // If the source capacity is at least as large than the target size, we can potentially reuse the source vector to write the new items.
     let does_capacity_fit = SingleAddrVariable::new(brillig_context.allocate_register(), 1);
     brillig_context.memory_op_instruction(
         target_size.address,
@@ -160,7 +177,7 @@ pub(crate) fn reallocate_vector_for_insertion<
         does_capacity_fit.address,
         BrilligBinaryOp::LessThanEquals,
     );
-
+    // We can only reuse the source vector if the ref-count is 1.
     let is_rc_one = SingleAddrVariable::new(brillig_context.allocate_register(), 1);
     brillig_context.codegen_usize_op(
         source_rc.address,
@@ -185,7 +202,8 @@ pub(crate) fn reallocate_vector_for_insertion<
                         if brillig_context.count_arrays_copied {
                             brillig_context.codegen_increment_array_copy_counter();
                         }
-
+                        // We could not reuse the source vector, because there are other references to it.
+                        // Allocate a new vector with the target size and source capacity.
                         brillig_context.codegen_initialize_vector(
                             target_vector,
                             target_size,

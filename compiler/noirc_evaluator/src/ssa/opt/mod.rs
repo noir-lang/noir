@@ -118,3 +118,14 @@ macro_rules! assert_ssa_snapshot {
         insta::assert_snapshot!(ssa_string, $($arg)*)
     };
 }
+
+/// Assert that running a certain pass on the SSA does nothing.
+#[cfg(test)]
+pub(crate) fn assert_ssa_does_not_change(
+    src: &str,
+    pass: impl FnOnce(crate::ssa::Ssa) -> crate::ssa::Ssa,
+) {
+    let ssa = crate::ssa::Ssa::from_str(src).unwrap();
+    let ssa = pass(ssa);
+    assert_normalized_ssa_equals(ssa, src);
+}

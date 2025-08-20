@@ -16,6 +16,9 @@ use noirc_frontend::{
 
 use crate::Config;
 
+/// Length of generated random constraint messages.
+pub(crate) const CONSTRAIN_MSG_LENGTH: u32 = 3;
+
 pub mod expr;
 pub(crate) mod freq;
 mod func;
