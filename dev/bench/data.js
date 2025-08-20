@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1755717990230,
+  "lastUpdate": 1755717993602,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11701,80 +11701,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "08a955c19123fbad9a619aebb9a9b24d4698f780",
-          "message": "chore(simplify_cfg): Additional unit tests (#9426)",
-          "timestamp": "2025-08-07T14:58:11Z",
-          "tree_id": "480e944654a53ff5a4972dd9728a5a372d566e7e",
-          "url": "https://github.com/noir-lang/noir/commit/08a955c19123fbad9a619aebb9a9b24d4698f780"
-        },
-        "date": 1754581429267,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 205,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 241.78,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 194.2,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 498.41,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 431.05,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1500,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 326.4,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 328.81,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 69.48,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 54.97,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "f90c10aa876f4d46fb89474b0f9af68aecd26e15",
           "message": "chore(as_slice_length): Various unit tests (#9419)",
@@ -15215,6 +15141,80 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/910ed69841693602d648462e57e15e6fc3d40235"
         },
         "date": 1755705983070,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 206.74,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 243.56,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 195.97,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 500.28,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 432.92,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1500,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 328.21,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 330.57,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 69.52,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 55.02,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "52a8579901ba03c53cbb022d968435bb4f66e2c8",
+          "message": "chore(ssa): Update comments on `loop_invariant` for audit and some missing unit tests (#9574)",
+          "timestamp": "2025-08-20T18:43:33Z",
+          "tree_id": "910835a31a5ad2173972a05a8acb461849bf78c9",
+          "url": "https://github.com/noir-lang/noir/commit/52a8579901ba03c53cbb022d968435bb4f66e2c8"
+        },
+        "date": 1755717974042,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
