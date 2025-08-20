@@ -241,7 +241,7 @@ impl Context<'_, '_, '_> {
         let one = self.numeric_constant(FieldElement::one(), NumericType::bool());
         let rhs_type = self.context.dfg.type_of_value(rhs);
 
-        let assert_message: Option<String> = Some("attempt to bit-shift with overflow".to_owned());
+        let assert_message = Some("attempt to bit-shift with overflow".to_owned());
 
         let (bit_size, max_bit_size) = match rhs_type {
             Type::Numeric(NumericType::Unsigned { bit_size }) => (bit_size, bit_size),
