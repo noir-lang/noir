@@ -188,12 +188,12 @@ impl Context<'_, '_, '_> {
             return self.numeric_constant(pow, NumericType::NativeField);
         }
 
-        let to_bits = self.context.dfg.import_intrinsic(Intrinsic::ToBits(Endian::Little));
         let max_exponent_bits = self.context.dfg.type_of_value(exponent).bit_size().ilog2();
         let result_types = vec![Type::Array(Arc::new(vec![Type::bool()]), max_exponent_bits)];
 
         // A call to ToBits can only be done with a field argument (exponent is always u8 here)
         let exponent_as_field = self.insert_cast(exponent, NumericType::NativeField);
+        let to_bits = self.context.dfg.import_intrinsic(Intrinsic::ToBits(Endian::Little));
         let exponent_bits = self.insert_call(to_bits, vec![exponent_as_field], result_types);
 
         let exponent_bits = exponent_bits[0];
