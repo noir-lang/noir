@@ -957,7 +957,6 @@ impl BlockContext {
                     corrupt_pubkey_y,
                     corrupt_signature,
                 );
-                println!("prepared_signature: {:?}", prepared_signature);
                 let result = acir_builder.ecdsa_secp256r1(
                     prepared_signature.public_key_x.clone(),
                     prepared_signature.public_key_y.clone(),
