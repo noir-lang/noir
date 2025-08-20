@@ -16,6 +16,9 @@
 //! ACIR/Brillig differences within this pass:
 //!   - Brillig functions may contain loops using `continue` or `break` which this pass does not
 //!     support the unrolling of (running the pass on such functions is not an error).
+//!   - Brillig functions only have small loops unrolled, where a small loop is defined as a loop
+//!     which, when unrolled, is estimated to have the same or fewer total instructions as it
+//!     has when not unrolled.
 //!   - Unrolling may be reverted for brillig functions if the increase in instruction count is
 //!     greater than `max_bytecode_increase_percent` (if set).
 //!   - In ACIR functions, reference count instructions are removed if present (they only have
