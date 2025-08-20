@@ -72,6 +72,7 @@
         "comptime",
         "concat",
         "cond",
+        "constrainedness",
         "cpus",
         "cranelift",
         "critesjosh",
