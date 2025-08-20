@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1755723031609,
+  "lastUpdate": 1755723036696,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -21568,90 +21568,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "20c37b27e9c1f9aba064fd18cb7f254e5d10fa39",
-          "message": "fix(ownership): Increment reference count for nested array get in LHS assignment (#9347)\n\nCo-authored-by: Jake Fecher <jfecher11@gmail.com>\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-08-07T19:49:30Z",
-          "tree_id": "973bec84ca534579358fdb43465a319fe9256a84",
-          "url": "https://github.com/noir-lang/noir/commit/20c37b27e9c1f9aba064fd18cb7f254e5d10fa39"
-        },
-        "date": 1754598079419,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 712.6,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 2036.6,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 539.3,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 4318.2,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 3330.5,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 3842.9,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 30725.4,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 30773.9,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 185.9,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 391.2,
-            "unit": "KB"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 632.1,
-            "unit": "KB"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 525.2,
-            "unit": "KB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -25551,6 +25467,90 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/fb01ee5f318a91838c8141c8272abcff1206c089"
         },
         "date": 1755721669731,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 709.1,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 2033.1,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 535.9,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 4317.7,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 3329.6,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 3846.8,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 30728.8,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 30774.4,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 187,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 388.9,
+            "unit": "KB"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 631.5,
+            "unit": "KB"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 525.2,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "0b8c415dd67b58e8d335a77bee57004f93c56ead",
+          "message": "fix: incorrect max bit size in `remove_bit_shifts` (#9585)",
+          "timestamp": "2025-08-20T20:03:22Z",
+          "tree_id": "fcb60600f37ad84c9f1353afd41db1f9b09b3829",
+          "url": "https://github.com/noir-lang/noir/commit/0b8c415dd67b58e8d335a77bee57004f93c56ead"
+        },
+        "date": 1755723017602,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
