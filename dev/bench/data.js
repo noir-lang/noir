@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1755703851558,
+  "lastUpdate": 1755704360170,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -19501,48 +19501,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "dad2f9b5cf5da1e936937d0932558d07f5112710",
-          "message": "chore: update ex in docs (#9385)",
-          "timestamp": "2025-08-07T14:56:37Z",
-          "tree_id": "3cb005be96d48349d34e525725c44eba2e201534",
-          "url": "https://github.com/noir-lang/noir/commit/dad2f9b5cf5da1e936937d0932558d07f5112710"
-        },
-        "date": 1754580287528,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 257686,
-            "range": "± 1232",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 230318,
-            "range": "± 4791",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2816999,
-            "range": "± 18934",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -21594,6 +21552,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2790140,
             "range": "± 3006",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "910ed69841693602d648462e57e15e6fc3d40235",
+          "message": "chore: Switch to node v22.15.0 (#9582)",
+          "timestamp": "2025-08-20T15:12:13Z",
+          "tree_id": "3683f6cc60930caad4fd2082eb0bc7c75fb1f949",
+          "url": "https://github.com/noir-lang/noir/commit/910ed69841693602d648462e57e15e6fc3d40235"
+        },
+        "date": 1755704341489,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 250373,
+            "range": "± 745",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 220447,
+            "range": "± 4634",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2778994,
+            "range": "± 1745",
             "unit": "ns/iter"
           }
         ]
