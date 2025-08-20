@@ -195,8 +195,8 @@ impl Context<'_, '_, '_> {
         // - constant exponents are handled in the `if` above
         // - if a smaller type was upcasted, for example `u8` to `u32`, an `u8` can hold values up to 256
         //   which is even larger than the largest unsigned type u128, so nothing better can be done here
-        // - the exception would be upcasting `u1`, where we know the exponent can be either zero or one,
-        //   which we special-case here
+        // - the exception would be casting a `u1` to a larger type, where we know the exponent can be
+        //   either zero or one, which we special-case here
         let max_exponent_bits = if self.context.dfg.get_value_max_num_bits(exponent) == 1 {
             1
         } else {
