@@ -1,0 +1,176 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "c",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 64
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": {
+      "abi_type": {
+        "kind": "integer",
+        "sign": "unsigned",
+        "width": 64
+      },
+      "visibility": "public"
+    },
+    "error_types": {
+      "13958753312450585022": {
+        "error_kind": "string",
+        "string": "Field failed to decompose into specified 7 limbs"
+      },
+      "14514982005979867414": {
+        "error_kind": "string",
+        "string": "attempt to bit-shift with overflow"
+      }
+    }
+  },
+  "bytecode": [
+    "func 0",
+    "current witness index : _111",
+    "private parameters indices : [_0]",
+    "public parameters indices : []",
+    "return value indices : [_1]",
+    "BLACKBOX::RANGE [(_0, 64)] []",
+    "BRILLIG CALL func 0: inputs: [EXPR [ (1, _0) -1 ]], outputs: [_2]",
+    "EXPR [ (1, _0, _2) (-1, _2) (1, _3) -1 ]",
+    "EXPR [ (1, _0, _3) (-1, _3) 0 ]",
+    "BRILLIG CALL func 0: inputs: [EXPR [ (1, _0) -2 ]], outputs: [_4]",
+    "EXPR [ (1, _0, _4) (-2, _4) (1, _5) -1 ]",
+    "EXPR [ (1, _0, _5) (-2, _5) 0 ]",
+    "BRILLIG CALL func 1: inputs: [EXPR [ (1, _0) 18446744073709551552 ], EXPR [ 18446744073709551616 ]], outputs: [_6, _7]",
+    "BLACKBOX::RANGE [(_6, 1)] []",
+    "BLACKBOX::RANGE [(_7, 64)] []",
+    "EXPR [ (1, _0) (-18446744073709551616, _6) (-1, _7) 18446744073709551552 ]",
+    "EXPR [ (-1, _6) (-1, _8) 1 ]",
+    "EXPR [ (1, _3, _5) (-1, _9) 0 ]",
+    "EXPR [ (1, _8, _9) (-1, _9) 0 ]",
+    "BRILLIG CALL func 2: inputs: [EXPR [ (1, _0, _9) 0 ], EXPR [ 7 ], EXPR [ 2 ]], outputs: [[_10, _11, _12, _13, _14, _15, _16]]",
+    "BLACKBOX::RANGE [(_10, 1)] []",
+    "BLACKBOX::RANGE [(_11, 1)] []",
+    "BLACKBOX::RANGE [(_12, 1)] []",
+    "BLACKBOX::RANGE [(_13, 1)] []",
+    "BLACKBOX::RANGE [(_14, 1)] []",
+    "BLACKBOX::RANGE [(_15, 1)] []",
+    "BLACKBOX::RANGE [(_16, 1)] []",
+    "EXPR [ (1, _0, _9) (-1, _80) 0 ]",
+    "EXPR [ (-1, _10) (-2, _11) (-4, _12) (-8, _13) (-16, _14) (-32, _15) (-64, _16) (1, _80) 0 ]",
+    "EXPR [ (1, _16, _16) (2, _16) (-1, _17) 1 ]",
+    "EXPR [ (-1, _15) (-1, _18) 1 ]",
+    "EXPR [ (2, _15, _17) (1, _17, _18) (-1, _19) 0 ]",
+    "EXPR [ (1, _19, _19) (-1, _20) 0 ]",
+    "EXPR [ (-1, _14) (-1, _21) 1 ]",
+    "EXPR [ (2, _14, _20) (1, _20, _21) (-1, _22) 0 ]",
+    "EXPR [ (1, _22, _22) (-1, _23) 0 ]",
+    "EXPR [ (-1, _13) (-1, _24) 1 ]",
+    "EXPR [ (2, _13, _23) (1, _23, _24) (-1, _25) 0 ]",
+    "EXPR [ (1, _25, _25) (-1, _26) 0 ]",
+    "EXPR [ (-1, _12) (-1, _27) 1 ]",
+    "EXPR [ (2, _12, _26) (1, _26, _27) (-1, _28) 0 ]",
+    "EXPR [ (1, _28, _28) (-1, _29) 0 ]",
+    "EXPR [ (-1, _11) (-1, _30) 1 ]",
+    "EXPR [ (2, _11, _29) (1, _29, _30) (-1, _31) 0 ]",
+    "EXPR [ (1, _31, _31) (-1, _32) 0 ]",
+    "EXPR [ (-1, _10) (-1, _33) 1 ]",
+    "EXPR [ (2, _10, _32) (-1, _93) 0 ]",
+    "EXPR [ (1, _32, _33) (-1, _94) 0 ]",
+    "EXPR [ (-1, _34) (1, _93) (1, _94) 0 ]",
+    "BRILLIG CALL func 0: inputs: [EXPR [ (1, _34) 0 ]], outputs: [_35]",
+    "EXPR [ (1, _34, _35) (1, _36) -1 ]",
+    "EXPR [ (1, _34, _36) 0 ]",
+    "EXPR [ (1, _9, _36) 0 ]",
+    "BRILLIG CALL func 1: PREDICATE: EXPR [ (1, _9) 0 ]",
+    "inputs: [EXPR [ (1, _0) 0 ], EXPR [ (2, _32, _10) (1, _32, _33) 0 ]], outputs: [_37, _38]",
+    "BLACKBOX::RANGE [(_37, 64)] []",
+    "BLACKBOX::RANGE [(_38, 64)] []",
+    "EXPR [ (-1, _9) (-1, _38) (-1, _39) (1, _93) (1, _94) 0 ]",
+    "BLACKBOX::RANGE [(_39, 64)] []",
+    "EXPR [ (-1, _40) (1, _93) (1, _94) 0 ]",
+    "EXPR [ (1, _37, _40) (1, _38) (-1, _41) 0 ]",
+    "EXPR [ (-1, _9, _41) (1, _80) 0 ]",
+    "BRILLIG CALL func 0: inputs: [EXPR [ (1, _0) -4 ]], outputs: [_42]",
+    "EXPR [ (1, _0, _42) (-4, _42) (1, _43) -1 ]",
+    "EXPR [ (1, _0, _43) (-4, _43) 0 ]",
+    "EXPR [ (-1, _3, _43) (1, _43) (-1, _44) 0 ]",
+    "EXPR [ (1, _8, _44) (-1, _44) 0 ]",
+    "BRILLIG CALL func 2: inputs: [EXPR [ (1, _0, _44) 0 ], EXPR [ 7 ], EXPR [ 2 ]], outputs: [[_45, _46, _47, _48, _49, _50, _51]]",
+    "BLACKBOX::RANGE [(_45, 1)] []",
+    "BLACKBOX::RANGE [(_46, 1)] []",
+    "BLACKBOX::RANGE [(_47, 1)] []",
+    "BLACKBOX::RANGE [(_48, 1)] []",
+    "BLACKBOX::RANGE [(_49, 1)] []",
+    "BLACKBOX::RANGE [(_50, 1)] []",
+    "BLACKBOX::RANGE [(_51, 1)] []",
+    "EXPR [ (1, _0, _44) (-1, _97) 0 ]",
+    "EXPR [ (-1, _45) (-2, _46) (-4, _47) (-8, _48) (-16, _49) (-32, _50) (-64, _51) (1, _97) 0 ]",
+    "EXPR [ (1, _51, _51) (2, _51) (-1, _52) 1 ]",
+    "EXPR [ (-1, _50) (-1, _53) 1 ]",
+    "EXPR [ (2, _50, _52) (1, _52, _53) (-1, _54) 0 ]",
+    "EXPR [ (1, _54, _54) (-1, _55) 0 ]",
+    "EXPR [ (-1, _49) (-1, _56) 1 ]",
+    "EXPR [ (2, _49, _55) (1, _55, _56) (-1, _57) 0 ]",
+    "EXPR [ (1, _57, _57) (-1, _58) 0 ]",
+    "EXPR [ (-1, _48) (-1, _59) 1 ]",
+    "EXPR [ (2, _48, _58) (1, _58, _59) (-1, _60) 0 ]",
+    "EXPR [ (1, _60, _60) (-1, _61) 0 ]",
+    "EXPR [ (-1, _47) (-1, _62) 1 ]",
+    "EXPR [ (2, _47, _61) (1, _61, _62) (-1, _63) 0 ]",
+    "EXPR [ (1, _63, _63) (-1, _64) 0 ]",
+    "EXPR [ (-1, _46) (-1, _65) 1 ]",
+    "EXPR [ (2, _46, _64) (1, _64, _65) (-1, _66) 0 ]",
+    "EXPR [ (1, _66, _66) (-1, _67) 0 ]",
+    "EXPR [ (-1, _45) (-1, _68) 1 ]",
+    "EXPR [ (2, _45, _67) (-1, _110) 0 ]",
+    "EXPR [ (1, _67, _68) (-1, _111) 0 ]",
+    "EXPR [ (-1, _69) (1, _110) (1, _111) 0 ]",
+    "BRILLIG CALL func 0: inputs: [EXPR [ (1, _69) 0 ]], outputs: [_70]",
+    "EXPR [ (1, _69, _70) (1, _71) -1 ]",
+    "EXPR [ (1, _69, _71) 0 ]",
+    "EXPR [ (1, _44, _71) 0 ]",
+    "BRILLIG CALL func 1: PREDICATE: EXPR [ (1, _44) 0 ]",
+    "inputs: [EXPR [ (1, _0) 0 ], EXPR [ (2, _67, _45) (1, _67, _68) 0 ]], outputs: [_72, _73]",
+    "BLACKBOX::RANGE [(_72, 64)] []",
+    "BLACKBOX::RANGE [(_73, 64)] []",
+    "EXPR [ (-1, _44) (-1, _73) (-1, _74) (1, _110) (1, _111) 0 ]",
+    "BLACKBOX::RANGE [(_74, 64)] []",
+    "EXPR [ (-1, _75) (1, _110) (1, _111) 0 ]",
+    "EXPR [ (1, _72, _75) (1, _73) (-1, _76) 0 ]",
+    "EXPR [ (-1, _44, _76) (1, _97) 0 ]",
+    "EXPR [ (-3, _3, _5) (1, _9, _37) (3, _3) (-1, _77) 0 ]",
+    "EXPR [ (-1, _3) (-1, _78) 1 ]",
+    "EXPR [ (5, _3, _43) (1, _44, _72) (-5, _3) (-5, _43) (-1, _79) 5 ]",
+    "EXPR [ (-1, _3, _77) (-1, _78, _79) (1, _1) 0 ]",
+    "unconstrained func 0",
+    "[Const { destination: Direct(21), bit_size: Integer(U32), value: 1 }, Const { destination: Direct(20), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(21), offset_address: Direct(20) }, Const { destination: Direct(2), bit_size: Field, value: 0 }, BinaryFieldOp { destination: Direct(3), op: Equals, lhs: Direct(0), rhs: Direct(2) }, JumpIf { condition: Direct(3), location: 8 }, Const { destination: Direct(1), bit_size: Field, value: 1 }, BinaryFieldOp { destination: Direct(0), op: Div, lhs: Direct(1), rhs: Direct(0) }, Stop { return_data: HeapVector { pointer: Direct(20), size: Direct(21) } }]",
+    "unconstrained func 1",
+    "[Const { destination: Direct(10), bit_size: Integer(U32), value: 2 }, Const { destination: Direct(11), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(10), offset_address: Direct(11) }, BinaryFieldOp { destination: Direct(2), op: IntegerDiv, lhs: Direct(0), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Mul, lhs: Direct(2), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Sub, lhs: Direct(0), rhs: Direct(1) }, Mov { destination: Direct(0), source: Direct(2) }, Stop { return_data: HeapVector { pointer: Direct(11), size: Direct(10) } }]",
+    "unconstrained func 2",
+    "[Const { destination: Direct(5), bit_size: Integer(U32), value: 0 }, Const { destination: Direct(6), bit_size: Integer(U32), value: 1 }, Const { destination: Direct(7), bit_size: Integer(U32), value: 3 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(7), offset_address: Direct(5) }, Cast { destination: Direct(1), source: Direct(1), bit_size: Integer(U32) }, Const { destination: Direct(9), bit_size: Integer(U32), value: 10 }, BinaryIntOp { destination: Direct(7), op: Add, bit_size: U32, lhs: Direct(9), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(3), op: IntegerDiv, lhs: Direct(0), rhs: Direct(2) }, BinaryFieldOp { destination: Direct(4), op: Mul, lhs: Direct(3), rhs: Direct(2) }, BinaryFieldOp { destination: Direct(4), op: Sub, lhs: Direct(0), rhs: Direct(4) }, Store { destination_pointer: Direct(9), source: Direct(4) }, BinaryIntOp { destination: Direct(9), op: Add, bit_size: U32, lhs: Direct(9), rhs: Direct(6) }, Mov { destination: Direct(0), source: Direct(3) }, BinaryIntOp { destination: Direct(8), op: LessThan, bit_size: U32, lhs: Direct(9), rhs: Direct(7) }, JumpIf { condition: Direct(8), location: 7 }, Const { destination: Direct(9), bit_size: Integer(U32), value: 10 }, Stop { return_data: HeapVector { pointer: Direct(9), size: Direct(1) } }]"
+  ],
+  "debug_symbols": "ndTLbqswFIXhd/GYAb6x7bzK0VFEEqdCQiSiUKmK8u51/JteBpWqTPYKmPUNHPBNndJhfdkP0/nyqnb/buowD+M4vOzHy7FfhsuU797ujdou98ucUr6lvq3n1rWf07So3bSOY6Pe+nEtD71e+6nk0s95tW1Umk45M3gexvT4dW++2u3vVdvVrjOfZf/ntt/a3TNtkdoO9om2drHWtffP9GXbNi3dj/7/fNUfh/nHf6V0frBRpkxbplM70yhfZlem5A1tVCgzlqlbQhOGsIQjPNERGBpEoxgUg2JQDIpBMSgGxaAYFINiUSyKRbEoFsWiWBSLYlEsikNxKA7FoTgUh+JQHIpDcSgexaN4FI/iUTyKz4rLIUQgsuLzrreEJgxhCUd4oiOECASKoAiKoAiKoAiKoAiKoAhKQAkoASWgBJSAElACSkAJKBElokSUiBJRIkpEiSgRJaLotq2pa5qa9c1r66vXPvb4/vhI5qE/jKmeSud1On47pJb367ayHWPX+XJMp3VOj4+krOXP5gM=",
+  "file_map": {
+    "50": {
+      "source": "fn main(c: u64) -> pub u64 {\n    if c == 1 {\n        if c == 2 {\n            c >> c\n        } else {\n            3\n        }\n    } else {\n        if c == 4 {\n            c >> c\n        } else {\n            5\n        }\n    }\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "directive_invert",
+    "directive_integer_quotient",
+    "directive_to_radix"
+  ]
+}
