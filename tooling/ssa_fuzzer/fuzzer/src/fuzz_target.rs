@@ -1,21 +1,21 @@
 #![no_main]
 
-mod fuzz_lib;
+pub(crate) mod fuzz_lib;
 mod mutations;
 mod utils;
 
 use bincode::serde::{borrow_decode_from_slice, encode_to_vec};
-use fuzz_lib::fuzz_target_lib::fuzz_target;
-use fuzz_lib::fuzzer::FuzzerData;
-use fuzz_lib::options::{FuzzerCommandOptions, FuzzerOptions, InstructionOptions};
+use fuzz_lib::{
+    fuzz_target_lib::fuzz_target,
+    fuzzer::FuzzerData,
+    options::{FuzzerCommandOptions, FuzzerMode, FuzzerOptions, InstructionOptions},
+};
 use libfuzzer_sys::Corpus;
 use mutations::mutate;
 use noirc_driver::CompileOptions;
 use rand::{SeedableRng, rngs::StdRng};
 use sha1::{Digest, Sha1};
 use utils::{push_fuzzer_output_to_redis_queue, redis};
-
-use crate::fuzz_lib::options::FuzzerMode;
 
 const MAX_EXECUTION_TIME_TO_KEEP_IN_CORPUS: u64 = 3;
 
@@ -46,6 +46,9 @@ libfuzzer_sys::fuzz_target!(|data: &[u8]| -> Corpus {
         shr_enabled: false,
         alloc_enabled: false,
         array_get_enabled: false,
+        // https://github.com/noir-lang/noir/issues/9559
+        point_add_enabled: false,
+        multi_scalar_mul_enabled: false,
         ..InstructionOptions::default()
     };
     let modes = vec![FuzzerMode::NonConstant];

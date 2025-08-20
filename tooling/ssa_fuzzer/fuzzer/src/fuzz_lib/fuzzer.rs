@@ -13,17 +13,21 @@
 //!    - If programs return different results
 //!    - If one program fails to compile but the other executes successfully
 
-use super::function_context::{FunctionData, WitnessValue};
-use super::instruction::InstructionBlock;
-use super::options::{FuzzerMode, FuzzerOptions};
-use super::program_context::{FuzzerProgramContext, program_context_by_mode};
-use super::{NUMBER_OF_PREDEFINED_VARIABLES, NUMBER_OF_VARIABLES_INITIAL};
+use super::{
+    NUMBER_OF_PREDEFINED_VARIABLES, NUMBER_OF_VARIABLES_INITIAL,
+    function_context::{FunctionData, WitnessValue},
+    instruction::InstructionBlock,
+    options::{FuzzerMode, FuzzerOptions},
+    program_context::{FuzzerProgramContext, program_context_by_mode},
+};
 use acvm::FieldElement;
 use acvm::acir::native_types::{WitnessMap, WitnessStack};
 use libfuzzer_sys::{arbitrary, arbitrary::Arbitrary};
 use noir_ssa_executor::runner::execute_single;
-use noir_ssa_fuzzer::runner::{CompareResults, run_and_compare};
-use noir_ssa_fuzzer::typed_value::ValueType;
+use noir_ssa_fuzzer::{
+    runner::{CompareResults, run_and_compare},
+    typed_value::ValueType,
+};
 use noirc_driver::CompiledProgram;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
@@ -185,6 +189,14 @@ impl Fuzzer {
                 Some(FuzzerOutput { witness_stack: result, program: acir_program })
             }
             CompareResults::Disagree(acir_return_value, brillig_return_value) => {
+                let acir_return_witness =
+                    acir_program.program.functions[0].return_values.0.first().unwrap();
+                let brillig_return_witness =
+                    brillig_program.program.functions[0].return_values.0.first().unwrap();
+                let acir_return_value =
+                    acir_return_value.peek().unwrap().witness[acir_return_witness];
+                let brillig_return_value =
+                    brillig_return_value.peek().unwrap().witness[brillig_return_witness];
                 panic!(
                     "ACIR and Brillig programs returned different results: \
                     ACIR returned {acir_return_value:?}, Brillig returned {brillig_return_value:?}"

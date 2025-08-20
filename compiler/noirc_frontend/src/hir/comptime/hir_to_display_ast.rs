@@ -462,7 +462,13 @@ impl Type {
             // Since there is no UnresolvedTypeData equivalent for Type::Forall, we use
             // this to ignore this case since it shouldn't be needed anyway.
             Type::Forall(_, typ) => return typ.to_display_ast(),
-            Type::Constant(..) => panic!("Type::Constant where a type was expected: {self:?}"),
+            Type::Constant(value, kind) => {
+                UnresolvedTypeData::Expression(UnresolvedTypeExpression::Constant(
+                    *value,
+                    kind.as_integer_type_suffix(),
+                    Location::dummy(),
+                ))
+            }
             Type::Quoted(quoted_type) => {
                 UnresolvedTypeData::quoted(*quoted_type, Location::dummy())
             }

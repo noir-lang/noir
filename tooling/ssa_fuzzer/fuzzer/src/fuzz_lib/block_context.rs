@@ -1,12 +1,15 @@
-use super::instruction::{Argument, FunctionInfo, Instruction};
-use super::options::SsaBlockOptions;
+use super::instruction::Point as InstructionPoint;
+use super::instruction::Scalar as InstructionScalar;
+use super::{
+    instruction::{Argument, FunctionInfo, Instruction},
+    options::SsaBlockOptions,
+};
+use noir_ssa_fuzzer::typed_value::{Point, Scalar};
 use noir_ssa_fuzzer::{
     builder::{FuzzerBuilder, InstructionWithOneArg, InstructionWithTwoArgs},
     typed_value::{TypedValue, ValueType},
 };
-use noirc_evaluator::ssa::ir::basic_block::BasicBlockId;
-use noirc_evaluator::ssa::ir::function::Function;
-use noirc_evaluator::ssa::ir::map::Id;
+use noirc_evaluator::ssa::ir::{basic_block::BasicBlockId, function::Function, map::Id};
 use std::collections::{HashMap, VecDeque};
 use std::iter::zip;
 
@@ -635,6 +638,9 @@ impl BlockContext {
                     Some(input) => input,
                     _ => return,
                 };
+                if limbs_count == 0 {
+                    return;
+                }
                 let bytes = acir_builder.insert_to_le_radix(input.clone(), 256, limbs_count);
                 assert_eq!(
                     bytes.value_id,
@@ -663,6 +669,9 @@ impl BlockContext {
                     Some(input) => input,
                     _ => return,
                 };
+                if limbs_count == 0 {
+                    return;
+                }
                 let bytes = acir_builder.insert_to_le_radix(input.clone(), 256, limbs_count);
                 assert_eq!(
                     bytes.value_id,
@@ -737,7 +746,10 @@ impl BlockContext {
                     }
                 }
             }
-            Instruction::Aes128Encrypt { input_idx, input_limbs_count: _, key_idx, iv_idx } => {
+            Instruction::Aes128Encrypt { input_idx, input_limbs_count, key_idx, iv_idx } => {
+                if input_limbs_count == 0 {
+                    return;
+                }
                 let input = match get_typed_value_from_map(
                     &self.stored_variables,
                     &ValueType::Field,
@@ -762,11 +774,13 @@ impl BlockContext {
                     Some(iv) => iv,
                     _ => return,
                 };
-                // TODO: input limbs are forced to be 16 rn https://github.com/noir-lang/noir/issues/9477
-                let input_bytes = acir_builder.insert_to_le_radix(input.clone(), 256, 16);
+                let input_bytes =
+                    acir_builder.insert_to_le_radix(input.clone(), 256, input_limbs_count);
                 assert_eq!(
                     input_bytes.value_id,
-                    brillig_builder.insert_to_le_radix(input.clone(), 256, 16).value_id
+                    brillig_builder
+                        .insert_to_le_radix(input.clone(), 256, input_limbs_count)
+                        .value_id
                 );
                 let key_bytes = acir_builder.insert_to_le_radix(key.clone(), 256, 16);
                 assert_eq!(
@@ -868,7 +882,112 @@ impl BlockContext {
                     }
                 }
             }
+            Instruction::PointAdd { p1, p2 } => {
+                if !self.options.instruction_options.point_add_enabled {
+                    return;
+                }
+                let p1 = self.ssa_point_from_instruction_point(acir_builder, brillig_builder, p1);
+                let p2 = self.ssa_point_from_instruction_point(acir_builder, brillig_builder, p2);
+                if p1.is_none() || p2.is_none() {
+                    return;
+                }
+                let p1 = p1.unwrap();
+                let p2 = p2.unwrap();
+                let acir_point = acir_builder.point_add(p1.clone(), p2.clone());
+                let brillig_point = brillig_builder.point_add(p1, p2);
+                assert_eq!(acir_point, brillig_point);
+                for typed_value in [&acir_point.x, &acir_point.y, &acir_point.is_infinite] {
+                    append_typed_value_to_map(
+                        &mut self.stored_variables,
+                        &typed_value.to_value_type(),
+                        typed_value.clone(),
+                    );
+                }
+            }
+            Instruction::MultiScalarMul { points_and_scalars } => {
+                if !self.options.instruction_options.multi_scalar_mul_enabled {
+                    return;
+                }
+                let mut points_vec = Vec::new();
+                let mut scalars_vec = Vec::new();
+                for (p, s) in points_and_scalars.iter() {
+                    let point =
+                        self.ssa_point_from_instruction_point(acir_builder, brillig_builder, *p);
+                    let scalar = self.ssa_scalar_from_instruction_scalar(*s);
+                    if point.is_none() || scalar.is_none() {
+                        continue;
+                    }
+                    points_vec.push(point.unwrap());
+                    scalars_vec.push(scalar.unwrap());
+                }
+                if points_vec.is_empty() || scalars_vec.is_empty() {
+                    return;
+                }
+                if points_vec.len() != scalars_vec.len() {
+                    unreachable!("points_vec.len() != scalars_vec.len()");
+                }
+                let acir_point =
+                    acir_builder.multi_scalar_mul(points_vec.clone(), scalars_vec.clone());
+                let brillig_point = brillig_builder.multi_scalar_mul(points_vec, scalars_vec);
+                assert_eq!(acir_point, brillig_point);
+                for typed_value in [&acir_point.x, &acir_point.y, &acir_point.is_infinite] {
+                    append_typed_value_to_map(
+                        &mut self.stored_variables,
+                        &typed_value.to_value_type(),
+                        typed_value.clone(),
+                    );
+                }
+            }
         }
+    }
+
+    /// Takes scalar from [`super::instruction::Scalar`] and converts it to [`noir_ssa_fuzzer::typed_value::Scalar`]
+    fn ssa_scalar_from_instruction_scalar(&mut self, scalar: InstructionScalar) -> Option<Scalar> {
+        let lo = get_typed_value_from_map(
+            &self.stored_variables,
+            &ValueType::Field,
+            scalar.field_lo_idx,
+        );
+        let hi = get_typed_value_from_map(
+            &self.stored_variables,
+            &ValueType::Field,
+            scalar.field_hi_idx,
+        );
+        match (lo, hi) {
+            (Some(lo), Some(hi)) => Some(Scalar { lo, hi }),
+            _ => None,
+        }
+    }
+
+    /// Takes point from [`super::instruction::Point`] and converts it to [`noir_ssa_fuzzer::typed_value::Point`]
+    fn ssa_point_from_instruction_point(
+        &mut self,
+        acir_builder: &mut FuzzerBuilder,
+        brillig_builder: &mut FuzzerBuilder,
+        point: InstructionPoint,
+    ) -> Option<Point> {
+        let scalar = self.ssa_scalar_from_instruction_scalar(point.scalar);
+        scalar.as_ref()?; // wtf clippy forbid me to write if scalar.is_none() {return None}
+        let scalar = scalar.unwrap();
+        let is_infinite = acir_builder.insert_constant(point.is_infinite, ValueType::Boolean);
+        assert_eq!(
+            is_infinite.value_id,
+            brillig_builder.insert_constant(point.is_infinite, ValueType::Boolean).value_id
+        );
+
+        let point = if point.derive_from_scalar_mul {
+            let acir_point = acir_builder.base_scalar_mul(scalar.clone(), is_infinite.clone());
+            let brillig_point = brillig_builder.base_scalar_mul(scalar, is_infinite);
+            assert_eq!(acir_point, brillig_point);
+            acir_point
+        } else {
+            let acir_point =
+                acir_builder.create_point_from_scalar(scalar.clone(), is_infinite.clone());
+            let brillig_point = brillig_builder.create_point_from_scalar(scalar, is_infinite);
+            assert_eq!(acir_point, brillig_point);
+            acir_point
+        };
+        Some(point)
     }
 
     fn insert_array(

@@ -2691,6 +2691,14 @@ fn resolve_trait_item_impl(
                     // This is similar to what's done in `verify_trait_constraint` in the frontend.
                     let mut bindings = interner.get_instantiation_bindings(expr_id).clone();
                     bindings.extend(instantiation_bindings);
+
+                    bind_trait_impl_func_generics_to_trait_func_generics(
+                        interner,
+                        method_id,
+                        impl_id,
+                        &mut bindings,
+                    );
+
                     interner.store_instantiation_bindings(expr_id, bindings);
                     Ok(impl_id)
                 }
@@ -2718,6 +2726,87 @@ fn resolve_trait_item_impl(
                 }
             }
         }
+    }
+}
+
+/// Binds direct generics on a trait impl function to those on a corresponding trait function.
+///
+/// Consider this code:
+///
+/// ```noir
+/// trait Bar {
+///     fn baz<let N: u32>();
+/// }
+///
+/// impl Bar for Field {
+///     fn baz<let M: u32>() {
+///         let _ = M;
+///     }
+/// }
+///
+/// fn foo<K: Bar>() {
+///     K::baz::<2>();
+/// }
+///
+/// fn main() {
+///     foo::<Field>();
+/// }
+/// ```
+///
+/// When type-checking `K::baz::<2>` the compiler will know that it corresponds
+/// to the method `baz` defined on the `Bar` trait, but won't yet know which
+/// trait implementation it refers to. The instantiation bindings for this
+/// will have the type variable `N` bound to `2`.
+///
+/// During monomorphization, on the specific call to `foo::<Field>()`,
+/// the compiler will know that `K` refers to `Field`, and that `K::baz::<2>`
+/// refers to the `baz` method on the `Field` impl for `Bar`. In that method
+/// the type variable `M` is unbound. Looking up its value will fail.
+/// However, we can bind `M` to `N`, so it eventually resolves to `2`,
+/// which is what this method does.
+fn bind_trait_impl_func_generics_to_trait_func_generics(
+    interner: &mut NodeInterner,
+    method_id: TraitItemId,
+    impl_id: node_interner::TraitImplId,
+    bindings: &mut TypeBindings,
+) {
+    // We know the trait method this call resolves to
+    let trait_func_definition = interner.definition(method_id.item_id);
+    let DefinitionKind::Function(trait_func_id) = trait_func_definition.kind else {
+        return;
+    };
+    let trait_func_meta = interner.function_meta(&trait_func_id);
+    let trait_func_name = interner.definition_name(method_id.item_id);
+
+    // Find the corresponding trait impl method
+    let trait_impl = interner.get_trait_implementation(impl_id);
+    let trait_impl = trait_impl.borrow();
+    let trait_impl_func_id = trait_impl
+        .methods
+        .iter()
+        .find(|method| interner.function_name(method) == trait_func_name)
+        .expect("Expected to find trait impl method");
+
+    // Bind trait impl func generics to trait func generics
+    let trait_impl_func_meta = interner.function_meta(trait_impl_func_id);
+    let trait_impl_func_generics = &trait_impl_func_meta.direct_generics;
+    let trait_func_generics = &trait_func_meta.direct_generics;
+    assert_eq!(
+        trait_impl_func_generics.len(),
+        trait_func_generics.len(),
+        "Trait impl function generics and trait function generics should have the same length"
+    );
+    for (trait_func_generic, trait_impl_func_generic) in
+        trait_func_generics.iter().zip(trait_impl_func_generics.iter())
+    {
+        let trait_impl_generic = &trait_impl_func_generic.type_var;
+        bindings.entry(trait_impl_generic.id()).or_insert_with(|| {
+            (
+                trait_impl_generic.clone(),
+                trait_impl_generic.kind(),
+                Type::TypeVariable(trait_func_generic.type_var.clone()),
+            )
+        });
     }
 }
 
