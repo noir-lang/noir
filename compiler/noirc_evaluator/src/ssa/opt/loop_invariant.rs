@@ -5,22 +5,6 @@
 //!    using information derived from induction variables and loop bounds. This optimization
 //!    is essentially constant folding using induction variables.
 //!
-//! ## Preconditions
-//! - Input program is in appropriate SSA form. Meaning that loop headers expose induction variables via block parameters.
-//! - Each loop has a single header block, and at most one exit (except `break`).
-//! - Loops are well-formed with a pre-header; otherwise the pass skips them.
-//!
-//! ## Post-conditions
-//! - All loop-invariant instructions that are safe to hoist are moved to the loop pre-header.
-//! - Instructions inside loops may be simplified if loop bounds or induction variable
-//!   constraints allow (e.g. replacing comparisons with constants).
-//! - Program semantics are preserved:
-//!   - Values computed remain identical to the unoptimized program.
-//!   - Side effects occur in the same order as before.
-//!   - Potential runtime errors (e.g. out-of-bounds, division by zero) occur only if they would have in the original program.
-//! - Control dependence is respected: instructions whose effects depend on runtime conditions
-//!   remain in the loop unless proven safe.
-//!
 //! ## Design
 //! To identify a loop invariant, check whether all of an instruction's values are:
 //! - Outside of the loop
@@ -69,12 +53,6 @@
 //! We then can store the PDFs for every block as part of the context of this pass, and use it for checking control dependence.
 //! Using PDFs gets us from a worst case n^2 complexity to a worst case n.
 //!
-//! ## ACIR vs Brillig
-//! - On ACIR, LICM operates only on pure value computations.
-//! - On Brillig, additional reference-counting rules apply. For example, hoisting [Instruction::MakeArray]
-//!   requires inserting an [Instruction::IncrementRc] to preserve reference semantics if the array
-//!   may later be mutated.
-//!
 //! ### Simplification from Loop Bounds
 //! We analyze induction variables and loop bounds to simplify instructions.
 //! - Replacing conditions with constants when bounds make the condition always true/false.
@@ -83,6 +61,23 @@
 //! Simplification is attempted before hoisting. This maximizes opportunities for
 //! eliminating redundant computations entirely (by replacing them with constants),
 //! and reduces the amount of code even considered for hoisting.
+//! 
+//! ## Preconditions
+//! - The pass will only be run on loops with a single pre-header. If a loop's header has multiple predecessors, 
+//!   the pass will skip that loop.
+//! 
+//! ## Post-conditions
+//! - All loop-invariant instructions that are safe to hoist are moved to the loop pre-header.
+//! - Instructions inside loops may be simplified if loop bounds or induction variable
+//!   constraints allow (e.g. replacing comparisons with constants).
+//! - Control dependence is respected: instructions whose effects depend on runtime conditions
+//!   remain in the loop unless proven safe for hoisting.
+//! 
+//! ## ACIR vs Brillig
+//! - On ACIR, LICM operates only on pure value computations.
+//! - On Brillig, additional reference-counting rules apply. For example, hoisting [Instruction::MakeArray]
+//!   requires inserting an [Instruction::IncrementRc] to preserve reference semantics if the array
+//!   may later be mutated.
 use crate::ssa::{
     Ssa,
     ir::{
@@ -1699,7 +1694,7 @@ mod test {
           b0(v0: [Field; 5]):
             return
         }
-        ";
+        "; 
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.loop_invariant_code_motion();
 
