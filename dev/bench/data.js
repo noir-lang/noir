@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1755726472801,
+  "lastUpdate": 1755728013929,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -19476,48 +19476,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "84741533+defkit@users.noreply.github.com",
-            "name": "defkit",
-            "username": "defkit"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "8d80b281de40a7e270dcf84c2bed91fc249efde8",
-          "message": "feat(ssa_fuzzer): arrays support (#9427)\n\nCo-authored-by: Innokentii Sennovskii <isennovskiy@gmail.com>",
-          "timestamp": "2025-08-08T12:48:30Z",
-          "tree_id": "ac40ad1110c7e02000132eb372627be75f60414e",
-          "url": "https://github.com/noir-lang/noir/commit/8d80b281de40a7e270dcf84c2bed91fc249efde8"
-        },
-        "date": 1754658908620,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 249307,
-            "range": "± 818",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 222123,
-            "range": "± 10284",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2783394,
-            "range": "± 15631",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "163862677+noirwhal@users.noreply.github.com",
             "name": "noirwhal",
             "username": "noirwhal"
@@ -21569,6 +21527,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2778597,
             "range": "± 3437",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e520c96ed5e5e724f870349fde874cf393a79cc7",
+          "message": "chore: Add a section for numeric type aliases (#9589)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
+          "timestamp": "2025-08-20T21:48:22Z",
+          "tree_id": "19e1e583bedf38bfee1374341559cee8170ec809",
+          "url": "https://github.com/noir-lang/noir/commit/e520c96ed5e5e724f870349fde874cf393a79cc7"
+        },
+        "date": 1755727996039,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 248975,
+            "range": "± 663",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 219240,
+            "range": "± 3118",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2780464,
+            "range": "± 11025",
             "unit": "ns/iter"
           }
         ]
