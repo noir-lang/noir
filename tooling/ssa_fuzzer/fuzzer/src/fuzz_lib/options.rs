@@ -26,6 +26,8 @@ pub(crate) struct InstructionOptions {
     pub(crate) unsafe_get_set_enabled: bool,
     pub(crate) point_add_enabled: bool,
     pub(crate) multi_scalar_mul_enabled: bool,
+    pub(crate) ecdsa_secp256r1_enabled: bool,
+    pub(crate) ecdsa_secp256k1_enabled: bool,
 }
 
 impl Default for InstructionOptions {
@@ -54,6 +56,8 @@ impl Default for InstructionOptions {
             unsafe_get_set_enabled: false,
             point_add_enabled: true,
             multi_scalar_mul_enabled: true,
+            ecdsa_secp256r1_enabled: true,
+            ecdsa_secp256k1_enabled: true,
         }
     }
 }

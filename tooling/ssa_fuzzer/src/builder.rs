@@ -919,7 +919,6 @@ impl FuzzerBuilder {
             is_infinite: TypedValue::new(is_infinite, boolean_type),
         }
     }
-<<<<<<< HEAD
 
     fn bytes_to_ssa_array(&mut self, vec: Vec<u8>) -> TypedValue {
         let elements: Vec<Id<Value>> = vec
@@ -987,6 +986,4 @@ impl FuzzerBuilder {
         let result = result[0];
         TypedValue::new(result, return_type)
     }
-=======
->>>>>>> origin
 }

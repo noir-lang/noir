@@ -946,6 +946,9 @@ impl BlockContext {
                 corrupt_pubkey_y,
                 corrupt_signature,
             } => {
+                if !self.options.instruction_options.ecdsa_secp256r1_enabled {
+                    return;
+                }
                 let prepared_signature = generate_ecdsa_signature_and_corrupt_it(
                     &msg,
                     Curve::Secp256r1,
@@ -985,6 +988,9 @@ impl BlockContext {
                 corrupt_pubkey_y,
                 corrupt_signature,
             } => {
+                if !self.options.instruction_options.ecdsa_secp256k1_enabled {
+                    return;
+                }
                 let prepared_signature = generate_ecdsa_signature_and_corrupt_it(
                     &msg,
                     Curve::Secp256k1,
