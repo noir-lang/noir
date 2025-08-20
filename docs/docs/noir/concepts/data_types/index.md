@@ -135,7 +135,7 @@ struct Array<T, let N: u32> {
     data: [T; N],
 }
 
-// When used within other type positions however, we can refer to it without the `::`
+// When used within other type positions, however, we can refer to it without the `::`
 fn concat_self2<let N: u32>(array: Array<u32, N>) -> Array<u32, Double<N>> {
     Array { data: concat_self(array.data) }
 }
