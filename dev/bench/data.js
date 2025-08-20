@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1755723257802,
+  "lastUpdate": 1755725598401,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -19471,48 +19471,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "b7406ba8f22e15d17726849591e75eabaf2b396b",
-          "message": "chore: add link to issue on TODOs (#8307)\n\nCo-authored-by: AztecBot <tech@aztecprotocol.com>\nCo-authored-by: Michael J Klein <michaeljklein@users.noreply.github.com>\nCo-authored-by: Michael J. Klein <lambdamichael@gmail.com>",
-          "timestamp": "2025-08-08T12:54:07+01:00",
-          "tree_id": "cf8ecd8272d48ebbe18f702433bb2ead4c5a7e16",
-          "url": "https://github.com/noir-lang/noir/commit/b7406ba8f22e15d17726849591e75eabaf2b396b"
-        },
-        "date": 1754654200975,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 245561,
-            "range": "± 549",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 219826,
-            "range": "± 8246",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2788101,
-            "range": "± 7370",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "84741533+defkit@users.noreply.github.com",
             "name": "defkit",
             "username": "defkit"
@@ -21564,6 +21522,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2778517,
             "range": "± 4805",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "6d4ee6767d42bfa0e031ab690d3cc64f250418a8",
+          "message": "chore(remove_paired_rc): Add various unit tests (#9425)",
+          "timestamp": "2025-08-20T21:07:43Z",
+          "tree_id": "224e70c326a81bbe80a4dee5f69ceab333266dda",
+          "url": "https://github.com/noir-lang/noir/commit/6d4ee6767d42bfa0e031ab690d3cc64f250418a8"
+        },
+        "date": 1755725579818,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 248666,
+            "range": "± 503",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 217366,
+            "range": "± 2159",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2778597,
+            "range": "± 3437",
             "unit": "ns/iter"
           }
         ]
