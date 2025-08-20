@@ -2174,3 +2174,28 @@ fn trait_where_clause_associated_type_constraint_unexpected_order() {
     "#;
     assert_no_errors!(src);
 }
+
+#[named]
+#[test]
+fn trait_method_numeric_generic_on_function() {
+    let src = r#"
+    trait Bar {
+        fn baz<let N: u32>();
+    }
+
+    impl Bar for Field {
+        fn baz<let N: u32>() {
+            let _ = N;
+        }
+    }
+
+    fn foo<K: Bar>() {
+        K::baz::<2>();
+    }
+
+    fn main() {
+        foo::<Field>();
+    }
+    "#;
+    check_monomorphization_error!(src);
+}
