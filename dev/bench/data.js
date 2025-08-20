@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1755683438903,
+  "lastUpdate": 1755703851558,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -19501,48 +19501,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "e30c3a128aa9a1fd438e278c9fde35cea7bff78e",
-          "message": "chore: add some `assert_constant` tests (#9413)",
-          "timestamp": "2025-08-07T13:14:58Z",
-          "tree_id": "751ef05230d2446f011a7f5d9af6abb480edefc8",
-          "url": "https://github.com/noir-lang/noir/commit/e30c3a128aa9a1fd438e278c9fde35cea7bff78e"
-        },
-        "date": 1754574166155,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 248652,
-            "range": "± 717",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 221412,
-            "range": "± 2972",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2785543,
-            "range": "± 4965",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -21594,6 +21552,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2791902,
             "range": "± 1949",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "ae72bb098e8f4b4103e702031d636a2bb67442e6",
+          "message": "chore: Update unrolling docs for audit (#9572)",
+          "timestamp": "2025-08-20T15:05:07Z",
+          "tree_id": "2f890e77e81459d4d39b5341817cbe3ab5a77313",
+          "url": "https://github.com/noir-lang/noir/commit/ae72bb098e8f4b4103e702031d636a2bb67442e6"
+        },
+        "date": 1755703832376,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 249959,
+            "range": "± 896",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 218896,
+            "range": "± 1544",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2790140,
+            "range": "± 3006",
             "unit": "ns/iter"
           }
         ]
