@@ -253,19 +253,94 @@
 <a href="#252" id="252">252</a>
 <a href="#253" id="253">253</a>
 <a href="#254" id="254">254</a>
-<a href="#255" id="255">255</a></pre></div><pre class="rust"><code><span class="doccomment">//! In the Brillig runtime arrays are represented as [RC, ...items],
-//! Certain operations such as array gets only utilize the items pointer.
-//! Without handling the items pointer offset in SSA, it is left to Brillig generation
-//! to offset the array pointer.
+<a href="#255" id="255">255</a>
+<a href="#256" id="256">256</a>
+<a href="#257" id="257">257</a>
+<a href="#258" id="258">258</a>
+<a href="#259" id="259">259</a>
+<a href="#260" id="260">260</a>
+<a href="#261" id="261">261</a>
+<a href="#262" id="262">262</a>
+<a href="#263" id="263">263</a>
+<a href="#264" id="264">264</a>
+<a href="#265" id="265">265</a>
+<a href="#266" id="266">266</a>
+<a href="#267" id="267">267</a>
+<a href="#268" id="268">268</a>
+<a href="#269" id="269">269</a>
+<a href="#270" id="270">270</a>
+<a href="#271" id="271">271</a>
+<a href="#272" id="272">272</a>
+<a href="#273" id="273">273</a>
+<a href="#274" id="274">274</a>
+<a href="#275" id="275">275</a>
+<a href="#276" id="276">276</a>
+<a href="#277" id="277">277</a>
+<a href="#278" id="278">278</a>
+<a href="#279" id="279">279</a>
+<a href="#280" id="280">280</a>
+<a href="#281" id="281">281</a>
+<a href="#282" id="282">282</a>
+<a href="#283" id="283">283</a>
+<a href="#284" id="284">284</a>
+<a href="#285" id="285">285</a>
+<a href="#286" id="286">286</a>
+<a href="#287" id="287">287</a>
+<a href="#288" id="288">288</a>
+<a href="#289" id="289">289</a>
+<a href="#290" id="290">290</a>
+<a href="#291" id="291">291</a>
+<a href="#292" id="292">292</a>
+<a href="#293" id="293">293</a>
+<a href="#294" id="294">294</a></pre></div><pre class="rust"><code><span class="doccomment">//! This SSA pass adjusts constant indexes of array operations inside Brillig functions
+//! to avoid performing an extra binary operation.
 //!
-//! Slices are represented as Brillig vectors, where the items pointer instead starts at three rather than one.
-//! A Brillig vector is represented as [RC, Size, Capacity, ...items].
+//! For example, if we have this SSA:
 //!
-//! For array operations with constant indices adding an instruction to offset the pointer
-//! is unnecessary as we already know the index. This pass looks for such array operations
-//! with constant indices and replaces their index with the appropriate offset.
+//! ```ssa
+//! b0(v0: [Field; 10]):
+//!   v1 = array_get v0, index u32 3 -&gt; Field
+//! ```
+//!
+//! Brillig would have to fetch the element at index 3 of the array. However,
+//! in the Brillig runtime arrays are represented as [RC, ...items],
+//! where `RC` holds the reference count of the array. That means that the final
+//! index that needs to be retrieved is 4, not 3. With the above operation
+//! the final Brillig code would have to add 1 to 3 to get the desired element.
+//!
+//! So, this pass will transform the above SSA into this:
+//!
+//! ```ssa
+//! b0(v0: [Field; 10]):
+//!   v1 = array_get v0, index u32 4 minus 1 -&gt; Field
+//! ```
+//!
+//! Now the index to retrieve is 4 and there's no need to offset it in Brillig,
+//! avoiding one addition.
+//! The "minus 1" part is just there so that readers can understand that the index
+//! was offset and that the actual element index is 3. On the Brillig side,
+//! array operations with constant indexes are always assumed to have already been
+//! shifted.
+//!
+//! In the case of slices, these are represented as Brillig vectors, where the items
+//! pointer instead starts at three rather than one.
+//! A Brillig vector is represented as [RC, Size, Capacity, ...items]. So for a slice
+//! this pass will transform this:
+//!
+//! ```ssa
+//! b0(v0: [Field]):
+//!   v1 = array_get v0, index u32 3 -&gt; Field
+//! ```
+//!
+//! to this:
+//!
+//! ```ssa
+//! b0(v0: [Field]):
+//!   v1 = array_get v0, index u32 6 minus 3 -&gt; Field
+//! ```
+</span><span class="kw">use </span>acvm::FieldElement;
 
-</span><span class="kw">use crate</span>::{
+<span class="kw">use crate</span>::{
     brillig::brillig_ir::BRILLIG_MEMORY_ADDRESSING_BIT_SIZE,
     ssa::{
         Ssa,
@@ -281,11 +356,10 @@
 <span class="kw">use </span><span class="kw">super</span>::simple_optimization::SimpleOptimizationContext;
 
 <span class="kw">impl </span>Ssa {
-    <span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip(<span class="self">self</span>))]
+    <span class="doccomment">/// See [`brillig_array_get_and_set`][self] module for more information.
+    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip(<span class="self">self</span>))]
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>brillig_array_get_and_set(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; Ssa {
-        <span class="kw">let </span>brillig_functions =
-            <span class="self">self</span>.functions.values_mut().filter(|function| function.runtime().is_brillig());
-        <span class="kw">for </span>function <span class="kw">in </span>brillig_functions {
+        <span class="kw">for </span>function <span class="kw">in </span><span class="self">self</span>.functions.values_mut() {
             function.brillig_array_get_and_set();
         }
 
@@ -294,7 +368,11 @@
 }
 
 <span class="kw">impl </span>Function {
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>brillig_array_get_and_set(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+    <span class="kw">fn </span>brillig_array_get_and_set(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+        <span class="kw">if </span>!<span class="self">self</span>.runtime().is_brillig() {
+            <span class="kw">return</span>;
+        }
+
         <span class="self">self</span>.simple_optimization(|context| {
             <span class="kw">let </span>instruction = context.instruction();
             <span class="kw">match </span>instruction {
@@ -304,11 +382,11 @@
 
                     <span class="kw">let </span>array = <span class="kw-2">*</span>array;
                     <span class="kw">let </span>index = <span class="kw-2">*</span>index;
-                    <span class="kw">if </span>!context.dfg.is_constant(index) {
+                    <span class="kw">let </span><span class="prelude-val">Some</span>(constant_index) = context.dfg.get_numeric_constant(index) <span class="kw">else </span>{
                         <span class="kw">return</span>;
-                    }
+                    };
 
-                    <span class="kw">let </span>(index, offset) = compute_index_and_offset(context, array, index);
+                    <span class="kw">let </span>(index, offset) = compute_index_and_offset(context, array, constant_index);
                     <span class="kw">let </span>new_instruction = Instruction::ArrayGet { array, index, offset };
                     context.replace_current_instruction_with(new_instruction);
                 }
@@ -320,11 +398,11 @@
                     <span class="kw">let </span>index = <span class="kw-2">*</span>index;
                     <span class="kw">let </span>value = <span class="kw-2">*</span>value;
                     <span class="kw">let </span>mutable = <span class="kw-2">*</span>mutable;
-                    <span class="kw">if </span>!context.dfg.is_constant(index) {
+                    <span class="kw">let </span><span class="prelude-val">Some</span>(constant_index) = context.dfg.get_numeric_constant(index) <span class="kw">else </span>{
                         <span class="kw">return</span>;
-                    }
+                    };
 
-                    <span class="kw">let </span>(index, offset) = compute_index_and_offset(context, array, index);
+                    <span class="kw">let </span>(index, offset) = compute_index_and_offset(context, array, constant_index);
                     <span class="kw">let </span>new_instruction =
                         Instruction::ArraySet { array, index, value, mutable, offset };
                     context.replace_current_instruction_with(new_instruction);
@@ -335,20 +413,20 @@
     }
 }
 
-<span class="kw">fn </span>compute_index_and_offset(
+<span class="doccomment">/// Given an array or slice value and a constant index, returns an offset (shifted) index
+/// together with which type of [`ArrayOffset`] was used to shift it.
+</span><span class="kw">fn </span>compute_index_and_offset(
     context: <span class="kw-2">&amp;mut </span>SimpleOptimizationContext,
-    array: ValueId,
-    index: ValueId,
+    array_or_slice: ValueId,
+    constant_index: FieldElement,
 ) -&gt; (ValueId, ArrayOffset) {
-    <span class="kw">let </span>index_constant =
-        context.dfg.get_numeric_constant(index).expect(<span class="string">"ICE: Expected constant index"</span>);
-    <span class="kw">let </span>offset = <span class="kw">if </span><span class="macro">matches!</span>(context.dfg.type_of_value(array), Type::Array(..)) {
+    <span class="kw">let </span>offset = <span class="kw">if </span><span class="macro">matches!</span>(context.dfg.type_of_value(array_or_slice), Type::Array(..)) {
         ArrayOffset::Array
     } <span class="kw">else </span>{
         ArrayOffset::Slice
     };
     <span class="kw">let </span>index = context.dfg.make_constant(
-        index_constant + offset.to_u32().into(),
+        constant_index + offset.to_u32().into(),
         NumericType::unsigned(BRILLIG_MEMORY_ADDRESSING_BIT_SIZE),
     );
     (index, offset)
