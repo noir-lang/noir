@@ -188,7 +188,20 @@ impl Context<'_, '_, '_> {
             return self.numeric_constant(pow, NumericType::NativeField);
         }
 
-        let max_exponent_bits = self.context.dfg.type_of_value(exponent).bit_size().ilog2();
+        // When shifting, for instance, `u32` values the maximum allowed value is 31, one less than the bit size.
+        // Representing the maximum value requires 5 bits, which is log2(32), so any `u32` exponent will require
+        // at most 5 bits. Similarly, `u64` values will require at most 6 bits, etc.
+        // Using `get_value_max_num_bits` here could work, though in practice:
+        // - constant exponents are handled in the `if` above
+        // - if a smaller type was upcasted, for example `u8` to `u32`, an `u8` can hold values up to 256
+        //   which is even larger than the largest unsigned type u128, so nothing better can be done here
+        // - the exception would be upcasting `u1`, where we know the exponent can be either zero or one,
+        //   which we special-case here
+        let max_exponent_bits = if self.context.dfg.get_value_max_num_bits(exponent) == 1 {
+            1
+        } else {
+            self.context.dfg.type_of_value(exponent).bit_size().ilog2()
+        };
         let result_types = vec![Type::Array(Arc::new(vec![Type::bool()]), max_exponent_bits)];
 
         // A call to ToBits can only be done with a field argument (exponent is always u8 here)
