@@ -120,7 +120,7 @@ Type aliases can also be defined for numeric types, which can help cut down on l
 ```rust
 type Double<let N: u32>: u32 = N * 2;
 
-// When used in an array position we need to refer to use the turbofish operator to specify any
+// When used in an array position we need to use the turbofish operator to specify any
 // generics in a numeric type alias
 fn concat_self<let N: u32>(array: [u32; N]) -> [u32; Double::<N>] {
     let mut result = [0; Double::<N>];
