@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["optimize_contract","optimize_program","optimize_program_internal"]};
+window.SIDEBAR_ITEMS = {"fn":["brillig_side_effects","optimize_contract","optimize_program","optimize_program_internal"]};

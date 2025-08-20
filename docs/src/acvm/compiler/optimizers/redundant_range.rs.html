@@ -377,7 +377,104 @@
 <a href="#376" id="376">376</a>
 <a href="#377" id="377">377</a>
 <a href="#378" id="378">378</a>
-<a href="#379" id="379">379</a></pre></div><pre class="rust"><code><span class="doccomment">//! The redundant range constraint optimization pass aims to remove any [BlackBoxFunc::Range] opcodes
+<a href="#379" id="379">379</a>
+<a href="#380" id="380">380</a>
+<a href="#381" id="381">381</a>
+<a href="#382" id="382">382</a>
+<a href="#383" id="383">383</a>
+<a href="#384" id="384">384</a>
+<a href="#385" id="385">385</a>
+<a href="#386" id="386">386</a>
+<a href="#387" id="387">387</a>
+<a href="#388" id="388">388</a>
+<a href="#389" id="389">389</a>
+<a href="#390" id="390">390</a>
+<a href="#391" id="391">391</a>
+<a href="#392" id="392">392</a>
+<a href="#393" id="393">393</a>
+<a href="#394" id="394">394</a>
+<a href="#395" id="395">395</a>
+<a href="#396" id="396">396</a>
+<a href="#397" id="397">397</a>
+<a href="#398" id="398">398</a>
+<a href="#399" id="399">399</a>
+<a href="#400" id="400">400</a>
+<a href="#401" id="401">401</a>
+<a href="#402" id="402">402</a>
+<a href="#403" id="403">403</a>
+<a href="#404" id="404">404</a>
+<a href="#405" id="405">405</a>
+<a href="#406" id="406">406</a>
+<a href="#407" id="407">407</a>
+<a href="#408" id="408">408</a>
+<a href="#409" id="409">409</a>
+<a href="#410" id="410">410</a>
+<a href="#411" id="411">411</a>
+<a href="#412" id="412">412</a>
+<a href="#413" id="413">413</a>
+<a href="#414" id="414">414</a>
+<a href="#415" id="415">415</a>
+<a href="#416" id="416">416</a>
+<a href="#417" id="417">417</a>
+<a href="#418" id="418">418</a>
+<a href="#419" id="419">419</a>
+<a href="#420" id="420">420</a>
+<a href="#421" id="421">421</a>
+<a href="#422" id="422">422</a>
+<a href="#423" id="423">423</a>
+<a href="#424" id="424">424</a>
+<a href="#425" id="425">425</a>
+<a href="#426" id="426">426</a>
+<a href="#427" id="427">427</a>
+<a href="#428" id="428">428</a>
+<a href="#429" id="429">429</a>
+<a href="#430" id="430">430</a>
+<a href="#431" id="431">431</a>
+<a href="#432" id="432">432</a>
+<a href="#433" id="433">433</a>
+<a href="#434" id="434">434</a>
+<a href="#435" id="435">435</a>
+<a href="#436" id="436">436</a>
+<a href="#437" id="437">437</a>
+<a href="#438" id="438">438</a>
+<a href="#439" id="439">439</a>
+<a href="#440" id="440">440</a>
+<a href="#441" id="441">441</a>
+<a href="#442" id="442">442</a>
+<a href="#443" id="443">443</a>
+<a href="#444" id="444">444</a>
+<a href="#445" id="445">445</a>
+<a href="#446" id="446">446</a>
+<a href="#447" id="447">447</a>
+<a href="#448" id="448">448</a>
+<a href="#449" id="449">449</a>
+<a href="#450" id="450">450</a>
+<a href="#451" id="451">451</a>
+<a href="#452" id="452">452</a>
+<a href="#453" id="453">453</a>
+<a href="#454" id="454">454</a>
+<a href="#455" id="455">455</a>
+<a href="#456" id="456">456</a>
+<a href="#457" id="457">457</a>
+<a href="#458" id="458">458</a>
+<a href="#459" id="459">459</a>
+<a href="#460" id="460">460</a>
+<a href="#461" id="461">461</a>
+<a href="#462" id="462">462</a>
+<a href="#463" id="463">463</a>
+<a href="#464" id="464">464</a>
+<a href="#465" id="465">465</a>
+<a href="#466" id="466">466</a>
+<a href="#467" id="467">467</a>
+<a href="#468" id="468">468</a>
+<a href="#469" id="469">469</a>
+<a href="#470" id="470">470</a>
+<a href="#471" id="471">471</a>
+<a href="#472" id="472">472</a>
+<a href="#473" id="473">473</a>
+<a href="#474" id="474">474</a>
+<a href="#475" id="475">475</a>
+<a href="#476" id="476">476</a></pre></div><pre class="rust"><code><span class="doccomment">//! The redundant range constraint optimization pass aims to remove any [BlackBoxFunc::Range] opcodes
 //! which doesn't result in additional restrictions on the value of witnesses.
 //!
 //! Suppose we had the following pseudo-code:
@@ -429,44 +526,62 @@
 //! it would result in a read past the end of the array, which is invalid. We can then remove the explicit
 //! range constraint on `index` as the usage as an array index more tightly constrains its value.
 //!
+//! # Side effects
+//!
+//! The pass will keep range constraints where, should the constraint have failed, removing it
+//! would allow potentially side effecting Brillig calls to be executed, before another constraint
+//! further down the line would have stopped the circuit.
+//!
 //! [BlackBoxFunc::Range]: acir::circuit::black_box_functions::BlackBoxFunc::RANGE
 
 </span><span class="kw">use </span>acir::{
     AcirField,
     circuit::{
         Circuit, Opcode,
+        brillig::BrilligFunctionId,
         opcodes::{BlackBoxFuncCall, BlockId, ConstantOrWitnessEnum, MemOp},
     },
     native_types::Witness,
 };
-<span class="kw">use </span>std::collections::{BTreeMap, HashMap, HashSet};
+<span class="kw">use </span>std::collections::{BTreeMap, BTreeSet, HashMap};
 
-<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>RangeOptimizer&lt;F: AcirField&gt; {
-    <span class="doccomment">/// Maps witnesses to their lowest known bit sizes.
-    </span>lists: BTreeMap&lt;Witness, u32&gt;,
+<span class="doccomment">/// Information gathered about witnesses which are subject to range constraints.
+</span><span class="kw">struct </span>RangeInfo {
+    <span class="doccomment">/// Opcode positions at which stricter bit size information becomes available.
+    </span>switch_points: BTreeSet&lt;usize&gt;,
+    <span class="doccomment">/// Strictest constraint on bit size so far.
+    </span>num_bits: u32,
+    <span class="doccomment">/// Indicate whether the bit size comes from an assertion, in which case we
+    /// can save an equivalent range constraint.
+    </span>is_implied: bool,
+}
+
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>RangeOptimizer&lt;<span class="lifetime">'a</span>, F: AcirField&gt; {
+    <span class="doccomment">/// Maps witnesses to their bit size switch points.
+    </span>infos: BTreeMap&lt;Witness, RangeInfo&gt;,
+    <span class="doccomment">/// The next potential side effect for each opcode.
+    </span>brillig_side_effects: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>BTreeMap&lt;BrilligFunctionId, bool&gt;,
     circuit: Circuit&lt;F&gt;,
 }
 
-<span class="kw">impl</span>&lt;F: AcirField&gt; RangeOptimizer&lt;F&gt; {
+<span class="kw">impl</span>&lt;<span class="lifetime">'a</span>, F: AcirField&gt; RangeOptimizer&lt;<span class="lifetime">'a</span>, F&gt; {
     <span class="doccomment">/// Creates a new `RangeOptimizer` by collecting all known range
     /// constraints from `Circuit`.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(circuit: Circuit&lt;F&gt;) -&gt; <span class="self">Self </span>{
-        <span class="kw">let </span>range_list = <span class="self">Self</span>::collect_ranges(<span class="kw-2">&amp;</span>circuit);
-        <span class="self">Self </span>{ circuit, lists: range_list }
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(
+        circuit: Circuit&lt;F&gt;,
+        brillig_side_effects: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>BTreeMap&lt;BrilligFunctionId, bool&gt;,
+    ) -&gt; <span class="self">Self </span>{
+        <span class="kw">let </span>infos = <span class="self">Self</span>::collect_ranges(<span class="kw-2">&amp;</span>circuit);
+        <span class="self">Self </span>{ circuit, infos, brillig_side_effects }
     }
 
-    <span class="doccomment">/// Stores the lowest bit range, that a witness
-    /// has been constrained to be.
-    /// For example, if we constrain a witness `x` to be
-    /// both 32 bits and 16 bits. This function will
-    /// only store the fact that we have constrained it to
-    /// be 16 bits.
-    </span><span class="kw">fn </span>collect_ranges(circuit: <span class="kw-2">&amp;</span>Circuit&lt;F&gt;) -&gt; BTreeMap&lt;Witness, u32&gt; {
-        <span class="kw">let </span><span class="kw-2">mut </span>witness_to_bit_sizes: BTreeMap&lt;Witness, u32&gt; = BTreeMap::new();
+    <span class="doccomment">/// Collect range information about witnesses.
+    </span><span class="kw">fn </span>collect_ranges(circuit: <span class="kw-2">&amp;</span>Circuit&lt;F&gt;) -&gt; BTreeMap&lt;Witness, RangeInfo&gt; {
+        <span class="kw">let </span><span class="kw-2">mut </span>infos: BTreeMap&lt;Witness, RangeInfo&gt; = BTreeMap::new();
         <span class="kw">let </span><span class="kw-2">mut </span>memory_block_lengths_bit_size: HashMap&lt;BlockId, u32&gt; = HashMap::new();
 
-        <span class="kw">for </span>opcode <span class="kw">in </span><span class="kw-2">&amp;</span>circuit.opcodes {
-            <span class="kw">let </span><span class="prelude-val">Some</span>((witness, num_bits)) = (<span class="kw">match </span>opcode {
+        <span class="kw">for </span>(idx, opcode) <span class="kw">in </span>circuit.opcodes.iter().enumerate() {
+            <span class="kw">let </span><span class="prelude-val">Some</span>((witness, num_bits, is_implied)) = (<span class="kw">match </span>opcode {
                 Opcode::AssertZero(expr) =&gt; {
                     <span class="comment">// If the opcode is constraining a witness to be equal to a value then it can be considered
                     // as a range opcode for the number of bits required to hold that value.
@@ -476,12 +591,10 @@
                         <span class="kw">let </span>witness_value = -constant / k;
 
                         <span class="kw">if </span>witness_value.is_zero() {
-                            <span class="prelude-val">Some</span>((witness, <span class="number">0</span>))
+                            <span class="prelude-val">Some</span>((witness, <span class="number">0</span>, <span class="bool-val">true</span>))
                         } <span class="kw">else </span>{
-                            <span class="comment">// We subtract off 1 bit from the implied witness value to give the weakest range constraint
-                            // which would be stricter than the constraint imposed by this opcode.
-                            </span><span class="kw">let </span>implied_range_constraint_bits = witness_value.num_bits() - <span class="number">1</span>;
-                            <span class="prelude-val">Some</span>((witness, implied_range_constraint_bits))
+                            <span class="kw">let </span>implied_range_constraint_bits = witness_value.num_bits();
+                            <span class="prelude-val">Some</span>((witness, implied_range_constraint_bits, <span class="bool-val">true</span>))
                         }
                     } <span class="kw">else </span>{
                         <span class="prelude-val">None
@@ -490,7 +603,7 @@
 
                 Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE { input }) =&gt; {
                     <span class="kw">if let </span>ConstantOrWitnessEnum::Witness(witness) = input.input() {
-                        <span class="prelude-val">Some</span>((witness, input.num_bits()))
+                        <span class="prelude-val">Some</span>((witness, input.num_bits(), <span class="bool-val">false</span>))
                     } <span class="kw">else </span>{
                         <span class="prelude-val">None
                     </span>}
@@ -509,6 +622,7 @@
                             <span class="kw-2">*</span>memory_block_lengths_bit_size
                                 .get(block_id)
                                 .expect(<span class="string">"memory must be initialized before any reads/writes"</span>),
+                            <span class="bool-val">true</span>,
                         )
                     })
                 }
@@ -520,83 +634,101 @@
 
             <span class="comment">// Check if the witness has already been recorded and if the witness
             // size is more than the current one, we replace it
-            </span>witness_to_bit_sizes
+            </span>infos
                 .entry(witness)
-                .and_modify(|old_range_bits| {
-                    <span class="kw-2">*</span>old_range_bits = std::cmp::min(<span class="kw-2">*</span>old_range_bits, num_bits);
+                .and_modify(|info| {
+                    <span class="kw">if </span>num_bits &lt; info.num_bits
+                        || num_bits == info.num_bits &amp;&amp; is_implied &amp;&amp; !info.is_implied
+                    {
+                        info.switch_points.insert(idx);
+                        info.num_bits = num_bits;
+                        info.is_implied = is_implied;
+                    }
                 })
-                .or_insert(num_bits);
+                .or_insert_with(|| RangeInfo {
+                    num_bits,
+                    is_implied,
+                    switch_points: BTreeSet::from_iter(std::iter::once(idx)),
+                });
         }
-        witness_to_bit_sizes
+        infos
     }
 
     <span class="doccomment">/// Returns a `Circuit` where each Witness is only range constrained
-    /// once to the lowest number `bit size` possible.
+    /// a minimal number of times that still allows us to avoid executing
+    /// any new side effects due to their removal.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>replace_redundant_ranges(
         <span class="self">self</span>,
         order_list: Vec&lt;usize&gt;,
     ) -&gt; (Circuit&lt;F&gt;, Vec&lt;usize&gt;) {
-        <span class="kw">let </span><span class="kw-2">mut </span>already_seen_witness = HashSet::new();
-
         <span class="kw">let </span><span class="kw-2">mut </span>new_order_list = Vec::with_capacity(order_list.len());
         <span class="kw">let </span><span class="kw-2">mut </span>optimized_opcodes = Vec::with_capacity(<span class="self">self</span>.circuit.opcodes.len());
-        <span class="kw">for </span>(idx, opcode) <span class="kw">in </span><span class="self">self</span>.circuit.opcodes.into_iter().enumerate() {
-            <span class="kw">let </span>(witness, num_bits) = {
-                <span class="comment">// If its not the range opcode, add it to the opcode
-                // list and continue;
-                </span><span class="kw">let </span><span class="kw-2">mut </span>push_non_range_opcode = || {
-                    optimized_opcodes.push(opcode.clone());
-                    new_order_list.push(order_list[idx]);
-                };
-
-                <span class="kw">match </span>opcode {
-                    Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE { input }) =&gt; {
-                        <span class="kw">match </span>input.input() {
-                            ConstantOrWitnessEnum::Witness(witness) =&gt; (witness, input.num_bits()),
-                            <span class="kw">_ </span>=&gt; {
-                                push_non_range_opcode();
-                                <span class="kw">continue</span>;
-                            }
-                        }
-                    }
-                    <span class="kw">_ </span>=&gt; {
-                        push_non_range_opcode();
-                        <span class="kw">continue</span>;
+        <span class="comment">// Consider the index beyond the last as a pseudo size effect by which time all constraints need to be inserted.
+        </span><span class="kw">let </span><span class="kw-2">mut </span>next_side_effect = <span class="self">self</span>.circuit.opcodes.len();
+        <span class="comment">// Going in reverse so we can propagate the side effect information backwards.
+        </span><span class="kw">for </span>(idx, opcode) <span class="kw">in </span><span class="self">self</span>.circuit.opcodes.into_iter().enumerate().rev() {
+            <span class="kw">let </span><span class="prelude-val">Some</span>(witness) = (<span class="kw">match </span>opcode {
+                Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE { input }) =&gt; {
+                    <span class="kw">match </span>input.input() {
+                        ConstantOrWitnessEnum::Witness(witness) =&gt; <span class="prelude-val">Some</span>(witness),
+                        <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
                     }
                 }
+                Opcode::BrilligCall { id, .. } =&gt; {
+                    <span class="comment">// Assume that Brillig calls might have side effects, unless we know they don't.
+                    </span><span class="kw">if </span><span class="self">self</span>.brillig_side_effects.get(<span class="kw-2">&amp;</span>id).copied().unwrap_or(<span class="bool-val">true</span>) {
+                        next_side_effect = idx;
+                    }
+                    <span class="prelude-val">None
+                </span>}
+                <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
+            }) <span class="kw">else </span>{
+                <span class="comment">// If its not the range opcode, add it to the opcode list and continue.
+                </span>optimized_opcodes.push(opcode.clone());
+                new_order_list.push(order_list[idx]);
+                <span class="kw">continue</span>;
             };
-            <span class="comment">// If we've already applied the range constraint for this witness then skip this opcode.
-            </span><span class="kw">let </span>already_added = already_seen_witness.contains(<span class="kw-2">&amp;</span>witness);
-            <span class="kw">if </span>already_added {
+
+            <span class="kw">let </span>info = <span class="self">self</span>.infos.get(<span class="kw-2">&amp;</span>witness).expect(<span class="string">"Could not find witness. This should never be the case if `collect_ranges` is called"</span>);
+
+            <span class="comment">// If this is not a switch point, then we should have already added a range constraint at least as strict, if it was needed.
+            </span><span class="kw">if </span>!info.switch_points.contains(<span class="kw-2">&amp;</span>idx) {
                 <span class="kw">continue</span>;
             }
 
-            <span class="comment">// Check if this is the lowest number of bits in the circuit
-            </span><span class="kw">let </span>stored_num_bits = <span class="self">self</span>.lists.get(<span class="kw-2">&amp;</span>witness).expect(<span class="string">"Could not find witness. This should never be the case if `collect_ranges` is called"</span>);
-            <span class="kw">let </span>is_lowest_bit_size = num_bits &lt;= <span class="kw-2">*</span>stored_num_bits;
+            <span class="comment">// Check if we have an even stricter point before the next side effect.
+            </span><span class="kw">let </span>has_stricter_before_next_side_effect = info
+                .switch_points
+                .iter()
+                .any(|switch_idx| <span class="kw-2">*</span>switch_idx &gt; idx &amp;&amp; <span class="kw-2">*</span>switch_idx &lt; next_side_effect);
 
-            <span class="comment">// If the opcode is associated with the lowest bit size
-            // and we have not added a duplicate of this opcode yet,
-            // then we should add retain this range opcode.
-            </span><span class="kw">if </span>is_lowest_bit_size {
-                already_seen_witness.insert(witness);
-                new_order_list.push(order_list[idx]);
-                optimized_opcodes.push(opcode.clone());
+            <span class="comment">// If there is something even stricter before the next side effect (or the end), we don't need this.
+            </span><span class="kw">if </span>has_stricter_before_next_side_effect {
+                <span class="kw">continue</span>;
             }
+
+            new_order_list.push(order_list[idx]);
+            optimized_opcodes.push(opcode.clone());
         }
+
+        <span class="comment">// Restore forward order.
+        </span>optimized_opcodes.reverse();
+        new_order_list.reverse();
 
         (Circuit { opcodes: optimized_opcodes, ..<span class="self">self</span>.circuit }, new_order_list)
     }
 }
 
-<span class="kw">fn </span>memory_block_implied_max_bits(init: <span class="kw-2">&amp;</span>[Witness]) -&gt; u32 {
+<span class="doccomment">/// Calculate the maximum number of bits required to index a memory block of a certain size.
+</span><span class="kw">fn </span>memory_block_implied_max_bits(init: <span class="kw-2">&amp;</span>[Witness]) -&gt; u32 {
     <span class="kw">let </span>array_len = init.len() <span class="kw">as </span>u32;
-    <span class="number">32 </span>- array_len.leading_zeros()
+    <span class="kw">let </span>max_index = array_len.saturating_sub(<span class="number">1</span>);
+    <span class="number">32 </span>- max_index.leading_zeros()
 }
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
-    <span class="kw">use </span>std::collections::BTreeSet;
+    <span class="kw">use </span>std::collections::{BTreeMap, BTreeSet};
 
     <span class="kw">use </span><span class="kw">crate</span>::compiler::optimizers::redundant_range::{
         RangeOptimizer, memory_block_implied_max_bits,
@@ -605,6 +737,7 @@
         FieldElement,
         circuit::{
             Circuit, ExpressionWidth, Opcode, PublicInputs,
+            brillig::{BrilligFunctionId, BrilligInputs},
             opcodes::{BlackBoxFuncCall, BlockId, BlockType, FunctionInput, MemOp},
         },
         native_types::{Expression, Witness},
@@ -613,22 +746,22 @@
     <span class="attr">#[test]
     </span><span class="kw">fn </span>correctly_calculates_memory_block_implied_max_bits() {
         <span class="macro">assert_eq!</span>(memory_block_implied_max_bits(<span class="kw-2">&amp;</span>[]), <span class="number">0</span>);
-        <span class="macro">assert_eq!</span>(memory_block_implied_max_bits(<span class="kw-2">&amp;</span>[Witness(<span class="number">0</span>); <span class="number">1</span>]), <span class="number">1</span>);
-        <span class="macro">assert_eq!</span>(memory_block_implied_max_bits(<span class="kw-2">&amp;</span>[Witness(<span class="number">0</span>); <span class="number">2</span>]), <span class="number">2</span>);
+        <span class="macro">assert_eq!</span>(memory_block_implied_max_bits(<span class="kw-2">&amp;</span>[Witness(<span class="number">0</span>); <span class="number">1</span>]), <span class="number">0</span>);
+        <span class="macro">assert_eq!</span>(memory_block_implied_max_bits(<span class="kw-2">&amp;</span>[Witness(<span class="number">0</span>); <span class="number">2</span>]), <span class="number">1</span>);
         <span class="macro">assert_eq!</span>(memory_block_implied_max_bits(<span class="kw-2">&amp;</span>[Witness(<span class="number">0</span>); <span class="number">3</span>]), <span class="number">2</span>);
-        <span class="macro">assert_eq!</span>(memory_block_implied_max_bits(<span class="kw-2">&amp;</span>[Witness(<span class="number">0</span>); <span class="number">4</span>]), <span class="number">3</span>);
-        <span class="macro">assert_eq!</span>(memory_block_implied_max_bits(<span class="kw-2">&amp;</span>[Witness(<span class="number">0</span>); <span class="number">8</span>]), <span class="number">4</span>);
+        <span class="macro">assert_eq!</span>(memory_block_implied_max_bits(<span class="kw-2">&amp;</span>[Witness(<span class="number">0</span>); <span class="number">4</span>]), <span class="number">2</span>);
+        <span class="macro">assert_eq!</span>(memory_block_implied_max_bits(<span class="kw-2">&amp;</span>[Witness(<span class="number">0</span>); <span class="number">8</span>]), <span class="number">3</span>);
         <span class="macro">assert_eq!</span>(memory_block_implied_max_bits(<span class="kw-2">&amp;</span>[Witness(<span class="number">0</span>); u8::MAX <span class="kw">as </span>usize]), <span class="number">8</span>);
         <span class="macro">assert_eq!</span>(memory_block_implied_max_bits(<span class="kw-2">&amp;</span>[Witness(<span class="number">0</span>); u16::MAX <span class="kw">as </span>usize]), <span class="number">16</span>);
     }
 
-    <span class="kw">fn </span>test_circuit(ranges: Vec&lt;(Witness, u32)&gt;) -&gt; Circuit&lt;FieldElement&gt; {
-        <span class="kw">fn </span>test_range_constraint(witness: Witness, num_bits: u32) -&gt; Opcode&lt;FieldElement&gt; {
-            Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
-                input: FunctionInput::witness(witness, num_bits),
-            })
-        }
+    <span class="kw">fn </span>test_range_constraint(witness: Witness, num_bits: u32) -&gt; Opcode&lt;FieldElement&gt; {
+        Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
+            input: FunctionInput::witness(witness, num_bits),
+        })
+    }
 
+    <span class="kw">fn </span>test_circuit(ranges: Vec&lt;(Witness, u32)&gt;) -&gt; Circuit&lt;FieldElement&gt; {
         <span class="kw">let </span>opcodes: Vec&lt;<span class="kw">_</span>&gt; = ranges
             .into_iter()
             .map(|(witness, num_bits)| test_range_constraint(witness, num_bits))
@@ -650,14 +783,15 @@
         <span class="comment">// The optimizer should keep the lowest bit size range constraint
         </span><span class="kw">let </span>circuit = test_circuit(<span class="macro">vec!</span>[(Witness(<span class="number">1</span>), <span class="number">32</span>), (Witness(<span class="number">1</span>), <span class="number">16</span>)]);
         <span class="kw">let </span>acir_opcode_positions = circuit.opcodes.iter().enumerate().map(|(i, <span class="kw">_</span>)| i).collect();
-        <span class="kw">let </span>optimizer = RangeOptimizer::new(circuit);
+        <span class="kw">let </span>brillig_side_effects = BTreeMap::new();
+        <span class="kw">let </span>optimizer = RangeOptimizer::new(circuit, <span class="kw-2">&amp;</span>brillig_side_effects);
 
-        <span class="kw">let </span>range_size = <span class="kw-2">*</span>optimizer
-            .lists
+        <span class="kw">let </span>info = optimizer
+            .infos
             .get(<span class="kw-2">&amp;</span>Witness(<span class="number">1</span>))
             .expect(<span class="string">"Witness(1) was inserted, but it is missing from the map"</span>);
         <span class="macro">assert_eq!</span>(
-            range_size, <span class="number">16</span>,
+            info.num_bits, <span class="number">16</span>,
             <span class="string">"expected a range size of 16 since that was the lowest bit size provided"
         </span>);
 
@@ -683,7 +817,8 @@
             (Witness(<span class="number">2</span>), <span class="number">23</span>),
         ]);
         <span class="kw">let </span>acir_opcode_positions = circuit.opcodes.iter().enumerate().map(|(i, <span class="kw">_</span>)| i).collect();
-        <span class="kw">let </span>optimizer = RangeOptimizer::new(circuit);
+        <span class="kw">let </span>brillig_side_effects = BTreeMap::new();
+        <span class="kw">let </span>optimizer = RangeOptimizer::new(circuit, <span class="kw-2">&amp;</span>brillig_side_effects);
         <span class="kw">let </span>(optimized_circuit, <span class="kw">_</span>) = optimizer.replace_redundant_ranges(acir_opcode_positions);
         <span class="macro">assert_eq!</span>(optimized_circuit.opcodes.len(), <span class="number">2</span>);
 
@@ -712,7 +847,8 @@
         circuit.opcodes.push(Opcode::AssertZero(Expression::default()));
         circuit.opcodes.push(Opcode::AssertZero(Expression::default()));
         <span class="kw">let </span>acir_opcode_positions = circuit.opcodes.iter().enumerate().map(|(i, <span class="kw">_</span>)| i).collect();
-        <span class="kw">let </span>optimizer = RangeOptimizer::new(circuit);
+        <span class="kw">let </span>brillig_side_effects = BTreeMap::new();
+        <span class="kw">let </span>optimizer = RangeOptimizer::new(circuit, <span class="kw-2">&amp;</span>brillig_side_effects);
         <span class="kw">let </span>(optimized_circuit, <span class="kw">_</span>) = optimizer.replace_redundant_ranges(acir_opcode_positions);
         <span class="macro">assert_eq!</span>(optimized_circuit.opcodes.len(), <span class="number">5</span>);
     }
@@ -724,10 +860,67 @@
 
         circuit.opcodes.push(Opcode::AssertZero(Witness(<span class="number">1</span>).into()));
         <span class="kw">let </span>acir_opcode_positions = circuit.opcodes.iter().enumerate().map(|(i, <span class="kw">_</span>)| i).collect();
-        <span class="kw">let </span>optimizer = RangeOptimizer::new(circuit);
+        <span class="kw">let </span>brillig_side_effects = BTreeMap::new();
+        <span class="kw">let </span>optimizer = RangeOptimizer::new(circuit, <span class="kw-2">&amp;</span>brillig_side_effects);
         <span class="kw">let </span>(optimized_circuit, <span class="kw">_</span>) = optimizer.replace_redundant_ranges(acir_opcode_positions);
         <span class="macro">assert_eq!</span>(optimized_circuit.opcodes.len(), <span class="number">1</span>);
         <span class="macro">assert_eq!</span>(optimized_circuit.opcodes[<span class="number">0</span>], Opcode::AssertZero(Witness(<span class="number">1</span>).into()));
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>potential_side_effects() {
+        <span class="comment">// The optimizer should not remove range constraints if doing so might allow invalid side effects to go through.
+        </span><span class="kw">let </span><span class="kw-2">mut </span>circuit = test_circuit(<span class="macro">vec!</span>[(Witness(<span class="number">1</span>), <span class="number">32</span>)]);
+
+        <span class="comment">// Call brillig with w2
+        </span>circuit.opcodes.push(Opcode::BrilligCall {
+            id: BrilligFunctionId(<span class="number">0</span>),
+            inputs: <span class="macro">vec!</span>[BrilligInputs::Single(Witness(<span class="number">2</span>).into())],
+            outputs: <span class="macro">vec!</span>[],
+            predicate: <span class="prelude-val">None</span>,
+        });
+
+        circuit.opcodes.push(test_range_constraint(Witness(<span class="number">1</span>), <span class="number">16</span>));
+
+        <span class="comment">// Anther call
+        </span>circuit.opcodes.push(Opcode::BrilligCall {
+            id: BrilligFunctionId(<span class="number">0</span>),
+            inputs: <span class="macro">vec!</span>[BrilligInputs::Single(Witness(<span class="number">2</span>).into())],
+            outputs: <span class="macro">vec!</span>[],
+            predicate: <span class="prelude-val">None</span>,
+        });
+
+        <span class="comment">// One more constraint, but this is redundant.
+        </span>circuit.opcodes.push(test_range_constraint(Witness(<span class="number">1</span>), <span class="number">64</span>));
+        <span class="comment">// assert w1 == 0
+        </span>circuit.opcodes.push(Opcode::AssertZero(Witness(<span class="number">1</span>).into()));
+
+        <span class="kw">let </span>acir_opcode_positions: Vec&lt;usize&gt; =
+            circuit.opcodes.iter().enumerate().map(|(i, <span class="kw">_</span>)| i).collect();
+
+        <span class="comment">// The last constraint is expected to be removed.
+        </span><span class="kw">let </span>expected_length = circuit.opcodes.len() - <span class="number">1</span>;
+
+        <span class="comment">// Consider the Brillig function to have a side effect.
+        </span><span class="kw">let </span>brillig_side_effects = BTreeMap::from_iter(<span class="macro">vec!</span>[(BrilligFunctionId(<span class="number">0</span>), <span class="bool-val">true</span>)]);
+
+        <span class="kw">let </span>optimizer = RangeOptimizer::new(circuit, <span class="kw-2">&amp;</span>brillig_side_effects);
+        <span class="kw">let </span>(optimized_circuit, <span class="kw">_</span>) =
+            optimizer.replace_redundant_ranges(acir_opcode_positions.clone());
+
+        <span class="macro">assert_eq!</span>(optimized_circuit.opcodes.len(), expected_length);
+        <span class="macro">assert_eq!</span>(
+            optimized_circuit.opcodes[<span class="number">0</span>],
+            Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
+                input: FunctionInput::witness(Witness(<span class="number">1</span>), <span class="number">32</span>) <span class="comment">// The minimum does not propagate backwards.
+            </span>})
+        );
+
+        <span class="comment">// Applying again should have no effect (despite the range having the same bit size as the assert).
+        </span><span class="kw">let </span>optimizer = RangeOptimizer::new(optimized_circuit, <span class="kw-2">&amp;</span>brillig_side_effects);
+        <span class="kw">let </span>(double_optimized_circuit, <span class="kw">_</span>) =
+            optimizer.replace_redundant_ranges(acir_opcode_positions);
+        <span class="macro">assert_eq!</span>(double_optimized_circuit.opcodes.len(), expected_length);
     }
 
     <span class="attr">#[test]
@@ -749,7 +942,8 @@
         circuit.opcodes.push(mem_init.clone());
         circuit.opcodes.push(mem_op.clone());
         <span class="kw">let </span>acir_opcode_positions = circuit.opcodes.iter().enumerate().map(|(i, <span class="kw">_</span>)| i).collect();
-        <span class="kw">let </span>optimizer = RangeOptimizer::new(circuit);
+        <span class="kw">let </span>brillig_side_effects = BTreeMap::new();
+        <span class="kw">let </span>optimizer = RangeOptimizer::new(circuit, <span class="kw-2">&amp;</span>brillig_side_effects);
         <span class="kw">let </span>(optimized_circuit, <span class="kw">_</span>) = optimizer.replace_redundant_ranges(acir_opcode_positions);
         <span class="macro">assert_eq!</span>(optimized_circuit.opcodes.len(), <span class="number">2</span>);
         <span class="macro">assert_eq!</span>(optimized_circuit.opcodes[<span class="number">0</span>], mem_init);

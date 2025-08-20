@@ -54,7 +54,9 @@
 <a href="#53" id="53">53</a>
 <a href="#54" id="54">54</a>
 <a href="#55" id="55">55</a>
-<a href="#56" id="56">56</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
+<a href="#56" id="56">56</a>
+<a href="#57" id="57">57</a>
+<a href="#58" id="58">58</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
     FieldElement,
     acir::circuit::{ExpressionWidth, Program},
 };
@@ -96,12 +98,14 @@
 ) -&gt; Program&lt;FieldElement&gt; {
     <span class="kw">let </span>functions = std::mem::take(<span class="kw-2">&amp;mut </span>program.functions);
 
+    <span class="kw">let </span>brillig_side_effects = <span class="kw">super</span>::optimize::brillig_side_effects(<span class="kw-2">&amp;</span>program);
+
     <span class="kw">let </span>optimized_functions = functions
         .into_iter()
         .enumerate()
         .map(|(i, function)| {
             <span class="kw">let </span>(optimized_circuit, location_map) =
-                acvm::compiler::compile(function, expression_width);
+                acvm::compiler::compile(function, expression_width, <span class="kw-2">&amp;</span>brillig_side_effects);
             debug[i].update_acir(location_map);
             optimized_circuit
         })

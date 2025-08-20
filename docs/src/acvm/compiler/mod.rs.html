@@ -105,11 +105,19 @@
 <a href="#104" id="104">104</a>
 <a href="#105" id="105">105</a>
 <a href="#106" id="106">106</a>
-<a href="#107" id="107">107</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashMap;
+<a href="#107" id="107">107</a>
+<a href="#108" id="108">108</a>
+<a href="#109" id="109">109</a>
+<a href="#110" id="110">110</a>
+<a href="#111" id="111">111</a>
+<a href="#112" id="112">112</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::{BTreeMap, HashMap};
 
 <span class="kw">use </span>acir::{
     AcirField,
-    circuit::{AcirOpcodeLocation, AssertionPayload, Circuit, ExpressionWidth, OpcodeLocation},
+    circuit::{
+        AcirOpcodeLocation, AssertionPayload, Circuit, ExpressionWidth, OpcodeLocation,
+        brillig::BrilligFunctionId,
+    },
 };
 
 <span class="comment">// The various passes that we can use over ACIR
@@ -199,13 +207,15 @@
 </span><span class="kw">pub fn </span>compile&lt;F: AcirField&gt;(
     acir: Circuit&lt;F&gt;,
     expression_width: ExpressionWidth,
+    brillig_side_effects: <span class="kw-2">&amp;</span>BTreeMap&lt;BrilligFunctionId, bool&gt;,
 ) -&gt; (Circuit&lt;F&gt;, AcirTransformationMap) {
     <span class="kw">let </span>acir_opcode_positions = (<span class="number">0</span>..acir.opcodes.len()).collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
 
-    <span class="kw">let </span>(acir, acir_opcode_positions) = optimize_internal(acir, acir_opcode_positions);
+    <span class="kw">let </span>(acir, acir_opcode_positions) =
+        optimize_internal(acir, acir_opcode_positions, brillig_side_effects);
 
     <span class="kw">let </span>(<span class="kw-2">mut </span>acir, acir_opcode_positions) =
-        transform_internal(acir, expression_width, acir_opcode_positions);
+        transform_internal(acir, expression_width, acir_opcode_positions, brillig_side_effects);
 
     <span class="kw">let </span>transformation_map = AcirTransformationMap::new(<span class="kw-2">&amp;</span>acir_opcode_positions);
     acir.assert_messages = transform_assert_messages(acir.assert_messages, <span class="kw-2">&amp;</span>transformation_map);

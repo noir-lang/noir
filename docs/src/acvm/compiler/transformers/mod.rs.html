@@ -498,11 +498,22 @@
 <a href="#497" id="497">497</a>
 <a href="#498" id="498">498</a>
 <a href="#499" id="499">499</a>
-<a href="#500" id="500">500</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::{
+<a href="#500" id="500">500</a>
+<a href="#501" id="501">501</a>
+<a href="#502" id="502">502</a>
+<a href="#503" id="503">503</a>
+<a href="#504" id="504">504</a>
+<a href="#505" id="505">505</a>
+<a href="#506" id="506">506</a>
+<a href="#507" id="507">507</a>
+<a href="#508" id="508">508</a>
+<a href="#509" id="509">509</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
+
+<span class="kw">use </span>acir::{
     AcirField,
     circuit::{
         <span class="self">self</span>, Circuit, ExpressionWidth, Opcode,
-        brillig::{BrilligInputs, BrilligOutputs},
+        brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs},
         opcodes::{BlackBoxFuncCall, FunctionInput, MemOp},
     },
     native_types::{Expression, Witness},
@@ -529,13 +540,14 @@
 </span><span class="kw">pub fn </span>transform&lt;F: AcirField&gt;(
     acir: Circuit&lt;F&gt;,
     expression_width: ExpressionWidth,
+    brillig_side_effects: <span class="kw-2">&amp;</span>BTreeMap&lt;BrilligFunctionId, bool&gt;,
 ) -&gt; (Circuit&lt;F&gt;, AcirTransformationMap) {
     <span class="comment">// Track original acir opcode positions throughout the transformation passes of the compilation
     // by applying the modifications done to the circuit opcodes and also to the opcode_positions (delete and insert)
     </span><span class="kw">let </span>acir_opcode_positions = acir.opcodes.iter().enumerate().map(|(i, <span class="kw">_</span>)| i).collect();
 
     <span class="kw">let </span>(<span class="kw-2">mut </span>acir, acir_opcode_positions) =
-        transform_internal(acir, expression_width, acir_opcode_positions);
+        transform_internal(acir, expression_width, acir_opcode_positions, brillig_side_effects);
 
     <span class="kw">let </span>transformation_map = AcirTransformationMap::new(<span class="kw-2">&amp;</span>acir_opcode_positions);
 
@@ -554,6 +566,7 @@
     <span class="kw-2">mut </span>acir: Circuit&lt;F&gt;,
     expression_width: ExpressionWidth,
     <span class="kw-2">mut </span>acir_opcode_positions: Vec&lt;usize&gt;,
+    brillig_side_effects: <span class="kw-2">&amp;</span>BTreeMap&lt;BrilligFunctionId, bool&gt;,
 ) -&gt; (Circuit&lt;F&gt;, Vec&lt;usize&gt;) {
     <span class="kw">if </span>acir.opcodes.len() == <span class="number">1 </span>&amp;&amp; <span class="macro">matches!</span>(acir.opcodes[<span class="number">0</span>], Opcode::BrilligCall { .. }) {
         <span class="macro">info!</span>(<span class="string">"Program is fully unconstrained, skipping transformation pass"</span>);
@@ -567,8 +580,12 @@
     // don't stabilize unless we also repeat the backend agnostic optimizations.
     </span><span class="kw">for _ in </span><span class="number">0</span>..MAX_TRANSFORMER_PASSES {
         <span class="macro">info!</span>(<span class="string">"Number of opcodes {}"</span>, acir.opcodes.len());
-        <span class="kw">let </span>(new_acir, new_acir_opcode_positions) =
-            transform_internal_once(acir, expression_width, acir_opcode_positions);
+        <span class="kw">let </span>(new_acir, new_acir_opcode_positions) = transform_internal_once(
+            acir,
+            expression_width,
+            acir_opcode_positions,
+            brillig_side_effects,
+        );
 
         acir = new_acir;
         acir_opcode_positions = new_acir_opcode_positions;
@@ -609,6 +626,7 @@
     <span class="kw-2">mut </span>acir: Circuit&lt;F&gt;,
     expression_width: ExpressionWidth,
     acir_opcode_positions: Vec&lt;usize&gt;,
+    brillig_side_effects: <span class="kw-2">&amp;</span>BTreeMap&lt;BrilligFunctionId, bool&gt;,
 ) -&gt; (Circuit&lt;F&gt;, Vec&lt;usize&gt;) {
     <span class="comment">// If the expression width is unbounded, we don't need to do anything.
     </span><span class="kw">let </span><span class="kw-2">mut </span>transformer = <span class="kw">match </span><span class="kw-2">&amp;</span>expression_width {
@@ -742,7 +760,7 @@
     <span class="comment">// 3. Remove redundant range constraints.
     // The `MergeOptimizer` can merge two witnesses which have range opcodes applied to them
     // so we run the `RangeOptimizer` afterwards to clear these up.
-    </span><span class="kw">let </span>range_optimizer = RangeOptimizer::new(acir);
+    </span><span class="kw">let </span>range_optimizer = RangeOptimizer::new(acir, brillig_side_effects);
     <span class="kw">let </span>(acir, new_acir_opcode_positions) =
         range_optimizer.replace_redundant_ranges(new_acir_opcode_positions);
 

@@ -559,7 +559,10 @@
 <a href="#558" id="558">558</a>
 <a href="#559" id="559">559</a>
 <a href="#560" id="560">560</a>
-<a href="#561" id="561">561</a></pre></div><pre class="rust"><code><span class="doccomment">//! SSA stands for Single Static Assignment
+<a href="#561" id="561">561</a>
+<a href="#562" id="562">562</a>
+<a href="#563" id="563">563</a>
+<a href="#564" id="564">564</a></pre></div><pre class="rust"><code><span class="doccomment">//! SSA stands for Single Static Assignment
 //! The IR presented in this module will already
 //! be in SSA form and will be used to apply
 //! conventional optimizations like Common Subexpression
@@ -1075,8 +1078,11 @@
         brillig_procedure_locs,
     );
 
+    <span class="comment">// We don't have Brillig info available here yet.
+    </span><span class="kw">let </span>brillig_side_effects = BTreeMap::new();
     <span class="comment">// Perform any ACIR-level optimizations
-    </span><span class="kw">let </span>(optimized_circuit, transformation_map) = acvm::compiler::optimize(circuit);
+    </span><span class="kw">let </span>(optimized_circuit, transformation_map) =
+        acvm::compiler::optimize(circuit, <span class="kw-2">&amp;</span>brillig_side_effects);
     debug_info.update_acir(transformation_map);
 
     SsaCircuitArtifact {

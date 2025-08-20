@@ -81,9 +81,18 @@
 <a href="#80" id="80">80</a>
 <a href="#81" id="81">81</a>
 <a href="#82" id="82">82</a>
-<a href="#83" id="83">83</a></pre></div><pre class="rust"><code><span class="kw">use </span>acir::{
+<a href="#83" id="83">83</a>
+<a href="#84" id="84">84</a>
+<a href="#85" id="85">85</a>
+<a href="#86" id="86">86</a>
+<a href="#87" id="87">87</a>
+<a href="#88" id="88">88</a>
+<a href="#89" id="89">89</a>
+<a href="#90" id="90">90</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
+
+<span class="kw">use </span>acir::{
     AcirField,
-    circuit::{Circuit, Opcode},
+    circuit::{Circuit, Opcode, brillig::BrilligFunctionId},
 };
 
 <span class="kw">mod </span>general;
@@ -101,12 +110,16 @@
 <span class="kw">use super</span>::{AcirTransformationMap, transform_assert_messages};
 
 <span class="doccomment">/// Applies backend independent optimizations to a [`Circuit`].
-</span><span class="kw">pub fn </span>optimize&lt;F: AcirField&gt;(acir: Circuit&lt;F&gt;) -&gt; (Circuit&lt;F&gt;, AcirTransformationMap) {
+</span><span class="kw">pub fn </span>optimize&lt;F: AcirField&gt;(
+    acir: Circuit&lt;F&gt;,
+    brillig_side_effects: <span class="kw-2">&amp;</span>BTreeMap&lt;BrilligFunctionId, bool&gt;,
+) -&gt; (Circuit&lt;F&gt;, AcirTransformationMap) {
     <span class="comment">// Track original acir opcode positions throughout the transformation passes of the compilation
     // by applying the modifications done to the circuit opcodes and also to the opcode_positions (delete and insert)
     </span><span class="kw">let </span>acir_opcode_positions = (<span class="number">0</span>..acir.opcodes.len()).collect();
 
-    <span class="kw">let </span>(<span class="kw-2">mut </span>acir, new_opcode_positions) = optimize_internal(acir, acir_opcode_positions);
+    <span class="kw">let </span>(<span class="kw-2">mut </span>acir, new_opcode_positions) =
+        optimize_internal(acir, acir_opcode_positions, brillig_side_effects);
 
     <span class="kw">let </span>transformation_map = AcirTransformationMap::new(<span class="kw-2">&amp;</span>new_opcode_positions);
 
@@ -122,6 +135,7 @@
 </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>optimize_internal&lt;F: AcirField&gt;(
     acir: Circuit&lt;F&gt;,
     acir_opcode_positions: Vec&lt;usize&gt;,
+    brillig_side_effects: <span class="kw-2">&amp;</span>BTreeMap&lt;BrilligFunctionId, bool&gt;,
 ) -&gt; (Circuit&lt;F&gt;, Vec&lt;usize&gt;) {
     <span class="kw">if </span>acir.opcodes.len() == <span class="number">1 </span>&amp;&amp; <span class="macro">matches!</span>(acir.opcodes[<span class="number">0</span>], Opcode::BrilligCall { .. }) {
         <span class="macro">info!</span>(<span class="string">"Program is fully unconstrained, skipping optimization pass"</span>);
@@ -153,7 +167,7 @@
     // ConstantBackpropagationOptimizer::backpropagate_constants(acir, acir_opcode_positions);
 
     // Range optimization pass
-    </span><span class="kw">let </span>range_optimizer = RangeOptimizer::new(acir);
+    </span><span class="kw">let </span>range_optimizer = RangeOptimizer::new(acir, brillig_side_effects);
     <span class="kw">let </span>(acir, acir_opcode_positions) =
         range_optimizer.replace_redundant_ranges(acir_opcode_positions);
 

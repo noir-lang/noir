@@ -1359,7 +1359,7 @@
     }
 
     <span class="kw">if </span>options.print_acir {
-        <span class="macro">noirc_errors::println_to_stdout!</span>(<span class="string">"Compiled ACIR for main (unoptimized):"</span>);
+        <span class="macro">noirc_errors::println_to_stdout!</span>(<span class="string">"Compiled ACIR for main (non-transformed):"</span>);
         <span class="macro">noirc_errors::println_to_stdout!</span>(<span class="string">"{}"</span>, compiled_program.program);
     }
 
@@ -1418,7 +1418,7 @@
                     }
                 }
                 <span class="macro">println!</span>(
-                    <span class="string">"Compiled ACIR for {}::{} (unoptimized):"</span>,
+                    <span class="string">"Compiled ACIR for {}::{} (non-transformed):"</span>,
                     compiled_contract.name, contract_function.name
                 );
                 <span class="macro">println!</span>(<span class="string">"{}"</span>, contract_function.bytecode);
