@@ -358,8 +358,7 @@ mod test {
 
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.remove_paired_rc();
-        // We expect the paired RC on v0 to remain, but we expect the paired RC on v1 to be removed
-        // as they operate over different types ([Field; 2] and [Field; 5]) respectively.
+        // We expect the paired RCs on v0 and v1 to remain as they operate over the same type ([Field; 5])
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn mutator f0 {
           b0(v0: [Field; 5], v1: [Field; 5]):
