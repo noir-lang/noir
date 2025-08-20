@@ -124,7 +124,6 @@ impl Context<'_, '_, '_> {
         let lhs_typ = self.context.dfg.type_of_value(lhs).unwrap_numeric();
 
         let pow = self.two_pow(rhs);
-        let pow = self.insert_truncate(pow, lhs_typ.bit_size(), FieldElement::max_num_bits());
         let pow = self.insert_cast(pow, lhs_typ);
 
         match lhs_typ {
@@ -182,10 +181,18 @@ impl Context<'_, '_, '_> {
     /// }
     fn two_pow(&mut self, exponent: ValueId) -> ValueId {
         // Require that exponent < bit_size, ensuring that `pow` returns a value consistent with `lhs`'s type.
-        self.enforce_bitshift_rhs_lt_bit_size(exponent);
+        let max_bit_size = self.enforce_bitshift_rhs_lt_bit_size(exponent);
 
         if let Some(exponent_const) = self.context.dfg.get_numeric_constant(exponent) {
-            let pow = FieldElement::from(2u32).pow(&exponent_const);
+            let exponent_const_as_u32 = exponent_const.try_to_u32();
+            let pow = if exponent_const_as_u32.is_none_or(|v| v > max_bit_size) {
+                // If the exponent is guaranteed to overflow the value returned here doesn't matter as
+                // `enforce_bitshift_rhs_lt_bit_size` will trigger a constrain failure. We don't want to return
+                // `2^exponent` here as that value is later cast to the target type and it would be an invalid cast.
+                FieldElement::zero()
+            } else {
+                FieldElement::from(2u32).pow(&exponent_const)
+            };
             return self.numeric_constant(pow, NumericType::NativeField);
         }
 
@@ -229,29 +236,31 @@ impl Context<'_, '_, '_> {
 
     /// Insert constraints ensuring that the right-hand side of a bit-shift operation
     /// is less than the bit size of the left-hand side.
-    fn enforce_bitshift_rhs_lt_bit_size(&mut self, rhs: ValueId) {
+    /// Returns the maximum bit size allowed for `rhs`.
+    fn enforce_bitshift_rhs_lt_bit_size(&mut self, rhs: ValueId) -> u32 {
         let one = self.numeric_constant(FieldElement::one(), NumericType::bool());
         let rhs_type = self.context.dfg.type_of_value(rhs);
 
-        let assert_message = Some("attempt to bit-shift with overflow".to_owned());
+        let assert_message: Option<String> = Some("attempt to bit-shift with overflow".to_owned());
 
-        let (bit_size, bit_size_field) = match rhs_type {
-            Type::Numeric(NumericType::Unsigned { bit_size }) => {
-                (bit_size, FieldElement::from(bit_size))
-            }
+        let (bit_size, max_bit_size) = match rhs_type {
+            Type::Numeric(NumericType::Unsigned { bit_size }) => (bit_size, bit_size),
             Type::Numeric(NumericType::Signed { bit_size }) => {
                 assert!(bit_size > 1, "ICE - i1 is not a valid type");
 
-                (bit_size, FieldElement::from(bit_size - 1))
+                (bit_size, bit_size - 1)
             }
             _ => unreachable!("check_shift_overflow called with non-numeric type"),
         };
+        let bit_size_field = FieldElement::from(max_bit_size);
 
         let unsigned_typ = NumericType::unsigned(bit_size);
         let max = self.numeric_constant(bit_size_field, unsigned_typ);
         let rhs = self.insert_cast(rhs, unsigned_typ);
         let overflow = self.insert_binary(rhs, BinaryOp::Lt, max);
         self.insert_constrain(overflow, one, assert_message.map(Into::into));
+
+        max_bit_size
     }
 
     pub(crate) fn field_constant(&mut self, constant: FieldElement) -> ValueId {
@@ -495,10 +504,7 @@ mod tests {
               b0(v0: u32):
                 constrain u1 0 == u1 1, "attempt to bit-shift with overflow"
                 v3 = cast v0 as Field
-                v5 = mul v3, Field -7768683996859727954953724731427871339010100868427821011365820555770860666883
-                v6 = truncate v5 to 32 bits, max_bit_size: 254
-                v7 = cast v6 as u32
-                return v7
+                return u32 0
             }
             "#);
         }
@@ -593,10 +599,9 @@ mod tests {
                 v63 = mul v61, Field 2
                 v64 = mul v63, v59
                 v65 = add v62, v64
-                v66 = truncate v65 to 32 bits, max_bit_size: 254
-                v67 = cast v66 as u32
-                v68 = div v0, v67
-                return v68
+                v66 = cast v65 as u32
+                v67 = div v0, v66
+                return v67
             }
             "#);
         }
@@ -807,19 +812,18 @@ mod tests {
                 v64 = mul v62, Field 2
                 v65 = mul v64, v60
                 v66 = add v63, v65
-                v67 = truncate v66 to 32 bits, max_bit_size: 254
-                v68 = cast v67 as i32
-                v70 = lt v0, i32 0
-                v71 = cast v70 as Field
-                v72 = cast v0 as Field
-                v73 = add v71, v72
-                v74 = truncate v73 to 32 bits, max_bit_size: 33
-                v75 = cast v74 as i32
-                v76 = div v75, v68
-                v77 = cast v70 as i32
-                v78 = unchecked_sub v76, v77
-                v79 = truncate v78 to 32 bits, max_bit_size: 33
-                return v79
+                v67 = cast v66 as i32
+                v69 = lt v0, i32 0
+                v70 = cast v69 as Field
+                v71 = cast v0 as Field
+                v72 = add v70, v71
+                v73 = truncate v72 to 32 bits, max_bit_size: 33
+                v74 = cast v73 as i32
+                v75 = div v74, v67
+                v76 = cast v69 as i32
+                v77 = unchecked_sub v75, v76
+                v78 = truncate v77 to 32 bits, max_bit_size: 33
+                return v78
             }
             "#);
         }

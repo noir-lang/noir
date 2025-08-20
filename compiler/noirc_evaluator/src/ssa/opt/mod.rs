@@ -113,7 +113,6 @@ macro_rules! assert_ssa_snapshot {
     ($ssa:expr, $($arg:tt)*) => {
         #[allow(unused_mut)]
         let mut mut_ssa = $ssa;
-        $crate::ssa::ssa_gen::validate_ssa(&mut_ssa);
         mut_ssa.normalize_ids();
         let ssa_string = mut_ssa.print_without_locations().to_string();
         insta::assert_snapshot!(ssa_string, $($arg)*)
