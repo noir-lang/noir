@@ -18,7 +18,7 @@ use noirc_errors::CustomDiagnostic;
 use noirc_evaluator::ssa::interpreter::InterpreterOptions;
 use noirc_evaluator::ssa::interpreter::value::{NumericValue, Value};
 use noirc_evaluator::ssa::ir::types::{NumericType, Type};
-use noirc_evaluator::ssa::ssa_gen::{Ssa, generate_ssa, validate_ssa};
+use noirc_evaluator::ssa::ssa_gen::{Ssa, generate_ssa};
 use noirc_evaluator::ssa::{SsaEvaluatorOptions, SsaLogging, primary_passes};
 use noirc_frontend::debug::DebugInstrumenter;
 use noirc_frontend::hir::ParsedFiles;
@@ -282,7 +282,6 @@ fn print_and_interpret_ssa(
     interpreter_options: InterpreterOptions,
     fm: &FileManager,
 ) -> Result<(), CliError> {
-    validate_ssa(ssa);
     print_ssa(options, ssa, msg, fm);
     interpret_ssa(passes_to_interpret, ssa, msg, args, return_value, interpreter_options)
 }
