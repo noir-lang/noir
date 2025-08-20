@@ -34,16 +34,23 @@ struct Validator<'f> {
     function: &'f Function,
     ssa: &'f Ssa,
 
-    // State for valid Field to integer casts
-    // Range checks are laid down in isolation and can make for safe casts
-    // If they occurred before the value being cast to a smaller type
-    // Stores: A set of (value being range constrained, the value's max bit size)
+    /// State for valid Field to integer casts
+    /// Range checks are laid down in isolation and can make for safe casts
+    /// If they occurred before the value being cast to a smaller type
+    /// Stores: A set of (value being range constrained, the value's max bit size)
     range_checks: HashMap<ValueId, u32>,
+
+    /// Tracks the last value that was checked against an array length
+    /// Maps (index being checked -> length of the array)
+    array_oob_checks: HashMap<ValueId, ValueId>,
+    /// Helper for when we have an always failing constrain preceding an 
+    /// OOB array access with a constant index.
+    contains_always_failing_constrain: bool,
 }
 
 impl<'f> Validator<'f> {
     fn new(function: &'f Function, ssa: &'f Ssa) -> Self {
-        Self { function, ssa, range_checks: HashMap::default() }
+        Self { function, ssa, range_checks: HashMap::default(), array_oob_checks: HashMap::default(), contains_always_failing_constrain: false }
     }
 
     /// Enforces that every cast from Field -> unsigned/signed integer must obey the following invariants:
@@ -122,7 +129,87 @@ impl<'f> Validator<'f> {
         }
     }
 
-    // Validates there is exactly one return block
+    /// Array accesses in Brillig do not have any side effects and can operate over invalid data 
+    /// when executed in isolation. These accesses must be preceded by separate explicit out of bounds (OOB) 
+    /// checks to maintain semantic correctness. 
+    fn validate_brillig_array_access_oob_check(&mut self, instruction_id: InstructionId) {
+        if self.function.runtime().is_acir() {
+            return;
+        }
+
+        let dfg = &self.function.dfg;
+        match &dfg[instruction_id] {
+            Instruction::Constrain(lhs, rhs, _) => {
+                // If this looks like a bounds check, store it
+                // Here we assume bounds checks have the pattern: index < length
+                let lhs_type = dfg.type_of_value(*lhs);
+                let rhs_type = dfg.type_of_value(*rhs);
+
+                // The `index < length` check will then be asserted against a constant one value
+                if !(matches!(lhs_type, Type::Numeric(NumericType::Unsigned { bit_size: 1 }))
+                    && matches!(rhs_type, Type::Numeric(NumericType::Unsigned { bit_size: 1 })))
+                {
+                    return;
+                }
+
+                let lhs_value = dfg.get_numeric_constant(*lhs);
+                let rhs_value = dfg.get_numeric_constant(*rhs);
+
+                let lhs_is_zero = lhs_value.is_some_and(|lhs| lhs.is_zero());
+                let rhs_is_one = rhs_value.is_some_and(|rhs| rhs.is_one());
+
+                // If we have an always failing constrain any invalid array accesses against constant indices are well formed
+                if lhs_is_zero && rhs_is_one {
+                    self.contains_always_failing_constrain = true;
+                    return;
+                }
+
+                // If we do not have a constant index which has been simplified to a single constrain, 
+                // we need to check whether we have an OOB check in the appropriate pattern. 
+                // That pattern being that the index is less than the array length.
+                let Value::Instruction { instruction, .. } = &dfg[*lhs] else {
+                    return;
+                };
+
+                let Instruction::Binary(binary) = &dfg[*instruction] else {
+                    return;
+                };
+
+                let BinaryOp::Lt = binary.operator else {
+                    return;
+                };
+
+                self.array_oob_checks.insert(binary.lhs, binary.rhs);
+            }
+            Instruction::ArrayGet { array, index, .. } | Instruction::ArraySet { array, index, .. } => {
+                // We only care about guaranteeing that unsafe array accesses are well-formed with the appropriate checks
+                let false = dfg.is_safe_index(*index, *array) else {
+                    return;
+                };
+
+                // If we have an unsafe constant index we expect there to be a preceding failing constrain
+                if dfg.is_constant(*index) && self.contains_always_failing_constrain {
+                    dbg!("got here");
+                    return;
+                }
+
+                // Otherwise, we need to check that the values in the array OOB matches the index here
+                let Some(length) = self.array_oob_checks.get(index) else {
+                    panic!("A possibly failing array access does not have a preceding OOB check");
+                };
+
+                let array_len = dfg.try_get_array_length(*array);
+                if let (Some(checked_len), Some(typ_len)) = (dfg.get_numeric_constant(*length), array_len) {
+                    assert_eq!(checked_len.try_to_u32().unwrap(), typ_len, "Expected the array length specified in the type to match the array OOB check upper bound");
+                } 
+            }
+            _ => {
+                // Other instructions do not matter for this check
+            }
+        }
+    }
+
+    /// Validates there is exactly one return block
     fn validate_single_return_block(&self) {
         let reachable_blocks = self.function.reachable_blocks();
 
@@ -326,10 +413,15 @@ impl<'f> Validator<'f> {
         self.validate_single_return_block();
 
         for block in self.function.reachable_blocks() {
-            for instruction in self.function.dfg[block].instructions() {
-                self.validate_field_to_integer_cast_invariant(*instruction);
-                self.type_check_instruction(*instruction);
+            for &instruction in self.function.dfg[block].instructions() {
+                self.validate_field_to_integer_cast_invariant(instruction);
+                self.validate_brillig_array_access_oob_check(instruction);
+                self.type_check_instruction(instruction);
             }
+            // Clear per-block state from the validator
+            self.range_checks.clear();
+            self.array_oob_checks.clear();
+            self.contains_always_failing_constrain = false;
         }
     }
 }
@@ -747,6 +839,161 @@ mod tests {
           b0():
             v0 = allocate -> &mut u8
             store Field 1 at v0
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn valid_array_get_oob_constant_index_brillig() {
+        let src = r"
+        brillig(inline) fn main f0 {
+          b0():
+            v3 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+            constrain u1 0 == u1 1
+            v7 = array_get v3, index u32 10 -> Field
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "A possibly failing array access does not have a preceding OOB check")]
+    fn invalid_array_get_oob_constant_index_brillig() {
+        let src = r"
+        brillig(inline) fn main f0 {
+          b0():
+            v3 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+            v7 = array_get v3, index u32 10 -> Field
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn valid_array_get_oob_dynamic_index_brillig() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32):
+            v4 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+            v6 = lt v0, u32 3
+            constrain v6 == u1 1
+            v8 = array_get v4, index v0 -> Field
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "A possibly failing array access does not have a preceding OOB check")]
+    fn invalid_array_get_oob_dynamic_index_brillig() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v4 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+            v8 = array_get v4, index v0 -> Field
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "A possibly failing array access does not have a preceding OOB check")]
+    fn invalid_array_get_oob_dynamic_different_index_brillig() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32, v1: u32):
+            v4 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+            v6 = lt v1, u32 3
+            constrain v6 == u1 1
+            v8 = array_get v4, index v0 -> Field
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "Expected the array length specified in the type to match the array OOB check upper bound")]
+    fn invalid_array_get_oob_dynamic_different_array_len_brillig() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32):
+            v4 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+            v6 = lt v0, u32 10
+            constrain v6 == u1 1
+            v8 = array_get v4, index v0 -> Field
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "A possibly failing array access does not have a preceding OOB check")]
+    fn invalid_array_get_oob_dynamic_index_bad_constrain_brillig() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32):
+            v4 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+            v6 = add v0, u32 3
+            constrain v6 == u32 1
+            v8 = array_get v4, index v0 -> Field
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "A possibly failing array access does not have a preceding OOB check")]
+    fn invalid_array_set_oob_dynamic_index() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: Field, v1: i64, v2: u1, v3: u1, v4: u1, v5: u1, v6: u1):
+            jmp b1()
+          b1():
+            v7 = make_array [v0, v0] : [Field; 2]
+            jmp b2()
+          b2():
+            v8 = add v0, v0
+            v9 = sub v8, v0
+            v10 = truncate v0 to 32 bits, max_bit_size: 254
+            v11 = cast v10 as u32
+            v12 = array_set v7, index v11, value v0
+            return v0
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn valid_array_get_oob_dynamic_index_acir() {
+        // ACIR array accesses are side effectual and insert OOB checks themselves
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v4 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+            v8 = array_get v4, index v0 -> Field
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn valid_array_get_oob_constant_index_acir() {
+        // ACIR array accesses are side effectual and insert OOB checks themselves
+        let src = r"
+        acir(inline) fn main f0 {
+          b0():
+            v3 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+            v7 = array_get v3, index u32 10 -> Field
             return
         }
         ";
