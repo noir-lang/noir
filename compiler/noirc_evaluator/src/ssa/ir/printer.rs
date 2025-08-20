@@ -1,7 +1,7 @@
 //! This file is for pretty-printing the SSA IR in a human-readable form for debugging.
 use std::fmt::{Display, Formatter, Result};
 
-use acvm::acir::AcirField;
+use acvm::{FieldElement, acir::AcirField};
 use fm::codespan_files;
 use im::Vector;
 use iter_extended::vecmap;
@@ -48,7 +48,7 @@ impl Display for Printer<'_> {
         for (id, global_value) in globals_dfg.values_iter() {
             match global_value {
                 Value::NumericConstant { constant, typ } => {
-                    writeln!(f, "g{} = {typ} {constant}", id.to_u32())?;
+                    writeln!(f, "g{} = {typ} {}", id.to_u32(), number(*constant, typ))?;
                 }
                 Value::Instruction { instruction, .. } => {
                     display_instruction(&globals_dfg, *instruction, true, self.fm, f)?;
@@ -122,7 +122,7 @@ fn display_block(
 fn value(dfg: &DataFlowGraph, id: ValueId) -> String {
     match &dfg[id] {
         Value::NumericConstant { constant, typ } => {
-            format!("{typ} {constant}")
+            format!("{typ} {}", number(*constant, typ))
         }
         Value::Function(id) => id.to_string(),
         Value::Intrinsic(intrinsic) => intrinsic.to_string(),
@@ -137,6 +137,21 @@ fn value(dfg: &DataFlowGraph, id: ValueId) -> String {
         Value::Global(_) => {
             format!("g{}", id.to_u32())
         }
+    }
+}
+
+fn number(number: FieldElement, typ: &NumericType) -> String {
+    if let NumericType::Signed { bit_size } = typ {
+        let bit_size = *bit_size;
+        let max = if bit_size == 128 { i128::MAX as u128 } else { (1 << (bit_size - 1)) - 1 };
+        if number.num_bits() > 128 || number.to_u128() > max {
+            let number = FieldElement::from(2u32).pow(&bit_size.into()) - number;
+            format!("-{number}")
+        } else {
+            number.to_string()
+        }
+    } else {
+        number.to_string()
     }
 }
 
