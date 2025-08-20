@@ -127,6 +127,40 @@ impl TypedValue {
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct Point {
+    pub x: TypedValue,
+    pub y: TypedValue,
+    pub is_infinite: TypedValue,
+}
+impl Point {
+    pub fn validate(&self) -> bool {
+        matches!(
+            self.is_infinite.type_of_variable,
+            Type::Numeric(NumericType::Unsigned { bit_size: 1 })
+        ) && matches!(self.x.type_of_variable, Type::Numeric(NumericType::NativeField))
+            && matches!(self.y.type_of_variable, Type::Numeric(NumericType::NativeField))
+    }
+    pub fn to_id_vec(&self) -> Vec<Id<Value>> {
+        vec![self.x.value_id, self.y.value_id, self.is_infinite.value_id]
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Scalar {
+    pub lo: TypedValue,
+    pub hi: TypedValue,
+}
+
+impl Scalar {
+    pub fn validate(&self) -> bool {
+        matches!(self.lo.type_of_variable, Type::Numeric(NumericType::NativeField))
+            && matches!(self.hi.type_of_variable, Type::Numeric(NumericType::NativeField))
+    }
+    pub fn to_id_vec(&self) -> Vec<Id<Value>> {
+        vec![self.lo.value_id, self.hi.value_id]
+    }
+}
 impl ValueType {
     /// Convert to the SSA Type
     pub fn to_ssa_type(&self) -> Type {

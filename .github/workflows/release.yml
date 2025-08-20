@@ -44,7 +44,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20.18.3
+          node-version: 22.15.0
           cache: 'yarn'
           cache-dependency-path: 'yarn.lock'
 
