@@ -2754,12 +2754,6 @@ pub fn append_printable_type_info_for_type(typ: Type, arguments: &mut Vec<ast::E
 }
 
 fn append_printable_type_info_inner(typ: &Type, arguments: &mut Vec<ast::Expression>) {
-    // Disallow printing slices and mutable references for consistency,
-    // since they cannot be passed from ACIR into Brillig
-    if matches!(typ, HirType::Reference(..)) {
-        unreachable!("println and format strings do not support references.");
-    }
-
     let printable_type: PrintableType = typ.into();
     let abi_as_string =
         serde_json::to_string(&printable_type).expect("ICE: expected PrintableType to serialize");
