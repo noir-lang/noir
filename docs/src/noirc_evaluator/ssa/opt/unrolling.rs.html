@@ -1626,7 +1626,32 @@
 <a href="#1625" id="1625">1625</a>
 <a href="#1626" id="1626">1626</a>
 <a href="#1627" id="1627">1627</a>
-<a href="#1628" id="1628">1628</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file contains the loop unrolling pass for the new SSA IR.
+<a href="#1628" id="1628">1628</a>
+<a href="#1629" id="1629">1629</a>
+<a href="#1630" id="1630">1630</a>
+<a href="#1631" id="1631">1631</a>
+<a href="#1632" id="1632">1632</a>
+<a href="#1633" id="1633">1633</a>
+<a href="#1634" id="1634">1634</a>
+<a href="#1635" id="1635">1635</a>
+<a href="#1636" id="1636">1636</a>
+<a href="#1637" id="1637">1637</a>
+<a href="#1638" id="1638">1638</a>
+<a href="#1639" id="1639">1639</a>
+<a href="#1640" id="1640">1640</a>
+<a href="#1641" id="1641">1641</a>
+<a href="#1642" id="1642">1642</a>
+<a href="#1643" id="1643">1643</a>
+<a href="#1644" id="1644">1644</a>
+<a href="#1645" id="1645">1645</a>
+<a href="#1646" id="1646">1646</a>
+<a href="#1647" id="1647">1647</a>
+<a href="#1648" id="1648">1648</a>
+<a href="#1649" id="1649">1649</a>
+<a href="#1650" id="1650">1650</a>
+<a href="#1651" id="1651">1651</a>
+<a href="#1652" id="1652">1652</a>
+<a href="#1653" id="1653">1653</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file contains the loop unrolling pass for the new SSA IR.
 //!
 //! This pass is divided into a few steps:
 //! 1. Find all loops in the program (`find_all_loops`)
@@ -1641,11 +1666,36 @@
 //! Note that this pass also often creates superfluous jmp instructions in the
 //! program that will need to be removed by a later simplify CFG pass.
 //!
-//! Note also that unrolling is skipped for Brillig runtime, unless the loops are deemed
-//! sufficiently small that inlining can be done without increasing the bytecode.
+//! ACIR/Brillig differences within this pass:
+//!   - Brillig functions may contain loops using `continue` or `break` which this pass does not
+//!     support the unrolling of (running the pass on such functions is not an error).
+//!   - Brillig functions only have small loops unrolled, where a small loop is defined as a loop
+//!     which, when unrolled, is estimated to have the same or fewer total instructions as it
+//!     has when not unrolled.
+//!   - Unrolling may be reverted for brillig functions if the increase in instruction count is
+//!     greater than `max_bytecode_increase_percent` (if set).
+//!   - In ACIR functions, reference count instructions are removed if present (they only have
+//!     effects in brillig functions so are superfluous in ACIR).
+//!   - Differing post-conditions (see below).
 //!
-//! When unrolling ACIR code, we remove reference count instructions because they are
-//! only used by Brillig bytecode.
+//! Relevance to other passes:
+//!   - Loop unrolling is a required pass for constrained code (ACIR functions) since ACIR itself
+//!     does not contain any branching constructs.
+//!   - Loop unrolling must occur before flattening on ACIR functions
+//!   - Since unrolling may fail on loops that fail to unroll, any simplification passes before it
+//!     which affect loop bounds may affect which code fails to compile. One important optimization
+//!     in this category is mem2reg which may simplify mutable variables, including those potentially
+//!     used as loop bounds, into a form which loop unrolling may better identify.
+//!
+//! Conditions:
+//!   - Pre-conditions: No explicit pre-conditions strictly required to run this pass but in
+//!     practice since other passes affect this passes ability to unroll loops, some passes such as
+//!     inlining and mem2reg are required before running this on arbitrary noir code.
+//!   - Post-condition (ACIR-only): All loops in ACIR functions should be unrolled when this pass is
+//!     completed successfully. Any loops that are not unrolled (e.g. because of a mutable variable
+//!     used in the loop condition whose value is unknown) will result in an error.
+//!   - Post-condition (Brillig-only): If `max_bytecode_increase_percent` is set, the instruction count
+//!     of each function should increase by no more than that percentage compared to before the pass.
 </span><span class="kw">use </span>std::collections::BTreeSet;
 
 <span class="kw">use </span>acvm::acir::AcirField;
