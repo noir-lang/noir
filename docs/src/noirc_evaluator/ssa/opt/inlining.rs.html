@@ -1374,8 +1374,7 @@
 <a href="#1373" id="1373">1373</a>
 <a href="#1374" id="1374">1374</a>
 <a href="#1375" id="1375">1375</a>
-<a href="#1376" id="1376">1376</a>
-<a href="#1377" id="1377">1377</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module defines the function inlining pass for the SSA IR.
+<a href="#1376" id="1376">1376</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module defines the function inlining pass for the SSA IR.
 //! The purpose of this pass is to inline the instructions of each function call
 //! within the function caller. If all function calls are known, there will only
 //! be a single function remaining when the pass finishes.
@@ -2629,7 +2628,6 @@
         brillig(inline) fn main f0 {
           b0():
             v0 = call f1() -&gt; [Field; 2]
-            // v1 = array_get g2, index u32 1 -&gt; Field
             return v0
         }
         brillig(inline) fn create_array f1 {
