@@ -1552,9 +1552,7 @@
 <a href="#1551" id="1551">1551</a>
 <a href="#1552" id="1552">1552</a>
 <a href="#1553" id="1553">1553</a>
-<a href="#1554" id="1554">1554</a>
-<a href="#1555" id="1555">1555</a>
-<a href="#1556" id="1556">1556</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the mem2reg SSA optimization pass is to replace any `Load` instructions to known
+<a href="#1554" id="1554">1554</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the mem2reg SSA optimization pass is to replace any `Load` instructions to known
 //! addresses with the value stored at that address, if it is also known. This pass will also remove
 //! any `Store` instructions within a block that are no longer needed because no more loads occur in
 //! between the Store in question and the next Store.
@@ -1692,7 +1690,7 @@
 
     <span class="doccomment">/// Track a value's last load across all blocks.
     /// If a value is not used in anymore loads we can remove the last store to that value.
-    </span>last_loads: HashMap&lt;ValueId, (InstructionId, BasicBlockId)&gt;,
+    </span>last_loads: HashSet&lt;ValueId&gt;,
 
     <span class="doccomment">/// Track whether a reference was passed into another instruction (e.g. Call)
     /// This is needed to determine whether we can remove a store.
@@ -1715,7 +1713,7 @@
             inserter: FunctionInserter::new(function),
             blocks: BTreeMap::new(),
             instructions_to_remove: HashSet::default(),
-            last_loads: HashMap::default(),
+            last_loads: HashSet::default(),
             aliased_references: HashMap::default(),
             instruction_input_references: HashSet::default(),
         }
@@ -1777,9 +1775,7 @@
                     .get(store_address)
                     .is_some_and(|expression| <span class="macro">matches!</span>(expression, Expression::Dereference(<span class="kw">_</span>)));
 
-                <span class="kw">if </span>!<span class="self">self</span>.last_loads.contains_key(store_address)
-                    &amp;&amp; !store_alias_used
-                    &amp;&amp; !is_dereference
+                <span class="kw">if </span>!<span class="self">self</span>.last_loads.contains(store_address) &amp;&amp; !store_alias_used &amp;&amp; !is_dereference
                 {
                     <span class="self">self</span>.instructions_to_remove.insert(<span class="kw-2">*</span>store_instruction);
                 }
@@ -2023,10 +2019,10 @@
                     <span class="comment">// We don't know the exact value of the address, so we must keep the stores to it.
                     </span>references.mark_value_used(address, <span class="self">self</span>.inserter.function);
                     <span class="comment">// Remember that this address has been loaded, so stores to it should not be removed.
-                    </span><span class="self">self</span>.last_loads.insert(address, (instruction, block_id));
+                    </span><span class="self">self</span>.last_loads.insert(address);
                     <span class="comment">// Stores to any of its aliases should also be considered loaded.
                     </span>references.for_each_alias_of(address, |<span class="kw">_</span>, alias| {
-                        <span class="self">self</span>.last_loads.insert(alias, (instruction, block_id));
+                        <span class="self">self</span>.last_loads.insert(alias);
                     });
                 }
 
