@@ -192,10 +192,8 @@ impl<'f> PerFunctionContext<'f> {
                 // then that reference gets to keep its last store.
                 let typ = self.inserter.function.dfg.type_of_value(value);
                 if Self::contains_references(&typ) {
-                    if let Some(expression) = references.expressions.get(&value) {
-                        if let Some(aliases) = references.aliases.get(expression) {
-                            all_terminator_values.extend(aliases.iter());
-                        }
+                    if let Some(aliases) = references.aliases_of(value) {
+                        all_terminator_values.extend(aliases.iter());
                     }
                 }
             });
@@ -240,47 +238,45 @@ impl<'f> PerFunctionContext<'f> {
         let reference_parameters = self.reference_parameters();
 
         // Check whether the store address has an alias that crosses an entry point boundary (e.g. a Call or Return)
-        if let Some(expression) = block.expressions.get(store_address) {
-            if let Some(aliases) = block.aliases.get(expression) {
-                let allocation_aliases_parameter =
-                    aliases.any(|alias| reference_parameters.contains(&alias));
-                if allocation_aliases_parameter == Some(true) {
-                    return true;
-                }
+        if let Some(aliases) = block.aliases_of(*store_address) {
+            let allocation_aliases_parameter =
+                aliases.any(|alias| reference_parameters.contains(&alias));
+            if allocation_aliases_parameter == Some(true) {
+                return true;
+            }
 
-                let allocation_aliases_parameter =
-                    aliases.any(|alias| per_func_block_params.contains(&alias));
-                if allocation_aliases_parameter == Some(true) {
-                    return true;
-                }
+            let allocation_aliases_parameter =
+                aliases.any(|alias| per_func_block_params.contains(&alias));
+            if allocation_aliases_parameter == Some(true) {
+                return true;
+            }
 
-                // Is any alias of this address an input to some function call, or a return value?
-                let allocation_aliases_instr_input =
-                    aliases.any(|alias| self.instruction_input_references.contains(&alias));
-                if allocation_aliases_instr_input == Some(true) {
-                    return true;
-                }
+            // Is any alias of this address an input to some function call, or a return value?
+            let allocation_aliases_instr_input =
+                aliases.any(|alias| self.instruction_input_references.contains(&alias));
+            if allocation_aliases_instr_input == Some(true) {
+                return true;
+            }
 
-                // Is any alias of this address used in a block terminator?
-                let allocation_aliases_terminator_args =
-                    aliases.any(|alias| all_terminator_values.contains(&alias));
-                if allocation_aliases_terminator_args == Some(true) {
-                    return true;
-                }
+            // Is any alias of this address used in a block terminator?
+            let allocation_aliases_terminator_args =
+                aliases.any(|alias| all_terminator_values.contains(&alias));
+            if allocation_aliases_terminator_args == Some(true) {
+                return true;
+            }
 
-                // Check whether there are any aliases whose instructions are not all marked for removal.
-                // If there is any alias marked to survive, we should not remove its last store.
-                let has_alias_not_marked_for_removal = aliases.any(|alias| {
-                    if let Some(alias_instructions) = self.aliased_references.get(&alias) {
-                        !alias_instructions.is_subset(&self.instructions_to_remove)
-                    } else {
-                        false
-                    }
-                });
-
-                if has_alias_not_marked_for_removal == Some(true) {
-                    return true;
+            // Check whether there are any aliases whose instructions are not all marked for removal.
+            // If there is any alias marked to survive, we should not remove its last store.
+            let has_alias_not_marked_for_removal = aliases.any(|alias| {
+                if let Some(alias_instructions) = self.aliased_references.get(&alias) {
+                    !alias_instructions.is_subset(&self.instructions_to_remove)
+                } else {
+                    false
                 }
+            });
+
+            if has_alias_not_marked_for_removal == Some(true) {
+                return true;
             }
         }
 
@@ -400,14 +396,12 @@ impl<'f> PerFunctionContext<'f> {
         let reference_parameters = self.reference_parameters();
 
         for (allocation, instruction) in &references.last_stores {
-            if let Some(expression) = references.expressions.get(allocation) {
-                if let Some(aliases) = references.aliases.get(expression) {
-                    let allocation_aliases_parameter =
-                        aliases.any(|alias| reference_parameters.contains(&alias));
-                    // If `allocation_aliases_parameter` is known to be false
-                    if allocation_aliases_parameter == Some(false) {
-                        self.instructions_to_remove.insert(*instruction);
-                    }
+            if let Some(aliases) = references.aliases_of(*allocation) {
+                let allocation_aliases_parameter =
+                    aliases.any(|alias| reference_parameters.contains(&alias));
+                // If `allocation_aliases_parameter` is known to be false
+                if allocation_aliases_parameter == Some(false) {
+                    self.instructions_to_remove.insert(*instruction);
                 }
             }
         }

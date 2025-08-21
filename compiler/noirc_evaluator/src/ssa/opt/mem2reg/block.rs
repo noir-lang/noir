@@ -65,17 +65,16 @@ impl ReferenceValue {
 impl Block {
     /// If the given reference id points to a known value, return the value
     pub(super) fn get_known_value(&self, address: ValueId) -> Option<ValueId> {
-        if let Some(expression) = self.expressions.get(&address) {
-            if let Some(aliases) = self.aliases.get(expression) {
-                // We could allow multiple aliases if we check that the reference
-                // value in each is equal.
-                if let Some(alias) = aliases.single_alias() {
-                    if let Some(ReferenceValue::Known(value)) = self.references.get(&alias) {
-                        return Some(*value);
-                    }
+        if let Some(aliases) = self.aliases_of(address) {
+            // We could allow multiple aliases if we check that the reference
+            // value in each is equal.
+            if let Some(alias) = aliases.single_alias() {
+                if let Some(ReferenceValue::Known(value)) = self.references.get(&alias) {
+                    return Some(*value);
                 }
             }
         }
+
         None
     }
 
@@ -169,13 +168,19 @@ impl Block {
         }
     }
 
+    pub(super) fn aliases_of(&self, address: ValueId) -> Option<&AliasSet> {
+        if let Some(expression) = self.expressions.get(&address) {
+            self.aliases.get(expression)
+        } else {
+            None
+        }
+    }
+
     /// Iterate through each known alias of the given address and apply the function `f` to each.
     pub(super) fn for_each_alias_of<T>(&self, address: ValueId, mut f: impl FnMut(ValueId) -> T) {
-        if let Some(expr) = self.expressions.get(&address) {
-            if let Some(aliases) = self.aliases.get(expr) {
-                for alias in aliases.iter() {
-                    f(alias);
-                }
+        if let Some(aliases) = self.aliases_of(address) {
+            for alias in aliases.iter() {
+                f(alias);
             }
         }
     }
@@ -190,11 +195,9 @@ impl Block {
     fn keep_last_stores_for(&mut self, address: ValueId, function: &Function) {
         self.keep_last_store(address, function);
 
-        if let Some(expr) = self.expressions.get(&address) {
-            if let Some(aliases) = self.aliases.get(expr).cloned() {
-                for alias in aliases.iter() {
-                    self.keep_last_store(alias, function);
-                }
+        if let Some(aliases) = self.aliases_of(address).cloned() {
+            for alias in aliases.iter() {
+                self.keep_last_store(alias, function);
             }
         }
     }
@@ -244,13 +247,11 @@ impl Block {
     }
 
     pub(super) fn get_aliases_for_value(&self, value: ValueId) -> Cow<AliasSet> {
-        if let Some(expression) = self.expressions.get(&value) {
-            if let Some(aliases) = self.aliases.get(expression) {
-                return Cow::Borrowed(aliases);
-            }
+        if let Some(aliases) = self.aliases_of(value) {
+            Cow::Borrowed(aliases)
+        } else {
+            Cow::Owned(AliasSet::unknown())
         }
-
-        Cow::Owned(AliasSet::unknown())
     }
 
     pub(super) fn set_last_load(&mut self, address: ValueId, instruction: InstructionId) {
