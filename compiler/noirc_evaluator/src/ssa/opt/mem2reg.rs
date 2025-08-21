@@ -1609,6 +1609,7 @@ mod tests {
         assert_normalized_ssa_equals(ssa, src);
     }
 
+    #[test]
     fn reuses_last_load_from_single_predecessor_block() {
         let src = r#"
         brillig(inline) fn main f0 {
