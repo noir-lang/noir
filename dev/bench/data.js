@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1755786828398,
+  "lastUpdate": 1755786850466,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11692,80 +11692,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "84741533+defkit@users.noreply.github.com",
-            "name": "defkit",
-            "username": "defkit"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "ea9c9130e367a35d1f0eda03d995ce139b469481",
-          "message": "feat(ssa_fuzzer): mode without instruction simplification + array instructions mutations + limits fix (#9438)\n\nCo-authored-by: Innokentii Sennovskii <isennovskiy@gmail.com>",
-          "timestamp": "2025-08-11T14:29:10Z",
-          "tree_id": "f8f0c42488a8a7f84970f7937ed60e4d3ac703fd",
-          "url": "https://github.com/noir-lang/noir/commit/ea9c9130e367a35d1f0eda03d995ce139b469481"
-        },
-        "date": 1754925452073,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 205,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 241.82,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 194.24,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 498.46,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 431.1,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1500,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 326.42,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 328.83,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 69.49,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 54.98,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jfecher11@gmail.com",
             "name": "jfecher",
             "username": "jfecher"
@@ -15215,6 +15141,80 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/75a0e3e73c2a3d1c4f73e52da9a528d18b4fb905"
         },
         "date": 1755785905505,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 206.74,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 243.56,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 195.97,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 500.28,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 432.92,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1500,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 328.21,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 330.57,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 69.52,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 55.02,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5eb44d30ed8dd362cd019a03a3785feed67b5dab",
+          "message": "chore: store last loads in `HashSet` instead of `HashMap` in mem2reg (#9498)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
+          "timestamp": "2025-08-21T13:53:58Z",
+          "tree_id": "7b3e4fbdfcef826832c3e736257380ce77b8b0df",
+          "url": "https://github.com/noir-lang/noir/commit/5eb44d30ed8dd362cd019a03a3785feed67b5dab"
+        },
+        "date": 1755786832007,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
