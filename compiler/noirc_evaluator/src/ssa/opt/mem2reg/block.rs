@@ -170,15 +170,11 @@ impl Block {
     }
 
     /// Iterate through each known alias of the given address and apply the function `f` to each.
-    pub(super) fn for_each_alias_of<T>(
-        &mut self,
-        address: ValueId,
-        mut f: impl FnMut(&mut Self, ValueId) -> T,
-    ) {
+    pub(super) fn for_each_alias_of<T>(&self, address: ValueId, mut f: impl FnMut(ValueId) -> T) {
         if let Some(expr) = self.expressions.get(&address) {
-            if let Some(aliases) = self.aliases.get(expr).cloned() {
+            if let Some(aliases) = self.aliases.get(expr) {
                 aliases.for_each(|alias| {
-                    f(self, alias);
+                    f(alias);
                 });
             }
         }
@@ -193,7 +189,14 @@ impl Block {
     /// does not affect the candidacy of the last store in the predecessor block.
     fn keep_last_stores_for(&mut self, address: ValueId, function: &Function) {
         self.keep_last_store(address, function);
-        self.for_each_alias_of(address, |t, alias| t.keep_last_store(alias, function));
+
+        if let Some(expr) = self.expressions.get(&address) {
+            if let Some(aliases) = self.aliases.get(expr).cloned() {
+                aliases.for_each(|alias| {
+                    self.keep_last_store(alias, function);
+                });
+            }
+        }
     }
 
     /// Forget the last store to an address, to remove it from the set of instructions
@@ -256,6 +259,13 @@ impl Block {
 
     pub(super) fn keep_last_load_for(&mut self, address: ValueId) {
         self.last_loads.remove(&address);
-        self.for_each_alias_of(address, |block, alias| block.last_loads.remove(&alias));
+
+        if let Some(expr) = self.expressions.get(&address) {
+            if let Some(aliases) = self.aliases.get(expr).cloned() {
+                aliases.for_each(|alias| {
+                    self.last_loads.remove(&alias);
+                });
+            }
+        }
     }
 }

@@ -467,7 +467,7 @@ impl<'f> PerFunctionContext<'f> {
                     // Remember that this address has been loaded, so stores to it should not be removed.
                     self.last_loads.insert(address);
                     // Stores to any of its aliases should also be considered loaded.
-                    references.for_each_alias_of(address, |_, alias| {
+                    references.for_each_alias_of(address, |alias| {
                         self.last_loads.insert(alias);
                     });
                 }
@@ -508,7 +508,7 @@ impl<'f> PerFunctionContext<'f> {
 
                 // Remember that we used the value in this instruction. If this instruction
                 // isn't removed at the end, we need to keep the stores to the value as well.
-                references.for_each_alias_of(value, |_, alias| {
+                references.for_each_alias_of(value, |alias| {
                     self.aliased_references.entry(alias).or_default().insert(instruction);
                 });
 
@@ -529,7 +529,7 @@ impl<'f> PerFunctionContext<'f> {
                 let array = *array;
                 let array_typ = self.inserter.function.dfg.type_of_value(array);
                 if Self::contains_references(&array_typ) {
-                    references.for_each_alias_of(array, |_, alias| {
+                    references.for_each_alias_of(array, |alias| {
                         self.instruction_input_references.insert(alias);
                     });
                     references.mark_value_used(array, self.inserter.function);
@@ -572,7 +572,7 @@ impl<'f> PerFunctionContext<'f> {
                     // Similar to how we remember that we used a value in a `Store` instruction,
                     // take note that it was used in the `ArraySet`. If this instruction is not
                     // going to be removed at the end, we shall keep the stores to this value as well.
-                    references.for_each_alias_of(*value, |_, alias| {
+                    references.for_each_alias_of(*value, |alias| {
                         self.aliased_references.entry(alias).or_default().insert(instruction);
                     });
                 }
@@ -581,7 +581,7 @@ impl<'f> PerFunctionContext<'f> {
                 // We need to appropriately mark each alias of a reference as being used as a call argument.
                 // This prevents us potentially removing a last store from a preceding block or is altered within another function.
                 for arg in arguments {
-                    references.for_each_alias_of(*arg, |_, alias| {
+                    references.for_each_alias_of(*arg, |alias| {
                         self.instruction_input_references.insert(alias);
                     });
                 }
@@ -730,7 +730,7 @@ impl<'f> PerFunctionContext<'f> {
                 // We need to appropriately mark each alias of a reference as being used as a return terminator argument.
                 // This prevents us potentially removing a last store from a preceding block or is altered within another function.
                 for return_value in return_values {
-                    references.for_each_alias_of(*return_value, |_, alias| {
+                    references.for_each_alias_of(*return_value, |alias| {
                         self.instruction_input_references.insert(alias);
                     });
                 }
