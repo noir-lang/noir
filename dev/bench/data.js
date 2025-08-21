@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1755802491945,
+  "lastUpdate": 1755802874713,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -19566,48 +19566,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "7503f37c7c3d9f463d287a77b1037ee4b9dc5e3c",
-          "message": "fix: remove warning from `std::verify_proof_with_type` (#9474)",
-          "timestamp": "2025-08-12T15:24:39Z",
-          "tree_id": "23b9b1a4a4a2c2bd568c02c684ace92f246c7499",
-          "url": "https://github.com/noir-lang/noir/commit/7503f37c7c3d9f463d287a77b1037ee4b9dc5e3c"
-        },
-        "date": 1755013890180,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 258002,
-            "range": "± 912",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 228958,
-            "range": "± 2434",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2807633,
-            "range": "± 2471",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "garmasholeksii@gmail.com",
             "name": "GarmashAlex",
             "username": "GarmashAlex"
@@ -21659,6 +21617,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2796692,
             "range": "± 3003",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "5cc5e135b7a0c91adc4e36b3a2c0b87f68a58b7c",
+          "message": "chore: remove redundant globals creation (#9606)",
+          "timestamp": "2025-08-21T18:34:24Z",
+          "tree_id": "91e10dbfcb30a8af1413efcf02b054d712621d6a",
+          "url": "https://github.com/noir-lang/noir/commit/5cc5e135b7a0c91adc4e36b3a2c0b87f68a58b7c"
+        },
+        "date": 1755802856117,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 249522,
+            "range": "± 1477",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 217760,
+            "range": "± 4427",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2786420,
+            "range": "± 2697",
             "unit": "ns/iter"
           }
         ]
