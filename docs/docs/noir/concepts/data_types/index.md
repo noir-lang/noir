@@ -113,6 +113,34 @@ to make the type alias public or `pub(crate)` to make it public to just its crat
 pub type Id = u8;
 ```
 
+### Numeric type aliases
+
+Type aliases can also be defined for numeric types, which can help cut down on longer type expressions.
+
+```rust
+type Double<let N: u32>: u32 = N * 2;
+
+// When used in an array position we need to use the turbofish operator to specify any
+// generics in a numeric type alias
+fn concat_self<let N: u32>(array: [u32; N]) -> [u32; Double::<N>] {
+    let mut result = [0; Double::<N>];
+    for i in 0..array.len() {
+        result[i] = array[i];
+        result[i + array.len()] = array[i];
+    }
+    result
+}
+
+struct Array<T, let N: u32> {
+    data: [T; N],
+}
+
+// When used within other type positions, however, we can refer to it without the `::`
+fn concat_self2<let N: u32>(array: Array<u32, N>) -> Array<u32, Double<N>> {
+    Array { data: concat_self(array.data) }
+}
+```
+
 ## Wildcard Type
 Noir can usually infer the type of the variable from the context, so specifying the type of a variable is only required when it cannot be inferred. However, specifying a complex type can be tedious, especially when it has multiple generic arguments. Often some of the generic types can be inferred from the context, and Noir only needs a hint to properly infer the other types. We can partially specify a variable's type by using `_` as a marker, indicating where we still want the compiler to infer the type.
 

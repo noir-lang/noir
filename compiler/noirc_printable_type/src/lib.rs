@@ -371,14 +371,21 @@ pub fn decode_printable_value<F: AcirField>(
             PrintableValue::Struct(struct_map)
         }
         PrintableType::Function { env, .. } => {
-            // we want to consume the fields from the environment, but for now they are not actually printed
+            // We want to consume the fields from the environment, but for now they are not actually printed.
             let _env = decode_printable_value(field_iterator, env);
             let func_id = field_iterator.next().expect("not enough data: expected function ID");
             PrintableValue::Field(func_id)
         }
         PrintableType::Reference { typ, .. } => {
-            // we decode the reference, but it's not really used for printing
-            decode_printable_value(field_iterator, typ)
+            // We decode the reference, but it's not actually used for printing.
+            // The reference consists of varying number of fields, depending on type.
+            let num_fields = flattened_reference_size(typ);
+            for i in 0..num_fields {
+                let _ = field_iterator
+                    .next()
+                    .unwrap_or_else(|| panic!("not enough data: expected reference field [{i}]"));
+            }
+            PrintableValue::Other
         }
         PrintableType::Unit => PrintableValue::Field(F::zero()),
         PrintableType::Enum { name: _, variants } => {
@@ -515,6 +522,37 @@ fn fetch_printable_type<F: AcirField>(
     match printable_type {
         Ok(printable_type) => Ok(printable_type),
         Err(err) => Err(TryFromParamsError::ParsingError(err)),
+    }
+}
+
+/// Calculate the number of fields used represent a reference to a type.
+fn flattened_reference_size(typ: &PrintableType) -> usize {
+    match typ {
+        PrintableType::Tuple { types } => types.iter().map(flattened_reference_size).sum(),
+        PrintableType::Struct { fields, .. } => {
+            fields.iter().map(|(_, typ)| flattened_reference_size(typ)).sum()
+        }
+        PrintableType::Reference { typ, .. } => flattened_reference_size(typ),
+        PrintableType::Unit => 0,
+        PrintableType::Array { .. }
+        | PrintableType::String { .. }
+        | PrintableType::Boolean
+        | PrintableType::Field
+        | PrintableType::Function { .. }
+        | PrintableType::SignedInteger { .. }
+        | PrintableType::UnsignedInteger { .. }
+        | PrintableType::FmtString { .. } => 1,
+        PrintableType::Slice { .. } => 2, // length + pointer
+        PrintableType::Enum { .. } => {
+            // This is tricky because enums are encoded as [tag, field1, field2, ...],
+            // however when we have a reference to an enum variant, then even the tag
+            // is just a memory address, so we can't use its value to decide how many
+            // fields to consume.
+            // For example a tuple like `Bar::Baz((1, [2, 3]))` would be encoded as [0, 1, [2, 3]],
+            // where 0 means this is the first variant in the `Bar` enum,
+            // but a reference to it would be like [36065, 36057, 36058].
+            todo!("flattened reference size for enums is not implemented");
+        }
     }
 }
 

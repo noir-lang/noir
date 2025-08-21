@@ -186,11 +186,21 @@ impl Block {
         }
     }
 
+    /// Forget the last store to an address and all of its aliases, to eliminate them
+    /// from the candidates for removal at the end.
+    ///
+    /// Note that this only affects this block: when we merge blocks we clear the
+    /// last stores anyway, we don't inherit them from predecessors, so if one
+    /// block stores to an address and a descendant block loads it, this mechanism
+    /// does not affect the candidacy of the last store in the predecessor block.
     fn keep_last_stores_for(&mut self, address: ValueId, function: &Function) {
         self.keep_last_store(address, function);
         self.for_each_alias_of(address, |t, alias| t.keep_last_store(alias, function));
     }
 
+    /// Forget the last store to an address, to remove it from the set of instructions
+    /// which are candidates for removal at the end. Also marks the values in the last
+    /// store as used, now that we know we want to keep them.
     fn keep_last_store(&mut self, address: ValueId, function: &Function) {
         if let Some(instruction) = self.last_stores.remove(&address) {
             // Whenever we decide we want to keep a store instruction, we also need
@@ -206,6 +216,8 @@ impl Block {
         }
     }
 
+    /// Mark a value (for example an address we loaded) as used by forgetting the last store instruction,
+    /// which removes it from the candidates for removal.
     pub(super) fn mark_value_used(&mut self, value: ValueId, function: &Function) {
         self.keep_last_stores_for(value, function);
 
