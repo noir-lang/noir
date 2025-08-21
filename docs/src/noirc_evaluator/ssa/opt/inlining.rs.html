@@ -1370,11 +1370,7 @@
 <a href="#1369" id="1369">1369</a>
 <a href="#1370" id="1370">1370</a>
 <a href="#1371" id="1371">1371</a>
-<a href="#1372" id="1372">1372</a>
-<a href="#1373" id="1373">1373</a>
-<a href="#1374" id="1374">1374</a>
-<a href="#1375" id="1375">1375</a>
-<a href="#1376" id="1376">1376</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module defines the function inlining pass for the SSA IR.
+<a href="#1372" id="1372">1372</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module defines the function inlining pass for the SSA IR.
 //! The purpose of this pass is to inline the instructions of each function call
 //! within the function caller. If all function calls are known, there will only
 //! be a single function remaining when the pass finishes.
@@ -1592,10 +1588,6 @@
         <span class="kw">let </span>globals = <span class="kw-2">&amp;</span>entry_point.dfg.globals;
         <span class="kw">let </span><span class="kw-2">mut </span>context = PerFunctionContext::new(<span class="kw-2">&amp;mut </span><span class="self">self</span>, entry_point, entry_point, globals);
         context.inlining_entry = <span class="bool-val">true</span>;
-
-        <span class="kw">for </span>(<span class="kw">_</span>, value) <span class="kw">in </span>entry_point.dfg.globals.values_iter() {
-            context.context.builder.current_function.dfg.make_global(value.get_type().into_owned());
-        }
 
         <span class="comment">// The entry block is already inserted so we have to add it to context.blocks and add
         // its parameters here. Failing to do so would cause context.translate_block() to add
