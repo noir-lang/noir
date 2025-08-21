@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1755803898895,
+  "lastUpdate": 1755807822346,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -19581,48 +19581,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "garmasholeksii@gmail.com",
-            "name": "GarmashAlex",
-            "username": "GarmashAlex"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "b51b6164e5e49243bb65adb64638a821131568dd",
-          "message": "fix: remove shadowing in `BoundedVec::any` causing returning  false unconditionally (#9478)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-08-13T11:44:28Z",
-          "tree_id": "8d0ada42ca09d8f7bfc68114ec5182561acdb1c8",
-          "url": "https://github.com/noir-lang/noir/commit/b51b6164e5e49243bb65adb64638a821131568dd"
-        },
-        "date": 1755087042116,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 246950,
-            "range": "± 702",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 218970,
-            "range": "± 3123",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2780738,
-            "range": "± 1405",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -21674,6 +21632,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2786420,
             "range": "± 2697",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "4d7433307ce8745e1d71d2bc2c3a7f009ba815d6",
+          "message": "chore: Update flattening docs (#9588)",
+          "timestamp": "2025-08-21T19:55:46Z",
+          "tree_id": "3b2229ba2008261a0290c5d5923805c93dc5a426",
+          "url": "https://github.com/noir-lang/noir/commit/4d7433307ce8745e1d71d2bc2c3a7f009ba815d6"
+        },
+        "date": 1755807804098,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 249718,
+            "range": "± 439",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 217477,
+            "range": "± 3157",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2784854,
+            "range": "± 6147",
             "unit": "ns/iter"
           }
         ]
