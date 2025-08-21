@@ -175,12 +175,9 @@ impl Block {
     fn keep_last_stores_for(&mut self, address: ValueId, function: &Function) {
         self.keep_last_store(address, function);
 
-        if let Some(expr) = self.expressions.get(&address) {
-            if let Some(aliases) = self.aliases.get(expr).cloned() {
-                for alias in aliases.iter() {
-                    self.keep_last_store(alias, function);
-                }
-            }
+        let aliases = (*self.get_aliases_for_value(address)).clone();
+        for alias in aliases.iter() {
+            self.keep_last_store(alias, function);
         }
     }
 
