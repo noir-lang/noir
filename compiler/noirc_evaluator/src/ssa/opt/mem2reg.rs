@@ -458,15 +458,20 @@ impl<'f> PerFunctionContext<'f> {
                 let result = self.inserter.function.dfg.instruction_results(instruction)[0];
                 references.remember_dereference(self.inserter.function, address, result);
 
-                // If the load is known, replace it with the known value and remove the load
+                // If the load is known, replace it with the known value and remove the load.
                 if let Some(value) = references.get_known_value(address) {
                     let result = self.inserter.function.dfg.instruction_results(instruction)[0];
                     self.inserter.map_value(result, value);
                     self.instructions_to_remove.insert(instruction);
                 } else {
+                    // We don't know the exact value of the address, so we must keep the stores to it.
                     references.mark_value_used(address, self.inserter.function);
-
+                    // Remember that this address has been loaded, so stores to it should not be removed.
                     self.last_loads.insert(address, (instruction, block_id));
+                    // Stores to any of its aliases should also be considered loaded.
+                    references.for_each_alias_of(address, |_, alias| {
+                        self.last_loads.insert(alias, (instruction, block_id));
+                    });
                 }
 
                 // Check whether the block has a repeat load from the same address (w/ no calls or stores in between the loads).
