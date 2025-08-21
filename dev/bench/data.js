@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1755809371046,
+  "lastUpdate": 1755813019010,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -19580,48 +19580,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "20a6467e324a4d1cc07f73dc55c2a49b8671989d",
-          "message": "fix(ssa): Replace pop from 0-length slice with constraint and defaults (#9489)",
-          "timestamp": "2025-08-14T14:14:24Z",
-          "tree_id": "1a6eca570dd62dd3894d001367fda3f03c1e7487",
-          "url": "https://github.com/noir-lang/noir/commit/20a6467e324a4d1cc07f73dc55c2a49b8671989d"
-        },
-        "date": 1755182750600,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 247991,
-            "range": "± 846",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 219591,
-            "range": "± 2549",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2798155,
-            "range": "± 2476",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "4f8dbbc20bb40115d87c499154655ebe7e962099",
           "message": "fix(ssa): Replace side effects with defaults when disabled (#9462)",
@@ -21664,6 +21622,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2780675,
             "range": "± 1683",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "38473c156e5075591b7ea8a4e8267474c6ac6113",
+          "message": "chore: some mem2reg refactors regarding expressions and aliases (#9610)",
+          "timestamp": "2025-08-21T21:23:14Z",
+          "tree_id": "9f88bb407c22ae423059a81cc85f15204594d6ab",
+          "url": "https://github.com/noir-lang/noir/commit/38473c156e5075591b7ea8a4e8267474c6ac6113"
+        },
+        "date": 1755813000471,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 249218,
+            "range": "± 575",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 218432,
+            "range": "± 1169",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2779534,
+            "range": "± 1900",
             "unit": "ns/iter"
           }
         ]
