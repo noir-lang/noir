@@ -99,7 +99,7 @@ fn to_string<F: AcirField>(value: &PrintableValue<F>, typ: &PrintableType) -> Op
     let mut output = String::new();
     match (value, typ) {
         (PrintableValue::Field(f), PrintableType::Field) => {
-            output.push_str(&format_field_string(*f));
+            output.push_str(&f.to_short_hex());
         }
         (PrintableValue::Field(f), PrintableType::UnsignedInteger { width }) => {
             // Retain the lower 'width' bits
@@ -275,21 +275,6 @@ fn write_template_replacing_interpolations(
     }
 
     write!(fmt, "{}", &template[last_index..])
-}
-
-/// This trims any leading zeroes.
-/// A singular '0' will be prepended as well if the trimmed string has an odd length.
-/// A hex string's length needs to be even to decode into bytes, as two digits correspond to
-/// one byte.
-pub fn format_field_string<F: AcirField>(field: F) -> String {
-    if field.is_zero() {
-        return "0x00".to_owned();
-    }
-    let mut trimmed_field = field.to_hex().trim_start_matches('0').to_owned();
-    if trimmed_field.len() % 2 != 0 {
-        trimmed_field = "0".to_owned() + &trimmed_field;
-    }
-    "0x".to_owned() + &trimmed_field
 }
 
 /// Assumes that `field_iterator` contains enough field elements in order to decode the [PrintableType].
