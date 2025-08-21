@@ -150,9 +150,12 @@ impl<F: PrimeField> FieldElement<F> {
     /// representing negative values (as is commonly done for signed integers).
     /// `2^(bit_size - 1)` is the lowest negative value, so for example if bit_size is 8 then
     /// `0..127` map to `0..127`, `128` maps to `-128`, `129` maps to `-127` and `255` maps to `-1`.
+    /// If `self` falls outside of the valid range it's formatted as-is.
     pub fn to_string_as_signed_integer(self, bit_size: u32) -> String {
         assert!(bit_size <= 128);
-        assert!(self.num_bits() <= bit_size);
+        if self.num_bits() > bit_size {
+            return self.to_string();
+        }
 
         // Compute the maximum value that is considered a positive value
         let max = if bit_size == 128 { i128::MAX as u128 } else { (1 << (bit_size - 1)) - 1 };
