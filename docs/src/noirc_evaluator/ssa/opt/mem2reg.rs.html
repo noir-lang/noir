@@ -1549,7 +1549,12 @@
 <a href="#1548" id="1548">1548</a>
 <a href="#1549" id="1549">1549</a>
 <a href="#1550" id="1550">1550</a>
-<a href="#1551" id="1551">1551</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the mem2reg SSA optimization pass is to replace any `Load` instructions to known
+<a href="#1551" id="1551">1551</a>
+<a href="#1552" id="1552">1552</a>
+<a href="#1553" id="1553">1553</a>
+<a href="#1554" id="1554">1554</a>
+<a href="#1555" id="1555">1555</a>
+<a href="#1556" id="1556">1556</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the mem2reg SSA optimization pass is to replace any `Load` instructions to known
 //! addresses with the value stored at that address, if it is also known. This pass will also remove
 //! any `Store` instructions within a block that are no longer needed because no more loads occur in
 //! between the Store in question and the next Store.
@@ -2009,15 +2014,20 @@
                 <span class="kw">let </span>result = <span class="self">self</span>.inserter.function.dfg.instruction_results(instruction)[<span class="number">0</span>];
                 references.remember_dereference(<span class="self">self</span>.inserter.function, address, result);
 
-                <span class="comment">// If the load is known, replace it with the known value and remove the load
+                <span class="comment">// If the load is known, replace it with the known value and remove the load.
                 </span><span class="kw">if let </span><span class="prelude-val">Some</span>(value) = references.get_known_value(address) {
                     <span class="kw">let </span>result = <span class="self">self</span>.inserter.function.dfg.instruction_results(instruction)[<span class="number">0</span>];
                     <span class="self">self</span>.inserter.map_value(result, value);
                     <span class="self">self</span>.instructions_to_remove.insert(instruction);
                 } <span class="kw">else </span>{
-                    references.mark_value_used(address, <span class="self">self</span>.inserter.function);
-
-                    <span class="self">self</span>.last_loads.insert(address, (instruction, block_id));
+                    <span class="comment">// We don't know the exact value of the address, so we must keep the stores to it.
+                    </span>references.mark_value_used(address, <span class="self">self</span>.inserter.function);
+                    <span class="comment">// Remember that this address has been loaded, so stores to it should not be removed.
+                    </span><span class="self">self</span>.last_loads.insert(address, (instruction, block_id));
+                    <span class="comment">// Stores to any of its aliases should also be considered loaded.
+                    </span>references.for_each_alias_of(address, |<span class="kw">_</span>, alias| {
+                        <span class="self">self</span>.last_loads.insert(alias, (instruction, block_id));
+                    });
                 }
 
                 <span class="comment">// Check whether the block has a repeat load from the same address (w/ no calls or stores in between the loads).
