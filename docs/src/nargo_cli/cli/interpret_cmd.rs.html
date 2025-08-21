@@ -310,7 +310,9 @@
 <a href="#309" id="309">309</a>
 <a href="#310" id="310">310</a>
 <a href="#311" id="311">311</a>
-<a href="#312" id="312">312</a></pre></div><pre class="rust"><code><span class="doccomment">//! Use the SSA Interpreter to execute a SSA after a certain pass.
+<a href="#312" id="312">312</a>
+<a href="#313" id="313">313</a>
+<a href="#314" id="314">314</a></pre></div><pre class="rust"><code><span class="doccomment">//! Use the SSA Interpreter to execute a SSA after a certain pass.
 
 </span><span class="kw">use </span>std::collections::BTreeMap;
 <span class="kw">use </span>std::path::PathBuf;
@@ -441,6 +443,8 @@
         });
 
         <span class="kw">let </span>interpreter_options = InterpreterOptions { trace: args.trace };
+        <span class="kw">let </span>file_manager =
+            <span class="kw">if </span>args.compile_options.no_ssa_locations { <span class="prelude-val">None </span>} <span class="kw">else </span>{ <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>file_manager) };
 
         print_and_interpret_ssa(
             ssa_options,
@@ -450,7 +454,7 @@
             <span class="kw-2">&amp;</span>ssa_args,
             <span class="kw-2">&amp;</span>ssa_return,
             interpreter_options,
-            <span class="kw-2">&amp;</span>file_manager,
+            file_manager,
         )<span class="question-mark">?</span>;
 
         <span class="comment">// Run SSA passes in the pipeline and interpret the ones we are interested in.
@@ -473,7 +477,7 @@
                 <span class="kw-2">&amp;</span>ssa_args,
                 <span class="kw-2">&amp;</span>ssa_return,
                 interpreter_options,
-                <span class="kw-2">&amp;</span>file_manager,
+                file_manager,
             )<span class="question-mark">?</span>;
         }
     }
@@ -535,7 +539,7 @@
     patterns.iter().any(|p| msg.contains(<span class="kw-2">&amp;</span>p.to_lowercase()))
 }
 
-<span class="kw">fn </span>print_ssa(options: <span class="kw-2">&amp;</span>SsaEvaluatorOptions, ssa: <span class="kw-2">&amp;mut </span>Ssa, msg: <span class="kw-2">&amp;</span>str, fm: <span class="kw-2">&amp;</span>FileManager) {
+<span class="kw">fn </span>print_ssa(options: <span class="kw-2">&amp;</span>SsaEvaluatorOptions, ssa: <span class="kw-2">&amp;mut </span>Ssa, msg: <span class="kw-2">&amp;</span>str, fm: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>FileManager&gt;) {
     <span class="kw">let </span>print = <span class="kw">match </span>options.ssa_logging {
         SsaLogging::All =&gt; <span class="bool-val">true</span>,
         SsaLogging::None =&gt; <span class="bool-val">false</span>,
@@ -543,7 +547,7 @@
     };
     <span class="kw">if </span>print {
         ssa.normalize_ids();
-        <span class="macro">println!</span>(<span class="string">"After {msg}:\n{}"</span>, ssa.print_with(<span class="prelude-val">Some</span>(fm)));
+        <span class="macro">println!</span>(<span class="string">"After {msg}:\n{}"</span>, ssa.print_with(fm));
     }
 }
 
@@ -592,7 +596,7 @@
     args: <span class="kw-2">&amp;</span>[Value],
     return_value: <span class="kw-2">&amp;</span><span class="prelude-ty">Option</span>&lt;Vec&lt;Value&gt;&gt;,
     interpreter_options: InterpreterOptions,
-    fm: <span class="kw-2">&amp;</span>FileManager,
+    fm: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>FileManager&gt;,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;(), CliError&gt; {
     print_ssa(options, ssa, msg, fm);
     interpret_ssa(passes_to_interpret, ssa, msg, args, return_value, interpreter_options)

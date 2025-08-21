@@ -224,17 +224,7 @@
 <a href="#223" id="223">223</a>
 <a href="#224" id="224">224</a>
 <a href="#225" id="225">225</a>
-<a href="#226" id="226">226</a>
-<a href="#227" id="227">227</a>
-<a href="#228" id="228">228</a>
-<a href="#229" id="229">229</a>
-<a href="#230" id="230">230</a>
-<a href="#231" id="231">231</a>
-<a href="#232" id="232">232</a>
-<a href="#233" id="233">233</a>
-<a href="#234" id="234">234</a>
-<a href="#235" id="235">235</a>
-<a href="#236" id="236">236</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::path::Path;
+<a href="#226" id="226">226</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::path::Path;
 
 <span class="kw">use </span>acir::{AcirField, FieldElement, native_types::WitnessStack};
 <span class="kw">use </span>acvm::BlackBoxFunctionSolver;
@@ -242,7 +232,6 @@
 <span class="kw">use </span>noirc_abi::{AbiType, Sign, input_parser::InputValue};
 <span class="kw">use </span>noirc_artifacts::debug::DebugArtifact;
 <span class="kw">use </span>noirc_driver::CompiledProgram;
-<span class="kw">use </span>noirc_printable_type::format_field_string;
 
 <span class="kw">use crate</span>::{
     errors::CliError,
@@ -397,7 +386,7 @@
 <span class="kw">fn </span>append_input_value_to_string(input_value: <span class="kw-2">&amp;</span>InputValue, abi_type: <span class="kw-2">&amp;</span>AbiType, string: <span class="kw-2">&amp;mut </span>String) {
     <span class="kw">match </span>(abi_type, input_value) {
         (AbiType::Field, InputValue::Field(field_element)) =&gt; {
-            string.push_str(<span class="kw-2">&amp;</span>format_field_string(<span class="kw-2">*</span>field_element));
+            string.push_str(<span class="kw-2">&amp;</span>field_element.to_short_hex());
         }
         (AbiType::Array { length: <span class="kw">_</span>, typ }, InputValue::Vec(input_values)) =&gt; {
             string.push(<span class="string">'['</span>);
@@ -414,16 +403,7 @@
                 string.push_str(<span class="kw-2">&amp;</span>f.to_string());
             }
             Sign::Signed =&gt; {
-                <span class="kw">let </span>bit_size = <span class="kw-2">*</span>bit_size;
-                <span class="kw">let </span>max =
-                    <span class="kw">if </span>bit_size == <span class="number">128 </span>{ i128::MAX <span class="kw">as </span>u128 } <span class="kw">else </span>{ (<span class="number">1 </span>&lt;&lt; (bit_size - <span class="number">1</span>)) - <span class="number">1 </span>};
-                <span class="kw">if </span>f.num_bits() &gt; <span class="number">128 </span>|| f.to_u128() &gt; max {
-                    string.push(<span class="string">'-'</span>);
-                    <span class="kw">let </span>f = FieldElement::from(<span class="number">2u32</span>).pow(<span class="kw-2">&amp;</span>bit_size.into()) - <span class="kw-2">*</span>f;
-                    string.push_str(<span class="kw-2">&amp;</span>f.to_string());
-                } <span class="kw">else </span>{
-                    string.push_str(<span class="kw-2">&amp;</span>f.to_string());
-                }
+                string.push_str(<span class="kw-2">&amp;</span>f.to_string_as_signed_integer(<span class="kw-2">*</span>bit_size));
             }
         },
         (AbiType::Boolean, InputValue::Field(field_element)) =&gt; {
