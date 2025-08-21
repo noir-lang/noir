@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1755786027607,
+  "lastUpdate": 1755786386121,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -4058,90 +4058,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "84741533+defkit@users.noreply.github.com",
-            "name": "defkit",
-            "username": "defkit"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "ea9c9130e367a35d1f0eda03d995ce139b469481",
-          "message": "feat(ssa_fuzzer): mode without instruction simplification + array instructions mutations + limits fix (#9438)\n\nCo-authored-by: Innokentii Sennovskii <isennovskiy@gmail.com>",
-          "timestamp": "2025-08-11T14:29:10Z",
-          "tree_id": "f8f0c42488a8a7f84970f7937ed60e4d3ac703fd",
-          "url": "https://github.com/noir-lang/noir/commit/ea9c9130e367a35d1f0eda03d995ce139b469481"
-        },
-        "date": 1754925139871,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 1.668,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 7.864,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.286,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 16.36,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 14.16,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 21.12,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 197,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 200,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.304,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.442,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.809,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 1.824,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jfecher11@gmail.com",
             "name": "jfecher",
             "username": "jfecher"
@@ -8101,6 +8017,90 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 1.653,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5eb44d30ed8dd362cd019a03a3785feed67b5dab",
+          "message": "chore: store last loads in `HashSet` instead of `HashMap` in mem2reg (#9498)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
+          "timestamp": "2025-08-21T13:53:58Z",
+          "tree_id": "7b3e4fbdfcef826832c3e736257380ce77b8b0df",
+          "url": "https://github.com/noir-lang/noir/commit/5eb44d30ed8dd362cd019a03a3785feed67b5dab"
+        },
+        "date": 1755786367615,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1.788,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 7.804,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.36,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 15.7,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 13.28,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 20.22,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 220,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 204,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.336,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.486,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.771,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 1.622,
             "unit": "s"
           }
         ]
