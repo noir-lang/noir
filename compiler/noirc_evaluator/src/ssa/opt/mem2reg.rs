@@ -308,10 +308,8 @@ impl<'f> PerFunctionContext<'f> {
 
         if let Some(first_predecessor) = predecessors.next() {
             let mut first = self.blocks.get(&first_predecessor).cloned().unwrap_or_default();
+
             first.last_stores.clear();
-            // Last loads are tracked per block. During unification we are creating a new block from the current one,
-            // so we must clear the last loads of the current block before we return the new block.
-            first.last_loads.clear();
 
             // Note that we have to start folding with the first block as the accumulator.
             // If we started with an empty block, an empty block union'd with any other block
@@ -1314,7 +1312,39 @@ mod tests {
 
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.mem2reg();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: u32):
+            v2 = call f1(v0) -> [&mut u32; 1]
+            v4 = array_get v2, index u32 0 -> &mut u32
+            store u32 1 at v4
+            v6 = load v4 -> u1
+            return v6
+        }
+        brillig(inline_always) fn foo f1 {
+          b0(v0: u32):
+            v1 = allocate -> &mut u32
+            store v0 at v1
+            v2 = allocate -> &mut u32
+            store u32 0 at v2
+            jmp b1()
+          b1():
+            v4 = load v2 -> u32
+            v6 = eq v4, u32 1
+            jmpif v6 then: b2, else: b3
+          b2():
+            jmp b4()
+          b3():
+            v7 = add v4, u32 1
+            store v7 at v2
+            jmp b5()
+          b4():
+            v8 = make_array [v1] : [&mut u32; 1]
+            return v8
+          b5():
+            jmp b1()
+        }
+        ");
     }
 
     #[test]
@@ -1537,6 +1567,68 @@ mod tests {
         brillig(inline) impure fn append_note_hashes_with_logs f1 {
           b0(v0: &mut [Field; 2]):
             return
+        }
+        ");
+    }
+
+    #[test]
+    fn reuses_last_load_from_single_predecessor_block() {
+        let src = r#"
+        brillig(inline) fn main f0 {
+          b0(v0: &mut Field):
+            v2 = load v0 -> Field
+            jmp b1()
+          b1():
+            v18 = load v0 -> Field
+            return v18
+        }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.mem2reg();
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: &mut Field):
+            v1 = load v0 -> Field
+            jmp b1()
+          b1():
+            return v1
+        }
+        ");
+    }
+
+    #[test]
+    fn reuses_last_load_from_multiple_indirect_predecessor_block() {
+        let src = r#"
+        brillig(inline) fn main f0 {
+          b0(v0: &mut Field, v1: u1):
+            v2 = load v0 -> Field
+            jmpif v1 then: b1, else: b2
+          b1():
+            jmp b3()
+          b2():
+            jmp b3()
+          b3():
+            v18 = load v0 -> Field
+            return v18
+        }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.mem2reg();
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: &mut Field, v1: u1):
+            v2 = load v0 -> Field
+            jmpif v1 then: b1, else: b2
+          b1():
+            jmp b3()
+          b2():
+            jmp b3()
+          b3():
+            return v2
         }
         ");
     }
