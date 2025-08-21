@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1755813418624,
+  "lastUpdate": 1755813420237,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -4067,90 +4067,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "20a6467e324a4d1cc07f73dc55c2a49b8671989d",
-          "message": "fix(ssa): Replace pop from 0-length slice with constraint and defaults (#9489)",
-          "timestamp": "2025-08-14T14:14:24Z",
-          "tree_id": "1a6eca570dd62dd3894d001367fda3f03c1e7487",
-          "url": "https://github.com/noir-lang/noir/commit/20a6467e324a4d1cc07f73dc55c2a49b8671989d"
-        },
-        "date": 1755183190658,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 1.682,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 7.864,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.296,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 16.38,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 13.48,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 21.32,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 193,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 197,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.346,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.46,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.786,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 1.669,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "4f8dbbc20bb40115d87c499154655ebe7e962099",
           "message": "fix(ssa): Replace side effects with defaults when disabled (#9462)",
@@ -8101,6 +8017,90 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 1.642,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "38473c156e5075591b7ea8a4e8267474c6ac6113",
+          "message": "chore: some mem2reg refactors regarding expressions and aliases (#9610)",
+          "timestamp": "2025-08-21T21:23:14Z",
+          "tree_id": "9f88bb407c22ae423059a81cc85f15204594d6ab",
+          "url": "https://github.com/noir-lang/noir/commit/38473c156e5075591b7ea8a4e8267474c6ac6113"
+        },
+        "date": 1755813398768,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1.746,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 8.066,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.336,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 15.2,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 13.42,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 21.8,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 194,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 267,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.332,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.538,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.765,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 1.567,
             "unit": "s"
           }
         ]
