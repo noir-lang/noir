@@ -68,7 +68,15 @@ pub trait AcirField:
     /// Before using this FieldElement, please ensure that this behavior is necessary
     fn inverse(&self) -> Self;
 
+    /// Returns the vale of this field as a hex string without the `0x` prefix.
+    /// The returned string will have a length equal to the maximum number of hex
+    /// digits needed to represent the maximum value of this field.
     fn to_hex(self) -> String;
+
+    /// Returns the value of this field as a hex string with leading zeroes removed,
+    /// prepended with `0x`.
+    /// A singular '0' will be prepended as well if the trimmed string has an odd length.
+    fn to_short_hex(self) -> String;
 
     fn from_hex(hex_str: &str) -> Option<Self>;
 
@@ -182,6 +190,10 @@ macro_rules! field_wrapper {
 
             fn to_hex(self) -> String {
                 self.0.to_hex()
+            }
+
+            fn to_short_hex(self) -> String {
+                self.0.to_short_hex()
             }
 
             fn from_hex(hex_str: &str) -> Option<Self> {
