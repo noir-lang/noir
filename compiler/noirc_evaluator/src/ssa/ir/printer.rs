@@ -140,6 +140,10 @@ fn value(dfg: &DataFlowGraph, id: ValueId) -> String {
     }
 }
 
+/// Formats the given number assuming it has the given type.
+/// Unsigned types and field element types will be formatter as-is,
+/// while signed types will be formatted as positive or negative numbers
+/// depending on where the number falls in the range given by the type's bit size.
 fn number(number: FieldElement, typ: &NumericType) -> String {
     if let NumericType::Signed { bit_size } = typ {
         number.to_string_as_signed_integer(*bit_size)
