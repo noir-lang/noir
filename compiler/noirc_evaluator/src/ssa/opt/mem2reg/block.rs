@@ -42,10 +42,10 @@ pub(super) struct Block {
 /// An `Expression` here is used to represent a canonical key
 /// into the aliases map since otherwise two dereferences of the
 /// same address will be given different ValueIds.
-#[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone, PartialOrd, Ord, PartialEq, Eq, Hash)]
 pub(super) enum Expression {
-    Dereference(Box<Expression>),
-    ArrayElement(Box<Expression>),
+    Dereference(ValueId),
+    ArrayElement(ValueId),
     Other(ValueId),
 }
 
@@ -90,7 +90,7 @@ impl Block {
 
     fn set_value(&mut self, address: ValueId, value: ReferenceValue) {
         let expression = self.expressions.entry(address).or_insert(Expression::Other(address));
-        let aliases = self.aliases.entry(expression.clone()).or_default();
+        let aliases = self.aliases.entry(*expression).or_default();
 
         if aliases.is_unknown() {
             // uh-oh, we don't know at all what this reference refers to, could be anything.
@@ -119,7 +119,7 @@ impl Block {
             if let Some(existing) = self.expressions.get(value_id) {
                 assert_eq!(existing, expression, "Expected expressions for {value_id} to be equal");
             } else {
-                self.expressions.insert(*value_id, expression.clone());
+                self.expressions.insert(*value_id, *expression);
             }
         }
 
@@ -130,10 +130,8 @@ impl Block {
                     continue;
                 }
             }
-            let expression = expression.clone();
-
             self.aliases
-                .entry(expression)
+                .entry(*expression)
                 .and_modify(|aliases| aliases.unify(new_aliases))
                 .or_insert_with(|| new_aliases.clone());
         }
@@ -162,7 +160,7 @@ impl Block {
             if let Some(known_address) = self.get_known_value(address) {
                 self.expressions.insert(result, Expression::Other(known_address));
             } else {
-                let expression = Expression::Dereference(Box::new(Expression::Other(address)));
+                let expression = Expression::Dereference(address);
                 self.expressions.insert(result, expression);
                 // No known aliases to insert for this expression... can we find an alias
                 // even if we don't have a known address? If not we'll have to invalidate all
