@@ -259,9 +259,7 @@
 <a href="#258" id="258">258</a>
 <a href="#259" id="259">259</a>
 <a href="#260" id="260">260</a>
-<a href="#261" id="261">261</a>
-<a href="#262" id="262">262</a>
-<a href="#263" id="263">263</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::borrow::Cow;
+<a href="#261" id="261">261</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::borrow::Cow;
 
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{
     function::Function,
@@ -305,10 +303,10 @@
 <span class="doccomment">/// An `Expression` here is used to represent a canonical key
 /// into the aliases map since otherwise two dereferences of the
 /// same address will be given different ValueIds.
-</span><span class="attr">#[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq, Hash)]
+</span><span class="attr">#[derive(Debug, Copy, Clone, PartialOrd, Ord, PartialEq, Eq, Hash)]
 </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">enum </span>Expression {
-    Dereference(Box&lt;Expression&gt;),
-    ArrayElement(Box&lt;Expression&gt;),
+    Dereference(ValueId),
+    ArrayElement(ValueId),
     Other(ValueId),
 }
 
@@ -353,7 +351,7 @@
 
     <span class="kw">fn </span>set_value(<span class="kw-2">&amp;mut </span><span class="self">self</span>, address: ValueId, value: ReferenceValue) {
         <span class="kw">let </span>expression = <span class="self">self</span>.expressions.entry(address).or_insert(Expression::Other(address));
-        <span class="kw">let </span>aliases = <span class="self">self</span>.aliases.entry(expression.clone()).or_default();
+        <span class="kw">let </span>aliases = <span class="self">self</span>.aliases.entry(<span class="kw-2">*</span>expression).or_default();
 
         <span class="kw">if </span>aliases.is_unknown() {
             <span class="comment">// uh-oh, we don't know at all what this reference refers to, could be anything.
@@ -382,7 +380,7 @@
             <span class="kw">if let </span><span class="prelude-val">Some</span>(existing) = <span class="self">self</span>.expressions.get(value_id) {
                 <span class="macro">assert_eq!</span>(existing, expression, <span class="string">"Expected expressions for {value_id} to be equal"</span>);
             } <span class="kw">else </span>{
-                <span class="self">self</span>.expressions.insert(<span class="kw-2">*</span>value_id, expression.clone());
+                <span class="self">self</span>.expressions.insert(<span class="kw-2">*</span>value_id, <span class="kw-2">*</span>expression);
             }
         }
 
@@ -393,10 +391,8 @@
                     <span class="kw">continue</span>;
                 }
             }
-            <span class="kw">let </span>expression = expression.clone();
-
             <span class="self">self</span>.aliases
-                .entry(expression)
+                .entry(<span class="kw-2">*</span>expression)
                 .and_modify(|aliases| aliases.unify(new_aliases))
                 .or_insert_with(|| new_aliases.clone());
         }
@@ -425,7 +421,7 @@
             <span class="kw">if let </span><span class="prelude-val">Some</span>(known_address) = <span class="self">self</span>.get_known_value(address) {
                 <span class="self">self</span>.expressions.insert(result, Expression::Other(known_address));
             } <span class="kw">else </span>{
-                <span class="kw">let </span>expression = Expression::Dereference(Box::new(Expression::Other(address)));
+                <span class="kw">let </span>expression = Expression::Dereference(address);
                 <span class="self">self</span>.expressions.insert(result, expression);
                 <span class="comment">// No known aliases to insert for this expression... can we find an alias
                 // even if we don't have a known address? If not we'll have to invalidate all

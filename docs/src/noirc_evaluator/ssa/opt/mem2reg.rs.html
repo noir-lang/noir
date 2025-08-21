@@ -1541,18 +1541,7 @@
 <a href="#1540" id="1540">1540</a>
 <a href="#1541" id="1541">1541</a>
 <a href="#1542" id="1542">1542</a>
-<a href="#1543" id="1543">1543</a>
-<a href="#1544" id="1544">1544</a>
-<a href="#1545" id="1545">1545</a>
-<a href="#1546" id="1546">1546</a>
-<a href="#1547" id="1547">1547</a>
-<a href="#1548" id="1548">1548</a>
-<a href="#1549" id="1549">1549</a>
-<a href="#1550" id="1550">1550</a>
-<a href="#1551" id="1551">1551</a>
-<a href="#1552" id="1552">1552</a>
-<a href="#1553" id="1553">1553</a>
-<a href="#1554" id="1554">1554</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the mem2reg SSA optimization pass is to replace any `Load` instructions to known
+<a href="#1543" id="1543">1543</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the mem2reg SSA optimization pass is to replace any `Load` instructions to known
 //! addresses with the value stored at that address, if it is also known. This pass will also remove
 //! any `Store` instructions within a block that are no longer needed because no more loads occur in
 //! between the Store in question and the next Store.
@@ -1745,7 +1734,7 @@
                 // so that for example if the value is an array and contains a reference,
                 // then that reference gets to keep its last store.
                 </span><span class="kw">let </span>typ = <span class="self">self</span>.inserter.function.dfg.type_of_value(value);
-                <span class="kw">if </span><span class="self">Self</span>::contains_references(<span class="kw-2">&amp;</span>typ) {
+                <span class="kw">if </span>typ.contains_reference() {
                     <span class="kw">if let </span><span class="prelude-val">Some</span>(expression) = references.expressions.get(<span class="kw-2">&amp;</span>value) {
                         <span class="kw">if let </span><span class="prelude-val">Some</span>(aliases) = references.aliases.get(expression) {
                             aliases.for_each(|alias| {
@@ -1940,11 +1929,11 @@
             <span class="kw">let </span>first = first.expect(<span class="string">"All parameters alias at least themselves or we early return"</span>);
 
             <span class="kw">let </span>expression = Expression::Other(first);
-            <span class="kw">let </span>previous = references.aliases.insert(expression.clone(), aliases.clone());
+            <span class="kw">let </span>previous = references.aliases.insert(expression, aliases.clone());
             <span class="macro">assert!</span>(previous.is_none());
 
             aliases.for_each(|alias| {
-                <span class="kw">let </span>previous = references.expressions.insert(alias, expression.clone());
+                <span class="kw">let </span>previous = references.expressions.insert(alias, expression);
                 <span class="macro">assert!</span>(previous.is_none());
             });
         }
@@ -2082,13 +2071,13 @@
 
                 <span class="kw">let </span>array = <span class="kw-2">*</span>array;
                 <span class="kw">let </span>array_typ = <span class="self">self</span>.inserter.function.dfg.type_of_value(array);
-                <span class="kw">if </span><span class="self">Self</span>::contains_references(<span class="kw-2">&amp;</span>array_typ) {
+                <span class="kw">if </span>array_typ.contains_reference() {
                     references.for_each_alias_of(array, |<span class="kw">_</span>, alias| {
                         <span class="self">self</span>.instruction_input_references.insert(alias);
                     });
                     references.mark_value_used(array, <span class="self">self</span>.inserter.function);
 
-                    <span class="kw">let </span>expression = Expression::ArrayElement(Box::new(Expression::Other(array)));
+                    <span class="kw">let </span>expression = Expression::ArrayElement(array);
 
                     <span class="kw">if let </span><span class="prelude-val">Some</span>(aliases) = references.aliases.get_mut(<span class="kw-2">&amp;</span>expression) {
                         aliases.insert(result);
@@ -2099,11 +2088,11 @@
                 references.mark_value_used(<span class="kw-2">*</span>array, <span class="self">self</span>.inserter.function);
                 <span class="kw">let </span>element_type = <span class="self">self</span>.inserter.function.dfg.type_of_value(<span class="kw-2">*</span>value);
 
-                <span class="kw">if </span><span class="self">Self</span>::contains_references(<span class="kw-2">&amp;</span>element_type) {
+                <span class="kw">if </span>element_type.contains_reference() {
                     <span class="kw">let </span>result = <span class="self">self</span>.inserter.function.dfg.instruction_results(instruction)[<span class="number">0</span>];
                     <span class="kw">let </span>array = <span class="kw-2">*</span>array;
 
-                    <span class="kw">let </span>expression = Expression::ArrayElement(Box::new(Expression::Other(array)));
+                    <span class="kw">let </span>expression = Expression::ArrayElement(array);
 
                     <span class="kw">let </span><span class="kw-2">mut </span>aliases = <span class="kw">if let </span><span class="prelude-val">Some</span>(aliases) = references.aliases.get_mut(<span class="kw-2">&amp;</span>expression)
                     {
@@ -2120,7 +2109,7 @@
 
                     aliases.unify(<span class="kw-2">&amp;</span>references.get_aliases_for_value(<span class="kw-2">*</span>value));
 
-                    references.expressions.insert(result, expression.clone());
+                    references.expressions.insert(result, expression);
                     references.aliases.insert(expression, aliases);
 
                     <span class="comment">// Similar to how we remember that we used a value in a `Store` instruction,
@@ -2144,11 +2133,11 @@
             Instruction::MakeArray { elements, typ } =&gt; {
                 <span class="comment">// If `array` is an array constant that contains reference types, then insert each element
                 // as a potential alias to the array itself.
-                </span><span class="kw">if </span><span class="self">Self</span>::contains_references(typ) {
+                </span><span class="kw">if </span>typ.contains_reference() {
                     <span class="kw">let </span>array = <span class="self">self</span>.inserter.function.dfg.instruction_results(instruction)[<span class="number">0</span>];
 
-                    <span class="kw">let </span>expr = Expression::ArrayElement(Box::new(Expression::Other(array)));
-                    references.expressions.insert(array, expr.clone());
+                    <span class="kw">let </span>expr = Expression::ArrayElement(array);
+                    references.expressions.insert(array, expr);
                     <span class="kw">let </span>aliases = references.aliases.entry(expr).or_insert(AliasSet::known_empty());
 
                     <span class="self">self</span>.add_array_aliases(elements, aliases);
@@ -2158,9 +2147,9 @@
                 <span class="kw">let </span>result = <span class="self">self</span>.inserter.function.dfg.instruction_results(instruction)[<span class="number">0</span>];
                 <span class="kw">let </span>result_type = <span class="self">self</span>.inserter.function.dfg.type_of_value(result);
 
-                <span class="kw">if </span><span class="self">Self</span>::contains_references(<span class="kw-2">&amp;</span>result_type) {
+                <span class="kw">if </span>result_type.contains_reference() {
                     <span class="kw">let </span>expr = Expression::Other(result);
-                    references.expressions.insert(result, expr.clone());
+                    references.expressions.insert(result, expr);
                     references.aliases.insert(
                         expr,
                         AliasSet::known_multiple(<span class="macro">vec!</span>[<span class="kw-2">*</span>then_value, <span class="kw-2">*</span>else_value].into()),
@@ -2183,28 +2172,17 @@
         }
     }
 
-    <span class="kw">fn </span>contains_references(typ: <span class="kw-2">&amp;</span>Type) -&gt; bool {
-        <span class="kw">match </span>typ {
-            Type::Numeric(<span class="kw">_</span>) =&gt; <span class="bool-val">false</span>,
-            Type::Function =&gt; <span class="bool-val">false</span>,
-            Type::Reference(<span class="kw">_</span>) =&gt; <span class="bool-val">true</span>,
-            Type::Array(elements, <span class="kw">_</span>) | Type::Slice(elements) =&gt; {
-                elements.iter().any(<span class="self">Self</span>::contains_references)
-            }
-        }
-    }
-
     <span class="kw">fn </span>set_aliases(<span class="kw-2">&amp;</span><span class="self">self</span>, references: <span class="kw-2">&amp;mut </span>Block, address: ValueId, new_aliases: AliasSet) {
         <span class="kw">let </span>expression =
             references.expressions.entry(address).or_insert(Expression::Other(address));
-        <span class="kw">let </span>aliases = references.aliases.entry(expression.clone()).or_default();
+        <span class="kw">let </span>aliases = references.aliases.entry(<span class="kw-2">*</span>expression).or_default();
         <span class="kw-2">*</span>aliases = new_aliases;
     }
 
     <span class="kw">fn </span>mark_all_unknown(<span class="kw-2">&amp;</span><span class="self">self</span>, values: <span class="kw-2">&amp;</span>[ValueId], references: <span class="kw-2">&amp;mut </span>Block) {
         <span class="kw">for </span>value <span class="kw">in </span>values {
             <span class="kw">let </span>typ = <span class="self">self</span>.inserter.function.dfg.type_of_value(<span class="kw-2">*</span>value);
-            <span class="kw">if </span><span class="self">Self</span>::contains_references(<span class="kw-2">&amp;</span>typ) {
+            <span class="kw">if </span>typ.contains_reference() {
                 <span class="kw">let </span>value = <span class="kw-2">*</span>value;
                 references.set_unknown(value);
                 references.mark_value_used(value, <span class="self">self</span>.inserter.function);
