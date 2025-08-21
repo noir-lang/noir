@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1755770944708,
+  "lastUpdate": 1755770979851,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -21632,90 +21632,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "a24cfcc3822da1b9db40b63f88e967ead2fabd68",
-          "message": "chore: Release Noir(1.0.0-beta.10) (#9311)\n\nCo-authored-by: noirwhal <tomfrench@aztecprotocol.com>",
-          "timestamp": "2025-08-08T14:41:03Z",
-          "tree_id": "c45fb2d8d702d4a24c1faac5613afad40b107a6b",
-          "url": "https://github.com/noir-lang/noir/commit/a24cfcc3822da1b9db40b63f88e967ead2fabd68"
-        },
-        "date": 1754666214282,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 712.6,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 2036.6,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 539.3,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 4318.2,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 3330.5,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 3842.9,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 30725.4,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 30773.9,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 185.9,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 391.2,
-            "unit": "KB"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 632.1,
-            "unit": "KB"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 525.2,
-            "unit": "KB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "163862677+noirwhal@users.noreply.github.com",
-            "name": "noirwhal",
-            "username": "noirwhal"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "1748cbe15b935bc9331be84e7f9b6443d125c4b1",
           "message": "chore: bump external pinned commits (#9454)\n\nCo-authored-by: noirwhal <tomfrench@aztecprotocol.com>",
@@ -25606,6 +25522,90 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/e520c96ed5e5e724f870349fde874cf393a79cc7"
         },
         "date": 1755728320345,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 709.1,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 2033.1,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 535.9,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 4317.7,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 3329.6,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 3846.8,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 30728.8,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 30774.4,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 187,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 388.9,
+            "unit": "KB"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 631.5,
+            "unit": "KB"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 525.2,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "49a3185374382ff61eb7537188a09e87db699628",
+          "message": "fix: Consume correct number of fields when printing references (#9579)",
+          "timestamp": "2025-08-21T09:27:26Z",
+          "tree_id": "80afe133d60151fb00e42420b4abaf6ef383dc82",
+          "url": "https://github.com/noir-lang/noir/commit/49a3185374382ff61eb7537188a09e87db699628"
+        },
+        "date": 1755770960906,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
