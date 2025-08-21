@@ -6,9 +6,12 @@
 //!   - This pass is strictly ACIR-only and never mutates brillig functions.
 //!
 //! Conditions:
-//!   - Precondition: There is at most one constrained function (inlining has been performed).
-//!   - Precondition: The 0-1 constrained functions have no loops (unrolling has been performed).
-//!   - Postcondition: The 0-1 constrained functions now consist of only one block where the
+//!   - Precondition: Inlining has been performed which should result in there being no remaining
+//!     `call` instructions to acir/constrained functions (unless they are `InlineType::Fold`).
+//!     This also means the only acir functions in the program should be `main` (if main is
+//!     constrained), or any constrained `InlineType::Fold` functions.
+//!   - Precondition: Each constrained function should have no loops (unrolling has been performed).
+//!   - Postcondition: Each constrained function should now consist of only one block where the
 //!     terminator instruction is always a return.
 //!
 //! Relevance to other passes:
@@ -166,15 +169,20 @@ impl Ssa {
         }
 
         for function in self.functions.values_mut() {
-            // Disabled due to failures
-            // #[cfg(debug_assertions)]
-            // flatten_cfg_pre_check(function);
+            // This pass may run forever on a brillig function - we check if block predecessors have
+            // been processed and push the block to the back of the queue. This loops forever if
+            // there are still any loops present in the program.
+            if matches!(function.runtime(), RuntimeType::Brillig(_)) {
+                continue;
+            }
+
+            #[cfg(debug_assertions)]
+            flatten_cfg_pre_check(function);
 
             flatten_function_cfg(function, &no_predicates);
 
-            // Disabled as we're getting failures, I would expect this to pass however.
-            // #[cfg(debug_assertions)]
-            // flatten_cfg_post_check(function);
+            #[cfg(debug_assertions)]
+            flatten_cfg_post_check(function);
         }
         self
     }
@@ -182,57 +190,24 @@ impl Ssa {
 
 /// Pre-check condition for [Ssa::flatten_cfg].
 ///
-/// Succeeds if:
-///   - no block contains a jmpif with a constant condition.
-///
-/// Otherwise panics.
+/// Panics if:
+///   - Any acir function has at least 1 loop
 #[cfg(debug_assertions)]
 #[allow(dead_code)]
 fn flatten_cfg_pre_check(function: &Function) {
-    function.reachable_blocks().iter().for_each(|block| {
-        if let TerminatorInstruction::JmpIf { condition, .. } =
-            function.dfg[*block].unwrap_terminator()
-        {
-            if function
-                .dfg
-                .get_numeric_constant(*condition)
-                .is_some_and(|c| c.is_zero() || c.is_one())
-            {
-                // We have this check here as if we do not, the flattening pass will generate groups of opcodes which are
-                // under a zero predicate. These opcodes are not always removed by the die pass and so bloat the code.
-                //
-                // We could add handling for this inside of the pass itself but it's simpler to just run `simplify_cfg`
-                // immediately before flattening.
-                panic!(
-                    "Function {} has a jmpif with a constant condition {condition}",
-                    function.id()
-                );
-            }
-        }
-    });
+    let loops = super::unrolling::Loops::find_all(function);
+    assert_eq!(loops.yet_to_unroll.len(), 0);
 }
 
 /// Post-check condition for [Ssa::flatten_cfg].
 ///
 /// Panics if:
-///   - Any `enable_side_effects u1 0` instructions exist.
-///
-/// Otherwise succeeds.
+///   - Any acir function contains > 1 block
 #[cfg(debug_assertions)]
 #[allow(dead_code)]
 fn flatten_cfg_post_check(function: &Function) {
-    function.reachable_blocks().iter().for_each(|block| {
-        function.dfg[*block].instructions().iter().for_each(|instruction| {
-            if let Instruction::EnableSideEffectsIf { condition } = function.dfg[*instruction] {
-                if function.dfg.get_numeric_constant(condition).is_some_and(|c| c.is_zero()) {
-                    panic!(
-                        "Function {} has an enable_side_effects u1 0 instruction",
-                        function.id()
-                    );
-                }
-            }
-        });
-    });
+    let blocks = function.reachable_blocks();
+    assert_eq!(blocks.len(), 1);
 }
 
 pub(crate) struct Context<'f> {
@@ -314,13 +289,6 @@ struct ConditionalContext {
 /// Flattens the control flow graph of the function such that it is left with a
 /// single block containing all instructions and no more control-flow.
 fn flatten_function_cfg(function: &mut Function, no_predicates: &HashMap<FunctionId, bool>) {
-    // This pass may run forever on a brillig function.
-    // Analyze will check if the predecessors have been processed and push the block to the back of
-    // the queue. This loops forever if there are still any loops present in the program.
-    if matches!(function.runtime(), RuntimeType::Brillig(_)) {
-        return;
-    }
-
     // Creates a context that will perform the flattening
     // We give it the map of the conditional branches in the CFG
     // and the target block where the flattened instructions should be added.
