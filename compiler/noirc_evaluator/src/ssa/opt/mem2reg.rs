@@ -136,7 +136,7 @@ struct PerFunctionContext<'f> {
 
     /// Track a value's last load across all blocks.
     /// If a value is not used in anymore loads we can remove the last store to that value.
-    last_loads: HashMap<ValueId, (InstructionId, BasicBlockId)>,
+    last_loads: HashSet<ValueId>,
 
     /// Track whether a reference was passed into another instruction (e.g. Call)
     /// This is needed to determine whether we can remove a store.
@@ -159,7 +159,7 @@ impl<'f> PerFunctionContext<'f> {
             inserter: FunctionInserter::new(function),
             blocks: BTreeMap::new(),
             instructions_to_remove: HashSet::default(),
-            last_loads: HashMap::default(),
+            last_loads: HashSet::default(),
             aliased_references: HashMap::default(),
             instruction_input_references: HashSet::default(),
         }
@@ -221,9 +221,7 @@ impl<'f> PerFunctionContext<'f> {
                     .get(store_address)
                     .is_some_and(|expression| matches!(expression, Expression::Dereference(_)));
 
-                if !self.last_loads.contains_key(store_address)
-                    && !store_alias_used
-                    && !is_dereference
+                if !self.last_loads.contains(store_address) && !store_alias_used && !is_dereference
                 {
                     self.instructions_to_remove.insert(*store_instruction);
                 }
@@ -467,10 +465,10 @@ impl<'f> PerFunctionContext<'f> {
                     // We don't know the exact value of the address, so we must keep the stores to it.
                     references.mark_value_used(address, self.inserter.function);
                     // Remember that this address has been loaded, so stores to it should not be removed.
-                    self.last_loads.insert(address, (instruction, block_id));
+                    self.last_loads.insert(address);
                     // Stores to any of its aliases should also be considered loaded.
                     references.for_each_alias_of(address, |_, alias| {
-                        self.last_loads.insert(alias, (instruction, block_id));
+                        self.last_loads.insert(alias);
                     });
                 }
 
