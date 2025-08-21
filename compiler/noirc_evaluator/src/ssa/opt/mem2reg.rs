@@ -192,9 +192,7 @@ impl<'f> PerFunctionContext<'f> {
                 // then that reference gets to keep its last store.
                 let typ = self.inserter.function.dfg.type_of_value(value);
                 if Self::contains_references(&typ) {
-                    if let Some(aliases) = references.aliases_of(value) {
-                        all_terminator_values.extend(aliases.iter());
-                    }
+                    all_terminator_values.extend(references.get_aliases_for_value(value).iter());
                 }
             });
         }
@@ -238,46 +236,45 @@ impl<'f> PerFunctionContext<'f> {
         let reference_parameters = self.reference_parameters();
 
         // Check whether the store address has an alias that crosses an entry point boundary (e.g. a Call or Return)
-        if let Some(aliases) = block.aliases_of(*store_address) {
-            let allocation_aliases_parameter =
-                aliases.any(|alias| reference_parameters.contains(&alias));
-            if allocation_aliases_parameter == Some(true) {
-                return true;
-            }
+        let aliases = block.get_aliases_for_value(*store_address);
+        let allocation_aliases_parameter =
+            aliases.any(|alias| reference_parameters.contains(&alias));
+        if allocation_aliases_parameter == Some(true) {
+            return true;
+        }
 
-            let allocation_aliases_parameter =
-                aliases.any(|alias| per_func_block_params.contains(&alias));
-            if allocation_aliases_parameter == Some(true) {
-                return true;
-            }
+        let allocation_aliases_parameter =
+            aliases.any(|alias| per_func_block_params.contains(&alias));
+        if allocation_aliases_parameter == Some(true) {
+            return true;
+        }
 
-            // Is any alias of this address an input to some function call, or a return value?
-            let allocation_aliases_instr_input =
-                aliases.any(|alias| self.instruction_input_references.contains(&alias));
-            if allocation_aliases_instr_input == Some(true) {
-                return true;
-            }
+        // Is any alias of this address an input to some function call, or a return value?
+        let allocation_aliases_instr_input =
+            aliases.any(|alias| self.instruction_input_references.contains(&alias));
+        if allocation_aliases_instr_input == Some(true) {
+            return true;
+        }
 
-            // Is any alias of this address used in a block terminator?
-            let allocation_aliases_terminator_args =
-                aliases.any(|alias| all_terminator_values.contains(&alias));
-            if allocation_aliases_terminator_args == Some(true) {
-                return true;
-            }
+        // Is any alias of this address used in a block terminator?
+        let allocation_aliases_terminator_args =
+            aliases.any(|alias| all_terminator_values.contains(&alias));
+        if allocation_aliases_terminator_args == Some(true) {
+            return true;
+        }
 
-            // Check whether there are any aliases whose instructions are not all marked for removal.
-            // If there is any alias marked to survive, we should not remove its last store.
-            let has_alias_not_marked_for_removal = aliases.any(|alias| {
-                if let Some(alias_instructions) = self.aliased_references.get(&alias) {
-                    !alias_instructions.is_subset(&self.instructions_to_remove)
-                } else {
-                    false
-                }
-            });
-
-            if has_alias_not_marked_for_removal == Some(true) {
-                return true;
+        // Check whether there are any aliases whose instructions are not all marked for removal.
+        // If there is any alias marked to survive, we should not remove its last store.
+        let has_alias_not_marked_for_removal = aliases.any(|alias| {
+            if let Some(alias_instructions) = self.aliased_references.get(&alias) {
+                !alias_instructions.is_subset(&self.instructions_to_remove)
+            } else {
+                false
             }
+        });
+
+        if has_alias_not_marked_for_removal == Some(true) {
+            return true;
         }
 
         false
@@ -396,13 +393,12 @@ impl<'f> PerFunctionContext<'f> {
         let reference_parameters = self.reference_parameters();
 
         for (allocation, instruction) in &references.last_stores {
-            if let Some(aliases) = references.aliases_of(*allocation) {
-                let allocation_aliases_parameter =
-                    aliases.any(|alias| reference_parameters.contains(&alias));
-                // If `allocation_aliases_parameter` is known to be false
-                if allocation_aliases_parameter == Some(false) {
-                    self.instructions_to_remove.insert(*instruction);
-                }
+            let aliases = references.get_aliases_for_value(*allocation);
+            let allocation_aliases_parameter =
+                aliases.any(|alias| reference_parameters.contains(&alias));
+            // If `allocation_aliases_parameter` is known to be false
+            if allocation_aliases_parameter == Some(false) {
+                self.instructions_to_remove.insert(*instruction);
             }
         }
     }
@@ -459,9 +455,7 @@ impl<'f> PerFunctionContext<'f> {
                     // Remember that this address has been loaded, so stores to it should not be removed.
                     self.last_loads.insert(address);
                     // Stores to any of its aliases should also be considered loaded.
-                    references.for_each_alias_of(address, |alias| {
-                        self.last_loads.insert(alias);
-                    });
+                    self.last_loads.extend(references.get_aliases_for_value(address).iter());
                 }
 
                 // Check whether the block has a repeat load from the same address (w/ no calls or stores in between the loads).
@@ -500,9 +494,9 @@ impl<'f> PerFunctionContext<'f> {
 
                 // Remember that we used the value in this instruction. If this instruction
                 // isn't removed at the end, we need to keep the stores to the value as well.
-                references.for_each_alias_of(value, |alias| {
+                for alias in references.get_aliases_for_value(value).iter() {
                     self.aliased_references.entry(alias).or_default().insert(instruction);
-                });
+                }
 
                 references.set_known_value(address, value);
                 // If we see a store to an address, the last load to that address needs to remain.
@@ -521,9 +515,8 @@ impl<'f> PerFunctionContext<'f> {
                 let array = *array;
                 let array_typ = self.inserter.function.dfg.type_of_value(array);
                 if Self::contains_references(&array_typ) {
-                    references.for_each_alias_of(array, |alias| {
-                        self.instruction_input_references.insert(alias);
-                    });
+                    self.instruction_input_references
+                        .extend(references.get_aliases_for_value(array).iter());
                     references.mark_value_used(array, self.inserter.function);
 
                     let expression = Expression::ArrayElement(array);
@@ -564,18 +557,17 @@ impl<'f> PerFunctionContext<'f> {
                     // Similar to how we remember that we used a value in a `Store` instruction,
                     // take note that it was used in the `ArraySet`. If this instruction is not
                     // going to be removed at the end, we shall keep the stores to this value as well.
-                    references.for_each_alias_of(*value, |alias| {
+                    for alias in references.get_aliases_for_value(*value).iter() {
                         self.aliased_references.entry(alias).or_default().insert(instruction);
-                    });
+                    }
                 }
             }
             Instruction::Call { arguments, .. } => {
                 // We need to appropriately mark each alias of a reference as being used as a call argument.
                 // This prevents us potentially removing a last store from a preceding block or is altered within another function.
                 for arg in arguments {
-                    references.for_each_alias_of(*arg, |alias| {
-                        self.instruction_input_references.insert(alias);
-                    });
+                    self.instruction_input_references
+                        .extend(references.get_aliases_for_value(*arg).iter());
                 }
                 self.mark_all_unknown(arguments, references);
             }
@@ -722,9 +714,8 @@ impl<'f> PerFunctionContext<'f> {
                 // We need to appropriately mark each alias of a reference as being used as a return terminator argument.
                 // This prevents us potentially removing a last store from a preceding block or is altered within another function.
                 for return_value in return_values {
-                    references.for_each_alias_of(*return_value, |alias| {
-                        self.instruction_input_references.insert(alias);
-                    });
+                    self.instruction_input_references
+                        .extend(references.get_aliases_for_value(*return_value).iter());
                 }
                 // Removing all `last_stores` for each returned reference is more important here
                 // than setting them all to ReferenceValue::Unknown since no other block should
