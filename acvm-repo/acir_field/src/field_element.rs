@@ -255,6 +255,18 @@ impl<F: PrimeField> AcirField for FieldElement<F> {
         bytes.reverse();
         hex::encode(bytes)
     }
+
+    fn to_short_hex(self) -> String {
+        if self.is_zero() {
+            return "0x00".to_owned();
+        }
+        let mut trimmed_field = self.to_hex().trim_start_matches('0').to_owned();
+        if trimmed_field.len() % 2 != 0 {
+            trimmed_field = "0".to_owned() + &trimmed_field;
+        }
+        "0x".to_owned() + &trimmed_field
+    }
+
     fn from_hex(hex_str: &str) -> Option<FieldElement<F>> {
         let value = hex_str.strip_prefix("0x").unwrap_or(hex_str);
         // Values of odd length require an additional "0" prefix
@@ -526,5 +538,13 @@ mod tests {
 
             prop_assert_eq!(fe_1, fe_2, "equivalent hex strings with opposite parity deserialized to different values");
         }
+    }
+
+    #[test]
+    fn test_short_hex() {
+        assert_eq!(FieldElement::<ark_bn254::Fr>::zero().to_short_hex(), "0x00");
+        assert_eq!(FieldElement::<ark_bn254::Fr>::one().to_short_hex(), "0x01");
+        assert_eq!(FieldElement::<ark_bn254::Fr>::from(0x123_u128).to_short_hex(), "0x0123");
+        assert_eq!(FieldElement::<ark_bn254::Fr>::from(0x1234_u128).to_short_hex(), "0x1234");
     }
 }

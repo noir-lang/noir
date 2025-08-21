@@ -70,6 +70,10 @@ pub trait AcirField:
 
     fn to_hex(self) -> String;
 
+    /// Returns the value of this field as a hex string with leading zeroes removed.
+    /// A singular '0' will be prepended as well if the trimmed string has an odd length.
+    fn to_short_hex(self) -> String;
+
     fn from_hex(hex_str: &str) -> Option<Self>;
 
     fn to_be_bytes(self) -> Vec<u8>;
@@ -182,6 +186,10 @@ macro_rules! field_wrapper {
 
             fn to_hex(self) -> String {
                 self.0.to_hex()
+            }
+
+            fn to_short_hex(self) -> String {
+                self.0.to_short_hex()
             }
 
             fn from_hex(hex_str: &str) -> Option<Self> {

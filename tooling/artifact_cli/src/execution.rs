@@ -6,7 +6,6 @@ use nargo::{NargoError, foreign_calls::ForeignCallExecutor};
 use noirc_abi::{AbiType, Sign, input_parser::InputValue};
 use noirc_artifacts::debug::DebugArtifact;
 use noirc_driver::CompiledProgram;
-use noirc_printable_type::format_field_string;
 
 use crate::{
     errors::CliError,
@@ -161,7 +160,7 @@ pub fn input_value_to_string(input_value: &InputValue, abi_type: &AbiType) -> St
 fn append_input_value_to_string(input_value: &InputValue, abi_type: &AbiType, string: &mut String) {
     match (abi_type, input_value) {
         (AbiType::Field, InputValue::Field(field_element)) => {
-            string.push_str(&format_field_string(*field_element));
+            string.push_str(&field_element.to_short_hex());
         }
         (AbiType::Array { length: _, typ }, InputValue::Vec(input_values)) => {
             string.push('[');
