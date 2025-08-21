@@ -142,14 +142,7 @@ fn value(dfg: &DataFlowGraph, id: ValueId) -> String {
 
 fn number(number: FieldElement, typ: &NumericType) -> String {
     if let NumericType::Signed { bit_size } = typ {
-        let bit_size = *bit_size;
-        let max = if bit_size == 128 { i128::MAX as u128 } else { (1 << (bit_size - 1)) - 1 };
-        if number.num_bits() > 128 || number.to_u128() > max {
-            let number = FieldElement::from(2u32).pow(&bit_size.into()) - number;
-            format!("-{number}")
-        } else {
-            number.to_string()
-        }
+        number.to_string_as_signed_integer(*bit_size)
     } else {
         number.to_string()
     }

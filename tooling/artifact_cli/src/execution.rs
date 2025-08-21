@@ -177,16 +177,7 @@ fn append_input_value_to_string(input_value: &InputValue, abi_type: &AbiType, st
                 string.push_str(&f.to_string());
             }
             Sign::Signed => {
-                let bit_size = *bit_size;
-                let max =
-                    if bit_size == 128 { i128::MAX as u128 } else { (1 << (bit_size - 1)) - 1 };
-                if f.num_bits() > 128 || f.to_u128() > max {
-                    string.push('-');
-                    let f = FieldElement::from(2u32).pow(&bit_size.into()) - *f;
-                    string.push_str(&f.to_string());
-                } else {
-                    string.push_str(&f.to_string());
-                }
+                string.push_str(&f.to_string_as_signed_integer(*bit_size));
             }
         },
         (AbiType::Boolean, InputValue::Field(field_element)) => {
