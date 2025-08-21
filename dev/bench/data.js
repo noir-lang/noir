@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1755786855315,
+  "lastUpdate": 1755788834824,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -19546,48 +19546,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "b7273d7a31f8e0cdc2d086e30ac3fede1f0ed46c",
-          "message": "feat(opt): Don't clone on array_len (#9440)",
-          "timestamp": "2025-08-11T14:48:05Z",
-          "tree_id": "ee07453e1102a6ad79b18670bf9d23b09a48bebd",
-          "url": "https://github.com/noir-lang/noir/commit/b7273d7a31f8e0cdc2d086e30ac3fede1f0ed46c"
-        },
-        "date": 1754925338256,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 246218,
-            "range": "± 572",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 217962,
-            "range": "± 2376",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2775676,
-            "range": "± 1390",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -21639,6 +21597,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2790941,
             "range": "± 3216",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "ef436d0f75d2fc439c2423fcd1ecbced386a31ee",
+          "message": "fix(ssa): Do not simplify on lhs being zero for shifts (#9596)",
+          "timestamp": "2025-08-21T14:41:32Z",
+          "tree_id": "e86535a95488be77daea700fcfc6bc418b096355",
+          "url": "https://github.com/noir-lang/noir/commit/ef436d0f75d2fc439c2423fcd1ecbced386a31ee"
+        },
+        "date": 1755788816452,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 249349,
+            "range": "± 813",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 220021,
+            "range": "± 1615",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2793228,
+            "range": "± 1184",
             "unit": "ns/iter"
           }
         ]
