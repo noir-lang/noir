@@ -1,1 +1,0 @@
-window.SIDEBAR_ITEMS = {"fn":["append_foreign_call_param","check_instruction","evaluate_assert_constant","evaluate_static_assert"]};

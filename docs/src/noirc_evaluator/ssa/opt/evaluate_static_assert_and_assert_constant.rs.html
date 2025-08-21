@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `compiler/noirc_evaluator/src/ssa/opt/assert_constant.rs`."><title>assert_constant.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../../static.files/rustdoc-46132b98.css"><meta name="rustdoc-vars" data-root-path="../../../../" data-static-root-path="../../../../static.files/" data-current-crate="noirc_evaluator" data-themes="" data-resource-suffix="" data-rustdoc-version="1.85.0 (4d91de4e4 2025-02-17)" data-channel="1.85.0" data-search-js="search-75f5ac3e.js" data-settings-js="settings-0f613d39.js" ><script src="../../../../static.files/storage-59e33391.js"></script><script defer src="../../../../static.files/src-script-56102188.js"></script><script defer src="../../../../src-files.js"></script><script defer src="../../../../static.files/main-5f194d8c.js"></script><noscript><link rel="stylesheet" href="../../../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noirc_evaluator/ssa/opt/</div>assert_constant.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers">
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `compiler/noirc_evaluator/src/ssa/opt/evaluate_static_assert_and_assert_constant.rs`."><title>evaluate_static_assert_and_assert_constant.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../../static.files/rustdoc-46132b98.css"><meta name="rustdoc-vars" data-root-path="../../../../" data-static-root-path="../../../../static.files/" data-current-crate="noirc_evaluator" data-themes="" data-resource-suffix="" data-rustdoc-version="1.85.0 (4d91de4e4 2025-02-17)" data-channel="1.85.0" data-search-js="search-75f5ac3e.js" data-settings-js="settings-0f613d39.js" ><script src="../../../../static.files/storage-59e33391.js"></script><script defer src="../../../../static.files/src-script-56102188.js"></script><script defer src="../../../../src-files.js"></script><script defer src="../../../../static.files/main-5f194d8c.js"></script><noscript><link rel="stylesheet" href="../../../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">noirc_evaluator/ssa/opt/</div>evaluate_static_assert_and_assert_constant.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers">
 <a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
@@ -413,7 +413,35 @@
 <a href="#412" id="412">412</a>
 <a href="#413" id="413">413</a>
 <a href="#414" id="414">414</a>
-<a href="#415" id="415">415</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{FieldElement, acir::brillig::ForeignCallParam};
+<a href="#415" id="415">415</a>
+<a href="#416" id="416">416</a>
+<a href="#417" id="417">417</a>
+<a href="#418" id="418">418</a>
+<a href="#419" id="419">419</a>
+<a href="#420" id="420">420</a>
+<a href="#421" id="421">421</a>
+<a href="#422" id="422">422</a>
+<a href="#423" id="423">423</a>
+<a href="#424" id="424">424</a>
+<a href="#425" id="425">425</a>
+<a href="#426" id="426">426</a>
+<a href="#427" id="427">427</a>
+<a href="#428" id="428">428</a>
+<a href="#429" id="429">429</a>
+<a href="#430" id="430">430</a>
+<a href="#431" id="431">431</a></pre></div><pre class="rust"><code><span class="doccomment">//! A simple SSA pass to go through each instruction and evaluate:
+//! - each call to `assert_constant`, issuing an error if any arguments to the function
+//!   are not constants
+//! - each call to `static_assert`, issuing an error if the assertion does not hold,
+//!   the value to test is not a constant, or the message is dynamic.
+//!
+//! Note that this pass must be placed directly before [`loop unrolling`](super::unrolling) to be
+//! useful. Any optimization passes between this and loop unrolling will cause
+//! the constants that this pass sees to be potentially different than the constants
+//! seen by loop unrolling. Furthermore, this pass cannot be a part of loop unrolling
+//! since we must go through every instruction to find all references to `assert_constant`
+//! while loop unrolling only touches blocks with loops in them.
+</span><span class="kw">use </span>acvm::{FieldElement, acir::brillig::ForeignCallParam};
 <span class="kw">use </span>fxhash::FxHashSet <span class="kw">as </span>HashSet;
 <span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_printable_type::{PrintableValueDisplay, TryFromParamsError};
@@ -422,6 +450,7 @@
     errors::RuntimeError,
     ssa::{
         ir::{
+            basic_block::BasicBlockId,
             cfg::ControlFlowGraph,
             dfg::DataFlowGraph,
             function::Function,
@@ -435,18 +464,7 @@
 <span class="kw">use </span><span class="kw">super</span>::unrolling::Loops;
 
 <span class="kw">impl </span>Ssa {
-    <span class="doccomment">/// A simple SSA pass to go through each instruction and evaluate:
-    /// - each call to `assert_constant`, issuing an error if any arguments to the function
-    ///   are not constants
-    /// - each call to `static_assert`, issuing an error if the assertion does not hold,
-    ///   the value to test is not a constant, or the message is dynamic.
-    ///
-    /// Note that this pass must be placed directly before loop unrolling to be
-    /// useful. Any optimization passes between this and loop unrolling will cause
-    /// the constants that this pass sees to be potentially different than the constants
-    /// seen by loop unrolling. Furthermore, this pass cannot be a part of loop unrolling
-    /// since we must go through every instruction to find all references to `assert_constant`
-    /// while loop unrolling only touches blocks with loops in them.
+    <span class="doccomment">/// See [`evaluate_static_assert_and_assert_constant`][self] module for more information.
     </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip(<span class="self">self</span>))]
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>evaluate_static_assert_and_assert_constant(
         <span class="kw-2">mut </span><span class="self">self</span>,
@@ -459,32 +477,15 @@
 }
 
 <span class="kw">impl </span>Function {
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>evaluate_static_assert_and_assert_constant(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;(), RuntimeError&gt; {
-        <span class="kw">let </span>loops = Loops::find_all(<span class="self">self</span>);
-
-        <span class="kw">let </span>cfg = ControlFlowGraph::with_function(<span class="self">self</span>);
-        <span class="kw">let </span><span class="kw-2">mut </span>blocks_within_empty_loop = HashSet::default();
-        <span class="kw">for </span>loop_ <span class="kw">in </span>loops.yet_to_unroll {
-            <span class="kw">let </span><span class="prelude-val">Ok</span>(pre_header) = loop_.get_pre_header(<span class="self">self</span>, <span class="kw-2">&amp;</span>cfg) <span class="kw">else </span>{
-                <span class="comment">// If the loop does not have a preheader we skip checking whether the loop is empty
-                </span><span class="kw">continue</span>;
-            };
-            <span class="kw">let </span>const_bounds = loop_.get_const_bounds(<span class="self">self</span>, pre_header);
-
-            <span class="kw">let </span>does_execute = const_bounds
-                .and_then(|(lower_bound, upper_bound)| {
-                    upper_bound.reduce(lower_bound, |u, l| u &gt; l, |u, l| u &gt; l)
-                })
-                <span class="comment">// We default to `true` if the bounds are dynamic so that we still
-                // evaluate static assertion in dynamic loops.
-                </span>.unwrap_or(<span class="bool-val">true</span>);
-
-            <span class="kw">if </span>!does_execute {
-                blocks_within_empty_loop.extend(loop_.blocks);
-            }
+    <span class="kw">fn </span>evaluate_static_assert_and_assert_constant(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;(), RuntimeError&gt; {
+        <span class="kw">let </span>assert_constant_id = <span class="self">self</span>.dfg.get_intrinsic(Intrinsic::AssertConstant).copied();
+        <span class="kw">let </span>static_assert_id = <span class="self">self</span>.dfg.get_intrinsic(Intrinsic::StaticAssert).copied();
+        <span class="kw">if </span>assert_constant_id.is_none() &amp;&amp; static_assert_id.is_none() {
+            <span class="comment">// If there are no calls to either intrinsic there's nothing to evaluate
+            </span><span class="kw">return </span><span class="prelude-val">Ok</span>(());
         }
+
+        <span class="kw">let </span>blocks_within_empty_loop = get_blocks_within_empty_loop(<span class="self">self</span>);
 
         <span class="kw">for </span>block <span class="kw">in </span><span class="self">self</span>.reachable_blocks() {
             <span class="comment">// Unfortunately we can't just use instructions.retain(...) here since
@@ -494,7 +495,13 @@
 
             <span class="kw">let </span>inside_empty_loop = blocks_within_empty_loop.contains(<span class="kw-2">&amp;</span>block);
             <span class="kw">for </span>instruction <span class="kw">in </span>instructions {
-                <span class="kw">if </span>check_instruction(<span class="self">self</span>, instruction, inside_empty_loop)<span class="question-mark">? </span>{
+                <span class="kw">if </span>check_instruction(
+                    <span class="self">self</span>,
+                    instruction,
+                    assert_constant_id,
+                    static_assert_id,
+                    inside_empty_loop,
+                )<span class="question-mark">? </span>{
                     filtered_instructions.push(instruction);
                 }
             }
@@ -503,6 +510,35 @@
         }
         <span class="prelude-val">Ok</span>(())
     }
+}
+
+<span class="doccomment">/// Returns all of a function's block that are part of empty loops.
+</span><span class="kw">fn </span>get_blocks_within_empty_loop(function: <span class="kw-2">&amp;</span>Function) -&gt; HashSet&lt;BasicBlockId&gt; {
+    <span class="kw">let </span>loops = Loops::find_all(function);
+
+    <span class="kw">let </span>cfg = ControlFlowGraph::with_function(function);
+    <span class="kw">let </span><span class="kw-2">mut </span>blocks_within_empty_loop = HashSet::default();
+    <span class="kw">for </span>loop_ <span class="kw">in </span>loops.yet_to_unroll {
+        <span class="kw">let </span><span class="prelude-val">Ok</span>(pre_header) = loop_.get_pre_header(function, <span class="kw-2">&amp;</span>cfg) <span class="kw">else </span>{
+            <span class="comment">// If the loop does not have a preheader we skip checking whether the loop is empty
+            </span><span class="kw">continue</span>;
+        };
+        <span class="kw">let </span>const_bounds = loop_.get_const_bounds(function, pre_header);
+
+        <span class="kw">let </span>does_execute = const_bounds
+            .and_then(|(lower_bound, upper_bound)| {
+                upper_bound.reduce(lower_bound, |u, l| u &gt; l, |u, l| u &gt; l)
+            })
+            <span class="comment">// We default to `true` if the bounds are dynamic so that we still
+            // evaluate static assertion in dynamic loops.
+            </span>.unwrap_or(<span class="bool-val">true</span>);
+
+        <span class="kw">if </span>!does_execute {
+            blocks_within_empty_loop.extend(loop_.blocks);
+        }
+    }
+
+    blocks_within_empty_loop
 }
 
 <span class="doccomment">/// During the loop unrolling pass we also evaluate calls to `assert_constant`.
@@ -514,18 +550,14 @@
 </span><span class="kw">fn </span>check_instruction(
     function: <span class="kw-2">&amp;mut </span>Function,
     instruction: InstructionId,
+    assert_constant_id: <span class="prelude-ty">Option</span>&lt;ValueId&gt;,
+    static_assert_id: <span class="prelude-ty">Option</span>&lt;ValueId&gt;,
     inside_empty_loop: bool,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;bool, RuntimeError&gt; {
-    <span class="kw">let </span>assert_constant_id = function.dfg.get_intrinsic(Intrinsic::AssertConstant);
-    <span class="kw">let </span>static_assert_id = function.dfg.get_intrinsic(Intrinsic::StaticAssert);
-    <span class="kw">if </span>assert_constant_id.is_none() &amp;&amp; static_assert_id.is_none() {
-        <span class="kw">return </span><span class="prelude-val">Ok</span>(<span class="bool-val">true</span>);
-    }
-
     <span class="kw">match </span><span class="kw-2">&amp;</span>function.dfg[instruction] {
         Instruction::Call { func, arguments } =&gt; {
-            <span class="kw">let </span>is_assert_constant = <span class="prelude-val">Some</span>(<span class="kw-2">*</span>func) == assert_constant_id.copied();
-            <span class="kw">let </span>is_static_assert = <span class="prelude-val">Some</span>(<span class="kw-2">*</span>func) == static_assert_id.copied();
+            <span class="kw">let </span>is_assert_constant = <span class="prelude-val">Some</span>(<span class="kw-2">*</span>func) == assert_constant_id;
+            <span class="kw">let </span>is_static_assert = <span class="prelude-val">Some</span>(<span class="kw-2">*</span>func) == static_assert_id;
 
             <span class="comment">// Skip assertions inside known empty loops
             </span><span class="kw">if </span>inside_empty_loop &amp;&amp; (is_assert_constant || is_static_assert) {
@@ -580,11 +612,7 @@
     // were passed to the built-in foreign call "print" functions.
     </span><span class="kw">let </span><span class="kw-2">mut </span>foreign_call_params = Vec::with_capacity(arguments.len() - <span class="number">1</span>);
     <span class="kw">for </span>arg <span class="kw">in </span>arguments.iter().skip(<span class="number">1</span>) {
-        <span class="kw">if </span>!function.dfg.is_constant(<span class="kw-2">*</span>arg) {
-            <span class="kw">let </span>call_stack = function.dfg.get_instruction_call_stack(instruction);
-            <span class="kw">return </span><span class="prelude-val">Err</span>(RuntimeError::StaticAssertDynamicMessage { call_stack });
-        }
-        append_foreign_call_param(<span class="kw-2">*</span>arg, <span class="kw-2">&amp;</span>function.dfg, <span class="kw-2">&amp;mut </span>foreign_call_params);
+        append_foreign_call_param(<span class="kw-2">*</span>arg, <span class="kw-2">&amp;</span>function.dfg, instruction, <span class="kw-2">&amp;mut </span>foreign_call_params)<span class="question-mark">?</span>;
     }
 
     <span class="kw">if </span>function.dfg.is_constant_true(arguments[<span class="number">0</span>]) {
@@ -615,17 +643,21 @@
 <span class="kw">fn </span>append_foreign_call_param(
     value: ValueId,
     dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
+    instruction: InstructionId,
     foreign_call_params: <span class="kw-2">&amp;mut </span>Vec&lt;ForeignCallParam&lt;FieldElement&gt;&gt;,
-) {
+) -&gt; <span class="prelude-ty">Result</span>&lt;(), RuntimeError&gt; {
     <span class="kw">if let </span><span class="prelude-val">Some</span>(field) = dfg.get_numeric_constant(value) {
         foreign_call_params.push(ForeignCallParam::Single(field));
+        <span class="prelude-val">Ok</span>(())
     } <span class="kw">else if let </span><span class="prelude-val">Some</span>((values, _typ)) = dfg.get_array_constant(value) {
         <span class="kw">let </span>values = vecmap(values, |value| {
             dfg.get_numeric_constant(value).expect(<span class="string">"ICE: expected constant value"</span>)
         });
         foreign_call_params.push(ForeignCallParam::Array(values));
+        <span class="prelude-val">Ok</span>(())
     } <span class="kw">else </span>{
-        <span class="macro">panic!</span>(<span class="string">"ICE: expected constant value"</span>);
+        <span class="kw">let </span>call_stack = dfg.get_instruction_call_stack(instruction);
+        <span class="prelude-val">Err</span>(RuntimeError::StaticAssertDynamicMessage { call_stack })
     }
 }
 
