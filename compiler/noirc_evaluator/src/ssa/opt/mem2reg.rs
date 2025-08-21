@@ -191,7 +191,7 @@ impl<'f> PerFunctionContext<'f> {
                 // so that for example if the value is an array and contains a reference,
                 // then that reference gets to keep its last store.
                 let typ = self.inserter.function.dfg.type_of_value(value);
-                if Self::contains_references(&typ) {
+                if typ.contains_reference() {
                     all_terminator_values.extend(references.get_aliases_for_value(value).iter());
                 }
             });
@@ -501,7 +501,7 @@ impl<'f> PerFunctionContext<'f> {
 
                 let array = *array;
                 let array_typ = self.inserter.function.dfg.type_of_value(array);
-                if Self::contains_references(&array_typ) {
+                if array_typ.contains_reference() {
                     self.instruction_input_references
                         .extend(references.get_aliases_for_value(array).iter());
                     references.mark_value_used(array, self.inserter.function);
@@ -517,7 +517,7 @@ impl<'f> PerFunctionContext<'f> {
                 references.mark_value_used(*array, self.inserter.function);
                 let element_type = self.inserter.function.dfg.type_of_value(*value);
 
-                if Self::contains_references(&element_type) {
+                if element_type.contains_reference() {
                     let result = self.inserter.function.dfg.instruction_results(instruction)[0];
                     let array = *array;
 
@@ -561,7 +561,7 @@ impl<'f> PerFunctionContext<'f> {
             Instruction::MakeArray { elements, typ } => {
                 // If `array` is an array constant that contains reference types, then insert each element
                 // as a potential alias to the array itself.
-                if Self::contains_references(typ) {
+                if typ.contains_reference() {
                     let array = self.inserter.function.dfg.instruction_results(instruction)[0];
 
                     let expr = Expression::ArrayElement(array);
@@ -575,7 +575,7 @@ impl<'f> PerFunctionContext<'f> {
                 let result = self.inserter.function.dfg.instruction_results(instruction)[0];
                 let result_type = self.inserter.function.dfg.type_of_value(result);
 
-                if Self::contains_references(&result_type) {
+                if result_type.contains_reference() {
                     let expr = Expression::Other(result);
                     references.expressions.insert(result, expr);
                     references.aliases.insert(
@@ -600,17 +600,6 @@ impl<'f> PerFunctionContext<'f> {
         }
     }
 
-    fn contains_references(typ: &Type) -> bool {
-        match typ {
-            Type::Numeric(_) => false,
-            Type::Function => false,
-            Type::Reference(_) => true,
-            Type::Array(elements, _) | Type::Slice(elements) => {
-                elements.iter().any(Self::contains_references)
-            }
-        }
-    }
-
     fn set_aliases(&self, references: &mut Block, address: ValueId, new_aliases: AliasSet) {
         let expression =
             references.expressions.entry(address).or_insert(Expression::Other(address));
@@ -621,7 +610,7 @@ impl<'f> PerFunctionContext<'f> {
     fn mark_all_unknown(&self, values: &[ValueId], references: &mut Block) {
         for value in values {
             let typ = self.inserter.function.dfg.type_of_value(*value);
-            if Self::contains_references(&typ) {
+            if typ.contains_reference() {
                 let value = *value;
                 references.set_unknown(value);
                 references.mark_value_used(value, self.inserter.function);
