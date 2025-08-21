@@ -188,8 +188,10 @@ pub(crate) type BoolMutationConfig = WeightedSelectionConfig<BoolMutationOptions
 pub(crate) const BASIC_BOOL_MUTATION_CONFIGURATION: BoolMutationConfig =
     BoolMutationConfig::new([(BoolMutationOptions::True, 1), (BoolMutationOptions::False, 1)]);
 
-pub(crate) const BASIC_SAFE_INDEX_MUTATION_CONFIGURATION: BoolMutationConfig =
+pub(crate) const BOOL_MUTATION_CONFIGURATION_MOSTLY_TRUE: BoolMutationConfig =
     BoolMutationConfig::new([(BoolMutationOptions::True, 1000), (BoolMutationOptions::False, 1)]);
+pub(crate) const BOOL_MUTATION_CONFIGURATION_MOSTLY_FALSE: BoolMutationConfig =
+    BoolMutationConfig::new([(BoolMutationOptions::True, 1), (BoolMutationOptions::False, 1000)]);
 
 #[derive(Copy, Clone, Debug)]
 pub(crate) enum UsizeMutationOptions {
@@ -337,6 +339,32 @@ pub(crate) const BASIC_AES_128_ENCRYPT_MUTATION_CONFIGURATION: Aes128EncryptMuta
         (Aes128EncryptMutationOptions::IvIdx, 1),
     ]);
 
+#[derive(Copy, Clone, Debug)]
+pub(crate) enum ScalarMutationOptions {
+    FieldLoIdx,
+    FieldHiIdx,
+}
+pub(crate) type ScalarMutationConfig = WeightedSelectionConfig<ScalarMutationOptions, 2>;
+pub(crate) const BASIC_SCALAR_MUTATION_CONFIGURATION: ScalarMutationConfig =
+    ScalarMutationConfig::new([
+        (ScalarMutationOptions::FieldLoIdx, 1),
+        (ScalarMutationOptions::FieldHiIdx, 1),
+    ]);
+
+#[derive(Copy, Clone, Debug)]
+pub(crate) enum PointMutationOptions {
+    Scalar,
+    DeriveFromScalarMul,
+    IsInfinite,
+}
+pub(crate) type PointMutationConfig = WeightedSelectionConfig<PointMutationOptions, 3>;
+pub(crate) const BASIC_POINT_MUTATION_CONFIGURATION: PointMutationConfig =
+    PointMutationConfig::new([
+        (PointMutationOptions::Scalar, 1),
+        (PointMutationOptions::DeriveFromScalarMul, 1),
+        (PointMutationOptions::IsInfinite, 1),
+    ]);
+
 // =================== GENERATION CONFIGURATIONS ==================
 #[derive(Copy, Clone, Debug)]
 pub(crate) enum GenerateBool {
@@ -453,8 +481,10 @@ pub(crate) enum GenerateInstruction {
     Keccakf1600Hash,
     Aes128Encrypt,
     Sha256Compression,
+    PointAdd,
+    MultiScalarMul,
 }
-pub(crate) type GenerateInstructionConfig = WeightedSelectionConfig<GenerateInstruction, 30>;
+pub(crate) type GenerateInstructionConfig = WeightedSelectionConfig<GenerateInstruction, 32>;
 pub(crate) const BASIC_GENERATE_INSTRUCTION_CONFIGURATION: GenerateInstructionConfig =
     GenerateInstructionConfig::new([
         (GenerateInstruction::AddChecked, 100),
@@ -488,6 +518,8 @@ pub(crate) const BASIC_GENERATE_INSTRUCTION_CONFIGURATION: GenerateInstructionCo
         (GenerateInstruction::Keccakf1600Hash, 5),
         (GenerateInstruction::Aes128Encrypt, 5),
         (GenerateInstruction::Sha256Compression, 5),
+        (GenerateInstruction::PointAdd, 5),
+        (GenerateInstruction::MultiScalarMul, 5),
     ]);
 
 // Compile-time check that configuration has correct number of entries
