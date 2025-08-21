@@ -101,11 +101,11 @@ impl Block {
         } else {
             // More than one alias. We're not sure which it refers to so we have to
             // conservatively invalidate all references it may refer to.
-            aliases.for_each(|alias| {
+            for alias in aliases.iter() {
                 if let Some(reference_value) = self.references.get_mut(&alias) {
                     *reference_value = ReferenceValue::Unknown;
                 }
-            });
+            }
         }
     }
 
@@ -173,9 +173,9 @@ impl Block {
     pub(super) fn for_each_alias_of<T>(&self, address: ValueId, mut f: impl FnMut(ValueId) -> T) {
         if let Some(expr) = self.expressions.get(&address) {
             if let Some(aliases) = self.aliases.get(expr) {
-                aliases.for_each(|alias| {
+                for alias in aliases.iter() {
                     f(alias);
-                });
+                }
             }
         }
     }
@@ -192,9 +192,9 @@ impl Block {
 
         if let Some(expr) = self.expressions.get(&address) {
             if let Some(aliases) = self.aliases.get(expr).cloned() {
-                aliases.for_each(|alias| {
+                for alias in aliases.iter() {
                     self.keep_last_store(alias, function);
-                });
+                }
             }
         }
     }
@@ -262,9 +262,9 @@ impl Block {
 
         if let Some(expr) = self.expressions.get(&address) {
             if let Some(aliases) = self.aliases.get(expr).cloned() {
-                aliases.for_each(|alias| {
+                for alias in aliases.iter() {
                     self.last_loads.remove(&alias);
-                });
+                }
             }
         }
     }

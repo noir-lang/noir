@@ -194,9 +194,7 @@ impl<'f> PerFunctionContext<'f> {
                 if Self::contains_references(&typ) {
                     if let Some(expression) = references.expressions.get(&value) {
                         if let Some(aliases) = references.aliases.get(expression) {
-                            aliases.for_each(|alias| {
-                                all_terminator_values.insert(alias);
-                            });
+                            all_terminator_values.extend(aliases.iter());
                         }
                     }
                 }
@@ -389,10 +387,10 @@ impl<'f> PerFunctionContext<'f> {
             let previous = references.aliases.insert(expression, aliases.clone());
             assert!(previous.is_none());
 
-            aliases.for_each(|alias| {
+            for alias in aliases.iter() {
                 let previous = references.expressions.insert(alias, expression);
                 assert!(previous.is_none());
-            });
+            }
         }
     }
 
