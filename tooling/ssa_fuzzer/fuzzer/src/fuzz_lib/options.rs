@@ -24,6 +24,8 @@ pub(crate) struct InstructionOptions {
     pub(crate) array_get_enabled: bool,
     pub(crate) array_set_enabled: bool,
     pub(crate) unsafe_get_set_enabled: bool,
+    pub(crate) point_add_enabled: bool,
+    pub(crate) multi_scalar_mul_enabled: bool,
 }
 
 impl Default for InstructionOptions {
@@ -50,6 +52,8 @@ impl Default for InstructionOptions {
             array_get_enabled: true,
             array_set_enabled: true,
             unsafe_get_set_enabled: false,
+            point_add_enabled: true,
+            multi_scalar_mul_enabled: true,
         }
     }
 }
@@ -150,7 +154,7 @@ pub(crate) struct FuzzerOptions {
 impl Default for FuzzerOptions {
     fn default() -> Self {
         Self {
-            compile_options: CompileOptions { show_ssa: true, ..Default::default() },
+            compile_options: CompileOptions { show_ssa_pass: vec![], ..Default::default() },
             max_ssa_blocks_num: 100,
             max_instructions_num: 1000,
             max_iterations_num: 1000,

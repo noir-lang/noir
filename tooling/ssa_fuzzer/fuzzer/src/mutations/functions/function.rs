@@ -1,10 +1,11 @@
-use crate::fuzz_lib::function_context::FunctionData;
-use crate::mutations::basic_types::{usize::mutate_usize, value_type::mutate_value_type};
-use crate::mutations::configuration::{
-    BASIC_FUNCTION_MUTATION_CONFIGURATION, BASIC_USIZE_MUTATION_CONFIGURATION,
-    BASIC_VALUE_TYPE_MUTATION_CONFIGURATION, FunctionMutationOptions,
+use crate::mutations::{
+    basic_types::{usize::mutate_usize, value_type::mutate_value_type},
+    configuration::{
+        BASIC_FUNCTION_MUTATION_CONFIGURATION, BASIC_USIZE_MUTATION_CONFIGURATION,
+        BASIC_VALUE_TYPE_MUTATION_CONFIGURATION, FunctionMutationOptions,
+    },
+    functions::{FunctionData, commands_mutator},
 };
-use crate::mutations::functions::commands_mutator;
 use rand::rngs::StdRng;
 
 pub(crate) fn mutate_function(data: &mut FunctionData, rng: &mut StdRng) {

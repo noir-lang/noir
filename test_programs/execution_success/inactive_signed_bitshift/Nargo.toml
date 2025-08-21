@@ -1,0 +1,6 @@
+[package]
+name = "inactive_signed_bitshift"
+type = "bin"
+authors = [""]
+
+[dependencies]

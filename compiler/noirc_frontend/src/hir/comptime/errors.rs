@@ -521,8 +521,7 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                         "+" => "add",
                         "-" => "subtract",
                         "*" => "multiply",
-                        ">>" => "shift right",
-                        "<<" => "shift left",
+                        ">>" | "<<" => "bit-shift",
                         _ => operator,
                     };
                     format!("Attempt to {operator} with overflow")

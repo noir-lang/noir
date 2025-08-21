@@ -1,4 +1,4 @@
-define: &AZ_COMMIT df8d413b7053aabc9807c8835c270c1f53c45d8f
+define: &AZ_COMMIT cb2a2fa78f30f196339ca044448e415c6a9b45cc
 libraries:
   noir_check_shuffle:
     repo: noir-lang/noir_check_shuffle
@@ -50,11 +50,11 @@ libraries:
     critical: false
   noir_json_parser:
     repo: noir-lang/noir_json_parser
-    timeout: 12
+    timeout: 15
     critical: false
   sha256:
     repo: noir-lang/sha256
-    timeout: 10
+    timeout: 25
     critical: true
   sha512:
     repo: noir-lang/sha512
