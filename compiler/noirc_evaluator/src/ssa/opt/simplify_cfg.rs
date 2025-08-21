@@ -682,11 +682,11 @@ mod test {
         brillig(inline) predicate_pure fn main f0 {
           b0(v0: i16):
             v2 = lt i16 1, v0
-            jmpif v2 then: b2, else: b1
+            jmpif v2 then: b1, else: b2
           b1():
-            return u32 2
+            jmp b1()
           b2():
-            jmp b2()
+            return u32 2
         }
         ");
     }
