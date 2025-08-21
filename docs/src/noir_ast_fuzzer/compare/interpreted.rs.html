@@ -430,7 +430,11 @@
 <a href="#429" id="429">429</a>
 <a href="#430" id="430">430</a>
 <a href="#431" id="431">431</a>
-<a href="#432" id="432">432</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare an arbitrary AST compiled into SSA and executed with the
+<a href="#432" id="432">432</a>
+<a href="#433" id="433">433</a>
+<a href="#434" id="434">434</a>
+<a href="#435" id="435">435</a>
+<a href="#436" id="436">436</a></pre></div><pre class="rust"><code><span class="doccomment">//! Compare an arbitrary AST compiled into SSA and executed with the
 //! SSA interpreter at some stage of the SSA pipeline.
 
 </span><span class="kw">use </span>std::sync::{Arc, OnceLock};
@@ -654,6 +658,10 @@
             }
             (DivisionByZero { .. }, ConstrainEqFailed { msg, .. }) =&gt; {
                 msg.as_ref().is_some_and(|msg| msg == <span class="string">"attempt to divide by zero"</span>)
+            }
+            (PoppedFromEmptySlice { .. }, ConstrainEqFailed { msg, .. }) =&gt; {
+                <span class="comment">// The removal of unreachable instructions can replace popping from an empty slice with an always-fail constraint.
+                </span>msg.as_ref().is_some_and(|msg| msg == <span class="string">"Index out of bounds"</span>)
             }
             (e1, e2) =&gt; {
                 <span class="comment">// The format strings contain SSA instructions,

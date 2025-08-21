@@ -3940,8 +3940,7 @@
 
     <span class="doccomment">/// Generate a `match` expression, returning a given type.
     ///
-    /// Match needs a variable; if we don't have one to produce the target type from,
-    /// it returns `None`.
+    /// Match needs a variable; if we don't have one to produce the target type from, it returns `None`.
     </span><span class="kw">fn </span>gen_match(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         u: <span class="kw-2">&amp;mut </span>Unstructured,
@@ -4043,6 +4042,7 @@
                     <span class="kw">let </span>item_id = <span class="self">self</span>.next_local_id();
                     <span class="kw">let </span>item_name = <span class="macro">format!</span>(<span class="string">"item_{}"</span>, local_name(item_id));
                     <span class="self">self</span>.locals.add(item_id, <span class="bool-val">false</span>, item_name.clone(), item_type.clone());
+                    <span class="self">self</span>.set_dynamic(item_id, src_dyn);
                     arguments.push((item_id, item_name));
                 }
                 <span class="comment">// Generate the original expression we wanted with the new arguments in scope.
