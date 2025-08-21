@@ -469,15 +469,11 @@ impl FunctionContext<'_> {
 
         // Checks for index Out-of-bounds
         match array_type {
-            Type::Array(_, len) => {
+            Type::Array(_, _) => {
                 // Out of bounds array accesses are guaranteed to fail in ACIR so this check is performed implicitly.
                 // We then only need to inject it for brillig functions.
-                let runtime = self.builder.current_function.runtime();
-                if runtime.is_brillig() {
-                    let len =
-                        self.builder.numeric_constant(*len as u128, NumericType::length_type());
-                    self.codegen_access_check(index, len);
-                }
+                // This is expected to be inserted later on during the SSA compilation flow, so we forego inserting
+                // redundant insertions here.
             }
             Type::Slice(_) => {
                 // The slice length is dynamic however so we can't rely on it being equal to the underlying memory
