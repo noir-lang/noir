@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1755803773234,
+  "lastUpdate": 1755803891506,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -11692,80 +11692,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "7503f37c7c3d9f463d287a77b1037ee4b9dc5e3c",
-          "message": "fix: remove warning from `std::verify_proof_with_type` (#9474)",
-          "timestamp": "2025-08-12T15:24:39Z",
-          "tree_id": "23b9b1a4a4a2c2bd568c02c684ace92f246c7499",
-          "url": "https://github.com/noir-lang/noir/commit/7503f37c7c3d9f463d287a77b1037ee4b9dc5e3c"
-        },
-        "date": 1755014741838,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 204.98,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 241.8,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 194.22,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 498.44,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 431.08,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1500,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 326.4,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 328.81,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 69.47,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 54.96,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "garmasholeksii@gmail.com",
             "name": "GarmashAlex",
             "username": "GarmashAlex"
@@ -15215,6 +15141,80 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/6be34fcf24fac15f2e1a66e246f7ba8af8d93489"
         },
         "date": 1755802383697,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 206.72,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 243.54,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 195.95,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 500.25,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 432.89,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1500,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 328.19,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 330.55,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 69.5,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 54.99,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "5cc5e135b7a0c91adc4e36b3a2c0b87f68a58b7c",
+          "message": "chore: remove redundant globals creation (#9606)",
+          "timestamp": "2025-08-21T18:34:24Z",
+          "tree_id": "91e10dbfcb30a8af1413efcf02b054d712621d6a",
+          "url": "https://github.com/noir-lang/noir/commit/5cc5e135b7a0c91adc4e36b3a2c0b87f68a58b7c"
+        },
+        "date": 1755803872957,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
