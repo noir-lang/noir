@@ -243,7 +243,7 @@ impl Block {
         self.last_loads.remove(&address);
 
         if let Some(expr) = self.expressions.get(&address) {
-            if let Some(aliases) = self.aliases.get(expr).cloned() {
+            if let Some(aliases) = self.aliases.get(expr) {
                 for alias in aliases.iter() {
                     self.last_loads.remove(&alias);
                 }
