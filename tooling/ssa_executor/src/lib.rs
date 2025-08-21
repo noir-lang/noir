@@ -40,6 +40,7 @@ mod tests {
     use acvm::FieldElement;
     use acvm::acir::native_types::{Witness, WitnessMap};
     use noirc_driver::CompileOptions;
+    use noirc_evaluator::ssa::ssa_gen::Ssa;
 
     #[test]
     fn test_ssa_execution_add() {
@@ -136,6 +137,61 @@ mod tests {
         match (acir_result, brillig_result) {
             (Err(acir), Ok(_brillig)) => panic!("Acir failed with: {acir}, brillig succeeded"),
             (Ok(_acir), Err(brillig)) => panic!("Acir succeeded, brillig failed: {brillig}"),
+            _ => {}
+        }
+    }
+
+    #[test]
+    fn oob_array_get_without_explicit_access_check() {
+        let ssa_without_runtime = "
+            (inline) fn main f0 {
+              b0():
+                v1 = make_array [u8 0] : [u8; 1]
+                v5 = array_get v1, index u32 1337 -> u8
+                return v5
+            }
+        ";
+        let acir_ssa = "acir".to_string() + ssa_without_runtime;
+        let brillig_ssa = "brillig".to_string() + ssa_without_runtime;
+        let witness_map = WitnessMap::new();
+        let acir_result =
+            execute_ssa(acir_ssa.to_string(), witness_map.clone(), CompileOptions::default());
+        let brillig_result =
+            execute_ssa(brillig_ssa.to_string(), witness_map.clone(), CompileOptions::default());
+        match (acir_result, brillig_result) {
+            (Err(acir), Ok(_brillig)) => panic!("Acir failed with: {acir}, brillig succeeded"),
+            (Ok(_acir), Err(brillig)) => panic!("Acir succeeded, brillig failed: {brillig}"),
+            (Err(acir), Err(brillig)) => println!("ACIR {acir} Brillig {brillig}"),
+            _ => {}
+        }
+    }
+
+    #[test]
+    fn oob_array_set_without_explicit_access_check() {
+        let ssa_without_runtime = "
+        (inline) fn main f0 {
+          b0(v0: u32):
+            jmp b1()
+          b1():
+            v3 = make_array [Field 1, Field 2] : [Field; 2]
+            jmp b2()
+          b2():
+            v5 = array_set v3, index v0, value Field 5
+            return v5
+        }
+        ";
+        let acir_ssa = "acir".to_string() + ssa_without_runtime;
+        let brillig_ssa = "brillig".to_string() + ssa_without_runtime;
+        let mut witness_map = WitnessMap::new();
+        witness_map.insert(Witness(0), FieldElement::from(3_u32));
+        let acir_result =
+            execute_ssa(acir_ssa.to_string(), witness_map.clone(), CompileOptions::default());
+        let brillig_result =
+            execute_ssa(brillig_ssa.to_string(), witness_map.clone(), CompileOptions::default());
+        match (acir_result, brillig_result) {
+            (Err(acir), Ok(_brillig)) => panic!("Acir failed with: {acir}, brillig succeeded"),
+            (Ok(_acir), Err(brillig)) => panic!("Acir succeeded, brillig failed: {brillig}"),
+            (Err(acir), Err(brillig)) => println!("ACIR {acir} Brillig {brillig}"),
             _ => {}
         }
     }
