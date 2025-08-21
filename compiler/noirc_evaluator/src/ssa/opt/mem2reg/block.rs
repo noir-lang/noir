@@ -65,17 +65,13 @@ impl ReferenceValue {
 impl Block {
     /// If the given reference id points to a known value, return the value
     pub(super) fn get_known_value(&self, address: ValueId) -> Option<ValueId> {
-        if let Some(expression) = self.expressions.get(&address) {
-            if let Some(aliases) = self.aliases.get(expression) {
-                // We could allow multiple aliases if we check that the reference
-                // value in each is equal.
-                if let Some(alias) = aliases.single_alias() {
-                    if let Some(ReferenceValue::Known(value)) = self.references.get(&alias) {
-                        return Some(*value);
-                    }
-                }
+        // We could allow multiple aliases if we check that the reference value in each is equal.
+        if let Some(alias) = self.get_aliases_for_value(address).single_alias() {
+            if let Some(ReferenceValue::Known(value)) = self.references.get(&alias) {
+                return Some(*value);
             }
         }
+
         None
     }
 
@@ -101,11 +97,11 @@ impl Block {
         } else {
             // More than one alias. We're not sure which it refers to so we have to
             // conservatively invalidate all references it may refer to.
-            aliases.for_each(|alias| {
+            for alias in aliases.iter() {
                 if let Some(reference_value) = self.references.get_mut(&alias) {
                     *reference_value = ReferenceValue::Unknown;
                 }
-            });
+            }
         }
     }
 
@@ -180,21 +176,6 @@ impl Block {
         }
     }
 
-    /// Iterate through each known alias of the given address and apply the function `f` to each.
-    pub(super) fn for_each_alias_of<T>(
-        &mut self,
-        address: ValueId,
-        mut f: impl FnMut(&mut Self, ValueId) -> T,
-    ) {
-        if let Some(expr) = self.expressions.get(&address) {
-            if let Some(aliases) = self.aliases.get(expr).cloned() {
-                aliases.for_each(|alias| {
-                    f(self, alias);
-                });
-            }
-        }
-    }
-
     /// Forget the last store to an address and all of its aliases, to eliminate them
     /// from the candidates for removal at the end.
     ///
@@ -204,7 +185,10 @@ impl Block {
     /// does not affect the candidacy of the last store in the predecessor block.
     fn keep_last_stores_for(&mut self, address: ValueId, function: &Function) {
         self.keep_last_store(address, function);
-        self.for_each_alias_of(address, |t, alias| t.keep_last_store(alias, function));
+
+        for alias in (*self.get_aliases_for_value(address)).clone().iter() {
+            self.keep_last_store(alias, function);
+        }
     }
 
     /// Forget the last store to an address, to remove it from the set of instructions
@@ -267,6 +251,13 @@ impl Block {
 
     pub(super) fn keep_last_load_for(&mut self, address: ValueId) {
         self.last_loads.remove(&address);
-        self.for_each_alias_of(address, |block, alias| block.last_loads.remove(&alias));
+
+        if let Some(expr) = self.expressions.get(&address) {
+            if let Some(aliases) = self.aliases.get(expr) {
+                for alias in aliases.iter() {
+                    self.last_loads.remove(&alias);
+                }
+            }
+        }
     }
 }
