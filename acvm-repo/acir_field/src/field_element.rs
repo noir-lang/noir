@@ -283,11 +283,14 @@ impl<F: PrimeField> AcirField for FieldElement<F> {
         if self.is_zero() {
             return "0x00".to_owned();
         }
-        let mut trimmed_field = self.to_hex().trim_start_matches('0').to_owned();
+        let mut hex = "0x".to_string();
+        let self_to_hex = self.to_hex();
+        let trimmed_field = self_to_hex.trim_start_matches('0');
         if trimmed_field.len() % 2 != 0 {
-            trimmed_field = "0".to_owned() + &trimmed_field;
+            hex.push('0');
         }
-        "0x".to_owned() + &trimmed_field
+        hex.push_str(trimmed_field);
+        hex
     }
 
     fn from_hex(hex_str: &str) -> Option<FieldElement<F>> {
