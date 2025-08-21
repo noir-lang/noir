@@ -564,7 +564,28 @@ mod tests {
     }
 
     #[test]
-    fn test_short_hex() {
+    fn test_to_hex() {
+        type F = FieldElement<ark_bn254::Fr>;
+        assert_eq!(
+            F::zero().to_hex(),
+            "0000000000000000000000000000000000000000000000000000000000000000"
+        );
+        assert_eq!(
+            F::one().to_hex(),
+            "0000000000000000000000000000000000000000000000000000000000000001"
+        );
+        assert_eq!(
+            F::from(0x123_u128).to_hex(),
+            "0000000000000000000000000000000000000000000000000000000000000123"
+        );
+        assert_eq!(
+            F::from(0x1234_u128).to_hex(),
+            "0000000000000000000000000000000000000000000000000000000000001234"
+        );
+    }
+
+    #[test]
+    fn test_to_short_hex() {
         type F = FieldElement<ark_bn254::Fr>;
         assert_eq!(F::zero().to_short_hex(), "0x00");
         assert_eq!(F::one().to_short_hex(), "0x01");
