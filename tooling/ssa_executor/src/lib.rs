@@ -40,7 +40,6 @@ mod tests {
     use acvm::FieldElement;
     use acvm::acir::native_types::{Witness, WitnessMap};
     use noirc_driver::CompileOptions;
-    use noirc_evaluator::ssa::ssa_gen::Ssa;
 
     #[test]
     fn test_ssa_execution_add() {
