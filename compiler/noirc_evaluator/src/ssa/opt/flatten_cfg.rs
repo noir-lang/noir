@@ -172,13 +172,11 @@ impl Ssa {
         }
 
         for function in self.functions.values_mut() {
-            // Disabled due to failures
             #[cfg(debug_assertions)]
             flatten_cfg_pre_check(function);
 
             flatten_function_cfg(function, &no_predicates);
 
-            // Disabled as we're getting failures, I would expect this to pass however.
             #[cfg(debug_assertions)]
             flatten_cfg_post_check(function);
         }
