@@ -181,10 +181,18 @@ impl Context<'_, '_, '_> {
     /// }
     fn two_pow(&mut self, exponent: ValueId) -> ValueId {
         // Require that exponent < bit_size, ensuring that `pow` returns a value consistent with `lhs`'s type.
-        self.enforce_bitshift_rhs_lt_bit_size(exponent);
+        let max_bit_size = self.enforce_bitshift_rhs_lt_bit_size(exponent);
 
         if let Some(exponent_const) = self.context.dfg.get_numeric_constant(exponent) {
-            let pow = FieldElement::from(2u32).pow(&exponent_const);
+            let exponent_const_as_u32 = exponent_const.try_to_u32();
+            let pow = if exponent_const_as_u32.is_none_or(|v| v > max_bit_size) {
+                // If the exponent is guaranteed to overflow the value returned here doesn't matter as
+                // `enforce_bitshift_rhs_lt_bit_size` will trigger a constrain failure. We don't want to return
+                // `2^exponent` here as that value is later cast to the target type and it would be an invalid cast.
+                FieldElement::zero()
+            } else {
+                FieldElement::from(2u32).pow(&exponent_const)
+            };
             return self.numeric_constant(pow, NumericType::NativeField);
         }
 
@@ -241,29 +249,31 @@ impl Context<'_, '_, '_> {
 
     /// Insert constraints ensuring that the right-hand side of a bit-shift operation
     /// is less than the bit size of the left-hand side.
-    fn enforce_bitshift_rhs_lt_bit_size(&mut self, rhs: ValueId) {
+    /// Returns the maximum bit size allowed for `rhs`.
+    fn enforce_bitshift_rhs_lt_bit_size(&mut self, rhs: ValueId) -> u32 {
         let one = self.numeric_constant(FieldElement::one(), NumericType::bool());
         let rhs_type = self.context.dfg.type_of_value(rhs);
 
         let assert_message = Some("attempt to bit-shift with overflow".to_owned());
 
-        let (bit_size, bit_size_field) = match rhs_type {
-            Type::Numeric(NumericType::Unsigned { bit_size }) => {
-                (bit_size, FieldElement::from(bit_size))
-            }
+        let (bit_size, max_bit_size) = match rhs_type {
+            Type::Numeric(NumericType::Unsigned { bit_size }) => (bit_size, bit_size),
             Type::Numeric(NumericType::Signed { bit_size }) => {
                 assert!(bit_size > 1, "ICE - i1 is not a valid type");
 
-                (bit_size, FieldElement::from(bit_size - 1))
+                (bit_size, bit_size - 1)
             }
             _ => unreachable!("check_shift_overflow called with non-numeric type"),
         };
+        let bit_size_field = FieldElement::from(max_bit_size);
 
         let unsigned_typ = NumericType::unsigned(bit_size);
         let max = self.numeric_constant(bit_size_field, unsigned_typ);
         let rhs = self.insert_cast(rhs, unsigned_typ);
         let overflow = self.insert_binary(rhs, BinaryOp::Lt, max);
         self.insert_constrain(overflow, one, assert_message.map(Into::into));
+
+        max_bit_size
     }
 
     pub(crate) fn field_constant(&mut self, constant: FieldElement) -> ValueId {
@@ -498,10 +508,7 @@ mod tests {
               b0(v0: u32):
                 constrain u1 0 == u1 1, "attempt to bit-shift with overflow"
                 v3 = cast v0 as Field
-                v5 = mul v3, Field -7768683996859727954953724731427871339010100868427821011365820555770860666883
-                v6 = truncate v5 to 32 bits, max_bit_size: 254
-                v7 = cast v6 as u32
-                return v7
+                return u32 0
             }
             "#);
         }
