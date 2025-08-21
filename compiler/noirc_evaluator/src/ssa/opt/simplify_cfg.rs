@@ -66,27 +66,7 @@ impl Function {
                 stack.extend(self.dfg[block].successors().filter(|block| !visited.contains(block)));
             }
 
-            let mut predecessors = cfg.predecessors(block);
-            if predecessors.len() == 1 {
-                let predecessor =
-                    predecessors.next().expect("Already checked length of predecessors");
-                drop(predecessors);
-
-                // If the block has only 1 predecessor, we can safely remove its block parameters
-                remove_block_parameters(self, block, predecessor, &mut values_to_replace);
-
-                // Note: this function relies on `remove_block_parameters` being called first.
-                // Otherwise the inlined block will refer to parameters that no longer exist.
-                //
-                // If successful, `block` will be empty and unreachable after this call, so any
-                // optimizations performed after this point on the same block should check if
-                // the inlining here was successful before continuing.
-                try_inline_into_predecessor(self, &mut cfg, block, predecessor);
-            } else {
-                drop(predecessors);
-
-                check_for_double_jmp(self, block, &mut cfg);
-            }
+            check_for_double_jmp(self, block, &mut cfg);
 
             if !values_to_replace.is_empty() {
                 self.dfg.replace_values_in_block_terminator(block, &values_to_replace);
@@ -807,7 +787,18 @@ mod test {
         ";
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.simplify_cfg();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v0: i16):
+            v2 = lt i16 3, v0
+            jmpif v2 then: b1, else: b2
+          b1():
+            v4 = unchecked_add i16 1, v0
+            jmp b2()
+          b2():
+            return
+        }
+        ");
     }
 
     #[test]
