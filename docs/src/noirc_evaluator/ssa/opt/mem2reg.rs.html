@@ -1541,7 +1541,69 @@
 <a href="#1540" id="1540">1540</a>
 <a href="#1541" id="1541">1541</a>
 <a href="#1542" id="1542">1542</a>
-<a href="#1543" id="1543">1543</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the mem2reg SSA optimization pass is to replace any `Load` instructions to known
+<a href="#1543" id="1543">1543</a>
+<a href="#1544" id="1544">1544</a>
+<a href="#1545" id="1545">1545</a>
+<a href="#1546" id="1546">1546</a>
+<a href="#1547" id="1547">1547</a>
+<a href="#1548" id="1548">1548</a>
+<a href="#1549" id="1549">1549</a>
+<a href="#1550" id="1550">1550</a>
+<a href="#1551" id="1551">1551</a>
+<a href="#1552" id="1552">1552</a>
+<a href="#1553" id="1553">1553</a>
+<a href="#1554" id="1554">1554</a>
+<a href="#1555" id="1555">1555</a>
+<a href="#1556" id="1556">1556</a>
+<a href="#1557" id="1557">1557</a>
+<a href="#1558" id="1558">1558</a>
+<a href="#1559" id="1559">1559</a>
+<a href="#1560" id="1560">1560</a>
+<a href="#1561" id="1561">1561</a>
+<a href="#1562" id="1562">1562</a>
+<a href="#1563" id="1563">1563</a>
+<a href="#1564" id="1564">1564</a>
+<a href="#1565" id="1565">1565</a>
+<a href="#1566" id="1566">1566</a>
+<a href="#1567" id="1567">1567</a>
+<a href="#1568" id="1568">1568</a>
+<a href="#1569" id="1569">1569</a>
+<a href="#1570" id="1570">1570</a>
+<a href="#1571" id="1571">1571</a>
+<a href="#1572" id="1572">1572</a>
+<a href="#1573" id="1573">1573</a>
+<a href="#1574" id="1574">1574</a>
+<a href="#1575" id="1575">1575</a>
+<a href="#1576" id="1576">1576</a>
+<a href="#1577" id="1577">1577</a>
+<a href="#1578" id="1578">1578</a>
+<a href="#1579" id="1579">1579</a>
+<a href="#1580" id="1580">1580</a>
+<a href="#1581" id="1581">1581</a>
+<a href="#1582" id="1582">1582</a>
+<a href="#1583" id="1583">1583</a>
+<a href="#1584" id="1584">1584</a>
+<a href="#1585" id="1585">1585</a>
+<a href="#1586" id="1586">1586</a>
+<a href="#1587" id="1587">1587</a>
+<a href="#1588" id="1588">1588</a>
+<a href="#1589" id="1589">1589</a>
+<a href="#1590" id="1590">1590</a>
+<a href="#1591" id="1591">1591</a>
+<a href="#1592" id="1592">1592</a>
+<a href="#1593" id="1593">1593</a>
+<a href="#1594" id="1594">1594</a>
+<a href="#1595" id="1595">1595</a>
+<a href="#1596" id="1596">1596</a>
+<a href="#1597" id="1597">1597</a>
+<a href="#1598" id="1598">1598</a>
+<a href="#1599" id="1599">1599</a>
+<a href="#1600" id="1600">1600</a>
+<a href="#1601" id="1601">1601</a>
+<a href="#1602" id="1602">1602</a>
+<a href="#1603" id="1603">1603</a>
+<a href="#1604" id="1604">1604</a>
+<a href="#1605" id="1605">1605</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the mem2reg SSA optimization pass is to replace any `Load` instructions to known
 //! addresses with the value stored at that address, if it is also known. This pass will also remove
 //! any `Store` instructions within a block that are no longer needed because no more loads occur in
 //! between the Store in question and the next Store.
@@ -1735,13 +1797,7 @@
                 // then that reference gets to keep its last store.
                 </span><span class="kw">let </span>typ = <span class="self">self</span>.inserter.function.dfg.type_of_value(value);
                 <span class="kw">if </span>typ.contains_reference() {
-                    <span class="kw">if let </span><span class="prelude-val">Some</span>(expression) = references.expressions.get(<span class="kw-2">&amp;</span>value) {
-                        <span class="kw">if let </span><span class="prelude-val">Some</span>(aliases) = references.aliases.get(expression) {
-                            aliases.for_each(|alias| {
-                                all_terminator_values.insert(alias);
-                            });
-                        }
-                    }
+                    all_terminator_values.extend(references.get_aliases_for_value(value).iter());
                 }
             });
         }
@@ -1785,45 +1841,29 @@
         <span class="kw">let </span>reference_parameters = <span class="self">self</span>.reference_parameters();
 
         <span class="comment">// Check whether the store address has an alias that crosses an entry point boundary (e.g. a Call or Return)
-        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(expression) = block.expressions.get(store_address) {
-            <span class="kw">if let </span><span class="prelude-val">Some</span>(aliases) = block.aliases.get(expression) {
-                <span class="kw">let </span>allocation_aliases_parameter =
-                    aliases.any(|alias| reference_parameters.contains(<span class="kw-2">&amp;</span>alias));
-                <span class="kw">if </span>allocation_aliases_parameter == <span class="prelude-val">Some</span>(<span class="bool-val">true</span>) {
-                    <span class="kw">return </span><span class="bool-val">true</span>;
-                }
+        </span><span class="kw">for </span>alias <span class="kw">in </span>block.get_aliases_for_value(<span class="kw-2">*</span>store_address).iter() {
+            <span class="kw">if </span>reference_parameters.contains(<span class="kw-2">&amp;</span>alias) {
+                <span class="kw">return </span><span class="bool-val">true</span>;
+            }
 
-                <span class="kw">let </span>allocation_aliases_parameter =
-                    aliases.any(|alias| per_func_block_params.contains(<span class="kw-2">&amp;</span>alias));
-                <span class="kw">if </span>allocation_aliases_parameter == <span class="prelude-val">Some</span>(<span class="bool-val">true</span>) {
-                    <span class="kw">return </span><span class="bool-val">true</span>;
-                }
+            <span class="kw">if </span>per_func_block_params.contains(<span class="kw-2">&amp;</span>alias) {
+                <span class="kw">return </span><span class="bool-val">true</span>;
+            }
 
-                <span class="comment">// Is any alias of this address an input to some function call, or a return value?
-                </span><span class="kw">let </span>allocation_aliases_instr_input =
-                    aliases.any(|alias| <span class="self">self</span>.instruction_input_references.contains(<span class="kw-2">&amp;</span>alias));
-                <span class="kw">if </span>allocation_aliases_instr_input == <span class="prelude-val">Some</span>(<span class="bool-val">true</span>) {
-                    <span class="kw">return </span><span class="bool-val">true</span>;
-                }
+            <span class="comment">// Is any alias of this address an input to some function call, or a return value?
+            </span><span class="kw">if </span><span class="self">self</span>.instruction_input_references.contains(<span class="kw-2">&amp;</span>alias) {
+                <span class="kw">return </span><span class="bool-val">true</span>;
+            }
 
-                <span class="comment">// Is any alias of this address used in a block terminator?
-                </span><span class="kw">let </span>allocation_aliases_terminator_args =
-                    aliases.any(|alias| all_terminator_values.contains(<span class="kw-2">&amp;</span>alias));
-                <span class="kw">if </span>allocation_aliases_terminator_args == <span class="prelude-val">Some</span>(<span class="bool-val">true</span>) {
-                    <span class="kw">return </span><span class="bool-val">true</span>;
-                }
+            <span class="comment">// Is any alias of this address used in a block terminator?
+            </span><span class="kw">if </span>all_terminator_values.contains(<span class="kw-2">&amp;</span>alias) {
+                <span class="kw">return </span><span class="bool-val">true</span>;
+            }
 
-                <span class="comment">// Check whether there are any aliases whose instructions are not all marked for removal.
-                // If there is any alias marked to survive, we should not remove its last store.
-                </span><span class="kw">let </span>has_alias_not_marked_for_removal = aliases.any(|alias| {
-                    <span class="kw">if let </span><span class="prelude-val">Some</span>(alias_instructions) = <span class="self">self</span>.aliased_references.get(<span class="kw-2">&amp;</span>alias) {
-                        !alias_instructions.is_subset(<span class="kw-2">&amp;</span><span class="self">self</span>.instructions_to_remove)
-                    } <span class="kw">else </span>{
-                        <span class="bool-val">false
-                    </span>}
-                });
-
-                <span class="kw">if </span>has_alias_not_marked_for_removal == <span class="prelude-val">Some</span>(<span class="bool-val">true</span>) {
+            <span class="comment">// Check whether there are any aliases whose instructions are not all marked for removal.
+            // If there is any alias marked to survive, we should not remove its last store.
+            </span><span class="kw">if let </span><span class="prelude-val">Some</span>(alias_instructions) = <span class="self">self</span>.aliased_references.get(<span class="kw-2">&amp;</span>alias) {
+                <span class="kw">if </span>!alias_instructions.is_subset(<span class="kw-2">&amp;</span><span class="self">self</span>.instructions_to_remove) {
                     <span class="kw">return </span><span class="bool-val">true</span>;
                 }
             }
@@ -1851,10 +1891,8 @@
 
         <span class="kw">if let </span><span class="prelude-val">Some</span>(first_predecessor) = predecessors.next() {
             <span class="kw">let </span><span class="kw-2">mut </span>first = <span class="self">self</span>.blocks.get(<span class="kw-2">&amp;</span>first_predecessor).cloned().unwrap_or_default();
+
             first.last_stores.clear();
-            <span class="comment">// Last loads are tracked per block. During unification we are creating a new block from the current one,
-            // so we must clear the last loads of the current block before we return the new block.
-            </span>first.last_loads.clear();
 
             <span class="comment">// Note that we have to start folding with the first block as the accumulator.
             // If we started with an empty block, an empty block union'd with any other block
@@ -1932,10 +1970,10 @@
             <span class="kw">let </span>previous = references.aliases.insert(expression, aliases.clone());
             <span class="macro">assert!</span>(previous.is_none());
 
-            aliases.for_each(|alias| {
+            <span class="kw">for </span>alias <span class="kw">in </span>aliases.iter() {
                 <span class="kw">let </span>previous = references.expressions.insert(alias, expression);
                 <span class="macro">assert!</span>(previous.is_none());
-            });
+            }
         }
     }
 
@@ -1945,15 +1983,12 @@
         <span class="kw">let </span>reference_parameters = <span class="self">self</span>.reference_parameters();
 
         <span class="kw">for </span>(allocation, instruction) <span class="kw">in </span><span class="kw-2">&amp;</span>references.last_stores {
-            <span class="kw">if let </span><span class="prelude-val">Some</span>(expression) = references.expressions.get(allocation) {
-                <span class="kw">if let </span><span class="prelude-val">Some</span>(aliases) = references.aliases.get(expression) {
-                    <span class="kw">let </span>allocation_aliases_parameter =
-                        aliases.any(|alias| reference_parameters.contains(<span class="kw-2">&amp;</span>alias));
-                    <span class="comment">// If `allocation_aliases_parameter` is known to be false
-                    </span><span class="kw">if </span>allocation_aliases_parameter == <span class="prelude-val">Some</span>(<span class="bool-val">false</span>) {
-                        <span class="self">self</span>.instructions_to_remove.insert(<span class="kw-2">*</span>instruction);
-                    }
-                }
+            <span class="kw">let </span>aliases = references.get_aliases_for_value(<span class="kw-2">*</span>allocation);
+            <span class="kw">let </span>allocation_aliases_parameter =
+                aliases.any(|alias| reference_parameters.contains(<span class="kw-2">&amp;</span>alias));
+            <span class="comment">// If `allocation_aliases_parameter` is known to be false
+            </span><span class="kw">if </span>allocation_aliases_parameter == <span class="prelude-val">Some</span>(<span class="bool-val">false</span>) {
+                <span class="self">self</span>.instructions_to_remove.insert(<span class="kw-2">*</span>instruction);
             }
         }
     }
@@ -2010,9 +2045,7 @@
                     <span class="comment">// Remember that this address has been loaded, so stores to it should not be removed.
                     </span><span class="self">self</span>.last_loads.insert(address);
                     <span class="comment">// Stores to any of its aliases should also be considered loaded.
-                    </span>references.for_each_alias_of(address, |<span class="kw">_</span>, alias| {
-                        <span class="self">self</span>.last_loads.insert(alias);
-                    });
+                    </span><span class="self">self</span>.last_loads.extend(references.get_aliases_for_value(address).iter());
                 }
 
                 <span class="comment">// Check whether the block has a repeat load from the same address (w/ no calls or stores in between the loads).
@@ -2051,9 +2084,9 @@
 
                 <span class="comment">// Remember that we used the value in this instruction. If this instruction
                 // isn't removed at the end, we need to keep the stores to the value as well.
-                </span>references.for_each_alias_of(value, |<span class="kw">_</span>, alias| {
+                </span><span class="kw">for </span>alias <span class="kw">in </span>references.get_aliases_for_value(value).iter() {
                     <span class="self">self</span>.aliased_references.entry(alias).or_default().insert(instruction);
-                });
+                }
 
                 references.set_known_value(address, value);
                 <span class="comment">// If we see a store to an address, the last load to that address needs to remain.
@@ -2072,9 +2105,8 @@
                 <span class="kw">let </span>array = <span class="kw-2">*</span>array;
                 <span class="kw">let </span>array_typ = <span class="self">self</span>.inserter.function.dfg.type_of_value(array);
                 <span class="kw">if </span>array_typ.contains_reference() {
-                    references.for_each_alias_of(array, |<span class="kw">_</span>, alias| {
-                        <span class="self">self</span>.instruction_input_references.insert(alias);
-                    });
+                    <span class="self">self</span>.instruction_input_references
+                        .extend(references.get_aliases_for_value(array).iter());
                     references.mark_value_used(array, <span class="self">self</span>.inserter.function);
 
                     <span class="kw">let </span>expression = Expression::ArrayElement(array);
@@ -2115,18 +2147,17 @@
                     <span class="comment">// Similar to how we remember that we used a value in a `Store` instruction,
                     // take note that it was used in the `ArraySet`. If this instruction is not
                     // going to be removed at the end, we shall keep the stores to this value as well.
-                    </span>references.for_each_alias_of(<span class="kw-2">*</span>value, |<span class="kw">_</span>, alias| {
+                    </span><span class="kw">for </span>alias <span class="kw">in </span>references.get_aliases_for_value(<span class="kw-2">*</span>value).iter() {
                         <span class="self">self</span>.aliased_references.entry(alias).or_default().insert(instruction);
-                    });
+                    }
                 }
             }
             Instruction::Call { arguments, .. } =&gt; {
                 <span class="comment">// We need to appropriately mark each alias of a reference as being used as a call argument.
                 // This prevents us potentially removing a last store from a preceding block or is altered within another function.
                 </span><span class="kw">for </span>arg <span class="kw">in </span>arguments {
-                    references.for_each_alias_of(<span class="kw-2">*</span>arg, |<span class="kw">_</span>, alias| {
-                        <span class="self">self</span>.instruction_input_references.insert(alias);
-                    });
+                    <span class="self">self</span>.instruction_input_references
+                        .extend(references.get_aliases_for_value(<span class="kw-2">*</span>arg).iter());
                 }
                 <span class="self">self</span>.mark_all_unknown(arguments, references);
             }
@@ -2262,9 +2293,8 @@
                 <span class="comment">// We need to appropriately mark each alias of a reference as being used as a return terminator argument.
                 // This prevents us potentially removing a last store from a preceding block or is altered within another function.
                 </span><span class="kw">for </span>return_value <span class="kw">in </span>return_values {
-                    references.for_each_alias_of(<span class="kw-2">*</span>return_value, |<span class="kw">_</span>, alias| {
-                        <span class="self">self</span>.instruction_input_references.insert(alias);
-                    });
+                    <span class="self">self</span>.instruction_input_references
+                        .extend(references.get_aliases_for_value(<span class="kw-2">*</span>return_value).iter());
                 }
                 <span class="comment">// Removing all `last_stores` for each returned reference is more important here
                 // than setting them all to ReferenceValue::Unknown since no other block should
@@ -2857,7 +2887,39 @@
 
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
         <span class="kw">let </span>ssa = ssa.mem2reg();
-        assert_normalized_ssa_equals(ssa, src);
+        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
+        brillig(inline) fn main f0 {
+          b0(v0: u32):
+            v2 = call f1(v0) -&gt; [&amp;mut u32; 1]
+            v4 = array_get v2, index u32 0 -&gt; &amp;mut u32
+            store u32 1 at v4
+            v6 = load v4 -&gt; u1
+            return v6
+        }
+        brillig(inline_always) fn foo f1 {
+          b0(v0: u32):
+            v1 = allocate -&gt; &amp;mut u32
+            store v0 at v1
+            v2 = allocate -&gt; &amp;mut u32
+            store u32 0 at v2
+            jmp b1()
+          b1():
+            v4 = load v2 -&gt; u32
+            v6 = eq v4, u32 1
+            jmpif v6 then: b2, else: b3
+          b2():
+            jmp b4()
+          b3():
+            v7 = add v4, u32 1
+            store v7 at v2
+            jmp b5()
+          b4():
+            v8 = make_array [v1] : [&amp;mut u32; 1]
+            return v8
+          b5():
+            jmp b1()
+        }
+        "</span>);
     }
 
     <span class="attr">#[test]
@@ -3080,6 +3142,68 @@
         brillig(inline) impure fn append_note_hashes_with_logs f1 {
           b0(v0: &amp;mut [Field; 2]):
             return
+        }
+        "</span>);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>reuses_last_load_from_single_predecessor_block() {
+        <span class="kw">let </span>src = <span class="string">r#"
+        brillig(inline) fn main f0 {
+          b0(v0: &amp;mut Field):
+            v2 = load v0 -&gt; Field
+            jmp b1()
+          b1():
+            v18 = load v0 -&gt; Field
+            return v18
+        }
+        "#</span>;
+
+        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+
+        <span class="kw">let </span>ssa = ssa.mem2reg();
+        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
+        brillig(inline) fn main f0 {
+          b0(v0: &amp;mut Field):
+            v1 = load v0 -&gt; Field
+            jmp b1()
+          b1():
+            return v1
+        }
+        "</span>);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>reuses_last_load_from_multiple_indirect_predecessor_block() {
+        <span class="kw">let </span>src = <span class="string">r#"
+        brillig(inline) fn main f0 {
+          b0(v0: &amp;mut Field, v1: u1):
+            v2 = load v0 -&gt; Field
+            jmpif v1 then: b1, else: b2
+          b1():
+            jmp b3()
+          b2():
+            jmp b3()
+          b3():
+            v18 = load v0 -&gt; Field
+            return v18
+        }
+        "#</span>;
+
+        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+
+        <span class="kw">let </span>ssa = ssa.mem2reg();
+        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
+        brillig(inline) fn main f0 {
+          b0(v0: &amp;mut Field, v1: u1):
+            v2 = load v0 -&gt; Field
+            jmpif v1 then: b1, else: b2
+          b1():
+            jmp b3()
+          b2():
+            jmp b3()
+          b3():
+            return v2
         }
         "</span>);
     }

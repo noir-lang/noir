@@ -94,10 +94,7 @@
 <a href="#93" id="93">93</a>
 <a href="#94" id="94">94</a>
 <a href="#95" id="95">95</a>
-<a href="#96" id="96">96</a>
-<a href="#97" id="97">97</a>
-<a href="#98" id="98">98</a>
-<a href="#99" id="99">99</a></pre></div><pre class="rust"><code><span class="kw">use </span>vec_collections::{AbstractVecSet, VecSet};
+<a href="#96" id="96">96</a></pre></div><pre class="rust"><code><span class="kw">use </span>vec_collections::{AbstractVecSet, VecSet};
 
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::value::ValueId;
 
@@ -181,19 +178,16 @@
         <span class="self">self</span>.aliases.as_ref().map(|aliases| aliases.iter().copied().any(f))
     }
 
-    <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>for_each(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">mut </span>f: <span class="kw">impl </span>FnMut(ValueId)) {
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(aliases) = <span class="kw-2">&amp;</span><span class="self">self</span>.aliases {
-            <span class="kw">for </span>alias <span class="kw">in </span>aliases {
-                f(<span class="kw-2">*</span>alias);
-            }
-        }
+    <span class="doccomment">/// Returns an iterator over the values in this alias set.
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>iter(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw">impl </span>Iterator&lt;Item = ValueId&gt; {
+        <span class="self">self</span>.aliases.iter().flat_map(|aliases| aliases.iter().copied())
     }
 
     <span class="doccomment">/// Return the first ValueId in the alias set as long as there is at least one.
     /// The ordering is arbitrary (by lowest ValueId) so this method should only be
     /// used when you need an arbitrary ValueId from the alias set.
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>first(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;ValueId&gt; {
-        <span class="self">self</span>.aliases.as_ref().and_then(|aliases| aliases.iter().next().copied())
+        <span class="self">self</span>.iter().next()
     }
 }
 </code></pre></div></section></main></body></html>

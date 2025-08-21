@@ -259,7 +259,9 @@
 <a href="#258" id="258">258</a>
 <a href="#259" id="259">259</a>
 <a href="#260" id="260">260</a>
-<a href="#261" id="261">261</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::borrow::Cow;
+<a href="#261" id="261">261</a>
+<a href="#262" id="262">262</a>
+<a href="#263" id="263">263</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::borrow::Cow;
 
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{
     function::Function,
@@ -326,17 +328,13 @@
 <span class="kw">impl </span>Block {
     <span class="doccomment">/// If the given reference id points to a known value, return the value
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>get_known_value(<span class="kw-2">&amp;</span><span class="self">self</span>, address: ValueId) -&gt; <span class="prelude-ty">Option</span>&lt;ValueId&gt; {
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(expression) = <span class="self">self</span>.expressions.get(<span class="kw-2">&amp;</span>address) {
-            <span class="kw">if let </span><span class="prelude-val">Some</span>(aliases) = <span class="self">self</span>.aliases.get(expression) {
-                <span class="comment">// We could allow multiple aliases if we check that the reference
-                // value in each is equal.
-                </span><span class="kw">if let </span><span class="prelude-val">Some</span>(alias) = aliases.single_alias() {
-                    <span class="kw">if let </span><span class="prelude-val">Some</span>(ReferenceValue::Known(value)) = <span class="self">self</span>.references.get(<span class="kw-2">&amp;</span>alias) {
-                        <span class="kw">return </span><span class="prelude-val">Some</span>(<span class="kw-2">*</span>value);
-                    }
-                }
+        <span class="comment">// We could allow multiple aliases if we check that the reference value in each is equal.
+        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(alias) = <span class="self">self</span>.get_aliases_for_value(address).single_alias() {
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(ReferenceValue::Known(value)) = <span class="self">self</span>.references.get(<span class="kw-2">&amp;</span>alias) {
+                <span class="kw">return </span><span class="prelude-val">Some</span>(<span class="kw-2">*</span>value);
             }
         }
+
         <span class="prelude-val">None
     </span>}
 
@@ -362,11 +360,11 @@
         } <span class="kw">else </span>{
             <span class="comment">// More than one alias. We're not sure which it refers to so we have to
             // conservatively invalidate all references it may refer to.
-            </span>aliases.for_each(|alias| {
+            </span><span class="kw">for </span>alias <span class="kw">in </span>aliases.iter() {
                 <span class="kw">if let </span><span class="prelude-val">Some</span>(reference_value) = <span class="self">self</span>.references.get_mut(<span class="kw-2">&amp;</span>alias) {
                     <span class="kw-2">*</span>reference_value = ReferenceValue::Unknown;
                 }
-            });
+            }
         }
     }
 
@@ -406,6 +404,17 @@
         }
         <span class="self">self</span>.references = intersection;
 
+        <span class="comment">// Keep only the last loads present in both maps, if they map to the same InstructionId
+        </span><span class="kw">let </span><span class="kw-2">mut </span>intersection = im::OrdMap::new();
+        <span class="kw">for </span>(value_id, instruction) <span class="kw">in </span><span class="kw-2">&amp;</span>other.last_loads {
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(existing) = <span class="self">self</span>.last_loads.get(value_id) {
+                <span class="kw">if </span>existing == instruction {
+                    intersection.insert(<span class="kw-2">*</span>value_id, <span class="kw-2">*</span>instruction);
+                }
+            }
+        }
+        <span class="self">self</span>.last_loads = intersection;
+
         <span class="self">self
     </span>}
 
@@ -430,21 +439,6 @@
         }
     }
 
-    <span class="doccomment">/// Iterate through each known alias of the given address and apply the function `f` to each.
-    </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>for_each_alias_of&lt;T&gt;(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        address: ValueId,
-        <span class="kw-2">mut </span>f: <span class="kw">impl </span>FnMut(<span class="kw-2">&amp;mut </span><span class="self">Self</span>, ValueId) -&gt; T,
-    ) {
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(expr) = <span class="self">self</span>.expressions.get(<span class="kw-2">&amp;</span>address) {
-            <span class="kw">if let </span><span class="prelude-val">Some</span>(aliases) = <span class="self">self</span>.aliases.get(expr).cloned() {
-                aliases.for_each(|alias| {
-                    f(<span class="self">self</span>, alias);
-                });
-            }
-        }
-    }
-
     <span class="doccomment">/// Forget the last store to an address and all of its aliases, to eliminate them
     /// from the candidates for removal at the end.
     ///
@@ -454,7 +448,10 @@
     /// does not affect the candidacy of the last store in the predecessor block.
     </span><span class="kw">fn </span>keep_last_stores_for(<span class="kw-2">&amp;mut </span><span class="self">self</span>, address: ValueId, function: <span class="kw-2">&amp;</span>Function) {
         <span class="self">self</span>.keep_last_store(address, function);
-        <span class="self">self</span>.for_each_alias_of(address, |t, alias| t.keep_last_store(alias, function));
+
+        <span class="kw">for </span>alias <span class="kw">in </span>(<span class="kw-2">*</span><span class="self">self</span>.get_aliases_for_value(address)).clone().iter() {
+            <span class="self">self</span>.keep_last_store(alias, function);
+        }
     }
 
     <span class="doccomment">/// Forget the last store to an address, to remove it from the set of instructions
@@ -517,7 +514,14 @@
 
     <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>keep_last_load_for(<span class="kw-2">&amp;mut </span><span class="self">self</span>, address: ValueId) {
         <span class="self">self</span>.last_loads.remove(<span class="kw-2">&amp;</span>address);
-        <span class="self">self</span>.for_each_alias_of(address, |block, alias| block.last_loads.remove(<span class="kw-2">&amp;</span>alias));
+
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(expr) = <span class="self">self</span>.expressions.get(<span class="kw-2">&amp;</span>address) {
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(aliases) = <span class="self">self</span>.aliases.get(expr) {
+                <span class="kw">for </span>alias <span class="kw">in </span>aliases.iter() {
+                    <span class="self">self</span>.last_loads.remove(<span class="kw-2">&amp;</span>alias);
+                }
+            }
+        }
     }
 }
 </code></pre></div></section></main></body></html>
