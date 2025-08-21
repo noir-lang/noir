@@ -11,7 +11,7 @@ use crate::ssa::{
     ir::{
         function::Function,
         instruction::{Binary, BinaryOp, ConstrainError, Instruction},
-        types::NumericType,
+        types::{NumericType, Type},
     },
     ssa_gen::Ssa,
 };
@@ -42,10 +42,14 @@ impl Function {
                 return;
             };
 
-            let Some(length) = context.dfg.try_get_array_length(*array) else {
-                // If we do not have an array length it means we have a slice, for which we should
-                // always have separate access checks against the dynamic length in the initial SSA
-                return;
+            let array_typ = context.dfg.type_of_value(*array);
+            let length = match array_typ {
+                Type::Array(elements, length) => elements.len() as u32 * length,
+                _ => {
+                    // If we do not have an array length it means we have a slice, for which we should
+                    // always have separate access checks against the dynamic length in the initial SSA
+                    return;
+                }
             };
 
             let index = *index;
@@ -219,6 +223,48 @@ mod tests {
             v6 = lt v0, u32 3
             constrain v6 == u1 1, "Index out of bounds"
             v9 = array_set v4, index v0, value Field 5
+            return
+        }
+        "#);
+    }
+
+    #[test]
+    fn array_get_on_composite_array() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32):
+            v2 = make_array [Field 2] : [Field; 1]
+            v4 = make_array [Field 3] : [Field; 1]
+            v6 = make_array [Field 1, v2, v4] : [(Field, [Field; 1], [Field; 1]); 1]
+            v7 = make_array [v6] : [[(Field, [Field; 1], [Field; 1]); 1]; 1]
+            v9 = sub v0, u32 3
+            v10 = array_get v7, index v9 -> [(Field, [Field; 1], [Field; 1]); 1]
+            inc_rc v10
+            v12 = array_get v10, index u32 0 -> Field
+            v14 = array_get v10, index u32 1 -> [Field; 1]
+            v16 = array_get v10, index u32 2 -> [Field; 1]
+            return
+        }
+        ";
+        check_acir_unchanged(src);
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.expand_array_oob_checks();
+        assert_ssa_snapshot!(ssa, @r#"
+        brillig(inline) fn main f0 {
+          b0(v0: u32):
+            v2 = make_array [Field 2] : [Field; 1]
+            v4 = make_array [Field 3] : [Field; 1]
+            v6 = make_array [Field 1, v2, v4] : [(Field, [Field; 1], [Field; 1]); 1]
+            v7 = make_array [v6] : [[(Field, [Field; 1], [Field; 1]); 1]; 1]
+            v9 = sub v0, u32 3
+            v11 = eq v9, u32 0
+            constrain v9 == u32 0, "Index out of bounds"
+            v12 = array_get v7, index v9 -> [(Field, [Field; 1], [Field; 1]); 1]
+            inc_rc v12
+            v13 = array_get v12, index u32 0 -> Field
+            v15 = array_get v12, index u32 1 -> [Field; 1]
+            v17 = array_get v12, index u32 2 -> [Field; 1]
             return
         }
         "#);
