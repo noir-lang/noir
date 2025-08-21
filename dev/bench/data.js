@@ -1,92 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1755776774865,
+  "lastUpdate": 1755776778182,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "501988e746da0240d7af5d8026e5dd17a68e166b",
-          "message": "fix: allow calling private impl method defined on another module from… (#9449)",
-          "timestamp": "2025-08-11T12:42:14Z",
-          "tree_id": "c4474311849eaa0a69c65c065b74df71483f4549",
-          "url": "https://github.com/noir-lang/noir/commit/501988e746da0240d7af5d8026e5dd17a68e166b"
-        },
-        "date": 1754921056307,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 238.16,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 547.4,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 212.12,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 1340,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 1420,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 1090,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 9340,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 9350,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 330.5,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 339.67,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 104.74,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 234.68,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -4049,6 +3965,90 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512_100_bytes",
             "value": 234.78,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "1f164984dea1b53b982e719929589a5a96cb8b18",
+          "message": "fix(ssa): Consider `shl` and `shr` to have side effects (#9580)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-08-21T11:05:48Z",
+          "tree_id": "2f454afae9dd8085aa9a905bf60cd41c03972a4a",
+          "url": "https://github.com/noir-lang/noir/commit/1f164984dea1b53b982e719929589a5a96cb8b18"
+        },
+        "date": 1755776759458,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 239.94,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 549.14,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 213.88,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 1350,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 1420,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 1090,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 9550,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 9560,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 330.58,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 341.41,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 104.78,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 234.83,
             "unit": "MB"
           }
         ]
