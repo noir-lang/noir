@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1755728877455,
+  "lastUpdate": 1755770007347,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -19530,48 +19530,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "a24cfcc3822da1b9db40b63f88e967ead2fabd68",
-          "message": "chore: Release Noir(1.0.0-beta.10) (#9311)\n\nCo-authored-by: noirwhal <tomfrench@aztecprotocol.com>",
-          "timestamp": "2025-08-08T14:41:03Z",
-          "tree_id": "c45fb2d8d702d4a24c1faac5613afad40b107a6b",
-          "url": "https://github.com/noir-lang/noir/commit/a24cfcc3822da1b9db40b63f88e967ead2fabd68"
-        },
-        "date": 1754665684488,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 256191,
-            "range": "± 431",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 224317,
-            "range": "± 2366",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2777641,
-            "range": "± 5777",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "163862677+noirwhal@users.noreply.github.com",
-            "name": "noirwhal",
-            "username": "noirwhal"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "1748cbe15b935bc9331be84e7f9b6443d125c4b1",
           "message": "chore: bump external pinned commits (#9454)\n\nCo-authored-by: noirwhal <tomfrench@aztecprotocol.com>",
@@ -21614,6 +21572,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2780464,
             "range": "± 11025",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "49a3185374382ff61eb7537188a09e87db699628",
+          "message": "fix: Consume correct number of fields when printing references (#9579)",
+          "timestamp": "2025-08-21T09:27:26Z",
+          "tree_id": "80afe133d60151fb00e42420b4abaf6ef383dc82",
+          "url": "https://github.com/noir-lang/noir/commit/49a3185374382ff61eb7537188a09e87db699628"
+        },
+        "date": 1755769988743,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 248802,
+            "range": "± 577",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 217818,
+            "range": "± 4106",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2778702,
+            "range": "± 1904",
             "unit": "ns/iter"
           }
         ]
