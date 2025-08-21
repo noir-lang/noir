@@ -42,10 +42,10 @@ pub(super) struct Block {
 /// An `Expression` here is used to represent a canonical key
 /// into the aliases map since otherwise two dereferences of the
 /// same address will be given different ValueIds.
-#[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone, PartialOrd, Ord, PartialEq, Eq, Hash)]
 pub(super) enum Expression {
-    Dereference(Box<Expression>),
-    ArrayElement(Box<Expression>),
+    Dereference(ValueId),
+    ArrayElement(ValueId),
     Other(ValueId),
 }
 
@@ -90,7 +90,7 @@ impl Block {
 
     fn set_value(&mut self, address: ValueId, value: ReferenceValue) {
         let expression = self.expressions.entry(address).or_insert(Expression::Other(address));
-        let aliases = self.aliases.entry(expression.clone()).or_default();
+        let aliases = self.aliases.entry(*expression).or_default();
 
         if aliases.is_unknown() {
             // uh-oh, we don't know at all what this reference refers to, could be anything.
@@ -119,7 +119,7 @@ impl Block {
             if let Some(existing) = self.expressions.get(value_id) {
                 assert_eq!(existing, expression, "Expected expressions for {value_id} to be equal");
             } else {
-                self.expressions.insert(*value_id, expression.clone());
+                self.expressions.insert(*value_id, *expression);
             }
         }
 
@@ -130,10 +130,8 @@ impl Block {
                     continue;
                 }
             }
-            let expression = expression.clone();
-
             self.aliases
-                .entry(expression)
+                .entry(*expression)
                 .and_modify(|aliases| aliases.unify(new_aliases))
                 .or_insert_with(|| new_aliases.clone());
         }
@@ -146,6 +144,17 @@ impl Block {
             }
         }
         self.references = intersection;
+
+        // Keep only the last loads present in both maps, if they map to the same InstructionId
+        let mut intersection = im::OrdMap::new();
+        for (value_id, instruction) in &other.last_loads {
+            if let Some(existing) = self.last_loads.get(value_id) {
+                if existing == instruction {
+                    intersection.insert(*value_id, *instruction);
+                }
+            }
+        }
+        self.last_loads = intersection;
 
         self
     }
@@ -162,7 +171,7 @@ impl Block {
             if let Some(known_address) = self.get_known_value(address) {
                 self.expressions.insert(result, Expression::Other(known_address));
             } else {
-                let expression = Expression::Dereference(Box::new(Expression::Other(address)));
+                let expression = Expression::Dereference(address);
                 self.expressions.insert(result, expression);
                 // No known aliases to insert for this expression... can we find an alias
                 // even if we don't have a known address? If not we'll have to invalidate all
@@ -186,11 +195,21 @@ impl Block {
         }
     }
 
+    /// Forget the last store to an address and all of its aliases, to eliminate them
+    /// from the candidates for removal at the end.
+    ///
+    /// Note that this only affects this block: when we merge blocks we clear the
+    /// last stores anyway, we don't inherit them from predecessors, so if one
+    /// block stores to an address and a descendant block loads it, this mechanism
+    /// does not affect the candidacy of the last store in the predecessor block.
     fn keep_last_stores_for(&mut self, address: ValueId, function: &Function) {
         self.keep_last_store(address, function);
         self.for_each_alias_of(address, |t, alias| t.keep_last_store(alias, function));
     }
 
+    /// Forget the last store to an address, to remove it from the set of instructions
+    /// which are candidates for removal at the end. Also marks the values in the last
+    /// store as used, now that we know we want to keep them.
     fn keep_last_store(&mut self, address: ValueId, function: &Function) {
         if let Some(instruction) = self.last_stores.remove(&address) {
             // Whenever we decide we want to keep a store instruction, we also need
@@ -206,6 +225,8 @@ impl Block {
         }
     }
 
+    /// Mark a value (for example an address we loaded) as used by forgetting the last store instruction,
+    /// which removes it from the candidates for removal.
     pub(super) fn mark_value_used(&mut self, value: ValueId, function: &Function) {
         self.keep_last_stores_for(value, function);
 

@@ -136,7 +136,7 @@ struct PerFunctionContext<'f> {
 
     /// Track a value's last load across all blocks.
     /// If a value is not used in anymore loads we can remove the last store to that value.
-    last_loads: HashMap<ValueId, (InstructionId, BasicBlockId)>,
+    last_loads: HashSet<ValueId>,
 
     /// Track whether a reference was passed into another instruction (e.g. Call)
     /// This is needed to determine whether we can remove a store.
@@ -159,7 +159,7 @@ impl<'f> PerFunctionContext<'f> {
             inserter: FunctionInserter::new(function),
             blocks: BTreeMap::new(),
             instructions_to_remove: HashSet::default(),
-            last_loads: HashMap::default(),
+            last_loads: HashSet::default(),
             aliased_references: HashMap::default(),
             instruction_input_references: HashSet::default(),
         }
@@ -191,7 +191,7 @@ impl<'f> PerFunctionContext<'f> {
                 // so that for example if the value is an array and contains a reference,
                 // then that reference gets to keep its last store.
                 let typ = self.inserter.function.dfg.type_of_value(value);
-                if Self::contains_references(&typ) {
+                if typ.contains_reference() {
                     if let Some(expression) = references.expressions.get(&value) {
                         if let Some(aliases) = references.aliases.get(expression) {
                             aliases.for_each(|alias| {
@@ -221,9 +221,7 @@ impl<'f> PerFunctionContext<'f> {
                     .get(store_address)
                     .is_some_and(|expression| matches!(expression, Expression::Dereference(_)));
 
-                if !self.last_loads.contains_key(store_address)
-                    && !store_alias_used
-                    && !is_dereference
+                if !self.last_loads.contains(store_address) && !store_alias_used && !is_dereference
                 {
                     self.instructions_to_remove.insert(*store_instruction);
                 }
@@ -310,10 +308,8 @@ impl<'f> PerFunctionContext<'f> {
 
         if let Some(first_predecessor) = predecessors.next() {
             let mut first = self.blocks.get(&first_predecessor).cloned().unwrap_or_default();
+
             first.last_stores.clear();
-            // Last loads are tracked per block. During unification we are creating a new block from the current one,
-            // so we must clear the last loads of the current block before we return the new block.
-            first.last_loads.clear();
 
             // Note that we have to start folding with the first block as the accumulator.
             // If we started with an empty block, an empty block union'd with any other block
@@ -388,11 +384,11 @@ impl<'f> PerFunctionContext<'f> {
             let first = first.expect("All parameters alias at least themselves or we early return");
 
             let expression = Expression::Other(first);
-            let previous = references.aliases.insert(expression.clone(), aliases.clone());
+            let previous = references.aliases.insert(expression, aliases.clone());
             assert!(previous.is_none());
 
             aliases.for_each(|alias| {
-                let previous = references.expressions.insert(alias, expression.clone());
+                let previous = references.expressions.insert(alias, expression);
                 assert!(previous.is_none());
             });
         }
@@ -458,15 +454,20 @@ impl<'f> PerFunctionContext<'f> {
                 let result = self.inserter.function.dfg.instruction_results(instruction)[0];
                 references.remember_dereference(self.inserter.function, address, result);
 
-                // If the load is known, replace it with the known value and remove the load
+                // If the load is known, replace it with the known value and remove the load.
                 if let Some(value) = references.get_known_value(address) {
                     let result = self.inserter.function.dfg.instruction_results(instruction)[0];
                     self.inserter.map_value(result, value);
                     self.instructions_to_remove.insert(instruction);
                 } else {
+                    // We don't know the exact value of the address, so we must keep the stores to it.
                     references.mark_value_used(address, self.inserter.function);
-
-                    self.last_loads.insert(address, (instruction, block_id));
+                    // Remember that this address has been loaded, so stores to it should not be removed.
+                    self.last_loads.insert(address);
+                    // Stores to any of its aliases should also be considered loaded.
+                    references.for_each_alias_of(address, |_, alias| {
+                        self.last_loads.insert(alias);
+                    });
                 }
 
                 // Check whether the block has a repeat load from the same address (w/ no calls or stores in between the loads).
@@ -525,13 +526,13 @@ impl<'f> PerFunctionContext<'f> {
 
                 let array = *array;
                 let array_typ = self.inserter.function.dfg.type_of_value(array);
-                if Self::contains_references(&array_typ) {
+                if array_typ.contains_reference() {
                     references.for_each_alias_of(array, |_, alias| {
                         self.instruction_input_references.insert(alias);
                     });
                     references.mark_value_used(array, self.inserter.function);
 
-                    let expression = Expression::ArrayElement(Box::new(Expression::Other(array)));
+                    let expression = Expression::ArrayElement(array);
 
                     if let Some(aliases) = references.aliases.get_mut(&expression) {
                         aliases.insert(result);
@@ -542,11 +543,11 @@ impl<'f> PerFunctionContext<'f> {
                 references.mark_value_used(*array, self.inserter.function);
                 let element_type = self.inserter.function.dfg.type_of_value(*value);
 
-                if Self::contains_references(&element_type) {
+                if element_type.contains_reference() {
                     let result = self.inserter.function.dfg.instruction_results(instruction)[0];
                     let array = *array;
 
-                    let expression = Expression::ArrayElement(Box::new(Expression::Other(array)));
+                    let expression = Expression::ArrayElement(array);
 
                     let mut aliases = if let Some(aliases) = references.aliases.get_mut(&expression)
                     {
@@ -563,7 +564,7 @@ impl<'f> PerFunctionContext<'f> {
 
                     aliases.unify(&references.get_aliases_for_value(*value));
 
-                    references.expressions.insert(result, expression.clone());
+                    references.expressions.insert(result, expression);
                     references.aliases.insert(expression, aliases);
 
                     // Similar to how we remember that we used a value in a `Store` instruction,
@@ -587,11 +588,11 @@ impl<'f> PerFunctionContext<'f> {
             Instruction::MakeArray { elements, typ } => {
                 // If `array` is an array constant that contains reference types, then insert each element
                 // as a potential alias to the array itself.
-                if Self::contains_references(typ) {
+                if typ.contains_reference() {
                     let array = self.inserter.function.dfg.instruction_results(instruction)[0];
 
-                    let expr = Expression::ArrayElement(Box::new(Expression::Other(array)));
-                    references.expressions.insert(array, expr.clone());
+                    let expr = Expression::ArrayElement(array);
+                    references.expressions.insert(array, expr);
                     let aliases = references.aliases.entry(expr).or_insert(AliasSet::known_empty());
 
                     self.add_array_aliases(elements, aliases);
@@ -601,9 +602,9 @@ impl<'f> PerFunctionContext<'f> {
                 let result = self.inserter.function.dfg.instruction_results(instruction)[0];
                 let result_type = self.inserter.function.dfg.type_of_value(result);
 
-                if Self::contains_references(&result_type) {
+                if result_type.contains_reference() {
                     let expr = Expression::Other(result);
-                    references.expressions.insert(result, expr.clone());
+                    references.expressions.insert(result, expr);
                     references.aliases.insert(
                         expr,
                         AliasSet::known_multiple(vec![*then_value, *else_value].into()),
@@ -639,28 +640,17 @@ impl<'f> PerFunctionContext<'f> {
         }
     }
 
-    fn contains_references(typ: &Type) -> bool {
-        match typ {
-            Type::Numeric(_) => false,
-            Type::Function => false,
-            Type::Reference(_) => true,
-            Type::Array(elements, _) | Type::Slice(elements) => {
-                elements.iter().any(Self::contains_references)
-            }
-        }
-    }
-
     fn set_aliases(&self, references: &mut Block, address: ValueId, new_aliases: AliasSet) {
         let expression =
             references.expressions.entry(address).or_insert(Expression::Other(address));
-        let aliases = references.aliases.entry(expression.clone()).or_default();
+        let aliases = references.aliases.entry(*expression).or_default();
         *aliases = new_aliases;
     }
 
     fn mark_all_unknown(&self, values: &[ValueId], references: &mut Block) {
         for value in values {
             let typ = self.inserter.function.dfg.type_of_value(*value);
-            if Self::contains_references(&typ) {
+            if typ.contains_reference() {
                 let value = *value;
                 references.set_unknown(value);
                 references.mark_value_used(value, self.inserter.function);
@@ -1335,7 +1325,39 @@ mod tests {
 
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.mem2reg();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: u32):
+            v2 = call f1(v0) -> [&mut u32; 1]
+            v4 = array_get v2, index u32 0 -> &mut u32
+            store u32 1 at v4
+            v6 = load v4 -> u1
+            return v6
+        }
+        brillig(inline_always) fn foo f1 {
+          b0(v0: u32):
+            v1 = allocate -> &mut u32
+            store v0 at v1
+            v2 = allocate -> &mut u32
+            store u32 0 at v2
+            jmp b1()
+          b1():
+            v4 = load v2 -> u32
+            v6 = eq v4, u32 1
+            jmpif v6 then: b2, else: b3
+          b2():
+            jmp b4()
+          b3():
+            v7 = add v4, u32 1
+            store v7 at v2
+            jmp b5()
+          b4():
+            v8 = make_array [v1] : [&mut u32; 1]
+            return v8
+          b5():
+            jmp b1()
+        }
+        ");
     }
 
     #[test]
@@ -1585,5 +1607,66 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.mem2reg();
         assert_normalized_ssa_equals(ssa, src);
+    }
+
+    fn reuses_last_load_from_single_predecessor_block() {
+        let src = r#"
+        brillig(inline) fn main f0 {
+          b0(v0: &mut Field):
+            v2 = load v0 -> Field
+            jmp b1()
+          b1():
+            v18 = load v0 -> Field
+            return v18
+        }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.mem2reg();
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: &mut Field):
+            v1 = load v0 -> Field
+            jmp b1()
+          b1():
+            return v1
+        }
+        ");
+    }
+
+    #[test]
+    fn reuses_last_load_from_multiple_indirect_predecessor_block() {
+        let src = r#"
+        brillig(inline) fn main f0 {
+          b0(v0: &mut Field, v1: u1):
+            v2 = load v0 -> Field
+            jmpif v1 then: b1, else: b2
+          b1():
+            jmp b3()
+          b2():
+            jmp b3()
+          b3():
+            v18 = load v0 -> Field
+            return v18
+        }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.mem2reg();
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: &mut Field, v1: u1):
+            v2 = load v0 -> Field
+            jmpif v1 then: b1, else: b2
+          b1():
+            jmp b3()
+          b2():
+            jmp b3()
+          b3():
+            return v2
+        }
+        ");
     }
 }
