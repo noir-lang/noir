@@ -596,7 +596,45 @@
 <a href="#595" id="595">595</a>
 <a href="#596" id="596">596</a>
 <a href="#597" id="597">597</a>
-<a href="#598" id="598">598</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#598" id="598">598</a>
+<a href="#599" id="599">599</a>
+<a href="#600" id="600">600</a>
+<a href="#601" id="601">601</a>
+<a href="#602" id="602">602</a>
+<a href="#603" id="603">603</a>
+<a href="#604" id="604">604</a>
+<a href="#605" id="605">605</a>
+<a href="#606" id="606">606</a>
+<a href="#607" id="607">607</a>
+<a href="#608" id="608">608</a>
+<a href="#609" id="609">609</a>
+<a href="#610" id="610">610</a>
+<a href="#611" id="611">611</a>
+<a href="#612" id="612">612</a>
+<a href="#613" id="613">613</a>
+<a href="#614" id="614">614</a>
+<a href="#615" id="615">615</a>
+<a href="#616" id="616">616</a>
+<a href="#617" id="617">617</a>
+<a href="#618" id="618">618</a>
+<a href="#619" id="619">619</a>
+<a href="#620" id="620">620</a>
+<a href="#621" id="621">621</a>
+<a href="#622" id="622">622</a>
+<a href="#623" id="623">623</a>
+<a href="#624" id="624">624</a>
+<a href="#625" id="625">625</a>
+<a href="#626" id="626">626</a>
+<a href="#627" id="627">627</a>
+<a href="#628" id="628">628</a>
+<a href="#629" id="629">629</a>
+<a href="#630" id="630">630</a>
+<a href="#631" id="631">631</a>
+<a href="#632" id="632">632</a>
+<a href="#633" id="633">633</a>
+<a href="#634" id="634">634</a>
+<a href="#635" id="635">635</a>
+<a href="#636" id="636">636</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![warn(unused_crate_dependencies, unused_extern_crates)]
 
 </span><span class="kw">use </span>std::{collections::BTreeMap, str};
@@ -969,14 +1007,21 @@
             PrintableValue::Struct(struct_map)
         }
         PrintableType::Function { env, .. } =&gt; {
-            <span class="comment">// we want to consume the fields from the environment, but for now they are not actually printed
+            <span class="comment">// We want to consume the fields from the environment, but for now they are not actually printed.
             </span><span class="kw">let </span>_env = decode_printable_value(field_iterator, env);
             <span class="kw">let </span>func_id = field_iterator.next().expect(<span class="string">"not enough data: expected function ID"</span>);
             PrintableValue::Field(func_id)
         }
         PrintableType::Reference { typ, .. } =&gt; {
-            <span class="comment">// we decode the reference, but it's not really used for printing
-            </span>decode_printable_value(field_iterator, typ)
+            <span class="comment">// We decode the reference, but it's not actually used for printing.
+            // The reference consists of varying number of fields, depending on type.
+            </span><span class="kw">let </span>num_fields = flattened_reference_size(typ);
+            <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..num_fields {
+                <span class="kw">let _ </span>= field_iterator
+                    .next()
+                    .unwrap_or_else(|| <span class="macro">panic!</span>(<span class="string">"not enough data: expected reference field [{i}]"</span>));
+            }
+            PrintableValue::Other
         }
         PrintableType::Unit =&gt; PrintableValue::Field(F::zero()),
         PrintableType::Enum { name: <span class="kw">_</span>, variants } =&gt; {
@@ -1113,6 +1158,37 @@
     <span class="kw">match </span>printable_type {
         <span class="prelude-val">Ok</span>(printable_type) =&gt; <span class="prelude-val">Ok</span>(printable_type),
         <span class="prelude-val">Err</span>(err) =&gt; <span class="prelude-val">Err</span>(TryFromParamsError::ParsingError(err)),
+    }
+}
+
+<span class="doccomment">/// Calculate the number of fields used represent a reference to a type.
+</span><span class="kw">fn </span>flattened_reference_size(typ: <span class="kw-2">&amp;</span>PrintableType) -&gt; usize {
+    <span class="kw">match </span>typ {
+        PrintableType::Tuple { types } =&gt; types.iter().map(flattened_reference_size).sum(),
+        PrintableType::Struct { fields, .. } =&gt; {
+            fields.iter().map(|(<span class="kw">_</span>, typ)| flattened_reference_size(typ)).sum()
+        }
+        PrintableType::Reference { typ, .. } =&gt; flattened_reference_size(typ),
+        PrintableType::Unit =&gt; <span class="number">0</span>,
+        PrintableType::Array { .. }
+        | PrintableType::String { .. }
+        | PrintableType::Boolean
+        | PrintableType::Field
+        | PrintableType::Function { .. }
+        | PrintableType::SignedInteger { .. }
+        | PrintableType::UnsignedInteger { .. }
+        | PrintableType::FmtString { .. } =&gt; <span class="number">1</span>,
+        PrintableType::Slice { .. } =&gt; <span class="number">2</span>, <span class="comment">// length + pointer
+        </span>PrintableType::Enum { .. } =&gt; {
+            <span class="comment">// This is tricky because enums are encoded as [tag, field1, field2, ...],
+            // however when we have a reference to an enum variant, then even the tag
+            // is just a memory address, so we can't use its value to decide how many
+            // fields to consume.
+            // For example a tuple like `Bar::Baz((1, [2, 3]))` would be encoded as [0, 1, [2, 3]],
+            // where 0 means this is the first variant in the `Bar` enum,
+            // but a reference to it would be like [36065, 36057, 36058].
+            </span><span class="macro">todo!</span>(<span class="string">"flattened reference size for enums is not implemented"</span>);
+        }
     }
 }
 

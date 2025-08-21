@@ -2760,13 +2760,7 @@
 <a href="#2759" id="2759">2759</a>
 <a href="#2760" id="2760">2760</a>
 <a href="#2761" id="2761">2761</a>
-<a href="#2762" id="2762">2762</a>
-<a href="#2763" id="2763">2763</a>
-<a href="#2764" id="2764">2764</a>
-<a href="#2765" id="2765">2765</a>
-<a href="#2766" id="2766">2766</a>
-<a href="#2767" id="2767">2767</a>
-<a href="#2768" id="2768">2768</a></pre></div><pre class="rust"><code><span class="doccomment">//! Coming after type checking, monomorphization is the last pass in Noir's frontend.
+<a href="#2762" id="2762">2762</a></pre></div><pre class="rust"><code><span class="doccomment">//! Coming after type checking, monomorphization is the last pass in Noir's frontend.
 //! It accepts the type checked HIR as input and produces a monomorphized AST as output.
 //! This file implements the pass itself, while the AST is defined in the ast module.
 //!
@@ -5522,12 +5516,6 @@
 }
 
 <span class="kw">fn </span>append_printable_type_info_inner(typ: <span class="kw-2">&amp;</span>Type, arguments: <span class="kw-2">&amp;mut </span>Vec&lt;ast::Expression&gt;) {
-    <span class="comment">// Disallow printing slices and mutable references for consistency,
-    // since they cannot be passed from ACIR into Brillig
-    </span><span class="kw">if </span><span class="macro">matches!</span>(typ, HirType::Reference(..)) {
-        <span class="macro">unreachable!</span>(<span class="string">"println and format strings do not support references."</span>);
-    }
-
     <span class="kw">let </span>printable_type: PrintableType = typ.into();
     <span class="kw">let </span>abi_as_string =
         serde_json::to_string(<span class="kw-2">&amp;</span>printable_type).expect(<span class="string">"ICE: expected PrintableType to serialize"</span>);
