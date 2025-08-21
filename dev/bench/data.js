@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1755776783590,
+  "lastUpdate": 1755782697265,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -19536,48 +19536,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "57778ea95e96d06eb61bb3846cf086850e01c9b0",
-          "message": "fix(brillig_vm): Remove slice padding for foreign call inputs (#9321)\n\nCo-authored-by: Akosh Farkash <aakoshh@gmail.com>",
-          "timestamp": "2025-08-11T13:43:00Z",
-          "tree_id": "113f347a620e8be3b38ff2ecd7ae0e52d0409b72",
-          "url": "https://github.com/noir-lang/noir/commit/57778ea95e96d06eb61bb3846cf086850e01c9b0"
-        },
-        "date": 1754921746454,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 245177,
-            "range": "± 687",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 217846,
-            "range": "± 2838",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2774811,
-            "range": "± 1786",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -21629,6 +21587,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2785338,
             "range": "± 9919",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d31b724246695d0588529f62055d45bc0ed4e817",
+          "message": "fix: `assert_constant` refactors and fixes from audit (#9547)",
+          "timestamp": "2025-08-21T12:59:08Z",
+          "tree_id": "65fbcabd17c8a236cdb2a2d03e204ffd6ef862a0",
+          "url": "https://github.com/noir-lang/noir/commit/d31b724246695d0588529f62055d45bc0ed4e817"
+        },
+        "date": 1755782679202,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 249079,
+            "range": "± 1444",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 218237,
+            "range": "± 3796",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2781122,
+            "range": "± 6492",
             "unit": "ns/iter"
           }
         ]
