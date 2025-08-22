@@ -1,5 +1,4 @@
 use crate::meta::derive_via;
-use crate::cmp::Ord;
 
 #[derive_via(derive_eq)]
 // docs:start:eq-trait
@@ -554,7 +553,7 @@ where
 }
 
 mod cmp_tests {
-    use super::{Eq, max, min};
+    use super::{Eq, Ord, max, min};
 
     #[test]
     fn sanity_check_min() {
