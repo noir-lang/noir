@@ -100,12 +100,11 @@ impl FileManager {
 
     pub fn has_file(&self, file_name: &Path) -> bool {
         let file_name = self.root.join(file_name);
-        self.name_to_id(file_name).is_some()
+        self.name_to_id(file_name.as_path()).is_some()
     }
 
-    // TODO: This should accept a &Path instead of a PathBuf
-    pub fn name_to_id(&self, file_name: PathBuf) -> Option<FileId> {
-        self.file_map.get_file_id(&PathString::from_path(file_name))
+    pub fn name_to_id(&self, file_name: &Path) -> Option<FileId> {
+        self.file_map.get_file_id(&PathString::from_path(file_name.to_path_buf()))
     }
 
     /// Find a file by its path suffix, e.g. "src/main.nr" is a suffix of
