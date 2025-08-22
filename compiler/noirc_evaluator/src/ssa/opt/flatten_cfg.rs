@@ -198,27 +198,27 @@ fn flatten_cfg_pre_check(function: &Function) {
     let loops = super::unrolling::Loops::find_all(function);
     assert_eq!(loops.yet_to_unroll.len(), 0);
 
-    function.reachable_blocks().iter().for_each(|block| {
-        if let TerminatorInstruction::JmpIf { condition, .. } =
-            function.dfg[*block].unwrap_terminator()
-        {
-            if function
-                .dfg
-                .get_numeric_constant(*condition)
-                .is_some_and(|c| c.is_zero() || c.is_one())
-            {
-                // We have this check here as if we do not, the flattening pass will generate groups of opcodes which are
-                // under a zero predicate. These opcodes are not always removed by the die pass and so bloat the code.
-                //
-                // We could add handling for this inside of the pass itself but it's simpler to just run `simplify_cfg`
-                // immediately before flattening.
-                panic!(
-                    "Function {} has a jmpif with a constant condition {condition}",
-                    function.id()
-                );
-            }
-        }
-    });
+    // function.reachable_blocks().iter().for_each(|block| {
+    //     if let TerminatorInstruction::JmpIf { condition, .. } =
+    //         function.dfg[*block].unwrap_terminator()
+    //     {
+    //         if function
+    //             .dfg
+    //             .get_numeric_constant(*condition)
+    //             .is_some_and(|c| c.is_zero() || c.is_one())
+    //         {
+    //             // We have this check here as if we do not, the flattening pass will generate groups of opcodes which are
+    //             // under a zero predicate. These opcodes are not always removed by the die pass and so bloat the code.
+    //             //
+    //             // We could add handling for this inside of the pass itself but it's simpler to just run `simplify_cfg`
+    //             // immediately before flattening.
+    //             panic!(
+    //                 "Function {} has a jmpif with a constant condition {condition}",
+    //                 function.id()
+    //             );
+    //         }
+    //     }
+    // });
 }
 
 /// Post-check condition for [Ssa::flatten_cfg].
@@ -453,8 +453,18 @@ impl<'f> Context<'f> {
         no_predicates: &HashMap<FunctionId, bool>,
     ) {
         if self.target_block == block {
-            // we do not inline the target block into itself
-            // for the outer block before we start inlining
+            // The `simplify_cfg` pass can sometimes result in instructions for which all inputs are known but
+            // the instruction is not replaced with the known output - this can result in unnecessary instructions
+            // being present in the flattened output.
+            //
+            // To handle this, we reinsert all instructions in the target block to propagate any simplifications into the
+            // terminator instruction. Any later blocks will be simplified automatically as they are inlined into the target.
+            //
+            // See the test `fully_simplifies_with_non_simplified_first_block` for an example of this.
+            let instructions = self.inserter.function.dfg[block].take_instructions();
+            for instruction in instructions {
+                self.push_instruction(instruction);
+            }
             return;
         }
 
@@ -506,7 +516,34 @@ impl<'f> Context<'f> {
                 call_stack,
             } => {
                 self.arguments_stack.push(vec![]);
-                self.if_start(condition, then_destination, else_destination, &block, *call_stack)
+
+                // If the condition is constant, we do not need to branch and can just treat this as a regular jmp.
+                if let Some(constant_condition) =
+                    self.inserter.function.dfg.get_numeric_constant(*condition)
+                {
+                    let destination = if constant_condition.is_one() {
+                        then_destination
+                    } else {
+                        else_destination
+                    };
+                    if work_list.contains(destination) {
+                        if work_list.last() == Some(destination) {
+                            self.else_stop(&block)
+                        } else {
+                            self.then_stop(&block)
+                        }
+                    } else {
+                        vec![*destination]
+                    }
+                } else {
+                    self.if_start(
+                        condition,
+                        then_destination,
+                        else_destination,
+                        &block,
+                        *call_stack,
+                    )
+                }
             }
             TerminatorInstruction::Jmp { destination, arguments, call_stack: _ } => {
                 let arguments = vecmap(arguments.clone(), |value| self.inserter.resolve(value));
@@ -2044,6 +2081,38 @@ mod test {
             v14 = unchecked_mul v12, v9
             v15 = unchecked_add v13, v14
             return v15
+        }
+        ");
+    }
+
+    #[test]
+    fn fully_simplifies_with_non_simplified_first_block() {
+        // The `simplify_cfg` pass does not fully propagate any simplifications which are made possible by inlining
+        // a block's successor into it. This can result in a `jmpif` instruction being left in SSA which in actuality
+        // has a constant condition. We want to ensure that we can still fully simplify the SSA in this case.
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v0 = eq Field 1, Field 0                     	
+            jmpif v0 then: b1, else: b2
+          b1():
+            v1 = div Field 1, Field 0
+            jmp b11()
+          b2():
+            jmp b11()
+          b11():
+            return
+        }";
+
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.flatten_cfg();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            enable_side_effects u1 1
+            return
         }
         ");
     }
