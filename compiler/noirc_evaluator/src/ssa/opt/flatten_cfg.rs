@@ -1662,7 +1662,6 @@ mod test {
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0():
-            enable_side_effects u1 1
             constrain u1 0 == u1 1
             return
         }
