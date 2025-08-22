@@ -360,7 +360,25 @@
 <a href="#359" id="359">359</a>
 <a href="#360" id="360">360</a>
 <a href="#361" id="361">361</a>
-<a href="#362" id="362">362</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::AcirField <span class="kw">as _</span>;
+<a href="#362" id="362">362</a>
+<a href="#363" id="363">363</a>
+<a href="#364" id="364">364</a>
+<a href="#365" id="365">365</a>
+<a href="#366" id="366">366</a>
+<a href="#367" id="367">367</a>
+<a href="#368" id="368">368</a>
+<a href="#369" id="369">369</a>
+<a href="#370" id="370">370</a>
+<a href="#371" id="371">371</a>
+<a href="#372" id="372">372</a>
+<a href="#373" id="373">373</a>
+<a href="#374" id="374">374</a>
+<a href="#375" id="375">375</a></pre></div><pre class="rust"><code><span class="doccomment">//! This SSA pass will turn checked unsigned binary additions, subtractions and multiplications
+//! into unchecked ones if it's guaranteed that the operations cannot overflow.
+//!
+//! Signed checked binary operations should have already been converted to unchecked ones with
+//! an explicit overflow check during [`super::expand_signed_checks`].
+</span><span class="kw">use </span>acvm::AcirField <span class="kw">as _</span>;
 <span class="kw">use </span>fxhash::FxHashMap <span class="kw">as </span>HashMap;
 
 <span class="kw">use </span><span class="kw">crate</span>::ssa::{
@@ -375,8 +393,7 @@
 };
 
 <span class="kw">impl </span>Ssa {
-    <span class="doccomment">/// An SSA pass that will turn checked binary addition, subtraction and multiplication into
-    /// unchecked ones if it's guaranteed that the operations cannot overflow.
+    <span class="doccomment">/// See [`checked_to_unchecked`][self] module for more information.
     </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip(<span class="self">self</span>))]
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>checked_to_unchecked(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; Ssa {
         <span class="kw">for </span>function <span class="kw">in </span><span class="self">self</span>.functions.values_mut() {
@@ -411,7 +428,11 @@
                     <span class="kw">let </span>max_lhs_bits = get_max_num_bits(dfg, lhs, <span class="kw-2">&amp;mut </span>value_max_num_bits);
                     <span class="kw">let </span>max_rhs_bits = get_max_num_bits(dfg, rhs, <span class="kw-2">&amp;mut </span>value_max_num_bits);
 
-                    <span class="kw">if </span>max_lhs_bits &lt; bit_size &amp;&amp; max_rhs_bits &lt; bit_size {
+                    <span class="comment">// 1. If both lhs and rhs have less max bits than the result it means their
+                    //    value is at most `2^(n-1) - 1`, assuming `n = bit_size`. Adding those
+                    //    we get `2^(n-1) - 1 + 2^(n-1) - 1`, so `2*(2^(n-1)) - 2`,
+                    //    so `2^n - 2` which fits in `0..2^n`.
+                    </span><span class="kw">if </span>max_lhs_bits &lt; bit_size &amp;&amp; max_rhs_bits &lt; bit_size {
                         <span class="comment">// `lhs` and `rhs` have both been casted up from smaller types and so cannot overflow.
                         </span><span class="kw">let </span>operator = BinaryOp::Add { unchecked: <span class="bool-val">true </span>};
                         <span class="kw">let </span>binary = Binary { operator, ..<span class="kw-2">*</span>binary };
@@ -429,7 +450,7 @@
                         <span class="kw">if </span>max_rhs_bits == <span class="number">128 </span>{ u128::MAX } <span class="kw">else </span>{ (<span class="number">1 </span>&lt;&lt; max_rhs_bits) - <span class="number">1 </span>};
 
                     <span class="comment">// 1. `lhs` is a fixed constant and `rhs` is restricted such that `lhs - rhs &gt; 0`
-                    // Note strict inequality as `rhs &gt; lhs` while `max_lhs_bits == max_rhs_bits` is possible.
+                    //    Note strict inequality as `rhs &gt; lhs` while `max_lhs_bits == max_rhs_bits` is possible.
                     // 2. `lhs` is the maximum value for the maximum bitsize of `rhs`.
                     //    For example: `lhs` is 1 and `rhs` max bitsize is 1, so at most it's `1 - 1` which cannot overflow.
                     //    Another example: `lhs` is 255 and `rhs` max bitsize is 8, so at most it's `255 - 255` which cannot overflow, etc.
@@ -444,7 +465,12 @@
                     <span class="kw">let </span>max_lhs_bits = get_max_num_bits(dfg, lhs, <span class="kw-2">&amp;mut </span>value_max_num_bits);
                     <span class="kw">let </span>max_rhs_bits = get_max_num_bits(dfg, rhs, <span class="kw-2">&amp;mut </span>value_max_num_bits);
 
-                    <span class="kw">if </span>bit_size == <span class="number">1
+                    <span class="comment">// 1. Bool multiplication cannot overflow
+                    // 2. `2^max_lhs_bits * 2^max_rhs_bits` is `2^(max_lhs_bits + max_rhs_bits)` so if that sum is
+                    //    less than or equal to the bit size of the result then it cannot overflow.
+                    // 3. lhs was upcasted from a boolean
+                    // 4. rhs was upcasted from a boolean
+                    </span><span class="kw">if </span>bit_size == <span class="number">1
                         </span>|| max_lhs_bits + max_rhs_bits &lt;= bit_size
                         || max_lhs_bits == <span class="number">1
                         </span>|| max_rhs_bits == <span class="number">1
