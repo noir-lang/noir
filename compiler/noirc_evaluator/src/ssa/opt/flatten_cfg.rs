@@ -197,28 +197,6 @@ impl Ssa {
 fn flatten_cfg_pre_check(function: &Function) {
     let loops = super::unrolling::Loops::find_all(function);
     assert_eq!(loops.yet_to_unroll.len(), 0);
-
-    // function.reachable_blocks().iter().for_each(|block| {
-    //     if let TerminatorInstruction::JmpIf { condition, .. } =
-    //         function.dfg[*block].unwrap_terminator()
-    //     {
-    //         if function
-    //             .dfg
-    //             .get_numeric_constant(*condition)
-    //             .is_some_and(|c| c.is_zero() || c.is_one())
-    //         {
-    //             // We have this check here as if we do not, the flattening pass will generate groups of opcodes which are
-    //             // under a zero predicate. These opcodes are not always removed by the die pass and so bloat the code.
-    //             //
-    //             // We could add handling for this inside of the pass itself but it's simpler to just run `simplify_cfg`
-    //             // immediately before flattening.
-    //             panic!(
-    //                 "Function {} has a jmpif with a constant condition {condition}",
-    //                 function.id()
-    //             );
-    //         }
-    //     }
-    // });
 }
 
 /// Post-check condition for [Ssa::flatten_cfg].
