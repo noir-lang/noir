@@ -1,42 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1755877072171,
+  "lastUpdate": 1755877213298,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "f6fed8bd0154c937f11dfbd4a27bc893b9d3f5e9",
-          "message": "feat!: new semantic for bit-shifts  (#9373)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
-          "timestamp": "2025-08-14T16:29:48Z",
-          "tree_id": "6de27a92d49a55f5de423ff8822638b5fd963ed9",
-          "url": "https://github.com/noir-lang/noir/commit/f6fed8bd0154c937f11dfbd4a27bc893b9d3f5e9"
-        },
-        "date": 1755190672530,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "semaphore_depth_10",
-            "value": 104.76,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 234.78,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -4049,6 +4015,90 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512_100_bytes",
             "value": 234.62,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "92aa75d2fc665a83c8c1b7f9596d2ec09ffdb01c",
+          "message": "feat(mem2reg): address last known value is independent of its aliases (#9613)",
+          "timestamp": "2025-08-22T14:55:34Z",
+          "tree_id": "0dd9ac8a28a8e171c2b5af4185a4a92d5355c7fc",
+          "url": "https://github.com/noir-lang/noir/commit/92aa75d2fc665a83c8c1b7f9596d2ec09ffdb01c"
+        },
+        "date": 1755877194816,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 239.67,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 549.1,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 213.84,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 1350,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 1400,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 1090,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 9520,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 9520,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 330.56,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 341.33,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 104.76,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 234.54,
             "unit": "MB"
           }
         ]
