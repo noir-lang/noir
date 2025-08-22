@@ -2098,117 +2098,88 @@ mod test {
         let src = r#"
         acir(inline) predicate_pure fn main f0 {
           b0():
-            v46 = make_array &b"ay"
-            v51 = allocate -> &mut u32
-            store u32 2 at v51
-            v53 = allocate -> &mut [u8]
-            store v46 at v53
-            v54 = allocate -> &mut u1
-            store u1 1 at v54
-            v55 = eq u32 2, u32 0
-            v56 = not v55
-            jmpif v56 then: b3, else: b4
+            v12 = make_array &b"ay"
+            v13 = allocate -> &mut u32
+            store u32 2 at v13
+            v15 = allocate -> &mut [u8]
+            store v12 at v15
+            v16 = allocate -> &mut u1
+            store u1 1 at v16
+            v19 = eq u32 2, u32 0
+            v20 = not v19
+            jmpif v20 then: b1, else: b2
+          b1():
+            v23, v24, v25 = call slice_pop_front(u32 2, v12) -> (u8, u32, [u8])
+            store v24 at v13
+            store v25 at v15
+            v26 = eq v23, u8 97
+            store v26 at v16
+            jmp b3()
+          b2():
+            store u1 0 at v16
+            jmp b3()
           b3():
-            v58, v59, v60 = call slice_pop_front(u32 2, v46) -> (u8, u32, [u8])
-            store v59 at v51
-            store v60 at v53
-            v61 = eq v58, u8 97
-            store v61 at v54
-            jmp b6()
+            v27 = load v16 -> u1
+            jmpif v27 then: b4, else: b5
           b4():
-            store u1 0 at v54
-            jmp b6()
-          b6():
-            v62 = load v54 -> u1
-            jmpif v62 then: b7, else: b8
+            v28 = load v13 -> u32
+            v29 = load v15 -> [u8]
+            jmp b6(u1 1, v28, v29)
+          b5():
+            jmp b6(u1 0, u32 2, v12)
+          b6(v0: u1, v1: u32, v2: [u8]):
+            jmpif v0 then: b7, else: b8
           b7():
-            v63 = load v51 -> u32
-            v64 = load v53 -> [u8]
-            jmp b9(u1 1, v63, v64)
+            jmp b9(v0, v1, v2)
           b8():
-            jmp b9(u1 0, u32 2, v46)
-          b9(v4: u1, v6: u32, v7: [u8]):
-            jmpif v4 then: b10, else: b11
-          b10():
-            jmp b12(v4, v6, v7)
+            v30 = allocate -> &mut u32
+            store u32 2 at v30
+            v31 = allocate -> &mut [u8]
+            store v12 at v31
+            v32 = allocate -> &mut u1
+            store u1 1 at v32
+            v33 = eq u32 2, u32 0
+            v34 = not v33
+            store u1 0 at v32
+            v35 = load v32 -> u1
+            jmpif v35 then: b17, else: b18
+          b9(v3: u1, v4: u32, v5: [u8]):
+            jmpif v3 then: b11, else: b12
           b11():
-            v66 = allocate -> &mut u32
-            store u32 2 at v66
-            v67 = allocate -> &mut [u8]
-            store v46 at v67
-            v68 = allocate -> &mut u1
-            store u1 1 at v68
-            v69 = eq u32 2, u32 0
-            v70 = not v69
-            jmpif v70 then: b13, else: b14
-          b12(v8: u1, v10: u32, v11: [u8]):
-            jmpif v8 then: b15, else: b16
-          b13():
-            v71, v72, v73 = call slice_pop_front(u32 2, v46) -> (u8, u32, [u8])
-            store v72 at v66
-            store v73 at v67
-            v74 = eq v71, u8 101
-            store v74 at v68
-            jmp b17()
+            v38 = allocate -> &mut u32
+            store v4 at v38
+            v39 = allocate -> &mut [u8]
+            store v5 at v39
+            v40 = allocate -> &mut u1
+            store u1 1 at v40
+            v41 = eq v4, u32 0
+            v42 = not v41
+            jmpif v42 then: b14, else: b15
+          b12():
+            jmp b16()
           b14():
-            store u1 0 at v68
-            jmp b17()
+            v43, v44, v45 = call slice_pop_front(v4, v5) -> (u8, u32, [u8])
+            store v44 at v38
+            store v45 at v39
+            v46 = eq v43, u8 121
+            store v46 at v40
+            jmp b19()
           b15():
-            v79 = allocate -> &mut u32
-            store v10 at v79
-            v80 = allocate -> &mut [u8]
-            store v11 at v80
-            v81 = allocate -> &mut u1
-            store u1 1 at v81
-            v82 = eq v10, u32 0
-            v83 = not v82
-            jmpif v83 then: b18, else: b19
+            store u1 0 at v40
+            jmp b19()
           b16():
-            jmp b20(u1 0)
-          b17():
-            v75 = load v68 -> u1
-            jmpif v75 then: b21, else: b22
-          b18():
-            v84, v85, v86 = call slice_pop_front(v10, v11) -> (u8, u32, [u8])
-            store v85 at v79
-            store v86 at v80
-            v87 = eq v84, u8 121
-            store v87 at v81
-            jmp b23()
-          b19():
-            store u1 0 at v81
-            jmp b23()
-          b20(v12: u1):
-            jmpif v12 then: b24, else: b25
-          b21():
-            v76 = load v66 -> u32
-            v77 = load v67 -> [u8]
-            jmp b26(u1 1, v76, v77)
-          b22():
-            jmp b26(u1 0, u32 2, v46)
-          b23():
-            v88 = load v81 -> u1
-            jmpif v88 then: b27, else: b28
-          b24():
-            jmp b29()
-          b25():
-            jmp b29()
-          b26(v16: u1, v18: u32, v19: [u8]):
-            jmp b12(v16, v18, v19)
-          b27():
-            jmp b30(u1 1)
-          b28():
-            jmp b30(u1 0)
-          b29():
             return
-          b30(v24: u1):
-            jmpif v24 then: b31, else: b32
-          b31():
-            jmp b33(u1 1)
-          b32():
-            jmp b33(u1 0)
-          b33(v28: u1):
-            jmp b20(v28)
+          b17():
+            v36 = load v30 -> u32
+            v37 = load v31 -> [u8]
+            jmp b20(u1 1, v36, v37)
+          b18():
+            jmp b20(u1 0, u32 2, v12)
+          b19():
+            v47 = load v40 -> u1
+            jmp b16()
+          b20(v6: u1, v7: u32, v8: [u8]):
+            jmp b9(v6, v7, v8)
         }"#;
 
         let ssa = Ssa::from_str(src).unwrap();
@@ -2248,82 +2219,67 @@ mod test {
             store v2 at v21
             v22 = allocate -> &mut u1
             store u1 1 at v22
-            v23 = make_array &b"y"
-            store u32 1 at v20
-            store v23 at v21
             store u1 0 at v22
-            v25 = load v22 -> u1
-            v26 = unchecked_mul v13, v25
-            enable_side_effects v26
-            v27 = load v20 -> u32
-            v28 = load v21 -> [u8]
-            v29 = not v25
-            v30 = unchecked_mul v13, v29
+            v24 = load v22 -> u1
+            v25 = unchecked_mul v13, v24
+            enable_side_effects v25
+            v26 = load v20 -> u32
+            v27 = load v21 -> [u8]
+            v28 = not v24
+            v29 = unchecked_mul v13, v28
             enable_side_effects v13
-            v31 = cast v26 as u32
-            v32 = cast v30 as u32
-            v33 = unchecked_mul v31, v27
-            v34 = unchecked_mul v32, u32 2
-            v35 = unchecked_add v33, v34
-            v36 = if v26 then v28 else (if v30) v2
+            v30 = cast v25 as u32
+            v31 = cast v29 as u32
+            v32 = unchecked_mul v30, v26
+            v33 = unchecked_mul v31, u32 2
+            v34 = unchecked_add v32, v33
+            v35 = if v25 then v27 else (if v29) v2
             enable_side_effects u1 1
-            v37 = unchecked_add v10, v26
-            v38 = cast v10 as u32
-            v39 = cast v13 as u32
-            v40 = unchecked_mul v38, v18
-            v41 = unchecked_mul v39, v35
-            v42 = unchecked_add v40, v41
-            v43 = if v10 then v12 else (if v13) v36
-            enable_side_effects v37
-            v44 = allocate -> &mut u32
+            v36 = unchecked_add v10, v25
+            v37 = cast v10 as u32
+            v38 = cast v13 as u32
+            v39 = unchecked_mul v37, v18
+            v40 = unchecked_mul v38, v34
+            v41 = unchecked_add v39, v40
+            v42 = if v10 then v12 else (if v13) v35
+            enable_side_effects v36
+            v43 = allocate -> &mut u32
+            store v41 at v43
+            v44 = allocate -> &mut [u8]
             store v42 at v44
-            v45 = allocate -> &mut [u8]
-            store v43 at v45
-            v46 = allocate -> &mut u1
-            store u1 1 at v46
-            v48 = eq v42, u32 0
-            v49 = not v48
-            v50 = unchecked_mul v37, v49
-            enable_side_effects v50
-            v52, v53, v54 = call slice_pop_front(v42, v43) -> (u8, u32, [u8])
-            v55 = load v44 -> u32
-            v56 = not v50
-            v57 = cast v50 as u32
-            v58 = cast v56 as u32
-            v59 = unchecked_mul v57, v53
-            v60 = unchecked_mul v58, v55
-            v61 = unchecked_add v59, v60
-            store v61 at v44
-            v62 = load v45 -> [u8]
-            v63 = if v50 then v54 else (if v56) v62
-            store v63 at v45
-            v64 = eq v52, u8 121
-            v65 = load v46 -> u1
-            v66 = unchecked_mul v50, v64
-            v67 = unchecked_mul v56, v65
-            v68 = unchecked_add v66, v67
-            store v68 at v46
-            v69 = unchecked_mul v37, v48
-            enable_side_effects v69
-            v70 = load v46 -> u1
-            v71 = not v69
-            v72 = unchecked_mul v71, v70
-            store v72 at v46
-            enable_side_effects v37
-            v73 = load v46 -> u1
-            v74 = unchecked_mul v37, v73
-            enable_side_effects v74
-            v75 = not v73
-            v76 = unchecked_mul v37, v75
-            enable_side_effects v37
-            v77 = unchecked_mul v37, v74
-            enable_side_effects v77
-            v78 = not v74
-            v79 = unchecked_mul v37, v78
-            enable_side_effects v37
-            v80 = not v37
-            enable_side_effects v77
-            v81 = not v77
+            v45 = allocate -> &mut u1
+            store u1 1 at v45
+            v47 = eq v41, u32 0
+            v48 = not v47
+            v49 = unchecked_mul v36, v48
+            enable_side_effects v49
+            v51, v52, v53 = call slice_pop_front(v41, v42) -> (u8, u32, [u8])
+            v54 = load v43 -> u32
+            v55 = not v49
+            v56 = cast v49 as u32
+            v57 = cast v55 as u32
+            v58 = unchecked_mul v56, v52
+            v59 = unchecked_mul v57, v54
+            v60 = unchecked_add v58, v59
+            store v60 at v43
+            v61 = load v44 -> [u8]
+            v62 = if v49 then v53 else (if v55) v61
+            store v62 at v44
+            v63 = eq v51, u8 121
+            v64 = load v45 -> u1
+            v65 = unchecked_mul v49, v63
+            v66 = unchecked_mul v55, v64
+            v67 = unchecked_add v65, v66
+            store v67 at v45
+            v68 = unchecked_mul v36, v47
+            enable_side_effects v68
+            v69 = load v45 -> u1
+            v70 = not v68
+            v71 = unchecked_mul v70, v69
+            store v71 at v45
+            enable_side_effects v36
+            v72 = load v45 -> u1
+            v73 = not v36
             enable_side_effects u1 1
             return
         }
