@@ -465,7 +465,6 @@ impl<'f> Context<'f> {
             for instruction in instructions {
                 self.push_instruction(instruction);
             }
-            self.inserter.map_terminator_in_place(block);
             return;
         }
 
@@ -508,6 +507,9 @@ impl<'f> Context<'f> {
         block: BasicBlockId,
         work_list: &[BasicBlockId],
     ) -> Vec<BasicBlockId> {
+        // Update the terminator instruction to simplify jmpif with resolved conditions.
+        self.simplify_jmpif(block);
+
         let terminator = self.inserter.function.dfg[block].unwrap_terminator().clone();
         match &terminator {
             TerminatorInstruction::JmpIf {
@@ -517,34 +519,7 @@ impl<'f> Context<'f> {
                 call_stack,
             } => {
                 self.arguments_stack.push(vec![]);
-
-                // If the condition is constant, we do not need to branch and can just treat this as a regular jmp.
-                if let Some(constant_condition) =
-                    self.inserter.function.dfg.get_numeric_constant(*condition)
-                {
-                    let destination = if constant_condition.is_one() {
-                        then_destination
-                    } else {
-                        else_destination
-                    };
-                    if work_list.contains(destination) {
-                        if work_list.last() == Some(destination) {
-                            self.else_stop(&block)
-                        } else {
-                            self.then_stop(&block)
-                        }
-                    } else {
-                        vec![*destination]
-                    }
-                } else {
-                    self.if_start(
-                        condition,
-                        then_destination,
-                        else_destination,
-                        &block,
-                        *call_stack,
-                    )
-                }
+                self.if_start(condition, then_destination, else_destination, &block, *call_stack)
             }
             TerminatorInstruction::Jmp { destination, arguments, call_stack: _ } => {
                 let arguments = vecmap(arguments.clone(), |value| self.inserter.resolve(value));
@@ -572,6 +547,28 @@ impl<'f> Context<'f> {
             TerminatorInstruction::Unreachable { .. } => {
                 // Nothing to do
                 vec![]
+            }
+        }
+    }
+
+    pub(crate) fn simplify_jmpif(&mut self, block: BasicBlockId) {
+        self.inserter.map_terminator_in_place(block);
+
+        if let Some(TerminatorInstruction::JmpIf {
+            condition,
+            then_destination,
+            else_destination,
+            call_stack,
+        }) = self.inserter.function.dfg[block].terminator()
+        {
+            if let Some(constant) = self.inserter.function.dfg.get_numeric_constant(*condition) {
+                let destination =
+                    if constant.is_zero() { *else_destination } else { *then_destination };
+
+                let arguments = Vec::new();
+                let call_stack = *call_stack;
+                let jmp = TerminatorInstruction::Jmp { destination, arguments, call_stack };
+                self.inserter.function.dfg[block].set_terminator(jmp);
             }
         }
     }
@@ -2115,5 +2112,244 @@ mod test {
             return
         }
         ");
+    }
+
+    #[test]
+    fn fully_propagates_resolved_jmpif_conditions() {
+        // This is a regression test for a case where a `jmpif` terminator with a constant condition was not simplified
+        // to remove the inactive branch.
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v46 = make_array &b"ay"
+            v51 = allocate -> &mut u32
+            store u32 2 at v51
+            v53 = allocate -> &mut [u8]
+            store v46 at v53
+            v54 = allocate -> &mut u1
+            store u1 1 at v54
+            v55 = eq u32 2, u32 0
+            v56 = not v55
+            jmpif v56 then: b3, else: b4
+          b3():
+            v58, v59, v60 = call slice_pop_front(u32 2, v46) -> (u8, u32, [u8])
+            store v59 at v51
+            store v60 at v53
+            v61 = eq v58, u8 97
+            store v61 at v54
+            jmp b6()
+          b4():
+            store u1 0 at v54
+            jmp b6()
+          b6():
+            v62 = load v54 -> u1
+            jmpif v62 then: b7, else: b8
+          b7():
+            v63 = load v51 -> u32
+            v64 = load v53 -> [u8]
+            jmp b9(u1 1, v63, v64)
+          b8():
+            jmp b9(u1 0, u32 2, v46)
+          b9(v4: u1, v6: u32, v7: [u8]):
+            jmpif v4 then: b10, else: b11
+          b10():
+            jmp b12(v4, v6, v7)
+          b11():
+            v66 = allocate -> &mut u32
+            store u32 2 at v66
+            v67 = allocate -> &mut [u8]
+            store v46 at v67
+            v68 = allocate -> &mut u1
+            store u1 1 at v68
+            v69 = eq u32 2, u32 0
+            v70 = not v69
+            jmpif v70 then: b13, else: b14
+          b12(v8: u1, v10: u32, v11: [u8]):
+            jmpif v8 then: b15, else: b16
+          b13():
+            v71, v72, v73 = call slice_pop_front(u32 2, v46) -> (u8, u32, [u8])
+            store v72 at v66
+            store v73 at v67
+            v74 = eq v71, u8 101
+            store v74 at v68
+            jmp b17()
+          b14():
+            store u1 0 at v68
+            jmp b17()
+          b15():
+            v79 = allocate -> &mut u32
+            store v10 at v79
+            v80 = allocate -> &mut [u8]
+            store v11 at v80
+            v81 = allocate -> &mut u1
+            store u1 1 at v81
+            v82 = eq v10, u32 0
+            v83 = not v82
+            jmpif v83 then: b18, else: b19
+          b16():
+            jmp b20(u1 0)
+          b17():
+            v75 = load v68 -> u1
+            jmpif v75 then: b21, else: b22
+          b18():
+            v84, v85, v86 = call slice_pop_front(v10, v11) -> (u8, u32, [u8])
+            store v85 at v79
+            store v86 at v80
+            v87 = eq v84, u8 121
+            store v87 at v81
+            jmp b23()
+          b19():
+            store u1 0 at v81
+            jmp b23()
+          b20(v12: u1):
+            jmpif v12 then: b24, else: b25
+          b21():
+            v76 = load v66 -> u32
+            v77 = load v67 -> [u8]
+            jmp b26(u1 1, v76, v77)
+          b22():
+            jmp b26(u1 0, u32 2, v46)
+          b23():
+            v88 = load v81 -> u1
+            jmpif v88 then: b27, else: b28
+          b24():
+            jmp b29()
+          b25():
+            jmp b29()
+          b26(v16: u1, v18: u32, v19: [u8]):
+            jmp b12(v16, v18, v19)
+          b27():
+            jmp b30(u1 1)
+          b28():
+            jmp b30(u1 0)
+          b29():
+            return
+          b30(v24: u1):
+            jmpif v24 then: b31, else: b32
+          b31():
+            jmp b33(u1 1)
+          b32():
+            jmp b33(u1 0)
+          b33(v28: u1):
+            jmp b20(v28)
+        }"#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.flatten_cfg();
+
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v2 = make_array &b"ay"
+            v3 = allocate -> &mut u32
+            store u32 2 at v3
+            v5 = allocate -> &mut [u8]
+            store v2 at v5
+            v6 = allocate -> &mut u1
+            store u1 1 at v6
+            v8 = make_array &b"y"
+            store u32 1 at v3
+            store v8 at v5
+            store u1 1 at v6
+            v10 = load v6 -> u1
+            enable_side_effects v10
+            v11 = load v3 -> u32
+            v12 = load v5 -> [u8]
+            v13 = not v10
+            enable_side_effects u1 1
+            v14 = cast v10 as u32
+            v15 = cast v13 as u32
+            v16 = unchecked_mul v14, v11
+            v17 = unchecked_mul v15, u32 2
+            v18 = unchecked_add v16, v17
+            v19 = if v10 then v12 else (if v13) v2
+            enable_side_effects v13
+            v20 = allocate -> &mut u32
+            store u32 2 at v20
+            v21 = allocate -> &mut [u8]
+            store v2 at v21
+            v22 = allocate -> &mut u1
+            store u1 1 at v22
+            v23 = make_array &b"y"
+            store u32 1 at v20
+            store v23 at v21
+            store u1 0 at v22
+            v25 = load v22 -> u1
+            v26 = unchecked_mul v13, v25
+            enable_side_effects v26
+            v27 = load v20 -> u32
+            v28 = load v21 -> [u8]
+            v29 = not v25
+            v30 = unchecked_mul v13, v29
+            enable_side_effects v13
+            v31 = cast v26 as u32
+            v32 = cast v30 as u32
+            v33 = unchecked_mul v31, v27
+            v34 = unchecked_mul v32, u32 2
+            v35 = unchecked_add v33, v34
+            v36 = if v26 then v28 else (if v30) v2
+            enable_side_effects u1 1
+            v37 = unchecked_add v10, v26
+            v38 = cast v10 as u32
+            v39 = cast v13 as u32
+            v40 = unchecked_mul v38, v18
+            v41 = unchecked_mul v39, v35
+            v42 = unchecked_add v40, v41
+            v43 = if v10 then v12 else (if v13) v36
+            enable_side_effects v37
+            v44 = allocate -> &mut u32
+            store v42 at v44
+            v45 = allocate -> &mut [u8]
+            store v43 at v45
+            v46 = allocate -> &mut u1
+            store u1 1 at v46
+            v48 = eq v42, u32 0
+            v49 = not v48
+            v50 = unchecked_mul v37, v49
+            enable_side_effects v50
+            v52, v53, v54 = call slice_pop_front(v42, v43) -> (u8, u32, [u8])
+            v55 = load v44 -> u32
+            v56 = not v50
+            v57 = cast v50 as u32
+            v58 = cast v56 as u32
+            v59 = unchecked_mul v57, v53
+            v60 = unchecked_mul v58, v55
+            v61 = unchecked_add v59, v60
+            store v61 at v44
+            v62 = load v45 -> [u8]
+            v63 = if v50 then v54 else (if v56) v62
+            store v63 at v45
+            v64 = eq v52, u8 121
+            v65 = load v46 -> u1
+            v66 = unchecked_mul v50, v64
+            v67 = unchecked_mul v56, v65
+            v68 = unchecked_add v66, v67
+            store v68 at v46
+            v69 = unchecked_mul v37, v48
+            enable_side_effects v69
+            v70 = load v46 -> u1
+            v71 = not v69
+            v72 = unchecked_mul v71, v70
+            store v72 at v46
+            enable_side_effects v37
+            v73 = load v46 -> u1
+            v74 = unchecked_mul v37, v73
+            enable_side_effects v74
+            v75 = not v73
+            v76 = unchecked_mul v37, v75
+            enable_side_effects v37
+            v77 = unchecked_mul v37, v74
+            enable_side_effects v77
+            v78 = not v74
+            v79 = unchecked_mul v37, v78
+            enable_side_effects v37
+            v80 = not v37
+            enable_side_effects v77
+            v81 = not v77
+            enable_side_effects u1 1
+            return
+        }
+        "#);
     }
 }
