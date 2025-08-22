@@ -214,18 +214,6 @@ impl Block {
         }
     }
 
-    /// Collect all aliases used by the given value list
-    pub(super) fn collect_all_aliases(
-        &self,
-        values: impl IntoIterator<Item = ValueId>,
-    ) -> AliasSet {
-        let mut aliases = AliasSet::known_empty();
-        for value in values {
-            aliases.unify(&self.get_aliases_for_value(value));
-        }
-        aliases
-    }
-
     pub(super) fn get_aliases_for_value(&self, value: ValueId) -> Cow<AliasSet> {
         if let Some(expression) = self.expressions.get(&value) {
             if let Some(aliases) = self.aliases.get(expression) {

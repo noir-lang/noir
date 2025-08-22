@@ -495,20 +495,12 @@ impl<'f> PerFunctionContext<'f> {
                 references.aliases.insert(Expression::Other(result), AliasSet::known(result));
             }
             Instruction::ArrayGet { array, .. } => {
-                let result = self.inserter.function.dfg.instruction_results(instruction)[0];
-
                 let array = *array;
                 let array_typ = self.inserter.function.dfg.type_of_value(array);
                 if array_typ.contains_reference() {
                     self.instruction_input_references
                         .extend(references.get_aliases_for_value(array).iter());
                     references.mark_value_used(array, self.inserter.function);
-
-                    let expression = Expression::ArrayElement(array);
-
-                    if let Some(aliases) = references.aliases.get_mut(&expression) {
-                        aliases.insert(result);
-                    }
                 }
             }
             Instruction::ArraySet { array, value, .. } => {
@@ -516,29 +508,6 @@ impl<'f> PerFunctionContext<'f> {
                 let element_type = self.inserter.function.dfg.type_of_value(*value);
 
                 if element_type.contains_reference() {
-                    let result = self.inserter.function.dfg.instruction_results(instruction)[0];
-                    let array = *array;
-
-                    let expression = Expression::ArrayElement(array);
-
-                    let mut aliases = if let Some(aliases) = references.aliases.get_mut(&expression)
-                    {
-                        aliases.clone()
-                    } else if let Some((elements, _)) =
-                        self.inserter.function.dfg.get_array_constant(array)
-                    {
-                        let aliases = references.collect_all_aliases(elements);
-                        self.set_aliases(references, array, aliases.clone());
-                        aliases
-                    } else {
-                        AliasSet::unknown()
-                    };
-
-                    aliases.unify(&references.get_aliases_for_value(*value));
-
-                    references.expressions.insert(result, expression);
-                    references.aliases.insert(expression, aliases);
-
                     // Similar to how we remember that we used a value in a `Store` instruction,
                     // take note that it was used in the `ArraySet`. If this instruction is not
                     // going to be removed at the end, we shall keep the stores to this value as well.
