@@ -19,7 +19,7 @@ pub trait AcirField:
     + From<usize>
     + From<u128>
     // + From<u64>
-    // + From<u32>
+    + From<u32>
     // + From<u16>
     // + From<u8>
     + From<bool>
@@ -32,7 +32,6 @@ pub trait AcirField:
 
     fn is_zero(&self) -> bool;
     fn is_one(&self) -> bool;
-
     fn pow(&self, exponent: &Self) -> Self;
 
     /// Maximum number of bits needed to represent a field element
@@ -69,7 +68,15 @@ pub trait AcirField:
     /// Before using this FieldElement, please ensure that this behavior is necessary
     fn inverse(&self) -> Self;
 
+    /// Returns the vale of this field as a hex string without the `0x` prefix.
+    /// The returned string will have a length equal to the maximum number of hex
+    /// digits needed to represent the maximum value of this field.
     fn to_hex(self) -> String;
+
+    /// Returns the value of this field as a hex string with leading zeroes removed,
+    /// prepended with `0x`.
+    /// A singular '0' will be prepended as well if the trimmed string has an odd length.
+    fn to_short_hex(self) -> String;
 
     fn from_hex(hex_str: &str) -> Option<Self>;
 
@@ -145,7 +152,7 @@ macro_rules! field_wrapper {
                 $field::max_num_bytes()
             }
 
-            fn modulus() -> num_bigint::BigUint {
+            fn modulus() -> ::num_bigint::BigUint {
                 $field::modulus()
             }
 
@@ -185,6 +192,10 @@ macro_rules! field_wrapper {
                 self.0.to_hex()
             }
 
+            fn to_short_hex(self) -> String {
+                self.0.to_short_hex()
+            }
+
             fn from_hex(hex_str: &str) -> Option<Self> {
                 $field::from_hex(hex_str).map(Self)
             }
@@ -218,6 +229,12 @@ macro_rules! field_wrapper {
 
         impl From<u128> for $wrapper {
             fn from(value: u128) -> Self {
+                Self($field::from(value))
+            }
+        }
+
+        impl From<u32> for $wrapper {
+            fn from(value: u32) -> Self {
                 Self($field::from(value))
             }
         }

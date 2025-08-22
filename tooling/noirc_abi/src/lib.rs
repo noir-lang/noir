@@ -1,7 +1,5 @@
 #![forbid(unsafe_code)]
-#![warn(unused_crate_dependencies, unused_extern_crates)]
-#![warn(unreachable_pub)]
-#![warn(clippy::semicolon_if_nothing_returned)]
+#![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
 use acvm::{
     AcirField, FieldElement,
@@ -12,8 +10,11 @@ use acvm::{
 };
 use errors::AbiError;
 use input_parser::InputValue;
-use iter_extended::{try_btree_map, try_vecmap, vecmap};
-use noirc_printable_type::{PrintableType, PrintableValue, PrintableValueDisplay};
+use iter_extended::{try_btree_map, try_vecmap};
+use noirc_printable_type::{
+    PrintableType, PrintableValue, PrintableValueDisplay, decode_printable_value,
+    decode_string_value,
+};
 use serde::{Deserialize, Serialize};
 use std::borrow::Borrow;
 use std::{collections::BTreeMap, str};
@@ -27,10 +28,7 @@ mod arbitrary;
 
 pub mod errors;
 pub mod input_parser;
-mod printable_type;
 mod serialization;
-
-pub use printable_type::decode_value as decode_printable_value;
 
 /// A map from the fields in an TOML/JSON file which correspond to some ABI to their values
 pub type InputMap = BTreeMap<String, InputValue>;
@@ -417,18 +415,6 @@ pub fn decode_value(
     Ok(value)
 }
 
-pub fn decode_string_value<F: AcirField>(field_elements: &[F]) -> String {
-    let string_as_slice = vecmap(field_elements, |e| {
-        let mut field_as_bytes = e.to_be_bytes();
-        let char_byte = field_as_bytes.pop().unwrap(); // A character in a string is represented by a u8, thus we just want the last byte of the element
-        assert!(field_as_bytes.into_iter().all(|b| b == 0)); // Assert that the rest of the field element's bytes are empty
-        char_byte
-    });
-
-    let final_string = str::from_utf8(&string_as_slice).unwrap();
-    final_string.to_owned()
-}
-
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "lowercase")]
 pub enum AbiValue {
@@ -468,6 +454,11 @@ pub enum AbiErrorType {
     String { string: String },
 }
 
+/// Decode the raw revert data according to some error type descriptor.
+///
+/// By contrast to how arguments are passed to foreign calls, the revert data is already flattened,
+/// so we don't have control over how we flatten the data before decoding, however note that slices
+/// are not allowed in revert data, so this shouldn't be a problem.
 pub fn display_abi_error<F: AcirField>(
     fields: &[F],
     error_type: AbiErrorType,
@@ -482,9 +473,9 @@ pub fn display_abi_error<F: AcirField>(
             };
             let _length_of_items = fields_iter.next();
             let items = item_types.into_iter().map(|abi_type| {
-                let printable_typ = (&abi_type).into();
-                let decoded = decode_printable_value(&mut fields_iter, &printable_typ);
-                (decoded, printable_typ)
+                let printable_type = (&abi_type).into();
+                let decoded = decode_printable_value(&mut fields_iter, &printable_type);
+                (decoded, printable_type)
             });
             PrintableValueDisplay::FmtString(string, items.collect())
         }

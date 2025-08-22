@@ -1,3 +1,4 @@
+use crate::elaborator::UnstableFeature;
 use crate::{
     assert_no_errors, get_program_using_features, hir::def_collector::dc_crate::CompilationError,
     parser::ParserErrorReason, tests::Expect,
@@ -377,11 +378,15 @@ fn missing_integer_cases_with_empty_match() {
 #[named]
 #[test]
 fn match_on_empty_enum() {
-    check_errors!(
+    let features = vec![UnstableFeature::Enums];
+    check_errors_using_features!(
         "
         pub fn foo(v: Void) {
             match v {}
         }
-        pub enum Void {}",
+        pub enum Void {}
+        fn main() {}
+        ",
+        &features
     );
 }

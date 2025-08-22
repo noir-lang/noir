@@ -1,1 +1,0 @@
-[regression_struct_array_conditional] Circuit output: Field(10)

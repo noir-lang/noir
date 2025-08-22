@@ -1,0 +1,104 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+use the_trait::{Asd, StaticTrait};
+
+struct Add10 {
+    x: Field,
+}
+
+impl Asd for Add10 {
+    fn asd(self) -> Field {
+        self.x + 10_Field
+    }
+}
+
+struct Add20 {
+    x: Field,
+}
+
+impl Asd for Add20 {
+    fn asd(self) -> Field {
+        self.x + 20_Field
+    }
+}
+
+struct Add30 {
+    x: Field,
+}
+
+impl Asd for Add30 {
+    fn asd(self) -> Field {
+        self.x + 30_Field
+    }
+}
+
+struct AddXY {
+    x: Field,
+    y: Field,
+}
+
+impl Asd for AddXY {
+    fn asd(self) -> Field {
+        self.x + self.y
+    }
+}
+
+struct Static100 {}
+
+impl StaticTrait for Static100 {
+    fn static_function(slf: Self) -> Field {
+        let _: Self = slf;
+        100_Field
+    }
+}
+
+struct Static200 {}
+
+impl StaticTrait for Static200 {
+    fn static_function(slf: Self) -> Field {
+        let _: Self = slf;
+        200_Field
+    }
+}
+
+fn assert_asd_eq_100<T>(t: T)
+where
+    T: Asd,
+{
+    assert(t.asd() == 100_Field);
+}
+
+fn add_one_to_static_function<T>(t: T) -> Field
+where
+    T: StaticTrait,
+{
+    T::static_function(t) + 1_Field
+}
+
+fn main() {
+    let x: Add10 = Add10 { x: 90_Field };
+    let z: Add20 = Add20 { x: 80_Field };
+    let a: Add30 = Add30 { x: 70_Field };
+    let xy: AddXY = AddXY { x: 30_Field, y: 70_Field };
+    assert_asd_eq_100(x);
+    assert_asd_eq_100(z);
+    assert_asd_eq_100(a);
+    assert_asd_eq_100(xy);
+    assert(add_one_to_static_function(Static100 {}) == 101_Field);
+    assert(add_one_to_static_function(Static200 {}) == 201_Field);
+}
+
+mod the_trait {
+    pub trait Asd {
+        fn asd(self) -> Field;
+    }
+
+    pub trait StaticTrait {
+        fn static_function(slf: Self) -> Field {
+            let _: Self = slf;
+            100_Field
+        }
+    }
+}

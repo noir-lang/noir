@@ -156,6 +156,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             right.bit_size
         );
         let bit_size = left.bit_size;
+        assert!(bit_size != BitSize::Field.to_u32::<F>(), "Attempt to modulo fields");
 
         let scratch_var_i = SingleAddrVariable::new(self.allocate_register(), bit_size);
         let scratch_var_j = SingleAddrVariable::new(self.allocate_register(), bit_size);
@@ -390,9 +391,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     fn constant(&mut self, result: MemoryAddress, bit_size: u32, constant: F, indirect: bool) {
         assert!(
             bit_size >= constant.num_bits(),
-            "Constant {} does not fit in bit size {}",
-            constant,
-            bit_size
+            "Constant {constant} does not fit in bit size {bit_size}"
         );
         if indirect {
             self.push_opcode(BrilligOpcode::IndirectConst {
@@ -459,7 +458,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
 
 /// Type to encapsulate the binary operation types in Brillig
 #[derive(Clone, Copy, Debug)]
-pub(crate) enum BrilligBinaryOp {
+pub enum BrilligBinaryOp {
     Add,
     Sub,
     Mul,
@@ -488,7 +487,7 @@ impl From<BrilligBinaryOp> for BinaryFieldOp {
             BrilligBinaryOp::Equals => BinaryFieldOp::Equals,
             BrilligBinaryOp::LessThan => BinaryFieldOp::LessThan,
             BrilligBinaryOp::LessThanEquals => BinaryFieldOp::LessThanEquals,
-            _ => panic!("Unsupported operation: {:?} on a field", operation),
+            _ => panic!("Unsupported operation: {operation:?} on a field"),
         }
     }
 }
@@ -508,7 +507,7 @@ impl From<BrilligBinaryOp> for BinaryIntOp {
             BrilligBinaryOp::Xor => BinaryIntOp::Xor,
             BrilligBinaryOp::Shl => BinaryIntOp::Shl,
             BrilligBinaryOp::Shr => BinaryIntOp::Shr,
-            _ => panic!("Unsupported operation: {:?} on an integer", operation),
+            _ => panic!("Unsupported operation: {operation:?} on an integer"),
         }
     }
 }

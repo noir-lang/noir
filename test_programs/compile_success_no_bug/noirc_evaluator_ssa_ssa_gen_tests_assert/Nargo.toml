@@ -1,0 +1,7 @@
+
+            [package]
+            name = "noirc_evaluator_ssa_ssa_gen_tests_assert"
+            type = "bin"
+            authors = [""]
+            
+            [dependencies]

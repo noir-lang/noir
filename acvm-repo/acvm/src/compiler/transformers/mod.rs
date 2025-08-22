@@ -1,8 +1,10 @@
+use std::collections::BTreeMap;
+
 use acir::{
     AcirField,
     circuit::{
         self, Circuit, ExpressionWidth, Opcode,
-        brillig::{BrilligInputs, BrilligOutputs},
+        brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs},
         opcodes::{BlackBoxFuncCall, FunctionInput, MemOp},
     },
     native_types::{Expression, Witness},
@@ -29,13 +31,14 @@ const MAX_TRANSFORMER_PASSES: usize = 3;
 pub fn transform<F: AcirField>(
     acir: Circuit<F>,
     expression_width: ExpressionWidth,
+    brillig_side_effects: &BTreeMap<BrilligFunctionId, bool>,
 ) -> (Circuit<F>, AcirTransformationMap) {
     // Track original acir opcode positions throughout the transformation passes of the compilation
     // by applying the modifications done to the circuit opcodes and also to the opcode_positions (delete and insert)
     let acir_opcode_positions = acir.opcodes.iter().enumerate().map(|(i, _)| i).collect();
 
     let (mut acir, acir_opcode_positions) =
-        transform_internal(acir, expression_width, acir_opcode_positions);
+        transform_internal(acir, expression_width, acir_opcode_positions, brillig_side_effects);
 
     let transformation_map = AcirTransformationMap::new(&acir_opcode_positions);
 
@@ -54,6 +57,7 @@ pub(super) fn transform_internal<F: AcirField>(
     mut acir: Circuit<F>,
     expression_width: ExpressionWidth,
     mut acir_opcode_positions: Vec<usize>,
+    brillig_side_effects: &BTreeMap<BrilligFunctionId, bool>,
 ) -> (Circuit<F>, Vec<usize>) {
     if acir.opcodes.len() == 1 && matches!(acir.opcodes[0], Opcode::BrilligCall { .. }) {
         info!("Program is fully unconstrained, skipping transformation pass");
@@ -67,8 +71,12 @@ pub(super) fn transform_internal<F: AcirField>(
     // don't stabilize unless we also repeat the backend agnostic optimizations.
     for _ in 0..MAX_TRANSFORMER_PASSES {
         info!("Number of opcodes {}", acir.opcodes.len());
-        let (new_acir, new_acir_opcode_positions) =
-            transform_internal_once(acir, expression_width, acir_opcode_positions);
+        let (new_acir, new_acir_opcode_positions) = transform_internal_once(
+            acir,
+            expression_width,
+            acir_opcode_positions,
+            brillig_side_effects,
+        );
 
         acir = new_acir;
         acir_opcode_positions = new_acir_opcode_positions;
@@ -91,7 +99,15 @@ pub(super) fn transform_internal<F: AcirField>(
 ///
 /// Accepts an injected `acir_opcode_positions` to allow transformations to be applied directly after optimizations.
 ///
-/// Does a single optimization pass.
+/// If the width is unbounded, it does nothing.
+/// If it is bounded, it first performs the 'CSAT transformation' in one pass, by creating intermediate variables when necessary.
+/// This results in arithmetic opcodes having the required width.
+/// Then the 'eliminate intermediate variables' pass will remove any intermediate variables (for instance created by the previous transformation)
+/// that are used in exactly two arithmetic opcodes.
+/// This results in arithmetic opcodes having linear combinations of potentially large width.
+/// Finally, the 'range optimization' pass will remove any redundant range opcodes.
+/// The backend is expected to handle linear combinations of 'unbounded width' in a more efficient way
+/// than the 'CSAT transformation'.
 #[tracing::instrument(
     level = "trace",
     name = "transform_acir_once",
@@ -101,7 +117,9 @@ fn transform_internal_once<F: AcirField>(
     mut acir: Circuit<F>,
     expression_width: ExpressionWidth,
     acir_opcode_positions: Vec<usize>,
+    brillig_side_effects: &BTreeMap<BrilligFunctionId, bool>,
 ) -> (Circuit<F>, Vec<usize>) {
+    // If the expression width is unbounded, we don't need to do anything.
     let mut transformer = match &expression_width {
         ExpressionWidth::Unbounded => {
             return (acir, acir_opcode_positions);
@@ -115,9 +133,10 @@ fn transform_internal_once<F: AcirField>(
         }
     };
 
-    // TODO: the code below is only for CSAT transformer
-    // TODO it may be possible to refactor it in a way that we do not need to return early from the r1cs
-    // TODO or at the very least, we could put all of it inside of CSatOptimizer pass
+    // 1. CSAT transformation
+    // Process each opcode in the circuit by marking the solvable witnesses and transforming the AssertZero opcodes
+    // to the required width by creating intermediate variables.
+    // Knowing if a witness is solvable avoids creating un-solvable intermediate variables.
 
     let mut new_acir_opcode_positions: Vec<usize> = Vec::with_capacity(acir_opcode_positions.len());
     // Optimize the assert-zero gates by reducing them into the correct width and
@@ -216,6 +235,7 @@ fn transform_internal_once<F: AcirField>(
         ..acir
     };
 
+    // 2. Eliminate intermediate variables, when they are used in exactly two arithmetic opcodes.
     let mut merge_optimizer = MergeExpressionsOptimizer::new();
 
     let (opcodes, new_acir_opcode_positions) =
@@ -228,9 +248,10 @@ fn transform_internal_once<F: AcirField>(
         ..acir
     };
 
+    // 3. Remove redundant range constraints.
     // The `MergeOptimizer` can merge two witnesses which have range opcodes applied to them
     // so we run the `RangeOptimizer` afterwards to clear these up.
-    let range_optimizer = RangeOptimizer::new(acir);
+    let range_optimizer = RangeOptimizer::new(acir, brillig_side_effects);
     let (acir, new_acir_opcode_positions) =
         range_optimizer.replace_redundant_ranges(new_acir_opcode_positions);
 

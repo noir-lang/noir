@@ -1,0 +1,19 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: i32 expects 0 generics but 1 was given
+  ┌─ src/main.nr:2:12
+  │
+2 │     let _: i32<bool> = 1;
+  │            ---
+  │
+
+error: i32 expects 0 generics but 1 was given
+  ┌─ src/main.nr:3:16
+  │
+3 │     let _ = i32::<bool>::default();
+  │                --------
+  │
+
+Aborting due to 2 previous errors

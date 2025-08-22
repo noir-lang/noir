@@ -1,0 +1,16 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main() {
+    let mut bar: Bar = Bar {};
+    let _: () = bar.bar();
+}
+
+struct Bar {}
+
+impl Bar {
+    fn bar(&mut self) {
+        let _: &mut Self = self;
+    }
+}

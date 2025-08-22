@@ -1,4 +1,4 @@
-global DEPTH: Field = 40000;
+global DEPTH: u32 = 40000;
 
 fn main(x: [u32; DEPTH], y: u32) {
     let mut new_x = [];

@@ -1,5 +1,5 @@
 
-    trait Default {
+    trait Default2 {
     }
 
     struct Foo {
@@ -7,7 +7,7 @@
         array: [Field; 2],
     }
 
-    impl Default for Foo {
+    impl Default2 for Foo {
         fn does_not_exist(x: Field, y: Field) -> Self {
             Self { bar: x, array: [x,y] }
         }

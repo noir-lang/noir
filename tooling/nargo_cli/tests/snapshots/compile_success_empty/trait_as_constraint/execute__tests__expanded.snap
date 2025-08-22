@@ -1,0 +1,12 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+pub trait Foo<T> {}
+
+comptime fn test_as_constraint(t: TraitDefinition) {
+    let constraint: TraitConstraint = t.as_trait_constraint();
+    assert(constraint == constraint);
+}
+
+fn main() {}

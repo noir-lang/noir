@@ -1,12 +1,13 @@
 use std::future::{self, Future};
 
 use async_lsp::ResponseError;
-use fm::{FileId, FileMap, PathString};
-use lsp_types::{
+use async_lsp::lsp_types::{
     DocumentSymbol, DocumentSymbolParams, DocumentSymbolResponse, Location, Position, SymbolKind,
     TextDocumentPositionParams,
 };
+use fm::{FileId, FileMap};
 use noirc_errors::Span;
+use noirc_frontend::ast::TraitBound;
 use noirc_frontend::{
     ParsedModule,
     ast::{
@@ -24,25 +25,20 @@ pub(crate) fn on_document_symbol_request(
     state: &mut LspState,
     params: DocumentSymbolParams,
 ) -> impl Future<Output = Result<Option<DocumentSymbolResponse>, ResponseError>> + use<> {
-    let Ok(file_path) = params.text_document.uri.to_file_path() else {
-        return future::ready(Ok(None));
-    };
-
     let text_document_position_params = TextDocumentPositionParams {
         text_document: params.text_document.clone(),
         position: Position { line: 0, character: 0 },
     };
 
     let result = process_request(state, text_document_position_params, |args| {
-        args.files.get_file_id(&PathString::from_path(file_path)).map(|file_id| {
-            let file = args.files.get_file(file_id).unwrap();
-            let source = file.source();
-            let (parsed_module, _errors) = noirc_frontend::parse_program(source, file_id);
+        let file_id = args.location.file;
+        let file = args.files.get_file(file_id).unwrap();
+        let source = file.source();
+        let (parsed_module, _errors) = noirc_frontend::parse_program(source, file_id);
 
-            let mut collector = DocumentSymbolCollector::new(file_id, args.files);
-            let symbols = collector.collect(&parsed_module);
-            DocumentSymbolResponse::Nested(symbols)
-        })
+        let mut collector = DocumentSymbolCollector::new(file_id, args.files);
+        let symbols = collector.collect(&parsed_module);
+        Some(DocumentSymbolResponse::Nested(symbols))
     });
 
     future::ready(result)
@@ -326,22 +322,18 @@ impl Visitor for DocumentSymbolCollector<'_> {
         false
     }
 
-    fn visit_trait_item_constant(
-        &mut self,
-        name: &Ident,
-        typ: &UnresolvedType,
-        default_value: &Option<Expression>,
-    ) -> bool {
+    fn visit_trait_item_constant(&mut self, name: &Ident, typ: &UnresolvedType) -> bool {
         if name.is_empty() {
             return false;
         }
 
-        self.collect_in_constant(name, typ, default_value.as_ref());
+        self.collect_in_constant(name, typ, None);
         false
     }
 
-    fn visit_trait_item_type(&mut self, name: &Ident) {
+    fn visit_trait_item_type(&mut self, name: &Ident, _bounds: &[TraitBound]) -> bool {
         self.collect_in_type(name, None);
+        false
     }
 
     fn visit_noir_trait_impl(&mut self, noir_trait_impl: &NoirTraitImpl, span: Span) -> bool {
@@ -517,13 +509,48 @@ impl Visitor for DocumentSymbolCollector<'_> {
 
 #[cfg(test)]
 mod document_symbol_tests {
-    use crate::test_utils;
+    use crate::{notifications::on_did_open_text_document, test_utils};
 
     use super::*;
-    use lsp_types::{
-        PartialResultParams, Range, SymbolKind, TextDocumentIdentifier, WorkDoneProgressParams,
+    use async_lsp::lsp_types::{
+        DidOpenTextDocumentParams, PartialResultParams, Range, SymbolKind, TextDocumentIdentifier,
+        TextDocumentItem, WorkDoneProgressParams,
     };
     use tokio::test;
+
+    async fn get_document_symbols(src: &str) -> Vec<DocumentSymbol> {
+        let (mut state, noir_text_document) = test_utils::init_lsp_server("document_symbol").await;
+
+        let _ = on_did_open_text_document(
+            &mut state,
+            DidOpenTextDocumentParams {
+                text_document: TextDocumentItem {
+                    uri: noir_text_document.clone(),
+                    language_id: "noir".to_string(),
+                    version: 0,
+                    text: src.to_string(),
+                },
+            },
+        );
+
+        let response = on_document_symbol_request(
+            &mut state,
+            DocumentSymbolParams {
+                text_document: TextDocumentIdentifier { uri: noir_text_document },
+                work_done_progress_params: WorkDoneProgressParams { work_done_token: None },
+                partial_result_params: PartialResultParams { partial_result_token: None },
+            },
+        )
+        .await
+        .expect("Could not execute on_document_symbol_request")
+        .unwrap();
+
+        let DocumentSymbolResponse::Nested(symbols) = response else {
+            panic!("Expected response to be nested");
+        };
+
+        symbols
+    }
 
     #[test]
     async fn test_document_symbol() {
@@ -758,6 +785,28 @@ mod document_symbol_tests {
                     children: Some(Vec::new())
                 }
             ]
+        );
+    }
+
+    #[test]
+    async fn test_function_with_just_open_parentheses() {
+        let src = "fn main(\n";
+        let mut symbols = get_document_symbols(src).await;
+        assert_eq!(symbols.len(), 1);
+        let symbol = symbols.remove(0);
+        assert_eq!(
+            symbol.range,
+            Range {
+                start: Position { line: 0, character: 0 },
+                end: Position { line: 1, character: 0 },
+            }
+        );
+        assert_eq!(
+            symbol.selection_range,
+            Range {
+                start: Position { line: 0, character: 3 },
+                end: Position { line: 0, character: 7 },
+            }
         );
     }
 }

@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_indexing_array_with_u32_does_not_produce_a_warning"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

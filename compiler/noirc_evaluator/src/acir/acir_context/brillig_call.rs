@@ -13,10 +13,32 @@ use iter_extended::{try_vecmap, vecmap};
 use crate::brillig::brillig_ir::artifact::GeneratedBrillig;
 use crate::errors::{InternalError, RuntimeError};
 
-use super::generated_acir::BrilligStdlibFunc;
+use super::generated_acir::{BrilligStdlibFunc, PLACEHOLDER_BRILLIG_INDEX};
 use super::{AcirContext, AcirDynamicArray, AcirType, AcirValue, AcirVar};
 
 impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
+    /// Generates a brillig call to a handwritten section of brillig bytecode.
+    pub(crate) fn stdlib_brillig_call(
+        &mut self,
+        predicate: AcirVar,
+        brillig_stdlib_func: BrilligStdlibFunc,
+        stdlib_func_bytecode: &GeneratedBrillig<F>,
+        inputs: Vec<AcirValue>,
+        outputs: Vec<AcirType>,
+        attempt_execution: bool,
+    ) -> Result<Vec<AcirValue>, RuntimeError> {
+        self.brillig_call(
+            predicate,
+            stdlib_func_bytecode,
+            inputs,
+            outputs,
+            attempt_execution,
+            false,
+            PLACEHOLDER_BRILLIG_INDEX,
+            Some(brillig_stdlib_func),
+        )
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn brillig_call(
         &mut self,
@@ -111,13 +133,16 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
             context: &mut AcirContext<G, C>,
             value: &AcirValue,
         ) -> Result<(), RuntimeError> {
+            let one = context.add_constant(G::one());
             match value {
                 AcirValue::Var(var, typ) => {
                     let numeric_type = match typ {
                         AcirType::NumericType(numeric_type) => numeric_type,
                         _ => unreachable!("`AcirValue::Var` may only hold primitive values"),
                     };
-                    context.range_constrain_var(*var, numeric_type, None)?;
+                    // Predicate is one so that the constrain is always applied, because
+                    // values returned from Brillig will be 0 under a false predicate.
+                    context.range_constrain_var(*var, numeric_type, None, one)?;
                 }
                 AcirValue::Array(values) => {
                     for value in values {

@@ -1,0 +1,44 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Expected a trait, found error
+  ┌─ src/main.nr:2:10
+  │
+2 │ impl< Foo for
+  │          -
+  │
+
+error: Expected a generic parameter but found 'for'
+  ┌─ src/main.nr:2:11
+  │
+2 │ impl< Foo for
+  │           ---
+  │
+
+error: Expected a type but found 'for'
+  ┌─ src/main.nr:2:11
+  │
+2 │ impl< Foo for
+  │           ---
+  │
+
+error: Expected a type but found end of input
+  ┌─ src/main.nr:2:14
+  │  
+2 │   impl< Foo for
+  │ ╭─────────────'
+3 │ │ 
+  │ ╰'
+  │  
+
+error: Expected a '{' but found end of input
+  ┌─ src/main.nr:2:14
+  │  
+2 │   impl< Foo for
+  │ ╭─────────────'
+3 │ │ 
+  │ ╰'
+  │  
+
+Aborting due to 5 previous errors

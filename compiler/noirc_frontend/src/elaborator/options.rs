@@ -41,6 +41,9 @@ pub struct GenericOptions<'a, T> {
     /// Unstable compiler features that were explicitly enabled. Any unstable features
     /// that are not in this list result in an error when used.
     pub enabled_unstable_features: &'a [UnstableFeature],
+
+    /// Deny crates from requiring unstable features.
+    pub disable_required_unstable_features: bool,
 }
 
 /// Options from nargo_cli that need to be passed down to the elaborator
@@ -57,6 +60,7 @@ impl<T> GenericOptions<'_, T> {
             debug_comptime_in_file: None,
             pedantic_solving: true,
             enabled_unstable_features: &[UnstableFeature::Enums],
+            disable_required_unstable_features: true,
         }
     }
 }

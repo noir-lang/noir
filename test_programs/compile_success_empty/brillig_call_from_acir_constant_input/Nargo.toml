@@ -1,0 +1,6 @@
+[package]
+name = "brillig_call_from_acir_constant_input"
+type = "bin"
+authors = [""]
+
+[dependencies]

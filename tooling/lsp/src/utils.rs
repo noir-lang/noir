@@ -7,7 +7,7 @@ use fm::{FileId, FileMap};
 pub(crate) fn range_to_byte_span(
     files: &FileMap,
     file_id: FileId,
-    range: &lsp_types::Range,
+    range: &async_lsp::lsp_types::Range,
 ) -> Option<std::ops::Range<usize>> {
     Some(
         position_to_byte_index(files, file_id, &range.start)?
@@ -18,7 +18,7 @@ pub(crate) fn range_to_byte_span(
 pub(crate) fn position_to_byte_index(
     files: &FileMap,
     file_id: FileId,
-    position: &lsp_types::Position,
+    position: &async_lsp::lsp_types::Position,
 ) -> Option<usize> {
     let Ok(source) = files.source(file_id) else {
         return None;

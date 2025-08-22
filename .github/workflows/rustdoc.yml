@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@1.85.0
@@ -33,6 +33,8 @@ jobs:
 
       - name: Build docs
         run: cargo doc --no-deps --document-private-items --workspace
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Add redirect
         run: echo '<meta http-equiv="refresh" content="0;url=nargo/index.html">' > target/doc/index.html
@@ -51,7 +53,7 @@ jobs:
     runs-on: ubuntu-22.04
     needs: build
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           ref: gh-pages
 

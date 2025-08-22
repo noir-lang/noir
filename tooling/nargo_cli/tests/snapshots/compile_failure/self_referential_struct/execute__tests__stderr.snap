@@ -1,0 +1,19 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Self-referential types are not supported
+  ┌─ src/main.nr:6:8
+  │
+6 │ struct SelfReferential
+  │        ---------------
+  │
+
+error: Type SelfReferential has no member named _is_some
+   ┌─ src/main.nr:11:40
+   │
+11 │ fn main(x: SelfReferential) { assert(x._is_some); }
+   │                                        --------
+   │
+
+Aborting due to 2 previous errors

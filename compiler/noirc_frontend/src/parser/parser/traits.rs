@@ -34,7 +34,7 @@ impl Parser<'_> {
             return (noir_trait, no_implicit_impl);
         };
 
-        let generics = self.parse_generics();
+        let generics = self.parse_generics_allowing_trait_bounds();
 
         // Trait aliases:
         // trait Foo<..> = A + B + E where ..;
@@ -47,9 +47,7 @@ impl Parser<'_> {
 
             let where_clause = self.parse_where_clause();
             let items = Vec::new();
-            if !self.eat_semicolon() {
-                self.expected_token(Token::Semicolon);
-            }
+            self.eat_semicolon_or_error();
 
             let is_alias = true;
             (bounds, where_clause, items, is_alias)
@@ -66,7 +64,7 @@ impl Parser<'_> {
         let noir_impl = is_alias.then(|| {
             let object_type_ident = Ident::from(Located::from(location, "#T".to_string()));
             let object_type_path = Path::from_ident(object_type_ident.clone());
-            let object_type_generic = UnresolvedGeneric::Variable(object_type_ident);
+            let object_type_generic = UnresolvedGeneric::from(object_type_ident.clone());
 
             let is_synthesized = true;
             let object_type = UnresolvedType {
@@ -80,14 +78,17 @@ impl Parser<'_> {
             let trait_name = Path::from_ident(name.clone());
             let trait_generics: GenericTypeArgs = vecmap(generics.clone(), |generic| {
                 let is_synthesized = true;
-                let generic_type = UnresolvedType {
-                    typ: UnresolvedTypeData::Named(
-                        Path::from_ident(generic.ident().clone()),
+
+                let typ = match generic.ident().ident() {
+                    Some(ident) => UnresolvedTypeData::Named(
+                        Path::from_ident(ident.clone()),
                         vec![].into(),
                         is_synthesized,
                     ),
-                    location,
+                    None => UnresolvedTypeData::Error,
                 };
+
+                let generic_type = UnresolvedType { typ, location };
 
                 GenericTypeArg::Ordered(generic_type)
             })
@@ -169,7 +170,7 @@ impl Parser<'_> {
         None
     }
 
-    /// TraitType = 'type' identifier ';'
+    /// TraitType = 'type' identifier ( ':' TraitBounds ) ';'
     fn parse_trait_type(&mut self) -> Option<TraitItem> {
         if !self.eat_keyword(Keyword::Type) {
             return None;
@@ -179,16 +180,18 @@ impl Parser<'_> {
             Some(name) => name,
             None => {
                 self.expected_identifier();
-                Ident::default()
+                self.unknown_ident_at_previous_token_end()
             }
         };
 
-        self.eat_semicolons();
+        let bounds = if self.eat_colon() { self.parse_trait_bounds() } else { Vec::new() };
 
-        Some(TraitItem::Type { name })
+        self.eat_semicolon_or_error();
+
+        Some(TraitItem::Type { name, bounds })
     }
 
-    /// TraitConstant = 'let' identifier ':' Type ( '=' Expression ) ';'
+    /// TraitConstant = 'let' identifier ':' Type ( '=' Expression )? ';'
     fn parse_trait_constant(&mut self) -> Option<TraitItem> {
         if !self.eat_keyword(Keyword::Let) {
             return None;
@@ -198,23 +201,33 @@ impl Parser<'_> {
             Some(name) => name,
             None => {
                 self.expected_identifier();
-                Ident::default()
+                self.unknown_ident_at_previous_token_end()
             }
         };
 
         let typ = if self.eat_colon() {
             self.parse_type_or_error()
         } else {
-            self.expected_token(Token::Colon);
-            UnresolvedType { typ: UnresolvedTypeData::Unspecified, location: Location::dummy() }
+            self.push_error(
+                ParserErrorReason::MissingTypeForAssociatedConstant,
+                self.previous_token_location,
+            );
+            let location = self.location_at_previous_token_end();
+            UnresolvedType { typ: UnresolvedTypeData::Unspecified, location }
         };
 
-        let default_value =
-            if self.eat_assign() { Some(self.parse_expression_or_error()) } else { None };
+        if self.eat_assign() {
+            let expr_start_location = self.current_token_location;
+            let _ = self.parse_expression_or_error();
+            self.push_error(
+                ParserErrorReason::AssociatedTraitConstantDefaultValuesAreNotSupported,
+                self.location_since(expr_start_location),
+            );
+        }
 
-        self.eat_semicolons();
+        self.eat_semicolon_or_error();
 
-        Some(TraitItem::Constant { name, typ, default_value })
+        Some(TraitItem::Constant { name, typ })
     }
 
     /// TraitFunction = Modifiers Function
@@ -273,7 +286,7 @@ fn empty_trait(
     location: Location,
 ) -> NoirTrait {
     NoirTrait {
-        name: Ident::default(),
+        name: Ident::new(String::new(), location),
         generics: Vec::new(),
         bounds: Vec::new(),
         where_clause: Vec::new(),
@@ -480,27 +493,55 @@ mod tests {
         assert_eq!(noir_trait.items.len(), 1);
 
         let item = noir_trait.items.remove(0).item;
-        let TraitItem::Type { name } = item else {
+        let TraitItem::Type { name, bounds } = item else {
             panic!("Expected type");
         };
         assert_eq!(name.to_string(), "Elem");
         assert!(!noir_trait.is_alias);
+        assert!(bounds.is_empty());
     }
 
     #[test]
-    fn parse_trait_with_constant() {
-        let src = "trait Foo { let x: Field = 1; }";
+    fn parse_trait_with_type_and_bounds() {
+        let src = "trait Foo { type Elem: Bound; }";
         let mut noir_trait = parse_trait_no_errors(src);
         assert_eq!(noir_trait.items.len(), 1);
 
         let item = noir_trait.items.remove(0).item;
-        let TraitItem::Constant { name, typ, default_value } = item else {
+        let TraitItem::Type { name, bounds } = item else {
+            panic!("Expected type");
+        };
+        assert_eq!(name.to_string(), "Elem");
+        assert!(!noir_trait.is_alias);
+        assert!(bounds.len() == 1);
+        assert_eq!(bounds[0].to_string(), "Bound");
+    }
+
+    #[test]
+    fn parse_trait_with_constant() {
+        let src = "trait Foo { let x: Field; }";
+        let mut noir_trait = parse_trait_no_errors(src);
+        assert_eq!(noir_trait.items.len(), 1);
+
+        let item = noir_trait.items.remove(0).item;
+        let TraitItem::Constant { name, typ } = item else {
             panic!("Expected constant");
         };
         assert_eq!(name.to_string(), "x");
         assert_eq!(typ.to_string(), "Field");
-        assert_eq!(default_value.unwrap().to_string(), "1");
         assert!(!noir_trait.is_alias);
+    }
+
+    #[test]
+    fn parse_trait_with_constant_default_value() {
+        let src = "
+        trait Foo { let x: Field = 1 + 2; }
+                                   ^^^^^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let (_module, errors) = parse_program_with_dummy_file(&src);
+        let error = get_single_error(&errors, span).to_string();
+        assert!(error.contains("Associated trait constant default values are not supported"));
     }
 
     #[test]
@@ -592,5 +633,26 @@ mod tests {
         assert_eq!(noir_trait.where_clause.is_empty(), noir_trait_alias.where_clause.is_empty());
         assert_eq!(noir_trait.items.is_empty(), noir_trait_alias.items.is_empty());
         assert!(!noir_trait.is_alias);
+    }
+
+    #[test]
+    fn parse_trait_with_constant_missing_semicolon() {
+        let src = "trait Foo { let x: Field = 1 }";
+        let (_, errors) = parse_program_with_dummy_file(src);
+        assert!(!errors.is_empty());
+    }
+
+    #[test]
+    fn parse_trait_with_constant_missing_type() {
+        let src = "trait Foo { let x = 1; }";
+        let (_, errors) = parse_program_with_dummy_file(src);
+        assert!(!errors.is_empty());
+    }
+
+    #[test]
+    fn parse_trait_with_type_missing_semicolon() {
+        let src = "trait Foo { type X }";
+        let (_, errors) = parse_program_with_dummy_file(src);
+        assert!(!errors.is_empty());
     }
 }

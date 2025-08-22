@@ -1,0 +1,226 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "foos",
+        "type": {
+          "kind": "array",
+          "length": 2,
+          "type": {
+            "kind": "struct",
+            "path": "Foo",
+            "fields": [
+              {
+                "name": "x",
+                "type": {
+                  "kind": "integer",
+                  "sign": "unsigned",
+                  "width": 32
+                }
+              },
+              {
+                "name": "y",
+                "type": {
+                  "kind": "array",
+                  "length": 10,
+                  "type": {
+                    "kind": "integer",
+                    "sign": "unsigned",
+                    "width": 32
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "visibility": "databus"
+      },
+      {
+        "name": "values",
+        "type": {
+          "kind": "array",
+          "length": 3,
+          "type": {
+            "kind": "array",
+            "length": 2,
+            "type": {
+              "kind": "array",
+              "length": 2,
+              "type": {
+                "kind": "integer",
+                "sign": "unsigned",
+                "width": 32
+              }
+            }
+          }
+        },
+        "visibility": "databus"
+      },
+      {
+        "name": "zero",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "one",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": {
+      "abi_type": {
+        "kind": "integer",
+        "sign": "unsigned",
+        "width": 32
+      },
+      "visibility": "public"
+    },
+    "error_types": {
+      "5019202896831570965": {
+        "error_kind": "string",
+        "string": "attempt to add with overflow"
+      },
+      "14225679739041873922": {
+        "error_kind": "string",
+        "string": "Index out of bounds"
+      }
+    }
+  },
+  "bytecode": [
+    "func 0",
+    "current witness index : _73",
+    "private parameters indices : [_0, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14, _15, _16, _17, _18, _19, _20, _21, _22, _23, _24, _25, _26, _27, _28, _29, _30, _31, _32, _33, _34, _35]",
+    "public parameters indices : []",
+    "return value indices : [_36]",
+    "BLACKBOX::RANGE [(_0, 32)] []",
+    "BLACKBOX::RANGE [(_1, 32)] []",
+    "BLACKBOX::RANGE [(_2, 32)] []",
+    "BLACKBOX::RANGE [(_3, 32)] []",
+    "BLACKBOX::RANGE [(_4, 32)] []",
+    "BLACKBOX::RANGE [(_5, 32)] []",
+    "BLACKBOX::RANGE [(_6, 32)] []",
+    "BLACKBOX::RANGE [(_7, 32)] []",
+    "BLACKBOX::RANGE [(_8, 32)] []",
+    "BLACKBOX::RANGE [(_9, 32)] []",
+    "BLACKBOX::RANGE [(_10, 32)] []",
+    "BLACKBOX::RANGE [(_11, 32)] []",
+    "BLACKBOX::RANGE [(_12, 32)] []",
+    "BLACKBOX::RANGE [(_13, 32)] []",
+    "BLACKBOX::RANGE [(_14, 32)] []",
+    "BLACKBOX::RANGE [(_15, 32)] []",
+    "BLACKBOX::RANGE [(_16, 32)] []",
+    "BLACKBOX::RANGE [(_17, 32)] []",
+    "BLACKBOX::RANGE [(_18, 32)] []",
+    "BLACKBOX::RANGE [(_19, 32)] []",
+    "BLACKBOX::RANGE [(_20, 32)] []",
+    "BLACKBOX::RANGE [(_21, 32)] []",
+    "BLACKBOX::RANGE [(_22, 32)] []",
+    "BLACKBOX::RANGE [(_23, 32)] []",
+    "BLACKBOX::RANGE [(_24, 32)] []",
+    "BLACKBOX::RANGE [(_25, 32)] []",
+    "BLACKBOX::RANGE [(_26, 32)] []",
+    "BLACKBOX::RANGE [(_27, 32)] []",
+    "BLACKBOX::RANGE [(_28, 32)] []",
+    "BLACKBOX::RANGE [(_29, 32)] []",
+    "BLACKBOX::RANGE [(_30, 32)] []",
+    "BLACKBOX::RANGE [(_31, 32)] []",
+    "BLACKBOX::RANGE [(_32, 32)] []",
+    "BLACKBOX::RANGE [(_33, 32)] []",
+    "BLACKBOX::RANGE [(_34, 32)] []",
+    "BLACKBOX::RANGE [(_35, 32)] []",
+    "INIT CALLDATA 0 (id: 2, len: 34, witnesses: [_0, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14, _15, _16, _17, _18, _19, _20, _21, _22, _23, _24, _25, _26, _27, _28, _29, _30, _31, _32, _33])",
+    "EXPR [ (11, _34) (-1, _37) 0 ]",
+    "MEM (id: 2, read at: EXPR [ (1, _37) 0 ], value: EXPR [ (1, _38) 0 ]) ",
+    "BRILLIG CALL func 0: inputs: [EXPR [ (11, _34) 4294967275 ], EXPR [ 4294967296 ]], outputs: [_39, _40]",
+    "BLACKBOX::RANGE [(_40, 32)] []",
+    "EXPR [ (11, _34) (-4294967296, _39) (-1, _40) 4294967275 ]",
+    "EXPR [ (-1, _39) 0 ]",
+    "BRILLIG CALL func 0: inputs: [EXPR [ (11, _34) 4294967277 ], EXPR [ 4294967296 ]], outputs: [_41, _42]",
+    "BLACKBOX::RANGE [(_42, 32)] []",
+    "EXPR [ (11, _34) (-4294967296, _41) (-1, _42) 4294967277 ]",
+    "EXPR [ (-1, _41) 0 ]",
+    "BRILLIG CALL func 0: inputs: [EXPR [ (11, _34) 4294967279 ], EXPR [ 4294967296 ]], outputs: [_43, _44]",
+    "BLACKBOX::RANGE [(_44, 32)] []",
+    "EXPR [ (11, _34) (-4294967296, _43) (-1, _44) 4294967279 ]",
+    "EXPR [ (-1, _43) 0 ]",
+    "BRILLIG CALL func 0: inputs: [EXPR [ (11, _34) 4294967281 ], EXPR [ 4294967296 ]], outputs: [_45, _46]",
+    "BLACKBOX::RANGE [(_46, 32)] []",
+    "EXPR [ (11, _34) (-4294967296, _45) (-1, _46) 4294967281 ]",
+    "EXPR [ (-1, _45) 0 ]",
+    "BRILLIG CALL func 0: inputs: [EXPR [ (11, _34) 4294967283 ], EXPR [ 4294967296 ]], outputs: [_47, _48]",
+    "BLACKBOX::RANGE [(_48, 32)] []",
+    "EXPR [ (11, _34) (-4294967296, _47) (-1, _48) 4294967283 ]",
+    "EXPR [ (-1, _47) 0 ]",
+    "EXPR [ (1, _38) (-1, _49) 1 ]",
+    "BLACKBOX::RANGE [(_49, 32)] []",
+    "EXPR [ (11, _35) (-1, _50) 0 ]",
+    "MEM (id: 2, read at: EXPR [ (1, _50) 0 ], value: EXPR [ (1, _51) 0 ]) ",
+    "BRILLIG CALL func 0: inputs: [EXPR [ (11, _35) 4294967275 ], EXPR [ 4294967296 ]], outputs: [_52, _53]",
+    "BLACKBOX::RANGE [(_53, 32)] []",
+    "EXPR [ (11, _35) (-4294967296, _52) (-1, _53) 4294967275 ]",
+    "EXPR [ (-1, _52) 0 ]",
+    "BRILLIG CALL func 0: inputs: [EXPR [ (11, _35) 4294967277 ], EXPR [ 4294967296 ]], outputs: [_54, _55]",
+    "BLACKBOX::RANGE [(_55, 32)] []",
+    "EXPR [ (11, _35) (-4294967296, _54) (-1, _55) 4294967277 ]",
+    "EXPR [ (-1, _54) 0 ]",
+    "BRILLIG CALL func 0: inputs: [EXPR [ (11, _35) 4294967279 ], EXPR [ 4294967296 ]], outputs: [_56, _57]",
+    "BLACKBOX::RANGE [(_57, 32)] []",
+    "EXPR [ (11, _35) (-4294967296, _56) (-1, _57) 4294967279 ]",
+    "EXPR [ (-1, _56) 0 ]",
+    "BRILLIG CALL func 0: inputs: [EXPR [ (11, _35) 4294967281 ], EXPR [ 4294967296 ]], outputs: [_58, _59]",
+    "BLACKBOX::RANGE [(_59, 32)] []",
+    "EXPR [ (11, _35) (-4294967296, _58) (-1, _59) 4294967281 ]",
+    "EXPR [ (-1, _58) 0 ]",
+    "BRILLIG CALL func 0: inputs: [EXPR [ (11, _35) 4294967283 ], EXPR [ 4294967296 ]], outputs: [_60, _61]",
+    "BLACKBOX::RANGE [(_61, 32)] []",
+    "EXPR [ (11, _35) (-4294967296, _60) (-1, _61) 4294967283 ]",
+    "EXPR [ (-1, _60) 0 ]",
+    "EXPR [ (1, _49) (-1, _51) 0 ]",
+    "EXPR [ (11, _34) (-1, _62) 4 ]",
+    "MEM (id: 2, read at: EXPR [ (1, _62) 0 ], value: EXPR [ (1, _63) 0 ]) ",
+    "EXPR [ (1, _63) (-1, _64) 2 ]",
+    "BLACKBOX::RANGE [(_64, 32)] []",
+    "EXPR [ (11, _35) (-1, _65) 5 ]",
+    "MEM (id: 2, read at: EXPR [ (1, _65) 0 ], value: EXPR [ (1, _66) 0 ]) ",
+    "EXPR [ (1, _64) (-1, _66) 0 ]",
+    "EXPR [ (5, _34) (2, _35) (-1, _67) 22 ]",
+    "MEM (id: 2, read at: EXPR [ (1, _67) 0 ], value: EXPR [ (1, _68) 0 ]) ",
+    "EXPR [ (2, _34) (5, _35) (-1, _69) 22 ]",
+    "MEM (id: 2, read at: EXPR [ (1, _69) 0 ], value: EXPR [ (1, _70) 0 ]) ",
+    "EXPR [ (1, _68) (-1, _70) 0 ]",
+    "EXPR [ (11, _35) (-1, _71) 1 ]",
+    "MEM (id: 2, read at: EXPR [ (1, _71) 0 ], value: EXPR [ (1, _72) 0 ]) ",
+    "EXPR [ (1, _38) (1, _72) (-1, _73) 0 ]",
+    "BLACKBOX::RANGE [(_73, 32)] []",
+    "EXPR [ (1, _36) (-1, _73) 0 ]",
+    "unconstrained func 0",
+    "[Const { destination: Direct(10), bit_size: Integer(U32), value: 2 }, Const { destination: Direct(11), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(10), offset_address: Direct(11) }, BinaryFieldOp { destination: Direct(2), op: IntegerDiv, lhs: Direct(0), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Mul, lhs: Direct(2), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Sub, lhs: Direct(0), rhs: Direct(1) }, Mov { destination: Direct(0), source: Direct(2) }, Stop { return_data: HeapVector { pointer: Direct(11), size: Direct(10) } }]"
+  ],
+  "debug_symbols": "pZTBjoMgFEX/hbULBfFBf2UyaailDQlBQ3WSSdN/n1evOu1iNszqKM97eIJ4F2d/mq/HkC7DTRw+7uKUQ4zheoxD76YwJB69Pyqx3R6n7D0PiZc6p0aXfZrEIc0xVuLLxXl56Da6tHBymat1JXw6M1l4CdE/rx7Vb7r+O9rYZg3Lmva4LsnLuiAv9da81E1JXtGe70rytM9P/5yfZEne2DWvVEn/au9fFfWvWrXn3/v/5DvXh/z2xQptec8r0dVAA0hAAS2ggQ4gwACwECwEC8FCsBAsBAvBQrAQLASLgcXAYmAxbJEMtvALGg2wpWUQwBbNsAssWzpGA0hAAS3AFt5tyxbDIIAtvIWWLfbxXOcc3Cn69Xhf5tS/nPbpe9wq2/9gzEPvz3P2z3VearzyPw==",
+  "file_map": {
+    "50": {
+      "source": "struct Foo {\n    x: u32,\n    y: [u32; 10],\n}\n\nfn main(\n    foos: call_data(0) [Foo; 2],\n    values: call_data(0) [[[u32; 2]; 2]; 3],\n    zero: u32,\n    one: u32,\n) -> pub u32 {\n    assert_eq(foos[zero].x + 1, foos[one].x);\n    assert_eq(foos[zero].y[3] + 2, foos[one].y[4]);\n    assert_eq(values[zero][one][zero], values[one][zero][one]);\n    foos[zero].x + foos[one].y[0]\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": [
+    "directive_integer_quotient"
+  ]
+}

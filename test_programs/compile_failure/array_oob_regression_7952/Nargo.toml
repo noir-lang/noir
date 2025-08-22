@@ -1,0 +1,6 @@
+[package]
+name = "array_oob_regression_7952"
+type = "bin"
+authors = [""]
+
+[dependencies]

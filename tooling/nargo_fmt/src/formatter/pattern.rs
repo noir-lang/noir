@@ -3,64 +3,92 @@ use noirc_frontend::{
     token::{Keyword, Token},
 };
 
+use crate::chunks::{ChunkFormatter, ChunkGroup};
+
 use super::Formatter;
-use crate::chunks::ChunkGroup;
 
 impl Formatter<'_> {
-    pub(super) fn format_pattern(&mut self, pattern: Pattern) {
-        self.skip_comments_and_whitespace();
+    #[must_use]
+    pub(super) fn format_pattern(&mut self, pattern: Pattern) -> ChunkGroup {
+        self.chunk_formatter().format_pattern(pattern)
+    }
+}
 
-        // Special case: `&mut self` (this is reflected in the param type, not the pattern)
-        if self.is_at(Token::Ampersand) {
-            self.write_token(Token::Ampersand);
-            self.write_keyword(Keyword::Mut);
-            self.write_space();
-        }
+impl ChunkFormatter<'_, '_> {
+    #[must_use]
+    pub(super) fn format_pattern(&mut self, pattern: Pattern) -> ChunkGroup {
+        let mut group = ChunkGroup::new();
+
+        group.text(self.chunk(|formatter| {
+            formatter.skip_comments_and_whitespace();
+
+            // Special case: `&mut self` (this is reflected in the param type, not the pattern)
+            if formatter.is_at(Token::Ampersand) {
+                formatter.write_token(Token::Ampersand);
+                formatter.write_keyword(Keyword::Mut);
+                formatter.write_space();
+            }
+        }));
 
         match pattern {
-            Pattern::Identifier(ident) => self.write_identifier(ident),
+            Pattern::Identifier(ident) => {
+                group.text(self.chunk(|formatter| {
+                    formatter.write_identifier(ident);
+                }));
+            }
             Pattern::Mutable(pattern, _span, _) => {
-                self.write_keyword(Keyword::Mut);
-                self.write_space();
-                self.format_pattern(*pattern);
+                group.text(self.chunk(|formatter| {
+                    formatter.write_keyword(Keyword::Mut);
+                    formatter.write_space();
+                }));
+                group.group(self.format_pattern(*pattern));
             }
             Pattern::Tuple(patterns, _span) => {
-                let patterns_len = patterns.len();
+                group.text(self.chunk(|formatter| {
+                    let patterns_len = patterns.len();
 
-                self.write_left_paren();
-                for (index, pattern) in patterns.into_iter().enumerate() {
-                    if index > 0 {
-                        self.write_comma();
-                        self.write_space();
+                    formatter.write_left_paren();
+                    for (index, pattern) in patterns.into_iter().enumerate() {
+                        if index > 0 {
+                            formatter.write_comma();
+                            formatter.write_space();
+                        }
+                        let group = formatter.format_pattern(pattern);
+                        formatter.format_chunk_group(group);
                     }
-                    self.format_pattern(pattern);
-                }
 
-                // Check for trailing comma
-                self.skip_comments_and_whitespace();
-                if self.is_at(Token::Comma) {
-                    if patterns_len == 1 {
-                        self.write_comma();
-                    } else {
-                        self.bump();
+                    // Check for trailing comma
+                    formatter.skip_comments_and_whitespace();
+                    if formatter.is_at(Token::Comma) {
+                        if patterns_len == 1 {
+                            formatter.write_comma();
+                        } else {
+                            formatter.bump();
+                        }
                     }
-                }
 
-                self.write_right_paren();
+                    formatter.write_right_paren();
+                }));
             }
             Pattern::Struct(path, fields, _span) => {
-                self.format_path(path);
-                self.write_space();
-                self.write_left_brace();
+                let mut inner_group = ChunkGroup::new();
+
+                inner_group.text(self.chunk(|formatter| {
+                    formatter.format_path(path);
+                    formatter.write_space();
+                    formatter.write_left_brace();
+                }));
+
                 if fields.is_empty() {
-                    self.format_empty_block_contents();
+                    if let Some(empty_group) = self.empty_block_contents_chunk() {
+                        inner_group.group(empty_group);
+                    }
                 } else {
-                    let mut group = ChunkGroup::new();
-                    self.chunk_formatter().format_items_separated_by_comma(
+                    self.format_items_separated_by_comma(
                         fields,
                         false, // force trailing comma,
                         true,  // surround with spaces
-                        &mut group,
+                        &mut inner_group,
                         |formatter, (name, pattern), chunks| {
                             let is_identifier_pattern = is_identifier_pattern(&pattern, &name);
 
@@ -72,7 +100,8 @@ impl Formatter<'_> {
                                 let value_chunk = formatter.chunk(|formatter| {
                                     formatter.write_token(Token::Colon);
                                     formatter.write_space();
-                                    formatter.format_pattern(pattern);
+                                    let pattern_group = formatter.format_pattern(pattern);
+                                    formatter.format_chunk_group(pattern_group);
                                 });
                                 if !is_identifier_pattern {
                                     chunks.text(value_chunk);
@@ -80,15 +109,29 @@ impl Formatter<'_> {
                             }
                         },
                     );
-                    self.format_chunk_group(group);
                 }
 
-                self.write_right_brace();
+                inner_group.text(self.chunk(|formatter| {
+                    formatter.write_right_brace();
+                }));
+
+                group.group(inner_group);
+            }
+            Pattern::Parenthesized(pattern, _) => {
+                group.text(self.chunk(|formatter| {
+                    formatter.write_left_paren();
+                }));
+                group.group(self.format_pattern(*pattern));
+                group.text(self.chunk(|formatter| {
+                    formatter.write_right_paren();
+                }));
             }
             Pattern::Interned(..) => {
                 unreachable!("Should not be present in the AST")
             }
         }
+
+        group
     }
 }
 
@@ -98,7 +141,7 @@ fn is_identifier_pattern(pattern: &Pattern, ident: &Ident) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use crate::assert_format;
+    use crate::{assert_format, assert_format_with_max_width};
 
     #[test]
     fn format_identifier_pattern() {
@@ -136,6 +179,13 @@ mod tests {
     }
 
     #[test]
+    fn format_parenthesized_pattern_one_element() {
+        let src = "fn foo( (  x      ) : i32) {}";
+        let expected = "fn foo((x): i32) {}\n";
+        assert_format(src, expected);
+    }
+
+    #[test]
     fn format_struct_pattern_empty() {
         let src = "fn foo( Foo {  } : i32) {}";
         let expected = "fn foo(Foo {}: i32) {}\n";
@@ -154,5 +204,43 @@ mod tests {
         let src = "fn foo( Foo { x  , y : y } : i32) {}";
         let expected = "fn foo(Foo { x, y }: i32) {}\n";
         assert_format(src, expected);
+    }
+
+    #[test]
+    fn format_struct_pattern_that_exceeds_max_width_when_not_deeply_nested() {
+        let src = "
+        fn foo() {
+            let SomeStruct { one, two } = 1; 
+        }
+        ";
+        let expected = "fn foo() {
+    let SomeStruct {
+        one,
+        two,
+    } = 1;
+}
+";
+        assert_format_with_max_width(src, expected, 20);
+    }
+
+    #[test]
+    fn format_struct_pattern_that_exceeds_max_width_when_deeply_nested() {
+        let src = "
+        fn foo() {
+            if true {
+                let SomeStruct { one, two } = 1; 
+            }
+        }
+        ";
+        let expected = "fn foo() {
+    if true {
+        let SomeStruct {
+            one,
+            two,
+        } = 1;
+    }
+}
+";
+        assert_format_with_max_width(src, expected, 20);
     }
 }

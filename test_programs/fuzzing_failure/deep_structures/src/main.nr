@@ -89,7 +89,6 @@ fn depth(a: A) {
                                                                      {
                                                                         assert(false);
                                                                     }
-                                                                }
                                                             }
                                                         }
                                                     }
@@ -105,3 +104,4 @@ fn depth(a: A) {
             }
         }
     }
+}

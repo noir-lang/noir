@@ -1,4 +1,4 @@
-use crate::ast::{ERROR_IDENT, Ident, Path};
+use crate::ast::{ERROR_IDENT, Ident};
 use crate::hir::def_map::{LocalModuleId, ModuleId};
 
 use crate::hir::scope::{Scope as GenericScope, ScopeTree as GenericScopeTree};
@@ -13,9 +13,9 @@ use crate::{
 };
 use crate::{Type, TypeAlias};
 
-use super::path_resolution::PathResolutionItem;
+use super::path_resolution::{PathResolutionItem, PathResolutionMode, TypedPath};
 use super::types::SELF_TYPE_NAME;
-use super::{Elaborator, ResolverMeta};
+use super::{Elaborator, PathResolutionTarget, ResolverMeta};
 
 type Scope = GenericScope<String, ResolverMeta>;
 type ScopeTree = GenericScopeTree<String, ResolverMeta>;
@@ -79,23 +79,40 @@ impl Elaborator<'_> {
 
     pub(super) fn lookup_global(
         &mut self,
-        path: Path,
+        path: TypedPath,
     ) -> Result<(DefinitionId, PathResolutionItem), ResolverError> {
         let location = path.location;
-        let item = self.resolve_path_or_error(path)?;
+        let item = self.use_path_or_error(path, PathResolutionTarget::Value)?;
 
         if let Some(function) = item.function_id() {
             return Ok((self.interner.function_definition_id(function), item));
         }
 
-        if let PathResolutionItem::Global(global) = item {
-            let global = self.interner.get_global(global);
-            return Ok((global.definition_id, item));
-        }
-
         let expected = "global variable";
         let got = "local variable";
-        Err(ResolverError::Expected { location, expected, got })
+        match item {
+            PathResolutionItem::Global(global) => {
+                let global = self.interner.get_global(global);
+                Ok((global.definition_id, item))
+            }
+            PathResolutionItem::TypeAlias(type_alias_id) => {
+                let type_alias = self.interner.get_type_alias(type_alias_id);
+
+                if type_alias.borrow().numeric_expr.is_some() {
+                    // Type alias to numeric generics are aliases to some global value
+                    // Therefore we allow this case although we cannot provide the value yet
+                    return Ok((DefinitionId::dummy_id(), item));
+                }
+                if matches!(type_alias.borrow().typ, Type::Alias(_, _))
+                    || matches!(type_alias.borrow().typ, Type::Error)
+                {
+                    // Type alias to a type alias is not supported, but the error is handled in define_type_alias()
+                    return Ok((DefinitionId::dummy_id(), item));
+                }
+                Err(ResolverError::Expected { location, expected, got })
+            }
+            _ => Err(ResolverError::Expected { location, expected, got }),
+        }
     }
 
     pub fn push_scope(&mut self) {
@@ -135,9 +152,9 @@ impl Elaborator<'_> {
     }
 
     /// Lookup a given trait by name/path.
-    pub fn lookup_trait_or_error(&mut self, path: Path) -> Option<&mut Trait> {
+    pub(crate) fn lookup_trait_or_error(&mut self, path: TypedPath) -> Option<&mut Trait> {
         let location = path.location;
-        match self.resolve_path_or_error(path) {
+        match self.resolve_path_or_error(path, PathResolutionTarget::Type) {
             Ok(item) => {
                 if let PathResolutionItem::Trait(trait_id) = item {
                     Some(self.get_trait_mut(trait_id))
@@ -157,41 +174,20 @@ impl Elaborator<'_> {
         }
     }
 
-    /// Lookup a given struct type by name.
-    pub fn lookup_datatype_or_error(&mut self, path: Path) -> Option<Shared<DataType>> {
-        let location = path.location;
-        match self.resolve_path_or_error(path) {
-            Ok(item) => {
-                if let PathResolutionItem::Type(struct_id) = item {
-                    Some(self.get_type(struct_id))
-                } else {
-                    self.push_err(ResolverError::Expected {
-                        expected: "type",
-                        got: item.description(),
-                        location,
-                    });
-                    None
-                }
-            }
-            Err(err) => {
-                self.push_err(err);
-                None
-            }
-        }
-    }
-
     /// Looks up a given type by name.
     /// This will also instantiate any struct types found.
-    pub(super) fn lookup_type_or_error(&mut self, path: Path) -> Option<Type> {
-        let ident = path.as_ident();
-        if ident.is_some_and(|i| i == SELF_TYPE_NAME) {
-            if let Some(typ) = &self.self_type {
-                return Some(typ.clone());
+    pub(super) fn lookup_type_or_error(&mut self, path: TypedPath) -> Option<Type> {
+        let segment = path.as_single_segment();
+        if let Some(segment) = segment {
+            if segment.ident.as_str() == SELF_TYPE_NAME {
+                if let Some(typ) = &self.self_type {
+                    return Some(typ.clone());
+                }
             }
         }
 
         let location = path.location;
-        match self.resolve_path_or_error(path) {
+        match self.use_path_or_error(path, PathResolutionTarget::Type) {
             Ok(PathResolutionItem::Type(struct_id)) => {
                 let struct_type = self.get_type(struct_id);
                 let generics = struct_type.borrow().instantiate(self.interner);
@@ -217,8 +213,12 @@ impl Elaborator<'_> {
         }
     }
 
-    pub fn lookup_type_alias(&mut self, path: Path) -> Option<Shared<TypeAlias>> {
-        match self.resolve_path_or_error(path) {
+    pub(super) fn lookup_type_alias(
+        &mut self,
+        path: TypedPath,
+        mode: PathResolutionMode,
+    ) -> Option<Shared<TypeAlias>> {
+        match self.resolve_path_or_error_inner(path, PathResolutionTarget::Type, mode) {
             Ok(PathResolutionItem::TypeAlias(type_alias_id)) => {
                 Some(self.interner.get_type_alias(type_alias_id))
             }

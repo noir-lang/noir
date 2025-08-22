@@ -29,4 +29,4 @@ Aztec is offering grants to people and teams that want to use, test or build Noi
 
 ## Full-time Contributors
 
-Aztec is hiring a wide variety of software engineers, so if you would like to work on Noir full-time consider applying for an [open role](https://aztec.network/careers).
+Aztec is hiring a wide variety of software engineers, so if you would like to work on Noir full-time consider applying for an [open role](https://aztec-labs.com/jobs).

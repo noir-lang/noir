@@ -1,0 +1,80 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "array",
+        "type": {
+          "kind": "array",
+          "length": 2,
+          "type": {
+            "kind": "field"
+          }
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "i",
+        "type": {
+          "kind": "integer",
+          "sign": "unsigned",
+          "width": 32
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": null,
+    "error_types": {
+      "2920182694213909827": {
+        "error_kind": "string",
+        "string": "attempt to subtract with overflow"
+      }
+    }
+  },
+  "bytecode": [
+    "func 0",
+    "current witness index : _16",
+    "private parameters indices : [_0, _1, _2]",
+    "public parameters indices : []",
+    "return value indices : []",
+    "INIT (id: 0, len: 2, witnesses: [_0, _1])",
+    "EXPR [ (1, _2) (-1, _3) -1 ]",
+    "MEM (id: 0, read at: EXPR [ (1, _3) 0 ], value: EXPR [ (1, _4) 0 ]) ",
+    "EXPR [ (1, _4) -5 ]",
+    "MEM (id: 0, read at: EXPR [ (1, _2) 0 ], value: EXPR [ (1, _5) 0 ]) ",
+    "EXPR [ (1, _5) -10 ]",
+    "EXPR [ (-1, _6) 2 ]",
+    "MEM (id: 0, write EXPR [ (1, _6) 0 ] at: EXPR [ (1, _2) 0 ]) ",
+    "EXPR [ (-1, _7) 0 ]",
+    "MEM (id: 0, read at: EXPR [ (1, _7) 0 ], value: EXPR [ (1, _8) 0 ]) ",
+    "EXPR [ (-1, _9) 1 ]",
+    "MEM (id: 0, read at: EXPR [ (1, _9) 0 ], value: EXPR [ (1, _10) 0 ]) ",
+    "EXPR [ (1, _8) -5 ]",
+    "EXPR [ (-1, _11) 5 ]",
+    "INIT (id: 1, len: 4, witnesses: [_11, _10, _11, _10])",
+    "MEM (id: 1, read at: EXPR [ (1, _2) 0 ], value: EXPR [ (1, _12) 0 ]) ",
+    "EXPR [ (1, _12) -2 ]",
+    "EXPR [ (2, _2) (-1, _13) 0 ]",
+    "MEM (id: 1, read at: EXPR [ (1, _13) 0 ], value: EXPR [ (1, _14) 0 ]) ",
+    "EXPR [ (1, _14) -5 ]",
+    "EXPR [ (1, _2) (1, _13) (-1, _15) 0 ]",
+    "MEM (id: 1, read at: EXPR [ (1, _15) 0 ], value: EXPR [ (1, _16) 0 ]) ",
+    "EXPR [ (1, _16) -2 ]"
+  ],
+  "debug_symbols": "nZPBjoMgEIbfZc4cGBXUvspmY1CxISFoqDbZmL77jiDd9rBJw2V+YfxGBv/ZYdT9du2Mm+YbXL526L2x1lw7Ow9qNbOj3f3BIC271WtNW/CSJ2pRXrsVLm6zlsFd2S28dFuUC7oqT1nOQLuRlApOxurj6cH+aP4/KvFkpXzC4mNaiJOueQbd1Cfdthk0YnPiiFl8W518wXP4oiwTX1Y5fCETX2EOL1P/hcw6v3jydZnDt8l2JRdv/Det1GD8m9cB6coZFCGWhDOoQhRUgIGEC/2OOsQmxDZE5FEwCuFkOSSeLg+rKCIKlSBDIdWgxrCJQlVa+iqPglGOQxyGvStvVG/1OYvT5oaX0Vx/lpRJw7v4edDj5vXRWshRs78=",
+  "file_map": {
+    "50": {
+      "source": "fn main(mut array: [Field; 2], i: u32) {\n    assert_eq(array[i - 1], 5);\n    assert_eq(array[i], 10);\n\n    array[i] = 2;\n\n    let array2 = [array, array];\n\n    // println(array2);\n    assert_eq(array2[0][0], 5);\n    assert_eq(array2[0][i], 2);\n    assert_eq(array2[i][0], 5);\n    assert_eq(array2[i][i], 2);\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": []
+}

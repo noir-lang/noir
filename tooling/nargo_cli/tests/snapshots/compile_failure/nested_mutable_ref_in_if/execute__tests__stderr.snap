@@ -1,0 +1,12 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: Cannot assign to a mutable variable which contains a reference internally
+  ┌─ src/main.nr:4:15
+  │
+4 │         ref = &mut 1;
+  │               ------ Assigned expression has the type `&mut Field`
+  │
+
+Aborting due to 1 previous error

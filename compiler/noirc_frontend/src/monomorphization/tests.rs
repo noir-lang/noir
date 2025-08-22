@@ -1,40 +1,13 @@
 #![cfg(test)]
 use crate::{
-    check_monomorphization_error_using_features,
-    elaborator::UnstableFeature,
-    tests::{Expect, get_program},
+    check_monomorphization_error_using_features, elaborator::UnstableFeature, test_utils::Expect,
 };
-
-use super::{ast::Program, errors::MonomorphizationError, monomorphize};
-
-pub fn get_monomorphized(
-    src: &str,
-    test_path: &str,
-    expect: Expect,
-) -> Result<Program, MonomorphizationError> {
-    let (_parsed_module, mut context, errors) = get_program(src, test_path, expect);
-    assert!(
-        errors.iter().all(|err| !err.is_error()),
-        "Expected monomorphized program to have no errors before monomorphization, but found: {errors:?}"
-    );
-
-    let main = context
-        .get_main_function(context.root_crate_id())
-        .unwrap_or_else(|| panic!("get_monomorphized: test program contains no 'main' function"));
-
-    monomorphize(main, &mut context.def_interner, false)
-}
-
-fn check_rewrite(src: &str, expected: &str, test_path: &str) {
-    let program = get_monomorphized(src, test_path, Expect::Success).unwrap();
-    assert!(format!("{}", program) == expected);
-}
 
 // NOTE: this will fail in CI when called twice within one test: test names must be unique
 #[macro_export]
 macro_rules! get_monomorphized {
     ($src:expr, $expect:expr) => {
-        $crate::monomorphization::tests::get_monomorphized($src, $crate::function_path!(), $expect)
+        $crate::test_utils::get_monomorphized($src, Some($crate::function_path!()), $expect)
     };
 }
 
@@ -109,6 +82,7 @@ fn recursive_type_with_alias_errors() {
 #[named]
 #[test]
 fn mutually_recursive_types_error() {
+    // cSpell:disable
     let src = "
         fn main() {
             let _zero = Even::Zero;
@@ -126,6 +100,7 @@ fn mutually_recursive_types_error() {
             Succ(Even),
         }
         ";
+    // cSpell:enable
     let features = vec![UnstableFeature::Enums];
     check_monomorphization_error_using_features!(src, &features);
 }
@@ -134,30 +109,31 @@ fn mutually_recursive_types_error() {
 #[test]
 fn simple_closure_with_no_captured_variables() {
     let src = r#"
-    fn main() -> pub Field {
+    fn main(y: call_data(0) Field) -> pub Field {
         let x = 1;
         let closure = || x;
         closure()
     }
     "#;
 
-    let expected_rewrite = r#"fn main$f0() -> Field {
-    let x$0 = 1;
-    let closure$3 = {
-        let closure_variable$2 = {
-            let env$1 = (x$l0);
-            (env$l1, lambda$f1)
+    let program = get_monomorphized!(src, Expect::Success).unwrap();
+    insta::assert_snapshot!(program, @r"
+    fn main$f0(y$l0: call_data(0) Field) -> pub Field {
+        let x$l1 = 1;
+        let closure$l4 = {
+            let closure_variable$l3 = {
+                let env$l2 = (x$l1);
+                (env$l2, lambda$f1)
+            };
+            closure_variable$l3
         };
-        closure_variable$l2
-    };
-    {
-        let tmp$4 = closure$l3;
-        tmp$l4.1(tmp$l4.0)
+        {
+            let tmp$l5 = closure$l4;
+            tmp$l5.1(tmp$l5.0)
+        }
     }
-}
-fn lambda$f1(mut env$l1: (Field)) -> Field {
-    env$l1.0
-}
-"#;
-    check_rewrite!(src, expected_rewrite);
+    fn lambda$f1(mut env$l2: (Field,)) -> Field {
+        env$l2.0
+    }
+    ");
 }

@@ -1,6 +1,11 @@
 use std::{collections::BTreeMap, sync::Arc};
 
-use crate::ssa::ir::{function::RuntimeType, types::Type, value::ValueId};
+use crate::ssa::ir::{
+    function::RuntimeType,
+    instruction::ArrayOffset,
+    types::{NumericType, Type},
+    value::{ValueId, ValueMapping},
+};
 use fxhash::FxHashMap as HashMap;
 use noirc_frontend::hir_def::function::FunctionSignature;
 use noirc_frontend::shared::Visibility;
@@ -89,6 +94,12 @@ impl DataBus {
         DataBus { call_data, return_data: self.return_data.map(&mut f) }
     }
 
+    pub(crate) fn replace_values(&mut self, mapping: &ValueMapping) {
+        if !mapping.is_empty() {
+            self.map_values_mut(|value_id| mapping.get(value_id));
+        }
+    }
+
     /// Updates the databus values in place with the provided function
     pub(crate) fn map_values_mut(&mut self, mut f: impl FnMut(ValueId) -> ValueId) {
         for cd in self.call_data.iter_mut() {
@@ -130,7 +141,12 @@ impl FunctionBuilder {
         assert!(databus.databus.is_none(), "initializing finalized call data");
         let typ = self.current_function.dfg[value].get_type().into_owned();
         match typ {
-            Type::Numeric(_) => {
+            Type::Numeric(numeric_type) => {
+                let value = if matches!(numeric_type, NumericType::NativeField) {
+                    value
+                } else {
+                    self.insert_cast(value, NumericType::NativeField)
+                };
                 databus.values.push_back(value);
                 databus.index += 1;
             }
@@ -142,9 +158,9 @@ impl FunctionBuilder {
                     let index = self
                         .current_function
                         .dfg
-                        .make_constant(my_index.into(), typ.unwrap_numeric());
+                        .make_constant(my_index.into(), NumericType::length_type());
                     assert!(matches!(typ, Type::Numeric(_)));
-                    let element = self.insert_array_get(value, index, typ);
+                    let element = self.insert_array_get(value, index, ArrayOffset::None, typ);
                     self.add_to_data_bus(element, databus);
                 }
             }
@@ -212,6 +228,7 @@ impl FunctionBuilder {
                 }
             }
         }
+
         // create the call-data-bus from the filtered lists
         let mut result = Vec::new();
         for id in databus_param.keys() {

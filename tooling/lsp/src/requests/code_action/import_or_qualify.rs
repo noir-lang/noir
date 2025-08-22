@@ -1,10 +1,12 @@
-use lsp_types::TextEdit;
+use async_lsp::lsp_types::TextEdit;
 use noirc_errors::Location;
-use noirc_frontend::ast::{Ident, Path};
+use noirc_frontend::{
+    ast::{Ident, Path},
+    modules::module_def_id_relative_path,
+};
 
 use crate::{
     byte_span_to_range,
-    modules::module_def_id_relative_path,
     use_segment_positions::{
         UseCompletionItemAdditionTextEditsRequest, use_completion_item_additional_text_edits,
     },
@@ -66,6 +68,7 @@ impl CodeActionFinder<'_> {
                     defining_module,
                     &intermediate_name,
                     self.interner,
+                    self.def_maps,
                 ) else {
                     continue;
                 };
@@ -77,7 +80,7 @@ impl CodeActionFinder<'_> {
     }
 
     fn push_import_code_action(&mut self, full_path: &str) {
-        let title = format!("Import {}", full_path);
+        let title = format!("Import {full_path}");
 
         let text_edits = use_completion_item_additional_text_edits(
             UseCompletionItemAdditionTextEditsRequest {
@@ -108,8 +111,8 @@ impl CodeActionFinder<'_> {
         prefix.pop();
         let prefix = prefix.join("::");
 
-        let title = format!("Qualify as {}", full_path);
-        let text_edit = TextEdit { range, new_text: format!("{}::", prefix) };
+        let title = format!("Qualify as {full_path}");
+        let text_edit = TextEdit { range, new_text: format!("{prefix}::") };
 
         let code_action = self.new_quick_fix(title, text_edit);
         self.code_actions.push(code_action);

@@ -1,14 +1,14 @@
 use std::collections::map::HashMap;
 use std::hash::BuildHasherDefault;
-use std::hash::poseidon2::Poseidon2Hasher;
+use poseidon::poseidon2::Poseidon2Hasher;
 
 struct Entry{
     key: Field,
     value: Field
 }
 
-global HASHMAP_CAP = 8;
-global HASHMAP_LEN = 6;
+global HASHMAP_CAP: u32 = 8;
+global HASHMAP_LEN: u32 = 6;
 
 fn allocate_hashmap() -> HashMap<Field, Field, HASHMAP_CAP, BuildHasherDefault<Poseidon2Hasher>> {
     HashMap::default()

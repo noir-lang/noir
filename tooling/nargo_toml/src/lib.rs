@@ -1,11 +1,10 @@
 #![forbid(unsafe_code)]
-#![warn(unreachable_pub)]
-#![warn(clippy::semicolon_if_nothing_returned)]
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
 use std::{
     collections::BTreeMap,
     path::{Component, Path, PathBuf},
+    str::FromStr,
 };
 
 use errors::SemverError;
@@ -15,7 +14,7 @@ use nargo::{
     workspace::Workspace,
 };
 use noirc_driver::parse_expression_width;
-use noirc_frontend::graph::CrateName;
+use noirc_frontend::{elaborator::UnstableFeature, graph::CrateName};
 use serde::Deserialize;
 
 mod errors;
@@ -146,10 +145,10 @@ pub fn get_package_manifest(current_path: &Path) -> Result<PathBuf, ManifestErro
 }
 
 #[derive(Debug, Deserialize, Clone)]
-struct PackageConfig {
-    package: PackageMetadata,
+pub struct PackageConfig {
+    pub package: PackageMetadata,
     #[serde(default)]
-    dependencies: BTreeMap<String, DependencyConfig>,
+    pub dependencies: BTreeMap<String, DependencyConfig>,
 }
 
 impl PackageConfig {
@@ -157,6 +156,7 @@ impl PackageConfig {
         &self,
         root_dir: &Path,
         processed: &mut Vec<String>,
+        assume_default_entry: bool, // assume that the 'default_entry_path' exists, e.g. src/main.nr
     ) -> Result<Package, ManifestError> {
         let name: CrateName = if let Some(name) = &self.package.name {
             name.parse().map_err(|_| ManifestError::InvalidPackageName {
@@ -211,7 +211,7 @@ impl PackageConfig {
                 }
             };
 
-            if default_entry_path.exists() {
+            if default_entry_path.exists() || assume_default_entry {
                 default_entry_path
             } else {
                 return Err(ManifestError::MissingDefaultEntryFile {
@@ -242,9 +242,17 @@ impl PackageConfig {
             })
             .map_or(Ok(None), |res| res.map(Some))?;
 
+        // Collect any unstable features the package needs to compile.
+        // Ignore the ones that we don't recognize: maybe they are no longer unstable, but a dependency hasn't been updated.
+        let compiler_required_unstable_features =
+            self.package.compiler_unstable_features.as_ref().map_or(Vec::new(), |feats| {
+                feats.iter().flat_map(|feat| UnstableFeature::from_str(feat).ok()).collect()
+            });
+
         Ok(Package {
             version: self.package.version.clone(),
             compiler_required_version: self.package.compiler_version.clone(),
+            compiler_required_unstable_features,
             root_dir: root_dir.to_path_buf(),
             entry_path,
             package_type,
@@ -258,7 +266,8 @@ impl PackageConfig {
 /// Contains all the information about a package, as loaded from a `Nargo.toml`.
 #[derive(Debug, Deserialize, Clone)]
 #[serde(untagged)]
-enum Config {
+#[allow(clippy::large_enum_variant)]
+pub enum Config {
     /// Represents a `Nargo.toml` with package fields.
     Package {
         #[serde(flatten)]
@@ -288,45 +297,48 @@ impl TryFrom<&str> for Config {
 }
 
 /// Tracks the root_dir of a `Nargo.toml` and the contents inside the file.
-struct NargoToml {
-    root_dir: PathBuf,
-    config: Config,
+pub struct NargoToml {
+    pub root_dir: PathBuf,
+    pub config: Config,
 }
 
 #[derive(Default, Debug, Deserialize, Clone)]
 #[serde(rename_all = "kebab-case")]
-struct WorkspaceConfig {
+pub struct WorkspaceConfig {
     /// List of members in this workspace.
-    members: Vec<PathBuf>,
+    pub members: Vec<PathBuf>,
     /// Specifies the default crate to interact with in the context (similarly to how we have nargo as the default crate in this repository).
-    default_member: Option<PathBuf>,
+    pub default_member: Option<PathBuf>,
 }
 
 #[allow(dead_code)]
 #[derive(Default, Debug, Deserialize, Clone)]
-struct PackageMetadata {
-    name: Option<String>,
-    version: Option<String>,
+pub struct PackageMetadata {
+    pub name: Option<String>,
+    pub version: Option<String>,
     #[serde(alias = "type")]
-    package_type: Option<String>,
-    entry: Option<PathBuf>,
-    description: Option<String>,
-    authors: Option<Vec<String>>,
+    pub package_type: Option<String>,
+    pub entry: Option<PathBuf>,
+    pub description: Option<String>,
+    pub authors: Option<Vec<String>>,
     // If no compiler version is supplied, the latest is used
     // For now, we state that all packages must be compiled under the same
     // compiler version.
     // We also state that ACIR and the compiler will upgrade in lockstep.
     // so you will not need to supply an ACIR and compiler version
-    compiler_version: Option<String>,
-    license: Option<String>,
-    expression_width: Option<String>,
+    pub compiler_version: Option<String>,
+    /// List of unstable features we want the compiler to enable to compile this package.
+    /// This is most useful with the LSP, so it can figure out what is allowed without CLI args.
+    pub compiler_unstable_features: Option<Vec<String>>,
+    pub license: Option<String>,
+    pub expression_width: Option<String>,
 }
 
 #[derive(Debug, Deserialize, Clone)]
 #[serde(untagged)]
 /// Enum representing the different types of ways to
 /// supply a source for the dependency
-enum DependencyConfig {
+pub enum DependencyConfig {
     Github { git: String, tag: String, directory: Option<String> },
     Path { path: String },
 }
@@ -377,12 +389,17 @@ impl DependencyConfig {
 fn toml_to_workspace(
     nargo_toml: NargoToml,
     package_selection: PackageSelection,
+    assume_default_entry: bool, // assume that the 'default_entry_path' exists, e.g. src/main.nr
 ) -> Result<Workspace, ManifestError> {
     let mut resolved = Vec::new();
     let _lock = lock_git_deps().expect("Failed to lock git dependencies cache");
     let workspace = match nargo_toml.config {
         Config::Package { package_config } => {
-            let member = package_config.resolve_to_package(&nargo_toml.root_dir, &mut resolved)?;
+            let member = package_config.resolve_to_package(
+                &nargo_toml.root_dir,
+                &mut resolved,
+                assume_default_entry,
+            )?;
             match &package_selection {
                 PackageSelection::Selected(selected_name) if selected_name != &member.name => {
                     return Err(ManifestError::MissingSelectedPackage(member.name));
@@ -453,7 +470,17 @@ fn toml_to_workspace(
     Ok(workspace)
 }
 
-fn read_toml(toml_path: &Path) -> Result<NargoToml, ManifestError> {
+/// Attempts to read the file at the provided `toml_path` as a `Nargo.toml`
+/// file, returning it if the read was successful.
+///
+/// # Errors
+///
+/// - [`ManifestError::ReadFailed`] if the file could not be read.
+/// - [`ManifestError::MissingParent`] if the Nargo.toml file did not have a
+///   parent directory.
+/// - [`toml::de::Error`] if the Nargo.toml file could not be converted to a
+///   valid [`Config`].
+pub fn read_toml(toml_path: &Path) -> Result<NargoToml, ManifestError> {
     let toml_path = toml_path.normalize();
     let toml_as_string = std::fs::read_to_string(&toml_path)
         .map_err(|_| ManifestError::ReadFailed(toml_path.to_path_buf()))?;
@@ -477,7 +504,7 @@ fn resolve_package_from_toml(
         for toml in processed {
             cycle = cycle || toml == str_path;
             if cycle {
-                message += &format!("{} referencing ", toml);
+                message += &format!("{toml} referencing ");
             }
         }
         message += str_path;
@@ -492,7 +519,8 @@ fn resolve_package_from_toml(
 
     let result = match nargo_toml.config {
         Config::Package { package_config } => {
-            package_config.resolve_to_package(&nargo_toml.root_dir, processed)
+            let assume_default_entry = false;
+            package_config.resolve_to_package(&nargo_toml.root_dir, processed, assume_default_entry)
         }
         Config::Workspace { .. } => {
             Err(ManifestError::UnexpectedWorkspace(toml_path.to_path_buf()))
@@ -520,7 +548,19 @@ pub fn resolve_workspace_from_toml(
     current_compiler_version: Option<String>,
 ) -> Result<Workspace, ManifestError> {
     let nargo_toml = read_toml(toml_path)?;
-    let workspace = toml_to_workspace(nargo_toml, package_selection)?;
+    resolve_workspace_from_fixed_toml(nargo_toml, package_selection, current_compiler_version)
+}
+
+/// Resolves a Nargo.toml _ into a `Workspace` struct as defined by our `nargo` core.
+///
+/// As a side effect it downloads project dependencies as well.
+pub fn resolve_workspace_from_fixed_toml(
+    nargo_toml: NargoToml,
+    package_selection: PackageSelection,
+    current_compiler_version: Option<String>,
+) -> Result<Workspace, ManifestError> {
+    let assume_default_entry = true;
+    let workspace = toml_to_workspace(nargo_toml, package_selection, assume_default_entry)?;
     if let Some(current_compiler_version) = current_compiler_version {
         semver::semver_check_workspace(&workspace, current_compiler_version)?;
     }

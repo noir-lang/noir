@@ -11,8 +11,8 @@ use super::{
     MethodCallExpression, UnresolvedType,
 };
 use crate::ast::UnresolvedTypeData;
-use crate::elaborator::Turbofish;
 use crate::elaborator::types::SELF_TYPE_NAME;
+use crate::graph::CrateId;
 use crate::node_interner::{
     InternedExpressionKind, InternedPattern, InternedStatementKind, NodeInterner,
 };
@@ -179,8 +179,15 @@ impl StatementKind {
     }
 }
 
-#[derive(Eq, Debug, Clone, Default)]
+#[derive(Eq, Debug, Clone)]
 pub struct Ident(Located<String>);
+
+impl Ident {
+    /// Gets the underlying identifier without its location.
+    pub fn identifier(&self) -> &str {
+        &self.0.contents
+    }
+}
 
 impl PartialEq<Ident> for Ident {
     fn eq(&self, other: &Ident) -> bool {
@@ -311,6 +318,8 @@ pub enum PathKind {
     Dep,
     Plain,
     Super,
+    /// This path is a Crate or Dep path which always points to the given crate
+    Resolved(CrateId),
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -469,18 +478,21 @@ impl Path {
             && self.segments.first().unwrap().generics.is_none()
     }
 
+    pub fn no_generic(&self) -> bool {
+        for segment in &self.segments {
+            if segment.generics.is_some() {
+                return false;
+            }
+        }
+
+        true
+    }
+
     pub fn as_ident(&self) -> Option<&Ident> {
         if !self.is_ident() {
             return None;
         }
         self.segments.first().map(|segment| &segment.ident)
-    }
-
-    pub fn to_ident(&self) -> Option<Ident> {
-        if !self.is_ident() {
-            return None;
-        }
-        self.segments.first().cloned().map(|segment| segment.ident)
     }
 
     pub(crate) fn is_wildcard(&self) -> bool {
@@ -489,25 +501,6 @@ impl Path {
 
     pub fn is_empty(&self) -> bool {
         self.segments.is_empty() && self.kind == PathKind::Plain
-    }
-
-    pub fn as_string(&self) -> String {
-        let mut string = String::new();
-
-        let mut segments = self.segments.iter();
-        match segments.next() {
-            None => panic!("empty segment"),
-            Some(seg) => {
-                string.push_str(seg.ident.as_str());
-            }
-        }
-
-        for segment in segments {
-            string.push_str("::");
-            string.push_str(segment.ident.as_str());
-        }
-
-        string
     }
 }
 
@@ -537,13 +530,6 @@ impl PathSegment {
 
     pub fn turbofish_location(&self) -> Location {
         Location::new(self.turbofish_span(), self.location.file)
-    }
-
-    pub fn turbofish(&self) -> Option<Turbofish> {
-        self.generics.as_ref().map(|generics| Turbofish {
-            location: self.turbofish_location(),
-            generics: generics.clone(),
-        })
     }
 }
 
@@ -588,7 +574,7 @@ pub struct AssignStatement {
 /// Represents an Ast form that can be assigned to
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum LValue {
-    Ident(Ident),
+    Path(Path),
     MemberAccess { object: Box<LValue>, field_name: Ident, location: Location },
     Index { array: Box<LValue>, index: Expression, location: Location },
     Dereference(Box<LValue>, Location),
@@ -601,19 +587,18 @@ pub enum Pattern {
     Mutable(Box<Pattern>, Location, /*is_synthesized*/ bool),
     Tuple(Vec<Pattern>, Location),
     Struct(Path, Vec<(Ident, Pattern)>, Location),
+    Parenthesized(Box<Pattern>, Location),
     Interned(InternedPattern, Location),
 }
 
 impl Pattern {
-    pub fn is_synthesized(&self) -> bool {
-        matches!(self, Pattern::Mutable(_, _, true))
-    }
     pub fn location(&self) -> Location {
         match self {
             Pattern::Identifier(ident) => ident.location(),
             Pattern::Mutable(_, location, _)
             | Pattern::Tuple(_, location)
             | Pattern::Struct(_, _, location)
+            | Pattern::Parenthesized(_, location)
             | Pattern::Interned(_, location) => *location,
         }
     }
@@ -658,6 +643,7 @@ impl Pattern {
                     location: *location,
                 })
             }
+            Pattern::Parenthesized(pattern, _) => pattern.try_as_expression(interner),
             Pattern::Interned(id, _) => interner.get_pattern(*id).try_as_expression(interner),
         }
     }
@@ -666,7 +652,7 @@ impl Pattern {
 impl LValue {
     pub fn as_expression(&self) -> Expression {
         let kind = match self {
-            LValue::Ident(ident) => ExpressionKind::Variable(Path::from_ident(ident.clone())),
+            LValue::Path(path) => ExpressionKind::Variable(path.clone()),
             LValue::MemberAccess { object, field_name, location: _ } => {
                 ExpressionKind::MemberAccess(Box::new(MemberAccessExpression {
                     lhs: object.as_expression(),
@@ -696,7 +682,7 @@ impl LValue {
 
     pub fn from_expression_kind(expr: ExpressionKind, location: Location) -> Option<LValue> {
         match expr {
-            ExpressionKind::Variable(path) => Some(LValue::Ident(path.as_ident().unwrap().clone())),
+            ExpressionKind::Variable(path) => Some(LValue::Path(path)),
             ExpressionKind::MemberAccess(member_access) => Some(LValue::MemberAccess {
                 object: Box::new(LValue::from_expression(member_access.lhs)?),
                 field_name: member_access.rhs,
@@ -728,7 +714,7 @@ impl LValue {
 
     pub fn location(&self) -> Location {
         match self {
-            LValue::Ident(ident) => ident.location(),
+            LValue::Path(path) => path.location,
             LValue::MemberAccess { location, .. }
             | LValue::Index { location, .. }
             | LValue::Dereference(_, location)
@@ -749,7 +735,7 @@ pub struct ForBounds {
 }
 
 impl ForBounds {
-    /// Create a half-open range bounded inclusively below and exclusively above (`start..end`),  
+    /// Create a half-open range bounded inclusively below and exclusively above (`start..end`),
     /// desugaring `start..=end` into `start..end+1` if necessary.
     ///
     /// Returns the `start` and `end` expressions.
@@ -760,7 +746,7 @@ impl ForBounds {
                 lhs: self.end,
                 operator: Located::from(end_location, BinaryOpKind::Add),
                 rhs: Expression::new(
-                    ExpressionKind::integer(FieldElement::from(1u32)),
+                    ExpressionKind::integer(FieldElement::from(1u32), None),
                     end_location,
                 ),
             }));
@@ -783,16 +769,6 @@ impl ForRange {
     /// Create a half-open range, bounded inclusively below and exclusively above.
     pub fn range(start: Expression, end: Expression) -> Self {
         Self::Range(ForBounds { start, end, inclusive: false })
-    }
-
-    /// Create a range bounded inclusively below and above.
-    pub fn range_inclusive(start: Expression, end: Expression) -> Self {
-        Self::Range(ForBounds { start, end, inclusive: true })
-    }
-
-    /// Create a range over some array.
-    pub fn array(value: Expression) -> Self {
-        Self::Array(value)
     }
 
     /// Create a 'for' expression taking care of desugaring a 'for e in array' loop
@@ -823,7 +799,7 @@ impl ForRange {
             }
             ForRange::Array(array) => {
                 let array_location = array.location;
-                let start_range = ExpressionKind::integer(FieldElement::zero());
+                let start_range = ExpressionKind::integer(FieldElement::zero(), None);
                 let start_range = Expression::new(start_range, array_location);
 
                 let next_unique_id = unique_name_counter;
@@ -935,7 +911,7 @@ impl Display for StatementKind {
             StatementKind::Expression(expression) => expression.fmt(f),
             StatementKind::Assign(assign) => assign.fmt(f),
             StatementKind::For(for_loop) => for_loop.fmt(f),
-            StatementKind::Loop(block, _) => write!(f, "loop {}", block),
+            StatementKind::Loop(block, _) => write!(f, "loop {block}"),
             StatementKind::While(while_) => {
                 write!(f, "while {} {}", while_.condition, while_.body)
             }
@@ -968,7 +944,7 @@ impl Display for AssignStatement {
 impl Display for LValue {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            LValue::Ident(ident) => ident.fmt(f),
+            LValue::Path(ident) => ident.fmt(f),
             LValue::MemberAccess { object, field_name, location: _ } => {
                 write!(f, "{object}.{field_name}")
             }
@@ -997,6 +973,7 @@ impl Display for PathKind {
             PathKind::Dep => write!(f, "dep"),
             PathKind::Super => write!(f, "super"),
             PathKind::Plain => write!(f, "plain"),
+            PathKind::Resolved(_) => write!(f, "$crate"),
         }
     }
 }
@@ -1018,11 +995,18 @@ impl Display for Pattern {
             Pattern::Mutable(name, _, _) => write!(f, "mut {name}"),
             Pattern::Tuple(fields, _) => {
                 let fields = vecmap(fields, ToString::to_string);
-                write!(f, "({})", fields.join(", "))
+                if fields.len() == 1 {
+                    write!(f, "({},)", fields[0])
+                } else {
+                    write!(f, "({})", fields.join(", "))
+                }
             }
             Pattern::Struct(typename, fields, _) => {
                 let fields = vecmap(fields, |(name, pattern)| format!("{name}: {pattern}"));
                 write!(f, "{} {{ {} }}", typename, fields.join(", "))
+            }
+            Pattern::Parenthesized(pattern, _) => {
+                write!(f, "({pattern})")
             }
             Pattern::Interned(_, _) => {
                 write!(f, "?Interned")

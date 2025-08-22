@@ -2,11 +2,16 @@ use std::collections::BTreeMap;
 
 use acvm::{
     AcirField, FieldElement,
-    acir::circuit::{ErrorSelector, OpcodeLocation, brillig::BrilligFunctionId},
+    acir::circuit::{
+        AcirOpcodeLocation, BrilligOpcodeLocation, ErrorSelector, OpcodeLocation,
+        brillig::BrilligFunctionId,
+    },
     pwg::{ErrorLocation, OpcodeResolutionError, RawAssertionPayload, ResolvedAssertionPayload},
 };
 use noirc_abi::{Abi, AbiErrorType, display_abi_error};
-use noirc_errors::{CustomDiagnostic, debug_info::DebugInfo, reporter::ReportedErrors};
+use noirc_errors::{
+    CustomDiagnostic, call_stack::CallStackId, debug_info::DebugInfo, reporter::ReportedErrors,
+};
 
 pub use noirc_errors::Location;
 
@@ -170,25 +175,20 @@ fn extract_locations_from_error<F: AcirField>(
         opcode_locations
             .iter()
             .flat_map(|resolved_location| {
+                let call_stack_id = match resolved_location.opcode_location {
+                    OpcodeLocation::Acir(idx) => *debug[resolved_location.acir_function_index]
+                        .acir_locations
+                        .get(&AcirOpcodeLocation::new(idx))
+                        .unwrap_or(&CallStackId::root()),
+                    OpcodeLocation::Brillig { brillig_index, .. } => *debug
+                        [resolved_location.acir_function_index]
+                        .brillig_locations[&brillig_function_id.unwrap()]
+                        .get(&BrilligOpcodeLocation(brillig_index))
+                        .unwrap_or(&CallStackId::root()),
+                };
                 debug[resolved_location.acir_function_index]
-                    .opcode_location(&resolved_location.opcode_location)
-                    .unwrap_or_else(|| {
-                        if let (Some(brillig_function_id), Some(brillig_location)) = (
-                            brillig_function_id,
-                            &resolved_location.opcode_location.to_brillig_location(),
-                        ) {
-                            let brillig_locations = debug[resolved_location.acir_function_index]
-                                .brillig_locations
-                                .get(&brillig_function_id);
-                            brillig_locations
-                                .unwrap()
-                                .get(brillig_location)
-                                .cloned()
-                                .unwrap_or_default()
-                        } else {
-                            vec![]
-                        }
-                    })
+                    .location_tree
+                    .get_call_stack(call_stack_id)
             })
             .collect(),
     )
@@ -248,4 +248,37 @@ pub fn try_to_diagnose_runtime_error(
     let message = extract_message_from_error(&abi.error_types, nargo_err);
     let error = CustomDiagnostic::simple_error(message, String::new(), location);
     Some(error.with_call_stack(source_locations))
+}
+
+/// Map the given OpcodeResolutionError to the corresponding ExecutionError
+/// In case of resulting in an ExecutionError::AssertionFailedThis it propagates the payload
+pub fn execution_error_from<F: AcirField>(
+    error: OpcodeResolutionError<F>,
+    call_stack: &[ResolvedOpcodeLocation],
+) -> ExecutionError<F> {
+    let (assertion_payload, brillig_function_id) = match &error {
+        OpcodeResolutionError::BrilligFunctionFailed { payload, function_id, .. } => {
+            (payload.clone(), Some(*function_id))
+        }
+        OpcodeResolutionError::UnsatisfiedConstrain { payload, .. } => (payload.clone(), None),
+        _ => (None, None),
+    };
+
+    match assertion_payload {
+        Some(payload) => {
+            ExecutionError::AssertionFailed(payload, call_stack.to_owned(), brillig_function_id)
+        }
+        None => {
+            let call_stack = match &error {
+                OpcodeResolutionError::UnsatisfiedConstrain { .. }
+                | OpcodeResolutionError::IndexOutOfBounds { .. }
+                | OpcodeResolutionError::InvalidInputBitSize { .. }
+                | OpcodeResolutionError::BrilligFunctionFailed { .. } => {
+                    Some(call_stack.to_owned())
+                }
+                _ => None,
+            };
+            ExecutionError::SolvingError(error, call_stack)
+        }
+    }
 }

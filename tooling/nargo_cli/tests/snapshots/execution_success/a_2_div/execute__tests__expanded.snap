@@ -1,0 +1,10 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(mut x: u32, y: u32, z: u32) {
+    let a: u32 = x % y;
+    assert((x / y) == z);
+    assert(a == (x - (z * y)));
+    assert((50_u64 % 9_u64) == 5_u64);
+}

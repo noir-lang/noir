@@ -157,10 +157,6 @@ impl Span {
         let other_distance = other.end() - other.start();
         self_distance < other_distance
     }
-
-    pub fn shift_by(&self, offset: u32) -> Span {
-        Self::from(self.start() + offset..self.end() + offset)
-    }
 }
 
 impl From<Span> for Range<usize> {

@@ -1,0 +1,94 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "a",
+        "type": {
+          "kind": "boolean"
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "b",
+        "type": {
+          "kind": "array",
+          "length": 4,
+          "type": {
+            "kind": "tuple",
+            "fields": [
+              {
+                "kind": "integer",
+                "sign": "unsigned",
+                "width": 1
+              },
+              {
+                "kind": "boolean"
+              },
+              {
+                "kind": "integer",
+                "sign": "unsigned",
+                "width": 1
+              },
+              {
+                "kind": "string",
+                "length": 2
+              }
+            ]
+          }
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": {
+      "abi_type": {
+        "kind": "array",
+        "length": 0,
+        "type": {
+          "kind": "boolean"
+        }
+      },
+      "visibility": "public"
+    },
+    "error_types": {}
+  },
+  "bytecode": [
+    "func 0",
+    "current witness index : _20",
+    "private parameters indices : [_0, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14, _15, _16, _17, _18, _19, _20]",
+    "public parameters indices : []",
+    "return value indices : []",
+    "BLACKBOX::RANGE [(_0, 1)] []",
+    "BLACKBOX::RANGE [(_1, 1)] []",
+    "BLACKBOX::RANGE [(_2, 1)] []",
+    "BLACKBOX::RANGE [(_3, 1)] []",
+    "BLACKBOX::RANGE [(_4, 8)] []",
+    "BLACKBOX::RANGE [(_5, 8)] []",
+    "BLACKBOX::RANGE [(_6, 1)] []",
+    "BLACKBOX::RANGE [(_7, 1)] []",
+    "BLACKBOX::RANGE [(_8, 1)] []",
+    "BLACKBOX::RANGE [(_9, 8)] []",
+    "BLACKBOX::RANGE [(_10, 8)] []",
+    "BLACKBOX::RANGE [(_11, 1)] []",
+    "BLACKBOX::RANGE [(_12, 1)] []",
+    "BLACKBOX::RANGE [(_13, 1)] []",
+    "BLACKBOX::RANGE [(_14, 8)] []",
+    "BLACKBOX::RANGE [(_15, 8)] []",
+    "BLACKBOX::RANGE [(_16, 1)] []",
+    "BLACKBOX::RANGE [(_17, 1)] []",
+    "BLACKBOX::RANGE [(_18, 1)] []",
+    "BLACKBOX::RANGE [(_19, 8)] []",
+    "BLACKBOX::RANGE [(_20, 8)] []"
+  ],
+  "debug_symbols": "dY/RCoMwDEX/Jc99ULbB8FfGkFijFEJbYisM8d8XxaIM9pTenJ5Lu0BPXR5b54cwQfNaoBPH7MaWg8XkgtftshoosU1CpCu4cLUiCvkEjc/MBmbkvF+aIvp9JhSllQHyvU4tHBzTdlrNaVf/1fp2P+T6eeoP9d+a0Dr5ffGM4rBjOuKQvb3Q9ImFlB9HCZb6LLQ17Uy7vw==",
+  "file_map": {},
+  "names": [
+    "main"
+  ],
+  "brillig_names": []
+}

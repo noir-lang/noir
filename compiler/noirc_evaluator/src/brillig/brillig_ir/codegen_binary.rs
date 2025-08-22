@@ -33,4 +33,9 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             self.deallocate_single_addr(const_register);
         }
     }
+
+    pub(crate) fn codegen_increment_array_copy_counter(&mut self) {
+        let array_copy_counter = self.array_copy_counter_address();
+        self.codegen_usize_op(array_copy_counter, array_copy_counter, BrilligBinaryOp::Add, 1);
+    }
 }

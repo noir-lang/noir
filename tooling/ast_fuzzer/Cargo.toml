@@ -1,0 +1,43 @@
+[package]
+name = "noir_ast_fuzzer"
+description = "A fuzzer generating arbitrary monomorphized ASTs and comparing the execution between ACIR and Brillig"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[build-dependencies]
+build-data.workspace = true
+
+[dependencies]
+arbitrary.workspace = true
+color-eyre.workspace = true
+im.workspace = true
+proptest.workspace = true
+strum.workspace = true
+rand.workspace = true
+regex.workspace = true
+log.workspace = true
+
+acir.workspace = true
+acvm.workspace = true
+bn254_blackbox_solver.workspace = true
+iter-extended.workspace = true
+nargo.workspace = true
+noirc_abi.workspace = true
+noirc_driver.workspace = true
+noirc_errors.workspace = true
+noirc_evaluator.workspace = true
+noirc_frontend = { workspace = true, features = ["test_utils"] }
+noir_greybox_fuzzer.workspace = true
+
+[dev-dependencies]
+arbtest.workspace = true
+insta.workspace = true
+similar-asserts.workspace = true
+serde_json.workspace = true

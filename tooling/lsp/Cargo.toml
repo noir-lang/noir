@@ -15,8 +15,8 @@ workspace = true
 [dependencies]
 acvm.workspace = true
 codespan-lsp.workspace = true
-lsp-types.workspace = true
 nargo = { workspace = true, features = ["rpc"] }
+nargo_expand.workspace = true
 nargo_fmt.workspace = true
 nargo_toml.workspace = true
 noirc_driver.workspace = true
@@ -34,6 +34,7 @@ fxhash.workspace = true
 iter-extended.workspace = true
 convert_case = "0.6.0"
 num-bigint.workspace = true
+fuzzy-matcher = "0.3.7"
 
 [target.'cfg(all(target_arch = "wasm32", not(target_os = "wasi")))'.dependencies]
 wasm-bindgen.workspace = true

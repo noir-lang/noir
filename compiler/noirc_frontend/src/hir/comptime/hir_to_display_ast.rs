@@ -2,6 +2,7 @@ use fm::FileId;
 use iter_extended::vecmap;
 use noirc_errors::{Located, Location, Span};
 
+use crate::NamedGeneric;
 use crate::ast::{
     ArrayLiteral, AssignStatement, BlockExpression, CallExpression, CastExpression, ConstrainKind,
     ConstructorExpression, ExpressionKind, ForLoopStatement, ForRange, GenericTypeArgs, Ident,
@@ -16,7 +17,6 @@ use crate::hir_def::expr::{
 use crate::hir_def::stmt::{HirLValue, HirPattern, HirStatement};
 use crate::hir_def::types::{Type, TypeBinding};
 use crate::node_interner::{DefinitionId, ExprId, NodeInterner, StmtId};
-use crate::signed_field::SignedField;
 
 // TODO:
 // - Full path for idents & types
@@ -100,7 +100,9 @@ impl HirExpression {
                 ExpressionKind::Literal(Literal::Bool(*value))
             }
             HirExpression::Literal(HirLiteral::Integer(value)) => {
-                ExpressionKind::Literal(Literal::Integer(*value))
+                // Losing the integer suffix information here, but this should just be for
+                // displaying these values anyway
+                ExpressionKind::Literal(Literal::Integer(*value, None))
             }
             HirExpression::Literal(HirLiteral::Str(string)) => {
                 ExpressionKind::Literal(Literal::Str(string.clone()))
@@ -269,7 +271,7 @@ impl Constructor {
             Constructor::True => ExpressionKind::Literal(Literal::Bool(true)),
             Constructor::False => ExpressionKind::Literal(Literal::Bool(false)),
             Constructor::Unit => ExpressionKind::Literal(Literal::Unit),
-            Constructor::Int(value) => ExpressionKind::Literal(Literal::Integer(*value)),
+            Constructor::Int(value) => ExpressionKind::Literal(Literal::Integer(*value, None)),
             Constructor::Tuple(_) => ExpressionKind::Tuple(arguments),
             Constructor::Variant(typ, index) => {
                 let typ = typ.follow_bindings_shallow();
@@ -375,7 +377,7 @@ impl Type {
     /// Convert to AST for display (some details lost)
     fn to_display_ast(&self) -> UnresolvedType {
         let typ = match self {
-            Type::FieldElement => UnresolvedTypeData::FieldElement,
+            Type::FieldElement => UnresolvedTypeData::field(Location::dummy()),
             Type::Array(length, element) => {
                 let length = length.to_type_expression();
                 let element = Box::new(element.to_display_ast());
@@ -385,16 +387,18 @@ impl Type {
                 let element = Box::new(element.to_display_ast());
                 UnresolvedTypeData::Slice(element)
             }
-            Type::Integer(sign, bit_size) => UnresolvedTypeData::Integer(*sign, *bit_size),
-            Type::Bool => UnresolvedTypeData::Bool,
+            Type::Integer(sign, bit_size) => {
+                UnresolvedTypeData::integer(*sign, *bit_size, Location::dummy())
+            }
+            Type::Bool => UnresolvedTypeData::bool(Location::dummy()),
             Type::String(length) => {
                 let length = length.to_type_expression();
-                UnresolvedTypeData::String(length)
+                UnresolvedTypeData::str(length, Location::dummy())
             }
             Type::FmtString(length, element) => {
                 let length = length.to_type_expression();
-                let element = Box::new(element.to_display_ast());
-                UnresolvedTypeData::FormatString(length, element)
+                let element = element.to_display_ast();
+                UnresolvedTypeData::fmtstr(length, element, Location::dummy())
             }
             Type::Unit => UnresolvedTypeData::Unit,
             Type::Tuple(fields) => {
@@ -422,7 +426,7 @@ impl Type {
             Type::TypeVariable(binding) => match &*binding.borrow() {
                 TypeBinding::Bound(typ) => return typ.to_display_ast(),
                 TypeBinding::Unbound(id, type_var_kind) => {
-                    let name = format!("var_{:?}_{}", type_var_kind, id);
+                    let name = format!("var_{type_var_kind:?}_{id}");
                     let path =
                         Path::from_single(name, Location::new(Span::empty(0), FileId::dummy()));
                     let expression = UnresolvedTypeExpression::Variable(path);
@@ -438,7 +442,7 @@ impl Type {
                 let name = Path::from_single(name.as_ref().clone(), Location::dummy());
                 UnresolvedTypeData::TraitAsType(name, generics)
             }
-            Type::NamedGeneric(_var, name) => {
+            Type::NamedGeneric(NamedGeneric { name, .. }) => {
                 let name = Path::from_single(name.as_ref().clone(), Location::dummy());
                 UnresolvedTypeData::Named(name, GenericTypeArgs::default(), true)
             }
@@ -458,8 +462,16 @@ impl Type {
             // Since there is no UnresolvedTypeData equivalent for Type::Forall, we use
             // this to ignore this case since it shouldn't be needed anyway.
             Type::Forall(_, typ) => return typ.to_display_ast(),
-            Type::Constant(..) => panic!("Type::Constant where a type was expected: {self:?}"),
-            Type::Quoted(quoted_type) => UnresolvedTypeData::Quoted(*quoted_type),
+            Type::Constant(value, kind) => {
+                UnresolvedTypeData::Expression(UnresolvedTypeExpression::Constant(
+                    *value,
+                    kind.as_integer_type_suffix(),
+                    Location::dummy(),
+                ))
+            }
+            Type::Quoted(quoted_type) => {
+                UnresolvedTypeData::quoted(*quoted_type, Location::dummy())
+            }
             Type::Error => UnresolvedTypeData::Error,
             Type::InfixExpr(lhs, op, rhs, _) => {
                 let lhs = Box::new(lhs.to_type_expression());
@@ -478,8 +490,10 @@ impl Type {
         let location = Location::dummy();
 
         match self.follow_bindings() {
-            Type::Constant(length, _kind) => UnresolvedTypeExpression::Constant(length, location),
-            Type::NamedGeneric(_var, name) => {
+            Type::Constant(length, kind) => {
+                UnresolvedTypeExpression::Constant(length, kind.as_integer_type_suffix(), location)
+            }
+            Type::NamedGeneric(NamedGeneric { name, .. }) => {
                 let path = Path::from_single(name.as_ref().clone(), location);
                 UnresolvedTypeExpression::Variable(path)
             }
@@ -493,7 +507,9 @@ impl HirLValue {
     /// Convert to AST for display (some details lost)
     fn to_display_ast(&self, interner: &NodeInterner) -> LValue {
         match self {
-            HirLValue::Ident(ident, _) => LValue::Ident(ident.to_display_ast(interner)),
+            HirLValue::Ident(path, _) => {
+                LValue::Path(Path::from_ident(path.to_display_ast(interner)))
+            }
             HirLValue::MemberAccess { object, field_name, field_index: _, typ: _, location } => {
                 let object = Box::new(object.to_display_ast(interner));
                 LValue::MemberAccess { object, field_name: field_name.clone(), location: *location }
@@ -503,7 +519,7 @@ impl HirLValue {
                 let index = index.to_display_ast(interner);
                 LValue::Index { array, index, location: *location }
             }
-            HirLValue::Dereference { lvalue, element_type: _, location } => {
+            HirLValue::Dereference { lvalue, element_type: _, location, implicitly_added: _ } => {
                 let lvalue = Box::new(lvalue.to_display_ast(interner));
                 LValue::Dereference(lvalue, *location)
             }
@@ -521,8 +537,9 @@ impl HirArrayLiteral {
             HirArrayLiteral::Repeated { repeated_element, length } => {
                 let repeated_element = Box::new(repeated_element.to_display_ast(interner));
                 let length = match length {
-                    Type::Constant(length, _kind) => {
-                        let literal = Literal::Integer(SignedField::positive(*length));
+                    Type::Constant(length, kind) => {
+                        let suffix = kind.as_integer_type_suffix();
+                        let literal = Literal::Integer(*length, suffix);
                         let expr_kind = ExpressionKind::Literal(literal);
                         Box::new(Expression::new(expr_kind, location))
                     }

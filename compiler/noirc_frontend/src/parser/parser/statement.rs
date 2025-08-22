@@ -264,7 +264,7 @@ impl Parser<'_> {
 
         let Some(identifier) = self.eat_ident() else {
             self.expected_identifier();
-            let identifier = Ident::default();
+            let identifier = self.unknown_ident_at_previous_token_end();
             return Some(self.empty_for_loop(identifier, start_location));
         };
 
@@ -365,13 +365,11 @@ impl Parser<'_> {
     }
 
     fn empty_for_loop(&mut self, identifier: Ident, start_location: Location) -> ForLoopStatement {
+        let location = self.location_at_previous_token_end();
         ForLoopStatement {
             identifier,
-            range: ForRange::Array(Expression {
-                kind: ExpressionKind::Error,
-                location: Location::dummy(),
-            }),
-            block: Expression { kind: ExpressionKind::Error, location: Location::dummy() },
+            range: ForRange::Array(Expression { kind: ExpressionKind::Error, location }),
+            block: Expression { kind: ExpressionKind::Error, location },
             location: self.location_since(start_location),
         }
     }
@@ -468,6 +466,8 @@ impl Parser<'_> {
 
 #[cfg(test)]
 mod tests {
+    use insta::assert_snapshot;
+
     use crate::{
         ast::{ExpressionKind, ForRange, LValue, Statement, StatementKind, UnresolvedTypeData},
         parser::{
@@ -660,7 +660,7 @@ mod tests {
         let StatementKind::Assign(assign) = statement.kind else {
             panic!("Expected assign");
         };
-        let LValue::Ident(ident) = assign.lvalue else {
+        let LValue::Path(ident) = assign.lvalue else {
             panic!("Expected ident");
         };
         assert_eq!(ident.to_string(), "x");
@@ -684,10 +684,24 @@ mod tests {
         let StatementKind::Assign(assign) = statement.kind else {
             panic!("Expected assign");
         };
-        let LValue::Ident(ident) = assign.lvalue else {
+        let LValue::Path(ident) = assign.lvalue else {
             panic!("Expected ident");
         };
         assert_eq!(ident.to_string(), "x");
+    }
+
+    #[test]
+    fn parses_assignment_with_path() {
+        let src = "x::y = 1";
+        let statement = parse_statement_no_errors(src);
+        let StatementKind::Assign(assign) = statement.kind else {
+            panic!("Expected assign");
+        };
+        let LValue::Path(path) = assign.lvalue else {
+            panic!("Expected path");
+        };
+        assert_eq!(path.to_string(), "x::y");
+        assert_eq!(assign.expression.to_string(), "1");
     }
 
     #[test]
@@ -774,7 +788,7 @@ mod tests {
         let statement = parser.parse_statement_or_error();
         assert!(matches!(statement.kind, StatementKind::Let(..)));
         let error = get_single_error(&parser.errors, span);
-        assert_eq!(error.to_string(), "Expected a statement but found ']'");
+        assert_snapshot!(error.to_string(), @"Expected a statement but found ']'");
     }
 
     #[test]

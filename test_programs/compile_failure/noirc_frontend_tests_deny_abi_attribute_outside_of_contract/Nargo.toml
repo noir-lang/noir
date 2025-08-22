@@ -1,0 +1,7 @@
+
+            [package]
+            name = "noirc_frontend_tests_deny_abi_attribute_outside_of_contract"
+            type = "bin"
+            authors = [""]
+            
+            [dependencies]

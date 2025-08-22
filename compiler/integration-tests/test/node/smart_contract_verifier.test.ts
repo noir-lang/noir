@@ -12,8 +12,8 @@ import { compile, createFileManager } from '@noir-lang/noir_wasm';
 
 const test_cases = [
   {
-    case: 'test_programs/execution_success/1_mul',
-    compiled: 'contracts/1_mul.sol:HonkVerifier',
+    case: 'test_programs/execution_success/a_1_mul',
+    compiled: 'contracts/a_1_mul.sol:HonkVerifier',
     numPublicInputs: 0,
   },
   {

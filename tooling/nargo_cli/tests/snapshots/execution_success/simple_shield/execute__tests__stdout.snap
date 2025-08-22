@@ -1,0 +1,5 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stdout
+---
+[simple_shield] Circuit output: [0x2b3e2281b493baa4497aa5fe5abf9f340f43bd9c4a65dcb1cda20dc210058870, 0x1e2d117a1b344bd3ff0cf1d5f860f02cd8b27f6b8ccd2e844852f2c93d36f4aa]

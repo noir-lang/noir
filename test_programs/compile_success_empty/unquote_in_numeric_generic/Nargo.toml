@@ -1,0 +1,6 @@
+[package]
+name = "unquote_in_numeric_generic"
+type = "bin"
+authors = [""]
+
+[dependencies]

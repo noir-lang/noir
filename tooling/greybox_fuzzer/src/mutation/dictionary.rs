@@ -66,6 +66,43 @@ pub struct FullDictionary {
     field_dictionary: Vec<FieldElement>,
     int_dictionary: IntDictionary,
 }
+/// Parse input value and add elements to the dictionary
+/// We use this when the ABI for a harness has changed and we can no longer directly decode previous testcases,
+/// but want to use interesting values from previous testcases in the fuzzing campaign
+fn add_elements_from_input_value_to_vector(
+    elements_for_dictionary: &mut Vec<FieldElement>,
+    input_value: &InputValue,
+) {
+    match input_value {
+        InputValue::Field(field_element) => {
+            elements_for_dictionary.push(*field_element);
+        }
+        // String bytes are easy to brute force, so we don't add them to the dictionary
+        InputValue::String(_) => (),
+        InputValue::Struct(input_value_map) => {
+            for (_, value) in input_value_map.iter() {
+                add_elements_from_input_value_to_vector(elements_for_dictionary, value);
+            }
+        }
+        InputValue::Vec(input_value_vec) => {
+            for value in input_value_vec.iter() {
+                add_elements_from_input_value_to_vector(elements_for_dictionary, value);
+            }
+        }
+    }
+}
+
+/// Parse input map and add elements to the dictionary
+/// We use this when the ABI for a harness has changed and we can no longer directly decode previous testcases,
+/// but want to use interesting values from previous testcases in the fuzzing campaign
+pub fn add_elements_from_input_map_to_vector_without_abi(
+    input_map: &InputMap,
+    elements_for_dictionary: &mut Vec<FieldElement>,
+) {
+    for (_, value) in input_map.iter() {
+        add_elements_from_input_value_to_vector(elements_for_dictionary, value);
+    }
+}
 
 impl FullDictionary {
     /// Parse input value and collect value(s) for the dictionary from it
@@ -161,6 +198,15 @@ impl FullDictionary {
         let mut testcase_full_dictionary: HashSet<_> =
             self.field_dictionary.iter().copied().collect();
         Self::collect_dictionary_from_input(abi, testcase, &mut testcase_full_dictionary);
+        self.field_dictionary = testcase_full_dictionary.iter().copied().collect();
+        self.int_dictionary = IntDictionary::new(&self.field_dictionary);
+    }
+
+    /// Update the dictionary with values from a vector of field elements
+    pub fn update_from_vector(&mut self, elements: &[FieldElement]) {
+        let mut testcase_full_dictionary: HashSet<_> =
+            self.field_dictionary.iter().copied().collect();
+        testcase_full_dictionary.extend(elements.iter().copied());
         self.field_dictionary = testcase_full_dictionary.iter().copied().collect();
         self.int_dictionary = IntDictionary::new(&self.field_dictionary);
     }

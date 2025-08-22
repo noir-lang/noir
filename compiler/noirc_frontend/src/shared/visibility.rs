@@ -19,9 +19,9 @@ impl std::fmt::Display for Visibility {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Public => write!(f, "pub"),
-            Self::Private => write!(f, "priv"),
-            Self::CallData(id) => write!(f, "calldata{id}"),
-            Self::ReturnData => write!(f, "returndata"),
+            Self::Private => write!(f, ""),
+            Self::CallData(id) => write!(f, "call_data({id})"),
+            Self::ReturnData => write!(f, "return_data"),
         }
     }
 }

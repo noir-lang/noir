@@ -1,5 +1,5 @@
 [package]
-name = "field_or_int_static_trait_method"
+name = "field_or_integer_static_trait_method"
 type = "bin"
 authors = [""]
 compiler_version = ">=0.32.0"

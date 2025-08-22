@@ -1,0 +1,6 @@
+[package]
+name = "call_mut_closure_inside_mut_closure"
+type = "bin"
+authors = [""]
+
+[dependencies]

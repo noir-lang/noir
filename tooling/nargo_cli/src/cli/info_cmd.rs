@@ -61,13 +61,19 @@ impl WorkspaceCommand for InfoCommand {
 }
 
 pub(crate) fn run(mut args: InfoCommand, workspace: Workspace) -> Result<(), CliError> {
+    if args.json {
+        // In order to have a machine readable output, we cannot allow the program to print arbitrary data to stdout.
+        args.compile_options.disable_comptime_printing = true;
+    }
+
     if args.profile_execution {
         // Execution profiling is only relevant with the Brillig VM
         // as a constrained circuit should have totally flattened control flow (e.g. loops and if statements).
         args.compile_options.force_brillig = true;
     }
     // Compile the full workspace in order to generate any build artifacts.
-    compile_workspace_full(&workspace, &args.compile_options)?;
+    let debug_compile_stdin = None;
+    compile_workspace_full(&workspace, &args.compile_options, debug_compile_stdin)?;
 
     let binary_packages: Vec<(Package, ProgramArtifact)> = workspace
         .into_iter()

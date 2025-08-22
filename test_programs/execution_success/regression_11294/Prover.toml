@@ -1,3 +1,14 @@
+return = { end = { private_call_stack = [
+    { args_hash = 0x00, returns_hash = 0x00, start_side_effect_counter = 0, end_side_effect_counter = 0 },
+    { args_hash = 0x00, returns_hash = 0x00, start_side_effect_counter = 0, end_side_effect_counter = 0 },
+    { args_hash = 0x00, returns_hash = 0x00, start_side_effect_counter = 0, end_side_effect_counter = 0 },
+    { args_hash = 0x00, returns_hash = 0x00, start_side_effect_counter = 0, end_side_effect_counter = 0 },
+    { args_hash = 0x00, returns_hash = 0x00, start_side_effect_counter = 0, end_side_effect_counter = 0 },
+    { args_hash = 0x00, returns_hash = 0x00, start_side_effect_counter = 0, end_side_effect_counter = 0 },
+    { args_hash = 0x00, returns_hash = 0x00, start_side_effect_counter = 0, end_side_effect_counter = 0 },
+    { args_hash = 0x00, returns_hash = 0x00, start_side_effect_counter = 0, end_side_effect_counter = 0 },
+] } }
+
 [[previous_kernel_public_inputs.end.private_call_stack]]
 args_hash = "0x0c78b411fc893c51d446c08daa5741b9ba6103126c9e450bed90fcde8793168a"
 returns_hash = "0x0000000000000000000000000000000000000000000000000000000000000000"

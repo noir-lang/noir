@@ -6,6 +6,7 @@ fn main(mut array: [Field; 2], i: u32) {
 
     let array2 = [array, array];
 
+    // println(array2);
     assert_eq(array2[0][0], 5);
     assert_eq(array2[0][i], 2);
     assert_eq(array2[i][0], 5);

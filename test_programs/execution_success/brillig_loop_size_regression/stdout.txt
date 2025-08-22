@@ -1,1 +1,0 @@
-[brillig_loop_size_regression] Circuit output: Field(2)

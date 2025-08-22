@@ -1,5 +1,5 @@
 
-    trait Default {
+    trait Default2 {
         fn default(x: Field, y: Field) -> Self;
     }
 
@@ -8,13 +8,13 @@
         array: [Field; 2],
     }
 
-    impl Default for Foo {
+    impl Default2 for Foo {
         fn default(x: Field,y: Field) -> Self {
             Self { bar: x, array: [x,y] }
         }
     }
 
-    trait Default {
+    trait Default2 {
         fn default(x: Field) -> Self;
     }
 

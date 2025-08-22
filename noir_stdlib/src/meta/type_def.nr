@@ -30,21 +30,21 @@ impl TypeDefinition {
     pub comptime fn generics(self) -> [(Type, Option<Type>)] {}
     // docs:end:generics
 
-    /// Returns (name, type) pairs of each field in this type.
+    /// Returns (name, type, visibility) tuples of each field in this type.
     /// Any generic types used in each field type is automatically substituted with the
     /// provided generic arguments.
     #[builtin(type_def_fields)]
     // docs:start:fields
-    pub comptime fn fields(self, generic_args: [Type]) -> [(Quoted, Type)] {}
+    pub comptime fn fields(self, generic_args: [Type]) -> [(Quoted, Type, Quoted)] {}
     // docs:end:fields
 
-    /// Returns (name, type) pairs of each field in this type. Each type is as-is
+    /// Returns (name, type, visibility) tuples of each field in this type. Each type is as-is
     /// with any generic arguments unchanged. Unless the field types are not needed,
     /// users should generally prefer to use `TypeDefinition::fields` over this
     /// function if possible.
     #[builtin(type_def_fields_as_written)]
     // docs:start:fields_as_written
-    pub comptime fn fields_as_written(self) -> [(Quoted, Type)] {}
+    pub comptime fn fields_as_written(self) -> [(Quoted, Type, Quoted)] {}
     // docs:end:fields_as_written
 
     #[builtin(type_def_module)]
@@ -63,7 +63,7 @@ impl TypeDefinition {
     /// Each name is expected to be a single identifier.
     #[builtin(type_def_set_fields)]
     // docs:start:set_fields
-    pub comptime fn set_fields(self, new_fields: [(Quoted, Type)]) {}
+    pub comptime fn set_fields(self, new_fields: [(Quoted, Type, Quoted)]) {}
     // docs:end:set_fields
 }
 

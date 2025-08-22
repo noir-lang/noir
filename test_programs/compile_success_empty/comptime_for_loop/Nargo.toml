@@ -1,0 +1,6 @@
+[package]
+name = "comptime_for_loop"
+type = "bin"
+authors = [""]
+
+[dependencies]

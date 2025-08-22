@@ -1,4 +1,5 @@
 use acvm::{acir::brillig::ForeignCallResult, pwg::ForeignCallWaitInfo};
+use noirc_printable_type::TryFromParamsError;
 use thiserror::Error;
 
 pub mod layers;
@@ -32,6 +33,7 @@ pub enum ForeignCall {
     SetMockReturns,
     SetMockTimes,
     ClearMock,
+    GetTimesCalled,
 }
 
 impl std::fmt::Display for ForeignCall {
@@ -50,6 +52,7 @@ impl ForeignCall {
             ForeignCall::SetMockReturns => "set_mock_returns",
             ForeignCall::SetMockTimes => "set_mock_times",
             ForeignCall::ClearMock => "clear_mock",
+            ForeignCall::GetTimesCalled => "get_times_called",
         }
     }
 
@@ -62,6 +65,7 @@ impl ForeignCall {
             "set_mock_returns" => Some(ForeignCall::SetMockReturns),
             "set_mock_times" => Some(ForeignCall::SetMockTimes),
             "clear_mock" => Some(ForeignCall::ClearMock),
+            "get_times_called" => Some(ForeignCall::GetTimesCalled),
             _ => None,
         }
     }
@@ -89,4 +93,15 @@ pub enum ForeignCallError {
 
     #[error("Failed to replay oracle transcript: {0}")]
     TranscriptError(String),
+}
+
+impl From<TryFromParamsError> for ForeignCallError {
+    fn from(err: TryFromParamsError) -> Self {
+        match err {
+            TryFromParamsError::MissingForeignCallInputs => {
+                ForeignCallError::MissingForeignCallInputs
+            }
+            TryFromParamsError::ParsingError(error) => ForeignCallError::ParsingError(error),
+        }
+    }
 }

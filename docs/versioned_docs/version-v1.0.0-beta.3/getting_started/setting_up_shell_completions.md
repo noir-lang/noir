@@ -20,7 +20,7 @@ If you have `oh-my-zsh` installed, you might already have a directory of automat
 If not, first create it:
 
 ```bash
-mkdir -p ~/.oh-my-zsh/completions`
+mkdir -p ~/.oh-my-zsh/completions
 ```
 
 Then copy the completion script to that directory:
@@ -29,7 +29,7 @@ Then copy the completion script to that directory:
 nargo generate-completion-script zsh > ~/.oh-my-zsh/completions/_nargo
 ```
 
-Without `oh-my-zsh`, you’ll need to add a path for completion scripts to your function path, and turn on completion script auto-loading. 
+Without `oh-my-zsh`, you’ll need to add a path for completion scripts to your function path, and turn on completion script auto-loading.
 First, add these lines to `~/.zshrc`:
 
 ```bash
@@ -58,7 +58,7 @@ If you have [bash-completion](https://github.com/scop/bash-completion) installed
 nargo generate-completion-script bash > /usr/local/etc/bash_completion.d/nargo
 ```
 
-Without `bash-completion`, you’ll need to source the completion script directly. 
+Without `bash-completion`, you’ll need to source the completion script directly.
 First create a directory such as `~/.bash_completions/`:
 
 ```bash

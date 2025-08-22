@@ -2,7 +2,10 @@ use acvm::{AcirField as _, FieldElement};
 
 use crate::ssa::ir::{
     dfg::DataFlowGraph,
-    instruction::{Binary, BinaryOp, Instruction, binary::eval_constant_binary_op},
+    instruction::{
+        Binary, BinaryOp, Instruction,
+        binary::{BinaryEvaluationResult, eval_constant_binary_op},
+    },
     types::NumericType,
 };
 
@@ -10,8 +13,8 @@ use super::SimplifyResult;
 
 /// Try to simplify this binary instruction, returning the new value if possible.
 pub(super) fn simplify_binary(binary: &Binary, dfg: &mut DataFlowGraph) -> SimplifyResult {
-    let lhs = dfg.resolve(binary.lhs);
-    let rhs = dfg.resolve(binary.rhs);
+    let lhs = binary.lhs;
+    let rhs = binary.rhs;
 
     let lhs_value = dfg.get_numeric_constant(lhs);
     let rhs_value = dfg.get_numeric_constant(rhs);
@@ -20,12 +23,10 @@ pub(super) fn simplify_binary(binary: &Binary, dfg: &mut DataFlowGraph) -> Simpl
     let rhs_type = dfg.type_of_value(rhs).unwrap_numeric();
 
     let operator = binary.operator;
-    if operator != BinaryOp::Shl && operator != BinaryOp::Shr {
-        assert_eq!(lhs_type, rhs_type, "ICE - Binary instruction operands must have the same type");
-    }
+    assert_eq!(lhs_type, rhs_type, "ICE - Binary instruction operands must have the same type");
 
     let operator = if lhs_type == NumericType::NativeField {
-        // Unchecked operations between fields or bools don't make sense, so we convert those to non-unchecked
+        // Unchecked operations between fields don't make sense, so we convert those to non-unchecked
         // to reduce noise and confusion in the generated SSA.
         match operator {
             BinaryOp::Add { unchecked: true } => BinaryOp::Add { unchecked: false },
@@ -34,9 +35,11 @@ pub(super) fn simplify_binary(binary: &Binary, dfg: &mut DataFlowGraph) -> Simpl
             _ => operator,
         }
     } else if lhs_type == NumericType::bool() {
-        // Unchecked mul between bools doesn't make sense, so we convert that to non-unchecked
-        if let BinaryOp::Mul { unchecked: true } = operator {
-            BinaryOp::Mul { unchecked: false }
+        // When multiplying bools there can never be an overflow so using checked or unchecked
+        // should be the same. However, acir/brillig will check overflow for unsigned operations
+        // so here we turn checked bool multiplications to unchecked.
+        if let BinaryOp::Mul { unchecked: false } = operator {
+            BinaryOp::Mul { unchecked: true }
         } else {
             operator
         }
@@ -49,11 +52,13 @@ pub(super) fn simplify_binary(binary: &Binary, dfg: &mut DataFlowGraph) -> Simpl
 
     if let (Some(lhs), Some(rhs)) = (lhs_value, rhs_value) {
         return match eval_constant_binary_op(lhs, rhs, operator, lhs_type) {
-            Some((result, result_type)) => {
+            BinaryEvaluationResult::Success(result, result_type) => {
                 let value = dfg.make_constant(result, result_type);
                 SimplifyResult::SimplifiedTo(value)
             }
-            None => SimplifyResult::SimplifiedToInstruction(simplified),
+            BinaryEvaluationResult::CouldNotEvaluate | BinaryEvaluationResult::Failure(..) => {
+                SimplifyResult::SimplifiedToInstruction(simplified)
+            }
         };
     }
 
@@ -62,6 +67,10 @@ pub(super) fn simplify_binary(binary: &Binary, dfg: &mut DataFlowGraph) -> Simpl
 
     let lhs_is_one = lhs_value.is_some_and(|lhs| lhs.is_one());
     let rhs_is_one = rhs_value.is_some_and(|rhs| rhs.is_one());
+    let lhs_is_max =
+        lhs_value.is_some_and(|lhs| lhs_type.max_value().is_ok_and(|max_value| lhs == max_value));
+    let rhs_is_max =
+        rhs_value.is_some_and(|rhs| rhs_type.max_value().is_ok_and(|max_value| rhs == max_value));
 
     match binary.operator {
         BinaryOp::Add { .. } => {
@@ -104,7 +113,7 @@ pub(super) fn simplify_binary(binary: &Binary, dfg: &mut DataFlowGraph) -> Simpl
                         dfg[*instruction]
                     {
                         if matches!(operator, BinaryOp::Mul { .. })
-                            && (lhs == dfg.resolve(b_lhs) || lhs == dfg.resolve(b_rhs))
+                            && (lhs == b_lhs || lhs == b_rhs)
                         {
                             return SimplifyResult::SimplifiedTo(rhs);
                         }
@@ -118,7 +127,7 @@ pub(super) fn simplify_binary(binary: &Binary, dfg: &mut DataFlowGraph) -> Simpl
                         dfg[*instruction]
                     {
                         if matches!(operator, BinaryOp::Mul { .. })
-                            && (rhs == dfg.resolve(b_lhs) || rhs == dfg.resolve(b_rhs))
+                            && (rhs == b_lhs || rhs == b_rhs)
                         {
                             return SimplifyResult::SimplifiedTo(lhs);
                         }
@@ -129,6 +138,16 @@ pub(super) fn simplify_binary(binary: &Binary, dfg: &mut DataFlowGraph) -> Simpl
         BinaryOp::Div => {
             if rhs_is_one {
                 return SimplifyResult::SimplifiedTo(lhs);
+            }
+            if let Some(rhs_value) = rhs_value {
+                if lhs_type == NumericType::NativeField && !rhs_value.is_zero() {
+                    let rhs = dfg.make_constant(rhs_value.inverse(), NumericType::NativeField);
+                    return SimplifyResult::SimplifiedToInstruction(Instruction::Binary(Binary {
+                        lhs,
+                        rhs,
+                        operator: BinaryOp::Mul { unchecked: false },
+                    }));
+                }
             }
         }
         BinaryOp::Mod => {
@@ -218,10 +237,11 @@ pub(super) fn simplify_binary(binary: &Binary, dfg: &mut DataFlowGraph) -> Simpl
                     (Some(bitmask), None) | (None, Some(bitmask)) => {
                         // This substitution requires the bitmask to retain all of the lower bits.
                         // The bitmask must then be one less than a power of 2.
-                        let bitmask_plus_one = bitmask.to_u128() + 1;
-                        if bitmask_plus_one.is_power_of_two() {
+                        let bitmask = bitmask.to_u128();
+                        if bitmask == u128::MAX || (bitmask + 1).is_power_of_two() {
                             let value = if lhs_value.is_some() { rhs } else { lhs };
-                            let bit_size = bitmask_plus_one.ilog2();
+                            let bit_size =
+                                if bitmask == u128::MAX { 128 } else { (bitmask + 1).ilog2() };
                             let max_bit_size = lhs_type.bit_size();
 
                             if bit_size == max_bit_size {
@@ -254,6 +274,11 @@ pub(super) fn simplify_binary(binary: &Binary, dfg: &mut DataFlowGraph) -> Simpl
             if lhs == rhs {
                 return SimplifyResult::SimplifiedTo(lhs);
             }
+
+            if lhs_is_max || rhs_is_max {
+                let max = dfg.make_constant(lhs_type.max_value().unwrap(), lhs_type);
+                return SimplifyResult::SimplifiedTo(max);
+            }
         }
         BinaryOp::Xor => {
             if lhs_is_zero {
@@ -267,18 +292,53 @@ pub(super) fn simplify_binary(binary: &Binary, dfg: &mut DataFlowGraph) -> Simpl
                 return SimplifyResult::SimplifiedTo(zero);
             }
         }
-        BinaryOp::Shl => return SimplifyResult::SimplifiedToInstruction(simplified),
-        BinaryOp::Shr => {
-            // Bit shifts by constants can be treated as divisions.
-            if let Some(rhs_const) = rhs_value {
-                if rhs_const >= FieldElement::from(lhs_type.bit_size() as u128) {
-                    // Shifting by the full width of the operand type, any `lhs` goes to zero.
-                    let zero = dfg.make_constant(FieldElement::zero(), lhs_type);
-                    return SimplifyResult::SimplifiedTo(zero);
-                }
-                return SimplifyResult::SimplifiedToInstruction(simplified);
+        BinaryOp::Shl | BinaryOp::Shr => {
+            if rhs_is_zero {
+                return SimplifyResult::SimplifiedTo(lhs);
             }
+            return SimplifyResult::SimplifiedToInstruction(simplified);
         }
     };
     SimplifyResult::SimplifiedToInstruction(simplified)
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{assert_ssa_snapshot, ssa::ssa_gen::Ssa};
+
+    #[test]
+    fn replaces_shl_identity_with_lhs() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u8):
+            v1 = shl v0, u8 0
+            return v1
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u8):
+            return v0
+        }
+        ");
+    }
+
+    #[test]
+    fn replaces_shr_identity_with_lhs() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u8):
+            v1 = shr v0, u8 0
+            return v1
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u8):
+            return v0
+        }
+        ");
+    }
 }

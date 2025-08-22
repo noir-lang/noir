@@ -13,7 +13,7 @@ mod parser;
 
 use crate::ast::{
     Documented, Ident, ImportStatement, ItemVisibility, LetStatement, ModuleDeclaration,
-    NoirEnumeration, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl, NoirTypeAlias, TypeImpl,
+    NoirEnumeration, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl, TypeAlias, TypeImpl,
     UseTree,
 };
 use crate::token::SecondaryAttribute;
@@ -34,7 +34,7 @@ pub struct SortedModule {
     pub traits: Vec<Documented<NoirTrait>>,
     pub trait_impls: Vec<NoirTraitImpl>,
     pub impls: Vec<TypeImpl>,
-    pub type_aliases: Vec<Documented<NoirTypeAlias>>,
+    pub type_aliases: Vec<Documented<TypeAlias>>,
     pub globals: Vec<(Documented<LetStatement>, ItemVisibility)>,
 
     /// Module declarations like `mod foo;`
@@ -49,36 +49,51 @@ pub struct SortedModule {
 
 impl std::fmt::Display for SortedModule {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for inner_attribute in &self.inner_attributes {
+            writeln!(f, "#![{}]", inner_attribute.kind.contents())?;
+        }
+
         for decl in &self.module_decls {
             writeln!(f, "{decl};")?;
         }
 
         for import in &self.imports {
-            write!(f, "{import}")?;
+            writeln!(f, "{import};")?;
         }
 
         for (global_const, _visibility) in &self.globals {
-            write!(f, "{global_const}")?;
+            writeln!(f, "{global_const}")?;
         }
 
         for type_ in &self.structs {
-            write!(f, "{type_}")?;
+            writeln!(f, "{type_}")?;
+        }
+        for type_ in &self.enums {
+            writeln!(f, "{type_}")?;
         }
 
         for function in &self.functions {
-            write!(f, "{function}")?;
+            writeln!(f, "{function}")?;
+        }
+
+        for trait_ in &self.traits {
+            writeln!(f, "{trait_}")?;
         }
 
         for impl_ in &self.impls {
-            write!(f, "{impl_}")?;
+            writeln!(f, "{impl_}")?;
+        }
+
+        for trait_impl in &self.trait_impls {
+            writeln!(f, "{trait_impl}")?;
         }
 
         for type_alias in &self.type_aliases {
-            write!(f, "{type_alias}")?;
+            writeln!(f, "{type_alias}")?;
         }
 
         for submodule in &self.submodules {
-            write!(f, "{submodule}")?;
+            writeln!(f, "{submodule}")?;
         }
 
         Ok(())
@@ -143,7 +158,7 @@ pub enum ItemKind {
     Trait(NoirTrait),
     TraitImpl(NoirTraitImpl),
     Impl(TypeImpl),
-    TypeAlias(NoirTypeAlias),
+    TypeAlias(TypeAlias),
     Global(LetStatement, ItemVisibility),
     ModuleDecl(ModuleDeclaration),
     Submodules(ParsedSubModule),
@@ -175,7 +190,7 @@ impl std::fmt::Display for ItemKind {
                 }
                 c.fmt(f)
             }
-            ItemKind::InnerAttribute(a) => write!(f, "#![{}]", a),
+            ItemKind::InnerAttribute(a) => write!(f, "#![{a}]"),
         }
     }
 }
@@ -249,7 +264,7 @@ impl SortedModule {
         self.impls.push(r#impl);
     }
 
-    fn push_type_alias(&mut self, type_alias: NoirTypeAlias, doc_comments: Vec<String>) {
+    fn push_type_alias(&mut self, type_alias: TypeAlias, doc_comments: Vec<String>) {
         self.type_aliases.push(Documented::new(type_alias, doc_comments));
     }
 

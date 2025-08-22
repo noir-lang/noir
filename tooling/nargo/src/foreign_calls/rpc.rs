@@ -19,6 +19,10 @@ pub struct RPCForeignCallExecutor {
     id: u64,
     /// JSON RPC client to resolve foreign calls
     external_resolver: HttpClient,
+    /// External resolver target. We are keeping it to be able to restart httpClient if necessary
+    ///
+    /// See [`noir-lang/noir#7463`][<https://github.com/noir-lang/noir/issues/7463>]
+    resolver_url: String,
     /// Root path to the program or workspace in execution.
     root_path: Option<PathBuf>,
     /// Name of the package in execution
@@ -59,17 +63,7 @@ impl RPCForeignCallExecutor {
         root_path: Option<PathBuf>,
         package_name: Option<String>,
     ) -> Self {
-        let mut client_builder = HttpClientBuilder::new();
-
-        if let Some(Ok(timeout)) =
-            std::env::var("NARGO_FOREIGN_CALL_TIMEOUT").ok().map(|timeout| timeout.parse())
-        {
-            let timeout_duration = std::time::Duration::from_millis(timeout);
-            client_builder = client_builder.request_timeout(timeout_duration);
-        };
-
-        let oracle_resolver =
-            client_builder.build(resolver_url).expect("Invalid oracle resolver URL");
+        let oracle_resolver = build_http_client(resolver_url);
 
         // Opcodes are executed in the `ProgramExecutor::execute_circuit` one by one in a loop,
         // we don't need a concurrent thread pool.
@@ -81,12 +75,49 @@ impl RPCForeignCallExecutor {
 
         RPCForeignCallExecutor {
             external_resolver: oracle_resolver,
+            resolver_url: resolver_url.to_string(),
             id,
             root_path,
             package_name,
             runtime,
         }
     }
+
+    fn send_foreign_call<F>(
+        &mut self,
+        foreign_call: &ForeignCallWaitInfo<F>,
+    ) -> Result<ForeignCallResult<F>, jsonrpsee::core::ClientError>
+    where
+        F: AcirField + Serialize + for<'a> Deserialize<'a>,
+    {
+        let params = ResolveForeignCallRequest {
+            session_id: self.id,
+            function_call: foreign_call.clone(),
+            root_path: self
+                .root_path
+                .clone()
+                .map(|path| path.to_str().unwrap().to_string())
+                .or(Some(String::new())),
+            package_name: self.package_name.clone().or(Some(String::new())),
+        };
+        let encoded_params = rpc_params!(params);
+        self.runtime.block_on(async {
+            self.external_resolver.request("resolve_foreign_call", encoded_params).await
+        })
+    }
+}
+
+fn build_http_client(target: &str) -> HttpClient {
+    let mut client_builder = HttpClientBuilder::new();
+
+    if let Some(Ok(timeout)) =
+        std::env::var("NARGO_FOREIGN_CALL_TIMEOUT").ok().map(|timeout| timeout.parse())
+    {
+        let timeout_duration = std::time::Duration::from_millis(timeout);
+        client_builder = client_builder.request_timeout(timeout_duration);
+    };
+
+    client_builder.build(target).expect("Invalid oracle resolver URL")
 }
 
 impl<F> ForeignCallExecutor<F> for RPCForeignCallExecutor
@@ -97,23 +128,51 @@ where
     /// This method cannot be called from inside a `tokio` runtime, for that to work
     /// we need to offload the execution into a different thread; see the tests.
     fn execute(&mut self, foreign_call: &ForeignCallWaitInfo<F>) -> ResolveForeignCallResult<F> {
-        let encoded_params = rpc_params!(ResolveForeignCallRequest {
-            session_id: self.id,
-            function_call: foreign_call.clone(),
-            root_path: self.root_path.clone().map(|path| path.to_str().unwrap().to_string()),
-            package_name: self.package_name.clone(),
-        });
+        let result = self.send_foreign_call(foreign_call);
 
-        let parsed_response = self.runtime.block_on(async {
-            self.external_resolver.request("resolve_foreign_call", encoded_params).await
-        })?;
-
-        Ok(parsed_response)
+        match result {
+            Ok(parsed_response) => Ok(parsed_response),
+            // TODO: This is a workaround for noir-lang/noir#7463
+            // The client is losing connection with the server and it's not being able to manage it
+            // so we are re-creating the HttpClient when it happens
+            Err(jsonrpsee::core::ClientError::Transport(_)) => {
+                self.external_resolver = build_http_client(&self.resolver_url);
+                let parsed_response = self.send_foreign_call(foreign_call)?;
+                Ok(parsed_response)
+            }
+            Err(other) => Err(ForeignCallError::from(other)),
+        }
     }
 }
 
 #[cfg(test)]
-mod tests {
+mod serialization_tests {
+    use acvm::{
+        AcirField, FieldElement, acir::brillig::ForeignCallParam,
+        brillig_vm::brillig::ForeignCallResult,
+    };
+
+    #[test]
+    fn deserializes_json_as_expected() {
+        let raw_responses: [(&str, Vec<ForeignCallParam<FieldElement>>); 3] = [
+            ("[]", Vec::new()),
+            (
+                "[\"0x0000000000000000000000000000000000000000000000000000000000000001\"]",
+                vec![ForeignCallParam::Single(FieldElement::one())],
+            ),
+            ("[[]]", vec![ForeignCallParam::Array(Vec::new())]),
+        ];
+
+        for (raw_response, expected) in raw_responses {
+            let decoded_response: ForeignCallResult<FieldElement> =
+                serde_json::from_str(&format!("{{ \"values\": {raw_response} }}")).unwrap();
+            assert_eq!(decoded_response, ForeignCallResult { values: expected });
+        }
+    }
+}
+
+#[cfg(test)]
+mod server_tests {
     use acvm::{
         FieldElement, acir::brillig::ForeignCallParam, brillig_vm::brillig::ForeignCallResult,
         pwg::ForeignCallWaitInfo,
@@ -216,7 +275,7 @@ mod tests {
         let server = Server::builder().build("127.0.0.1:0").await?;
         let addr = server.local_addr()?;
         let handle = server.start(OracleResolverImpl.into_rpc());
-        let url = format!("http://{}", addr);
+        let url = format!("http://{addr}");
         // In this test we don't care about doing shutdown so let's it run forever.
         tokio::spawn(handle.stopped());
         Ok(url)

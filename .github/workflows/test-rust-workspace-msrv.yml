@@ -26,7 +26,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.85.0
@@ -49,10 +49,12 @@ jobs:
       - name: Install nextest
         uses: taiki-e/install-action@v2
         with:
-          tool: nextest@0.9.67
+          tool: nextest@0.9.88
 
       - name: Build and archive tests
         run: cargo nextest archive --workspace --archive-file nextest-archive.tar.zst
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload archive to workflow
         uses: actions/upload-artifact@v4
@@ -64,12 +66,13 @@ jobs:
     name: "Run tests (partition ${{matrix.partition}})"
     runs-on: ubuntu-22.04
     needs: [build-test-artifacts]
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
         partition: [1, 2, 3, 4]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.85.0
@@ -79,7 +82,7 @@ jobs:
       - name: Install nextest
         uses: taiki-e/install-action@v2
         with:
-          tool: nextest@0.9.67
+          tool: nextest@0.9.88
 
       - name: Download archive
         uses: actions/download-artifact@v4
@@ -90,7 +93,7 @@ jobs:
           RUST_MIN_STACK=8388608 \
           cargo nextest run --archive-file nextest-archive.tar.zst \
             --partition count:${{ matrix.partition }}/4 \
-            --no-fail-fast
+            --profile ci-master
 
   # This is a job which depends on all test jobs and reports the overall status.
   # This allows us to add/remove test jobs without having to update the required workflows.
@@ -116,7 +119,7 @@ jobs:
 
       - name: Checkout
         if: ${{ failure() }}
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       # Raise an issue if the tests failed
       - name: Alert on failed publish

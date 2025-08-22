@@ -1,0 +1,5 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stdout
+---
+[wildcard_type] Circuit output: [0x07, 0x0e, 0x0a, 0x06]

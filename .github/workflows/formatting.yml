@@ -22,7 +22,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.85.0
@@ -37,7 +37,9 @@ jobs:
           save-if: ${{ github.event_name != 'merge_group' }}
 
       - name: Run `cargo clippy`
-        run: cargo clippy --all-targets --workspace --locked --release
+        run: ./scripts/clippy.sh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   rustfmt:
     name: cargo fmt
@@ -48,7 +50,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.85.0
@@ -74,7 +76,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.85.0
@@ -90,6 +92,8 @@ jobs:
 
       - name: Run `cargo doc`
         run: cargo doc --no-deps --document-private-items --workspace
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   eslint:
     name: eslint
@@ -98,7 +102,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Install Yarn dependencies
         uses: ./.github/actions/setup
@@ -112,7 +116,7 @@ jobs:
 
     steps:
       - name: Checkout Noir repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.85.0
@@ -125,6 +129,8 @@ jobs:
 
       - name: Build Nargo
         run: cargo build --package nargo_cli --release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Package artifacts
         run: |
@@ -146,7 +152,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Download nargo binary
         uses: ./.github/actions/download-nargo
@@ -184,4 +190,3 @@ jobs:
           env:
             # We treat any skipped or failing jobs as a failure for the workflow as a whole.
             FAIL: ${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped') }}
-

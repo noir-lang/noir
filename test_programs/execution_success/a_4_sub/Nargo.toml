@@ -1,0 +1,6 @@
+[package]
+name = "a_4_sub"
+type = "bin"
+authors = [""]
+
+[dependencies]

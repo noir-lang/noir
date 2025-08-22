@@ -1,0 +1,3 @@
+[package]
+name = "should_fail"
+type = "bin"

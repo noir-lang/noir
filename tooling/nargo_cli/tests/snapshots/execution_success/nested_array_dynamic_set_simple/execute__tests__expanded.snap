@@ -1,0 +1,33 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+struct Bar {
+    inner: [Field; 3],
+}
+
+struct Foo {
+    a: Field,
+    b: [Field; 3],
+    bar: Bar,
+}
+
+struct FooParent {
+    array: [Field; 3],
+    foos: [Foo; 1],
+}
+
+fn main(mut x: [Foo; 1], y: pub u32) {
+    let foo_parent_one: FooParent = FooParent { array: [0_Field, 1_Field, 2_Field], foos: x };
+    let foo_parent_two: FooParent = FooParent { array: [3_Field, 4_Field, 5_Field], foos: x };
+    let mut foo_parents: [FooParent; 2] = [foo_parent_one, foo_parent_two];
+    if y == 3_u32 {
+        {
+            let i_3814: u32 = y - 2_u32;
+            let i_3815: u32 = y - 3_u32;
+            let i_3816: u32 = y - 1_u32;
+            foo_parents[i_3814].foos[i_3815].b[i_3816] = 5000_Field;
+        }
+    };
+    assert(foo_parents[1_u32].foos[0_u32].b[2_u32] == 5000_Field);
+}

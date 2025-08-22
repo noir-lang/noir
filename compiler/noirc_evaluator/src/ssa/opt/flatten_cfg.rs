@@ -1,10 +1,37 @@
+//! This file contains the SSA flattening pass - a required pass for ACIR to remove any remaining
+//! control-flow in the singular program-function, resulting in a single block containing the
+//! program logic.
+//!
+//! ACIR/Brillig differences within this pass:
+//!   - This pass is strictly ACIR-only and never mutates brillig functions.
+//!
+//! Conditions:
+//!   - Precondition: Inlining has been performed which should result in there being no remaining
+//!     `call` instructions to acir/constrained functions (unless they are `InlineType::Fold`).
+//!     This also means the only acir functions in the program should be `main` (if main is
+//!     constrained), or any constrained `InlineType::Fold` functions.
+//!   - Precondition: Each constrained function should have no loops (unrolling has been performed).
+//!   - Postcondition: Each constrained function should now consist of only one block where the
+//!     terminator instruction is always a return.
+//!
+//! Relevance to other passes:
+//!   - Flattening effectively eliminates control-flow entirely which can make it easier for
+//!     subsequent passes to optimize code. Mem2reg for example should be able to remove all
+//!     references in constrained (ACIR) code.
+//!   - Flattening inserts `Instruction::IfElse` to merge the values from an if-expression's "then"
+//!     and "else" branches. These are immediately simplified out for numeric values, but for
+//!     arrays and slices we require the `remove_if_else` SSA pass to later be run to remove the
+//!     remaining `Instruction::IfElse` instructions.
+//!
+//! Implementation details & examples:
+//!
 //! The flatten cfg optimization pass "flattens" the entire control flow graph into a single block.
 //! This includes branches in the CFG with non-constant conditions. Flattening these requires
 //! special handling for operations with side-effects and can lead to a loss of information since
 //! the jmpif will no longer be in the program. As a result, this pass should usually be towards or
-//! at the end of the optimization passes. Note that this pass will also perform unexpectedly if
-//! loops are still present in the program. Since the pass sees a normal jmpif, it will attempt to
-//! merge both blocks, but no actual looping will occur.
+//! at the end of the optimization passes.
+//! Furthermore, this pass assumes that no loops are present in the program and will assume
+//! that a jmpif is a branch point and will attempt to merge both blocks. No actual looping will occur.
 //!
 //! This pass is also known to produce some extra instructions which may go unused (usually 'Not')
 //! while merging branches. These extra instructions can be cleaned up by a later dead instruction
@@ -28,7 +55,7 @@
 //!   enable_side_effects u1 1
 //!
 //! (Note: we restore to "true" to indicate that this program point is not nested within any
-//! other branches.)
+//! other branches. Each `enable_side_effects` overrides the previous, they do not implicitly stack.)
 //!
 //! When we are flattening a block that was reached via a jmpif with a non-constant condition c,
 //! the following transformations of certain instructions within the block are expected:
@@ -44,7 +71,10 @@
 //!
 //! 2. If we reach the end block of the branch created by the jmpif instruction, its block parameters
 //!    will be merged. To merge the jmp arguments of the then and else branches, the formula
-//!    `c * then_arg + !c * else_arg` is used for each argument.
+//!    `c * then_arg + !c * else_arg` is used for each argument. Note that this is represented by
+//!    `Instruction::IfElse` which is often simplified to the above when inserted, but in the case
+//!    of complex values (arrays and slices) this simplification is delayed until the
+//!    `remove_if_else` SSA pass.
 //!
 //! b0(v0: u1, v1: Field, v2: Field):
 //!   jmpif v0, then: b1, else: b2
@@ -62,84 +92,53 @@
 //!   v6 = add v3, v5
 //!   ... b3 instructions ...
 //!
-//! 3. After being stored to in at least one predecessor of a block with multiple predecessors, the
-//!    value of a memory address is the value it had in both branches combined via c * a + !c * b.
-//!    Note that the following example is simplified to remove extra load instructions and combine
-//!    the separate merged stores for each branch into one store. See the next example for a
-//!    non-simplified version with address offsets.
+//! 3. Each `store v0 in v1` is replaced with a store of a new value
+//!    `v4 = if v3 then v0 else v2` where `v3` is the current condition
+//!    given by `enable_side_effects v3` and `v2` is the result of
+//!    a newly-given `v2 = load v0` inserted before the store.
 //!
 //! b0(v0: u1):
-//!   v1 = allocate 1 Field
+//!   v1 = allocate -> &mut Field
+//!   store Field 3 at v1
 //!   jmpif v0, then: b1, else: b2
 //! b1():
-//!   store v1, Field 5
+//!   store Field 5 at v1
 //!   ... b1 instructions ...
 //!   jmp b3
 //! b2():
-//!   store v1, Field 7
+//!   store Field 7 at v1
 //!   ... b2 instructions ...
 //!   jmp b3
 //! b3():
 //!   ... b3 instructions ...
 //! =========================
 //! b0():
-//!   v1 = allocate 1 Field
-//!   store v1, Field 5
-//!   ... b1 instructions ...
-//!   store v1, Field 7
-//!   ... b2 instructions ...
-//!   v2 = mul v0, Field 5
+//!   v1 = allocate -> &mut Field
+//!   store Field 3 at v1     // no prior value so we do not load & merge
+//!   enable_side_effects v0  // former block b1
+//!   v2 = load v1 -> Field
 //!   v3 = not v0
-//!   v4 = mul v3, Field 7
-//!   v5 = add v2, v4
-//!   store v1, v5
+//!   v4 = if v0 then Field 5 else (if v3) v2
+//!   store v4 at v1
+//!   ... b1 instructions ...
+//!   enable_side_effects v3  // former block b2
+//!   v5 = load v1 -> Field
+//!   v6 = if v3 then Field 7 else (if v0) v5
+//!   store v6 at v1
+//!   ... b2 instructions ...
+//!   enable_side_effects u1 1
 //!   ... b3 instructions ...
-//!
-//! Note that if the ValueId of the address stored to is not the same, two merging store
-//! instructions will be made - one to each address. This is the case even if both addresses refer
-//! to the same address internally. This can happen when they are equivalent offsets:
-//!
-//! b0(v0: u1, v1: ref)
-//!   jmpif v0, then: b1, else: b2
-//! b1():
-//!   v2 = add v1, Field 1
-//!   store Field 11 in v2
-//!   ... b1 instructions ...
-//! b2():
-//!   v3 = add v1, Field 1
-//!   store Field 12 in v3
-//!   ... b2 instructions ...
-//!
-//! In this example, both store instructions store to an offset of 1 from v1, but because the
-//! ValueIds differ (v2 and v3), two store instructions will be created:
-//!
-//! b0(v0: u1, v1: ref)
-//!   v2 = add v1, Field 1
-//!   v3 = load v2            (new load)
-//!   store Field 11 in v2
-//!   ... b1 instructions ...
-//!   v4 = not v0             (new not)
-//!   v5 = add v1, Field 1
-//!   v6 = load v5            (new load)
-//!   store Field 12 in v5
-//!   ... b2 instructions ...
-//!   v7 = mul v0, Field 11
-//!   v8 = mul v4, v3
-//!   v9 = add v7, v8
-//!   store v9 at v2          (new store)
-//!   v10 = mul v0, v6
-//!   v11 = mul v4, Field 12
-//!   v12 = add v10, v11
-//!   store v12 at v5         (new store)
+use std::sync::Arc;
+
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use acvm::{FieldElement, acir::AcirField, acir::BlackBoxFunc};
 use iter_extended::vecmap;
+use noirc_errors::call_stack::CallStackId;
 
 use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
-        call_stack::CallStackId,
         cfg::ControlFlowGraph,
         dfg::InsertInstructionResult,
         function::{Function, FunctionId, RuntimeType},
@@ -170,10 +169,45 @@ impl Ssa {
         }
 
         for function in self.functions.values_mut() {
+            // This pass may run forever on a brillig function - we check if block predecessors have
+            // been processed and push the block to the back of the queue. This loops forever if
+            // there are still any loops present in the program.
+            if matches!(function.runtime(), RuntimeType::Brillig(_)) {
+                continue;
+            }
+
+            #[cfg(debug_assertions)]
+            flatten_cfg_pre_check(function);
+
             flatten_function_cfg(function, &no_predicates);
+
+            #[cfg(debug_assertions)]
+            flatten_cfg_post_check(function);
         }
         self
     }
+}
+
+/// Pre-check condition for [Ssa::flatten_cfg].
+///
+/// Panics if:
+///   - Any acir function has at least 1 loop
+#[cfg(debug_assertions)]
+#[allow(dead_code)]
+fn flatten_cfg_pre_check(function: &Function) {
+    let loops = super::unrolling::Loops::find_all(function);
+    assert_eq!(loops.yet_to_unroll.len(), 0);
+}
+
+/// Post-check condition for [Ssa::flatten_cfg].
+///
+/// Panics if:
+///   - Any acir function contains > 1 block
+#[cfg(debug_assertions)]
+#[allow(dead_code)]
+fn flatten_cfg_post_check(function: &Function) {
+    let blocks = function.reachable_blocks();
+    assert_eq!(blocks.len(), 1);
 }
 
 pub(crate) struct Context<'f> {
@@ -218,7 +252,10 @@ pub(crate) struct Context<'f> {
     not_instructions: HashMap<ValueId, ValueId>,
 
     /// Flag to tell the context to not issue 'enable_side_effect' instructions during flattening.
-    /// This should be set to true only by flatten_single(), when no instruction is known to fail.
+    ///
+    /// It is set with an attribute when defining a function that cannot fail whatsoever to avoid
+    /// the overhead of handling side effects.
+    /// It can also be set to true by flatten_single(), when no instruction is known to fail.
     pub(crate) no_predicate: bool,
 }
 
@@ -245,15 +282,16 @@ struct ConditionalContext {
     else_branch: Option<ConditionalBranch>,
     // Call stack where the final location is that of the entire `if` expression
     call_stack: CallStackId,
+    // List of predicated values, and their previous mapping
+    predicated_values: HashMap<ValueId, ValueId>,
 }
 
+/// Flattens the control flow graph of the function such that it is left with a
+/// single block containing all instructions and no more control-flow.
 fn flatten_function_cfg(function: &mut Function, no_predicates: &HashMap<FunctionId, bool>) {
-    // This pass may run forever on a brillig function.
-    // Analyze will check if the predecessors have been processed and push the block to the back of
-    // the queue. This loops forever if there are still any loops present in the program.
-    if matches!(function.runtime(), RuntimeType::Brillig(_)) {
-        return;
-    }
+    // Creates a context that will perform the flattening
+    // We give it the map of the conditional branches in the CFG
+    // and the target block where the flattened instructions should be added.
     let cfg = ControlFlowGraph::with_function(function);
     let branch_ends = branch_analysis::find_branch_ends(function, &cfg);
     let target_block = function.entry_block();
@@ -293,16 +331,29 @@ impl<'f> Context<'f> {
         }
     }
 
+    /// Flatten the CFG by inlining all instructions from the queued blocks
+    /// until all blocks have been flattened.
+    /// We follow the terminator of each block to determine which blocks to
+    /// process next:
+    /// If the terminator is a 'JumpIf', we assume we are entering a conditional statement and
+    /// add the start blocks of the 'then_branch', 'else_branch' and the 'exit' block to the queue.
+    /// Other blocks will have only one successor, so we will process them iteratively,
+    /// until we reach one block already in the queue, i.e added when entering a conditional statement,
+    /// i.e the 'else_branch' or the 'exit'. In that case we switch to the next block in the queue, instead
+    /// of the successor.
+    /// This process ensure that the blocks are always processed in this order:
+    /// if_entry -> then_branch -> else_branch -> exit
+    /// In case of nested if statements, for instance in the 'then_branch', it will be:
+    /// if_entry -> then_branch -> if_entry_2 -> then_branch_2 -> exit_2 -> else_branch -> exit
+    /// Information about the nested if statements is stored in the 'condition_stack' which
+    /// is pop-ed/push-ed when entering/leaving a conditional statement.
     pub(crate) fn flatten(&mut self, no_predicates: &HashMap<FunctionId, bool>) {
-        // Flatten the CFG by inlining all instructions from the queued blocks
-        // until all blocks have been flattened.
-        // We follow the terminator of each block to determine which blocks to
-        // process next
         let mut queue = vec![self.target_block];
         while let Some(block) = queue.pop() {
             self.inline_block(block, no_predicates);
             let to_process = self.handle_terminator(block, &queue);
             for incoming_block in to_process {
+                // Do not add blocks already in the queue
                 if !queue.contains(&incoming_block) {
                     queue.push(incoming_block);
                 }
@@ -326,6 +377,11 @@ impl<'f> Context<'f> {
     }
 
     /// Returns the current condition
+    ///
+    /// The conditions are in a stack, they are added as conditional branches are encountered
+    /// so the last one is the current condition.
+    /// When processing a conditional branch, we first follow the 'then' branch and only after we
+    /// process the 'else' branch. At that point, the ConditionalContext has the 'else_branch'
     fn get_last_condition(&self) -> Option<ValueId> {
         self.condition_stack.last().map(|context| match &context.else_branch {
             Some(else_branch) => else_branch.condition,
@@ -348,7 +404,11 @@ impl<'f> Context<'f> {
         result
     }
 
-    // Inline all instructions from the given block into the target block, and track slice capacities
+    /// Inline all instructions from the given block into the target block, and track slice capacities
+    /// This is done by processing every instructions in the block and using the flattening context
+    /// to push them in the target block
+    ///
+    /// - `no_predicates` indicates which functions have no predicates and for which we disable the handling side effects
     pub(crate) fn inline_block(
         &mut self,
         block: BasicBlockId,
@@ -388,6 +448,12 @@ impl<'f> Context<'f> {
     /// For a normal block, it would be its successor
     /// For blocks related to a conditional statement, we ensure to process
     /// the 'then-branch', then the 'else-branch' (if it exists), and finally the end block
+    /// The update of the context is done by the functions 'if_start', 'then_stop' and 'else_stop'
+    /// which perform the business logic when  entering a conditional statement, finishing the 'then-branch'
+    /// and the 'else-branch, respectively.
+    /// We know if a block is related to the conditional statement if is referenced by the 'work_list'
+    /// Indeed, the start blocks of the 'then_branch' and 'else_branch' are added to the 'work_list' when
+    /// starting to process a conditional statement.
     pub(crate) fn handle_terminator(
         &mut self,
         block: BasicBlockId,
@@ -427,10 +493,18 @@ impl<'f> Context<'f> {
                 self.inserter.function.dfg.set_block_terminator(target, new_return);
                 vec![]
             }
+            TerminatorInstruction::Unreachable { .. } => {
+                // Nothing to do
+                vec![]
+            }
         }
     }
 
-    /// Process a conditional statement
+    /// Process a conditional statement by creating a 'ConditionalContext'
+    /// with information about the branch, and storing it in the dedicated stack.
+    /// Local allocations are moved to the 'then_branch' of the ConditionalContext.
+    /// Returns the blocks corresponding to the 'then_branch', 'else_branch', and exit block of the conditional statement,
+    /// so that they will be processed in this order.
     fn if_start(
         &mut self,
         condition: &ValueId,
@@ -456,6 +530,7 @@ impl<'f> Context<'f> {
             then_branch: branch,
             else_branch: None,
             call_stack,
+            predicated_values: HashMap::default(),
         };
         self.condition_stack.push(cond_context);
         self.insert_current_side_effects_enabled();
@@ -472,7 +547,12 @@ impl<'f> Context<'f> {
         vec![self.branch_ends[if_entry], *else_destination, *then_destination]
     }
 
-    /// Switch context to the 'else-branch'
+    /// Switch context to the 'else-branch':
+    /// - Negates the condition for the 'else_branch' and set it in the ConditionalContext
+    /// - Move the local allocations to the 'else_branch'
+    /// - Reset the predicated values to their old mapping in the inserter
+    /// - Issues the 'enable_side_effect' instruction
+    /// - Returns the exit block of the conditional statement
     fn then_stop(&mut self, block: &BasicBlockId) -> Vec<BasicBlockId> {
         let mut cond_context = self.condition_stack.pop().unwrap();
         cond_context.then_branch.last_block = *block;
@@ -492,6 +572,7 @@ impl<'f> Context<'f> {
         };
         cond_context.then_branch.local_allocations.clear();
         cond_context.else_branch = Some(else_branch);
+        self.reset_predicated_values(&mut cond_context);
         self.condition_stack.push(cond_context);
 
         self.insert_current_side_effects_enabled();
@@ -500,6 +581,7 @@ impl<'f> Context<'f> {
         vec![self.cfg.successors(*block).next().unwrap()]
     }
 
+    /// Negates a boolean value by inserting a Not instruction
     fn not_instruction(&mut self, condition: ValueId, call_stack: CallStackId) -> ValueId {
         if let Some(existing) = self.not_instructions.get(&condition) {
             return *existing;
@@ -510,7 +592,11 @@ impl<'f> Context<'f> {
         not
     }
 
-    /// Process the 'exit' block of a conditional statement
+    /// Process the 'exit' block of a conditional statement:
+    /// - Retrieves the local allocations from the Conditional Context
+    /// - Reset the predicated values to their old mapping in the inserter
+    /// - Issues the 'enable_side_effect' instruction
+    /// - Joins the arguments from both branches
     fn else_stop(&mut self, block: &BasicBlockId) -> Vec<BasicBlockId> {
         let mut cond_context = self.condition_stack.pop().unwrap();
         if cond_context.else_branch.is_none() {
@@ -525,6 +611,8 @@ impl<'f> Context<'f> {
         self.local_allocations = std::mem::take(&mut else_branch.local_allocations);
         else_branch.last_block = *block;
         cond_context.else_branch = Some(else_branch);
+
+        self.reset_predicated_values(&mut cond_context);
 
         // We must remember to reset whether side effects are enabled when both branches
         // end, in addition to resetting the value of old_condition since it is set to
@@ -547,8 +635,9 @@ impl<'f> Context<'f> {
     /// all of the join point's predecessors, and it must handle any differing side effects from
     /// each branch.
     ///
-    /// Afterwards, continues inlining recursively until it finds the next end block or finds the
-    /// end of the function.
+    /// The merge of arguments is done by inserting an 'IfElse' instructions which returns
+    /// the argument from the then_branch or the else_branch depending the the condition.
+    /// They are added to the 'arguments_stack' instead of the arguments of the 2 branches.
     ///
     /// Returns the final block that was inlined.
     fn inline_branch_end(
@@ -600,6 +689,26 @@ impl<'f> Context<'f> {
         self.arguments_stack.pop();
         self.arguments_stack.push(args);
         destination
+    }
+
+    /// Map the value to its predicated value, and store the previous mapping
+    /// to the 'predicated_values' map if not already stored.
+    fn predicate_value(&mut self, value: ValueId, predicated_value: ValueId) {
+        let conditional_context = self.condition_stack.last_mut().unwrap();
+
+        conditional_context
+            .predicated_values
+            .entry(value)
+            .or_insert_with(|| self.inserter.resolve(value));
+
+        self.inserter.map_value(value, predicated_value);
+    }
+
+    /// Restore the previous mapping of predicated values.
+    fn reset_predicated_values(&mut self, conditional_context: &mut ConditionalContext) {
+        for (value, old_mapping) in conditional_context.predicated_values.drain() {
+            self.inserter.map_value(value, old_mapping);
+        }
     }
 
     /// Insert a new instruction into the target block.
@@ -678,8 +787,10 @@ impl<'f> Context<'f> {
         }
     }
 
-    /// If we are currently in a branch, we need to modify constrain instructions
-    /// to multiply them by the branch's condition (see optimization #1 in the module comment).
+    /// If we are currently in a branch, we need to modify instructions that have side effects
+    /// (e.g. constraints, stores, range checks) to ensure that the side effect is only applied
+    /// if their branch is taken.
+    /// For instance we multiply constrain instructions by the branch's condition (see optimization #1 in the module comment).
     fn handle_instruction_side_effects(
         &mut self,
         instruction: Instruction,
@@ -703,7 +814,7 @@ impl<'f> Context<'f> {
                     if self.local_allocations.contains(&address) {
                         Instruction::Store { address, value }
                     } else {
-                        // Instead of storing `value`, store `if condition { value } else { previous_value }`
+                        // Instead of storing `value`, we store: `if condition { value } else { previous_value }`
                         let typ = self.inserter.function.dfg.type_of_value(value);
                         let load = Instruction::Load { address };
                         let previous_value = self
@@ -729,11 +840,17 @@ impl<'f> Context<'f> {
                     // Condition needs to be cast to argument type in order to multiply them together.
                     let casted_condition =
                         self.cast_condition_to_value_type(condition, value, call_stack);
-                    let value = self.mul_by_condition(value, casted_condition, call_stack);
-                    Instruction::RangeCheck { value, max_bit_size, assert_message }
+                    let predicate_value =
+                        self.mul_by_condition(value, casted_condition, call_stack);
+                    // Issue #8617: update the value to be the predicated value.
+                    // This ensures that the value has the correct bit size in all cases.
+                    self.predicate_value(value, predicate_value);
+                    Instruction::RangeCheck { value: predicate_value, max_bit_size, assert_message }
                 }
                 Instruction::Call { func, mut arguments } => match self.inserter.function.dfg[func]
                 {
+                    // A ToBits (or ToRadix in general) can fail if the input has more bits than the target.
+                    // We ensure it does not fail by multiplying the input by the condition.
                     Value::Intrinsic(Intrinsic::ToBits(_) | Intrinsic::ToRadix(_)) => {
                         let field = arguments[0];
                         let casted_condition =
@@ -744,35 +861,162 @@ impl<'f> Context<'f> {
 
                         Instruction::Call { func, arguments }
                     }
-                    //Issue #5045: We set curve points to infinity if condition is false
-                    Value::Intrinsic(Intrinsic::BlackBox(BlackBoxFunc::EmbeddedCurveAdd)) => {
-                        arguments[2] = self.var_or_one(arguments[2], condition, call_stack);
-                        arguments[5] = self.var_or_one(arguments[5], condition, call_stack);
 
-                        Instruction::Call { func, arguments }
-                    }
-                    Value::Intrinsic(Intrinsic::BlackBox(BlackBoxFunc::MultiScalarMul)) => {
-                        let points_array_idx = if matches!(
-                            self.inserter.function.dfg.type_of_value(arguments[0]),
-                            Type::Array { .. }
-                        ) {
-                            0
-                        } else {
-                            // if the first argument is not an array, we assume it is a slice
-                            // which means the array is the second argument
-                            1
-                        };
-                        let (elements, typ) = self.apply_predicate_to_msm_argument(
-                            arguments[points_array_idx],
-                            condition,
-                            call_stack,
-                        );
+                    Value::Intrinsic(Intrinsic::BlackBox(blackbox)) => match blackbox {
+                        //Issue #5045: We set curve points to g1, g2=2g1 if condition is false, to ensure that they are on the curve, if not the addition may fail.
+                        // If inputs are distinct curve points, then so is their predicate version.
+                        // If inputs are identical (point doubling), then so is their predicate version
+                        // Hence the assumptions for calling EmbeddedCurveAdd are kept by this transformation.
+                        BlackBoxFunc::EmbeddedCurveAdd => {
+                            #[cfg(feature = "bn254")]
+                            {
+                                let generators = Self::grumpkin_generators();
+                                // Convert the generators to ValueId
+                                let generators = generators
+                                    .iter()
+                                    .map(|v| {
+                                        self.inserter
+                                            .function
+                                            .dfg
+                                            .make_constant(*v, NumericType::NativeField)
+                                    })
+                                    .collect::<Vec<ValueId>>();
+                                let (point1_x, point2_x) = self.predicate_argument(
+                                    &arguments,
+                                    &generators,
+                                    true,
+                                    condition,
+                                    call_stack,
+                                );
+                                let (point1_y, point2_y) = self.predicate_argument(
+                                    &arguments,
+                                    &generators,
+                                    false,
+                                    condition,
+                                    call_stack,
+                                );
+                                arguments[0] = point1_x;
+                                arguments[1] = point1_y;
+                                arguments[3] = point2_x;
+                                arguments[4] = point2_y;
+                            }
 
-                        let instruction = Instruction::MakeArray { elements, typ };
-                        let array = self.insert_instruction(instruction, call_stack);
-                        arguments[points_array_idx] = array;
-                        Instruction::Call { func, arguments }
-                    }
+                            Instruction::Call { func, arguments }
+                        }
+
+                        // For MSM, we also ensure the inputs are on the curve if the predicate is false.
+                        BlackBoxFunc::MultiScalarMul => {
+                            let points_array_idx = if matches!(
+                                self.inserter.function.dfg.type_of_value(arguments[0]),
+                                Type::Array { .. }
+                            ) {
+                                0
+                            } else {
+                                // if the first argument is not an array, we assume it is a slice
+                                // which means the array is the second argument
+                                1
+                            };
+                            let (elements, typ) = self.apply_predicate_to_msm_argument(
+                                arguments[points_array_idx],
+                                condition,
+                                call_stack,
+                            );
+
+                            let instruction = Instruction::MakeArray { elements, typ };
+                            let array = self.insert_instruction(instruction, call_stack);
+                            arguments[points_array_idx] = array;
+                            Instruction::Call { func, arguments }
+                        }
+
+                        // The ECDSA blackbox functions will fail to prove inside barretenberg in the situation where
+                        // the public key doesn't not sit on the relevant curve.
+                        //
+                        // We then replace the public key with the generator point if the constraint is inactive to avoid
+                        // invalid public keys from causing constraints to fail.
+                        BlackBoxFunc::EcdsaSecp256k1 => {
+                            // See: https://github.com/RustCrypto/elliptic-curves/blob/3381a99b6412ef9fa556e32a834e401d569007e3/k256/src/arithmetic/affine.rs#L57-L76
+                            const GENERATOR_X: [u8; 32] = [
+                                0x79, 0xbe, 0x66, 0x7e, 0xf9, 0xdc, 0xbb, 0xac, 0x55, 0xa0, 0x62,
+                                0x95, 0xce, 0x87, 0x0b, 0x07, 0x02, 0x9b, 0xfc, 0xdb, 0x2d, 0xce,
+                                0x28, 0xd9, 0x59, 0xf2, 0x81, 0x5b, 0x16, 0xf8, 0x17, 0x98,
+                            ];
+                            const GENERATOR_Y: [u8; 32] = [
+                                0x48, 0x3a, 0xda, 0x77, 0x26, 0xa3, 0xc4, 0x65, 0x5d, 0xa4, 0xfb,
+                                0xfc, 0x0e, 0x11, 0x08, 0xa8, 0xfd, 0x17, 0xb4, 0x48, 0xa6, 0x85,
+                                0x54, 0x19, 0x9c, 0x47, 0xd0, 0x8f, 0xfb, 0x10, 0xd4, 0xb8,
+                            ];
+
+                            arguments[0] = self.merge_with_array_constant(
+                                arguments[0],
+                                GENERATOR_X,
+                                condition,
+                                call_stack,
+                            );
+                            arguments[1] = self.merge_with_array_constant(
+                                arguments[1],
+                                GENERATOR_Y,
+                                condition,
+                                call_stack,
+                            );
+
+                            Instruction::Call { func, arguments }
+                        }
+                        BlackBoxFunc::EcdsaSecp256r1 => {
+                            // See: https://github.com/RustCrypto/elliptic-curves/blob/3381a99b6412ef9fa556e32a834e401d569007e3/p256/src/arithmetic.rs#L46-L57
+                            const GENERATOR_X: [u8; 32] = [
+                                0x6b, 0x17, 0xd1, 0xf2, 0xe1, 0x2c, 0x42, 0x47, 0xf8, 0xbc, 0xe6,
+                                0xe5, 0x63, 0xa4, 0x40, 0xf2, 0x77, 0x03, 0x7d, 0x81, 0x2d, 0xeb,
+                                0x33, 0xa0, 0xf4, 0xa1, 0x39, 0x45, 0xd8, 0x98, 0xc2, 0x96,
+                            ];
+                            const GENERATOR_Y: [u8; 32] = [
+                                0x4f, 0xe3, 0x42, 0xe2, 0xfe, 0x1a, 0x7f, 0x9b, 0x8e, 0xe7, 0xeb,
+                                0x4a, 0x7c, 0x0f, 0x9e, 0x16, 0x2b, 0xce, 0x33, 0x57, 0x6b, 0x31,
+                                0x5e, 0xce, 0xcb, 0xb6, 0x40, 0x68, 0x37, 0xbf, 0x51, 0xf5,
+                            ];
+
+                            arguments[0] = self.merge_with_array_constant(
+                                arguments[0],
+                                GENERATOR_X,
+                                condition,
+                                call_stack,
+                            );
+                            arguments[1] = self.merge_with_array_constant(
+                                arguments[1],
+                                GENERATOR_Y,
+                                condition,
+                                call_stack,
+                            );
+
+                            Instruction::Call { func, arguments }
+                        }
+
+                        // TODO: https://github.com/noir-lang/noir/issues/8998
+                        BlackBoxFunc::RecursiveAggregation => Instruction::Call { func, arguments },
+
+                        // These functions will always be satisfiable no matter the input so no modification is needed.
+                        BlackBoxFunc::AND
+                        | BlackBoxFunc::XOR
+                        | BlackBoxFunc::AES128Encrypt
+                        | BlackBoxFunc::Blake2s
+                        | BlackBoxFunc::Blake3
+                        | BlackBoxFunc::Keccakf1600
+                        | BlackBoxFunc::Poseidon2Permutation
+                        | BlackBoxFunc::Sha256Compression => Instruction::Call { func, arguments },
+
+                        BlackBoxFunc::RANGE => unreachable!(
+                            "RANGE should have been converted into `Instruction::RangeCheck`"
+                        ),
+
+                        BlackBoxFunc::BigIntAdd
+                        | BlackBoxFunc::BigIntSub
+                        | BlackBoxFunc::BigIntMul
+                        | BlackBoxFunc::BigIntDiv
+                        | BlackBoxFunc::BigIntFromLeBytes
+                        | BlackBoxFunc::BigIntToLeBytes => {
+                            todo!("BigInt opcodes are not supported yet")
+                        }
+                    },
+
                     _ => Instruction::Call { func, arguments },
                 },
                 other => other,
@@ -782,6 +1026,96 @@ impl<'f> Context<'f> {
         }
     }
 
+    #[cfg(feature = "bn254")]
+    fn grumpkin_generators() -> Vec<FieldElement> {
+        let g1_x = FieldElement::from_hex("0x01").unwrap();
+        let g1_y =
+            FieldElement::from_hex("0x02cf135e7506a45d632d270d45f1181294833fc48d823f272c").unwrap();
+        let g2_x = FieldElement::from_hex(
+            "0x06ce1b0827aafa85ddeb49cdaa36306d19a74caa311e13d46d8bc688cdbffffe",
+        )
+        .unwrap();
+        let g2_y = FieldElement::from_hex(
+            "0x1c122f81a3a14964909ede0ba2a6855fc93faf6fa1a788bf467be7e7a43f80ac",
+        )
+        .unwrap();
+        vec![g1_x, g1_y, g2_x, g2_y]
+    }
+
+    /// Merges the given array with a constant array of 32 elements of type `u8`.
+    ///
+    /// This is expected to be used for the ECDSA secp256k1 and secp256r1 generators,
+    /// where the x and y coordinates of the generators are constant values.
+    fn merge_with_array_constant(
+        &mut self,
+        array: ValueId,
+        constant: [u8; 32],
+        condition: ValueId,
+        call_stack: CallStackId,
+    ) -> ValueId {
+        let expected_array_type = Type::Array(Arc::new(vec![Type::unsigned(8)]), 32);
+        let array_type = self.inserter.function.dfg.type_of_value(array);
+        assert_eq!(array_type, expected_array_type);
+
+        let elements = constant
+            .iter()
+            .map(|elem| {
+                self.inserter
+                    .function
+                    .dfg
+                    .make_constant(FieldElement::from(*elem as u32), NumericType::unsigned(8))
+            })
+            .collect();
+        let constant_array = Instruction::MakeArray { elements, typ: expected_array_type };
+        let constant_array_value = self.insert_instruction(constant_array, call_stack);
+        let not_condition = self.not_instruction(condition, call_stack);
+
+        self.insert_instruction(
+            Instruction::IfElse {
+                then_condition: condition,
+                then_value: array,
+                else_condition: not_condition,
+                else_value: constant_array_value,
+            },
+            call_stack,
+        )
+    }
+
+    /// Returns the values corresponding to the given inputs by doing
+    /// 'if condition {inputs} else {generators}'
+    /// It is done for the abscissas or the ordinates, depending on 'abscissa'.
+    /// Inputs are supposed to be of the form:
+    /// - inputs: (point1_x, point1_y, point1_infinite, point2_x, point2_y, point2_infinite)
+    /// - generators: [g1_x, g1_y, g2_x, g2_y]
+    /// - index: true for abscissa, false for ordinate
+    #[cfg(feature = "bn254")]
+    fn predicate_argument(
+        &mut self,
+        inputs: &[ValueId],
+        generators: &[ValueId],
+        abscissa: bool,
+        condition: ValueId,
+        call_stack: CallStackId,
+    ) -> (ValueId, ValueId) {
+        let index = !abscissa as usize;
+        if inputs[3] == inputs[0] && inputs[4] == inputs[1] {
+            // Point doubling
+            let predicated_value =
+                self.var_or(inputs[index], condition, generators[index], call_stack);
+            (predicated_value, predicated_value)
+        } else {
+            (
+                self.var_or(inputs[index], condition, generators[index], call_stack),
+                self.var_or(inputs[3 + index], condition, generators[2 + index], call_stack),
+            )
+        }
+    }
+
+    /// 'Cast' the 'condition' to 'value' type
+    ///
+    /// This needed because we need to multiply the condition with several values
+    /// in order to 'nullify' side-effects when the 'condition' is false (in 'handle_instruction_side_effects()' function).
+    /// Since the condition is a boolean, it can be safely casted to any other type.
     fn cast_condition_to_value_type(
         &mut self,
         condition: ValueId,
@@ -793,6 +1127,7 @@ impl<'f> Context<'f> {
         self.insert_instruction(cast, call_stack)
     }
 
+    /// Insert a multiplication between 'condition' and 'value'
     fn mul_by_condition(
         &mut self,
         value: ValueId,
@@ -800,8 +1135,9 @@ impl<'f> Context<'f> {
         call_stack: CallStackId,
     ) -> ValueId {
         // Unchecked mul because the condition is always 0 or 1
+        let cast_condition = self.cast_condition_to_value_type(condition, value, call_stack);
         self.insert_instruction(
-            Instruction::binary(BinaryOp::Mul { unchecked: true }, value, condition),
+            Instruction::binary(BinaryOp::Mul { unchecked: true }, value, cast_condition),
             call_stack,
         )
     }
@@ -846,20 +1182,40 @@ impl<'f> Context<'f> {
             call_stack,
         )
     }
+    // Computes: if condition { var } else { other }
+    #[cfg(feature = "bn254")]
+    fn var_or(
+        &mut self,
+        var: ValueId,
+        condition: ValueId,
+        other: ValueId,
+        call_stack: CallStackId,
+    ) -> ValueId {
+        let field = self.mul_by_condition(var, condition, call_stack);
+        let not_condition = self.not_instruction(condition, call_stack);
+        let else_field = self.mul_by_condition(other, not_condition, call_stack);
+        // Unchecked add because one of the values is guaranteed to be 0
+        self.insert_instruction(
+            Instruction::binary(BinaryOp::Add { unchecked: true }, field, else_field),
+            call_stack,
+        )
+    }
 }
 
 #[cfg(test)]
 mod test {
     use acvm::acir::AcirField;
 
-    use crate::ssa::{
-        Ssa,
-        ir::{
-            dfg::DataFlowGraph,
-            instruction::{Instruction, TerminatorInstruction},
-            value::{Value, ValueId},
+    use crate::{
+        assert_ssa_snapshot,
+        ssa::{
+            Ssa,
+            ir::{
+                dfg::DataFlowGraph,
+                instruction::{Instruction, TerminatorInstruction},
+                value::{Value, ValueId},
+            },
         },
-        opt::assert_normalized_ssa_equals,
     };
 
     #[test]
@@ -879,23 +1235,21 @@ mod test {
         let ssa = Ssa::from_str(src).unwrap();
         assert_eq!(ssa.main().reachable_blocks().len(), 4);
 
-        let expected = "
-            acir(inline) fn main f0 {
-              b0(v0: u1):
-                enable_side_effects v0
-                v1 = not v0
-                enable_side_effects u1 1
-                v3 = cast v0 as Field
-                v4 = cast v1 as Field
-                v6 = mul v3, Field 3
-                v8 = mul v4, Field 4
-                v9 = add v6, v8
-                return v9
-            }
-            ";
-
         let ssa = ssa.flatten_cfg();
-        assert_normalized_ssa_equals(ssa, expected);
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            enable_side_effects v0
+            v1 = not v0
+            enable_side_effects u1 1
+            v3 = cast v0 as Field
+            v4 = cast v1 as Field
+            v6 = mul v3, Field 3
+            v8 = mul v4, Field 4
+            v9 = add v6, v8
+            return v9
+        }
+        ");
     }
 
     #[test]
@@ -914,20 +1268,19 @@ mod test {
         let ssa = Ssa::from_str(src).unwrap();
         assert_eq!(ssa.main().reachable_blocks().len(), 3);
 
-        let expected = "
-            acir(inline) fn main f0 {
-              b0(v0: u1, v1: u1):
-                enable_side_effects v0
-                v2 = mul v1, v0
-                constrain v2 == v0
-                v3 = not v0
-                enable_side_effects u1 1
-                return
-            }
-            ";
         let ssa = ssa.flatten_cfg();
         assert_eq!(ssa.main().reachable_blocks().len(), 1);
-        assert_normalized_ssa_equals(ssa, expected);
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u1):
+            enable_side_effects v0
+            v2 = unchecked_mul v1, v0
+            constrain v2 == v0
+            v3 = not v0
+            enable_side_effects u1 1
+            return
+        }
+        ");
     }
 
     #[test]
@@ -945,24 +1298,23 @@ mod test {
             ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let expected = "
-            acir(inline) fn main f0 {
-              b0(v0: u1, v1: &mut Field):
-                enable_side_effects v0
-                v2 = load v1 -> Field
-                v3 = not v0
-                v4 = cast v0 as Field
-                v5 = cast v3 as Field
-                v7 = mul v4, Field 5
-                v8 = mul v5, v2
-                v9 = add v7, v8
-                store v9 at v1
-                enable_side_effects u1 1
-                return
-            }
-            ";
         let ssa = ssa.flatten_cfg();
-        assert_normalized_ssa_equals(ssa, expected);
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: &mut Field):
+            enable_side_effects v0
+            v2 = load v1 -> Field
+            v3 = not v0
+            v4 = cast v0 as Field
+            v5 = cast v3 as Field
+            v7 = mul v4, Field 5
+            v8 = mul v5, v2
+            v9 = add v7, v8
+            store v9 at v1
+            enable_side_effects u1 1
+            return
+        }
+        ");
     }
 
     #[test]
@@ -983,32 +1335,31 @@ mod test {
             ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let expected = "
-            acir(inline) fn main f0 {
-              b0(v0: u1, v1: &mut Field):
-                enable_side_effects v0
-                v2 = load v1 -> Field
-                v3 = not v0
-                v4 = cast v0 as Field
-                v5 = cast v3 as Field
-                v7 = mul v4, Field 5
-                v8 = mul v5, v2
-                v9 = add v7, v8
-                store v9 at v1
-                enable_side_effects v3
-                v10 = load v1 -> Field
-                v11 = cast v3 as Field
-                v12 = cast v0 as Field
-                v14 = mul v11, Field 6
-                v15 = mul v12, v10
-                v16 = add v14, v15
-                store v16 at v1
-                enable_side_effects u1 1
-                return
-            }
-            ";
         let ssa = ssa.flatten_cfg();
-        assert_normalized_ssa_equals(ssa, expected);
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: &mut Field):
+            enable_side_effects v0
+            v2 = load v1 -> Field
+            v3 = not v0
+            v4 = cast v0 as Field
+            v5 = cast v3 as Field
+            v7 = mul v4, Field 5
+            v8 = mul v5, v2
+            v9 = add v7, v8
+            store v9 at v1
+            enable_side_effects v3
+            v10 = load v1 -> Field
+            v11 = cast v3 as Field
+            v12 = cast v0 as Field
+            v14 = mul v11, Field 6
+            v15 = mul v12, v10
+            v16 = add v14, v15
+            store v16 at v1
+            enable_side_effects u1 1
+            return
+        }
+        ");
     }
 
     #[test]
@@ -1095,7 +1446,16 @@ mod test {
 
         let ssa = ssa.flatten_cfg().mem2reg();
 
-        let expected = "
+        let main = ssa.main();
+        let ret = match main.dfg[main.entry_block()].terminator() {
+            Some(TerminatorInstruction::Return { return_values, .. }) => return_values[0],
+            _ => unreachable!("Should have terminator instruction"),
+        };
+
+        let merged_values = get_all_constants_reachable_from_instruction(&main.dfg, ret);
+        assert_eq!(merged_values, vec![2, 3, 5, 6]);
+
+        assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: u1, v1: u1):
             v2 = allocate -> &mut Field
@@ -1105,7 +1465,7 @@ mod test {
             v5 = cast v3 as Field
             v7 = mul v4, Field 2
             v8 = add v7, v5
-            v9 = mul v0, v1
+            v9 = unchecked_mul v0, v1
             enable_side_effects v9
             v10 = not v9
             v11 = cast v9 as Field
@@ -1114,7 +1474,7 @@ mod test {
             v15 = mul v12, v8
             v16 = add v14, v15
             v17 = not v1
-            v18 = mul v0, v17
+            v18 = unchecked_mul v0, v17
             enable_side_effects v18
             v19 = not v18
             v20 = cast v18 as Field
@@ -1131,18 +1491,8 @@ mod test {
             v31 = add v29, v30
             enable_side_effects u1 1
             return v31
-        }";
-
-        let main = ssa.main();
-        let ret = match main.dfg[main.entry_block()].terminator() {
-            Some(TerminatorInstruction::Return { return_values, .. }) => return_values[0],
-            _ => unreachable!("Should have terminator instruction"),
-        };
-
-        let merged_values = get_all_constants_reachable_from_instruction(&main.dfg, ret);
-        assert_eq!(merged_values, vec![2, 3, 5, 6]);
-
-        assert_normalized_ssa_equals(ssa, expected);
+        }
+        ");
     }
 
     #[test]
@@ -1179,19 +1529,6 @@ mod test {
         let flattened_ssa = ssa.flatten_cfg();
 
         // Now assert that there is not a load between the allocate and its first store
-        // The Expected IR is:
-        let expected = "
-        acir(inline) fn main f0 {
-          b0(v0: u1):
-            enable_side_effects v0
-            v1 = allocate -> &mut Field
-            store Field 0 at v1
-            v3 = load v1 -> Field
-            v4 = not v0
-            enable_side_effects u1 1
-            return
-        }
-        ";
 
         let main = flattened_ssa.main();
         let instructions = main.dfg[main.entry_block()].instructions();
@@ -1207,7 +1544,18 @@ mod test {
         assert!(allocate_index < store_index);
         assert!(store_index < load_index);
 
-        assert_normalized_ssa_equals(flattened_ssa, expected);
+        assert_ssa_snapshot!(flattened_ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            enable_side_effects v0
+            v1 = allocate -> &mut Field
+            store Field 0 at v1
+            v3 = load v1 -> Field
+            v4 = not v0
+            enable_side_effects u1 1
+            return
+        }
+        ");
     }
 
     /// Work backwards from an instruction to find all the constant values
@@ -1259,16 +1607,15 @@ mod test {
             ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let expected = "
-            acir(inline) fn main f0 {
-              b0():
-                enable_side_effects u1 1
-                constrain u1 0 == u1 1
-                return
-            }
-            ";
         let ssa = ssa.flatten_cfg();
-        assert_normalized_ssa_equals(ssa, expected);
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            enable_side_effects u1 1
+            constrain u1 0 == u1 1
+            return
+        }
+        ");
     }
 
     #[test]
@@ -1279,18 +1626,19 @@ mod test {
         let src = "
         acir(inline) fn main f0 {
           b0(v0: [u8; 2]):
-            v2 = array_get v0, index u8 0 -> u8
+            v2 = array_get v0, index u32 0 -> u8
             v3 = cast v2 as u32
             v4 = truncate v3 to 1 bits, max_bit_size: 32
             v5 = cast v4 as u1
-            v6 = allocate -> &mut Field
+            v6 = allocate -> &mut u8
             store u8 0 at v6
             jmpif v5 then: b2, else: b1
           b2():
             v7 = cast v2 as Field
             v9 = add v7, Field 1
-            v10 = cast v9 as u8
-            store v10 at v6
+            v10 = truncate v9 to 8 bits, max_bit_size: 254
+            v11 = cast v10 as u8
+            store v11 at v6
             jmp b3()
           b3():
             constrain v5 == u1 1
@@ -1302,40 +1650,6 @@ mod test {
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
-
-        let expected = "
-        acir(inline) fn main f0 {
-          b0(v0: [u8; 2]):
-            v2 = array_get v0, index u8 0 -> u8
-            v3 = cast v2 as u32
-            v4 = truncate v3 to 1 bits, max_bit_size: 32
-            v5 = cast v4 as u1
-            v6 = allocate -> &mut Field
-            store u8 0 at v6
-            enable_side_effects v5
-            v7 = cast v2 as Field
-            v9 = add v7, Field 1
-            v10 = cast v9 as u8
-            v11 = load v6 -> u8
-            v12 = not v5
-            v13 = cast v4 as u8
-            v14 = cast v12 as u8
-            v15 = unchecked_mul v13, v10
-            v16 = unchecked_mul v14, v11
-            v17 = unchecked_add v15, v16
-            store v17 at v6
-            enable_side_effects v12
-            v18 = load v6 -> u8
-            v19 = cast v12 as u8
-            v20 = cast v4 as u8
-            v21 = unchecked_mul v20, v18
-            store v21 at v6
-            enable_side_effects u1 1
-            constrain v5 == u1 1
-            return
-        }
-        ";
-
         let flattened_ssa = ssa.flatten_cfg();
         let main = flattened_ssa.main();
 
@@ -1353,7 +1667,39 @@ mod test {
         }
         assert_eq!(constrain_count, 1);
 
-        assert_normalized_ssa_equals(flattened_ssa, expected);
+        assert_ssa_snapshot!(flattened_ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: [u8; 2]):
+            v2 = array_get v0, index u32 0 -> u8
+            v3 = cast v2 as u32
+            v4 = truncate v3 to 1 bits, max_bit_size: 32
+            v5 = cast v4 as u1
+            v6 = allocate -> &mut u8
+            store u8 0 at v6
+            enable_side_effects v5
+            v8 = cast v2 as Field
+            v10 = add v8, Field 1
+            v11 = truncate v10 to 8 bits, max_bit_size: 254
+            v12 = cast v11 as u8
+            v13 = load v6 -> u8
+            v14 = not v5
+            v15 = cast v4 as u8
+            v16 = cast v14 as u8
+            v17 = unchecked_mul v15, v12
+            v18 = unchecked_mul v16, v13
+            v19 = unchecked_add v17, v18
+            store v19 at v6
+            enable_side_effects v14
+            v20 = load v6 -> u8
+            v21 = cast v14 as u8
+            v22 = cast v4 as u8
+            v23 = unchecked_mul v22, v20
+            store v23 at v6
+            enable_side_effects u1 1
+            constrain v5 == u1 1
+            return
+        }
+        ");
     }
 
     #[test]
@@ -1364,41 +1710,41 @@ mod test {
         let src = "
         acir(inline) fn main f0 {
           b0():
-            v0 = allocate -> &mut Field
-            store Field 0 at v0
-            v2 = allocate -> &mut Field
-            store Field 2 at v2
-            v4 = load v2 -> Field
-            v5 = lt v4, Field 2
+            v0 = allocate -> &mut u32
+            store u32 0 at v0
+            v2 = allocate -> &mut u32
+            store u32 2 at v2
+            v4 = load v2 -> u32
+            v5 = lt v4, u32 2
             jmpif v5 then: b4, else: b1
           b1():
-            v6 = load v2 -> Field
-            v8 = lt v6, Field 4
+            v6 = load v2 -> u32
+            v8 = lt v6, u32 4
             jmpif v8 then: b2, else: b3
           b2():
-            v9 = load v0 -> Field
-            v10 = load v2 -> Field
-            v12 = mul v10, Field 100
+            v9 = load v0 -> u32
+            v10 = load v2 -> u32
+            v12 = mul v10, u32 100
             v13 = add v9, v12
             store v13 at v0
-            v14 = load v2 -> Field
-            v16 = add v14, Field 1
+            v14 = load v2 -> u32
+            v16 = add v14, u32 1
             store v16 at v2
             jmp b3()
           b3():
             jmp b5()
           b4():
-            v17 = load v0 -> Field
-            v18 = load v2 -> Field
-            v20 = mul v18, Field 10
+            v17 = load v0 -> u32
+            v18 = load v2 -> u32
+            v20 = mul v18, u32 10
             v21 = add v17, v20
             store v21 at v0
-            v22 = load v2 -> Field
-            v23 = add v22, Field 1
+            v22 = load v2 -> u32
+            v23 = add v22, u32 1
             store v23 at v2
             jmp b5()
           b5():
-            v24 = load v0 -> Field
+            v24 = load v0 -> u32
             return v24
         }";
 
@@ -1422,17 +1768,15 @@ mod test {
             _ => unreachable!("Should have terminator instruction"),
         }
 
-        let expected = "
+        assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0():
-            v0 = allocate -> &mut Field
-            v1 = allocate -> &mut Field
+            v0 = allocate -> &mut u32
+            v1 = allocate -> &mut u32
             enable_side_effects u1 1
-            return Field 200
+            return u32 200
         }
-        ";
-
-        assert_normalized_ssa_equals(ssa, expected);
+        ");
     }
 
     #[test]
@@ -1459,12 +1803,12 @@ mod test {
         let src = "
         acir(inline) fn main f0 {
           b0(v0: bool):
-            v1 = allocate -> &mut [Field; 1]
+            v1 = allocate -> &mut Field
             store Field 0 at v1
             jmpif v0 then: b1, else: b2
           b1():
-            store Field 1 at v1 
-            store Field 2 at v1 
+            store Field 1 at v1
+            store Field 2 at v1
             jmp b2()
           b2():
             v3 = load v1 -> Field
@@ -1475,10 +1819,10 @@ mod test {
 
         let ssa = ssa.flatten_cfg().mem2reg().fold_constants();
 
-        let expected = "
+        assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: u1):
-            v1 = allocate -> &mut [Field; 1]
+            v1 = allocate -> &mut Field
             enable_side_effects v0
             v2 = not v0
             v3 = cast v0 as Field
@@ -1489,9 +1833,7 @@ mod test {
             enable_side_effects u1 1
             return v8
         }
-        ";
-
-        assert_normalized_ssa_equals(ssa, expected);
+        ");
     }
 
     #[test]
@@ -1505,9 +1847,9 @@ mod test {
             jmpif v0 then: b1, else: b2
           b1():
             v4 = make_array [Field 1] : [Field; 1]
-            store v4 at v3 
+            store v4 at v3
             v5 = make_array [Field 2] : [Field; 1]
-            store v5 at v3 
+            store v5 at v3
             jmp b2()
           b2():
             v24 = load v3 -> Field
@@ -1520,10 +1862,11 @@ mod test {
             .flatten_cfg()
             .mem2reg()
             .remove_if_else()
+            .unwrap()
             .fold_constants()
             .dead_instruction_elimination();
 
-        let expected = "
+        assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: u1, v1: u1):
             enable_side_effects v0
@@ -1533,8 +1876,137 @@ mod test {
             enable_side_effects u1 1
             return v5
         }
+        ");
+    }
+
+    #[test]
+    fn do_not_replace_else_condition_with_nested_if_same_then_cond() {
+        // When inserting an `IfElse` instruction we will attempt to simplify when the then condition
+        // of the inner if-else matches the parent's if-else then condition.
+        // e.g. such as the following pseudocode:
+        // ```
+        // if cond {
+        //   if cond { ... } else { ... }
+        // } else {
+        //   ...
+        // }
+        // ```
+        // In the SSA below we can see how the jmpif condition in b0 matches the jmpif condition in b1.
+        let src = "
+        acir(inline) pure fn main f0 {
+          b0(v0: u1, v1: [[u1; 2]; 3]):
+            v4 = not v0
+            jmpif v0 then: b1, else: b2
+          b1():
+            v7 = not v0
+            jmpif v0 then: b3, else: b4
+          b2():
+            v6 = array_get v1, index u32 0 -> [u1; 2]
+            jmp b5(v6)
+          b3():
+            v9 = array_get v1, index u32 0 -> [u1; 2]
+            jmp b6(v9)
+          b4():
+            v8 = array_get v1, index u32 0 -> [u1; 2]
+            jmp b6(v8)
+          b5(v2: [u1; 2]):
+            return v2
+          b6(v3: [u1; 2]):
+            jmp b5(v3)
+        }
         ";
 
-        assert_normalized_ssa_equals(ssa, expected);
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.flatten_cfg();
+
+        // You will notice in the expected SSA that there is no nested if statement. This is because the
+        // final instruction `v12 = if v0 then v5 else (if v6) v10` used to have `v9` as its then block value.
+        // As they share the same then condition we can simplify the then value in the outer if-else statement to the inner if-else
+        // statement's then value. This is why the then value is `v5` in both if-else instructions below.
+        // We want to make sure that the else condition in the final instruction `v12 = if v0 then v5 else (if v6) v10`
+        // remains v6 and is not altered when performing this optimization.
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) pure fn main f0 {
+          b0(v0: u1, v1: [[u1; 2]; 3]):
+            v2 = not v0
+            enable_side_effects v0
+            v3 = not v0
+            enable_side_effects v0
+            v5 = array_get v1, index u32 0 -> [u1; 2]
+            v6 = not v0
+            v7 = unchecked_mul v0, v6
+            enable_side_effects v7
+            v8 = array_get v1, index u32 0 -> [u1; 2]
+            enable_side_effects v0
+            v9 = if v0 then v5 else (if v7) v8
+            enable_side_effects v6
+            v10 = array_get v1, index u32 0 -> [u1; 2]
+            enable_side_effects u1 1
+            v12 = if v0 then v5 else (if v6) v10
+            return v12
+        }
+        ");
+    }
+
+    #[test]
+    #[cfg(feature = "bn254")]
+    fn test_grumpkin_points() {
+        use crate::ssa::opt::flatten_cfg::Context;
+        use acvm::acir::FieldElement;
+
+        let generators = Context::grumpkin_generators();
+        let len = generators.len();
+        for i in (0..len).step_by(2) {
+            let gen_x = generators[i];
+            let gen_y = generators[i + 1];
+            assert!(
+                gen_y * gen_y - gen_x * gen_x * gen_x + FieldElement::from(17_u128)
+                    == FieldElement::zero()
+            );
+        }
+    }
+
+    #[test]
+    fn use_predicated_value() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: bool, v1: u32):
+            v3 = add u32 42, v1
+            jmpif v0 then: b1, else: b2
+          b1():
+            range_check v3 to 16 bits
+            jmp b3(v3)
+          b2():
+            v4 = add u32 3, v3
+            jmp b3(v4)
+          b3(v5: u32):
+            return v5
+        }";
+
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.flatten_cfg();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u32):
+            v3 = add u32 42, v1
+            enable_side_effects v0
+            v4 = cast v0 as u32
+            v5 = cast v0 as u32
+            v6 = unchecked_mul v3, v5
+            range_check v6 to 16 bits
+            v7 = not v0
+            enable_side_effects v7
+            v9 = add u32 3, v3
+            enable_side_effects u1 1
+            v11 = cast v0 as u32
+            v12 = cast v7 as u32
+            v13 = unchecked_mul v11, v3
+            v14 = unchecked_mul v12, v9
+            v15 = unchecked_add v13, v14
+            return v15
+        }
+        ");
     }
 }

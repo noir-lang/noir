@@ -18,13 +18,13 @@ use std::cmp::min;
 
 /// This file contains mechanisms for mutating string InputValues. It can perform the following mutations:
 /// 1. Value mutations
-///     a. Substitution a random character in the string with a random appropriate value from the dictionary
-///     b. Substitution of a random character with a random character
+///     1. Substitution a random character in the string with a random appropriate value from the dictionary
+///     2. Substitution of a random character with a random character
 /// 2. Structural mutations
-///     a. Chaotically splicing the string with itself (constructing a new string from random chunks of initial string)
-///     b. Duplication of a random chunk (picking a chunk of the string and inserting it several times)
-///     c. Inserting a repeated random value
-///     d. Swapping two chunks
+///     1. Chaotically splicing the string with itself (constructing a new string from random chunks of initial string)
+///     2. Duplication of a random chunk (picking a chunk of the string and inserting it several times)
+///     3. Inserting a repeated random value
+///     4. Swapping two chunks
 ///
 /// It also contains the splicing mechanism used when splicing two inputs. It chooses between:
 /// 1. Structured splicing (preserving the indices of the values)

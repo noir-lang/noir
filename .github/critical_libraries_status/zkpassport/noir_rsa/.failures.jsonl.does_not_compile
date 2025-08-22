@@ -1,0 +1,12 @@
+{"suite":"noir_rsa","name":"rsa::tests::smoke_test"}
+{"suite":"noir_rsa","name":"rsa::tests::test_verify_sha256_pkcs1v15_1024"}
+{"suite":"noir_rsa","name":"rsa::tests::test_verify_sha256_pkcs1v15_2048"}
+{"suite":"noir_rsa","name":"rsa::tests::test_verify_sha256_pkcs1v15_2048_exponent_3"}
+{"suite":"noir_rsa","name":"rsa::tests::test_verify_sha256_pss_1025"}
+{"suite":"noir_rsa","name":"rsa::tests::test_verify_sha256_pss_2048"}
+{"suite":"noir_rsa","name":"rsa::tests::test_verify_sha256_pss_2048_exponent_3"}
+{"suite":"noir_rsa","name":"rsa::tests::test_verify_sha256_pss_4096"}
+{"suite":"noir_rsa","name":"rsa::tests::test_verify_sha384_pkcs1v15_2048"}
+{"suite":"noir_rsa","name":"rsa::tests::test_verify_sha384_pss_2048"}
+{"suite":"noir_rsa","name":"rsa::tests::test_verify_sha512_pkcs1v15_2048"}
+{"suite":"noir_rsa","name":"rsa::tests::test_verify_sha512_pss_2048"}

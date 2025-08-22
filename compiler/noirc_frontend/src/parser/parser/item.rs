@@ -153,7 +153,18 @@ impl<'a> Parser<'a> {
         if let Some(is_contract) = self.eat_mod_or_contract() {
             self.comptime_mutable_and_unconstrained_not_applicable(modifiers);
 
-            return vec![self.parse_mod_or_contract(attributes, is_contract, modifiers.visibility)];
+            if let Some(ident) = self.eat_ident() {
+                return vec![self.parse_mod_or_contract(
+                    ident,
+                    attributes,
+                    is_contract,
+                    modifiers.visibility,
+                )];
+            };
+
+            self.expected_identifier();
+            self.bump();
+            self.eat_semicolons();
         }
 
         if self.eat_keyword(Keyword::Struct) {
@@ -219,7 +230,21 @@ impl<'a> Parser<'a> {
             )];
         }
 
-        if self.eat_keyword(Keyword::Fn) {
+        let is_function = if self.eat_keyword(Keyword::Fn) {
+            true
+        } else if !modifiers.is_empty()
+            && matches!(self.token.token(), Token::Ident(..))
+            && self.next_is(Token::LeftParen)
+        {
+            // If it's something like `pub foo(` then it's likely the user forgot to put `fn` after `pub`,
+            // so we error but keep parsing what comes next as a function.
+            self.expected_token(Token::Keyword(Keyword::Fn));
+            true
+        } else {
+            false
+        };
+
+        if is_function {
             self.mutable_not_applicable(modifiers);
 
             return vec![ItemKind::Function(self.parse_function(
@@ -247,10 +272,12 @@ impl<'a> Parser<'a> {
 
 #[cfg(test)]
 mod tests {
+    use insta::assert_snapshot;
+
     use crate::{
         parse_program_with_dummy_file,
         parser::{
-            ItemKind,
+            ItemKind, Parser,
             parser::tests::{get_single_error, get_source_with_error_span},
         },
     };
@@ -265,7 +292,7 @@ mod tests {
         let (module, errors) = parse_program_with_dummy_file(&src);
         assert_eq!(module.items.len(), 2);
         let error = get_single_error(&errors, span);
-        assert_eq!(error.to_string(), "Expected an item but found 'hello'");
+        assert_snapshot!(error.to_string(), @"Expected an item but found 'hello'");
     }
 
     #[test]
@@ -278,7 +305,7 @@ mod tests {
         let (module, errors) = parse_program_with_dummy_file(&src);
         assert_eq!(module.items.len(), 1);
         let error = get_single_error(&errors, span);
-        assert_eq!(error.to_string(), "Expected a '}' but found end of input");
+        assert_snapshot!(error.to_string(), @"Expected a '}' but found end of input");
     }
 
     #[test]
@@ -322,5 +349,56 @@ mod tests {
         assert_eq!(attributes.len(), 2);
         assert_eq!(attributes[0].to_string(), "#[one]");
         assert_eq!(attributes[1].to_string(), "#[two]");
+    }
+
+    #[test]
+    fn error_recovery_for_missing_fn_between_visibility_and_name() {
+        let src = "
+        pub foo() { }
+            ^^^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let mut parser = Parser::for_str_with_dummy_file(&src);
+        let module = parser.parse_program();
+        assert_eq!(module.items.len(), 1);
+        let ItemKind::Function(noir_function) = &module.items[0].kind else {
+            panic!("Expected function");
+        };
+        assert_eq!(noir_function.name(), "foo");
+
+        let reason = get_single_error(&parser.errors, span);
+        assert_eq!(reason.to_string(), "Expected a 'fn' but found 'foo'");
+    }
+
+    #[test]
+    fn error_recovery_for_missing_fn_between_unconstrained_and_name() {
+        let src = "
+        unconstrained foo() { }
+                      ^^^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let mut parser = Parser::for_str_with_dummy_file(&src);
+        let module = parser.parse_program();
+        assert_eq!(module.items.len(), 1);
+        let ItemKind::Function(noir_function) = &module.items[0].kind else {
+            panic!("Expected function");
+        };
+        assert_eq!(noir_function.name(), "foo");
+
+        let reason = get_single_error(&parser.errors, span);
+        assert_eq!(reason.to_string(), "Expected a 'fn' but found 'foo'");
+    }
+
+    #[test]
+    fn errors_on_missing_mod_identifier() {
+        let src = "
+        mod ; fn foo() {}
+            ^
+        ";
+        let (src, span) = get_source_with_error_span(src);
+        let (module, errors) = parse_program_with_dummy_file(&src);
+        assert_eq!(module.items.len(), 1);
+        let error = get_single_error(&errors, span);
+        assert_snapshot!(error.to_string(), @"Expected an identifier but found ';'");
     }
 }

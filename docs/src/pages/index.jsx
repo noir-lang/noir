@@ -2,7 +2,7 @@ import React from 'react';
 import Layout from '@theme/Layout';
 import Link from '@docusaurus/Link';
 
-import headerPic from '@site/static/img/homepage_header_pic.png';
+import headerPic from '@site/static/img/homepage_header_pic.jpg';
 
 export default function Landing() {
   return (

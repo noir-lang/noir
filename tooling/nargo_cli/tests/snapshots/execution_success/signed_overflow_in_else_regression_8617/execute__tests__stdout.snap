@@ -1,0 +1,5 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stdout
+---
+[signed_overflow_in_else_regression_8617] Circuit output: -771254105

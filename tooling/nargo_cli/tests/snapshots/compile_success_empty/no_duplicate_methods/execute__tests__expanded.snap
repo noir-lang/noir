@@ -1,0 +1,35 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+trait ToField {
+    fn to_field(self) -> Field;
+}
+
+trait ToField2 {
+    fn to_field(self) -> Field;
+}
+
+pub struct Foo {
+    x: Field,
+}
+
+impl Foo {
+    fn to_field(self) -> Field {
+        self.x
+    }
+}
+
+impl ToField for Foo {
+    fn to_field(self) -> Field {
+        self.x
+    }
+}
+
+impl ToField2 for Foo {
+    fn to_field(self) -> Field {
+        self.x
+    }
+}
+
+fn main() {}

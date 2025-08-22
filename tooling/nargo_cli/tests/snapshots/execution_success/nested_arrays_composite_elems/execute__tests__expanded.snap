@@ -1,0 +1,150 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(x: u32) {
+    let mut parent_array: [Parent; 2] = [Parent::default(); 2];
+    parent_array[x].foo.c.a = 10_Field;
+    assert(parent_array[0_u32].foo.c.a == 10_Field);
+    {
+        let i_3826: u32 = x + 1_u32;
+        parent_array[i_3826].bar = Bar { a: 1_u8, b: 2_u8, array: [3_Field, 4_Field] };
+    };
+    assert(parent_array[1_u32].bar.a == 1_u8);
+    assert(parent_array[1_u32].bar.b == 2_u8);
+    assert(parent_array[1_u32].bar.array == [3_Field, 4_Field]);
+    assert(parent_array[1_u32].bar.array[0_u32] == 3_Field);
+    assert(parent_array[1_u32].bar.array[1_u32] == 4_Field);
+    parent_array[x].foo.c.array[x] = 20_u32;
+    {
+        let i_3827: u32 = x + 1_u32;
+        parent_array[x].foo.c.array[i_3827] = 30_u32;
+    };
+    assert(parent_array[0_u32].foo.c.array[0_u32] == 20_u32);
+    assert(parent_array[0_u32].foo.c.array[1_u32] == 30_u32);
+    {
+        let i_3828: u32 = x + 1_u32;
+        parent_array[i_3828].qux = Qux {
+            array: [
+                InnerFoo {
+                    a: 100_Field,
+                    array: [101_u32, 102_u32],
+                    bar: Bar::default(),
+                    bar_array: [Bar::default(); 2],
+                },
+                InnerFoo {
+                    a: 200_Field,
+                    array: [201_u32, 202_u32],
+                    bar: Bar::default(),
+                    bar_array: [Bar::default(); 2],
+                },
+            ],
+            a: 500_u32,
+        };
+    };
+    assert(parent_array[1_u32].qux.array[0_u32].a == 100_Field);
+    assert(parent_array[1_u32].qux.a == 500_u32);
+    parent_array[x].qux.array[x].bar_array[x].a = 99_u8;
+    assert(parent_array[x].qux.array[x].bar_array[x].a == 99_u8);
+    let mut parent_array_wrapper: ParentsWrapper = ParentsWrapper { inner: parent_array };
+    parent_array_wrapper.inner[x].qux.a = 100_u32;
+    assert(parent_array_wrapper.inner[0_u32].qux.a == 100_u32);
+    parent_array_wrapper.inner[x].qux.array[x].array[x] = 301_u32;
+    assert(parent_array_wrapper.inner[0_u32].qux.array[0_u32].array[0_u32] == 301_u32);
+    parent_array_wrapper.inner[x].foo.c.bar.array[x] = 1000_Field;
+    assert(parent_array_wrapper.inner[0_u32].foo.c.bar.array[0_u32] == 1000_Field);
+    parent_array_wrapper.set_foo(x);
+}
+
+struct Baz {
+    a: u32,
+    b: u32,
+}
+
+impl Default for Baz {
+    fn default() -> Self {
+        Self { a: 0_u32, b: 0_u32 }
+    }
+}
+
+struct Bar {
+    a: u8,
+    b: u8,
+    array: [Field; 2],
+}
+
+impl Default for Bar {
+    fn default() -> Self {
+        Self { a: 0_u8, b: 0_u8, array: [0_Field; 2] }
+    }
+}
+
+struct InnerFoo {
+    a: Field,
+    array: [u32; 2],
+    bar: Bar,
+    bar_array: [Bar; 2],
+}
+
+impl Default for InnerFoo {
+    fn default() -> Self {
+        Self { a: 0_Field, array: [0_u32; 2], bar: Bar::default(), bar_array: [Bar::default(); 2] }
+    }
+}
+
+struct Foo {
+    a: u32,
+    b: u32,
+    c: InnerFoo,
+    d: u8,
+}
+
+impl Default for Foo {
+    fn default() -> Self {
+        Self { a: 0_u32, b: 0_u32, c: InnerFoo::default(), d: 0_u8 }
+    }
+}
+
+struct Qux {
+    array: [InnerFoo; 2],
+    a: u32,
+}
+
+impl Default for Qux {
+    fn default() -> Self {
+        Self { array: [InnerFoo::default(); 2], a: 0_u32 }
+    }
+}
+
+struct Parent {
+    foo: Foo,
+    bar: Bar,
+    baz: Baz,
+    qux: Qux,
+}
+
+impl Default for Parent {
+    fn default() -> Self {
+        Self { foo: Foo::default(), bar: Bar::default(), baz: Baz::default(), qux: Qux::default() }
+    }
+}
+
+struct ParentsWrapper {
+    inner: [Parent; 2],
+}
+
+impl ParentsWrapper {
+    fn set_foo(&mut self, index: u32) {
+        self.inner[index].foo = Foo {
+            a: 1_u32,
+            b: 2_u32,
+            c: InnerFoo {
+                a: 3_Field,
+                array: [4_u32, 5_u32],
+                bar: Bar::default(),
+                bar_array: [Bar::default(); 2],
+            },
+            d: 6_u8,
+        };
+    }
+}

@@ -1,0 +1,6 @@
+[package]
+name = "alias_trait_method_call_multiple_candidates"
+type = "bin"
+authors = [""]
+
+[dependencies]

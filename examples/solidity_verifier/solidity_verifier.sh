@@ -12,25 +12,16 @@ $BACKEND write_solidity_verifier -k ./target/vk -o ./src/contract.sol
 # We now generate a proof and check whether the verifier contract will verify it.
 nargo execute --pedantic-solving witness
 
-PROOF_PATH=./target/proof
-$BACKEND prove -b ./target/hello_world.json -w ./target/witness.gz --oracle_hash keccak -o ./target
+# Generate proof in bytes and fields format
+$BACKEND prove -b ./target/hello_world.json -w ./target/witness.gz --oracle_hash keccak --output_format bytes_and_fields -o ./target
 
 # Sanity check that proof is valid.
-$BACKEND verify -k ./target/vk -p ./target/proof --oracle_hash keccak
+$BACKEND verify -k ./target/vk -p ./target/proof -i ./target/public_inputs --oracle_hash keccak
 
-# Prepare proof and public inputs for solidity verifier
-PROOF_HEX=$(cat $PROOF_PATH | od -An -v -t x1 | tr -d $' \n' | sed 's/^.\{8\}//')
-
-NUM_PUBLIC_INPUTS=2
-PUBLIC_INPUT_HEX_CHARS=$((32 * $NUM_PUBLIC_INPUTS * 2)) # Each public input is 32 bytes, 2 chars per byte
-
-# Extract public inputs from proof - first 32 * NUM_PUBLIC_INPUTS bytes
-HEX_PUBLIC_INPUTS=${PROOF_HEX:0:$PUBLIC_INPUT_HEX_CHARS}
-# Split public inputs into strings where each string represents a `bytes32`.
-SPLIT_HEX_PUBLIC_INPUTS=$(sed -e 's/.\{64\}/0x&,/g' <<<$HEX_PUBLIC_INPUTS)
-
-# Extract proof without public inputs
-PROOF_WITHOUT_PUBLIC_INPUTS=${PROOF_HEX:$PUBLIC_INPUT_HEX_CHARS}
+# Read proof and convert to hex string
+PROOF_HEX=$(cat ./target/proof | od -An -v -t x1 | tr -d $' \n')
+# public_inputs_fields already contain each public input in hex format, but we need to remove quotes for using in `cast`
+PUBLIC_INPUTS_HEX=$(cat ./target/public_inputs_fields.json | tr -d '"')
 
 # Spin up an anvil node to deploy the contract to
 anvil &
@@ -43,4 +34,4 @@ DEPLOY_INFO=$(forge create HonkVerifier \
 VERIFIER_ADDRESS=$(echo $DEPLOY_INFO | jq -r '.deployedTo')
 
 # Call the verifier contract with our proof.
-cast call $VERIFIER_ADDRESS "verify(bytes, bytes32[])(bool)" "$PROOF_WITHOUT_PUBLIC_INPUTS" "[$SPLIT_HEX_PUBLIC_INPUTS]"
+cast call $VERIFIER_ADDRESS "verify(bytes, bytes32[])(bool)" "$PROOF_HEX" "$PUBLIC_INPUTS_HEX"

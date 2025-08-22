@@ -4,11 +4,11 @@ use noirc_errors::Location;
 use noirc_frontend::{
     ast::MethodCallExpression,
     hir::def_map::ModuleDefId,
+    modules::module_def_id_relative_path,
     node_interner::{ReferenceId, TraitId},
 };
 
 use crate::{
-    modules::module_def_id_relative_path,
     requests::TraitReexport,
     use_segment_positions::{
         UseCompletionItemAdditionTextEditsRequest, use_completion_item_additional_text_edits,
@@ -113,11 +113,12 @@ impl CodeActionFinder<'_> {
             defining_module,
             &intermediate_name,
             self.interner,
+            self.def_maps,
         ) else {
             return;
         };
 
-        let title = format!("Import {}", full_path);
+        let title = format!("Import {full_path}");
 
         let text_edits = use_completion_item_additional_text_edits(
             UseCompletionItemAdditionTextEditsRequest {

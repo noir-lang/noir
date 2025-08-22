@@ -1,8 +1,11 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 use acir::{
     AcirField,
-    circuit::{AssertionPayload, Circuit, ExpressionWidth, OpcodeLocation},
+    circuit::{
+        AcirOpcodeLocation, AssertionPayload, Circuit, ExpressionWidth, OpcodeLocation,
+        brillig::BrilligFunctionId,
+    },
 };
 
 // The various passes that we can use over ACIR
@@ -26,7 +29,7 @@ pub struct AcirTransformationMap {
 
 impl AcirTransformationMap {
     /// Builds a map from a vector of pointers to the old acir opcodes.
-    /// The index of the vector is the new opcode index.
+    /// The index in the vector is the new opcode index.
     /// The value of the vector is the old opcode index pointed.
     fn new(acir_opcode_positions: &[usize]) -> Self {
         let mut old_indices_to_new_indices = HashMap::with_capacity(acir_opcode_positions.len());
@@ -36,6 +39,7 @@ impl AcirTransformationMap {
         AcirTransformationMap { old_indices_to_new_indices }
     }
 
+    /// Returns the new opcode location(s) corresponding to the old opcode.
     pub fn new_locations(
         &self,
         old_location: OpcodeLocation,
@@ -56,8 +60,22 @@ impl AcirTransformationMap {
             },
         )
     }
+
+    pub fn new_acir_locations(
+        &self,
+        old_location: AcirOpcodeLocation,
+    ) -> impl Iterator<Item = AcirOpcodeLocation> + '_ {
+        let old_acir_index = old_location.index();
+
+        self.old_indices_to_new_indices.get(&old_acir_index).into_iter().flat_map(
+            move |new_indices| {
+                new_indices.iter().map(move |new_index| AcirOpcodeLocation::new(*new_index))
+            },
+        )
+    }
 }
 
+/// Update the assert messages to point to the new opcode locations.
 fn transform_assert_messages<F: Clone>(
     assert_messages: Vec<(OpcodeLocation, AssertionPayload<F>)>,
     map: &AcirTransformationMap,
@@ -77,13 +95,15 @@ fn transform_assert_messages<F: Clone>(
 pub fn compile<F: AcirField>(
     acir: Circuit<F>,
     expression_width: ExpressionWidth,
+    brillig_side_effects: &BTreeMap<BrilligFunctionId, bool>,
 ) -> (Circuit<F>, AcirTransformationMap) {
     let acir_opcode_positions = (0..acir.opcodes.len()).collect::<Vec<_>>();
 
-    let (acir, acir_opcode_positions) = optimize_internal(acir, acir_opcode_positions);
+    let (acir, acir_opcode_positions) =
+        optimize_internal(acir, acir_opcode_positions, brillig_side_effects);
 
     let (mut acir, acir_opcode_positions) =
-        transform_internal(acir, expression_width, acir_opcode_positions);
+        transform_internal(acir, expression_width, acir_opcode_positions, brillig_side_effects);
 
     let transformation_map = AcirTransformationMap::new(&acir_opcode_positions);
     acir.assert_messages = transform_assert_messages(acir.assert_messages, &transformation_map);

@@ -1,8 +1,8 @@
 use std::future::{self, Future};
 
 use crate::insert_all_files_for_workspace_into_file_manager;
+use async_lsp::lsp_types::{LogMessageParams, MessageType};
 use async_lsp::{ErrorCode, LanguageClient, ResponseError};
-use lsp_types::{LogMessageParams, MessageType};
 use nargo_toml::{PackageSelection, find_package_manifest, resolve_workspace_from_toml};
 use noirc_driver::{NOIR_ARTIFACT_VERSION_STRING, check_crate};
 

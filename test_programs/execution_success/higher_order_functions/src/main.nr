@@ -1,5 +1,5 @@
 fn main(w: Field) -> pub Field {
-    let f = if 3 * 7 > 200 as u32 { foo } else { bar };
+    let f = if 3 * 7 > 200u32 { foo } else { bar };
     assert(f()[1] == 2);
     // Lambdas:
     assert(twice(|x| x * 2, 5) == 20);

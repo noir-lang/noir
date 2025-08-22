@@ -1,0 +1,11 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+pub trait Foo: Eq {
+    fn foo<T>(self) -> bool {
+        self == self
+    }
+}
+
+fn main() {}

@@ -26,8 +26,8 @@ pub enum InputParserError {
         FieldElement::modulus()
     )]
     InputExceedsFieldModulus { arg_name: String, value: String },
-    #[error("cannot parse value into {0:?}")]
-    AbiTypeMismatch(AbiType),
+    #[error("cannot parse value `{0}` into {1:?}")]
+    AbiTypeMismatch(String, AbiType),
     #[error("Expected argument `{0}`, but none was found")]
     MissingArgument(String),
 }

@@ -14,7 +14,7 @@ use crate::{Generics, Type};
 use crate::hir::Context;
 use crate::hir::resolution::import::{ImportDirective, resolve_import};
 
-use crate::ast::{Expression, NoirEnumeration};
+use crate::ast::{Expression, NoirEnumeration, TypeAlias};
 use crate::node_interner::{
     FuncId, GlobalId, ModuleAttributes, NodeInterner, ReferenceId, TraitId, TraitImplId,
     TypeAliasId, TypeId,
@@ -22,8 +22,8 @@ use crate::node_interner::{
 
 use crate::ast::{
     ExpressionKind, Ident, ItemVisibility, LetStatement, Literal, NoirFunction, NoirStruct,
-    NoirTrait, NoirTypeAlias, Path, PathSegment, UnresolvedGenerics, UnresolvedTraitConstraint,
-    UnresolvedType, UnsupportedNumericGenericType,
+    NoirTrait, Path, PathSegment, UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType,
+    UnsupportedNumericGenericType,
 };
 
 use crate::elaborator::FrontendOptions;
@@ -99,6 +99,7 @@ pub struct UnresolvedTraitImpl {
     pub impl_id: Option<TraitImplId>,
     pub resolved_object_type: Option<Type>,
     pub resolved_generics: Generics,
+    pub unresolved_associated_types: Vec<(Ident, UnresolvedType)>,
 
     // The resolved generic on the trait itself. E.g. it is the `<C, D>` in
     // `impl<A, B> Foo<C, D> for Bar<E, F> { ... }`
@@ -108,8 +109,9 @@ pub struct UnresolvedTraitImpl {
 #[derive(Clone)]
 pub struct UnresolvedTypeAlias {
     pub file_id: FileId,
+    pub crate_id: CrateId,
     pub module_id: LocalModuleId,
-    pub type_alias_def: NoirTypeAlias,
+    pub type_alias_def: TypeAlias,
 }
 
 #[derive(Debug, Clone)]
@@ -219,13 +221,13 @@ impl CompilationError {
 impl std::fmt::Display for CompilationError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            CompilationError::ParseError(error) => write!(f, "{}", error),
-            CompilationError::DefinitionError(error) => write!(f, "{}", error),
-            CompilationError::ResolverError(error) => write!(f, "{}", error),
-            CompilationError::TypeError(error) => write!(f, "{}", error),
-            CompilationError::InterpreterError(error) => write!(f, "{:?}", error),
-            CompilationError::DebugComptimeScopeNotFound(error, _) => write!(f, "{:?}", error),
-            CompilationError::ComptimeError(error) => write!(f, "{:?}", error),
+            CompilationError::ParseError(error) => write!(f, "{error}"),
+            CompilationError::DefinitionError(error) => write!(f, "{error}"),
+            CompilationError::ResolverError(error) => write!(f, "{error}"),
+            CompilationError::TypeError(error) => write!(f, "{error}"),
+            CompilationError::InterpreterError(error) => write!(f, "{error:?}"),
+            CompilationError::DebugComptimeScopeNotFound(error, _) => write!(f, "{error:?}"),
+            CompilationError::ComptimeError(error) => write!(f, "{error:?}"),
         }
     }
 }
@@ -438,9 +440,7 @@ impl DefCollector {
                                 visibility,
                             );
 
-                            if context.def_interner.is_in_lsp_mode()
-                                && visibility != ItemVisibility::Private
-                            {
+                            if visibility != ItemVisibility::Private {
                                 context.def_interner.register_name_for_auto_import(
                                     name.to_string(),
                                     module_def_id,
@@ -496,6 +496,7 @@ impl DefCollector {
             debug_comptime_in_file,
             pedantic_solving: options.pedantic_solving,
             enabled_unstable_features: options.enabled_unstable_features,
+            disable_required_unstable_features: options.disable_required_unstable_features,
         };
 
         let mut more_errors =
@@ -515,16 +516,22 @@ impl DefCollector {
     ) {
         let unused_imports = context.usage_tracker.unused_items().iter();
         let unused_imports = unused_imports.filter(|(module_id, _)| module_id.krate == crate_id);
-
-        errors.extend(unused_imports.flat_map(|(_, usage_tracker)| {
-            usage_tracker.iter().map(|(ident, unused_item)| {
-                let ident = ident.clone();
-                CompilationError::ResolverError(ResolverError::UnusedItem {
-                    ident,
-                    item: *unused_item,
+        let mut unused_errors = unused_imports
+            .flat_map(|(_, unused_items)| {
+                unused_items.iter().map(|(ident, unused_item)| {
+                    let ident = ident.clone();
+                    CompilationError::ResolverError(ResolverError::UnusedItem {
+                        ident,
+                        item: *unused_item,
+                    })
                 })
             })
-        }));
+            .collect::<Vec<_>>();
+
+        // Make sure errors always show up in the same order when compiling the same codebase
+        unused_errors.sort_by_key(|error| error.location());
+
+        errors.extend(unused_errors);
     }
 }
 

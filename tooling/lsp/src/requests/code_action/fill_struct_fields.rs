@@ -1,4 +1,4 @@
-use lsp_types::TextEdit;
+use async_lsp::lsp_types::TextEdit;
 use noirc_errors::Span;
 use noirc_frontend::{
     ast::{ConstructorExpression, UnresolvedTypeData},

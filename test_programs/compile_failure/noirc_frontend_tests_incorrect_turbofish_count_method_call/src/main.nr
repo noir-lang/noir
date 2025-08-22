@@ -1,9 +1,9 @@
 
-        trait Default {
+        trait Default2 {
             fn default() -> Self;
         }
 
-        impl Default for Field {
+        impl Default2 for Field {
             fn default() -> Self { 0 }
         }
 
@@ -16,7 +16,7 @@
         }
 
         impl<T> Foo<T> {
-            fn generic_method<U>(_self: Self) -> U where U: Default {
+            fn generic_method<U>(_self: Self) -> U where U: Default2 {
                 U::default()
             }
         }

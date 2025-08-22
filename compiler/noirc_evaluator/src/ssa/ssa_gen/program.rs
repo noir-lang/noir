@@ -9,6 +9,7 @@ use serde_with::serde_as;
 use crate::ssa::ir::{
     function::{Function, FunctionId},
     map::AtomicCounter,
+    value::Value,
 };
 use noirc_frontend::hir_def::types::Type as HirType;
 
@@ -17,13 +18,12 @@ use super::ValueId;
 /// Contains the entire SSA representation of the program.
 #[serde_as]
 #[derive(Serialize, Deserialize)]
-pub(crate) struct Ssa {
+pub struct Ssa {
     #[serde_as(as = "Vec<(_, _)>")]
-    pub(crate) functions: BTreeMap<FunctionId, Function>,
-    pub(crate) used_globals: HashMap<FunctionId, HashSet<ValueId>>,
-    pub(crate) main_id: FunctionId,
+    pub functions: BTreeMap<FunctionId, Function>,
+    pub main_id: FunctionId,
     #[serde(skip)]
-    pub(crate) next_id: AtomicCounter<Function>,
+    pub next_id: AtomicCounter<Function>,
     /// Maps SSA entry point function ID -> Final generated ACIR artifact index.
     /// There can be functions specified in SSA which do not act as ACIR entry points.
     /// This mapping is necessary to use the correct function pointer for an ACIR call,
@@ -33,16 +33,13 @@ pub(crate) struct Ssa {
     // We can skip serializing this field as the error selector types end up as part of the
     // ABI not the actual SSA IR.
     #[serde(skip)]
-    pub(crate) error_selector_to_type: BTreeMap<ErrorSelector, HirType>,
+    pub error_selector_to_type: BTreeMap<ErrorSelector, HirType>,
 }
 
 impl Ssa {
     /// Create a new Ssa object from the given SSA functions.
     /// The first function in this vector is expected to be the main function.
-    pub(crate) fn new(
-        functions: Vec<Function>,
-        error_types: BTreeMap<ErrorSelector, HirType>,
-    ) -> Self {
+    pub fn new(functions: Vec<Function>, error_types: BTreeMap<ErrorSelector, HirType>) -> Self {
         let main_id = functions.first().expect("Expected at least 1 SSA function").id();
         let mut max_id = main_id;
 
@@ -57,9 +54,6 @@ impl Ssa {
             next_id: AtomicCounter::starting_after(max_id),
             entry_point_to_generated_index: BTreeMap::new(),
             error_selector_to_type: error_types,
-            // This field is set only after running DIE and is utilized
-            // for optimizing implementation of globals post-SSA.
-            used_globals: HashMap::default(),
         }
     }
 
@@ -104,6 +98,77 @@ impl Ssa {
     pub(crate) fn is_entry_point(&self, function: FunctionId) -> bool {
         function == self.main_id || self.functions[&function].runtime().is_entry_point()
     }
+
+    pub(crate) fn used_globals_in_brillig_functions(
+        &self,
+    ) -> HashMap<FunctionId, HashSet<ValueId>> {
+        fn add_value_to_globals_if_global(
+            function: &Function,
+            value_id: ValueId,
+            used_globals: &mut HashSet<ValueId>,
+        ) {
+            if !function.dfg.is_global(value_id) {
+                return;
+            }
+
+            if !used_globals.insert(value_id) {
+                return;
+            }
+
+            // If we found a new global, its value could be an instruction that points to other globals.
+            let globals = &function.dfg.globals;
+            if let Value::Instruction { instruction, .. } = globals[value_id] {
+                let instruction = &globals[instruction];
+                instruction.for_each_value(|value_id| {
+                    add_value_to_globals_if_global(function, value_id, used_globals);
+                });
+            }
+        }
+
+        let mut used_globals = HashMap::default();
+
+        for (function_id, function) in &self.functions {
+            if !function.runtime().is_brillig() {
+                continue;
+            }
+
+            let mut used_globals_in_function = HashSet::default();
+
+            for call_data in &function.dfg.data_bus.call_data {
+                add_value_to_globals_if_global(
+                    function,
+                    call_data.array_id,
+                    &mut used_globals_in_function,
+                );
+            }
+
+            for block_id in function.reachable_blocks() {
+                let block = &function.dfg[block_id];
+                for instruction_id in block.instructions() {
+                    let instruction = &function.dfg[*instruction_id];
+                    instruction.for_each_value(|value_id| {
+                        add_value_to_globals_if_global(
+                            function,
+                            value_id,
+                            &mut used_globals_in_function,
+                        );
+                    });
+                }
+
+                block.unwrap_terminator().for_each_value(|value_id| {
+                    add_value_to_globals_if_global(
+                        function,
+                        value_id,
+                        &mut used_globals_in_function,
+                    );
+                });
+            }
+
+            used_globals.insert(*function_id, used_globals_in_function);
+        }
+
+        used_globals
+    }
 }
 
 #[cfg(test)]
@@ -134,7 +199,7 @@ mod test {
         let ssa = builder.finish();
         let serialized_ssa = &serde_json::to_string(&ssa).unwrap();
         let deserialized_ssa: Ssa = serde_json::from_str(serialized_ssa).unwrap();
-        let actual_string = format!("{}", deserialized_ssa);
+        let actual_string = format!("{}", deserialized_ssa.print_without_locations());
 
         let expected_string = "acir(inline) fn main f0 {\n  \
         b0(v0: Field):\n    \

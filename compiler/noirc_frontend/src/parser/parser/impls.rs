@@ -2,7 +2,7 @@ use noirc_errors::Location;
 
 use crate::{
     ast::{
-        Documented, Expression, ExpressionKind, Ident, ItemVisibility, NoirFunction, NoirTraitImpl,
+        Documented, Expression, ExpressionKind, ItemVisibility, NoirFunction, NoirTraitImpl,
         TraitImplItem, TraitImplItemKind, TypeImpl, UnresolvedGeneric, UnresolvedType,
         UnresolvedTypeData,
     },
@@ -22,7 +22,7 @@ impl Parser<'_> {
     ///     = TypeImpl
     ///     | TraitImpl
     pub(crate) fn parse_impl(&mut self) -> Impl {
-        let generics = self.parse_generics();
+        let generics = self.parse_generics_allowing_trait_bounds();
 
         let type_location_start = self.current_token_location;
         let object_type = self.parse_type_or_error();
@@ -155,22 +155,20 @@ impl Parser<'_> {
         let Some(name) = self.eat_ident() else {
             self.expected_identifier();
             self.eat_semicolons();
-            return Some(TraitImplItemKind::Type {
-                name: Ident::default(),
-                alias: UnresolvedType {
-                    typ: UnresolvedTypeData::Error,
-                    location: Location::dummy(),
-                },
-            });
+            let location = self.location_at_previous_token_end();
+            let name = self.unknown_ident_at_previous_token_end();
+            let alias = UnresolvedType { typ: UnresolvedTypeData::Error, location };
+            return Some(TraitImplItemKind::Type { name, alias });
         };
 
         let alias = if self.eat_assign() {
             self.parse_type_or_error()
         } else {
-            UnresolvedType { typ: UnresolvedTypeData::Error, location: Location::dummy() }
+            let location = self.location_at_previous_token_end();
+            UnresolvedType { typ: UnresolvedTypeData::Error, location }
         };
 
-        self.eat_semicolons();
+        self.eat_semicolon_or_error();
 
         Some(TraitImplItemKind::Type { name, alias })
     }
@@ -185,20 +183,29 @@ impl Parser<'_> {
             Some(name) => name,
             None => {
                 self.expected_identifier();
-                Ident::default()
+                self.unknown_ident_at_previous_token_end()
             }
         };
 
-        let typ = self.parse_optional_type_annotation();
+        let typ = if self.eat_colon() {
+            self.parse_type_or_error()
+        } else {
+            self.push_error(
+                ParserErrorReason::MissingTypeForAssociatedConstant,
+                self.previous_token_location,
+            );
+            self.unspecified_type_at_previous_token_end()
+        };
 
         let expr = if self.eat_assign() {
             self.parse_expression_or_error()
         } else {
             self.expected_token(Token::Assign);
-            Expression { kind: ExpressionKind::Error, location: Location::dummy() }
+            let location = self.location_at_previous_token_end();
+            Expression { kind: ExpressionKind::Error, location }
         };
 
-        self.eat_semicolons();
+        self.eat_semicolon_or_error();
 
         Some(TraitImplItemKind::Constant(name, typ, expr))
     }
@@ -235,6 +242,8 @@ impl Parser<'_> {
 
 #[cfg(test)]
 mod tests {
+    use insta::assert_snapshot;
+
     use crate::{
         ast::{
             ItemVisibility, NoirTraitImpl, Pattern, TraitImplItemKind, TypeImpl, UnresolvedTypeData,
@@ -437,7 +446,7 @@ mod tests {
         };
 
         assert_eq!(trait_name.to_string(), "Foo");
-        assert!(matches!(trait_impl.object_type.typ, UnresolvedTypeData::FieldElement));
+        assert_eq!(trait_impl.object_type.typ.to_string(), "Field");
         assert!(trait_impl.items.is_empty());
         assert!(trait_impl.impl_generics.is_empty());
     }
@@ -452,7 +461,7 @@ mod tests {
         };
 
         assert_eq!(trait_name.to_string(), "Foo");
-        assert!(matches!(trait_impl.object_type.typ, UnresolvedTypeData::FieldElement));
+        assert_eq!(trait_impl.object_type.typ.to_string(), "Field");
         assert!(trait_impl.items.is_empty());
         assert_eq!(trait_impl.impl_generics.len(), 1);
     }
@@ -533,6 +542,13 @@ mod tests {
     }
 
     #[test]
+    fn parse_trait_impl_with_let_missing_type() {
+        let src = "impl Foo for Field { let x = 1; }";
+        let (_, errors) = parse_program_with_dummy_file(src);
+        assert!(!errors.is_empty());
+    }
+
+    #[test]
     fn recovers_on_unknown_impl_item() {
         let src = "
         impl Foo { hello fn foo() {} }
@@ -549,7 +565,7 @@ mod tests {
         assert_eq!(type_impl.methods.len(), 1);
 
         let error = get_single_error(&errors, span);
-        assert_eq!(error.to_string(), "Expected a function but found 'hello'");
+        assert_snapshot!(error.to_string(), @"Expected a function but found 'hello'");
     }
 
     #[test]
@@ -569,6 +585,20 @@ mod tests {
         assert_eq!(trait_imp.items.len(), 1);
 
         let error = get_single_error(&errors, span);
-        assert_eq!(error.to_string(), "Expected a trait impl item but found 'hello'");
+        assert_snapshot!(error.to_string(), @"Expected a trait impl item but found 'hello'");
+    }
+
+    #[test]
+    fn parse_trait_impl_with_constant_missing_semicolon() {
+        let src = "impl Foo for Bar { let x: Field = 1 }";
+        let (_, errors) = parse_program_with_dummy_file(src);
+        assert!(!errors.is_empty());
+    }
+
+    #[test]
+    fn parse_trait_impl_with_type_missing_semicolon() {
+        let src = "impl Foo for Bar { type x = Field }";
+        let (_, errors) = parse_program_with_dummy_file(src);
+        assert!(!errors.is_empty());
     }
 }

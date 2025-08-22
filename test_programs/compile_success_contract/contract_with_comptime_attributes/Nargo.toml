@@ -1,0 +1,6 @@
+[package]
+name = "contract_with_comptime_attributes"
+type = "contract"
+authors = [""]
+
+[dependencies]

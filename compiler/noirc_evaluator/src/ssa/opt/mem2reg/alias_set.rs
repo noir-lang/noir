@@ -82,18 +82,15 @@ impl AliasSet {
         self.aliases.as_ref().map(|aliases| aliases.iter().copied().any(f))
     }
 
-    pub(super) fn for_each(&self, mut f: impl FnMut(ValueId)) {
-        if let Some(aliases) = &self.aliases {
-            for alias in aliases {
-                f(*alias);
-            }
-        }
+    /// Returns an iterator over the values in this alias set.
+    pub(super) fn iter(&self) -> impl Iterator<Item = ValueId> {
+        self.aliases.iter().flat_map(|aliases| aliases.iter().copied())
     }
 
     /// Return the first ValueId in the alias set as long as there is at least one.
     /// The ordering is arbitrary (by lowest ValueId) so this method should only be
     /// used when you need an arbitrary ValueId from the alias set.
     pub(super) fn first(&self) -> Option<ValueId> {
-        self.aliases.as_ref().and_then(|aliases| aliases.iter().next().copied())
+        self.iter().next()
     }
 }
