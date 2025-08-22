@@ -1,10 +1,6 @@
 use std::borrow::Cow;
 
-use crate::ssa::ir::{
-    function::Function,
-    instruction::{Instruction, InstructionId},
-    value::ValueId,
-};
+use crate::ssa::ir::{function::Function, instruction::InstructionId, value::ValueId};
 
 use super::alias_set::AliasSet;
 
@@ -174,27 +170,13 @@ impl Block {
     /// last stores anyway, we don't inherit them from predecessors, so if one
     /// block stores to an address and a descendant block loads it, this mechanism
     /// does not affect the candidacy of the last store in the predecessor block.
-    fn keep_last_stores_for(&mut self, address: ValueId, function: &Function) {
-        self.keep_last_store(address, function);
+    fn keep_last_stores_for(&mut self, address: ValueId) {
+        self.last_stores.remove(&address);
 
-        for alias in (*self.get_aliases_for_value(address)).clone().iter() {
-            self.keep_last_store(alias, function);
-        }
-    }
-
-    /// Forget the last store to an address, to remove it from the set of instructions
-    /// which are candidates for removal at the end. Also marks the values in the last
-    /// store as used, now that we know we want to keep them.
-    fn keep_last_store(&mut self, address: ValueId, function: &Function) {
-        if let Some(instruction) = self.last_stores.remove(&address) {
-            // Whenever we decide we want to keep a store instruction, we also need
-            // to go through its stored value and mark that used as well.
-            match &function.dfg[instruction] {
-                Instruction::Store { value, .. } => {
-                    self.mark_value_used(*value, function);
-                }
-                other => {
-                    unreachable!("last_store held an id of a non-store instruction: {other:?}")
+        if let Some(expr) = self.expressions.get(&address) {
+            if let Some(aliases) = self.aliases.get(expr) {
+                for alias in aliases.iter() {
+                    self.last_stores.remove(&alias);
                 }
             }
         }
@@ -203,7 +185,7 @@ impl Block {
     /// Mark a value (for example an address we loaded) as used by forgetting the last store instruction,
     /// which removes it from the candidates for removal.
     pub(super) fn mark_value_used(&mut self, value: ValueId, function: &Function) {
-        self.keep_last_stores_for(value, function);
+        self.keep_last_stores_for(value);
 
         // We must do a recursive check for arrays since they're the only Values which may contain
         // other ValueIds.
