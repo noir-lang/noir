@@ -465,6 +465,7 @@ impl<'f> Context<'f> {
             for instruction in instructions {
                 self.push_instruction(instruction);
             }
+            self.inserter.map_terminator_in_place(block);
             return;
         }
 
@@ -2111,7 +2112,6 @@ mod test {
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) predicate_pure fn main f0 {
           b0():
-            enable_side_effects u1 1
             return
         }
         ");
