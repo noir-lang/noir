@@ -180,10 +180,7 @@ impl<'f> PerFunctionContext<'f> {
         }
 
         let mut all_terminator_values = HashSet::default();
-        let mut per_func_block_params: HashSet<ValueId> = HashSet::default();
         for (block_id, references) in self.blocks.iter_mut() {
-            let block_params = self.inserter.function.dfg.block_parameters(*block_id);
-            per_func_block_params.extend(block_params.iter());
             let terminator = self.inserter.function.dfg[*block_id].unwrap_terminator();
             terminator.for_each_value(|value| {
                 all_terminator_values.insert(value);
@@ -203,12 +200,8 @@ impl<'f> PerFunctionContext<'f> {
         // This rule does not apply to reference parameters, which we must also check for before removing these stores.
         for (_, block) in self.blocks.iter() {
             for (store_address, store_instruction) in block.last_stores.iter() {
-                let store_alias_used = self.is_store_alias_used(
-                    store_address,
-                    block,
-                    &all_terminator_values,
-                    &per_func_block_params,
-                );
+                let store_alias_used =
+                    self.is_store_alias_used(store_address, block, &all_terminator_values);
 
                 let is_dereference = block
                     .expressions
@@ -231,17 +224,12 @@ impl<'f> PerFunctionContext<'f> {
         store_address: &ValueId,
         block: &Block,
         all_terminator_values: &HashSet<ValueId>,
-        per_func_block_params: &HashSet<ValueId>,
     ) -> bool {
         let reference_parameters = self.reference_parameters();
 
         // Check whether the store address has an alias that crosses an entry point boundary (e.g. a Call or Return)
         for alias in block.get_aliases_for_value(*store_address).iter() {
             if reference_parameters.contains(&alias) {
-                return true;
-            }
-
-            if per_func_block_params.contains(&alias) {
                 return true;
             }
 
