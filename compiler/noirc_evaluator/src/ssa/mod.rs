@@ -514,8 +514,11 @@ pub fn convert_generated_acir_into_circuit(
         brillig_procedure_locs,
     );
 
+    // We don't have Brillig info available here yet.
+    let brillig_side_effects = BTreeMap::new();
     // Perform any ACIR-level optimizations
-    let (optimized_circuit, transformation_map) = acvm::compiler::optimize(circuit);
+    let (optimized_circuit, transformation_map) =
+        acvm::compiler::optimize(circuit, &brillig_side_effects);
     debug_info.update_acir(transformation_map);
 
     SsaCircuitArtifact {
