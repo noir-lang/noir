@@ -2174,20 +2174,15 @@ mod test {
         "#;
 
         let ssa = Ssa::from_str(src).unwrap();
-        // Can uncomment to see that we do not fail when running constant folding before purity analysis
-        // let ssa = ssa.fold_constants_using_constraints();
-        let _ = ssa
-            .interpret(vec![Value::from_constant(1_u32.into(), NumericType::unsigned(32)).unwrap()])
+        ssa.interpret(vec![Value::from_constant(1_u32.into(), NumericType::unsigned(32)).unwrap()])
             .unwrap();
 
         let ssa = ssa.purity_analysis();
-        let _ = ssa
-            .interpret(vec![Value::from_constant(1_u32.into(), NumericType::unsigned(32)).unwrap()])
+        ssa.interpret(vec![Value::from_constant(1_u32.into(), NumericType::unsigned(32)).unwrap()])
             .unwrap();
 
         let ssa = ssa.fold_constants_using_constraints();
-        let _ = ssa
-            .interpret(vec![Value::from_constant(1_u32.into(), NumericType::unsigned(32)).unwrap()])
+        ssa.interpret(vec![Value::from_constant(1_u32.into(), NumericType::unsigned(32)).unwrap()])
             .unwrap();
     }
 }
