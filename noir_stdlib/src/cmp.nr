@@ -395,7 +395,11 @@ where
     fn cmp(self, other: [T]) -> Ordering {
         let self_len = self.len();
         let other_len = other.len();
-        let min_len = if self_len < other_len { self_len } else { other_len };
+        let min_len = if self_len < other_len {
+            self_len
+        } else {
+            other_len
+        };
 
         let mut result = Ordering::equal();
         for i in 0..min_len {
@@ -553,7 +557,7 @@ where
 }
 
 mod cmp_tests {
-    use super::{Eq, Ord, max, min};
+    use super::{Eq, max, min, Ord};
 
     #[test]
     fn sanity_check_min() {
