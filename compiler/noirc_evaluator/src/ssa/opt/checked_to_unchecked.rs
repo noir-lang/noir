@@ -90,7 +90,7 @@ impl Function {
                     let max_lhs_bits = get_max_num_bits(dfg, lhs, &mut value_max_num_bits);
                     let max_rhs_bits = get_max_num_bits(dfg, rhs, &mut value_max_num_bits);
 
-                    // 1. Bool multiplication cannot overlfow
+                    // 1. Bool multiplication cannot overflow
                     // 2. `2^max_lhs_bits * 2^max_rhs_bits` is `2^(max_lhs_bits + max_rhs_bits)` so if that sum is
                     //    less than or equal to the bit size of the result then it cannot overflow.
                     // 3. lhs was upcasted from a boolean
