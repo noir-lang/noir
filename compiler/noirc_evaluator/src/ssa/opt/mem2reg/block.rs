@@ -42,10 +42,10 @@ pub(super) struct Block {
 /// An `Expression` here is used to represent a canonical key
 /// into the aliases map since otherwise two dereferences of the
 /// same address will be given different ValueIds.
-#[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq, Hash)]
+#[derive(Debug, Copy, Clone, PartialOrd, Ord, PartialEq, Eq, Hash)]
 pub(super) enum Expression {
-    Dereference(Box<Expression>),
-    ArrayElement(Box<Expression>),
+    Dereference(ValueId),
+    ArrayElement(ValueId),
     Other(ValueId),
 }
 
@@ -65,17 +65,13 @@ impl ReferenceValue {
 impl Block {
     /// If the given reference id points to a known value, return the value
     pub(super) fn get_known_value(&self, address: ValueId) -> Option<ValueId> {
-        if let Some(expression) = self.expressions.get(&address) {
-            if let Some(aliases) = self.aliases.get(expression) {
-                // We could allow multiple aliases if we check that the reference
-                // value in each is equal.
-                if let Some(alias) = aliases.single_alias() {
-                    if let Some(ReferenceValue::Known(value)) = self.references.get(&alias) {
-                        return Some(*value);
-                    }
-                }
+        // We could allow multiple aliases if we check that the reference value in each is equal.
+        if let Some(alias) = self.get_aliases_for_value(address).single_alias() {
+            if let Some(ReferenceValue::Known(value)) = self.references.get(&alias) {
+                return Some(*value);
             }
         }
+
         None
     }
 
@@ -90,7 +86,7 @@ impl Block {
 
     fn set_value(&mut self, address: ValueId, value: ReferenceValue) {
         let expression = self.expressions.entry(address).or_insert(Expression::Other(address));
-        let aliases = self.aliases.entry(expression.clone()).or_default();
+        let aliases = self.aliases.entry(*expression).or_default();
 
         if aliases.is_unknown() {
             // uh-oh, we don't know at all what this reference refers to, could be anything.
@@ -101,11 +97,11 @@ impl Block {
         } else {
             // More than one alias. We're not sure which it refers to so we have to
             // conservatively invalidate all references it may refer to.
-            aliases.for_each(|alias| {
+            for alias in aliases.iter() {
                 if let Some(reference_value) = self.references.get_mut(&alias) {
                     *reference_value = ReferenceValue::Unknown;
                 }
-            });
+            }
         }
     }
 
@@ -119,7 +115,7 @@ impl Block {
             if let Some(existing) = self.expressions.get(value_id) {
                 assert_eq!(existing, expression, "Expected expressions for {value_id} to be equal");
             } else {
-                self.expressions.insert(*value_id, expression.clone());
+                self.expressions.insert(*value_id, *expression);
             }
         }
 
@@ -130,10 +126,8 @@ impl Block {
                     continue;
                 }
             }
-            let expression = expression.clone();
-
             self.aliases
-                .entry(expression)
+                .entry(*expression)
                 .and_modify(|aliases| aliases.unify(new_aliases))
                 .or_insert_with(|| new_aliases.clone());
         }
@@ -146,6 +140,17 @@ impl Block {
             }
         }
         self.references = intersection;
+
+        // Keep only the last loads present in both maps, if they map to the same InstructionId
+        let mut intersection = im::OrdMap::new();
+        for (value_id, instruction) in &other.last_loads {
+            if let Some(existing) = self.last_loads.get(value_id) {
+                if existing == instruction {
+                    intersection.insert(*value_id, *instruction);
+                }
+            }
+        }
+        self.last_loads = intersection;
 
         self
     }
@@ -162,26 +167,11 @@ impl Block {
             if let Some(known_address) = self.get_known_value(address) {
                 self.expressions.insert(result, Expression::Other(known_address));
             } else {
-                let expression = Expression::Dereference(Box::new(Expression::Other(address)));
+                let expression = Expression::Dereference(address);
                 self.expressions.insert(result, expression);
                 // No known aliases to insert for this expression... can we find an alias
                 // even if we don't have a known address? If not we'll have to invalidate all
                 // known references if this reference is ever stored to.
-            }
-        }
-    }
-
-    /// Iterate through each known alias of the given address and apply the function `f` to each.
-    pub(super) fn for_each_alias_of<T>(
-        &mut self,
-        address: ValueId,
-        mut f: impl FnMut(&mut Self, ValueId) -> T,
-    ) {
-        if let Some(expr) = self.expressions.get(&address) {
-            if let Some(aliases) = self.aliases.get(expr).cloned() {
-                aliases.for_each(|alias| {
-                    f(self, alias);
-                });
             }
         }
     }
@@ -195,7 +185,10 @@ impl Block {
     /// does not affect the candidacy of the last store in the predecessor block.
     fn keep_last_stores_for(&mut self, address: ValueId, function: &Function) {
         self.keep_last_store(address, function);
-        self.for_each_alias_of(address, |t, alias| t.keep_last_store(alias, function));
+
+        for alias in (*self.get_aliases_for_value(address)).clone().iter() {
+            self.keep_last_store(alias, function);
+        }
     }
 
     /// Forget the last store to an address, to remove it from the set of instructions
@@ -258,6 +251,13 @@ impl Block {
 
     pub(super) fn keep_last_load_for(&mut self, address: ValueId) {
         self.last_loads.remove(&address);
-        self.for_each_alias_of(address, |block, alias| block.last_loads.remove(&alias));
+
+        if let Some(expr) = self.expressions.get(&address) {
+            if let Some(aliases) = self.aliases.get(expr) {
+                for alias in aliases.iter() {
+                    self.last_loads.remove(&alias);
+                }
+            }
+        }
     }
 }

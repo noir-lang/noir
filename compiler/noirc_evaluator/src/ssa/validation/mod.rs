@@ -122,6 +122,16 @@ impl<'f> Validator<'f> {
         }
     }
 
+    fn validate_no_incrementing_global_reference_counts(&mut self, instruction_id: InstructionId) {
+        let dfg = &self.function.dfg;
+
+        let Instruction::IncrementRc { value } = &dfg[instruction_id] else { return };
+
+        if dfg.is_global(*value) {
+            panic!("Cannot increment reference count of global value");
+        }
+    }
+
     // Validates there is exactly one return block
     fn validate_single_return_block(&self) {
         let reachable_blocks = self.function.reachable_blocks();
@@ -328,6 +338,7 @@ impl<'f> Validator<'f> {
         for block in self.function.reachable_blocks() {
             for instruction in self.function.dfg[block].instructions() {
                 self.validate_field_to_integer_cast_invariant(*instruction);
+                self.validate_no_incrementing_global_reference_counts(*instruction);
                 self.type_check_instruction(*instruction);
             }
         }
@@ -747,6 +758,21 @@ mod tests {
           b0():
             v0 = allocate -> &mut u8
             store Field 1 at v0
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "Cannot increment reference count of global value")]
+    fn incrementing_global_array_ref_count() {
+        let src = "
+        g0 = make_array [u32 0] : [u32; 1]
+
+        brillig(inline) fn main f0 {
+          b0():
+            inc_rc g0
             return
         }
         ";

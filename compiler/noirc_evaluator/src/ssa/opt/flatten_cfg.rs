@@ -1,3 +1,30 @@
+//! This file contains the SSA flattening pass - a required pass for ACIR to remove any remaining
+//! control-flow in the singular program-function, resulting in a single block containing the
+//! program logic.
+//!
+//! ACIR/Brillig differences within this pass:
+//!   - This pass is strictly ACIR-only and never mutates brillig functions.
+//!
+//! Conditions:
+//!   - Precondition: Inlining has been performed which should result in there being no remaining
+//!     `call` instructions to acir/constrained functions (unless they are `InlineType::Fold`).
+//!     This also means the only acir functions in the program should be `main` (if main is
+//!     constrained), or any constrained `InlineType::Fold` functions.
+//!   - Precondition: Each constrained function should have no loops (unrolling has been performed).
+//!   - Postcondition: Each constrained function should now consist of only one block where the
+//!     terminator instruction is always a return.
+//!
+//! Relevance to other passes:
+//!   - Flattening effectively eliminates control-flow entirely which can make it easier for
+//!     subsequent passes to optimize code. Mem2reg for example should be able to remove all
+//!     references in constrained (ACIR) code.
+//!   - Flattening inserts `Instruction::IfElse` to merge the values from an if-expression's "then"
+//!     and "else" branches. These are immediately simplified out for numeric values, but for
+//!     arrays and slices we require the `remove_if_else` SSA pass to later be run to remove the
+//!     remaining `Instruction::IfElse` instructions.
+//!
+//! Implementation details & examples:
+//!
 //! The flatten cfg optimization pass "flattens" the entire control flow graph into a single block.
 //! This includes branches in the CFG with non-constant conditions. Flattening these requires
 //! special handling for operations with side-effects and can lead to a loss of information since
@@ -28,7 +55,7 @@
 //!   enable_side_effects u1 1
 //!
 //! (Note: we restore to "true" to indicate that this program point is not nested within any
-//! other branches.)
+//! other branches. Each `enable_side_effects` overrides the previous, they do not implicitly stack.)
 //!
 //! When we are flattening a block that was reached via a jmpif with a non-constant condition c,
 //! the following transformations of certain instructions within the block are expected:
@@ -44,7 +71,10 @@
 //!
 //! 2. If we reach the end block of the branch created by the jmpif instruction, its block parameters
 //!    will be merged. To merge the jmp arguments of the then and else branches, the formula
-//!    `c * then_arg + !c * else_arg` is used for each argument.
+//!    `c * then_arg + !c * else_arg` is used for each argument. Note that this is represented by
+//!    `Instruction::IfElse` which is often simplified to the above when inserted, but in the case
+//!    of complex values (arrays and slices) this simplification is delayed until the
+//!    `remove_if_else` SSA pass.
 //!
 //! b0(v0: u1, v1: Field, v2: Field):
 //!   jmpif v0, then: b1, else: b2
@@ -62,75 +92,42 @@
 //!   v6 = add v3, v5
 //!   ... b3 instructions ...
 //!
-//! 3. After being stored to in at least one predecessor of a block with multiple predecessors, the
-//!    value of a memory address is the value it had in both branches combined via c * a + !c * b.
-//!    Note that the following example is simplified to remove extra load instructions and combine
-//!    the separate merged stores for each branch into one store. See the next example for a
-//!    non-simplified version with address offsets.
+//! 3. Each `store v0 in v1` is replaced with a store of a new value
+//!    `v4 = if v3 then v0 else v2` where `v3` is the current condition
+//!    given by `enable_side_effects v3` and `v2` is the result of
+//!    a newly-given `v2 = load v0` inserted before the store.
 //!
 //! b0(v0: u1):
-//!   v1 = allocate 1 Field
+//!   v1 = allocate -> &mut Field
+//!   store Field 3 at v1
 //!   jmpif v0, then: b1, else: b2
 //! b1():
-//!   store v1, Field 5
+//!   store Field 5 at v1
 //!   ... b1 instructions ...
 //!   jmp b3
 //! b2():
-//!   store v1, Field 7
+//!   store Field 7 at v1
 //!   ... b2 instructions ...
 //!   jmp b3
 //! b3():
 //!   ... b3 instructions ...
 //! =========================
 //! b0():
-//!   v1 = allocate 1 Field
-//!   store v1, Field 5
-//!   ... b1 instructions ...
-//!   store v1, Field 7
-//!   ... b2 instructions ...
-//!   v2 = mul v0, Field 5
+//!   v1 = allocate -> &mut Field
+//!   store Field 3 at v1     // no prior value so we do not load & merge
+//!   enable_side_effects v0  // former block b1
+//!   v2 = load v1 -> Field
 //!   v3 = not v0
-//!   v4 = mul v3, Field 7
-//!   v5 = add v2, v4
-//!   store v1, v5
+//!   v4 = if v0 then Field 5 else (if v3) v2
+//!   store v4 at v1
+//!   ... b1 instructions ...
+//!   enable_side_effects v3  // former block b2
+//!   v5 = load v1 -> Field
+//!   v6 = if v3 then Field 7 else (if v0) v5
+//!   store v6 at v1
+//!   ... b2 instructions ...
+//!   enable_side_effects u1 1
 //!   ... b3 instructions ...
-//!
-//! Note that if the ValueId of the address stored to is not the same, two merging store
-//! instructions will be made - one to each address. This is the case even if both addresses refer
-//! to the same address internally. This can happen when they are equivalent offsets:
-//!
-//! b0(v0: u1, v1: ref)
-//!   jmpif v0, then: b1, else: b2
-//! b1():
-//!   v2 = add v1, Field 1
-//!   store Field 11 in v2
-//!   ... b1 instructions ...
-//! b2():
-//!   v3 = add v1, Field 1
-//!   store Field 12 in v3
-//!   ... b2 instructions ...
-//!
-//! In this example, both store instructions store to an offset of 1 from v1, but because the
-//! ValueIds differ (v2 and v3), two store instructions will be created:
-//!
-//! b0(v0: u1, v1: ref)
-//!   v2 = add v1, Field 1
-//!   v3 = load v2            (new load)
-//!   store Field 11 in v2
-//!   ... b1 instructions ...
-//!   v4 = not v0             (new not)
-//!   v5 = add v1, Field 1
-//!   v6 = load v5            (new load)
-//!   store Field 12 in v5
-//!   ... b2 instructions ...
-//!   v7 = mul v0, Field 11
-//!   v8 = mul v4, v3
-//!   v9 = add v7, v8
-//!   store v9 at v2          (new store)
-//!   v10 = mul v0, v6
-//!   v11 = mul v4, Field 12
-//!   v12 = add v10, v11
-//!   store v12 at v5         (new store)
 use std::sync::Arc;
 
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
@@ -172,6 +169,13 @@ impl Ssa {
         }
 
         for function in self.functions.values_mut() {
+            // This pass may run forever on a brillig function - we check if block predecessors have
+            // been processed and push the block to the back of the queue. This loops forever if
+            // there are still any loops present in the program.
+            if matches!(function.runtime(), RuntimeType::Brillig(_)) {
+                continue;
+            }
+
             #[cfg(debug_assertions)]
             flatten_cfg_pre_check(function);
 
@@ -186,13 +190,14 @@ impl Ssa {
 
 /// Pre-check condition for [Ssa::flatten_cfg].
 ///
-/// Succeeds if:
-///   - no block contains a jmpif with a constant condition.
-///
-/// Otherwise panics.
+/// Panics if:
+///   - Any acir function has at least 1 loop
 #[cfg(debug_assertions)]
 #[allow(dead_code)]
 fn flatten_cfg_pre_check(function: &Function) {
+    let loops = super::unrolling::Loops::find_all(function);
+    assert_eq!(loops.yet_to_unroll.len(), 0);
+
     function.reachable_blocks().iter().for_each(|block| {
         if let TerminatorInstruction::JmpIf { condition, .. } =
             function.dfg[*block].unwrap_terminator()
@@ -219,12 +224,16 @@ fn flatten_cfg_pre_check(function: &Function) {
 /// Post-check condition for [Ssa::flatten_cfg].
 ///
 /// Panics if:
-///   - Any `enable_side_effects u1 0` instructions exist.
-///
-/// Otherwise succeeds.
+///   - Any acir function contains > 1 block
 #[cfg(debug_assertions)]
 #[allow(dead_code)]
 fn flatten_cfg_post_check(function: &Function) {
+    let blocks = function.reachable_blocks();
+    assert_eq!(blocks.len(), 1);
+
+    // If there are any enable_side_effects instructions with a constant false condition, this implies that
+    // we've flattened a branch that is never taken. This is not an issue for correctness, but it is undesirable
+    // as it indicates that some prior pass has failed to eliminate dead code.
     function.reachable_blocks().iter().for_each(|block| {
         function.dfg[*block].instructions().iter().for_each(|instruction| {
             if let Instruction::EnableSideEffectsIf { condition } = function.dfg[*instruction] {
@@ -318,13 +327,6 @@ struct ConditionalContext {
 /// Flattens the control flow graph of the function such that it is left with a
 /// single block containing all instructions and no more control-flow.
 fn flatten_function_cfg(function: &mut Function, no_predicates: &HashMap<FunctionId, bool>) {
-    // This pass may run forever on a brillig function.
-    // Analyze will check if the predecessors have been processed and push the block to the back of
-    // the queue. This loops forever if there are still any loops present in the program.
-    if matches!(function.runtime(), RuntimeType::Brillig(_)) {
-        return;
-    }
-
     // Creates a context that will perform the flattening
     // We give it the map of the conditional branches in the CFG
     // and the target block where the flattened instructions should be added.
