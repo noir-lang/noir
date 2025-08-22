@@ -1,7 +1,7 @@
 //! This file is for pretty-printing the SSA IR in a human-readable form for debugging.
 use std::fmt::{Display, Formatter, Result};
 
-use acvm::acir::AcirField;
+use acvm::{FieldElement, acir::AcirField};
 use fm::codespan_files;
 use im::Vector;
 use iter_extended::vecmap;
@@ -48,7 +48,7 @@ impl Display for Printer<'_> {
         for (id, global_value) in globals_dfg.values_iter() {
             match global_value {
                 Value::NumericConstant { constant, typ } => {
-                    writeln!(f, "g{} = {typ} {constant}", id.to_u32())?;
+                    writeln!(f, "g{} = {typ} {}", id.to_u32(), number(*constant, typ))?;
                 }
                 Value::Instruction { instruction, .. } => {
                     display_instruction(&globals_dfg, *instruction, true, self.fm, f)?;
@@ -122,7 +122,7 @@ fn display_block(
 fn value(dfg: &DataFlowGraph, id: ValueId) -> String {
     match &dfg[id] {
         Value::NumericConstant { constant, typ } => {
-            format!("{typ} {constant}")
+            format!("{typ} {}", number(*constant, typ))
         }
         Value::Function(id) => id.to_string(),
         Value::Intrinsic(intrinsic) => intrinsic.to_string(),
@@ -137,6 +137,18 @@ fn value(dfg: &DataFlowGraph, id: ValueId) -> String {
         Value::Global(_) => {
             format!("g{}", id.to_u32())
         }
+    }
+}
+
+/// Formats the given number assuming it has the given type.
+/// Unsigned types and field element types will be formatter as-is,
+/// while signed types will be formatted as positive or negative numbers
+/// depending on where the number falls in the range given by the type's bit size.
+fn number(number: FieldElement, typ: &NumericType) -> String {
+    if let NumericType::Signed { bit_size } = typ {
+        number.to_string_as_signed_integer(*bit_size)
+    } else {
+        number.to_string()
     }
 }
 

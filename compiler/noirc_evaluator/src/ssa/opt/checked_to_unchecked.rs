@@ -1,3 +1,8 @@
+//! This SSA pass will turn checked unsigned binary additions, subtractions and multiplications
+//! into unchecked ones if it's guaranteed that the operations cannot overflow.
+//!
+//! Signed checked binary operations should have already been converted to unchecked ones with
+//! an explicit overflow check during [`super::expand_signed_checks`].
 use acvm::AcirField as _;
 use fxhash::FxHashMap as HashMap;
 
@@ -13,8 +18,7 @@ use crate::ssa::{
 };
 
 impl Ssa {
-    /// An SSA pass that will turn checked binary addition, subtraction and multiplication into
-    /// unchecked ones if it's guaranteed that the operations cannot overflow.
+    /// See [`checked_to_unchecked`][self] module for more information.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn checked_to_unchecked(mut self) -> Ssa {
         for function in self.functions.values_mut() {
@@ -49,6 +53,10 @@ impl Function {
                     let max_lhs_bits = get_max_num_bits(dfg, lhs, &mut value_max_num_bits);
                     let max_rhs_bits = get_max_num_bits(dfg, rhs, &mut value_max_num_bits);
 
+                    // 1. If both lhs and rhs have less max bits than the result it means their
+                    //    value is at most `2^(n-1) - 1`, assuming `n = bit_size`. Adding those
+                    //    we get `2^(n-1) - 1 + 2^(n-1) - 1`, so `2*(2^(n-1)) - 2`,
+                    //    so `2^n - 2` which fits in `0..2^n`.
                     if max_lhs_bits < bit_size && max_rhs_bits < bit_size {
                         // `lhs` and `rhs` have both been casted up from smaller types and so cannot overflow.
                         let operator = BinaryOp::Add { unchecked: true };
@@ -67,7 +75,7 @@ impl Function {
                         if max_rhs_bits == 128 { u128::MAX } else { (1 << max_rhs_bits) - 1 };
 
                     // 1. `lhs` is a fixed constant and `rhs` is restricted such that `lhs - rhs > 0`
-                    // Note strict inequality as `rhs > lhs` while `max_lhs_bits == max_rhs_bits` is possible.
+                    //    Note strict inequality as `rhs > lhs` while `max_lhs_bits == max_rhs_bits` is possible.
                     // 2. `lhs` is the maximum value for the maximum bitsize of `rhs`.
                     //    For example: `lhs` is 1 and `rhs` max bitsize is 1, so at most it's `1 - 1` which cannot overflow.
                     //    Another example: `lhs` is 255 and `rhs` max bitsize is 8, so at most it's `255 - 255` which cannot overflow, etc.
@@ -82,6 +90,11 @@ impl Function {
                     let max_lhs_bits = get_max_num_bits(dfg, lhs, &mut value_max_num_bits);
                     let max_rhs_bits = get_max_num_bits(dfg, rhs, &mut value_max_num_bits);
 
+                    // 1. Bool multiplication cannot overflow
+                    // 2. `2^max_lhs_bits * 2^max_rhs_bits` is `2^(max_lhs_bits + max_rhs_bits)` so if that sum is
+                    //    less than or equal to the bit size of the result then it cannot overflow.
+                    // 3. lhs was upcasted from a boolean
+                    // 4. rhs was upcasted from a boolean
                     if bit_size == 1
                         || max_lhs_bits + max_rhs_bits <= bit_size
                         || max_lhs_bits == 1
