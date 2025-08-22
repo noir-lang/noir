@@ -1724,8 +1724,7 @@ impl<'a> FunctionContext<'a> {
 
     /// Generate a `match` expression, returning a given type.
     ///
-    /// Match needs a variable; if we don't have one to produce the target type from,
-    /// it returns `None`.
+    /// Match needs a variable; if we don't have one to produce the target type from, it returns `None`.
     fn gen_match(
         &mut self,
         u: &mut Unstructured,
@@ -1827,6 +1826,7 @@ impl<'a> FunctionContext<'a> {
                     let item_id = self.next_local_id();
                     let item_name = format!("item_{}", local_name(item_id));
                     self.locals.add(item_id, false, item_name.clone(), item_type.clone());
+                    self.set_dynamic(item_id, src_dyn);
                     arguments.push((item_id, item_name));
                 }
                 // Generate the original expression we wanted with the new arguments in scope.
