@@ -551,7 +551,7 @@ impl<'f> Context<'f> {
         }
     }
 
-    pub(crate) fn simplify_jmpif(&mut self, block: BasicBlockId) {
+    fn simplify_jmpif(&mut self, block: BasicBlockId) {
         self.inserter.map_terminator_in_place(block);
 
         if let Some(TerminatorInstruction::JmpIf {
