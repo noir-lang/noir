@@ -509,6 +509,8 @@ impl<'f> PerFunctionContext<'f> {
                     if let Some(aliases) = references.aliases.get_mut(&expression) {
                         aliases.insert(result);
                     }
+
+                    references.remember_dereference(self.inserter.function, array, result);
                 }
             }
             Instruction::ArraySet { array, value, .. } => {
@@ -1300,6 +1302,7 @@ mod tests {
           b0(v0: u32):
             v2 = call f1(v0) -> [&mut u32; 1]
             v4 = array_get v2, index u32 0 -> &mut u32
+            store u32 1 at v4
             return u32 1
         }
         brillig(inline_always) fn foo f1 {
@@ -1678,8 +1681,39 @@ mod tests {
           b3(v0: u32, v1: u32):
             constrain v0 == u32 0
             v8 = array_get v4, index v0 -> &mut u1
+            store u1 0 at v8
             return u1 0
         }
         ");
+    }
+
+    #[test]
+    fn store_to_reference_from_array_get_is_not_lost() {
+        // `store Field 9 at v7` was incorrectly removed because of a bug
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u1):
+            v2 = allocate -> &mut Field
+            store Field 0 at v2
+            jmpif v0 then: b1, else: b2
+          b1():
+            v5 = make_array [v2] : [&mut Field; 1]
+            jmp b3(v5)
+          b2():
+            v4 = make_array [v2] : [&mut Field; 1]
+            jmp b3(v4)
+          b3(v1: [&mut Field; 1]):
+            v7 = array_get v1, index u32 0 -> &mut Field
+            store Field 9 at v7
+            v9 = array_get v1, index u32 0 -> &mut Field
+            v10 = load v9 -> Field
+            constrain v10 == Field 9
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
+        assert_normalized_ssa_equals(ssa, src);
     }
 }
