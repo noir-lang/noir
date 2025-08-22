@@ -1,4 +1,5 @@
 use crate::meta::derive_via;
+use crate::cmp::Ord;
 
 #[derive_via(derive_eq)]
 // docs:start:eq-trait
@@ -580,7 +581,7 @@ mod cmp_tests {
 
     #[test]
     fn lexicographic_ordering_for_slices() {
-        assert(&[2].cmp(&[1, 1, 1]) == super::Ordering::greater());
-        assert(&[1, 2].cmp(&[1, 2, 3]) == super::Ordering::less());
+        assert(&[2_u32].cmp(&[1_u32, 1_u32, 1_u32]) == super::Ordering::greater());
+        assert(&[1_u32, 2_u32].cmp(&[1_u32, 2_u32, 3_u32]) == super::Ordering::less());
     }
 }
