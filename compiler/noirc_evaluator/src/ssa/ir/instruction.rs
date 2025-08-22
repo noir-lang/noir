@@ -460,6 +460,13 @@ impl Instruction {
                 BinaryOp::Div | BinaryOp::Mod => {
                     dfg.get_numeric_constant(binary.rhs).is_none_or(|c| c.is_zero())
                 }
+                BinaryOp::Shl | BinaryOp::Shr => {
+                    // Bit-shifts which are known to be by a number of bits less than the bit size of the type have no side effects.
+                    dfg.get_numeric_constant(binary.rhs).is_none_or(|c| {
+                        let typ = dfg.type_of_value(binary.lhs);
+                        c >= typ.bit_size().into()
+                    })
+                }
                 BinaryOp::Add { unchecked: true }
                 | BinaryOp::Sub { unchecked: true }
                 | BinaryOp::Mul { unchecked: true }
@@ -467,9 +474,7 @@ impl Instruction {
                 | BinaryOp::Lt
                 | BinaryOp::And
                 | BinaryOp::Or
-                | BinaryOp::Xor
-                | BinaryOp::Shl
-                | BinaryOp::Shr => false,
+                | BinaryOp::Xor => false,
             },
 
             // These don't have side effects

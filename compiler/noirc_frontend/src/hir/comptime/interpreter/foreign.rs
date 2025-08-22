@@ -165,15 +165,6 @@ fn blake_hash(
 ///   signature: [u8; 64],
 ///   message_hash: [u8; N],
 /// ) -> bool
-///
-/// pub fn verify_signature_slice(
-///   public_key_x: [u8; 32],
-///   public_key_y: [u8; 32],
-///   signature: [u8; 64],
-///   message_hash: [u8],
-/// ) -> bool
-/// ```
-///
 // cSpell:disable-next-line
 fn ecdsa_secp256_verify(
     interner: &mut NodeInterner,

@@ -2,6 +2,14 @@
 global HELLO_WORLD: str<11> = "hello world";
 
 fn main(message: pub str<11>, y: Field, hex_as_string: str<4>, hex_as_field: Field) {
+    assert(hex_as_string == "0x41");
+    // assert(hex_as_string != 0x41); This will fail with a type mismatch between str[4] and Field
+    assert(hex_as_field == 0x41);
+
+    // Single digit & odd length hex literals are valid
+    assert(hex_as_field == 0x041);
+    assert(hex_as_field != 0x1);
+
     let mut bad_message = "hello world";
 
     assert(message == "hello world");
@@ -29,14 +37,6 @@ fn main(message: pub str<11>, y: Field, hex_as_string: str<4>, hex_as_field: Fie
     let hash = std::hash::pedersen_commitment([x]);
     std::println(hash);
     std::print(hash);
-
-    assert(hex_as_string == "0x41");
-    // assert(hex_as_string != 0x41); This will fail with a type mismatch between str[4] and Field
-    assert(hex_as_field == 0x41);
-
-    // Single digit & odd length hex literals are valid
-    assert(hex_as_field == 0x041);
-    assert(hex_as_field != 0x1);
 }
 
 #[test]

@@ -293,7 +293,8 @@ pub(super) fn simplify_call(
                 panic!("ICE: static_assert called with wrong number of arguments")
             }
 
-            if !dfg.is_constant(arguments[1]) {
+            // Arguments at positions `1..` form the message and they must all be constant.
+            if arguments.iter().skip(1).any(|argument| !dfg.is_constant(*argument)) {
                 return SimplifyResult::None;
             }
 
