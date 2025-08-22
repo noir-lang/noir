@@ -33,7 +33,7 @@ struct MyOtherOtherStruct<T> {
     x: T,
 }
 
-#[derive(Eq, Default, Hash)]
+#[derive(Eq, Default, Hash, Ord)]
 struct MyOtherStruct<A, B> {
     field1: A,
     field2: B,
@@ -47,8 +47,7 @@ fn main() {
     let s = MyStruct { my_field: 1 };
     s.do_nothing();
 
-    // Field doesn't implement Ord, so this line is removed to avoid compilation errors
-    // let o: MyOtherStruct<Field, u32> = MyOtherStruct::default();
+    let o: MyOtherStruct<Field, u32> = MyOtherStruct::default();
     assert_eq(o, o);
 
     let o: MyOtherStruct<u8, [str<2>]> = MyOtherStruct::default();
