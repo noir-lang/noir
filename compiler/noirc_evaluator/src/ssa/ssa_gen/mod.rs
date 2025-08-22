@@ -2,6 +2,8 @@ pub(crate) mod context;
 mod program;
 mod value;
 
+use std::sync::Arc;
+
 use acvm::AcirField;
 use noirc_frontend::hir_def::expr::Constructor;
 use noirc_frontend::token::FmtStrFragment;
@@ -175,7 +177,8 @@ impl FunctionContext<'_> {
             }
             Expression::Assign(assign) => {
                 if self.builder.current_function.runtime().is_acir() {
-                    self.codegen_assign_acir(assign)
+                    // self.codegen_assign_acir(assign)
+                    self.codegen_assign_acir_new(assign)
                 } else {
                     self.codegen_assign(assign)
                 }
@@ -350,6 +353,9 @@ impl FunctionContext<'_> {
             });
         }
 
+        // let flat_typ = typ.flatten();
+        // let len = flat_typ.len();
+        // let flat_typ = Type::Array(Arc::new(flat_typ), 1);
         self.builder.insert_make_array(array, typ)
     }
 
@@ -478,7 +484,7 @@ impl FunctionContext<'_> {
         // in locations such as here
         let extracted_values = self.extract_ident_from_expr(&index.collection, &mut indices)?;
         let array_or_slice = extracted_values.clone().into_value_list(self);
-
+        // println!("{}", self.builder.current_function);
         // TODO: add a test that has a tuple with (field, array) to make sure we do not conflict
         // with the slice object
         for (i, value) in array_or_slice.iter().enumerate() {
@@ -531,6 +537,10 @@ impl FunctionContext<'_> {
                     flat_elements.push_back(res);
                 }
                 self.builder.insert_make_array(flat_elements, typ)
+                // let flat_typ = typ.flatten();
+                // let len = flat_typ.len();
+                // let flat_typ = Type::Array(Arc::new(flat_typ), len as u32);
+                // self.builder.insert_make_array(flat_elements, flat_typ)
             } else {
                 self.builder.insert_array_get(array, offset, typ)
             };
@@ -1223,12 +1233,11 @@ impl FunctionContext<'_> {
         Ok(Self::unit_value())
     }
 
-    fn codegen_assign_acir(&mut self, assign: &ast::Assign) -> Result<Values, RuntimeError> {
-        let mut indices = Vec::new();
-        let mut index = 0;
-        let (_, lhs_new) =
-            self.extract_current_value_recursive_new(&assign.lvalue, &mut indices, &mut index)?;
-
+    fn codegen_assign_acir_new(&mut self, assign: &ast::Assign) -> Result<Values, RuntimeError> {
+        // dbg!(&assign.lvalue);
+        let flat_lvalue =
+            self.extract_recursive_acir(&assign.lvalue)?;
+        // println!("Just extracted:\n{}", self.builder.current_function);
         let rhs = self.codegen_expression(&assign.expression)?;
 
         rhs.clone().for_each(|value| {
@@ -1236,7 +1245,7 @@ impl FunctionContext<'_> {
             self.builder.increment_array_reference_count(value);
         });
 
-        self.assign_new_value(lhs_new, rhs.clone(), rhs);
+        self.assign_flat_lvalue(flat_lvalue, rhs);
         Ok(Self::unit_value())
     }
 

@@ -13,7 +13,7 @@ struct FooParent {
     foos: [Foo; 4],
 }
 
-fn main(mut x: [Foo; 4], y: pub Field) {
+fn main(mut x: [Foo; 4], y: pub u32) {
     assert(x[y - 3].a == 1);
     assert(x[y - 3].b == [2, 3, 20]);
     assert(x[y - 2].a == 4);

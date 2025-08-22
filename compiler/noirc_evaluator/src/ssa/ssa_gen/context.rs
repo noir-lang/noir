@@ -13,6 +13,7 @@ use noirc_frontend::signed_field::SignedField;
 
 use crate::errors::RuntimeError;
 use crate::ssa::function_builder::FunctionBuilder;
+use crate::ssa::ir;
 use crate::ssa::ir::basic_block::BasicBlockId;
 use crate::ssa::ir::function::FunctionId as IrFunctionId;
 use crate::ssa::ir::function::{Function, RuntimeType};
@@ -340,8 +341,13 @@ impl<'a> FunctionContext<'a> {
             ast::Type::Field => Type::field(),
             ast::Type::Array(len, element) => {
                 let element_types = Self::convert_type(element);
-                let element_types = element_types.clone().flatten();
+                let element_types: Vec<Type> = element_types.clone().flatten();
+                // let element_types = element_types.iter().fla
                 Type::Array(Arc::new(element_types), *len)
+
+                // let element_types: Vec<Type> = element_types.clone().flatten().iter().map(|typ| typ.clone().flatten()).flatten().collect();
+                // let len = element_types.len() as u32;
+                // Type::Array(Arc::new(element_types), len)
             }
             ast::Type::Integer(Signedness::Signed, bits) => Type::signed((*bits).into()),
             ast::Type::Integer(Signedness::Unsigned, bits) => Type::unsigned((*bits).into()),
@@ -975,132 +981,133 @@ impl<'a> FunctionContext<'a> {
         }
     }
 
-    pub(super) fn extract_current_value_recursive_new(
+    pub(super) fn extract_recursive_acir(
         &mut self,
         lvalue: &ast::LValue,
-        indices: &mut Vec<NestedArrayIndex>,
-        // TODO: this state should be converted to an enum
-        nested_indexing: &mut u32,
-    ) -> Result<(Values, LValue), RuntimeError> {
+    ) -> Result<FlatLValue, RuntimeError> {
         match lvalue {
             ast::LValue::Ident(ident) => {
                 let (variable, should_auto_deref) = self.ident_lvalue(ident);
-                if should_auto_deref {
-                    let dereferenced = self.dereference_lvalue(&variable, &ident.typ);
-                    Ok((dereferenced, LValue::Dereference { reference: variable }))
+                let base = if should_auto_deref {
+                    self.dereference_lvalue(&variable, &ident.typ)
                 } else {
-                    Ok((variable, LValue::Ident))
-                }
+                    variable.clone()
+                };
+                let zero = self.builder.numeric_constant(0_u32, NumericType::length_type());
+                Ok(FlatLValue {
+                    base,
+                    offset: zero,
+                    elem_type: ident.typ.clone(),
+                    // Store original allocation for later assignment
+                    original_alloc: variable, 
+                    base_is_materialized: true,
+                })
             }
             ast::LValue::Index { array, index, element_type, location } => {
-                let index_value = self.codegen_non_tuple_expression(index)?;
-                indices.push(NestedArrayIndex::Value(index_value));
+                let mut flat_lvalue = self.extract_recursive_acir(array)?;
+                let index = self.codegen_non_tuple_expression(index)?;
 
-                if *nested_indexing == 1 {
-                    *nested_indexing = 2;
-                    let (old_array, array_lvalue) =
-                        self.extract_current_value_recursive_new(array, indices, nested_indexing)?;
+                let stride = element_type.flattened_size();
+                let stride = self.builder.numeric_constant(stride, NumericType::length_type());
+                let new_index = self.builder.insert_binary(
+                    index,
+                    BinaryOp::Mul { unchecked: true },
+                    stride,
+                );
+                let new_offset = self.builder.insert_binary(flat_lvalue.offset, BinaryOp::Add { unchecked: true }, new_index);
 
-                    let array_lvalue = Box::new(array_lvalue);
-                    let array_values = old_array.clone().into_value_list(self);
-                    let index_lvalue = LValue::NestedArrayIndex {
-                        old_array: array_values[0],
-                        array_lvalue,
-                        location: *location,
-                        indices: vec![],
+                if element_type.is_reference() {
+                    // Must materialize the slot as an SSA handle
+                    let array_values = flat_lvalue.base.clone().into_value_list(self);
+                    let array: ir::map::Id<ir::value::Value> = if array_values.len() > 1 {
+                        array_values[1]
+                    } else {
+                        array_values[0]
                     };
-
-                    return Ok((old_array, index_lvalue));
-                }
-
-                let (old_array, array_lvalue) =
-                    self.extract_current_value_recursive_new(array, indices, nested_indexing)?;
-
-                *nested_indexing = 1;
-
-                let array_values = old_array.clone().into_value_list(self);
-
-                let element = if *nested_indexing == 1 {
-                    if array_values.len() > 1 {
-                        let array_lvalue = Box::new(array_lvalue);
-                        let indices = std::mem::take(indices);
-                        let index_lvalue = LValue::SliceIndexNestedArray {
-                            old_slice: old_array,
-                            slice_lvalue: array_lvalue,
-                            location: *location,
-                            indices,
-                        };
-
-                        let element = Self::map_type(element_type, |_| {
-                            let dummy =
-                                self.builder.numeric_constant(0u128, NumericType::NativeField);
-                            dummy.into()
-                        });
-                        return Ok((element, index_lvalue));
-                    }
-
-                    Self::map_type(element_type, |_| {
-                        let dummy = self.builder.numeric_constant(0u128, NumericType::NativeField);
-                        dummy.into()
-                    })
+                    let elem_ref = self.codegen_array_index_acir(array, new_offset, element_type);
+                    flat_lvalue.base = elem_ref;
+                    flat_lvalue.offset = self.builder.numeric_constant(0_u32, NumericType::length_type());
+                    flat_lvalue.base_is_materialized = true; 
                 } else {
-                    old_array.clone()
-                };
-
-                let array_lvalue = Box::new(array_lvalue);
-                let indices = std::mem::take(indices);
-                let index_lvalue = LValue::NestedArrayIndex {
-                    old_array: array_values[0],
-                    array_lvalue,
-                    location: *location,
-                    indices,
-                };
-                Ok((element, index_lvalue))
-            }
-            ast::LValue::MemberAccess { object, field_index: index } => {
-                indices.push(NestedArrayIndex::Constant(*index));
-                let (old_object, object_lvalue) =
-                    self.extract_current_value_recursive_new(object, indices, nested_indexing)?;
-                let object_lvalue = Box::new(object_lvalue);
-                if *nested_indexing > 1 {
-                    return Ok((
-                        old_object.clone(),
-                        LValue::MemberAccess {
-                            old_object,
-                            object_lvalue,
-                            index: *index,
-                            skip_extraction: true,
-                        },
-                    ));
+                    // Inline types -> just do stride/offset math
+                    flat_lvalue.offset = new_offset;
+                    flat_lvalue.base_is_materialized = false;
                 }
 
-                let element = Self::get_field_ref(&old_object, *index).clone();
-                Ok((
-                    element,
-                    LValue::MemberAccess {
-                        old_object,
-                        object_lvalue,
-                        index: *index,
-                        skip_extraction: false,
-                    },
-                ))
+                flat_lvalue.elem_type = element_type.clone();
+                Ok(flat_lvalue)
+            }
+            ast::LValue::MemberAccess { object, field_index } => {
+                let field_index = *field_index; 
+                let mut flat_lvalue = self.extract_recursive_acir(object)?;
+                let element_types = flat_lvalue.elem_type.clone().element_types();
+
+                // let is_dereference = flat_lvalue.base.clone().into_value_list(self).iter().all(|value| {
+                //     self.builder.current_function.dfg.value_is_dereference(*value)
+                // });
+                // dbg!(is_dereference);
+
+                // If base is a reference, materialize the field
+                let is_dereference = self.builder.current_function.dfg.get_numeric_constant(flat_lvalue.offset).map_or(false, |value| value.is_zero());
+                // dbg!(is_dereference);
+                if flat_lvalue.base_is_materialized {
+                    let field_val = Self::get_field(flat_lvalue.base.clone(), field_index);
+                    dbg!(field_val.clone());
+                    flat_lvalue.original_alloc = Self::get_field(flat_lvalue.original_alloc.clone(), field_index);
+                    flat_lvalue.base = field_val;
+                    flat_lvalue.offset = self.builder.numeric_constant(0_u32, NumericType::length_type());
+                } else {
+                    // Inline aggregate -> compute offset
+                    let offset = element_types[0..field_index]
+                        .iter()
+                        .fold(0, |acc, typ| acc + typ.flattened_size());
+                    let offset = self.builder.numeric_constant(offset, NumericType::length_type());
+                    flat_lvalue.offset = self.builder.insert_binary(flat_lvalue.offset, BinaryOp::Add { unchecked: true }, offset);
+                }
+
+                flat_lvalue.elem_type = element_types[field_index].clone();
+                Ok(flat_lvalue)
             }
             ast::LValue::Dereference { reference, element_type } => {
-                indices.push(NestedArrayIndex::Dereference(element_type.clone()));
+                let flat_lvalue = self.extract_recursive_acir(reference)?;
+                let deref_value = self.dereference_lvalue(&flat_lvalue.base, element_type);
+                let zero = self.builder.numeric_constant(0_u32, NumericType::length_type());
 
-                let (reference, deref_lvalue) =
-                    self.extract_current_value_recursive_new(reference, indices, nested_indexing)?;
-
-                if *nested_indexing == 0 {
-                    let dereferenced = self.dereference_lvalue(&reference, element_type);
-                    return Ok((dereferenced, LValue::Dereference { reference }));
-                }
-                let deref_lvalue = Box::new(deref_lvalue);
-                Ok((reference.clone(), LValue::DereferenceNested { deref_lvalue }))
+                Ok(FlatLValue {
+                    base: deref_value,
+                    offset: zero,
+                    elem_type: element_type.clone(),
+                    // Write back into the dereferenced allocation
+                    original_alloc: flat_lvalue.base, 
+                    base_is_materialized: true,
+                })
             }
         }
     }
 
+    /// Assigns a new value to a flattened LValue.
+    /// `flat_lvalue` contains the base SSA value and flattened index.
+    /// `new_value` is the SSA value(s) to store.
+    pub(super) fn assign_flat_lvalue(&mut self, flat: FlatLValue, new_value: Values) {
+        // If offset is zero assign directly
+        // if let Some(const_val) = self.builder.current_function.dfg.get_numeric_constant(flat.offset) {
+        //     if const_val.is_zero() {
+        //         self.assign(flat.original_alloc, new_value);
+        //         return;
+        //     }
+        // }
+        if flat.base_is_materialized {
+            self.assign(flat.original_alloc, new_value);
+            return;
+        }
+
+        let array_values = flat.base.clone().into_value_list(self);
+        let array = if array_values.len() > 1 { array_values[1] } else { array_values[0] };
+
+        let updated_array = self.assign_lvalue_index_no_offset(new_value, array, flat.offset, Location::dummy());
+        self.assign(flat.original_alloc, updated_array.into());
+    }
+    
     /// Assigns a new value to the given LValue.
     /// The LValue can be created via a previous call to extract_current_value.
     /// This method recurs on the given LValue to create a new value to assign an allocation
@@ -1118,92 +1125,85 @@ impl<'a> FunctionContext<'a> {
                 let array = self.assign_lvalue_index(new_value, array, index, location).into();
                 self.assign_new_value(*array_lvalue, array, original_value);
             }
-            LValue::NestedArrayIndex { old_array, array_lvalue, location, mut indices } => {
-                if indices.is_empty() {
-                    self.assign_new_value(*array_lvalue, new_value, original_value);
-                    return;
-                }
+            // LValue::NestedArrayIndex { old_array, array_lvalue, location, mut indices } => {
+            //     if indices.is_empty() {
+            //         self.assign_new_value(*array_lvalue, new_value, original_value);
+            //         return;
+            //     }
+            //     let has_dereferences = indices
+            //         .iter()
+            //         .take_while(|idx| !matches!(idx, NestedArrayIndex::Dereference(_)))
+            //         .all(|idx| matches!(idx, NestedArrayIndex::Constant(_)));
+            //     if has_dereferences {
+            //         let dereference_types: Vec<ast::Type> = indices
+            //             .iter()
+            //             .filter_map(|index| {
+            //                 if let NestedArrayIndex::Dereference(typ) = index {
+            //                     Some(typ.clone())
+            //                 } else {
+            //                     None
+            //                 }
+            //             })
+            //             .collect();
+            //         // Skip extraction being true is needed for `struct_alias_in_array`
+            //         let (flattened_index, new_array) =
+            //             self.build_nested_lvalue_index(old_array.into(), false, &mut indices);
+            //         let array = new_array.into_value_list(self);
+            //         // We expect the slice array to already be extracted
+            //         let array = array[0];
+            //         let element_type = self.composite_array_types.get(&array).cloned().unwrap();
+            //         let mut reference =
+            //             self.codegen_array_index_acir(array, flattened_index, &element_type);
+            //         let mut current_reference = Self::unit_value();
+            //         for deref_typ in dereference_types {
+            //             current_reference = reference.clone();
+            //             let dereferenced = self.dereference_lvalue(&reference, &deref_typ);
+            //             reference = dereferenced;
+            //         }
+            //         self.assign(current_reference, new_value);
+            //         return;
+            //     };
+            //     // Should already have extracted the appropriate array value from any tuples
+            //     let (flattened_index, _) =
+            //         self.build_nested_lvalue_index(old_array.into(), true, &mut indices);
+            //     let array = self
+            //         .assign_lvalue_index_no_offset(
+            //             original_value.clone(),
+            //             old_array,
+            //             flattened_index,
+            //             location,
+            //         )
+            //         .into();
+            //     self.assign_new_value(*array_lvalue, array, original_value);
+            // }
+            
+            // LValue::SliceIndexNestedArray {
+            //     old_slice: slice,
+            //     slice_lvalue,
+            //     location,
+            //     mut indices,
+            // } => {
+            //     if indices.is_empty() {
+            //         // The size of the slice does not change in a slice index assignment so we can reuse the same length value
+            //         self.assign_new_value(*slice_lvalue, new_value, original_value);
+            //         return;
+            //     }
+            //     let slice_values = slice.into_value_list(self);
+            //     let (flattened_index, _) =
+            //         self.build_nested_lvalue_index(slice_values[1].into(), true, &mut indices);
+            //     let new_slice_values = self
+            //         .assign_lvalue_index_no_offset(
+            //             original_value.clone(),
+            //             slice_values[1],
+            //             flattened_index,
+            //             location,
+            //         )
+            //         .into();
+            //     // The size of the slice does not change in a slice index assignment so we can reuse the same length value
+            //     let new_slice = Tree::Branch(vec![slice_values[0].into(), new_slice_values]);
+            //     self.assign_new_value(*slice_lvalue, new_slice, original_value);
+            // }
 
-                let has_dereferences = indices
-                    .iter()
-                    .take_while(|idx| !matches!(idx, NestedArrayIndex::Dereference(_)))
-                    .all(|idx| matches!(idx, NestedArrayIndex::Constant(_)));
-
-                if has_dereferences {
-                    let dereference_types: Vec<ast::Type> = indices
-                        .iter()
-                        .filter_map(|index| {
-                            if let NestedArrayIndex::Dereference(typ) = index {
-                                Some(typ.clone())
-                            } else {
-                                None
-                            }
-                        })
-                        .collect();
-
-                    // Skip extraction being true is needed for `struct_alias_in_array`
-                    let (flattened_index, new_array) =
-                        self.build_nested_lvalue_index(old_array.into(), false, &mut indices);
-                    let array = new_array.into_value_list(self);
-                    // We expect the slice array to already be extracted
-                    let array = array[0];
-                    let element_type = self.composite_array_types.get(&array).cloned().unwrap();
-                    let mut reference =
-                        self.codegen_array_index_acir(array, flattened_index, &element_type);
-
-                    let mut current_reference = Self::unit_value();
-                    for deref_typ in dereference_types {
-                        current_reference = reference.clone();
-                        let dereferenced = self.dereference_lvalue(&reference, &deref_typ);
-                        reference = dereferenced;
-                    }
-
-                    self.assign(current_reference, new_value);
-                    return;
-                };
-
-                // Should already have extracted the appropriate array value from any tuples
-                let (flattened_index, _) =
-                    self.build_nested_lvalue_index(old_array.into(), true, &mut indices);
-                let array = self
-                    .assign_lvalue_index_no_offset(
-                        original_value.clone(),
-                        old_array,
-                        flattened_index,
-                        location,
-                    )
-                    .into();
-
-                self.assign_new_value(*array_lvalue, array, original_value);
-            }
-            LValue::SliceIndexNestedArray {
-                old_slice: slice,
-                slice_lvalue,
-                location,
-                mut indices,
-            } => {
-                if indices.is_empty() {
-                    // The size of the slice does not change in a slice index assignment so we can reuse the same length value
-                    self.assign_new_value(*slice_lvalue, new_value, original_value);
-                    return;
-                }
-
-                let slice_values = slice.into_value_list(self);
-                let (flattened_index, _) =
-                    self.build_nested_lvalue_index(slice_values[1].into(), true, &mut indices);
-                let new_slice_values = self
-                    .assign_lvalue_index_no_offset(
-                        original_value.clone(),
-                        slice_values[1],
-                        flattened_index,
-                        location,
-                    )
-                    .into();
-
-                // The size of the slice does not change in a slice index assignment so we can reuse the same length value
-                let new_slice = Tree::Branch(vec![slice_values[0].into(), new_slice_values]);
-                self.assign_new_value(*slice_lvalue, new_slice, original_value);
-            }
             LValue::SliceIndex { old_slice: slice, index, slice_lvalue, location } => {
                 let mut slice_values = slice.into_value_list(self);
 
@@ -1514,18 +1514,18 @@ pub(super) enum LValue {
         array_lvalue: Box<LValue>,
         location: Location,
     },
-    NestedArrayIndex {
-        old_array: ValueId,
-        array_lvalue: Box<LValue>,
-        location: Location,
-        indices: Vec<NestedArrayIndex>,
-    },
-    SliceIndexNestedArray {
-        old_slice: Values,
-        slice_lvalue: Box<LValue>,
-        location: Location,
-        indices: Vec<NestedArrayIndex>,
-    },
+    // NestedArrayIndex {
+    //     old_array: ValueId,
+    //     array_lvalue: Box<LValue>,
+    //     location: Location,
+    //     indices: Vec<NestedArrayIndex>,
+    // },
+    // SliceIndexNestedArray {
+    //     old_slice: Values,
+    //     slice_lvalue: Box<LValue>,
+    //     location: Location,
+    //     indices: Vec<NestedArrayIndex>,
+    // },
     SliceIndex {
         old_slice: Values,
         index: ValueId,
@@ -1544,4 +1544,21 @@ pub(super) enum LValue {
     DereferenceNested {
         deref_lvalue: Box<LValue>,
     },
+}
+
+
+/// Tracks the base SSA value and current flat offset while flattening.
+#[derive(Debug, Clone)]
+pub(super) struct FlatLValue {
+    /// SSA value holding the base array or struct
+    base: Values,   
+    /// Current flattened index offset   
+    offset: ValueId,   
+    /// Type of the element at `base + offset`    
+    elem_type: ast::Type, 
+    /// The original allocation to write back into  
+    original_alloc: Values, 
+    /// Whether `base` is an SSA handle (materialized slot / reference) rather than the original allocation.
+    /// If true, MemberAccess should be done by extracting a field from `base`. If false, do offset math.
+    pub base_is_materialized: bool,
 }

@@ -31,8 +31,8 @@ fn regression_2445() {
 
     assert(**array[0] == 0);
 
-    **array[0] = 1;
-    **array[1] = 2;
+    **array[0 as u32] = 1;
+    **array[1 as u32] = 2;
 
     assert(var == 2);
     assert(**ref == 2);
@@ -46,8 +46,8 @@ fn regression_2445_deeper_ref() {
 
     let mut array = [ref, ref];
 
-    ***array[0] = 1;
-    ***array[1] = 2;
+    ***array[0 as u32] = 1;
+    ***array[1 as u32] = 2;
 
     assert(var == 2);
     assert(***ref == 2);
@@ -66,8 +66,8 @@ fn struct_alias_in_array() {
     let mut array = [ref, ref];
     assert((**array[0]).inner == 0);
 
-    (**array[0]).inner = 1;
-    (**array[1]).inner = 2;
+    (**array[0 as u32]).inner = 1;
+    (**array[1 as u32]).inner = 2;
 
     assert(var.inner == 2);
     assert((**ref).inner == 2);

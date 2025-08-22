@@ -369,6 +369,10 @@ impl Type {
         matches!(self, Type::Field)
     }
 
+    pub fn is_reference(&self) -> bool {
+        matches!(self, Type::Reference(_, _))
+    }
+
     pub fn element_types(self) -> Vec<Type> {
         match self {
             Type::Array(_, elements) => {
