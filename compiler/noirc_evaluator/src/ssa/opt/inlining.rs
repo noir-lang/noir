@@ -217,10 +217,6 @@ impl InlineContext {
         let mut context = PerFunctionContext::new(&mut self, entry_point, entry_point, globals);
         context.inlining_entry = true;
 
-        for (_, value) in entry_point.dfg.globals.values_iter() {
-            context.context.builder.current_function.dfg.make_global(value.get_type().into_owned());
-        }
-
         // The entry block is already inserted so we have to add it to context.blocks and add
         // its parameters here. Failing to do so would cause context.translate_block() to add
         // a fresh block for the entry block rather than use the existing one.
