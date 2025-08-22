@@ -240,9 +240,9 @@ impl<'a> FunctionContext<'a> {
     ///
     /// This can be used to (for example) flatten a tuple type, creating
     /// and returning a new parameter for each field type.
-    pub(super) fn map_type<T>(typ: &ast::Type, mut f: impl FnMut(Type) -> T) -> Tree<T> {
-        Self::map_type_helper(typ, &mut f)
-    }
+    // pub(super) fn map_type<T>(typ: &ast::Type, mut f: impl FnMut(Type) -> T) -> Tree<T> {
+    //     Self::map_type_helper(typ, &mut f)
+    // }
 
     // This helper is needed because we need to take f by mutable reference,
     // otherwise we cannot move it multiple times each loop of vecmap.
@@ -907,7 +907,7 @@ impl<'a> FunctionContext<'a> {
                     base_is_materialized: true,
                 })
             }
-            ast::LValue::Index { array, index, element_type, location } => {
+            ast::LValue::Index { array, index, element_type, .. } => {
                 let mut flat_lvalue = self.extract_recursive_acir(array)?;
                 let index = self.codegen_non_tuple_expression(index)?;
 
@@ -991,7 +991,7 @@ impl<'a> FunctionContext<'a> {
                     base_is_materialized: true,
                 })
             }
-            ast::LValue::Clone(lvalue) => todo!(),
+            ast::LValue::Clone(_) => unreachable!("Clone should only be for Brillig runtimes"),
         }
     }
 
@@ -1016,7 +1016,12 @@ impl<'a> FunctionContext<'a> {
 
         let updated_array =
             self.assign_lvalue_index_no_offset(new_value, array, flat.offset, Location::dummy());
-        self.assign(flat.original_alloc, updated_array.into());
+        let new_value = if array_values.len() > 1 {
+            Tree::Branch(vec![array_values[0].into(), updated_array.into()])
+        } else {
+            updated_array.into()
+        };
+        self.assign(flat.original_alloc, new_value);
     }
 
     /// Assigns a new value to the given LValue.
@@ -1358,7 +1363,6 @@ fn convert_operator(op: BinaryOpKind) -> BinaryOp {
 pub(super) enum NestedArrayIndex {
     Value(ValueId),
     Constant(usize),
-    Dereference(ast::Type),
 }
 
 impl SharedContext {

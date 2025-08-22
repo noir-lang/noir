@@ -1,0 +1,23 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+struct Bar {
+    inner: [Field; 3],
+}
+
+struct Foo {
+    a: Field,
+    b: [Field; 3],
+    bar: Bar,
+}
+
+fn main(mut x: [Foo; 1], y: pub u32) {
+    if y == 3_u32 {
+        {
+            let i_3811: u32 = y - 3_u32;
+            x[i_3811].b = [5_Field, 10_Field, 15_Field];
+        }
+    };
+    assert(x[y - 3_u32].b == [5_Field, 10_Field, 15_Field]);
+}

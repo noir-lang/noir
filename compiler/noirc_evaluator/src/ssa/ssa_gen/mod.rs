@@ -3,8 +3,6 @@ mod program;
 mod tests;
 mod value;
 
-use std::sync::Arc;
-
 use acvm::AcirField;
 use noirc_errors::call_stack::CallStack;
 use noirc_frontend::hir_def::expr::Constructor;
@@ -188,8 +186,7 @@ impl FunctionContext<'_> {
             }
             Expression::Assign(assign) => {
                 if self.builder.current_function.runtime().is_acir() {
-                    // self.codegen_assign_acir(assign)
-                    self.codegen_assign_acir_new(assign)
+                    self.codegen_assign_acir(assign)
                 } else {
                     self.codegen_assign(assign)
                 }
@@ -402,8 +399,10 @@ impl FunctionContext<'_> {
                 Type::Reference(_) => {
                     flat_elements.push_back(element);
                 }
-                Type::Slice(_) => todo!(),
-                Type::Function => todo!(),
+                Type::Slice(_) => unreachable!("ICE: Nested slices are not supported"),
+                Type::Function => {
+                    flat_elements.push_back(element);
+                }
             }
         }
 
@@ -1333,11 +1332,14 @@ impl FunctionContext<'_> {
         Ok(Self::unit_value())
     }
 
-    fn codegen_assign_acir_new(&mut self, assign: &ast::Assign) -> Result<Values, RuntimeError> {
+    fn codegen_assign_acir(&mut self, assign: &ast::Assign) -> Result<Values, RuntimeError> {
+        // Evaluate the rhs first - when we load the expression in the lvalue we want that
+        // to reflect any mutations from evaluating the rhs.
+        let rhs = self.codegen_expression(&assign.expression)?;
+
         // dbg!(&assign.lvalue);
         let flat_lvalue = self.extract_recursive_acir(&assign.lvalue)?;
         // println!("Just extracted:\n{}", self.builder.current_function);
-        let rhs = self.codegen_expression(&assign.expression)?;
 
         rhs.clone().for_each(|value| {
             let value = value.eval(self);
@@ -1368,7 +1370,6 @@ impl FunctionContext<'_> {
                     first_index = Some(index);
                     break;
                 }
-                NestedArrayIndex::Dereference(_) => {}
             }
         }
 
@@ -1396,9 +1397,6 @@ impl FunctionContext<'_> {
                     self.builder.insert_binary(value, BinaryOp::Mul { unchecked: true }, offset);
 
                 (new_index, typ)
-            }
-            NestedArrayIndex::Dereference(_) => {
-                panic!("Dereference cannot be first index")
             }
         };
 
@@ -1439,9 +1437,6 @@ impl FunctionContext<'_> {
                         new_index,
                     );
                     result_index = new_index;
-                }
-                NestedArrayIndex::Dereference(_) => {
-                    // Do nothing, these dereferences should be handled by the caller
                 }
             }
         }

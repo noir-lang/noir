@@ -10,7 +10,7 @@ struct Foo {
     bar: Bar,
 }
 
-fn main(mut x: [Foo; 1], y: pub Field) {
+fn main(mut x: [Foo; 1], y: pub u32) {
     if y == 3 {
         x[y - 3].b = [5, 10, 15];
     }

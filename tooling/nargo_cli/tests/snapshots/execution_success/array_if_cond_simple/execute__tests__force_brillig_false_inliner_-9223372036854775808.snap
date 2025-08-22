@@ -83,7 +83,7 @@ expression: artifact
     "MEM (id: 1, read at: EXPR [ (1, _34) 0 ], value: EXPR [ (1, _35) 0 ]) ",
     "EXPR [ (-1, _0, _1) (-1, _0, _2) (1, _0, _35) (1, _0) (1, _1) (1, _2) -1 ]"
   ],
-  "debug_symbols": "nZHNCoMwDIDfJecedFWnvsoYUjVKoVSp7WCI775o66aHwdjpa36+EpIZWqxdX0ndDROUtxlqI5WSfaWGRlg5aMrOC4M9rKxBpBQc6mSNwqC2UGqnFIOHUG5rmkahN1phqBoxQN0S6cNOKlxfC/vY0Xc148HNkrec/mznabCL7A87joqgx3F68u8UiUaa07aAX6iTAeceiUfqkXlcPXKPAkq+rAMYKWqFYeed083hBPY57pX9SKMZGmydwXWArUYjvQA=",
+  "debug_symbols": "nZHNCoMwDIDfJecedK6b+ipjSNUohVJLbQdDfPdFWzc9DMZOX/PzlZBM0GLt+0rqbhihvE1QW6mU7Cs1NMLJQVN2mhlsYeUsIqVgVyfLCIvaQam9UgweQvm1aTRCr3TCUjVhgLol0oedVLi8Zvaxk+8qz6PLi7fMf7ZzHu3i8oedJkXU05Qf/DtFopH2sC3ITtTJIMsCzgE84BJwDcgDCiizeRnASlErjDvvvG52J3BPs1W2Ixk7NNh6i8sAa41GegE=",
   "file_map": {
     "50": {
       "source": "fn main(x: bool, mut y: [u32; 30]) {\n    if x {\n        y[0] = 1;\n    }\n\n    let z = y[0] + y[1];\n    assert(z == 1);\n}\n",
