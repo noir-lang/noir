@@ -7,9 +7,9 @@
 //! - Each block in each function is iterated in forward-order.
 //! - The starting value of each reference in the block is the unification of the same references
 //!   at the end of each direct predecessor block to the current block.
-//! - At each step, the value of each reference is either Known(ValueId) or Unknown.
-//! - Two reference values unify to each other if they are exactly equal, or to Unknown otherwise.
-//! - If a block has no predecessors, the starting value of each reference is Unknown.
+//! - At each step, the value of each reference is either known or unknown, tracked with a map.
+//! - Two reference values unify to each other if they are exactly equal.
+//! - If a block has no predecessors, the starting value of each reference is unknown (not present in the map).
 //! - Throughout this pass, aliases of each reference are also tracked.
 //!   - References typically have 1 alias - themselves.
 //!   - A reference with multiple aliases means we will not be able to optimize out loads if the
@@ -41,19 +41,19 @@
 //! - On `Instruction::Store { address, value }`:
 //!   - If the address of the store is known:
 //!     - If the address has exactly 1 alias:
-//!       - Set the value of the address to `Known(value)`.
+//!       - Set the value of the address to the known `value`.
 //!     - If the address has more than 1 alias:
-//!       - Set the value of every possible alias to `Unknown`.
+//!       - Clear out the known value of of every possible alias.
 //!     - If the address has 0 aliases:
-//!       - Conservatively mark every alias in the block to `Unknown`.
+//!       - Conservatively mark every alias in the block as unknown.
 //!   - If the address of the store is not known:
-//!     - Conservatively mark every alias in the block to `Unknown`.
+//!     - Conservatively mark every alias in the block as unknown.
 //!   - Additionally, if there were no Loads to any alias of the address between this Store and
 //!     the previous Store to the same address, the previous store can be removed.
 //!   - Remove the instance of the last load instruction to the address and its aliases
 //! - On `Instruction::Call { arguments }`:
-//!   - If any argument of the call is a reference, set the value of each alias of that
-//!     reference to `Unknown`
+//!   - If any argument of the call is a reference, remove the known value of each alias of that
+//!     reference
 //!   - Any builtin functions that may return aliases if their input also contains a
 //!     reference should be tracked. Examples: `slice_push_back`, `slice_insert`, `slice_remove`, etc.
 //!   - Remove the instance of the last load instruction for any reference arguments and their aliases
@@ -692,7 +692,7 @@ impl<'f> PerFunctionContext<'f> {
                         .extend(references.get_aliases_for_value(*return_value).iter());
                 }
                 // Removing all `last_stores` for each returned reference is more important here
-                // than setting them all to ReferenceValue::Unknown since no other block should
+                // than setting them all to unknown since no other block should
                 // have a block with a Return terminator as a predecessor anyway.
                 self.mark_all_unknown(return_values, references);
             }

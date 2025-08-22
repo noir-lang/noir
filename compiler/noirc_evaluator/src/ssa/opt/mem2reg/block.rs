@@ -55,7 +55,7 @@ impl Block {
         self.references.get(&address).copied()
     }
 
-    /// If the given address is known, set its value to `ReferenceValue::Known(value)`.
+    /// If the given address is known, set its value to `value`.
     pub(super) fn set_known_value(&mut self, address: ValueId, value: ValueId) {
         self.set_value(address, Some(value));
     }
