@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1755883122788,
+  "lastUpdate": 1755894780892,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -19961,48 +19961,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "bae92367d46588ef018977d3ecd9def4e653fa48",
-          "message": "chore: add missing cases of snapshot tests in `remove_bit_shifts` (#9505)",
-          "timestamp": "2025-08-15T12:31:23+01:00",
-          "tree_id": "e4e645f64721a60574d8909ec8f245f9ebc5f204",
-          "url": "https://github.com/noir-lang/noir/commit/bae92367d46588ef018977d3ecd9def4e653fa48"
-        },
-        "date": 1755257636755,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 246965,
-            "range": "± 1794",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 222632,
-            "range": "± 3457",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2777386,
-            "range": "± 16351",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "163862677+noirwhal@users.noreply.github.com",
             "name": "noirwhal",
             "username": "noirwhal"
@@ -22054,6 +22012,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2811020,
             "range": "± 2576",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jfecher11@gmail.com",
+            "name": "jfecher",
+            "username": "jfecher"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "22b5ebd703d69fe411bc041d39a168e3fc9b0ad4",
+          "message": "fix: Make inc/dec_rc impure (#9617)",
+          "timestamp": "2025-08-22T20:05:22Z",
+          "tree_id": "110ae727facb0bf019916249d021dd0cb91cfeca",
+          "url": "https://github.com/noir-lang/noir/commit/22b5ebd703d69fe411bc041d39a168e3fc9b0ad4"
+        },
+        "date": 1755894761345,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 249452,
+            "range": "± 1053",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 218362,
+            "range": "± 6215",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2778080,
+            "range": "± 16994",
             "unit": "ns/iter"
           }
         ]
