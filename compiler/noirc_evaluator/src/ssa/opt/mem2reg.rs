@@ -1287,9 +1287,7 @@ mod tests {
           b0(v0: u32):
             v2 = call f1(v0) -> [&mut u32; 1]
             v4 = array_get v2, index u32 0 -> &mut u32
-            store u32 1 at v4
-            v6 = load v4 -> u1
-            return v6
+            return u32 1
         }
         brillig(inline_always) fn foo f1 {
           b0(v0: u32):
@@ -1599,6 +1597,50 @@ mod tests {
             jmp b3()
           b3():
             return v2
+        }
+        ");
+    }
+
+    #[test]
+    fn store_load_from_array_get() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v1 = allocate -> &mut u1
+            store u1 0 at v1
+            v3 = make_array [v1] : [&mut u1]
+            jmpif u1 1 then: b1, else: b2
+          b1():
+            jmp b3(u32 0, u32 1)
+          b2():
+            jmp b3(u32 0, u32 1)
+          b3(v0: u32, v8: u32):
+            constrain v0 == u32 0
+            v6 = array_get v3, index v0 -> &mut u1
+            store u1 0 at v6
+            v7 = load v6 -> u1
+            return v7
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
+
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0():
+            v2 = allocate -> &mut u1
+            store u1 0 at v2
+            v4 = make_array [v2] : [&mut u1]
+            jmpif u1 1 then: b1, else: b2
+          b1():
+            jmp b3(u32 0, u32 1)
+          b2():
+            jmp b3(u32 0, u32 1)
+          b3(v0: u32, v1: u32):
+            constrain v0 == u32 0
+            v8 = array_get v4, index v0 -> &mut u1
+            return u1 0
         }
         ");
     }

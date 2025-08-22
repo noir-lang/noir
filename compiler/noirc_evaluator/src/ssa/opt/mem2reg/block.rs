@@ -65,14 +65,11 @@ impl ReferenceValue {
 impl Block {
     /// If the given reference id points to a known value, return the value
     pub(super) fn get_known_value(&self, address: ValueId) -> Option<ValueId> {
-        // We could allow multiple aliases if we check that the reference value in each is equal.
-        if let Some(alias) = self.get_aliases_for_value(address).single_alias() {
-            if let Some(ReferenceValue::Known(value)) = self.references.get(&alias) {
-                return Some(*value);
-            }
+        if let Some(ReferenceValue::Known(value)) = self.references.get(&address) {
+            Some(*value)
+        } else {
+            None
         }
-
-        None
     }
 
     /// If the given address is known, set its value to `ReferenceValue::Known(value)`.
@@ -103,6 +100,9 @@ impl Block {
                 }
             }
         }
+
+        // We always know address points to value
+        self.references.insert(address, value);
     }
 
     fn invalidate_all_references(&mut self) {
