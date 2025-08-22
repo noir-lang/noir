@@ -580,6 +580,19 @@ impl<'f> PerFunctionContext<'f> {
                         expr,
                         AliasSet::known_multiple(vec![*then_value, *else_value].into()),
                     );
+
+                    // `then_value` and `else_value` are now aliased by `result`
+                    if let Some(then_expr) = references.expressions.get_mut(then_value) {
+                        if let Some(then_aliases) = references.aliases.get_mut(then_expr) {
+                            then_aliases.insert(result);
+                        }
+                    }
+
+                    if let Some(else_expr) = references.expressions.get_mut(else_value) {
+                        if let Some(else_aliases) = references.aliases.get_mut(else_expr) {
+                            else_aliases.insert(result);
+                        }
+                    }
                 }
             }
             _ => (),
@@ -1537,6 +1550,31 @@ mod tests {
             return
         }
         ");
+    }
+
+    #[test]
+    fn if_aliases_each_branch() {
+        let src = "
+            brillig(inline) predicate_pure fn main f0 {
+              b0(v0: u1):
+                v1 = allocate -> &mut Field
+                store Field 0 at v1
+                v3 = allocate -> &mut Field
+                store Field 1 at v3
+                v5 = not v0
+                v6 = if v0 then v1 else (if v5) v3
+                store Field 9 at v6
+                v8 = load v1 -> Field
+                constrain v8 == Field 9
+                v9 = load v3 -> Field
+                constrain v9 == Field 1
+                return
+            }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
+        assert_normalized_ssa_equals(ssa, src);
     }
 
     #[test]
