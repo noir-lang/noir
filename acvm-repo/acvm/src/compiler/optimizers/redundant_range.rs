@@ -438,7 +438,8 @@ mod tests {
         assert_eq!(
             optimized_circuit.opcodes[0],
             Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
-                input: FunctionInput::witness(Witness(1), 32) // The minimum does not propagate backwards.
+                input: FunctionInput::Witness(Witness(1)), // The minimum does not propagate backwards.
+                num_bits: 32,
             })
         );
 
