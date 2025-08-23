@@ -312,7 +312,11 @@ impl Context<'_> {
         let to_process = self.handle_terminator(conditional.block_entry, &queue);
         queue.extend(to_process);
         if let Some(then) = conditional.block_then {
-            assert_eq!(queue.pop(), conditional.block_then);
+            assert_eq!(
+                queue.pop(),
+                conditional.block_then,
+                "Expected 'then' block to be next in queue"
+            );
             self.inline_block(then, no_predicates);
             let to_process = self.handle_terminator(then, &queue);
 
@@ -394,6 +398,33 @@ mod test {
         assert_ssa_snapshot,
         ssa::{Ssa, opt::assert_normalized_ssa_equals},
     };
+
+    #[test]
+    fn handles_constant_condition_branches() {
+        let src = "
+        brillig(inline) predicate_pure fn main f0 {
+          b0():
+            v0 = eq Field 1, Field 0                     	
+            jmpif v0 then: b1, else: b2
+          b1():
+            jmp b3(Field 1)
+          b2():
+            jmp b3(Field 0)
+          b3(v1: Field):
+            return v1
+        }";
+
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.flatten_basic_conditionals();
+
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) predicate_pure fn main f0 {
+          b0():
+            return Field 0
+        }
+        ");
+    }
 
     #[test]
     fn basic_jmpif() {
