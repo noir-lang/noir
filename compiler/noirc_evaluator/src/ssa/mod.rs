@@ -157,6 +157,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
         SsaPass::new_try(Ssa::remove_if_else, "Remove IfElse"),
         SsaPass::new(Ssa::purity_analysis, "Purity Analysis"),
         SsaPass::new(Ssa::fold_constants, "Constant Folding"),
+        SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
         SsaPass::new(Ssa::flatten_basic_conditionals, "Simplify conditionals for unconstrained"),
         SsaPass::new(Ssa::remove_enable_side_effects, "EnableSideEffectsIf removal"),
         SsaPass::new(Ssa::fold_constants_using_constraints, "Constant Folding using constraints"),
