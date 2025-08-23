@@ -1220,7 +1220,7 @@ impl<'a> Context<'a> {
                 // Slice arguments to blackbox functions would break the following logic (due to being split over two `ValueIds`)
                 // No blackbox functions currently take slice arguments so we have an assertion here to catch if this changes in the future.
                 assert!(
-                    !arguments.iter().all(|arg| matches!(dfg.type_of_value(*arg), Type::Slice(_))),
+                    !arguments.iter().any(|arg| matches!(dfg.type_of_value(*arg), Type::Slice(_))),
                     "ICE: Slice arguments passed to blackbox function"
                 );
 
