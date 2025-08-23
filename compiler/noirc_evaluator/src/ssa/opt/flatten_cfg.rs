@@ -2052,7 +2052,7 @@ mod test {
             enable_side_effects u1 1
             v11 = cast v0 as u32
             v12 = cast v7 as u32
-            v13 = unchecked_mul v11, v3
+            v13 = unchecked_mul v11, v6
             v14 = unchecked_mul v12, v9
             v15 = unchecked_add v13, v14
             return v15
