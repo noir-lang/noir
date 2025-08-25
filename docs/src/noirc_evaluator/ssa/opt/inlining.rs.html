@@ -1323,54 +1323,7 @@
 <a href="#1322" id="1322">1322</a>
 <a href="#1323" id="1323">1323</a>
 <a href="#1324" id="1324">1324</a>
-<a href="#1325" id="1325">1325</a>
-<a href="#1326" id="1326">1326</a>
-<a href="#1327" id="1327">1327</a>
-<a href="#1328" id="1328">1328</a>
-<a href="#1329" id="1329">1329</a>
-<a href="#1330" id="1330">1330</a>
-<a href="#1331" id="1331">1331</a>
-<a href="#1332" id="1332">1332</a>
-<a href="#1333" id="1333">1333</a>
-<a href="#1334" id="1334">1334</a>
-<a href="#1335" id="1335">1335</a>
-<a href="#1336" id="1336">1336</a>
-<a href="#1337" id="1337">1337</a>
-<a href="#1338" id="1338">1338</a>
-<a href="#1339" id="1339">1339</a>
-<a href="#1340" id="1340">1340</a>
-<a href="#1341" id="1341">1341</a>
-<a href="#1342" id="1342">1342</a>
-<a href="#1343" id="1343">1343</a>
-<a href="#1344" id="1344">1344</a>
-<a href="#1345" id="1345">1345</a>
-<a href="#1346" id="1346">1346</a>
-<a href="#1347" id="1347">1347</a>
-<a href="#1348" id="1348">1348</a>
-<a href="#1349" id="1349">1349</a>
-<a href="#1350" id="1350">1350</a>
-<a href="#1351" id="1351">1351</a>
-<a href="#1352" id="1352">1352</a>
-<a href="#1353" id="1353">1353</a>
-<a href="#1354" id="1354">1354</a>
-<a href="#1355" id="1355">1355</a>
-<a href="#1356" id="1356">1356</a>
-<a href="#1357" id="1357">1357</a>
-<a href="#1358" id="1358">1358</a>
-<a href="#1359" id="1359">1359</a>
-<a href="#1360" id="1360">1360</a>
-<a href="#1361" id="1361">1361</a>
-<a href="#1362" id="1362">1362</a>
-<a href="#1363" id="1363">1363</a>
-<a href="#1364" id="1364">1364</a>
-<a href="#1365" id="1365">1365</a>
-<a href="#1366" id="1366">1366</a>
-<a href="#1367" id="1367">1367</a>
-<a href="#1368" id="1368">1368</a>
-<a href="#1369" id="1369">1369</a>
-<a href="#1370" id="1370">1370</a>
-<a href="#1371" id="1371">1371</a>
-<a href="#1372" id="1372">1372</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module defines the function inlining pass for the SSA IR.
+<a href="#1325" id="1325">1325</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module defines the function inlining pass for the SSA IR.
 //! The purpose of this pass is to inline the instructions of each function call
 //! within the function caller. If all function calls are known, there will only
 //! be a single function remaining when the pass finishes.
@@ -1495,6 +1448,7 @@
         <span class="kw">for </span>entry_point <span class="kw">in </span>inline_targets {
             <span class="kw">let </span>function = <span class="kw-2">&amp;</span><span class="self">self</span>.functions[<span class="kw-2">&amp;</span>entry_point];
             <span class="kw">let </span>inlined = function.inlined(<span class="kw-2">&amp;</span><span class="self">self</span>, <span class="kw-2">&amp;</span>should_inline_call)<span class="question-mark">?</span>;
+            <span class="macro">assert_eq!</span>(inlined.id(), entry_point);
             new_functions.insert(entry_point, inlined);
         }
         <span class="self">self</span>.functions = new_functions;
@@ -1593,14 +1547,7 @@
         // its parameters here. Failing to do so would cause context.translate_block() to add
         // a fresh block for the entry block rather than use the existing one.
         </span><span class="kw">let </span>entry_block = context.context.builder.current_function.entry_block();
-        <span class="kw">let </span>original_parameters = context.source_function.parameters();
-
-        <span class="kw">for </span>parameter <span class="kw">in </span>original_parameters {
-            <span class="kw">let </span>typ = context.source_function.dfg.type_of_value(<span class="kw-2">*</span>parameter);
-            <span class="kw">let </span>new_parameter = context.context.builder.add_block_parameter(entry_block, typ);
-            context.values.insert(<span class="kw-2">*</span>parameter, new_parameter);
-        }
-
+        context.translate_block_parameters(context.source_function.entry_block(), entry_block);
         context.blocks.insert(context.source_function.entry_block(), entry_block);
         context.inline_blocks(ssa, should_inline_call)<span class="question-mark">?</span>;
         <span class="comment">// translate databus values
@@ -1756,16 +1703,23 @@
         <span class="comment">// The block is not already present in the function being inlined into so we must create it.
         // The block's instructions are not copied over as they will be copied later in inlining.
         </span><span class="kw">let </span>new_block = <span class="self">self</span>.context.builder.insert_block();
-        <span class="kw">let </span>original_parameters = <span class="self">self</span>.source_function.dfg.block_parameters(source_block);
-
-        <span class="kw">for </span>parameter <span class="kw">in </span>original_parameters {
-            <span class="kw">let </span>typ = <span class="self">self</span>.source_function.dfg.type_of_value(<span class="kw-2">*</span>parameter);
-            <span class="kw">let </span>new_parameter = <span class="self">self</span>.context.builder.add_block_parameter(new_block, typ);
-            <span class="self">self</span>.values.insert(<span class="kw-2">*</span>parameter, new_parameter);
-        }
-
+        <span class="self">self</span>.translate_block_parameters(source_block, new_block);
         <span class="self">self</span>.blocks.insert(source_block, new_block);
         new_block
+    }
+
+    <span class="doccomment">/// Copy block parameters from `source_block` into `target_block`.
+    </span><span class="kw">fn </span>translate_block_parameters(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        source_block: BasicBlockId,
+        target_block: BasicBlockId,
+    ) {
+        <span class="kw">let </span>original_parameters = <span class="self">self</span>.source_function.dfg.block_parameters(source_block);
+        <span class="kw">for </span>parameter <span class="kw">in </span>original_parameters {
+            <span class="kw">let </span>typ = <span class="self">self</span>.source_function.dfg.type_of_value(<span class="kw-2">*</span>parameter);
+            <span class="kw">let </span>new_parameter = <span class="self">self</span>.context.builder.add_block_parameter(target_block, typ);
+            <span class="self">self</span>.values.insert(<span class="kw-2">*</span>parameter, new_parameter);
+        }
     }
 
     <span class="doccomment">/// Try to retrieve the function referred to by the given Id.
@@ -1833,17 +1787,9 @@
                 return_values
             }
             <span class="kw">_ </span>=&gt; {
-                <span class="comment">// If there is more than 1 return instruction we'll need to create a single block we
-                // can return to and continue inserting in afterwards.
-                </span><span class="kw">let </span>return_block = <span class="self">self</span>.context.builder.insert_block();
-
-                <span class="kw">for </span>(block, return_values) <span class="kw">in </span>returns {
-                    <span class="self">self</span>.context.builder.switch_to_block(block);
-                    <span class="self">self</span>.context.builder.terminate_with_jmp(return_block, return_values);
-                }
-
-                <span class="self">self</span>.context.builder.switch_to_block(return_block);
-                <span class="self">self</span>.context.builder.block_parameters(return_block).to_vec()
+                <span class="macro">panic!</span>(
+                    <span class="string">"ICE: found a function with multiple return terminators, but that should not happen"
+                </span>)
             }
         }
     }
@@ -2007,22 +1953,8 @@
         new_results: InsertInstructionResult,
     ) {
         <span class="macro">assert_eq!</span>(old_results.len(), new_results.len());
-
-        <span class="kw">match </span>new_results {
-            InsertInstructionResult::SimplifiedTo(new_result) =&gt; {
-                values.insert(old_results[<span class="number">0</span>], new_result);
-            }
-            InsertInstructionResult::SimplifiedToMultiple(new_results) =&gt; {
-                <span class="kw">for </span>(old_result, new_result) <span class="kw">in </span>old_results.iter().zip(new_results) {
-                    values.insert(<span class="kw-2">*</span>old_result, new_result);
-                }
-            }
-            InsertInstructionResult::Results(<span class="kw">_</span>, new_results) =&gt; {
-                <span class="kw">for </span>(old_result, new_result) <span class="kw">in </span>old_results.iter().zip(new_results) {
-                    values.insert(<span class="kw-2">*</span>old_result, <span class="kw-2">*</span>new_result);
-                }
-            }
-            InsertInstructionResult::InstructionRemoved =&gt; (),
+        <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..old_results.len() {
+            values.insert(old_results[i], new_results[i]);
         }
     }
 
@@ -2041,20 +1973,8 @@
             TerminatorInstruction::Jmp { destination, arguments, call_stack } =&gt; {
                 <span class="kw">let </span>destination = <span class="self">self</span>.translate_block(<span class="kw-2">*</span>destination, block_queue);
                 <span class="kw">let </span>arguments = vecmap(arguments, |arg| <span class="self">self</span>.translate_value(<span class="kw-2">*</span>arg));
-
-                <span class="kw">let </span>call_stack = <span class="self">self</span>.source_function.dfg.get_call_stack(<span class="kw-2">*</span>call_stack);
-                <span class="kw">let </span>new_call_stack = <span class="self">self
-                    </span>.context
-                    .builder
-                    .current_function
-                    .dfg
-                    .call_stack_data
-                    .extend_call_stack(<span class="self">self</span>.context.call_stack, <span class="kw-2">&amp;</span>call_stack);
-
-                <span class="self">self</span>.context
-                    .builder
-                    .set_call_stack(new_call_stack)
-                    .terminate_with_jmp(destination, arguments);
+                <span class="self">self</span>.extend_call_stack(<span class="kw-2">*</span>call_stack);
+                <span class="self">self</span>.context.builder.terminate_with_jmp(destination, arguments);
                 <span class="prelude-val">None
             </span>}
             TerminatorInstruction::JmpIf {
@@ -2064,14 +1984,6 @@
                 call_stack,
             } =&gt; {
                 <span class="kw">let </span>condition = <span class="self">self</span>.translate_value(<span class="kw-2">*</span>condition);
-                <span class="kw">let </span>call_stack = <span class="self">self</span>.source_function.dfg.get_call_stack(<span class="kw-2">*</span>call_stack);
-                <span class="kw">let </span>new_call_stack = <span class="self">self
-                    </span>.context
-                    .builder
-                    .current_function
-                    .dfg
-                    .call_stack_data
-                    .extend_call_stack(<span class="self">self</span>.context.call_stack, <span class="kw-2">&amp;</span>call_stack);
 
                 <span class="comment">// See if the value of the condition is known, and if so only inline the reachable
                 // branch. This lets us inline some recursive functions without recurring forever.
@@ -2082,17 +1994,15 @@
                             <span class="kw">if </span>constant.is_zero() { <span class="kw-2">*</span>else_destination } <span class="kw">else </span>{ <span class="kw-2">*</span>then_destination };
 
                         <span class="kw">let </span>next_block = <span class="self">self</span>.translate_block(next_block, block_queue);
-                        <span class="self">self</span>.context
-                            .builder
-                            .set_call_stack(new_call_stack)
-                            .terminate_with_jmp(next_block, <span class="macro">vec!</span>[]);
+                        <span class="self">self</span>.extend_call_stack(<span class="kw-2">*</span>call_stack);
+                        <span class="self">self</span>.context.builder.terminate_with_jmp(next_block, <span class="macro">vec!</span>[]);
                     }
                     <span class="prelude-val">None </span>=&gt; {
                         <span class="kw">let </span>then_block = <span class="self">self</span>.translate_block(<span class="kw-2">*</span>then_destination, block_queue);
                         <span class="kw">let </span>else_block = <span class="self">self</span>.translate_block(<span class="kw-2">*</span>else_destination, block_queue);
+                        <span class="self">self</span>.extend_call_stack(<span class="kw-2">*</span>call_stack);
                         <span class="self">self</span>.context
                             .builder
-                            .set_call_stack(new_call_stack)
                             .terminate_with_jmpif(condition, then_block, else_block);
                     }
                 }
@@ -2108,20 +2018,8 @@
                 </span><span class="kw">let </span>block_id = <span class="self">self</span>.context.builder.current_block();
 
                 <span class="kw">if </span><span class="self">self</span>.inlining_entry {
-                    <span class="kw">let </span>call_stack =
-                        <span class="self">self</span>.source_function.dfg.call_stack_data.get_call_stack(<span class="kw-2">*</span>call_stack);
-                    <span class="kw">let </span>new_call_stack = <span class="self">self
-                        </span>.context
-                        .builder
-                        .current_function
-                        .dfg
-                        .call_stack_data
-                        .extend_call_stack(<span class="self">self</span>.context.call_stack, <span class="kw-2">&amp;</span>call_stack);
-
-                    <span class="self">self</span>.context
-                        .builder
-                        .set_call_stack(new_call_stack)
-                        .terminate_with_return(return_values.clone());
+                    <span class="self">self</span>.extend_call_stack(<span class="kw-2">*</span>call_stack);
+                    <span class="self">self</span>.context.builder.terminate_with_return(return_values.clone());
                 }
 
                 <span class="prelude-val">Some</span>((block_id, return_values))
@@ -2133,6 +2031,14 @@
                 </span><span class="macro">panic!</span>(<span class="string">"Unreachable terminator instruction should not exist during inlining."</span>)
             }
         }
+    }
+
+    <span class="kw">fn </span>extend_call_stack(<span class="kw-2">&amp;mut </span><span class="self">self</span>, call_stack: CallStackId) {
+        <span class="kw">let </span>call_stack = <span class="self">self</span>.source_function.dfg.get_call_stack(call_stack);
+        <span class="kw">let </span>call_stack_data = <span class="kw-2">&amp;mut </span><span class="self">self</span>.context.builder.current_function.dfg.call_stack_data;
+        <span class="kw">let </span>new_call_stack =
+            call_stack_data.extend_call_stack(<span class="self">self</span>.context.call_stack, <span class="kw-2">&amp;</span>call_stack);
+        <span class="self">self</span>.context.builder.set_call_stack(new_call_stack);
     }
 }
 

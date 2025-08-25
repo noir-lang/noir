@@ -534,7 +534,12 @@
 <a href="#533" id="533">533</a>
 <a href="#534" id="534">534</a>
 <a href="#535" id="535">535</a>
-<a href="#536" id="536">536</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::{BTreeMap, VecDeque};
+<a href="#536" id="536">536</a>
+<a href="#537" id="537">537</a>
+<a href="#538" id="538">538</a>
+<a href="#539" id="539">539</a>
+<a href="#540" id="540">540</a>
+<a href="#541" id="541">541</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::{BTreeMap, VecDeque};
 
 <span class="kw">use </span>fxhash::FxHashSet <span class="kw">as </span>HashSet;
 <span class="kw">use </span>im::HashMap;
@@ -699,16 +704,21 @@
     <span class="kw">let </span>function = <span class="kw-2">&amp;</span>ssa.functions[<span class="kw-2">&amp;</span>func_id];
     <span class="kw">let </span>assert_constant_id = function.dfg.get_intrinsic(Intrinsic::AssertConstant).copied();
     <span class="kw">let </span>static_assert_id = function.dfg.get_intrinsic(Intrinsic::StaticAssert).copied();
-    <span class="kw">let </span>contains_static_assertion = function.reachable_blocks().iter().any(|block| {
-        function.dfg[<span class="kw-2">*</span>block].instructions().iter().any(|instruction| {
-            <span class="kw">match </span><span class="kw-2">&amp;</span>function.dfg[<span class="kw-2">*</span>instruction] {
-                Instruction::Call { func, .. } =&gt; {
-                    <span class="prelude-val">Some</span>(<span class="kw-2">*</span>func) == assert_constant_id || <span class="prelude-val">Some</span>(<span class="kw-2">*</span>func) == static_assert_id
+
+    <span class="kw">let </span>contains_static_assertion = <span class="kw">if </span>assert_constant_id.is_none() &amp;&amp; static_assert_id.is_none() {
+        <span class="bool-val">false
+    </span>} <span class="kw">else </span>{
+        function.reachable_blocks().iter().any(|block| {
+            function.dfg[<span class="kw-2">*</span>block].instructions().iter().any(|instruction| {
+                <span class="kw">match </span><span class="kw-2">&amp;</span>function.dfg[<span class="kw-2">*</span>instruction] {
+                    Instruction::Call { func, .. } =&gt; {
+                        <span class="prelude-val">Some</span>(<span class="kw-2">*</span>func) == assert_constant_id || <span class="prelude-val">Some</span>(<span class="kw-2">*</span>func) == static_assert_id
+                    }
+                    <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
                 }
-                <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
-            }
+            })
         })
-    });
+    };
 
     <span class="kw">let </span>neighbors = call_graph.graph().neighbors(index);
     <span class="kw">let </span><span class="kw-2">mut </span>total_weight = compute_function_own_weight(function) <span class="kw">as </span>i64;
