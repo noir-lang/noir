@@ -6,7 +6,6 @@ use nargo::{NargoError, foreign_calls::ForeignCallExecutor};
 use noirc_abi::{AbiType, Sign, input_parser::InputValue};
 use noirc_artifacts::debug::DebugArtifact;
 use noirc_driver::CompiledProgram;
-use noirc_printable_type::format_field_string;
 
 use crate::{
     errors::CliError,
@@ -161,7 +160,7 @@ pub fn input_value_to_string(input_value: &InputValue, abi_type: &AbiType) -> St
 fn append_input_value_to_string(input_value: &InputValue, abi_type: &AbiType, string: &mut String) {
     match (abi_type, input_value) {
         (AbiType::Field, InputValue::Field(field_element)) => {
-            string.push_str(&format_field_string(*field_element));
+            string.push_str(&field_element.to_short_hex());
         }
         (AbiType::Array { length: _, typ }, InputValue::Vec(input_values)) => {
             string.push('[');
@@ -178,16 +177,7 @@ fn append_input_value_to_string(input_value: &InputValue, abi_type: &AbiType, st
                 string.push_str(&f.to_string());
             }
             Sign::Signed => {
-                let bit_size = *bit_size;
-                let max =
-                    if bit_size == 128 { i128::MAX as u128 } else { (1 << (bit_size - 1)) - 1 };
-                if f.num_bits() > 128 || f.to_u128() > max {
-                    string.push('-');
-                    let f = FieldElement::from(2u32).pow(&bit_size.into()) - *f;
-                    string.push_str(&f.to_string());
-                } else {
-                    string.push_str(&f.to_string());
-                }
+                string.push_str(&f.to_string_as_signed_integer(*bit_size));
             }
         },
         (AbiType::Boolean, InputValue::Field(field_element)) => {

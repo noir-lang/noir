@@ -293,8 +293,52 @@ pub(super) fn simplify_binary(binary: &Binary, dfg: &mut DataFlowGraph) -> Simpl
             }
         }
         BinaryOp::Shl | BinaryOp::Shr => {
+            if rhs_is_zero {
+                return SimplifyResult::SimplifiedTo(lhs);
+            }
             return SimplifyResult::SimplifiedToInstruction(simplified);
         }
     };
     SimplifyResult::SimplifiedToInstruction(simplified)
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{assert_ssa_snapshot, ssa::ssa_gen::Ssa};
+
+    #[test]
+    fn replaces_shl_identity_with_lhs() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u8):
+            v1 = shl v0, u8 0
+            return v1
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u8):
+            return v0
+        }
+        ");
+    }
+
+    #[test]
+    fn replaces_shr_identity_with_lhs() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u8):
+            v1 = shr v0, u8 0
+            return v1
+        }
+        ";
+        let ssa = Ssa::from_str_simplifying(src).unwrap();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u8):
+            return v0
+        }
+        ");
+    }
 }
