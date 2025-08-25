@@ -647,12 +647,7 @@ impl<'function> PerFunctionContext<'function> {
             TerminatorInstruction::Jmp { destination, arguments, call_stack } => {
                 let destination = self.translate_block(*destination, block_queue);
                 let arguments = vecmap(arguments, |arg| self.translate_value(*arg));
-                let call_stack = self.source_function.dfg.get_call_stack(*call_stack);
-                let call_stack_data =
-                    &mut self.context.builder.current_function.dfg.call_stack_data;
-                let new_call_stack =
-                    call_stack_data.extend_call_stack(self.context.call_stack, &call_stack);
-                self.context.builder.set_call_stack(new_call_stack);
+                self.extend_call_stack(*call_stack);
                 self.context.builder.terminate_with_jmp(destination, arguments);
                 None
             }
@@ -663,11 +658,6 @@ impl<'function> PerFunctionContext<'function> {
                 call_stack,
             } => {
                 let condition = self.translate_value(*condition);
-                let call_stack = self.source_function.dfg.get_call_stack(*call_stack);
-                let call_stack_data =
-                    &mut self.context.builder.current_function.dfg.call_stack_data;
-                let new_call_stack =
-                    call_stack_data.extend_call_stack(self.context.call_stack, &call_stack);
 
                 // See if the value of the condition is known, and if so only inline the reachable
                 // branch. This lets us inline some recursive functions without recurring forever.
@@ -678,15 +668,15 @@ impl<'function> PerFunctionContext<'function> {
                             if constant.is_zero() { *else_destination } else { *then_destination };
 
                         let next_block = self.translate_block(next_block, block_queue);
-                        self.context.builder.set_call_stack(new_call_stack);
+                        self.extend_call_stack(*call_stack);
                         self.context.builder.terminate_with_jmp(next_block, vec![]);
                     }
                     None => {
                         let then_block = self.translate_block(*then_destination, block_queue);
                         let else_block = self.translate_block(*else_destination, block_queue);
+                        self.extend_call_stack(*call_stack);
                         self.context
                             .builder
-                            .set_call_stack(new_call_stack)
                             .terminate_with_jmpif(condition, then_block, else_block);
                     }
                 }
@@ -702,13 +692,7 @@ impl<'function> PerFunctionContext<'function> {
                 let block_id = self.context.builder.current_block();
 
                 if self.inlining_entry {
-                    let call_stack =
-                        self.source_function.dfg.call_stack_data.get_call_stack(*call_stack);
-                    let call_stack_data =
-                        &mut self.context.builder.current_function.dfg.call_stack_data;
-                    let new_call_stack =
-                        call_stack_data.extend_call_stack(self.context.call_stack, &call_stack);
-                    self.context.builder.set_call_stack(new_call_stack);
+                    self.extend_call_stack(*call_stack);
                     self.context.builder.terminate_with_return(return_values.clone());
                 }
 
@@ -721,6 +705,14 @@ impl<'function> PerFunctionContext<'function> {
                 panic!("Unreachable terminator instruction should not exist during inlining.")
             }
         }
+    }
+
+    fn extend_call_stack(&mut self, call_stack: CallStackId) {
+        let call_stack = self.source_function.dfg.get_call_stack(call_stack);
+        let call_stack_data = &mut self.context.builder.current_function.dfg.call_stack_data;
+        let new_call_stack =
+            call_stack_data.extend_call_stack(self.context.call_stack, &call_stack);
+        self.context.builder.set_call_stack(new_call_stack);
     }
 }
 
