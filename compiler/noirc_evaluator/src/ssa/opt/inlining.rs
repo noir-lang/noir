@@ -221,14 +221,7 @@ impl InlineContext {
         // its parameters here. Failing to do so would cause context.translate_block() to add
         // a fresh block for the entry block rather than use the existing one.
         let entry_block = context.context.builder.current_function.entry_block();
-        let original_parameters = context.source_function.parameters();
-
-        for parameter in original_parameters {
-            let typ = context.source_function.dfg.type_of_value(*parameter);
-            let new_parameter = context.context.builder.add_block_parameter(entry_block, typ);
-            context.values.insert(*parameter, new_parameter);
-        }
-
+        context.translate_block_parameters(context.source_function.entry_block(), entry_block);
         context.blocks.insert(context.source_function.entry_block(), entry_block);
         context.inline_blocks(ssa, should_inline_call)?;
         // translate databus values
@@ -384,16 +377,23 @@ impl<'function> PerFunctionContext<'function> {
         // The block is not already present in the function being inlined into so we must create it.
         // The block's instructions are not copied over as they will be copied later in inlining.
         let new_block = self.context.builder.insert_block();
-        let original_parameters = self.source_function.dfg.block_parameters(source_block);
-
-        for parameter in original_parameters {
-            let typ = self.source_function.dfg.type_of_value(*parameter);
-            let new_parameter = self.context.builder.add_block_parameter(new_block, typ);
-            self.values.insert(*parameter, new_parameter);
-        }
-
+        self.translate_block_parameters(source_block, new_block);
         self.blocks.insert(source_block, new_block);
         new_block
+    }
+
+    /// Copy block parameters from `source_block` into `target_block`.
+    fn translate_block_parameters(
+        &mut self,
+        source_block: BasicBlockId,
+        target_block: BasicBlockId,
+    ) {
+        let original_parameters = self.source_function.dfg.block_parameters(source_block);
+        for parameter in original_parameters {
+            let typ = self.source_function.dfg.type_of_value(*parameter);
+            let new_parameter = self.context.builder.add_block_parameter(target_block, typ);
+            self.values.insert(*parameter, new_parameter);
+        }
     }
 
     /// Try to retrieve the function referred to by the given Id.
