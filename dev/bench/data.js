@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1756156449649,
+  "lastUpdate": 1756156453091,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -8419,80 +8419,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "103f70a5dac594374b68f54c82da0423d1415d74",
-          "message": "feat: remove saturating behaviour of signed bitshifts in brillig (#9532)",
-          "timestamp": "2025-08-18T12:54:36Z",
-          "tree_id": "7dfd29369923aa7f80dd5b8d7b5c6ddf1a55adc6",
-          "url": "https://github.com/noir-lang/noir/commit/103f70a5dac594374b68f54c82da0423d1415d74"
-        },
-        "date": 1755523642266,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.013,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.154,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.01,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.265,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 0.16,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 13.1,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.002,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.004,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.019,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 0.095,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "499e5cab6be0476e83554048724ca2d638b26c1b",
           "message": "chore: move foreign call integration tests into proper integration test files (#9543)",
@@ -12103,6 +12029,80 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 0.104,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "d4e3c0fe920061c9bfa6ca7799e886a85977f734",
+          "message": "fix(mem2reg): Assume all function reference parameters have an unknown alias set with nested references (#9632)",
+          "timestamp": "2025-08-25T20:43:02Z",
+          "tree_id": "892adb9f83f751bc9c63214ecf8c9a35d248007b",
+          "url": "https://github.com/noir-lang/noir/commit/d4e3c0fe920061c9bfa6ca7799e886a85977f734"
+        },
+        "date": 1756156433508,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.013,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.154,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.01,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.265,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.163,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 12.9,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.002,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.004,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.019,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 0.1,
             "unit": "s"
           }
         ]
