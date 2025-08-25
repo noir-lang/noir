@@ -1146,7 +1146,7 @@ fn can_be_hoisted(
 mod test {
     use crate::assert_ssa_snapshot;
     use crate::ssa::Ssa;
-    use crate::ssa::opt::assert_normalized_ssa_equals;
+    use crate::ssa::opt::{assert_normalized_ssa_equals, assert_ssa_does_not_change};
 
     #[test]
     fn simple_loop_invariant_code_motion() {
@@ -1183,7 +1183,8 @@ mod test {
         // v3 = mul v0, v1
         // constrain v3 == i32 6
         // ```
-        let expected = "
+        let ssa = ssa.loop_invariant_code_motion();
+        assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
           b0(v0: i32, v1: i32):
             v3 = unchecked_mul v0, v1
@@ -1198,10 +1199,7 @@ mod test {
             v9 = unchecked_add v2, i32 1
             jmp b1(v9)
         }
-        ";
-
-        let ssa = ssa.loop_invariant_code_motion();
-        assert_normalized_ssa_equals(ssa, expected);
+        ");
     }
 
     #[test]
@@ -1289,7 +1287,8 @@ mod test {
         assert_eq!(instructions.len(), 0); // The final return is not counted
 
         // `v10 = mul v0, v1` in b6 should now be `v4 = mul v0, v1` in b0
-        let expected = "
+        let ssa = ssa.loop_invariant_code_motion();
+        assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
           b0(v0: i32, v1: i32):
             v4 = unchecked_mul v0, v1
@@ -1312,10 +1311,7 @@ mod test {
             v11 = unchecked_add v3, i32 1
             jmp b4(v11)
         }
-        ";
-
-        let ssa = ssa.loop_invariant_code_motion();
-        assert_normalized_ssa_equals(ssa, expected);
+        ");
     }
 
     #[test]
@@ -1412,7 +1408,8 @@ mod test {
         let instructions = main.dfg[main.entry_block()].instructions();
         assert_eq!(instructions.len(), 0); // The final return is not counted
 
-        let expected = "
+        let ssa = ssa.loop_invariant_code_motion();
+        assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
           b0(v0: i32, v1: i32):
             v3 = unchecked_mul v0, v1
@@ -1429,10 +1426,7 @@ mod test {
             v11 = unchecked_add v2, i32 1
             jmp b1(v11)
         }
-        ";
-
-        let ssa = ssa.loop_invariant_code_motion();
-        assert_normalized_ssa_equals(ssa, expected);
+        ");
     }
 
     #[test]
@@ -1536,8 +1530,8 @@ mod test {
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
-
-        let expected = "
+        let ssa = ssa.loop_invariant_code_motion();
+        assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
           b0(v0: u32, v1: u32):
             v6 = make_array [u32 2, u32 2, u32 2, u32 2, u32 2] : [u32; 5]
@@ -1574,10 +1568,7 @@ mod test {
             v17 = unchecked_add v4, u32 1
             jmp b7(v17)
         }
-        ";
-
-        let ssa = ssa.loop_invariant_code_motion();
-        assert_normalized_ssa_equals(ssa, expected);
+        ");
     }
 
     #[test]
@@ -1634,7 +1625,8 @@ mod test {
 
         // We expect the `make_array` at the top of `b3` to be replaced with an `inc_rc`
         // of the newly hoisted `make_array` at the end of `b0`.
-        let expected = "
+        let ssa = ssa.loop_invariant_code_motion();
+        assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
           b0(v0: u32, v1: u32):
             v8 = make_array [Field 1, Field 2, Field 3, Field 4, Field 5] : [Field; 5]
@@ -1664,10 +1656,7 @@ mod test {
           b0(v0: [Field; 5]):
             return
         }
-        ";
-
-        let ssa = ssa.loop_invariant_code_motion();
-        assert_normalized_ssa_equals(ssa, expected);
+        ");
     }
 
     #[test]
@@ -1748,7 +1737,8 @@ mod test {
         let ssa = Ssa::from_str(src).unwrap();
 
         // `v8 = add v2, u32 1` in b3 should now be `v9 = unchecked_add v2, u32 1` in b3
-        let expected = "
+        let ssa = ssa.loop_invariant_code_motion();
+        assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
           b0(v0: u32, v1: u32):
             v3 = unchecked_mul v0, v1
@@ -1763,10 +1753,7 @@ mod test {
             v9 = unchecked_add v2, u32 1
             jmp b1(v9)
         }
-        ";
-
-        let ssa = ssa.loop_invariant_code_motion();
-        assert_normalized_ssa_equals(ssa, expected);
+        ");
     }
 
     #[test]
@@ -1791,10 +1778,7 @@ mod test {
             jmp b1(v7)
         }
         ";
-
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.loop_invariant_code_motion();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::loop_invariant_code_motion);
     }
 
     #[test]
@@ -1819,7 +1803,8 @@ mod test {
         let ssa = Ssa::from_str(src).unwrap();
 
         // `v8 = sub v2, u32 1` in b3 should now be `v9 = unchecked_sub v2, u32 1` in b3
-        let expected = "
+        let ssa = ssa.loop_invariant_code_motion();
+        assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
           b0(v0: u32, v1: u32):
             jmp b1(u32 1)
@@ -1832,10 +1817,7 @@ mod test {
             v6 = unchecked_sub v2, u32 1
             jmp b1(v6)
         }
-        ";
-
-        let ssa = ssa.loop_invariant_code_motion();
-        assert_normalized_ssa_equals(ssa, expected);
+        ");
     }
 
     #[test]
@@ -1881,11 +1863,7 @@ mod test {
             jmp b4(v14)
         }
         ";
-
-        let ssa = Ssa::from_str(src).unwrap();
-
-        let ssa = ssa.loop_invariant_code_motion();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::loop_invariant_code_motion);
     }
 
     #[test]
@@ -1925,7 +1903,7 @@ mod test {
         let ssa = Ssa::from_str(src).unwrap();
 
         let ssa = ssa.loop_invariant_code_motion();
-        let expected = "
+        assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
           b0(v0: u32):
             v4 = eq v0, u32 5
@@ -1953,9 +1931,7 @@ mod test {
             v14 = unchecked_add v2, u32 1
             jmp b4(v14)
         }
-        ";
-
-        assert_normalized_ssa_equals(ssa, expected);
+        ");
     }
 
     #[test]
@@ -2025,7 +2001,7 @@ mod test {
 
         // We expect that the constraint will be turned into an always-fail one,
         // but not be hoisted into the pre-header.
-        let expected = r#"
+        assert_ssa_snapshot!(ssa, @r"
         acir(inline) predicate_pure fn main f0 {
           b0():
             jmp b1(u128 2)
@@ -2042,14 +2018,13 @@ mod test {
             jmpif v8 then: b5, else: b6
           b5():
             constrain u1 1 == u1 0
-            v14 = unchecked_add v1, u128 1
-            jmp b4(v14)
+            v13 = unchecked_add v1, u128 1
+            jmp b4(v13)
           b6():
             v10 = unchecked_add v0, u128 1
             jmp b1(v10)
         }
-        "#;
-        assert_normalized_ssa_equals(ssa, expected);
+        ");
     }
 }
 
@@ -2060,7 +2035,7 @@ mod control_dependence {
         ssa::{
             interpreter::{errors::InterpreterError, tests::from_constant},
             ir::types::NumericType,
-            opt::assert_normalized_ssa_equals,
+            opt::{assert_normalized_ssa_equals, assert_ssa_does_not_change},
             ssa_gen::Ssa,
         },
     };
@@ -2088,11 +2063,7 @@ mod control_dependence {
             jmp loop(v11)
         }
         ";
-
-        let ssa = Ssa::from_str(src).unwrap();
-
-        let ssa = ssa.loop_invariant_code_motion();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::loop_invariant_code_motion);
     }
 
     #[test]
@@ -2596,11 +2567,7 @@ mod control_dependence {
             jmp b1(v18)
         }
         ";
-
-        let ssa = Ssa::from_str(src).unwrap();
-
-        let ssa = ssa.loop_invariant_code_motion();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::loop_invariant_code_motion);
     }
 
     #[test]
@@ -2727,12 +2694,7 @@ mod control_dependence {
             jmp b1()
         }
         ";
-
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.loop_invariant_code_motion();
-
-        // We expect the SSA to be unchanged
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::loop_invariant_code_motion);
     }
 
     #[test]
