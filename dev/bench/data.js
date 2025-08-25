@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1756151228786,
+  "lastUpdate": 1756156078829,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -20180,48 +20180,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "103f70a5dac594374b68f54c82da0423d1415d74",
-          "message": "feat: remove saturating behaviour of signed bitshifts in brillig (#9532)",
-          "timestamp": "2025-08-18T12:54:36Z",
-          "tree_id": "7dfd29369923aa7f80dd5b8d7b5c6ddf1a55adc6",
-          "url": "https://github.com/noir-lang/noir/commit/103f70a5dac594374b68f54c82da0423d1415d74"
-        },
-        "date": 1755523286965,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 247319,
-            "range": "± 576",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 218770,
-            "range": "± 3416",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2779083,
-            "range": "± 1750",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "499e5cab6be0476e83554048724ca2d638b26c1b",
           "message": "chore: move foreign call integration tests into proper integration test files (#9543)",
@@ -22264,6 +22222,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2779099,
             "range": "± 5962",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "d4e3c0fe920061c9bfa6ca7799e886a85977f734",
+          "message": "fix(mem2reg): Assume all function reference parameters have an unknown alias set with nested references (#9632)",
+          "timestamp": "2025-08-25T20:43:02Z",
+          "tree_id": "892adb9f83f751bc9c63214ecf8c9a35d248007b",
+          "url": "https://github.com/noir-lang/noir/commit/d4e3c0fe920061c9bfa6ca7799e886a85977f734"
+        },
+        "date": 1756156059905,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 257701,
+            "range": "± 1193",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 223339,
+            "range": "± 1736",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2798810,
+            "range": "± 11679",
             "unit": "ns/iter"
           }
         ]
