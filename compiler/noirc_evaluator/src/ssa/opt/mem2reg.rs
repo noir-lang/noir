@@ -1582,4 +1582,28 @@ mod tests {
         }
         ");
     }
+
+    #[test]
+    fn does_not_remove_store_to_potentially_aliased_address() {
+        // This is a regression test for https://github.com/noir-lang/noir/pull/9613
+        // In that PR all tests passed but the sync to Aztec-Packages failed.
+        // That PR had `store v3 at v1` incorrectly removed.
+        // Even though v3 is what was in v1 and it might seem that there's no
+        // need to put v3 back in v1, v0 and v1 might be aliases so `store v2 at v0`
+        // might change the value at v1, so the next store to v1 must be preserved.
+        let src = r#"
+        acir(inline) fn create_note f0 {
+          b0(v0: &mut [Field; 1], v1: &mut [Field; 1]):
+            v2 = load v0 -> [Field; 1]
+            v3 = load v1 -> [Field; 1]
+            store v2 at v0
+            store v3 at v1
+            v4 = load v1 -> [Field; 1]
+            v6 = make_array [Field 0] : [Field; 1]
+            store v6 at v1
+            return v1
+        }
+        "#;
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
+    }
 }
