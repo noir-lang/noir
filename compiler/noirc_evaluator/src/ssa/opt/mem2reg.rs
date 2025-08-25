@@ -695,6 +695,10 @@ impl<'f> PerFunctionContext<'f> {
                                 }
                             }
                         }
+                        typ if typ.contains_reference() => {
+                            self.mark_all_unknown(destination_parameters, references);
+                            return;
+                        }
                         _ => continue,
                     }
                 }
