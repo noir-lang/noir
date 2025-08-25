@@ -191,9 +191,7 @@
 <a href="#190" id="190">190</a>
 <a href="#191" id="191">191</a>
 <a href="#192" id="192">192</a>
-<a href="#193" id="193">193</a>
-<a href="#194" id="194">194</a>
-<a href="#195" id="195">195</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::vec;
+<a href="#193" id="193">193</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::vec;
 
 <span class="kw">use </span>acvm::{
     AcirField,
@@ -282,9 +280,6 @@
     });
 }
 
-<span class="doccomment">/// The message to print when copying an array.
-</span><span class="kw">const </span>ARRAY_COPY_COUNTER_MESSAGE: <span class="kw-2">&amp;</span>str = <span class="string">"Total arrays copied: {}"</span>;
-
 <span class="doccomment">/// The metadata string needed to tell `print` to print out a u32
 </span><span class="kw">const </span>PRINT_U32_TYPE_STRING: <span class="kw-2">&amp;</span>str = <span class="string">"{\"kind\":\"unsignedinteger\",\"width\":32}"</span>;
 <span class="comment">// "{\"kind\":\"array\",\"length\":2,\"type\":{\"kind\":\"unsignedinteger\",\"width\":32}}";
@@ -348,7 +343,8 @@
         });
 
         <span class="kw">let </span>newline = ValueOrArray::MemoryAddress(ReservedRegisters::usize_one());
-        <span class="kw">let </span>message = literal_string_to_value(ARRAY_COPY_COUNTER_MESSAGE, <span class="self">self</span>);
+        <span class="kw">let </span>message_with_func_name = <span class="macro">format!</span>(<span class="string">"Total arrays copied in {}: {{}}"</span>, <span class="kw-2">&amp;</span><span class="self">self</span>.name());
+        <span class="kw">let </span>message = literal_string_to_value(<span class="kw-2">&amp;</span>message_with_func_name, <span class="self">self</span>);
         <span class="kw">let </span>item_count = ValueOrArray::MemoryAddress(ReservedRegisters::usize_one());
         <span class="kw">let </span>value_to_print = ValueOrArray::MemoryAddress(array_copy_counter.extract_register());
         <span class="kw">let </span>type_string_metadata = literal_string_to_value(PRINT_U32_TYPE_STRING, <span class="self">self</span>);
@@ -368,7 +364,7 @@
         <span class="kw">let </span>u32_type = HeapValueType::Simple(BitSize::Integer(IntegerBitSize::U32));
 
         <span class="kw">let </span>newline_type = u1_type.clone();
-        <span class="kw">let </span>size = ARRAY_COPY_COUNTER_MESSAGE.len();
+        <span class="kw">let </span>size = message_with_func_name.len();
         <span class="kw">let </span>msg_type = HeapValueType::Array { value_types: <span class="macro">vec!</span>[u8_type.clone()], size };
         <span class="kw">let </span>item_count_type = HeapValueType::field();
         <span class="kw">let </span>value_to_print_type = u32_type;

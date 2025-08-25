@@ -488,7 +488,8 @@
 <a href="#487" id="487">487</a>
 <a href="#488" id="488">488</a>
 <a href="#489" id="489">489</a>
-<a href="#490" id="490">490</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{brillig::BrilligOptions, ssa::ir::function::FunctionId};
+<a href="#490" id="490">490</a>
+<a href="#491" id="491">491</a></pre></div><pre class="rust"><code><span class="kw">use crate</span>::{brillig::BrilligOptions, ssa::ir::function::FunctionId};
 
 <span class="kw">use super</span>::{
     BrilligBinaryOp, BrilligContext, ReservedRegisters,
@@ -514,9 +515,10 @@
         target_function: FunctionId,
         globals_init: bool,
         globals_memory_size: usize,
+        name: <span class="kw-2">&amp;</span>str,
         options: <span class="kw-2">&amp;</span>BrilligOptions,
     ) -&gt; BrilligArtifact&lt;F&gt; {
-        <span class="kw">let </span><span class="kw-2">mut </span>context = BrilligContext::new(options);
+        <span class="kw">let </span><span class="kw-2">mut </span>context = BrilligContext::new(name, options);
 
         context.set_globals_memory_size(<span class="prelude-val">Some</span>(globals_memory_size));
 

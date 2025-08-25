@@ -568,7 +568,7 @@
             enable_debug_assertions: <span class="bool-val">true</span>,
             enable_array_copy_counter: <span class="bool-val">false</span>,
         };
-        <span class="kw">let </span><span class="kw-2">mut </span>context = BrilligContext::new(<span class="kw-2">&amp;</span>options);
+        <span class="kw">let </span><span class="kw-2">mut </span>context = BrilligContext::new(<span class="string">"test"</span>, <span class="kw-2">&amp;</span>options);
         context.enter_context(Label::function(FunctionId::test_new(<span class="number">0</span>)));
         context
     }

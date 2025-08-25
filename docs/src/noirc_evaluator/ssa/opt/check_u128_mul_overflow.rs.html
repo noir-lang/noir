@@ -305,16 +305,7 @@
 <a href="#304" id="304">304</a>
 <a href="#305" id="305">305</a>
 <a href="#306" id="306">306</a>
-<a href="#307" id="307">307</a>
-<a href="#308" id="308">308</a>
-<a href="#309" id="309">309</a>
-<a href="#310" id="310">310</a>
-<a href="#311" id="311">311</a>
-<a href="#312" id="312">312</a>
-<a href="#313" id="313">313</a>
-<a href="#314" id="314">314</a>
-<a href="#315" id="315">315</a>
-<a href="#316" id="316">316</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, FieldElement};
+<a href="#307" id="307">307</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, FieldElement};
 <span class="kw">use </span>noirc_errors::call_stack::CallStackId;
 
 <span class="kw">use </span><span class="kw">crate</span>::ssa::{
@@ -458,7 +449,7 @@
 </span><span class="kw">mod </span>tests {
     <span class="kw">use crate</span>::{
         assert_ssa_snapshot,
-        ssa::{opt::assert_normalized_ssa_equals, ssa_gen::Ssa},
+        ssa::{opt::assert_ssa_does_not_change, ssa_gen::Ssa},
     };
 
     <span class="attr">#[test]
@@ -470,10 +461,7 @@
             return
         }
         "</span>;
-        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-
-        <span class="kw">let </span>ssa = ssa.check_u128_mul_overflow();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::check_u128_mul_overflow);
     }
 
     <span class="attr">#[test]
@@ -485,10 +473,7 @@
             return
         }
         "</span>;
-        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-
-        <span class="kw">let </span>ssa = ssa.check_u128_mul_overflow();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::check_u128_mul_overflow);
     }
 
     <span class="attr">#[test]
@@ -594,10 +579,7 @@
             return
         }
         "</span>;
-        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-
-        <span class="kw">let </span>ssa = ssa.check_u128_mul_overflow();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::check_u128_mul_overflow);
     }
     <span class="attr">#[test]
     </span><span class="kw">fn </span>predicate_overflow() {

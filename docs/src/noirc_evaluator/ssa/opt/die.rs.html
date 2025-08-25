@@ -1700,27 +1700,7 @@
 <a href="#1699" id="1699">1699</a>
 <a href="#1700" id="1700">1700</a>
 <a href="#1701" id="1701">1701</a>
-<a href="#1702" id="1702">1702</a>
-<a href="#1703" id="1703">1703</a>
-<a href="#1704" id="1704">1704</a>
-<a href="#1705" id="1705">1705</a>
-<a href="#1706" id="1706">1706</a>
-<a href="#1707" id="1707">1707</a>
-<a href="#1708" id="1708">1708</a>
-<a href="#1709" id="1709">1709</a>
-<a href="#1710" id="1710">1710</a>
-<a href="#1711" id="1711">1711</a>
-<a href="#1712" id="1712">1712</a>
-<a href="#1713" id="1713">1713</a>
-<a href="#1714" id="1714">1714</a>
-<a href="#1715" id="1715">1715</a>
-<a href="#1716" id="1716">1716</a>
-<a href="#1717" id="1717">1717</a>
-<a href="#1718" id="1718">1718</a>
-<a href="#1719" id="1719">1719</a>
-<a href="#1720" id="1720">1720</a>
-<a href="#1721" id="1721">1721</a>
-<a href="#1722" id="1722">1722</a></pre></div><pre class="rust"><code><span class="doccomment">//! Dead Instruction Elimination (DIE) pass: Removes any instruction without side-effects for
+<a href="#1702" id="1702">1702</a></pre></div><pre class="rust"><code><span class="doccomment">//! Dead Instruction Elimination (DIE) pass: Removes any instruction without side-effects for
 //! which the results are unused.
 //!
 //! DIE also tracks which block parameters are unused.
@@ -2726,7 +2706,7 @@
                 map::Id,
                 types::{NumericType, Type},
             },
-            opt::assert_normalized_ssa_equals,
+            opt::assert_ssa_does_not_change,
         },
     };
 
@@ -2828,11 +2808,7 @@
                 return v2
             }
             "</span>;
-        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-
-        <span class="comment">// We expect the output to be unchanged
-        </span><span class="kw">let </span>ssa = ssa.dead_instruction_elimination();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::dead_instruction_elimination);
     }
 
     <span class="attr">#[test]
@@ -2936,9 +2912,7 @@
                 return
             }
             "</span>;
-        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-        <span class="kw">let </span>ssa = ssa.dead_instruction_elimination();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::dead_instruction_elimination);
     }
 
     <span class="attr">#[test]
@@ -3028,10 +3002,7 @@
             return Field 1
         }
         "</span>;
-
-        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-        <span class="kw">let </span>ssa = ssa.dead_instruction_elimination();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::dead_instruction_elimination);
     }
 
     <span class="attr">#[test]
@@ -3229,10 +3200,7 @@
             return v2
         }
         "#</span>;
-
-        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-        <span class="kw">let </span>ssa = ssa.dead_instruction_elimination();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::dead_instruction_elimination);
     }
 
     <span class="attr">#[test]
@@ -3247,10 +3215,7 @@
             return v0
         }
         "#</span>;
-
-        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-        <span class="kw">let </span>ssa = ssa.dead_instruction_elimination();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::dead_instruction_elimination);
     }
 
     <span class="attr">#[test]
@@ -3306,9 +3271,7 @@
             return v3
         }
         "</span>;
-        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-        <span class="kw">let </span>ssa = ssa.dead_instruction_elimination_pre_flattening();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::dead_instruction_elimination_pre_flattening);
     }
 
     <span class="attr">#[test]
@@ -3434,12 +3397,9 @@
             jmp b1()
         }
         "</span>;
-        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-        <span class="kw">let </span>ssa = ssa.dead_instruction_elimination();
-
         <span class="comment">// If `inc_rc v3` were removed, we risk it later being mutated in `v19 = array_set v18, index u32 0, value Field 1`.
         // Thus, when we later go to do `v22 = array_set v21, index u32 0, value v3` once more, we will be writing [1] rather than [2].
-        </span>assert_normalized_ssa_equals(ssa, src);
+        </span>assert_ssa_does_not_change(src, Ssa::dead_instruction_elimination);
     }
 }
 </code></pre></div></section></main></body></html>

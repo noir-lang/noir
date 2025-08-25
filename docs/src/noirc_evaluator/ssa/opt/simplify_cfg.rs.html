@@ -948,10 +948,7 @@
 <a href="#947" id="947">947</a>
 <a href="#948" id="948">948</a>
 <a href="#949" id="949">949</a>
-<a href="#950" id="950">950</a>
-<a href="#951" id="951">951</a>
-<a href="#952" id="952">952</a>
-<a href="#953" id="953">953</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file contains the simplify cfg pass of the SSA IR.
+<a href="#950" id="950">950</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file contains the simplify cfg pass of the SSA IR.
 //!
 //! This is a rather simple pass that is expected to be cheap to perform. It:
 //! 1. Removes blocks with no predecessors
@@ -1371,7 +1368,7 @@
 </span><span class="kw">mod </span>test {
     <span class="kw">use crate</span>::{
         assert_ssa_snapshot,
-        ssa::{Ssa, opt::assert_normalized_ssa_equals},
+        ssa::{Ssa, opt::assert_ssa_does_not_change},
     };
 
     <span class="attr">#[test]
@@ -1471,8 +1468,7 @@
           b2():
             return
         }"</span>;
-        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-        assert_normalized_ssa_equals(ssa.simplify_cfg(), src);
+        assert_ssa_does_not_change(src, Ssa::simplify_cfg);
     }
 
     <span class="attr">#[test]
@@ -1724,9 +1720,7 @@
             return
         }
         "</span>;
-        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-        <span class="kw">let </span>ssa = ssa.simplify_cfg();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::simplify_cfg);
     }
 
     <span class="attr">#[test]

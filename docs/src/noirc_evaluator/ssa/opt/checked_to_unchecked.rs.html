@@ -367,13 +367,7 @@
 <a href="#366" id="366">366</a>
 <a href="#367" id="367">367</a>
 <a href="#368" id="368">368</a>
-<a href="#369" id="369">369</a>
-<a href="#370" id="370">370</a>
-<a href="#371" id="371">371</a>
-<a href="#372" id="372">372</a>
-<a href="#373" id="373">373</a>
-<a href="#374" id="374">374</a>
-<a href="#375" id="375">375</a></pre></div><pre class="rust"><code><span class="doccomment">//! This SSA pass will turn checked unsigned binary additions, subtractions and multiplications
+<a href="#369" id="369">369</a></pre></div><pre class="rust"><code><span class="doccomment">//! This SSA pass will turn checked unsigned binary additions, subtractions and multiplications
 //! into unchecked ones if it's guaranteed that the operations cannot overflow.
 //!
 //! Signed checked binary operations should have already been converted to unchecked ones with
@@ -537,7 +531,7 @@
 </span><span class="kw">mod </span>tests {
     <span class="kw">use crate</span>::{
         assert_ssa_snapshot,
-        ssa::{opt::assert_normalized_ssa_equals, ssa_gen::Ssa},
+        ssa::{opt::assert_ssa_does_not_change, ssa_gen::Ssa},
     };
 
     <span class="attr">#[test]
@@ -684,9 +678,7 @@
             return v5
         }
         "</span>;
-        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-        <span class="kw">let </span>ssa = ssa.checked_to_unchecked();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::checked_to_unchecked);
     }
 
     <span class="attr">#[test]
@@ -700,9 +692,7 @@
             return v3
         }
         "</span>;
-        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-        <span class="kw">let </span>ssa = ssa.checked_to_unchecked();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::checked_to_unchecked);
     }
 
     <span class="attr">#[test]
@@ -717,9 +707,7 @@
             return v2
         }
         "</span>;
-        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-        <span class="kw">let </span>ssa = ssa.checked_to_unchecked();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::checked_to_unchecked);
     }
 
     <span class="attr">#[test]

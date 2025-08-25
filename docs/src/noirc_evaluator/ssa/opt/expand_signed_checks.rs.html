@@ -627,13 +627,7 @@
 <a href="#626" id="626">626</a>
 <a href="#627" id="627">627</a>
 <a href="#628" id="628">628</a>
-<a href="#629" id="629">629</a>
-<a href="#630" id="630">630</a>
-<a href="#631" id="631">631</a>
-<a href="#632" id="632">632</a>
-<a href="#633" id="633">633</a>
-<a href="#634" id="634">634</a>
-<a href="#635" id="635">635</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
+<a href="#629" id="629">629</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
 
 <span class="kw">use </span><span class="kw">crate</span>::ssa::{
     ir::{
@@ -1105,7 +1099,7 @@
 </span><span class="kw">mod </span>tests {
     <span class="kw">use crate</span>::{
         assert_ssa_snapshot,
-        ssa::{opt::assert_normalized_ssa_equals, ssa_gen::Ssa},
+        ssa::{opt::assert_ssa_does_not_change, ssa_gen::Ssa},
     };
 
     <span class="attr">#[test]
@@ -1235,9 +1229,7 @@
             return v2
         }
         "</span>;
-        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-        <span class="kw">let </span>ssa = ssa.expand_signed_checks();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::expand_signed_checks);
     }
 
     <span class="attr">#[test]
@@ -1249,9 +1241,7 @@
             return v2
         }
         "</span>;
-        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-        <span class="kw">let </span>ssa = ssa.expand_signed_checks();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::expand_signed_checks);
     }
 
     <span class="attr">#[test]
@@ -1263,9 +1253,7 @@
             return v2
         }
         "</span>;
-        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-        <span class="kw">let </span>ssa = ssa.expand_signed_checks();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::expand_signed_checks);
     }
 }
 </code></pre></div></section></main></body></html>

@@ -280,19 +280,7 @@
 <a href="#279" id="279">279</a>
 <a href="#280" id="280">280</a>
 <a href="#281" id="281">281</a>
-<a href="#282" id="282">282</a>
-<a href="#283" id="283">283</a>
-<a href="#284" id="284">284</a>
-<a href="#285" id="285">285</a>
-<a href="#286" id="286">286</a>
-<a href="#287" id="287">287</a>
-<a href="#288" id="288">288</a>
-<a href="#289" id="289">289</a>
-<a href="#290" id="290">290</a>
-<a href="#291" id="291">291</a>
-<a href="#292" id="292">292</a>
-<a href="#293" id="293">293</a>
-<a href="#294" id="294">294</a></pre></div><pre class="rust"><code><span class="doccomment">//! This SSA pass adjusts constant indexes of array operations inside Brillig functions
+<a href="#282" id="282">282</a></pre></div><pre class="rust"><code><span class="doccomment">//! This SSA pass adjusts constant indexes of array operations inside Brillig functions
 //! to avoid performing an extra binary operation.
 //!
 //! For example, if we have this SSA:
@@ -434,7 +422,7 @@
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
-    <span class="kw">use crate</span>::{assert_ssa_snapshot, ssa::opt::assert_normalized_ssa_equals};
+    <span class="kw">use crate</span>::{assert_ssa_snapshot, ssa::opt::assert_ssa_does_not_change};
 
     <span class="kw">use </span><span class="kw">super</span>::Ssa;
 
@@ -491,10 +479,7 @@
             return v2
         }
         "</span>;
-
-        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-        <span class="kw">let </span>ssa = ssa.brillig_array_get_and_set();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::brillig_array_get_and_set);
     }
 
     <span class="attr">#[test]
@@ -506,10 +491,7 @@
             return v2
         }
         "</span>;
-
-        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-        <span class="kw">let </span>ssa = ssa.brillig_array_get_and_set();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::brillig_array_get_and_set);
     }
 
     <span class="attr">#[test]
@@ -565,10 +547,7 @@
             return v2
         }
         "</span>;
-
-        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-        <span class="kw">let </span>ssa = ssa.brillig_array_get_and_set();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::brillig_array_get_and_set);
     }
 
     <span class="attr">#[test]
@@ -580,10 +559,7 @@
             return v2
         }
         "</span>;
-
-        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-        <span class="kw">let </span>ssa = ssa.brillig_array_get_and_set();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::brillig_array_get_and_set);
     }
 }
 </code></pre></div></section></main></body></html>

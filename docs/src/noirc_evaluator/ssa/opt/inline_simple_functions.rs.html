@@ -376,9 +376,7 @@
 <a href="#375" id="375">375</a>
 <a href="#376" id="376">376</a>
 <a href="#377" id="377">377</a>
-<a href="#378" id="378">378</a>
-<a href="#379" id="379">379</a>
-<a href="#380" id="380">380</a></pre></div><pre class="rust"><code><span class="doccomment">//! This modules defines an SSA pass that inlines calls to simple functions.
+<a href="#378" id="378">378</a></pre></div><pre class="rust"><code><span class="doccomment">//! This modules defines an SSA pass that inlines calls to simple functions.
 //! That is, the contents of the called function is put directly into the caller's body.
 //! Functions are still restricted to not be inlined if they are recursive or marked with no predicates.
 //!
@@ -464,13 +462,11 @@
 </span><span class="kw">mod </span>test {
     <span class="kw">use crate</span>::{
         assert_ssa_snapshot,
-        ssa::{Ssa, opt::assert_normalized_ssa_equals},
+        ssa::{Ssa, opt::assert_ssa_does_not_change},
     };
 
     <span class="kw">fn </span>assert_does_not_inline(src: <span class="kw-2">&amp;</span>str) {
-        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-        <span class="kw">let </span>ssa = ssa.inline_simple_functions();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::inline_simple_functions);
     }
 
     <span class="attr">#[test]

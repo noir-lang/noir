@@ -509,7 +509,14 @@
 <a href="#508" id="508">508</a>
 <a href="#509" id="509">509</a>
 <a href="#510" id="510">510</a>
-<a href="#511" id="511">511</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module is an abstraction layer over `Brillig`.
+<a href="#511" id="511">511</a>
+<a href="#512" id="512">512</a>
+<a href="#513" id="513">513</a>
+<a href="#514" id="514">514</a>
+<a href="#515" id="515">515</a>
+<a href="#516" id="516">516</a>
+<a href="#517" id="517">517</a>
+<a href="#518" id="518">518</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module is an abstraction layer over `Brillig`.
 //! To allow for separation of concerns, it knows nothing
 //! about SSA types, and can therefore be tested independently.
 //! `brillig_gen` is therefore the module which combines both
@@ -651,9 +658,11 @@
 
 <span class="doccomment">/// Regular brillig context to codegen user defined functions
 </span><span class="kw">impl</span>&lt;F: AcirField + DebugToString&gt; BrilligContext&lt;F, Stack&gt; {
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(options: <span class="kw-2">&amp;</span>BrilligOptions) -&gt; BrilligContext&lt;F, Stack&gt; {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(function_name: <span class="kw-2">&amp;</span>str, options: <span class="kw-2">&amp;</span>BrilligOptions) -&gt; BrilligContext&lt;F, Stack&gt; {
+        <span class="kw">let </span><span class="kw-2">mut </span>obj = BrilligArtifact::default();
+        obj.name = function_name.to_owned();
         BrilligContext {
-            obj: BrilligArtifact::default(),
+            obj,
             registers: Stack::new(),
             context_label: Label::entrypoint(),
             current_section: <span class="number">0</span>,
@@ -810,6 +819,10 @@
         <span class="self">self</span>.obj
     }
 
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>name(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>str {
+        <span class="kw-2">&amp;</span><span class="self">self</span>.obj.name
+    }
+
     <span class="doccomment">/// Sets a current call stack that the next pushed opcodes will be associated with.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>set_call_stack(<span class="kw-2">&amp;mut </span><span class="self">self</span>, call_stack: CallStackId) {
         <span class="self">self</span>.obj.set_call_stack(call_stack);
@@ -880,7 +893,7 @@
             enable_debug_assertions: <span class="bool-val">true</span>,
             enable_array_copy_counter: <span class="bool-val">false</span>,
         };
-        <span class="kw">let </span><span class="kw-2">mut </span>context = BrilligContext::new(<span class="kw-2">&amp;</span>options);
+        <span class="kw">let </span><span class="kw-2">mut </span>context = BrilligContext::new(<span class="string">"test"</span>, <span class="kw-2">&amp;</span>options);
         context.enter_context(Label::function(id));
         context
     }
@@ -902,6 +915,7 @@
             FunctionId::test_new(<span class="number">0</span>),
             <span class="bool-val">false</span>,
             <span class="number">0</span>,
+            <span class="string">"entry_point"</span>,
             <span class="kw-2">&amp;</span>options,
         );
         entry_point_artifact.link_with(<span class="kw-2">&amp;</span>artifact);
@@ -949,7 +963,7 @@
             enable_debug_assertions: <span class="bool-val">true</span>,
             enable_array_copy_counter: <span class="bool-val">false</span>,
         };
-        <span class="kw">let </span><span class="kw-2">mut </span>context = BrilligContext::new(<span class="kw-2">&amp;</span>options);
+        <span class="kw">let </span><span class="kw-2">mut </span>context = BrilligContext::new(<span class="string">"test"</span>, <span class="kw-2">&amp;</span>options);
         <span class="kw">let </span>r_stack = ReservedRegisters::free_memory_pointer();
         <span class="comment">// Start stack pointer at 0
         </span>context.usize_const_instruction(r_stack, FieldElement::from(ReservedRegisters::len() + <span class="number">3</span>));

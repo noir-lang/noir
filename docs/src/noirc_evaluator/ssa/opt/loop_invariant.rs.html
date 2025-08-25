@@ -3001,45 +3001,7 @@
 <a href="#3000" id="3000">3000</a>
 <a href="#3001" id="3001">3001</a>
 <a href="#3002" id="3002">3002</a>
-<a href="#3003" id="3003">3003</a>
-<a href="#3004" id="3004">3004</a>
-<a href="#3005" id="3005">3005</a>
-<a href="#3006" id="3006">3006</a>
-<a href="#3007" id="3007">3007</a>
-<a href="#3008" id="3008">3008</a>
-<a href="#3009" id="3009">3009</a>
-<a href="#3010" id="3010">3010</a>
-<a href="#3011" id="3011">3011</a>
-<a href="#3012" id="3012">3012</a>
-<a href="#3013" id="3013">3013</a>
-<a href="#3014" id="3014">3014</a>
-<a href="#3015" id="3015">3015</a>
-<a href="#3016" id="3016">3016</a>
-<a href="#3017" id="3017">3017</a>
-<a href="#3018" id="3018">3018</a>
-<a href="#3019" id="3019">3019</a>
-<a href="#3020" id="3020">3020</a>
-<a href="#3021" id="3021">3021</a>
-<a href="#3022" id="3022">3022</a>
-<a href="#3023" id="3023">3023</a>
-<a href="#3024" id="3024">3024</a>
-<a href="#3025" id="3025">3025</a>
-<a href="#3026" id="3026">3026</a>
-<a href="#3027" id="3027">3027</a>
-<a href="#3028" id="3028">3028</a>
-<a href="#3029" id="3029">3029</a>
-<a href="#3030" id="3030">3030</a>
-<a href="#3031" id="3031">3031</a>
-<a href="#3032" id="3032">3032</a>
-<a href="#3033" id="3033">3033</a>
-<a href="#3034" id="3034">3034</a>
-<a href="#3035" id="3035">3035</a>
-<a href="#3036" id="3036">3036</a>
-<a href="#3037" id="3037">3037</a>
-<a href="#3038" id="3038">3038</a>
-<a href="#3039" id="3039">3039</a>
-<a href="#3040" id="3040">3040</a>
-<a href="#3041" id="3041">3041</a></pre></div><pre class="rust"><code><span class="doccomment">//! The loop invariant code motion (LICM) pass performs two related optimizations:
+<a href="#3003" id="3003">3003</a></pre></div><pre class="rust"><code><span class="doccomment">//! The loop invariant code motion (LICM) pass performs two related optimizations:
 //! 1. Loop-Invariant Code Motion: Moves computations that produce the same result
 //!    on every iteration out of the loop and into its pre-header.
 //! 2. Loop-Bounds Simplification: Simplifies computations inside the loop body
@@ -4187,7 +4149,7 @@
 </span><span class="kw">mod </span>test {
     <span class="kw">use </span><span class="kw">crate</span>::assert_ssa_snapshot;
     <span class="kw">use </span><span class="kw">crate</span>::ssa::Ssa;
-    <span class="kw">use </span><span class="kw">crate</span>::ssa::opt::assert_normalized_ssa_equals;
+    <span class="kw">use </span><span class="kw">crate</span>::ssa::opt::{assert_normalized_ssa_equals, assert_ssa_does_not_change};
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>simple_loop_invariant_code_motion() {
@@ -4224,7 +4186,8 @@
         // v3 = mul v0, v1
         // constrain v3 == i32 6
         // ```
-        </span><span class="kw">let </span>expected = <span class="string">"
+        </span><span class="kw">let </span>ssa = ssa.loop_invariant_code_motion();
+        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
         brillig(inline) fn main f0 {
           b0(v0: i32, v1: i32):
             v3 = unchecked_mul v0, v1
@@ -4239,10 +4202,7 @@
             v9 = unchecked_add v2, i32 1
             jmp b1(v9)
         }
-        "</span>;
-
-        <span class="kw">let </span>ssa = ssa.loop_invariant_code_motion();
-        assert_normalized_ssa_equals(ssa, expected);
+        "</span>);
     }
 
     <span class="attr">#[test]
@@ -4330,7 +4290,8 @@
         <span class="macro">assert_eq!</span>(instructions.len(), <span class="number">0</span>); <span class="comment">// The final return is not counted
 
         // `v10 = mul v0, v1` in b6 should now be `v4 = mul v0, v1` in b0
-        </span><span class="kw">let </span>expected = <span class="string">"
+        </span><span class="kw">let </span>ssa = ssa.loop_invariant_code_motion();
+        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
         brillig(inline) fn main f0 {
           b0(v0: i32, v1: i32):
             v4 = unchecked_mul v0, v1
@@ -4353,10 +4314,7 @@
             v11 = unchecked_add v3, i32 1
             jmp b4(v11)
         }
-        "</span>;
-
-        <span class="kw">let </span>ssa = ssa.loop_invariant_code_motion();
-        assert_normalized_ssa_equals(ssa, expected);
+        "</span>);
     }
 
     <span class="attr">#[test]
@@ -4453,7 +4411,8 @@
         <span class="kw">let </span>instructions = main.dfg[main.entry_block()].instructions();
         <span class="macro">assert_eq!</span>(instructions.len(), <span class="number">0</span>); <span class="comment">// The final return is not counted
 
-        </span><span class="kw">let </span>expected = <span class="string">"
+        </span><span class="kw">let </span>ssa = ssa.loop_invariant_code_motion();
+        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
         brillig(inline) fn main f0 {
           b0(v0: i32, v1: i32):
             v3 = unchecked_mul v0, v1
@@ -4470,10 +4429,7 @@
             v11 = unchecked_add v2, i32 1
             jmp b1(v11)
         }
-        "</span>;
-
-        <span class="kw">let </span>ssa = ssa.loop_invariant_code_motion();
-        assert_normalized_ssa_equals(ssa, expected);
+        "</span>);
     }
 
     <span class="attr">#[test]
@@ -4577,8 +4533,8 @@
         "</span>;
 
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-
-        <span class="kw">let </span>expected = <span class="string">"
+        <span class="kw">let </span>ssa = ssa.loop_invariant_code_motion();
+        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
         brillig(inline) fn main f0 {
           b0(v0: u32, v1: u32):
             v6 = make_array [u32 2, u32 2, u32 2, u32 2, u32 2] : [u32; 5]
@@ -4615,10 +4571,7 @@
             v17 = unchecked_add v4, u32 1
             jmp b7(v17)
         }
-        "</span>;
-
-        <span class="kw">let </span>ssa = ssa.loop_invariant_code_motion();
-        assert_normalized_ssa_equals(ssa, expected);
+        "</span>);
     }
 
     <span class="attr">#[test]
@@ -4675,7 +4628,8 @@
 
         <span class="comment">// We expect the `make_array` at the top of `b3` to be replaced with an `inc_rc`
         // of the newly hoisted `make_array` at the end of `b0`.
-        </span><span class="kw">let </span>expected = <span class="string">"
+        </span><span class="kw">let </span>ssa = ssa.loop_invariant_code_motion();
+        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
         brillig(inline) fn main f0 {
           b0(v0: u32, v1: u32):
             v8 = make_array [Field 1, Field 2, Field 3, Field 4, Field 5] : [Field; 5]
@@ -4705,10 +4659,7 @@
           b0(v0: [Field; 5]):
             return
         }
-        "</span>;
-
-        <span class="kw">let </span>ssa = ssa.loop_invariant_code_motion();
-        assert_normalized_ssa_equals(ssa, expected);
+        "</span>);
     }
 
     <span class="attr">#[test]
@@ -4789,7 +4740,8 @@
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
 
         <span class="comment">// `v8 = add v2, u32 1` in b3 should now be `v9 = unchecked_add v2, u32 1` in b3
-        </span><span class="kw">let </span>expected = <span class="string">"
+        </span><span class="kw">let </span>ssa = ssa.loop_invariant_code_motion();
+        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
         brillig(inline) fn main f0 {
           b0(v0: u32, v1: u32):
             v3 = unchecked_mul v0, v1
@@ -4804,10 +4756,7 @@
             v9 = unchecked_add v2, u32 1
             jmp b1(v9)
         }
-        "</span>;
-
-        <span class="kw">let </span>ssa = ssa.loop_invariant_code_motion();
-        assert_normalized_ssa_equals(ssa, expected);
+        "</span>);
     }
 
     <span class="attr">#[test]
@@ -4832,10 +4781,7 @@
             jmp b1(v7)
         }
         "</span>;
-
-        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-        <span class="kw">let </span>ssa = ssa.loop_invariant_code_motion();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::loop_invariant_code_motion);
     }
 
     <span class="attr">#[test]
@@ -4860,7 +4806,8 @@
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
 
         <span class="comment">// `v8 = sub v2, u32 1` in b3 should now be `v9 = unchecked_sub v2, u32 1` in b3
-        </span><span class="kw">let </span>expected = <span class="string">"
+        </span><span class="kw">let </span>ssa = ssa.loop_invariant_code_motion();
+        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
         brillig(inline) fn main f0 {
           b0(v0: u32, v1: u32):
             jmp b1(u32 1)
@@ -4873,10 +4820,7 @@
             v6 = unchecked_sub v2, u32 1
             jmp b1(v6)
         }
-        "</span>;
-
-        <span class="kw">let </span>ssa = ssa.loop_invariant_code_motion();
-        assert_normalized_ssa_equals(ssa, expected);
+        "</span>);
     }
 
     <span class="attr">#[test]
@@ -4922,11 +4866,7 @@
             jmp b4(v14)
         }
         "</span>;
-
-        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-
-        <span class="kw">let </span>ssa = ssa.loop_invariant_code_motion();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::loop_invariant_code_motion);
     }
 
     <span class="attr">#[test]
@@ -4966,7 +4906,7 @@
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
 
         <span class="kw">let </span>ssa = ssa.loop_invariant_code_motion();
-        <span class="kw">let </span>expected = <span class="string">"
+        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
         brillig(inline) fn main f0 {
           b0(v0: u32):
             v4 = eq v0, u32 5
@@ -4994,9 +4934,7 @@
             v14 = unchecked_add v2, u32 1
             jmp b4(v14)
         }
-        "</span>;
-
-        assert_normalized_ssa_equals(ssa, expected);
+        "</span>);
     }
 
     <span class="attr">#[test]
@@ -5066,7 +5004,7 @@
 
         <span class="comment">// We expect that the constraint will be turned into an always-fail one,
         // but not be hoisted into the pre-header.
-        </span><span class="kw">let </span>expected = <span class="string">r#"
+        </span><span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
         acir(inline) predicate_pure fn main f0 {
           b0():
             jmp b1(u128 2)
@@ -5083,14 +5021,13 @@
             jmpif v8 then: b5, else: b6
           b5():
             constrain u1 1 == u1 0
-            v14 = unchecked_add v1, u128 1
-            jmp b4(v14)
+            v13 = unchecked_add v1, u128 1
+            jmp b4(v13)
           b6():
             v10 = unchecked_add v0, u128 1
             jmp b1(v10)
         }
-        "#</span>;
-        assert_normalized_ssa_equals(ssa, expected);
+        "</span>);
     }
 }
 
@@ -5101,7 +5038,7 @@
         ssa::{
             interpreter::{errors::InterpreterError, tests::from_constant},
             ir::types::NumericType,
-            opt::assert_normalized_ssa_equals,
+            opt::{assert_normalized_ssa_equals, assert_ssa_does_not_change},
             ssa_gen::Ssa,
         },
     };
@@ -5129,11 +5066,7 @@
             jmp loop(v11)
         }
         "</span>;
-
-        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-
-        <span class="kw">let </span>ssa = ssa.loop_invariant_code_motion();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::loop_invariant_code_motion);
     }
 
     <span class="attr">#[test]
@@ -5637,11 +5570,7 @@
             jmp b1(v18)
         }
         "</span>;
-
-        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-
-        <span class="kw">let </span>ssa = ssa.loop_invariant_code_motion();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::loop_invariant_code_motion);
     }
 
     <span class="attr">#[test]
@@ -5768,12 +5697,7 @@
             jmp b1()
         }
         "</span>;
-
-        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-        <span class="kw">let </span>ssa = ssa.loop_invariant_code_motion();
-
-        <span class="comment">// We expect the SSA to be unchanged
-        </span>assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::loop_invariant_code_motion);
     }
 
     <span class="attr">#[test]

@@ -1625,65 +1625,7 @@
 <a href="#1624" id="1624">1624</a>
 <a href="#1625" id="1625">1625</a>
 <a href="#1626" id="1626">1626</a>
-<a href="#1627" id="1627">1627</a>
-<a href="#1628" id="1628">1628</a>
-<a href="#1629" id="1629">1629</a>
-<a href="#1630" id="1630">1630</a>
-<a href="#1631" id="1631">1631</a>
-<a href="#1632" id="1632">1632</a>
-<a href="#1633" id="1633">1633</a>
-<a href="#1634" id="1634">1634</a>
-<a href="#1635" id="1635">1635</a>
-<a href="#1636" id="1636">1636</a>
-<a href="#1637" id="1637">1637</a>
-<a href="#1638" id="1638">1638</a>
-<a href="#1639" id="1639">1639</a>
-<a href="#1640" id="1640">1640</a>
-<a href="#1641" id="1641">1641</a>
-<a href="#1642" id="1642">1642</a>
-<a href="#1643" id="1643">1643</a>
-<a href="#1644" id="1644">1644</a>
-<a href="#1645" id="1645">1645</a>
-<a href="#1646" id="1646">1646</a>
-<a href="#1647" id="1647">1647</a>
-<a href="#1648" id="1648">1648</a>
-<a href="#1649" id="1649">1649</a>
-<a href="#1650" id="1650">1650</a>
-<a href="#1651" id="1651">1651</a>
-<a href="#1652" id="1652">1652</a>
-<a href="#1653" id="1653">1653</a>
-<a href="#1654" id="1654">1654</a>
-<a href="#1655" id="1655">1655</a>
-<a href="#1656" id="1656">1656</a>
-<a href="#1657" id="1657">1657</a>
-<a href="#1658" id="1658">1658</a>
-<a href="#1659" id="1659">1659</a>
-<a href="#1660" id="1660">1660</a>
-<a href="#1661" id="1661">1661</a>
-<a href="#1662" id="1662">1662</a>
-<a href="#1663" id="1663">1663</a>
-<a href="#1664" id="1664">1664</a>
-<a href="#1665" id="1665">1665</a>
-<a href="#1666" id="1666">1666</a>
-<a href="#1667" id="1667">1667</a>
-<a href="#1668" id="1668">1668</a>
-<a href="#1669" id="1669">1669</a>
-<a href="#1670" id="1670">1670</a>
-<a href="#1671" id="1671">1671</a>
-<a href="#1672" id="1672">1672</a>
-<a href="#1673" id="1673">1673</a>
-<a href="#1674" id="1674">1674</a>
-<a href="#1675" id="1675">1675</a>
-<a href="#1676" id="1676">1676</a>
-<a href="#1677" id="1677">1677</a>
-<a href="#1678" id="1678">1678</a>
-<a href="#1679" id="1679">1679</a>
-<a href="#1680" id="1680">1680</a>
-<a href="#1681" id="1681">1681</a>
-<a href="#1682" id="1682">1682</a>
-<a href="#1683" id="1683">1683</a>
-<a href="#1684" id="1684">1684</a>
-<a href="#1685" id="1685">1685</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the mem2reg SSA optimization pass is to replace any `Load` instructions to known
+<a href="#1627" id="1627">1627</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the mem2reg SSA optimization pass is to replace any `Load` instructions to known
 //! addresses with the value stored at that address, if it is also known. This pass will also remove
 //! any `Store` instructions within a block that are no longer needed because no more loads occur in
 //! between the Store in question and the next Store.
@@ -2402,7 +2344,7 @@
 </span><span class="kw">mod </span>tests {
     <span class="kw">use crate</span>::{
         assert_ssa_snapshot,
-        ssa::{Ssa, opt::assert_normalized_ssa_equals},
+        ssa::{Ssa, opt::assert_ssa_does_not_change},
     };
 
     <span class="attr">#[test]
@@ -2542,7 +2484,8 @@
         // to remove it.
         // The final store in b1 is removed as no loads are done within any blocks
         // to the stored values.
-        </span><span class="kw">let </span>expected = <span class="string">"
+        </span><span class="kw">let </span>ssa = ssa.mem2reg();
+        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
         acir(inline) fn main f0 {
           b0():
             v0 = allocate -&gt; &amp;mut Field
@@ -2553,10 +2496,7 @@
             store Field 1 at v0
             return
         }
-        "</span>;
-
-        <span class="kw">let </span>ssa = ssa.mem2reg();
-        assert_normalized_ssa_equals(ssa, expected);
+        "</span>);
     }
 
     <span class="attr">#[test]
@@ -2591,9 +2531,7 @@
             return
         }
         "</span>;
-        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-        <span class="kw">let </span>ssa = ssa.mem2reg();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 
     <span class="attr">#[test]
@@ -2611,9 +2549,7 @@
             return
         }
         "</span>;
-        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-        <span class="kw">let </span>ssa = ssa.mem2reg();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 
     <span class="attr">#[test]
@@ -2724,12 +2660,7 @@
             return
         }
         "</span>;
-
-        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-
-        <span class="kw">let </span>ssa = ssa.mem2reg();
-        <span class="comment">// We expect the program to be unchanged
-        </span>assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 
     <span class="attr">#[test]
@@ -2763,12 +2694,7 @@
             return
         }
         "</span>;
-
-        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-
-        <span class="kw">let </span>ssa = ssa.mem2reg();
-        <span class="comment">// We expect the program to be unchanged
-        </span>assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 
     <span class="attr">#[test]
@@ -2793,10 +2719,7 @@
             return v3
         }
         "</span>;
-
-        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-        <span class="kw">let </span>ssa = ssa.mem2reg();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 
     <span class="attr">#[test]
@@ -2829,11 +2752,7 @@
             return v1
         }
         "</span>;
-
-        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-        <span class="kw">let </span>ssa = ssa.mem2reg();
-
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 
     <span class="attr">#[test]
@@ -2854,10 +2773,7 @@
             return v4
         }
         "</span>;
-
-        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-        <span class="kw">let </span>ssa = ssa.mem2reg();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 
     <span class="attr">#[test]
@@ -2880,10 +2796,7 @@
             return v7
         }
         "</span>;
-
-        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-        <span class="kw">let </span>ssa = ssa.mem2reg();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 
     <span class="attr">#[test]
@@ -2906,10 +2819,7 @@
             return v7
         }
         "</span>;
-
-        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-        <span class="kw">let </span>ssa = ssa.mem2reg();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 
     <span class="attr">#[test]
@@ -3030,9 +2940,7 @@
             return v0
         }
         "</span>;
-        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-        <span class="kw">let </span>ssa = ssa.mem2reg();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 
     <span class="attr">#[test]
@@ -3067,9 +2975,7 @@
             return v1
         }
         "</span>;
-        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-        <span class="kw">let </span>ssa = ssa.mem2reg();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 
     <span class="attr">#[test]
@@ -3101,9 +3007,7 @@
                 return v7
             }
         "</span>;
-        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-        <span class="kw">let </span>ssa = ssa.mem2reg();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 
     <span class="attr">#[test]
@@ -3130,9 +3034,7 @@
             return
         }
         "</span>;
-        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-        <span class="kw">let </span>ssa = ssa.mem2reg();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 
     <span class="attr">#[test]
@@ -3147,12 +3049,7 @@
             return
         }
         "</span>;
-
-        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-
-        <span class="kw">let </span>ssa = ssa.mem2reg();
-        <span class="comment">// We expect the program to be unchanged
-        </span>assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 
     <span class="attr">#[test]
@@ -3168,12 +3065,7 @@
             return v0
         }
         "</span>;
-
-        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-
-        <span class="kw">let </span>ssa = ssa.mem2reg();
-        <span class="comment">// We expect the program to be unchanged
-        </span>assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 
     <span class="attr">#[test]
@@ -3191,12 +3083,7 @@
             return
         }
         "</span>;
-
-        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-
-        <span class="kw">let </span>ssa = ssa.mem2reg();
-        <span class="comment">// We expect the program to be unchanged
-        </span>assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 
     <span class="attr">#[test]
@@ -3256,10 +3143,7 @@
                 return
             }
         "</span>;
-
-        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-        <span class="kw">let </span>ssa = ssa.mem2reg();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 
     <span class="attr">#[test]
