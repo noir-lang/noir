@@ -153,8 +153,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         });
 
         let newline = ValueOrArray::MemoryAddress(ReservedRegisters::usize_one());
-        let message_with_func_name =
-            format!("{ARRAY_COPY_COUNTER_MESSAGE} {}: {{}}", &self.name(),);
+        let message_with_func_name = format!("{ARRAY_COPY_COUNTER_MESSAGE} {}: {{}}", &self.name());
         let message = literal_string_to_value(&message_with_func_name, self);
         let item_count = ValueOrArray::MemoryAddress(ReservedRegisters::usize_one());
         let value_to_print = ValueOrArray::MemoryAddress(array_copy_counter.extract_register());
