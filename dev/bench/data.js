@@ -1,92 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1756156815504,
+  "lastUpdate": 1756156886418,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "103f70a5dac594374b68f54c82da0423d1415d74",
-          "message": "feat: remove saturating behaviour of signed bitshifts in brillig (#9532)",
-          "timestamp": "2025-08-18T12:54:36Z",
-          "tree_id": "7dfd29369923aa7f80dd5b8d7b5c6ddf1a55adc6",
-          "url": "https://github.com/noir-lang/noir/commit/103f70a5dac594374b68f54c82da0423d1415d74"
-        },
-        "date": 1755524198135,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 239.94,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 549.14,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 213.88,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 1350,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 1420,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 1090,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 9550,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 9560,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 330.58,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 341.41,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 104.78,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 234.8,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -4199,6 +4115,90 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512_100_bytes",
             "value": 233.17,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "d4e3c0fe920061c9bfa6ca7799e886a85977f734",
+          "message": "fix(mem2reg): Assume all function reference parameters have an unknown alias set with nested references (#9632)",
+          "timestamp": "2025-08-25T20:43:02Z",
+          "tree_id": "892adb9f83f751bc9c63214ecf8c9a35d248007b",
+          "url": "https://github.com/noir-lang/noir/commit/d4e3c0fe920061c9bfa6ca7799e886a85977f734"
+        },
+        "date": 1756156867650,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 239.7,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 549.1,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 213.85,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 1350,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 1400,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 1090,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 9580,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 9590,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 330.56,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 341.34,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 104.76,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 233.2,
             "unit": "MB"
           }
         ]
