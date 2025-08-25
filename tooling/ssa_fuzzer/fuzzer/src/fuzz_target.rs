@@ -55,7 +55,7 @@ libfuzzer_sys::fuzz_target!(|data: &[u8]| -> Corpus {
         ecdsa_secp256r1_enabled: false,
         ..InstructionOptions::default()
     };
-    let modes = vec![FuzzerMode::NonConstantWithoutSimplifying];
+    let modes = vec![FuzzerMode::NonConstant];
     let fuzzer_command_options =
         FuzzerCommandOptions { loops_enabled: false, ..FuzzerCommandOptions::default() };
     let options = FuzzerOptions {
