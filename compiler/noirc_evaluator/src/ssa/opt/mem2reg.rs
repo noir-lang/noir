@@ -350,8 +350,8 @@ impl<'f> PerFunctionContext<'f> {
                 // If the type indirectly contains a reference we have to assume all references
                 // are unknown since we don't have any ValueIds to use.
                 Type::Reference(element) if element.contains_reference() => {
-                  self.mark_all_unknown(params, references);
-                  return;
+                    self.mark_all_unknown(params, references);
+                    return;
                 }
                 Type::Reference(element) => {
                     let empty_aliases = AliasSet::known_empty();
@@ -360,8 +360,8 @@ impl<'f> PerFunctionContext<'f> {
                     alias_set.insert(*param);
                 }
                 typ if typ.contains_reference() => {
-                  self.mark_all_unknown(params, references);
-                  return;
+                    self.mark_all_unknown(params, references);
+                    return;
                 }
                 _ => continue,
             }
