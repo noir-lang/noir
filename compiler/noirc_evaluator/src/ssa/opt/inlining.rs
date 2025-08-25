@@ -190,6 +190,7 @@ struct PerFunctionContext<'function> {
     /// True if we're currently working on the entry point function.
     inlining_entry: bool,
 
+    #[allow(dead_code)]
     globals: &'function GlobalsGraph,
 }
 
@@ -312,21 +313,9 @@ impl<'function> PerFunctionContext<'function> {
         }
 
         let new_value = match &self.source_function.dfg[id] {
-            value @ Value::Instruction { instruction, .. } => {
+            value @ Value::Instruction { .. } => {
                 if self.source_function.dfg.is_global(id) {
-                    if self.context.builder.current_function.dfg.runtime().is_acir() {
-                        let Instruction::MakeArray { elements, typ } = &self.globals[*instruction]
-                        else {
-                            panic!("Only expect Instruction::MakeArray for a global");
-                        };
-                        let elements = elements
-                            .iter()
-                            .map(|element| self.translate_value(*element))
-                            .collect::<im::Vector<_>>();
-                        return self.context.builder.insert_make_array(elements, typ.clone());
-                    } else {
-                        return id;
-                    }
+                    return id;
                 }
                 unreachable!(
                     "All Value::Instructions should already be known during inlining after creating the original inlined instruction. Unknown value {id} = {value:?}"
@@ -340,10 +329,7 @@ impl<'function> PerFunctionContext<'function> {
             Value::NumericConstant { constant, typ } => {
                 // The dfg indexes a global's inner value directly, so we need to check here
                 // whether we have a global.
-                // We also only keep a global and do not inline it in a Brillig runtime.
-                if self.source_function.dfg.is_global(id)
-                    && self.context.builder.current_function.dfg.runtime().is_brillig()
-                {
+                if self.source_function.dfg.is_global(id) {
                     id
                 } else {
                     self.context.builder.numeric_constant(*constant, *typ)
@@ -1205,7 +1191,7 @@ mod test {
     }
 
     #[test]
-    fn acir_global_arrays_are_inlined_with_new_value_ids() {
+    fn acir_global_arrays_keep_same_value_ids() {
         let src = "
         g0 = Field 1
         g1 = Field 2
@@ -1232,8 +1218,7 @@ mod test {
 
         acir(inline) fn main f0 {
           b0():
-            v3 = make_array [Field 1, Field 2] : [Field; 2]
-            return v3
+            return g2
         }
         ");
     }
@@ -1272,7 +1257,7 @@ mod test {
     }
 
     #[test]
-    fn acir_global_constants_are_inlined_with_new_value_ids() {
+    fn acir_global_constants_keep_same_value_ids() {
         let src = "
         g0 = Field 1
 
@@ -1298,8 +1283,7 @@ mod test {
             panic!("Expected return");
         };
         assert_eq!(return_values.len(), 1);
-        // TODO(https://github.com/noir-lang/noir/issues/9408)
-        // assert!(!main.dfg.is_global(return_values[0]));
+        assert!(main.dfg.is_global(return_values[0]));
 
         assert_ssa_snapshot!(ssa, @r"
         g0 = Field 1

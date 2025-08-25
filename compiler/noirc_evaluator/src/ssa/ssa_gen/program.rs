@@ -128,10 +128,6 @@ impl Ssa {
         let mut used_globals = HashMap::default();
 
         for (function_id, function) in &self.functions {
-            if !function.runtime().is_brillig() {
-                continue;
-            }
-
             let mut used_globals_in_function = HashSet::default();
 
             for call_data in &function.dfg.data_bus.call_data {
