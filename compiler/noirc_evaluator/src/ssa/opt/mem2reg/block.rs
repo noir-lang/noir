@@ -16,16 +16,12 @@ use super::alias_set::AliasSet;
 /// of a block.
 #[derive(Debug, Default, Clone)]
 pub(super) struct Block {
-    /// Maps a ValueId to the Expression it represents.
-    /// Multiple ValueIds can map to the same Expression, e.g.
-    /// dereferences to the same allocation.
-    pub(super) expressions: im::OrdMap<ValueId, Expression>,
+    /// Map each ValueId which may contain nested references to the references it may contain.
+    pub(super) containers: im::OrdMap<ValueId, Container>,
 
-    /// Each expression is tracked as to how many aliases it
-    /// may have. If there is only 1, we can attempt to optimize
-    /// out any known loads to that alias. Note that "alias" here
-    /// includes the original reference as well.
-    pub(super) aliases: im::OrdMap<Expression, AliasSet>,
+    /// Each alias a ValueId which is a reference type may have. These will always
+    /// refer to other values of the same type.
+    pub(super) aliases: im::OrdMap<ValueId, AliasSet>,
 
     /// Each allocate instruction result (and some reference block parameters)
     /// will map to a Reference value which tracks whether the last value stored
@@ -39,15 +35,10 @@ pub(super) struct Block {
     pub(super) last_loads: im::OrdMap<ValueId, InstructionId>,
 }
 
-/// An `Expression` here is used to represent a canonical key
-/// into the aliases map since otherwise two dereferences of the
-/// same address will be given different ValueIds.
-#[derive(Debug, Copy, Clone, PartialOrd, Ord, PartialEq, Eq, Hash)]
-pub(super) enum Expression {
-    Dereference(ValueId),
-    ArrayElement(ValueId),
-    Other(ValueId),
-}
+/// A `Container` is stored for any ValueId whose type may contain references.
+/// This is currently true for arrays/slices of references and nested references.
+/// Currently, a container only holds onto an alias set of references it may contain.
+pub(super) type Container = AliasSet;
 
 impl Block {
     /// If the given reference id points to a known value, return the value
@@ -65,18 +56,16 @@ impl Block {
     }
 
     fn set_value(&mut self, address: ValueId, value: Option<ValueId>) {
-        let expression = self.expressions.entry(address).or_insert(Expression::Other(address));
-        let aliases = self.aliases.entry(*expression).or_default();
+        let aliases = self.aliases.entry(address).or_default();
 
         if aliases.is_unknown() {
             // uh-oh, we don't know at all what this reference refers to, could be anything.
             // Now we have to invalidate every reference we know of
             self.invalidate_all_references();
-        } else if let Some(alias) = aliases.single_alias() {
-            self.set_reference_value(alias, value);
         } else {
-            // More than one alias. We're not sure which it refers to so we have to
-            // conservatively invalidate all references it may refer to.
+            // >= 1 alias. We're not sure which it refers to so we have to conservatively
+            // invalidate all references it may refer to. If there is exactly is exactly
+            // 1 alias, its value becomes known on the call to `set_reference_value` below.
             for alias in aliases.iter() {
                 self.references.remove(&alias);
             }
@@ -94,17 +83,22 @@ impl Block {
         }
     }
 
+    /// Inserts a new reference, aliased to itself only
+    pub(super) fn insert_fresh_reference(&mut self, address: ValueId) {
+        self.aliases.insert(address, AliasSet::known(address));
+    }
+
     fn invalidate_all_references(&mut self) {
         self.references.clear();
         self.last_stores.clear();
     }
 
     pub(super) fn unify(mut self, other: &Self) -> Self {
-        for (value_id, expression) in &other.expressions {
-            if let Some(existing) = self.expressions.get(value_id) {
-                assert_eq!(existing, expression, "Expected expressions for {value_id} to be equal");
+        for (value_id, other_container) in &other.containers {
+            if let Some(existing) = self.containers.get_mut(value_id) {
+                existing.unify(other_container);
             } else {
-                self.expressions.insert(*value_id, *expression);
+                self.containers.insert(*value_id, other_container.clone());
             }
         }
 
@@ -150,21 +144,21 @@ impl Block {
     /// track aliasing when references are stored within other references.
     pub(super) fn remember_dereference(
         &mut self,
-        function: &Function,
-        address: ValueId,
-        result: ValueId,
+        _function: &Function,
+        _address: ValueId,
+        _result: ValueId,
     ) {
-        if function.dfg.value_is_reference(result) {
-            if let Some(known_address) = self.get_known_value(address) {
-                self.expressions.insert(result, Expression::Other(known_address));
-            } else {
-                let expression = Expression::Dereference(address);
-                self.expressions.insert(result, expression);
-                // No known aliases to insert for this expression... can we find an alias
-                // even if we don't have a known address? If not we'll have to invalidate all
-                // known references if this reference is ever stored to.
-            }
-        }
+        // if function.dfg.value_is_reference(result) {
+        //     if let Some(known_address) = self.get_known_value(address) {
+        //         self.containers.insert(result, Container::Other(known_address));
+        //     } else {
+        //         let expression = Container::Dereference(address);
+        //         self.containers.insert(result, expression);
+        //         // No known aliases to insert for this expression... can we find an alias
+        //         // even if we don't have a known address? If not we'll have to invalidate all
+        //         // known references if this reference is ever stored to.
+        //     }
+        // }
     }
 
     /// Forget the last store to an address and all of its aliases, to eliminate them
@@ -200,6 +194,16 @@ impl Block {
         }
     }
 
+    /// Adds `alias` as an alias of `reference` and vice-versa.
+    pub(super) fn add_alias(&mut self, reference: ValueId, alias: ValueId) {
+        if let Some(aliases) = self.aliases.get_mut(&reference) {
+            aliases.insert(alias);
+        }
+        if let Some(aliases) = self.aliases.get_mut(&alias) {
+            aliases.insert(reference);
+        }
+    }
+
     /// Mark a value (for example an address we loaded) as used by forgetting the last store instruction,
     /// which removes it from the candidates for removal.
     pub(super) fn mark_value_used(&mut self, value: ValueId, function: &Function) {
@@ -227,10 +231,8 @@ impl Block {
     }
 
     pub(super) fn get_aliases_for_value(&self, value: ValueId) -> Cow<AliasSet> {
-        if let Some(expression) = self.expressions.get(&value) {
-            if let Some(aliases) = self.aliases.get(expression) {
-                return Cow::Borrowed(aliases);
-            }
+        if let Some(aliases) = self.aliases.get(&value) {
+            return Cow::Borrowed(aliases);
         }
 
         Cow::Owned(AliasSet::unknown())
@@ -243,11 +245,9 @@ impl Block {
     pub(super) fn keep_last_load_for(&mut self, address: ValueId) {
         self.last_loads.remove(&address);
 
-        if let Some(expr) = self.expressions.get(&address) {
-            if let Some(aliases) = self.aliases.get(expr) {
-                for alias in aliases.iter() {
-                    self.last_loads.remove(&alias);
-                }
+        if let Some(aliases) = self.aliases.get(&address) {
+            for alias in aliases.iter() {
+                self.last_loads.remove(&alias);
             }
         }
     }

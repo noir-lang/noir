@@ -315,6 +315,10 @@ impl Type {
             }
         }
     }
+
+    pub(crate) fn is_reference(&self) -> bool {
+        matches!(self, Type::Reference(_))
+    }
 }
 
 /// Composite Types are essentially flattened struct or tuple types.
