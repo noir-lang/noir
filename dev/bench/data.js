@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1756137643548,
+  "lastUpdate": 1756140625194,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -20175,48 +20175,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "9062697bbcefced22184c43998c1f966543e2b6b",
-          "message": "feat: simplify bitshift logic to remove leftover overflow handling (#9506)",
-          "timestamp": "2025-08-16T13:15:18Z",
-          "tree_id": "fc9cc760027688d93de1f91855dd32fbe0fb02cf",
-          "url": "https://github.com/noir-lang/noir/commit/9062697bbcefced22184c43998c1f966543e2b6b"
-        },
-        "date": 1755351745268,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 246238,
-            "range": "± 1849",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 218481,
-            "range": "± 2351",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2775988,
-            "range": "± 2098",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "18f8faf3fcd156c152050fa09bba6e575fd01605",
           "message": "chore: redo typo PR by Daulox92 (#9529)",
@@ -22259,6 +22217,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2784506,
             "range": "± 935",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "37b5bdc6d5fd63647a9c330f34060826b2d145ed",
+          "message": "chore: only run remove_paired_rc in brillig functions (#9624)",
+          "timestamp": "2025-08-25T16:24:33Z",
+          "tree_id": "195b760bcd532442fa0b6e9ad9a8d6d3af1a7cf8",
+          "url": "https://github.com/noir-lang/noir/commit/37b5bdc6d5fd63647a9c330f34060826b2d145ed"
+        },
+        "date": 1756140605896,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 249377,
+            "range": "± 585",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 217950,
+            "range": "± 3829",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2779393,
+            "range": "± 1448",
             "unit": "ns/iter"
           }
         ]
