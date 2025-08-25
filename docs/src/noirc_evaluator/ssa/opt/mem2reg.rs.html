@@ -1583,7 +1583,56 @@
 <a href="#1582" id="1582">1582</a>
 <a href="#1583" id="1583">1583</a>
 <a href="#1584" id="1584">1584</a>
-<a href="#1585" id="1585">1585</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the mem2reg SSA optimization pass is to replace any `Load` instructions to known
+<a href="#1585" id="1585">1585</a>
+<a href="#1586" id="1586">1586</a>
+<a href="#1587" id="1587">1587</a>
+<a href="#1588" id="1588">1588</a>
+<a href="#1589" id="1589">1589</a>
+<a href="#1590" id="1590">1590</a>
+<a href="#1591" id="1591">1591</a>
+<a href="#1592" id="1592">1592</a>
+<a href="#1593" id="1593">1593</a>
+<a href="#1594" id="1594">1594</a>
+<a href="#1595" id="1595">1595</a>
+<a href="#1596" id="1596">1596</a>
+<a href="#1597" id="1597">1597</a>
+<a href="#1598" id="1598">1598</a>
+<a href="#1599" id="1599">1599</a>
+<a href="#1600" id="1600">1600</a>
+<a href="#1601" id="1601">1601</a>
+<a href="#1602" id="1602">1602</a>
+<a href="#1603" id="1603">1603</a>
+<a href="#1604" id="1604">1604</a>
+<a href="#1605" id="1605">1605</a>
+<a href="#1606" id="1606">1606</a>
+<a href="#1607" id="1607">1607</a>
+<a href="#1608" id="1608">1608</a>
+<a href="#1609" id="1609">1609</a>
+<a href="#1610" id="1610">1610</a>
+<a href="#1611" id="1611">1611</a>
+<a href="#1612" id="1612">1612</a>
+<a href="#1613" id="1613">1613</a>
+<a href="#1614" id="1614">1614</a>
+<a href="#1615" id="1615">1615</a>
+<a href="#1616" id="1616">1616</a>
+<a href="#1617" id="1617">1617</a>
+<a href="#1618" id="1618">1618</a>
+<a href="#1619" id="1619">1619</a>
+<a href="#1620" id="1620">1620</a>
+<a href="#1621" id="1621">1621</a>
+<a href="#1622" id="1622">1622</a>
+<a href="#1623" id="1623">1623</a>
+<a href="#1624" id="1624">1624</a>
+<a href="#1625" id="1625">1625</a>
+<a href="#1626" id="1626">1626</a>
+<a href="#1627" id="1627">1627</a>
+<a href="#1628" id="1628">1628</a>
+<a href="#1629" id="1629">1629</a>
+<a href="#1630" id="1630">1630</a>
+<a href="#1631" id="1631">1631</a>
+<a href="#1632" id="1632">1632</a>
+<a href="#1633" id="1633">1633</a>
+<a href="#1634" id="1634">1634</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the mem2reg SSA optimization pass is to replace any `Load` instructions to known
 //! addresses with the value stored at that address, if it is also known. This pass will also remove
 //! any `Store` instructions within a block that are no longer needed because no more loads occur in
 //! between the Store in question and the next Store.
@@ -1820,8 +1869,12 @@
     ) -&gt; bool {
         <span class="kw">let </span>reference_parameters = <span class="self">self</span>.reference_parameters();
 
+        <span class="kw">let </span>aliases = block.get_aliases_for_value(<span class="kw-2">*</span>store_address);
+        <span class="kw">if </span>aliases.is_unknown() {
+            <span class="kw">return </span><span class="bool-val">true</span>;
+        }
         <span class="comment">// Check whether the store address has an alias that crosses an entry point boundary (e.g. a Call or Return)
-        </span><span class="kw">for </span>alias <span class="kw">in </span>block.get_aliases_for_value(<span class="kw-2">*</span>store_address).iter() {
+        </span><span class="kw">for </span>alias <span class="kw">in </span>aliases.iter() {
             <span class="kw">if </span>reference_parameters.contains(<span class="kw-2">&amp;</span>alias) {
                 <span class="kw">return </span><span class="bool-val">true</span>;
             }
@@ -1930,14 +1983,20 @@
             <span class="kw">match </span>dfg.type_of_value(<span class="kw-2">*</span>param) {
                 <span class="comment">// If the type indirectly contains a reference we have to assume all references
                 // are unknown since we don't have any ValueIds to use.
-                </span>Type::Reference(element) <span class="kw">if </span>element.contains_reference() =&gt; <span class="kw">return</span>,
+                </span>Type::Reference(element) <span class="kw">if </span>element.contains_reference() =&gt; {
+                    <span class="self">self</span>.mark_all_unknown(params, references);
+                    <span class="kw">return</span>;
+                }
                 Type::Reference(element) =&gt; {
                     <span class="kw">let </span>empty_aliases = AliasSet::known_empty();
                     <span class="kw">let </span>alias_set =
                         aliases.entry(element.as_ref().clone()).or_insert(empty_aliases);
                     alias_set.insert(<span class="kw-2">*</span>param);
                 }
-                typ <span class="kw">if </span>typ.contains_reference() =&gt; <span class="kw">return</span>,
+                typ <span class="kw">if </span>typ.contains_reference() =&gt; {
+                    <span class="self">self</span>.mark_all_unknown(params, references);
+                    <span class="kw">return</span>;
+                }
                 <span class="kw">_ </span>=&gt; <span class="kw">continue</span>,
             }
         }
@@ -2500,6 +2559,21 @@
         </span><span class="kw">let </span>src = <span class="string">"
         acir(inline) fn main f0 {
           b0(v0: &amp;mut Field, v1: &amp;mut Field):
+            store Field 0 at v0
+            store Field 0 at v1
+            v3 = load v0 -&gt; Field
+            constrain v3 == Field 0
+            return
+        }
+        "</span>;
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>parameter_alias_nested_reference() {
+        <span class="kw">let </span>src = <span class="string">"
+        acir(inline) fn main f0 {
+          b0(v0: &amp;mut Field, v1: &amp;mut Field, v2: &amp;mut &amp;mut Field):
             store Field 0 at v0
             store Field 0 at v1
             v3 = load v0 -&gt; Field
@@ -3166,6 +3240,30 @@
             return v2
         }
         "</span>);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>does_not_remove_store_to_potentially_aliased_address() {
+        <span class="comment">// This is a regression test for https://github.com/noir-lang/noir/pull/9613
+        // In that PR all tests passed but the sync to Aztec-Packages failed.
+        // That PR had `store v3 at v1` incorrectly removed.
+        // Even though v3 is what was in v1 and it might seem that there's no
+        // need to put v3 back in v1, v0 and v1 might be aliases so `store v2 at v0`
+        // might change the value at v1, so the next store to v1 must be preserved.
+        </span><span class="kw">let </span>src = <span class="string">r#"
+        acir(inline) fn create_note f0 {
+          b0(v0: &amp;mut [Field; 1], v1: &amp;mut [Field; 1]):
+            v2 = load v0 -&gt; [Field; 1]
+            v3 = load v1 -&gt; [Field; 1]
+            store v2 at v0
+            store v3 at v1
+            v4 = load v1 -&gt; [Field; 1]
+            v6 = make_array [Field 0] : [Field; 1]
+            store v6 at v1
+            return v1
+        }
+        "#</span>;
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 }
 </code></pre></div></section></main></body></html>
