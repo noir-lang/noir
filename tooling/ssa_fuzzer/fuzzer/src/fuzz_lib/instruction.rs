@@ -1,12 +1,12 @@
 use libfuzzer_sys::arbitrary;
 use libfuzzer_sys::arbitrary::Arbitrary;
-use noir_ssa_fuzzer::typed_value::ValueType;
+use noir_ssa_fuzzer::new_type::NumericType;
 use serde::{Deserialize, Serialize};
 use strum_macros::EnumCount;
 #[derive(Arbitrary, Debug, Clone, Copy, Serialize, Deserialize)]
 pub(crate) struct Array {
     pub(crate) size: usize,
-    pub(crate) element_type: ValueType,
+    pub(crate) element_type: NumericType,
 }
 
 #[derive(Arbitrary, Debug, Clone, Copy, Serialize, Deserialize)]
@@ -18,7 +18,7 @@ pub(crate) struct Argument {
     /// Argument(Index(1), ValueType::Field) -> id 8
     pub(crate) index: usize,
     /// Type of the argument
-    pub(crate) value_type: ValueType,
+    pub(crate) value_type: NumericType,
 }
 
 #[derive(Arbitrary, Debug, Clone, Copy, Serialize, Deserialize, Default)]
@@ -62,7 +62,7 @@ pub(crate) enum Instruction {
     /// Right shift
     Shr { lhs: Argument, rhs: Argument },
     /// Cast into type
-    Cast { lhs: Argument, type_: ValueType },
+    Cast { lhs: Argument, type_: NumericType },
     /// Bitwise AND
     And { lhs: Argument, rhs: Argument },
     /// Bitwise OR
@@ -94,7 +94,7 @@ pub(crate) enum Instruction {
 
     /// Create array, only type of first argument is used
     /// Other elements will be taken from stored variables of the same type
-    CreateArray { elements_indices: Vec<usize>, element_type: ValueType, is_references: bool },
+    CreateArray { elements_indices: Vec<usize>, element_type: NumericType, is_references: bool },
     /// Get element from array, index will be casted to u32, only for arrays without references
     /// If safe_index is true, index will be taken modulo the size of the array
     ArrayGet { array_index: usize, index: Argument, safe_index: bool },
@@ -157,6 +157,26 @@ pub(crate) enum Instruction {
 
     /// Multi-scalar multiplication
     MultiScalarMul { points_and_scalars: Vec<PointAndScalar> },
+
+    /// ECDSA secp256r1
+    EcdsaSecp256r1 {
+        msg: Vec<u8>,
+        hash_size: u32,
+        corrupt_hash: bool,
+        corrupt_pubkey_x: bool,
+        corrupt_pubkey_y: bool,
+        corrupt_signature: bool,
+    },
+
+    /// ECDSA secp256k1
+    EcdsaSecp256k1 {
+        msg: Vec<u8>,
+        hash_size: u32,
+        corrupt_hash: bool,
+        corrupt_pubkey_x: bool,
+        corrupt_pubkey_y: bool,
+        corrupt_signature: bool,
+    },
 }
 
 /// Default instruction is XOR of two boolean values
@@ -165,8 +185,8 @@ pub(crate) enum Instruction {
 impl Default for Instruction {
     fn default() -> Self {
         Self::Xor {
-            lhs: Argument { index: 0, value_type: ValueType::Boolean },
-            rhs: Argument { index: 0, value_type: ValueType::Boolean },
+            lhs: Argument { index: 0, value_type: NumericType::Boolean },
+            rhs: Argument { index: 0, value_type: NumericType::Boolean },
         }
     }
 }
@@ -180,8 +200,8 @@ pub(crate) struct InstructionBlock {
 
 #[derive(Clone)]
 pub(crate) struct FunctionInfo {
-    pub(crate) input_types: Vec<ValueType>,
-    pub(crate) return_type: ValueType,
+    pub(crate) input_types: Vec<NumericType>,
+    pub(crate) return_type: NumericType,
     /// Max size of unrolled loops in the function
     pub(crate) max_unrolled_size: usize,
 }

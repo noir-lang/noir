@@ -31,25 +31,6 @@ impl TypedValue {
         Self { value_id, type_of_variable }
     }
 
-    /// Convert from our simple ValueType to the internal SSA Type
-    pub fn from_value_type(value_id: u32, value_type: &ValueType) -> Self {
-        let type_ = match value_type {
-            ValueType::Field => Type::field(),
-            ValueType::Boolean => Type::bool(),
-            ValueType::U8 => Type::unsigned(8),
-            ValueType::U16 => Type::unsigned(16),
-            ValueType::U32 => Type::unsigned(32),
-            ValueType::U64 => Type::unsigned(64),
-            ValueType::U128 => Type::unsigned(128),
-            ValueType::I8 => Type::signed(8),
-            ValueType::I16 => Type::signed(16),
-            ValueType::I32 => Type::signed(32),
-            ValueType::I64 => Type::signed(64),
-        };
-
-        Self { value_id: Id::new(value_id), type_of_variable: type_ }
-    }
-
     /// Convert to our simple ValueType from the internal SSA Type
     pub fn to_value_type(&self) -> ValueType {
         match &self.type_of_variable {

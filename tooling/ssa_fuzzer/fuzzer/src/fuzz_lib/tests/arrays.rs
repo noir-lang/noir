@@ -9,7 +9,7 @@ use crate::instruction::{Argument, Instruction, InstructionBlock};
 use crate::options::FuzzerOptions;
 use crate::tests::common::default_witness;
 use acvm::FieldElement;
-use noir_ssa_fuzzer::typed_value::ValueType;
+use noir_ssa_fuzzer::new_type::NumericType;
 
 /// Test array get and set
 /// fn main f0 {
@@ -27,12 +27,12 @@ use noir_ssa_fuzzer::typed_value::ValueType;
 ///   }
 #[test]
 fn array_get_and_set() {
-    let arg_0_field = Argument { index: 0, value_type: ValueType::Field };
+    let arg_0_field = Argument { index: 0, value_type: NumericType::Field };
     // create array [v0, v1]
     let create_array_block = InstructionBlock {
         instructions: vec![Instruction::CreateArray {
             elements_indices: vec![0, 1, 2, 3, 4],
-            element_type: ValueType::Field,
+            element_type: NumericType::Field,
             is_references: false,
         }],
     };
@@ -59,7 +59,7 @@ fn array_get_and_set() {
         FuzzerFunctionCommand::InsertSimpleInstructionBlock { instruction_block_idx: 1 },
     ];
     let main_func =
-        FunctionData { commands, return_instruction_block_idx: 2, return_type: ValueType::Field };
+        FunctionData { commands, return_instruction_block_idx: 2, return_type: NumericType::Field };
     let fuzzer_data = FuzzerData {
         instruction_blocks: instructions_blocks,
         functions: vec![main_func],
@@ -91,9 +91,9 @@ fn array_get_and_set() {
 #[test]
 fn test_reference_in_array() {
     let _ = env_logger::try_init();
-    let arg_0_field = Argument { index: 0, value_type: ValueType::Field };
-    let arg_1_field = Argument { index: 1, value_type: ValueType::Field };
-    let arg_2_field = Argument { index: 2, value_type: ValueType::Field };
+    let arg_0_field = Argument { index: 0, value_type: NumericType::Field };
+    let arg_1_field = Argument { index: 1, value_type: NumericType::Field };
+    let arg_2_field = Argument { index: 2, value_type: NumericType::Field };
 
     let add_to_memory_block =
         InstructionBlock { instructions: vec![Instruction::AddToMemory { lhs: arg_0_field }] };
@@ -113,7 +113,7 @@ fn test_reference_in_array() {
     let create_array_block = InstructionBlock {
         instructions: vec![Instruction::CreateArray {
             elements_indices: vec![0, 1, 2],
-            element_type: ValueType::Field,
+            element_type: NumericType::Field,
             is_references: true,
         }],
     };
@@ -124,7 +124,7 @@ fn test_reference_in_array() {
             safe_index: true,
         }],
     };
-    let typed_memory_2 = Argument { index: 2, value_type: ValueType::Field };
+    let typed_memory_2 = Argument { index: 2, value_type: NumericType::Field };
     let load_from_memory_block = InstructionBlock {
         instructions: vec![Instruction::LoadFromMemory { memory_addr: typed_memory_2 }],
     };
@@ -146,7 +146,7 @@ fn test_reference_in_array() {
         FuzzerFunctionCommand::InsertSimpleInstructionBlock { instruction_block_idx: 5 },
     ];
     let main_func =
-        FunctionData { commands, return_instruction_block_idx: 6, return_type: ValueType::Field };
+        FunctionData { commands, return_instruction_block_idx: 6, return_type: NumericType::Field };
     let fuzzer_data = FuzzerData {
         instruction_blocks: instructions_blocks,
         functions: vec![main_func],

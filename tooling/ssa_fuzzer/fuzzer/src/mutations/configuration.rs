@@ -150,7 +150,7 @@ pub(crate) const BASIC_VEC_MUTATION_CONFIGURATION: VecMutationConfig = VecMutati
 ]);
 
 #[derive(Copy, Clone, Debug)]
-pub(crate) enum ValueTypeMutationOptions {
+pub(crate) enum NumericTypeMutationOptions {
     Field,
     Boolean,
     U8,
@@ -163,20 +163,20 @@ pub(crate) enum ValueTypeMutationOptions {
     I32,
     I64,
 }
-pub(crate) type ValueTypeMutationConfig = WeightedSelectionConfig<ValueTypeMutationOptions, 11>;
-pub(crate) const BASIC_VALUE_TYPE_MUTATION_CONFIGURATION: ValueTypeMutationConfig =
-    ValueTypeMutationConfig::new([
-        (ValueTypeMutationOptions::Field, 1),
-        (ValueTypeMutationOptions::Boolean, 1),
-        (ValueTypeMutationOptions::U8, 1),
-        (ValueTypeMutationOptions::U16, 1),
-        (ValueTypeMutationOptions::U32, 1),
-        (ValueTypeMutationOptions::U64, 1),
-        (ValueTypeMutationOptions::U128, 1),
-        (ValueTypeMutationOptions::I8, 1),
-        (ValueTypeMutationOptions::I16, 1),
-        (ValueTypeMutationOptions::I32, 1),
-        (ValueTypeMutationOptions::I64, 1),
+pub(crate) type NumericTypeMutationConfig = WeightedSelectionConfig<NumericTypeMutationOptions, 11>;
+pub(crate) const BASIC_NUMERIC_TYPE_MUTATION_CONFIGURATION: NumericTypeMutationConfig =
+    NumericTypeMutationConfig::new([
+        (NumericTypeMutationOptions::Field, 1),
+        (NumericTypeMutationOptions::Boolean, 1),
+        (NumericTypeMutationOptions::U8, 1),
+        (NumericTypeMutationOptions::U16, 1),
+        (NumericTypeMutationOptions::U32, 1),
+        (NumericTypeMutationOptions::U64, 1),
+        (NumericTypeMutationOptions::U128, 1),
+        (NumericTypeMutationOptions::I8, 1),
+        (NumericTypeMutationOptions::I16, 1),
+        (NumericTypeMutationOptions::I32, 1),
+        (NumericTypeMutationOptions::I64, 1),
     ]);
 
 #[derive(Copy, Clone, Debug)]
@@ -380,7 +380,7 @@ pub(crate) const GENERATE_BOOL_CONFIGURATION_MOST_FALSE: GenerateBoolConfig =
     GenerateBoolConfig::new([(GenerateBool::True, 1), (GenerateBool::False, 999)]);
 
 #[derive(Copy, Clone, Debug)]
-pub(crate) enum GenerateValueType {
+pub(crate) enum GenerateNumericType {
     Field,
     Boolean,
     U8,
@@ -393,29 +393,29 @@ pub(crate) enum GenerateValueType {
     I32,
     I64,
 }
-pub(crate) type GenerateValueTypeConfig = WeightedSelectionConfig<GenerateValueType, 11>;
-pub(crate) const BASIC_GENERATE_VALUE_TYPE_CONFIGURATION: GenerateValueTypeConfig =
-    GenerateValueTypeConfig::new([
-        (GenerateValueType::Field, 1),
-        (GenerateValueType::Boolean, 1),
-        (GenerateValueType::U8, 1),
-        (GenerateValueType::U16, 1),
-        (GenerateValueType::U32, 1),
-        (GenerateValueType::U64, 1),
-        (GenerateValueType::U128, 1),
-        (GenerateValueType::I8, 1),
-        (GenerateValueType::I16, 1),
-        (GenerateValueType::I32, 1),
-        (GenerateValueType::I64, 1),
+pub(crate) type GenerateNumericTypeConfig = WeightedSelectionConfig<GenerateNumericType, 11>;
+pub(crate) const BASIC_GENERATE_NUMERIC_TYPE_CONFIGURATION: GenerateNumericTypeConfig =
+    GenerateNumericTypeConfig::new([
+        (GenerateNumericType::Field, 1),
+        (GenerateNumericType::Boolean, 1),
+        (GenerateNumericType::U8, 1),
+        (GenerateNumericType::U16, 1),
+        (GenerateNumericType::U32, 1),
+        (GenerateNumericType::U64, 1),
+        (GenerateNumericType::U128, 1),
+        (GenerateNumericType::I8, 1),
+        (GenerateNumericType::I16, 1),
+        (GenerateNumericType::I32, 1),
+        (GenerateNumericType::I64, 1),
     ]);
 
 // Compile-time check that configuration has correct number of entries
 const _: () = {
-    use noir_ssa_fuzzer::typed_value::ValueType;
+    use noir_ssa_fuzzer::new_type::NumericType;
     use strum::EnumCount;
     assert!(
-        BASIC_GENERATE_VALUE_TYPE_CONFIGURATION.options_with_weights.len() == ValueType::COUNT,
-        "BASIC_GENERATE_VALUE_TYPE_CONFIGURATION must have an entry for every GenerateValueType variant"
+        BASIC_GENERATE_NUMERIC_TYPE_CONFIGURATION.options_with_weights.len() == NumericType::COUNT,
+        "BASIC_GENERATE_NUMERIC_TYPE_CONFIGURATION must have an entry for every GenerateNumericType variant"
     );
 };
 
@@ -483,8 +483,10 @@ pub(crate) enum GenerateInstruction {
     Sha256Compression,
     PointAdd,
     MultiScalarMul,
+    EcdsaSecp256r1,
+    EcdsaSecp256k1,
 }
-pub(crate) type GenerateInstructionConfig = WeightedSelectionConfig<GenerateInstruction, 32>;
+pub(crate) type GenerateInstructionConfig = WeightedSelectionConfig<GenerateInstruction, 34>;
 pub(crate) const BASIC_GENERATE_INSTRUCTION_CONFIGURATION: GenerateInstructionConfig =
     GenerateInstructionConfig::new([
         (GenerateInstruction::AddChecked, 100),
@@ -520,6 +522,8 @@ pub(crate) const BASIC_GENERATE_INSTRUCTION_CONFIGURATION: GenerateInstructionCo
         (GenerateInstruction::Sha256Compression, 5),
         (GenerateInstruction::PointAdd, 5),
         (GenerateInstruction::MultiScalarMul, 5),
+        (GenerateInstruction::EcdsaSecp256r1, 5),
+        (GenerateInstruction::EcdsaSecp256k1, 5),
     ]);
 
 // Compile-time check that configuration has correct number of entries

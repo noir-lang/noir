@@ -4,14 +4,15 @@
 //! 2. Argument mutation
 
 use crate::fuzz_lib::instruction::Instruction;
+use crate::mutations::configuration::BOOL_MUTATION_CONFIGURATION_MOSTLY_FALSE;
 use crate::mutations::{
     basic_types::{
         bool::mutate_bool,
+        numeric_type::mutate_numeric_type,
         point::{generate_random_point, mutate_point},
         scalar::generate_random_scalar,
         scalar::mutate_scalar,
         usize::mutate_usize,
-        value_type::mutate_value_type,
         vec::mutate_vec,
     },
     configuration::{
@@ -20,8 +21,8 @@ use crate::mutations::{
         BASIC_ARRAY_SET_MUTATION_CONFIGURATION, BASIC_BLAKE_HASH_MUTATION_CONFIGURATION,
         BASIC_BOOL_MUTATION_CONFIGURATION, BASIC_CREATE_ARRAY_MUTATION_CONFIGURATION,
         BASIC_INSTRUCTION_ARGUMENT_MUTATION_CONFIGURATION,
-        BASIC_INSTRUCTION_MUTATION_CONFIGURATION, BASIC_SHA256_COMPRESSION_MUTATION_CONFIGURATION,
-        BASIC_USIZE_MUTATION_CONFIGURATION, BASIC_VALUE_TYPE_MUTATION_CONFIGURATION,
+        BASIC_INSTRUCTION_MUTATION_CONFIGURATION, BASIC_NUMERIC_TYPE_MUTATION_CONFIGURATION,
+        BASIC_SHA256_COMPRESSION_MUTATION_CONFIGURATION, BASIC_USIZE_MUTATION_CONFIGURATION,
         BASIC_VEC_MUTATION_CONFIGURATION, BOOL_MUTATION_CONFIGURATION_MOSTLY_TRUE,
         BlakeHashMutationOptions, CreateArrayMutationOptions, InstructionArgumentMutationOptions,
         InstructionMutationOptions, SIZE_OF_SMALL_ARBITRARY_BUFFER,
@@ -84,7 +85,7 @@ impl InstructionArgumentsMutation {
                         argument_mutator(lhs, rng);
                     }
                     InstructionArgumentMutationOptions::Right => {
-                        mutate_value_type(type_, rng, BASIC_VALUE_TYPE_MUTATION_CONFIGURATION);
+                        mutate_numeric_type(type_, rng, BASIC_NUMERIC_TYPE_MUTATION_CONFIGURATION);
                     }
                 }
             }
@@ -155,10 +156,10 @@ impl InstructionArgumentsMutation {
                         );
                     }
                     CreateArrayMutationOptions::ElementType => {
-                        mutate_value_type(
+                        mutate_numeric_type(
                             element_type,
                             rng,
-                            BASIC_VALUE_TYPE_MUTATION_CONFIGURATION,
+                            BASIC_NUMERIC_TYPE_MUTATION_CONFIGURATION,
                         );
                     }
                     CreateArrayMutationOptions::IsReferences => {
@@ -281,6 +282,41 @@ impl InstructionArgumentsMutation {
                     |rng| (generate_random_point(rng), generate_random_scalar(rng)),
                     BASIC_VEC_MUTATION_CONFIGURATION,
                 );
+            }
+            Instruction::EcdsaSecp256k1 {
+                msg,
+                hash_size,
+                corrupt_hash,
+                corrupt_pubkey_x,
+                corrupt_pubkey_y,
+                corrupt_signature,
+            }
+            | Instruction::EcdsaSecp256r1 {
+                msg,
+                hash_size,
+                corrupt_hash,
+                corrupt_pubkey_x,
+                corrupt_pubkey_y,
+                corrupt_signature,
+            } => {
+                mutate_vec(
+                    msg,
+                    rng,
+                    |byte, rng| {
+                        *byte = rng.gen_range(0..=255);
+                    },
+                    |rng| rng.gen_range(0..=255),
+                    BASIC_VEC_MUTATION_CONFIGURATION,
+                );
+                if rng.gen_bool(0.001) {
+                    *hash_size = rng.gen_range(0..=255);
+                } else {
+                    *hash_size = 32_u32; //sha256 hash size
+                }
+                mutate_bool(corrupt_hash, rng, BOOL_MUTATION_CONFIGURATION_MOSTLY_FALSE);
+                mutate_bool(corrupt_pubkey_x, rng, BOOL_MUTATION_CONFIGURATION_MOSTLY_FALSE);
+                mutate_bool(corrupt_pubkey_y, rng, BOOL_MUTATION_CONFIGURATION_MOSTLY_FALSE);
+                mutate_bool(corrupt_signature, rng, BOOL_MUTATION_CONFIGURATION_MOSTLY_FALSE);
             }
         }
     }

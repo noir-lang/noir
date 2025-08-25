@@ -6,22 +6,22 @@ use super::{
 };
 use acvm::FieldElement;
 use acvm::acir::native_types::{Witness, WitnessMap};
-use noir_ssa_fuzzer::typed_value::ValueType;
+use noir_ssa_fuzzer::new_type::NumericType;
 
 fn initialize_witness_map(
     initial_witness: &[WitnessValue;
          (NUMBER_OF_VARIABLES_INITIAL - NUMBER_OF_PREDEFINED_VARIABLES) as usize],
-) -> (WitnessMap<FieldElement>, Vec<FieldElement>, Vec<ValueType>) {
+) -> (WitnessMap<FieldElement>, Vec<FieldElement>, Vec<NumericType>) {
     let mut witness_map = WitnessMap::new();
     let mut values = vec![];
     let mut types = vec![];
     for (i, witness_value) in initial_witness.iter().enumerate() {
         let (value, type_) = match witness_value {
-            WitnessValue::Field(field) => (FieldElement::from(field), ValueType::Field),
-            WitnessValue::U64(u64) => (FieldElement::from(*u64), ValueType::U64),
-            WitnessValue::Boolean(bool) => (FieldElement::from(*bool as u64), ValueType::Boolean),
-            WitnessValue::I64(i64) => (FieldElement::from(*i64), ValueType::I64),
-            WitnessValue::I32(i32) => (FieldElement::from(*i32 as u64), ValueType::I32),
+            WitnessValue::Field(field) => (FieldElement::from(field), NumericType::Field),
+            WitnessValue::U64(u64) => (FieldElement::from(*u64), NumericType::U64),
+            WitnessValue::Boolean(bool) => (FieldElement::from(*bool as u64), NumericType::Boolean),
+            WitnessValue::I64(i64) => (FieldElement::from(*i64), NumericType::I64),
+            WitnessValue::I32(i32) => (FieldElement::from(*i32 as u64), NumericType::I32),
         };
         witness_map.insert(Witness(i as u32), value);
         values.push(value);
@@ -33,13 +33,13 @@ fn initialize_witness_map(
         FieldElement::from(1_u32),
     );
     values.push(FieldElement::from(1_u32));
-    types.push(ValueType::Boolean);
+    types.push(NumericType::Boolean);
     witness_map.insert(
         Witness(NUMBER_OF_VARIABLES_INITIAL - NUMBER_OF_PREDEFINED_VARIABLES + 1),
         FieldElement::from(0_u32),
     );
     values.push(FieldElement::from(0_u32));
-    types.push(ValueType::Boolean);
+    types.push(NumericType::Boolean);
     (witness_map, values, types)
 }
 

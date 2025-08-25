@@ -6,7 +6,7 @@ use super::{
 use acvm::FieldElement;
 use noir_ssa_fuzzer::{
     builder::{FuzzerBuilder, FuzzerBuilderError},
-    typed_value::ValueType,
+    new_type::NumericType,
 };
 use noirc_driver::CompiledProgram;
 use noirc_evaluator::ssa::ir::{function::Function, map::Id};
@@ -15,7 +15,7 @@ use std::collections::BTreeMap;
 struct StoredFunction {
     id: Id<Function>,
     function: FunctionData,
-    types: Vec<ValueType>,
+    types: Vec<NumericType>,
 }
 
 /// FuzzerProgramContext is a context for storing and processing SSA functions
@@ -98,7 +98,7 @@ impl FuzzerProgramContext {
     }
 
     /// Stores function and its signature
-    pub(crate) fn process_function(&mut self, function: FunctionData, types: Vec<ValueType>) {
+    pub(crate) fn process_function(&mut self, function: FunctionData, types: Vec<NumericType>) {
         // leaving max_unrolled_size = 0 for now
         //
         let signature = FunctionInfo {

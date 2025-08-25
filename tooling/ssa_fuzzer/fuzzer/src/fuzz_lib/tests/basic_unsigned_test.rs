@@ -20,7 +20,7 @@ use crate::instruction::{Argument, Instruction, InstructionBlock};
 use crate::options::FuzzerOptions;
 use crate::{NUMBER_OF_PREDEFINED_VARIABLES, NUMBER_OF_VARIABLES_INITIAL};
 use acvm::FieldElement;
-use noir_ssa_fuzzer::typed_value::ValueType;
+use noir_ssa_fuzzer::new_type::NumericType;
 
 /// Creates default witness values for testing
 /// Returns [U64(0), U64(1), U64(2), U64(3), U64(4)]
@@ -51,8 +51,8 @@ enum UnsignedOp {
 
 /// Returns `4_u64 op 2_u64` if binary, `op 4_u64` if unary
 fn test_op_u64(op: UnsignedOp) -> FieldElement {
-    let arg_2_u64 = Argument { index: 2, value_type: ValueType::U64 };
-    let arg_4_u64 = Argument { index: 4, value_type: ValueType::U64 };
+    let arg_2_u64 = Argument { index: 2, value_type: NumericType::U64 };
+    let arg_4_u64 = Argument { index: 4, value_type: NumericType::U64 };
     let instruction = match op {
         UnsignedOp::Add => Instruction::AddChecked { lhs: arg_4_u64, rhs: arg_2_u64 },
         UnsignedOp::Sub => Instruction::SubChecked { lhs: arg_4_u64, rhs: arg_2_u64 },
@@ -73,7 +73,7 @@ fn test_op_u64(op: UnsignedOp) -> FieldElement {
         functions: vec![FunctionData {
             commands: vec![],
             return_instruction_block_idx: 0,
-            return_type: ValueType::U64,
+            return_type: NumericType::U64,
         }],
         initial_witness: default_unsigned_witness(),
     };
