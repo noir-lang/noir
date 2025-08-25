@@ -1,4 +1,4 @@
-use rand::RngCore;
+use rand::{Rng, RngCore};
 
 use sha2::{Digest, Sha256};
 
@@ -75,24 +75,27 @@ pub(crate) fn generate_ecdsa_signature_and_corrupt_it(
         Curve::Secp256k1 => generate_ecdsa_signature_secp256k1_internal(msg),
         Curve::Secp256r1 => generate_ecdsa_signature_secp256r1_internal(msg),
     };
-    // I wish I could corrupt sizes, but it panics on the simplification step
     if corrupt_hash {
-        let mut new_bytes = vec![0; prepared_signature.hash.len()];
+        let new_size = rng.gen_range(u8::MIN..=u8::MAX);
+        let mut new_bytes = vec![0; new_size as usize];
         rng.fill_bytes(&mut new_bytes);
         prepared_signature.hash = new_bytes;
     }
     if corrupt_pubkey_x {
-        let mut new_bytes = vec![0; prepared_signature.public_key_x.len()];
+        let new_size = rng.gen_range(u8::MIN..=u8::MAX);
+        let mut new_bytes = vec![0; new_size as usize];
         rng.fill_bytes(&mut new_bytes);
         prepared_signature.public_key_x = new_bytes;
     }
     if corrupt_pubkey_y {
-        let mut new_bytes = vec![0; prepared_signature.public_key_y.len()];
+        let new_size = rng.gen_range(u8::MIN..=u8::MAX);
+        let mut new_bytes = vec![0; new_size as usize];
         rng.fill_bytes(&mut new_bytes);
         prepared_signature.public_key_y = new_bytes;
     }
     if corrupt_signature {
-        let mut new_bytes = vec![0; prepared_signature.signature.len()];
+        let new_size = rng.gen_range(u8::MIN..=u8::MAX);
+        let mut new_bytes = vec![0; new_size as usize];
         rng.fill_bytes(&mut new_bytes);
         prepared_signature.signature = new_bytes;
     }

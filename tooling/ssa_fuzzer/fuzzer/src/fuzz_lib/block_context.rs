@@ -941,6 +941,7 @@ impl BlockContext {
             }
             Instruction::EcdsaSecp256r1 {
                 msg,
+                hash_size,
                 corrupt_hash,
                 corrupt_pubkey_x,
                 corrupt_pubkey_y,
@@ -961,6 +962,7 @@ impl BlockContext {
                     prepared_signature.public_key_x.clone(),
                     prepared_signature.public_key_y.clone(),
                     prepared_signature.hash.clone(),
+                    hash_size,
                     prepared_signature.signature.clone(),
                 );
                 assert_eq!(
@@ -970,6 +972,7 @@ impl BlockContext {
                             prepared_signature.public_key_x,
                             prepared_signature.public_key_y,
                             prepared_signature.hash,
+                            hash_size,
                             prepared_signature.signature,
                         )
                         .value_id
@@ -982,6 +985,7 @@ impl BlockContext {
             }
             Instruction::EcdsaSecp256k1 {
                 msg,
+                hash_size,
                 corrupt_hash,
                 corrupt_pubkey_x,
                 corrupt_pubkey_y,
@@ -1002,6 +1006,7 @@ impl BlockContext {
                     prepared_signature.public_key_x.clone(),
                     prepared_signature.public_key_y.clone(),
                     prepared_signature.hash.clone(),
+                    hash_size,
                     prepared_signature.signature.clone(),
                 );
                 assert_eq!(
@@ -1011,6 +1016,7 @@ impl BlockContext {
                             prepared_signature.public_key_x,
                             prepared_signature.public_key_y,
                             prepared_signature.hash,
+                            hash_size,
                             prepared_signature.signature,
                         )
                         .value_id

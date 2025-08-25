@@ -285,6 +285,7 @@ impl InstructionArgumentsMutation {
             }
             Instruction::EcdsaSecp256k1 {
                 msg,
+                hash_size,
                 corrupt_hash,
                 corrupt_pubkey_x,
                 corrupt_pubkey_y,
@@ -292,6 +293,7 @@ impl InstructionArgumentsMutation {
             }
             | Instruction::EcdsaSecp256r1 {
                 msg,
+                hash_size,
                 corrupt_hash,
                 corrupt_pubkey_x,
                 corrupt_pubkey_y,
@@ -306,6 +308,11 @@ impl InstructionArgumentsMutation {
                     |rng| rng.gen_range(0..=255),
                     BASIC_VEC_MUTATION_CONFIGURATION,
                 );
+                if rng.gen_bool(0.001) {
+                    *hash_size = rng.gen_range(0..=255);
+                } else {
+                    *hash_size = 32_u32; //sha256 hash size
+                }
                 mutate_bool(corrupt_hash, rng, BOOL_MUTATION_CONFIGURATION_MOSTLY_FALSE);
                 mutate_bool(corrupt_pubkey_x, rng, BOOL_MUTATION_CONFIGURATION_MOSTLY_FALSE);
                 mutate_bool(corrupt_pubkey_y, rng, BOOL_MUTATION_CONFIGURATION_MOSTLY_FALSE);

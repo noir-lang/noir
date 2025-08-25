@@ -935,16 +935,32 @@ impl FuzzerBuilder {
         )
     }
 
+    fn bytes_to_ssa_slice(&mut self, vec: Vec<u8>) -> TypedValue {
+        let elements: Vec<Id<Value>> = vec
+            .into_iter()
+            .map(|x| self.builder.numeric_constant(x as u32, NumericType::Unsigned { bit_size: 8 }))
+            .collect();
+        let array_type =
+            Type::Slice(Arc::new(vec![Type::Numeric(NumericType::Unsigned { bit_size: 8 })]));
+        TypedValue::new(
+            self.builder.insert_make_array(elements.into(), array_type.clone()),
+            array_type,
+        )
+    }
+
     pub fn ecdsa_secp256r1(
         &mut self,
         pub_key_x: Vec<u8>,
         pub_key_y: Vec<u8>,
         hash: Vec<u8>,
+        hash_size: u32,
         signature: Vec<u8>,
     ) -> TypedValue {
         let pub_key_x = self.bytes_to_ssa_array(pub_key_x);
         let pub_key_y = self.bytes_to_ssa_array(pub_key_y);
-        let hash = self.bytes_to_ssa_array(hash);
+        let hash_size_id =
+            self.builder.numeric_constant(hash_size, NumericType::Unsigned { bit_size: 32 });
+        let hash = self.bytes_to_ssa_slice(hash);
         let signature = self.bytes_to_ssa_array(signature);
         let return_type = Type::Numeric(NumericType::Unsigned { bit_size: 1 });
         let intrinsic = self
@@ -953,7 +969,13 @@ impl FuzzerBuilder {
             .expect("ecdsa_secp256r1 intrinsic should be available");
         let result = self.builder.insert_call(
             intrinsic,
-            vec![pub_key_x.value_id, pub_key_y.value_id, signature.value_id, hash.value_id],
+            vec![
+                pub_key_x.value_id,
+                pub_key_y.value_id,
+                signature.value_id,
+                hash_size_id,
+                hash.value_id,
+            ],
             vec![return_type.clone()],
         );
         assert_eq!(result.len(), 1);
@@ -966,11 +988,14 @@ impl FuzzerBuilder {
         pub_key_x: Vec<u8>,
         pub_key_y: Vec<u8>,
         hash: Vec<u8>,
+        hash_size: u32,
         signature: Vec<u8>,
     ) -> TypedValue {
         let pub_key_x = self.bytes_to_ssa_array(pub_key_x);
         let pub_key_y = self.bytes_to_ssa_array(pub_key_y);
-        let hash = self.bytes_to_ssa_array(hash);
+        let hash_size_id =
+            self.builder.numeric_constant(hash_size, NumericType::Unsigned { bit_size: 32 });
+        let hash = self.bytes_to_ssa_slice(hash);
         let signature = self.bytes_to_ssa_array(signature);
         let return_type = Type::Numeric(NumericType::Unsigned { bit_size: 1 });
         let intrinsic = self
@@ -979,7 +1004,13 @@ impl FuzzerBuilder {
             .expect("ecdsa_secp256k1 intrinsic should be available");
         let result = self.builder.insert_call(
             intrinsic,
-            vec![pub_key_x.value_id, pub_key_y.value_id, signature.value_id, hash.value_id],
+            vec![
+                pub_key_x.value_id,
+                pub_key_y.value_id,
+                signature.value_id,
+                hash_size_id,
+                hash.value_id,
+            ],
             vec![return_type.clone()],
         );
         assert_eq!(result.len(), 1);
