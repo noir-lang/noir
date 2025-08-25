@@ -1836,7 +1836,7 @@
 <span class="kw">impl</span>&lt;<span class="lifetime">'f</span>&gt; PerFunctionContext&lt;<span class="lifetime">'f</span>&gt; {
     <span class="kw">fn </span>new(function: <span class="kw-2">&amp;</span><span class="lifetime">'f </span><span class="kw-2">mut </span>Function) -&gt; <span class="self">Self </span>{
         <span class="kw">let </span>cfg = ControlFlowGraph::with_function(function);
-        <span class="kw">let </span>post_order = PostOrder::with_function(function);
+        <span class="kw">let </span>post_order = PostOrder::with_cfg(<span class="kw-2">&amp;</span>cfg);
 
         PerFunctionContext {
             cfg,
@@ -1856,7 +1856,7 @@
     /// dom_tree were created from.
     </span><span class="kw">fn </span>mem2reg(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
         <span class="comment">// Iterate each block in reverse post order = forward order
-        </span><span class="kw">let </span><span class="kw-2">mut </span>block_order = PostOrder::with_function(<span class="self">self</span>.inserter.function).into_vec();
+        </span><span class="kw">let </span><span class="kw-2">mut </span>block_order = <span class="self">self</span>.post_order.as_slice().to_vec();
         block_order.reverse();
 
         <span class="kw">for </span>block <span class="kw">in </span>block_order {
