@@ -33,16 +33,12 @@ expression: artifact
       "2920182694213909827": {
         "error_kind": "string",
         "string": "attempt to subtract with overflow"
-      },
-      "14225679739041873922": {
-        "error_kind": "string",
-        "string": "Index out of bounds"
       }
     }
   },
   "bytecode": [
     "func 0",
-    "current witness index : _19",
+    "current witness index : _16",
     "private parameters indices : [_0, _1, _2]",
     "public parameters indices : []",
     "return value indices : []",
@@ -56,27 +52,24 @@ expression: artifact
     "MEM (id: 0, write EXPR [ (1, _6) 0 ] at: EXPR [ (1, _2) 0 ]) ",
     "EXPR [ (-1, _7) 0 ]",
     "MEM (id: 0, read at: EXPR [ (1, _7) 0 ], value: EXPR [ (1, _8) 0 ]) ",
+    "EXPR [ (-1, _9) 1 ]",
+    "MEM (id: 0, read at: EXPR [ (1, _9) 0 ], value: EXPR [ (1, _10) 0 ]) ",
     "EXPR [ (1, _8) -5 ]",
-    "MEM (id: 0, read at: EXPR [ (1, _7) 0 ], value: EXPR [ (1, _9) 0 ]) ",
-    "EXPR [ (-1, _10) 1 ]",
-    "MEM (id: 0, read at: EXPR [ (1, _10) 0 ], value: EXPR [ (1, _11) 0 ]) ",
-    "MEM (id: 0, read at: EXPR [ (1, _7) 0 ], value: EXPR [ (1, _12) 0 ]) ",
-    "MEM (id: 0, read at: EXPR [ (1, _10) 0 ], value: EXPR [ (1, _13) 0 ]) ",
-    "INIT (id: 1, len: 4, witnesses: [_9, _11, _12, _13])",
-    "EXPR [ (2, _2) (-1, _14) 0 ]",
-    "MEM (id: 1, read at: EXPR [ (1, _14) 0 ], value: EXPR [ (1, _15) 0 ]) ",
-    "EXPR [ (1, _14) (-1, _16) 1 ]",
-    "MEM (id: 1, read at: EXPR [ (1, _16) 0 ], value: EXPR [ (1, _17) 0 ]) ",
-    "EXPR [ (1, _15) -5 ]",
-    "EXPR [ (-1, _18) 5 ]",
-    "INIT (id: 2, len: 2, witnesses: [_18, _17])",
-    "MEM (id: 2, read at: EXPR [ (1, _2) 0 ], value: EXPR [ (1, _19) 0 ]) ",
-    "EXPR [ (1, _19) -2 ]"
+    "EXPR [ (-1, _11) 5 ]",
+    "INIT (id: 1, len: 4, witnesses: [_11, _10, _11, _10])",
+    "MEM (id: 1, read at: EXPR [ (1, _2) 0 ], value: EXPR [ (1, _12) 0 ]) ",
+    "EXPR [ (1, _12) -2 ]",
+    "EXPR [ (2, _2) (-1, _13) 0 ]",
+    "MEM (id: 1, read at: EXPR [ (1, _13) 0 ], value: EXPR [ (1, _14) 0 ]) ",
+    "EXPR [ (1, _14) -5 ]",
+    "EXPR [ (1, _2) (1, _13) (-1, _15) 0 ]",
+    "MEM (id: 1, read at: EXPR [ (1, _15) 0 ], value: EXPR [ (1, _16) 0 ]) ",
+    "EXPR [ (1, _16) -2 ]"
   ],
-  "debug_symbols": "pZTBboQgEED/Zc4cBBXQX2kag4obEoKG1SaN8d872HG7e2iy0YtPGN44ILBCb9vl1rgwjHeoP1Zoo/Pe3Ro/dmZ2Y8DedWNwNJs5Wotd8BRHazLRhhnqsHjP4Mv4ZR90n0zYOZuI0YyBDT0SEw7O2/S2sT87+1+VnFwpH3L5tl2Wh62u2Co7YWtFdlVesqsTNueadM5P+Zl6+Geq5+r45VyLi/6Z74u8IF8U+UVfXvTPrL+Q8vCVvuZr/uJ/Yst0Lr6cc+C40AwEDmeQQ50zKKDGKZQoMZB4Ahio/alxazKo9ifPcHsiko3FcEHMiQWxJEqiImpi9UuREVM+LESkfFiKyIkFMeUrtjT76EzrLV1VwxK6p5tr/p6OyHG3TXHsbL9Em2a/x3A9fgA=",
+  "debug_symbols": "nZPBjoMgEIbfZc4cGBXUvspmY1CxISFoqDbZmL77jiDd9rBJw2V+YfxGBv/ZYdT9du2Mm+YbXL526L2x1lw7Ow9qNbOj3f3BIC271WtNW/CSJ2pRXrsVLm6zlsFd2S28dFuUC7oqT1nOQLuRlApOxurj6cH+aP4/KvFkpXzC4mNaiJOueQbd1Cfdthk0YnPiiFl8W518wXP4oiwTX1Y5fCETX2EOL1P/hcw6v3jydZnDt8l2JRdv/Det1GD8m9cB6coZFCGWhDOoQhRUgIGEC/2OOsQmxDZE5FEwCuFkOSSeLg+rKCIKlSBDIdWgxrCJQlVa+iqPglGOQxyGvStvVG/1OYvT5oaX0Vx/lpRJw7v4edDj5vXRWshRs78=",
   "file_map": {
     "50": {
-      "source": "fn main(mut array: [Field; 2], i: u32) {\n    assert_eq(array[i - 1], 5);\n    assert_eq(array[i], 10);\n\n    array[i] = 2;\n\n    let array2 = [array, array];\n\n    assert_eq(array2[0][0], 5);\n    assert_eq(array2[0][i], 2);\n    assert_eq(array2[i][0], 5);\n    assert_eq(array2[i][i], 2);\n}\n",
+      "source": "fn main(mut array: [Field; 2], i: u32) {\n    assert_eq(array[i - 1], 5);\n    assert_eq(array[i], 10);\n\n    array[i] = 2;\n\n    let array2 = [array, array];\n\n    // println(array2);\n    assert_eq(array2[0][0], 5);\n    assert_eq(array2[0][i], 2);\n    assert_eq(array2[i][0], 5);\n    assert_eq(array2[i][i], 2);\n}\n",
       "path": ""
     }
   },

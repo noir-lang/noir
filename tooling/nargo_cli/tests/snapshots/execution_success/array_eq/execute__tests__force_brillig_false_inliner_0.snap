@@ -72,7 +72,7 @@ expression: artifact
     "EXPR [ (1, _30) (-1, _62) 0 ]",
     "EXPR [ (1, _31) (-1, _63) 0 ]"
   ],
-  "debug_symbols": "jZLdioMwEIXfJddeZMZtt+2rLItEjSUQoqRmYRHfvXGOtvai0JuTn8n3EYaZVGvrdK1c6PqbuvxMqo7Oe3etfN+Y0fUh305zobZjNUZr85Xa1TM1mGjDqC4heV+oP+OTPLoNJsg6mpirulA2tHnNws55u+zm4knr9yjRBhMdH/jhlaf3PGs6rwLWvDN8Lij1Q1Ce9oLffDCNiy89U1p0JMmSpeSX5EHyKPkteZI8g1ph0AScwBMEBANBQXAQJAQLw8LrH2BhWBgWhoVhYVgYFoalhKVcLPPSn+hM7e06F10KzW5Mxv9hq2yDNMS+sW2KdmmP1HLD7g==",
+  "debug_symbols": "fZLBjoMgFEX/hbULH9pO7a9MJgYVGxKChsIkE8O/D74r03Yx3VyE5zmBB5uY9BBvvXHzchfXz00M3lhrbr1dRhXM4vLqlipRpn3wWucl8VTP1Kq8dkFcXbS2Et/KRv7pvirHY1A+V+tKaDflMQtnY/X+laoHXf+PEhWY6PyHn155esN3l7YIuq59GFL6yhM1Gv9yZFGzjjglZ8PZcp44z5wfnBfODtQBgybgBJ4gIBgICoKDICFYJCzy2AMsEhYJi4RFwiJhkbBIWBpYmt2S9v54owarj2udoxufbjn8rKVS3sHql1FP0eu9PVzLDfsF",
   "file_map": {
     "50": {
       "source": "// Simple example of checking where two arrays are equal\nfn main(a: [Field; 32], b: [Field; 32]) {\n    assert(a == b);\n}\n",

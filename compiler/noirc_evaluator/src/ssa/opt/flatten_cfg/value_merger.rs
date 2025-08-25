@@ -62,9 +62,13 @@ impl<'a> ValueMerger<'a> {
                 then_value,
                 else_value,
             )),
-            typ @ Type::Array(_, _) => {
-                self.merge_array_values(typ, then_condition, else_condition, then_value, else_value)
-            }
+            typ @ Type::Array(_, _) => self.merge_array_values_flat_nested(
+                typ,
+                then_condition,
+                else_condition,
+                then_value,
+                else_value,
+            ),
             typ @ Type::Slice(_) => {
                 self.merge_slice_values(typ, then_condition, else_condition, then_value, else_value)
             }
@@ -93,6 +97,7 @@ impl<'a> ValueMerger<'a> {
     ) -> ValueId {
         let then_type = dfg.type_of_value(then_value).unwrap_numeric();
         let else_type = dfg.type_of_value(else_value).unwrap_numeric();
+
         assert_eq!(
             then_type, else_type,
             "Expected values merged to be of the same type but found {then_type} and {else_type}"
@@ -134,7 +139,7 @@ impl<'a> ValueMerger<'a> {
     /// Given an if expression that returns an array: `if c { array1 } else { array2 }`,
     /// this function will recursively merge array1 and array2 into a single resulting array
     /// by creating a new array containing the result of self.merge_values for each element.
-    pub(crate) fn merge_array_values(
+    pub(crate) fn merge_array_values_flat_nested(
         &mut self,
         typ: Type,
         then_condition: ValueId,
@@ -144,37 +149,47 @@ impl<'a> ValueMerger<'a> {
     ) -> Result<ValueId, RuntimeError> {
         let mut merged = im::Vector::new();
 
-        let (element_types, len) = match &typ {
-            Type::Array(elements, len) => (elements, *len),
-            _ => panic!("Expected array type"),
-        };
+        assert!(matches!(&typ, Type::Array(..)));
 
-        for i in 0..len {
-            for (element_index, element_type) in element_types.iter().enumerate() {
-                let index =
-                    ((i * element_types.len() as u32 + element_index as u32) as u128).into();
-                let index = self.dfg.make_constant(index, NumericType::length_type());
+        // TODO: Try to bring this back
+        // let actual_length = len * element_types.len() as u32;
+        // if let Some(result) = self.try_merge_only_changed_indices(
+        //     then_condition,
+        //     else_condition,
+        //     then_value,
+        //     else_value,
+        //     actual_length,
+        // ) {
+        //     return result;
+        // }
 
-                let typevars = Some(vec![element_type.clone()]);
+        let flat_typ = typ.clone().flatten();
+        for (my_index, typ) in flat_typ.into_iter().enumerate() {
+            let index = self.dfg.make_constant(my_index.into(), NumericType::length_type());
+            assert!(matches!(typ, Type::Numeric(_)));
+            let typevars = Some(vec![typ]);
+            let mut get_element = |array, typevars: Option<Vec<Type>>| {
+                let get = Instruction::ArrayGet { array, index, offset: ArrayOffset::None };
+                let res = self
+                    .dfg
+                    .insert_instruction_and_results(get, self.block, typevars, self.call_stack)
+                    .first();
 
-                let mut get_element = |array, typevars| {
-                    let offset = ArrayOffset::None;
-                    let get = Instruction::ArrayGet { array, index, offset };
-                    self.dfg
-                        .insert_instruction_and_results(get, self.block, typevars, self.call_stack)
-                        .first()
-                };
-
-                let then_element = get_element(then_value, typevars.clone());
-                let else_element = get_element(else_value, typevars);
-
-                merged.push_back(self.merge_values(
-                    then_condition,
-                    else_condition,
-                    then_element,
-                    else_element,
-                )?);
-            }
+                let res_typ = self.dfg.type_of_value(res);
+                assert!(
+                    matches!(res_typ, Type::Numeric(_)),
+                    "ICE: Array get is returning a non-numeric type. All arrays in ACIR work upon flat memory. Got {res_typ}"
+                );
+                res
+            };
+            let then_element = get_element(then_value, typevars.clone());
+            let else_element = get_element(else_value, typevars);
+            merged.push_back(self.merge_values(
+                then_condition,
+                else_condition,
+                then_element,
+                else_element,
+            )?);
         }
 
         let instruction = Instruction::MakeArray { elements: merged, typ };
@@ -198,61 +213,68 @@ impl<'a> ValueMerger<'a> {
             _ => panic!("Expected slice type"),
         };
 
+        let flat_element_types_size =
+            element_types.iter().fold(0, |acc, typ| acc + typ.flattened_size());
+
         let then_len = self.slice_sizes.get(&then_value_id).copied().unwrap_or_else(|| {
-            let (slice, typ) = self.dfg.get_array_constant(then_value_id).unwrap_or_else(|| {
+            let (slice, _) = self.dfg.get_array_constant(then_value_id).unwrap_or_else(|| {
                 panic!("ICE: Merging values during flattening encountered slice {then_value_id} without a preset size");
             });
-            (slice.len() / typ.element_types().len()) as u32
+            slice.len() as u32
         });
 
         let else_len = self.slice_sizes.get(&else_value_id).copied().unwrap_or_else(|| {
-            let (slice, typ) = self.dfg.get_array_constant(else_value_id).unwrap_or_else(|| {
+            let (slice, _) = self.dfg.get_array_constant(else_value_id).unwrap_or_else(|| {
                 panic!("ICE: Merging values during flattening encountered slice {else_value_id} without a preset size");
             });
-            (slice.len() / typ.element_types().len()) as u32
+            slice.len() as u32
         });
-
         let len = then_len.max(else_len);
+        let composite_len = len / flat_element_types_size;
 
-        for i in 0..len {
-            for (element_index, element_type) in element_types.iter().enumerate() {
-                let index_u32 = i * element_types.len() as u32 + element_index as u32;
-                let index_value = (index_u32 as u128).into();
-                let index = self.dfg.make_constant(index_value, NumericType::length_type());
+        let flat_types: Vec<Type> = (0..composite_len)
+            .flat_map(|_| element_types.iter().cloned().flat_map(Type::flatten))
+            .collect();
 
-                let typevars = Some(vec![element_type.clone()]);
+        for (my_index, typ) in flat_types.into_iter().enumerate() {
+            let index = self.dfg.make_constant(my_index.into(), NumericType::length_type());
+            assert!(matches!(typ, Type::Numeric(_)));
+            let typevars = Some(vec![typ.clone()]);
 
-                let mut get_element = |array, typevars, len| {
-                    // The smaller slice is filled with placeholder data. Codegen for slice accesses must
-                    // include checks against the dynamic slice length so that this placeholder data is not incorrectly accessed.
-                    if len <= index_u32 {
-                        self.make_slice_dummy_data(element_type)
-                    } else {
-                        let offset = ArrayOffset::None;
-                        let get = Instruction::ArrayGet { array, index, offset };
-                        let results = self.dfg.insert_instruction_and_results(
+            let mut get_element = |array, typevars: Option<Vec<Type>>, len| {
+                // The smaller slice is filled with placeholder data. Codegen for slice accesses must
+                // include checks against the dynamic slice length so that this placeholder data is not incorrectly accessed.
+                if len <= my_index as u32 {
+                    self.make_slice_dummy_data(&typ)
+                } else {
+                    let get = Instruction::ArrayGet { array, index, offset: ArrayOffset::None };
+                    let res = self
+                        .dfg
+                        .insert_instruction_and_results(
                             get,
                             self.block,
-                            typevars,
+                            typevars.clone(),
                             self.call_stack,
-                        );
-                        results.first()
-                    }
-                };
+                        )
+                        .first();
 
-                let len = then_len * element_types.len() as u32;
-                let then_element = get_element(then_value_id, typevars.clone(), len);
+                    let res_typ = self.dfg.type_of_value(res);
+                    assert!(
+                        matches!(res_typ, Type::Numeric(_)),
+                        "ICE: Array get is returning a non-numeric type. All arrays in ACIR work upon flat memory. Got {res_typ}"
+                    );
+                    res
+                }
+            };
+            let then_element = get_element(then_value_id, typevars.clone(), then_len);
+            let else_element = get_element(else_value_id, typevars, else_len);
 
-                let len = else_len * element_types.len() as u32;
-                let else_element = get_element(else_value_id, typevars, len);
-
-                merged.push_back(self.merge_values(
-                    then_condition,
-                    else_condition,
-                    then_element,
-                    else_element,
-                )?);
-            }
+            merged.push_back(self.merge_values(
+                then_condition,
+                else_condition,
+                then_element,
+                else_element,
+            )?);
         }
 
         let instruction = Instruction::MakeArray { elements: merged, typ };

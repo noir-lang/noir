@@ -186,6 +186,11 @@ impl Context<'_> {
                 }))
             }
             AcirValue::Array(array) => {
+                let array = array
+                    .into_iter()
+                    .flat_map(AcirValue::flatten)
+                    .map(|(var, typ)| AcirValue::Var(var, typ))
+                    .collect::<im::Vector<_>>();
                 // `AcirValue::Array` supports reading/writing to constant indices at compile-time in some cases.
                 if let Some(constant_index) = dfg.get_numeric_constant(index) {
                     let store_value = store_value.map(|value| self.convert_value(value, dfg));
@@ -242,7 +247,22 @@ impl Context<'_> {
             // If the index is not out of range, we can optimistically perform the read at compile time
             // as if the predicate were true. This is as if the predicate were to resolve to false then
             // the result should not affect the rest of circuit execution.
-            let value = array[index].clone();
+            // let value = array[index].clone();
+            let results = dfg.instruction_results(instruction);
+            let res_typ = dfg.type_of_value(results[0]);
+            let value = match res_typ {
+                Type::Array(_, _) => {
+                    let mut elements = im::Vector::new();
+                    for i in 0..res_typ.flattened_size() as usize {
+                        elements.push_back(array[index + i].clone());
+                    }
+                    AcirValue::Array(elements)
+                }
+                Type::Numeric(_) => array[index].clone(),
+                Type::Function => todo!(),
+                Type::Reference(_) => todo!(),
+                Type::Slice(_) => unreachable!("cannot have nested slices"),
+            };
             // An `Array` might contain a `DynamicArray`, however if we define the result this way,
             // we would bypass the array initialization and the handling of dynamic values that
             // happens in `array_get_value`. Rather than repeat it here, let the non-special-case
@@ -274,11 +294,10 @@ impl Context<'_> {
         store_value: Option<ValueId>,
         offset: usize,
     ) -> Result<(AcirVar, Option<AcirValue>), RuntimeError> {
-        let array_typ = dfg.type_of_value(array_id);
         let block_id = self.ensure_array_is_initialized(array_id, dfg)?;
 
         let index_var = self.convert_numeric_value(index, dfg)?;
-        let index_var = self.get_flattened_index(&array_typ, array_id, index_var, dfg)?;
+        // let index_var = self.get_flattened_index(&array_typ, array_id, index_var, dfg)?;
 
         let predicate_index = if dfg.is_safe_index(index, array_id) {
             index_var
@@ -442,6 +461,16 @@ impl Context<'_> {
             );
             self.array_get_value(&res_typ, block_id, &mut var_index)?
         };
+
+        if res_typ.is_nested_array() {
+            // TODO: can probably move this entire conversion to a method on `AcirValue`
+            let flat_value = value
+                .flatten()
+                .into_iter()
+                .map(|(var, typ)| AcirValue::Var(var, typ))
+                .collect::<im::Vector<_>>();
+            value = AcirValue::Array(flat_value);
+        }
 
         if let AcirValue::Var(value_var, typ) = &value {
             let array_typ = dfg.type_of_value(array);

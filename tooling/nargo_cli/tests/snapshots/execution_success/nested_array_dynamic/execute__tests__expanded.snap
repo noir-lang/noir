@@ -49,7 +49,7 @@ fn main(mut x: [Foo; 4], y: pub u32) {
     assert(x[y - 2_u32].bar.inner == [103_Field, 104_Field, 105_Field]);
     assert(x[y - 1_u32].bar.inner == [106_Field, 107_Field, 108_Field]);
     assert(x[y].bar.inner == [109_Field, 110_Field, 111_Field]);
-    let foo_parent_one: FooParent = FooParent { array: [0_Field, 1_Field, 2_Field], foos: x };
+    let mut foo_parent_one: FooParent = FooParent { array: [0_Field, 1_Field, 2_Field], foos: x };
     let foo_parent_two: FooParent = FooParent { array: [3_Field, 4_Field, 5_Field], foos: x };
     let mut foo_parents: [FooParent; 2] = [foo_parent_one, foo_parent_two];
     assert(foo_parents[y - 3_u32].foos[y - 3_u32].b == [2_Field, 3_Field, 20_Field]);
@@ -71,6 +71,7 @@ fn main(mut x: [Foo; 4], y: pub u32) {
             foo_parents[i_3818].foos[i_3819].b = [20_Field, 19_Field, 18_Field];
         }
     };
+    assert(foo_parents[1_u32].foos[1_u32].b[0_u32] == 20_Field);
     assert(foo_parents[1_u32].foos[1_u32].b == [20_Field, 19_Field, 18_Field]);
     assert(foo_parents[1_u32].foos[1_u32].b[2_u32] == 18_Field);
     if y == 3_u32 {

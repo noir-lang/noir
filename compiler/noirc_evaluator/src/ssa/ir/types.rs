@@ -222,6 +222,14 @@ impl Type {
         }
     }
 
+    #[allow(dead_code)]
+    pub(crate) fn array_size(&self) -> usize {
+        match self {
+            Type::Array(_, size) => *size as usize,
+            other => panic!("array_size: Expected array, found {other}"),
+        }
+    }
+
     pub(crate) fn contains_slice_element(&self) -> bool {
         match self {
             Type::Array(elements, _) => {
@@ -247,6 +255,18 @@ impl Type {
         }
     }
 
+    pub(crate) fn flatten(self) -> Vec<Type> {
+        match self {
+            Type::Array(elements, len) => {
+                (0..len).flat_map(|_| elements.iter().cloned().flat_map(Type::flatten)).collect()
+            }
+            Type::Slice(_) => {
+                unimplemented!("ICE: cannot flatten slice");
+            }
+            Type::Function | Type::Reference(_) | Type::Numeric(_) => vec![self],
+        }
+    }
+
     /// True if this type is an array (or slice)
     pub(crate) fn is_array(&self) -> bool {
         matches!(self, Type::Array(_, _) | Type::Slice(_))
@@ -255,6 +275,14 @@ impl Type {
     pub(crate) fn is_nested_slice(&self) -> bool {
         if let Type::Slice(element_types) | Type::Array(element_types, _) = self {
             element_types.as_ref().iter().any(|typ| typ.contains_slice_element())
+        } else {
+            false
+        }
+    }
+
+    pub(crate) fn is_nested_array(&self) -> bool {
+        if let Type::Array(element_types, _) = self {
+            element_types.as_ref().iter().any(|typ| typ.contains_an_array())
         } else {
             false
         }
@@ -380,6 +408,29 @@ mod tests {
         assert!(i8.value_is_outside_limits(SignedField::positive(0_i128)).is_none());
         assert!(i8.value_is_outside_limits(SignedField::positive(127_i128)).is_none());
         assert!(i8.value_is_outside_limits(SignedField::positive(128_i128)).is_some());
+    }
+
+    #[test]
+    fn flatten_type() {
+        let array_typ = Type::Array(
+            Arc::new(vec![Type::unsigned(1), Type::field(), Type::field(), Type::unsigned(1)]),
+            2,
+        );
+        let flat_typ = array_typ.flatten();
+
+        let expected = vec![
+            Type::unsigned(1),
+            Type::field(),
+            Type::field(),
+            Type::unsigned(1),
+            Type::unsigned(1),
+            Type::field(),
+            Type::field(),
+            Type::unsigned(1),
+        ];
+        for (got, expected) in flat_typ.into_iter().zip(expected) {
+            assert_eq!(got, expected);
+        }
     }
 
     proptest! {

@@ -38,59 +38,48 @@ expression: artifact
       },
       "visibility": "public"
     },
-    "error_types": {
-      "14225679739041873922": {
-        "error_kind": "string",
-        "string": "Index out of bounds"
-      }
-    }
+    "error_types": {}
   },
   "bytecode": [
     "func 0",
-    "current witness index : _42",
+    "current witness index : _40",
     "private parameters indices : [_0, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10]",
     "public parameters indices : []",
     "return value indices : [_11, _12, _13, _14, _15, _16, _17, _18, _19, _20]",
     "INIT (id: 0, len: 10, witnesses: [_0, _1, _2, _3, _4, _5, _6, _7, _8, _9])",
-    "BRILLIG CALL func 0: inputs: [EXPR [ (1, _10) 4294967286 ], EXPR [ 4294967296 ]], outputs: [_21, _22]",
-    "BLACKBOX::RANGE [(_22, 32)] []",
-    "EXPR [ (1, _10) (-4294967296, _21) (-1, _22) 4294967286 ]",
     "EXPR [ (-1, _21) 0 ]",
-    "EXPR [ (-1, _23) 0 ]",
-    "MEM (id: 0, write EXPR [ (1, _23) 0 ] at: EXPR [ (1, _10) 0 ]) ",
+    "MEM (id: 0, write EXPR [ (1, _21) 0 ] at: EXPR [ (1, _10) 0 ]) ",
+    "MEM (id: 0, read at: EXPR [ (1, _21) 0 ], value: EXPR [ (1, _22) 0 ]) ",
+    "EXPR [ (-1, _23) 1 ]",
     "MEM (id: 0, read at: EXPR [ (1, _23) 0 ], value: EXPR [ (1, _24) 0 ]) ",
-    "EXPR [ (-1, _25) 1 ]",
+    "EXPR [ (-1, _25) 2 ]",
     "MEM (id: 0, read at: EXPR [ (1, _25) 0 ], value: EXPR [ (1, _26) 0 ]) ",
-    "EXPR [ (-1, _27) 2 ]",
+    "EXPR [ (-1, _27) 3 ]",
     "MEM (id: 0, read at: EXPR [ (1, _27) 0 ], value: EXPR [ (1, _28) 0 ]) ",
-    "EXPR [ (-1, _29) 3 ]",
+    "EXPR [ (-1, _29) 4 ]",
     "MEM (id: 0, read at: EXPR [ (1, _29) 0 ], value: EXPR [ (1, _30) 0 ]) ",
-    "EXPR [ (-1, _31) 4 ]",
+    "EXPR [ (-1, _31) 5 ]",
     "MEM (id: 0, read at: EXPR [ (1, _31) 0 ], value: EXPR [ (1, _32) 0 ]) ",
-    "EXPR [ (-1, _33) 5 ]",
+    "EXPR [ (-1, _33) 6 ]",
     "MEM (id: 0, read at: EXPR [ (1, _33) 0 ], value: EXPR [ (1, _34) 0 ]) ",
-    "EXPR [ (-1, _35) 6 ]",
+    "EXPR [ (-1, _35) 7 ]",
     "MEM (id: 0, read at: EXPR [ (1, _35) 0 ], value: EXPR [ (1, _36) 0 ]) ",
-    "EXPR [ (-1, _37) 7 ]",
+    "EXPR [ (-1, _37) 8 ]",
     "MEM (id: 0, read at: EXPR [ (1, _37) 0 ], value: EXPR [ (1, _38) 0 ]) ",
-    "EXPR [ (-1, _39) 8 ]",
+    "EXPR [ (-1, _39) 9 ]",
     "MEM (id: 0, read at: EXPR [ (1, _39) 0 ], value: EXPR [ (1, _40) 0 ]) ",
-    "EXPR [ (-1, _41) 9 ]",
-    "MEM (id: 0, read at: EXPR [ (1, _41) 0 ], value: EXPR [ (1, _42) 0 ]) ",
-    "EXPR [ (1, _11) (-1, _24) 0 ]",
-    "EXPR [ (1, _12) (-1, _26) 0 ]",
-    "EXPR [ (1, _13) (-1, _28) 0 ]",
-    "EXPR [ (1, _14) (-1, _30) 0 ]",
-    "EXPR [ (1, _15) (-1, _32) 0 ]",
-    "EXPR [ (1, _16) (-1, _34) 0 ]",
-    "EXPR [ (1, _17) (-1, _36) 0 ]",
-    "EXPR [ (1, _18) (-1, _38) 0 ]",
-    "EXPR [ (1, _19) (-1, _40) 0 ]",
-    "EXPR [ (1, _20) (-1, _42) 0 ]",
-    "unconstrained func 0",
-    "[Const { destination: Direct(10), bit_size: Integer(U32), value: 2 }, Const { destination: Direct(11), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(10), offset_address: Direct(11) }, BinaryFieldOp { destination: Direct(2), op: IntegerDiv, lhs: Direct(0), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Mul, lhs: Direct(2), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Sub, lhs: Direct(0), rhs: Direct(1) }, Mov { destination: Direct(0), source: Direct(2) }, Stop { return_data: HeapVector { pointer: Direct(11), size: Direct(10) } }]"
+    "EXPR [ (1, _11) (-1, _22) 0 ]",
+    "EXPR [ (1, _12) (-1, _24) 0 ]",
+    "EXPR [ (1, _13) (-1, _26) 0 ]",
+    "EXPR [ (1, _14) (-1, _28) 0 ]",
+    "EXPR [ (1, _15) (-1, _30) 0 ]",
+    "EXPR [ (1, _16) (-1, _32) 0 ]",
+    "EXPR [ (1, _17) (-1, _34) 0 ]",
+    "EXPR [ (1, _18) (-1, _36) 0 ]",
+    "EXPR [ (1, _19) (-1, _38) 0 ]",
+    "EXPR [ (1, _20) (-1, _40) 0 ]"
   ],
-  "debug_symbols": "jZBNCsMgEIXvMmsX+WkS8CqlBGMmQRAVo4UScvdOJLbJotDNG2een4NvhRGHOPfKTHYBfl9h8EprNffaShGUNTRdNwa57YNHpBGcfKKc8GgCcBO1ZvAUOqZLixMm1SA8uQUDNCNVenBSGvfTxr508Rvt2oPtug/c/E23TabrC/2gTkjlL7+FEnjJoEpaJ70lbYBXDFrSbV/llRg0HvlM0chTXOHlspMDdd5KHKPHfVnyaP0b",
+  "debug_symbols": "dY/RCoMwDEX/Jc990MEm+CtjSK1RCiEtsR0M8d8XxW7uYS9Nk9tzm7vAgH2eOs9jmKG9L9CLJ/JTR8HZ5APrdFkNlLZLgqgjOOlKRSvICVrORAaelvL+aI6W95qsqFoZQB60quHoCbfbar509R9tbgfbNB/4qvRDO+u8/OwLNbS1gYue62Yp3vaER5IxszsFS69YlBI9SnA4ZMHNdNf0mzc=",
   "file_map": {
     "50": {
       "source": "fn main(mut x: [Field; 10], index: u32) -> pub [Field; 10] {\n    x[index] = 0;\n    x\n}\n",
@@ -100,7 +89,5 @@ expression: artifact
   "names": [
     "main"
   ],
-  "brillig_names": [
-    "directive_integer_quotient"
-  ]
+  "brillig_names": []
 }

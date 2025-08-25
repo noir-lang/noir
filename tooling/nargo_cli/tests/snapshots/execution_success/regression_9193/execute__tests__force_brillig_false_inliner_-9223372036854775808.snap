@@ -31,7 +31,7 @@ expression: artifact
     "return value indices : []",
     "EXPR [ (-1, _0) 0 ]"
   ],
-  "debug_symbols": "dY/BDoIwDIbfpecdMOpBXsUYMkYhTZpuKZuJIby7hYDiwVPX/vv+9p+gw7YMDUkfR6jvE7RKzDQ0HIPPFMWm0+xgb5usiDaCg25U8oqSoZbC7ODpuayfxuRlrdmrqZUDlM6qGfbEuLxm96Wr/+j5srHn2we+Gv2wzgfSn3uhgvo0L2ZKvmXcMvRFwiFSfqVd2UMnjQG7orjYrZoteAM=",
+  "debug_symbols": "dY/RCoMwDEX/Jc99cIyx4a+MIbVGCYS0xHYwxH9fFN3cw57S5Pbc5E7QYVuGhqSPI9T3CVolZhoajsFnimLTaXawt01WRBvBQTcqeUXJUEthdvD0XNZPY/Ky1uzV1MoBSmfVDHtiXF6z+9LVf/R83djz7QNfjH5Y5wPpz71QQX2aFzMl3zJuGfoi4RApv9Ku7KGTxoBdUVzsVs0WvAE=",
   "file_map": {
     "50": {
       "source": "fn main(a: bool) {\n    if a { 1 / [][0]; };\n}\n",

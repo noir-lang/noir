@@ -60,7 +60,7 @@ expression: artifact
     "EXPR [ (-1, _1) (1, _4) 0 ]",
     "EXPR [ (-1, _2) (1, _5) 0 ]"
   ],
-  "debug_symbols": "zZFLCoMwEEDvMmsXfmv1KkUk6iiBECUmQhHv3iQYq4uC2C66yWcmbybMm6HBSnUl5W0/Qv6YoRKUMdqVrK+JpD3X0XnxwF1LKRB1CHZ5TQ1EIJeQc8WYBxNhyj4aB8LtLonQWd8D5I3edcGWMjSnxXvT/mc0va1smm5wcppOXOc0u0Bn4UoHfvwVHvgHvNA3UlNxmDWEkGsgsmsMuek4EUFJxXB10Spe79TI5+AyTt4g+hobJdCUtjnz1z9VG2TObXhpvnv+it7gnjhBWXRC0KYm/JGaYnkB",
+  "debug_symbols": "zZHNCoQgEIDfZc4d1P0Je5UlwmoKQSxMF5bo3dci3TosROxhL+rM+I0y3wg1lq4tpG66AbLHCKWRSsm2UF0lrOy0z45TAiEsrEH0KdjUPdULg9pCpp1SCTyFcsuloRd62a0wvkoSQF373TdspML5NCUfmnxH0/vKpmmEb4fpW3g55SdoStiKU3I5wfOIU7LDcx+JSprdsIFB5oHLsl4hu05zZyNFqXCV0ThdbdzYVx8qwV5vugprZ3BuvdTmv/6pWxbny07Nl/J75E/55TQI4uyAoKiG/UhNPr0B",
   "file_map": {
     "50": {
       "source": "fn main(x: u32, y: pub u32) {\n    let new_field = new_field_in_array([x, y, 3]);\n    assert(new_field[0] == 25);\n}\n\n#[fold]\nfn new_field_in_array(mut input: [u32; 3]) -> [u32; 3] {\n    input[0] = input[0] + 20;\n    input\n}\n",

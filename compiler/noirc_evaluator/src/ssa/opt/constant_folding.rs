@@ -222,7 +222,7 @@ type InstructionResultCache = HashMap<Instruction, HashMap<Option<ValueId>, Resu
 /// Records the results of all duplicate [`Instruction`]s along with the blocks in which they sit.
 ///
 /// For more information see [`InstructionResultCache`].
-#[derive(Default)]
+#[derive(Default, Debug, Clone)]
 struct ResultCache {
     result: Option<(BasicBlockId, Vec<ValueId>)>,
 }
@@ -532,6 +532,8 @@ impl<'brillig> Context<'brillig> {
             self.cached_instruction_results
                 .entry(instruction)
                 .or_default()
+                // .entry(ctrl_typevars.clone())
+                // .or_default()
                 .entry(predicate)
                 .or_default()
                 .cache(block, instruction_results);
@@ -865,7 +867,7 @@ impl ResultCache {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 enum CacheResult<'a> {
     Cached(&'a [ValueId]),
     NeedToHoistToCommonBlock(BasicBlockId),

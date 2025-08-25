@@ -414,7 +414,9 @@ impl<'a> Context<'a> {
             let typ = dfg.type_of_value(*param_id);
             let value = self.convert_ssa_block_param(&typ)?;
             match &value {
-                AcirValue::Var(_, _) => (),
+                AcirValue::Var(_, _) => {
+                    self.ssa_values.insert(*param_id, value);
+                }
                 AcirValue::Array(_) => {
                     let block_id = self.block_id(param_id);
                     let len = if matches!(typ, Type::Array(_, _)) {
@@ -428,12 +430,17 @@ impl<'a> Context<'a> {
                         .into());
                     };
                     self.initialize_array(block_id, len, Some(value.clone()))?;
+                    let flat_value = value
+                        .flatten()
+                        .into_iter()
+                        .map(|(var, typ)| AcirValue::Var(var, typ))
+                        .collect::<im::Vector<_>>();
+                    self.ssa_values.insert(*param_id, AcirValue::Array(flat_value));
                 }
                 AcirValue::DynamicArray(_) => unreachable!(
                     "The dynamic array type is created in Acir gen and therefore cannot be a block parameter"
                 ),
             }
-            self.ssa_values.insert(*param_id, value);
         }
         let end_witness = self.acir_context.current_witness_index().0;
         let witnesses = (start_witness..=end_witness).map(Witness::from).collect();
@@ -713,7 +720,6 @@ impl<'a> Context<'a> {
 
                                 let output_values =
                                     self.convert_vars_to_values(output_vars, dfg, result_ids);
-
                                 self.handle_ssa_call_outputs(result_ids, output_values, dfg)?;
                             }
                             RuntimeType::Brillig(_) => {
@@ -829,11 +835,18 @@ impl<'a> Context<'a> {
                     arrays::flattened_value_size(&output)
                 };
                 self.initialize_array(block_id, len, Some(output.clone()))?;
+                let flat_value = output
+                    .flatten()
+                    .into_iter()
+                    .map(|(var, typ)| AcirValue::Var(var, typ))
+                    .collect::<im::Vector<_>>();
+                self.ssa_values.insert(*result_id, AcirValue::Array(flat_value));
+            } else {
+                // Do nothing for AcirValue::DynamicArray and AcirValue::Var
+                // A dynamic array returned from a function call should already be initialized
+                // and a single variable does not require any extra initialization.
+                self.ssa_values.insert(*result_id, output);
             }
-            // Do nothing for AcirValue::DynamicArray and AcirValue::Var
-            // A dynamic array returned from a function call should already be initialized
-            // and a single variable does not require any extra initialization.
-            self.ssa_values.insert(*result_id, output);
         }
         Ok(())
     }
@@ -858,12 +871,15 @@ impl<'a> Context<'a> {
                         _ => unreachable!("ICE: Slice value is not an array"),
                     };
 
+                    let flat_items_size =
+                        item_types.iter().map(|typ| typ.flattened_size()).sum::<u32>();
+
                     BrilligParameter::Slice(
                         item_types
                             .iter()
                             .map(BrilligFunctionContext::ssa_type_to_parameter)
                             .collect(),
-                        len / item_types.len(),
+                        len / flat_items_size as usize,
                     )
                 } else {
                     BrilligFunctionContext::ssa_type_to_parameter(&typ)

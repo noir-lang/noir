@@ -18,6 +18,8 @@ fn main(mut x: Field) {
     add1(*nested_allocations.y);
     assert(**nested_allocations.y == 1_Field);
     let mut c: C = C { foo: 0_Field, bar: &mut C2 { array: &mut [1_Field, 2_Field] } };
+    c.bar.array[0_u32] = 3_Field;
+    assert(*c.bar.array == [3_Field, 2_Field]);
     *(c.bar.array) = [3_Field, 4_Field];
     assert(*c.bar.array == [3_Field, 4_Field]);
     regression_1887();

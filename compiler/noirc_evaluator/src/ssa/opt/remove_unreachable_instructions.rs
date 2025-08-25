@@ -176,11 +176,13 @@ impl Function {
                     let array_or_slice_type = context.dfg.type_of_value(*array);
                     let array_op_always_fails = match &array_or_slice_type {
                         Type::Slice(_) => false,
-                        array_type @ Type::Array(_, len) => {
+                        Type::Array(elements, len) => {
+                            let flat_types_size: u32 =
+                                elements.iter().map(|element| element.flattened_size()).sum();
                             *len == 0
                                 || context.dfg.get_numeric_constant(*index).is_some_and(|index| {
                                     (index.try_to_u32().unwrap() - offset.to_u32())
-                                        >= (array_type.element_size() as u32 * len)
+                                        >= flat_types_size * len
                                 })
                         }
 
