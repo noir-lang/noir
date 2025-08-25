@@ -88,7 +88,7 @@ pub(super) fn compile_array_copy_procedure<F: AcirField + DebugToString>(
 }
 
 /// The message to print when copying an array.
-const ARRAY_COPY_COUNTER_MESSAGE: &str = "Total arrays copied: {}";
+const ARRAY_COPY_COUNTER_MESSAGE: &str = "Total arrays copied in";
 
 /// The metadata string needed to tell `print` to print out a u32
 const PRINT_U32_TYPE_STRING: &str = "{\"kind\":\"unsignedinteger\",\"width\":32}";
@@ -153,7 +153,9 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         });
 
         let newline = ValueOrArray::MemoryAddress(ReservedRegisters::usize_one());
-        let message = literal_string_to_value(ARRAY_COPY_COUNTER_MESSAGE, self);
+        let message_with_func_name =
+            format!("{ARRAY_COPY_COUNTER_MESSAGE} {}: {{}}", &self.name(),);
+        let message = literal_string_to_value(&message_with_func_name, self);
         let item_count = ValueOrArray::MemoryAddress(ReservedRegisters::usize_one());
         let value_to_print = ValueOrArray::MemoryAddress(array_copy_counter.extract_register());
         let type_string_metadata = literal_string_to_value(PRINT_U32_TYPE_STRING, self);
@@ -173,7 +175,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         let u32_type = HeapValueType::Simple(BitSize::Integer(IntegerBitSize::U32));
 
         let newline_type = u1_type.clone();
-        let size = ARRAY_COPY_COUNTER_MESSAGE.len();
+        let size = message_with_func_name.len();
         let msg_type = HeapValueType::Array { value_types: vec![u8_type.clone()], size };
         let item_count_type = HeapValueType::field();
         let value_to_print_type = u32_type;
