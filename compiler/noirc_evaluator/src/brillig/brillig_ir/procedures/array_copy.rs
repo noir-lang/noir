@@ -87,9 +87,6 @@ pub(super) fn compile_array_copy_procedure<F: AcirField + DebugToString>(
     });
 }
 
-/// The message to print when copying an array.
-const ARRAY_COPY_COUNTER_MESSAGE: &str = "Total arrays copied in";
-
 /// The metadata string needed to tell `print` to print out a u32
 const PRINT_U32_TYPE_STRING: &str = "{\"kind\":\"unsignedinteger\",\"width\":32}";
 // "{\"kind\":\"array\",\"length\":2,\"type\":{\"kind\":\"unsignedinteger\",\"width\":32}}";
@@ -153,7 +150,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         });
 
         let newline = ValueOrArray::MemoryAddress(ReservedRegisters::usize_one());
-        let message_with_func_name = format!("{ARRAY_COPY_COUNTER_MESSAGE} {}: {{}}", &self.name());
+        let message_with_func_name = format!("Total arrays copied in {}: {{}}", &self.name());
         let message = literal_string_to_value(&message_with_func_name, self);
         let item_count = ValueOrArray::MemoryAddress(ReservedRegisters::usize_one());
         let value_to_print = ValueOrArray::MemoryAddress(array_copy_counter.extract_register());
