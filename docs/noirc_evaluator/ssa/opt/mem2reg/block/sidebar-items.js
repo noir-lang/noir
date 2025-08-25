@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["Expression"],"struct":["Block"]};
+window.SIDEBAR_ITEMS = {"enum":["Expression","ReferenceValue"],"struct":["Block"]};
