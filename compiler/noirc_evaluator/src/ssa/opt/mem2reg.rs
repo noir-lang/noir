@@ -151,7 +151,7 @@ struct PerFunctionContext<'f> {
 impl<'f> PerFunctionContext<'f> {
     fn new(function: &'f mut Function) -> Self {
         let cfg = ControlFlowGraph::with_function(function);
-        let post_order = PostOrder::with_function(function);
+        let post_order = PostOrder::with_cfg(&cfg);
 
         PerFunctionContext {
             cfg,
@@ -171,7 +171,7 @@ impl<'f> PerFunctionContext<'f> {
     /// dom_tree were created from.
     fn mem2reg(&mut self) {
         // Iterate each block in reverse post order = forward order
-        let mut block_order = PostOrder::with_function(self.inserter.function).into_vec();
+        let mut block_order = self.post_order.as_slice().to_vec();
         block_order.reverse();
 
         for block in block_order {
