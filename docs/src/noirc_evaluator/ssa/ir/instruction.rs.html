@@ -974,7 +974,79 @@
 <a href="#973" id="973">973</a>
 <a href="#974" id="974">974</a>
 <a href="#975" id="975">975</a>
-<a href="#976" id="976">976</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::call_stack::CallStackId;
+<a href="#976" id="976">976</a>
+<a href="#977" id="977">977</a>
+<a href="#978" id="978">978</a>
+<a href="#979" id="979">979</a>
+<a href="#980" id="980">980</a>
+<a href="#981" id="981">981</a>
+<a href="#982" id="982">982</a>
+<a href="#983" id="983">983</a>
+<a href="#984" id="984">984</a>
+<a href="#985" id="985">985</a>
+<a href="#986" id="986">986</a>
+<a href="#987" id="987">987</a>
+<a href="#988" id="988">988</a>
+<a href="#989" id="989">989</a>
+<a href="#990" id="990">990</a>
+<a href="#991" id="991">991</a>
+<a href="#992" id="992">992</a>
+<a href="#993" id="993">993</a>
+<a href="#994" id="994">994</a>
+<a href="#995" id="995">995</a>
+<a href="#996" id="996">996</a>
+<a href="#997" id="997">997</a>
+<a href="#998" id="998">998</a>
+<a href="#999" id="999">999</a>
+<a href="#1000" id="1000">1000</a>
+<a href="#1001" id="1001">1001</a>
+<a href="#1002" id="1002">1002</a>
+<a href="#1003" id="1003">1003</a>
+<a href="#1004" id="1004">1004</a>
+<a href="#1005" id="1005">1005</a>
+<a href="#1006" id="1006">1006</a>
+<a href="#1007" id="1007">1007</a>
+<a href="#1008" id="1008">1008</a>
+<a href="#1009" id="1009">1009</a>
+<a href="#1010" id="1010">1010</a>
+<a href="#1011" id="1011">1011</a>
+<a href="#1012" id="1012">1012</a>
+<a href="#1013" id="1013">1013</a>
+<a href="#1014" id="1014">1014</a>
+<a href="#1015" id="1015">1015</a>
+<a href="#1016" id="1016">1016</a>
+<a href="#1017" id="1017">1017</a>
+<a href="#1018" id="1018">1018</a>
+<a href="#1019" id="1019">1019</a>
+<a href="#1020" id="1020">1020</a>
+<a href="#1021" id="1021">1021</a>
+<a href="#1022" id="1022">1022</a>
+<a href="#1023" id="1023">1023</a>
+<a href="#1024" id="1024">1024</a>
+<a href="#1025" id="1025">1025</a>
+<a href="#1026" id="1026">1026</a>
+<a href="#1027" id="1027">1027</a>
+<a href="#1028" id="1028">1028</a>
+<a href="#1029" id="1029">1029</a>
+<a href="#1030" id="1030">1030</a>
+<a href="#1031" id="1031">1031</a>
+<a href="#1032" id="1032">1032</a>
+<a href="#1033" id="1033">1033</a>
+<a href="#1034" id="1034">1034</a>
+<a href="#1035" id="1035">1035</a>
+<a href="#1036" id="1036">1036</a>
+<a href="#1037" id="1037">1037</a>
+<a href="#1038" id="1038">1038</a>
+<a href="#1039" id="1039">1039</a>
+<a href="#1040" id="1040">1040</a>
+<a href="#1041" id="1041">1041</a>
+<a href="#1042" id="1042">1042</a>
+<a href="#1043" id="1043">1043</a>
+<a href="#1044" id="1044">1044</a>
+<a href="#1045" id="1045">1045</a>
+<a href="#1046" id="1046">1046</a>
+<a href="#1047" id="1047">1047</a>
+<a href="#1048" id="1048">1048</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::call_stack::CallStackId;
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 <span class="kw">use </span>std::hash::{Hash, Hasher};
 
@@ -1016,29 +1088,101 @@
 ///   source code and must be processed by the IR.
 </span><span class="attr">#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 </span><span class="kw">pub enum </span>Intrinsic {
-    ArrayLen,
-    ArrayAsStrUnchecked,
-    AsSlice,
-    AssertConstant,
-    StaticAssert,
-    SlicePushBack,
-    SlicePushFront,
-    SlicePopBack,
-    SlicePopFront,
-    SliceInsert,
-    SliceRemove,
-    ApplyRangeConstraint,
-    StrAsBytes,
-    ToBits(Endian),
-    ToRadix(Endian),
-    BlackBox(BlackBoxFunc),
-    Hint(Hint),
-    AsWitness,
-    IsUnconstrained,
-    DerivePedersenGenerators,
-    FieldLessThan,
-    ArrayRefCount,
-    SliceRefCount,
+    <span class="doccomment">/// ArrayLen - returns the length of the input array
+    /// argument: array (value id)
+    /// result: length of the array, panic if the input is not an array
+    </span>ArrayLen,
+    <span class="doccomment">/// ArrayAsStrUnchecked - Converts a byte array of type `[u8; N]` to a string
+    /// argument: array (value id)
+    /// result: str
+    </span>ArrayAsStrUnchecked,
+    <span class="doccomment">/// AsSlice
+    /// argument: value id
+    /// result: a slice containing the elements of the argument. Panic if the value id does not correspond to an `array` type
+    </span>AsSlice,
+    <span class="doccomment">/// AssertConstant - Enforce the argument to be a constant value, at compile time.
+    /// argument: value id
+    /// result: (), panic if the argument does not resolve to a constant value
+    </span>AssertConstant,
+    <span class="doccomment">/// StaticAssert - Enforce the first argument to be true, at compile time
+    /// arguments: boolean (value id), ...message. The message can be a `format string` of several arguments
+    /// result: (), panic if the arguments do not resolve to constant values or if the first one is false.
+    </span>StaticAssert,
+    <span class="doccomment">/// SlicePushBack - Add elements at the end of a slice
+    /// arguments:  slice length, slice contents, ...elements_to_push
+    /// result: a slice containing `slice contents,..elements_to_push`
+    </span>SlicePushBack,
+    <span class="doccomment">/// SlicePushFront - Add elements at the start of a slice
+    /// arguments:  slice length, slice contents, ...elements_to_push
+    /// result: a slice containing `..elements_to_push, slice contents`
+    </span>SlicePushFront,
+    <span class="doccomment">/// SlicePopBack - Removes the last element of a slice
+    /// arguments: slice length, slice contents
+    /// result: a slice without the last element of `slice contents`
+    </span>SlicePopBack,
+    <span class="doccomment">/// SlicePopFront - Removes the first element of a slice
+    /// arguments: slice length, slice contents
+    /// result: a slice without the first element of `slice contents`
+    </span>SlicePopFront,
+    <span class="doccomment">/// SliceInsert - Insert elements inside a slice.
+    /// arguments: slice length, slice contents, insert index, ...elements_to_insert
+    /// result: a slice with ...elements_to_insert inserted at the `insert index`
+    </span>SliceInsert,
+    <span class="doccomment">/// SliceRemove - Removes an element from a slice
+    /// arguments: slice length, slice contents, remove index
+    /// result: a slice with without the element at `remove index`
+    </span>SliceRemove,
+    <span class="doccomment">/// ApplyRangeConstraint - Enforces the `bit size` of the first argument via a range check.
+    /// arguments: value id, bit size (constant)
+    /// result: applies a range check constraint to the input. It is replaced by a RangeCheck instruction during simplification.
+    </span>ApplyRangeConstraint,
+    <span class="doccomment">/// StrAsBytes - Convert a `str` into a byte array of type `[u8; N]`
+    /// arguments: value id
+    /// result: the argument. Internally a `str` is a byte array.
+    </span>StrAsBytes,
+    <span class="doccomment">/// ToBits(Endian) - Computes the bit decomposition of the argument.
+    /// argument: a field element (value id)
+    /// result: an array whose elements are the bit decomposition of the argument, in the endian order depending on the chosen variant.
+    /// The type of the result gives the number of limbs to use for the decomposition.
+    </span>ToBits(Endian),
+    <span class="doccomment">/// ToRadix(Endian) - Decompose the first argument over the `radix` base
+    /// arguments: a field element (value id), the radix to use (constant, a power of 2 between 2 and 256)
+    /// result: an array whose elements are the decomposition of the argument into the `radix` base, in the endian order depending on the chosen variant.
+    /// The type of the result gives the number of limbs to use for the decomposition.
+    </span>ToRadix(Endian),
+    <span class="doccomment">/// BlackBox(BlackBoxFunc) - Calls a blackbox function. More details can be found here: [acvm-repo::acir::::circuit::opcodes::BlackBoxFuncCall]
+    </span>BlackBox(BlackBoxFunc),
+    <span class="doccomment">/// Hint(Hint) - Avoid its arguments to be removed by DIE.
+    /// arguments: ... value id
+    /// result: the arguments. Hint does not layout any constraint but avoid its arguments to be simplified out during SSA transformations
+    </span>Hint(Hint),
+    <span class="doccomment">/// AsWitness - Adds a new witness constrained to be equal to the argument
+    /// arguments: value id
+    /// result: the argument
+    </span>AsWitness,
+    <span class="doccomment">/// IsUnconstrained - Indicates if the execution context is constrained or unconstrained
+    /// argument: ()
+    /// result: true if execution is under unconstrained context, false else.
+    </span>IsUnconstrained,
+    <span class="doccomment">/// DerivePedersenGenerators - Computes the Pedersen generators
+    /// arguments: domain_separator_string (constant string), starting_index (constant)
+    /// result: array of elliptic curve points (Grumpkin) containing the generators.
+    /// The type of the result gives the number of generators to compute.
+    </span>DerivePedersenGenerators,
+    <span class="doccomment">/// FieldLessThan - Compare the arguments: `lhs` &lt; `rhs`
+    /// arguments: lhs, rhs. Field elements
+    /// result: true if `lhs` mod p &lt; `rhs` mod p (p being the field characteristic), false else
+    </span>FieldLessThan,
+    <span class="doccomment">/// ArrayRefCount - Gives the reference count of the array
+    /// argument: array (value id)
+    /// result: reference count of `array`. In unconstrained context, the reference count is stored alongside the array.
+    /// in constrained context, it will be 0.
+    </span>ArrayRefCount,
+    <span class="doccomment">/// SliceRefCount - Gives the reference count of the slice
+    /// argument: slice (value id)
+    /// result: reference count of `slice`. In unconstrained context, the reference count is stored alongside the slice.
+    /// in constrained context, it will be 0.
+    </span>SliceRefCount,
 }
 
 <span class="kw">impl </span>std::fmt::Display <span class="kw">for </span>Intrinsic {
