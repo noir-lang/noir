@@ -237,7 +237,10 @@ impl Block {
     }
 
     pub(super) fn set_last_load(&mut self, address: ValueId, instruction: InstructionId) {
-        self.last_loads.insert(address, instruction);
+        let aliases = self.get_aliases_for_value(address);
+        if !aliases.is_unknown() {
+            self.last_loads.insert(address, instruction);
+        }
     }
 
     pub(super) fn keep_last_load_for(&mut self, address: ValueId) {
