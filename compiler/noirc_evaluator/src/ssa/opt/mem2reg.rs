@@ -235,8 +235,12 @@ impl<'f> PerFunctionContext<'f> {
     ) -> bool {
         let reference_parameters = self.reference_parameters();
 
+        let aliases = block.get_aliases_for_value(*store_address);
+        if aliases.is_unknown() {
+            return true;
+        }
         // Check whether the store address has an alias that crosses an entry point boundary (e.g. a Call or Return)
-        for alias in block.get_aliases_for_value(*store_address).iter() {
+        for alias in aliases.iter() {
             if reference_parameters.contains(&alias) {
                 return true;
             }
@@ -345,14 +349,20 @@ impl<'f> PerFunctionContext<'f> {
             match dfg.type_of_value(*param) {
                 // If the type indirectly contains a reference we have to assume all references
                 // are unknown since we don't have any ValueIds to use.
-                Type::Reference(element) if element.contains_reference() => return,
+                Type::Reference(element) if element.contains_reference() => {
+                  self.mark_all_unknown(params, references);
+                  return;
+                }
                 Type::Reference(element) => {
                     let empty_aliases = AliasSet::known_empty();
                     let alias_set =
                         aliases.entry(element.as_ref().clone()).or_insert(empty_aliases);
                     alias_set.insert(*param);
                 }
-                typ if typ.contains_reference() => return,
+                typ if typ.contains_reference() => {
+                  self.mark_all_unknown(params, references);
+                  return;
+                }
                 _ => continue,
             }
         }
@@ -915,6 +925,21 @@ mod tests {
         let src = "
         acir(inline) fn main f0 {
           b0(v0: &mut Field, v1: &mut Field):
+            store Field 0 at v0
+            store Field 0 at v1
+            v3 = load v0 -> Field
+            constrain v3 == Field 0
+            return
+        }
+        ";
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
+    }
+
+    #[test]
+    fn parameter_alias_nested_reference() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: &mut Field, v1: &mut Field, v2: &mut &mut Field):
             store Field 0 at v0
             store Field 0 at v1
             v3 = load v0 -> Field
