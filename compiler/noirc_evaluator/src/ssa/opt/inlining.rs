@@ -461,17 +461,9 @@ impl<'function> PerFunctionContext<'function> {
                 return_values
             }
             _ => {
-                // If there is more than 1 return instruction we'll need to create a single block we
-                // can return to and continue inserting in afterwards.
-                let return_block = self.context.builder.insert_block();
-
-                for (block, return_values) in returns {
-                    self.context.builder.switch_to_block(block);
-                    self.context.builder.terminate_with_jmp(return_block, return_values);
-                }
-
-                self.context.builder.switch_to_block(return_block);
-                self.context.builder.block_parameters(return_block).to_vec()
+                panic!(
+                    "ICE: found a function with multiple return terminators, but that should not happen"
+                )
             }
         }
     }
