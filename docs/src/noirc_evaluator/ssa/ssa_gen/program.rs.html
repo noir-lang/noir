@@ -204,13 +204,7 @@
 <a href="#203" id="203">203</a>
 <a href="#204" id="204">204</a>
 <a href="#205" id="205">205</a>
-<a href="#206" id="206">206</a>
-<a href="#207" id="207">207</a>
-<a href="#208" id="208">208</a>
-<a href="#209" id="209">209</a>
-<a href="#210" id="210">210</a>
-<a href="#211" id="211">211</a>
-<a href="#212" id="212">212</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
+<a href="#206" id="206">206</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
 
 <span class="kw">use </span>acvm::acir::circuit::ErrorSelector;
 <span class="kw">use </span>fxhash::{FxHashMap <span class="kw">as </span>HashMap, FxHashSet <span class="kw">as </span>HashSet};
@@ -311,9 +305,7 @@
         function == <span class="self">self</span>.main_id || <span class="self">self</span>.functions[<span class="kw-2">&amp;</span>function].runtime().is_entry_point()
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>used_globals_in_brillig_functions(
-        <span class="kw-2">&amp;</span><span class="self">self</span>,
-    ) -&gt; HashMap&lt;FunctionId, HashSet&lt;ValueId&gt;&gt; {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>used_globals_in_functions(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; HashMap&lt;FunctionId, HashSet&lt;ValueId&gt;&gt; {
         <span class="kw">fn </span>add_value_to_globals_if_global(
             function: <span class="kw-2">&amp;</span>Function,
             value_id: ValueId,
@@ -340,10 +332,6 @@
         <span class="kw">let </span><span class="kw-2">mut </span>used_globals = HashMap::default();
 
         <span class="kw">for </span>(function_id, function) <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.functions {
-            <span class="kw">if </span>!function.runtime().is_brillig() {
-                <span class="kw">continue</span>;
-            }
-
             <span class="kw">let </span><span class="kw-2">mut </span>used_globals_in_function = HashSet::default();
 
             <span class="kw">for </span>call_data <span class="kw">in </span><span class="kw-2">&amp;</span>function.dfg.data_bus.call_data {

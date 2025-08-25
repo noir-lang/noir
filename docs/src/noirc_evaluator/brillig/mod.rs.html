@@ -324,7 +324,7 @@
     <span class="doccomment">/// Compile Brillig functions and ACIR functions reachable from them
     </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
     </span><span class="kw">pub fn </span>to_brillig(<span class="kw-2">&amp;</span><span class="self">self</span>, options: <span class="kw-2">&amp;</span>BrilligOptions) -&gt; Brillig {
-        <span class="kw">let </span>used_globals_map = <span class="self">self</span>.used_globals_in_brillig_functions();
+        <span class="kw">let </span>used_globals_map = <span class="self">self</span>.used_globals_in_functions();
 
         <span class="comment">// Collect all the function ids that are reachable from brillig
         // That means all the functions marked as brillig and ACIR functions called by them

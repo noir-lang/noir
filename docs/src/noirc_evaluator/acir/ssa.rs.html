@@ -95,7 +95,13 @@
 <a href="#94" id="94">94</a>
 <a href="#95" id="95">95</a>
 <a href="#96" id="96">96</a>
-<a href="#97" id="97">97</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
+<a href="#97" id="97">97</a>
+<a href="#98" id="98">98</a>
+<a href="#99" id="99">99</a>
+<a href="#100" id="100">100</a>
+<a href="#101" id="101">101</a>
+<a href="#102" id="102">102</a>
+<a href="#103" id="103">103</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
 
 <span class="kw">use </span>acvm::{
     FieldElement,
@@ -138,9 +144,15 @@
     expression_width: ExpressionWidth,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;Artifacts, RuntimeError&gt; {
     <span class="kw">let </span><span class="kw-2">mut </span>acirs = Vec::new();
+
+    <span class="kw">let </span>used_globals = ssa.used_globals_in_functions();
+
     <span class="comment">// TODO: can we parallelize this?
-    </span><span class="kw">let </span><span class="kw-2">mut </span>shared_context =
-        SharedContext { brillig_stdlib: brillig_stdlib.clone(), ..SharedContext::default() };
+    </span><span class="kw">let </span><span class="kw-2">mut </span>shared_context = SharedContext {
+        brillig_stdlib: brillig_stdlib.clone(),
+        used_globals,
+        ..SharedContext::default()
+    };
 
     <span class="kw">for </span>function <span class="kw">in </span>ssa.functions.values() {
         <span class="kw">let </span>context = Context::new(

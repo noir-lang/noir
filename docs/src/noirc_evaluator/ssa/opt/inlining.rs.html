@@ -1300,30 +1300,7 @@
 <a href="#1299" id="1299">1299</a>
 <a href="#1300" id="1300">1300</a>
 <a href="#1301" id="1301">1301</a>
-<a href="#1302" id="1302">1302</a>
-<a href="#1303" id="1303">1303</a>
-<a href="#1304" id="1304">1304</a>
-<a href="#1305" id="1305">1305</a>
-<a href="#1306" id="1306">1306</a>
-<a href="#1307" id="1307">1307</a>
-<a href="#1308" id="1308">1308</a>
-<a href="#1309" id="1309">1309</a>
-<a href="#1310" id="1310">1310</a>
-<a href="#1311" id="1311">1311</a>
-<a href="#1312" id="1312">1312</a>
-<a href="#1313" id="1313">1313</a>
-<a href="#1314" id="1314">1314</a>
-<a href="#1315" id="1315">1315</a>
-<a href="#1316" id="1316">1316</a>
-<a href="#1317" id="1317">1317</a>
-<a href="#1318" id="1318">1318</a>
-<a href="#1319" id="1319">1319</a>
-<a href="#1320" id="1320">1320</a>
-<a href="#1321" id="1321">1321</a>
-<a href="#1322" id="1322">1322</a>
-<a href="#1323" id="1323">1323</a>
-<a href="#1324" id="1324">1324</a>
-<a href="#1325" id="1325">1325</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module defines the function inlining pass for the SSA IR.
+<a href="#1302" id="1302">1302</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module defines the function inlining pass for the SSA IR.
 //! The purpose of this pass is to inline the instructions of each function call
 //! within the function caller. If all function calls are known, there will only
 //! be a single function remaining when the pass finishes.
@@ -1340,7 +1317,7 @@
     ir::{
         basic_block::BasicBlockId,
         call_graph::CallGraph,
-        dfg::{GlobalsGraph, InsertInstructionResult},
+        dfg::InsertInstructionResult,
         function::{Function, FunctionId, RuntimeType},
         instruction::{Instruction, InstructionId, TerminatorInstruction},
         value::{Value, ValueId},
@@ -1515,8 +1492,6 @@
 
     <span class="doccomment">/// True if we're currently working on the entry point function.
     </span>inlining_entry: bool,
-
-    globals: <span class="kw-2">&amp;</span><span class="lifetime">'function </span>GlobalsGraph,
 }
 
 <span class="kw">impl </span>InlineContext {
@@ -1539,8 +1514,7 @@
     ) -&gt; <span class="prelude-ty">Result</span>&lt;Function, RuntimeError&gt; {
         <span class="kw">let </span>entry_point = <span class="kw-2">&amp;</span>ssa.functions[<span class="kw-2">&amp;</span><span class="self">self</span>.entry_point];
 
-        <span class="kw">let </span>globals = <span class="kw-2">&amp;</span>entry_point.dfg.globals;
-        <span class="kw">let </span><span class="kw-2">mut </span>context = PerFunctionContext::new(<span class="kw-2">&amp;mut </span><span class="self">self</span>, entry_point, entry_point, globals);
+        <span class="kw">let </span><span class="kw-2">mut </span>context = PerFunctionContext::new(<span class="kw-2">&amp;mut </span><span class="self">self</span>, entry_point, entry_point);
         context.inlining_entry = <span class="bool-val">true</span>;
 
         <span class="comment">// The entry block is already inserted so we have to add it to context.blocks and add
@@ -1582,8 +1556,7 @@
         }
 
         <span class="kw">let </span>entry_point = <span class="kw-2">&amp;</span>ssa.functions[<span class="kw-2">&amp;</span><span class="self">self</span>.entry_point];
-        <span class="kw">let </span>globals = <span class="kw-2">&amp;</span>source_function.dfg.globals;
-        <span class="kw">let </span><span class="kw-2">mut </span>context = PerFunctionContext::new(<span class="self">self</span>, entry_point, source_function, globals);
+        <span class="kw">let </span><span class="kw-2">mut </span>context = PerFunctionContext::new(<span class="self">self</span>, entry_point, source_function);
 
         <span class="kw">let </span>parameters = source_function.parameters();
         <span class="macro">assert_eq!</span>(parameters.len(), arguments.len());
@@ -1607,7 +1580,6 @@
         context: <span class="kw-2">&amp;</span><span class="lifetime">'function </span><span class="kw-2">mut </span>InlineContext,
         entry_function: <span class="kw-2">&amp;</span><span class="lifetime">'function </span>Function,
         source_function: <span class="kw-2">&amp;</span><span class="lifetime">'function </span>Function,
-        globals: <span class="kw-2">&amp;</span><span class="lifetime">'function </span>GlobalsGraph,
     ) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
             context,
@@ -1616,7 +1588,6 @@
             blocks: HashMap::default(),
             values: HashMap::default(),
             inlining_entry: <span class="bool-val">false</span>,
-            globals,
         }
     }
 
@@ -1631,21 +1602,9 @@
         }
 
         <span class="kw">let </span>new_value = <span class="kw">match </span><span class="kw-2">&amp;</span><span class="self">self</span>.source_function.dfg[id] {
-            value @ Value::Instruction { instruction, .. } =&gt; {
+            value @ Value::Instruction { .. } =&gt; {
                 <span class="kw">if </span><span class="self">self</span>.source_function.dfg.is_global(id) {
-                    <span class="kw">if </span><span class="self">self</span>.context.builder.current_function.dfg.runtime().is_acir() {
-                        <span class="kw">let </span>Instruction::MakeArray { elements, typ } = <span class="kw-2">&amp;</span><span class="self">self</span>.globals[<span class="kw-2">*</span>instruction]
-                        <span class="kw">else </span>{
-                            <span class="macro">panic!</span>(<span class="string">"Only expect Instruction::MakeArray for a global"</span>);
-                        };
-                        <span class="kw">let </span>elements = elements
-                            .iter()
-                            .map(|element| <span class="self">self</span>.translate_value(<span class="kw-2">*</span>element))
-                            .collect::&lt;im::Vector&lt;<span class="kw">_</span>&gt;&gt;();
-                        <span class="kw">return </span><span class="self">self</span>.context.builder.insert_make_array(elements, typ.clone());
-                    } <span class="kw">else </span>{
-                        <span class="kw">return </span>id;
-                    }
+                    <span class="kw">return </span>id;
                 }
                 <span class="macro">unreachable!</span>(
                     <span class="string">"All Value::Instructions should already be known during inlining after creating the original inlined instruction. Unknown value {id} = {value:?}"
@@ -1659,10 +1618,7 @@
             Value::NumericConstant { constant, typ } =&gt; {
                 <span class="comment">// The dfg indexes a global's inner value directly, so we need to check here
                 // whether we have a global.
-                // We also only keep a global and do not inline it in a Brillig runtime.
-                </span><span class="kw">if </span><span class="self">self</span>.source_function.dfg.is_global(id)
-                    &amp;&amp; <span class="self">self</span>.context.builder.current_function.dfg.runtime().is_brillig()
-                {
+                </span><span class="kw">if </span><span class="self">self</span>.source_function.dfg.is_global(id) {
                     id
                 } <span class="kw">else </span>{
                     <span class="self">self</span>.context.builder.numeric_constant(<span class="kw-2">*</span>constant, <span class="kw-2">*</span>typ)
@@ -2483,7 +2439,7 @@
     }
 
     <span class="attr">#[test]
-    </span><span class="kw">fn </span>acir_global_arrays_are_inlined_with_new_value_ids() {
+    </span><span class="kw">fn </span>acir_global_arrays_keep_same_value_ids() {
         <span class="kw">let </span>src = <span class="string">"
         g0 = Field 1
         g1 = Field 2
@@ -2510,8 +2466,7 @@
 
         acir(inline) fn main f0 {
           b0():
-            v3 = make_array [Field 1, Field 2] : [Field; 2]
-            return v3
+            return g2
         }
         "</span>);
     }
@@ -2550,7 +2505,7 @@
     }
 
     <span class="attr">#[test]
-    </span><span class="kw">fn </span>acir_global_constants_are_inlined_with_new_value_ids() {
+    </span><span class="kw">fn </span>acir_global_constants_keep_same_value_ids() {
         <span class="kw">let </span>src = <span class="string">"
         g0 = Field 1
 
@@ -2576,10 +2531,9 @@
             <span class="macro">panic!</span>(<span class="string">"Expected return"</span>);
         };
         <span class="macro">assert_eq!</span>(return_values.len(), <span class="number">1</span>);
-        <span class="comment">// TODO(https://github.com/noir-lang/noir/issues/9408)
-        // assert!(!main.dfg.is_global(return_values[0]));
+        <span class="macro">assert!</span>(main.dfg.is_global(return_values[<span class="number">0</span>]));
 
-        </span><span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
+        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
         g0 = Field 1
 
         acir(inline) fn main f0 {
