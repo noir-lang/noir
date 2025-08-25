@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1756133178746,
+  "lastUpdate": 1756136827478,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -20161,48 +20161,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "dmitriymozir@gmail.com",
-            "name": "MozirDmitriy",
-            "username": "MozirDmitriy"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "12465f3ae45cdbd96531889e9420ad02254e17f9",
-          "message": "fix: Sync len after map rebuilds in iter_mut/iter_keys_mut for HashMap and UHashMap (#9491)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>\nCo-authored-by: Jake Fecher <jfecher11@gmail.com>",
-          "timestamp": "2025-08-15T16:07:15Z",
-          "tree_id": "981794b6a0ffac03a5b9349aa884d935b18819e1",
-          "url": "https://github.com/noir-lang/noir/commit/12465f3ae45cdbd96531889e9420ad02254e17f9"
-        },
-        "date": 1755275582095,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 259997,
-            "range": "± 988",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 233381,
-            "range": "± 3592",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2806430,
-            "range": "± 20542",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -22254,6 +22212,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2779317,
             "range": "± 2192",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "f4d008624409a6297f74222a9729f38172126b53",
+          "message": "chore: some inlining refactors (#9622)",
+          "timestamp": "2025-08-25T15:20:45Z",
+          "tree_id": "8a384f09a41c9f62d6c4d496610afe3467bb9ccc",
+          "url": "https://github.com/noir-lang/noir/commit/f4d008624409a6297f74222a9729f38172126b53"
+        },
+        "date": 1756136809484,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 249930,
+            "range": "± 716",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 219664,
+            "range": "± 820",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2784506,
+            "range": "± 935",
             "unit": "ns/iter"
           }
         ]
