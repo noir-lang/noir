@@ -189,9 +189,6 @@ struct PerFunctionContext<'function> {
 
     /// True if we're currently working on the entry point function.
     inlining_entry: bool,
-
-    #[allow(dead_code)]
-    globals: &'function GlobalsGraph,
 }
 
 impl InlineContext {
@@ -214,8 +211,7 @@ impl InlineContext {
     ) -> Result<Function, RuntimeError> {
         let entry_point = &ssa.functions[&self.entry_point];
 
-        let globals = &entry_point.dfg.globals;
-        let mut context = PerFunctionContext::new(&mut self, entry_point, entry_point, globals);
+        let mut context = PerFunctionContext::new(&mut self, entry_point, entry_point);
         context.inlining_entry = true;
 
         // The entry block is already inserted so we have to add it to context.blocks and add
@@ -264,8 +260,7 @@ impl InlineContext {
         }
 
         let entry_point = &ssa.functions[&self.entry_point];
-        let globals = &source_function.dfg.globals;
-        let mut context = PerFunctionContext::new(self, entry_point, source_function, globals);
+        let mut context = PerFunctionContext::new(self, entry_point, source_function);
 
         let parameters = source_function.parameters();
         assert_eq!(parameters.len(), arguments.len());
@@ -289,7 +284,6 @@ impl<'function> PerFunctionContext<'function> {
         context: &'function mut InlineContext,
         entry_function: &'function Function,
         source_function: &'function Function,
-        globals: &'function GlobalsGraph,
     ) -> Self {
         Self {
             context,
@@ -298,7 +292,6 @@ impl<'function> PerFunctionContext<'function> {
             blocks: HashMap::default(),
             values: HashMap::default(),
             inlining_entry: false,
-            globals,
         }
     }
 
