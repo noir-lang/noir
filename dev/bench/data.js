@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1756151219855,
+  "lastUpdate": 1756151228786,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -12112,80 +12112,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "84741533+defkit@users.noreply.github.com",
-            "name": "defkit",
-            "username": "defkit"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "7c6b4e38637bea35e979849789b9260720403df7",
-          "message": "chore(ssa_fuzzer): reorganisation of tests + generative mutations (#9531)",
-          "timestamp": "2025-08-18T12:33:35Z",
-          "tree_id": "bc90ae08deb18af51d7d4f19563d7ed8db3933d7",
-          "url": "https://github.com/noir-lang/noir/commit/7c6b4e38637bea35e979849789b9260720403df7"
-        },
-        "date": 1755522748841,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 206.74,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 243.56,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 195.97,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 500.28,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 432.92,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1500,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 328.22,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 330.57,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 69.53,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 55.02,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -15755,6 +15681,80 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/f435c938ca1e1a2ce4449a484cc6d3dae270b3dd"
         },
         "date": 1756147298033,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 206.72,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 243.53,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 195.94,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 500.25,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 432.9,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1500,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 328.19,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 330.55,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 69.5,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 54.99,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d171555e29ae093ba7f1ce6012a50c8570eb9ffd",
+          "message": "fix: Revert \"feat(mem2reg): address last known value is independent of its… (#9628)",
+          "timestamp": "2025-08-25T19:07:57Z",
+          "tree_id": "bafe4b337b65ca3fbf02b73ec4b08c40cdbc27a7",
+          "url": "https://github.com/noir-lang/noir/commit/d171555e29ae093ba7f1ce6012a50c8570eb9ffd"
+        },
+        "date": 1756151209800,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
