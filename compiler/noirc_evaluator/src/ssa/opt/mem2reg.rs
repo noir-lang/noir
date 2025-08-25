@@ -1588,6 +1588,9 @@ mod tests {
         // This is a regression test for https://github.com/noir-lang/noir/pull/9613
         // In that PR all tests passed but the sync to Aztec-Packages failed.
         // That PR had `store v3 at v1` incorrectly removed.
+        // Even though v3 is what was in v1 and it might seem that there's no
+        // need to put v3 back in v1, v0 and v1 might be aliases so `store v2 at v0`
+        // might change the value at v1, so the next store to v1 must be preserved.
         let src = r#"
         acir(inline) fn create_note f0 {
           b0(v0: &mut [Field; 1], v1: &mut [Field; 1]):
