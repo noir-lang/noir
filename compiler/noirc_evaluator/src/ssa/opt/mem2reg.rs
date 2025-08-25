@@ -7,9 +7,9 @@
 //! - Each block in each function is iterated in forward-order.
 //! - The starting value of each reference in the block is the unification of the same references
 //!   at the end of each direct predecessor block to the current block.
-//! - At each step, the value of each reference is either known or unknown, tracked with a map.
-//! - Two reference values unify to each other if they are exactly equal.
-//! - If a block has no predecessors, the starting value of each reference is unknown (not present in the map).
+//! - At each step, the value of each reference is either Known(ValueId) or Unknown.
+//! - Two reference values unify to each other if they are exactly equal, or to Unknown otherwise.
+//! - If a block has no predecessors, the starting value of each reference is Unknown.
 //! - Throughout this pass, aliases of each reference are also tracked.
 //!   - References typically have 1 alias - themselves.
 //!   - A reference with multiple aliases means we will not be able to optimize out loads if the
@@ -41,19 +41,19 @@
 //! - On `Instruction::Store { address, value }`:
 //!   - If the address of the store is known:
 //!     - If the address has exactly 1 alias:
-//!       - Set the value of the address to the known `value`.
+//!       - Set the value of the address to `Known(value)`.
 //!     - If the address has more than 1 alias:
-//!       - Clear out the known value of of every possible alias.
+//!       - Set the value of every possible alias to `Unknown`.
 //!     - If the address has 0 aliases:
-//!       - Conservatively mark every alias in the block as unknown.
+//!       - Conservatively mark every alias in the block to `Unknown`.
 //!   - If the address of the store is not known:
-//!     - Conservatively mark every alias in the block as unknown.
+//!     - Conservatively mark every alias in the block to `Unknown`.
 //!   - Additionally, if there were no Loads to any alias of the address between this Store and
 //!     the previous Store to the same address, the previous store can be removed.
 //!   - Remove the instance of the last load instruction to the address and its aliases
 //! - On `Instruction::Call { arguments }`:
-//!   - If any argument of the call is a reference, remove the known value of each alias of that
-//!     reference
+//!   - If any argument of the call is a reference, set the value of each alias of that
+//!     reference to `Unknown`
 //!   - Any builtin functions that may return aliases if their input also contains a
 //!     reference should be tracked. Examples: `slice_push_back`, `slice_insert`, `slice_remove`, etc.
 //!   - Remove the instance of the last load instruction for any reference arguments and their aliases
@@ -705,7 +705,7 @@ impl<'f> PerFunctionContext<'f> {
                         .extend(references.get_aliases_for_value(*return_value).iter());
                 }
                 // Removing all `last_stores` for each returned reference is more important here
-                // than setting them all to unknown since no other block should
+                // than setting them all to ReferenceValue::Unknown since no other block should
                 // have a block with a Return terminator as a predecessor anyway.
                 self.mark_all_unknown(return_values, references);
             }
@@ -1268,7 +1268,9 @@ mod tests {
           b0(v0: u32):
             v2 = call f1(v0) -> [&mut u32; 1]
             v4 = array_get v2, index u32 0 -> &mut u32
-            return u32 1
+            store u32 1 at v4
+            v6 = load v4 -> u1
+            return v6
         }
         brillig(inline_always) fn foo f1 {
           b0(v0: u32):
@@ -1577,50 +1579,6 @@ mod tests {
             jmp b3()
           b3():
             return v2
-        }
-        ");
-    }
-
-    #[test]
-    fn store_load_from_array_get() {
-        let src = "
-        brillig(inline) fn main f0 {
-          b0():
-            v1 = allocate -> &mut u1
-            store u1 0 at v1
-            v3 = make_array [v1] : [&mut u1]
-            jmpif u1 1 then: b1, else: b2
-          b1():
-            jmp b3(u32 0, u32 1)
-          b2():
-            jmp b3(u32 0, u32 1)
-          b3(v0: u32, v8: u32):
-            constrain v0 == u32 0
-            v6 = array_get v3, index v0 -> &mut u1
-            store u1 0 at v6
-            v7 = load v6 -> u1
-            return v7
-        }
-        ";
-
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.mem2reg();
-
-        assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) fn main f0 {
-          b0():
-            v2 = allocate -> &mut u1
-            store u1 0 at v2
-            v4 = make_array [v2] : [&mut u1]
-            jmpif u1 1 then: b1, else: b2
-          b1():
-            jmp b3(u32 0, u32 1)
-          b2():
-            jmp b3(u32 0, u32 1)
-          b3(v0: u32, v1: u32):
-            constrain v0 == u32 0
-            v8 = array_get v4, index v0 -> &mut u1
-            return u1 0
         }
         ");
     }
