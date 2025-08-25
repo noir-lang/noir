@@ -717,7 +717,7 @@ impl<'f> PerFunctionContext<'f> {
 mod tests {
     use crate::{
         assert_ssa_snapshot,
-        ssa::{Ssa, opt::assert_normalized_ssa_equals},
+        ssa::{Ssa, opt::assert_ssa_does_not_change},
     };
 
     #[test]
@@ -857,7 +857,8 @@ mod tests {
         // to remove it.
         // The final store in b1 is removed as no loads are done within any blocks
         // to the stored values.
-        let expected = "
+        let ssa = ssa.mem2reg();
+        assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0():
             v0 = allocate -> &mut Field
@@ -868,10 +869,7 @@ mod tests {
             store Field 1 at v0
             return
         }
-        ";
-
-        let ssa = ssa.mem2reg();
-        assert_normalized_ssa_equals(ssa, expected);
+        ");
     }
 
     #[test]
@@ -906,9 +904,7 @@ mod tests {
             return
         }
         ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.mem2reg();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 
     #[test]
@@ -926,9 +922,7 @@ mod tests {
             return
         }
         ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.mem2reg();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 
     #[test]
@@ -1039,12 +1033,7 @@ mod tests {
             return
         }
         ";
-
-        let ssa = Ssa::from_str(src).unwrap();
-
-        let ssa = ssa.mem2reg();
-        // We expect the program to be unchanged
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 
     #[test]
@@ -1078,12 +1067,7 @@ mod tests {
             return
         }
         ";
-
-        let ssa = Ssa::from_str(src).unwrap();
-
-        let ssa = ssa.mem2reg();
-        // We expect the program to be unchanged
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 
     #[test]
@@ -1108,10 +1092,7 @@ mod tests {
             return v3
         }
         ";
-
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.mem2reg();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 
     #[test]
@@ -1144,11 +1125,7 @@ mod tests {
             return v1
         }
         ";
-
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.mem2reg();
-
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 
     #[test]
@@ -1169,10 +1146,7 @@ mod tests {
             return v4
         }
         ";
-
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.mem2reg();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 
     #[test]
@@ -1195,10 +1169,7 @@ mod tests {
             return v7
         }
         ";
-
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.mem2reg();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 
     #[test]
@@ -1221,10 +1192,7 @@ mod tests {
             return v7
         }
         ";
-
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.mem2reg();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 
     #[test]
@@ -1345,9 +1313,7 @@ mod tests {
             return v0
         }
         ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.mem2reg();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 
     #[test]
@@ -1382,9 +1348,7 @@ mod tests {
             return v1
         }
         ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.mem2reg();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 
     #[test]
@@ -1416,9 +1380,7 @@ mod tests {
                 return v7
             }
         ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.mem2reg();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 
     #[test]
@@ -1445,9 +1407,7 @@ mod tests {
             return
         }
         ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.mem2reg();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 
     #[test]
@@ -1462,12 +1422,7 @@ mod tests {
             return
         }
         ";
-
-        let ssa = Ssa::from_str(src).unwrap();
-
-        let ssa = ssa.mem2reg();
-        // We expect the program to be unchanged
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 
     #[test]
@@ -1483,12 +1438,7 @@ mod tests {
             return v0
         }
         ";
-
-        let ssa = Ssa::from_str(src).unwrap();
-
-        let ssa = ssa.mem2reg();
-        // We expect the program to be unchanged
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 
     #[test]
@@ -1506,12 +1456,7 @@ mod tests {
             return
         }
         ";
-
-        let ssa = Ssa::from_str(src).unwrap();
-
-        let ssa = ssa.mem2reg();
-        // We expect the program to be unchanged
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 
     #[test]
@@ -1571,10 +1516,7 @@ mod tests {
                 return
             }
         ";
-
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.mem2reg();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 
     #[test]

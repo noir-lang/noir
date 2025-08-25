@@ -162,7 +162,7 @@ fn get_max_num_bits(
 mod tests {
     use crate::{
         assert_ssa_snapshot,
-        ssa::{opt::assert_normalized_ssa_equals, ssa_gen::Ssa},
+        ssa::{opt::assert_ssa_does_not_change, ssa_gen::Ssa},
     };
 
     #[test]
@@ -309,9 +309,7 @@ mod tests {
             return v5
         }
         ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.checked_to_unchecked();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::checked_to_unchecked);
     }
 
     #[test]
@@ -325,9 +323,7 @@ mod tests {
             return v3
         }
         ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.checked_to_unchecked();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::checked_to_unchecked);
     }
 
     #[test]
@@ -342,9 +338,7 @@ mod tests {
             return v2
         }
         ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.checked_to_unchecked();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::checked_to_unchecked);
     }
 
     #[test]

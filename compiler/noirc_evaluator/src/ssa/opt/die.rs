@@ -1004,7 +1004,7 @@ mod test {
                 map::Id,
                 types::{NumericType, Type},
             },
-            opt::assert_normalized_ssa_equals,
+            opt::assert_ssa_does_not_change,
         },
     };
 
@@ -1106,11 +1106,7 @@ mod test {
                 return v2
             }
             ";
-        let ssa = Ssa::from_str(src).unwrap();
-
-        // We expect the output to be unchanged
-        let ssa = ssa.dead_instruction_elimination();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::dead_instruction_elimination);
     }
 
     #[test]
@@ -1214,9 +1210,7 @@ mod test {
                 return
             }
             ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.dead_instruction_elimination();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::dead_instruction_elimination);
     }
 
     #[test]
@@ -1306,10 +1300,7 @@ mod test {
             return Field 1
         }
         ";
-
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.dead_instruction_elimination();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::dead_instruction_elimination);
     }
 
     #[test]
@@ -1507,10 +1498,7 @@ mod test {
             return v2
         }
         "#;
-
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.dead_instruction_elimination();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::dead_instruction_elimination);
     }
 
     #[test]
@@ -1525,10 +1513,7 @@ mod test {
             return v0
         }
         "#;
-
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.dead_instruction_elimination();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::dead_instruction_elimination);
     }
 
     #[test]
@@ -1584,9 +1569,7 @@ mod test {
             return v3
         }
         ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.dead_instruction_elimination_pre_flattening();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::dead_instruction_elimination_pre_flattening);
     }
 
     #[test]
@@ -1712,11 +1695,8 @@ mod test {
             jmp b1()
         }
         ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.dead_instruction_elimination();
-
         // If `inc_rc v3` were removed, we risk it later being mutated in `v19 = array_set v18, index u32 0, value Field 1`.
         // Thus, when we later go to do `v22 = array_set v21, index u32 0, value v3` once more, we will be writing [1] rather than [2].
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::dead_instruction_elimination);
     }
 }

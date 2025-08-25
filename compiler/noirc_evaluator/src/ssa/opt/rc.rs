@@ -163,7 +163,7 @@ mod test {
         assert_ssa_snapshot,
         ssa::{
             ir::{basic_block::BasicBlockId, dfg::DataFlowGraph, instruction::Instruction},
-            opt::assert_normalized_ssa_equals,
+            opt::assert_ssa_does_not_change,
             ssa_gen::Ssa,
         },
     };
@@ -284,9 +284,7 @@ mod test {
             return v0
         }
         ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.remove_paired_rc();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::remove_paired_rc);
     }
 
     #[test]
@@ -298,9 +296,7 @@ mod test {
             return v0
         }
         ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.remove_paired_rc();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::remove_paired_rc);
     }
 
     #[test]
@@ -393,9 +389,7 @@ mod test {
             return v2
         }
         ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.remove_paired_rc();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::remove_paired_rc);
     }
 
     #[test]
@@ -413,11 +407,9 @@ mod test {
             return v1  
         }
         ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.remove_paired_rc();
         // This pass is very conservative and only looks for inc_rc's in the entry block and dec_rc's in the exit block
         // The dec_rc is not in the return block so we do not expect the rc pair to be removed.
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::remove_paired_rc);
     }
 
     #[test]
