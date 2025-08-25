@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1756141399293,
+  "lastUpdate": 1756141534244,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -12121,80 +12121,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "9062697bbcefced22184c43998c1f966543e2b6b",
-          "message": "feat: simplify bitshift logic to remove leftover overflow handling (#9506)",
-          "timestamp": "2025-08-16T13:15:18Z",
-          "tree_id": "fc9cc760027688d93de1f91855dd32fbe0fb02cf",
-          "url": "https://github.com/noir-lang/noir/commit/9062697bbcefced22184c43998c1f966543e2b6b"
-        },
-        "date": 1755352551407,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 206.74,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 243.56,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 195.97,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 500.28,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 432.92,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1500,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 328.22,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 330.57,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 69.53,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 55.02,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "18f8faf3fcd156c152050fa09bba6e575fd01605",
           "message": "chore: redo typo PR by Daulox92 (#9529)",
@@ -15755,6 +15681,80 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/f4d008624409a6297f74222a9729f38172126b53"
         },
         "date": 1756137624322,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 206.72,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 243.53,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 195.94,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 500.25,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 432.9,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1500,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 328.19,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 330.55,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 69.5,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 54.99,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "37b5bdc6d5fd63647a9c330f34060826b2d145ed",
+          "message": "chore: only run remove_paired_rc in brillig functions (#9624)",
+          "timestamp": "2025-08-25T16:24:33Z",
+          "tree_id": "195b760bcd532442fa0b6e9ad9a8d6d3af1a7cf8",
+          "url": "https://github.com/noir-lang/noir/commit/37b5bdc6d5fd63647a9c330f34060826b2d145ed"
+        },
+        "date": 1756141515712,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
