@@ -212,7 +212,7 @@ mod tests {
             enable_debug_assertions: true,
             enable_array_copy_counter: false,
         };
-        let mut context = BrilligContext::new(&options);
+        let mut context = BrilligContext::new("test", &options);
         context.enter_context(Label::function(FunctionId::test_new(0)));
         context
     }

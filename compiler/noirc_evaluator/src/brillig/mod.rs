@@ -102,7 +102,7 @@ impl Brillig {
         hoisted_global_constants: &HashMap<(FieldElement, NumericType), BrilligVariable>,
         is_entry_point: bool,
     ) -> BrilligArtifact<FieldElement> {
-        let mut brillig_context = BrilligContext::new(options);
+        let mut brillig_context = BrilligContext::new(func.name(), options);
 
         let mut function_context = FunctionContext::new(func, is_entry_point);
 
@@ -122,9 +122,7 @@ impl Brillig {
             );
         }
 
-        let mut artifact = brillig_context.artifact();
-        artifact.name = func.name().to_string();
-        artifact
+        brillig_context.artifact()
     }
 }
 
