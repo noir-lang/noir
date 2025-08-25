@@ -1,5 +1,5 @@
 //! This file contains the SSA `remove_if_else` pass - a required pass for ACIR to remove any remaining
-//! `Instruction::IfElse` in the singular program-function,  and remplace them with
+//! `Instruction::IfElse` in the singular program-function, and replace them with
 //! arithmetic operations using the `then_condition`.
 //!
 //! ACIR/Brillig differences within this pass:
@@ -9,7 +9,7 @@
 //! Conditions:
 //!   - Precondition: Flatten CFG has been performed which should result in a program having only
 //!     one basic block, representing the `main` function.
-//!   - Precondition: `then_value` and `else_value` of `Instruction::IfElse` have the same type: Array or Slice.
+//!   - Precondition: `then_value` and `else_value` of `Instruction::IfElse` return arrays or slices. Numeric values should be handled previously by the flattening pass.
 //!     Reference or function values are not handled by remove if-else and will cause an error.
 //!   - Postcondition: A program without any `IfElse` instructions.
 //!
@@ -17,6 +17,7 @@
 //!   - Flattening inserts `Instruction::IfElse` to merge array or slice values from an if-expression's "then"
 //!     and "else" branches. `Instruction::IfElse` with numeric values are directly handled during the flattening
 //!     and will cause a panic in the `remove_if_else` pass.
+//!   - Defunctionalize removes first-class function values from the program which eliminates the need for remove-if-else to handle `Instruction::IfElse` returning function values.
 //!
 //! Implementation details & examples:
 //! `IfElse` instructions choose between its two operand values,
@@ -30,12 +31,12 @@
 //! ```
 //!
 //! These instructions are inserted during the flatten cfg pass, which convert conditional control flow
-//! at the basic block level into instruction-level control flow, using these IfElse instructions,
-//! and leaving only one basic block. The flatten cfg pass handles directly numeric values and issues
-//! `Instruction::IfElse` only for arrays and slices. A separate pass is used for array and slices
+//! at the basic block level into simple ternary operations returning a value, using these IfElse instructions,
+//! and leaving only one basic block. The flatten cfg pass directly handles numeric values and issues
+//! `Instruction::IfElse` only for arrays and slices. The remove-if-else pass is used for array and slices
 //! in order to track their lengths, depending on existing slice intrinsics which modify slices,
 //! or the array set instructions.
-//! The `Instruction::IfElse` is removed using a `ValueMerger` which process recursively for nested arrays/slices.
+//! The `Instruction::IfElse` is removed using a `ValueMerger` which operates recursively for nested arrays/slices.
 //!
 //! For example, this code:
 //! ```noir
