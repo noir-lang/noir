@@ -41,7 +41,7 @@ unconstrained fn get_msb(val: [u64; 6]) -> u32 {
 
 unconstrained fn shl(shift: u32) -> [u64; 6] {
     let num_shifted_limbs = shift / 60;
-    let limb_shift = (shift % 60) as u8;
+    let limb_shift = (shift % 60) as u64;
 
     let mut result = [0; 6];
     result[num_shifted_limbs] = (1 << limb_shift);
