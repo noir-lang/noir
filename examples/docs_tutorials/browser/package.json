@@ -12,7 +12,7 @@
     "@noir-lang/noir_js": "workspace:*"
   },
   "devDependencies": {
-    "@playwright/test": "^1.54.2",
+    "@playwright/test": "^1.49.0",
     "@types/node": "^20.0.0",
     "typescript": "^5.8.3",
     "vite": "^7.0.6"
