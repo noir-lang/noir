@@ -123,6 +123,7 @@ impl Ssa {
         for entry_point in inline_targets {
             let function = &self.functions[&entry_point];
             let inlined = function.inlined(&self, &should_inline_call)?;
+            assert_eq!(inlined.id(), entry_point);
             new_functions.insert(entry_point, inlined);
         }
         self.functions = new_functions;
