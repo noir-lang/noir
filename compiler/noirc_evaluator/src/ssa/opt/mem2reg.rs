@@ -445,12 +445,15 @@ impl<'f> PerFunctionContext<'f> {
                     self.inserter.map_value(result, value);
                     self.instructions_to_remove.insert(instruction);
                 } else {
-                    // We don't know the exact value of the address, so we must keep the stores to it.
-                    references.mark_value_used(address, self.inserter.function);
                     // Remember that this address has been loaded, so stores to it should not be removed.
                     self.last_loads.insert(address);
                     // Stores to any of its aliases should also be considered loaded.
                     self.last_loads.extend(references.get_aliases_for_value(address).iter());
+                }
+
+                // If the address is potentially aliased we must keep the stores to it
+                if references.get_aliases_for_value(address).single_alias().is_none() {
+                    references.mark_value_used(address, self.inserter.function);
                 }
 
                 // Check whether the block has a repeat load from the same address (w/ no calls or stores in between the loads).
@@ -1293,6 +1296,7 @@ mod tests {
           b0(v0: u32):
             v2 = call f1(v0) -> [&mut u32; 1]
             v4 = array_get v2, index u32 0 -> &mut u32
+            store u32 1 at v4
             return u32 1
         }
         brillig(inline_always) fn foo f1 {
@@ -1645,6 +1649,7 @@ mod tests {
           b3(v0: u32, v1: u32):
             constrain v0 == u32 0
             v8 = array_get v4, index v0 -> &mut u1
+            store u1 0 at v8
             return u1 0
         }
         ");
@@ -1668,9 +1673,23 @@ mod tests {
             v4 = load v1 -> [Field; 1]
             v6 = make_array [Field 0] : [Field; 1]
             store v6 at v1
-            return v1
+            return v1, v4
         }
         "#;
-        assert_ssa_does_not_change(src, Ssa::mem2reg);
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn create_note f0 {
+          b0(v0: &mut [Field; 1], v1: &mut [Field; 1]):
+            v2 = load v0 -> [Field; 1]
+            v3 = load v1 -> [Field; 1]
+            store v2 at v0
+            store v3 at v1
+            v5 = make_array [Field 0] : [Field; 1]
+            store v5 at v1
+            return v1, v3
+        }
+        ");
     }
 }
