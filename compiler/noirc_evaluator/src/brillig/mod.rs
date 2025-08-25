@@ -139,7 +139,7 @@ impl Ssa {
     /// Compile Brillig functions and ACIR functions reachable from them
     #[tracing::instrument(level = "trace", skip_all)]
     pub fn to_brillig(&self, options: &BrilligOptions) -> Brillig {
-        let used_globals_map = self.used_globals_in_brillig_functions();
+        let used_globals_map = self.used_globals_in_functions();
 
         // Collect all the function ids that are reachable from brillig
         // That means all the functions marked as brillig and ACIR functions called by them

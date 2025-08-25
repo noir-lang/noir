@@ -99,9 +99,7 @@ impl Ssa {
         function == self.main_id || self.functions[&function].runtime().is_entry_point()
     }
 
-    pub(crate) fn used_globals_in_brillig_functions(
-        &self,
-    ) -> HashMap<FunctionId, HashSet<ValueId>> {
+    pub(crate) fn used_globals_in_functions(&self) -> HashMap<FunctionId, HashSet<ValueId>> {
         fn add_value_to_globals_if_global(
             function: &Function,
             value_id: ValueId,

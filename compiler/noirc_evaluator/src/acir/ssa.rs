@@ -42,7 +42,7 @@ pub(super) fn codegen_acir(
 ) -> Result<Artifacts, RuntimeError> {
     let mut acirs = Vec::new();
 
-    let used_globals = ssa.used_globals_in_brillig_functions();
+    let used_globals = ssa.used_globals_in_functions();
 
     // TODO: can we parallelize this?
     let mut shared_context = SharedContext {
