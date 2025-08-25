@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1756141563718,
+  "lastUpdate": 1756144976124,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -20171,48 +20171,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "18f8faf3fcd156c152050fa09bba6e575fd01605",
-          "message": "chore: redo typo PR by Daulox92 (#9529)",
-          "timestamp": "2025-08-16T16:04:29+01:00",
-          "tree_id": "b7852354f3d9ef47668570b6bf63e7d367589e17",
-          "url": "https://github.com/noir-lang/noir/commit/18f8faf3fcd156c152050fa09bba6e575fd01605"
-        },
-        "date": 1755356817869,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 247493,
-            "range": "± 385",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 218003,
-            "range": "± 3136",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2814267,
-            "range": "± 3831",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "163862677+noirwhal@users.noreply.github.com",
             "name": "noirwhal",
             "username": "noirwhal"
@@ -22264,6 +22222,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2779393,
             "range": "± 1448",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "22ceb270944bf6688828592d845d49527609b3eb",
+          "message": "chore(brillig): Include function name with `--count-array-copies` debug information (#9623)",
+          "timestamp": "2025-08-25T17:32:41Z",
+          "tree_id": "3b5ff66781565218201ab81d170ed8867dab2eb0",
+          "url": "https://github.com/noir-lang/noir/commit/22ceb270944bf6688828592d845d49527609b3eb"
+        },
+        "date": 1756144957663,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 249948,
+            "range": "± 695",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 217970,
+            "range": "± 2682",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2779793,
+            "range": "± 1502",
             "unit": "ns/iter"
           }
         ]
