@@ -181,19 +181,40 @@ impl Context<'_, '_, '_> {
     /// }
     fn two_pow(&mut self, exponent: ValueId) -> ValueId {
         // Require that exponent < bit_size, ensuring that `pow` returns a value consistent with `lhs`'s type.
-        self.enforce_bitshift_rhs_lt_bit_size(exponent);
+        let max_bit_size = self.enforce_bitshift_rhs_lt_bit_size(exponent);
 
         if let Some(exponent_const) = self.context.dfg.get_numeric_constant(exponent) {
-            let pow = FieldElement::from(2u32).pow(&exponent_const);
+            let exponent_const_as_u32 = exponent_const.try_to_u32();
+            let pow = if exponent_const_as_u32.is_none_or(|v| v > max_bit_size) {
+                // If the exponent is guaranteed to overflow the value returned here doesn't matter as
+                // `enforce_bitshift_rhs_lt_bit_size` will trigger a constrain failure. We don't want to return
+                // `2^exponent` here as that value is later cast to the target type and it would be an invalid cast.
+                FieldElement::zero()
+            } else {
+                FieldElement::from(2u32).pow(&exponent_const)
+            };
             return self.numeric_constant(pow, NumericType::NativeField);
         }
 
-        let to_bits = self.context.dfg.import_intrinsic(Intrinsic::ToBits(Endian::Little));
-        let max_exponent_bits = self.context.dfg.get_value_max_num_bits(exponent).ilog2() + 1;
+        // When shifting, for instance, `u32` values the maximum allowed value is 31, one less than the bit size.
+        // Representing the maximum value requires 5 bits, which is log2(32), so any `u32` exponent will require
+        // at most 5 bits. Similarly, `u64` values will require at most 6 bits, etc.
+        // Using `get_value_max_num_bits` here could work, though in practice:
+        // - constant exponents are handled in the `if` above
+        // - if a smaller type was upcasted, for example `u8` to `u32`, an `u8` can hold values up to 256
+        //   which is even larger than the largest unsigned type u128, so nothing better can be done here
+        // - the exception would be casting a `u1` to a larger type, where we know the exponent can be
+        //   either zero or one, which we special-case here
+        let max_exponent_bits = if self.context.dfg.get_value_max_num_bits(exponent) == 1 {
+            1
+        } else {
+            self.context.dfg.type_of_value(exponent).bit_size().ilog2()
+        };
         let result_types = vec![Type::Array(Arc::new(vec![Type::bool()]), max_exponent_bits)];
 
         // A call to ToBits can only be done with a field argument (exponent is always u8 here)
         let exponent_as_field = self.insert_cast(exponent, NumericType::NativeField);
+        let to_bits = self.context.dfg.import_intrinsic(Intrinsic::ToBits(Endian::Little));
         let exponent_bits = self.insert_call(to_bits, vec![exponent_as_field], result_types);
 
         let exponent_bits = exponent_bits[0];
@@ -228,29 +249,31 @@ impl Context<'_, '_, '_> {
 
     /// Insert constraints ensuring that the right-hand side of a bit-shift operation
     /// is less than the bit size of the left-hand side.
-    fn enforce_bitshift_rhs_lt_bit_size(&mut self, rhs: ValueId) {
+    /// Returns the maximum bit size allowed for `rhs`.
+    fn enforce_bitshift_rhs_lt_bit_size(&mut self, rhs: ValueId) -> u32 {
         let one = self.numeric_constant(FieldElement::one(), NumericType::bool());
         let rhs_type = self.context.dfg.type_of_value(rhs);
 
         let assert_message = Some("attempt to bit-shift with overflow".to_owned());
 
-        let (bit_size, bit_size_field) = match rhs_type {
-            Type::Numeric(NumericType::Unsigned { bit_size }) => {
-                (bit_size, FieldElement::from(bit_size))
-            }
+        let (bit_size, max_bit_size) = match rhs_type {
+            Type::Numeric(NumericType::Unsigned { bit_size }) => (bit_size, bit_size),
             Type::Numeric(NumericType::Signed { bit_size }) => {
                 assert!(bit_size > 1, "ICE - i1 is not a valid type");
 
-                (bit_size, FieldElement::from(bit_size - 1))
+                (bit_size, bit_size - 1)
             }
             _ => unreachable!("check_shift_overflow called with non-numeric type"),
         };
+        let bit_size_field = FieldElement::from(max_bit_size);
 
         let unsigned_typ = NumericType::unsigned(bit_size);
         let max = self.numeric_constant(bit_size_field, unsigned_typ);
         let rhs = self.insert_cast(rhs, unsigned_typ);
         let overflow = self.insert_binary(rhs, BinaryOp::Lt, max);
         self.insert_constrain(overflow, one, assert_message.map(Into::into));
+
+        max_bit_size
     }
 
     pub(crate) fn field_constant(&mut self, constant: FieldElement) -> ValueId {
@@ -416,14 +439,14 @@ mod tests {
                 v3 = lt v1, u32 32
                 constrain v3 == u1 1, "attempt to bit-shift with overflow"
                 v5 = cast v1 as Field
-                v7 = call to_le_bits(v5) -> [u1; 6]
-                v9 = array_get v7, index u32 5 -> u1
+                v7 = call to_le_bits(v5) -> [u1; 5]
+                v9 = array_get v7, index u32 4 -> u1
                 v10 = not v9
                 v11 = cast v9 as Field
                 v12 = cast v10 as Field
                 v14 = mul Field 2, v11
                 v15 = add v12, v14
-                v17 = array_get v7, index u32 4 -> u1
+                v17 = array_get v7, index u32 3 -> u1
                 v18 = not v17
                 v19 = cast v17 as Field
                 v20 = cast v18 as Field
@@ -432,7 +455,7 @@ mod tests {
                 v23 = mul v21, Field 2
                 v24 = mul v23, v19
                 v25 = add v22, v24
-                v27 = array_get v7, index u32 3 -> u1
+                v27 = array_get v7, index u32 2 -> u1
                 v28 = not v27
                 v29 = cast v27 as Field
                 v30 = cast v28 as Field
@@ -441,7 +464,7 @@ mod tests {
                 v33 = mul v31, Field 2
                 v34 = mul v33, v29
                 v35 = add v32, v34
-                v37 = array_get v7, index u32 2 -> u1
+                v37 = array_get v7, index u32 1 -> u1
                 v38 = not v37
                 v39 = cast v37 as Field
                 v40 = cast v38 as Field
@@ -450,7 +473,7 @@ mod tests {
                 v43 = mul v41, Field 2
                 v44 = mul v43, v39
                 v45 = add v42, v44
-                v47 = array_get v7, index u32 1 -> u1
+                v47 = array_get v7, index u32 0 -> u1
                 v48 = not v47
                 v49 = cast v47 as Field
                 v50 = cast v48 as Field
@@ -459,20 +482,11 @@ mod tests {
                 v53 = mul v51, Field 2
                 v54 = mul v53, v49
                 v55 = add v52, v54
-                v57 = array_get v7, index u32 0 -> u1
-                v58 = not v57
-                v59 = cast v57 as Field
-                v60 = cast v58 as Field
-                v61 = mul v55, v55
-                v62 = mul v61, v60
-                v63 = mul v61, Field 2
-                v64 = mul v63, v59
-                v65 = add v62, v64
-                v66 = cast v0 as Field
-                v67 = mul v66, v65
-                v68 = truncate v67 to 32 bits, max_bit_size: 64
-                v69 = cast v68 as u32
-                return v69
+                v56 = cast v0 as Field
+                v57 = mul v56, v55
+                v58 = truncate v57 to 32 bits, max_bit_size: 64
+                v59 = cast v58 as u32
+                return v59
             }
             "#);
         }
@@ -494,10 +508,7 @@ mod tests {
               b0(v0: u32):
                 constrain u1 0 == u1 1, "attempt to bit-shift with overflow"
                 v3 = cast v0 as Field
-                v5 = mul v3, Field -7768683996859727954953724731427871339010100868427821011365820555770860666883
-                v6 = truncate v5 to 32 bits, max_bit_size: 254
-                v7 = cast v6 as u32
-                return v7
+                return u32 0
             }
             "#);
         }
@@ -540,14 +551,14 @@ mod tests {
                 v3 = lt v1, u32 32
                 constrain v3 == u1 1, "attempt to bit-shift with overflow"
                 v5 = cast v1 as Field
-                v7 = call to_le_bits(v5) -> [u1; 6]
-                v9 = array_get v7, index u32 5 -> u1
+                v7 = call to_le_bits(v5) -> [u1; 5]
+                v9 = array_get v7, index u32 4 -> u1
                 v10 = not v9
                 v11 = cast v9 as Field
                 v12 = cast v10 as Field
                 v14 = mul Field 2, v11
                 v15 = add v12, v14
-                v17 = array_get v7, index u32 4 -> u1
+                v17 = array_get v7, index u32 3 -> u1
                 v18 = not v17
                 v19 = cast v17 as Field
                 v20 = cast v18 as Field
@@ -556,7 +567,7 @@ mod tests {
                 v23 = mul v21, Field 2
                 v24 = mul v23, v19
                 v25 = add v22, v24
-                v27 = array_get v7, index u32 3 -> u1
+                v27 = array_get v7, index u32 2 -> u1
                 v28 = not v27
                 v29 = cast v27 as Field
                 v30 = cast v28 as Field
@@ -565,7 +576,7 @@ mod tests {
                 v33 = mul v31, Field 2
                 v34 = mul v33, v29
                 v35 = add v32, v34
-                v37 = array_get v7, index u32 2 -> u1
+                v37 = array_get v7, index u32 1 -> u1
                 v38 = not v37
                 v39 = cast v37 as Field
                 v40 = cast v38 as Field
@@ -574,7 +585,7 @@ mod tests {
                 v43 = mul v41, Field 2
                 v44 = mul v43, v39
                 v45 = add v42, v44
-                v47 = array_get v7, index u32 1 -> u1
+                v47 = array_get v7, index u32 0 -> u1
                 v48 = not v47
                 v49 = cast v47 as Field
                 v50 = cast v48 as Field
@@ -583,18 +594,9 @@ mod tests {
                 v53 = mul v51, Field 2
                 v54 = mul v53, v49
                 v55 = add v52, v54
-                v57 = array_get v7, index u32 0 -> u1
-                v58 = not v57
-                v59 = cast v57 as Field
-                v60 = cast v58 as Field
-                v61 = mul v55, v55
-                v62 = mul v61, v60
-                v63 = mul v61, Field 2
-                v64 = mul v63, v59
-                v65 = add v62, v64
-                v66 = cast v65 as u32
-                v67 = div v0, v66
-                return v67
+                v56 = cast v55 as u32
+                v57 = div v0, v56
+                return v57
             }
             "#);
         }
@@ -644,14 +646,14 @@ mod tests {
                 v4 = lt v2, u32 31
                 constrain v4 == u1 1, "attempt to bit-shift with overflow"
                 v6 = cast v1 as Field
-                v8 = call to_le_bits(v6) -> [u1; 6]
-                v10 = array_get v8, index u32 5 -> u1
+                v8 = call to_le_bits(v6) -> [u1; 5]
+                v10 = array_get v8, index u32 4 -> u1
                 v11 = not v10
                 v12 = cast v10 as Field
                 v13 = cast v11 as Field
                 v15 = mul Field 2, v12
                 v16 = add v13, v15
-                v18 = array_get v8, index u32 4 -> u1
+                v18 = array_get v8, index u32 3 -> u1
                 v19 = not v18
                 v20 = cast v18 as Field
                 v21 = cast v19 as Field
@@ -660,7 +662,7 @@ mod tests {
                 v24 = mul v22, Field 2
                 v25 = mul v24, v20
                 v26 = add v23, v25
-                v28 = array_get v8, index u32 3 -> u1
+                v28 = array_get v8, index u32 2 -> u1
                 v29 = not v28
                 v30 = cast v28 as Field
                 v31 = cast v29 as Field
@@ -669,7 +671,7 @@ mod tests {
                 v34 = mul v32, Field 2
                 v35 = mul v34, v30
                 v36 = add v33, v35
-                v38 = array_get v8, index u32 2 -> u1
+                v38 = array_get v8, index u32 1 -> u1
                 v39 = not v38
                 v40 = cast v38 as Field
                 v41 = cast v39 as Field
@@ -678,7 +680,7 @@ mod tests {
                 v44 = mul v42, Field 2
                 v45 = mul v44, v40
                 v46 = add v43, v45
-                v48 = array_get v8, index u32 1 -> u1
+                v48 = array_get v8, index u32 0 -> u1
                 v49 = not v48
                 v50 = cast v48 as Field
                 v51 = cast v49 as Field
@@ -687,20 +689,11 @@ mod tests {
                 v54 = mul v52, Field 2
                 v55 = mul v54, v50
                 v56 = add v53, v55
-                v58 = array_get v8, index u32 0 -> u1
-                v59 = not v58
-                v60 = cast v58 as Field
-                v61 = cast v59 as Field
-                v62 = mul v56, v56
-                v63 = mul v62, v61
-                v64 = mul v62, Field 2
-                v65 = mul v64, v60
-                v66 = add v63, v65
-                v67 = cast v0 as Field
-                v68 = mul v67, v66
-                v69 = truncate v68 to 32 bits, max_bit_size: 64
-                v70 = cast v69 as i32
-                return v70
+                v57 = cast v0 as Field
+                v58 = mul v57, v56
+                v59 = truncate v58 to 32 bits, max_bit_size: 64
+                v60 = cast v59 as i32
+                return v60
             }
             "#);
         }
@@ -753,14 +746,14 @@ mod tests {
                 v4 = lt v2, u32 31
                 constrain v4 == u1 1, "attempt to bit-shift with overflow"
                 v6 = cast v1 as Field
-                v8 = call to_le_bits(v6) -> [u1; 6]
-                v10 = array_get v8, index u32 5 -> u1
+                v8 = call to_le_bits(v6) -> [u1; 5]
+                v10 = array_get v8, index u32 4 -> u1
                 v11 = not v10
                 v12 = cast v10 as Field
                 v13 = cast v11 as Field
                 v15 = mul Field 2, v12
                 v16 = add v13, v15
-                v18 = array_get v8, index u32 4 -> u1
+                v18 = array_get v8, index u32 3 -> u1
                 v19 = not v18
                 v20 = cast v18 as Field
                 v21 = cast v19 as Field
@@ -769,7 +762,7 @@ mod tests {
                 v24 = mul v22, Field 2
                 v25 = mul v24, v20
                 v26 = add v23, v25
-                v28 = array_get v8, index u32 3 -> u1
+                v28 = array_get v8, index u32 2 -> u1
                 v29 = not v28
                 v30 = cast v28 as Field
                 v31 = cast v29 as Field
@@ -778,7 +771,7 @@ mod tests {
                 v34 = mul v32, Field 2
                 v35 = mul v34, v30
                 v36 = add v33, v35
-                v38 = array_get v8, index u32 2 -> u1
+                v38 = array_get v8, index u32 1 -> u1
                 v39 = not v38
                 v40 = cast v38 as Field
                 v41 = cast v39 as Field
@@ -787,7 +780,7 @@ mod tests {
                 v44 = mul v42, Field 2
                 v45 = mul v44, v40
                 v46 = add v43, v45
-                v48 = array_get v8, index u32 1 -> u1
+                v48 = array_get v8, index u32 0 -> u1
                 v49 = not v48
                 v50 = cast v48 as Field
                 v51 = cast v49 as Field
@@ -796,27 +789,18 @@ mod tests {
                 v54 = mul v52, Field 2
                 v55 = mul v54, v50
                 v56 = add v53, v55
-                v58 = array_get v8, index u32 0 -> u1
-                v59 = not v58
-                v60 = cast v58 as Field
-                v61 = cast v59 as Field
-                v62 = mul v56, v56
-                v63 = mul v62, v61
-                v64 = mul v62, Field 2
-                v65 = mul v64, v60
-                v66 = add v63, v65
-                v67 = cast v66 as i32
-                v69 = lt v0, i32 0
-                v70 = cast v69 as Field
-                v71 = cast v0 as Field
-                v72 = add v70, v71
-                v73 = truncate v72 to 32 bits, max_bit_size: 33
-                v74 = cast v73 as i32
-                v75 = div v74, v67
-                v76 = cast v69 as i32
-                v77 = unchecked_sub v75, v76
-                v78 = truncate v77 to 32 bits, max_bit_size: 33
-                return v78
+                v57 = cast v56 as i32
+                v59 = lt v0, i32 0
+                v60 = cast v59 as Field
+                v61 = cast v0 as Field
+                v62 = add v60, v61
+                v63 = truncate v62 to 32 bits, max_bit_size: 33
+                v64 = cast v63 as i32
+                v65 = div v64, v57
+                v66 = cast v59 as i32
+                v67 = unchecked_sub v65, v66
+                v68 = truncate v67 to 32 bits, max_bit_size: 33
+                return v68
             }
             "#);
         }
