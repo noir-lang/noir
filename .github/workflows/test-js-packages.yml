@@ -559,7 +559,7 @@ jobs:
 
       - name: Run `browser`
         working-directory: ./examples/docs_tutorials/browser
-        run: ./test.sh
+        run: yarn playwright install && ./test.sh
 
   external-repo-checks:
     needs: [build-nargo, critical-library-list]
