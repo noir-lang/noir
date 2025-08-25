@@ -15,7 +15,7 @@ use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
         call_graph::CallGraph,
-        dfg::{GlobalsGraph, InsertInstructionResult},
+        dfg::InsertInstructionResult,
         function::{Function, FunctionId, RuntimeType},
         instruction::{Instruction, InstructionId, TerminatorInstruction},
         value::{Value, ValueId},
