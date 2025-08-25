@@ -123,6 +123,7 @@ impl Ssa {
         for entry_point in inline_targets {
             let function = &self.functions[&entry_point];
             let inlined = function.inlined(&self, &should_inline_call)?;
+            assert_eq!(inlined.id(), entry_point);
             new_functions.insert(entry_point, inlined);
         }
         self.functions = new_functions;
@@ -221,14 +222,7 @@ impl InlineContext {
         // its parameters here. Failing to do so would cause context.translate_block() to add
         // a fresh block for the entry block rather than use the existing one.
         let entry_block = context.context.builder.current_function.entry_block();
-        let original_parameters = context.source_function.parameters();
-
-        for parameter in original_parameters {
-            let typ = context.source_function.dfg.type_of_value(*parameter);
-            let new_parameter = context.context.builder.add_block_parameter(entry_block, typ);
-            context.values.insert(*parameter, new_parameter);
-        }
-
+        context.translate_block_parameters(context.source_function.entry_block(), entry_block);
         context.blocks.insert(context.source_function.entry_block(), entry_block);
         context.inline_blocks(ssa, should_inline_call)?;
         // translate databus values
@@ -384,16 +378,23 @@ impl<'function> PerFunctionContext<'function> {
         // The block is not already present in the function being inlined into so we must create it.
         // The block's instructions are not copied over as they will be copied later in inlining.
         let new_block = self.context.builder.insert_block();
-        let original_parameters = self.source_function.dfg.block_parameters(source_block);
-
-        for parameter in original_parameters {
-            let typ = self.source_function.dfg.type_of_value(*parameter);
-            let new_parameter = self.context.builder.add_block_parameter(new_block, typ);
-            self.values.insert(*parameter, new_parameter);
-        }
-
+        self.translate_block_parameters(source_block, new_block);
         self.blocks.insert(source_block, new_block);
         new_block
+    }
+
+    /// Copy block parameters from `source_block` into `target_block`.
+    fn translate_block_parameters(
+        &mut self,
+        source_block: BasicBlockId,
+        target_block: BasicBlockId,
+    ) {
+        let original_parameters = self.source_function.dfg.block_parameters(source_block);
+        for parameter in original_parameters {
+            let typ = self.source_function.dfg.type_of_value(*parameter);
+            let new_parameter = self.context.builder.add_block_parameter(target_block, typ);
+            self.values.insert(*parameter, new_parameter);
+        }
     }
 
     /// Try to retrieve the function referred to by the given Id.
@@ -461,17 +462,9 @@ impl<'function> PerFunctionContext<'function> {
                 return_values
             }
             _ => {
-                // If there is more than 1 return instruction we'll need to create a single block we
-                // can return to and continue inserting in afterwards.
-                let return_block = self.context.builder.insert_block();
-
-                for (block, return_values) in returns {
-                    self.context.builder.switch_to_block(block);
-                    self.context.builder.terminate_with_jmp(return_block, return_values);
-                }
-
-                self.context.builder.switch_to_block(return_block);
-                self.context.builder.block_parameters(return_block).to_vec()
+                panic!(
+                    "ICE: found a function with multiple return terminators, but that should not happen"
+                )
             }
         }
     }
@@ -635,22 +628,8 @@ impl<'function> PerFunctionContext<'function> {
         new_results: InsertInstructionResult,
     ) {
         assert_eq!(old_results.len(), new_results.len());
-
-        match new_results {
-            InsertInstructionResult::SimplifiedTo(new_result) => {
-                values.insert(old_results[0], new_result);
-            }
-            InsertInstructionResult::SimplifiedToMultiple(new_results) => {
-                for (old_result, new_result) in old_results.iter().zip(new_results) {
-                    values.insert(*old_result, new_result);
-                }
-            }
-            InsertInstructionResult::Results(_, new_results) => {
-                for (old_result, new_result) in old_results.iter().zip(new_results) {
-                    values.insert(*old_result, *new_result);
-                }
-            }
-            InsertInstructionResult::InstructionRemoved => (),
+        for i in 0..old_results.len() {
+            values.insert(old_results[i], new_results[i]);
         }
     }
 
@@ -669,20 +648,8 @@ impl<'function> PerFunctionContext<'function> {
             TerminatorInstruction::Jmp { destination, arguments, call_stack } => {
                 let destination = self.translate_block(*destination, block_queue);
                 let arguments = vecmap(arguments, |arg| self.translate_value(*arg));
-
-                let call_stack = self.source_function.dfg.get_call_stack(*call_stack);
-                let new_call_stack = self
-                    .context
-                    .builder
-                    .current_function
-                    .dfg
-                    .call_stack_data
-                    .extend_call_stack(self.context.call_stack, &call_stack);
-
-                self.context
-                    .builder
-                    .set_call_stack(new_call_stack)
-                    .terminate_with_jmp(destination, arguments);
+                self.extend_call_stack(*call_stack);
+                self.context.builder.terminate_with_jmp(destination, arguments);
                 None
             }
             TerminatorInstruction::JmpIf {
@@ -692,14 +659,6 @@ impl<'function> PerFunctionContext<'function> {
                 call_stack,
             } => {
                 let condition = self.translate_value(*condition);
-                let call_stack = self.source_function.dfg.get_call_stack(*call_stack);
-                let new_call_stack = self
-                    .context
-                    .builder
-                    .current_function
-                    .dfg
-                    .call_stack_data
-                    .extend_call_stack(self.context.call_stack, &call_stack);
 
                 // See if the value of the condition is known, and if so only inline the reachable
                 // branch. This lets us inline some recursive functions without recurring forever.
@@ -710,17 +669,15 @@ impl<'function> PerFunctionContext<'function> {
                             if constant.is_zero() { *else_destination } else { *then_destination };
 
                         let next_block = self.translate_block(next_block, block_queue);
-                        self.context
-                            .builder
-                            .set_call_stack(new_call_stack)
-                            .terminate_with_jmp(next_block, vec![]);
+                        self.extend_call_stack(*call_stack);
+                        self.context.builder.terminate_with_jmp(next_block, vec![]);
                     }
                     None => {
                         let then_block = self.translate_block(*then_destination, block_queue);
                         let else_block = self.translate_block(*else_destination, block_queue);
+                        self.extend_call_stack(*call_stack);
                         self.context
                             .builder
-                            .set_call_stack(new_call_stack)
                             .terminate_with_jmpif(condition, then_block, else_block);
                     }
                 }
@@ -736,20 +693,8 @@ impl<'function> PerFunctionContext<'function> {
                 let block_id = self.context.builder.current_block();
 
                 if self.inlining_entry {
-                    let call_stack =
-                        self.source_function.dfg.call_stack_data.get_call_stack(*call_stack);
-                    let new_call_stack = self
-                        .context
-                        .builder
-                        .current_function
-                        .dfg
-                        .call_stack_data
-                        .extend_call_stack(self.context.call_stack, &call_stack);
-
-                    self.context
-                        .builder
-                        .set_call_stack(new_call_stack)
-                        .terminate_with_return(return_values.clone());
+                    self.extend_call_stack(*call_stack);
+                    self.context.builder.terminate_with_return(return_values.clone());
                 }
 
                 Some((block_id, return_values))
@@ -761,6 +706,14 @@ impl<'function> PerFunctionContext<'function> {
                 panic!("Unreachable terminator instruction should not exist during inlining.")
             }
         }
+    }
+
+    fn extend_call_stack(&mut self, call_stack: CallStackId) {
+        let call_stack = self.source_function.dfg.get_call_stack(call_stack);
+        let call_stack_data = &mut self.context.builder.current_function.dfg.call_stack_data;
+        let new_call_stack =
+            call_stack_data.extend_call_stack(self.context.call_stack, &call_stack);
+        self.context.builder.set_call_stack(new_call_stack);
     }
 }
 
