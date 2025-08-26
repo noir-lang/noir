@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1756236732577,
+  "lastUpdate": 1756236750521,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -12112,80 +12112,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jc@joshcrites.com",
-            "name": "josh crites",
-            "username": "critesjosh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "c7ae241ae1791b11c3470a26522efdbddfcdf469",
-          "message": "chore(docs): Add llms.txt plugin to docs  (#9552)",
-          "timestamp": "2025-08-19T10:55:43Z",
-          "tree_id": "86649acb2ec332bd8613309829788d57b611c264",
-          "url": "https://github.com/noir-lang/noir/commit/c7ae241ae1791b11c3470a26522efdbddfcdf469"
-        },
-        "date": 1755603364488,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 206.74,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 243.56,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 195.97,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 500.29,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 432.92,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1500,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 328.22,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 330.57,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 69.53,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 55.02,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -15755,6 +15681,80 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/36a5064c10713414a0059f73632b509dda309e13"
         },
         "date": 1756236200328,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 206.72,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 243.53,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 195.94,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 500.25,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 432.9,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1500,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 328.19,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 330.55,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 69.5,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 54.99,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "6870579e0aa844371db698cc52ab3cdf91877d2f",
+          "message": "fix(mem2reg): Mark block parameters with unknown alias sets in presence of nested references  (#9629)",
+          "timestamp": "2025-08-26T18:40:28Z",
+          "tree_id": "7547a6ffdf541aa93dacb57dc3f0b136a6d6aa5b",
+          "url": "https://github.com/noir-lang/noir/commit/6870579e0aa844371db698cc52ab3cdf91877d2f"
+        },
+        "date": 1756236731668,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
