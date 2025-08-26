@@ -474,11 +474,12 @@ impl<'f> PerFunctionContext<'f> {
                 let address = *address;
                 let value = *value;
 
-                let aliases = references.get_aliases_for_value(address);
+                let address_aliases = references.get_aliases_for_value(address);
 
                 // If there was another store to this instruction without any (unremoved) loads or
                 // function calls in-between, we can remove the previous store.
-                if !self.aliased_references.contains_key(&address) && !aliases.is_unknown() {
+                if !self.aliased_references.contains_key(&address) && !address_aliases.is_unknown()
+                {
                     if let Some(last_store) = references.last_stores.get(&address) {
                         self.instructions_to_remove.insert(*last_store);
                     }
@@ -486,7 +487,7 @@ impl<'f> PerFunctionContext<'f> {
 
                 // Remember that we used the value in this instruction. If this instruction
                 // isn't removed at the end, we need to keep the stores to the value as well.
-                for alias in aliases.iter() {
+                for alias in references.get_aliases_for_value(value).iter() {
                     self.aliased_references.entry(alias).or_default().insert(instruction);
                 }
 
@@ -734,9 +735,7 @@ impl<'f> PerFunctionContext<'f> {
 mod tests {
     use crate::{
         assert_ssa_snapshot,
-        ssa::{
-            Ssa, interpreter::value::Value, ir::types::NumericType, opt::assert_ssa_does_not_change,
-        },
+        ssa::{Ssa, opt::assert_ssa_does_not_change},
     };
 
     #[test]
