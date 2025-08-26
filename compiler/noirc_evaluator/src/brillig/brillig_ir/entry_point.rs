@@ -24,9 +24,10 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
         target_function: FunctionId,
         globals_init: bool,
         globals_memory_size: usize,
+        name: &str,
         options: &BrilligOptions,
     ) -> BrilligArtifact<F> {
-        let mut context = BrilligContext::new(options);
+        let mut context = BrilligContext::new(name, options);
 
         context.set_globals_memory_size(Some(globals_memory_size));
 
