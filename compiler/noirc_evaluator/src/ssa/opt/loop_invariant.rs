@@ -3003,36 +3003,36 @@ mod control_dependence {
         acir(inline) impure fn main f0 {
           b0(v0: u1, v1: i8):
             v4 = mul v1, i8 127
-            v5 = cast v1 as Field
-            v7 = sub Field 256, v5
+            v5 = cast v4 as u16
+            v6 = truncate v5 to 8 bits, max_bit_size: 16
+            v7 = cast v1 as u8
+            v9 = lt v7, u8 128
+            v10 = not v9
+            v11 = cast v1 as Field
+            v12 = cast v9 as Field
+            v13 = mul v12, v11
+            v15 = sub Field 256, v11
+            v16 = cast v10 as Field
+            v17 = mul v16, v15
+            v18 = add v13, v17
+            v20 = mul v18, Field 127
+            v21 = not v9
+            v22 = cast v21 as u8
+            v23 = unchecked_add u8 128, v22
             jmp b1(u32 0)
           b1(v2: u32):
-            v9 = eq v2, u32 0
-            jmpif v9 then: b2, else: b3
+            v25 = eq v2, u32 0
+            jmpif v25 then: b2, else: b3
           b2():
             jmpif v0 then: b4, else: b5
           b3():
             return i16 3
           b4():
-            v11 = cast v4 as u16
-            v12 = truncate v11 to 8 bits, max_bit_size: 16
-            v13 = cast v1 as u8
-            v15 = lt v13, u8 128
-            v16 = not v15
-            v17 = cast v15 as Field
-            v18 = mul v17, v5
-            v19 = cast v16 as Field
-            v20 = mul v19, v7
-            v21 = add v18, v20
-            v23 = mul v21, Field 127
-            range_check v23 to 8 bits
-            v24 = cast v23 as u8
-            v25 = not v15
-            v26 = cast v25 as u8
-            v27 = unchecked_add u8 128, v26
-            v28 = lt v24, v27
+            range_check v20 to 8 bits
+            v27 = cast v20 as u8
+            v28 = lt v27, v23
             constrain v28 == u1 1
-            v30 = cast v12 as i8
+            v30 = cast v6 as i8
             jmp b5()
           b5():
             v32 = unchecked_add v2, u32 1
