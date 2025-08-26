@@ -1633,7 +1633,7 @@ mod tests {
     }
 
     #[test]
-    fn does_not_replaces_load_with_value_when_one_of_its_predecessors_changes_it() {
+    fn does_not_replace_load_with_value_when_one_of_its_predecessors_changes_it() {
         // This is another regression test for https://github.com/noir-lang/noir/pull/9613
         // There, in `v5 = load v0 -> Field` it was incorrectly assumed that v5 could
         // be replaced with `Field 0`, but another predecessor, through an alias
