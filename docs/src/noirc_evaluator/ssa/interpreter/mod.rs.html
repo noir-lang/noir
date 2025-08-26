@@ -1595,7 +1595,8 @@
 <a href="#1594" id="1594">1594</a>
 <a href="#1595" id="1595">1595</a>
 <a href="#1596" id="1596">1596</a>
-<a href="#1597" id="1597">1597</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{cmp::Ordering, io::Write};
+<a href="#1597" id="1597">1597</a>
+<a href="#1598" id="1598">1598</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{cmp::Ordering, io::Write};
 
 <span class="kw">use super</span>::{
     Ssa,
@@ -2432,14 +2433,15 @@
                 <span class="string">"Result of allocate should always be a reference type, but found {other}"
             </span>),
         };
-        <span class="self">self</span>.define(result, Value::reference(result, element_type))
+        <span class="kw">let </span>value = Value::reference(result, element_type);
+        <span class="self">self</span>.define(result, value)
     }
 
     <span class="kw">fn </span>interpret_load(<span class="kw-2">&amp;mut </span><span class="self">self</span>, address: ValueId, result: ValueId) -&gt; IResult&lt;()&gt; {
         <span class="kw">let </span>address = <span class="self">self</span>.lookup_reference(address, <span class="string">"load"</span>)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>element = address.element.borrow();
-        <span class="kw">let </span><span class="prelude-val">Some</span>(value) = <span class="kw-2">&amp;*</span>element <span class="kw">else </span>{
+        <span class="kw">let </span><span class="prelude-val">Some</span>(value) = element.as_ref() <span class="kw">else </span>{
             <span class="kw">let </span>value = address.to_string();
             <span class="kw">return </span><span class="prelude-val">Err</span>(internal(InternalError::UninitializedReferenceValueLoaded { value }));
         };

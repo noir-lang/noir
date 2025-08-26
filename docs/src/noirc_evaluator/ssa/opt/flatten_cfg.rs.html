@@ -2010,7 +2010,11 @@
 <a href="#2009" id="2009">2009</a>
 <a href="#2010" id="2010">2010</a>
 <a href="#2011" id="2011">2011</a>
-<a href="#2012" id="2012">2012</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file contains the SSA flattening pass - a required pass for ACIR to remove any remaining
+<a href="#2012" id="2012">2012</a>
+<a href="#2013" id="2013">2013</a>
+<a href="#2014" id="2014">2014</a>
+<a href="#2015" id="2015">2015</a>
+<a href="#2016" id="2016">2016</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file contains the SSA flattening pass - a required pass for ACIR to remove any remaining
 //! control-flow in the singular program-function, resulting in a single block containing the
 //! program logic.
 //!
@@ -2205,8 +2209,10 @@
 /// Panics if:
 ///   - Any acir function has at least 1 loop
 </span><span class="attr">#[cfg(debug_assertions)]
-#[allow(dead_code)]
 </span><span class="kw">fn </span>flatten_cfg_pre_check(function: <span class="kw-2">&amp;</span>Function) {
+    <span class="kw">if </span>!function.runtime().is_acir() {
+        <span class="kw">return</span>;
+    }
     <span class="kw">let </span>loops = <span class="kw">super</span>::unrolling::Loops::find_all(function);
     <span class="macro">assert_eq!</span>(loops.yet_to_unroll.len(), <span class="number">0</span>);
 }
@@ -2216,10 +2222,12 @@
 /// Panics if:
 ///   - Any acir function contains &gt; 1 block
 </span><span class="attr">#[cfg(debug_assertions)]
-#[allow(dead_code)]
 </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>flatten_cfg_post_check(function: <span class="kw-2">&amp;</span>Function) {
+    <span class="kw">if </span>!function.runtime().is_acir() {
+        <span class="kw">return</span>;
+    }
     <span class="kw">let </span>blocks = function.reachable_blocks();
-    <span class="macro">assert_eq!</span>(blocks.len(), <span class="number">1</span>);
+    <span class="macro">assert_eq!</span>(blocks.len(), <span class="number">1</span>, <span class="string">"CFG contains more than 1 block"</span>);
 }
 
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>Context&lt;<span class="lifetime">'f</span>&gt; {

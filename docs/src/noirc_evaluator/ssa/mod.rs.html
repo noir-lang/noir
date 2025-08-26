@@ -562,7 +562,12 @@
 <a href="#561" id="561">561</a>
 <a href="#562" id="562">562</a>
 <a href="#563" id="563">563</a>
-<a href="#564" id="564">564</a></pre></div><pre class="rust"><code><span class="doccomment">//! SSA stands for Single Static Assignment
+<a href="#564" id="564">564</a>
+<a href="#565" id="565">565</a>
+<a href="#566" id="566">566</a>
+<a href="#567" id="567">567</a>
+<a href="#568" id="568">568</a>
+<a href="#569" id="569">569</a></pre></div><pre class="rust"><code><span class="doccomment">//! SSA stands for Single Static Assignment
 //! The IR presented in this module will already
 //! be in SSA form and will be used to apply
 //! conventional optimizations like Common Subexpression
@@ -690,6 +695,11 @@
         ),
         <span class="comment">// Run mem2reg with the CFG separated into blocks
         </span>SsaPass::new(Ssa::mem2reg, <span class="string">"Mem2Reg"</span>),
+        <span class="comment">// Running DIE here might remove some unused instructions mem2reg could not eliminate.
+        </span>SsaPass::new(
+            Ssa::dead_instruction_elimination_pre_flattening,
+            <span class="string">"Dead Instruction Elimination"</span>,
+        ),
         SsaPass::new(Ssa::simplify_cfg, <span class="string">"Simplifying"</span>),
         SsaPass::new(Ssa::as_slice_optimization, <span class="string">"`as_slice` optimization"</span>)
             .and_then(Ssa::remove_unreachable_functions),
