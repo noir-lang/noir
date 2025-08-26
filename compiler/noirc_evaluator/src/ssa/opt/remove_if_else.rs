@@ -7,8 +7,8 @@
 //!
 //!
 //! Conditions:
-//!   - Precondition: Flatten CFG has been performed which should result in a program having only
-//!     one basic block, representing the `main` function.
+//!   - Precondition: Flatten CFG has been performed which should result in the function having only
+//!     one basic block.
 //!   - Precondition: `then_value` and `else_value` of `Instruction::IfElse` return arrays or slices. Numeric values should be handled previously by the flattening pass.
 //!     Reference or function values are not handled by remove if-else and will cause an error.
 //!   - Postcondition: A program without any `IfElse` instructions.
@@ -496,5 +496,56 @@ mod tests {
             return
         }
         ");
+    }
+
+    #[test]
+    fn merge_slice() {
+        let src = "
+acir(inline) impure fn main f0 {
+  b0(v0: u1, v1: Field, v2: Field):
+    v3 = make_array [] : [Field]   
+    v4 = allocate -> &mut u32       
+    v5 = allocate -> &mut [Field]    
+    enable_side_effects v0
+    v6 = cast v0 as u32
+    v7, v8 = call slice_push_back(v6, v3, v2) -> (u32, [Field])
+    v9 = not v0                                   
+    v10 = cast v0 as u32   
+    v12 = if v0 then v8 else (if v9) v3   
+    enable_side_effects u1 1        
+    v15, v16 = call slice_push_back(v10, v12, v2) -> (u32, [Field])
+    v17 = array_get v16, index u32 0 -> Field    
+    constrain v17 == Field 1
+    return
+}
+        ";
+
+        let mut ssa = Ssa::from_str(src).unwrap();
+        ssa = ssa.remove_if_else().unwrap();
+
+        // Merge slices v3 (empty) and v8 ([v2]) into v12, using a dummy value for the element at index 0 of v3, which does not exist.
+        assert_ssa_snapshot!(ssa, @r"
+acir(inline) impure fn main f0 {
+  b0(v0: u1, v1: Field, v2: Field):
+    v3 = make_array [] : [Field]
+    v4 = allocate -> &mut u32
+    v5 = allocate -> &mut [Field]
+    enable_side_effects v0
+    v6 = cast v0 as u32
+    v8, v9 = call slice_push_back(v6, v3, v2) -> (u32, [Field])
+    v10 = not v0
+    v11 = cast v0 as u32
+    v13 = array_get v9, index u32 0 -> Field
+    v14 = cast v0 as Field
+    v15 = cast v10 as Field
+    v16 = mul v14, v13
+    v17 = make_array [v16] : [Field]
+    enable_side_effects u1 1
+    v19, v20 = call slice_push_back(v11, v17, v2) -> (u32, [Field])
+    v21 = array_get v20, index u32 0 -> Field
+    constrain v21 == Field 1
+    return
+}
+      ");
     }
 }
