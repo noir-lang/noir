@@ -969,7 +969,7 @@ fn should_remove_store(func: &Function, flattened: bool) -> bool {
 }
 
 /// Check pre-execution properties:
-/// * If `flattened` is set to `true` then CFG should have already been executed.
+/// * Passing `flattened = true` will confirm the CFG has already been flattened into a single block for ACIR functions
 #[cfg(debug_assertions)]
 fn die_pre_check(func: &Function, flattened: bool) {
     if flattened {
