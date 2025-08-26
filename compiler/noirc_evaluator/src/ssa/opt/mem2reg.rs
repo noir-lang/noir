@@ -1634,6 +1634,30 @@ mod tests {
     }
 
     #[test]
+    fn does_not_replace_load_with_value_when_one_of_its_predecessors_changes_it() {
+        // This is another regression test for https://github.com/noir-lang/noir/pull/9613
+        // There, in `v5 = load v0 -> Field` it was incorrectly assumed that v5 could
+        // be replaced with `Field 0`, but another predecessor, through an alias
+        // (v1) conditionally changes its value to `Field 1`.
+        let src = r#"
+        acir(inline) fn create_note f0 {
+          b0(v0: &mut Field):
+            store Field 0 at v0
+            jmpif u1 0 then: b1, else: b2
+          b1():
+            v5 = load v0 -> Field
+            return v5
+          b2():
+            jmp b3(v0)
+          b3(v1: &mut Field):
+            store Field 1 at v1
+            jmp b1()
+        }
+        "#;
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
+    }
+
+    #[test]
     fn aliases_block_parameter_to_its_argument() {
         // Here:
         // - v0 and v1 are potentially aliases of each other
