@@ -227,6 +227,7 @@
         "PKCS",
         "plonkc",
         "PLONKish",
+        "Postcondition",
         "pprof",
         "precomputes",
         "prehashed",

@@ -205,7 +205,7 @@ fn flatten_cfg_pre_check(function: &Function) {
 ///   - Any acir function contains > 1 block
 #[cfg(debug_assertions)]
 #[allow(dead_code)]
-fn flatten_cfg_post_check(function: &Function) {
+pub(super) fn flatten_cfg_post_check(function: &Function) {
     let blocks = function.reachable_blocks();
     assert_eq!(blocks.len(), 1);
 }
