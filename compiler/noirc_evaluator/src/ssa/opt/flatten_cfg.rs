@@ -193,7 +193,6 @@ impl Ssa {
 /// Panics if:
 ///   - Any acir function has at least 1 loop
 #[cfg(debug_assertions)]
-#[allow(dead_code)]
 fn flatten_cfg_pre_check(function: &Function) {
     if !function.runtime().is_acir() {
         return;
@@ -207,7 +206,6 @@ fn flatten_cfg_pre_check(function: &Function) {
 /// Panics if:
 ///   - Any acir function contains > 1 block
 #[cfg(debug_assertions)]
-#[allow(dead_code)]
 pub(super) fn flatten_cfg_post_check(function: &Function) {
     if !function.runtime().is_acir() {
         return;
