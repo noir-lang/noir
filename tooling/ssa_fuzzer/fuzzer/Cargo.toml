@@ -27,12 +27,14 @@ base64.workspace = true
 sha1 = "0.10.6"
 redis = "0.23"
 lazy_static = "1.4"
+strum_macros = "0.24"
+strum = "0.24"
+sha2.workspace = true
+p256 = "0.13.2"
+k256 = "0.13.4"
 
 [dependencies.noir_ssa_fuzzer]
 path = "../"
-
-[profile.release]
-debug = true
 
 [[bin]]
 name = "fuzz_target"

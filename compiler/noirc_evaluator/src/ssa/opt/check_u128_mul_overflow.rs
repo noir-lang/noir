@@ -35,7 +35,7 @@ impl Function {
             return;
         }
 
-        self.simple_reachable_blocks_optimization(|context| {
+        self.simple_optimization(|context| {
             context.insert_current_instruction();
 
             let block_id = context.block_id;
@@ -142,7 +142,7 @@ fn check_u128_mul_overflow(
 mod tests {
     use crate::{
         assert_ssa_snapshot,
-        ssa::{opt::assert_normalized_ssa_equals, ssa_gen::Ssa},
+        ssa::{opt::assert_ssa_does_not_change, ssa_gen::Ssa},
     };
 
     #[test]
@@ -154,10 +154,7 @@ mod tests {
             return
         }
         ";
-        let ssa = Ssa::from_str(src).unwrap();
-
-        let ssa = ssa.check_u128_mul_overflow();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::check_u128_mul_overflow);
     }
 
     #[test]
@@ -169,10 +166,7 @@ mod tests {
             return
         }
         ";
-        let ssa = Ssa::from_str(src).unwrap();
-
-        let ssa = ssa.check_u128_mul_overflow();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::check_u128_mul_overflow);
     }
 
     #[test]
@@ -278,10 +272,7 @@ mod tests {
             return
         }
         ";
-        let ssa = Ssa::from_str(src).unwrap();
-
-        let ssa = ssa.check_u128_mul_overflow();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::check_u128_mul_overflow);
     }
     #[test]
     fn predicate_overflow() {

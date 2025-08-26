@@ -16,6 +16,9 @@ use noirc_frontend::{
 
 use crate::Config;
 
+/// Length of generated random constraint messages.
+pub(crate) const CONSTRAIN_MSG_LENGTH: u32 = 3;
+
 pub mod expr;
 pub(crate) mod freq;
 mod func;
@@ -565,7 +568,10 @@ fn make_name(mut id: usize, is_global: bool) -> String {
         id /= 26;
     }
     name.reverse();
-    let name = name.into_iter().collect::<String>();
+    let mut name = name.into_iter().collect::<String>();
+    if matches!(name.as_str(), "as" | "if" | "fn" | "for" | "loop") {
+        name = format!("{name}_");
+    }
     if is_global { format!("G_{name}") } else { name }
 }
 

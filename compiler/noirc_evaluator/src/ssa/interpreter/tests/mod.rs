@@ -1648,7 +1648,7 @@ fn signed_integer_casting() {
     //  fn main() -> pub i8 {
     //      let a: i8 = 28;
     //      let b = (1, -a, 0);
-    //      let mut c = (a + (((b.1 as i64) << (b.2 as u8)) as i8));
+    //      let mut c = (a + (((b.1 as i64) << (b.2 as i64)) as i8));
     //      c = -c;
     //      c
     //  }
@@ -1665,7 +1665,7 @@ fn signed_integer_casting() {
           v9 = cast u8 228 as u64
           v10 = unchecked_add v8, v9
           v11 = cast v10 as i64
-          v13 = shl v11, u8 0
+          v13 = shl v11, i64 0
           v14 = truncate v13 to 64 bits, max_bit_size: 65
           v15 = truncate v14 to 8 bits, max_bit_size: 64
           v16 = cast v15 as i8

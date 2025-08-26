@@ -45,27 +45,34 @@ pub struct NargoErrorWithTypes(NargoError<FieldElement>, SsaErrorTypes);
 impl NargoErrorWithTypes {
     /// Copy of `NargoError::user_defined_failure_message` accepting `SsaErrorTypes` instead of ABI errors.
     fn user_defined_failure_message(&self) -> Option<String> {
-        match &self.0 {
-            NargoError::ExecutionError(error) => match error {
-                ExecutionError::AssertionFailed(payload, _, _) => match payload {
-                    ResolvedAssertionPayload::String(message) => Some(message.to_string()),
-                    ResolvedAssertionPayload::Raw(raw) => {
-                        let ssa_type = self.1.get(&raw.selector)?;
-                        match ssa_type {
-                            ErrorType::String(message) => Some(message.to_string()),
-                            ErrorType::Dynamic(_hir_type) => {
-                                // This would be the case if we have a format string that needs to be filled with the raw payload
-                                // decoded as ABI type. The code generator shouldn't produce this kind. It shouldn't be too difficult
-                                // to map the type, but the mapper in `crate::abi` doesn't handle format strings at the moment.
-                                panic!("didn't expect dynamic error types")
-                            }
+        let unwrap_payload = |payload: &ResolvedAssertionPayload<FieldElement>| {
+            match payload {
+                ResolvedAssertionPayload::String(message) => Some(message.to_string()),
+                ResolvedAssertionPayload::Raw(raw) => {
+                    let ssa_type = self.1.get(&raw.selector)?;
+                    match ssa_type {
+                        ErrorType::String(message) => Some(message.to_string()),
+                        ErrorType::Dynamic(_hir_type) => {
+                            // This would be the case if we have a format string that needs to be filled with the raw payload
+                            // decoded as ABI type. The code generator shouldn't produce this kind. It shouldn't be too difficult
+                            // to map the type, but the mapper in `crate::abi` doesn't handle format strings at the moment.
+                            panic!("didn't expect dynamic error types")
                         }
                     }
-                },
+                }
+            }
+        };
+
+        match &self.0 {
+            NargoError::ExecutionError(error) => match error {
+                ExecutionError::AssertionFailed(payload, _, _) => unwrap_payload(payload),
                 ExecutionError::SolvingError(error, _) => match error {
                     OpcodeResolutionError::BlackBoxFunctionFailed(_, reason) => {
                         Some(reason.to_string())
                     }
+                    OpcodeResolutionError::BrilligFunctionFailed {
+                        payload: Some(payload), ..
+                    } => unwrap_payload(payload),
                     _ => None,
                 },
             },
@@ -152,6 +159,9 @@ impl Comparable for NargoErrorWithTypes {
                         || msg.contains("divisor of zero")
                         || msg.contains("division by zero")
                 })
+                || both(&msg1, &msg2, |msg| {
+                    msg.contains("attempted to shift by") || msg.contains("bit-shift with overflow")
+                })
         } else {
             false
         };
@@ -168,16 +178,36 @@ impl Comparable for NargoErrorWithTypes {
                 // Looks like the workaround we have for comptime failures originating from overflows and similar assertion failures.
                 true
             }
+            (
+                AssertionFailed(ResolvedAssertionPayload::Raw(_), _, _),
+                AssertionFailed(ResolvedAssertionPayload::Raw(_), _, _),
+            ) if msg2.as_ref().is_some_and(|msg| msg.contains("overflow"))
+                && msg1.as_ref().is_some_and(|msg| {
+                    msg.len() == crate::program::CONSTRAIN_MSG_LENGTH as usize
+                }) =>
+            {
+                // This is the case where a randomly generated `assert x == const, "MSG"` in ACIR causes
+                // a preceding range constraint to be removed from the bytecode.
+                true
+            }
             (AssertionFailed(p1, _, _), AssertionFailed(p2, _, _)) => p1 == p2,
             (SolvingError(s1, _), SolvingError(s2, _)) => format!("{s1}") == format!("{s2}"),
             (
                 SolvingError(OpcodeResolutionError::UnsatisfiedConstrain { .. }, _),
                 AssertionFailed(_, _, _),
-            ) => msg2.is_some_and(|msg| msg.contains("divide by zero")),
+            ) => msg2.as_ref().is_some_and(|msg| msg.contains("divide by zero")),
             (
                 AssertionFailed(_, _, _),
                 SolvingError(OpcodeResolutionError::UnsatisfiedConstrain { .. }, _),
             ) => msg1.is_some_and(|msg| msg.contains("divide by zero")),
+            (
+                SolvingError(OpcodeResolutionError::IndexOutOfBounds { .. }, _),
+                AssertionFailed(_, _, _),
+            ) => msg2.is_some_and(|msg| msg.contains("Index out of bounds")),
+            (
+                AssertionFailed(_, _, _),
+                SolvingError(OpcodeResolutionError::IndexOutOfBounds { .. }, _),
+            ) => msg1.is_some_and(|msg| msg.contains("Index out of bounds")),
             _ => false,
         }
     }
@@ -319,5 +349,50 @@ impl CompareMorph {
 impl HasPrograms for CompareMorph {
     fn programs(&self) -> Vec<&Program> {
         vec![&self.program.0, &self.program.1]
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use std::collections::BTreeMap;
+
+    use acir::circuit::{ErrorSelector, brillig::BrilligFunctionId};
+    use acvm::pwg::{RawAssertionPayload, ResolvedAssertionPayload};
+    use nargo::errors::ExecutionError;
+
+    use super::{ErrorType, NargoErrorWithTypes};
+    use crate::compare::Comparable;
+
+    #[test]
+    fn matches_brillig_bitshift_error_with_acir_error() {
+        let error = NargoErrorWithTypes(
+            nargo::NargoError::ExecutionError(ExecutionError::AssertionFailed(
+                ResolvedAssertionPayload::Raw(RawAssertionPayload {
+                    selector: ErrorSelector::new(14514982005979867414),
+                    data: vec![],
+                }),
+                Vec::new(),
+                Some(BrilligFunctionId(0)),
+            )),
+            BTreeMap::from_iter([(
+                ErrorSelector::new(14514982005979867414),
+                ErrorType::String("attempt to bit-shift with overflow".to_string()),
+            )]),
+        );
+        let brillig_error = NargoErrorWithTypes(
+            nargo::NargoError::ExecutionError(ExecutionError::AssertionFailed(
+                ResolvedAssertionPayload::String(
+                    "Attempted to shift by 4294958994 bits on a type of bit size 8".to_string(),
+                ),
+                Vec::new(),
+                Some(BrilligFunctionId(0)),
+            )),
+            BTreeMap::from_iter([(
+                ErrorSelector::new(14514982005979867414),
+                ErrorType::String("attempt to bit-shift with overflow".to_string()),
+            )]),
+        );
+
+        assert!(NargoErrorWithTypes::equivalent(&error, &brillig_error));
     }
 }

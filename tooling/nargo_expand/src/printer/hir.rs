@@ -5,7 +5,7 @@ use noirc_frontend::{
     hir_def::{
         expr::{
             Constructor, HirArrayLiteral, HirBlockExpression, HirCallExpression, HirExpression,
-            HirIdent, HirLambda, HirLiteral, HirMatch, ImplKind, TraitItem,
+            HirIdent, HirLambda, HirLiteral, HirMatch, HirPrefixExpression, ImplKind, TraitItem,
         },
         stmt::{HirLValue, HirPattern, HirStatement},
     },
@@ -170,7 +170,20 @@ impl ItemPrinter<'_, '_> {
                 }
             }
             HirExpression::MemberAccess(hir_member_access) => {
-                self.show_hir_expression_id_maybe_inside_parens(hir_member_access.lhs);
+                let lhs_exp = self.interner.expression(&hir_member_access.lhs);
+
+                if let HirExpression::Prefix(HirPrefixExpression {
+                    operator: UnaryOp::Dereference { implicitly_added: false },
+                    ..
+                }) = lhs_exp
+                {
+                    // In general we don't need parentheses around dereferences, but here we do
+                    self.push('(');
+                    self.show_hir_expression(lhs_exp, hir_member_access.lhs);
+                    self.push(')');
+                } else {
+                    self.show_hir_expression_id_maybe_inside_parens(hir_member_access.lhs);
+                }
                 self.push('.');
                 self.push_str(&hir_member_access.rhs.to_string());
             }
@@ -666,7 +679,15 @@ impl ItemPrinter<'_, '_> {
                 self.show_hir_ident(hir_ident, None);
             }
             HirLValue::MemberAccess { object, field_name, field_index: _, typ: _, location: _ } => {
+                let object_is_dereference =
+                    matches!(*object, HirLValue::Dereference { implicitly_added: false, .. });
+                if object_is_dereference {
+                    self.push('(');
+                }
                 self.show_hir_lvalue(*object);
+                if object_is_dereference {
+                    self.push(')');
+                }
                 self.push('.');
                 self.push_str(&field_name.to_string());
             }

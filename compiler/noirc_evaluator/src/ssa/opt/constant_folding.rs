@@ -123,7 +123,18 @@ impl Function {
             context.visited_blocks.insert(block);
             context.fold_constants_in_block(self, &mut dom, block);
         }
+
+        #[cfg(debug_assertions)]
+        constant_folding_post_check(&context, &self.dfg);
     }
+}
+
+#[cfg(debug_assertions)]
+fn constant_folding_post_check(context: &Context, dfg: &DataFlowGraph) {
+    assert!(
+        context.values_to_replace.value_types_are_consistent(dfg),
+        "Constant folding should not map a ValueId to another of a different type"
+    );
 }
 
 struct Context<'a> {
@@ -307,7 +318,7 @@ impl<'brillig> Context<'brillig> {
         // If a copy of this instruction exists earlier in the block, then reuse the previous results.
         let runtime_is_brillig = dfg.runtime().is_brillig();
         if let Some(cache_result) =
-            self.get_cached(dfg, dom, &instruction, *side_effects_enabled_var, block)
+            self.get_cached(dfg, dom, id, &instruction, *side_effects_enabled_var, block)
         {
             match cache_result {
                 CacheResult::Cached(cached) => {
@@ -538,6 +549,11 @@ impl<'brillig> Context<'brillig> {
 
     /// Replaces a set of [`ValueId`]s inside the [`DataFlowGraph`] with another.
     fn replace_result_ids(&mut self, old_results: &[ValueId], new_results: &[ValueId]) {
+        debug_assert_eq!(
+            old_results.len(),
+            new_results.len(),
+            "Constant folding should never mutate instruction return type"
+        );
         for (old_result, new_result) in old_results.iter().zip(new_results) {
             self.values_to_replace.insert(*old_result, *new_result);
         }
@@ -548,6 +564,7 @@ impl<'brillig> Context<'brillig> {
         &self,
         dfg: &DataFlowGraph,
         dom: &mut DominatorTree,
+        id: InstructionId,
         instruction: &Instruction,
         side_effects_enabled_var: ValueId,
         block: BasicBlockId,
@@ -556,7 +573,28 @@ impl<'brillig> Context<'brillig> {
         let predicate = self.use_constraint_info && instruction.requires_acir_gen_predicate(dfg);
         let predicate = predicate.then_some(side_effects_enabled_var);
 
-        results_for_instruction.get(&predicate)?.get(block, dom, instruction.has_side_effects(dfg))
+        let cached_results = results_for_instruction.get(&predicate)?.get(
+            block,
+            dom,
+            instruction.has_side_effects(dfg),
+        );
+
+        cached_results.filter(|results| {
+            // This is a hacky solution to https://github.com/noir-lang/noir/issues/9477
+            // We explicitly check that the cached result values are of the same type as expected by the instruction
+            // being checked against the cache and reject if they differ.
+            if let CacheResult::Cached(results) = results {
+                let old_results = dfg.instruction_results(id).to_vec();
+
+                results.len() == old_results.len()
+                    && old_results
+                        .iter()
+                        .zip(results.iter())
+                        .all(|(old, new)| dfg.type_of_value(*old) == dfg.type_of_value(*new))
+            } else {
+                true
+            }
+        })
     }
 
     /// Checks if the given instruction is a call to a brillig function with all constant arguments.
@@ -969,12 +1007,13 @@ mod test {
         ssa::{
             Ssa,
             function_builder::FunctionBuilder,
+            interpreter::value::Value,
             ir::{
                 map::Id,
                 types::{NumericType, Type},
                 value::ValueMapping,
             },
-            opt::assert_normalized_ssa_equals,
+            opt::{assert_normalized_ssa_equals, assert_ssa_does_not_change},
         },
     };
 
@@ -1109,9 +1148,7 @@ mod test {
                 return v3
             }
             ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.fold_constants();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::fold_constants);
     }
 
     #[test]
@@ -1196,11 +1233,7 @@ mod test {
             return
         }
         ";
-        let ssa = Ssa::from_str(src).unwrap();
-
-        // Expected output is unchanged
-        let ssa = ssa.fold_constants();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::fold_constants);
     }
 
     #[test]
@@ -1341,7 +1374,7 @@ mod test {
                 v2 = lt u32 1000, v0
                 jmpif v2 then: b1, else: b2
               b1():
-                v4 = shl v0, u8 1
+                v4 = shl v0, u32 1
                 v5 = lt v0, v4
                 constrain v5 == u1 1
                 jmp b2()
@@ -1349,7 +1382,7 @@ mod test {
                 v7 = lt u32 1000, v0
                 jmpif v7 then: b3, else: b4
               b3():
-                v8 = shl v0, u8 1
+                v8 = shl v0, u32 1
                 v9 = lt v0, v8
                 constrain v9 == u1 1
                 jmp b4()
@@ -1368,10 +1401,10 @@ mod test {
         brillig(inline) fn main f0 {
           b0(v0: u32):
             v2 = lt u32 1000, v0
-            v4 = shl v0, u8 1
+            v4 = shl v0, u32 1
             jmpif v2 then: b1, else: b2
           b1():
-            v5 = shl v0, u8 1
+            v5 = shl v0, u32 1
             v6 = lt v0, v5
             constrain v6 == u1 1
             jmp b2()
@@ -1653,9 +1686,7 @@ mod test {
                 return
             }
             ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.fold_constants_using_constraints();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::fold_constants_using_constraints);
     }
 
     #[test]
@@ -1677,9 +1708,7 @@ mod test {
                 return
             }
             ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.fold_constants_using_constraints();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::fold_constants_using_constraints);
     }
 
     #[test]
@@ -1703,9 +1732,7 @@ mod test {
                 return
             }
             ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.fold_constants_using_constraints();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::fold_constants_using_constraints);
     }
 
     #[test]
@@ -1756,12 +1783,7 @@ mod test {
             return v6
         }
         ";
-
-        let ssa = Ssa::from_str(src).unwrap();
-
-        let ssa = ssa.fold_constants_using_constraints();
-        // We expect the code to be unchanged
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::fold_constants_using_constraints);
     }
 
     #[test]
@@ -1836,10 +1858,7 @@ mod test {
             return
         }
         ";
-
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.fold_constants();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::fold_constants);
     }
 
     #[test]
@@ -1856,10 +1875,7 @@ mod test {
             return
         }
         ";
-
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.fold_constants();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::fold_constants);
     }
 
     #[test]
@@ -1876,10 +1892,7 @@ mod test {
             return
         }
         ";
-
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.fold_constants();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::fold_constants);
     }
 
     #[test]
@@ -1896,10 +1909,7 @@ mod test {
             return
         }
         ";
-
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.fold_constants();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::fold_constants);
     }
 
     #[test]
@@ -1916,18 +1926,34 @@ mod test {
             return
         }
         ";
+        assert_ssa_does_not_change(src, Ssa::fold_constants);
+    }
+
+    #[test]
+    fn does_not_deduplicate_calls_to_functions_which_differ_in_return_value_types() {
+        // We have a few intrinsics which have a generic return value (generally for array lengths), we want
+        // to avoid deduplicating these.
+        //
+        // This is not an issue for user code as these functions will be monomorphized whereas intrinsics haven't been.
+        let src = "
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v0: Field):
+            v1 = call to_le_radix(v0, u32 256) -> [u8; 2]
+            v2 = call to_le_radix(v0, u32 256) -> [u8; 3]
+            v3 = call to_le_radix(v0, u32 256) -> [u8; 2]
+            return
+        }
+        ";
 
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.fold_constants();
+        let ssa = ssa.fold_constants_using_constraints();
 
         assert_ssa_snapshot!(ssa, @r"
-        acir(inline) fn main f0 {
-          b0(v0: u32, v1: u32, v2: u1):
-            enable_side_effects v2
-            v4 = div v1, u32 2
-            v5 = not v2
-            enable_side_effects v5
-            v6 = div v1, u32 2
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v0: Field):
+            v3 = call to_le_radix(v0, u32 256) -> [u8; 2]
+            v4 = call to_le_radix(v0, u32 256) -> [u8; 3]
+            inc_rc v3
             return
         }
         ");
@@ -2073,5 +2099,47 @@ mod test {
         let ssa = ssa.fold_constants_using_constraints();
         let result_after = ssa.interpret(vec![]);
         assert_eq!(result_before, result_after);
+    }
+
+    // Regression for #9451
+    #[test]
+    fn do_not_deduplicate_call_with_inc_rc() {
+        // This test ensures that a function which mutates an array pointer is marked impure.
+        // This protects against future deduplication passes incorrectly assuming purity.
+        let src = r#"
+        brillig(inline) fn main f0 {
+          b0(v0: u32):
+            v3 = make_array [Field 1, Field 2] : [Field; 2]
+            v5 = call array_refcount(v3) -> u32
+            constrain v5 == u32 1
+            v8 = call f1(v3) -> [Field; 2]
+            v9 = call array_refcount(v3) -> u32
+            constrain v9 == u32 2
+            v11 = call f1(v3) -> [Field; 2]
+            v12 = call array_refcount(v3) -> u32
+            constrain v12 == u32 3
+            inc_rc v3
+            v15 = array_set v3, index v0, value Field 9
+            return v3, v15
+        }
+        brillig(inline) fn mutator f1 {
+          b0(v0: [Field; 2]):
+            inc_rc v0
+            v3 = array_set v0, index u32 0, value Field 5
+            return v3
+        }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        ssa.interpret(vec![Value::from_constant(1_u32.into(), NumericType::unsigned(32)).unwrap()])
+            .unwrap();
+
+        let ssa = ssa.purity_analysis();
+        ssa.interpret(vec![Value::from_constant(1_u32.into(), NumericType::unsigned(32)).unwrap()])
+            .unwrap();
+
+        let ssa = ssa.fold_constants_using_constraints();
+        ssa.interpret(vec![Value::from_constant(1_u32.into(), NumericType::unsigned(32)).unwrap()])
+            .unwrap();
     }
 }
