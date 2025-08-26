@@ -349,14 +349,20 @@ impl<'f> PerFunctionContext<'f> {
             match dfg.type_of_value(*param) {
                 // If the type indirectly contains a reference we have to assume all references
                 // are unknown since we don't have any ValueIds to use.
-                Type::Reference(element) if element.contains_reference() => return,
+                Type::Reference(element) if element.contains_reference() => {
+                    self.mark_all_unknown(params, references);
+                    return;
+                }
                 Type::Reference(element) => {
                     let empty_aliases = AliasSet::known_empty();
                     let alias_set =
                         aliases.entry(element.as_ref().clone()).or_insert(empty_aliases);
                     alias_set.insert(*param);
                 }
-                typ if typ.contains_reference() => return,
+                typ if typ.contains_reference() => {
+                    self.mark_all_unknown(params, references);
+                    return;
+                }
                 _ => continue,
             }
         }
@@ -685,11 +691,15 @@ impl<'f> PerFunctionContext<'f> {
                         Type::Reference(_) => {
                             if let Some(expression) = references.expressions.get(argument) {
                                 if let Some(aliases) = references.aliases.get_mut(expression) {
+                                    let argument = *argument;
+
                                     // The argument reference is possibly aliased by this block parameter
                                     aliases.insert(*parameter);
+
                                     // Check if we have seen the same argument
-                                    let seen_parameters =
-                                        arg_set.entry(*argument).or_insert_with(VecSet::empty);
+                                    let seen_parameters = arg_set
+                                        .entry(argument)
+                                        .or_insert_with(|| VecSet::single(argument));
                                     // Add the current parameter to the parameters we have seen for this argument.
                                     // The previous parameters and the current one alias one another.
                                     seen_parameters.insert(*parameter);
@@ -933,6 +943,21 @@ mod tests {
         let src = "
         acir(inline) fn main f0 {
           b0(v0: &mut Field, v1: &mut Field):
+            store Field 0 at v0
+            store Field 0 at v1
+            v3 = load v0 -> Field
+            constrain v3 == Field 0
+            return
+        }
+        ";
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
+    }
+
+    #[test]
+    fn parameter_alias_nested_reference() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: &mut Field, v1: &mut Field, v2: &mut &mut Field):
             store Field 0 at v0
             store Field 0 at v1
             v3 = load v0 -> Field
@@ -1648,5 +1673,75 @@ mod tests {
             return v2
         }
         ");
+    }
+
+    #[test]
+    fn does_not_remove_store_to_potentially_aliased_address() {
+        // This is a regression test for https://github.com/noir-lang/noir/pull/9613
+        // In that PR all tests passed but the sync to Aztec-Packages failed.
+        // That PR had `store v3 at v1` incorrectly removed.
+        // Even though v3 is what was in v1 and it might seem that there's no
+        // need to put v3 back in v1, v0 and v1 might be aliases so `store v2 at v0`
+        // might change the value at v1, so the next store to v1 must be preserved.
+        let src = r#"
+        acir(inline) fn create_note f0 {
+          b0(v0: &mut [Field; 1], v1: &mut [Field; 1]):
+            v2 = load v0 -> [Field; 1]
+            v3 = load v1 -> [Field; 1]
+            store v2 at v0
+            store v3 at v1
+            v4 = load v1 -> [Field; 1]
+            v6 = make_array [Field 0] : [Field; 1]
+            store v6 at v1
+            return v1
+        }
+        "#;
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
+    }
+
+    #[test]
+    fn does_not_replace_load_with_value_when_one_of_its_predecessors_changes_it() {
+        // This is another regression test for https://github.com/noir-lang/noir/pull/9613
+        // There, in `v5 = load v0 -> Field` it was incorrectly assumed that v5 could
+        // be replaced with `Field 0`, but another predecessor, through an alias
+        // (v1) conditionally changes its value to `Field 1`.
+        let src = r#"
+        acir(inline) fn create_note f0 {
+          b0(v0: &mut Field):
+            store Field 0 at v0
+            jmpif u1 0 then: b1, else: b2
+          b1():
+            v5 = load v0 -> Field
+            return v5
+          b2():
+            jmp b3(v0)
+          b3(v1: &mut Field):
+            store Field 1 at v1
+            jmp b1()
+        }
+        "#;
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
+    }
+
+    #[test]
+    fn aliases_block_parameter_to_its_argument() {
+        // Here:
+        // - v0 and v1 are potentially aliases of each other
+        // - v2 must be an alias of v0 (there was a bug around this)
+        // - v3 must be an alias of v1 (same as previous point)
+        // - `v4 = load v2` cannot be replaced with `Field 2` because
+        //   v2 and v3 are also potentially aliases of each other
+        let src = r#"
+        acir(inline) fn create_note f0 {
+          b0(v0: &mut Field, v1: &mut Field):
+            jmp b1(v0, v1)
+          b1(v2: &mut Field, v3: &mut Field):
+            store Field 2 at v2
+            store Field 3 at v3
+            v4 = load v2 -> Field
+            return v4
+        }
+        "#;
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 }
