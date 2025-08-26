@@ -1,6 +1,7 @@
 use super::instruction::Point as InstructionPoint;
 use super::instruction::Scalar as InstructionScalar;
 use super::{
+    ecdsa::{Curve, generate_ecdsa_signature_and_corrupt_it},
     instruction::{Argument, FunctionInfo, Instruction},
     options::SsaBlockOptions,
 };
@@ -937,6 +938,94 @@ impl BlockContext {
                         typed_value.clone(),
                     );
                 }
+            }
+            Instruction::EcdsaSecp256r1 {
+                msg,
+                hash_size,
+                corrupt_hash,
+                corrupt_pubkey_x,
+                corrupt_pubkey_y,
+                corrupt_signature,
+            } => {
+                if !self.options.instruction_options.ecdsa_secp256r1_enabled {
+                    return;
+                }
+                let prepared_signature = generate_ecdsa_signature_and_corrupt_it(
+                    &msg,
+                    Curve::Secp256r1,
+                    corrupt_hash,
+                    corrupt_pubkey_x,
+                    corrupt_pubkey_y,
+                    corrupt_signature,
+                );
+                let result = acir_builder.ecdsa_secp256r1(
+                    prepared_signature.public_key_x.clone(),
+                    prepared_signature.public_key_y.clone(),
+                    prepared_signature.hash.clone(),
+                    hash_size,
+                    prepared_signature.signature.clone(),
+                );
+                assert_eq!(
+                    result.value_id,
+                    brillig_builder
+                        .ecdsa_secp256r1(
+                            prepared_signature.public_key_x,
+                            prepared_signature.public_key_y,
+                            prepared_signature.hash,
+                            hash_size,
+                            prepared_signature.signature,
+                        )
+                        .value_id
+                );
+                append_typed_value_to_map(
+                    &mut self.stored_variables,
+                    &result.to_value_type(),
+                    result.clone(),
+                );
+            }
+            Instruction::EcdsaSecp256k1 {
+                msg,
+                hash_size,
+                corrupt_hash,
+                corrupt_pubkey_x,
+                corrupt_pubkey_y,
+                corrupt_signature,
+            } => {
+                if !self.options.instruction_options.ecdsa_secp256k1_enabled {
+                    return;
+                }
+                let prepared_signature = generate_ecdsa_signature_and_corrupt_it(
+                    &msg,
+                    Curve::Secp256k1,
+                    corrupt_hash,
+                    corrupt_pubkey_x,
+                    corrupt_pubkey_y,
+                    corrupt_signature,
+                );
+                let result = acir_builder.ecdsa_secp256k1(
+                    prepared_signature.public_key_x.clone(),
+                    prepared_signature.public_key_y.clone(),
+                    prepared_signature.hash.clone(),
+                    hash_size,
+                    prepared_signature.signature.clone(),
+                );
+                assert_eq!(
+                    result.value_id,
+                    brillig_builder
+                        .ecdsa_secp256k1(
+                            prepared_signature.public_key_x,
+                            prepared_signature.public_key_y,
+                            prepared_signature.hash,
+                            hash_size,
+                            prepared_signature.signature,
+                        )
+                        .value_id
+                );
+                append_typed_value_to_map(
+                    &mut self.stored_variables,
+                    &result.to_value_type(),
+                    result.clone(),
+                );
             }
         }
     }

@@ -483,8 +483,10 @@ pub(crate) enum GenerateInstruction {
     Sha256Compression,
     PointAdd,
     MultiScalarMul,
+    EcdsaSecp256r1,
+    EcdsaSecp256k1,
 }
-pub(crate) type GenerateInstructionConfig = WeightedSelectionConfig<GenerateInstruction, 32>;
+pub(crate) type GenerateInstructionConfig = WeightedSelectionConfig<GenerateInstruction, 34>;
 pub(crate) const BASIC_GENERATE_INSTRUCTION_CONFIGURATION: GenerateInstructionConfig =
     GenerateInstructionConfig::new([
         (GenerateInstruction::AddChecked, 100),
@@ -520,6 +522,8 @@ pub(crate) const BASIC_GENERATE_INSTRUCTION_CONFIGURATION: GenerateInstructionCo
         (GenerateInstruction::Sha256Compression, 5),
         (GenerateInstruction::PointAdd, 5),
         (GenerateInstruction::MultiScalarMul, 5),
+        (GenerateInstruction::EcdsaSecp256r1, 5),
+        (GenerateInstruction::EcdsaSecp256k1, 5),
     ]);
 
 // Compile-time check that configuration has correct number of entries
