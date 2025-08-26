@@ -84,13 +84,11 @@ impl Ssa {
 mod test {
     use crate::{
         assert_ssa_snapshot,
-        ssa::{Ssa, opt::assert_normalized_ssa_equals},
+        ssa::{Ssa, opt::assert_ssa_does_not_change},
     };
 
     fn assert_does_not_inline(src: &str) {
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.inline_simple_functions();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::inline_simple_functions);
     }
 
     #[test]
