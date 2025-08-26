@@ -95,17 +95,15 @@ use std::collections::hash_map::Entry;
 use fxhash::FxHashMap as HashMap;
 
 use crate::errors::RtResult;
-use crate::ssa::ir::function::RuntimeType;
-use crate::ssa::ir::instruction::Hint;
-use crate::ssa::ir::value::ValueId;
+
 use crate::ssa::{
     Ssa,
     ir::{
         dfg::DataFlowGraph,
-        function::Function,
-        instruction::{Instruction, Intrinsic},
+        function::{Function, RuntimeType},
+        instruction::{Hint, Instruction, Intrinsic},
         types::Type,
-        value::Value,
+        value::{Value, ValueId},
     },
     opt::flatten_cfg::value_merger::ValueMerger,
 };
@@ -134,6 +132,9 @@ impl Ssa {
 
 impl Function {
     pub(crate) fn remove_if_else(&mut self) -> RtResult<()> {
+        #[cfg(debug_assertions)]
+        remove_if_else_pre_check(self);
+
         // This should match the check in flatten_cfg
         if matches!(self.runtime(), RuntimeType::Brillig(_)) {
             // skip
@@ -326,6 +327,28 @@ fn slice_capacity_change(
         | Intrinsic::ArrayRefCount
         | Intrinsic::SliceRefCount
         | Intrinsic::FieldLessThan => SizeChange::None,
+    }
+}
+
+#[cfg(debug_assertions)]
+fn remove_if_else_pre_check(func: &Function) {
+    // This pass should only run post-flattening.
+    super::flatten_cfg::flatten_cfg_post_check(func);
+
+    // Otherwise there should be no if-else instructions in any reachable block.
+    for block_id in func.reachable_blocks() {
+        let instruction_ids = func.dfg[block_id].instructions();
+
+        for instruction_id in instruction_ids {
+            if matches!(func.dfg[*instruction_id], Instruction::IfElse { .. }) {
+                assert!(
+                    func.dfg.instruction_results(*instruction_id).iter().all(|value| {
+                        matches!(func.dfg.type_of_value(*value), Type::Array(_, _) | Type::Slice(_))
+                    }),
+                    "IfElse instruction returns unexpected type"
+                );
+            }
+        }
     }
 }
 
