@@ -335,7 +335,7 @@ fn remove_if_else_pre_check(func: &Function) {
     // This pass should only run post-flattening.
     super::flatten_cfg::flatten_cfg_post_check(func);
 
-    // Otherwise there should be no if-else instructions in any reachable block.
+    // We expect to only encounter `IfElse` instructions on array and slice types.
     for block_id in func.reachable_blocks() {
         let instruction_ids = func.dfg[block_id].instructions();
 
