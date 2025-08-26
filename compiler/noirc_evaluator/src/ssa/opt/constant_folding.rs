@@ -14,7 +14,10 @@
 //!
 //! This is the only pass which removes duplicated pure [`Instruction`]s however and so is needed when
 //! different blocks are merged, i.e. after the [`flatten_cfg`][super::flatten_cfg] pass.
-use std::collections::{BTreeMap, HashSet, VecDeque};
+use std::{
+    collections::{BTreeMap, HashSet, VecDeque},
+    io::Write,
+};
 
 use acvm::{
     FieldElement,
@@ -32,6 +35,7 @@ use crate::{
         brillig_ir::{artifact::BrilligParameter, brillig_variable::get_bit_size_from_ssa_type},
     },
     ssa::{
+        interpreter::{Interpreter, InterpreterOptions, value::Value as InterpreterValue},
         ir::{
             basic_block::BasicBlockId,
             dfg::{DataFlowGraph, InsertInstructionResult},
@@ -57,7 +61,7 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn fold_constants(mut self) -> Ssa {
         for function in self.functions.values_mut() {
-            function.constant_fold(false, None);
+            function.constant_fold(false, None, self.main_id);
         }
         self
     }
@@ -70,7 +74,7 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn fold_constants_using_constraints(mut self) -> Ssa {
         for function in self.functions.values_mut() {
-            function.constant_fold(true, None);
+            function.constant_fold(true, None, self.main_id);
         }
         self
     }
@@ -89,6 +93,7 @@ impl Ssa {
         }
 
         let brillig_info = Some(BrilligInfo { brillig, brillig_functions: &brillig_functions });
+        // let interpreter = Interpreter::new_from_functions(&self.functions.clone(), self.main_id, InterpreterOptions { no_foreign_calls: true, ..Default::default() }, std::io::empty());
 
         for function in self.functions.values_mut() {
             // We have already performed our final Brillig generation, so constant folding
@@ -96,7 +101,7 @@ impl Ssa {
             if function.dfg.runtime().is_brillig() {
                 continue;
             }
-            function.constant_fold(false, brillig_info);
+            function.constant_fold(false, brillig_info, self.main_id);
         }
 
         self
@@ -110,8 +115,10 @@ impl Function {
         &mut self,
         use_constraint_info: bool,
         brillig_info: Option<BrilligInfo>,
+        main_id: FunctionId,
+        // interpreter: Interpreter<'ssa, W>,
     ) {
-        let mut context = Context::new(use_constraint_info, brillig_info);
+        let mut context = Context::new(use_constraint_info, brillig_info, main_id);
         let mut dom = DominatorTree::with_function(self);
         context.block_queue.push_back(self.entry_block());
 
@@ -157,6 +164,8 @@ struct Context<'a> {
     cached_instruction_results: InstructionResultCache,
 
     values_to_replace: ValueMapping,
+
+    main_id: FunctionId,
 }
 
 #[derive(Copy, Clone)]
@@ -228,7 +237,11 @@ struct ResultCache {
 }
 
 impl<'brillig> Context<'brillig> {
-    fn new(use_constraint_info: bool, brillig_info: Option<BrilligInfo<'brillig>>) -> Self {
+    fn new(
+        use_constraint_info: bool,
+        brillig_info: Option<BrilligInfo<'brillig>>,
+        main_id: FunctionId,
+    ) -> Self {
         Self {
             use_constraint_info,
             brillig_info,
@@ -237,6 +250,7 @@ impl<'brillig> Context<'brillig> {
             constraint_simplification_mappings: Default::default(),
             cached_instruction_results: Default::default(),
             values_to_replace: Default::default(),
+            main_id,
         }
     }
 
@@ -367,6 +381,7 @@ impl<'brillig> Context<'brillig> {
                 block,
                 dfg,
                 self.brillig_info,
+                self.main_id,
             )
             // Otherwise, try inserting the instruction again to apply any optimizations using the newly resolved inputs.
             .unwrap_or_else(|| {
@@ -605,12 +620,13 @@ impl<'brillig> Context<'brillig> {
         block: BasicBlockId,
         dfg: &mut DataFlowGraph,
         brillig_info: Option<BrilligInfo>,
+        main_id: FunctionId,
     ) -> Option<Vec<ValueId>> {
         let evaluation_result = Self::evaluate_const_brillig_call(
             instruction,
-            brillig_info?.brillig,
             brillig_info?.brillig_functions,
             dfg,
+            main_id,
         );
 
         match evaluation_result {
@@ -629,6 +645,12 @@ impl<'brillig> Context<'brillig> {
                 });
                 Some(new_results)
             }
+            EvaluationResult::InterpreterEvaluated(old_results) => {
+                let new_results = vecmap(old_results, |old_result| {
+                    interpreter_value_to_ir_value(old_result, dfg, block)
+                });
+                Some(new_results)
+            }
         }
     }
 
@@ -637,9 +659,9 @@ impl<'brillig> Context<'brillig> {
     /// We do this by directly executing the function with a brillig VM.
     fn evaluate_const_brillig_call(
         instruction: &Instruction,
-        brillig: &Brillig,
         brillig_functions: &BTreeMap<FunctionId, Function>,
         dfg: &mut DataFlowGraph,
+        main_id: FunctionId,
     ) -> EvaluationResult {
         let Instruction::Call { func: func_id, arguments } = instruction else {
             return EvaluationResult::NotABrilligCall;
@@ -654,57 +676,29 @@ impl<'brillig> Context<'brillig> {
             return EvaluationResult::NotABrilligCall;
         };
 
+        // Ensure all arguments to the call are constant
         if !arguments.iter().all(|argument| dfg.is_constant(*argument)) {
             return EvaluationResult::CannotEvaluate;
         }
 
-        let mut brillig_arguments = Vec::new();
-        for argument in arguments {
-            let typ = dfg.type_of_value(*argument);
-            let Some(parameter) = type_to_brillig_parameter(&typ) else {
-                return EvaluationResult::CannotEvaluate;
-            };
-            brillig_arguments.push(parameter);
-        }
+        let interpreter_args =
+            arguments.iter().map(|arg| const_ir_value_to_interpreter_value(*arg, &dfg)).collect();
 
-        // Check that the function returns (doesn't always fail)
-        let Some(returns) = func.returns() else {
+        let mut interpreter = Interpreter::new_from_functions(
+            brillig_functions,
+            main_id,
+            InterpreterOptions { no_foreign_calls: true, ..Default::default() },
+            std::io::empty(),
+        );
+        let Ok(()) = interpreter.interpret_globals() else {
             return EvaluationResult::CannotEvaluate;
         };
 
-        // Check that return value types are supported by brillig
-        for return_id in returns {
-            let typ = func.dfg.type_of_value(*return_id);
-            if type_to_brillig_parameter(&typ).is_none() {
-                return EvaluationResult::CannotEvaluate;
-            }
-        }
-
-        let Ok(generated_brillig) =
-            gen_brillig_for(func, brillig_arguments, brillig, &BrilligOptions::default())
-        else {
+        let Ok(result_values) = interpreter.call_function(func.id(), interpreter_args) else {
             return EvaluationResult::CannotEvaluate;
         };
 
-        let mut calldata = Vec::new();
-        for argument in arguments {
-            value_id_to_calldata(*argument, dfg, &mut calldata);
-        }
-
-        let bytecode = &generated_brillig.byte_code;
-        let pedantic_solving = true;
-        let black_box_solver = Bn254BlackBoxSolver(pedantic_solving);
-        let profiling_active = false;
-        let mut vm = VM::new(calldata, bytecode, &black_box_solver, profiling_active, None);
-        let vm_status: VMStatus<_> = vm.process_opcodes();
-        let VMStatus::Finished { return_data_offset, return_data_size } = vm_status else {
-            return EvaluationResult::CannotEvaluate;
-        };
-
-        let memory =
-            vm.get_memory()[return_data_offset..(return_data_offset + return_data_size)].to_vec();
-
-        EvaluationResult::Evaluated(memory)
+        EvaluationResult::InterpreterEvaluated(result_values)
     }
 
     /// Creates a new value inside this function by reading it from `memory_values` starting at
@@ -882,6 +876,8 @@ enum EvaluationResult {
     /// The instruction was a call to a brillig function and we were able to evaluate it,
     /// returning evaluation memory values.
     Evaluated(Vec<MemoryValue<FieldElement>>),
+
+    InterpreterEvaluated(Vec<InterpreterValue>),
 }
 
 /// Similar to FunctionContext::ssa_type_to_parameter but never panics and disallows reference types.
@@ -996,6 +992,90 @@ pub(crate) fn can_be_deduplicated(
         Binary(_) | ArrayGet { .. } | ArraySet { .. } => {
             deduplicate_with_predicate || !instruction.requires_acir_gen_predicate(&function.dfg)
         }
+    }
+}
+
+/// Converts a constant [SSA value][IrValue] into an [interpreter value][Value] for execution.
+fn const_ir_value_to_interpreter_value(value_id: ValueId, dfg: &DataFlowGraph) -> InterpreterValue {
+    let typ = dfg.type_of_value(value_id);
+    match typ {
+        Type::Numeric(numeric_type) => {
+            let constant =
+                dfg.get_numeric_constant(value_id).expect("Should have a numeric constant");
+            InterpreterValue::from_constant(constant, numeric_type)
+                .expect("Should be a valid constant")
+        }
+        Type::Reference(_) => unreachable!("References cannot be constant values"),
+        Type::Array(element_types, _) => {
+            let (array_constant, _) =
+                dfg.get_array_constant(value_id).expect("Should have an array constant");
+            let mut elements = Vec::new();
+            for element in array_constant {
+                elements.push(const_ir_value_to_interpreter_value(element, dfg));
+            }
+            InterpreterValue::array(elements, element_types.to_vec())
+        }
+        Type::Slice(element_types) => {
+            let (array_constant, _) =
+                dfg.get_array_constant(value_id).expect("Should have an array constant");
+            let mut elements = Vec::new();
+            for element in array_constant {
+                elements.push(const_ir_value_to_interpreter_value(element, dfg));
+            }
+            InterpreterValue::slice(elements, element_types)
+        }
+        Type::Function => unreachable!("Functions cannot be constant values"),
+    }
+}
+
+/// Converts a constant [interpreter value][Value] back into an SSA constant.
+fn interpreter_value_to_ir_value(
+    value: InterpreterValue,
+    dfg: &mut DataFlowGraph,
+    block_id: BasicBlockId,
+) -> ValueId {
+    let typ = value.get_type();
+    match typ {
+        Type::Numeric(numeric_type) => {
+            let constant = value.as_numeric().expect("Should be numeric").convert_to_field();
+            dfg.make_constant(constant, numeric_type)
+        }
+        Type::Array(element_types, length) => {
+            let array = match value {
+                InterpreterValue::ArrayOrSlice(array) => array,
+                _ => unreachable!("Expected an ArrayOrSlice"),
+            };
+
+            let mut elements = im::Vector::new();
+            for element in array.elements.unwrap_or_clone() {
+                elements.push_back(interpreter_value_to_ir_value(element, dfg, block_id));
+            }
+
+            let instruction =
+                Instruction::MakeArray { elements, typ: Type::Array(element_types, length) };
+
+            let instruction_id = dfg.make_instruction(instruction, None);
+            dfg[block_id].instructions_mut().push(instruction_id);
+            *dfg.instruction_results(instruction_id).first().unwrap()
+        }
+        Type::Slice(element_types) => {
+            let array = match value {
+                InterpreterValue::ArrayOrSlice(array) => array,
+                _ => unreachable!("Expected an ArrayOrSlice"),
+            };
+
+            let mut elements = im::Vector::new();
+            for element in array.elements.unwrap_or_clone() {
+                elements.push_back(interpreter_value_to_ir_value(element, dfg, block_id));
+            }
+
+            let instruction = Instruction::MakeArray { elements, typ: Type::Slice(element_types) };
+
+            let instruction_id = dfg.make_instruction(instruction, None);
+            dfg[block_id].instructions_mut().push(instruction_id);
+            *dfg.instruction_results(instruction_id).first().unwrap()
+        }
+        Type::Function | Type::Reference(_) => unreachable!("Cannot be a constant value"),
     }
 }
 
