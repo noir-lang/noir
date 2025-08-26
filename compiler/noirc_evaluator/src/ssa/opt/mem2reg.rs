@@ -438,12 +438,6 @@ impl<'f> PerFunctionContext<'f> {
 
                 let result = self.inserter.function.dfg.instruction_results(instruction)[0];
 
-                // If we have:
-                //
-                // v0 = allocate &mut &mut Field
-                // v1 = load v0 -> &mut Field
-                //
-                // remember the relationship between v1 and v0, as they are both references
                 references.remember_dereference(self.inserter.function, address, result);
 
                 // If the load is known, replace it with the known value and remove the load.
@@ -526,16 +520,6 @@ impl<'f> PerFunctionContext<'f> {
                     if let Some(aliases) = references.aliases.get_mut(&expression) {
                         aliases.insert(result);
                     }
-
-                    // Getting an element from an array isn't exactly a dereference.
-                    // However, given a code like this:
-                    //
-                    // v0 = allocate &mut Field
-                    // v1 = make_array [v0] : [&mut Field; 1]
-                    // v2 = array_get v1, index u32 0 -> &mut Field
-                    //
-                    // we do want to remember a relationship between v2 and v1 as both contain references
-                    references.remember_dereference(self.inserter.function, array, result);
                 }
             }
             Instruction::ArraySet { array, value, .. } => {
