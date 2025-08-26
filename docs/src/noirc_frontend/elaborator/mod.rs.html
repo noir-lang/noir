@@ -5310,7 +5310,7 @@
         };
 
         <span class="kw">let </span><span class="kw-2">mut </span>monomorphizer =
-            Monomorphizer::new(elaborator.interner, DebugTypeTracker::default());
+            Monomorphizer::new(elaborator.interner, DebugTypeTracker::default(), <span class="bool-val">false</span>);
         <span class="prelude-val">Ok</span>(monomorphizer.expr(expr_id).expect(<span class="string">"monomorphization error while converting interpreter execution result, should not be possible"</span>))
     }
 }

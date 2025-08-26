@@ -2760,7 +2760,150 @@
 <a href="#2759" id="2759">2759</a>
 <a href="#2760" id="2760">2760</a>
 <a href="#2761" id="2761">2761</a>
-<a href="#2762" id="2762">2762</a></pre></div><pre class="rust"><code><span class="doccomment">//! Coming after type checking, monomorphization is the last pass in Noir's frontend.
+<a href="#2762" id="2762">2762</a>
+<a href="#2763" id="2763">2763</a>
+<a href="#2764" id="2764">2764</a>
+<a href="#2765" id="2765">2765</a>
+<a href="#2766" id="2766">2766</a>
+<a href="#2767" id="2767">2767</a>
+<a href="#2768" id="2768">2768</a>
+<a href="#2769" id="2769">2769</a>
+<a href="#2770" id="2770">2770</a>
+<a href="#2771" id="2771">2771</a>
+<a href="#2772" id="2772">2772</a>
+<a href="#2773" id="2773">2773</a>
+<a href="#2774" id="2774">2774</a>
+<a href="#2775" id="2775">2775</a>
+<a href="#2776" id="2776">2776</a>
+<a href="#2777" id="2777">2777</a>
+<a href="#2778" id="2778">2778</a>
+<a href="#2779" id="2779">2779</a>
+<a href="#2780" id="2780">2780</a>
+<a href="#2781" id="2781">2781</a>
+<a href="#2782" id="2782">2782</a>
+<a href="#2783" id="2783">2783</a>
+<a href="#2784" id="2784">2784</a>
+<a href="#2785" id="2785">2785</a>
+<a href="#2786" id="2786">2786</a>
+<a href="#2787" id="2787">2787</a>
+<a href="#2788" id="2788">2788</a>
+<a href="#2789" id="2789">2789</a>
+<a href="#2790" id="2790">2790</a>
+<a href="#2791" id="2791">2791</a>
+<a href="#2792" id="2792">2792</a>
+<a href="#2793" id="2793">2793</a>
+<a href="#2794" id="2794">2794</a>
+<a href="#2795" id="2795">2795</a>
+<a href="#2796" id="2796">2796</a>
+<a href="#2797" id="2797">2797</a>
+<a href="#2798" id="2798">2798</a>
+<a href="#2799" id="2799">2799</a>
+<a href="#2800" id="2800">2800</a>
+<a href="#2801" id="2801">2801</a>
+<a href="#2802" id="2802">2802</a>
+<a href="#2803" id="2803">2803</a>
+<a href="#2804" id="2804">2804</a>
+<a href="#2805" id="2805">2805</a>
+<a href="#2806" id="2806">2806</a>
+<a href="#2807" id="2807">2807</a>
+<a href="#2808" id="2808">2808</a>
+<a href="#2809" id="2809">2809</a>
+<a href="#2810" id="2810">2810</a>
+<a href="#2811" id="2811">2811</a>
+<a href="#2812" id="2812">2812</a>
+<a href="#2813" id="2813">2813</a>
+<a href="#2814" id="2814">2814</a>
+<a href="#2815" id="2815">2815</a>
+<a href="#2816" id="2816">2816</a>
+<a href="#2817" id="2817">2817</a>
+<a href="#2818" id="2818">2818</a>
+<a href="#2819" id="2819">2819</a>
+<a href="#2820" id="2820">2820</a>
+<a href="#2821" id="2821">2821</a>
+<a href="#2822" id="2822">2822</a>
+<a href="#2823" id="2823">2823</a>
+<a href="#2824" id="2824">2824</a>
+<a href="#2825" id="2825">2825</a>
+<a href="#2826" id="2826">2826</a>
+<a href="#2827" id="2827">2827</a>
+<a href="#2828" id="2828">2828</a>
+<a href="#2829" id="2829">2829</a>
+<a href="#2830" id="2830">2830</a>
+<a href="#2831" id="2831">2831</a>
+<a href="#2832" id="2832">2832</a>
+<a href="#2833" id="2833">2833</a>
+<a href="#2834" id="2834">2834</a>
+<a href="#2835" id="2835">2835</a>
+<a href="#2836" id="2836">2836</a>
+<a href="#2837" id="2837">2837</a>
+<a href="#2838" id="2838">2838</a>
+<a href="#2839" id="2839">2839</a>
+<a href="#2840" id="2840">2840</a>
+<a href="#2841" id="2841">2841</a>
+<a href="#2842" id="2842">2842</a>
+<a href="#2843" id="2843">2843</a>
+<a href="#2844" id="2844">2844</a>
+<a href="#2845" id="2845">2845</a>
+<a href="#2846" id="2846">2846</a>
+<a href="#2847" id="2847">2847</a>
+<a href="#2848" id="2848">2848</a>
+<a href="#2849" id="2849">2849</a>
+<a href="#2850" id="2850">2850</a>
+<a href="#2851" id="2851">2851</a>
+<a href="#2852" id="2852">2852</a>
+<a href="#2853" id="2853">2853</a>
+<a href="#2854" id="2854">2854</a>
+<a href="#2855" id="2855">2855</a>
+<a href="#2856" id="2856">2856</a>
+<a href="#2857" id="2857">2857</a>
+<a href="#2858" id="2858">2858</a>
+<a href="#2859" id="2859">2859</a>
+<a href="#2860" id="2860">2860</a>
+<a href="#2861" id="2861">2861</a>
+<a href="#2862" id="2862">2862</a>
+<a href="#2863" id="2863">2863</a>
+<a href="#2864" id="2864">2864</a>
+<a href="#2865" id="2865">2865</a>
+<a href="#2866" id="2866">2866</a>
+<a href="#2867" id="2867">2867</a>
+<a href="#2868" id="2868">2868</a>
+<a href="#2869" id="2869">2869</a>
+<a href="#2870" id="2870">2870</a>
+<a href="#2871" id="2871">2871</a>
+<a href="#2872" id="2872">2872</a>
+<a href="#2873" id="2873">2873</a>
+<a href="#2874" id="2874">2874</a>
+<a href="#2875" id="2875">2875</a>
+<a href="#2876" id="2876">2876</a>
+<a href="#2877" id="2877">2877</a>
+<a href="#2878" id="2878">2878</a>
+<a href="#2879" id="2879">2879</a>
+<a href="#2880" id="2880">2880</a>
+<a href="#2881" id="2881">2881</a>
+<a href="#2882" id="2882">2882</a>
+<a href="#2883" id="2883">2883</a>
+<a href="#2884" id="2884">2884</a>
+<a href="#2885" id="2885">2885</a>
+<a href="#2886" id="2886">2886</a>
+<a href="#2887" id="2887">2887</a>
+<a href="#2888" id="2888">2888</a>
+<a href="#2889" id="2889">2889</a>
+<a href="#2890" id="2890">2890</a>
+<a href="#2891" id="2891">2891</a>
+<a href="#2892" id="2892">2892</a>
+<a href="#2893" id="2893">2893</a>
+<a href="#2894" id="2894">2894</a>
+<a href="#2895" id="2895">2895</a>
+<a href="#2896" id="2896">2896</a>
+<a href="#2897" id="2897">2897</a>
+<a href="#2898" id="2898">2898</a>
+<a href="#2899" id="2899">2899</a>
+<a href="#2900" id="2900">2900</a>
+<a href="#2901" id="2901">2901</a>
+<a href="#2902" id="2902">2902</a>
+<a href="#2903" id="2903">2903</a>
+<a href="#2904" id="2904">2904</a>
+<a href="#2905" id="2905">2905</a></pre></div><pre class="rust"><code><span class="doccomment">//! Coming after type checking, monomorphization is the last pass in Noir's frontend.
 //! It accepts the type checked HIR as input and produces a monomorphized AST as output.
 //! This file implements the pass itself, while the AST is defined in the ast module.
 //!
@@ -2874,6 +3017,11 @@
     debug_type_tracker: DebugTypeTracker,
 
     in_unconstrained_function: bool,
+
+    <span class="doccomment">/// Set to true to force every function to be unconstrained.
+    /// Note that this also changes the first-class function representation
+    /// from a pair of `(constrained, unconstrained)` to `(unconstrained, unconstrained)`
+    </span>force_unconstrained: bool,
 }
 
 <span class="doccomment">/// Using nested HashMaps here lets us avoid cloning HirTypes when calling .get()
@@ -2911,8 +3059,7 @@
     force_unconstrained: bool,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;Program, MonomorphizationError&gt; {
     <span class="kw">let </span>debug_type_tracker = DebugTypeTracker::build_from_debug_instrumenter(debug_instrumenter);
-    <span class="kw">let </span><span class="kw-2">mut </span>monomorphizer = Monomorphizer::new(interner, debug_type_tracker);
-    monomorphizer.in_unconstrained_function = force_unconstrained;
+    <span class="kw">let </span><span class="kw-2">mut </span>monomorphizer = Monomorphizer::new(interner, debug_type_tracker, force_unconstrained);
     <span class="kw">let </span>function_sig = monomorphizer.compile_main(main)<span class="question-mark">?</span>;
 
     <span class="kw">while </span>!monomorphizer.queue.is_empty() {
@@ -2970,6 +3117,7 @@
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(
         interner: <span class="kw-2">&amp;</span><span class="lifetime">'interner </span><span class="kw-2">mut </span>NodeInterner,
         debug_type_tracker: DebugTypeTracker,
+        force_unconstrained: bool,
     ) -&gt; <span class="self">Self </span>{
         Monomorphizer {
             functions: HashMap::default(),
@@ -2987,7 +3135,8 @@
             is_range_loop: <span class="bool-val">false</span>,
             return_location: <span class="prelude-val">None</span>,
             debug_type_tracker,
-            in_unconstrained_function: <span class="bool-val">false</span>,
+            in_unconstrained_function: force_unconstrained,
+            force_unconstrained,
         }
     }
 
@@ -3254,7 +3403,7 @@
         <span class="kw">use </span>ast::Literal::<span class="kw-2">*</span>;
 
         <span class="kw">let </span>expr = <span class="kw">match </span><span class="self">self</span>.interner.expression(<span class="kw-2">&amp;</span>expr) {
-            HirExpression::Ident(ident, generics) =&gt; <span class="self">self</span>.ident(ident, expr, generics)<span class="question-mark">?</span>,
+            HirExpression::Ident(ident, generics) =&gt; <span class="self">self</span>.ident(ident, expr, generics, <span class="bool-val">false</span>)<span class="question-mark">?</span>,
             HirExpression::Literal(HirLiteral::Str(contents)) =&gt; Literal(Str(contents)),
             HirExpression::Literal(HirLiteral::FmtStr(fragments, idents, _length)) =&gt; {
                 <span class="kw">let </span>fields = try_vecmap(idents, |ident| <span class="self">self</span>.expr(ident))<span class="question-mark">?</span>;
@@ -3299,7 +3448,10 @@
                     <span class="kw">let </span>method = prefix
                         .trait_method_id
                         .expect(<span class="string">"ice: missing trait method if when impl was found"</span>);
-                    <span class="kw">let </span>func = <span class="self">self</span>.resolve_trait_item_expr(expr, function_type, method)<span class="question-mark">?</span>;
+
+                    <span class="comment">// `true` here to use the current runtime since we're immediately calling this
+                    // method in our current runtime.
+                    </span><span class="kw">let </span>func = <span class="self">self</span>.resolve_trait_item_expr(expr, function_type, method, <span class="bool-val">true</span>)<span class="question-mark">?</span>;
                     <span class="self">self</span>.create_prefix_operator_impl_call(func, rhs, ret, location)<span class="question-mark">?
                 </span>} <span class="kw">else </span>{
                     <span class="kw">let </span>operator = prefix.operator;
@@ -3327,7 +3479,10 @@
                         <span class="self">self</span>.interner.get_infix_operator_type(infix.lhs, operator, expr);
 
                     <span class="kw">let </span>method = infix.trait_method_id;
-                    <span class="kw">let </span>func = <span class="self">self</span>.resolve_trait_item_expr(expr, function_type, method)<span class="question-mark">?</span>;
+
+                    <span class="comment">// True here since we're immediately calling this operator method in the
+                    // current runtime.
+                    </span><span class="kw">let </span>func = <span class="self">self</span>.resolve_trait_item_expr(expr, function_type, method, <span class="bool-val">true</span>)<span class="question-mark">?</span>;
                     <span class="kw">let </span>operator = infix.operator;
                     <span class="self">self</span>.create_infix_operator_impl_call(func, lhs, operator, rhs, ret, location)<span class="question-mark">?
                 </span>} <span class="kw">else </span>{
@@ -3812,11 +3967,16 @@
         ident: HirIdent,
         expr_id: node_interner::ExprId,
         generics: <span class="prelude-ty">Option</span>&lt;Vec&lt;HirType&gt;&gt;,
+        <span class="comment">// If set and this is a function value, only monomorphize the function for the
+        // constrainedness given by `self.in_unconstrained_function` rather than returning a tuple
+        // of both (constrained, unconstrained). This is used only as an optimization to avoid
+        // unnecessary monomorphization when calling a known function.
+        </span>use_current_runtime: bool,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;ast::Expression, MonomorphizationError&gt; {
         <span class="kw">let </span>typ = <span class="self">self</span>.interner.id_type(expr_id);
 
         <span class="kw">if let </span>ImplKind::TraitItem(item) = ident.impl_kind {
-            <span class="kw">return </span><span class="self">self</span>.resolve_trait_item_expr(expr_id, typ, item.id());
+            <span class="kw">return </span><span class="self">self</span>.resolve_trait_item_expr(expr_id, typ, item.id(), use_current_runtime);
         }
 
         <span class="comment">// Ensure all instantiation bindings are bound.
@@ -3838,28 +3998,22 @@
         <span class="kw">match </span><span class="kw-2">&amp;</span>definition.kind {
             DefinitionKind::Function(func_id) =&gt; {
                 <span class="kw">let </span>mutable = definition.mutable;
-                <span class="kw">let </span>location = <span class="prelude-val">Some</span>(ident.location);
                 <span class="kw">let </span>name = definition.name.clone();
-                <span class="kw">let </span>definition = <span class="self">self</span>.lookup_function(
-                    <span class="kw-2">*</span>func_id,
-                    expr_id,
-                    <span class="kw-2">&amp;</span>typ,
-                    <span class="kw-2">&amp;</span>generics.unwrap_or_default(),
-                    <span class="prelude-val">None</span>,
-                );
-                <span class="kw">let </span>typ = <span class="self">Self</span>::convert_type(<span class="kw-2">&amp;</span>typ, ident.location)<span class="question-mark">?</span>;
-                <span class="kw">let </span>id = <span class="self">self</span>.next_ident_id();
-                <span class="kw">let </span>ident =
-                    ast::Ident { location, mutable, definition, name, typ: typ.clone(), id };
-                <span class="kw">let </span>ident_expression = ast::Expression::Ident(ident);
-                <span class="kw">if </span><span class="self">self</span>.is_function_closure_type(<span class="kw-2">&amp;</span>typ) {
-                    <span class="kw">let </span>ident_clone = Box::new(ident_expression.clone());
-                    <span class="kw">let </span>function = ast::Expression::ExtractTupleField(ident_clone, <span class="number">0</span>);
-                    <span class="kw">let </span>env = ast::Expression::ExtractTupleField(Box::new(ident_expression), <span class="number">1</span>);
-                    <span class="prelude-val">Ok</span>(ast::Expression::Tuple(<span class="macro">vec!</span>[function, env]))
-                } <span class="kw">else </span>{
-                    <span class="prelude-val">Ok</span>(ident_expression)
-                }
+                <span class="kw">let </span>generics = generics.clone();
+                <span class="kw">let </span>func_id = <span class="kw-2">*</span>func_id;
+
+                <span class="comment">// Functions are represented as a pair of their constrained and unconstrained versions
+                </span><span class="self">self</span>.monomorphize_constrained_and_unconstrained(use_current_runtime, |this| {
+                    this.function_reference(
+                        mutable,
+                        name,
+                        ident.location,
+                        func_id,
+                        expr_id,
+                        <span class="kw-2">&amp;</span>typ,
+                        generics,
+                    )
+                })
             }
             DefinitionKind::Global(global_id) =&gt; {
                 <span class="self">self</span>.global_ident(<span class="kw-2">*</span>global_id, definition.name.clone(), <span class="kw-2">&amp;</span>typ, ident.location)
@@ -3905,6 +4059,39 @@
                     }),
                 }
             }
+        }
+    }
+
+    <span class="doccomment">/// Create a function value for the given function (not an actual &amp;mut reference to a function).
+    /// Note that this will refer to a single constrained or unconstrained version of the given
+    /// function, it will never return a tuple of (constrained, unconstrained), but may return a
+    /// tuple if the function is a closure.
+    </span><span class="attr">#[allow(clippy::too_many_arguments)]
+    </span><span class="kw">fn </span>function_reference(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        mutable: bool,
+        name: String,
+        location: Location,
+        func_id: node_interner::FuncId,
+        expr_id: ExprId,
+        typ: <span class="kw-2">&amp;</span>Type,
+        generics: <span class="prelude-ty">Option</span>&lt;Vec&lt;HirType&gt;&gt;,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;ast::Expression, MonomorphizationError&gt; {
+        <span class="kw">let </span>definition =
+            <span class="self">self</span>.lookup_function(func_id, expr_id, typ, <span class="kw-2">&amp;</span>generics.unwrap_or_default(), <span class="prelude-val">None</span>);
+        <span class="kw">let </span>typ = <span class="self">Self</span>::convert_type(typ, location)<span class="question-mark">?</span>;
+        <span class="kw">let </span>location = <span class="prelude-val">Some</span>(location);
+        <span class="kw">let </span>id = <span class="self">self</span>.next_ident_id();
+        <span class="kw">let </span>ident = ast::Ident { location, mutable, definition, name, typ: typ.clone(), id };
+        <span class="kw">let </span>ident_expression = ast::Expression::Ident(ident);
+
+        <span class="kw">if </span><span class="self">self</span>.is_closure_type(<span class="kw-2">&amp;</span>typ) {
+            <span class="kw">let </span>ident_clone = Box::new(ident_expression.clone());
+            <span class="kw">let </span>function = ast::Expression::ExtractTupleField(ident_clone, <span class="number">0</span>);
+            <span class="kw">let </span>env = ast::Expression::ExtractTupleField(Box::new(ident_expression), <span class="number">1</span>);
+            <span class="prelude-val">Ok</span>(ast::Expression::Tuple(<span class="macro">vec!</span>[function, env]))
+        } <span class="kw">else </span>{
+            <span class="prelude-val">Ok</span>(ident_expression)
         }
     }
 
@@ -4177,25 +4364,33 @@
                 ast::Type::Tuple(fields)
             }
 
-            HirType::Function(args, ret, env, unconstrained) =&gt; {
+            HirType::Function(args, ret, env, _unconstrained) =&gt; {
                 <span class="kw">let </span>args =
                     try_vecmap(args, |x| <span class="self">Self</span>::convert_type_helper(x, location, seen_types))<span class="question-mark">?</span>;
                 <span class="kw">let </span>ret = Box::new(<span class="self">Self</span>::convert_type_helper(ret, location, seen_types)<span class="question-mark">?</span>);
                 <span class="kw">let </span>env = <span class="self">Self</span>::convert_type_helper(env, location, seen_types)<span class="question-mark">?</span>;
-                <span class="kw">match </span><span class="kw-2">&amp;</span>env {
-                    ast::Type::Unit =&gt; {
-                        ast::Type::Function(args, ret, Box::new(env), <span class="kw-2">*</span>unconstrained)
+
+                <span class="kw">let </span>make_function = |is_unconstrained, args, ret, env| {
+                    <span class="kw">use </span>ast::Type::<span class="kw-2">*</span>;
+                    <span class="kw">match </span><span class="kw-2">&amp;</span>env {
+                        Unit =&gt; Function(args, ret, Box::new(env), is_unconstrained),
+                        Tuple(<span class="kw">_</span>) =&gt; Tuple(<span class="macro">vec!</span>[
+                            env.clone(),
+                            Function(args, ret, Box::new(env), is_unconstrained),
+                        ]),
+                        <span class="kw">_ </span>=&gt; {
+                            <span class="macro">unreachable!</span>(
+                                <span class="string">"internal Type::Function env should be either a Unit or a Tuple, not {env}"
+                            </span>)
+                        }
                     }
-                    ast::Type::Tuple(_elements) =&gt; ast::Type::Tuple(<span class="macro">vec!</span>[
-                        env.clone(),
-                        ast::Type::Function(args, ret, Box::new(env), <span class="kw-2">*</span>unconstrained),
-                    ]),
-                    <span class="kw">_ </span>=&gt; {
-                        <span class="macro">unreachable!</span>(
-                            <span class="string">"internal Type::Function env should be either a Unit or a Tuple, not {env}"
-                        </span>)
-                    }
-                }
+                };
+
+                <span class="comment">// functions are represented as a tuple of both
+                // a constrained and unconstrained version of the same function.
+                </span><span class="kw">let </span>constrained = make_function(<span class="bool-val">false</span>, args.clone(), ret.clone(), env.clone());
+                <span class="kw">let </span>unconstrained = make_function(<span class="bool-val">true</span>, args, ret, env);
+                ast::Type::Tuple(<span class="macro">vec!</span>[constrained, unconstrained])
             }
 
             <span class="comment">// Lower both mutable &amp; immutable references to the same reference type
@@ -4346,24 +4541,28 @@
         <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="kw">fn </span>is_function_closure(<span class="kw-2">&amp;</span><span class="self">self</span>, t: ast::Type) -&gt; bool {
-        <span class="kw">if </span><span class="self">self</span>.is_function_closure_type(<span class="kw-2">&amp;</span>t) {
-            <span class="bool-val">true
+    <span class="doccomment">/// Returns true if a given function type is a closure.
+    /// Note that this expects the argument to already be a function so that it can
+    /// distinguish function values (pairs of (constrained, unconstrained)) from closures
+    /// (function values where each element is itself a tuple), from normal tuples
+    /// containing functions.
+    </span><span class="kw">fn </span>is_closure_type(<span class="kw-2">&amp;</span><span class="self">self</span>, t: <span class="kw-2">&amp;</span>ast::Type) -&gt; bool {
+        <span class="kw">if let </span>ast::Type::Function(<span class="kw">_</span>, <span class="kw">_</span>, env, <span class="kw">_</span>) = t {
+            <span class="macro">matches!</span>(env.as_ref(), ast::Type::Tuple(_captures))
+        <span class="comment">// All functions should be a pair of (constrained, unconstrained), with
+        // closures possibly represented in both. So we unpack the tuple and see
+        // if `constrained` is also a tuple.
         </span>} <span class="kw">else if let </span>ast::Type::Tuple(elements) = t {
             <span class="kw">if </span>elements.len() == <span class="number">2 </span>{
-                <span class="macro">matches!</span>(elements[<span class="number">1</span>], ast::Type::Function(<span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>, <span class="kw">_</span>))
+                <span class="kw">match </span><span class="kw-2">&amp;</span>elements[<span class="number">0</span>] {
+                    ast::Type::Tuple(inner_elements) <span class="kw">if </span>inner_elements.len() == <span class="number">2 </span>=&gt; {
+                        <span class="macro">matches!</span>(inner_elements[<span class="number">1</span>], ast::Type::Function(..))
+                    }
+                    <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
+                }
             } <span class="kw">else </span>{
                 <span class="bool-val">false
             </span>}
-        } <span class="kw">else </span>{
-            <span class="bool-val">false
-        </span>}
-    }
-
-    <span class="kw">fn </span>is_function_closure_type(<span class="kw-2">&amp;</span><span class="self">self</span>, t: <span class="kw-2">&amp;</span>ast::Type) -&gt; bool {
-        <span class="kw">if let </span>ast::Type::Function(<span class="kw">_</span>, <span class="kw">_</span>, env, <span class="kw">_</span>) = t {
-            <span class="kw">let </span>e = (<span class="kw-2">*</span>env).clone();
-            <span class="macro">matches!</span>(<span class="kw-2">*</span>e, ast::Type::Tuple(_captures))
         } <span class="kw">else </span>{
             <span class="bool-val">false
         </span>}
@@ -4374,6 +4573,7 @@
         expr_id: node_interner::ExprId,
         function_type: HirType,
         trait_item_id: TraitItemId,
+        use_current_runtime: bool,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;ast::Expression, MonomorphizationError&gt; {
         <span class="kw">let </span>item = resolve_trait_item(<span class="self">self</span>.interner, trait_item_id, expr_id)
             .map_err(MonomorphizationError::InterpreterError)<span class="question-mark">?</span>;
@@ -4387,6 +4587,19 @@
             }
         };
 
+        <span class="comment">// Functions are represented as (constrained, unconstrained) pairs
+        </span><span class="self">self</span>.monomorphize_constrained_and_unconstrained(use_current_runtime, |this| {
+            this.resolve_trait_method_expr(func_id, expr_id, function_type, trait_item_id)
+        })
+    }
+
+    <span class="kw">fn </span>resolve_trait_method_expr(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        func_id: node_interner::FuncId,
+        expr_id: node_interner::ExprId,
+        function_type: HirType,
+        trait_item_id: TraitItemId,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;ast::Expression, MonomorphizationError&gt; {
         <span class="kw">let </span>func_id = <span class="kw">match </span><span class="self">self</span>.lookup_function(
             func_id,
             expr_id,
@@ -4411,12 +4624,50 @@
         }))
     }
 
+    <span class="doccomment">/// Call the same function with `self.in_unconstrained_fn = true` and `self.in_unconstrained_fn = false`
+    /// and return a pair of both results. This is most commonly used for functions which are
+    /// represented as a pair of their constrained and unconstrained versions, with the appropriate
+    /// version being selected later only once the function is called.
+    ///
+    /// If `use_current_runtime` is true we only run the function once with the current runtime.
+    </span><span class="kw">fn </span>monomorphize_constrained_and_unconstrained&lt;F&gt;(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        use_current_runtime: bool,
+        f: F,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;ast::Expression, MonomorphizationError&gt;
+    <span class="kw">where
+        </span>F: Clone + FnOnce(<span class="kw-2">&amp;mut </span><span class="self">Self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;ast::Expression, MonomorphizationError&gt;,
+    {
+        <span class="kw">if </span>use_current_runtime {
+            f(<span class="self">self</span>)
+        } <span class="kw">else </span>{
+            <span class="comment">// Corner case: if force_unconstrained is set the function representation is actually
+            // (unconstrained, unconstrained) to preserve checks in SSA that all functions are
+            // unconstrained. This is chosen over the simpler `unconstrained` (no tuple) to keep
+            // monomorphization consistent regardless of whether the flag is set, since the type
+            // of functions would also need to be updated, which affects how closures are detected,
+            // etc.
+            </span><span class="kw">let </span>is_unconstrained = <span class="self">self</span>.force_unconstrained;
+
+            <span class="kw">let </span>old_value =
+                std::mem::replace(<span class="kw-2">&amp;mut </span><span class="self">self</span>.in_unconstrained_function, is_unconstrained);
+            <span class="kw">let </span>constrained = f.clone()(<span class="self">self</span>)<span class="question-mark">?</span>;
+
+            <span class="self">self</span>.in_unconstrained_function = <span class="bool-val">true</span>;
+            <span class="kw">let </span>unconstrained = f(<span class="self">self</span>)<span class="question-mark">?</span>;
+
+            <span class="self">self</span>.in_unconstrained_function = old_value;
+            <span class="prelude-val">Ok</span>(ast::Expression::Tuple(<span class="macro">vec!</span>[constrained, unconstrained]))
+        }
+    }
+
     <span class="kw">fn </span>function_call(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         call: HirCallExpression,
         id: node_interner::ExprId,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;ast::Expression, MonomorphizationError&gt; {
-        <span class="kw">let </span>original_func = Box::new(<span class="self">self</span>.expr(call.func)<span class="question-mark">?</span>);
+        <span class="kw">let </span>original_func = Box::new(<span class="self">self</span>.extract_function(call.func)<span class="question-mark">?</span>);
+
         <span class="kw">let </span><span class="kw-2">mut </span>arguments = try_vecmap(<span class="kw-2">&amp;</span>call.arguments, |id| <span class="self">self</span>.expr(<span class="kw-2">*</span>id))<span class="question-mark">?</span>;
         <span class="kw">let </span>hir_arguments = vecmap(<span class="kw-2">&amp;</span>call.arguments, |id| <span class="self">self</span>.interner.expression(id));
 
@@ -4451,7 +4702,7 @@
         <span class="kw">let </span><span class="kw-2">mut </span>block_expressions = <span class="macro">vec!</span>[];
         <span class="kw">let </span>func_type = <span class="self">self</span>.interner.id_type(call.func);
         <span class="kw">let </span>func_type = <span class="self">Self</span>::convert_type(<span class="kw-2">&amp;</span>func_type, location)<span class="question-mark">?</span>;
-        <span class="kw">let </span>is_closure = <span class="self">self</span>.is_function_closure(func_type);
+        <span class="kw">let </span>is_closure = <span class="self">self</span>.is_closure_type(<span class="kw-2">&amp;</span>func_type);
 
         <span class="kw">let </span>func = <span class="kw">if </span>is_closure {
             <span class="kw">let </span>local_id = <span class="self">self</span>.next_local_id();
@@ -4628,6 +4879,7 @@
     ) -&gt; FuncId {
         <span class="kw">let </span>new_id = <span class="self">self</span>.next_function_id();
         <span class="kw">let </span>is_unconstrained = <span class="self">self</span>.is_unconstrained(id);
+
         <span class="self">self</span>.define_function(
             id,
             function_type.clone(),
@@ -4708,12 +4960,15 @@
         lambda: HirLambda,
         expr: node_interner::ExprId,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;ast::Expression, MonomorphizationError&gt; {
-        <span class="kw">if </span>lambda.captures.is_empty() {
-            <span class="self">self</span>.lambda_no_capture(lambda, expr)
-        } <span class="kw">else </span>{
-            <span class="kw">let </span>(setup, closure_variable) = <span class="self">self</span>.lambda_with_setup(lambda, expr)<span class="question-mark">?</span>;
-            <span class="prelude-val">Ok</span>(ast::Expression::Block(<span class="macro">vec!</span>[setup, closure_variable]))
-        }
+        <span class="comment">// Function values are represented as a tuple of (constrained version, unconstrained version)
+        </span><span class="self">self</span>.monomorphize_constrained_and_unconstrained(<span class="bool-val">false</span>, |this: <span class="kw-2">&amp;mut </span><span class="self">Self</span>| {
+            <span class="kw">if </span>lambda.captures.is_empty() {
+                this.lambda_no_capture(lambda, expr)
+            } <span class="kw">else </span>{
+                <span class="kw">let </span>(setup, closure_variable) = this.lambda_with_setup(lambda, expr)<span class="question-mark">?</span>;
+                <span class="prelude-val">Ok</span>(ast::Expression::Block(<span class="macro">vec!</span>[setup, closure_variable]))
+            }
+        })
     }
 
     <span class="kw">fn </span>lambda_no_capture(
@@ -5184,6 +5439,37 @@
     <span class="kw">fn </span>is_unconstrained(<span class="kw-2">&amp;</span><span class="self">self</span>, func_id: node_interner::FuncId) -&gt; bool {
         <span class="self">self</span>.in_unconstrained_function
             || <span class="self">self</span>.interner.function_modifiers(<span class="kw-2">&amp;</span>func_id).is_unconstrained
+    }
+
+    <span class="comment">// Functions are represented as pairs of (constrained, unconstrained) versions of the same
+    // function. When calling them we select the version that corresponds to the current
+    // runtime environment. See https://github.com/noir-lang/noir/issues/7289 for the reasoning.
+    </span><span class="kw">fn </span>extract_function(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        function: ExprId,
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;ast::Expression, MonomorphizationError&gt; {
+        <span class="comment">// If it is a known function we can compile only the required version
+        </span><span class="kw">if let </span>HirExpression::Ident(ident, generics) = <span class="self">self</span>.interner.expression(<span class="kw-2">&amp;</span>function) {
+            <span class="comment">// Check if this directly refers to a function
+            </span><span class="kw">if </span><span class="macro">matches!</span>(<span class="self">self</span>.interner.definition(ident.id).kind, DefinitionKind::Function(<span class="kw">_</span>)) {
+                <span class="kw">return </span><span class="self">self</span>.ident(ident, function, generics, <span class="bool-val">true</span>);
+            }
+        }
+
+        <span class="comment">// Otherwise we fallback to compiling both versions of the function and extracting the
+        // required one.
+        </span><span class="kw">let </span>function = <span class="self">self</span>.expr(function)<span class="question-mark">?</span>;
+        <span class="kw">let </span>index = <span class="kw">if </span><span class="self">self</span>.in_unconstrained_function { <span class="number">1 </span>} <span class="kw">else </span>{ <span class="number">0 </span>};
+
+        <span class="comment">// If this is a tuple literal we can simplify directly. This lets us directly see
+        // what function we're calling in some cases.
+        </span><span class="kw">match </span>function {
+            ast::Expression::Tuple(<span class="kw-2">mut </span>elements) =&gt; {
+                <span class="macro">assert_eq!</span>(elements.len(), <span class="number">2</span>);
+                <span class="prelude-val">Ok</span>(elements.remove(index))
+            }
+            tuple =&gt; <span class="prelude-val">Ok</span>(ast::Expression::ExtractTupleField(Box::new(tuple), index)),
+        }
     }
 }
 
