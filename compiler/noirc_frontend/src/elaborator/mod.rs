@@ -1017,7 +1017,12 @@ impl<'context> Elaborator<'context> {
         }
 
         let return_type = Box::new(self.use_type(func.return_type(), wildcard_allowed));
-
+        self.check_if_type_is_valid_for_program_output(
+            &return_type,
+            is_entry_point || is_test_or_fuzz,
+            has_inline_attribute,
+            location,
+        );
         let mut typ = Type::Function(
             parameter_types,
             return_type,
@@ -1166,6 +1171,21 @@ impl<'context> Elaborator<'context> {
     ) {
         if (is_entry_point && !typ.is_valid_for_program_input())
             || (has_inline_attribute && !typ.is_valid_non_inlined_function_input())
+        {
+            self.push_err(TypeCheckError::InvalidTypeForEntryPoint { location });
+        }
+    }
+
+    fn check_if_type_is_valid_for_program_output(
+        &mut self,
+        typ: &Type,
+        is_entry_point: bool,
+        has_inline_attribute: bool,
+        location: Location,
+    ) {
+        if *typ != Type::Unit
+            && ((is_entry_point && !typ.is_valid_for_program_input())
+                || (has_inline_attribute && !typ.is_valid_non_inlined_function_input()))
         {
             self.push_err(TypeCheckError::InvalidTypeForEntryPoint { location });
         }

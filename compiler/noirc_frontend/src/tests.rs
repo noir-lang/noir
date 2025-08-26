@@ -4809,3 +4809,17 @@ fn cannot_assign_to_nested_struct() {
     "#;
     check_errors!(src);
 }
+
+#[named]
+#[test]
+fn cannot_return_slice_from_main() {
+    let src = r#"
+    fn main() -> pub [Field]{
+       ^^^^ Only sized types may be used in the entry point to a program
+       ~~~~ Slices, references, or any type containing them may not be used in main, contract functions, test functions, fuzz functions or foldable functions
+        &[1,2]
+        
+    }
+    "#;
+    check_errors!(src);
+}
