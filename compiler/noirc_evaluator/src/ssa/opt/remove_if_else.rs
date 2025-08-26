@@ -132,8 +132,7 @@ impl Ssa {
 
 impl Function {
     pub(crate) fn remove_if_else(&mut self) -> RtResult<()> {
-        // This should match the check in flatten_cfg
-        if matches!(self.runtime(), RuntimeType::Brillig(_)) {
+        if self.runtime().is_brillig() {
             return Ok(());
         }
 
