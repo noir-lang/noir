@@ -1632,4 +1632,20 @@ mod tests {
         "#;
         assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
+
+    #[test]
+    fn aliases_block_parameter_to_its_argument() {
+        let src = r#"
+        acir(inline) fn create_note f0 {
+          b0(v0: &mut Field, v1: &mut Field):
+            jmp b1(v0, v1)
+          b1(v2: &mut Field, v3: &mut Field):
+            store Field 2 at v2
+            store Field 3 at v3
+            v4 = load v2 -> Field
+            return v4
+        }
+        "#;
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
+    }
 }
