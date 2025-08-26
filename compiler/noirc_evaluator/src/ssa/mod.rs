@@ -126,12 +126,11 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
         ),
         // Run mem2reg with the CFG separated into blocks
         SsaPass::new(Ssa::mem2reg, "Mem2Reg"),
-        // Run DIE in case mem2reg left some Load it could not eliminate, but it's also unused
-        // and could cause issues after flattening, such as loading from empty slices.
-        SsaPass::new(
-            Ssa::dead_instruction_elimination_pre_flattening,
-            "Dead Instruction Elimination",
-        ),
+        // Running DIE here might remove some unused Load instructions mem2reg could not eliminate.
+        // SsaPass::new(
+        //     Ssa::dead_instruction_elimination_pre_flattening,
+        //     "Dead Instruction Elimination",
+        // ),
         SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
         SsaPass::new(Ssa::as_slice_optimization, "`as_slice` optimization")
             .and_then(Ssa::remove_unreachable_functions),
