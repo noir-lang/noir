@@ -1007,12 +1007,13 @@ mod test {
         ssa::{
             Ssa,
             function_builder::FunctionBuilder,
+            interpreter::value::Value,
             ir::{
                 map::Id,
                 types::{NumericType, Type},
                 value::ValueMapping,
             },
-            opt::assert_normalized_ssa_equals,
+            opt::{assert_normalized_ssa_equals, assert_ssa_does_not_change},
         },
     };
 
@@ -1147,9 +1148,7 @@ mod test {
                 return v3
             }
             ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.fold_constants();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::fold_constants);
     }
 
     #[test]
@@ -1234,11 +1233,7 @@ mod test {
             return
         }
         ";
-        let ssa = Ssa::from_str(src).unwrap();
-
-        // Expected output is unchanged
-        let ssa = ssa.fold_constants();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::fold_constants);
     }
 
     #[test]
@@ -1691,9 +1686,7 @@ mod test {
                 return
             }
             ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.fold_constants_using_constraints();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::fold_constants_using_constraints);
     }
 
     #[test]
@@ -1715,9 +1708,7 @@ mod test {
                 return
             }
             ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.fold_constants_using_constraints();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::fold_constants_using_constraints);
     }
 
     #[test]
@@ -1741,9 +1732,7 @@ mod test {
                 return
             }
             ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.fold_constants_using_constraints();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::fold_constants_using_constraints);
     }
 
     #[test]
@@ -1794,12 +1783,7 @@ mod test {
             return v6
         }
         ";
-
-        let ssa = Ssa::from_str(src).unwrap();
-
-        let ssa = ssa.fold_constants_using_constraints();
-        // We expect the code to be unchanged
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::fold_constants_using_constraints);
     }
 
     #[test]
@@ -1874,10 +1858,7 @@ mod test {
             return
         }
         ";
-
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.fold_constants();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::fold_constants);
     }
 
     #[test]
@@ -1894,10 +1875,7 @@ mod test {
             return
         }
         ";
-
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.fold_constants();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::fold_constants);
     }
 
     #[test]
@@ -1914,10 +1892,7 @@ mod test {
             return
         }
         ";
-
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.fold_constants();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::fold_constants);
     }
 
     #[test]
@@ -1934,10 +1909,7 @@ mod test {
             return
         }
         ";
-
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.fold_constants();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::fold_constants);
     }
 
     #[test]
@@ -1954,21 +1926,7 @@ mod test {
             return
         }
         ";
-
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.fold_constants();
-
-        assert_ssa_snapshot!(ssa, @r"
-        acir(inline) fn main f0 {
-          b0(v0: u32, v1: u32, v2: u1):
-            enable_side_effects v2
-            v4 = div v1, u32 2
-            v5 = not v2
-            enable_side_effects v5
-            v6 = div v1, u32 2
-            return
-        }
-        ");
+        assert_ssa_does_not_change(src, Ssa::fold_constants);
     }
 
     #[test]
@@ -2141,5 +2099,47 @@ mod test {
         let ssa = ssa.fold_constants_using_constraints();
         let result_after = ssa.interpret(vec![]);
         assert_eq!(result_before, result_after);
+    }
+
+    // Regression for #9451
+    #[test]
+    fn do_not_deduplicate_call_with_inc_rc() {
+        // This test ensures that a function which mutates an array pointer is marked impure.
+        // This protects against future deduplication passes incorrectly assuming purity.
+        let src = r#"
+        brillig(inline) fn main f0 {
+          b0(v0: u32):
+            v3 = make_array [Field 1, Field 2] : [Field; 2]
+            v5 = call array_refcount(v3) -> u32
+            constrain v5 == u32 1
+            v8 = call f1(v3) -> [Field; 2]
+            v9 = call array_refcount(v3) -> u32
+            constrain v9 == u32 2
+            v11 = call f1(v3) -> [Field; 2]
+            v12 = call array_refcount(v3) -> u32
+            constrain v12 == u32 3
+            inc_rc v3
+            v15 = array_set v3, index v0, value Field 9
+            return v3, v15
+        }
+        brillig(inline) fn mutator f1 {
+          b0(v0: [Field; 2]):
+            inc_rc v0
+            v3 = array_set v0, index u32 0, value Field 5
+            return v3
+        }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        ssa.interpret(vec![Value::from_constant(1_u32.into(), NumericType::unsigned(32)).unwrap()])
+            .unwrap();
+
+        let ssa = ssa.purity_analysis();
+        ssa.interpret(vec![Value::from_constant(1_u32.into(), NumericType::unsigned(32)).unwrap()])
+            .unwrap();
+
+        let ssa = ssa.fold_constants_using_constraints();
+        ssa.interpret(vec![Value::from_constant(1_u32.into(), NumericType::unsigned(32)).unwrap()])
+            .unwrap();
     }
 }

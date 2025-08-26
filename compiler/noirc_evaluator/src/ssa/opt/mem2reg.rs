@@ -7,9 +7,9 @@
 //! - Each block in each function is iterated in forward-order.
 //! - The starting value of each reference in the block is the unification of the same references
 //!   at the end of each direct predecessor block to the current block.
-//! - At each step, the value of each reference is either known or unknown, tracked with a map.
-//! - Two reference values unify to each other if they are exactly equal.
-//! - If a block has no predecessors, the starting value of each reference is unknown (not present in the map).
+//! - At each step, the value of each reference is either Known(ValueId) or Unknown.
+//! - Two reference values unify to each other if they are exactly equal, or to Unknown otherwise.
+//! - If a block has no predecessors, the starting value of each reference is Unknown.
 //! - Throughout this pass, aliases of each reference are also tracked.
 //!   - References typically have 1 alias - themselves.
 //!   - A reference with multiple aliases means we will not be able to optimize out loads if the
@@ -41,19 +41,19 @@
 //! - On `Instruction::Store { address, value }`:
 //!   - If the address of the store is known:
 //!     - If the address has exactly 1 alias:
-//!       - Set the value of the address to the known `value`.
+//!       - Set the value of the address to `Known(value)`.
 //!     - If the address has more than 1 alias:
-//!       - Clear out the known value of of every possible alias.
+//!       - Set the value of every possible alias to `Unknown`.
 //!     - If the address has 0 aliases:
-//!       - Conservatively mark every alias in the block as unknown.
+//!       - Conservatively mark every alias in the block to `Unknown`.
 //!   - If the address of the store is not known:
-//!     - Conservatively mark every alias in the block as unknown.
+//!     - Conservatively mark every alias in the block to `Unknown`.
 //!   - Additionally, if there were no Loads to any alias of the address between this Store and
 //!     the previous Store to the same address, the previous store can be removed.
 //!   - Remove the instance of the last load instruction to the address and its aliases
 //! - On `Instruction::Call { arguments }`:
-//!   - If any argument of the call is a reference, remove the known value of each alias of that
-//!     reference
+//!   - If any argument of the call is a reference, set the value of each alias of that
+//!     reference to `Unknown`
 //!   - Any builtin functions that may return aliases if their input also contains a
 //!     reference should be tracked. Examples: `slice_push_back`, `slice_insert`, `slice_remove`, etc.
 //!   - Remove the instance of the last load instruction for any reference arguments and their aliases
@@ -151,7 +151,7 @@ struct PerFunctionContext<'f> {
 impl<'f> PerFunctionContext<'f> {
     fn new(function: &'f mut Function) -> Self {
         let cfg = ControlFlowGraph::with_function(function);
-        let post_order = PostOrder::with_function(function);
+        let post_order = PostOrder::with_cfg(&cfg);
 
         PerFunctionContext {
             cfg,
@@ -171,7 +171,7 @@ impl<'f> PerFunctionContext<'f> {
     /// dom_tree were created from.
     fn mem2reg(&mut self) {
         // Iterate each block in reverse post order = forward order
-        let mut block_order = PostOrder::with_function(self.inserter.function).into_vec();
+        let mut block_order = self.post_order.as_slice().to_vec();
         block_order.reverse();
 
         for block in block_order {
@@ -235,8 +235,12 @@ impl<'f> PerFunctionContext<'f> {
     ) -> bool {
         let reference_parameters = self.reference_parameters();
 
+        let aliases = block.get_aliases_for_value(*store_address);
+        if aliases.is_unknown() {
+            return true;
+        }
         // Check whether the store address has an alias that crosses an entry point boundary (e.g. a Call or Return)
-        for alias in block.get_aliases_for_value(*store_address).iter() {
+        for alias in aliases.iter() {
             if reference_parameters.contains(&alias) {
                 return true;
             }
@@ -345,14 +349,20 @@ impl<'f> PerFunctionContext<'f> {
             match dfg.type_of_value(*param) {
                 // If the type indirectly contains a reference we have to assume all references
                 // are unknown since we don't have any ValueIds to use.
-                Type::Reference(element) if element.contains_reference() => return,
+                Type::Reference(element) if element.contains_reference() => {
+                    self.mark_all_unknown(params, references);
+                    return;
+                }
                 Type::Reference(element) => {
                     let empty_aliases = AliasSet::known_empty();
                     let alias_set =
                         aliases.entry(element.as_ref().clone()).or_insert(empty_aliases);
                     alias_set.insert(*param);
                 }
-                typ if typ.contains_reference() => return,
+                typ if typ.contains_reference() => {
+                    self.mark_all_unknown(params, references);
+                    return;
+                }
                 _ => continue,
             }
         }
@@ -676,8 +686,9 @@ impl<'f> PerFunctionContext<'f> {
                                 aliases.insert(*parameter);
 
                                 // Check if we have seen the same argument
-                                let seen_parameters =
-                                    arg_set.entry(argument).or_insert_with(VecSet::empty);
+                                let seen_parameters = arg_set
+                                    .entry(argument)
+                                    .or_insert_with(|| VecSet::single(argument));
                                 // Add the current parameter to the parameters we have seen for this argument.
                                 // The previous parameters and the current one alias one another.
                                 seen_parameters.insert(*parameter);
@@ -705,7 +716,7 @@ impl<'f> PerFunctionContext<'f> {
                         .extend(references.get_aliases_for_value(*return_value).iter());
                 }
                 // Removing all `last_stores` for each returned reference is more important here
-                // than setting them all to unknown since no other block should
+                // than setting them all to ReferenceValue::Unknown since no other block should
                 // have a block with a Return terminator as a predecessor anyway.
                 self.mark_all_unknown(return_values, references);
             }
@@ -717,7 +728,7 @@ impl<'f> PerFunctionContext<'f> {
 mod tests {
     use crate::{
         assert_ssa_snapshot,
-        ssa::{Ssa, opt::assert_normalized_ssa_equals},
+        ssa::{Ssa, opt::assert_ssa_does_not_change},
     };
 
     #[test]
@@ -857,7 +868,8 @@ mod tests {
         // to remove it.
         // The final store in b1 is removed as no loads are done within any blocks
         // to the stored values.
-        let expected = "
+        let ssa = ssa.mem2reg();
+        assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0():
             v0 = allocate -> &mut Field
@@ -868,10 +880,7 @@ mod tests {
             store Field 1 at v0
             return
         }
-        ";
-
-        let ssa = ssa.mem2reg();
-        assert_normalized_ssa_equals(ssa, expected);
+        ");
     }
 
     #[test]
@@ -906,9 +915,7 @@ mod tests {
             return
         }
         ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.mem2reg();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 
     #[test]
@@ -926,9 +933,22 @@ mod tests {
             return
         }
         ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.mem2reg();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
+    }
+
+    #[test]
+    fn parameter_alias_nested_reference() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: &mut Field, v1: &mut Field, v2: &mut &mut Field):
+            store Field 0 at v0
+            store Field 0 at v1
+            v3 = load v0 -> Field
+            constrain v3 == Field 0
+            return
+        }
+        ";
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 
     #[test]
@@ -1039,12 +1059,7 @@ mod tests {
             return
         }
         ";
-
-        let ssa = Ssa::from_str(src).unwrap();
-
-        let ssa = ssa.mem2reg();
-        // We expect the program to be unchanged
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 
     #[test]
@@ -1078,12 +1093,7 @@ mod tests {
             return
         }
         ";
-
-        let ssa = Ssa::from_str(src).unwrap();
-
-        let ssa = ssa.mem2reg();
-        // We expect the program to be unchanged
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 
     #[test]
@@ -1108,10 +1118,7 @@ mod tests {
             return v3
         }
         ";
-
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.mem2reg();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 
     #[test]
@@ -1144,11 +1151,7 @@ mod tests {
             return v1
         }
         ";
-
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.mem2reg();
-
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 
     #[test]
@@ -1169,10 +1172,7 @@ mod tests {
             return v4
         }
         ";
-
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.mem2reg();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 
     #[test]
@@ -1195,10 +1195,7 @@ mod tests {
             return v7
         }
         ";
-
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.mem2reg();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 
     #[test]
@@ -1221,10 +1218,7 @@ mod tests {
             return v7
         }
         ";
-
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.mem2reg();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 
     #[test]
@@ -1300,7 +1294,9 @@ mod tests {
           b0(v0: u32):
             v2 = call f1(v0) -> [&mut u32; 1]
             v4 = array_get v2, index u32 0 -> &mut u32
-            return u32 1
+            store u32 1 at v4
+            v6 = load v4 -> u1
+            return v6
         }
         brillig(inline_always) fn foo f1 {
           b0(v0: u32):
@@ -1345,9 +1341,7 @@ mod tests {
             return v0
         }
         ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.mem2reg();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 
     #[test]
@@ -1382,9 +1376,7 @@ mod tests {
             return v1
         }
         ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.mem2reg();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 
     #[test]
@@ -1416,9 +1408,7 @@ mod tests {
                 return v7
             }
         ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.mem2reg();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 
     #[test]
@@ -1445,9 +1435,7 @@ mod tests {
             return
         }
         ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.mem2reg();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 
     #[test]
@@ -1462,12 +1450,7 @@ mod tests {
             return
         }
         ";
-
-        let ssa = Ssa::from_str(src).unwrap();
-
-        let ssa = ssa.mem2reg();
-        // We expect the program to be unchanged
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 
     #[test]
@@ -1483,12 +1466,7 @@ mod tests {
             return v0
         }
         ";
-
-        let ssa = Ssa::from_str(src).unwrap();
-
-        let ssa = ssa.mem2reg();
-        // We expect the program to be unchanged
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 
     #[test]
@@ -1506,12 +1484,7 @@ mod tests {
             return
         }
         ";
-
-        let ssa = Ssa::from_str(src).unwrap();
-
-        let ssa = ssa.mem2reg();
-        // We expect the program to be unchanged
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 
     #[test]
@@ -1571,10 +1544,7 @@ mod tests {
                 return
             }
         ";
-
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.mem2reg();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 
     #[test]
@@ -1640,46 +1610,72 @@ mod tests {
     }
 
     #[test]
-    fn store_load_from_array_get() {
-        let src = "
-        brillig(inline) fn main f0 {
-          b0():
-            v1 = allocate -> &mut u1
-            store u1 0 at v1
-            v3 = make_array [v1] : [&mut u1]
-            jmpif u1 1 then: b1, else: b2
-          b1():
-            jmp b3(u32 0, u32 1)
-          b2():
-            jmp b3(u32 0, u32 1)
-          b3(v0: u32, v8: u32):
-            constrain v0 == u32 0
-            v6 = array_get v3, index v0 -> &mut u1
-            store u1 0 at v6
-            v7 = load v6 -> u1
-            return v7
+    fn does_not_remove_store_to_potentially_aliased_address() {
+        // This is a regression test for https://github.com/noir-lang/noir/pull/9613
+        // In that PR all tests passed but the sync to Aztec-Packages failed.
+        // That PR had `store v3 at v1` incorrectly removed.
+        // Even though v3 is what was in v1 and it might seem that there's no
+        // need to put v3 back in v1, v0 and v1 might be aliases so `store v2 at v0`
+        // might change the value at v1, so the next store to v1 must be preserved.
+        let src = r#"
+        acir(inline) fn create_note f0 {
+          b0(v0: &mut [Field; 1], v1: &mut [Field; 1]):
+            v2 = load v0 -> [Field; 1]
+            v3 = load v1 -> [Field; 1]
+            store v2 at v0
+            store v3 at v1
+            v4 = load v1 -> [Field; 1]
+            v6 = make_array [Field 0] : [Field; 1]
+            store v6 at v1
+            return v1
         }
-        ";
+        "#;
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
+    }
 
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.mem2reg();
-
-        assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) fn main f0 {
-          b0():
-            v2 = allocate -> &mut u1
-            store u1 0 at v2
-            v4 = make_array [v2] : [&mut u1]
-            jmpif u1 1 then: b1, else: b2
+    #[test]
+    fn does_not_replace_load_with_value_when_one_of_its_predecessors_changes_it() {
+        // This is another regression test for https://github.com/noir-lang/noir/pull/9613
+        // There, in `v5 = load v0 -> Field` it was incorrectly assumed that v5 could
+        // be replaced with `Field 0`, but another predecessor, through an alias
+        // (v1) conditionally changes its value to `Field 1`.
+        let src = r#"
+        acir(inline) fn create_note f0 {
+          b0(v0: &mut Field):
+            store Field 0 at v0
+            jmpif u1 0 then: b1, else: b2
           b1():
-            jmp b3(u32 0, u32 1)
+            v5 = load v0 -> Field
+            return v5
           b2():
-            jmp b3(u32 0, u32 1)
-          b3(v0: u32, v1: u32):
-            constrain v0 == u32 0
-            v8 = array_get v4, index v0 -> &mut u1
-            return u1 0
+            jmp b3(v0)
+          b3(v1: &mut Field):
+            store Field 1 at v1
+            jmp b1()
         }
-        ");
+        "#;
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
+    }
+
+    #[test]
+    fn aliases_block_parameter_to_its_argument() {
+        // Here:
+        // - v0 and v1 are potentially aliases of each other
+        // - v2 must be an alias of v0 (there was a bug around this)
+        // - v3 must be an alias of v1 (same as previous point)
+        // - `v4 = load v2` cannot be replaced with `Field 2` because
+        //   v2 and v3 are also potentially aliases of each other
+        let src = r#"
+        acir(inline) fn create_note f0 {
+          b0(v0: &mut Field, v1: &mut Field):
+            jmp b1(v0, v1)
+          b1(v2: &mut Field, v3: &mut Field):
+            store Field 2 at v2
+            store Field 3 at v3
+            v4 = load v2 -> Field
+            return v4
+        }
+        "#;
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 }
