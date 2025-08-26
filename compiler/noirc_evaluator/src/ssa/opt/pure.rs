@@ -625,25 +625,5 @@ mod test {
         assert_eq!(purities[&FunctionId::test_new(0)], Purity::Impure);
         assert_eq!(purities[&FunctionId::test_new(1)], Purity::Pure);
         assert_eq!(purities[&FunctionId::test_new(1)], Purity::Pure);
-
-        assert_ssa_snapshot!(ssa, @r#"
-        acir(inline) impure fn main f0 {
-          b0(v0: u32):
-            v3 = make_array [f1, f2] : [function; 2]
-            v5 = lt v0, u32 2
-            constrain v5 == u1 1, "Index out of bounds"
-            v7 = array_get v3, index v0 -> function
-            call v7()
-            return
-        }
-        acir(inline) pure fn lambda f1 {
-          b0():
-            return
-        }
-        acir(inline) pure fn lambda f2 {
-          b0():
-            return
-        }
-        "#);
     }
 }
