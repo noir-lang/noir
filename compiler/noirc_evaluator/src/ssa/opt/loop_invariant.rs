@@ -1117,13 +1117,17 @@ fn can_be_hoisted(
             }
         }
 
-        // These instructions can always be hoisted
-        Cast(_, NumericType::NativeField) | Not(_) | Truncate { .. } | IfElse { .. } => true,
-
-        // A cast may have dependence on a range-check, which may not be hoisted, so we cannot always hoist a cast.
-        Cast(_, _) | Constrain(..) | ConstrainNotEqual(..) | RangeCheck { .. } => {
-            hoist_with_predicate
+        Cast(source, target_type) => {
+            // A cast may have dependence on a range-check, which may not be hoisted, so we cannot always hoist a cast.
+            // We can safely hoist a cast from a smaller to a larger type as no range check is necessary in this case.
+            let source_type = function.dfg.type_of_value(*source).unwrap_numeric();
+            source_type.bit_size() <= target_type.bit_size()
         }
+
+        // These instructions can always be hoisted
+        Not(_) | Truncate { .. } | IfElse { .. } => true,
+
+        Constrain(..) | ConstrainNotEqual(..) | RangeCheck { .. } => hoist_with_predicate,
 
         // Noop instructions can always be hoisted, although they're more likely to be
         // removed entirely.
@@ -1147,6 +1151,42 @@ mod test {
     use crate::assert_ssa_snapshot;
     use crate::ssa::Ssa;
     use crate::ssa::opt::{assert_normalized_ssa_equals, assert_ssa_does_not_change};
+
+    #[test]
+    fn hoists_casts() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32):
+            jmp b1(u32 2)
+          b1(v1: u32):
+            v5 = lt v1, u32 2
+            jmpif v5 then: b2, else: b3
+          b2():
+            v6 = cast v0 as u64
+            v7 = unchecked_add v1, u32 1
+            jmp b1(v7)
+          b3():
+            return
+        }";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.loop_invariant_code_motion();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32):
+            v2 = cast v0 as u64
+            jmp b1(u32 2)
+          b1(v1: u32):
+            v4 = lt v1, u32 2
+            jmpif v4 then: b2, else: b3
+          b2():
+            v6 = unchecked_add v1, u32 1
+            jmp b1(v6)
+          b3():
+            return
+        }
+        ");
+    }
 
     #[test]
     fn simple_loop_invariant_code_motion() {
