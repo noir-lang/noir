@@ -437,7 +437,6 @@ impl<'f> PerFunctionContext<'f> {
                 let address = *address;
 
                 let result = self.inserter.function.dfg.instruction_results(instruction)[0];
-
                 references.remember_dereference(self.inserter.function, address, result);
 
                 // If the load is known, replace it with the known value and remove the load.
