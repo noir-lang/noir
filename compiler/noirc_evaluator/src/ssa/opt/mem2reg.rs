@@ -1635,6 +1635,12 @@ mod tests {
 
     #[test]
     fn aliases_block_parameter_to_its_argument() {
+        // Here:
+        // - v0 and v1 are potentially aliases of each other
+        // - v2 must be an alias of v0 (there was a bug around this)
+        // - v3 must be an alias of v1 (same as previous point)
+        // - `v4 = load v2` cannot be replaced with `Field 2` because
+        //   v2 and v3 are also potentially aliases of each other
         let src = r#"
         acir(inline) fn create_note f0 {
           b0(v0: &mut Field, v1: &mut Field):
