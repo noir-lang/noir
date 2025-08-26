@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1756225910758,
+  "lastUpdate": 1756225947364,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -20176,48 +20176,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "dea987761b44a72bbea58f1eae128a76ece65daf",
-          "message": "chore: early check `as_slice` is present in `as_slice_optimization` (#9545)",
-          "timestamp": "2025-08-18T18:11:59Z",
-          "tree_id": "96d4d2a0c5cf76f2d85f19a682c373decf40f723",
-          "url": "https://github.com/noir-lang/noir/commit/dea987761b44a72bbea58f1eae128a76ece65daf"
-        },
-        "date": 1755542335214,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 246991,
-            "range": "± 334",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 218543,
-            "range": "± 4522",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2789460,
-            "range": "± 2754",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "f148c448adaf5ceb000bb397b3c68cdfe951eb32",
           "message": "chore: remove redundant `enforce_bitshift_rhs_lt_bit_size` (#9550)",
           "timestamp": "2025-08-18T21:09:41Z",
@@ -22259,6 +22217,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2778603,
             "range": "± 4999",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "29b3639fa8f1e8c97d89cc7da720756796901fa4",
+          "message": "fix(acir_gen): A slice might be a nested Array, not a flattened DynamicArray (#9600)",
+          "timestamp": "2025-08-26T16:01:25Z",
+          "tree_id": "ab260838582c9e7742ec1702aae315509c081cda",
+          "url": "https://github.com/noir-lang/noir/commit/29b3639fa8f1e8c97d89cc7da720756796901fa4"
+        },
+        "date": 1756225928542,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 248948,
+            "range": "± 823",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 220938,
+            "range": "± 3814",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2780742,
+            "range": "± 1679",
             "unit": "ns/iter"
           }
         ]
