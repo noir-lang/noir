@@ -22,7 +22,7 @@ pub struct FunctionPrintOptions {
 }
 
 /// Some calls can be printed with the intention of parsing the code.
-#[derive(PartialEq)]
+#[derive(Debug, PartialEq)]
 enum SpecialCall {
     Print,
     Object(String),
@@ -499,29 +499,49 @@ impl AstPrinter {
         write!(f, ")")
     }
 
+    fn get_called_function(expr: &Expression) -> Option<(bool, &Definition, &String)> {
+        let is_unconstrained = |typ: &Type| match typ {
+            Type::Function(_, _, _, unconstrained) => *unconstrained,
+            Type::Tuple(elements) => match elements.first() {
+                Some(Type::Function(_, _, _, unconstrained)) => *unconstrained,
+                _ => false,
+            },
+            _ => false,
+        };
+
+        match expr {
+            Expression::Ident(Ident { typ, definition, name, .. }) => {
+                Some((is_unconstrained(typ), definition, name))
+            }
+            Expression::Tuple(elements) => match elements.first() {
+                Some(Expression::Ident(Ident { typ, definition, name, .. })) => {
+                    Some((is_unconstrained(typ), definition, name))
+                }
+                _ => None,
+            },
+            _ => None,
+        }
+    }
+
     fn print_call(
         &mut self,
         call: &super::ast::Call,
         f: &mut Formatter,
     ) -> Result<(), std::fmt::Error> {
-        let (print_unsafe, special) = match call.func.as_ref() {
-            Expression::Ident(Ident {
-                typ: Type::Function(_, _, _, unconstrained),
-                definition,
-                name,
-                ..
-            }) => {
-                let is_unsafe = *unconstrained && !self.in_unconstrained;
-                let special = match definition {
-                    Definition::Oracle(s) if s == "print" => Some(SpecialCall::Print),
-                    Definition::Builtin(s) if s.starts_with("array") || s.starts_with("slice") => {
-                        Some(SpecialCall::Object(name.clone()))
-                    }
-                    _ => None,
-                };
-                (is_unsafe, special)
-            }
-            _ => (false, None),
+        let (print_unsafe, special) = if let Some((unconstrained, definition, name)) =
+            Self::get_called_function(&call.func)
+        {
+            let is_unsafe = unconstrained && !self.in_unconstrained;
+            let special = match definition {
+                Definition::Oracle(s) if s == "print" => Some(SpecialCall::Print),
+                Definition::Builtin(s) if s.starts_with("array") || s.starts_with("slice") => {
+                    Some(SpecialCall::Object(name.clone()))
+                }
+                _ => None,
+            };
+            (is_unsafe, special)
+        } else {
+            (false, None)
         };
 
         if let Some(special) = special {

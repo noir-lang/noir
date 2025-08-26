@@ -835,14 +835,15 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                 "Result of allocate should always be a reference type, but found {other}"
             ),
         };
-        self.define(result, Value::reference(result, element_type))
+        let value = Value::reference(result, element_type);
+        self.define(result, value)
     }
 
     fn interpret_load(&mut self, address: ValueId, result: ValueId) -> IResult<()> {
         let address = self.lookup_reference(address, "load")?;
 
         let element = address.element.borrow();
-        let Some(value) = &*element else {
+        let Some(value) = element.as_ref() else {
             let value = address.to_string();
             return Err(internal(InternalError::UninitializedReferenceValueLoaded { value }));
         };

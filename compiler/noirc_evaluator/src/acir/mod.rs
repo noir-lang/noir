@@ -1449,6 +1449,7 @@ impl<'a> Context<'a> {
                 let new_slice_length = self.acir_context.sub_var(slice_length, one)?;
 
                 let slice = self.convert_value(slice_contents, dfg);
+                let is_dynamic = matches!(slice, AcirValue::DynamicArray(_));
 
                 let mut new_slice = self.read_array(slice)?;
 
@@ -1470,6 +1471,11 @@ impl<'a> Context<'a> {
 
                 // It is expected that the `popped_elements_size` is the flattened size of the elements,
                 // as the input slice should be a dynamic array which is represented by flat memory.
+                // However in some cases the input slice is an Array with a nested structure,
+                // in which case we only need to pop the items that represent a single entry.
+                let popped_elements_size =
+                    if is_dynamic { popped_elements_size } else { element_size };
+
                 new_slice = new_slice.slice(popped_elements_size..);
 
                 popped_elements.push(AcirValue::Var(new_slice_length, AcirType::field()));
