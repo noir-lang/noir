@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1756156894839,
+  "lastUpdate": 1756211839560,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -20180,48 +20180,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "499e5cab6be0476e83554048724ca2d638b26c1b",
-          "message": "chore: move foreign call integration tests into proper integration test files (#9543)",
-          "timestamp": "2025-08-18T17:16:36Z",
-          "tree_id": "7030ab3c07ff4a956c21a868ea81c99140ce81aa",
-          "url": "https://github.com/noir-lang/noir/commit/499e5cab6be0476e83554048724ca2d638b26c1b"
-        },
-        "date": 1755538933537,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 250673,
-            "range": "± 723",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 223353,
-            "range": "± 5934",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2786635,
-            "range": "± 1818",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "6fa1c0038f0512bb38d4d572ebf65958a4e79139",
           "message": "chore: add tests to ensure that JSON serialization of foreign call values is unambiguous (#9548)",
@@ -22264,6 +22222,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2798810,
             "range": "± 11679",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "3629a256f5a820769b6d1ba62a280c745881bdcd",
+          "message": "chore: document remove_if_else (in preparation for audit) (#9621)\n\nCo-authored-by: jfecher <jfecher11@gmail.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-08-26T12:04:18Z",
+          "tree_id": "d25ddafeaee47b093b6870dbebf7f8d764c0b1ff",
+          "url": "https://github.com/noir-lang/noir/commit/3629a256f5a820769b6d1ba62a280c745881bdcd"
+        },
+        "date": 1756211820804,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 249317,
+            "range": "± 1414",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 218311,
+            "range": "± 1895",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2776515,
+            "range": "± 30609",
             "unit": "ns/iter"
           }
         ]
