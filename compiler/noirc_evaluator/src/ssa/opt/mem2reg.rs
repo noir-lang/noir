@@ -703,8 +703,9 @@ impl<'f> PerFunctionContext<'f> {
                                 aliases.insert(*parameter);
 
                                 // Check if we have seen the same argument
-                                let seen_parameters =
-                                    arg_set.entry(argument).or_insert_with(VecSet::empty);
+                                let seen_parameters = arg_set
+                                    .entry(argument)
+                                    .or_insert_with(|| VecSet::single(argument));
                                 // Add the current parameter to the parameters we have seen for this argument.
                                 // The previous parameters and the current one alias one another.
                                 seen_parameters.insert(*parameter);
@@ -1697,6 +1698,28 @@ mod tests {
             return
         }
         ";
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
+    }
+
+    #[test]
+    fn aliases_block_parameter_to_its_argument() {
+        // Here:
+        // - v0 and v1 are potentially aliases of each other
+        // - v2 must be an alias of v0 (there was a bug around this)
+        // - v3 must be an alias of v1 (same as previous point)
+        // - `v4 = load v2` cannot be replaced with `Field 2` because
+        //   v2 and v3 are also potentially aliases of each other
+        let src = r#"
+        acir(inline) fn create_note f0 {
+          b0(v0: &mut Field, v1: &mut Field):
+            jmp b1(v0, v1)
+          b1(v2: &mut Field, v3: &mut Field):
+            store Field 2 at v2
+            store Field 3 at v3
+            v4 = load v2 -> Field
+            return v4
+        }
+        "#;
         assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 }
