@@ -843,19 +843,9 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         let address = self.lookup_reference(address, "load")?;
 
         let element = address.element.borrow();
-        let value = match element.as_ref() {
-            Some(value) => value.clone(),
-            None if !self.side_effects_enabled => {
-                // Returning to a default value when side effects are disabled, even though
-                // the `requires_acir_gen_predicate` is `false` for `Load`. Doing so is an
-                // exception to allow SSA to be interpreted when we expect a DIE pass would
-                // remove this instruction anyway.
-                Value::uninitialized(&address.element_type, result)
-            }
-            None => {
-                let value = address.to_string();
-                return Err(internal(InternalError::UninitializedReferenceValueLoaded { value }));
-            }
+        let Some(value) = element.as_ref() else {
+            let value = address.to_string();
+            return Err(internal(InternalError::UninitializedReferenceValueLoaded { value }));
         };
 
         self.define(result, value.clone())?;

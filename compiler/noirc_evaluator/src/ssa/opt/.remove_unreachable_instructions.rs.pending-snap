@@ -1,0 +1,69 @@
+{"run_id":"1756222193-51099000","line":629,"new":{"module_name":"noirc_evaluator__ssa__opt__remove_unreachable_instructions__test","snapshot_name":"replaces_references_following_conditional_constraint_with_allocate_and_store_of_default","metadata":{"source":"compiler/noirc_evaluator/src/ssa/opt/remove_unreachable_instructions.rs","assertion_line":629,"expression":"ssa_string"},"snapshot":"acir(inline) predicate_pure fn main f0 {\n  b0(v0: u1, v1: u1, v2: i32):\n    v3 = make_array [] : [&mut u1]\n    enable_side_effects v0\n    constrain u1 0 == v0, \"Index out of bounds\"\n    v6 = array_get v3, index u32 0 -> &mut u1\n    v7 = load v6 -> u1\n    enable_side_effects u1 1\n    return v7\n}"},"old":{"module_name":"noirc_evaluator__ssa__opt__remove_unreachable_instructions__test","metadata":{},"snapshot":"acir(inline) predicate_pure fn main f0 {\n  b0():\n    enable_side_effects u1 0\n    return u32 0\n}"}}
+{"run_id":"1756222316-731854000","line":783,"new":null,"old":null}
+{"run_id":"1756222316-731854000","line":815,"new":null,"old":null}
+{"run_id":"1756222316-731854000","line":755,"new":null,"old":null}
+{"run_id":"1756222316-731854000","line":979,"new":null,"old":null}
+{"run_id":"1756222316-731854000","line":654,"new":null,"old":null}
+{"run_id":"1756222316-731854000","line":508,"new":null,"old":null}
+{"run_id":"1756222316-731854000","line":688,"new":null,"old":null}
+{"run_id":"1756222316-731854000","line":721,"new":null,"old":null}
+{"run_id":"1756222316-731854000","line":854,"new":null,"old":null}
+{"run_id":"1756222316-731854000","line":892,"new":null,"old":null}
+{"run_id":"1756222316-731854000","line":437,"new":null,"old":null}
+{"run_id":"1756222316-731854000","line":577,"new":null,"old":null}
+{"run_id":"1756222316-731854000","line":485,"new":null,"old":null}
+{"run_id":"1756222316-731854000","line":462,"new":null,"old":null}
+{"run_id":"1756222316-731854000","line":935,"new":null,"old":null}
+{"run_id":"1756222316-731854000","line":603,"new":null,"old":null}
+{"run_id":"1756222316-731854000","line":549,"new":null,"old":null}
+{"run_id":"1756222316-731854000","line":1087,"new":null,"old":null}
+{"run_id":"1756222316-731854000","line":1015,"new":null,"old":null}
+{"run_id":"1756222316-731854000","line":1060,"new":null,"old":null}
+{"run_id":"1756222316-731854000","line":629,"new":{"module_name":"noirc_evaluator__ssa__opt__remove_unreachable_instructions__test","snapshot_name":"replaces_references_following_conditional_constraint_with_allocate_and_store_of_default","metadata":{"source":"compiler/noirc_evaluator/src/ssa/opt/remove_unreachable_instructions.rs","assertion_line":629,"expression":"ssa_string"},"snapshot":"acir(inline) predicate_pure fn main f0 {\n  b0(v0: u1):\n    v1 = make_array [] : [&mut u1; 0]\n    enable_side_effects v0\n    constrain u1 0 == v0, \"Index out of bounds\"\n    v4 = array_get v1, index u32 0 -> &mut u1\n    v5 = load v4 -> u1\n    enable_side_effects u1 1\n    return v5\n}"},"old":{"module_name":"noirc_evaluator__ssa__opt__remove_unreachable_instructions__test","metadata":{},"snapshot":"acir(inline) predicate_pure fn main f0 {\n  b0():\n    enable_side_effects u1 0\n    return u32 0\n}"}}
+{"run_id":"1756222503-738376000","line":721,"new":null,"old":null}
+{"run_id":"1756222503-738376000","line":462,"new":null,"old":null}
+{"run_id":"1756222503-738376000","line":815,"new":null,"old":null}
+{"run_id":"1756222503-738376000","line":437,"new":null,"old":null}
+{"run_id":"1756222503-738376000","line":783,"new":null,"old":null}
+{"run_id":"1756222503-738376000","line":979,"new":null,"old":null}
+{"run_id":"1756222503-738376000","line":892,"new":null,"old":null}
+{"run_id":"1756222503-738376000","line":935,"new":null,"old":null}
+{"run_id":"1756222503-738376000","line":755,"new":null,"old":null}
+{"run_id":"1756222503-738376000","line":854,"new":null,"old":null}
+{"run_id":"1756222503-738376000","line":654,"new":null,"old":null}
+{"run_id":"1756222503-738376000","line":688,"new":null,"old":null}
+{"run_id":"1756222503-738376000","line":508,"new":null,"old":null}
+{"run_id":"1756222503-738376000","line":485,"new":null,"old":null}
+{"run_id":"1756222503-738376000","line":603,"new":null,"old":null}
+{"run_id":"1756222503-738376000","line":577,"new":null,"old":null}
+{"run_id":"1756222503-738376000","line":549,"new":null,"old":null}
+{"run_id":"1756222503-738376000","line":1015,"new":null,"old":null}
+{"run_id":"1756222503-738376000","line":1087,"new":null,"old":null}
+{"run_id":"1756222503-738376000","line":1060,"new":null,"old":null}
+{"run_id":"1756222503-738376000","line":629,"new":{"module_name":"noirc_evaluator__ssa__opt__remove_unreachable_instructions__test","snapshot_name":"replaces_references_following_conditional_constraint_with_allocate_and_store_of_default","metadata":{"source":"compiler/noirc_evaluator/src/ssa/opt/remove_unreachable_instructions.rs","assertion_line":629,"expression":"ssa_string"},"snapshot":"acir(inline) predicate_pure fn main f0 {\n  b0(v0: u1):\n    v1 = make_array [] : [&mut u1; 0]\n    enable_side_effects v0\n    constrain u1 0 == v0, \"Index out of bounds\"\n    v4 = array_get v1, index u32 0 -> &mut u1\n    v5 = load v4 -> u1\n    enable_side_effects u1 1\n    return v5\n}"},"old":{"module_name":"noirc_evaluator__ssa__opt__remove_unreachable_instructions__test","metadata":{},"snapshot":"acir(inline) predicate_pure fn main f0 {\n  b0():\n    enable_side_effects u1 0\n    return u32 0\n}"}}
+{"run_id":"1756222512-429043000","line":629,"new":{"module_name":"noirc_evaluator__ssa__opt__remove_unreachable_instructions__test","snapshot_name":"replaces_references_following_conditional_constraint_with_allocate_and_store_of_default","metadata":{"source":"compiler/noirc_evaluator/src/ssa/opt/remove_unreachable_instructions.rs","assertion_line":629,"expression":"ssa_string"},"snapshot":"acir(inline) predicate_pure fn main f0 {\n  b0(v0: u1):\n    v1 = make_array [] : [&mut u1; 0]\n    enable_side_effects v0\n    constrain u1 0 == v0, \"Index out of bounds\"\n    v4 = array_get v1, index u32 0 -> &mut u1\n    v5 = load v4 -> u1\n    enable_side_effects u1 1\n    return v5\n}"},"old":{"module_name":"noirc_evaluator__ssa__opt__remove_unreachable_instructions__test","metadata":{},"snapshot":"acir(inline) predicate_pure fn main f0 {\n  b0():\n    enable_side_effects u1 0\n    return u32 0\n}"}}
+{"run_id":"1756222535-190729000","line":630,"new":{"module_name":"noirc_evaluator__ssa__opt__remove_unreachable_instructions__test","snapshot_name":"replaces_references_following_conditional_constraint_with_allocate_and_store_of_default","metadata":{"source":"compiler/noirc_evaluator/src/ssa/opt/remove_unreachable_instructions.rs","assertion_line":630,"expression":"ssa_string"},"snapshot":"acir(inline) predicate_pure fn main f0 {\n  b0(v0: u1):\n    v1 = make_array [] : [&mut u1; 0]\n    enable_side_effects v0\n    constrain u1 0 == v0, \"Index out of bounds\"\n    v4 = array_get v1, index u32 0 -> &mut u1\n    v5 = load v4 -> u1\n    enable_side_effects u1 1\n    return v5\n}"},"old":{"module_name":"noirc_evaluator__ssa__opt__remove_unreachable_instructions__test","metadata":{},"snapshot":"acir(inline) predicate_pure fn main f0 {\n  b0():\n    enable_side_effects u1 0\n    return u32 0\n}"}}
+{"run_id":"1756222819-923187000","line":631,"new":{"module_name":"noirc_evaluator__ssa__opt__remove_unreachable_instructions__test","snapshot_name":"replaces_references_following_conditional_constraint_with_allocate_and_store_of_default","metadata":{"source":"compiler/noirc_evaluator/src/ssa/opt/remove_unreachable_instructions.rs","assertion_line":631,"expression":"ssa_string"},"snapshot":"acir(inline) predicate_pure fn main f0 {\n  b0(v0: u1):\n    v1 = make_array [] : [&mut u1; 0]\n    enable_side_effects v0\n    v4 = mod u32 1, u32 0\n    constrain u1 0 == v0, \"attempt to calculate the remainder with a divisor of zero\"\n    constrain u1 0 == v0, \"attempt to calculate the remainder with a divisor of zero\"\n    constrain u1 0 == v0, \"Index out of bounds\"\n    v6 = allocate -> &mut u1\n    store u1 0 at v6\n    v7 = load v6 -> u1\n    enable_side_effects u1 1\n    return v7\n}"},"old":{"module_name":"noirc_evaluator__ssa__opt__remove_unreachable_instructions__test","metadata":{},"snapshot":"acir(inline) predicate_pure fn main f0 {\n  b0():\n    enable_side_effects u1 0\n    return u32 0\n}"}}
+{"run_id":"1756222837-118983000","line":630,"new":{"module_name":"noirc_evaluator__ssa__opt__remove_unreachable_instructions__test","snapshot_name":"replaces_references_following_conditional_constraint_with_allocate_and_store_of_default","metadata":{"source":"compiler/noirc_evaluator/src/ssa/opt/remove_unreachable_instructions.rs","assertion_line":630,"expression":"ssa_string"},"snapshot":"acir(inline) predicate_pure fn main f0 {\n  b0(v0: u1):\n    v1 = make_array [] : [&mut u1; 0]\n    enable_side_effects v0\n    v4 = mod u32 1, u32 0\n    constrain u1 0 == v0, \"attempt to calculate the remainder with a divisor of zero\"\n    constrain u1 0 == v0, \"Index out of bounds\"\n    v6 = allocate -> &mut u1\n    store u1 0 at v6\n    v7 = load v6 -> u1\n    enable_side_effects u1 1\n    return v7\n}"},"old":{"module_name":"noirc_evaluator__ssa__opt__remove_unreachable_instructions__test","metadata":{},"snapshot":"acir(inline) predicate_pure fn main f0 {\n  b0():\n    enable_side_effects u1 0\n    return u32 0\n}"}}
+{"run_id":"1756222914-312311000","line":630,"new":null,"old":null}
+{"run_id":"1756222953-234178000","line":485,"new":null,"old":null}
+{"run_id":"1756222953-234178000","line":664,"new":null,"old":null}
+{"run_id":"1756222953-234178000","line":902,"new":null,"old":null}
+{"run_id":"1756222953-234178000","line":508,"new":null,"old":null}
+{"run_id":"1756222953-234178000","line":945,"new":null,"old":null}
+{"run_id":"1756222953-234178000","line":864,"new":null,"old":null}
+{"run_id":"1756222953-234178000","line":698,"new":null,"old":null}
+{"run_id":"1756222953-234178000","line":731,"new":null,"old":null}
+{"run_id":"1756222953-234178000","line":825,"new":null,"old":null}
+{"run_id":"1756222953-234178000","line":462,"new":null,"old":null}
+{"run_id":"1756222953-234178000","line":765,"new":null,"old":null}
+{"run_id":"1756222953-234178000","line":793,"new":null,"old":null}
+{"run_id":"1756222953-234178000","line":437,"new":null,"old":null}
+{"run_id":"1756222953-234178000","line":989,"new":null,"old":null}
+{"run_id":"1756222953-234178000","line":603,"new":null,"old":null}
+{"run_id":"1756222953-234178000","line":577,"new":null,"old":null}
+{"run_id":"1756222953-234178000","line":631,"new":null,"old":null}
+{"run_id":"1756222953-234178000","line":1097,"new":null,"old":null}
+{"run_id":"1756222953-234178000","line":549,"new":null,"old":null}
+{"run_id":"1756222953-234178000","line":1070,"new":null,"old":null}
+{"run_id":"1756222953-234178000","line":1025,"new":null,"old":null}
