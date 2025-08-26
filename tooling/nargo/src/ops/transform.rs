@@ -40,12 +40,14 @@ fn transform_program_internal(
 ) -> Program<FieldElement> {
     let functions = std::mem::take(&mut program.functions);
 
+    let brillig_side_effects = super::optimize::brillig_side_effects(&program);
+
     let optimized_functions = functions
         .into_iter()
         .enumerate()
         .map(|(i, function)| {
             let (optimized_circuit, location_map) =
-                acvm::compiler::compile(function, expression_width);
+                acvm::compiler::compile(function, expression_width, &brillig_side_effects);
             debug[i].update_acir(location_map);
             optimized_circuit
         })

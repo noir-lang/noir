@@ -3,8 +3,9 @@ use libfuzzer_sys::arbitrary::Arbitrary;
 use noirc_evaluator::ssa::ir::types::{NumericType, Type};
 use noirc_evaluator::ssa::ir::{map::Id, value::Value};
 use serde::{Deserialize, Serialize};
+use strum_macros::EnumCount;
 
-#[derive(Arbitrary, Debug, Clone, PartialEq, Eq, Hash, Copy, Serialize, Deserialize)]
+#[derive(Arbitrary, Debug, Clone, PartialEq, Eq, Hash, Copy, Serialize, Deserialize, EnumCount)]
 pub enum ValueType {
     Field,
     Boolean,
@@ -63,6 +64,16 @@ impl TypedValue {
             Type::Numeric(NumericType::Signed { bit_size: 16 }) => ValueType::I16,
             Type::Numeric(NumericType::Signed { bit_size: 32 }) => ValueType::I32,
             Type::Numeric(NumericType::Signed { bit_size: 64 }) => ValueType::I64,
+            Type::Array(element_types, _) => {
+                // hack
+                // taking the first element type as the array type
+                TypedValue::new(Id::new(0), element_types.first().unwrap().clone()).to_value_type()
+            }
+            Type::Reference(element_type) => {
+                // hack
+                // type of the reference is the type of the element
+                TypedValue::new(Id::new(0), (**element_type).clone()).to_value_type()
+            }
             _ => unreachable!("Not numeric type {}", self.type_of_variable),
         }
     }
@@ -116,6 +127,40 @@ impl TypedValue {
     }
 }
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct Point {
+    pub x: TypedValue,
+    pub y: TypedValue,
+    pub is_infinite: TypedValue,
+}
+impl Point {
+    pub fn validate(&self) -> bool {
+        matches!(
+            self.is_infinite.type_of_variable,
+            Type::Numeric(NumericType::Unsigned { bit_size: 1 })
+        ) && matches!(self.x.type_of_variable, Type::Numeric(NumericType::NativeField))
+            && matches!(self.y.type_of_variable, Type::Numeric(NumericType::NativeField))
+    }
+    pub fn to_id_vec(&self) -> Vec<Id<Value>> {
+        vec![self.x.value_id, self.y.value_id, self.is_infinite.value_id]
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct Scalar {
+    pub lo: TypedValue,
+    pub hi: TypedValue,
+}
+
+impl Scalar {
+    pub fn validate(&self) -> bool {
+        matches!(self.lo.type_of_variable, Type::Numeric(NumericType::NativeField))
+            && matches!(self.hi.type_of_variable, Type::Numeric(NumericType::NativeField))
+    }
+    pub fn to_id_vec(&self) -> Vec<Id<Value>> {
+        vec![self.lo.value_id, self.hi.value_id]
+    }
+}
 impl ValueType {
     /// Convert to the SSA Type
     pub fn to_ssa_type(&self) -> Type {

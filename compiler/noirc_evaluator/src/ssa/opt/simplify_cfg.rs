@@ -418,7 +418,7 @@ fn try_inline_into_predecessor(
 mod test {
     use crate::{
         assert_ssa_snapshot,
-        ssa::{Ssa, opt::assert_normalized_ssa_equals},
+        ssa::{Ssa, opt::assert_ssa_does_not_change},
     };
 
     #[test]
@@ -518,8 +518,7 @@ mod test {
           b2():
             return
         }";
-        let ssa = Ssa::from_str(src).unwrap();
-        assert_normalized_ssa_equals(ssa.simplify_cfg(), src);
+        assert_ssa_does_not_change(src, Ssa::simplify_cfg);
     }
 
     #[test]
@@ -771,9 +770,7 @@ mod test {
             return
         }
         ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.simplify_cfg();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::simplify_cfg);
     }
 
     #[test]

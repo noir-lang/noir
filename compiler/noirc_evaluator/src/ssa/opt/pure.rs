@@ -184,14 +184,18 @@ impl Function {
                     | Instruction::Not(_)
                     | Instruction::Truncate { .. }
                     | Instruction::Allocate
+                    // Load and store are considered pure since there is a separate check ensuring
+                    // no parameters or return values are references. With this check, we can be
+                    // sure any load/store is purely local.
                     | Instruction::Load { .. }
                     | Instruction::Store { .. }
                     | Instruction::EnableSideEffectsIf { .. }
-                    | Instruction::IncrementRc { .. }
-                    | Instruction::DecrementRc { .. }
                     | Instruction::IfElse { .. }
                     | Instruction::MakeArray { .. }
                     | Instruction::Noop => (),
+
+                    Instruction::IncrementRc { .. }
+                    | Instruction::DecrementRc { .. } => return Purity::Impure,
                 };
             }
 
@@ -485,6 +489,36 @@ mod test {
         assert_eq!(purities[&FunctionId::test_new(1)], Purity::PureWithPredicate);
     }
 
+    /// Functions using inc_rc or dec_rc are always impure - see constant_folding::do_not_deduplicate_call_with_inc_rc
+    /// as an example of a case in which semantics are changed if these are considered pure.
+    #[test]
+    fn inc_rc_is_impure() {
+        // This test ensures that a function which mutates an array pointer is marked impure.
+        // This protects against future deduplication passes incorrectly assuming purity.
+        let src = r#"
+        brillig(inline) fn mutator f0 {
+          b0(v0: [Field; 2]):
+            inc_rc v0
+            v3 = array_set v0, index u32 0, value Field 5
+            return v3
+        }
+        brillig(inline) fn mutator f1 {
+          b0(v0: [Field; 2]):
+            dec_rc v0  // We wouldn't produce this code. This is just to ensure dec_rc is impure.
+            v3 = array_set v0, index u32 0, value Field 5
+            return v3
+        }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.purity_analysis();
+
+        let purities = &ssa.main().dfg.function_purities;
+        assert_eq!(purities[&FunctionId::test_new(0)], Purity::Impure);
+        assert_eq!(purities[&FunctionId::test_new(1)], Purity::Impure);
+    }
+
+
     #[test]
     fn mutual_recursion_marks_functions_impure() {
         // We want to test that two pure mutually recursive functions do in fact mark each other as impure
@@ -494,7 +528,6 @@ mod test {
             v0 = call f1(u32 4) -> bool
             return
         }
-
         acir(inline) fn is_even f1 {
           b0(v0: u32):
             v1 = eq v0, u32 0
@@ -508,7 +541,6 @@ mod test {
           b3(v4: bool):
             return v4
         }
-
         acir(inline) fn is_odd f2 {
           b0(v0: u32):
             v1 = eq v0, u32 0
@@ -614,53 +646,5 @@ mod test {
             return
         }
         "#);
-    }
-
-    ///TODO(https://github.com/noir-lang/noir/issues/9451): Remove the `should_panic` once the bug is fixed
-    #[test]
-    #[should_panic]
-    fn regression_array_pointer_mutation() {
-        // This test ensures that a function which mutates an array pointer is marked impure.
-        // This protects against future deduplication passes incorrectly assuming purity.
-        let src = r#"
-        brillig(inline) fn main f0 {
-          b0(v0: u32):
-            v3 = make_array [Field 1, Field 2] : [Field; 2]
-            v5 = call array_refcount(v3) -> u32
-            constrain v5 == u32 1
-            v8 = call f1(v3) -> [Field; 2]
-            v9 = call array_refcount(v3) -> u32
-            constrain v9 == u32 2
-            v11 = call f1(v3) -> [Field; 2]
-            v12 = call array_refcount(v3) -> u32
-            constrain v12 == u32 3
-            inc_rc v3
-            v15 = array_set v3, index v0, value Field 9
-            return v3, v15
-        }
-        brillig(inline) fn mutator f1 {
-          b0(v0: [Field; 2]):
-            inc_rc v0
-            v3 = array_set v0, index u32 0, value Field 5
-            return v3
-        }
-        "#;
-
-        let ssa = Ssa::from_str(src).unwrap();
-        // Can uncomment to see that we do not fail when running constant folding before purity analysis
-        let ssa = ssa.fold_constants_using_constraints();
-        let _ = ssa
-            .interpret(vec![Value::from_constant(1_u32.into(), NumericType::unsigned(32)).unwrap()])
-            .unwrap();
-
-        let ssa = ssa.purity_analysis();
-        let _ = ssa
-            .interpret(vec![Value::from_constant(1_u32.into(), NumericType::unsigned(32)).unwrap()])
-            .unwrap();
-
-        let ssa = ssa.fold_constants_using_constraints();
-        let _ = ssa
-            .interpret(vec![Value::from_constant(1_u32.into(), NumericType::unsigned(32)).unwrap()])
-            .unwrap();
     }
 }

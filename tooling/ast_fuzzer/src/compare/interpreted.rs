@@ -194,6 +194,7 @@ impl Comparable for ssa::interpreter::errors::InterpreterError {
                 BinaryOp::Add { unchecked: false } => msg == "attempt to add with overflow",
                 BinaryOp::Sub { unchecked: false } => msg == "attempt to subtract with overflow",
                 BinaryOp::Mul { unchecked: false } => msg == "attempt to multiply with overflow",
+                BinaryOp::Shl | BinaryOp::Shr => msg == "attempt to bit-shift with overflow",
                 _ => false,
             },
             (
@@ -221,6 +222,10 @@ impl Comparable for ssa::interpreter::errors::InterpreterError {
             }
             (DivisionByZero { .. }, ConstrainEqFailed { msg, .. }) => {
                 msg.as_ref().is_some_and(|msg| msg == "attempt to divide by zero")
+            }
+            (PoppedFromEmptySlice { .. }, ConstrainEqFailed { msg, .. }) => {
+                // The removal of unreachable instructions can replace popping from an empty slice with an always-fail constraint.
+                msg.as_ref().is_some_and(|msg| msg == "Index out of bounds")
             }
             (e1, e2) => {
                 // The format strings contain SSA instructions,
