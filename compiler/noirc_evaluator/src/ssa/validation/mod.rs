@@ -202,24 +202,27 @@ impl<'f> Validator<'f> {
                                     Type::Numeric(NumericType::NativeField)
                                 ));
                             }
-                            #[expect(clippy::collapsible_match)]
-                            Intrinsic::BlackBox(blackbox) => match blackbox {
-                                BlackBoxFunc::AND | BlackBoxFunc::XOR => {
-                                    assert_eq!(arguments.len(), 2);
-                                    let value_typ = dfg.type_of_value(arguments[0]);
-                                    assert!(
-                                        matches!(
-                                            value_typ,
-                                            Type::Numeric(
-                                                NumericType::Unsigned { .. }
-                                                    | NumericType::Signed { .. }
-                                            )
-                                        ),
-                                        "Bitwise operation performed on non-integer type"
-                                    );
+                            Intrinsic::BlackBox(blackbox) =>
+                            {
+                                #[expect(clippy::collapsible_match)]
+                                match blackbox {
+                                    BlackBoxFunc::AND | BlackBoxFunc::XOR => {
+                                        assert_eq!(arguments.len(), 2);
+                                        let value_typ = dfg.type_of_value(arguments[0]);
+                                        assert!(
+                                            matches!(
+                                                value_typ,
+                                                Type::Numeric(
+                                                    NumericType::Unsigned { .. }
+                                                        | NumericType::Signed { .. }
+                                                )
+                                            ),
+                                            "Bitwise operation performed on non-integer type"
+                                        );
+                                    }
+                                    _ => {}
                                 }
-                                _ => {}
-                            },
+                            }
                             _ => {}
                         }
                     }
