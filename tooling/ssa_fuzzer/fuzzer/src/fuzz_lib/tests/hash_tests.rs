@@ -11,7 +11,7 @@ use crate::instruction::{Argument, Instruction, InstructionBlock};
 use crate::options::FuzzerOptions;
 use crate::tests::common::default_witness;
 use acvm::FieldElement;
-use noir_ssa_fuzzer::new_type::NumericType;
+use noir_ssa_fuzzer::r#type::NumericType;
 
 /// blake2s(to_le_radix(0, 256, 32)) == blake2s computed with noir
 ///
@@ -137,7 +137,7 @@ fn smoke_test_keccakf1600() {
     let _ = env_logger::try_init();
     // default witness are fields
     // so take the first one and cast it to u64
-    let arg_0_field = Argument { index: 0, value_type: NumericType::Field };
+    let arg_0_field = Argument { index: 0, numeric_type: NumericType::Field };
     let cast_block = InstructionBlock {
         instructions: vec![Instruction::Cast { lhs: arg_0_field, type_: NumericType::U64 }],
     };
@@ -178,7 +178,7 @@ fn smoke_test_keccakf1600() {
 #[test]
 fn smoke_test_sha256_compression() {
     let _ = env_logger::try_init();
-    let arg_0_field = Argument { index: 0, value_type: NumericType::Field };
+    let arg_0_field = Argument { index: 0, numeric_type: NumericType::Field };
     let cast_block = InstructionBlock {
         instructions: vec![Instruction::Cast { lhs: arg_0_field, type_: NumericType::U32 }],
     };

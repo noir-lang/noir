@@ -2,15 +2,14 @@
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
 pub mod builder;
-pub mod new_type;
 pub mod runner;
-pub mod typed_value;
+pub mod r#type;
 
 #[cfg(test)]
 mod tests {
     use crate::builder::{FuzzerBuilder, FuzzerBuilderError, InstructionWithTwoArgs};
-    use crate::new_type::{NumericType, Type, TypedValue};
     use crate::runner::{CompareResults, run_and_compare};
+    use crate::r#type::{NumericType, Type, TypedValue};
     use acvm::acir::native_types::{Witness, WitnessMap};
     use acvm::{AcirField, FieldElement};
     use noirc_driver::{CompileOptions, CompiledProgram};
@@ -31,10 +30,9 @@ mod tests {
         }
 
         fn insert_variable(&mut self, variable_type: NumericType) -> TypedValue {
-            let acir_param =
-                self.acir_builder.insert_variable(Type::Numeric(variable_type.into()).into());
+            let acir_param = self.acir_builder.insert_variable(Type::Numeric(variable_type).into());
             let brillig_param =
-                self.brillig_builder.insert_variable(Type::Numeric(variable_type.into()).into());
+                self.brillig_builder.insert_variable(Type::Numeric(variable_type).into());
             assert_eq!(acir_param, brillig_param);
             acir_param
         }

@@ -411,7 +411,7 @@ pub(crate) const BASIC_GENERATE_NUMERIC_TYPE_CONFIGURATION: GenerateNumericTypeC
 
 // Compile-time check that configuration has correct number of entries
 const _: () = {
-    use noir_ssa_fuzzer::new_type::NumericType;
+    use noir_ssa_fuzzer::r#type::NumericType;
     use strum::EnumCount;
     assert!(
         BASIC_GENERATE_NUMERIC_TYPE_CONFIGURATION.options_with_weights.len() == NumericType::COUNT,

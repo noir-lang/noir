@@ -25,8 +25,8 @@ use acvm::acir::native_types::{WitnessMap, WitnessStack};
 use libfuzzer_sys::{arbitrary, arbitrary::Arbitrary};
 use noir_ssa_executor::runner::execute_single;
 use noir_ssa_fuzzer::{
-    new_type::NumericType,
     runner::{CompareResults, run_and_compare},
+    r#type::NumericType,
 };
 use noirc_driver::CompiledProgram;
 use serde::{Deserialize, Serialize};

@@ -9,7 +9,7 @@ use libfuzzer_sys::arbitrary;
 use libfuzzer_sys::arbitrary::Arbitrary;
 use noir_ssa_fuzzer::{
     builder::FuzzerBuilder,
-    new_type::{NumericType, Type, TypedValue},
+    r#type::{NumericType, Type, TypedValue},
 };
 use noirc_evaluator::ssa::ir::{basic_block::BasicBlockId, function::Function, map::Id};
 use serde::{Deserialize, Serialize};

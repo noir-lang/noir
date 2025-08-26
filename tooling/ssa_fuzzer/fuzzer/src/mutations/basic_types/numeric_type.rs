@@ -3,7 +3,7 @@ use crate::mutations::configuration::{
     GenerateNumericType, GenerateNumericTypeConfig, NumericTypeMutationConfig,
     NumericTypeMutationOptions,
 };
-use noir_ssa_fuzzer::new_type::NumericType;
+use noir_ssa_fuzzer::r#type::NumericType;
 use rand::rngs::StdRng;
 
 pub(crate) fn generate_random_numeric_type(

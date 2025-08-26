@@ -5,7 +5,7 @@ use crate::instruction::{Instruction, InstructionBlock, Point, Scalar};
 use crate::options::FuzzerOptions;
 use crate::tests::common::default_witness;
 use acvm::FieldElement;
-use noir_ssa_fuzzer::new_type::NumericType;
+use noir_ssa_fuzzer::r#type::NumericType;
 
 /// fn main(lo: Field) -> pub Field {
 ///     let scalar_1 = std::embedded_curve_ops::EmbeddedCurveScalar::new(lo, 0);

@@ -6,7 +6,7 @@ use super::{
 };
 use acvm::FieldElement;
 use acvm::acir::native_types::{Witness, WitnessMap};
-use noir_ssa_fuzzer::new_type::NumericType;
+use noir_ssa_fuzzer::r#type::NumericType;
 
 fn initialize_witness_map(
     initial_witness: &[WitnessValue;

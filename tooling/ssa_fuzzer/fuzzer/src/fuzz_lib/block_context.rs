@@ -6,7 +6,7 @@ use super::{
     options::SsaBlockOptions,
 };
 use noir_ssa_fuzzer::builder::{FuzzerBuilder, InstructionWithOneArg, InstructionWithTwoArgs};
-use noir_ssa_fuzzer::new_type::{NumericType, Point, Scalar, Type, TypedValue};
+use noir_ssa_fuzzer::r#type::{NumericType, Point, Scalar, Type, TypedValue};
 use noirc_evaluator::ssa::ir::{basic_block::BasicBlockId, function::Function, map::Id};
 use std::collections::{HashMap, VecDeque};
 use std::iter::zip;
@@ -85,7 +85,7 @@ impl BlockContext {
         arg: Argument,
         instruction: InstructionWithOneArg,
     ) {
-        let value = get_typed_value_from_map(&self.stored_variables, &arg.value_type, arg.index);
+        let value = get_typed_value_from_map(&self.stored_variables, &arg.numeric_type, arg.index);
         let value = match value {
             Some(value) => value,
             _ => return,
@@ -110,10 +110,10 @@ impl BlockContext {
         instruction: InstructionWithTwoArgs,
     ) {
         let instr_lhs =
-            get_typed_value_from_map(&self.stored_variables, &lhs.value_type, lhs.index);
+            get_typed_value_from_map(&self.stored_variables, &lhs.numeric_type, lhs.index);
         // We ignore type of the second argument, because all binary instructions must use the same type
         let instr_rhs =
-            get_typed_value_from_map(&self.stored_variables, &lhs.value_type, rhs.index);
+            get_typed_value_from_map(&self.stored_variables, &lhs.numeric_type, rhs.index);
         let (instr_lhs, instr_rhs) = match (instr_lhs, instr_rhs) {
             (Some(acir_lhs), Some(acir_rhs)) => (acir_lhs, acir_rhs),
             _ => return,
@@ -197,7 +197,7 @@ impl BlockContext {
                     return;
                 }
                 let value =
-                    get_typed_value_from_map(&self.stored_variables, &lhs.value_type, lhs.index);
+                    get_typed_value_from_map(&self.stored_variables, &lhs.numeric_type, lhs.index);
                 let value = match value {
                     Some(value) => value,
                     _ => return,
@@ -217,6 +217,9 @@ impl BlockContext {
                 if !self.options.instruction_options.mod_enabled {
                     return;
                 }
+                if lhs.numeric_type == NumericType::Field {
+                    return;
+                }
                 self.insert_instruction_with_double_args(
                     acir_builder,
                     brillig_builder,
@@ -227,6 +230,9 @@ impl BlockContext {
             }
             Instruction::Not { lhs } => {
                 if !self.options.instruction_options.not_enabled {
+                    return;
+                }
+                if lhs.numeric_type == NumericType::Field {
                     return;
                 }
                 self.insert_instruction_with_single_arg(
@@ -264,6 +270,9 @@ impl BlockContext {
                 if !self.options.instruction_options.and_enabled {
                     return;
                 }
+                if lhs.numeric_type == NumericType::Field {
+                    return;
+                }
                 self.insert_instruction_with_double_args(
                     acir_builder,
                     brillig_builder,
@@ -274,6 +283,9 @@ impl BlockContext {
             }
             Instruction::Or { lhs, rhs } => {
                 if !self.options.instruction_options.or_enabled {
+                    return;
+                }
+                if lhs.numeric_type == NumericType::Field {
                     return;
                 }
                 self.insert_instruction_with_double_args(
@@ -288,6 +300,9 @@ impl BlockContext {
                 if !self.options.instruction_options.xor_enabled {
                     return;
                 }
+                if lhs.numeric_type == NumericType::Field {
+                    return;
+                }
                 self.insert_instruction_with_double_args(
                     acir_builder,
                     brillig_builder,
@@ -300,8 +315,7 @@ impl BlockContext {
                 if !self.options.instruction_options.lt_enabled {
                     return;
                 }
-                // TODO: prevent in builder
-                if lhs.value_type == NumericType::Field {
+                if lhs.numeric_type == NumericType::Field {
                     return;
                 }
                 self.insert_instruction_with_double_args(
@@ -392,7 +406,7 @@ impl BlockContext {
 
                 let value = match get_typed_value_from_map(
                     &self.stored_variables,
-                    &lhs.value_type,
+                    &lhs.numeric_type,
                     lhs.index,
                 ) {
                     Some(value) => value,
@@ -414,7 +428,7 @@ impl BlockContext {
                 }
                 let addr = get_typed_value_from_map(
                     &self.memory_addresses,
-                    &memory_addr.value_type,
+                    &memory_addr.numeric_type,
                     memory_addr.index,
                 );
                 let addr = match addr {
@@ -439,7 +453,7 @@ impl BlockContext {
                 }
                 let addr = get_typed_value_from_map(
                     &self.memory_addresses,
-                    &value.value_type,
+                    &value.numeric_type,
                     memory_addr_index,
                 );
                 let addr = match addr {
@@ -448,7 +462,7 @@ impl BlockContext {
                 };
                 let value = get_typed_value_from_map(
                     &self.stored_variables,
-                    &value.value_type,
+                    &value.numeric_type,
                     value.index,
                 );
                 let value = match value {
@@ -481,7 +495,7 @@ impl BlockContext {
                 // insert array get to both acir and brillig builders
                 let index = match get_typed_value_from_map(
                     &self.stored_variables,
-                    &index.value_type,
+                    &index.numeric_type,
                     index.index,
                 ) {
                     Some(index) => index,
@@ -511,7 +525,7 @@ impl BlockContext {
                 // get the index from the stored variables
                 let index = get_typed_value_from_map(
                     &self.stored_variables,
-                    &index.value_type,
+                    &index.numeric_type,
                     index.index,
                 );
                 let index = match index {
@@ -556,7 +570,7 @@ impl BlockContext {
                                 is_references,
                             });
                         }
-                        _ => panic!("Expected NumericType, found {:?}", element_type),
+                        _ => panic!("Expected NumericType, found {element_type:?}"),
                     }
                 }
             }
@@ -619,13 +633,34 @@ impl BlockContext {
                     };
                     match element_type {
                         Type::Numeric(element_type) => {
+                            assert!(
+                                !is_references,
+                                "Encountered numeric element in an array with references"
+                            );
                             self.stored_arrays.push(StoredArray {
                                 array_id: new_array.clone(),
                                 element_type,
                                 is_references,
                             });
                         }
-                        _ => panic!("Expected NumericType, found {:?}", element_type),
+                        Type::Reference(type_ref) => {
+                            assert!(
+                                is_references,
+                                "Encountered reference element in an array without references"
+                            );
+                            assert!(
+                                type_ref.is_numeric(),
+                                "Expected reference to a numeric type, found {type_ref:?}"
+                            );
+                            self.stored_arrays.push(StoredArray {
+                                array_id: new_array.clone(),
+                                element_type: type_ref.unwrap_numeric(),
+                                is_references,
+                            });
+                        }
+                        _ => {
+                            panic!("Expected NumericType or ReferenceType, found {element_type:?}")
+                        }
                     }
                 }
             }

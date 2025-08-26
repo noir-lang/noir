@@ -1,6 +1,6 @@
 use libfuzzer_sys::arbitrary;
 use libfuzzer_sys::arbitrary::Arbitrary;
-use noir_ssa_fuzzer::new_type::NumericType;
+use noir_ssa_fuzzer::r#type::NumericType;
 use serde::{Deserialize, Serialize};
 use strum_macros::EnumCount;
 #[derive(Arbitrary, Debug, Clone, Copy, Serialize, Deserialize)]
@@ -18,7 +18,7 @@ pub(crate) struct Argument {
     /// Argument(Index(1), ValueType::Field) -> id 8
     pub(crate) index: usize,
     /// Type of the argument
-    pub(crate) value_type: NumericType,
+    pub(crate) numeric_type: NumericType,
 }
 
 #[derive(Arbitrary, Debug, Clone, Copy, Serialize, Deserialize, Default)]
@@ -185,8 +185,8 @@ pub(crate) enum Instruction {
 impl Default for Instruction {
     fn default() -> Self {
         Self::Xor {
-            lhs: Argument { index: 0, value_type: NumericType::Boolean },
-            rhs: Argument { index: 0, value_type: NumericType::Boolean },
+            lhs: Argument { index: 0, numeric_type: NumericType::Boolean },
+            rhs: Argument { index: 0, numeric_type: NumericType::Boolean },
         }
     }
 }

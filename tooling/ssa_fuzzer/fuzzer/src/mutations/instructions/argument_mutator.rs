@@ -17,7 +17,7 @@ pub(crate) fn argument_mutator(argument: &mut Argument, rng: &mut StdRng) {
         }
         ArgumentMutationOptions::ChangeType => {
             mutate_numeric_type(
-                &mut argument.value_type,
+                &mut argument.numeric_type,
                 rng,
                 BASIC_NUMERIC_TYPE_MUTATION_CONFIGURATION,
             );

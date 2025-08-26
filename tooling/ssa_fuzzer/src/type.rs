@@ -21,9 +21,9 @@ pub enum NumericType {
     I64,
 }
 
-impl Into<SsaNumericType> for NumericType {
-    fn into(self) -> SsaNumericType {
-        match self {
+impl From<NumericType> for SsaNumericType {
+    fn from(numeric_type: NumericType) -> Self {
+        match numeric_type {
             NumericType::Field => SsaNumericType::NativeField,
             NumericType::Boolean => SsaNumericType::Unsigned { bit_size: 1 },
             NumericType::U8 => SsaNumericType::Unsigned { bit_size: 8 },
@@ -196,9 +196,9 @@ impl From<SsaType> for Type {
     }
 }
 
-impl Into<SsaType> for Type {
-    fn into(self) -> SsaType {
-        match self {
+impl From<Type> for SsaType {
+    fn from(typ: Type) -> Self {
+        match typ {
             Type::Numeric(numeric_type) => SsaType::Numeric(numeric_type.into()),
             Type::Array(element_types, length) => SsaType::Array(
                 Arc::new(element_types.iter().map(|t| t.clone().into()).collect()),

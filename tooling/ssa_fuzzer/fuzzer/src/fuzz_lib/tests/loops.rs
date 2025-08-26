@@ -10,7 +10,7 @@ use crate::instruction::{Argument, Instruction, InstructionBlock};
 use crate::options::FuzzerOptions;
 use crate::tests::common::default_witness;
 use acvm::FieldElement;
-use noir_ssa_fuzzer::new_type::NumericType;
+use noir_ssa_fuzzer::r#type::NumericType;
 
 /// fn main(x: Field) -> pub Field {
 ///   let mut y = x;
@@ -22,15 +22,15 @@ use noir_ssa_fuzzer::new_type::NumericType;
 /// x = 2, so we expect that y = 2 * 2 ^ 9 = 2 ^ 10
 #[test]
 fn test_simple_loop() {
-    let arg_2_field = Argument { index: 2, value_type: NumericType::Field };
-    let arg_5_field = Argument { index: 5, value_type: NumericType::Field };
-    let arg_6_field = Argument { index: 6, value_type: NumericType::Field };
+    let arg_2_field = Argument { index: 2, numeric_type: NumericType::Field };
+    let arg_5_field = Argument { index: 5, numeric_type: NumericType::Field };
+    let arg_6_field = Argument { index: 6, numeric_type: NumericType::Field };
 
     // v8 = allocate -> &mut Field (memory address)
     // store v2 at v8
     let add_to_memory_block =
         InstructionBlock { instructions: vec![Instruction::AddToMemory { lhs: arg_2_field }] };
-    let typed_memory_0 = Argument { index: 0, value_type: NumericType::Field };
+    let typed_memory_0 = Argument { index: 0, numeric_type: NumericType::Field };
     // load v8 -> Field (loads from first defined memory address, which is v8)
     let load_block = InstructionBlock {
         instructions: vec![Instruction::LoadFromMemory { memory_addr: typed_memory_0 }],
@@ -75,17 +75,17 @@ fn test_simple_loop() {
 /// x = 2; so we expect y = x * x ^ (4 * 4) = 2 * 2 ^ 16 = 2 ^ 17
 #[test]
 fn test_nested_loop() {
-    let arg_2_field = Argument { index: 2, value_type: NumericType::Field };
-    let arg_5_field = Argument { index: 5, value_type: NumericType::Field };
-    let arg_6_field = Argument { index: 6, value_type: NumericType::Field };
-    let arg_7_field = Argument { index: 7, value_type: NumericType::Field };
-    let arg_8_field = Argument { index: 8, value_type: NumericType::Field };
+    let arg_2_field = Argument { index: 2, numeric_type: NumericType::Field };
+    let arg_5_field = Argument { index: 5, numeric_type: NumericType::Field };
+    let arg_6_field = Argument { index: 6, numeric_type: NumericType::Field };
+    let arg_7_field = Argument { index: 7, numeric_type: NumericType::Field };
+    let arg_8_field = Argument { index: 8, numeric_type: NumericType::Field };
 
     // v9 = allocate -> &mut Field
     // store v2 at v9
     let add_to_memory_block =
         InstructionBlock { instructions: vec![Instruction::AddToMemory { lhs: arg_2_field }] };
-    let typed_memory_0 = Argument { index: 0, value_type: NumericType::Field };
+    let typed_memory_0 = Argument { index: 0, numeric_type: NumericType::Field };
     // load v9 -> Field (loads from first defined memory address, which is v9)
     let load_block = InstructionBlock {
         instructions: vec![Instruction::LoadFromMemory { memory_addr: typed_memory_0 }],
@@ -153,15 +153,15 @@ fn test_nested_loop() {
 /// }
 #[test]
 fn test_loop_broken_with_jmp() {
-    let arg_2_field = Argument { index: 2, value_type: NumericType::Field };
-    let arg_5_field = Argument { index: 5, value_type: NumericType::Field };
-    let arg_6_field = Argument { index: 6, value_type: NumericType::Field };
+    let arg_2_field = Argument { index: 2, numeric_type: NumericType::Field };
+    let arg_5_field = Argument { index: 5, numeric_type: NumericType::Field };
+    let arg_6_field = Argument { index: 6, numeric_type: NumericType::Field };
 
     // v8 = allocate -> &mut Field (memory address)
     // store v2 at v8
     let add_to_memory_block =
         InstructionBlock { instructions: vec![Instruction::AddToMemory { lhs: arg_2_field }] };
-    let typed_memory_0 = Argument { index: 0, value_type: NumericType::Field };
+    let typed_memory_0 = Argument { index: 0, numeric_type: NumericType::Field };
 
     // v14 = load v8 -> Field
     let load_block = InstructionBlock {
@@ -214,14 +214,14 @@ fn test_loop_broken_with_jmp() {
 /// x = 2; if cond = 1: y = 2 * 2 ^ 10, if cond = 0: y = 2 + 10 * 2 = 22
 #[test]
 fn test_jmp_if_in_cycle() {
-    let arg_2_field = Argument { index: 2, value_type: NumericType::Field };
-    let arg_6_field = Argument { index: 6, value_type: NumericType::Field };
-    let arg_7_field = Argument { index: 7, value_type: NumericType::Field };
+    let arg_2_field = Argument { index: 2, numeric_type: NumericType::Field };
+    let arg_6_field = Argument { index: 6, numeric_type: NumericType::Field };
+    let arg_7_field = Argument { index: 7, numeric_type: NumericType::Field };
     // v9 = allocate -> &mut Field
     // store v2 at v9
     let add_to_memory_block =
         InstructionBlock { instructions: vec![Instruction::AddToMemory { lhs: arg_2_field }] };
-    let typed_memory_0 = Argument { index: 0, value_type: NumericType::Field };
+    let typed_memory_0 = Argument { index: 0, numeric_type: NumericType::Field };
 
     // load v9 -> Field
     let load_block = InstructionBlock {
@@ -269,8 +269,8 @@ fn test_jmp_if_in_cycle() {
         None => panic!("Program failed to execute"),
     }
 
-    let arg_0_boolean = Argument { index: 0, value_type: NumericType::Boolean };
-    let arg_1_boolean = Argument { index: 1, value_type: NumericType::Boolean };
+    let arg_0_boolean = Argument { index: 0, numeric_type: NumericType::Boolean };
+    let arg_1_boolean = Argument { index: 1, numeric_type: NumericType::Boolean };
     let add_boolean_block = InstructionBlock {
         instructions: vec![Instruction::Or { lhs: arg_0_boolean, rhs: arg_1_boolean }], // jmpif uses last defined boolean variable
                                                                                         // [initialize_witness_map] func inserts two boolean variables itself, first is true, last is false

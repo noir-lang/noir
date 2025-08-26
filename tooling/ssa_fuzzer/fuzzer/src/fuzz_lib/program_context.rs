@@ -6,7 +6,7 @@ use super::{
 use acvm::FieldElement;
 use noir_ssa_fuzzer::{
     builder::{FuzzerBuilder, FuzzerBuilderError},
-    new_type::NumericType,
+    r#type::NumericType,
 };
 use noirc_driver::CompiledProgram;
 use noirc_evaluator::ssa::ir::{function::Function, map::Id};

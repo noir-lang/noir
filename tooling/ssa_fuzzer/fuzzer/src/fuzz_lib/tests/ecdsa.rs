@@ -6,7 +6,7 @@ use crate::options::FuzzerOptions;
 use crate::tests::common::default_witness;
 use acvm::AcirField;
 use acvm::FieldElement;
-use noir_ssa_fuzzer::new_type::NumericType;
+use noir_ssa_fuzzer::r#type::NumericType;
 
 #[test]
 fn test_valid_ecdsa_signature_secp256r1() {

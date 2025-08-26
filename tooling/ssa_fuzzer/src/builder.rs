@@ -1,4 +1,4 @@
-use crate::new_type::{NumericType, Point, Scalar, Type, TypedValue};
+use crate::r#type::{NumericType, Point, Scalar, Type, TypedValue};
 use acvm::FieldElement;
 use noir_ssa_executor::compiler::compile_from_ssa;
 use noirc_driver::{CompileOptions, CompiledProgram};
@@ -185,9 +185,9 @@ impl FuzzerBuilder {
                 init_bit_length,
             );
         }
-        let cast_type_as_ssa_type: SsaType = cast_type.clone().into();
+        let cast_type_as_numeric_type = cast_type.unwrap_numeric();
 
-        let res = self.builder.insert_cast(value_id, cast_type_as_ssa_type.unwrap_numeric());
+        let res = self.builder.insert_cast(value_id, cast_type_as_numeric_type.into());
         TypedValue::new(res, cast_type)
     }
 
@@ -367,11 +367,14 @@ impl FuzzerBuilder {
     pub fn insert_array(&mut self, elements: Vec<TypedValue>, is_references: bool) -> TypedValue {
         let array_length = elements.len() as u32;
         assert!(array_length > 0, "Array must have at least one element");
-        let element_type = elements[0].type_of_variable.clone();
+        let mut element_type = elements[0].type_of_variable.clone();
         assert!(
             elements.iter().all(|e| e.type_of_variable == element_type),
             "All elements must have the same type"
         );
+        if is_references {
+            element_type = Type::Reference(Arc::new(element_type));
+        }
         let array_elements_type = Type::Array(Arc::new(vec![element_type]), array_length);
         let res = self.builder.insert_make_array(
             elements.into_iter().map(|e| e.value_id).collect(),
@@ -401,7 +404,7 @@ impl FuzzerBuilder {
             .builder
             .import_intrinsic("to_le_radix")
             .expect("to_le_radix intrinsic should be available");
-        let element_type = Type::Numeric(NumericType::U8.into());
+        let element_type = Type::Numeric(NumericType::U8);
         let result_type = Type::Array(Arc::new(vec![element_type.clone()]), limb_count as u32);
         let result = self.builder.insert_call(
             intrinsic,
@@ -887,11 +890,7 @@ impl FuzzerBuilder {
             .expect("embedded_curve_add intrinsic should be available");
         let points_flattened = p1.to_id_vec().into_iter().chain(p2.to_id_vec()).collect::<Vec<_>>();
         let return_type = Type::Array(
-            Arc::new(vec![
-                field_type.clone().into(),
-                field_type.clone().into(),
-                boolean_type.clone().into(),
-            ]),
+            Arc::new(vec![field_type.clone(), field_type.clone(), boolean_type.clone()]),
             1,
         );
         let result =

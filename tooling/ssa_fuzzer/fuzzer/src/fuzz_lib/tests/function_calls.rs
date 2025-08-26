@@ -11,7 +11,7 @@ use crate::options::FuzzerOptions;
 use crate::tests::common::default_witness;
 use acvm::AcirField;
 use acvm::FieldElement;
-use noir_ssa_fuzzer::new_type::NumericType;
+use noir_ssa_fuzzer::r#type::NumericType;
 
 /// brillig(inline) fn main f0 {
 ///    b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: u1, v6: u1):
@@ -26,8 +26,8 @@ use noir_ssa_fuzzer::new_type::NumericType;
 ///  
 #[test]
 fn simple_function_call() {
-    let dummy_var = Argument { index: 2, value_type: NumericType::I64 };
-    let arg_2_field = Argument { index: 2, value_type: NumericType::Field };
+    let dummy_var = Argument { index: 2, numeric_type: NumericType::I64 };
+    let arg_2_field = Argument { index: 2, numeric_type: NumericType::Field };
     let add_block = InstructionBlock {
         instructions: vec![Instruction::AddChecked { lhs: arg_2_field, rhs: arg_2_field }],
     };
@@ -83,10 +83,10 @@ fn simple_function_call() {
 ///   }
 #[test]
 fn several_functions_several_calls() {
-    let dummy_var = Argument { index: 2, value_type: NumericType::I64 };
-    let arg_2_field = Argument { index: 2, value_type: NumericType::Field };
-    let arg_5_field = Argument { index: 5, value_type: NumericType::Field };
-    let arg_6_field = Argument { index: 6, value_type: NumericType::Field };
+    let dummy_var = Argument { index: 2, numeric_type: NumericType::I64 };
+    let arg_2_field = Argument { index: 2, numeric_type: NumericType::Field };
+    let arg_5_field = Argument { index: 5, numeric_type: NumericType::Field };
+    let arg_6_field = Argument { index: 6, numeric_type: NumericType::Field };
     let dummy_block = InstructionBlock {
         instructions: vec![Instruction::AddChecked { lhs: dummy_var, rhs: dummy_var }],
     };
@@ -166,17 +166,17 @@ fn several_functions_several_calls() {
 #[test]
 fn call_in_if_else() {
     let _ = env_logger::try_init();
-    let dummy_var = Argument { index: 2, value_type: NumericType::I64 };
-    let arg_2_field = Argument { index: 2, value_type: NumericType::Field };
-    let arg_3_field = Argument { index: 3, value_type: NumericType::Field };
-    let arg_5_field = Argument { index: 5, value_type: NumericType::Field };
+    let dummy_var = Argument { index: 2, numeric_type: NumericType::I64 };
+    let arg_2_field = Argument { index: 2, numeric_type: NumericType::Field };
+    let arg_3_field = Argument { index: 3, numeric_type: NumericType::Field };
+    let arg_5_field = Argument { index: 5, numeric_type: NumericType::Field };
 
     let dummy_block = InstructionBlock {
         instructions: vec![Instruction::AddChecked { lhs: dummy_var, rhs: dummy_var }],
     };
     let add_to_memory_block =
         InstructionBlock { instructions: vec![Instruction::AddToMemory { lhs: arg_5_field }] };
-    let typed_memory_0 = Argument { index: 0, value_type: NumericType::Field };
+    let typed_memory_0 = Argument { index: 0, numeric_type: NumericType::Field };
     let set_to_memory_block = InstructionBlock {
         instructions: vec![Instruction::SetToMemory { memory_addr_index: 0, value: arg_5_field }],
     };
@@ -236,8 +236,8 @@ fn call_in_if_else() {
         None => panic!("Program failed to execute"),
     }
 
-    let arg_0_boolean = Argument { index: 0, value_type: NumericType::Boolean };
-    let arg_1_boolean = Argument { index: 1, value_type: NumericType::Boolean };
+    let arg_0_boolean = Argument { index: 0, numeric_type: NumericType::Boolean };
+    let arg_1_boolean = Argument { index: 1, numeric_type: NumericType::Boolean };
     let add_boolean_block = InstructionBlock {
         instructions: vec![Instruction::Or { lhs: arg_0_boolean, rhs: arg_1_boolean }],
     };
@@ -277,19 +277,19 @@ fn call_in_if_else() {
 /// Otherwise, the result should be the output of the first function
 #[test]
 fn test_does_not_insert_too_many_instructions_with_function_calls() {
-    let dummy_arg = Argument { index: 0, value_type: NumericType::I64 };
+    let dummy_arg = Argument { index: 0, numeric_type: NumericType::I64 };
     let dummy_block = InstructionBlock {
         instructions: vec![Instruction::AddChecked { lhs: dummy_arg, rhs: dummy_arg }],
     };
-    let arg_2_field = Argument { index: 2, value_type: NumericType::Field };
-    let arg_5_field = Argument { index: 5, value_type: NumericType::Field };
-    let arg_6_field = Argument { index: 6, value_type: NumericType::Field };
+    let arg_2_field = Argument { index: 2, numeric_type: NumericType::Field };
+    let arg_5_field = Argument { index: 5, numeric_type: NumericType::Field };
+    let arg_6_field = Argument { index: 6, numeric_type: NumericType::Field };
 
     // v8 = allocate -> &mut Field (memory address)
     // store v2 at v8
     let add_to_memory_block =
         InstructionBlock { instructions: vec![Instruction::AddToMemory { lhs: arg_2_field }] };
-    let typed_memory_0 = Argument { index: 0, value_type: NumericType::Field };
+    let typed_memory_0 = Argument { index: 0, numeric_type: NumericType::Field };
     // load v8 -> Field (loads from first defined memory address, which is v8)
     let load_block = InstructionBlock {
         instructions: vec![Instruction::LoadFromMemory { memory_addr: typed_memory_0 }],
