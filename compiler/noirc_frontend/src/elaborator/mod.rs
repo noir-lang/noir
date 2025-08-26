@@ -1183,9 +1183,18 @@ impl<'context> Elaborator<'context> {
         has_inline_attribute: bool,
         location: Location,
     ) {
-        if *typ != Type::Unit
-            && ((is_entry_point && !typ.is_valid_for_program_input())
-                || (has_inline_attribute && !typ.is_valid_non_inlined_function_input()))
+        match typ {
+            Type::Unit => return,
+            Type::Array(_, _) => {
+                if !typ.array_or_string_len_is_not_zero() {
+                    //returning zero length arrays is allowed
+                    return;
+                }
+            }
+            _ => (),
+        }
+        if (is_entry_point && !typ.is_valid_for_program_input())
+            || (has_inline_attribute && !typ.is_valid_non_inlined_function_input())
         {
             self.push_err(TypeCheckError::InvalidTypeForEntryPoint { location });
         }
