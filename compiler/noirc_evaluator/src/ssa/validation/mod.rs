@@ -13,6 +13,7 @@
 //!   At the moment, only [Instruction::Binary], [Instruction::ArrayGet], and [Instruction::ArraySet]
 //!   are type checked.
 use core::panic;
+use std::sync::Arc;
 
 use acvm::{AcirField, FieldElement, acir::BlackBoxFunc};
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
@@ -202,27 +203,30 @@ impl<'f> Validator<'f> {
                                     Type::Numeric(NumericType::NativeField)
                                 ));
                             }
-                            Intrinsic::BlackBox(blackbox) =>
-                            {
-                                #[expect(clippy::collapsible_match)]
-                                match blackbox {
-                                    BlackBoxFunc::AND | BlackBoxFunc::XOR => {
-                                        assert_eq!(arguments.len(), 2);
-                                        let value_typ = dfg.type_of_value(arguments[0]);
-                                        assert!(
-                                            matches!(
-                                                value_typ,
-                                                Type::Numeric(
-                                                    NumericType::Unsigned { .. }
-                                                        | NumericType::Signed { .. }
-                                                )
-                                            ),
-                                            "Bitwise operation performed on non-integer type"
-                                        );
-                                    }
-                                    _ => {}
+                            Intrinsic::BlackBox(blackbox) => match blackbox {
+                                BlackBoxFunc::AND | BlackBoxFunc::XOR => {
+                                    assert_eq!(arguments.len(), 2);
+                                    let value_typ = dfg.type_of_value(arguments[0]);
+                                    assert!(
+                                        matches!(
+                                            value_typ,
+                                            Type::Numeric(
+                                                NumericType::Unsigned { .. }
+                                                    | NumericType::Signed { .. }
+                                            )
+                                        ),
+                                        "Bitwise operation performed on non-integer type"
+                                    );
                                 }
-                            }
+                                BlackBoxFunc::Keccakf1600 => {
+                                    assert_eq!(arguments.len(), 1);
+                                    assert_eq!(
+                                        dfg.type_of_value(arguments[0]),
+                                        Type::Array(Arc::new(vec![Type::unsigned(8)]), 25)
+                                    );
+                                }
+                                _ => {}
+                            },
                             _ => {}
                         }
                     }
