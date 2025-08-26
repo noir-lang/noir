@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1756236213536,
+  "lastUpdate": 1756236218334,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -12112,80 +12112,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "163862677+noirwhal@users.noreply.github.com",
-            "name": "noirwhal",
-            "username": "noirwhal"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "fd3925aaaeb76c76319f44590d135498ef41ea6c",
-          "message": "chore: Release Noir(1.0.0-beta.11) (#9457)\n\nCo-authored-by: noirwhal <tomfrench@aztecprotocol.com>",
-          "timestamp": "2025-08-19T10:53:14Z",
-          "tree_id": "9f6c77ff0daf0981f1425e75d5b4ed1d7c9fdaca",
-          "url": "https://github.com/noir-lang/noir/commit/fd3925aaaeb76c76319f44590d135498ef41ea6c"
-        },
-        "date": 1755603302845,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 206.74,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 243.56,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 195.97,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 500.28,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 432.92,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1500,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 328.22,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 330.57,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 69.53,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 55.02,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jc@joshcrites.com",
             "name": "josh crites",
             "username": "critesjosh"
@@ -15755,6 +15681,80 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/c6835b58e75cd4ec0def6a8b331bb22594ae8360"
         },
         "date": 1756230119113,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 206.72,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 243.53,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 195.94,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 500.25,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 432.9,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1500,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 328.19,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 330.55,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 69.5,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 54.99,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "36a5064c10713414a0059f73632b509dda309e13",
+          "message": "fix(ssa): Put some default in `Value::uninitialized` for references in the SSA interpreter (#9603)\n\nCo-authored-by: jfecher <jfecher11@gmail.com>",
+          "timestamp": "2025-08-26T18:24:19Z",
+          "tree_id": "330a33360113d1e052d0e55dc7a9c6a7d4fc73ea",
+          "url": "https://github.com/noir-lang/noir/commit/36a5064c10713414a0059f73632b509dda309e13"
+        },
+        "date": 1756236200328,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
