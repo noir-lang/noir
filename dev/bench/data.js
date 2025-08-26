@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1756230146892,
+  "lastUpdate": 1756234395190,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -20166,48 +20166,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "163862677+noirwhal@users.noreply.github.com",
-            "name": "noirwhal",
-            "username": "noirwhal"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "fd3925aaaeb76c76319f44590d135498ef41ea6c",
-          "message": "chore: Release Noir(1.0.0-beta.11) (#9457)\n\nCo-authored-by: noirwhal <tomfrench@aztecprotocol.com>",
-          "timestamp": "2025-08-19T10:53:14Z",
-          "tree_id": "9f6c77ff0daf0981f1425e75d5b4ed1d7c9fdaca",
-          "url": "https://github.com/noir-lang/noir/commit/fd3925aaaeb76c76319f44590d135498ef41ea6c"
-        },
-        "date": 1755602436724,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 248935,
-            "range": "± 277",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 217767,
-            "range": "± 4586",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2778792,
-            "range": "± 2834",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jc@joshcrites.com",
             "name": "josh crites",
             "username": "critesjosh"
@@ -22259,6 +22217,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2780504,
             "range": "± 1900",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "36a5064c10713414a0059f73632b509dda309e13",
+          "message": "fix(ssa): Put some default in `Value::uninitialized` for references in the SSA interpreter (#9603)\n\nCo-authored-by: jfecher <jfecher11@gmail.com>",
+          "timestamp": "2025-08-26T18:24:19Z",
+          "tree_id": "330a33360113d1e052d0e55dc7a9c6a7d4fc73ea",
+          "url": "https://github.com/noir-lang/noir/commit/36a5064c10713414a0059f73632b509dda309e13"
+        },
+        "date": 1756234376166,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 258093,
+            "range": "± 777",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 230075,
+            "range": "± 3334",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2813421,
+            "range": "± 15529",
             "unit": "ns/iter"
           }
         ]
