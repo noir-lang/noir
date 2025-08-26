@@ -444,18 +444,10 @@ impl<'f> PerFunctionContext<'f> {
                     let result = self.inserter.function.dfg.instruction_results(instruction)[0];
                     self.inserter.map_value(result, value);
                     self.instructions_to_remove.insert(instruction);
-                } else {
-                    // We don't know the exact value of the address, so we must keep the stores to it.
-                    references.mark_value_used(address, self.inserter.function);
-                    // Remember that this address has been loaded, so stores to it should not be removed.
-                    self.last_loads.insert(address);
-                    // Stores to any of its aliases should also be considered loaded.
-                    self.last_loads.extend(references.get_aliases_for_value(address).iter());
                 }
-
                 // Check whether the block has a repeat load from the same address (w/ no calls or stores in between the loads).
                 // If we do have a repeat load, we can remove the current load and map its result to the previous load's result.
-                if let Some(last_load) = references.last_loads.get(&address) {
+                else if let Some(last_load) = references.last_loads.get(&address) {
                     let Instruction::Load { address: previous_address } =
                         &self.inserter.function.dfg[*last_load]
                     else {
@@ -468,7 +460,15 @@ impl<'f> PerFunctionContext<'f> {
                         self.inserter.map_value(result, previous_result);
                         self.instructions_to_remove.insert(instruction);
                     }
+                } else {
+                    // We don't know the exact value of the address, so we must keep the stores to it.
+                    references.mark_value_used(address, self.inserter.function);
+                    // Remember that this address has been loaded, so stores to it should not be removed.
+                    self.last_loads.insert(address);
+                    // Stores to any of its aliases should also be considered loaded.
+                    self.last_loads.extend(references.get_aliases_for_value(address).iter());
                 }
+
                 // We want to set the load for every load even if the address has a known value
                 // and the previous load instruction was removed.
                 // We are safe to still remove a repeat load in this case as we are mapping from the current load's
