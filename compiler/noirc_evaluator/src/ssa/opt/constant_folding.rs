@@ -1013,7 +1013,7 @@ mod test {
                 types::{NumericType, Type},
                 value::ValueMapping,
             },
-            opt::assert_normalized_ssa_equals,
+            opt::{assert_normalized_ssa_equals, assert_ssa_does_not_change},
         },
     };
 
@@ -1148,9 +1148,7 @@ mod test {
                 return v3
             }
             ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.fold_constants();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::fold_constants);
     }
 
     #[test]
@@ -1235,11 +1233,7 @@ mod test {
             return
         }
         ";
-        let ssa = Ssa::from_str(src).unwrap();
-
-        // Expected output is unchanged
-        let ssa = ssa.fold_constants();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::fold_constants);
     }
 
     #[test]
@@ -1692,9 +1686,7 @@ mod test {
                 return
             }
             ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.fold_constants_using_constraints();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::fold_constants_using_constraints);
     }
 
     #[test]
@@ -1716,9 +1708,7 @@ mod test {
                 return
             }
             ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.fold_constants_using_constraints();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::fold_constants_using_constraints);
     }
 
     #[test]
@@ -1742,9 +1732,7 @@ mod test {
                 return
             }
             ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.fold_constants_using_constraints();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::fold_constants_using_constraints);
     }
 
     #[test]
@@ -1795,12 +1783,7 @@ mod test {
             return v6
         }
         ";
-
-        let ssa = Ssa::from_str(src).unwrap();
-
-        let ssa = ssa.fold_constants_using_constraints();
-        // We expect the code to be unchanged
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::fold_constants_using_constraints);
     }
 
     #[test]
@@ -1875,10 +1858,7 @@ mod test {
             return
         }
         ";
-
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.fold_constants();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::fold_constants);
     }
 
     #[test]
@@ -1895,10 +1875,7 @@ mod test {
             return
         }
         ";
-
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.fold_constants();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::fold_constants);
     }
 
     #[test]
@@ -1915,10 +1892,7 @@ mod test {
             return
         }
         ";
-
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.fold_constants();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::fold_constants);
     }
 
     #[test]
@@ -1935,10 +1909,7 @@ mod test {
             return
         }
         ";
-
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.fold_constants();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::fold_constants);
     }
 
     #[test]
@@ -1955,21 +1926,7 @@ mod test {
             return
         }
         ";
-
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.fold_constants();
-
-        assert_ssa_snapshot!(ssa, @r"
-        acir(inline) fn main f0 {
-          b0(v0: u32, v1: u32, v2: u1):
-            enable_side_effects v2
-            v4 = div v1, u32 2
-            v5 = not v2
-            enable_side_effects v5
-            v6 = div v1, u32 2
-            return
-        }
-        ");
+        assert_ssa_does_not_change(src, Ssa::fold_constants);
     }
 
     #[test]
