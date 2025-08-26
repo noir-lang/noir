@@ -444,21 +444,10 @@ impl<'f> PerFunctionContext<'f> {
                     let result = self.inserter.function.dfg.instruction_results(instruction)[0];
                     self.inserter.map_value(result, value);
                     self.instructions_to_remove.insert(instruction);
-                } else {
-                    // Remember that this address has been loaded, so stores to it should not be removed.
-                    self.last_loads.insert(address);
-                    // Stores to any of its aliases should also be considered loaded.
-                    self.last_loads.extend(references.get_aliases_for_value(address).iter());
                 }
-
-                // If the address is potentially aliased we must keep the stores to it
-                if references.get_aliases_for_value(address).single_alias().is_none() {
-                    references.mark_value_used(address, self.inserter.function);
-                }
-
                 // Check whether the block has a repeat load from the same address (w/ no calls or stores in between the loads).
                 // If we do have a repeat load, we can remove the current load and map its result to the previous load's result.
-                if let Some(last_load) = references.last_loads.get(&address) {
+                else if let Some(last_load) = references.last_loads.get(&address) {
                     let Instruction::Load { address: previous_address } =
                         &self.inserter.function.dfg[*last_load]
                     else {
@@ -471,7 +460,18 @@ impl<'f> PerFunctionContext<'f> {
                         self.inserter.map_value(result, previous_result);
                         self.instructions_to_remove.insert(instruction);
                     }
+                } else {
+                    // Remember that this address has been loaded, so stores to it should not be removed.
+                    self.last_loads.insert(address);
+                    // Stores to any of its aliases should also be considered loaded.
+                    self.last_loads.extend(references.get_aliases_for_value(address).iter());
                 }
+
+                // If the address is potentially aliased we must keep the stores to it
+                if references.get_aliases_for_value(address).single_alias().is_none() {
+                    references.mark_value_used(address, self.inserter.function);
+                }
+
                 // We want to set the load for every load even if the address has a known value
                 // and the previous load instruction was removed.
                 // We are safe to still remove a repeat load in this case as we are mapping from the current load's
@@ -705,6 +705,8 @@ impl<'f> PerFunctionContext<'f> {
                                     // Add the current parameter to the parameters we have seen for this argument.
                                     // The previous parameters and the current one alias one another.
                                     seen_parameters.insert(*parameter);
+                                    // Also add all of the argument aliases
+                                    seen_parameters.extend(aliases.iter());
                                 }
                             }
                         }
@@ -1780,6 +1782,33 @@ mod tests {
             jmp b1()
         }
         "#;
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
+    }
+
+    #[test]
+    fn store_to_reference_from_array_get_is_not_lost() {
+        // `store Field 9 at v7` was incorrectly removed because of a bug
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u1):
+            v2 = allocate -> &mut Field
+            store Field 0 at v2
+            jmpif v0 then: b1, else: b2
+          b1():
+            v5 = make_array [v2] : [&mut Field; 1]
+            jmp b3(v5)
+          b2():
+            v4 = make_array [v2] : [&mut Field; 1]
+            jmp b3(v4)
+          b3(v1: [&mut Field; 1]):
+            v7 = array_get v1, index u32 0 -> &mut Field
+            store Field 9 at v7
+            v9 = array_get v1, index u32 0 -> &mut Field
+            v10 = load v9 -> Field
+            constrain v10 == Field 9
+            return
+        }
+        ";
         assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 
