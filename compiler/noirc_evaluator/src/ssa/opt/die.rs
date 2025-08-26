@@ -55,6 +55,9 @@ impl Ssa {
         flattened: bool,
         skip_brillig: bool,
     ) -> Ssa {
+        #[cfg(debug_assertions)]
+        self.functions.values().for_each(|func| die_pre_check(func, flattened));
+
         let mut previous_unused_params = None;
         loop {
             let (new_ssa, result) =
@@ -609,7 +612,7 @@ fn can_be_eliminated_if_unused(
         | Load { .. }
         | IfElse { .. }
         // Arrays are not side-effectual in Brillig where OOB checks are laid down explicitly in SSA.
-        // However, arrays are side-effectual in ACIR (array OOB checks). 
+        // However, arrays are side-effectual in ACIR (array OOB checks).
         // We mark them available for deletion, but it is expected that this pass will insert
         // back the relevant side effects for array access in ACIR that can possible fail (e.g., index OOB or dynamic index).
         | ArrayGet { .. }
@@ -963,6 +966,15 @@ fn apply_side_effects(
 /// after the DIE pass.
 fn should_remove_store(func: &Function, flattened: bool) -> bool {
     flattened && func.runtime().is_acir() && func.reachable_blocks().len() == 1
+}
+
+/// Check pre-execution properties:
+/// * Passing `flattened = true` will confirm the CFG has already been flattened into a single block for ACIR functions
+#[cfg(debug_assertions)]
+fn die_pre_check(func: &Function, flattened: bool) {
+    if flattened {
+        super::flatten_cfg::flatten_cfg_post_check(func);
+    }
 }
 
 /// Check post-execution properties:
@@ -1494,7 +1506,7 @@ mod test {
             v1 = make_array [u1 1] : [u1; 1]
             v2 = make_array [v1] : [[u1; 1]; 1]
             inc_rc v1
-            inc_rc v2 
+            inc_rc v2
             return v2
         }
         "#;
@@ -1564,8 +1576,8 @@ mod test {
     fn does_not_replace_valid_array_set() {
         let src = r"
         acir(inline) fn main f0 {
-          b0(v0: [u8; 32]):                 	
-            v3 = array_set v0, index u32 0, value u8 5    	                     	
+          b0(v0: [u8; 32]):
+            v3 = array_set v0, index u32 0, value u8 5
             return v3
         }
         ";
