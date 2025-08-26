@@ -243,26 +243,26 @@ fn nested_struct_aliases(x: Field, y: Field) {
     let ref_inner1: &mut MyStruct = &mut ref_outer.inner;
     let ref_inner2: &mut MyStruct = &mut var.inner;
     if x != y {
-        *(ref_inner1).a = 5_Field;
-        *(ref_inner1).b = 7_u32;
-        *(ref_inner2).a = 3_Field;
-        *(ref_inner2).b = 10_u32;
+        (*(ref_inner1)).a = 5_Field;
+        (*(ref_inner1)).b = 7_u32;
+        (*(ref_inner2)).a = 3_Field;
+        (*(ref_inner2)).b = 10_u32;
         for _ in 0_u32..3_u32 {
-            *(ref_inner1).a = *ref_inner1.a + 1_Field;
-            *(ref_inner1).b = *ref_inner1.b + 2_u32;
-            *(ref_inner2).a = *ref_inner2.a + 2_Field;
-            *(ref_inner2).b = *ref_inner2.b + 4_u32;
+            (*(ref_inner1)).a = (*ref_inner1).a + 1_Field;
+            (*(ref_inner1)).b = (*ref_inner1).b + 2_u32;
+            (*(ref_inner2)).a = (*ref_inner2).a + 2_Field;
+            (*(ref_inner2)).b = (*ref_inner2).b + 4_u32;
         }
     } else {
-        *(ref_inner2).a = 20_Field;
-        *(ref_inner2).b = 15_u32;
-        *(ref_inner1).a = 25_Field;
-        *(ref_inner1).b = 30_u32;
+        (*(ref_inner2)).a = 20_Field;
+        (*(ref_inner2)).b = 15_u32;
+        (*(ref_inner1)).a = 25_Field;
+        (*(ref_inner1)).b = 30_u32;
         for _ in 0_u32..3_u32 {
-            *(ref_inner2).a = *ref_inner2.a + 5_Field;
-            *(ref_inner2).b = *ref_inner2.b + 3_u32;
-            *(ref_inner1).a = *ref_inner1.a + 4_Field;
-            *(ref_inner1).b = *ref_inner1.b + 10_u32;
+            (*(ref_inner2)).a = (*ref_inner2).a + 5_Field;
+            (*(ref_inner2)).b = (*ref_inner2).b + 3_u32;
+            (*(ref_inner1)).a = (*ref_inner1).a + 4_Field;
+            (*(ref_inner1)).b = (*ref_inner1).b + 10_u32;
         }
     };
     if x != y {
