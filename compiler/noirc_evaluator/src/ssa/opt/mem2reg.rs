@@ -1745,7 +1745,6 @@ mod tests {
         assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 
-
     #[test]
     fn does_not_remove_store_used_in_if_then() {
         let src = "

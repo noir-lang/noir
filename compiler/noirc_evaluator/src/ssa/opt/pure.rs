@@ -518,7 +518,6 @@ mod test {
         assert_eq!(purities[&FunctionId::test_new(1)], Purity::Impure);
     }
 
-
     #[test]
     fn mutual_recursion_marks_functions_impure() {
         // We want to test that two pure mutually recursive functions do in fact mark each other as impure
