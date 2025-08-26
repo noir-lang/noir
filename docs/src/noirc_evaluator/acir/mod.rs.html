@@ -1853,7 +1853,13 @@
 <a href="#1852" id="1852">1852</a>
 <a href="#1853" id="1853">1853</a>
 <a href="#1854" id="1854">1854</a>
-<a href="#1855" id="1855">1855</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir` module contains all the logic necessary for noirc's ACIR-gen pass which
+<a href="#1855" id="1855">1855</a>
+<a href="#1856" id="1856">1856</a>
+<a href="#1857" id="1857">1857</a>
+<a href="#1858" id="1858">1858</a>
+<a href="#1859" id="1859">1859</a>
+<a href="#1860" id="1860">1860</a>
+<a href="#1861" id="1861">1861</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir` module contains all the logic necessary for noirc's ACIR-gen pass which
 //! generates the output ACIR program.
 //!
 //! # Usage
@@ -3312,6 +3318,7 @@
                 <span class="kw">let </span>new_slice_length = <span class="self">self</span>.acir_context.sub_var(slice_length, one)<span class="question-mark">?</span>;
 
                 <span class="kw">let </span>slice = <span class="self">self</span>.convert_value(slice_contents, dfg);
+                <span class="kw">let </span>is_dynamic = <span class="macro">matches!</span>(slice, AcirValue::DynamicArray(<span class="kw">_</span>));
 
                 <span class="kw">let </span><span class="kw-2">mut </span>new_slice = <span class="self">self</span>.read_array(slice)<span class="question-mark">?</span>;
 
@@ -3333,7 +3340,12 @@
 
                 <span class="comment">// It is expected that the `popped_elements_size` is the flattened size of the elements,
                 // as the input slice should be a dynamic array which is represented by flat memory.
-                </span>new_slice = new_slice.slice(popped_elements_size..);
+                // However in some cases the input slice is an Array with a nested structure,
+                // in which case we only need to pop the items that represent a single entry.
+                </span><span class="kw">let </span>popped_elements_size =
+                    <span class="kw">if </span>is_dynamic { popped_elements_size } <span class="kw">else </span>{ element_size };
+
+                new_slice = new_slice.slice(popped_elements_size..);
 
                 popped_elements.push(AcirValue::Var(new_slice_length, AcirType::field()));
                 popped_elements.push(AcirValue::Array(new_slice));
