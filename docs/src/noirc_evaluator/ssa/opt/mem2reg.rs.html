@@ -1771,8 +1771,7 @@
 <a href="#1770" id="1770">1770</a>
 <a href="#1771" id="1771">1771</a>
 <a href="#1772" id="1772">1772</a>
-<a href="#1773" id="1773">1773</a>
-<a href="#1774" id="1774">1774</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the mem2reg SSA optimization pass is to replace any `Load` instructions to known
+<a href="#1773" id="1773">1773</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the mem2reg SSA optimization pass is to replace any `Load` instructions to known
 //! addresses with the value stored at that address, if it is also known. This pass will also remove
 //! any `Store` instructions within a block that are no longer needed because no more loads occur in
 //! between the Store in question and the next Store.
@@ -2218,19 +2217,10 @@
                     <span class="kw">let </span>result = <span class="self">self</span>.inserter.function.dfg.instruction_results(instruction)[<span class="number">0</span>];
                     <span class="self">self</span>.inserter.map_value(result, value);
                     <span class="self">self</span>.instructions_to_remove.insert(instruction);
-                } <span class="kw">else </span>{
-                    <span class="comment">// We don't know the exact value of the address, so we must keep the stores to it.
-                    </span>references.mark_value_used(address, <span class="self">self</span>.inserter.function);
-
-                    <span class="comment">// Remember that this address has been loaded, so stores to it should not be removed.
-                    </span><span class="self">self</span>.last_loads.insert(address);
-                    <span class="comment">// Stores to any of its aliases should also be considered loaded.
-                    </span><span class="self">self</span>.last_loads.extend(references.get_aliases_for_value(address).iter());
                 }
-
                 <span class="comment">// Check whether the block has a repeat load from the same address (w/ no calls or stores in between the loads).
                 // If we do have a repeat load, we can remove the current load and map its result to the previous load's result.
-                </span><span class="kw">if let </span><span class="prelude-val">Some</span>(last_load) = references.last_loads.get(<span class="kw-2">&amp;</span>address) {
+                </span><span class="kw">else if let </span><span class="prelude-val">Some</span>(last_load) = references.last_loads.get(<span class="kw-2">&amp;</span>address) {
                     <span class="kw">let </span>Instruction::Load { address: previous_address } =
                         <span class="kw-2">&amp;</span><span class="self">self</span>.inserter.function.dfg[<span class="kw-2">*</span>last_load]
                     <span class="kw">else </span>{
@@ -2243,7 +2233,15 @@
                         <span class="self">self</span>.inserter.map_value(result, previous_result);
                         <span class="self">self</span>.instructions_to_remove.insert(instruction);
                     }
+                } <span class="kw">else </span>{
+                    <span class="comment">// We don't know the exact value of the address, so we must keep the stores to it.
+                    </span>references.mark_value_used(address, <span class="self">self</span>.inserter.function);
+                    <span class="comment">// Remember that this address has been loaded, so stores to it should not be removed.
+                    </span><span class="self">self</span>.last_loads.insert(address);
+                    <span class="comment">// Stores to any of its aliases should also be considered loaded.
+                    </span><span class="self">self</span>.last_loads.extend(references.get_aliases_for_value(address).iter());
                 }
+
                 <span class="comment">// We want to set the load for every load even if the address has a known value
                 // and the previous load instruction was removed.
                 // We are safe to still remove a repeat load in this case as we are mapping from the current load's
