@@ -482,9 +482,12 @@ impl<'f> PerFunctionContext<'f> {
                 let address = *address;
                 let value = *value;
 
+                let address_aliases = references.get_aliases_for_value(address);
+
                 // If there was another store to this instruction without any (unremoved) loads or
                 // function calls in-between, we can remove the previous store.
-                if !self.aliased_references.contains_key(&address) {
+                if !self.aliased_references.contains_key(&address) && !address_aliases.is_unknown()
+                {
                     if let Some(last_store) = references.last_stores.get(&address) {
                         self.instructions_to_remove.insert(*last_store);
                     }
@@ -676,27 +679,40 @@ impl<'f> PerFunctionContext<'f> {
                 // then those parameters also alias each other.
                 // We save parameters with repeat arguments to later mark those
                 // parameters as aliasing one another.
-                let mut arg_set = HashMap::default();
+                let mut arg_set: HashMap<ValueId, VecSet<[ValueId; 1]>> = HashMap::default();
 
                 // Add an alias for each reference parameter
                 for (parameter, argument) in destination_parameters.iter().zip(arguments) {
-                    if self.inserter.function.dfg.value_is_reference(*parameter) {
-                        let argument = *argument;
+                    match self.inserter.function.dfg.type_of_value(*parameter) {
+                        // If the type indirectly contains a reference we have to assume all references
+                        // are unknown since we don't have any ValueIds to use.
+                        Type::Reference(element) if element.contains_reference() => {
+                            self.mark_all_unknown(destination_parameters, references);
+                            return;
+                        }
+                        Type::Reference(_) => {
+                            if let Some(expression) = references.expressions.get(argument) {
+                                if let Some(aliases) = references.aliases.get_mut(expression) {
+                                    let argument = *argument;
 
-                        if let Some(expression) = references.expressions.get(&argument) {
-                            if let Some(aliases) = references.aliases.get_mut(expression) {
-                                // The argument reference is possibly aliased by this block parameter
-                                aliases.insert(*parameter);
+                                    // The argument reference is possibly aliased by this block parameter
+                                    aliases.insert(*parameter);
 
-                                // Check if we have seen the same argument
-                                let seen_parameters = arg_set
-                                    .entry(argument)
-                                    .or_insert_with(|| VecSet::single(argument));
-                                // Add the current parameter to the parameters we have seen for this argument.
-                                // The previous parameters and the current one alias one another.
-                                seen_parameters.insert(*parameter);
+                                    // Check if we have seen the same argument
+                                    let seen_parameters = arg_set
+                                        .entry(argument)
+                                        .or_insert_with(|| VecSet::single(argument));
+                                    // Add the current parameter to the parameters we have seen for this argument.
+                                    // The previous parameters and the current one alias one another.
+                                    seen_parameters.insert(*parameter);
+                                }
                             }
                         }
+                        typ if typ.contains_reference() => {
+                            self.mark_all_unknown(destination_parameters, references);
+                            return;
+                        }
+                        _ => continue,
                     }
                 }
 
@@ -1096,6 +1112,55 @@ mod tests {
             return
         }
         ";
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
+    }
+
+    #[test]
+    fn keep_repeat_loads_with_alias_store_nested() {
+        // v1, v2, and v3's inner reference alias one another. We want to make sure that a repeat load to v3 with a store
+        // to its aliases in between the repeat loads does not remove those loads.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            jmpif v0 then: b2, else: b1
+          b1():
+            v8 = allocate -> &mut Field
+            store Field 1 at v8
+            v10 = allocate -> &mut Field
+            store Field 2 at v10
+            v12 = allocate -> &mut &mut Field
+            store v10 at v12
+            jmp b3(v8, v8, v12)
+          b2():
+            v4 = allocate -> &mut Field
+            store Field 0 at v4
+            v6 = allocate -> &mut Field
+            v7 = allocate -> &mut &mut Field
+            store v4 at v7
+            jmp b3(v4, v4, v7)
+          b3(v1: &mut Field, v2: &mut Field, v3: &mut &mut Field):
+            v13 = load v1 -> Field
+            store Field 2 at v2
+            v14 = load v1 -> Field
+            store Field 1 at v2
+            v15 = load v1 -> Field
+            store Field 3 at v2
+            v17 = load v1 -> Field
+            constrain v13 == Field 0
+            constrain v14 == Field 2
+            constrain v15 == Field 1
+            constrain v17 == Field 3
+            v18 = load v3 -> &mut Field
+            v19 = load v18 -> Field
+            store Field 5 at v2
+            v21 = load v3 -> &mut Field
+            v22 = load v21 -> Field
+            constrain v19 == Field 3
+            constrain v22 == Field 5
+            return
+        }
+        ";
+
         assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 
