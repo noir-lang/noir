@@ -216,9 +216,8 @@ struct LoopInvariantContext<'f> {
     /// Reset for each new loop as the set should not be shared across different outer loops.
     nested_loop_control_dependent_blocks: HashSet<BasicBlockId>,
 
-    // Maps a block to its post-dominance frontiers
-    // This map should be precomputed a single time and used for checking control dependence.
-    post_dom_frontiers: HashMap<BasicBlockId, HashSet<BasicBlockId>>,
+    /// Maps a block to its post-dominance frontiers
+    post_dom_frontiers: PostDominanceFrontiers,
 
     // Stores whether the current block being processed is control dependent
     current_block_control_dependent: bool,
@@ -238,13 +237,37 @@ struct LoopInvariantContext<'f> {
     false_value: ValueId,
 }
 
-impl<'f> LoopInvariantContext<'f> {
-    fn new(function: &'f mut Function) -> Self {
-        let cfg = ControlFlowGraph::with_function(function);
-        let reversed_cfg = ControlFlowGraph::extended_reverse(function);
+#[derive(Default)]
+struct PostDominanceFrontiers {
+    post_dom_frontiers: HashMap<BasicBlockId, HashSet<BasicBlockId>>,
+}
+
+impl PostDominanceFrontiers {
+    fn with_function(func: &mut Function) -> Self {
+        let reversed_cfg = ControlFlowGraph::extended_reverse(func);
         let post_order = PostOrder::with_cfg(&reversed_cfg);
         let mut post_dom = DominatorTree::with_cfg_and_post_order(&reversed_cfg, &post_order);
         let post_dom_frontiers = post_dom.compute_dominance_frontiers(&reversed_cfg);
+
+        Self { post_dom_frontiers }
+    }
+
+    /// Checks whether a `block` is control dependent on a `parent_block`.
+    /// Uses post-dominance frontiers to determine control dependence.
+    /// Reference the doc comments at the top of the this module for more information
+    /// regarding post-dominance frontiers and control dependence.
+    fn is_control_dependent(&self, parent_block: BasicBlockId, block: BasicBlockId) -> bool {
+        match self.post_dom_frontiers.get(&block) {
+            Some(dependent_blocks) => dependent_blocks.contains(&parent_block),
+            None => false,
+        }
+    }
+}
+
+impl<'f> LoopInvariantContext<'f> {
+    fn new(function: &'f mut Function) -> Self {
+        let cfg = ControlFlowGraph::with_function(function);
+        let post_dom_frontiers = PostDominanceFrontiers::with_function(function);
         let true_value =
             function.dfg.make_constant(FieldElement::one(), NumericType::Unsigned { bit_size: 1 });
         let false_value =
@@ -371,7 +394,9 @@ impl<'f> LoopInvariantContext<'f> {
 
         // Now check whether the current block is dependent on any blocks between
         // the current block and the loop header, exclusive of the current block and loop header themselves
-        if all_predecessors.iter().any(|predecessor| self.is_control_dependent(*predecessor, block))
+        if all_predecessors
+            .iter()
+            .any(|predecessor| self.post_dom_frontiers.is_control_dependent(*predecessor, block))
         {
             self.current_block_control_dependent = true;
             return;
@@ -411,7 +436,9 @@ impl<'f> LoopInvariantContext<'f> {
                 && all_predecessors
                     .iter()
                     // Check whether the nested loop's header is control dependent on any of its predecessors
-                    .any(|predecessor| self.is_control_dependent(*predecessor, nested.header));
+                    .any(|predecessor| {
+                        self.post_dom_frontiers.is_control_dependent(*predecessor, nested.header)
+                    });
             if nested_loop_is_control_dep {
                 self.current_block_control_dependent = true;
                 // Mark all blocks in the nested loop as control dependent to avoid redundant checks
@@ -471,17 +498,6 @@ impl<'f> LoopInvariantContext<'f> {
     /// Get and resolve the induction variable of a loop.
     fn get_induction_variable(&mut self, loop_: &Loop) -> Option<ValueId> {
         loop_.get_induction_variable(self.inserter.function).map(|v| self.inserter.resolve(v))
-    }
-
-    /// Checks whether a `block` is control dependent on a `parent_block`.
-    /// Uses post-dominance frontiers to determine control dependence.
-    /// Reference the doc comments at the top of the this module for more information
-    /// regarding post-dominance frontiers and control dependence.
-    fn is_control_dependent(&self, parent_block: BasicBlockId, block: BasicBlockId) -> bool {
-        match self.post_dom_frontiers.get(&block) {
-            Some(dependent_blocks) => dependent_blocks.contains(&parent_block),
-            None => false,
-        }
     }
 
     /// Gather the variables declared within the loop
