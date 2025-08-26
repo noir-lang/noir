@@ -1724,6 +1724,33 @@ mod tests {
     }
 
     #[test]
+    fn store_to_reference_from_array_get_is_not_lost() {
+        // `store Field 9 at v7` was incorrectly removed because of a bug
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u1):
+            v2 = allocate -> &mut Field
+            store Field 0 at v2
+            jmpif v0 then: b1, else: b2
+          b1():
+            v5 = make_array [v2] : [&mut Field; 1]
+            jmp b3(v5)
+          b2():
+            v4 = make_array [v2] : [&mut Field; 1]
+            jmp b3(v4)
+          b3(v1: [&mut Field; 1]):
+            v7 = array_get v1, index u32 0 -> &mut Field
+            store Field 9 at v7
+            v9 = array_get v1, index u32 0 -> &mut Field
+            v10 = load v9 -> Field
+            constrain v10 == Field 9
+            return
+        }
+        ";
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
+    }
+
+    #[test]
     fn aliases_block_parameter_to_its_argument() {
         // Here:
         // - v0 and v1 are potentially aliases of each other
