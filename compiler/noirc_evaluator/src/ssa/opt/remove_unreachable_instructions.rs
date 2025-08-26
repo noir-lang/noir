@@ -406,7 +406,7 @@ fn insert_constraint(
 mod test {
     use crate::{
         assert_ssa_snapshot,
-        ssa::{opt::assert_normalized_ssa_equals, ssa_gen::Ssa},
+        ssa::{opt::assert_ssa_does_not_change, ssa_gen::Ssa},
     };
 
     #[test]
@@ -515,9 +515,7 @@ mod test {
             return v1
         }
         "#;
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.remove_unreachable_instructions();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::remove_unreachable_instructions);
     }
 
     #[test]
@@ -1004,10 +1002,7 @@ mod test {
             return v4
         }
         ";
-
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.remove_unreachable_instructions();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::remove_unreachable_instructions);
     }
 
     #[test]

@@ -30,7 +30,7 @@ pub(super) struct Block {
     /// Each allocate instruction result (and some reference block parameters)
     /// will map to a Reference value which tracks whether the last value stored
     /// to the reference is known.
-    pub(super) references: im::OrdMap<ValueId, ValueId>,
+    pub(super) references: im::OrdMap<ValueId, ReferenceValue>,
 
     /// The last instance of a `Store` instruction to each address in this block
     pub(super) last_stores: im::OrdMap<ValueId, InstructionId>,
@@ -49,22 +49,42 @@ pub(super) enum Expression {
     Other(ValueId),
 }
 
+/// Every reference's value is either Known and can be optimized away, or Unknown.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub(super) enum ReferenceValue {
+    Unknown,
+    Known(ValueId),
+}
+
+impl ReferenceValue {
+    fn unify(self, other: Self) -> Self {
+        if self == other { self } else { ReferenceValue::Unknown }
+    }
+}
+
 impl Block {
     /// If the given reference id points to a known value, return the value
     pub(super) fn get_known_value(&self, address: ValueId) -> Option<ValueId> {
-        self.references.get(&address).copied()
+        // We could allow multiple aliases if we check that the reference value in each is equal.
+        if let Some(alias) = self.get_aliases_for_value(address).single_alias() {
+            if let Some(ReferenceValue::Known(value)) = self.references.get(&alias) {
+                return Some(*value);
+            }
+        }
+
+        None
     }
 
-    /// If the given address is known, set its value to `value`.
+    /// If the given address is known, set its value to `ReferenceValue::Known(value)`.
     pub(super) fn set_known_value(&mut self, address: ValueId, value: ValueId) {
-        self.set_value(address, Some(value));
+        self.set_value(address, ReferenceValue::Known(value));
     }
 
     pub(super) fn set_unknown(&mut self, address: ValueId) {
-        self.set_value(address, None);
+        self.set_value(address, ReferenceValue::Unknown);
     }
 
-    fn set_value(&mut self, address: ValueId, value: Option<ValueId>) {
+    fn set_value(&mut self, address: ValueId, value: ReferenceValue) {
         let expression = self.expressions.entry(address).or_insert(Expression::Other(address));
         let aliases = self.aliases.entry(*expression).or_default();
 
@@ -73,24 +93,15 @@ impl Block {
             // Now we have to invalidate every reference we know of
             self.invalidate_all_references();
         } else if let Some(alias) = aliases.single_alias() {
-            self.set_reference_value(alias, value);
+            self.references.insert(alias, value);
         } else {
             // More than one alias. We're not sure which it refers to so we have to
             // conservatively invalidate all references it may refer to.
             for alias in aliases.iter() {
-                self.references.remove(&alias);
+                if let Some(reference_value) = self.references.get_mut(&alias) {
+                    *reference_value = ReferenceValue::Unknown;
+                }
             }
-        }
-
-        // We always know address points to value
-        self.set_reference_value(address, value);
-    }
-
-    fn set_reference_value(&mut self, address: ValueId, value: Option<ValueId>) {
-        if let Some(value) = value {
-            self.references.insert(address, value);
-        } else {
-            self.references.remove(&address);
         }
     }
 
@@ -125,9 +136,7 @@ impl Block {
         let mut intersection = im::OrdMap::new();
         for (value_id, reference) in &other.references {
             if let Some(existing) = self.references.get(value_id) {
-                if reference == existing {
-                    intersection.insert(*value_id, *reference);
-                }
+                intersection.insert(*value_id, existing.unify(*reference));
             }
         }
         self.references = intersection;

@@ -140,9 +140,11 @@ impl<F, R> BrilligContext<F, R> {
 
 /// Regular brillig context to codegen user defined functions
 impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
-    pub(crate) fn new(options: &BrilligOptions) -> BrilligContext<F, Stack> {
+    pub(crate) fn new(function_name: &str, options: &BrilligOptions) -> BrilligContext<F, Stack> {
+        let mut obj = BrilligArtifact::default();
+        obj.name = function_name.to_owned();
         BrilligContext {
-            obj: BrilligArtifact::default(),
+            obj,
             registers: Stack::new(),
             context_label: Label::entrypoint(),
             current_section: 0,
@@ -299,6 +301,10 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         self.obj
     }
 
+    pub(crate) fn name(&self) -> &str {
+        &self.obj.name
+    }
+
     /// Sets a current call stack that the next pushed opcodes will be associated with.
     pub(crate) fn set_call_stack(&mut self, call_stack: CallStackId) {
         self.obj.set_call_stack(call_stack);
@@ -368,7 +374,7 @@ pub(crate) mod tests {
             enable_debug_assertions: true,
             enable_array_copy_counter: false,
         };
-        let mut context = BrilligContext::new(&options);
+        let mut context = BrilligContext::new("test", &options);
         context.enter_context(Label::function(id));
         context
     }
@@ -390,6 +396,7 @@ pub(crate) mod tests {
             FunctionId::test_new(0),
             false,
             0,
+            "entry_point",
             &options,
         );
         entry_point_artifact.link_with(&artifact);
@@ -437,7 +444,7 @@ pub(crate) mod tests {
             enable_debug_assertions: true,
             enable_array_copy_counter: false,
         };
-        let mut context = BrilligContext::new(&options);
+        let mut context = BrilligContext::new("test", &options);
         let r_stack = ReservedRegisters::free_memory_pointer();
         // Start stack pointer at 0
         context.usize_const_instruction(r_stack, FieldElement::from(ReservedRegisters::len() + 3));
