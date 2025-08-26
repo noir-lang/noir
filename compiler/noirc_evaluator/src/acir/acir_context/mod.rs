@@ -379,18 +379,23 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
             return Ok(lhs);
         }
 
-        let bit_size = typ.bit_size::<F>();
-        if bit_size == 1 {
-            // Operands are booleans.
-            //
-            // a ^ b == a + b - 2*a*b
-            let prod = self.mul_var(lhs, rhs)?;
-            let sum = self.add_var(lhs, rhs)?;
-            self.add_mul_var(sum, -F::from(2_u128), prod)
-        } else {
-            let inputs = vec![AcirValue::Var(lhs, typ.clone()), AcirValue::Var(rhs, typ)];
-            let outputs = self.black_box_function(BlackBoxFunc::XOR, inputs, 1)?;
-            Ok(outputs[0])
+        match typ.to_numeric_type() {
+            NumericType::Unsigned { bit_size: 1 } => {
+                // Operands are booleans.
+                //
+                // a ^ b == a + b - 2*a*b
+                let prod = self.mul_var(lhs, rhs)?;
+                let sum = self.add_var(lhs, rhs)?;
+                self.add_mul_var(sum, -F::from(2_u128), prod)
+            }
+            NumericType::Signed { .. } | NumericType::Unsigned { .. } => {
+                let inputs = vec![AcirValue::Var(lhs, typ.clone()), AcirValue::Var(rhs, typ)];
+                let outputs = self.black_box_function(BlackBoxFunc::XOR, inputs, 1)?;
+                Ok(outputs[0])
+            }
+            NumericType::NativeField => {
+                unreachable!("Attempted to perform bitwise operation on `Field` type")
+            }
         }
     }
 
@@ -413,14 +418,19 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
             return Ok(zero);
         }
 
-        let bit_size = typ.bit_size::<F>();
-        if bit_size == 1 {
-            // Operands are booleans.
-            self.mul_var(lhs, rhs)
-        } else {
-            let inputs = vec![AcirValue::Var(lhs, typ.clone()), AcirValue::Var(rhs, typ)];
-            let outputs = self.black_box_function(BlackBoxFunc::AND, inputs, 1)?;
-            Ok(outputs[0])
+        match typ.to_numeric_type() {
+            NumericType::Unsigned { bit_size: 1 } => {
+                // Operands are booleans.
+                self.mul_var(lhs, rhs)
+            }
+            NumericType::Signed { .. } | NumericType::Unsigned { .. } => {
+                let inputs = vec![AcirValue::Var(lhs, typ.clone()), AcirValue::Var(rhs, typ)];
+                let outputs = self.black_box_function(BlackBoxFunc::AND, inputs, 1)?;
+                Ok(outputs[0])
+            }
+            NumericType::NativeField => {
+                unreachable!("Attempted to perform bitwise operation on `Field` type")
+            }
         }
     }
 
