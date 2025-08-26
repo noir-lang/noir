@@ -26,7 +26,7 @@ For example, to add the [ecrecover-noir library](https://github.com/colinnielsen
 # Nargo.toml
 
 [dependencies]
-ecrecover = {tag = "v0.8.0", git = "https://github.com/colinnielsen/ecrecover-noir"}
+ecrecover = {tag = "v0.30.0", git = "https://github.com/colinnielsen/ecrecover-noir"}
 ```
 
 If the module is in a subdirectory, you can define a subdirectory in your git repository, for example:
