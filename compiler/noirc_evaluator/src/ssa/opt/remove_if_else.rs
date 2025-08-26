@@ -100,7 +100,7 @@ use crate::ssa::{
     Ssa,
     ir::{
         dfg::DataFlowGraph,
-        function::{Function, RuntimeType},
+        function::Function,
         instruction::{Hint, Instruction, Intrinsic},
         types::Type,
         value::{Value, ValueId},
