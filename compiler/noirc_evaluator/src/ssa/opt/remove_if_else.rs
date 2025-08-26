@@ -132,15 +132,15 @@ impl Ssa {
 
 impl Function {
     pub(crate) fn remove_if_else(&mut self) -> RtResult<()> {
+        // This should match the check in flatten_cfg
+        if matches!(self.runtime(), RuntimeType::Brillig(_)) {
+            return Ok(());
+        }
+
         #[cfg(debug_assertions)]
         remove_if_else_pre_check(self);
 
-        // This should match the check in flatten_cfg
-        if matches!(self.runtime(), RuntimeType::Brillig(_)) {
-            // skip
-        } else {
-            Context::default().remove_if_else(self)?;
-        }
+        Context::default().remove_if_else(self)?;
 
         #[cfg(debug_assertions)]
         remove_if_else_post_check(self);
