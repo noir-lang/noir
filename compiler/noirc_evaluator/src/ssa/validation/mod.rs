@@ -154,15 +154,17 @@ impl<'f> Validator<'f> {
                     "Left-hand side and right-hand side of `{operator}` must have the same type"
                 );
 
-                if matches!(
-                    operator,
-                    BinaryOp::Lt
-                        | BinaryOp::And
-                        | BinaryOp::Or
-                        | BinaryOp::Xor
-                        | BinaryOp::Shl
-                        | BinaryOp::Shr
-                ) {
+                if lhs_type == Type::field()
+                    && matches!(
+                        operator,
+                        BinaryOp::Lt
+                            | BinaryOp::And
+                            | BinaryOp::Or
+                            | BinaryOp::Xor
+                            | BinaryOp::Shl
+                            | BinaryOp::Shr
+                    )
+                {
                     panic!("Cannot use `{operator}` with field elements");
                 };
             }
