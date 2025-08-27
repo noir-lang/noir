@@ -248,7 +248,7 @@ impl LoopContext {
     }
 
     /// A control dependent instruction (e.g. constrain or division) has more strict conditions for simplifying.
-    /// This function matches [LoopInvariantContext::can_hoist_control_dependent_instruction] except
+    /// This function matches [Self::can_hoist_control_dependent_instruction] except
     /// that simplification does not require that current block is pure to be simplified.
     fn can_simplify_control_dependent_instruction(&self) -> bool {
         !self.current_block_control_dependent && self.current_block_executes
