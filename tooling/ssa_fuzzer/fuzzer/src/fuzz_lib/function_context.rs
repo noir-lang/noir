@@ -137,7 +137,7 @@ pub(crate) struct FuzzerFunctionContext<'a> {
     /// Instruction blocks
     instruction_blocks: &'a Vec<InstructionBlock>,
     /// Hashmap of stored variables in blocks
-    stored_variables_for_block: HashMap<BasicBlockId, HashMap<NumericType, Vec<TypedValue>>>,
+    stored_variables_for_block: HashMap<BasicBlockId, HashMap<Type, Vec<TypedValue>>>,
     /// Hashmap of stored blocks
     stored_blocks: HashMap<BasicBlockId, StoredBlock>,
     /// Options of the program context
@@ -173,14 +173,13 @@ impl<'a> FuzzerFunctionContext<'a> {
             let acir_id = acir_builder.insert_variable(Type::Numeric(type_).into());
             let brillig_id = brillig_builder.insert_variable(Type::Numeric(type_).into());
             assert_eq!(acir_id, brillig_id);
-            acir_ids.entry(type_).or_insert(Vec::new()).push(acir_id);
+            acir_ids.entry(Type::Numeric(type_)).or_insert(Vec::new()).push(acir_id);
         }
 
         let main_block = acir_builder.get_current_block();
         let current_block = StoredBlock {
             context: BlockContext::new(
                 acir_ids.clone(),
-                HashMap::new(),
                 VecDeque::new(),
                 SsaBlockOptions::from(context_options.clone()),
             ),
@@ -223,11 +222,11 @@ impl<'a> FuzzerFunctionContext<'a> {
         for (value, type_) in values_types.into_iter() {
             let field_element = value;
             acir_ids
-                .entry(type_)
+                .entry(Type::Numeric(type_))
                 .or_insert(Vec::new())
                 .push(acir_builder.insert_constant(field_element, type_));
             brillig_ids
-                .entry(type_)
+                .entry(Type::Numeric(type_))
                 .or_insert(Vec::new())
                 .push(brillig_builder.insert_constant(field_element, type_));
             assert_eq!(brillig_ids, acir_ids);
@@ -237,7 +236,6 @@ impl<'a> FuzzerFunctionContext<'a> {
         let current_block = StoredBlock {
             context: BlockContext::new(
                 acir_ids.clone(),
-                HashMap::new(),
                 VecDeque::new(),
                 SsaBlockOptions::from(context_options.clone()),
             ),

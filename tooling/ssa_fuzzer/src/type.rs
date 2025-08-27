@@ -91,10 +91,32 @@ impl Type {
         matches!(self, Type::Numeric(NumericType::Boolean))
     }
 
+    // TODO(sn): legacy
+    pub fn is_array_of_references(&self) -> bool {
+        match self {
+            Type::Array(element_types, _) => element_types.iter().all(|t| t.is_reference()),
+            _ => false,
+        }
+    }
+
+    pub fn unwrap_reference(&self) -> Type {
+        match self {
+            Type::Reference(value_type) => value_type.as_ref().clone(),
+            _ => panic!("Expected Reference, found {self:?}"),
+        }
+    }
+
     pub fn unwrap_numeric(&self) -> NumericType {
         match self {
             Type::Numeric(numeric_type) => *numeric_type,
             _ => panic!("Expected NumericType, found {self:?}"),
+        }
+    }
+
+    pub fn unwrap_array_element_type(&self) -> Type {
+        match self {
+            Type::Array(element_types, _) => element_types[0].clone(),
+            _ => panic!("Expected Array, found {self:?}"),
         }
     }
 }

@@ -315,17 +315,20 @@ impl FuzzerBuilder {
     pub fn insert_add_to_memory(&mut self, lhs: TypedValue) -> TypedValue {
         let memory_address = self.builder.insert_allocate(lhs.clone().type_of_variable.into());
         self.builder.insert_store(memory_address, lhs.value_id);
-        TypedValue::new(memory_address, lhs.type_of_variable)
+        TypedValue::new(memory_address, Type::Reference(Arc::new(lhs.type_of_variable)))
     }
 
     pub fn insert_load_from_memory(&mut self, memory_addr: TypedValue) -> TypedValue {
-        let res = self
-            .builder
-            .insert_load(memory_addr.value_id, memory_addr.clone().type_of_variable.into());
-        TypedValue::new(res, memory_addr.type_of_variable.clone())
+        assert!(memory_addr.type_of_variable.is_reference(), "memory address must be a reference");
+        let res = self.builder.insert_load(
+            memory_addr.value_id,
+            memory_addr.type_of_variable.unwrap_reference().into(),
+        );
+        TypedValue::new(res, memory_addr.type_of_variable.unwrap_reference())
     }
 
     pub fn insert_set_to_memory(&mut self, memory_addr: TypedValue, value: TypedValue) {
+        assert!(memory_addr.type_of_variable.is_reference(), "memory address must be a reference");
         self.builder.insert_store(memory_addr.value_id, value.value_id);
     }
 
@@ -364,17 +367,14 @@ impl FuzzerBuilder {
     }
 
     /// Inserts a new array with the given elements and type
-    pub fn insert_array(&mut self, elements: Vec<TypedValue>, is_references: bool) -> TypedValue {
+    pub fn insert_array(&mut self, elements: Vec<TypedValue>) -> TypedValue {
         let array_length = elements.len() as u32;
         assert!(array_length > 0, "Array must have at least one element");
-        let mut element_type = elements[0].type_of_variable.clone();
+        let element_type = elements[0].type_of_variable.clone();
         assert!(
             elements.iter().all(|e| e.type_of_variable == element_type),
             "All elements must have the same type"
         );
-        if is_references {
-            element_type = Type::Reference(Arc::new(element_type));
-        }
         let array_elements_type = Type::Array(Arc::new(vec![element_type]), array_length);
         let res = self.builder.insert_make_array(
             elements.into_iter().map(|e| e.value_id).collect(),
