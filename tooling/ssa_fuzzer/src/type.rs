@@ -21,20 +21,39 @@ pub enum NumericType {
     I64,
 }
 
+impl NumericType {
+    pub fn bit_length(&self) -> u32 {
+        match self {
+            NumericType::Field => 254,
+            NumericType::Boolean => 1,
+            NumericType::U8 => 8,
+            NumericType::U16 => 16,
+            NumericType::U32 => 32,
+            NumericType::U64 => 64,
+            NumericType::U128 => 128,
+            NumericType::I8 => 8,
+            NumericType::I16 => 16,
+            NumericType::I32 => 32,
+            NumericType::I64 => 64,
+        }
+    }
+}
+
 impl From<NumericType> for SsaNumericType {
     fn from(numeric_type: NumericType) -> Self {
+        let bit_size = numeric_type.bit_length();
         match numeric_type {
             NumericType::Field => SsaNumericType::NativeField,
-            NumericType::Boolean => SsaNumericType::Unsigned { bit_size: 1 },
-            NumericType::U8 => SsaNumericType::Unsigned { bit_size: 8 },
-            NumericType::U16 => SsaNumericType::Unsigned { bit_size: 16 },
-            NumericType::U32 => SsaNumericType::Unsigned { bit_size: 32 },
-            NumericType::U64 => SsaNumericType::Unsigned { bit_size: 64 },
-            NumericType::U128 => SsaNumericType::Unsigned { bit_size: 128 },
-            NumericType::I8 => SsaNumericType::Signed { bit_size: 8 },
-            NumericType::I16 => SsaNumericType::Signed { bit_size: 16 },
-            NumericType::I32 => SsaNumericType::Signed { bit_size: 32 },
-            NumericType::I64 => SsaNumericType::Signed { bit_size: 64 },
+            NumericType::Boolean => SsaNumericType::Unsigned { bit_size },
+            NumericType::U8 => SsaNumericType::Unsigned { bit_size },
+            NumericType::U16 => SsaNumericType::Unsigned { bit_size },
+            NumericType::U32 => SsaNumericType::Unsigned { bit_size },
+            NumericType::U64 => SsaNumericType::Unsigned { bit_size },
+            NumericType::U128 => SsaNumericType::Unsigned { bit_size },
+            NumericType::I8 => SsaNumericType::Signed { bit_size },
+            NumericType::I16 => SsaNumericType::Signed { bit_size },
+            NumericType::I32 => SsaNumericType::Signed { bit_size },
+            NumericType::I64 => SsaNumericType::Signed { bit_size },
         }
     }
 }
@@ -50,17 +69,7 @@ pub enum Type {
 impl Type {
     pub fn bit_length(&self) -> u32 {
         match self {
-            Type::Numeric(NumericType::Field) => 254,
-            Type::Numeric(NumericType::Boolean) => 1,
-            Type::Numeric(NumericType::U8) => 8,
-            Type::Numeric(NumericType::U16) => 16,
-            Type::Numeric(NumericType::U32) => 32,
-            Type::Numeric(NumericType::U64) => 64,
-            Type::Numeric(NumericType::U128) => 128,
-            Type::Numeric(NumericType::I8) => 8,
-            Type::Numeric(NumericType::I16) => 16,
-            Type::Numeric(NumericType::I32) => 32,
-            Type::Numeric(NumericType::I64) => 64,
+            Type::Numeric(numeric_type) => numeric_type.bit_length(),
             Type::Array(_, _) => unreachable!("Array type unexpected"),
             Type::Slice(_) => unreachable!("Slice type unexpected"),
             Type::Reference(value_type) => value_type.bit_length(),
