@@ -7,9 +7,9 @@
 //! - Each block in each function is iterated in forward-order.
 //! - The starting value of each reference in the block is the unification of the same references
 //!   at the end of each direct predecessor block to the current block.
-//! - At each step, the value of each reference is either Known(ValueId) or Unknown.
-//! - Two reference values unify to each other if they are exactly equal, or to Unknown otherwise.
-//! - If a block has no predecessors, the starting value of each reference is Unknown.
+//! - At each step, the value of each reference is either known or unknown, tracked with a map.
+//! - Two reference values unify to each other if they are exactly equal.
+//! - If a block has no predecessors, the starting value of each reference is unknown (not present in the map).
 //! - Throughout this pass, aliases of each reference are also tracked.
 //!   - References typically have 1 alias - themselves.
 //!   - A reference with multiple aliases means we will not be able to optimize out loads if the
@@ -41,19 +41,19 @@
 //! - On `Instruction::Store { address, value }`:
 //!   - If the address of the store is known:
 //!     - If the address has exactly 1 alias:
-//!       - Set the value of the address to `Known(value)`.
+//!       - Set the value of the address to the known `value`.
 //!     - If the address has more than 1 alias:
-//!       - Set the value of every possible alias to `Unknown`.
+//!       - Clear out the known value of of every possible alias.
 //!     - If the address has 0 aliases:
-//!       - Conservatively mark every alias in the block to `Unknown`.
+//!       - Conservatively mark every alias in the block as unknown.
 //!   - If the address of the store is not known:
-//!     - Conservatively mark every alias in the block to `Unknown`.
+//!     - Conservatively mark every alias in the block as unknown.
 //!   - Additionally, if there were no Loads to any alias of the address between this Store and
 //!     the previous Store to the same address, the previous store can be removed.
 //!   - Remove the instance of the last load instruction to the address and its aliases
 //! - On `Instruction::Call { arguments }`:
-//!   - If any argument of the call is a reference, set the value of each alias of that
-//!     reference to `Unknown`
+//!   - If any argument of the call is a reference, remove the known value of each alias of that
+//!     reference
 //!   - Any builtin functions that may return aliases if their input also contains a
 //!     reference should be tracked. Examples: `slice_push_back`, `slice_insert`, `slice_remove`, etc.
 //!   - Remove the instance of the last load instruction for any reference arguments and their aliases
@@ -461,12 +461,15 @@ impl<'f> PerFunctionContext<'f> {
                         self.instructions_to_remove.insert(instruction);
                     }
                 } else {
-                    // We don't know the exact value of the address, so we must keep the stores to it.
-                    references.mark_value_used(address, self.inserter.function);
                     // Remember that this address has been loaded, so stores to it should not be removed.
                     self.last_loads.insert(address);
                     // Stores to any of its aliases should also be considered loaded.
                     self.last_loads.extend(references.get_aliases_for_value(address).iter());
+                }
+
+                // If the address is potentially aliased we must keep the stores to it
+                if references.get_aliases_for_value(address).single_alias().is_none() {
+                    references.mark_value_used(address, self.inserter.function);
                 }
 
                 // We want to set the load for every load even if the address has a known value
@@ -702,6 +705,8 @@ impl<'f> PerFunctionContext<'f> {
                                     // Add the current parameter to the parameters we have seen for this argument.
                                     // The previous parameters and the current one alias one another.
                                     seen_parameters.insert(*parameter);
+                                    // Also add all of the argument aliases
+                                    seen_parameters.extend(aliases.iter());
                                 }
                             }
                         }
@@ -732,7 +737,7 @@ impl<'f> PerFunctionContext<'f> {
                         .extend(references.get_aliases_for_value(*return_value).iter());
                 }
                 // Removing all `last_stores` for each returned reference is more important here
-                // than setting them all to ReferenceValue::Unknown since no other block should
+                // than setting them all to unknown since no other block should
                 // have a block with a Return terminator as a predecessor anyway.
                 self.mark_all_unknown(return_values, references);
             }
@@ -1360,8 +1365,7 @@ mod tests {
             v2 = call f1(v0) -> [&mut u32; 1]
             v4 = array_get v2, index u32 0 -> &mut u32
             store u32 1 at v4
-            v6 = load v4 -> u1
-            return v6
+            return u32 1
         }
         brillig(inline_always) fn foo f1 {
           b0(v0: u32):
@@ -1675,6 +1679,51 @@ mod tests {
     }
 
     #[test]
+    fn store_load_from_array_get() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0():
+            v1 = allocate -> &mut u1
+            store u1 0 at v1
+            v3 = make_array [v1] : [&mut u1]
+            jmpif u1 1 then: b1, else: b2
+          b1():
+            jmp b3(u32 0, u32 1)
+          b2():
+            jmp b3(u32 0, u32 1)
+          b3(v0: u32, v8: u32):
+            constrain v0 == u32 0
+            v6 = array_get v3, index v0 -> &mut u1
+            store u1 0 at v6
+            v7 = load v6 -> u1
+            return v7
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
+
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0():
+            v2 = allocate -> &mut u1
+            store u1 0 at v2
+            v4 = make_array [v2] : [&mut u1]
+            jmpif u1 1 then: b1, else: b2
+          b1():
+            jmp b3(u32 0, u32 1)
+          b2():
+            jmp b3(u32 0, u32 1)
+          b3(v0: u32, v1: u32):
+            constrain v0 == u32 0
+            v8 = array_get v4, index v0 -> &mut u1
+            store u1 0 at v8
+            return u1 0
+        }
+        ");
+    }
+
+    #[test]
     fn does_not_remove_store_to_potentially_aliased_address() {
         // This is a regression test for https://github.com/noir-lang/noir/pull/9613
         // In that PR all tests passed but the sync to Aztec-Packages failed.
@@ -1692,10 +1741,24 @@ mod tests {
             v4 = load v1 -> [Field; 1]
             v6 = make_array [Field 0] : [Field; 1]
             store v6 at v1
-            return v1
+            return v1, v4
         }
         "#;
-        assert_ssa_does_not_change(src, Ssa::mem2reg);
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn create_note f0 {
+          b0(v0: &mut [Field; 1], v1: &mut [Field; 1]):
+            v2 = load v0 -> [Field; 1]
+            v3 = load v1 -> [Field; 1]
+            store v2 at v0
+            store v3 at v1
+            v5 = make_array [Field 0] : [Field; 1]
+            store v5 at v1
+            return v1, v3
+        }
+        ");
     }
 
     #[test]
