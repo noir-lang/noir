@@ -55,7 +55,8 @@ impl Block {
     /// Helper to retrieve a container for a given value which contains references.
     /// Compared to `self.containers.get` this returns `unknown` instead of None for values not in the map.
     pub(super) fn get_container(&self, container_id: ValueId) -> Cow<AliasSet> {
-        self.containers.get(&container_id)
+        self.containers
+            .get(&container_id)
             .map(Cow::Borrowed)
             .unwrap_or_else(|| Cow::Owned(AliasSet::unknown()))
     }
@@ -132,7 +133,10 @@ impl Block {
     }
 
     /// Unify two maps of alias sets by taking the intersection of both.
-    fn unify_alias_sets(map1: &im::OrdMap<ValueId, AliasSet>, map2: &im::OrdMap<ValueId, AliasSet>) -> im::OrdMap<ValueId, AliasSet> {
+    fn unify_alias_sets(
+        map1: &im::OrdMap<ValueId, AliasSet>,
+        map2: &im::OrdMap<ValueId, AliasSet>,
+    ) -> im::OrdMap<ValueId, AliasSet> {
         let mut intersection = im::OrdMap::new();
         for (value_id, other_set) in map2 {
             if let Some(existing) = map1.get(value_id) {

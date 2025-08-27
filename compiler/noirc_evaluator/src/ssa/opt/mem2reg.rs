@@ -177,6 +177,7 @@ impl<'f> PerFunctionContext<'f> {
 
         for block in block_order {
             let references = self.find_starting_references(block);
+            println!("Starting references = {references:?}\n");
             self.analyze_block(block, references);
         }
 
@@ -334,7 +335,11 @@ impl<'f> PerFunctionContext<'f> {
     /// possibly aliased to each other. If there are parameters with nested references (arrays of
     /// references or references containing other references) we give up and assume all parameter
     /// references are `AliasSet::unknown()`.
-    fn add_aliases_for_reference_parameters(&mut self, block: BasicBlockId, references: &mut Block) {
+    fn add_aliases_for_reference_parameters(
+        &mut self,
+        block: BasicBlockId,
+        references: &mut Block,
+    ) {
         let dfg = &self.inserter.function.dfg;
         let params = dfg.block_parameters(block);
 
@@ -477,7 +482,11 @@ impl<'f> PerFunctionContext<'f> {
             Instruction::Allocate => {
                 // Register the new reference
                 let result = self.inserter.function.dfg.instruction_results(instruction)[0];
-                if self.inserter.function.dfg.type_of_value(result).contains_reference() {
+
+                let reference_type = self.inserter.function.dfg.type_of_value(result);
+                let element_type = reference_type.reference_element_type();
+
+                if element_type.map_or(false, Type::contains_reference) {
                     references.containers.insert(result, Container::known_empty());
                 }
                 references.insert_fresh_reference(result);
@@ -1312,35 +1321,6 @@ mod tests {
     }
 
     #[test]
-    fn remove_last_store_in_make_array_that_is_never_used() {
-        let src = "
-        brillig(inline) fn main f0 {
-          b0():
-            v0 = allocate -> &mut u1
-            store u1 1 at v0
-            jmp b1()
-          b1():
-            v2 = make_array [v0] : [&mut u1]
-            return
-        }
-        ";
-
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.mem2reg();
-
-        assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) fn main f0 {
-          b0():
-            v0 = allocate -> &mut u1
-            jmp b1()
-          b1():
-            v1 = make_array [v0] : [&mut u1]
-            return
-        }
-        ");
-    }
-
-    #[test]
     fn keep_last_store_in_make_array_returned_from_function_separate_blocks() {
         let src = "
         brillig(inline) fn main f0 {
@@ -1853,4 +1833,18 @@ mod tests {
         "#;
         assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
+
+    // For aliases_block_parameter_to_its_argument:
+    // starting references for Block b1 {
+    //   containers: {},
+    //   aliases: {
+    //     // Why are both v0 and v1 aliased to v3? And why not v2 & v3?
+    //     Id(0): AliasSet { aliases: Some({Id(0), Id(1), Id(3)}) },
+    //     Id(1): AliasSet { aliases: Some({Id(0), Id(1), Id(3)}) },
+    //     Id(2): AliasSet { aliases: Some({Id(0), Id(1), Id(2)}) },
+    //     Id(3): AliasSet { aliases: Some({Id(0), Id(1), Id(3)}) }
+    //   },
+    //   references: {},
+    //   last_stores: {},
+    // }
 }

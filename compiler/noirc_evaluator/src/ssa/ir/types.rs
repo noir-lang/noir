@@ -304,6 +304,15 @@ impl Type {
         }
     }
 
+    /// Returns the element type if this is a reference type.
+    /// Otherwise returns None.
+    pub(crate) fn reference_element_type(&self) -> Option<&Type> {
+        match self {
+            Type::Reference(element) => Some(element),
+            _ => None,
+        }
+    }
+
     /// True if this is a function type or if it is a composite type which contains a function.
     pub(crate) fn contains_function(&self) -> bool {
         match self {
