@@ -271,6 +271,23 @@ impl LoopContext {
     ) -> Option<(IntegerConstant, IntegerConstant)> {
         self.current_induction_variable.filter(|(val, _)| *val == id).map(|(_, bounds)| bounds)
     }
+
+    /// Update any values defined in the loop and loop invariants after
+    /// analyzing and re-inserting a loop's instruction.
+    fn extend_values_defined_in_loop_and_invariants(
+        &mut self,
+        values: &[ValueId],
+        hoist_invariant: bool,
+    ) {
+        self.defined_in_loop.extend(values.iter());
+
+        // We also want the update value IDs when we are marking loop invariants as we may not
+        // be going through the blocks of the loop in execution order
+        if hoist_invariant {
+            // Track already found loop invariants
+            self.loop_invariants.extend(values.iter());
+        }
+    }
 }
 
 #[derive(Default)]
@@ -391,7 +408,20 @@ impl<'f> LoopInvariantContext<'f> {
                     }
                     self.inserter.push_instruction(instruction_id, *block);
                 }
-                self.extend_values_defined_in_loop_and_invariants(instruction_id, hoist_invariant);
+
+                // We will have new IDs after pushing instructions.
+                // We should mark the resolved result IDs as also being defined within the loop.
+                let results = self
+                    .inserter
+                    .function
+                    .dfg
+                    .instruction_results(instruction_id)
+                    .iter()
+                    .map(|value| self.inserter.resolve(*value))
+                    .collect::<Vec<_>>();
+
+                self.loop_context
+                    .extend_values_defined_in_loop_and_invariants(&results, hoist_invariant);
             }
         }
 
@@ -584,28 +614,6 @@ impl<'f> LoopInvariantContext<'f> {
             current_block_control_dependent: false,
             current_block_impure: false,
             current_block_executes: false,
-        }
-    }
-
-    /// Update any values defined in the loop and loop invariants after
-    /// analyzing and re-inserting a loop's instruction.
-    fn extend_values_defined_in_loop_and_invariants(
-        &mut self,
-        instruction_id: InstructionId,
-        hoist_invariant: bool,
-    ) {
-        let results = self.inserter.function.dfg.instruction_results(instruction_id).to_vec();
-        // We will have new IDs after pushing instructions.
-        // We should mark the resolved result IDs as also being defined within the loop.
-        let results =
-            results.into_iter().map(|value| self.inserter.resolve(value)).collect::<Vec<_>>();
-        self.loop_context.defined_in_loop.extend(results.iter());
-
-        // We also want the update result IDs when we are marking loop invariants as we may not
-        // be going through the blocks of the loop in execution order
-        if hoist_invariant {
-            // Track already found loop invariants
-            self.loop_context.loop_invariants.extend(results.iter());
         }
     }
 
