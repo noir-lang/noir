@@ -105,8 +105,7 @@ impl Ssa {
 
 impl<'ssa, W: Write> Interpreter<'ssa, W> {
     fn new(ssa: &'ssa Ssa, options: InterpreterOptions, output: W) -> Self {
-        let call_stack = vec![CallContext::global_context()];
-        Self { functions: &ssa.functions, call_stack, side_effects_enabled: true, options, output }
+        Self::new_from_functions(&ssa.functions, options, output)
     }
 
     pub(crate) fn new_from_functions(
