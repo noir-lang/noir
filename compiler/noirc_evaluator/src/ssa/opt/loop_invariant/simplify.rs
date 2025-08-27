@@ -211,8 +211,6 @@ impl<'f> LoopInvariantContext<'f> {
             _ => None,
         }?;
 
-        assert!(self.current_block_executes, "executing a non executable loop");
-
         let (upper_field, upper_type) = upper.dec().into_numeric_constant();
         let (lower_field, lower_type) = lower.into_numeric_constant();
 
@@ -238,6 +236,7 @@ impl<'f> LoopInvariantContext<'f> {
             Instruction::Constrain(x, y, err) => {
                 // Ensure the loop is fully executed
                 if self.no_break && self.can_simplify_control_dependent_instruction() {
+                    assert!(self.current_block_executes, "executing a non executable loop");
                     self.simplify_induction_in_constrain(*x, *y, err, call_stack)
                 } else {
                     SimplifyResult::None
@@ -246,6 +245,7 @@ impl<'f> LoopInvariantContext<'f> {
             Instruction::ConstrainNotEqual(x, y, err) => {
                 // Ensure the loop is fully executed
                 if self.no_break && self.can_simplify_control_dependent_instruction() {
+                    assert!(self.current_block_executes, "executing a non executable loop");
                     self.simplify_not_equal_constraint(x, y, err, call_stack)
                 } else {
                     SimplifyResult::None
