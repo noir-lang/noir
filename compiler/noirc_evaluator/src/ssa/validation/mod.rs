@@ -234,15 +234,22 @@ impl<'f> Validator<'f> {
                                     let scalars_length = scalars_type.flattened_size()
                                         / scalars_type.element_size() as u32;
 
-                                    assert_eq!(
-                                        points_type.element_types(),
-                                        Arc::new(vec![Type::field(), Type::field(), Type::bool()]),
+                                    assert!(
+                                        matches!(
+                                        points_type,
+                                        Type::Array(element_type, _) if element_type == Arc::new(vec![
+                                                Type::field(),
+                                                Type::field(),
+                                                Type::bool()
+                                            ])),
                                         "Invalid type in MSM points array"
                                     );
 
-                                    assert_eq!(
-                                        scalars_type.element_types(),
-                                        Arc::new(vec![Type::field(), Type::field(),]),
+                                    assert!(
+                                        matches!(
+                                            scalars_type,
+                                            Type::Array(element_type, _) if element_type == Arc::new(vec![Type::field(), Type::field()]),
+                                        ),
                                         "Invalid type in MSM scalars array"
                                     );
 
