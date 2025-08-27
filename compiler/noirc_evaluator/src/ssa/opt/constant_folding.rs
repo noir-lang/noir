@@ -49,7 +49,7 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn fold_constants(mut self) -> Ssa {
         for function in self.functions.values_mut() {
-            function.constant_fold(false, None);
+            function.constant_fold(false, &mut None);
         }
         self
     }
@@ -62,7 +62,7 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn fold_constants_using_constraints(mut self) -> Ssa {
         for function in self.functions.values_mut() {
-            function.constant_fold(true, None);
+            function.constant_fold(true, &mut None);
         }
         self
     }
@@ -79,9 +79,21 @@ impl Ssa {
                 brillig_functions.insert(*func_id, cloned_function);
             };
         }
+        let mut interpreter = if brillig_functions.is_empty() {
+            None
+        } else {
+            let mut interpreter = Interpreter::new_from_functions(
+                &brillig_functions,
+                InterpreterOptions { no_foreign_calls: true, ..Default::default() },
+                std::io::empty(),
+            );
+            // Interpret globals once so that we do not have to repeat this computation on every Brillig call.
+            interpreter.interpret_globals().expect("ICE: Interpreter failed to interpret globals");
+            Some(interpreter)
+        };
 
         for function in self.functions.values_mut() {
-            function.constant_fold(false, Some(&brillig_functions));
+            function.constant_fold(false, &mut interpreter);
         }
 
         self
@@ -94,9 +106,9 @@ impl Function {
     pub(crate) fn constant_fold(
         &mut self,
         use_constraint_info: bool,
-        brillig_info: Option<&BTreeMap<FunctionId, Function>>,
+        interpreter: &mut Option<Interpreter<Empty>>,
     ) {
-        let mut context = Context::new(use_constraint_info, brillig_info);
+        let mut context = Context::new(use_constraint_info);
         let mut dom = DominatorTree::with_function(self);
         context.block_queue.push_back(self.entry_block());
 
@@ -106,7 +118,7 @@ impl Function {
             }
 
             context.visited_blocks.insert(block);
-            context.fold_constants_in_block(self, &mut dom, block);
+            context.fold_constants_in_block(self, &mut dom, block, interpreter);
         }
 
         #[cfg(debug_assertions)]
@@ -122,7 +134,7 @@ fn constant_folding_post_check(context: &Context, dfg: &DataFlowGraph) {
     );
 }
 
-struct Context<'a> {
+struct Context {
     use_constraint_info: bool,
     /// Maps pre-folded ValueIds to the new ValueIds obtained by re-inserting the instruction.
     visited_blocks: HashSet<BasicBlockId>,
@@ -141,8 +153,6 @@ struct Context<'a> {
     cached_instruction_results: InstructionResultCache,
 
     values_to_replace: ValueMapping,
-
-    interpreter: Option<Interpreter<'a, Empty>>,
 }
 
 /// Records a simplified equivalents of an [`Instruction`] in the blocks
@@ -207,27 +217,8 @@ struct ResultCache {
     result: Option<(BasicBlockId, Vec<ValueId>)>,
 }
 
-impl<'brillig> Context<'brillig> {
-    fn new(
-        use_constraint_info: bool,
-        brillig_functions: Option<&'brillig BTreeMap<FunctionId, Function>>,
-    ) -> Self {
-        let interpreter = brillig_functions.and_then(|brillig_functions| {
-            if brillig_functions.is_empty() {
-                None
-            } else {
-                let mut interpreter = Interpreter::new_from_functions(
-                    brillig_functions,
-                    InterpreterOptions { no_foreign_calls: true, ..Default::default() },
-                    std::io::empty(),
-                );
-                // Interpret globals once so that we do not have to repeat this computation on every Brillig call.
-                interpreter
-                    .interpret_globals()
-                    .expect("ICE: Interpreter failed to interpret globals");
-                Some(interpreter)
-            }
-        });
+impl Context {
+    fn new(use_constraint_info: bool) -> Self {
         Self {
             use_constraint_info,
             visited_blocks: Default::default(),
@@ -235,7 +226,6 @@ impl<'brillig> Context<'brillig> {
             constraint_simplification_mappings: Default::default(),
             cached_instruction_results: Default::default(),
             values_to_replace: Default::default(),
-            interpreter,
         }
     }
 
@@ -244,6 +234,7 @@ impl<'brillig> Context<'brillig> {
         function: &mut Function,
         dom: &mut DominatorTree,
         block_id: BasicBlockId,
+        interpreter: &mut Option<Interpreter<Empty>>,
     ) {
         let instructions = function.dfg[block_id].take_instructions();
 
@@ -261,6 +252,7 @@ impl<'brillig> Context<'brillig> {
                 block_id,
                 instruction_id,
                 &mut side_effects_enabled_var,
+                interpreter,
             );
         }
 
@@ -305,6 +297,7 @@ impl<'brillig> Context<'brillig> {
         mut block: BasicBlockId,
         id: InstructionId,
         side_effects_enabled_var: &mut ValueId,
+        interpreter: &mut Option<Interpreter<Empty>>,
     ) {
         let constraint_simplification_mapping = self.get_constraint_map(*side_effects_enabled_var);
         let dfg = &mut function.dfg;
@@ -364,7 +357,7 @@ impl<'brillig> Context<'brillig> {
                 &instruction,
                 block,
                 dfg,
-                self.interpreter.as_mut(),
+                interpreter.as_mut(),
             )
             // Otherwise, try inserting the instruction again to apply any optimizations using the newly resolved inputs.
             .unwrap_or_else(|| {
