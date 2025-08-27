@@ -191,16 +191,6 @@ impl DataFlowGraph {
         new_block
     }
 
-    /// Get an iterator over references to each basic block within the dfg, paired with the basic
-    /// block's id.
-    ///
-    /// The pairs are order by id, which is not guaranteed to be meaningful.
-    pub(crate) fn basic_blocks_iter(
-        &self,
-    ) -> impl DoubleEndedIterator<Item = (BasicBlockId, &BasicBlock)> {
-        self.blocks.iter()
-    }
-
     /// Iterate over every Value in this DFG in no particular order, including unused Values
     pub(crate) fn values_iter(&self) -> impl DoubleEndedIterator<Item = (ValueId, &Value)> {
         self.values.iter()

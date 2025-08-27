@@ -280,16 +280,12 @@ impl Loops {
 
         let mut loops = vec![];
 
-        for (block, _) in function.dfg.basic_blocks_iter() {
-            // These reachable checks wouldn't be needed if we only iterated over reachable blocks
-            if dom_tree.is_reachable(block) {
-                for predecessor in cfg.predecessors(block) {
-                    // In the above example, we're looking for when `block` is `loop_entry` and `predecessor` is `loop_body`.
-                    if dom_tree.is_reachable(predecessor) && dom_tree.dominates(block, predecessor)
-                    {
-                        // predecessor -> block is the back-edge of a loop
-                        loops.push(Loop::find_blocks_in_loop(block, predecessor, &cfg));
-                    }
+        for block in function.reachable_blocks() {
+            for predecessor in cfg.predecessors(block) {
+                // In the above example, we're looking for when `block` is `loop_entry` and `predecessor` is `loop_body`.
+                if dom_tree.dominates(block, predecessor) {
+                    // predecessor -> block is the back-edge of a loop
+                    loops.push(Loop::find_blocks_in_loop(block, predecessor, &cfg));
                 }
             }
         }
@@ -312,6 +308,7 @@ impl Loop {
         cfg: &ControlFlowGraph,
     ) -> Self {
         let mut blocks = BTreeSet::default();
+        // Insert the header so we don't go past it when traversing backwards from the back-edge.
         blocks.insert(header);
 
         let mut insert = |block, stack: &mut Vec<BasicBlockId>| {
@@ -321,8 +318,7 @@ impl Loop {
             }
         };
 
-        // Starting from the back edge of the loop, each predecessor of this block until
-        // the header is within the loop.
+        // Starting from the back edge of the loop, enqueue each predecessor of this block until we reach the header.
         let mut stack = vec![];
         insert(back_edge_start, &mut stack);
 
