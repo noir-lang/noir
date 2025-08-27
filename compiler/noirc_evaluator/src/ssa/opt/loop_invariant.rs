@@ -596,7 +596,7 @@ impl<'f> LoopInvariantContext<'f> {
             return;
         };
 
-        let bounds = loop_.get_const_bounds(self.inserter.function, pre_header);
+        let bounds = loop_.get_const_bounds(&self.inserter.function.dfg, pre_header);
 
         if let Some((lower_bound, upper_bound)) = bounds {
             let Some(induction_variable) = self.get_induction_variable(loop_) else {
