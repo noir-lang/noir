@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["can_be_hoisted"],"struct":["LoopInvariantContext"]};
+window.SIDEBAR_ITEMS = {"fn":["can_be_hoisted","get_induction_var_bounds","get_induction_variable"],"mod":["simplify"],"struct":["LoopContext","LoopInvariantContext","PostDominanceFrontiers"]};
