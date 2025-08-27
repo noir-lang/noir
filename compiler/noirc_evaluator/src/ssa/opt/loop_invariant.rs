@@ -422,7 +422,7 @@ impl<'f> LoopInvariantContext<'f> {
             }
         }
 
-        // We're now done with this loop so it's no safe to insert its bounds into `outer_induction_variables`.
+        // We're now done with this loop so it's now safe to insert its bounds into `outer_induction_variables`.
         if let Some((induction_variable, bounds)) =
             get_induction_var_bounds(&self.inserter, loop_, pre_header)
         {
