@@ -14,40 +14,25 @@
 //!
 //! This is the only pass which removes duplicated pure [`Instruction`]s however and so is needed when
 //! different blocks are merged, i.e. after the [`flatten_cfg`][super::flatten_cfg] pass.
-use std::{
-    collections::{BTreeMap, HashSet, VecDeque},
-    io::Write,
-};
+use std::collections::{BTreeMap, HashSet, VecDeque};
 
-use acvm::{
-    FieldElement,
-    acir::AcirField,
-    brillig_vm::{MemoryValue, VM, VMStatus},
-};
-use bn254_blackbox_solver::Bn254BlackBoxSolver;
+use acvm::{FieldElement, acir::AcirField};
 use im::Vector;
 use iter_extended::vecmap;
 
-use crate::{
-    brillig::{
-        Brillig, BrilligOptions,
-        brillig_gen::gen_brillig_for,
-        brillig_ir::{artifact::BrilligParameter, brillig_variable::get_bit_size_from_ssa_type},
+use crate::ssa::{
+    interpreter::{Interpreter, InterpreterOptions, value::Value as InterpreterValue},
+    ir::{
+        basic_block::BasicBlockId,
+        dfg::{DataFlowGraph, InsertInstructionResult},
+        dom::DominatorTree,
+        function::{Function, FunctionId, RuntimeType},
+        instruction::{ArrayOffset, Instruction, InstructionId},
+        types::{NumericType, Type},
+        value::{Value, ValueId, ValueMapping},
     },
-    ssa::{
-        interpreter::{Interpreter, InterpreterOptions, value::Value as InterpreterValue},
-        ir::{
-            basic_block::BasicBlockId,
-            dfg::{DataFlowGraph, InsertInstructionResult},
-            dom::DominatorTree,
-            function::{Function, FunctionId, RuntimeType},
-            instruction::{ArrayOffset, Instruction, InstructionId},
-            types::{NumericType, Type},
-            value::{Value, ValueId, ValueMapping},
-        },
-        opt::pure::Purity,
-        ssa_gen::Ssa,
-    },
+    opt::pure::Purity,
+    ssa_gen::Ssa,
 };
 use fxhash::FxHashMap as HashMap;
 
@@ -61,7 +46,7 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn fold_constants(mut self) -> Ssa {
         for function in self.functions.values_mut() {
-            function.constant_fold(false, None, self.main_id);
+            function.constant_fold(false, None);
         }
         self
     }
@@ -74,15 +59,15 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn fold_constants_using_constraints(mut self) -> Ssa {
         for function in self.functions.values_mut() {
-            function.constant_fold(true, None, self.main_id);
+            function.constant_fold(true, None);
         }
         self
     }
 
     /// Performs constant folding on each instruction while also replacing calls to brillig functions
     /// with all constant arguments by trying to evaluate those calls.
-    #[tracing::instrument(level = "trace", skip(self, brillig))]
-    pub fn fold_constants_with_brillig(mut self, brillig: &Brillig) -> Ssa {
+    #[tracing::instrument(level = "trace", skip(self))]
+    pub fn fold_constants_with_brillig(mut self) -> Ssa {
         // Collect all brillig functions so that later we can find them when processing a call instruction
         let mut brillig_functions: BTreeMap<FunctionId, Function> = BTreeMap::new();
         for (func_id, func) in &self.functions {
@@ -92,8 +77,7 @@ impl Ssa {
             };
         }
 
-        let brillig_info = Some(BrilligInfo { brillig, brillig_functions: &brillig_functions });
-        // let interpreter = Interpreter::new_from_functions(&self.functions.clone(), self.main_id, InterpreterOptions { no_foreign_calls: true, ..Default::default() }, std::io::empty());
+        let brillig_info = Some(BrilligInfo { brillig_functions: &brillig_functions });
 
         for function in self.functions.values_mut() {
             // We have already performed our final Brillig generation, so constant folding
@@ -101,7 +85,7 @@ impl Ssa {
             if function.dfg.runtime().is_brillig() {
                 continue;
             }
-            function.constant_fold(false, brillig_info, self.main_id);
+            function.constant_fold(false, brillig_info);
         }
 
         self
@@ -115,10 +99,8 @@ impl Function {
         &mut self,
         use_constraint_info: bool,
         brillig_info: Option<BrilligInfo>,
-        main_id: FunctionId,
-        // interpreter: Interpreter<'ssa, W>,
     ) {
-        let mut context = Context::new(use_constraint_info, brillig_info, main_id);
+        let mut context = Context::new(use_constraint_info, brillig_info);
         let mut dom = DominatorTree::with_function(self);
         context.block_queue.push_back(self.entry_block());
 
@@ -164,13 +146,10 @@ struct Context<'a> {
     cached_instruction_results: InstructionResultCache,
 
     values_to_replace: ValueMapping,
-
-    main_id: FunctionId,
 }
 
 #[derive(Copy, Clone)]
 pub(crate) struct BrilligInfo<'a> {
-    brillig: &'a Brillig,
     brillig_functions: &'a BTreeMap<FunctionId, Function>,
 }
 
@@ -237,11 +216,7 @@ struct ResultCache {
 }
 
 impl<'brillig> Context<'brillig> {
-    fn new(
-        use_constraint_info: bool,
-        brillig_info: Option<BrilligInfo<'brillig>>,
-        main_id: FunctionId,
-    ) -> Self {
+    fn new(use_constraint_info: bool, brillig_info: Option<BrilligInfo<'brillig>>) -> Self {
         Self {
             use_constraint_info,
             brillig_info,
@@ -250,7 +225,6 @@ impl<'brillig> Context<'brillig> {
             constraint_simplification_mappings: Default::default(),
             cached_instruction_results: Default::default(),
             values_to_replace: Default::default(),
-            main_id,
         }
     }
 
@@ -377,11 +351,9 @@ impl<'brillig> Context<'brillig> {
             // We only want to try to inline Brillig calls for Brillig entry points (functions called from an ACIR runtime).
             Self::try_inline_brillig_call_with_all_constants(
                 &instruction,
-                &old_results,
                 block,
                 dfg,
                 self.brillig_info,
-                self.main_id,
             )
             // Otherwise, try inserting the instruction again to apply any optimizations using the newly resolved inputs.
             .unwrap_or_else(|| {
@@ -616,38 +588,18 @@ impl<'brillig> Context<'brillig> {
     /// If so, we can try to evaluate that function and replace the results with the evaluation results.
     fn try_inline_brillig_call_with_all_constants(
         instruction: &Instruction,
-        old_results: &[ValueId],
         block: BasicBlockId,
         dfg: &mut DataFlowGraph,
         brillig_info: Option<BrilligInfo>,
-        main_id: FunctionId,
     ) -> Option<Vec<ValueId>> {
-        let evaluation_result = Self::evaluate_const_brillig_call(
-            instruction,
-            brillig_info?.brillig_functions,
-            dfg,
-            main_id,
-        );
+        let evaluation_result =
+            Self::evaluate_const_brillig_call(instruction, brillig_info?.brillig_functions, dfg);
 
         match evaluation_result {
             EvaluationResult::NotABrilligCall | EvaluationResult::CannotEvaluate => None,
-            EvaluationResult::Evaluated(memory_values) => {
-                let mut memory_index = 0;
-                let new_results = vecmap(old_results, |old_result| {
-                    let typ = dfg.type_of_value(*old_result);
-                    Self::new_value_for_type_and_memory_values(
-                        typ,
-                        block,
-                        &memory_values,
-                        &mut memory_index,
-                        dfg,
-                    )
-                });
-                Some(new_results)
-            }
-            EvaluationResult::InterpreterEvaluated(old_results) => {
-                let new_results = vecmap(old_results, |old_result| {
-                    interpreter_value_to_ir_value(old_result, dfg, block)
+            EvaluationResult::Evaluated(const_results) => {
+                let new_results = vecmap(const_results, |const_result| {
+                    interpreter_value_to_ir_value(const_result, dfg, block)
                 });
                 Some(new_results)
             }
@@ -661,7 +613,6 @@ impl<'brillig> Context<'brillig> {
         instruction: &Instruction,
         brillig_functions: &BTreeMap<FunctionId, Function>,
         dfg: &mut DataFlowGraph,
-        main_id: FunctionId,
     ) -> EvaluationResult {
         let Instruction::Call { func: func_id, arguments } = instruction else {
             return EvaluationResult::NotABrilligCall;
@@ -682,11 +633,10 @@ impl<'brillig> Context<'brillig> {
         }
 
         let interpreter_args =
-            arguments.iter().map(|arg| const_ir_value_to_interpreter_value(*arg, &dfg)).collect();
+            arguments.iter().map(|arg| const_ir_value_to_interpreter_value(*arg, dfg)).collect();
 
         let mut interpreter = Interpreter::new_from_functions(
             brillig_functions,
-            main_id,
             InterpreterOptions { no_foreign_calls: true, ..Default::default() },
             std::io::empty(),
         );
@@ -698,60 +648,7 @@ impl<'brillig> Context<'brillig> {
             return EvaluationResult::CannotEvaluate;
         };
 
-        EvaluationResult::InterpreterEvaluated(result_values)
-    }
-
-    /// Creates a new value inside this function by reading it from `memory_values` starting at
-    /// `memory_index` depending on the given Type: if it's an array multiple values will be read
-    /// and a new `make_array` instruction will be created.
-    fn new_value_for_type_and_memory_values(
-        typ: Type,
-        block_id: BasicBlockId,
-        memory_values: &[MemoryValue<FieldElement>],
-        memory_index: &mut usize,
-        dfg: &mut DataFlowGraph,
-    ) -> ValueId {
-        match typ {
-            Type::Numeric(typ) => {
-                let memory = memory_values[*memory_index];
-                *memory_index += 1;
-
-                let field_value = memory.to_field();
-                dfg.make_constant(field_value, typ)
-            }
-            Type::Array(types, length) => {
-                let mut new_array_values = Vector::new();
-                for _ in 0..length {
-                    for typ in types.iter() {
-                        let new_value = Self::new_value_for_type_and_memory_values(
-                            typ.clone(),
-                            block_id,
-                            memory_values,
-                            memory_index,
-                            dfg,
-                        );
-                        new_array_values.push_back(new_value);
-                    }
-                }
-
-                let instruction = Instruction::MakeArray {
-                    elements: new_array_values,
-                    typ: Type::Array(types, length),
-                };
-                let instruction_id = dfg.make_instruction(instruction, None);
-                dfg[block_id].instructions_mut().push(instruction_id);
-                *dfg.instruction_results(instruction_id).first().unwrap()
-            }
-            Type::Reference(_) => {
-                panic!("Unexpected reference type in brillig function result")
-            }
-            Type::Slice(_) => {
-                panic!("Unexpected slice type in brillig function result")
-            }
-            Type::Function => {
-                panic!("Unexpected function type in brillig function result")
-            }
-        }
+        EvaluationResult::Evaluated(result_values)
     }
 
     /// Remove previously cached instructions that created arrays,
@@ -874,41 +771,8 @@ enum EvaluationResult {
     /// This can occur in the situation where the brillig function reaches a "trap" or a foreign call opcode.
     CannotEvaluate,
     /// The instruction was a call to a brillig function and we were able to evaluate it,
-    /// returning evaluation memory values.
-    Evaluated(Vec<MemoryValue<FieldElement>>),
-
-    InterpreterEvaluated(Vec<InterpreterValue>),
-}
-
-/// Similar to FunctionContext::ssa_type_to_parameter but never panics and disallows reference types.
-pub(crate) fn type_to_brillig_parameter(typ: &Type) -> Option<BrilligParameter> {
-    match typ {
-        Type::Numeric(_) => Some(BrilligParameter::SingleAddr(get_bit_size_from_ssa_type(typ))),
-        Type::Array(item_type, size) => {
-            let mut parameters = Vec::with_capacity(item_type.len());
-            for item_typ in item_type.iter() {
-                parameters.push(type_to_brillig_parameter(item_typ)?);
-            }
-            Some(BrilligParameter::Array(parameters, *size as usize))
-        }
-        _ => None,
-    }
-}
-
-fn value_id_to_calldata(value_id: ValueId, dfg: &DataFlowGraph, calldata: &mut Vec<FieldElement>) {
-    if let Some(value) = dfg.get_numeric_constant(value_id) {
-        calldata.push(value);
-        return;
-    }
-
-    if let Some((values, _type)) = dfg.get_array_constant(value_id) {
-        for value in values {
-            value_id_to_calldata(value, dfg, calldata);
-        }
-        return;
-    }
-
-    panic!("Expected ValueId to be numeric constant or array constant");
+    /// returning [SSA interpreter][Interpreter] [values][InterpreterValue].
+    Evaluated(Vec<InterpreterValue>),
 }
 
 /// Check if one expression is simpler than the other.
@@ -995,7 +859,7 @@ pub(crate) fn can_be_deduplicated(
     }
 }
 
-/// Converts a constant [SSA value][IrValue] into an [interpreter value][Value] for execution.
+/// Converts a constant [SSA value][Value] into an [interpreter value][InterpreterValue] for execution.
 fn const_ir_value_to_interpreter_value(value_id: ValueId, dfg: &DataFlowGraph) -> InterpreterValue {
     let typ = dfg.type_of_value(value_id);
     match typ {
@@ -1028,7 +892,7 @@ fn const_ir_value_to_interpreter_value(value_id: ValueId, dfg: &DataFlowGraph) -
     }
 }
 
-/// Converts a constant [interpreter value][Value] back into an SSA constant.
+/// Converts a constant [interpreter value][InterpreterValue] back into an SSA constant.
 fn interpreter_value_to_ir_value(
     value: InterpreterValue,
     dfg: &mut DataFlowGraph,
@@ -1046,7 +910,7 @@ fn interpreter_value_to_ir_value(
                 _ => unreachable!("Expected an ArrayOrSlice"),
             };
 
-            let mut elements = im::Vector::new();
+            let mut elements = Vector::new();
             for element in array.elements.unwrap_or_clone() {
                 elements.push_back(interpreter_value_to_ir_value(element, dfg, block_id));
             }
@@ -1064,7 +928,7 @@ fn interpreter_value_to_ir_value(
                 _ => unreachable!("Expected an ArrayOrSlice"),
             };
 
-            let mut elements = im::Vector::new();
+            let mut elements = Vector::new();
             for element in array.elements.unwrap_or_clone() {
                 elements.push_back(interpreter_value_to_ir_value(element, dfg, block_id));
             }
@@ -1516,9 +1380,8 @@ mod test {
             }
             ";
         let ssa = Ssa::from_str(src).unwrap();
-        let brillig = ssa.to_brillig(&BrilligOptions::default());
 
-        let ssa = ssa.fold_constants_with_brillig(&brillig);
+        let ssa = ssa.fold_constants_with_brillig();
         let ssa = ssa.remove_unreachable_functions();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
@@ -1544,9 +1407,8 @@ mod test {
             }
             ";
         let ssa = Ssa::from_str(src).unwrap();
-        let brillig = ssa.to_brillig(&BrilligOptions::default());
 
-        let ssa = ssa.fold_constants_with_brillig(&brillig);
+        let ssa = ssa.fold_constants_with_brillig();
         let ssa = ssa.remove_unreachable_functions();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
@@ -1573,9 +1435,8 @@ mod test {
             }
             ";
         let ssa = Ssa::from_str(src).unwrap();
-        let brillig = ssa.to_brillig(&BrilligOptions::default());
 
-        let ssa = ssa.fold_constants_with_brillig(&brillig);
+        let ssa = ssa.fold_constants_with_brillig();
         let ssa = ssa.remove_unreachable_functions();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
@@ -1601,9 +1462,8 @@ mod test {
             }
             ";
         let ssa = Ssa::from_str(src).unwrap();
-        let brillig = ssa.to_brillig(&BrilligOptions::default());
 
-        let ssa = ssa.fold_constants_with_brillig(&brillig);
+        let ssa = ssa.fold_constants_with_brillig();
         let ssa = ssa.remove_unreachable_functions();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
@@ -1630,9 +1490,8 @@ mod test {
             }
             ";
         let ssa = Ssa::from_str(src).unwrap();
-        let brillig = ssa.to_brillig(&BrilligOptions::default());
 
-        let ssa = ssa.fold_constants_with_brillig(&brillig);
+        let ssa = ssa.fold_constants_with_brillig();
         let ssa = ssa.remove_unreachable_functions();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
@@ -1666,9 +1525,8 @@ mod test {
         let ssa = Ssa::from_str(src).unwrap();
         // Need to run SSA pass that sets up Brillig array gets
         let ssa = ssa.brillig_array_get_and_set();
-        let brillig = ssa.to_brillig(&BrilligOptions::default());
 
-        let ssa = ssa.fold_constants_with_brillig(&brillig);
+        let ssa = ssa.fold_constants_with_brillig();
         let ssa = ssa.remove_unreachable_functions();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
@@ -1697,9 +1555,8 @@ mod test {
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
-        let brillig = ssa.to_brillig(&BrilligOptions::default());
 
-        let ssa = ssa.fold_constants_with_brillig(&brillig);
+        let ssa = ssa.fold_constants_with_brillig();
         let ssa = ssa.remove_unreachable_functions();
         assert_ssa_snapshot!(ssa, @r"
         g0 = Field 2
@@ -1735,9 +1592,8 @@ mod test {
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
-        let brillig = ssa.to_brillig(&BrilligOptions::default());
 
-        let ssa = ssa.fold_constants_with_brillig(&brillig);
+        let ssa = ssa.fold_constants_with_brillig();
         let ssa = ssa.remove_unreachable_functions();
         assert_ssa_snapshot!(ssa, @r"
         g0 = Field 2

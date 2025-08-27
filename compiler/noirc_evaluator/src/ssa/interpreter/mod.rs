@@ -34,7 +34,6 @@ pub(crate) struct Interpreter<'ssa, W> {
     call_stack: Vec<CallContext>,
 
     functions: &'ssa BTreeMap<FunctionId, Function>,
-    main_id: FunctionId,
 
     /// This variable can be modified by `enable_side_effects_if` instructions and is
     /// expected to have no effect if there are no such instructions or if the code
@@ -107,24 +106,16 @@ impl Ssa {
 impl<'ssa, W: Write> Interpreter<'ssa, W> {
     fn new(ssa: &'ssa Ssa, options: InterpreterOptions, output: W) -> Self {
         let call_stack = vec![CallContext::global_context()];
-        Self {
-            functions: &ssa.functions,
-            main_id: ssa.main_id,
-            call_stack,
-            side_effects_enabled: true,
-            options,
-            output,
-        }
+        Self { functions: &ssa.functions, call_stack, side_effects_enabled: true, options, output }
     }
 
     pub(crate) fn new_from_functions(
         functions: &'ssa BTreeMap<FunctionId, Function>,
-        main_id: FunctionId,
         options: InterpreterOptions,
         output: W,
     ) -> Self {
         let call_stack = vec![CallContext::global_context()];
-        Self { functions, main_id, call_stack, side_effects_enabled: true, options, output }
+        Self { functions, call_stack, side_effects_enabled: true, options, output }
     }
 
     fn call_context(&self) -> &CallContext {
