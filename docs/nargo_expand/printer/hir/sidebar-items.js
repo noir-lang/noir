@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"fn":["get_type_fields","hir_expression_needs_parentheses"]};
+window.SIDEBAR_ITEMS = {"fn":["get_type_fields","hir_expression_needs_parentheses","simplify_hir_lvalue"]};

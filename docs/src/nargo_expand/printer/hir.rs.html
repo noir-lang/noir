@@ -1057,7 +1057,16 @@
 <a href="#1056" id="1056">1056</a>
 <a href="#1057" id="1057">1057</a>
 <a href="#1058" id="1058">1058</a>
-<a href="#1059" id="1059">1059</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::{
+<a href="#1059" id="1059">1059</a>
+<a href="#1060" id="1060">1060</a>
+<a href="#1061" id="1061">1061</a>
+<a href="#1062" id="1062">1062</a>
+<a href="#1063" id="1063">1063</a>
+<a href="#1064" id="1064">1064</a>
+<a href="#1065" id="1065">1065</a>
+<a href="#1066" id="1066">1066</a>
+<a href="#1067" id="1067">1067</a>
+<a href="#1068" id="1068">1068</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::{
     NamedGeneric, Type, TypeBindings,
     ast::{ItemVisibility, UnaryOp},
     hir::def_map::ModuleDefId,
@@ -1733,17 +1742,18 @@
     }
 
     <span class="kw">fn </span>show_hir_lvalue(<span class="kw-2">&amp;mut </span><span class="self">self</span>, lvalue: HirLValue) {
+        <span class="kw">let </span>lvalue = simplify_hir_lvalue(lvalue);
         <span class="kw">match </span>lvalue {
             HirLValue::Ident(hir_ident, <span class="kw">_</span>) =&gt; {
                 <span class="self">self</span>.show_hir_ident(hir_ident, <span class="prelude-val">None</span>);
             }
             HirLValue::MemberAccess { object, field_name, field_index: <span class="kw">_</span>, typ: <span class="kw">_</span>, location: <span class="kw">_ </span>} =&gt; {
-                <span class="kw">let </span>object_is_dereference =
-                    <span class="macro">matches!</span>(<span class="kw-2">*</span>object, HirLValue::Dereference { implicitly_added: <span class="bool-val">false</span>, .. });
+                <span class="kw">let </span>object = simplify_hir_lvalue(<span class="kw-2">*</span>object);
+                <span class="kw">let </span>object_is_dereference = <span class="macro">matches!</span>(object, HirLValue::Dereference { .. });
                 <span class="kw">if </span>object_is_dereference {
                     <span class="self">self</span>.push(<span class="string">'('</span>);
                 }
-                <span class="self">self</span>.show_hir_lvalue(<span class="kw-2">*</span>object);
+                <span class="self">self</span>.show_hir_lvalue(object);
                 <span class="kw">if </span>object_is_dereference {
                     <span class="self">self</span>.push(<span class="string">')'</span>);
                 }
@@ -1751,21 +1761,20 @@
                 <span class="self">self</span>.push_str(<span class="kw-2">&amp;</span>field_name.to_string());
             }
             HirLValue::Index { array, index, typ: <span class="kw">_</span>, location: <span class="kw">_ </span>} =&gt; {
-                <span class="self">self</span>.show_hir_lvalue(<span class="kw-2">*</span>array);
+                <span class="kw">let </span>array = simplify_hir_lvalue(<span class="kw-2">*</span>array);
+                <span class="self">self</span>.show_hir_lvalue(array);
                 <span class="self">self</span>.push(<span class="string">'['</span>);
                 <span class="self">self</span>.show_hir_expression_id(index);
                 <span class="self">self</span>.push(<span class="string">']'</span>);
             }
-            HirLValue::Dereference { lvalue, implicitly_added, element_type: <span class="kw">_</span>, location: <span class="kw">_ </span>} =&gt; {
-                <span class="kw">if </span>implicitly_added {
-                    <span class="self">self</span>.show_hir_lvalue(<span class="kw-2">*</span>lvalue);
-                } <span class="kw">else </span>{
-                    <span class="comment">// Even though parentheses aren't always required, it's tricky to
-                    // figure out exactly when so we always include them.
-                    </span><span class="self">self</span>.push_str(<span class="string">"*("</span>);
-                    <span class="self">self</span>.show_hir_lvalue(<span class="kw-2">*</span>lvalue);
-                    <span class="self">self</span>.push(<span class="string">')'</span>);
-                }
+            HirLValue::Dereference {
+                lvalue,
+                implicitly_added: <span class="kw">_</span>,
+                element_type: <span class="kw">_</span>,
+                location: <span class="kw">_</span>,
+            } =&gt; {
+                <span class="self">self</span>.push_str(<span class="string">"*"</span>);
+                <span class="self">self</span>.show_hir_lvalue(<span class="kw-2">*</span>lvalue);
             }
         }
     }
@@ -2114,6 +2123,15 @@
             data_type.get_fields(<span class="kw-2">&amp;</span>generics)
         }
         <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
+    }
+}
+
+<span class="comment">// Remove any implicit dereferences from `lvalue`
+</span><span class="kw">fn </span>simplify_hir_lvalue(lvalue: HirLValue) -&gt; HirLValue {
+    <span class="kw">if let </span>HirLValue::Dereference { lvalue, implicitly_added: <span class="bool-val">true</span>, .. } = lvalue {
+        simplify_hir_lvalue(<span class="kw-2">*</span>lvalue)
+    } <span class="kw">else </span>{
+        lvalue
     }
 }
 </code></pre></div></section></main></body></html>
