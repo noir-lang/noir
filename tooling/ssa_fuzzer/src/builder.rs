@@ -961,8 +961,6 @@ impl FuzzerBuilder {
             self.builder.numeric_constant(predicate as u32, NumericType::Unsigned { bit_size: 1 });
         let pub_key_x = self.bytes_to_ssa_array(pub_key_x);
         let pub_key_y = self.bytes_to_ssa_array(pub_key_y);
-        let hash_size_id =
-            self.builder.numeric_constant(hash_size, NumericType::Unsigned { bit_size: 32 });
         let hash = self.bytes_to_ssa_slice(hash);
         let signature = self.bytes_to_ssa_array(signature);
         let return_type = Type::Numeric(NumericType::Unsigned { bit_size: 1 });
@@ -999,8 +997,6 @@ impl FuzzerBuilder {
             self.builder.numeric_constant(predicate as u32, NumericType::Unsigned { bit_size: 1 });
         let pub_key_x = self.bytes_to_ssa_array(pub_key_x);
         let pub_key_y = self.bytes_to_ssa_array(pub_key_y);
-        let hash_size_id =
-            self.builder.numeric_constant(hash_size, NumericType::Unsigned { bit_size: 32 });
         let hash = self.bytes_to_ssa_slice(hash);
         let signature = self.bytes_to_ssa_array(signature);
         let return_type = Type::Numeric(NumericType::Unsigned { bit_size: 1 });
