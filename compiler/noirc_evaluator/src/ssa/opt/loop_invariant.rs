@@ -459,9 +459,8 @@ impl<'f> LoopInvariantContext<'f> {
     /// A block might be in a nested loop that isn't guaranteed to execute even if the current loop does.
     fn does_block_execute(&mut self, block: BasicBlockId, all_loops: &[Loop]) -> bool {
         /// Check that we have fixed bounds and upper is higher than lower.
-        fn check_bounds(bounds: Option<&(IntegerConstant, IntegerConstant)>) -> bool {
+        fn check_bounds(bounds: Option<(IntegerConstant, IntegerConstant)>) -> bool {
             bounds
-                .copied()
                 .and_then(|(lower_bound, upper_bound)| {
                     upper_bound.reduce(lower_bound, |u, l| u > l, |u, l| u > l)
                 })
@@ -469,8 +468,7 @@ impl<'f> LoopInvariantContext<'f> {
         }
 
         // If the current loop doesn't execute, then nothing does.
-        if !check_bounds(self.current_induction_variable.map(|(_, low, high)| (low, high)).as_ref())
-        {
+        if !check_bounds(self.current_induction_variable.map(|(_, low, high)| (low, high))) {
             return false;
         }
 
@@ -483,7 +481,7 @@ impl<'f> LoopInvariantContext<'f> {
                 // If we don't know what the induction variable is, we can't say if it executes.
                 return false;
             };
-            if !check_bounds(self.all_induction_variables.get(&induction_variable)) {
+            if !check_bounds(self.all_induction_variables.get(&induction_variable).copied()) {
                 return false;
             }
         }
