@@ -121,23 +121,16 @@ impl Function {
 
 impl Loops {
     fn hoist_loop_invariants(mut self, function: &mut Function) {
-        let mut context = LoopInvariantContext::new(function);
-
-        // Insert all loop bounds up front, so we can inspect both outer and nested loops.
-        for loop_ in &self.yet_to_unroll {
-            context.set_induction_var_bounds(loop_, None);
-        }
+        let mut context = LoopInvariantContext::new(function, &self.yet_to_unroll);
 
         // The loops should be sorted by the number of blocks.
         // We want to access outer nested loops first, which we do by popping
         // from the top of the list.
         while let Some(loop_) = self.yet_to_unroll.pop() {
             // If the loop does not have a preheader we skip hoisting loop invariants for this loop
-            let Ok(pre_header) = loop_.get_pre_header(context.inserter.function, &self.cfg) else {
-                continue;
+            if let Ok(pre_header) = loop_.get_pre_header(context.inserter.function, &self.cfg) {
+                context.hoist_loop_invariants(&loop_, &self.yet_to_unroll, pre_header);
             };
-            context.current_pre_header = Some(pre_header);
-            context.hoist_loop_invariants(&loop_, &self.yet_to_unroll);
         }
 
         context.map_dependent_instructions();
@@ -259,14 +252,14 @@ impl PostDominanceFrontiers {
 }
 
 impl<'f> LoopInvariantContext<'f> {
-    fn new(function: &'f mut Function) -> Self {
+    fn new(function: &'f mut Function, loops: &[Loop]) -> Self {
         let cfg = ControlFlowGraph::with_function(function);
         let post_dom_frontiers = PostDominanceFrontiers::with_function(function);
         let true_value =
             function.dfg.make_constant(FieldElement::one(), NumericType::Unsigned { bit_size: 1 });
         let false_value =
             function.dfg.make_constant(FieldElement::zero(), NumericType::Unsigned { bit_size: 1 });
-        Self {
+        let mut context = Self {
             inserter: FunctionInserter::new(function),
             defined_in_loop: HashSet::default(),
             loop_invariants: HashSet::default(),
@@ -283,7 +276,20 @@ impl<'f> LoopInvariantContext<'f> {
             true_value,
             false_value,
             no_break: false,
+        };
+
+        // Insert all loop bounds up front, so we can inspect both outer and nested loops.
+        for loop_ in loops {
+            if let Some((induction_variable, bounds)) = loop_
+                .get_pre_header(context.inserter.function, &context.cfg)
+                .ok()
+                .and_then(|pre_header| context.get_induction_var_bounds(loop_, pre_header))
+            {
+                context.all_induction_variables.insert(induction_variable, bounds);
+            };
         }
+
+        context
     }
 
     fn pre_header(&self) -> BasicBlockId {
@@ -292,8 +298,13 @@ impl<'f> LoopInvariantContext<'f> {
 
     /// Perform loop invariant code motion and induction variable analysis.
     /// See [`loop_invariant`][self] module for more information.
-    fn hoist_loop_invariants(&mut self, loop_: &Loop, all_loops: &[Loop]) {
-        self.set_values_defined_in_loop(loop_);
+    fn hoist_loop_invariants(
+        &mut self,
+        loop_: &Loop,
+        all_loops: &[Loop],
+        pre_header: BasicBlockId,
+    ) {
+        self.set_values_defined_in_loop(loop_, pre_header);
 
         for block in loop_.blocks.iter() {
             // Reset the per block state
@@ -309,7 +320,7 @@ impl<'f> LoopInvariantContext<'f> {
                 let hoist_invariant = self.can_hoist_invariant(instruction_id);
 
                 if hoist_invariant {
-                    self.inserter.push_instruction(instruction_id, self.pre_header());
+                    self.inserter.push_instruction(instruction_id, pre_header);
 
                     // If we are hoisting a MakeArray instruction,
                     // we need to issue an extra inc_rc in case they are mutated afterward.
@@ -345,7 +356,11 @@ impl<'f> LoopInvariantContext<'f> {
             }
         }
 
-        self.set_induction_var_bounds(loop_, Some(false));
+        // We're now done with this loop so it's no safe to insert its bounds into `outer_induction_variables`.
+        if let Some((induction_variable, bounds)) = self.get_induction_var_bounds(loop_, pre_header)
+        {
+            self.outer_induction_variables.insert(induction_variable, bounds);
+        };
     }
 
     /// Checks whether a `block` is control dependent on any blocks after
@@ -495,7 +510,9 @@ impl<'f> LoopInvariantContext<'f> {
     }
 
     /// Gather the variables declared within the loop
-    fn set_values_defined_in_loop(&mut self, loop_: &Loop) {
+    fn set_values_defined_in_loop(&mut self, loop_: &Loop, pre_header: BasicBlockId) {
+        self.current_pre_header = Some(pre_header);
+
         // Clear any values that may be defined in previous loops, as the context is per function.
         self.defined_in_loop.clear();
         // These are safe to keep per function, but we want to be clear that these values
@@ -504,8 +521,9 @@ impl<'f> LoopInvariantContext<'f> {
         // There is only ever one current induction variable for a loop.
         // For a new loop, we clear the previous induction variable and then
         // set the new current induction variable.
-        self.current_induction_variable = None;
-        self.set_induction_var_bounds(loop_, Some(true));
+        self.current_induction_variable = self
+            .get_induction_var_bounds(loop_, pre_header)
+            .map(|(induction_variable, bounds)| (induction_variable, bounds.0, bounds.1));
         self.no_break = loop_.is_fully_executed(&self.cfg);
         // Clear any cached control dependent nested loop blocks from the previous loop.
         // This set is only relevant within the scope of a single loop.
@@ -595,42 +613,15 @@ impl<'f> LoopInvariantContext<'f> {
     ///
     /// When within the current loop, the known upper bound can be used to simplify instructions,
     /// such as transforming a checked add to an unchecked add.
-    ///
-    /// Depending on the value of `current_loop` this has 3 modes:
-    /// * `true` sets it in `current_induction_variable`
-    /// * `false` sets it for the `outer_induction_variables`, but this must only happen after the current one is finished
-    /// * `None` sets it in `all_induction_variables`, which is used to make decisions about inner nested loops
-    fn set_induction_var_bounds(&mut self, loop_: &Loop, current_loop: Option<bool>) {
-        let pre_header = if current_loop.is_some() {
-            self.pre_header()
-        } else if let Ok(pre_header) = loop_.get_pre_header(self.inserter.function, &self.cfg) {
-            pre_header
-        } else {
-            // We will skip this loop.
-            return;
-        };
-
+    fn get_induction_var_bounds(
+        &self,
+        loop_: &Loop,
+        pre_header: BasicBlockId,
+    ) -> Option<(ValueId, (IntegerConstant, IntegerConstant))> {
         let bounds = loop_.get_const_bounds(self.inserter.function, pre_header);
 
-        if let Some((lower_bound, upper_bound)) = bounds {
-            let Some(induction_variable) = self.get_induction_variable(loop_) else {
-                return;
-            };
-            match current_loop {
-                Some(true) => {
-                    self.current_induction_variable =
-                        Some((induction_variable, lower_bound, upper_bound));
-                }
-                Some(false) => {
-                    self.outer_induction_variables
-                        .insert(induction_variable, (lower_bound, upper_bound));
-                }
-                None => {
-                    self.all_induction_variables
-                        .insert(induction_variable, (lower_bound, upper_bound));
-                }
-            }
-        }
+        self.get_induction_variable(loop_)
+            .and_then(|induction_variable| bounds.map(|bounds| (induction_variable, bounds)))
     }
 
     /// Certain instructions can take advantage of that our induction variable has a fixed minimum/maximum.
