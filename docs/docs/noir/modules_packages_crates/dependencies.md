@@ -20,13 +20,13 @@ semver 2.0 guidelines.
 > Note: Without a `tag` , there would be no versioning and dependencies would change each time you
 > compile your project.
 
-For example, to add the [ecrecover-noir library](https://github.com/colinnielsen/ecrecover-noir) to your project, add it to `Nargo.toml`:
+For example, to add the [bignum library](https://github.com/noir-lang/noir-bignum) to your project, add it to `Nargo.toml`:
 
 ```toml
 # Nargo.toml
 
 [dependencies]
-ecrecover = {tag = "v0.30.0", git = "https://github.com/colinnielsen/ecrecover-noir"}
+bignum = { tag = "v0.8.0", git = "https://github.com/noir-lang/noir-bignum" }
 ```
 
 If the module is in a subdirectory, you can define a subdirectory in your git repository, for example:
