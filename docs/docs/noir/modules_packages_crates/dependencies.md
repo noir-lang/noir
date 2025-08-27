@@ -35,7 +35,7 @@ If the module is in a subdirectory, you can define a subdirectory in your git re
 # Nargo.toml
 
 [dependencies]
-easy_private_token_contract = {tag ="v0.1.0-alpha62", git = "https://github.com/AztecProtocol/aztec-packages", directory = "noir-contracts/contracts/easy_private_token_contract"}
+blob = {tag ="v1.2.1", git = "https://github.com/AztecProtocol/aztec-packages", directory = "noir-projects/noir-protocol-circuits/crates/blob"}
 ```
 
 ## Specifying a local dependency
