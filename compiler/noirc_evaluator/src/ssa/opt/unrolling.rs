@@ -1239,7 +1239,7 @@ mod tests {
         let pre_header =
             loop_.get_pre_header(function, &loops.cfg).expect("Should have a pre_header");
         let (lower, upper) =
-            loop_.get_const_bounds(function, pre_header).expect("bounds are numeric const");
+            loop_.get_const_bounds(&function.dfg, pre_header).expect("bounds are numeric const");
 
         assert_eq!(lower, IntegerConstant::Unsigned { value: 0, bit_size: 32 });
         assert_eq!(upper, IntegerConstant::Unsigned { value: 4, bit_size: 32 });
