@@ -1,9 +1,10 @@
+use std::collections::HashSet;
 use std::sync::Arc;
 
 use fxhash::FxHashMap as HashMap;
 use petgraph::visit::DfsPostOrder;
 
-use crate::ssa::ir::call_graph::CallGraph;
+use crate::ssa::ir::call_graph::{CallGraph, called_functions};
 use crate::ssa::{
     ir::{
         function::{Function, FunctionId},
@@ -27,10 +28,18 @@ impl Ssa {
     /// identified as calling known pure functions.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn purity_analysis(mut self) -> Ssa {
+        let brillig_entry_points = compute_brillig_entry_points(&self);
+
         // First look through each function to get a baseline on its purity and collect
         // the functions it calls to build a call graph.
-        let purities: HashMap<_, _> =
-            self.functions.values().map(|function| (function.id(), function.is_pure())).collect();
+        let purities: HashMap<_, _> = self
+            .functions
+            .values()
+            .map(|function| {
+                let is_brillig_entry_point = brillig_entry_points.contains(&function.id());
+                (function.id(), function.is_pure(is_brillig_entry_point))
+            })
+            .collect();
 
         // Then transitively 'infect' any functions which call impure functions as also
         // impure.
@@ -111,7 +120,7 @@ impl std::fmt::Display for Purity {
 }
 
 impl Function {
-    fn is_pure(&self) -> Purity {
+    fn is_pure(&self, is_brillig_entrypoint: bool) -> Purity {
         let contains_reference = |value_id: &ValueId| {
             let typ = self.dfg.type_of_value(*value_id);
             typ.contains_reference()
@@ -121,7 +130,7 @@ impl Function {
             return Purity::Impure;
         }
 
-        let mut result = if self.runtime().is_acir() {
+        let mut result = if self.runtime().is_acir() || !is_brillig_entrypoint {
             Purity::Pure
         } else {
             // Because we return bogus values when a brillig function is called from acir
@@ -271,6 +280,32 @@ fn analyze_call_graph(
 
     finished_purities
 }
+
+/// Returns the set of Brillig functions that are entrypoints:
+/// main (if it's Brillig) and any Brillig functions that are called from ACIR.
+fn compute_brillig_entry_points(ssa: &Ssa) -> HashSet<FunctionId> {
+    let mut brillig_entry_points = HashSet::new();
+
+    // Add main if it's Brillig
+    let main = ssa.main();
+    if main.runtime().is_brillig() {
+        brillig_entry_points.insert(main.id());
+    }
+
+    // Check, for every ACIR functions, which brillig functions they call: those are entry points.
+    for function in ssa.functions.values() {
+        if function.runtime().is_acir() {
+            for called_function in called_functions(function) {
+                if ssa.functions[&called_function].runtime().is_brillig() {
+                    brillig_entry_points.insert(called_function);
+                }
+            }
+        }
+    }
+
+    brillig_entry_points
+}
+
 #[cfg(test)]
 mod test {
     use crate::{
@@ -448,7 +483,7 @@ mod test {
             call f3()
             return
         }
-        brillig(inline) fn pure_with_predicate_func f3 {
+        brillig(inline) fn pure f3 {
           b0():
             return
         }"#;
@@ -460,7 +495,7 @@ mod test {
         assert_eq!(purities[&FunctionId::test_new(0)], Purity::Impure);
         assert_eq!(purities[&FunctionId::test_new(1)], Purity::Impure);
         assert_eq!(purities[&FunctionId::test_new(2)], Purity::Impure);
-        assert_eq!(purities[&FunctionId::test_new(3)], Purity::PureWithPredicate);
+        assert_eq!(purities[&FunctionId::test_new(3)], Purity::Pure);
     }
 
     #[test]
@@ -481,7 +516,7 @@ mod test {
 
         let purities = &ssa.main().dfg.function_purities;
         assert_eq!(purities[&FunctionId::test_new(0)], Purity::PureWithPredicate);
-        assert_eq!(purities[&FunctionId::test_new(1)], Purity::PureWithPredicate);
+        assert_eq!(purities[&FunctionId::test_new(1)], Purity::Pure);
     }
 
     /// Functions using inc_rc or dec_rc are always impure - see constant_folding::do_not_deduplicate_call_with_inc_rc
@@ -560,9 +595,35 @@ mod test {
         assert_eq!(purities[&FunctionId::test_new(2)], Purity::Impure);
     }
 
-    /// TODO(https://github.com/noir-lang/noir/issues/9444)
     #[test]
-    fn brillig_functions_never_pure() {
+    fn brillig_functions_are_pure_with_predicate_if_they_are_an_entry_point() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            call f1()
+            call f1()
+            return
+        }
+        brillig(inline) fn pure_basic f1 {
+          b0():
+            v2 = make_array [Field 0, Field 1] : [Field; 2]
+            v4 = array_get v2, index u32 1 -> Field
+            v5 = allocate -> &mut Field
+            store Field 0 at v5
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.purity_analysis();
+
+        let purities = &ssa.main().dfg.function_purities;
+        assert_eq!(purities[&FunctionId::test_new(0)], Purity::PureWithPredicate);
+        assert_eq!(purities[&FunctionId::test_new(1)], Purity::PureWithPredicate);
+    }
+
+    #[test]
+    fn brillig_functions_are_pure_if_they_are_not_an_entry_point() {
         let src = "
         brillig(inline) fn main f0 {
           b0(v0: u1):
@@ -584,10 +645,8 @@ mod test {
         let ssa = ssa.purity_analysis();
 
         let purities = &ssa.main().dfg.function_purities;
-        // PureWithPredicates is the default purity for all Brillig functions.
-        // So even though `f1` is technically pure it will be marked as PureWithPredicates
         assert_eq!(purities[&FunctionId::test_new(0)], Purity::PureWithPredicate);
-        assert_eq!(purities[&FunctionId::test_new(1)], Purity::PureWithPredicate);
+        assert_eq!(purities[&FunctionId::test_new(1)], Purity::Pure);
     }
 
     #[test]
