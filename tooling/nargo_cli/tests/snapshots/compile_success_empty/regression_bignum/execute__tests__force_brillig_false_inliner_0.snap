@@ -1,5 +1,6 @@
 ---
 source: tooling/nargo_cli/tests/execute.rs
+assertion_line: 512
 expression: artifact
 ---
 {
@@ -17,7 +18,7 @@ expression: artifact
     "public parameters indices : []",
     "return value indices : []"
   ],
-  "debug_symbols": "pZXNjsIgEIDfhXMP/A/4KpuNwYqGhNAGW5ON8d0XTaGuST3MnihMvw86TOFGjv4wn/chnYYL2X3dyCGHGMN5H4feTWFIZfR270jt7qfsfRkiL/FCjS77NJFdmmPsyNXF+fnSZXTp2U4ulyjtiE/H0hbhKUT/eLp3K023UQl6gaU1DVd/ebbNGyMX3hiF4C0VC2+pxPAcKi8Mim/zC4vhVeMVan7DF55RSrcEHzZQiZoApfQWb7Z5xriqK2BCoQzKNoO2OINpBgCMgdOWR04FyiBXg8KtgYlm2C7GjwZoeeAWlUnBmkEInEG2rxBS4tbAVgOmprWuBaUBwwOrWwlMYHhRD0UQgOFl3QTQDMPreqgCcAwP9ZcGY/43/xv/XXquD/n9Gru6HNwh+qV7mlP/Ep1+xhqp1+CYh94f5+wfpmesuH8B",
+  "debug_symbols": "pZbbioMwEED/Jc8+5D6xv7IsJbVpCYQoqRaW0n/ftJjYLijL9EnjeI7jZDS5kaM7TOe9j6f+QnZfN3JIPgR/3oe+s6PvY756uzekDPdjci5fIi/xTA02uTiSXZxCaMjVhul502Ww8XkcbcpR2hAXj/mYhScf3OPs3iw0XUcl6BmWram4eufZOm+MnHljFIJvqZj5lkoMz6HwwqD4+nyuP+NFi+FV5RUqf8NnnlFKEQJGJasGuVqCjRZSokyBUusl3BAwxlVJgQmFU6i2KnSLVJiqAEApOK2zwanAKeSiUMgsOK0KgVQwsSgMTgG1nLzFzYhgVSEEUiHriwgpkVmwRUERH4jWpTc1YHhgpSWACQwvyj8e1tthgze0FMAwhnm+LmsEAMfwUH4PsL7G/JM3n+WP42VpY9Dv9fvOI9v59HdXcLXJ20Nw8/A0xe4lOv4MJVJ2FUPqO3ecknuYnrHs/gU=",
   "file_map": {},
   "names": [
     "main"
