@@ -222,7 +222,7 @@ impl<'f> Validator<'f> {
                                     assert_eq!(arguments.len(), 1);
                                     assert_eq!(
                                         dfg.type_of_value(arguments[0]),
-                                        Type::Array(Arc::new(vec![Type::unsigned(8)]), 25)
+                                        Type::Array(Arc::new(vec![Type::unsigned(64)]), 25)
                                     );
                                 }
                                 _ => {}
