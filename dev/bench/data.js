@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1756327020371,
+  "lastUpdate": 1756327884391,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -20161,48 +20161,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "6d4ee6767d42bfa0e031ab690d3cc64f250418a8",
-          "message": "chore(remove_paired_rc): Add various unit tests (#9425)",
-          "timestamp": "2025-08-20T21:07:43Z",
-          "tree_id": "224e70c326a81bbe80a4dee5f69ceab333266dda",
-          "url": "https://github.com/noir-lang/noir/commit/6d4ee6767d42bfa0e031ab690d3cc64f250418a8"
-        },
-        "date": 1755725579818,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 248666,
-            "range": "± 503",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 217366,
-            "range": "± 2159",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2778597,
-            "range": "± 3437",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jfecher11@gmail.com",
             "name": "jfecher",
             "username": "jfecher"
@@ -22254,6 +22212,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2781393,
             "range": "± 11051",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "133841094+YadlaMani@users.noreply.github.com",
+            "name": "Mani Yadla",
+            "username": "YadlaMani"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "f03a233f3cbd0c4eb27b1ce07aad63660f2de95c",
+          "message": "chore(docs): Update dependency page's examples (#9634)\n\nCo-authored-by: Savio <72797635+Savio-Sou@users.noreply.github.com>",
+          "timestamp": "2025-08-27T20:22:10Z",
+          "tree_id": "4457b919c53830576126347e9938813c4965106e",
+          "url": "https://github.com/noir-lang/noir/commit/f03a233f3cbd0c4eb27b1ce07aad63660f2de95c"
+        },
+        "date": 1756327865660,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 249138,
+            "range": "± 610",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 217785,
+            "range": "± 4083",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2780073,
+            "range": "± 2673",
             "unit": "ns/iter"
           }
         ]
