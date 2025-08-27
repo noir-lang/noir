@@ -280,7 +280,8 @@ impl Loops {
 
         let mut loops = vec![];
 
-        for block in function.reachable_blocks() {
+        // Iterating over blocks in reverse-post-order, ie. forward order, just because it's already available.
+        for block in post_order.into_vec().into_iter().rev() {
             for predecessor in cfg.predecessors(block) {
                 // In the above example, we're looking for when `block` is `loop_entry` and `predecessor` is `loop_body`.
                 if dom_tree.dominates(block, predecessor) {
