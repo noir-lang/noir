@@ -44,7 +44,6 @@
 use std::collections::BTreeSet;
 
 use acvm::acir::AcirField;
-use im::HashSet;
 use noirc_errors::call_stack::{CallStack, CallStackId};
 
 use crate::{
@@ -168,10 +167,10 @@ pub(super) struct Loop {
 pub(super) struct Loops {
     /// The loops that failed to be unrolled so that we do not try to unroll them again.
     /// Each loop is identified by its header block id.
-    failed_to_unroll: HashSet<BasicBlockId>,
+    failed_to_unroll: im::HashSet<BasicBlockId>,
 
     pub(super) yet_to_unroll: Vec<Loop>,
-    modified_blocks: HashSet<BasicBlockId>,
+    modified_blocks: im::HashSet<BasicBlockId>,
     pub(super) cfg: ControlFlowGraph,
 }
 
@@ -231,9 +230,9 @@ impl Loops {
         loops.sort_by_key(|loop_| loop_.blocks.len());
 
         Self {
-            failed_to_unroll: HashSet::default(),
+            failed_to_unroll: im::HashSet::default(),
             yet_to_unroll: loops,
-            modified_blocks: HashSet::default(),
+            modified_blocks: im::HashSet::default(),
             cfg,
         }
     }
@@ -656,7 +655,7 @@ impl Loop {
         &self,
         function: &Function,
         cfg: &ControlFlowGraph,
-    ) -> Option<HashSet<ValueId>> {
+    ) -> Option<im::HashSet<ValueId>> {
         // We need to traverse blocks from the pre-header up to the block entry point.
         let pre_header = self.get_pre_header(function, cfg).ok()?;
         let function_entry = function.entry_block();
@@ -687,7 +686,7 @@ impl Loop {
     fn count_loads_and_stores(
         &self,
         function: &Function,
-        refs: &HashSet<ValueId>,
+        refs: &im::HashSet<ValueId>,
     ) -> (usize, usize) {
         let mut loads = 0;
         let mut stores = 0;
@@ -891,7 +890,7 @@ struct LoopIteration<'f> {
 
     /// Maps unrolled block ids back to the original source block ids
     original_blocks: HashMap<BasicBlockId, BasicBlockId>,
-    visited_blocks: HashSet<BasicBlockId>,
+    visited_blocks: im::HashSet<BasicBlockId>,
 
     insert_block: BasicBlockId,
     source_block: BasicBlockId,
@@ -917,7 +916,7 @@ impl<'f> LoopIteration<'f> {
             source_block,
             blocks: HashMap::default(),
             original_blocks: HashMap::default(),
-            visited_blocks: HashSet::default(),
+            visited_blocks: im::HashSet::default(),
             induction_value: None,
         }
     }
@@ -949,7 +948,9 @@ impl<'f> LoopIteration<'f> {
         (end_block, induction_value)
     }
 
-    /// Unroll a single block in the current iteration of the loop
+    /// Unroll a single block in the current iteration of the loop.
+    ///
+    /// Returns the next blocks to unroll, based on whether the jmp terminator has 1 or 2 destinations.
     fn unroll_loop_block(&mut self) -> Vec<BasicBlockId> {
         let mut next_blocks = self.unroll_loop_block_helper();
         // Guarantee that the next blocks we set up to be unrolled, are actually part of the loop,
