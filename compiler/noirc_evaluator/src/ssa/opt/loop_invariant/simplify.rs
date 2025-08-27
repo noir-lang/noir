@@ -12,7 +12,7 @@ use noirc_errors::call_stack::CallStackId;
 
 use super::LoopInvariantContext;
 
-impl<'f> LoopInvariantContext<'f> {
+impl LoopInvariantContext<'_> {
     /// Checks whether a binary operation can be evaluated using the bounds of a given loop induction variables.
     ///
     /// If it cannot be evaluated, it means that we either have a dynamic loop bound or
