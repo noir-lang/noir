@@ -72,8 +72,11 @@ impl<F> WitnessStack<F> {
 impl<F: AcirField + Serialize> WitnessStack<F> {
     /// Serialize and compress.
     pub fn serialize(&self) -> Result<Vec<u8>, WitnessStackError> {
-        let buf = serialization::serialize_with_format_from_env(self)
-            .map_err(|e| WitnessStackError(SerializationError::Serialize(e)))?;
+        let buf = serialization::serialize_with_format_from_env(
+            self,
+            Some(serialization::Format::default()),
+        )
+        .map_err(|e| WitnessStackError(SerializationError::Serialize(e)))?;
 
         let mut deflater = GzEncoder::new(buf.as_slice(), Compression::best());
         let mut buf = Vec::new();
