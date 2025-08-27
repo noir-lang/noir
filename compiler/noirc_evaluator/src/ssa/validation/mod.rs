@@ -13,8 +13,9 @@
 //!   At the moment, only [Instruction::Binary], [Instruction::ArrayGet], and [Instruction::ArraySet]
 //!   are type checked.
 use core::panic;
+use std::sync::Arc;
 
-use acvm::{AcirField, FieldElement};
+use acvm::{AcirField, FieldElement, acir::BlackBoxFunc};
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 pub(crate) mod dynamic_array_indices;
@@ -148,26 +149,25 @@ impl<'f> Validator<'f> {
             Instruction::Binary(Binary { lhs, rhs, operator }) => {
                 let lhs_type = dfg.type_of_value(*lhs);
                 let rhs_type = dfg.type_of_value(*rhs);
-                match operator {
-                    BinaryOp::Lt => {
-                        if lhs_type != rhs_type {
-                            panic!(
-                                "Left-hand side and right-hand side of `lt` must have the same type"
-                            );
-                        }
 
-                        if matches!(lhs_type, Type::Numeric(NumericType::NativeField)) {
-                            panic!("Cannot use `lt` with field elements");
-                        }
-                    }
-                    _ => {
-                        if lhs_type != rhs_type {
-                            panic!(
-                                "Left-hand side and right-hand side of `{operator}` must have the same type"
-                            );
-                        }
-                    }
-                }
+                assert_eq!(
+                    lhs_type, rhs_type,
+                    "Left-hand side and right-hand side of `{operator}` must have the same type"
+                );
+
+                if lhs_type == Type::field()
+                    && matches!(
+                        operator,
+                        BinaryOp::Lt
+                            | BinaryOp::And
+                            | BinaryOp::Or
+                            | BinaryOp::Xor
+                            | BinaryOp::Shl
+                            | BinaryOp::Shr
+                    )
+                {
+                    panic!("Cannot use `{operator}` with field elements");
+                };
             }
             Instruction::ArrayGet { index, .. } | Instruction::ArraySet { index, .. } => {
                 let index_type = dfg.type_of_value(*index);
@@ -203,6 +203,30 @@ impl<'f> Validator<'f> {
                                     Type::Numeric(NumericType::NativeField)
                                 ));
                             }
+                            Intrinsic::BlackBox(blackbox) => match blackbox {
+                                BlackBoxFunc::AND | BlackBoxFunc::XOR => {
+                                    assert_eq!(arguments.len(), 2);
+                                    let value_typ = dfg.type_of_value(arguments[0]);
+                                    assert!(
+                                        matches!(
+                                            value_typ,
+                                            Type::Numeric(
+                                                NumericType::Unsigned { .. }
+                                                    | NumericType::Signed { .. }
+                                            )
+                                        ),
+                                        "Bitwise operation performed on non-integer type"
+                                    );
+                                }
+                                BlackBoxFunc::Keccakf1600 => {
+                                    assert_eq!(arguments.len(), 1);
+                                    assert_eq!(
+                                        dfg.type_of_value(arguments[0]),
+                                        Type::Array(Arc::new(vec![Type::unsigned(64)]), 25)
+                                    );
+                                }
+                                _ => {}
+                            },
                             _ => {}
                         }
                     }
@@ -748,6 +772,45 @@ mod tests {
             v0 = allocate -> &mut u8
             store Field 1 at v0
             return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "Cannot use `and` with field elements")]
+    fn bitwise_and_has_incorrect_type() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: Field):
+            v2 = and v0, v1
+            return v2
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "Cannot use `or` with field elements")]
+    fn bitwise_or_has_incorrect_type() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: Field):
+            v2 = or v0, v1
+            return v2
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "Cannot use `xor` with field elements")]
+    fn bitwise_xor_has_incorrect_type() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: Field):
+            v2 = xor v0, v1
+            return v2
         }
         ";
         let _ = Ssa::from_str(src).unwrap();
