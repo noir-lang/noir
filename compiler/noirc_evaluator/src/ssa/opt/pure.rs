@@ -184,14 +184,18 @@ impl Function {
                     | Instruction::Not(_)
                     | Instruction::Truncate { .. }
                     | Instruction::Allocate
+                    // Load and store are considered pure since there is a separate check ensuring
+                    // no parameters or return values are references. With this check, we can be
+                    // sure any load/store is purely local.
                     | Instruction::Load { .. }
                     | Instruction::Store { .. }
                     | Instruction::EnableSideEffectsIf { .. }
-                    | Instruction::IncrementRc { .. }
-                    | Instruction::DecrementRc { .. }
                     | Instruction::IfElse { .. }
                     | Instruction::MakeArray { .. }
                     | Instruction::Noop => (),
+
+                    Instruction::IncrementRc { .. }
+                    | Instruction::DecrementRc { .. } => return Purity::Impure,
                 };
             }
 
@@ -478,5 +482,34 @@ mod test {
         let purities = &ssa.main().dfg.function_purities;
         assert_eq!(purities[&FunctionId::test_new(0)], Purity::PureWithPredicate);
         assert_eq!(purities[&FunctionId::test_new(1)], Purity::PureWithPredicate);
+    }
+
+    /// Functions using inc_rc or dec_rc are always impure - see constant_folding::do_not_deduplicate_call_with_inc_rc
+    /// as an example of a case in which semantics are changed if these are considered pure.
+    #[test]
+    fn inc_rc_is_impure() {
+        // This test ensures that a function which mutates an array pointer is marked impure.
+        // This protects against future deduplication passes incorrectly assuming purity.
+        let src = r#"
+        brillig(inline) fn mutator f0 {
+          b0(v0: [Field; 2]):
+            inc_rc v0
+            v3 = array_set v0, index u32 0, value Field 5
+            return v3
+        }
+        brillig(inline) fn mutator f1 {
+          b0(v0: [Field; 2]):
+            dec_rc v0  // We wouldn't produce this code. This is just to ensure dec_rc is impure.
+            v3 = array_set v0, index u32 0, value Field 5
+            return v3
+        }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.purity_analysis();
+
+        let purities = &ssa.main().dfg.function_purities;
+        assert_eq!(purities[&FunctionId::test_new(0)], Purity::Impure);
+        assert_eq!(purities[&FunctionId::test_new(1)], Purity::Impure);
     }
 }

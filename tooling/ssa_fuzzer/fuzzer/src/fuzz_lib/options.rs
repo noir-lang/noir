@@ -23,6 +23,11 @@ pub(crate) struct InstructionOptions {
     pub(crate) create_array_enabled: bool,
     pub(crate) array_get_enabled: bool,
     pub(crate) array_set_enabled: bool,
+    pub(crate) unsafe_get_set_enabled: bool,
+    pub(crate) point_add_enabled: bool,
+    pub(crate) multi_scalar_mul_enabled: bool,
+    pub(crate) ecdsa_secp256r1_enabled: bool,
+    pub(crate) ecdsa_secp256k1_enabled: bool,
 }
 
 impl Default for InstructionOptions {
@@ -48,6 +53,11 @@ impl Default for InstructionOptions {
             create_array_enabled: true,
             array_get_enabled: true,
             array_set_enabled: true,
+            unsafe_get_set_enabled: false,
+            point_add_enabled: true,
+            multi_scalar_mul_enabled: true,
+            ecdsa_secp256r1_enabled: true,
+            ecdsa_secp256k1_enabled: true,
         }
     }
 }
@@ -76,9 +86,10 @@ pub(crate) struct FunctionContextOptions {
     pub(crate) instruction_options: InstructionOptions,
     /// Options for the fuzzer commands that can be used in the SSA block
     pub(crate) fuzzer_command_options: FuzzerCommandOptions,
-
     /// Maximum number of iterations in the program
     pub(crate) max_iterations_num: usize,
+    /// If false, we don't simplify the program
+    pub(crate) simplifying_enabled: bool,
 }
 
 impl From<FunctionContextOptions> for SsaBlockOptions {
@@ -127,6 +138,9 @@ pub(crate) enum FuzzerMode {
     /// Standard mode without DIE SSA passes
     #[allow(dead_code)]
     NonConstantWithoutDIE,
+    /// Standard mode without simplifying
+    #[allow(dead_code)]
+    NonConstantWithoutSimplifying,
 }
 
 #[derive(Clone)]
@@ -138,18 +152,24 @@ pub(crate) struct FuzzerOptions {
     pub(crate) instruction_options: InstructionOptions,
     pub(crate) fuzzer_command_options: FuzzerCommandOptions,
     pub(crate) modes: Vec<FuzzerMode>,
+    pub(crate) simplifying_enabled: bool,
 }
 
 impl Default for FuzzerOptions {
     fn default() -> Self {
         Self {
-            compile_options: CompileOptions { show_ssa: true, ..Default::default() },
+            compile_options: CompileOptions {
+                show_ssa: false,
+                show_ssa_pass: vec![],
+                ..Default::default()
+            },
             max_ssa_blocks_num: 100,
             max_instructions_num: 1000,
             max_iterations_num: 1000,
             instruction_options: InstructionOptions::default(),
             fuzzer_command_options: FuzzerCommandOptions::default(),
             modes: vec![FuzzerMode::NonConstant],
+            simplifying_enabled: true,
         }
     }
 }
@@ -164,6 +184,7 @@ impl From<&FuzzerOptions> for FunctionContextOptions {
             instruction_options: options.instruction_options,
             fuzzer_command_options: options.fuzzer_command_options,
             max_iterations_num: options.max_iterations_num,
+            simplifying_enabled: options.simplifying_enabled,
         }
     }
 }

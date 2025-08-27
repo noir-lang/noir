@@ -60,9 +60,9 @@ pub(crate) fn gen_brillig_for(
         func.id(),
         true,
         globals_memory_size,
+        func.name(),
         &options,
     );
-    entry_point.name = func.name().to_string();
 
     // Link the entry point with all dependencies
     while let Some(unresolved_fn_label) = entry_point.first_unresolved_function_call() {

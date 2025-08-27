@@ -55,6 +55,9 @@ impl Ssa {
         flattened: bool,
         skip_brillig: bool,
     ) -> Ssa {
+        #[cfg(debug_assertions)]
+        self.functions.values().for_each(|func| die_pre_check(func, flattened));
+
         let mut previous_unused_params = None;
         loop {
             let (new_ssa, result) =
@@ -609,7 +612,7 @@ fn can_be_eliminated_if_unused(
         | Load { .. }
         | IfElse { .. }
         // Arrays are not side-effectual in Brillig where OOB checks are laid down explicitly in SSA.
-        // However, arrays are side-effectual in ACIR (array OOB checks). 
+        // However, arrays are side-effectual in ACIR (array OOB checks).
         // We mark them available for deletion, but it is expected that this pass will insert
         // back the relevant side effects for array access in ACIR that can possible fail (e.g., index OOB or dynamic index).
         | ArrayGet { .. }
@@ -965,6 +968,15 @@ fn should_remove_store(func: &Function, flattened: bool) -> bool {
     flattened && func.runtime().is_acir() && func.reachable_blocks().len() == 1
 }
 
+/// Check pre-execution properties:
+/// * Passing `flattened = true` will confirm the CFG has already been flattened into a single block for ACIR functions
+#[cfg(debug_assertions)]
+fn die_pre_check(func: &Function, flattened: bool) {
+    if flattened {
+        super::flatten_cfg::flatten_cfg_post_check(func);
+    }
+}
+
 /// Check post-execution properties:
 /// * Store and Load instructions should be removed from ACIR after flattening.
 #[cfg(debug_assertions)]
@@ -1004,7 +1016,7 @@ mod test {
                 map::Id,
                 types::{NumericType, Type},
             },
-            opt::assert_normalized_ssa_equals,
+            opt::assert_ssa_does_not_change,
         },
     };
 
@@ -1106,11 +1118,7 @@ mod test {
                 return v2
             }
             ";
-        let ssa = Ssa::from_str(src).unwrap();
-
-        // We expect the output to be unchanged
-        let ssa = ssa.dead_instruction_elimination();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::dead_instruction_elimination);
     }
 
     #[test]
@@ -1214,9 +1222,7 @@ mod test {
                 return
             }
             ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.dead_instruction_elimination();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::dead_instruction_elimination);
     }
 
     #[test]
@@ -1306,10 +1312,7 @@ mod test {
             return Field 1
         }
         ";
-
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.dead_instruction_elimination();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::dead_instruction_elimination);
     }
 
     #[test]
@@ -1503,14 +1506,11 @@ mod test {
             v1 = make_array [u1 1] : [u1; 1]
             v2 = make_array [v1] : [[u1; 1]; 1]
             inc_rc v1
-            inc_rc v2 
+            inc_rc v2
             return v2
         }
         "#;
-
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.dead_instruction_elimination();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::dead_instruction_elimination);
     }
 
     #[test]
@@ -1525,10 +1525,7 @@ mod test {
             return v0
         }
         "#;
-
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.dead_instruction_elimination();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::dead_instruction_elimination);
     }
 
     #[test]
@@ -1579,14 +1576,12 @@ mod test {
     fn does_not_replace_valid_array_set() {
         let src = r"
         acir(inline) fn main f0 {
-          b0(v0: [u8; 32]):                 	
-            v3 = array_set v0, index u32 0, value u8 5    	                     	
+          b0(v0: [u8; 32]):
+            v3 = array_set v0, index u32 0, value u8 5
             return v3
         }
         ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.dead_instruction_elimination_pre_flattening();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::dead_instruction_elimination_pre_flattening);
     }
 
     #[test]
@@ -1712,11 +1707,8 @@ mod test {
             jmp b1()
         }
         ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.dead_instruction_elimination();
-
         // If `inc_rc v3` were removed, we risk it later being mutated in `v19 = array_set v18, index u32 0, value Field 1`.
         // Thus, when we later go to do `v22 = array_set v21, index u32 0, value v3` once more, we will be writing [1] rather than [2].
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::dead_instruction_elimination);
     }
 }

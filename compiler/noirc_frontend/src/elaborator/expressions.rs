@@ -827,6 +827,7 @@ impl Elaborator<'_> {
 
     fn check_method_call_visibility(&mut self, func_id: FuncId, object_type: &Type, name: &Ident) {
         if !method_call_is_visible(
+            self.self_type.as_ref(),
             object_type,
             func_id,
             self.module_id(),

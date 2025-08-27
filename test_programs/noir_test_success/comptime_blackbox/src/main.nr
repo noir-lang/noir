@@ -6,7 +6,7 @@ fn test_bitshift() {
     let c = comptime {
         let a: i32 = 10;
         let b: u32 = 4;
-        a << b as u8
+        a << b as i32
     };
     assert_eq(c, 160);
 }
@@ -47,7 +47,7 @@ fn test_blake3() {
 /// Test that ecdsa_secp256k1 is implemented.
 #[test]
 fn test_ecdsa_secp256k1() {
-    let (valid_array, valid_slice) = comptime {
+    let valid = comptime {
         let pub_key_x: [u8; 32] = hex_to_bytes(
             "a0434d9e47f3c86235477c7b1ae6ae5d3442d49b1943c2b752a68e2a47e247c7",
         )
@@ -65,25 +65,15 @@ fn test_ecdsa_secp256k1() {
         )
             .as_array();
 
-        let valid_array =
-            std::ecdsa_secp256k1::verify_signature(pub_key_x, pub_key_y, signature, hashed_message);
-        let valid_slice = std::ecdsa_secp256k1::verify_signature_slice(
-            pub_key_x,
-            pub_key_y,
-            signature,
-            hashed_message.as_slice(),
-        );
-
-        (valid_array, valid_slice)
+        std::ecdsa_secp256k1::verify_signature(pub_key_x, pub_key_y, signature, hashed_message)
     };
-    assert(valid_array);
-    assert(valid_slice);
+    assert(valid);
 }
 
 /// Test that ecdsa_secp256r1 is implemented.
 #[test]
 fn test_ecdsa_secp256r1() {
-    let (valid_array, valid_slice) = comptime {
+    let valid = comptime {
         let pub_key_x: [u8; 32] = hex_to_bytes(
             "550f471003f3df97c3df506ac797f6721fb1a1fb7b8f6f83d224498a65c88e24",
         )
@@ -101,18 +91,9 @@ fn test_ecdsa_secp256r1() {
         )
             .as_array();
 
-        let valid_array =
-            std::ecdsa_secp256r1::verify_signature(pub_key_x, pub_key_y, signature, hashed_message);
-        let valid_slice = std::ecdsa_secp256r1::verify_signature_slice(
-            pub_key_x,
-            pub_key_y,
-            signature,
-            hashed_message.as_slice(),
-        );
-        (valid_array, valid_slice)
+        std::ecdsa_secp256r1::verify_signature(pub_key_x, pub_key_y, signature, hashed_message)
     };
-    assert(valid_array);
-    assert(valid_slice);
+    assert(valid);
 }
 
 /// Test that sha256_compression is implemented.

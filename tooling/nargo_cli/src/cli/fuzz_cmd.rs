@@ -95,7 +95,14 @@ fn list_harnesses_command(
     parsed_files: &ParsedFiles,
     pattern: &FunctionNameMatch,
 ) -> Result<(), CliError> {
-    let pool = rayon::ThreadPoolBuilder::new().stack_size(4 * 1024 * 1024).build().unwrap();
+    // Configure a thread pool with a larger stack size to prevent overflowing stack in large programs.
+    // Default is 2MB. Limit threads to the number of packages we actually need to compile.
+    let num_threads = rayon::current_num_threads().min(workspace.members.len()).max(1);
+    let pool = rayon::ThreadPoolBuilder::new()
+        .num_threads(num_threads)
+        .stack_size(4 * 1024 * 1024)
+        .build()
+        .unwrap();
     let all_harnesses_by_package: Vec<(CrateName, Vec<String>)> = pool
         .install(|| {
             workspace.into_iter().par_bridge().map(|package| {

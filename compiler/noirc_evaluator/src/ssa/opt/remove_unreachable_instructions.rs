@@ -17,11 +17,11 @@ use crate::ssa::{
         dfg::DataFlowGraph,
         function::{Function, FunctionId},
         instruction::{
-            Binary, BinaryOp, ConstrainError, Instruction, TerminatorInstruction,
+            Binary, BinaryOp, ConstrainError, Instruction, Intrinsic, TerminatorInstruction,
             binary::{BinaryEvaluationResult, eval_constant_binary_op},
         },
         types::{NumericType, Type},
-        value::ValueId,
+        value::{Value, ValueId},
     },
     opt::simple_optimization::SimpleOptimizationContext,
     ssa_gen::Ssa,
@@ -60,7 +60,7 @@ impl Function {
         let one = self.dfg.make_constant(1_u32.into(), NumericType::bool());
         let mut side_effects_condition = one;
 
-        self.simple_reachable_blocks_optimization(|context| {
+        self.simple_optimization(|context| {
             let block_id = context.block_id;
 
             if current_block_id != Some(block_id) {
@@ -77,9 +77,14 @@ impl Function {
             let instruction = context.instruction();
             if let Instruction::EnableSideEffectsIf { condition } = instruction {
                 side_effects_condition = *condition;
-                if current_block_reachability == Reachability::UnreachableUnderPredicate {
-                    current_block_reachability = Reachability::Reachable;
-                }
+                current_block_reachability =
+                    match context.dfg.get_numeric_constant(side_effects_condition) {
+                        Some(predicate) if predicate.is_zero() => {
+                            // We can replace side effecting instructions with defaults until the next predicate.
+                            Reachability::UnreachableUnderPredicate
+                        }
+                        _ => Reachability::Reachable,
+                    };
                 return;
             };
 
@@ -89,18 +94,16 @@ impl Function {
                 if !instruction.requires_acir_gen_predicate(context.dfg) {
                     return;
                 }
-                // Remove the current instruction and insert defaults for the results.
-                context.remove_current_instruction();
-
-                let result_ids = context.dfg.instruction_results(context.instruction_id).to_vec();
-
-                for result_id in result_ids {
-                    let typ = &context.dfg.type_of_value(result_id);
-                    let default_value = zeroed_value(context.dfg, func_id, block_id, typ);
-                    context.replace_value(result_id, default_value);
-                }
+                remove_and_replace_with_defaults(context, func_id, block_id);
                 return;
             }
+
+            // Check if the current predicate is known to be enabled.
+            let is_predicate_constant_one =
+                || match context.dfg.get_numeric_constant(side_effects_condition) {
+                    Some(predicate) => predicate.is_one(),
+                    None => false, // The predicate is a variable
+                };
 
             match instruction {
                 Instruction::Constrain(lhs, rhs, _) => {
@@ -133,15 +136,8 @@ impl Function {
                         let requires_acir_gen_predicate =
                             binary.requires_acir_gen_predicate(context.dfg);
 
-                        // Check if the current predicate is known to be enabled.
-                        let is_predicate_constant_one =
-                            match context.dfg.get_numeric_constant(side_effects_condition) {
-                                Some(predicate) => predicate.is_one(),
-                                None => false, // The predicate is a variable
-                            };
-
                         let fails_under_predicate =
-                            requires_acir_gen_predicate && !is_predicate_constant_one;
+                            requires_acir_gen_predicate && !is_predicate_constant_one();
 
                         // Insert the instruction right away so we can add a constrain immediately after it
                         context.insert_current_instruction();
@@ -194,12 +190,7 @@ impl Function {
                     };
 
                     if array_op_always_fails {
-                        let is_predicate_constant_one =
-                            match context.dfg.get_numeric_constant(side_effects_condition) {
-                                Some(predicate) => predicate.is_one(),
-                                None => false, // The predicate is a variable
-                            };
-                        current_block_reachability = if is_predicate_constant_one {
+                        current_block_reachability = if is_predicate_constant_one() {
                             // If we have an array that contains references we no longer need to bother with resolution of those references.
                             // However, we want a trap to still be triggered by an OOB array access.
                             // Thus, we can replace our array with dummy numerics to avoid unnecessary allocations
@@ -242,6 +233,42 @@ impl Function {
                         } else {
                             Reachability::UnreachableUnderPredicate
                         };
+                    }
+                }
+                // Intrinsic Slice operations in ACIR on empty arrays need to be replaced with a (conditional) constraint.
+                // In Brillig they will be protected by an access constraint, which, if known to fail, will make the block unreachable.
+                Instruction::Call { func, arguments } if context.dfg.runtime().is_acir() => {
+                    if let Value::Intrinsic(Intrinsic::SlicePopBack | Intrinsic::SlicePopFront) =
+                        &context.dfg[*func]
+                    {
+                        let length = arguments.iter().next().unwrap_or_else(|| {
+                            unreachable!("slice operations have 2 arguments: [length, slice]")
+                        });
+                        let is_empty =
+                            context.dfg.get_numeric_constant(*length).is_some_and(|v| v.is_zero());
+                        // If the compiler knows the slice is empty, there is no point trying to pop from it, we know it will fail.
+                        // Barretenberg doesn't handle memory operations with predicates, so we can't rely on those to disable the operation
+                        // based on the current side effect variable. Instead we need to replace it with a conditional constraint.
+                        if is_empty {
+                            let always_fail = is_predicate_constant_one();
+
+                            // We might think that if the predicate is constant 1, we can leave the pop as it will always fail.
+                            // However by turning the block Unreachable, ACIR-gen would create empty bytecode and not fail the circuit.
+                            insert_constraint(
+                                context,
+                                block_id,
+                                side_effects_condition,
+                                "Index out of bounds".to_string(),
+                            );
+
+                            current_block_reachability = if always_fail {
+                                context.remove_current_instruction();
+                                Reachability::Unreachable
+                            } else {
+                                remove_and_replace_with_defaults(context, func_id, block_id);
+                                Reachability::UnreachableUnderPredicate
+                            };
+                        }
                     }
                 }
                 _ => (),
@@ -329,26 +356,67 @@ fn zeroed_value(
             dfg.insert_instruction_and_results(instruction, block_id, None, stack).first()
         }
         Type::Reference(element_type) => {
+            // The result of the instruction is a reference; Allocate creates a reference,
+            // but if we tried to Load from it we would get an error, so follow it with a
+            // Store of a default value.
             let instruction = Instruction::Allocate;
             let reference_type = Type::Reference(Arc::new((**element_type).clone()));
 
-            dfg.insert_instruction_and_results(
-                instruction,
-                block_id,
-                Some(vec![reference_type]),
-                CallStackId::root(),
-            )
-            .first()
+            let reference_id = dfg
+                .insert_instruction_and_results(
+                    instruction,
+                    block_id,
+                    Some(vec![reference_type]),
+                    CallStackId::root(),
+                )
+                .first();
+
+            let value = zeroed_value(dfg, func_id, block_id, element_type.as_ref());
+            let instruction = Instruction::Store { address: reference_id, value };
+            dfg.insert_instruction_and_results(instruction, block_id, None, CallStackId::root());
+
+            reference_id
         }
         Type::Function => dfg.import_function(func_id),
     }
+}
+
+/// Remove the current instruction and replace it with default values.
+fn remove_and_replace_with_defaults(
+    context: &mut SimpleOptimizationContext<'_, '_>,
+    func_id: FunctionId,
+    block_id: BasicBlockId,
+) {
+    context.remove_current_instruction();
+
+    let result_ids = context.dfg.instruction_results(context.instruction_id).to_vec();
+
+    for result_id in result_ids {
+        let typ = &context.dfg.type_of_value(result_id);
+        let default_value = zeroed_value(context.dfg, func_id, block_id, typ);
+        context.replace_value(result_id, default_value);
+    }
+}
+
+/// Insert a `constrain 0 == <predicate>, "<msg>"` instruction.
+fn insert_constraint(
+    context: &mut SimpleOptimizationContext<'_, '_>,
+    block_id: BasicBlockId,
+    predicate: ValueId,
+    msg: String,
+) {
+    let zero = context.dfg.make_constant(0_u128.into(), NumericType::bool());
+    let message = Some(ConstrainError::StaticString(msg));
+    let instruction = Instruction::Constrain(zero, predicate, message);
+    let call_stack = context.dfg.get_instruction_call_stack_id(context.instruction_id);
+    context.dfg.insert_instruction_and_results(instruction, block_id, None, call_stack);
 }
 
 #[cfg(test)]
 mod test {
     use crate::{
         assert_ssa_snapshot,
-        ssa::{opt::assert_normalized_ssa_equals, ssa_gen::Ssa},
+        ssa::{opt::assert_ssa_does_not_change, ssa_gen::Ssa},
     };
 
     #[test]
@@ -457,9 +525,7 @@ mod test {
             return v1
         }
         "#;
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.remove_unreachable_instructions();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::remove_unreachable_instructions);
     }
 
     #[test]
@@ -492,8 +558,35 @@ mod test {
     }
 
     #[test]
-    fn replaces_instructions_following_sub_that_overflows_under_false_side_effects_condition_with_defaults()
+    fn replaces_instructions_following_sub_that_overflows_under_side_effects_condition_with_defaults()
      {
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1):
+            enable_side_effects v0
+            v1 = sub u32 0, u32 1
+            v2 = add v1, u32 1
+            return v2
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.remove_unreachable_instructions();
+
+        // The add is removed, because if we know that the sub is disabled and would fail, then we are dealing with
+        // default values all the way.
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1):
+            enable_side_effects v0
+            v3 = sub u32 0, u32 1
+            constrain u1 0 == v0, "attempt to subtract with overflow"
+            return u32 0
+        }
+        "#);
+    }
+
+    #[test]
+    fn replaces_instructions_following_disabled_side_effects_with_defaults() {
         let src = r#"
         acir(inline) predicate_pure fn main f0 {
           b0():
@@ -506,17 +599,50 @@ mod test {
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.remove_unreachable_instructions();
 
-        // No constraint will be added because we know that the sub is disabled, (it would be the trivial `0 == 0`).
-        // The add is removed, because if we know that the sub is disabled and would fail, then we are dealing with
-        // default values all the way.
+        // Both sub and add are removed because they cannot have side effects.
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) predicate_pure fn main f0 {
           b0():
             enable_side_effects u1 0
-            v3 = sub u32 0, u32 1
             return u32 0
         }
         ");
+    }
+
+    #[test]
+    fn replaces_references_following_conditional_constraint_with_allocate_and_store_of_default() {
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1):
+            v1 = make_array [] : [&mut u1; 0]
+            enable_side_effects v0
+            v2 = mod u32 1, u32 0
+            constrain u1 0 == v0, "Index out of bounds"
+            v3 = array_get v1, index v2 -> &mut u1
+            v4 = load v3 -> u1
+            enable_side_effects u1 1
+            return v4
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.remove_unreachable_instructions();
+
+        // The `array_get` is replaced by `allocate+store`.
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1):
+            v1 = make_array [] : [&mut u1; 0]
+            enable_side_effects v0
+            v4 = mod u32 1, u32 0
+            constrain u1 0 == v0, "attempt to calculate the remainder with a divisor of zero"
+            constrain u1 0 == v0, "Index out of bounds"
+            v6 = allocate -> &mut u1
+            store u1 0 at v6
+            v7 = load v6 -> u1
+            enable_side_effects u1 1
+            return v7
+        }
+        "#);
     }
 
     #[test]
@@ -524,18 +650,28 @@ mod test {
      {
         let src = r#"
         acir(inline) predicate_pure fn main f0 {
-          b0():
-            enable_side_effects u1 0
-            v0 = sub u32 0, u32 1
-            enable_side_effects u1 0
-            v1 = add v0, u32 1
-            return v1
+          b0(v0: u1):
+            enable_side_effects v0
+            v1 = sub u32 0, u32 1
+            enable_side_effects u1 1
+            v2 = add v1, u32 1
+            return v2
         }
         "#;
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.remove_unreachable_instructions();
 
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1):
+            enable_side_effects v0
+            v3 = sub u32 0, u32 1
+            constrain u1 0 == v0, "attempt to subtract with overflow"
+            enable_side_effects u1 1
+            v6 = add v3, u32 1
+            return v6
+        }
+        "#);
     }
 
     #[test]
@@ -664,7 +800,7 @@ mod test {
     }
 
     #[test]
-    fn does_not_removes_instructions_from_non_dominated_block_1() {
+    fn does_not_remove_instructions_from_non_dominated_block_1() {
         // Here both b1 and b4 are successors of b3, but both are not dominated by it.
         let src = r#"
         acir(inline) predicate_pure fn main f0 {
@@ -706,7 +842,7 @@ mod test {
     }
 
     #[test]
-    fn does_not_removes_instructions_from_non_dominated_block_2() {
+    fn does_not_remove_instructions_from_non_dominated_block_2() {
         // Here b3 is a successor of b2 but is not dominated by it.
         let src = r#"
         acir(inline) predicate_pure fn main f0 {
@@ -742,7 +878,7 @@ mod test {
     }
 
     #[test]
-    fn does_not_removes_instructions_from_non_dominated_block_3() {
+    fn does_not_remove_instructions_from_non_dominated_block_3() {
         // Here b4 is a transitive successor of b2 but is not dominated by it.
         let src = r#"
         acir(inline) predicate_pure fn main f0 {
@@ -782,7 +918,7 @@ mod test {
     }
 
     #[test]
-    fn does_not_removes_instructions_from_non_dominated_block_4() {
+    fn does_not_remove_instructions_from_non_dominated_block_4() {
         // Here b5 is a transitive successor of b2, but is not dominated by it
         // (it's a transitive successor of b1)
         let src = r#"
@@ -871,11 +1007,11 @@ mod test {
         let src = "
         acir(inline) predicate_pure fn main f0 {
           b0():
-            v0 = allocate -> &mut u8                      
-            store u8 0 at v0                               
+            v0 = allocate -> &mut u8
+            store u8 0 at v0
             v2 = make_array [u8 0, v0] : [(u8, &mut u8); 1]
-            v4 = array_get v2, index u32 2 -> u8         
-            v6 = array_get v2, index u32 3 -> &mut u8      
+            v4 = array_get v2, index u32 2 -> u8
+            v6 = array_get v2, index u32 3 -> &mut u8
             return v4
         }
         ";
@@ -904,17 +1040,67 @@ mod test {
         let src = "
         brillig(inline) predicate_pure fn main f0 {
           b0():
-            v0 = allocate -> &mut u8                      
-            store u8 0 at v0                               
+            v0 = allocate -> &mut u8
+            store u8 0 at v0
             v2 = make_array [u8 0, v0] : [(u8, &mut u8); 1]
-            v4 = array_get v2, index u32 2 -> u8         
-            v6 = array_get v2, index u32 3 -> &mut u8      
+            v4 = array_get v2, index u32 2 -> u8
+            v6 = array_get v2, index u32 3 -> &mut u8
+            return v4
+        }
+        ";
+        assert_ssa_does_not_change(src, Ssa::remove_unreachable_instructions);
+    }
+
+    #[test]
+    fn transforms_failing_slice_pop_with_constraint_and_default() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1):
+            v1 = make_array [] : [u32]
+            enable_side_effects v0
+            v4, v5, v6 = call slice_pop_front(u32 0, v1) -> (u32, u32, [u32])
+            enable_side_effects u1 1
+            return u32 1
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.remove_unreachable_instructions();
+
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1):
+            v1 = make_array [] : [u32]
+            enable_side_effects v0
+            constrain u1 0 == v0, "Index out of bounds"
+            v3 = make_array [] : [u32]
+            enable_side_effects u1 1
+            return u32 1
+        }
+        "#);
+    }
+
+    #[test]
+    fn transforms_failing_slice_pop_if_always_enabled() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1):
+            v1 = make_array [] : [u32]
+            v4, v5, v6 = call slice_pop_front(u32 0, v1) -> (u32, u32, [u32])
             return v4
         }
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.remove_unreachable_instructions();
-        assert_normalized_ssa_equals(ssa, src);
+
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1):
+            v1 = make_array [] : [u32]
+            constrain u1 0 == u1 1, "Index out of bounds"
+            unreachable
+        }
+        "#);
     }
 }
