@@ -14,7 +14,6 @@ fn test_valid_ecdsa_signature_secp256r1() {
     let msg = [122, 97, 109, 97, 121];
     let instruction = Instruction::EcdsaSecp256r1 {
         msg: msg.to_vec(),
-        hash_size: 32_u32,
         corrupt_hash: false,
         corrupt_pubkey_x: false,
         corrupt_pubkey_y: false,
@@ -40,7 +39,6 @@ fn test_valid_ecdsa_signature_secp256k1() {
     let msg = [122, 97, 109, 97, 121];
     let instruction = Instruction::EcdsaSecp256k1 {
         msg: msg.to_vec(),
-        hash_size: 32_u32,
         corrupt_hash: false,
         corrupt_pubkey_x: false,
         corrupt_pubkey_y: false,
@@ -66,7 +64,6 @@ fn test_corrupted_ecdsa_signature_secp256r1() {
     let msg = [122, 97, 109, 97, 121];
     let instruction = Instruction::EcdsaSecp256r1 {
         msg: msg.to_vec(),
-        hash_size: 32_u32,
         corrupt_hash: true,
         corrupt_pubkey_x: true,
         corrupt_pubkey_y: true,
@@ -95,7 +92,6 @@ fn test_corrupted_ecdsa_signature_secp256k1() {
     let msg = [122, 97, 109, 97, 121];
     let instruction = Instruction::EcdsaSecp256k1 {
         msg: msg.to_vec(),
-        hash_size: 32_u32,
         corrupt_hash: true,
         corrupt_pubkey_x: true,
         corrupt_pubkey_y: true,
