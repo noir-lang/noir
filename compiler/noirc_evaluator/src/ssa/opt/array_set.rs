@@ -217,7 +217,7 @@ impl<'f> Context<'f> {
                 // Array arguments passed in calls constitute a use.
                 Instruction::Call { arguments, .. } => {
                     for argument in arguments {
-                        if self.dfg.type_of_value(*argument).is_array() {
+                        if self.dfg.type_of_value(*argument).is_array_or_slice() {
                             self.set_last_use(*argument, *instruction_id);
                         }
                     }
@@ -225,7 +225,7 @@ impl<'f> Context<'f> {
                 // Arrays loaded from input references might be shared with the caller.
                 Instruction::Load { address } => {
                     let result = self.dfg.instruction_results(*instruction_id)[0];
-                    if self.dfg.type_of_value(result).is_array() {
+                    if self.dfg.type_of_value(result).is_array_or_slice() {
                         let is_reference_param =
                             self.dfg.block_parameters(block_id).contains(address);
                         self.arrays_from_load.insert(result, is_reference_param);
@@ -234,7 +234,7 @@ impl<'f> Context<'f> {
                 // Arrays nested in other arrays are a use.
                 Instruction::MakeArray { elements, .. } => {
                     for element in elements {
-                        if self.dfg.type_of_value(*element).is_array() {
+                        if self.dfg.type_of_value(*element).is_array_or_slice() {
                             self.set_last_use(*element, *instruction_id);
                         }
                     }

@@ -326,7 +326,7 @@ impl Context {
                     {
                         for &value in cached {
                             let value_type = dfg.type_of_value(value);
-                            if value_type.is_array() {
+                            if value_type.is_array_or_slice() {
                                 let inc_rc = Instruction::IncrementRc { value };
                                 let call_stack = dfg.get_instruction_call_stack_id(id);
                                 dfg.insert_instruction_and_results(inc_rc, block, None, call_stack);
@@ -666,7 +666,7 @@ impl Context {
             };
 
             // We only care about arrays and slices. (`Store` can act on non-array values as well)
-            if !function.dfg.type_of_value(*value).is_array() {
+            if !function.dfg.type_of_value(*value).is_array_or_slice() {
                 return;
             };
 

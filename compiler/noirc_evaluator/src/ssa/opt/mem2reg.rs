@@ -97,7 +97,7 @@ use crate::ssa::{
 };
 
 use self::alias_set::AliasSet;
-use self::block::{Block, Expression};
+use self::block::{Block, Container};
 
 impl Ssa {
     /// Attempts to remove any load instructions that recover values that are already available in
@@ -134,9 +134,9 @@ struct PerFunctionContext<'f> {
     /// from the middle of Vecs many times will be slower than a single call to `retain`.
     instructions_to_remove: HashSet<InstructionId>,
 
-    /// Track a value's last load across all blocks.
-    /// If a value is not used in anymore loads we can remove the last store to that value.
-    last_loads: HashSet<ValueId>,
+    /// Track values which there are still `Load` instructions for that have not been removed.
+    /// If a value is not used in any more loads we can remove the last store to that value.
+    addresses_loaded_from: HashSet<ValueId>,
 
     /// Track whether a reference was passed into another instruction (e.g. Call)
     /// This is needed to determine whether we can remove a store.
@@ -159,7 +159,7 @@ impl<'f> PerFunctionContext<'f> {
             inserter: FunctionInserter::new(function),
             blocks: BTreeMap::new(),
             instructions_to_remove: HashSet::default(),
-            last_loads: HashSet::default(),
+            addresses_loaded_from: HashSet::default(),
             aliased_references: HashMap::default(),
             instruction_input_references: HashSet::default(),
         }
@@ -210,13 +210,7 @@ impl<'f> PerFunctionContext<'f> {
                     &per_func_block_params,
                 );
 
-                let is_dereference = block
-                    .expressions
-                    .get(store_address)
-                    .is_some_and(|expression| matches!(expression, Expression::Dereference(_)));
-
-                if !self.last_loads.contains(store_address) && !store_alias_used && !is_dereference
-                {
+                if !self.addresses_loaded_from.contains(store_address) && !store_alias_used {
                     self.instructions_to_remove.insert(*store_instruction);
                 }
             }
@@ -368,15 +362,8 @@ impl<'f> PerFunctionContext<'f> {
         }
 
         for aliases in aliases.into_values() {
-            let first = aliases.first();
-            let first = first.expect("All parameters alias at least themselves or we early return");
-
-            let expression = Expression::Other(first);
-            let previous = references.aliases.insert(expression, aliases.clone());
-            assert!(previous.is_none());
-
             for alias in aliases.iter() {
-                let previous = references.expressions.insert(alias, expression);
+                let previous = references.aliases.insert(alias, aliases.clone());
                 assert!(previous.is_none());
             }
         }
@@ -436,35 +423,16 @@ impl<'f> PerFunctionContext<'f> {
             Instruction::Load { address } => {
                 let address = *address;
 
-                let result = self.inserter.function.dfg.instruction_results(instruction)[0];
-                references.remember_dereference(self.inserter.function, address, result);
-
                 // If the load is known, replace it with the known value and remove the load.
                 if let Some(value) = references.get_known_value(address) {
                     let result = self.inserter.function.dfg.instruction_results(instruction)[0];
                     self.inserter.map_value(result, value);
                     self.instructions_to_remove.insert(instruction);
-                }
-                // Check whether the block has a repeat load from the same address (w/ no calls or stores in between the loads).
-                // If we do have a repeat load, we can remove the current load and map its result to the previous load's result.
-                else if let Some(last_load) = references.last_loads.get(&address) {
-                    let Instruction::Load { address: previous_address } =
-                        &self.inserter.function.dfg[*last_load]
-                    else {
-                        panic!("Expected a Load instruction here");
-                    };
-                    let result = self.inserter.function.dfg.instruction_results(instruction)[0];
-                    let previous_result =
-                        self.inserter.function.dfg.instruction_results(*last_load)[0];
-                    if *previous_address == address {
-                        self.inserter.map_value(result, previous_result);
-                        self.instructions_to_remove.insert(instruction);
-                    }
                 } else {
                     // Remember that this address has been loaded, so stores to it should not be removed.
-                    self.last_loads.insert(address);
+                    self.addresses_loaded_from.insert(address);
                     // Stores to any of its aliases should also be considered loaded.
-                    self.last_loads.extend(references.get_aliases_for_value(address).iter());
+                    self.addresses_loaded_from.extend(references.get_aliases_for_value(address).iter());
                 }
 
                 // If the address is potentially aliased we must keep the stores to it
@@ -472,11 +440,10 @@ impl<'f> PerFunctionContext<'f> {
                     references.mark_value_used(address, self.inserter.function);
                 }
 
-                // We want to set the load for every load even if the address has a known value
-                // and the previous load instruction was removed.
-                // We are safe to still remove a repeat load in this case as we are mapping from the current load's
-                // result to the previous load, which if it was removed should already have a mapping to the known value.
-                references.set_last_load(address, instruction);
+                // The result of loading this address is now known to be `result`.
+                // This lets us remove any duplicate loads
+                let result = self.inserter.function.dfg.instruction_results(instruction)[0];
+                references.set_known_value(address, result);
             }
             Instruction::Store { address, value } => {
                 let address = *address;
@@ -501,14 +468,16 @@ impl<'f> PerFunctionContext<'f> {
 
                 references.set_known_value(address, value);
                 // If we see a store to an address, the last load to that address needs to remain.
-                references.keep_last_load_for(address);
+                // references.keep_last_load_for(address);
                 references.last_stores.insert(address, instruction);
             }
             Instruction::Allocate => {
                 // Register the new reference
                 let result = self.inserter.function.dfg.instruction_results(instruction)[0];
-                references.expressions.insert(result, Expression::Other(result));
-                references.aliases.insert(Expression::Other(result), AliasSet::known(result));
+                if self.inserter.function.dfg.type_of_value(result).contains_reference() {
+                    references.containers.insert(result, Container::known_empty());
+                }
+                references.insert_fresh_reference(result);
             }
             Instruction::ArrayGet { array, .. } => {
                 let result = self.inserter.function.dfg.instruction_results(instruction)[0];
@@ -520,10 +489,20 @@ impl<'f> PerFunctionContext<'f> {
                         .extend(references.get_aliases_for_value(array).iter());
                     references.mark_value_used(array, self.inserter.function);
 
-                    let expression = Expression::ArrayElement(array);
+                    if let Some(container) = references.containers.get(&array) {
+                        // Check if value is already a reference or a nested array
+                        // containing references.
+                        if self.inserter.function.dfg.value_is_reference(result) {
+                            let container = container.clone();
+                            references.insert_fresh_reference(result);
 
-                    if let Some(aliases) = references.aliases.get_mut(&expression) {
-                        aliases.insert(result);
+                            for alias in container.iter() {
+                                references.add_alias(result, alias);
+                            }
+                        } else {
+                            // result is an array containing references
+                            references.containers.insert(result, container.clone());
+                        }
                     }
                 }
             }
@@ -535,16 +514,13 @@ impl<'f> PerFunctionContext<'f> {
                     let result = self.inserter.function.dfg.instruction_results(instruction)[0];
                     let array = *array;
 
-                    let expression = Expression::ArrayElement(array);
-
-                    let mut aliases = if let Some(aliases) = references.aliases.get_mut(&expression)
-                    {
+                    let mut aliases = if let Some(aliases) = references.containers.get_mut(&array) {
                         aliases.clone()
                     } else if let Some((elements, _)) =
                         self.inserter.function.dfg.get_array_constant(array)
                     {
                         let aliases = references.collect_all_aliases(elements);
-                        self.set_aliases(references, array, aliases.clone());
+                        references.containers.insert(array, aliases.clone());
                         aliases
                     } else {
                         AliasSet::unknown()
@@ -552,8 +528,7 @@ impl<'f> PerFunctionContext<'f> {
 
                     aliases.unify(&references.get_aliases_for_value(*value));
 
-                    references.expressions.insert(result, expression);
-                    references.aliases.insert(expression, aliases);
+                    references.containers.insert(result, aliases);
 
                     // Similar to how we remember that we used a value in a `Store` instruction,
                     // take note that it was used in the `ArraySet`. If this instruction is not
@@ -577,12 +552,19 @@ impl<'f> PerFunctionContext<'f> {
                 // as a potential alias to the array itself.
                 if typ.contains_reference() {
                     let array = self.inserter.function.dfg.instruction_results(instruction)[0];
+                    let mut aliases = AliasSet::known_empty();
+                    self.add_array_aliases(references, elements, &mut aliases);
+                    references.containers.insert(array, aliases);
 
-                    let expr = Expression::ArrayElement(array);
-                    references.expressions.insert(array, expr);
-                    let aliases = references.aliases.entry(expr).or_insert(AliasSet::known_empty());
-
-                    self.add_array_aliases(elements, aliases);
+                    // If any type is a reference, mark all elements as used.
+                    // Note that we do not care about nested arrays containing references.
+                    // Their make_array instructions should have already marked their references used.
+                    let element_types = typ.clone().element_types();
+                    if element_types.iter().any(|typ| typ.is_reference()) {
+                        for element in elements {
+                            references.mark_value_used(*element, &self.inserter.function);
+                        }
+                    }
                 }
             }
             Instruction::IfElse { then_value, else_value, .. } => {
@@ -590,24 +572,21 @@ impl<'f> PerFunctionContext<'f> {
                 let result_type = self.inserter.function.dfg.type_of_value(result);
 
                 if result_type.contains_reference() {
-                    let expr = Expression::Other(result);
-                    references.expressions.insert(result, expr);
-                    references.aliases.insert(
-                        expr,
-                        AliasSet::known_multiple(vec![*then_value, *else_value].into()),
-                    );
+                    if result_type.is_reference() {
+                        references.insert_fresh_reference(result);
+                        // `then_value` and `else_value` are now aliased by `result`
+                        references.add_alias(result, *then_value);
+                        references.add_alias(result, *else_value);
+                    } else {
+                        let mut result_container =
+                            references.containers.get(then_value).cloned().unwrap_or_default();
 
-                    // `then_value` and `else_value` are now aliased by `result`
-                    if let Some(then_expr) = references.expressions.get_mut(then_value) {
-                        if let Some(then_aliases) = references.aliases.get_mut(then_expr) {
-                            then_aliases.insert(result);
+                        match references.containers.get(else_value) {
+                            Some(else_container) => result_container.unify(else_container),
+                            None => result_container = AliasSet::unknown(),
                         }
-                    }
 
-                    if let Some(else_expr) = references.expressions.get_mut(else_value) {
-                        if let Some(else_aliases) = references.aliases.get_mut(else_expr) {
-                            else_aliases.insert(result);
-                        }
+                        references.containers.insert(result, result_container);
                     }
                 }
             }
@@ -617,21 +596,34 @@ impl<'f> PerFunctionContext<'f> {
 
     /// In order to handle nested arrays we need to recursively search whether there are any references
     /// contained within an array's elements.
-    fn add_array_aliases(&self, elements: &im::Vector<ValueId>, aliases: &mut AliasSet) {
+    fn add_array_aliases(
+        &self,
+        references: &Block,
+        elements: &im::Vector<ValueId>,
+        aliases: &mut AliasSet,
+    ) {
         for &element in elements {
-            if let Some((elements, _)) = self.inserter.function.dfg.get_array_constant(element) {
-                self.add_array_aliases(&elements, aliases);
-            } else if self.inserter.function.dfg.value_is_reference(element) {
-                aliases.insert(element);
+            let element_type = self.inserter.function.dfg.type_of_value(element);
+
+            // If the element is an alias, mark the array as being potentially aliased to
+            // anything the reference is aliased to.
+            if element_type.is_reference() {
+                let element_aliases = references.get_aliases_for_value(element);
+                aliases.unify(&element_aliases);
+            // element is an array which contains references
+            } else if element_type.is_array_or_slice() && element_type.contains_reference() {
+                match references.containers.get(&element) {
+                    Some(element_aliases) if !element_aliases.is_unknown() => {
+                        aliases.unify(element_aliases)
+                    }
+                    _ => {
+                        *aliases = AliasSet::unknown();
+                        // No need to continue
+                        return;
+                    }
+                }
             }
         }
-    }
-
-    fn set_aliases(&self, references: &mut Block, address: ValueId, new_aliases: AliasSet) {
-        let expression =
-            references.expressions.entry(address).or_insert(Expression::Other(address));
-        let aliases = references.aliases.entry(*expression).or_default();
-        *aliases = new_aliases;
     }
 
     fn mark_all_unknown(&self, values: &[ValueId], references: &mut Block) {
@@ -643,7 +635,7 @@ impl<'f> PerFunctionContext<'f> {
                 references.mark_value_used(value, self.inserter.function);
 
                 // If a reference is an argument to a call, the last load to that address and its aliases needs to remain.
-                references.keep_last_load_for(value);
+                // references.keep_last_load_for(value);
             }
         }
     }
@@ -691,23 +683,22 @@ impl<'f> PerFunctionContext<'f> {
                             return;
                         }
                         Type::Reference(_) => {
-                            if let Some(expression) = references.expressions.get(argument) {
-                                if let Some(aliases) = references.aliases.get_mut(expression) {
-                                    let argument = *argument;
+                            if let Some(aliases) = references.aliases.get_mut(&argument) {
+                                let argument = *argument;
 
-                                    // The argument reference is possibly aliased by this block parameter
-                                    aliases.insert(*parameter);
+                                // The argument reference is possibly aliased by this block parameter
+                                aliases.insert(*parameter);
 
-                                    // Check if we have seen the same argument
-                                    let seen_parameters = arg_set
-                                        .entry(argument)
-                                        .or_insert_with(|| VecSet::single(argument));
-                                    // Add the current parameter to the parameters we have seen for this argument.
-                                    // The previous parameters and the current one alias one another.
-                                    seen_parameters.insert(*parameter);
-                                    // Also add all of the argument aliases
-                                    seen_parameters.extend(aliases.iter());
-                                }
+                                // Check if we have seen the same argument
+                                let seen_parameters = arg_set
+                                    .entry(argument)
+                                    .or_insert_with(|| VecSet::single(argument));
+
+                                // Add the current parameter to the parameters we have seen for this argument.
+                                // The previous parameters and the current one alias one another.
+                                seen_parameters.insert(*parameter);
+                                // Also add all of the argument aliases
+                                seen_parameters.extend(aliases.iter());
                             }
                         }
                         typ if typ.contains_reference() => {
@@ -721,11 +712,8 @@ impl<'f> PerFunctionContext<'f> {
                 // Set the aliases of the parameters
                 for (_, aliased_params) in arg_set {
                     for param in aliased_params.iter() {
-                        self.set_aliases(
-                            references,
-                            *param,
-                            AliasSet::known_multiple(aliased_params.clone()),
-                        );
+                        let aliases = AliasSet::known_multiple(aliased_params.clone());
+                        references.aliases.insert(*param, aliases);
                     }
                 }
             }
