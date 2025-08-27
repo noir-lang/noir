@@ -1,10 +1,10 @@
-use std::collections::HashSet;
 use std::sync::Arc;
 
 use fxhash::FxHashMap as HashMap;
 use petgraph::visit::DfsPostOrder;
 
-use crate::ssa::ir::call_graph::{CallGraph, called_functions};
+use crate::ssa::ir::call_graph::CallGraph;
+use crate::ssa::opt::brillig_entry_points::get_brillig_entry_points;
 use crate::ssa::{
     ir::{
         function::{Function, FunctionId},
@@ -28,7 +28,7 @@ impl Ssa {
     /// identified as calling known pure functions.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn purity_analysis(mut self) -> Ssa {
-        let brillig_entry_points = compute_brillig_entry_points(&self);
+        let brillig_entry_points = get_brillig_entry_points(&self.functions, self.main_id);
 
         // First look through each function to get a baseline on its purity and collect
         // the functions it calls to build a call graph.
@@ -36,7 +36,7 @@ impl Ssa {
             .functions
             .values()
             .map(|function| {
-                let is_brillig_entry_point = brillig_entry_points.contains(&function.id());
+                let is_brillig_entry_point = brillig_entry_points.contains_key(&function.id());
                 (function.id(), function.is_pure(is_brillig_entry_point))
             })
             .collect();
@@ -279,31 +279,6 @@ fn analyze_call_graph(
     }
 
     finished_purities
-}
-
-/// Returns the set of Brillig functions that are entrypoints:
-/// main (if it's Brillig) and any Brillig functions that are called from ACIR.
-fn compute_brillig_entry_points(ssa: &Ssa) -> HashSet<FunctionId> {
-    let mut brillig_entry_points = HashSet::new();
-
-    // Add main if it's Brillig
-    let main = ssa.main();
-    if main.runtime().is_brillig() {
-        brillig_entry_points.insert(main.id());
-    }
-
-    // Check, for every ACIR functions, which brillig functions they call: those are entry points.
-    for function in ssa.functions.values() {
-        if function.runtime().is_acir() {
-            for called_function in called_functions(function) {
-                if ssa.functions[&called_function].runtime().is_brillig() {
-                    brillig_entry_points.insert(called_function);
-                }
-            }
-        }
-    }
-
-    brillig_entry_points
 }
 
 #[cfg(test)]
