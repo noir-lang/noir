@@ -490,7 +490,7 @@ impl<'f> LoopInvariantContext<'f> {
     }
 
     /// Get and resolve the induction variable of a loop.
-    fn get_induction_variable(&mut self, loop_: &Loop) -> Option<ValueId> {
+    fn get_induction_variable(&self, loop_: &Loop) -> Option<ValueId> {
         loop_.get_induction_variable(self.inserter.function).map(|v| self.inserter.resolve(v))
     }
 
