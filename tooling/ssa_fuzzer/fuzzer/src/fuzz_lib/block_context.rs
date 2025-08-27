@@ -270,9 +270,9 @@ impl BlockContext {
                 if !self.options.instruction_options.and_enabled {
                     return;
                 }
-                if lhs.numeric_type == NumericType::Field {
+                /*if lhs.numeric_type == NumericType::Field {
                     return;
-                }
+                }*/
                 self.insert_instruction_with_double_args(
                     acir_builder,
                     brillig_builder,
