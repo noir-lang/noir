@@ -203,8 +203,8 @@ impl<'f> LoopInvariantContext<'f> {
         rhs: &ValueId,
     ) -> Option<(bool, ValueId, ValueId)> {
         let (is_left, lower, upper) = match (
-            self.current_induction_variables.get(lhs),
-            self.current_induction_variables.get(rhs),
+            self.get_current_induction_variable_bounds(*lhs),
+            self.get_current_induction_variable_bounds(*rhs),
         ) {
             (_, Some((lower, upper))) => Some((false, lower, upper)),
             (Some((lower, upper)), _) => Some((true, lower, upper)),
@@ -255,6 +255,15 @@ impl<'f> LoopInvariantContext<'f> {
         }
     }
 
+    fn get_current_induction_variable_bounds(
+        &self,
+        id: ValueId,
+    ) -> Option<(IntegerConstant, IntegerConstant)> {
+        self.current_induction_variable
+            .filter(|(val, _, _)| *val == id)
+            .map(|(_, low, high)| (low, high))
+    }
+
     /// If the inputs are an induction variable and a constant, it returns
     /// the constant value, the maximum and minimum values of the induction variable, based on the loop bounds,
     /// and a boolean indicating if the induction variable is on the lhs or rhs (true for lhs)
@@ -270,22 +279,20 @@ impl<'f> LoopInvariantContext<'f> {
         match (
             lhs_const,
             rhs_const,
-            self.current_induction_variables
-                .get(lhs)
+            self.get_current_induction_variable_bounds(*lhs)
                 .and_then(|v| if only_outer_induction { None } else { Some(v) })
-                .or(self.outer_induction_variables.get(lhs)),
-            self.current_induction_variables
-                .get(rhs)
+                .or(self.outer_induction_variables.get(lhs).copied()),
+            self.get_current_induction_variable_bounds(*lhs)
                 .and_then(|v| if only_outer_induction { None } else { Some(v) })
-                .or(self.outer_induction_variables.get(rhs)),
+                .or(self.outer_induction_variables.get(rhs).copied()),
         ) {
             // LHS is a constant, RHS is the induction variable with a known lower and upper bound.
             (Some(lhs), None, None, Some((lower_bound, upper_bound))) => {
-                Some((false, lhs, *lower_bound, *upper_bound))
+                Some((false, lhs, lower_bound, upper_bound))
             }
             // RHS is a constant, LHS is the induction variable with a known lower an upper bound
             (None, Some(rhs), Some((lower_bound, upper_bound)), None) => {
-                Some((true, rhs, *lower_bound, *upper_bound))
+                Some((true, rhs, lower_bound, upper_bound))
             }
             _ => None,
         }

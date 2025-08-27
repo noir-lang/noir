@@ -187,11 +187,8 @@ struct LoopInvariantContext<'f> {
     inserter: FunctionInserter<'f>,
     defined_in_loop: HashSet<ValueId>,
     loop_invariants: HashSet<ValueId>,
-    /// Maps current loop induction variable -> fixed lower and upper loop bound
-    /// This map is expected to only ever contain a singular value.
-    /// However, we store it in a map in order to match the definition of
-    /// `outer_induction_variables` as both maps share checks for evaluating binary operations.
-    current_induction_variables: HashMap<ValueId, (IntegerConstant, IntegerConstant)>,
+    /// Maps current loop induction variable with a fixed lower and upper loop bound
+    current_induction_variable: Option<(ValueId, IntegerConstant, IntegerConstant)>,
     /// Maps outer loop induction variable -> fixed lower and upper loop bound
     /// This will be used by inner loops to determine whether they
     /// have safe operations reliant upon an outer loop's maximum induction variable
@@ -273,7 +270,7 @@ impl<'f> LoopInvariantContext<'f> {
             inserter: FunctionInserter::new(function),
             defined_in_loop: HashSet::default(),
             loop_invariants: HashSet::default(),
-            current_induction_variables: HashMap::default(),
+            current_induction_variable: None,
             outer_induction_variables: HashMap::default(),
             all_induction_variables: HashMap::default(),
             current_pre_header: None,
@@ -472,7 +469,8 @@ impl<'f> LoopInvariantContext<'f> {
         }
 
         // If the current loop doesn't execute, then nothing does.
-        if !check_bounds(self.current_induction_variables.values().next()) {
+        if !check_bounds(self.current_induction_variable.map(|(_, low, high)| (low, high)).as_ref())
+        {
             return false;
         }
 
@@ -508,7 +506,7 @@ impl<'f> LoopInvariantContext<'f> {
         // There is only ever one current induction variable for a loop.
         // For a new loop, we clear the previous induction variable and then
         // set the new current induction variable.
-        self.current_induction_variables.clear();
+        self.current_induction_variable = None;
         self.set_induction_var_bounds(loop_, Some(true));
         self.no_break = loop_.is_fully_executed(&self.cfg);
         // Clear any cached control dependent nested loop blocks from the previous loop.
@@ -601,7 +599,7 @@ impl<'f> LoopInvariantContext<'f> {
     /// such as transforming a checked add to an unchecked add.
     ///
     /// Depending on the value of `current_loop` this has 3 modes:
-    /// * `true` sets it in `current_induction_variables`
+    /// * `true` sets it in `current_induction_variable`
     /// * `false` sets it for the `outer_induction_variables`, but this must only happen after the current one is finished
     /// * `None` sets it in `all_induction_variables`, which is used to make decisions about inner nested loops
     fn set_induction_var_bounds(&mut self, loop_: &Loop, current_loop: Option<bool>) {
@@ -622,8 +620,8 @@ impl<'f> LoopInvariantContext<'f> {
             };
             match current_loop {
                 Some(true) => {
-                    self.current_induction_variables
-                        .insert(induction_variable, (lower_bound, upper_bound));
+                    self.current_induction_variable =
+                        Some((induction_variable, lower_bound, upper_bound));
                 }
                 Some(false) => {
                     self.outer_induction_variables
