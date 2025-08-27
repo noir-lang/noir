@@ -339,10 +339,10 @@ impl<'f> LoopInvariantContext<'f> {
 
         // Insert all loop bounds up front, so we can inspect both outer and nested loops.
         for loop_ in loops {
-            if let Some((induction_variable, bounds)) = loop_
-                .get_pre_header(context.inserter.function, &context.cfg)
-                .ok()
-                .and_then(|pre_header| context.get_induction_var_bounds(loop_, pre_header))
+            if let Some((induction_variable, bounds)) =
+                loop_.get_pre_header(context.inserter.function, &context.cfg).ok().and_then(
+                    |pre_header| get_induction_var_bounds(&context.inserter, loop_, pre_header),
+                )
             {
                 context.all_induction_variables.insert(induction_variable, bounds);
             };
@@ -426,7 +426,8 @@ impl<'f> LoopInvariantContext<'f> {
         }
 
         // We're now done with this loop so it's no safe to insert its bounds into `outer_induction_variables`.
-        if let Some((induction_variable, bounds)) = self.get_induction_var_bounds(loop_, pre_header)
+        if let Some((induction_variable, bounds)) =
+            get_induction_var_bounds(&self.inserter, loop_, pre_header)
         {
             self.outer_induction_variables.insert(induction_variable, bounds);
         };
@@ -564,7 +565,7 @@ impl<'f> LoopInvariantContext<'f> {
             if !nested.blocks.contains(&block) {
                 continue;
             }
-            let Some(induction_variable) = self.get_induction_variable(nested) else {
+            let Some(induction_variable) = get_induction_variable(&self.inserter, nested) else {
                 // If we don't know what the induction variable is, we can't say if it executes.
                 return false;
             };
@@ -574,11 +575,6 @@ impl<'f> LoopInvariantContext<'f> {
         }
 
         true
-    }
-
-    /// Get and resolve the induction variable of a loop.
-    fn get_induction_variable(&self, loop_: &Loop) -> Option<ValueId> {
-        loop_.get_induction_variable(self.inserter.function).map(|v| self.inserter.resolve(v))
     }
 
     /// Gather the variables declared within the loop
@@ -601,7 +597,7 @@ impl<'f> LoopInvariantContext<'f> {
 
         LoopContext {
             // There is only ever one current induction variable for a loop.
-            current_induction_variable: self.get_induction_var_bounds(loop_, pre_header),
+            current_induction_variable: get_induction_var_bounds(&self.inserter, loop_, pre_header),
             pre_header: Some(pre_header),
             defined_in_loop,
             loop_invariants: HashSet::default(),
@@ -645,24 +641,6 @@ impl<'f> LoopInvariantContext<'f> {
                 .loop_context
                 .can_be_hoisted_with_control_dependence(&instruction, self.inserter.function)
             || self.can_be_hoisted_from_loop_bounds(&instruction)
-    }
-
-    /// Keep track of a loop induction variable and respective upper bound.
-    ///
-    /// In the case of a nested loop, this will be used by later loops to determine
-    /// whether they have operations reliant upon the maximum induction variable.
-    ///
-    /// When within the current loop, the known upper bound can be used to simplify instructions,
-    /// such as transforming a checked add to an unchecked add.
-    fn get_induction_var_bounds(
-        &self,
-        loop_: &Loop,
-        pre_header: BasicBlockId,
-    ) -> Option<(ValueId, (IntegerConstant, IntegerConstant))> {
-        let bounds = loop_.get_const_bounds(self.inserter.function, pre_header);
-
-        self.get_induction_variable(loop_)
-            .and_then(|induction_variable| bounds.map(|bounds| (induction_variable, bounds)))
     }
 
     /// Certain instructions can take advantage of that our induction variable has a fixed minimum/maximum.
@@ -722,6 +700,29 @@ impl<'f> LoopInvariantContext<'f> {
             self.inserter.map_terminator_in_place(block);
         }
     }
+}
+
+/// Get and resolve the induction variable of a loop.
+fn get_induction_variable(inserter: &FunctionInserter, loop_: &Loop) -> Option<ValueId> {
+    loop_.get_induction_variable(inserter.function).map(|v| inserter.resolve(v))
+}
+
+/// Keep track of a loop induction variable and respective upper bound.
+///
+/// In the case of a nested loop, this will be used by later loops to determine
+/// whether they have operations reliant upon the maximum induction variable.
+///
+/// When within the current loop, the known upper bound can be used to simplify instructions,
+/// such as transforming a checked add to an unchecked add.
+fn get_induction_var_bounds(
+    inserter: &FunctionInserter,
+    loop_: &Loop,
+    pre_header: BasicBlockId,
+) -> Option<(ValueId, (IntegerConstant, IntegerConstant))> {
+    let bounds = loop_.get_const_bounds(inserter.function, pre_header);
+
+    get_induction_variable(inserter, loop_)
+        .and_then(|induction_variable| bounds.map(|bounds| (induction_variable, bounds)))
 }
 
 /// Indicates if the instruction can be safely hoisted out of a loop.
