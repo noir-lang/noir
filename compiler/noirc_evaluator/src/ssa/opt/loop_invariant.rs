@@ -181,7 +181,7 @@ struct LoopInvariantContext<'f> {
     defined_in_loop: HashSet<ValueId>,
     loop_invariants: HashSet<ValueId>,
     /// Maps current loop induction variable with a fixed lower and upper loop bound
-    current_induction_variable: Option<(ValueId, IntegerConstant, IntegerConstant)>,
+    current_induction_variable: Option<(ValueId, (IntegerConstant, IntegerConstant))>,
     /// Maps outer loop induction variable -> fixed lower and upper loop bound
     /// This will be used by inner loops to determine whether they
     /// have safe operations reliant upon an outer loop's maximum induction variable
@@ -483,7 +483,7 @@ impl<'f> LoopInvariantContext<'f> {
         }
 
         // If the current loop doesn't execute, then nothing does.
-        if !check_bounds(self.current_induction_variable.map(|(_, low, high)| (low, high))) {
+        if !check_bounds(self.current_induction_variable.map(|(_, bounds)| bounds)) {
             return false;
         }
 
@@ -521,9 +521,7 @@ impl<'f> LoopInvariantContext<'f> {
         // There is only ever one current induction variable for a loop.
         // For a new loop, we clear the previous induction variable and then
         // set the new current induction variable.
-        self.current_induction_variable = self
-            .get_induction_var_bounds(loop_, pre_header)
-            .map(|(induction_variable, bounds)| (induction_variable, bounds.0, bounds.1));
+        self.current_induction_variable = self.get_induction_var_bounds(loop_, pre_header);
         self.no_break = loop_.is_fully_executed(&self.cfg);
         // Clear any cached control dependent nested loop blocks from the previous loop.
         // This set is only relevant within the scope of a single loop.

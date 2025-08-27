@@ -259,9 +259,7 @@ impl<'f> LoopInvariantContext<'f> {
         &self,
         id: ValueId,
     ) -> Option<(IntegerConstant, IntegerConstant)> {
-        self.current_induction_variable
-            .filter(|(val, _, _)| *val == id)
-            .map(|(_, low, high)| (low, high))
+        self.current_induction_variable.filter(|(val, _)| *val == id).map(|(_, bounds)| bounds)
     }
 
     /// If the inputs are an induction variable and a constant, it returns
