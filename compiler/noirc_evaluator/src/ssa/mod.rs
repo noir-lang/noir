@@ -102,9 +102,6 @@ pub struct SsaEvaluatorOptions {
 pub struct ArtifactsAndWarnings(pub Artifacts, pub Vec<SsaReport>);
 
 /// The default SSA optimization pipeline.
-///
-/// After these passes everything is ready for execution, which is
-/// something we take can advantage of in the [secondary_passes].
 pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
     vec![
         SsaPass::new(Ssa::expand_signed_checks, "expand signed checks"),
@@ -240,22 +237,14 @@ pub fn minimal_passes() -> Vec<SsaPass<'static>> {
 /// convert the final SSA into an ACIR program and return it.
 /// An ACIR program is made up of both ACIR functions
 /// and Brillig functions for unconstrained execution.
-///
-/// The `primary` SSA passes are applied on the initial SSA.
-/// Then we compile the Brillig functions, and use the output
-/// to run a `secondary` pass, which can use the Brillig
-/// artifacts to do constant folding.
-///
-/// See the [primary_passes] and [secondary_passes] for
-/// the default implementations.
 pub fn optimize_ssa_builder_into_acir(
     builder: SsaBuilder,
     options: &SsaEvaluatorOptions,
-    primary: &[SsaPass],
+    passes: &[SsaPass],
 ) -> Result<ArtifactsAndWarnings, RuntimeError> {
     let ssa_gen_span = span!(Level::TRACE, "ssa_generation");
     let ssa_gen_span_guard = ssa_gen_span.enter();
-    let builder = builder.with_skip_passes(options.skip_passes.clone()).run_passes(primary)?;
+    let builder = builder.with_skip_passes(options.skip_passes.clone()).run_passes(passes)?;
 
     drop(ssa_gen_span_guard);
 
@@ -300,18 +289,10 @@ pub fn optimize_ssa_builder_into_acir(
 /// convert the final SSA into an ACIR program and return it.
 /// An ACIR program is made up of both ACIR functions
 /// and Brillig functions for unconstrained execution.
-///
-/// The `primary` SSA passes are applied on the initial SSA.
-/// Then we compile the Brillig functions, and use the output
-/// to run a `secondary` pass, which can use the Brillig
-/// artifacts to do constant folding.
-///
-/// See the [primary_passes] and [secondary_passes] for
-/// the default implementations.
 pub fn optimize_into_acir(
     program: Program,
     options: &SsaEvaluatorOptions,
-    primary: &[SsaPass],
+    passes: &[SsaPass],
     files: Option<&fm::FileManager>,
 ) -> Result<ArtifactsAndWarnings, RuntimeError> {
     let builder = SsaBuilder::from_program(
@@ -322,7 +303,7 @@ pub fn optimize_into_acir(
         files,
     )?;
 
-    optimize_ssa_builder_into_acir(builder, options, primary)
+    optimize_ssa_builder_into_acir(builder, options, passes)
 }
 
 /// Compiles the [`Program`] into [`ACIR`][acvm::acir::circuit::Program].
@@ -357,13 +338,12 @@ pub fn create_program_with_minimal_passes(
     create_program_with_passes(program, options, &minimal_passes(), Some(files))
 }
 
-/// Compiles the [`Program`] into [`ACIR`][acvm::acir::circuit::Program] by running it through
-/// `primary` and `secondary` SSA passes.
+/// Compiles the [`Program`] into [`ACIR`][acvm::acir::circuit::Program] by running it through SSA `passes`.
 #[tracing::instrument(level = "trace", skip_all)]
 pub fn create_program_with_passes(
     program: Program,
     options: &SsaEvaluatorOptions,
-    primary: &[SsaPass],
+    passes: &[SsaPass],
     files: Option<&fm::FileManager>,
 ) -> Result<SsaProgramArtifact, RuntimeError> {
     let debug_variables = program.debug_variables.clone();
@@ -373,7 +353,7 @@ pub fn create_program_with_passes(
     let arg_size_and_visibilities: Vec<Vec<(u32, Visibility)>> =
         program.function_signatures.iter().map(resolve_function_signature).collect();
 
-    let artifacts = optimize_into_acir(program, options, primary, files)?;
+    let artifacts = optimize_into_acir(program, options, passes, files)?;
 
     Ok(combine_artifacts(
         artifacts,
