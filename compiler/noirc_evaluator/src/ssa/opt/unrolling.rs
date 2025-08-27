@@ -21,8 +21,6 @@
 //!     has when not unrolled.
 //!   - Unrolling may be reverted for brillig functions if the increase in instruction count is
 //!     greater than `max_bytecode_increase_percent` (if set).
-//!   - In ACIR functions, reference count instructions are removed if present (they only have
-//!     effects in brillig functions so are superfluous in ACIR).
 //!   - Differing post-conditions (see below).
 //!
 //! Relevance to other passes:
@@ -59,7 +57,7 @@ use crate::{
             dom::DominatorTree,
             function::Function,
             function_inserter::FunctionInserter,
-            instruction::{Binary, BinaryOp, Instruction, InstructionId, TerminatorInstruction},
+            instruction::{Binary, BinaryOp, Instruction, TerminatorInstruction},
             integer::IntegerConstant,
             post_order::PostOrder,
             value::ValueId,
@@ -1056,10 +1054,6 @@ impl<'f> LoopIteration<'f> {
         // instances of the induction variable or any values that were changed as a result
         // of the new induction variable value.
         for instruction in instructions {
-            // Reference counting is only used by Brillig, ACIR doesn't need them.
-            if self.inserter.function.runtime().is_acir() && self.is_refcount(instruction) {
-                continue;
-            }
             self.inserter.push_instruction(instruction, self.insert_block);
         }
         let mut terminator = self.dfg()[self.source_block].unwrap_terminator().clone();
@@ -1070,14 +1064,6 @@ impl<'f> LoopIteration<'f> {
         // while remembering which were the original block IDs.
         terminator.mutate_blocks(|block| self.get_or_insert_block(block));
         self.inserter.function.dfg.set_block_terminator(self.insert_block, terminator);
-    }
-
-    /// Is the instruction an `Rc`?
-    fn is_refcount(&self, instruction: InstructionId) -> bool {
-        matches!(
-            self.dfg()[instruction],
-            Instruction::IncrementRc { .. } | Instruction::DecrementRc { .. }
-        )
     }
 
     fn dfg(&self) -> &DataFlowGraph {
