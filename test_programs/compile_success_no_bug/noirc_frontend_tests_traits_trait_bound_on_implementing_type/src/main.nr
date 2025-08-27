@@ -1,5 +1,5 @@
 
-    pub struct GenericStruct<T> {
+    struct GenericStruct<T> {
         inner: T,
     }
 
@@ -27,5 +27,4 @@
     fn main() {
         GenericStruct::<Field>::bar();
     }
-
     
