@@ -2204,7 +2204,7 @@ fn trait_method_numeric_generic_on_function() {
 #[test]
 fn trait_bound_on_implementing_type() {
     let src = r#"
-    pub struct GenericStruct<T> {
+    struct GenericStruct<T> {
         inner: T,
     }
 
@@ -2227,6 +2227,10 @@ fn trait_bound_on_implementing_type() {
         fn bar() {
             <Self as Foo>::foo()
         }
+    }
+    
+    fn main() {
+        GenericStruct::<Field>::bar();
     }
     "#;
     assert_no_errors!(src);

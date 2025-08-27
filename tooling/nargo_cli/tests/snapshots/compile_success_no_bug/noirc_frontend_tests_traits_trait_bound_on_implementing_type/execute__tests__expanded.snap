@@ -33,3 +33,7 @@ impl Foo for Field {
 trait Bar {
     fn bar();
 }
+
+fn main() {
+    GenericStruct::<Field>::bar();
+}

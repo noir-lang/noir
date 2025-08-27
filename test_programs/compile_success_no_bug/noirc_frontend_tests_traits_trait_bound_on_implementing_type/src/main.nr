@@ -24,3 +24,8 @@
         }
     }
     
+    fn main() {
+        GenericStruct::<Field>::bar();
+    }
+
+    
