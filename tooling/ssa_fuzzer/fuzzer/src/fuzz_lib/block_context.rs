@@ -963,7 +963,6 @@ impl BlockContext {
                     prepared_signature.public_key_x.clone(),
                     prepared_signature.public_key_y.clone(),
                     prepared_signature.hash.clone(),
-                    hash_size,
                     prepared_signature.signature.clone(),
                     predicate,
                 );
@@ -974,7 +973,6 @@ impl BlockContext {
                             prepared_signature.public_key_x,
                             prepared_signature.public_key_y,
                             prepared_signature.hash,
-                            hash_size,
                             prepared_signature.signature,
                             predicate,
                         )
@@ -1010,7 +1008,6 @@ impl BlockContext {
                     prepared_signature.public_key_x.clone(),
                     prepared_signature.public_key_y.clone(),
                     prepared_signature.hash.clone(),
-                    hash_size,
                     prepared_signature.signature.clone(),
                     predicate,
                 );
@@ -1021,7 +1018,6 @@ impl BlockContext {
                             prepared_signature.public_key_x,
                             prepared_signature.public_key_y,
                             prepared_signature.hash,
-                            hash_size,
                             prepared_signature.signature,
                             predicate,
                         )

@@ -953,7 +953,6 @@ impl FuzzerBuilder {
         pub_key_x: Vec<u8>,
         pub_key_y: Vec<u8>,
         hash: Vec<u8>,
-        hash_size: u32,
         signature: Vec<u8>,
         predicate: bool,
     ) -> TypedValue {
@@ -989,7 +988,6 @@ impl FuzzerBuilder {
         pub_key_x: Vec<u8>,
         pub_key_y: Vec<u8>,
         hash: Vec<u8>,
-        hash_size: u32,
         signature: Vec<u8>,
         predicate: bool,
     ) -> TypedValue {
