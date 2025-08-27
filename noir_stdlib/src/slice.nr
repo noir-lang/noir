@@ -195,7 +195,7 @@ mod test {
         let a = &[1, 2, 3];
         let b = a.map(|a| a * 2);
         assert_eq(b, &[2, 4, 6]);
-        assert_eq(a,&[1, 2, 3]);
+        assert_eq(a, &[1, 2, 3]);
     }
 
     #[test]
@@ -272,7 +272,7 @@ mod test {
         assert_eq(result, &[0, 1, 2, 3]);
     }
 
-    #[test(should_fail_with="Index out of bounds")]
+    #[test(should_fail_with = "Index out of bounds")]
     fn pop_back_empty() {
         let slice: [Field] = &[];
         let (_, _) = slice.pop_back();
@@ -295,7 +295,7 @@ mod test {
         assert_eq(elem, 3);
     }
 
-    #[test(should_fail_with="Index out of bounds")]
+    #[test(should_fail_with = "Index out of bounds")]
     fn pop_front_empty() {
         let slice: [Field] = &[];
         let (_, _) = slice.pop_front();
@@ -342,13 +342,13 @@ mod test {
         assert_eq(result, &[1, 2, 3, 4]);
     }
 
-    #[test(should_fail_with="Index out of bounds")]
+    #[test(should_fail_with = "Index out of bounds")]
     fn insert_end_out_of_bounds() {
         let slice = &[1, 2];
         let _ = slice.insert(3, 4);
     }
 
-    #[test(should_fail_with="Index out of bounds")]
+    #[test(should_fail_with = "Index out of bounds")]
     fn remove_empty() {
         let slice: [Field] = &[];
         let (_, _) = slice.remove(0);
@@ -381,7 +381,7 @@ mod test {
         assert_eq(elem, 3);
     }
 
-    #[test(should_fail_with="Index out of bounds, array has size 2, but index was 2")]
+    #[test(should_fail_with = "Index out of bounds, array has size 2, but index was 2")]
     fn remove_end_out_of_bounds() {
         let slice = &[1, 2];
         let (_, _) = slice.remove(2);
@@ -408,7 +408,7 @@ mod test {
         assert_eq(result, 10);
     }
 
-    #[test(should_fail_with="Index out of bounds")]
+    #[test(should_fail_with = "Index out of bounds")]
     fn reduce_empty() {
         let empty: [Field] = &[];
         let _ = empty.reduce(|a, b| a + b);
@@ -551,10 +551,7 @@ mod test {
     #[test]
     fn chain_operations() {
         let slice = &[1, 2, 3, 4, 5];
-        let result = slice
-            .filter(|x| x % 2 == 0)
-            .map(|x| x * 2)
-            .fold(0, |acc, x| acc + x);
+        let result = slice.filter(|x| x % 2 == 0).map(|x| x * 2).fold(0, |acc, x| acc + x);
         assert_eq(result, 12); // (2*2) + (4*2) = 4 + 8 = 12
     }
 
@@ -570,27 +567,27 @@ mod test {
     #[test]
     fn single_element_operations() {
         let single = &[42];
-        
+
         // Test all operations on single element
         assert_eq(single.len(), 1);
-        
+
         let pushed_back = single.push_back(99);
         assert_eq(pushed_back, &[42, 99]);
-        
+
         let pushed_front = single.push_front(0);
         assert_eq(pushed_front, &[0, 42]);
-        
+
         let (popped_back_slice, popped_back_elem) = single.pop_back();
         assert_eq(popped_back_slice.len(), 0);
         assert_eq(popped_back_elem, 42);
-        
+
         let (popped_front_elem, popped_front_slice) = single.pop_front();
         assert_eq(popped_front_slice.len(), 0);
         assert_eq(popped_front_elem, 42);
-        
+
         let inserted = single.insert(0, 0);
         assert_eq(inserted, &[0, 42]);
-        
+
         let (removed_slice, removed_elem) = single.remove(0);
         assert_eq(removed_slice.len(), 0);
         assert_eq(removed_elem, 42);
@@ -599,19 +596,19 @@ mod test {
     #[test]
     fn boundary_conditions() {
         let slice = &[1, 2, 3];
-        
+
         // insert at boundaries
         let at_start = slice.insert(0, 0);
         assert_eq(at_start, &[0, 1, 2, 3]);
-        
+
         let at_end = slice.insert(3, 4);
         assert_eq(at_end, &[1, 2, 3, 4]);
-        
+
         // remove at boundaries
         let (removed_start, elem_start) = slice.remove(0);
         assert_eq(removed_start, &[2, 3]);
         assert_eq(elem_start, 1);
-        
+
         let (removed_end, elem_end) = slice.remove(2);
         assert_eq(removed_end, &[1, 2]);
         assert_eq(elem_end, 3);
@@ -620,13 +617,13 @@ mod test {
     #[test]
     fn complex_predicates() {
         let slice = &[1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-        
+
         let even_greater_than_5 = slice.filter(|x| (x % 2 == 0) & (x > 5));
         assert_eq(even_greater_than_5, &[6, 8, 10]);
-        
+
         let all_positive_and_less_than_20 = slice.all(|x| (x > 0) & (x < 20));
         assert_eq(all_positive_and_less_than_20, true);
-        
+
         let any_divisible_by_7 = slice.any(|x| x % 7 == 0);
         assert_eq(any_divisible_by_7, true);
     }
@@ -634,18 +631,18 @@ mod test {
     #[test]
     fn identity_operations() {
         let slice = &[1, 2, 3, 4, 5];
-        
+
         let mapped_identity = slice.map(|x| x);
         assert_eq(mapped_identity, slice);
-        
+
         let filtered_all = slice.filter(|_| true);
         assert_eq(filtered_all, slice);
-        
+
         let filtered_none = slice.filter(|_| false);
         assert_eq(filtered_none.len(), 0);
     }
 
-    #[test(should_fail_with="Failed constraint")]
+    #[test(should_fail_with = "Failed constraint")]
     fn as_array_size_mismatch() {
         let slice = &[1, 2, 3];
         let _: [Field; 5] = slice.as_array(); // size doesn't match
