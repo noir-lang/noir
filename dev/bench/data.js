@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1756262262553,
+  "lastUpdate": 1756291196569,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -20171,48 +20171,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "80501a8fc54f7483b4136c0040afa31e222ee5eb",
-          "message": "feat: remove redundant `enforce_bitshift_rhs_lt_bit_size` (#9561)",
-          "timestamp": "2025-08-19T17:10:55Z",
-          "tree_id": "ca2bfa9df77d20f82dbcc9982075aa89ec8ce3f4",
-          "url": "https://github.com/noir-lang/noir/commit/80501a8fc54f7483b4136c0040afa31e222ee5eb"
-        },
-        "date": 1755625073168,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 248903,
-            "range": "± 1203",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 219417,
-            "range": "± 4746",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2781931,
-            "range": "± 6725",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "66ba28ef33757afecc2d3fd62337117f84344913",
           "message": "fix: bind trait impl func generics to trait func generics during monomorphization (#9566)",
           "timestamp": "2025-08-19T19:48:07Z",
@@ -22254,6 +22212,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2789769,
             "range": "± 3939",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "bf662eefb1cfa97be05fa9fc88d869b388b61570",
+          "message": "fix: validate binary operations which do not allow fields (#9649)",
+          "timestamp": "2025-08-27T10:13:08Z",
+          "tree_id": "f842ba7d6b06253008f81ee84d1bd4fd6907b80d",
+          "url": "https://github.com/noir-lang/noir/commit/bf662eefb1cfa97be05fa9fc88d869b388b61570"
+        },
+        "date": 1756291177361,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 249658,
+            "range": "± 518",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 218474,
+            "range": "± 2617",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2787052,
+            "range": "± 8430",
             "unit": "ns/iter"
           }
         ]
