@@ -83,14 +83,10 @@ use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
         cfg::ControlFlowGraph,
-        dfg::simplify::SimplifyResult,
         dom::DominatorTree,
         function::Function,
         function_inserter::FunctionInserter,
-        instruction::{
-            Binary, BinaryOp, ConstrainError, Instruction, InstructionId,
-            binary::{BinaryEvaluationResult, eval_constant_binary_op},
-        },
+        instruction::{Instruction, InstructionId},
         integer::IntegerConstant,
         post_order::PostOrder,
         types::{NumericType, Type},
@@ -100,9 +96,10 @@ use crate::ssa::{
 };
 use acvm::{FieldElement, acir::AcirField};
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
-use noirc_errors::call_stack::CallStackId;
 
 use super::unrolling::{Loop, Loops};
+
+mod simplify;
 
 impl Ssa {
     /// See [`loop_invariant`][self] module for more information.
@@ -124,23 +121,16 @@ impl Function {
 
 impl Loops {
     fn hoist_loop_invariants(mut self, function: &mut Function) {
-        let mut context = LoopInvariantContext::new(function);
-
-        // Insert all loop bounds up front, so we can inspect both outer and nested loops.
-        for loop_ in &self.yet_to_unroll {
-            context.set_induction_var_bounds(loop_, None);
-        }
+        let mut context = LoopInvariantContext::new(function, &self.yet_to_unroll);
 
         // The loops should be sorted by the number of blocks.
         // We want to access outer nested loops first, which we do by popping
         // from the top of the list.
         while let Some(loop_) = self.yet_to_unroll.pop() {
             // If the loop does not have a preheader we skip hoisting loop invariants for this loop
-            let Ok(pre_header) = loop_.get_pre_header(context.inserter.function, &self.cfg) else {
-                continue;
+            if let Ok(pre_header) = loop_.get_pre_header(context.inserter.function, &self.cfg) {
+                context.hoist_loop_invariants(&loop_, &self.yet_to_unroll, pre_header);
             };
-            context.current_pre_header = Some(pre_header);
-            context.hoist_loop_invariants(&loop_, &self.yet_to_unroll);
         }
 
         context.map_dependent_instructions();
@@ -188,26 +178,31 @@ impl Loop {
 
 struct LoopInvariantContext<'f> {
     inserter: FunctionInserter<'f>,
-    defined_in_loop: HashSet<ValueId>,
-    loop_invariants: HashSet<ValueId>,
-    /// Maps current loop induction variable -> fixed lower and upper loop bound
-    /// This map is expected to only ever contain a singular value.
-    /// However, we store it in a map in order to match the definition of
-    /// `outer_induction_variables` as both maps share checks for evaluating binary operations.
-    current_induction_variables: HashMap<ValueId, (IntegerConstant, IntegerConstant)>,
+
     /// Maps outer loop induction variable -> fixed lower and upper loop bound
     /// This will be used by inner loops to determine whether they
     /// have safe operations reliant upon an outer loop's maximum induction variable
     outer_induction_variables: HashMap<ValueId, (IntegerConstant, IntegerConstant)>,
     /// All induction variables collected up front.
     all_induction_variables: HashMap<ValueId, (IntegerConstant, IntegerConstant)>,
-    /// This context struct processes runs across all loops.
-    /// This stores the current loop's pre-header block.
-    /// It is wrapped in an Option as our SSA `Id<T>` does not allow dummy values.
-    current_pre_header: Option<BasicBlockId>,
 
     cfg: ControlFlowGraph,
 
+    /// Maps a block to its post-dominance frontiers
+    post_dom_frontiers: PostDominanceFrontiers,
+
+    // Helper constants
+    true_value: ValueId,
+    false_value: ValueId,
+}
+
+#[derive(Default)]
+struct LoopContext {
+    /// Maps current loop induction variable with a fixed lower and upper loop bound
+    current_induction_variable: Option<(ValueId, (IntegerConstant, IntegerConstant))>,
+    pre_header: Option<BasicBlockId>,
+    defined_in_loop: HashSet<ValueId>,
+    loop_invariants: HashSet<ValueId>,
     /// Caches all blocks that belong to nested loops determined to be control dependent
     /// on blocks in an outer loop. This allows short circuiting future control dependence
     /// checks during loop invariant analysis, as these blocks are guaranteed to be
@@ -215,10 +210,8 @@ struct LoopInvariantContext<'f> {
     ///
     /// Reset for each new loop as the set should not be shared across different outer loops.
     nested_loop_control_dependent_blocks: HashSet<BasicBlockId>,
-
-    // Maps a block to its post-dominance frontiers
-    // This map should be precomputed a single time and used for checking control dependence.
-    post_dom_frontiers: HashMap<BasicBlockId, HashSet<BasicBlockId>>,
+    // Indicates whether the current loop has break or early returns
+    no_break: bool,
 
     // Stores whether the current block being processed is control dependent
     current_block_control_dependent: bool,
@@ -230,68 +223,156 @@ struct LoopInvariantContext<'f> {
     // Stores whether the current block has known fix upper and lower bounds that
     // indicate that it is guaranteed to execute at least once.
     current_block_executes: bool,
-
-    // Indicates whether the current loop has break or early returns
-    no_break: bool,
-    // Helper constants
-    true_value: ValueId,
-    false_value: ValueId,
 }
 
-impl<'f> LoopInvariantContext<'f> {
-    fn new(function: &'f mut Function) -> Self {
-        let cfg = ControlFlowGraph::with_function(function);
-        let reversed_cfg = ControlFlowGraph::extended_reverse(function);
+impl LoopContext {
+    fn pre_header(&self) -> BasicBlockId {
+        self.pre_header.expect("ICE: Pre-header block should have been set")
+    }
+
+    fn is_loop_invariant(&self, value_id: &ValueId) -> bool {
+        !self.defined_in_loop.contains(value_id) || self.loop_invariants.contains(value_id)
+    }
+
+    /// A control dependent instruction (e.g. constrain or division) has more strict conditions for hoisting.
+    /// This function check the following conditions:
+    /// - The current block is non control dependent
+    /// - The loop body is guaranteed to be executed
+    /// - The current block is not impure
+    fn can_hoist_control_dependent_instruction(&self) -> bool {
+        !self.current_block_control_dependent
+            && self.current_block_executes
+            && !self.current_block_impure
+    }
+
+    /// A control dependent instruction (e.g. constrain or division) has more strict conditions for simplifying.
+    /// This function matches [Self::can_hoist_control_dependent_instruction] except
+    /// that simplification does not require that the current block is pure to be simplified.
+    fn can_simplify_control_dependent_instruction(&self) -> bool {
+        !self.current_block_control_dependent && self.current_block_executes
+    }
+
+    /// Check [can_be_hoisted] with extra control dependence information that
+    /// lives within the context of this pass.
+    fn can_be_hoisted_with_control_dependence(
+        &self,
+        instruction: &Instruction,
+        function: &Function,
+    ) -> bool {
+        can_be_hoisted(instruction, function, true)
+            && self.can_hoist_control_dependent_instruction()
+    }
+
+    fn get_current_induction_variable_bounds(
+        &self,
+        id: ValueId,
+    ) -> Option<(IntegerConstant, IntegerConstant)> {
+        self.current_induction_variable.filter(|(val, _)| *val == id).map(|(_, bounds)| bounds)
+    }
+
+    /// Update any values defined in the loop and loop invariants after
+    /// analyzing and re-inserting a loop's instruction.
+    fn extend_values_defined_in_loop_and_invariants(
+        &mut self,
+        values: &[ValueId],
+        hoist_invariant: bool,
+    ) {
+        self.defined_in_loop.extend(values.iter());
+
+        // We also want the update value IDs when we are marking loop invariants as we may not
+        // be going through the blocks of the loop in execution order
+        if hoist_invariant {
+            // Track already found loop invariants
+            self.loop_invariants.extend(values.iter());
+        }
+    }
+}
+
+#[derive(Default)]
+struct PostDominanceFrontiers {
+    post_dom_frontiers: HashMap<BasicBlockId, HashSet<BasicBlockId>>,
+}
+
+impl PostDominanceFrontiers {
+    fn with_function(func: &mut Function) -> Self {
+        let reversed_cfg = ControlFlowGraph::extended_reverse(func);
         let post_order = PostOrder::with_cfg(&reversed_cfg);
         let mut post_dom = DominatorTree::with_cfg_and_post_order(&reversed_cfg, &post_order);
         let post_dom_frontiers = post_dom.compute_dominance_frontiers(&reversed_cfg);
+
+        Self { post_dom_frontiers }
+    }
+
+    /// Checks whether a `block` is control dependent on a `parent_block`.
+    /// Uses post-dominance frontiers to determine control dependence.
+    /// Reference the doc comments at the top of the this module for more information
+    /// regarding post-dominance frontiers and control dependence.
+    fn is_control_dependent(&self, parent_block: BasicBlockId, block: BasicBlockId) -> bool {
+        match self.post_dom_frontiers.get(&block) {
+            Some(dependent_blocks) => dependent_blocks.contains(&parent_block),
+            None => false,
+        }
+    }
+}
+
+impl<'f> LoopInvariantContext<'f> {
+    fn new(function: &'f mut Function, loops: &[Loop]) -> Self {
+        let cfg = ControlFlowGraph::with_function(function);
+        let post_dom_frontiers = PostDominanceFrontiers::with_function(function);
         let true_value =
             function.dfg.make_constant(FieldElement::one(), NumericType::Unsigned { bit_size: 1 });
         let false_value =
             function.dfg.make_constant(FieldElement::zero(), NumericType::Unsigned { bit_size: 1 });
-        Self {
+        let mut context = Self {
             inserter: FunctionInserter::new(function),
-            defined_in_loop: HashSet::default(),
-            loop_invariants: HashSet::default(),
-            current_induction_variables: HashMap::default(),
             outer_induction_variables: HashMap::default(),
             all_induction_variables: HashMap::default(),
-            current_pre_header: None,
             cfg,
-            nested_loop_control_dependent_blocks: HashSet::default(),
             post_dom_frontiers,
-            current_block_control_dependent: false,
-            current_block_impure: false,
-            current_block_executes: false,
             true_value,
             false_value,
-            no_break: false,
-        }
-    }
+        };
 
-    fn pre_header(&self) -> BasicBlockId {
-        self.current_pre_header.expect("ICE: Pre-header block should have been set")
+        // Insert all loop bounds up front, so we can inspect both outer and nested loops.
+        for loop_ in loops {
+            if let Some((induction_variable, bounds)) =
+                loop_.get_pre_header(context.inserter.function, &context.cfg).ok().and_then(
+                    |pre_header| get_induction_var_bounds(&context.inserter, loop_, pre_header),
+                )
+            {
+                context.all_induction_variables.insert(induction_variable, bounds);
+            };
+        }
+
+        context
     }
 
     /// Perform loop invariant code motion and induction variable analysis.
     /// See [`loop_invariant`][self] module for more information.
-    fn hoist_loop_invariants(&mut self, loop_: &Loop, all_loops: &[Loop]) {
-        self.set_values_defined_in_loop(loop_);
+    fn hoist_loop_invariants(
+        &mut self,
+        loop_: &Loop,
+        all_loops: &[Loop],
+        pre_header: BasicBlockId,
+    ) {
+        let mut loop_context = self.get_values_defined_in_loop(loop_, pre_header);
 
         for block in loop_.blocks.iter() {
             // Reset the per block state
-            self.current_block_executes = self.does_block_execute(*block, all_loops);
-            self.current_block_impure = false;
-            self.is_control_dependent_post_pre_header(loop_, *block, all_loops);
+            loop_context.current_block_executes =
+                self.does_block_execute(&loop_context, *block, all_loops);
+            loop_context.current_block_impure = false;
+            self.is_control_dependent_post_pre_header(&mut loop_context, loop_, *block, all_loops);
+            let header = loop_.header == *block;
 
             for instruction_id in self.inserter.function.dfg[*block].take_instructions() {
-                if self.simplify_from_loop_bounds(instruction_id, loop_, block) {
+                if self.simplify_from_loop_bounds(&loop_context, instruction_id, header) {
                     continue;
                 }
-                let hoist_invariant = self.can_hoist_invariant(instruction_id);
+                let hoist_invariant = self.can_hoist_invariant(&loop_context, instruction_id);
 
                 if hoist_invariant {
-                    self.inserter.push_instruction(instruction_id, self.pre_header());
+                    self.inserter.push_instruction(instruction_id, pre_header);
 
                     // If we are hoisting a MakeArray instruction,
                     // we need to issue an extra inc_rc in case they are mutated afterward.
@@ -318,30 +399,50 @@ impl<'f> LoopInvariantContext<'f> {
                     let dfg = &self.inserter.function.dfg;
                     // If the block has already been labelled as impure, we do need to check the current
                     // instruction's side effects.
-                    if !self.current_block_impure {
-                        self.current_block_impure = dfg[instruction_id].has_side_effects(dfg);
+                    if !loop_context.current_block_impure {
+                        loop_context.current_block_impure =
+                            dfg[instruction_id].has_side_effects(dfg);
                     }
                     self.inserter.push_instruction(instruction_id, *block);
                 }
-                self.extend_values_defined_in_loop_and_invariants(instruction_id, hoist_invariant);
+
+                // We will have new IDs after pushing instructions.
+                // We should mark the resolved result IDs as also being defined within the loop.
+                let results = self
+                    .inserter
+                    .function
+                    .dfg
+                    .instruction_results(instruction_id)
+                    .iter()
+                    .map(|value| self.inserter.resolve(*value))
+                    .collect::<Vec<_>>();
+
+                loop_context
+                    .extend_values_defined_in_loop_and_invariants(&results, hoist_invariant);
             }
         }
 
-        self.set_induction_var_bounds(loop_, Some(false));
+        // We're now done with this loop so it's now safe to insert its bounds into `outer_induction_variables`.
+        if let Some((induction_variable, bounds)) =
+            get_induction_var_bounds(&self.inserter, loop_, pre_header)
+        {
+            self.outer_induction_variables.insert(induction_variable, bounds);
+        };
     }
 
     /// Checks whether a `block` is control dependent on any blocks after
     /// the given loop's header.
     fn is_control_dependent_post_pre_header(
-        &mut self,
+        &self,
+        loop_context: &mut LoopContext,
         loop_: &Loop,
         block: BasicBlockId,
         all_loops: &[Loop],
     ) {
         // The block is already known to be in a control dependent nested loop
         // Thus, we can avoid checking for control dependence again.
-        if self.nested_loop_control_dependent_blocks.contains(&block) {
-            self.current_block_control_dependent = true;
+        if loop_context.nested_loop_control_dependent_blocks.contains(&block) {
+            loop_context.current_block_control_dependent = true;
             return;
         }
 
@@ -356,8 +457,11 @@ impl<'f> LoopInvariantContext<'f> {
         // When hoisting a control dependent instruction, if a side effectual instruction comes in the predecessor block
         // of that instruction we can no longer hoist the control dependent instruction.
         // This is important for maintaining ordering semantic correctness of the code.
-        assert!(!self.current_block_impure, "ICE: Block impurity should be defaulted to false");
-        self.current_block_impure = all_predecessors.iter().any(|block| {
+        assert!(
+            !loop_context.current_block_impure,
+            "ICE: Block impurity should be defaulted to false"
+        );
+        loop_context.current_block_impure = all_predecessors.iter().any(|block| {
             dfg[*block]
                 .instructions()
                 .iter()
@@ -367,17 +471,25 @@ impl<'f> LoopInvariantContext<'f> {
         // Reset the current block control dependent flag, the check will set it to true if needed.
         // If we fail to reset it, a block may be inadvertently labelled
         // as control dependent thus preventing optimizations.
-        self.current_block_control_dependent = false;
+        loop_context.current_block_control_dependent = false;
 
         // Now check whether the current block is dependent on any blocks between
         // the current block and the loop header, exclusive of the current block and loop header themselves
-        if all_predecessors.iter().any(|predecessor| self.is_control_dependent(*predecessor, block))
+        if all_predecessors
+            .iter()
+            .any(|predecessor| self.post_dom_frontiers.is_control_dependent(*predecessor, block))
         {
-            self.current_block_control_dependent = true;
+            loop_context.current_block_control_dependent = true;
             return;
         }
 
-        self.is_nested_loop_control_dependent(loop_, block, all_loops, all_predecessors);
+        self.is_nested_loop_control_dependent(
+            loop_context,
+            loop_,
+            block,
+            all_loops,
+            all_predecessors,
+        );
     }
 
     /// Determines if the `block` is in a nested loop that is control dependent
@@ -390,7 +502,8 @@ impl<'f> LoopInvariantContext<'f> {
     /// is control dependent on any blocks between itself and the outer loop's header.
     /// It is expected that `all_predecessors` contains at least all of these blocks.
     fn is_nested_loop_control_dependent(
-        &mut self,
+        &self,
+        loop_context: &mut LoopContext,
         loop_: &Loop,
         block: BasicBlockId,
         all_loops: &[Loop],
@@ -411,14 +524,16 @@ impl<'f> LoopInvariantContext<'f> {
                 && all_predecessors
                     .iter()
                     // Check whether the nested loop's header is control dependent on any of its predecessors
-                    .any(|predecessor| self.is_control_dependent(*predecessor, nested.header));
+                    .any(|predecessor| {
+                        self.post_dom_frontiers.is_control_dependent(*predecessor, nested.header)
+                    });
             if nested_loop_is_control_dep {
-                self.current_block_control_dependent = true;
+                loop_context.current_block_control_dependent = true;
                 // Mark all blocks in the nested loop as control dependent to avoid redundant checks
                 // for each of these blocks when they are later visited during hoisting.
                 // This is valid because control dependence of the loop header implies dependence
                 // for the entire loop body.
-                self.nested_loop_control_dependent_blocks.extend(nested.blocks.iter());
+                loop_context.nested_loop_control_dependent_blocks.extend(nested.blocks.iter());
                 return;
             }
         }
@@ -435,11 +550,15 @@ impl<'f> LoopInvariantContext<'f> {
     /// could potentially cause the program to fail when it is not meant to fail.
     ///
     /// A block might be in a nested loop that isn't guaranteed to execute even if the current loop does.
-    fn does_block_execute(&mut self, block: BasicBlockId, all_loops: &[Loop]) -> bool {
+    fn does_block_execute(
+        &mut self,
+        loop_context: &LoopContext,
+        block: BasicBlockId,
+        all_loops: &[Loop],
+    ) -> bool {
         /// Check that we have fixed bounds and upper is higher than lower.
-        fn check_bounds(bounds: Option<&(IntegerConstant, IntegerConstant)>) -> bool {
+        fn check_bounds(bounds: Option<(IntegerConstant, IntegerConstant)>) -> bool {
             bounds
-                .copied()
                 .and_then(|(lower_bound, upper_bound)| {
                     upper_bound.reduce(lower_bound, |u, l| u > l, |u, l| u > l)
                 })
@@ -447,7 +566,7 @@ impl<'f> LoopInvariantContext<'f> {
         }
 
         // If the current loop doesn't execute, then nothing does.
-        if !check_bounds(self.current_induction_variables.values().next()) {
+        if !check_bounds(loop_context.current_induction_variable.map(|(_, bounds)| bounds)) {
             return false;
         }
 
@@ -456,11 +575,11 @@ impl<'f> LoopInvariantContext<'f> {
             if !nested.blocks.contains(&block) {
                 continue;
             }
-            let Some(induction_variable) = self.get_induction_variable(nested) else {
+            let Some(induction_variable) = get_induction_variable(&self.inserter, nested) else {
                 // If we don't know what the induction variable is, we can't say if it executes.
                 return false;
             };
-            if !check_bounds(self.all_induction_variables.get(&induction_variable)) {
+            if !check_bounds(self.all_induction_variables.get(&induction_variable).copied()) {
                 return false;
             }
         }
@@ -468,74 +587,47 @@ impl<'f> LoopInvariantContext<'f> {
         true
     }
 
-    /// Get and resolve the induction variable of a loop.
-    fn get_induction_variable(&mut self, loop_: &Loop) -> Option<ValueId> {
-        loop_.get_induction_variable(self.inserter.function).map(|v| self.inserter.resolve(v))
-    }
-
-    /// Checks whether a `block` is control dependent on a `parent_block`.
-    /// Uses post-dominance frontiers to determine control dependence.
-    /// Reference the doc comments at the top of the this module for more information
-    /// regarding post-dominance frontiers and control dependence.
-    fn is_control_dependent(&self, parent_block: BasicBlockId, block: BasicBlockId) -> bool {
-        match self.post_dom_frontiers.get(&block) {
-            Some(dependent_blocks) => dependent_blocks.contains(&parent_block),
-            None => false,
-        }
-    }
-
     /// Gather the variables declared within the loop
-    fn set_values_defined_in_loop(&mut self, loop_: &Loop) {
+    fn get_values_defined_in_loop(
+        &mut self,
+        loop_: &Loop,
+        pre_header: BasicBlockId,
+    ) -> LoopContext {
         // Clear any values that may be defined in previous loops, as the context is per function.
-        self.defined_in_loop.clear();
-        // These are safe to keep per function, but we want to be clear that these values
-        // are used per loop.
-        self.loop_invariants.clear();
-        // There is only ever one current induction variable for a loop.
-        // For a new loop, we clear the previous induction variable and then
-        // set the new current induction variable.
-        self.current_induction_variables.clear();
-        self.set_induction_var_bounds(loop_, Some(true));
-        self.no_break = loop_.is_fully_executed(&self.cfg);
-        // Clear any cached control dependent nested loop blocks from the previous loop.
-        // This set is only relevant within the scope of a single loop.
-        // Keeping previous data would incorrectly classify blocks as control dependent,
-        // leading to missed hoisting opportunities.
-        self.nested_loop_control_dependent_blocks.clear();
 
+        let mut defined_in_loop = HashSet::default();
         for block in loop_.blocks.iter() {
             let params = self.inserter.function.dfg.block_parameters(*block);
-            self.defined_in_loop.extend(params);
+            defined_in_loop.extend(params);
             for instruction_id in self.inserter.function.dfg[*block].instructions() {
                 let results = self.inserter.function.dfg.instruction_results(*instruction_id);
-                self.defined_in_loop.extend(results);
+                defined_in_loop.extend(results);
             }
         }
-    }
 
-    /// Update any values defined in the loop and loop invariants after
-    /// analyzing and re-inserting a loop's instruction.
-    fn extend_values_defined_in_loop_and_invariants(
-        &mut self,
-        instruction_id: InstructionId,
-        hoist_invariant: bool,
-    ) {
-        let results = self.inserter.function.dfg.instruction_results(instruction_id).to_vec();
-        // We will have new IDs after pushing instructions.
-        // We should mark the resolved result IDs as also being defined within the loop.
-        let results =
-            results.into_iter().map(|value| self.inserter.resolve(value)).collect::<Vec<_>>();
-        self.defined_in_loop.extend(results.iter());
-
-        // We also want the update result IDs when we are marking loop invariants as we may not
-        // be going through the blocks of the loop in execution order
-        if hoist_invariant {
-            // Track already found loop invariants
-            self.loop_invariants.extend(results.iter());
+        LoopContext {
+            // There is only ever one current induction variable for a loop.
+            current_induction_variable: get_induction_var_bounds(&self.inserter, loop_, pre_header),
+            pre_header: Some(pre_header),
+            defined_in_loop,
+            loop_invariants: HashSet::default(),
+            // Clear any cached control dependent nested loop blocks from the previous loop.
+            // This set is only relevant within the scope of a single loop.
+            // Keeping previous data would incorrectly classify blocks as control dependent,
+            // leading to missed hoisting opportunities.
+            nested_loop_control_dependent_blocks: HashSet::default(),
+            no_break: loop_.is_fully_executed(&self.cfg),
+            current_block_control_dependent: false,
+            current_block_impure: false,
+            current_block_executes: false,
         }
     }
 
-    fn can_hoist_invariant(&mut self, instruction_id: InstructionId) -> bool {
+    fn can_hoist_invariant(
+        &mut self,
+        loop_context: &LoopContext,
+        instruction_id: InstructionId,
+    ) -> bool {
         use Instruction::*;
 
         let mut is_loop_invariant = true;
@@ -550,7 +642,7 @@ impl<'f> LoopInvariantContext<'f> {
             // We are implicitly checking whether the values are constant as well.
             // The set of values defined in the loop only contains instruction results and block parameters
             // which cannot be constants.
-            is_loop_invariant &= self.is_loop_invariant(&value);
+            is_loop_invariant &= loop_context.is_loop_invariant(&value);
         });
 
         if !is_loop_invariant {
@@ -559,64 +651,9 @@ impl<'f> LoopInvariantContext<'f> {
 
         matches!(instruction, MakeArray { .. })
             || can_be_hoisted(&instruction, self.inserter.function, false)
-            || self.can_be_hoisted_with_control_dependence(&instruction, self.inserter.function)
-            || self.can_be_hoisted_from_loop_bounds(&instruction)
-    }
-
-    /// Check [can_be_hoisted] with extra control dependence information that
-    /// lives within the context of this pass.
-    fn can_be_hoisted_with_control_dependence(
-        &self,
-        instruction: &Instruction,
-        function: &Function,
-    ) -> bool {
-        can_be_hoisted(instruction, function, true)
-            && self.can_hoist_control_dependent_instruction()
-    }
-
-    /// Keep track of a loop induction variable and respective upper bound.
-    ///
-    /// In the case of a nested loop, this will be used by later loops to determine
-    /// whether they have operations reliant upon the maximum induction variable.
-    ///
-    /// When within the current loop, the known upper bound can be used to simplify instructions,
-    /// such as transforming a checked add to an unchecked add.
-    ///
-    /// Depending on the value of `current_loop` this has 3 modes:
-    /// * `true` sets it in `current_induction_variables`
-    /// * `false` sets it for the `outer_induction_variables`, but this must only happen after the current one is finished
-    /// * `None` sets it in `all_induction_variables`, which is used to make decisions about inner nested loops
-    fn set_induction_var_bounds(&mut self, loop_: &Loop, current_loop: Option<bool>) {
-        let pre_header = if current_loop.is_some() {
-            self.pre_header()
-        } else if let Ok(pre_header) = loop_.get_pre_header(self.inserter.function, &self.cfg) {
-            pre_header
-        } else {
-            // We will skip this loop.
-            return;
-        };
-
-        let bounds = loop_.get_const_bounds(&self.inserter.function.dfg, pre_header);
-
-        if let Some((lower_bound, upper_bound)) = bounds {
-            let Some(induction_variable) = self.get_induction_variable(loop_) else {
-                return;
-            };
-            match current_loop {
-                Some(true) => {
-                    self.current_induction_variables
-                        .insert(induction_variable, (lower_bound, upper_bound));
-                }
-                Some(false) => {
-                    self.outer_induction_variables
-                        .insert(induction_variable, (lower_bound, upper_bound));
-                }
-                None => {
-                    self.all_induction_variables
-                        .insert(induction_variable, (lower_bound, upper_bound));
-                }
-            }
-        }
+            || loop_context
+                .can_be_hoisted_with_control_dependence(&instruction, self.inserter.function)
+            || self.can_be_hoisted_from_loop_bounds(loop_context, &instruction)
     }
 
     /// Certain instructions can take advantage of that our induction variable has a fixed minimum/maximum.
@@ -627,7 +664,11 @@ impl<'f> LoopInvariantContext<'f> {
     /// would determine that the instruction is not safe for hoisting.
     /// However, if we know that the induction variable's upper bound will always be in bounds of the array
     /// we can safely hoist the array access.
-    fn can_be_hoisted_from_loop_bounds(&self, instruction: &Instruction) -> bool {
+    fn can_be_hoisted_from_loop_bounds(
+        &self,
+        loop_context: &LoopContext,
+        instruction: &Instruction,
+    ) -> bool {
         use Instruction::*;
 
         match instruction {
@@ -640,9 +681,9 @@ impl<'f> LoopInvariantContext<'f> {
                     false
                 }
             }
-            Binary(binary) => self.can_evaluate_binary_op(binary),
+            Binary(binary) => self.can_evaluate_binary_op(loop_context, binary),
             Constrain(..) | ConstrainNotEqual(..) | RangeCheck { .. } => {
-                self.can_hoist_control_dependent_instruction()
+                loop_context.can_hoist_control_dependent_instruction()
             }
             Call { func, .. } => {
                 let purity = match self.inserter.function.dfg[*func] {
@@ -651,397 +692,8 @@ impl<'f> LoopInvariantContext<'f> {
                     _ => None,
                 };
                 matches!(purity, Some(Purity::PureWithPredicate))
-                    && self.can_hoist_control_dependent_instruction()
+                    && loop_context.can_hoist_control_dependent_instruction()
             }
-            _ => false,
-        }
-    }
-
-    /// A control dependent instruction (e.g. constrain or division) has more strict conditions for hoisting.
-    /// This function check the following conditions:
-    /// - The current block is non control dependent
-    /// - The loop body is guaranteed to be executed
-    /// - The current block is not impure
-    fn can_hoist_control_dependent_instruction(&self) -> bool {
-        !self.current_block_control_dependent
-            && self.current_block_executes
-            && !self.current_block_impure
-    }
-
-    /// A control dependent instruction (e.g. constrain or division) has more strict conditions for simplifying.
-    /// This function matches [LoopInvariantContext::can_hoist_control_dependent_instruction] except
-    /// that simplification does not require that current block is pure to be simplified.
-    fn can_simplify_control_dependent_instruction(&self) -> bool {
-        !self.current_block_control_dependent && self.current_block_executes
-    }
-
-    /// Some instructions can take advantage of that our induction variable has a fixed minimum/maximum,
-    /// For instance operations can be transformed from a checked operation to an unchecked operation.
-    ///
-    /// Checked operations require more bytecode and thus we aim to minimize their usage wherever possible.
-    ///
-    /// For example, if one side of an add/mul operation is a constant and the other is an induction variable
-    /// with a known upper bound, we know whether that binary operation will ever overflow.
-    /// If we determine that an overflow is not possible we can convert the checked operation to unchecked.
-    ///
-    /// The function returns false if the instruction must be added to the block
-    fn simplify_from_loop_bounds(
-        &mut self,
-        instruction_id: InstructionId,
-        loop_: &Loop,
-        current_block: &BasicBlockId,
-    ) -> bool {
-        // Simplify the instruction and update it in the DFG.
-        match self.simplify_induction_variable(instruction_id, loop_, current_block) {
-            SimplifyResult::SimplifiedTo(id) => {
-                let results =
-                    self.inserter.function.dfg.instruction_results(instruction_id).to_vec();
-                assert!(results.len() == 1);
-                self.inserter.map_value(results[0], id);
-                true
-            }
-            SimplifyResult::SimplifiedToInstruction(instruction) => {
-                self.inserter.function.dfg[instruction_id] = instruction;
-                false
-            }
-            SimplifyResult::Remove => true,
-            SimplifyResult::None => false,
-            _ => unreachable!(
-                "ICE - loop bounds simplification should only simplify to a value or an instruction"
-            ),
-        }
-    }
-
-    /// Simplify 'assert(lhs < rhs)' into 'assert(max(lhs) < rhs)' if lhs is an induction variable and rhs a loop invariant
-    /// For this simplification to be valid, we need to ensure that the induction variable takes all the values from min(induction) up to max(induction)
-    /// This means that the assert must be executed  at each loop iteration, and that the loop processes all the iteration space
-    /// This is ensured via control dependence and the check for break patterns, before calling this function.
-    fn simplify_induction_in_constrain(
-        &mut self,
-        lhs: ValueId,
-        rhs: ValueId,
-        err: &Option<ConstrainError>,
-        call_stack: CallStackId,
-    ) -> SimplifyResult {
-        let mut extract_variables = |rhs, lhs| {
-            let rhs_true =
-                self.inserter.function.dfg.get_numeric_constant(rhs)? == FieldElement::one();
-            let (is_left, min, max, binary) = self.extract_induction_and_invariant(lhs)?;
-            match (is_left, rhs_true) {
-                (true, true) => Some((max, binary.rhs)),
-                (false, true) => Some((binary.lhs, min)),
-                _ => None,
-            }
-        };
-        let Some((new_lhs, new_rhs)) = extract_variables(rhs, lhs) else {
-            return SimplifyResult::None;
-        };
-        let new_binary =
-            Instruction::Binary(Binary { lhs: new_lhs, rhs: new_rhs, operator: BinaryOp::Lt });
-        // The new comparison can be safely hoisted to the pre-header because it is loop invariant and control independent
-        let comparison_results = self
-            .inserter
-            .function
-            .dfg
-            .insert_instruction_and_results(new_binary, self.pre_header(), None, call_stack)
-            .results();
-        assert!(comparison_results.len() == 1);
-        SimplifyResult::SimplifiedToInstruction(Instruction::Constrain(
-            comparison_results[0],
-            rhs,
-            err.clone(),
-        ))
-    }
-
-    /// Replace 'assert(invariant != induction)' with assert((invariant < min(induction) || (invariant > max(induction)))
-    /// For this simplification to be valid, we need to ensure that the induction variable takes all the values from min(induction) up to max(induction)
-    /// This means that the assert must be executed  at each loop iteration, and that the loop processes all the iteration space
-    /// This is ensured via control dependence and the check for break patterns, before calling this function.
-    fn simplify_not_equal_constraint(
-        &mut self,
-        lhs: &ValueId,
-        rhs: &ValueId,
-        err: &Option<ConstrainError>,
-        call_stack: CallStackId,
-    ) -> SimplifyResult {
-        let (invariant, upper, lower) = match self.match_induction_and_invariant(lhs, rhs) {
-            Some((true, upper, lower)) => (rhs, upper, lower),
-            Some((false, upper, lower)) => (lhs, upper, lower),
-            _ => return SimplifyResult::None,
-        };
-
-        let mut insert_binary_to_preheader = |lhs, rhs, operator| {
-            let binary = Instruction::Binary(Binary { lhs, rhs, operator });
-            let results = self
-                .inserter
-                .function
-                .dfg
-                .insert_instruction_and_results(binary, self.pre_header(), None, call_stack)
-                .results();
-            assert!(results.len() == 1);
-            results[0]
-        };
-        // The comparisons can be safely hoisted to the pre-header because they are loop invariant and control independent
-        let check_lower_bound = insert_binary_to_preheader(*invariant, lower, BinaryOp::Lt);
-        let check_upper_bound = insert_binary_to_preheader(upper, *invariant, BinaryOp::Lt);
-        let check_bounds =
-            insert_binary_to_preheader(check_lower_bound, check_upper_bound, BinaryOp::Or);
-
-        SimplifyResult::SimplifiedToInstruction(Instruction::Constrain(
-            check_bounds,
-            self.true_value,
-            err.clone(),
-        ))
-    }
-
-    /// Returns the binary instruction only if the input value refers to a binary instruction with invariant and induction variables as operands
-    /// The return values are:
-    /// - a boolean indicating if the induction variable is on the lhs
-    /// - the minimum and maximum values of the induction variable, coming from the loop bounds
-    /// - the binary instruction itself
-    fn extract_induction_and_invariant(
-        &mut self,
-        value: ValueId,
-    ) -> Option<(bool, ValueId, ValueId, Binary)> {
-        let Value::Instruction { instruction, .. } = &self.inserter.function.dfg[value] else {
-            return None;
-        };
-        let Instruction::Binary(binary) = self.inserter.function.dfg[*instruction].clone() else {
-            return None;
-        };
-        self.match_induction_and_invariant(&binary.lhs, &binary.rhs)
-            .map(|(is_left, min, max)| (is_left, min, max, binary))
-    }
-
-    /// If the inputs are an induction and loop invariant variables, it returns
-    /// the maximum and minimum values of the induction variable, based on the loop bounds,
-    /// and a boolean indicating if the induction variable is on the lhs or rhs (true for lhs)
-    fn match_induction_and_invariant(
-        &mut self,
-        lhs: &ValueId,
-        rhs: &ValueId,
-    ) -> Option<(bool, ValueId, ValueId)> {
-        let (is_left, lower, upper) = match (
-            self.current_induction_variables.get(lhs),
-            self.current_induction_variables.get(rhs),
-        ) {
-            (_, Some((lower, upper))) => Some((false, lower, upper)),
-            (Some((lower, upper)), _) => Some((true, lower, upper)),
-            _ => None,
-        }?;
-
-        assert!(self.current_block_executes, "executing a non executable loop");
-
-        let (upper_field, upper_type) = upper.dec().into_numeric_constant();
-        let (lower_field, lower_type) = lower.into_numeric_constant();
-
-        let min_iter = self.inserter.function.dfg.make_constant(lower_field, lower_type);
-        let max_iter = self.inserter.function.dfg.make_constant(upper_field, upper_type);
-        if (is_left && self.is_loop_invariant(rhs)) || (!is_left && self.is_loop_invariant(lhs)) {
-            return Some((is_left, min_iter, max_iter));
-        }
-        None
-    }
-
-    /// Simplify certain instructions using the lower/upper bounds of induction variables
-    fn simplify_induction_variable(
-        &mut self,
-        instruction_id: InstructionId,
-        loop_: &Loop,
-        block: &BasicBlockId,
-    ) -> SimplifyResult {
-        let header = loop_.header == *block;
-
-        let (instruction, call_stack) = self.inserter.map_instruction(instruction_id);
-        match &instruction {
-            Instruction::Binary(binary) => {
-                self.simplify_induction_variable_in_binary(binary, header)
-            }
-            Instruction::Constrain(x, y, err) => {
-                // Ensure the loop is fully executed
-                if self.no_break && self.can_simplify_control_dependent_instruction() {
-                    self.simplify_induction_in_constrain(*x, *y, err, call_stack)
-                } else {
-                    SimplifyResult::None
-                }
-            }
-            Instruction::ConstrainNotEqual(x, y, err) => {
-                // Ensure the loop is fully executed
-                if self.no_break && self.can_simplify_control_dependent_instruction() {
-                    self.simplify_not_equal_constraint(x, y, err, call_stack)
-                } else {
-                    SimplifyResult::None
-                }
-            }
-            _ => SimplifyResult::None,
-        }
-    }
-
-    fn is_loop_invariant(&self, value_id: &ValueId) -> bool {
-        !self.defined_in_loop.contains(value_id) || self.loop_invariants.contains(value_id)
-    }
-
-    /// If the inputs are an induction variable and a constant, it returns
-    /// the constant value, the maximum and minimum values of the induction variable, based on the loop bounds,
-    /// and a boolean indicating if the induction variable is on the lhs or rhs (true for lhs)
-    /// if `only_outer_induction`, we only consider outer induction variables, else we also consider the induction variables from the current loop.
-    fn match_induction_and_constant(
-        &self,
-        lhs: &ValueId,
-        rhs: &ValueId,
-        only_outer_induction: bool,
-    ) -> Option<(bool, IntegerConstant, IntegerConstant, IntegerConstant)> {
-        let lhs_const = self.inserter.function.dfg.get_integer_constant(*lhs);
-        let rhs_const = self.inserter.function.dfg.get_integer_constant(*rhs);
-        match (
-            lhs_const,
-            rhs_const,
-            self.current_induction_variables
-                .get(lhs)
-                .and_then(|v| if only_outer_induction { None } else { Some(v) })
-                .or(self.outer_induction_variables.get(lhs)),
-            self.current_induction_variables
-                .get(rhs)
-                .and_then(|v| if only_outer_induction { None } else { Some(v) })
-                .or(self.outer_induction_variables.get(rhs)),
-        ) {
-            // LHS is a constant, RHS is the induction variable with a known lower and upper bound.
-            (Some(lhs), None, None, Some((lower_bound, upper_bound))) => {
-                Some((false, lhs, *lower_bound, *upper_bound))
-            }
-            // RHS is a constant, LHS is the induction variable with a known lower an upper bound
-            (None, Some(rhs), Some((lower_bound, upper_bound)), None) => {
-                Some((true, rhs, *lower_bound, *upper_bound))
-            }
-            _ => None,
-        }
-    }
-
-    /// Given a constant `c` and an induction variable `i`:
-    /// - Replace comparisons `i < c` by true if `max(i) < c`, and false if `min(i) >= c`
-    /// - Replace comparisons `c < i` by true if `min(i) > c`, and false if `max(i) <= c`
-    /// - Replace equalities `i == c` by false if `min(i) > c or max(i) < c`
-    /// - Replace checked operations with unchecked version if the induction variable bounds prove that the operation will not overflow
-    ///
-    /// `header` indicates if we are in the loop header where loop bounds do not apply yet
-    fn simplify_induction_variable_in_binary(
-        &mut self,
-        binary: &Binary,
-        header: bool,
-    ) -> SimplifyResult {
-        // Checks the operands are an induction variable and a constant
-        // Note that here we allow all_induction_variables
-        let operand_type = self.inserter.function.dfg.type_of_value(binary.lhs).unwrap_numeric();
-
-        let Some((is_induction_var_lhs, value, lower_bound, upper_bound)) =
-            self.match_induction_and_constant(&binary.lhs, &binary.rhs, header)
-        else {
-            return SimplifyResult::None;
-        };
-
-        // Handle arithmetic operations
-        if let Some((lhs, rhs)) = match binary.operator {
-            BinaryOp::Add { unchecked }
-            | BinaryOp::Sub { unchecked }
-            | BinaryOp::Mul { unchecked }
-                if unchecked =>
-            {
-                return SimplifyResult::None;
-            }
-            BinaryOp::Sub { .. } => {
-                if is_induction_var_lhs {
-                    Some((lower_bound, value))
-                } else {
-                    Some((value, upper_bound))
-                }
-            }
-            BinaryOp::Add { .. } | BinaryOp::Mul { .. } => Some((value, upper_bound)),
-            BinaryOp::Div | BinaryOp::Mod => return SimplifyResult::None,
-            _ => None,
-        } {
-            // We evaluate this expression using the upper bounds (or lower in the case of sub)
-            // of its inputs to check whether it will ever overflow.
-            // If `eval_constant_binary_op` won't overflow we can simplify the instruction to an unchecked version.
-            let lhs = lhs.into_numeric_constant().0;
-            let rhs = rhs.into_numeric_constant().0;
-            match eval_constant_binary_op(lhs, rhs, binary.operator, operand_type) {
-                BinaryEvaluationResult::Success(..) => {
-                    // Unchecked version of the binary operation
-                    let unchecked = Instruction::Binary(Binary {
-                        operator: binary.operator.into_unchecked(),
-                        lhs: binary.lhs,
-                        rhs: binary.rhs,
-                    });
-                    return SimplifyResult::SimplifiedToInstruction(unchecked);
-                }
-                BinaryEvaluationResult::CouldNotEvaluate | BinaryEvaluationResult::Failure(..) => {
-                    return SimplifyResult::None;
-                }
-            }
-        }
-
-        // Handle comparisons
-        match binary.operator {
-            BinaryOp::Eq => {
-                if value >= upper_bound || value < lower_bound {
-                    SimplifyResult::SimplifiedTo(self.false_value)
-                } else {
-                    SimplifyResult::None
-                }
-            }
-            BinaryOp::Lt => match is_induction_var_lhs {
-                true if upper_bound <= value => SimplifyResult::SimplifiedTo(self.true_value),
-                true if lower_bound >= value => SimplifyResult::SimplifiedTo(self.false_value),
-                false if lower_bound > value => SimplifyResult::SimplifiedTo(self.true_value),
-                false if upper_bound <= value.inc() => {
-                    SimplifyResult::SimplifiedTo(self.false_value)
-                }
-                _ => SimplifyResult::None,
-            },
-            _ => SimplifyResult::None,
-        }
-    }
-
-    /// Checks whether a binary operation can be evaluated using the bounds of a given loop induction variables.
-    ///
-    /// If it cannot be evaluated, it means that we either have a dynamic loop bound or
-    /// that the operation can potentially overflow during a given loop iteration.
-    fn can_evaluate_binary_op(&self, binary: &Binary) -> bool {
-        match binary.operator {
-            // An unchecked operation cannot overflow, so it can be safely evaluated
-            BinaryOp::Add { unchecked: true }
-            | BinaryOp::Mul { unchecked: true }
-            | BinaryOp::Sub { unchecked: true } => true,
-            BinaryOp::Div | BinaryOp::Mod => {
-                // Division can be evaluated if we ensure that the divisor cannot be zero
-                let Some((left, value, lower, upper)) =
-                    self.match_induction_and_constant(&binary.lhs, &binary.rhs, true)
-                else {
-                    // Not a constant vs non-constant case, we cannot evaluate it.
-                    return false;
-                };
-
-                if left {
-                    // If the induction variable is on the LHS, we're dividing with a constant.
-                    if !value.is_zero() {
-                        return true;
-                    }
-                } else {
-                    // Otherwise we are dividing a constant with the induction variable, and we have to check whether
-                    // at any point in the loop the induction variable can be zero.
-                    let can_be_zero = lower.is_negative() && !upper.is_negative()
-                        || lower.is_zero()
-                        || upper.is_zero();
-
-                    if !can_be_zero {
-                        return true;
-                    }
-                }
-
-                false
-            }
-            // Some checked operations can be safely evaluated, depending on the loop bounds, but in that case,
-            // they would have been already converted to unchecked operation in `simplify_induction_variable_in_binary()`
             _ => false,
         }
     }
@@ -1065,6 +717,29 @@ impl<'f> LoopInvariantContext<'f> {
             self.inserter.map_terminator_in_place(block);
         }
     }
+}
+
+/// Get and resolve the induction variable of a loop.
+fn get_induction_variable(inserter: &FunctionInserter, loop_: &Loop) -> Option<ValueId> {
+    loop_.get_induction_variable(inserter.function).map(|v| inserter.resolve(v))
+}
+
+/// Keep track of a loop induction variable and respective upper bound.
+///
+/// In the case of a nested loop, this will be used by later loops to determine
+/// whether they have operations reliant upon the maximum induction variable.
+///
+/// When within the current loop, the known upper bound can be used to simplify instructions,
+/// such as transforming a checked add to an unchecked add.
+fn get_induction_var_bounds(
+    inserter: &FunctionInserter,
+    loop_: &Loop,
+    pre_header: BasicBlockId,
+) -> Option<(ValueId, (IntegerConstant, IntegerConstant))> {
+    let bounds = loop_.get_const_bounds(&inserter.function.dfg, pre_header);
+
+    get_induction_variable(inserter, loop_)
+        .and_then(|induction_variable| bounds.map(|bounds| (induction_variable, bounds)))
 }
 
 /// Indicates if the instruction can be safely hoisted out of a loop.
