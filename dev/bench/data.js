@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1756307218756,
+  "lastUpdate": 1756308201638,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -4208,90 +4208,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "ae72bb098e8f4b4103e702031d636a2bb67442e6",
-          "message": "chore: Update unrolling docs for audit (#9572)",
-          "timestamp": "2025-08-20T15:05:07Z",
-          "tree_id": "2f890e77e81459d4d39b5341817cbe3ab5a77313",
-          "url": "https://github.com/noir-lang/noir/commit/ae72bb098e8f4b4103e702031d636a2bb67442e6"
-        },
-        "date": 1755704372410,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 1.654,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 7.922,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.45,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 15.9,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 13.38,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 21.08,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 202,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 205,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.38,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.47,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.784,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 1.613,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -8401,6 +8317,90 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 1.656,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "cc0c20d4840a00025330a0b3420dd854544ac681",
+          "message": "fix(expand): better handling of dereferences (again) (#9654)",
+          "timestamp": "2025-08-27T14:40:32Z",
+          "tree_id": "2db72233dbf089e2f94f49f83e4fb86d5c775473",
+          "url": "https://github.com/noir-lang/noir/commit/cc0c20d4840a00025330a0b3420dd854544ac681"
+        },
+        "date": 1756308183762,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1.768,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 8.02,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.354,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 16,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 14.16,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 20.9,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 199,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 217,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.468,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.608,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.773,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 1.595,
             "unit": "s"
           }
         ]
