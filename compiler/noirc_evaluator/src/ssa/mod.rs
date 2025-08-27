@@ -185,7 +185,10 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
             // Remove any potentially unnecessary duplication from the Brillig entry point analysis.
             .and_then(Ssa::remove_unreachable_functions),
         SsaPass::new(Ssa::remove_truncate_after_range_check, "Removing Truncate after RangeCheck"),
+        SsaPass::new(Ssa::checked_to_unchecked, "Checked to unchecked"),
         SsaPass::new(Ssa::fold_constants_with_brillig, "Inlining Brillig Calls"),
+        SsaPass::new(Ssa::remove_unreachable_instructions, "Remove Unreachable Instructions")
+            .and_then(Ssa::remove_unreachable_functions),
         // This pass makes transformations specific to Brillig generation.
         // It must be the last pass to either alter or add new instructions before Brillig generation,
         // as other semantics in the compiler can potentially break (e.g. inserting instructions).
@@ -193,7 +196,6 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
         SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination")
             // A function can be potentially unreachable post-DIE if all calls to that function were removed.
             .and_then(Ssa::remove_unreachable_functions),
-        SsaPass::new(Ssa::checked_to_unchecked, "Checked to unchecked"),
         SsaPass::new_try(
             Ssa::verify_no_dynamic_indices_to_references,
             "Verifying no dynamic array indices to reference value elements",
