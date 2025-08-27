@@ -11,7 +11,7 @@ where
     T: Greeter,
 {
     fn greet(object: T) {
-        object.greet();
+        T::greet(object);
     }
 }
 
