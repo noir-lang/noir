@@ -367,7 +367,7 @@ impl<'a> TestRunner<'a> {
         ) = tests.into_iter().partition(|test| !test.has_arguments);
 
         // Calculate the actual number of threads needed based on test count.
-        let num_threads = self.num_threads.min(iter_tests_without_arguments.len());
+        let num_threads = self.num_threads.min(iter_tests_without_arguments.len()).max(1);
 
         let iter_tests_without_arguments = &Mutex::new(iter_tests_without_arguments.into_iter());
         let iter_tests_with_arguments = &Mutex::new(iter_tests_with_arguments.into_iter());
@@ -497,7 +497,7 @@ impl<'a> TestRunner<'a> {
 
         let (sender, receiver) = mpsc::channel();
         // Calculate the actual number of threads needed based on package count.
-        let num_threads = self.num_threads.min(self.workspace.members.len());
+        let num_threads = self.num_threads.min(self.workspace.members.len()).max(1);
         let iter = &Mutex::new(self.workspace.into_iter());
 
         thread::scope(|scope| {
