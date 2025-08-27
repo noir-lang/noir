@@ -11,22 +11,21 @@ Nargo allows you to upload packages to GitHub and use them as dependencies.
 
 ## Specifying a dependency
 
-Specifying a dependency requires a tag to a specific commit and the git url to the url containing
-the package.
+Specifying a dependency requires a `tag` to a specific commit and a `git` url to the url containing the package.
 
-Currently, there are no requirements on the tag contents. If requirements are added, it would follow
-semver 2.0 guidelines.
+:::note
 
-> Note: Without a `tag` , there would be no versioning and dependencies would change each time you
-> compile your project.
+Without a `tag` , there would be no versioning and dependencies would change each time you compile your project.
 
-For example, to add the [ecrecover-noir library](https://github.com/colinnielsen/ecrecover-noir) to your project, add it to `Nargo.toml`:
+:::
+
+For example, to add the [bignum library](https://github.com/noir-lang/noir-bignum) to your project, add it to _Nargo.toml_:
 
 ```toml
 # Nargo.toml
 
 [dependencies]
-ecrecover = {tag = "v0.8.0", git = "https://github.com/colinnielsen/ecrecover-noir"}
+bignum = { tag = "v0.8.0", git = "https://github.com/noir-lang/noir-bignum" }
 ```
 
 If the module is in a subdirectory, you can define a subdirectory in your git repository, for example:
@@ -35,8 +34,14 @@ If the module is in a subdirectory, you can define a subdirectory in your git re
 # Nargo.toml
 
 [dependencies]
-easy_private_token_contract = {tag ="v0.1.0-alpha62", git = "https://github.com/AztecProtocol/aztec-packages", directory = "noir-contracts/contracts/easy_private_token_contract"}
+blob = {tag ="v1.2.1", git = "https://github.com/AztecProtocol/aztec-packages", directory = "noir-projects/noir-protocol-circuits/crates/blob"}
 ```
+
+:::info
+
+Currently, there are no requirements applied on the contents of `tag`. Requirements based on semver 2.0 guidelines could be introduced in the future.
+
+:::
 
 ## Specifying a local dependency
 
@@ -89,7 +94,7 @@ use std::hash::{blake2s, blake3};
 
 We don't have a way to consume libraries from inside a [workspace](./workspaces.md) as external dependencies right now.
 
-Inside a workspace, these are consumed as `{ path = "../to_lib" }` dependencies in Nargo.toml.
+Inside a workspace, these are consumed as `{ path = "../to_lib" }` dependencies in _Nargo.toml_.
 
 ## Dependencies of Dependencies
 
