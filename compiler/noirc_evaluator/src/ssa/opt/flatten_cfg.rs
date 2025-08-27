@@ -910,25 +910,15 @@ impl<'f> Context<'f> {
 
                         // For MSM, we also ensure the inputs are on the curve if the predicate is false.
                         BlackBoxFunc::MultiScalarMul => {
-                            let points_array_idx = if matches!(
-                                self.inserter.function.dfg.type_of_value(arguments[0]),
-                                Type::Array { .. }
-                            ) {
-                                0
-                            } else {
-                                // if the first argument is not an array, we assume it is a slice
-                                // which means the array is the second argument
-                                1
-                            };
                             let (elements, typ) = self.apply_predicate_to_msm_argument(
-                                arguments[points_array_idx],
+                                arguments[0],
                                 condition,
                                 call_stack,
                             );
 
                             let instruction = Instruction::MakeArray { elements, typ };
                             let array = self.insert_instruction(instruction, call_stack);
-                            arguments[points_array_idx] = array;
+                            arguments[0] = array;
                             Instruction::Call { func, arguments }
                         }
 
