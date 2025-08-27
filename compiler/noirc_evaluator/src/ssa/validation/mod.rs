@@ -225,6 +225,32 @@ impl<'f> Validator<'f> {
                                         Type::Array(Arc::new(vec![Type::unsigned(64)]), 25)
                                     );
                                 }
+                                BlackBoxFunc::MultiScalarMul => {
+                                    let points_type = dfg.type_of_value(arguments[0]);
+                                    let scalars_type = dfg.type_of_value(arguments[1]);
+
+                                    let points_length = points_type.flattened_size()
+                                        / points_type.element_size() as u32;
+                                    let scalars_length = scalars_type.flattened_size()
+                                        / scalars_type.element_size() as u32;
+
+                                    assert_eq!(
+                                        points_type.element_types(),
+                                        Arc::new(vec![Type::field(), Type::field(), Type::bool()]),
+                                        "Invalid type in MSM points array"
+                                    );
+
+                                    assert_eq!(
+                                        scalars_type.element_types(),
+                                        Arc::new(vec![Type::field(), Type::field(),]),
+                                        "Invalid type in MSM scalars array"
+                                    );
+
+                                    assert_eq!(
+                                        points_length, scalars_length,
+                                        "MSM input array lengths mismatch"
+                                    );
+                                }
                                 _ => {}
                             },
                             _ => {}
@@ -810,6 +836,19 @@ mod tests {
         acir(inline) fn main f0 {
           b0(v0: Field, v1: Field):
             v2 = xor v0, v1
+            return v2
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "Invalid type in MSM points array")]
+    fn msm_has_incorrect_type() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: [(Field, Field, Field); 3], v1: [(Field, Field); 3]):
+            v2 = call multi_scalar_mul(v0, v1) -> [(Field, Field, u1); 1]
             return v2
         }
         ";
