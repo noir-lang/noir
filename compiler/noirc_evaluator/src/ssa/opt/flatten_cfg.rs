@@ -193,8 +193,10 @@ impl Ssa {
 /// Panics if:
 ///   - Any acir function has at least 1 loop
 #[cfg(debug_assertions)]
-#[allow(dead_code)]
 fn flatten_cfg_pre_check(function: &Function) {
+    if !function.runtime().is_acir() {
+        return;
+    }
     let loops = super::unrolling::Loops::find_all(function);
     assert_eq!(loops.yet_to_unroll.len(), 0);
 }
@@ -204,10 +206,12 @@ fn flatten_cfg_pre_check(function: &Function) {
 /// Panics if:
 ///   - Any acir function contains > 1 block
 #[cfg(debug_assertions)]
-#[allow(dead_code)]
-fn flatten_cfg_post_check(function: &Function) {
+pub(super) fn flatten_cfg_post_check(function: &Function) {
+    if !function.runtime().is_acir() {
+        return;
+    }
     let blocks = function.reachable_blocks();
-    assert_eq!(blocks.len(), 1);
+    assert_eq!(blocks.len(), 1, "CFG contains more than 1 block");
 }
 
 pub(crate) struct Context<'f> {

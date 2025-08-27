@@ -102,7 +102,7 @@ impl Brillig {
         hoisted_global_constants: &HashMap<(FieldElement, NumericType), BrilligVariable>,
         is_entry_point: bool,
     ) -> BrilligArtifact<FieldElement> {
-        let mut brillig_context = BrilligContext::new(options);
+        let mut brillig_context = BrilligContext::new(func.name(), options);
 
         let mut function_context = FunctionContext::new(func, is_entry_point);
 
@@ -122,9 +122,7 @@ impl Brillig {
             );
         }
 
-        let mut artifact = brillig_context.artifact();
-        artifact.name = func.name().to_string();
-        artifact
+        brillig_context.artifact()
     }
 }
 
@@ -139,7 +137,7 @@ impl Ssa {
     /// Compile Brillig functions and ACIR functions reachable from them
     #[tracing::instrument(level = "trace", skip_all)]
     pub fn to_brillig(&self, options: &BrilligOptions) -> Brillig {
-        let used_globals_map = self.used_globals_in_brillig_functions();
+        let used_globals_map = self.used_globals_in_functions();
 
         // Collect all the function ids that are reachable from brillig
         // That means all the functions marked as brillig and ACIR functions called by them
