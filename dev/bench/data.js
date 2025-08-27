@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1756246455885,
+  "lastUpdate": 1756261290403,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -20161,48 +20161,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "2be64758857933d2c97be44c11675bb1ce7cdc66",
-          "message": "chore: Update to node v22.18.0 (#9549)",
-          "timestamp": "2025-08-19T16:46:30Z",
-          "tree_id": "d0103ede773329239a456ac89b0f2d0721ca6548",
-          "url": "https://github.com/noir-lang/noir/commit/2be64758857933d2c97be44c11675bb1ce7cdc66"
-        },
-        "date": 1755623606842,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 248824,
-            "range": "± 1258",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 218703,
-            "range": "± 6870",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2779783,
-            "range": "± 1287",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -22254,6 +22212,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2778394,
             "range": "± 1923",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "adam.domurad@gmail.com",
+            "name": "ludamad",
+            "username": "ludamad"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2b4dc88e45e54058370cd1648664df5c7c6b02eb",
+          "message": "fix: don't thread-bomb unnecessarily (#9643)",
+          "timestamp": "2025-08-27T01:54:56Z",
+          "tree_id": "59cca4582236801998be93552b5b713cc209a1e8",
+          "url": "https://github.com/noir-lang/noir/commit/2b4dc88e45e54058370cd1648664df5c7c6b02eb"
+        },
+        "date": 1756261272175,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 249120,
+            "range": "± 485",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 218157,
+            "range": "± 2800",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2789769,
+            "range": "± 3939",
             "unit": "ns/iter"
           }
         ]
