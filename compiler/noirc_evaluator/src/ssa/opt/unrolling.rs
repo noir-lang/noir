@@ -41,7 +41,7 @@
 //!     used in the loop condition whose value is unknown) will result in an error.
 //!   - Post-condition (Brillig-only): If `max_bytecode_increase_percent` is set, the instruction count
 //!     of each function should increase by no more than that percentage compared to before the pass.
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashSet};
 
 use acvm::acir::AcirField;
 use noirc_errors::call_stack::{CallStack, CallStackId};
@@ -167,10 +167,10 @@ pub(super) struct Loop {
 pub(super) struct Loops {
     /// The loops that failed to be unrolled so that we do not try to unroll them again.
     /// Each loop is identified by its header block id.
-    failed_to_unroll: im::HashSet<BasicBlockId>,
+    failed_to_unroll: HashSet<BasicBlockId>,
 
     pub(super) yet_to_unroll: Vec<Loop>,
-    modified_blocks: im::HashSet<BasicBlockId>,
+    modified_blocks: HashSet<BasicBlockId>,
     pub(super) cfg: ControlFlowGraph,
 }
 
@@ -230,9 +230,9 @@ impl Loops {
         loops.sort_by_key(|loop_| loop_.blocks.len());
 
         Self {
-            failed_to_unroll: im::HashSet::default(),
+            failed_to_unroll: HashSet::default(),
             yet_to_unroll: loops,
-            modified_blocks: im::HashSet::default(),
+            modified_blocks: HashSet::default(),
             cfg,
         }
     }
@@ -655,7 +655,7 @@ impl Loop {
         &self,
         function: &Function,
         cfg: &ControlFlowGraph,
-    ) -> Option<im::HashSet<ValueId>> {
+    ) -> Option<HashSet<ValueId>> {
         // We need to traverse blocks from the pre-header up to the block entry point.
         let pre_header = self.get_pre_header(function, cfg).ok()?;
         let function_entry = function.entry_block();
@@ -686,7 +686,7 @@ impl Loop {
     fn count_loads_and_stores(
         &self,
         function: &Function,
-        refs: &im::HashSet<ValueId>,
+        refs: &HashSet<ValueId>,
     ) -> (usize, usize) {
         let mut loads = 0;
         let mut stores = 0;
@@ -890,7 +890,7 @@ struct LoopIteration<'f> {
 
     /// Maps unrolled block ids back to the original source block ids
     original_blocks: HashMap<BasicBlockId, BasicBlockId>,
-    visited_blocks: im::HashSet<BasicBlockId>,
+    visited_blocks: HashSet<BasicBlockId>,
 
     insert_block: BasicBlockId,
     source_block: BasicBlockId,
@@ -916,7 +916,7 @@ impl<'f> LoopIteration<'f> {
             source_block,
             blocks: HashMap::default(),
             original_blocks: HashMap::default(),
-            visited_blocks: im::HashSet::default(),
+            visited_blocks: HashSet::default(),
             induction_value: None,
         }
     }
