@@ -903,17 +903,7 @@
 <a href="#902" id="902">902</a>
 <a href="#903" id="903">903</a>
 <a href="#904" id="904">904</a>
-<a href="#905" id="905">905</a>
-<a href="#906" id="906">906</a>
-<a href="#907" id="907">907</a>
-<a href="#908" id="908">908</a>
-<a href="#909" id="909">909</a>
-<a href="#910" id="910">910</a>
-<a href="#911" id="911">911</a>
-<a href="#912" id="912">912</a>
-<a href="#913" id="913">913</a>
-<a href="#914" id="914">914</a>
-<a href="#915" id="915">915</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, sync::Arc};
+<a href="#905" id="905">905</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, sync::Arc};
 
 <span class="kw">use </span><span class="kw">crate</span>::ssa::{
     function_builder::data_bus::DataBus,
@@ -1104,16 +1094,6 @@
 
         <span class="self">self</span>.blocks[new_block].set_parameters(parameters);
         new_block
-    }
-
-    <span class="doccomment">/// Get an iterator over references to each basic block within the dfg, paired with the basic
-    /// block's id.
-    ///
-    /// The pairs are order by id, which is not guaranteed to be meaningful.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>basic_blocks_iter(
-        <span class="kw-2">&amp;</span><span class="self">self</span>,
-    ) -&gt; <span class="kw">impl </span>DoubleEndedIterator&lt;Item = (BasicBlockId, <span class="kw-2">&amp;</span>BasicBlock)&gt; {
-        <span class="self">self</span>.blocks.iter()
     }
 
     <span class="doccomment">/// Iterate over every Value in this DFG in no particular order, including unused Values

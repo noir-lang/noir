@@ -1651,7 +1651,19 @@
 <a href="#1650" id="1650">1650</a>
 <a href="#1651" id="1651">1651</a>
 <a href="#1652" id="1652">1652</a>
-<a href="#1653" id="1653">1653</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file contains the loop unrolling pass for the new SSA IR.
+<a href="#1653" id="1653">1653</a>
+<a href="#1654" id="1654">1654</a>
+<a href="#1655" id="1655">1655</a>
+<a href="#1656" id="1656">1656</a>
+<a href="#1657" id="1657">1657</a>
+<a href="#1658" id="1658">1658</a>
+<a href="#1659" id="1659">1659</a>
+<a href="#1660" id="1660">1660</a>
+<a href="#1661" id="1661">1661</a>
+<a href="#1662" id="1662">1662</a>
+<a href="#1663" id="1663">1663</a>
+<a href="#1664" id="1664">1664</a>
+<a href="#1665" id="1665">1665</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file contains the loop unrolling pass for the new SSA IR.
 //!
 //! This pass is divided into a few steps:
 //! 1. Find all loops in the program (`find_all_loops`)
@@ -1674,8 +1686,6 @@
 //!     has when not unrolled.
 //!   - Unrolling may be reverted for brillig functions if the increase in instruction count is
 //!     greater than `max_bytecode_increase_percent` (if set).
-//!   - In ACIR functions, reference count instructions are removed if present (they only have
-//!     effects in brillig functions so are superfluous in ACIR).
 //!   - Differing post-conditions (see below).
 //!
 //! Relevance to other passes:
@@ -1696,10 +1706,9 @@
 //!     used in the loop condition whose value is unknown) will result in an error.
 //!   - Post-condition (Brillig-only): If `max_bytecode_increase_percent` is set, the instruction count
 //!     of each function should increase by no more than that percentage compared to before the pass.
-</span><span class="kw">use </span>std::collections::BTreeSet;
+</span><span class="kw">use </span>std::collections::{BTreeSet, HashSet};
 
 <span class="kw">use </span>acvm::acir::AcirField;
-<span class="kw">use </span>im::HashSet;
 <span class="kw">use </span>noirc_errors::call_stack::{CallStack, CallStackId};
 
 <span class="kw">use crate</span>::{
@@ -1712,7 +1721,7 @@
             dom::DominatorTree,
             function::Function,
             function_inserter::FunctionInserter,
-            instruction::{Binary, BinaryOp, Instruction, InstructionId, TerminatorInstruction},
+            instruction::{Binary, BinaryOp, Instruction, TerminatorInstruction},
             integer::IntegerConstant,
             post_order::PostOrder,
             value::ValueId,
@@ -1797,16 +1806,85 @@
         <span class="prelude-val">Ok</span>(has_unrolled)
     }
 
-    <span class="comment">// Loop unrolling in brillig can lead to a code explosion currently.
-    // This can also be true for ACIR, but we have no alternative to unrolling in ACIR.
-    // Brillig also generally prefers smaller code rather than faster code,
-    // so we only attempt to unroll small loops, which we decide on a case-by-case basis.
+    <span class="doccomment">/// Unroll all loops within the function.
+    /// Any loops which fail to be unrolled (due to using non-constant indices) will be unmodified.
+    /// Returns a flag indicating whether any blocks have been modified.
+    ///
+    /// Loop unrolling in brillig can lead to a code explosion currently.
+    /// This can also be true for ACIR, but we have no alternative to unrolling in ACIR.
+    /// Brillig also generally prefers smaller code rather than faster code,
+    /// so we only attempt to unroll small loops, which we decide on a case-by-case basis.
     </span><span class="kw">fn </span>try_unroll_loops(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; (bool, Vec&lt;RuntimeError&gt;) {
-        Loops::find_all(<span class="self">self</span>).unroll_each(<span class="self">self</span>)
+        <span class="comment">// The loops that failed to be unrolled so that we do not try to unroll them again.
+        // Each loop is identified by its header block id.
+        </span><span class="kw">let </span><span class="kw-2">mut </span>failed_to_unroll = HashSet::new();
+        <span class="comment">// The reasons why loops in the above set failed to unroll.
+        </span><span class="kw">let </span><span class="kw-2">mut </span>unroll_errors = <span class="macro">vec!</span>[];
+        <span class="kw">let </span><span class="kw-2">mut </span>has_unrolled = <span class="bool-val">false</span>;
+
+        <span class="comment">// Repeatedly find all loops as we unroll outer loops and go towards nested ones.
+        </span><span class="kw">loop </span>{
+            <span class="kw">let </span><span class="kw-2">mut </span>loops = Loops::find_all(<span class="self">self</span>);
+            <span class="comment">// Blocks which were part of loops we unrolled. Nested loops are included in the outer loops,
+            // so if an outer loop is unrolled, we have to restart looking for the nested ones.
+            </span><span class="kw">let </span><span class="kw-2">mut </span>modified_blocks = HashSet::new();
+            <span class="comment">// Indicate whether we will have to have another go looking for loops, to deal with nested ones.
+            </span><span class="kw">let </span><span class="kw-2">mut </span>needs_refresh = <span class="bool-val">false</span>;
+
+            <span class="kw">while let </span><span class="prelude-val">Some</span>(next_loop) = loops.yet_to_unroll.pop() {
+                <span class="comment">// Don't try to unroll the loop again if it is known to fail
+                </span><span class="kw">if </span>failed_to_unroll.contains(<span class="kw-2">&amp;</span>next_loop.header) {
+                    <span class="kw">continue</span>;
+                }
+
+                <span class="comment">// Only unroll small loops in Brillig.
+                </span><span class="kw">if </span><span class="self">self</span>.runtime().is_brillig() &amp;&amp; !next_loop.is_small_loop(<span class="self">self</span>, <span class="kw-2">&amp;</span>loops.cfg) {
+                    <span class="kw">continue</span>;
+                }
+
+                <span class="comment">// Check if we will be able to unroll this loop, before starting to modify the blocks.
+                </span><span class="kw">if </span>next_loop.has_const_back_edge_induction_value(<span class="self">self</span>) {
+                    <span class="comment">// Don't try to unroll this.
+                    </span>failed_to_unroll.insert(next_loop.header);
+                    <span class="comment">// If this is Brillig, we can still evaluate this loop at runtime.
+                    </span><span class="kw">if </span><span class="self">self</span>.runtime().is_acir() {
+                        unroll_errors
+                            .push(RuntimeError::UnknownLoopBound { call_stack: CallStack::new() });
+                    }
+                    <span class="kw">continue</span>;
+                }
+
+                <span class="comment">// If we've previously modified a block in this loop we need to refresh the context.
+                // This happens any time we have nested loops.
+                </span><span class="kw">if </span>next_loop.blocks.iter().any(|block| modified_blocks.contains(block)) {
+                    needs_refresh = <span class="bool-val">true</span>;
+                    <span class="comment">// Carry on unrolling the loops which weren't related to the ones we have already done.
+                    </span><span class="kw">continue</span>;
+                }
+
+                <span class="comment">// Try to unroll.
+                </span><span class="kw">match </span>next_loop.unroll(<span class="self">self</span>, <span class="kw-2">&amp;</span>loops.cfg) {
+                    <span class="prelude-val">Ok</span>(<span class="kw">_</span>) =&gt; {
+                        has_unrolled = <span class="bool-val">true</span>;
+                        modified_blocks.extend(next_loop.blocks);
+                    }
+                    <span class="prelude-val">Err</span>(call_stack) =&gt; {
+                        failed_to_unroll.insert(next_loop.header);
+                        unroll_errors.push(RuntimeError::UnknownLoopBound { call_stack });
+                    }
+                }
+            }
+            <span class="comment">// Once we have no more nested loops, we are done.
+            </span><span class="kw">if </span>!needs_refresh {
+                <span class="kw">break</span>;
+            }
+        }
+        (has_unrolled, unroll_errors)
     }
 }
 
-<span class="attr">#[derive(Debug)]
+<span class="doccomment">/// Describe the blocks that constitute up a loop.
+</span><span class="attr">#[derive(Debug)]
 </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">struct </span>Loop {
     <span class="doccomment">/// The header block of a loop is the block which dominates all the
     /// other blocks in the loop.
@@ -1820,18 +1898,16 @@
     </span><span class="kw">pub</span>(<span class="kw">super</span>) blocks: BTreeSet&lt;BasicBlockId&gt;,
 }
 
-<span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">struct </span>Loops {
-    <span class="doccomment">/// The loops that failed to be unrolled so that we do not try to unroll them again.
-    /// Each loop is identified by its header block id.
-    </span>failed_to_unroll: HashSet&lt;BasicBlockId&gt;,
-
-    <span class="kw">pub</span>(<span class="kw">super</span>) yet_to_unroll: Vec&lt;Loop&gt;,
-    modified_blocks: HashSet&lt;BasicBlockId&gt;,
-    <span class="kw">pub</span>(<span class="kw">super</span>) cfg: ControlFlowGraph,
+<span class="doccomment">/// All the unrolled loops in the SSA.
+</span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">struct </span>Loops {
+    <span class="doccomment">/// Loops that haven't been unrolled yet, which is all the loops currently in the CFG.
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) yet_to_unroll: Vec&lt;Loop&gt;,
+    <span class="doccomment">/// The CFG so we can query the predecessors of blocks when needed.
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) cfg: ControlFlowGraph,
 }
 
 <span class="kw">impl </span>Loops {
-    <span class="doccomment">/// Find a loop in the program by finding a node that dominates any predecessor node.
+    <span class="doccomment">/// Find all loops in the program by finding a node that dominates any predecessor node.
     /// The edge where this happens will be the back-edge of the loop.
     ///
     /// For example consider the following SSA of a basic loop:
@@ -1859,6 +1935,9 @@
     /// loop_end    loop_body
     /// ```
     /// `loop_entry` has two predecessors: `main` and `loop_body`, and it dominates `loop_body`.
+    ///
+    /// Returns all groups of blocks that look like a loop, even if we might not be able to unroll them,
+    /// which we can use to check whether we were able to unroll all blocks.
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>find_all(function: <span class="kw-2">&amp;</span>Function) -&gt; <span class="self">Self </span>{
         <span class="kw">let </span>cfg = ControlFlowGraph::with_function(function);
         <span class="kw">let </span>post_order = PostOrder::with_function(function);
@@ -1866,16 +1945,13 @@
 
         <span class="kw">let </span><span class="kw-2">mut </span>loops = <span class="macro">vec!</span>[];
 
-        <span class="kw">for </span>(block, <span class="kw">_</span>) <span class="kw">in </span>function.dfg.basic_blocks_iter() {
-            <span class="comment">// These reachable checks wouldn't be needed if we only iterated over reachable blocks
-            </span><span class="kw">if </span>dom_tree.is_reachable(block) {
-                <span class="kw">for </span>predecessor <span class="kw">in </span>cfg.predecessors(block) {
-                    <span class="comment">// In the above example, we're looking for when `block` is `loop_entry` and `predecessor` is `loop_body`.
-                    </span><span class="kw">if </span>dom_tree.is_reachable(predecessor) &amp;&amp; dom_tree.dominates(block, predecessor)
-                    {
-                        <span class="comment">// predecessor -&gt; block is the back-edge of a loop
-                        </span>loops.push(Loop::find_blocks_in_loop(block, predecessor, <span class="kw-2">&amp;</span>cfg));
-                    }
+        <span class="comment">// Iterating over blocks in reverse-post-order, ie. forward order, just because it's already available.
+        </span><span class="kw">for </span>block <span class="kw">in </span>post_order.into_vec().into_iter().rev() {
+            <span class="kw">for </span>predecessor <span class="kw">in </span>cfg.predecessors(block) {
+                <span class="comment">// In the above example, we're looking for when `block` is `loop_entry` and `predecessor` is `loop_body`.
+                </span><span class="kw">if </span>dom_tree.dominates(block, predecessor) {
+                    <span class="comment">// predecessor -&gt; block is the back-edge of a loop
+                    </span>loops.push(Loop::find_blocks_in_loop(block, predecessor, <span class="kw-2">&amp;</span>cfg));
                 }
             }
         }
@@ -1885,60 +1961,7 @@
         // their loop range. We will start popping loops from the back.
         </span>loops.sort_by_key(|loop_| loop_.blocks.len());
 
-        <span class="self">Self </span>{
-            failed_to_unroll: HashSet::default(),
-            yet_to_unroll: loops,
-            modified_blocks: HashSet::default(),
-            cfg,
-        }
-    }
-
-    <span class="doccomment">/// Unroll all loops within a given function.
-    /// Any loops which fail to be unrolled (due to using non-constant indices) will be unmodified.
-    /// Returns whether any blocks have been modified
-    </span><span class="kw">fn </span>unroll_each(<span class="kw-2">mut </span><span class="self">self</span>, function: <span class="kw-2">&amp;mut </span>Function) -&gt; (bool, Vec&lt;RuntimeError&gt;) {
-        <span class="kw">let </span><span class="kw-2">mut </span>unroll_errors = <span class="macro">vec!</span>[];
-        <span class="kw">let </span><span class="kw-2">mut </span>has_unrolled = <span class="bool-val">false</span>;
-        <span class="kw">while let </span><span class="prelude-val">Some</span>(next_loop) = <span class="self">self</span>.yet_to_unroll.pop() {
-            <span class="kw">if </span>function.runtime().is_brillig() &amp;&amp; !next_loop.is_small_loop(function, <span class="kw-2">&amp;</span><span class="self">self</span>.cfg) {
-                <span class="kw">continue</span>;
-            }
-
-            <span class="kw">if </span>next_loop.has_const_back_edge_induction_value(function) {
-                <span class="comment">// Don't try to unroll this.
-                </span><span class="self">self</span>.failed_to_unroll.insert(next_loop.header);
-                <span class="comment">// If this is Brillig, we can still evaluate this loop at runtime.
-                </span><span class="kw">if </span>function.runtime().is_acir() {
-                    unroll_errors
-                        .push(RuntimeError::UnknownLoopBound { call_stack: CallStack::new() });
-                }
-                <span class="kw">continue</span>;
-            }
-
-            <span class="comment">// If we've previously modified a block in this loop we need to refresh the context.
-            // This happens any time we have nested loops.
-            </span><span class="kw">if </span>next_loop.blocks.iter().any(|block| <span class="self">self</span>.modified_blocks.contains(block)) {
-                <span class="kw">let </span><span class="kw-2">mut </span>new_loops = <span class="self">Self</span>::find_all(function);
-                new_loops.failed_to_unroll = <span class="self">self</span>.failed_to_unroll;
-                <span class="kw">let </span>(new_unrolled, new_errors) = new_loops.unroll_each(function);
-                <span class="kw">return </span>(has_unrolled || new_unrolled, [unroll_errors, new_errors].concat());
-            }
-
-            <span class="comment">// Don't try to unroll the loop again if it is known to fail
-            </span><span class="kw">if </span>!<span class="self">self</span>.failed_to_unroll.contains(<span class="kw-2">&amp;</span>next_loop.header) {
-                <span class="kw">match </span>next_loop.unroll(function, <span class="kw-2">&amp;</span><span class="self">self</span>.cfg) {
-                    <span class="prelude-val">Ok</span>(<span class="kw">_</span>) =&gt; {
-                        has_unrolled = <span class="bool-val">true</span>;
-                        <span class="self">self</span>.modified_blocks.extend(next_loop.blocks);
-                    }
-                    <span class="prelude-val">Err</span>(call_stack) =&gt; {
-                        <span class="self">self</span>.failed_to_unroll.insert(next_loop.header);
-                        unroll_errors.push(RuntimeError::UnknownLoopBound { call_stack });
-                    }
-                }
-            }
-        }
-        (has_unrolled, unroll_errors)
+        <span class="self">Self </span>{ yet_to_unroll: loops, cfg }
     }
 }
 
@@ -1951,7 +1974,8 @@
         cfg: <span class="kw-2">&amp;</span>ControlFlowGraph,
     ) -&gt; <span class="self">Self </span>{
         <span class="kw">let </span><span class="kw-2">mut </span>blocks = BTreeSet::default();
-        blocks.insert(header);
+        <span class="comment">// Insert the header so we don't go past it when traversing backwards from the back-edge.
+        </span>blocks.insert(header);
 
         <span class="kw">let </span><span class="kw-2">mut </span>insert = |block, stack: <span class="kw-2">&amp;mut </span>Vec&lt;BasicBlockId&gt;| {
             <span class="kw">if </span>!blocks.contains(<span class="kw-2">&amp;</span>block) {
@@ -1960,8 +1984,7 @@
             }
         };
 
-        <span class="comment">// Starting from the back edge of the loop, each predecessor of this block until
-        // the header is within the loop.
+        <span class="comment">// Starting from the back edge of the loop, enqueue each predecessor of this block until we reach the header.
         </span><span class="kw">let </span><span class="kw-2">mut </span>stack = <span class="macro">vec!</span>[];
         insert(back_edge_start, <span class="kw-2">&amp;mut </span>stack);
 
@@ -2584,7 +2607,8 @@
     /// for further unrolling. When the loop is finished this will need to be mutated to
     /// jump to the end of the loop instead.
     </span><span class="kw">fn </span>unroll_loop_iteration(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; (BasicBlockId, ValueId) {
-        <span class="kw">let </span><span class="kw-2">mut </span>next_blocks = <span class="self">self</span>.unroll_loop_block();
+        <span class="comment">// Kick off the unrolling from the initial source block.
+        </span><span class="kw">let </span><span class="kw-2">mut </span>next_blocks = <span class="self">self</span>.unroll_loop_block();
 
         <span class="kw">while let </span><span class="prelude-val">Some</span>(block) = next_blocks.pop() {
             <span class="self">self</span>.insert_block = block;
@@ -2604,25 +2628,18 @@
         (end_block, induction_value)
     }
 
-    <span class="doccomment">/// Unroll a single block in the current iteration of the loop
+    <span class="doccomment">/// Unroll a single block in the current iteration of the loop.
+    ///
+    /// Returns the next blocks to unroll, based on whether the jmp terminator has 1 or 2 destinations.
     </span><span class="kw">fn </span>unroll_loop_block(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; Vec&lt;BasicBlockId&gt; {
-        <span class="kw">let </span><span class="kw-2">mut </span>next_blocks = <span class="self">self</span>.unroll_loop_block_helper();
-        <span class="comment">// Guarantee that the next blocks we set up to be unrolled, are actually part of the loop,
-        // which we recorded while inlining the instructions of the blocks already processed.
-        </span>next_blocks.retain(|block| {
-            <span class="kw">let </span>b = <span class="self">self</span>.get_original_block(<span class="kw-2">*</span>block);
-            <span class="self">self</span>.loop_.blocks.contains(<span class="kw-2">&amp;</span>b)
-        });
-        next_blocks
-    }
-
-    <span class="doccomment">/// Unroll a single block in the current iteration of the loop
-    </span><span class="kw">fn </span>unroll_loop_block_helper(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; Vec&lt;BasicBlockId&gt; {
-        <span class="comment">// Copy instructions from the loop body to the unroll destination, replacing the terminator.
-        </span><span class="self">self</span>.inline_instructions_from_block();
         <span class="self">self</span>.visited_blocks.insert(<span class="self">self</span>.source_block);
 
-        <span class="kw">match </span><span class="self">self</span>.inserter.function.dfg[<span class="self">self</span>.insert_block].unwrap_terminator() {
+        <span class="comment">// Copy instructions from the loop body to the unroll destination, replacing the terminator.
+        </span><span class="self">self</span>.inline_instructions_from_block();
+
+        <span class="kw">let </span>terminator = <span class="self">self</span>.inserter.function.dfg[<span class="self">self</span>.insert_block].unwrap_terminator();
+
+        <span class="kw">let </span>next_blocks = <span class="kw">match </span>terminator {
             TerminatorInstruction::JmpIf {
                 condition,
                 then_destination,
@@ -2632,15 +2649,32 @@
             TerminatorInstruction::Jmp { destination, arguments, call_stack: <span class="kw">_ </span>} =&gt; {
                 <span class="kw">if </span><span class="self">self</span>.get_original_block(<span class="kw-2">*</span>destination) == <span class="self">self</span>.loop_.header {
                     <span class="comment">// We found the back-edge of the loop.
-                    </span><span class="macro">assert_eq!</span>(arguments.len(), <span class="number">1</span>);
+                    </span><span class="macro">assert_eq!</span>(arguments.len(), <span class="number">1</span>, <span class="string">"back-edge should only have 1 argument"</span>);
+                    <span class="macro">assert!</span>(<span class="self">self</span>.induction_value.is_none(), <span class="string">"there should be only one back-edge"</span>);
                     <span class="self">self</span>.induction_value = <span class="prelude-val">Some</span>((<span class="self">self</span>.insert_block, arguments[<span class="number">0</span>]));
                 }
                 <span class="macro">vec!</span>[<span class="kw-2">*</span>destination]
             }
-            TerminatorInstruction::Return { .. } | TerminatorInstruction::Unreachable { .. } =&gt; {
-                <span class="macro">vec!</span>[]
+            TerminatorInstruction::Return { .. } =&gt; {
+                <span class="comment">// Early returns from loops are not implemented.
+                </span><span class="macro">unreachable!</span>(<span class="string">"unexpected return terminator in loop body"</span>);
             }
-        }
+            TerminatorInstruction::Unreachable { .. } =&gt; {
+                <span class="comment">// The SSA pass that adds unreachable terminators must come after unrolling.
+                </span><span class="macro">unreachable!</span>(<span class="string">"unexpected unreachable terminator in loop body"</span>);
+            }
+        };
+
+        <span class="comment">// Guarantee that the next blocks we set up to be unrolled, are actually part of the loop,
+        // which we recorded while inlining the instructions of the blocks already processed.
+        // Since we only call `unroll_loop_block` from `unroll_loop_iteration`, which we only call
+        // if the single destination in `unroll_header` is *not* outside the loop, this should hold.
+        </span>next_blocks.iter().for_each(|block| {
+            <span class="kw">let </span>b = <span class="self">self</span>.get_original_block(<span class="kw-2">*</span>block);
+            <span class="macro">assert!</span>(<span class="self">self</span>.loop_.blocks.contains(<span class="kw-2">&amp;</span>b), <span class="string">"destination not in original loop"</span>);
+        });
+
+        next_blocks
     }
 
     <span class="doccomment">/// Find the next branch(es) to take from a jmpif terminator and return them.
@@ -2674,8 +2708,10 @@
         }
     }
 
-    <span class="doccomment">/// Translate a block id to a block id in the unrolled loop. If the given
-    /// block id is not within the loop, it is returned as-is.
+    <span class="doccomment">/// Translate a block id to a block id in the unrolled loop.
+    ///
+    /// If the given block id is not within the loop, it is returned as-is,
+    /// which is the case for when the header jumps to the block following the loop.
     </span><span class="kw">fn </span>get_or_insert_block(<span class="kw-2">&amp;mut </span><span class="self">self</span>, block: BasicBlockId) -&gt; BasicBlockId {
         <span class="kw">if let </span><span class="prelude-val">Some</span>(new_block) = <span class="self">self</span>.blocks.get(<span class="kw-2">&amp;</span>block) {
             <span class="kw">return </span><span class="kw-2">*</span>new_block;
@@ -2709,10 +2745,6 @@
         // instances of the induction variable or any values that were changed as a result
         // of the new induction variable value.
         </span><span class="kw">for </span>instruction <span class="kw">in </span>instructions {
-            <span class="comment">// Reference counting is only used by Brillig, ACIR doesn't need them.
-            </span><span class="kw">if </span><span class="self">self</span>.inserter.function.runtime().is_acir() &amp;&amp; <span class="self">self</span>.is_refcount(instruction) {
-                <span class="kw">continue</span>;
-            }
             <span class="self">self</span>.inserter.push_instruction(instruction, <span class="self">self</span>.insert_block);
         }
         <span class="kw">let </span><span class="kw-2">mut </span>terminator = <span class="self">self</span>.dfg()[<span class="self">self</span>.source_block].unwrap_terminator().clone();
@@ -2723,14 +2755,6 @@
         // while remembering which were the original block IDs.
         </span>terminator.mutate_blocks(|block| <span class="self">self</span>.get_or_insert_block(block));
         <span class="self">self</span>.inserter.function.dfg.set_block_terminator(<span class="self">self</span>.insert_block, terminator);
-    }
-
-    <span class="doccomment">/// Is the instruction an `Rc`?
-    </span><span class="kw">fn </span>is_refcount(<span class="kw-2">&amp;</span><span class="self">self</span>, instruction: InstructionId) -&gt; bool {
-        <span class="macro">matches!</span>(
-            <span class="self">self</span>.dfg()[instruction],
-            Instruction::IncrementRc { .. } | Instruction::DecrementRc { .. }
-        )
     }
 
     <span class="kw">fn </span>dfg(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>DataFlowGraph {
