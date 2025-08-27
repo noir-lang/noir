@@ -928,6 +928,7 @@ impl<'f> LoopIteration<'f> {
     /// for further unrolling. When the loop is finished this will need to be mutated to
     /// jump to the end of the loop instead.
     fn unroll_loop_iteration(mut self) -> (BasicBlockId, ValueId) {
+        // Kick off the unrolling from the initial source block.
         let mut next_blocks = self.unroll_loop_block();
 
         while let Some(block) = next_blocks.pop() {
@@ -952,23 +953,14 @@ impl<'f> LoopIteration<'f> {
     ///
     /// Returns the next blocks to unroll, based on whether the jmp terminator has 1 or 2 destinations.
     fn unroll_loop_block(&mut self) -> Vec<BasicBlockId> {
-        let mut next_blocks = self.unroll_loop_block_helper();
-        // Guarantee that the next blocks we set up to be unrolled, are actually part of the loop,
-        // which we recorded while inlining the instructions of the blocks already processed.
-        next_blocks.retain(|block| {
-            let b = self.get_original_block(*block);
-            self.loop_.blocks.contains(&b)
-        });
-        next_blocks
-    }
-
-    /// Unroll a single block in the current iteration of the loop
-    fn unroll_loop_block_helper(&mut self) -> Vec<BasicBlockId> {
-        // Copy instructions from the loop body to the unroll destination, replacing the terminator.
-        self.inline_instructions_from_block();
         self.visited_blocks.insert(self.source_block);
 
-        match self.inserter.function.dfg[self.insert_block].unwrap_terminator() {
+        // Copy instructions from the loop body to the unroll destination, replacing the terminator.
+        self.inline_instructions_from_block();
+
+        let terminator = self.inserter.function.dfg[self.insert_block].unwrap_terminator();
+
+        let mut next_blocks = match terminator {
             TerminatorInstruction::JmpIf {
                 condition,
                 then_destination,
@@ -986,7 +978,16 @@ impl<'f> LoopIteration<'f> {
             TerminatorInstruction::Return { .. } | TerminatorInstruction::Unreachable { .. } => {
                 vec![]
             }
-        }
+        };
+
+        // Guarantee that the next blocks we set up to be unrolled, are actually part of the loop,
+        // which we recorded while inlining the instructions of the blocks already processed.
+        next_blocks.retain(|block| {
+            let b = self.get_original_block(*block);
+            self.loop_.blocks.contains(&b)
+        });
+
+        next_blocks
     }
 
     /// Find the next branch(es) to take from a jmpif terminator and return them.
