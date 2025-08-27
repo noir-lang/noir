@@ -1304,7 +1304,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         self.xor_var(
             diff_sign,
             same_sign,
-            AcirType::NumericType(NumericType::Signed { bit_size: 1 }),
+            AcirType::NumericType(NumericType::Unsigned { bit_size: 1 }),
         )
     }
 
