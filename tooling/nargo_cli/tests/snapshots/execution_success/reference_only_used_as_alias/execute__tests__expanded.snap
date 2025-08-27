@@ -76,7 +76,7 @@ unconstrained fn func(input: u32) {
     let mut var: u32 = input;
     let ref: &mut &mut u32 = &mut &mut var;
     for _ in 0_u32..1_u32 {
-        *(*(ref)) = 2_u32;
+        **ref = 2_u32;
     }
     assert(var == 2_u32);
     assert(**ref == 2_u32);

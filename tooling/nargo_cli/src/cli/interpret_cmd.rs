@@ -128,7 +128,7 @@ pub(crate) fn run(args: InterpretCommand, workspace: Workspace) -> Result<(), Cl
             }
         });
 
-        let interpreter_options = InterpreterOptions { trace: args.trace };
+        let interpreter_options = InterpreterOptions { trace: args.trace, ..Default::default() };
         let file_manager =
             if args.compile_options.no_ssa_locations { None } else { Some(&file_manager) };
 
