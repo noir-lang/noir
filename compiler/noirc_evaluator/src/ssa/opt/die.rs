@@ -773,7 +773,7 @@ impl RcTracker {
                 self.mutated_array_types.insert(typ);
 
                 let value_typ = function.dfg.type_of_value(*value);
-                if value_typ.is_array() {
+                if value_typ.is_array_or_slice() {
                     self.mutated_array_types.insert(value_typ);
                 }
             }

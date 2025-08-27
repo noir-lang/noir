@@ -248,7 +248,7 @@ impl Type {
     }
 
     /// True if this type is an array (or slice)
-    pub(crate) fn is_array(&self) -> bool {
+    pub(crate) fn is_array_or_slice(&self) -> bool {
         matches!(self, Type::Array(_, _) | Type::Slice(_))
     }
 
