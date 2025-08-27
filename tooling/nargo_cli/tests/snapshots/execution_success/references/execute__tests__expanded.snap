@@ -18,7 +18,7 @@ fn main(mut x: Field) {
     add1(*nested_allocations.y);
     assert(**nested_allocations.y == 1_Field);
     let mut c: C = C { foo: 0_Field, bar: &mut C2 { array: &mut [1_Field, 2_Field] } };
-    *(c.bar.array) = [3_Field, 4_Field];
+    *c.bar.array = [3_Field, 4_Field];
     assert(*c.bar.array == [3_Field, 4_Field]);
     regression_1887();
     regression_2054();
@@ -37,7 +37,7 @@ fn main(mut x: Field) {
 }
 
 fn add1(x: &mut Field) {
-    *(x) = *x + 1_Field;
+    *x = *x + 1_Field;
 }
 
 struct S {
@@ -102,7 +102,7 @@ fn regression_2030() {
     let ref: &mut Field = &mut 0_Field;
     let mut array: [&mut Field; 2] = [ref, ref];
     let _: Field = *array[0_u32];
-    *(array[0_u32]) = 1_Field;
+    *array[0_u32] = 1_Field;
 }
 
 fn regression_2255() {
@@ -112,7 +112,7 @@ fn regression_2255() {
 }
 
 fn regression_2255_helper(mut x: &mut Field) {
-    *(x) = 1_Field;
+    *x = 1_Field;
 }
 
 fn regression_6443() {
@@ -122,7 +122,7 @@ fn regression_6443() {
 }
 
 fn regression_6443_helper(x: &mut Field) {
-    *(x) = 1_Field;
+    *x = 1_Field;
 }
 
 fn regression_2218(x: Field, y: Field) -> Field {
@@ -130,17 +130,17 @@ fn regression_2218(x: Field, y: Field) -> Field {
     let q1: &mut Field = *q;
     let q2: &mut Field = *q;
     if x != y {
-        *(q1) = 1_Field;
+        *q1 = 1_Field;
         if x != 20_Field {
-            *(q1) = 10_Field;
-            *(q2) = 2_Field;
+            *q1 = 10_Field;
+            *q2 = 2_Field;
             assert(*q1 == 2_Field);
         } else {
-            *(q2) = 15_Field;
+            *q2 = 15_Field;
             assert(*q1 == 15_Field);
         }
     } else {
-        *(q2) = 20_Field;
+        *q2 = 20_Field;
         assert(*q1 == 20_Field);
     };
     let value: Field = *q1;
@@ -168,11 +168,11 @@ fn regression_2218_loop(x: Field, y: Field) {
     let q2: &mut Field = *q;
     for _ in 0_u32..1_u32 {
         if x != y {
-            *(q1) = 10_Field;
-            *(q2) = 2_Field;
+            *q1 = 10_Field;
+            *q2 = 2_Field;
             assert(*q1 == 2_Field);
         } else {
-            *(q2) = 20_Field;
+            *q2 = 20_Field;
             assert(*q1 == 20_Field);
         }
     }
@@ -180,28 +180,28 @@ fn regression_2218_loop(x: Field, y: Field) {
     for _ in 0_u32..1_u32 {
         for _ in 0_u32..5_u32 {
             if x != y {
-                *(q1) = 1_Field;
+                *q1 = 1_Field;
                 if x != 20_Field {
-                    *(q1) = 10_Field;
-                    *(q2) = 2_Field;
+                    *q1 = 10_Field;
+                    *q2 = 2_Field;
                     assert(*q1 == 2_Field);
                 }
             } else {
-                *(q2) = 20_Field;
+                *q2 = 20_Field;
                 assert(*q1 == 20_Field);
             }
         }
         if x != y {
-            *(q1) = 1_Field;
+            *q1 = 1_Field;
             for _ in 0_u32..5_u32 {
                 if x != 20_Field {
-                    *(q1) = 10_Field;
-                    *(q2) = 2_Field;
+                    *q1 = 10_Field;
+                    *q2 = 2_Field;
                     assert(*q1 == 2_Field);
                 }
             }
         } else {
-            *(q2) = 20_Field;
+            *q2 = 20_Field;
             assert(*q1 == 20_Field);
         }
     }
@@ -209,16 +209,16 @@ fn regression_2218_loop(x: Field, y: Field) {
     if x != y {
         for _ in 0_u32..5_u32 {
             if x != y {
-                *(q1) = 1_Field;
+                *q1 = 1_Field;
                 if x != 20_Field {
-                    *(q1) = 10_Field;
-                    *(q2) = 2_Field;
+                    *q1 = 10_Field;
+                    *q2 = 2_Field;
                     assert(*q1 == 2_Field);
                 }
             }
         }
     } else {
-        *(q2) = 20_Field;
+        *q2 = 20_Field;
         assert(*q1 == 20_Field);
     };
     assert(*q1 == 2_Field);
