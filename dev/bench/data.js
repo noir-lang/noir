@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1756308765659,
+  "lastUpdate": 1756313005800,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -20170,48 +20170,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "910ed69841693602d648462e57e15e6fc3d40235",
-          "message": "chore: Switch to node v22.15.0 (#9582)",
-          "timestamp": "2025-08-20T15:12:13Z",
-          "tree_id": "3683f6cc60930caad4fd2082eb0bc7c75fb1f949",
-          "url": "https://github.com/noir-lang/noir/commit/910ed69841693602d648462e57e15e6fc3d40235"
-        },
-        "date": 1755704341489,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 250373,
-            "range": "± 745",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 220447,
-            "range": "± 4634",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2778994,
-            "range": "± 1745",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "52a8579901ba03c53cbb022d968435bb4f66e2c8",
           "message": "chore(ssa): Update comments on `loop_invariant` for audit and some missing unit tests (#9574)",
@@ -22254,6 +22212,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2778819,
             "range": "± 2473",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "f601afe67c49fa943e6ab6c4b2ffbfa76f43e033",
+          "message": "feat: Group one audit tests  (#9445)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
+          "timestamp": "2025-08-27T16:16:48Z",
+          "tree_id": "d6beab40daf654ef14f39bc2ab9429d422bc1877",
+          "url": "https://github.com/noir-lang/noir/commit/f601afe67c49fa943e6ab6c4b2ffbfa76f43e033"
+        },
+        "date": 1756312986960,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 250928,
+            "range": "± 812",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 220443,
+            "range": "± 2557",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2782502,
+            "range": "± 2403",
             "unit": "ns/iter"
           }
         ]
