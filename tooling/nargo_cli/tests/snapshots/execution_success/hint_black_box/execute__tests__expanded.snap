@@ -73,5 +73,5 @@ unconstrained fn brillig_slice_sum(xs: [u32]) -> u32 {
 }
 
 fn set_ref(c: &mut u32, b: &mut u32) {
-    *(c) = *b;
+    *c = *b;
 }
