@@ -306,9 +306,10 @@ impl<'f> LoopInvariantContext<'f> {
             self.current_block_executes = self.does_block_execute(*block, all_loops);
             self.current_block_impure = false;
             self.is_control_dependent_post_pre_header(loop_, *block, all_loops);
+            let header = loop_.header == *block;
 
             for instruction_id in self.inserter.function.dfg[*block].take_instructions() {
-                if self.simplify_from_loop_bounds(instruction_id, loop_, block) {
+                if self.simplify_from_loop_bounds(instruction_id, header) {
                     continue;
                 }
                 let hoist_invariant = self.can_hoist_invariant(instruction_id);
@@ -701,14 +702,9 @@ impl<'f> LoopInvariantContext<'f> {
     /// If we determine that an overflow is not possible we can convert the checked operation to unchecked.
     ///
     /// The function returns false if the instruction must be added to the block
-    fn simplify_from_loop_bounds(
-        &mut self,
-        instruction_id: InstructionId,
-        loop_: &Loop,
-        current_block: &BasicBlockId,
-    ) -> bool {
+    fn simplify_from_loop_bounds(&mut self, instruction_id: InstructionId, header: bool) -> bool {
         // Simplify the instruction and update it in the DFG.
-        match self.simplify_induction_variable(instruction_id, loop_, current_block) {
+        match self.simplify_induction_variable(instruction_id, header) {
             SimplifyResult::SimplifiedTo(id) => {
                 let results =
                     self.inserter.function.dfg.instruction_results(instruction_id).to_vec();
@@ -863,11 +859,8 @@ impl<'f> LoopInvariantContext<'f> {
     fn simplify_induction_variable(
         &mut self,
         instruction_id: InstructionId,
-        loop_: &Loop,
-        block: &BasicBlockId,
+        header: bool,
     ) -> SimplifyResult {
-        let header = loop_.header == *block;
-
         let (instruction, call_stack) = self.inserter.map_instruction(instruction_id);
         match &instruction {
             Instruction::Binary(binary) => {
