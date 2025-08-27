@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1756328719794,
+  "lastUpdate": 1756328879427,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -20161,48 +20161,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jfecher11@gmail.com",
-            "name": "jfecher",
-            "username": "jfecher"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "e520c96ed5e5e724f870349fde874cf393a79cc7",
-          "message": "chore: Add a section for numeric type aliases (#9589)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
-          "timestamp": "2025-08-20T21:48:22Z",
-          "tree_id": "19e1e583bedf38bfee1374341559cee8170ec809",
-          "url": "https://github.com/noir-lang/noir/commit/e520c96ed5e5e724f870349fde874cf393a79cc7"
-        },
-        "date": 1755727996039,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 248975,
-            "range": "± 663",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 219240,
-            "range": "± 3118",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2780464,
-            "range": "± 11025",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -22254,6 +22212,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2780073,
             "range": "± 2673",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3e195c6b421079b23f71ec141e866a8a313d40a8",
+          "message": "chore(ssa): Refactor `unrolling` (#9653)",
+          "timestamp": "2025-08-27T20:40:43Z",
+          "tree_id": "11a7c677e09d824fbe47a62d2948fe470ca80d46",
+          "url": "https://github.com/noir-lang/noir/commit/3e195c6b421079b23f71ec141e866a8a313d40a8"
+        },
+        "date": 1756328860494,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 249352,
+            "range": "± 568",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 217829,
+            "range": "± 1805",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2779394,
+            "range": "± 1983",
             "unit": "ns/iter"
           }
         ]
