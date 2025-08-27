@@ -11,8 +11,7 @@ Nargo allows you to upload packages to GitHub and use them as dependencies.
 
 ## Specifying a dependency
 
-Specifying a dependency requires a tag to a specific commit and the git url to the url containing
-the package.
+Specifying a dependency requires a `tag` to a specific commit and a `git` url to the url containing the package.
 
 :::note
 
@@ -20,7 +19,7 @@ Without a `tag` , there would be no versioning and dependencies would change eac
 
 :::
 
-For example, to add the [bignum library](https://github.com/noir-lang/noir-bignum) to your project, add it to `Nargo.toml`:
+For example, to add the [bignum library](https://github.com/noir-lang/noir-bignum) to your project, add it to _Nargo.toml_:
 
 ```toml
 # Nargo.toml
@@ -40,7 +39,7 @@ blob = {tag ="v1.2.1", git = "https://github.com/AztecProtocol/aztec-packages", 
 
 :::info
 
-Currently, there are no requirements on the tag contents. If requirements are added, it would follow semver 2.0 guidelines.
+Currently, there are no requirements applied on the contents of `tag`. Requirements based on semver 2.0 guidelines could be introduced in the future.
 
 :::
 
@@ -95,7 +94,7 @@ use std::hash::{blake2s, blake3};
 
 We don't have a way to consume libraries from inside a [workspace](./workspaces.md) as external dependencies right now.
 
-Inside a workspace, these are consumed as `{ path = "../to_lib" }` dependencies in Nargo.toml.
+Inside a workspace, these are consumed as `{ path = "../to_lib" }` dependencies in _Nargo.toml_.
 
 ## Dependencies of Dependencies
 
