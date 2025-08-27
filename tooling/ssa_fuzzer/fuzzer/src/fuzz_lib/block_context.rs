@@ -584,20 +584,12 @@ impl BlockContext {
                     /*is constant =*/ true,
                     safe_index,
                 );
-                if let Some((value, is_references)) = value {
-                    if !is_references {
-                        append_typed_value_to_map(
-                            &mut self.stored_variables,
-                            &value.type_of_variable.clone(),
-                            value.clone(),
-                        );
-                    } else {
-                        append_typed_value_to_map(
-                            &mut self.stored_variables,
-                            &value.type_of_variable.clone(),
-                            value.clone(),
-                        );
-                    }
+                if let Some((value, _is_references)) = value {
+                    append_typed_value_to_map(
+                        &mut self.stored_variables,
+                        &value.type_of_variable.clone(),
+                        value.clone(),
+                    );
                 }
             }
             Instruction::ArraySetWithConstantIndex {
@@ -1250,20 +1242,11 @@ impl BlockContext {
         if is_array_of_references && !index_is_constant {
             return None;
         }
-        // get the value from the stored variables if not references, otherwise from memory addresses
-        let value = if !is_array_of_references {
-            get_typed_value_from_map(
-                &self.stored_variables,
-                &array.type_of_variable.unwrap_array_element_type(),
-                value_index,
-            )
-        } else {
-            get_typed_value_from_map(
-                &self.stored_variables,
-                &array.type_of_variable.unwrap_array_element_type(),
-                value_index,
-            )
-        };
+        let value = get_typed_value_from_map(
+            &self.stored_variables,
+            &array.type_of_variable.unwrap_array_element_type(),
+            value_index,
+        );
         let value = match value {
             Some(value) => value,
             _ => return None,
