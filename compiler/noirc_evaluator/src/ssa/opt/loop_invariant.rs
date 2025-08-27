@@ -1,10 +1,18 @@
-//! The loop invariant code motion (LICM) pass moves code from inside a loop to before the loop
-//! if that code will always have the same result on every iteration of the loop.
+//! The loop invariant code motion (LICM) pass performs two related optimizations:
+//! 1. Loop-Invariant Code Motion: Moves computations that produce the same result
+//!    on every iteration out of the loop and into its pre-header.
+//! 2. Loop-Bounds Simplification: Simplifies computations inside the loop body
+//!    using information derived from induction variables and loop bounds. This optimization
+//!    is essentially constant folding using induction variables.
 //!
+//! ## Design
 //! To identify a loop invariant, check whether all of an instruction's values are:
 //! - Outside of the loop
 //! - Constant
 //! - Already marked as loop invariants
+//!
+//! If we know that an invariant will always be executed (a loop's bounds are not dynamic and the upper bound is greater than its lower bounds)
+//! we then hoist that invariant into the loop pre-header.
 //!
 //! We also check that we are not hoisting instructions with side effects.
 //! However, there are certain instructions whose side effects are only activated
@@ -44,6 +52,32 @@
 //!
 //! We then can store the PDFs for every block as part of the context of this pass, and use it for checking control dependence.
 //! Using PDFs gets us from a worst case n^2 complexity to a worst case n.
+//!
+//! ### Simplification from Loop Bounds
+//! We analyze induction variables and loop bounds to simplify instructions.
+//! - Replacing conditions with constants when bounds make the condition always true/false.
+//! - Simplifying arithmetic expressions involving induction variables (e.g., comparisons against loop bounds)
+//!
+//! Simplification is attempted before hoisting. This maximizes opportunities for
+//! eliminating redundant computations entirely (by replacing them with constants),
+//! and reduces the amount of code even considered for hoisting.
+//!
+//! ## Preconditions
+//! - The pass will only be run on loops with a single pre-header. If a loop's header has multiple predecessors,
+//!   the pass will skip that loop.
+//!
+//! ## Post-conditions
+//! - All loop-invariant instructions that are safe to hoist are moved to the loop pre-header.
+//! - Instructions inside loops may be simplified if loop bounds or induction variable
+//!   constraints allow (e.g. replacing comparisons with constants).
+//! - Control dependence is respected: instructions whose effects depend on runtime conditions
+//!   remain in the loop unless proven safe for hoisting.
+//!
+//! ## ACIR vs Brillig
+//! - On ACIR, LICM operates only on pure value computations.
+//! - On Brillig, additional reference-counting rules apply. For example, hoisting [Instruction::MakeArray]
+//!   requires inserting an [Instruction::IncrementRc] to preserve reference semantics if the array
+//!   may later be mutated.
 use crate::ssa::{
     Ssa,
     ir::{
@@ -71,6 +105,7 @@ use noirc_errors::call_stack::CallStackId;
 use super::unrolling::{Loop, Loops};
 
 impl Ssa {
+    /// See [`loop_invariant`][self] module for more information.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn loop_invariant_code_motion(mut self) -> Ssa {
         for function in self.functions.values_mut() {
@@ -155,20 +190,20 @@ struct LoopInvariantContext<'f> {
     inserter: FunctionInserter<'f>,
     defined_in_loop: HashSet<ValueId>,
     loop_invariants: HashSet<ValueId>,
-    // Maps current loop induction variable -> fixed lower and upper loop bound
-    // This map is expected to only ever contain a singular value.
-    // However, we store it in a map in order to match the definition of
-    // `outer_induction_variables` as both maps share checks for evaluating binary operations.
+    /// Maps current loop induction variable -> fixed lower and upper loop bound
+    /// This map is expected to only ever contain a singular value.
+    /// However, we store it in a map in order to match the definition of
+    /// `outer_induction_variables` as both maps share checks for evaluating binary operations.
     current_induction_variables: HashMap<ValueId, (IntegerConstant, IntegerConstant)>,
-    // Maps outer loop induction variable -> fixed lower and upper loop bound
-    // This will be used by inner loops to determine whether they
-    // have safe operations reliant upon an outer loop's maximum induction variable
+    /// Maps outer loop induction variable -> fixed lower and upper loop bound
+    /// This will be used by inner loops to determine whether they
+    /// have safe operations reliant upon an outer loop's maximum induction variable
     outer_induction_variables: HashMap<ValueId, (IntegerConstant, IntegerConstant)>,
-    // All induction variables collected up front.
+    /// All induction variables collected up front.
     all_induction_variables: HashMap<ValueId, (IntegerConstant, IntegerConstant)>,
-    // This context struct processes runs across all loops.
-    // This stores the current loop's pre-header block.
-    // It is wrapped in an Option as our SSA `Id<T>` does not allow dummy values.
+    /// This context struct processes runs across all loops.
+    /// This stores the current loop's pre-header block.
+    /// It is wrapped in an Option as our SSA `Id<T>` does not allow dummy values.
     current_pre_header: Option<BasicBlockId>,
 
     cfg: ControlFlowGraph,
@@ -238,6 +273,8 @@ impl<'f> LoopInvariantContext<'f> {
         self.current_pre_header.expect("ICE: Pre-header block should have been set")
     }
 
+    /// Perform loop invariant code motion and induction variable analysis.
+    /// See [`loop_invariant`][self] module for more information.
     fn hoist_loop_invariants(&mut self, loop_: &Loop, all_loops: &[Loop]) {
         self.set_values_defined_in_loop(loop_);
 
@@ -1107,8 +1144,9 @@ fn can_be_hoisted(
 
 #[cfg(test)]
 mod test {
+    use crate::assert_ssa_snapshot;
     use crate::ssa::Ssa;
-    use crate::ssa::opt::assert_normalized_ssa_equals;
+    use crate::ssa::opt::{assert_normalized_ssa_equals, assert_ssa_does_not_change};
 
     #[test]
     fn simple_loop_invariant_code_motion() {
@@ -1145,7 +1183,8 @@ mod test {
         // v3 = mul v0, v1
         // constrain v3 == i32 6
         // ```
-        let expected = "
+        let ssa = ssa.loop_invariant_code_motion();
+        assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
           b0(v0: i32, v1: i32):
             v3 = unchecked_mul v0, v1
@@ -1160,10 +1199,56 @@ mod test {
             v9 = unchecked_add v2, i32 1
             jmp b1(v9)
         }
+        ");
+    }
+
+    #[test]
+    fn simple_licm_one_value_invariant_one_value_local() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: i32, v1: i32):
+            jmp b1(i32 0)
+          b1(v2: i32):
+            v5 = lt v2, i32 4
+            jmpif v5 then: b3, else: b2
+          b2():
+            return
+          b3():
+            v6 = unchecked_mul v0, v1 // loop invariant 
+            constrain v6 == v2 // local loop instruction (checks against induction variable)
+            v8 = unchecked_add v2, i32 1
+            jmp b1(v8)
+        }
         ";
 
+        let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.loop_invariant_code_motion();
-        assert_normalized_ssa_equals(ssa, expected);
+
+        // From b3:
+        // ```
+        // v6 = unchecked_mul v0, v1
+        // constrain v6 == v2
+        // ```
+        // To b0:
+        // ```
+        // v3 = unchecked_mul v0, v1
+        // ```
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: i32, v1: i32):
+            v3 = unchecked_mul v0, v1
+            jmp b1(i32 0)
+          b1(v2: i32):
+            v6 = lt v2, i32 4
+            jmpif v6 then: b3, else: b2
+          b2():
+            return
+          b3():
+            constrain v3 == v2
+            v8 = unchecked_add v2, i32 1
+            jmp b1(v8)
+        }
+        ");
     }
 
     #[test]
@@ -1202,7 +1287,8 @@ mod test {
         assert_eq!(instructions.len(), 0); // The final return is not counted
 
         // `v10 = mul v0, v1` in b6 should now be `v4 = mul v0, v1` in b0
-        let expected = "
+        let ssa = ssa.loop_invariant_code_motion();
+        assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
           b0(v0: i32, v1: i32):
             v4 = unchecked_mul v0, v1
@@ -1225,10 +1311,63 @@ mod test {
             v11 = unchecked_add v3, i32 1
             jmp b4(v11)
         }
-        ";
+        ");
+    }
 
+    #[test]
+    fn nested_inner_loop_invariant_from_outer_loop_local_variables() {
+        // Check that a loop invariant in the inner loop, using only outer-loop locals,
+        // is hoisted to the inner loop's pre-header, not the outer loop's pre-header.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: i32):
+            jmp b1(i32 0)
+          b1(v1: i32):
+            v5 = lt v1, i32 3
+            jmpif v5 then: b3, else: b2
+          b2():
+            return
+          b3():
+            jmp b4(i32 0)
+          b4(v2: i32):
+            v7 = lt v2, i32 2
+            jmpif v7 then: b6, else: b5
+          b5():
+            v12 = unchecked_add v1, i32 1
+            jmp b1(v12)
+          b6():
+            v9 = unchecked_mul v1, i32 5 // loop invariant using outer loop local variable
+            v11 = unchecked_add v2, i32 1
+            jmp b4(v11)
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.loop_invariant_code_motion();
-        assert_normalized_ssa_equals(ssa, expected);
+
+        // After LICM, v9 should be hoisted to the inner loop pre-header (b5)
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: i32):
+            jmp b1(i32 0)
+          b1(v1: i32):
+            v5 = lt v1, i32 3
+            jmpif v5 then: b3, else: b2
+          b2():
+            return
+          b3():
+            v7 = unchecked_mul v1, i32 5
+            jmp b4(i32 0)
+          b4(v2: i32):
+            v9 = lt v2, i32 2
+            jmpif v9 then: b6, else: b5
+          b5():
+            v12 = unchecked_add v1, i32 1
+            jmp b1(v12)
+          b6():
+            v11 = unchecked_add v2, i32 1
+            jmp b4(v11)
+        }
+        ");
     }
 
     #[test]
@@ -1269,7 +1408,8 @@ mod test {
         let instructions = main.dfg[main.entry_block()].instructions();
         assert_eq!(instructions.len(), 0); // The final return is not counted
 
-        let expected = "
+        let ssa = ssa.loop_invariant_code_motion();
+        assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
           b0(v0: i32, v1: i32):
             v3 = unchecked_mul v0, v1
@@ -1286,10 +1426,7 @@ mod test {
             v11 = unchecked_add v2, i32 1
             jmp b1(v11)
         }
-        ";
-
-        let ssa = ssa.loop_invariant_code_motion();
-        assert_normalized_ssa_equals(ssa, expected);
+        ");
     }
 
     #[test]
@@ -1393,8 +1530,8 @@ mod test {
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
-
-        let expected = "
+        let ssa = ssa.loop_invariant_code_motion();
+        assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
           b0(v0: u32, v1: u32):
             v6 = make_array [u32 2, u32 2, u32 2, u32 2, u32 2] : [u32; 5]
@@ -1431,10 +1568,7 @@ mod test {
             v17 = unchecked_add v4, u32 1
             jmp b7(v17)
         }
-        ";
-
-        let ssa = ssa.loop_invariant_code_motion();
-        assert_normalized_ssa_equals(ssa, expected);
+        ");
     }
 
     #[test]
@@ -1491,7 +1625,8 @@ mod test {
 
         // We expect the `make_array` at the top of `b3` to be replaced with an `inc_rc`
         // of the newly hoisted `make_array` at the end of `b0`.
-        let expected = "
+        let ssa = ssa.loop_invariant_code_motion();
+        assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
           b0(v0: u32, v1: u32):
             v8 = make_array [Field 1, Field 2, Field 3, Field 4, Field 5] : [Field; 5]
@@ -1521,10 +1656,61 @@ mod test {
           b0(v0: [Field; 5]):
             return
         }
-        ";
+        ");
+    }
 
+    #[test]
+    fn do_not_insert_inc_rc_when_moving_make_array_acir() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u32, v1: u32):
+            jmp b1(u32 0)
+          b1(v2: u32):
+            v5 = lt v2, u32 5
+            jmpif v5 then: b3, else: b2
+          b2():
+            return
+          b3():
+            v11 = make_array [Field 1, Field 2, Field 3, Field 4, Field 5] : [Field; 5]
+            v12 = allocate -> &mut [Field; 5]
+            v13 = add v1, v2
+            v15 = array_set v11, index v13, value Field 128
+            call f1(v15)
+            v18 = unchecked_add v2, u32 1
+            jmp b1(v18)
+        }
+        acir(inline) fn foo f1 {
+          b0(v0: [Field; 5]):
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.loop_invariant_code_motion();
-        assert_normalized_ssa_equals(ssa, expected);
+
+        // We expect the `make_array` at the top of `b3` to be hoisted to `b0`
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u32, v1: u32):
+            v8 = make_array [Field 1, Field 2, Field 3, Field 4, Field 5] : [Field; 5]
+            jmp b1(u32 0)
+          b1(v2: u32):
+            v11 = lt v2, u32 5
+            jmpif v11 then: b3, else: b2
+          b2():
+            return
+          b3():
+            v12 = allocate -> &mut [Field; 5]
+            v13 = add v1, v2
+            v15 = array_set v8, index v13, value Field 128
+            call f1(v15)
+            v18 = unchecked_add v2, u32 1
+            jmp b1(v18)
+        }
+        acir(inline) fn foo f1 {
+          b0(v0: [Field; 5]):
+            return
+        }
+        ");
     }
 
     #[test]
@@ -1551,7 +1737,8 @@ mod test {
         let ssa = Ssa::from_str(src).unwrap();
 
         // `v8 = add v2, u32 1` in b3 should now be `v9 = unchecked_add v2, u32 1` in b3
-        let expected = "
+        let ssa = ssa.loop_invariant_code_motion();
+        assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
           b0(v0: u32, v1: u32):
             v3 = unchecked_mul v0, v1
@@ -1566,10 +1753,7 @@ mod test {
             v9 = unchecked_add v2, u32 1
             jmp b1(v9)
         }
-        ";
-
-        let ssa = ssa.loop_invariant_code_motion();
-        assert_normalized_ssa_equals(ssa, expected);
+        ");
     }
 
     #[test]
@@ -1594,10 +1778,7 @@ mod test {
             jmp b1(v7)
         }
         ";
-
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.loop_invariant_code_motion();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::loop_invariant_code_motion);
     }
 
     #[test]
@@ -1622,7 +1803,8 @@ mod test {
         let ssa = Ssa::from_str(src).unwrap();
 
         // `v8 = sub v2, u32 1` in b3 should now be `v9 = unchecked_sub v2, u32 1` in b3
-        let expected = "
+        let ssa = ssa.loop_invariant_code_motion();
+        assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
           b0(v0: u32, v1: u32):
             jmp b1(u32 1)
@@ -1635,10 +1817,7 @@ mod test {
             v6 = unchecked_sub v2, u32 1
             jmp b1(v6)
         }
-        ";
-
-        let ssa = ssa.loop_invariant_code_motion();
-        assert_normalized_ssa_equals(ssa, expected);
+        ");
     }
 
     #[test]
@@ -1684,11 +1863,7 @@ mod test {
             jmp b4(v14)
         }
         ";
-
-        let ssa = Ssa::from_str(src).unwrap();
-
-        let ssa = ssa.loop_invariant_code_motion();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::loop_invariant_code_motion);
     }
 
     #[test]
@@ -1728,7 +1903,7 @@ mod test {
         let ssa = Ssa::from_str(src).unwrap();
 
         let ssa = ssa.loop_invariant_code_motion();
-        let expected = "
+        assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
           b0(v0: u32):
             v4 = eq v0, u32 5
@@ -1756,9 +1931,7 @@ mod test {
             v14 = unchecked_add v2, u32 1
             jmp b4(v14)
         }
-        ";
-
-        assert_normalized_ssa_equals(ssa, expected);
+        ");
     }
 
     #[test]
@@ -1828,7 +2001,7 @@ mod test {
 
         // We expect that the constraint will be turned into an always-fail one,
         // but not be hoisted into the pre-header.
-        let expected = r#"
+        assert_ssa_snapshot!(ssa, @r"
         acir(inline) predicate_pure fn main f0 {
           b0():
             jmp b1(u128 2)
@@ -1845,14 +2018,13 @@ mod test {
             jmpif v8 then: b5, else: b6
           b5():
             constrain u1 1 == u1 0
-            v14 = unchecked_add v1, u128 1
-            jmp b4(v14)
+            v13 = unchecked_add v1, u128 1
+            jmp b4(v13)
           b6():
             v10 = unchecked_add v0, u128 1
             jmp b1(v10)
         }
-        "#;
-        assert_normalized_ssa_equals(ssa, expected);
+        ");
     }
 }
 
@@ -1863,7 +2035,7 @@ mod control_dependence {
         ssa::{
             interpreter::{errors::InterpreterError, tests::from_constant},
             ir::types::NumericType,
-            opt::assert_normalized_ssa_equals,
+            opt::{assert_normalized_ssa_equals, assert_ssa_does_not_change},
             ssa_gen::Ssa,
         },
     };
@@ -1891,11 +2063,7 @@ mod control_dependence {
             jmp loop(v11)
         }
         ";
-
-        let ssa = Ssa::from_str(src).unwrap();
-
-        let ssa = ssa.loop_invariant_code_motion();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::loop_invariant_code_motion);
     }
 
     #[test]
@@ -2399,44 +2567,7 @@ mod control_dependence {
             jmp b1(v18)
         }
         ";
-
-        let ssa = Ssa::from_str(src).unwrap();
-
-        let ssa = ssa.loop_invariant_code_motion();
-
-        assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) fn main f0 {
-          b0(v0: u32, v1: u32, v2: u32):
-            v4 = allocate -> &mut u32
-            store v0 at v4
-            v6 = eq v1, u32 4
-            jmp b1(u32 0)
-          b1(v3: u32):
-            v9 = lt v3, u32 5
-            jmpif v9 then: b2, else: b3
-          b2():
-            jmpif u1 1 then: b4, else: b5
-          b3():
-            v19 = load v4 -> u32
-            v20 = lt v1, v19
-            constrain v20 == u1 1
-            return
-          b4():
-            v11 = load v4 -> u32
-            v13 = add v11, u32 1
-            store v13 at v4
-            jmp b5()
-          b5():
-            v15 = lt u32 2, v3
-            v16 = unchecked_mul v6, v15
-            jmpif v16 then: b3, else: b6
-          b6():
-            v17 = lt v3, u32 4
-            constrain v17 == u1 1
-            v18 = unchecked_add v3, u32 1
-            jmp b1(v18)
-        }
-        ");
+        assert_ssa_does_not_change(src, Ssa::loop_invariant_code_motion);
     }
 
     #[test]
@@ -2563,12 +2694,7 @@ mod control_dependence {
             jmp b1()
         }
         ";
-
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.loop_invariant_code_motion();
-
-        // We expect the SSA to be unchanged
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::loop_invariant_code_motion);
     }
 
     #[test]
@@ -2786,47 +2912,46 @@ mod control_dependence {
         // They are code-gen as:
         //    `range_check v23 to 8 bits`
         //    `v24 = cast v23 as u8`
-
         let src = r"
         acir(inline) impure fn main f0 {
-  b0(v0: u1, v1: i8):
-    jmp b1(u32 0)
-  b1(v2: u32):
-    v4 = eq v2, u32 0
-    jmpif v4 then: b2, else: b3
-  b2():
-    jmpif v0 then: b4, else: b5
-  b3():
-    return i16 3
-  b4():
-    v7 = mul v1, i8 127
-    v8 = cast v7 as u16
-    v9 = truncate v8 to 8 bits, max_bit_size: 16
-    v10 = cast v1 as u8
-    v12 = lt v10, u8 128
-    v13 = not v12
-    v14 = cast v1 as Field
-    v15 = cast v12 as Field
-    v16 = mul v15, v14
-    v18 = sub Field 256, v14
-    v19 = cast v13 as Field
-    v20 = mul v19, v18
-    v21 = add v16, v20
-    v23 = mul v21, Field 127
-    range_check v23 to 8 bits
-    v24 = cast v23 as u8
-    v25 = not v12
-    v26 = cast v25 as u8
-    v27 = unchecked_add u8 128, v26
-    v28 = lt v24, v27
-    constrain v28 == u1 1
-    v30 = cast v9 as i8
-    jmp b5()
-  b5():
-    v33 = unchecked_add v2, u32 1
-    jmp b1(v33)
-}
-    ";
+          b0(v0: u1, v1: i8):
+            jmp b1(u32 0)
+          b1(v2: u32):
+            v4 = eq v2, u32 0
+            jmpif v4 then: b2, else: b3
+          b2():
+            jmpif v0 then: b4, else: b5
+          b3():
+            return i16 3
+          b4():
+            v7 = mul v1, i8 127
+            v8 = cast v7 as u16
+            v9 = truncate v8 to 8 bits, max_bit_size: 16
+            v10 = cast v1 as u8
+            v12 = lt v10, u8 128
+            v13 = not v12
+            v14 = cast v1 as Field
+            v15 = cast v12 as Field
+            v16 = mul v15, v14
+            v18 = sub Field 256, v14
+            v19 = cast v13 as Field
+            v20 = mul v19, v18
+            v21 = add v16, v20
+            v23 = mul v21, Field 127
+            range_check v23 to 8 bits
+            v24 = cast v23 as u8
+            v25 = not v12
+            v26 = cast v25 as u8
+            v27 = unchecked_add u8 128, v26
+            v28 = lt v24, v27
+            constrain v28 == u1 1
+            v30 = cast v9 as i8
+            jmp b5()
+          b5():
+            v32 = unchecked_add v2, u32 1
+            jmp b1(v32)
+        }
+        ";
 
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.loop_invariant_code_motion();

@@ -1,5 +1,6 @@
 ---
 source: tooling/nargo_cli/tests/execute.rs
+assertion_line: 512
 expression: artifact
 ---
 {
@@ -17,7 +18,7 @@ expression: artifact
     "public parameters indices : []",
     "return value indices : []"
   ],
-  "debug_symbols": "pdTRCoMgFAbgd/G6C7Wcba8yRlidhiAWToMRvfssskUwGHplx7/vnJBqQi3U7llJ3fUvdLtPqDZSKfmsVN8IK3vtd6c5Q6GsrAHwW+iQezUIA9qim3ZKZWgUyq03vQah19UK41OcIdCtX33DTipYrubsq/FvShjfMGHlztn/npfB82uEp7jYPMUszRMc49nuGUvzl5j5OQ0+pzzG5yT4nKbNj/MFDb6IeX8oZ+H8+CXNlyTm+fl+frxI86f5D1+JRprzFz8KI0WtYCs7p5tDat9DSMIfYzB9A60zsHRaM9/7Aw==",
+  "debug_symbols": "pdPdCoMgFAfwd/G6Cz9ytr3KGGF1GoJYOA1G9O6zyBbBYNiVHf/9zkHBETVQ+WepTNu90O0+osoqrdWz1F0tnepM2B2nDMWydBYgbKFdHlQvLRiHbsZrnaFBar/89OqlWVYnbUhxhsA0YQ0NW6Vh/pqyr8a/KeFixYQXG+f/e1FEL64JnuJ89RTzc57gFM83f0nxLKerZ3nK/TEa5zMqznlGU84veDx/QVLmCxLni/ycP8x/hErWyh5fzCCtkpWGtWy9qXepe/cxiS+ut10Njbcwd1qy0PsD",
   "file_map": {},
   "names": [
     "main"

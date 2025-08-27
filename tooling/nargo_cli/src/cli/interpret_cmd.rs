@@ -132,6 +132,8 @@ pub(crate) fn run(args: InterpretCommand, workspace: Workspace) -> Result<(), Cl
         });
 
         let interpreter_options = InterpreterOptions { trace: args.trace };
+        let file_manager =
+            if args.compile_options.no_ssa_locations { None } else { Some(&file_manager) };
 
         print_and_interpret_ssa(
             ssa_options,
@@ -141,7 +143,7 @@ pub(crate) fn run(args: InterpretCommand, workspace: Workspace) -> Result<(), Cl
             &ssa_args,
             &ssa_return,
             interpreter_options,
-            &file_manager,
+            file_manager,
         )?;
 
         // Run SSA passes in the pipeline and interpret the ones we are interested in.
@@ -164,7 +166,7 @@ pub(crate) fn run(args: InterpretCommand, workspace: Workspace) -> Result<(), Cl
                 &ssa_args,
                 &ssa_return,
                 interpreter_options,
-                &file_manager,
+                file_manager,
             )?;
         }
     }
@@ -226,7 +228,7 @@ fn msg_matches(patterns: &[String], msg: &str) -> bool {
     patterns.iter().any(|p| msg.contains(&p.to_lowercase()))
 }
 
-fn print_ssa(options: &SsaEvaluatorOptions, ssa: &mut Ssa, msg: &str, fm: &FileManager) {
+fn print_ssa(options: &SsaEvaluatorOptions, ssa: &mut Ssa, msg: &str, fm: Option<&FileManager>) {
     let print = match options.ssa_logging {
         SsaLogging::All => true,
         SsaLogging::None => false,
@@ -234,7 +236,7 @@ fn print_ssa(options: &SsaEvaluatorOptions, ssa: &mut Ssa, msg: &str, fm: &FileM
     };
     if print {
         ssa.normalize_ids();
-        println!("After {msg}:\n{}", ssa.print_with(Some(fm)));
+        println!("After {msg}:\n{}", ssa.print_with(fm));
     }
 }
 
@@ -283,7 +285,7 @@ fn print_and_interpret_ssa(
     args: &[Value],
     return_value: &Option<Vec<Value>>,
     interpreter_options: InterpreterOptions,
-    fm: &FileManager,
+    fm: Option<&FileManager>,
 ) -> Result<(), CliError> {
     print_ssa(options, ssa, msg, fm);
     interpret_ssa(passes_to_interpret, ssa, msg, args, return_value, interpreter_options)

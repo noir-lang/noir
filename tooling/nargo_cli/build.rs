@@ -821,7 +821,8 @@ fn generate_interpret_execution_success_tests(test_file: &mut File, test_data_di
 }
 
 /// Run integration tests with the `--minimal-ssa` option and check that the return
-/// value matches the expectations.
+/// value matches the expectations. This also enables `--force-brillig` since `--minimal-ssa`
+/// is only valid when all functions are unconstrained.
 fn generate_minimal_execution_success_tests(test_file: &mut File, test_data_dir: &Path) {
     let test_type = "execution_success";
     let test_cases = read_test_cases(test_data_dir, test_type);

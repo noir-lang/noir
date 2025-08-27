@@ -1,0 +1,76 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+assertion_line: 512
+expression: artifact
+---
+{
+  "noir_version": "[noir_version]",
+  "hash": "[hash]",
+  "abi": {
+    "parameters": [
+      {
+        "name": "a",
+        "type": {
+          "kind": "boolean"
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "b",
+        "type": {
+          "kind": "boolean"
+        },
+        "visibility": "private"
+      },
+      {
+        "name": "c",
+        "type": {
+          "kind": "integer",
+          "sign": "signed",
+          "width": 32
+        },
+        "visibility": "private"
+      }
+    ],
+    "return_type": {
+      "abi_type": {
+        "kind": "integer",
+        "sign": "signed",
+        "width": 32
+      },
+      "visibility": "public"
+    },
+    "error_types": {
+      "14225679739041873922": {
+        "error_kind": "string",
+        "string": "Index out of bounds"
+      },
+      "15839565830707987292": {
+        "error_kind": "string",
+        "string": "attempt to calculate the remainder with a divisor of zero"
+      }
+    }
+  },
+  "bytecode": [
+    "func 0",
+    "current witness index : _3",
+    "private parameters indices : [_0, _1, _2]",
+    "public parameters indices : []",
+    "return value indices : [_3]",
+    "BLACKBOX::RANGE [(_1, 1)] []",
+    "BLACKBOX::RANGE [(_2, 32)] []",
+    "EXPR [ (1, _0) 0 ]",
+    "EXPR [ (1, _3) -2 ]"
+  ],
+  "debug_symbols": "lZDBCoMwDIbfJece1s3t4KuMIbVGKYS2xHYwxHdfFIt62GGnNPnz/SX/BB22eWic78MI9XOClh2RGxoK1iQXvEynWUFpm8SIMoKDLlQ0jD5B7TORgrehvC6N0fi1JsOiXhSg76SKYe8Il9esdvryG9X6scG62vH7H/yt8Lo68S/pjHV8uhiusjgvduxMS7il0GdvD6GkTyxKiS1ysNhlxsVu1eSDLw==",
+  "file_map": {
+    "50": {
+      "source": "fn main(a: bool, mut b: bool, c: i32) -> pub i32 {\n    if a {\n        let mut e: [&mut bool] = &[];\n        b = *e[(1132210792_u32 % e.len())];\n        c\n    } else {\n        2\n    }\n}\n",
+      "path": ""
+    }
+  },
+  "names": [
+    "main"
+  ],
+  "brillig_names": []
+}

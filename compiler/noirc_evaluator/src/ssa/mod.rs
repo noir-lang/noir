@@ -145,7 +145,13 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
         "Inlining",
         vec![All, Debug],
     );
+    // Run mem2reg with the CFG separated into blocks
     ssa_pass_builder.add_pass(Ssa::mem2reg, "Mem2Reg", vec![All, Debug]);
+    ssa_pass_builder.add_pass(
+        Ssa::dead_instruction_elimination_pre_flattening,
+        "Dead Instruction Elimination",
+        vec![All, Debug],
+    );
     ssa_pass_builder.add_pass(Ssa::simplify_cfg, "Simplifying", vec![All]);
     ssa_pass_builder.add_pass(
         Ssa::as_slice_optimization,
@@ -605,8 +611,11 @@ pub fn convert_generated_acir_into_circuit(
         brillig_procedure_locs,
     );
 
+    // We don't have Brillig info available here yet.
+    let brillig_side_effects = BTreeMap::new();
     // Perform any ACIR-level optimizations
-    let (optimized_circuit, transformation_map) = acvm::compiler::optimize(circuit);
+    let (optimized_circuit, transformation_map) =
+        acvm::compiler::optimize(circuit, &brillig_side_effects);
     debug_info.update_acir(transformation_map);
 
     SsaCircuitArtifact {
