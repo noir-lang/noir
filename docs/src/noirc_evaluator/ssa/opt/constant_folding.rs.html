@@ -2072,78 +2072,7 @@
 <a href="#2071" id="2071">2071</a>
 <a href="#2072" id="2072">2072</a>
 <a href="#2073" id="2073">2073</a>
-<a href="#2074" id="2074">2074</a>
-<a href="#2075" id="2075">2075</a>
-<a href="#2076" id="2076">2076</a>
-<a href="#2077" id="2077">2077</a>
-<a href="#2078" id="2078">2078</a>
-<a href="#2079" id="2079">2079</a>
-<a href="#2080" id="2080">2080</a>
-<a href="#2081" id="2081">2081</a>
-<a href="#2082" id="2082">2082</a>
-<a href="#2083" id="2083">2083</a>
-<a href="#2084" id="2084">2084</a>
-<a href="#2085" id="2085">2085</a>
-<a href="#2086" id="2086">2086</a>
-<a href="#2087" id="2087">2087</a>
-<a href="#2088" id="2088">2088</a>
-<a href="#2089" id="2089">2089</a>
-<a href="#2090" id="2090">2090</a>
-<a href="#2091" id="2091">2091</a>
-<a href="#2092" id="2092">2092</a>
-<a href="#2093" id="2093">2093</a>
-<a href="#2094" id="2094">2094</a>
-<a href="#2095" id="2095">2095</a>
-<a href="#2096" id="2096">2096</a>
-<a href="#2097" id="2097">2097</a>
-<a href="#2098" id="2098">2098</a>
-<a href="#2099" id="2099">2099</a>
-<a href="#2100" id="2100">2100</a>
-<a href="#2101" id="2101">2101</a>
-<a href="#2102" id="2102">2102</a>
-<a href="#2103" id="2103">2103</a>
-<a href="#2104" id="2104">2104</a>
-<a href="#2105" id="2105">2105</a>
-<a href="#2106" id="2106">2106</a>
-<a href="#2107" id="2107">2107</a>
-<a href="#2108" id="2108">2108</a>
-<a href="#2109" id="2109">2109</a>
-<a href="#2110" id="2110">2110</a>
-<a href="#2111" id="2111">2111</a>
-<a href="#2112" id="2112">2112</a>
-<a href="#2113" id="2113">2113</a>
-<a href="#2114" id="2114">2114</a>
-<a href="#2115" id="2115">2115</a>
-<a href="#2116" id="2116">2116</a>
-<a href="#2117" id="2117">2117</a>
-<a href="#2118" id="2118">2118</a>
-<a href="#2119" id="2119">2119</a>
-<a href="#2120" id="2120">2120</a>
-<a href="#2121" id="2121">2121</a>
-<a href="#2122" id="2122">2122</a>
-<a href="#2123" id="2123">2123</a>
-<a href="#2124" id="2124">2124</a>
-<a href="#2125" id="2125">2125</a>
-<a href="#2126" id="2126">2126</a>
-<a href="#2127" id="2127">2127</a>
-<a href="#2128" id="2128">2128</a>
-<a href="#2129" id="2129">2129</a>
-<a href="#2130" id="2130">2130</a>
-<a href="#2131" id="2131">2131</a>
-<a href="#2132" id="2132">2132</a>
-<a href="#2133" id="2133">2133</a>
-<a href="#2134" id="2134">2134</a>
-<a href="#2135" id="2135">2135</a>
-<a href="#2136" id="2136">2136</a>
-<a href="#2137" id="2137">2137</a>
-<a href="#2138" id="2138">2138</a>
-<a href="#2139" id="2139">2139</a>
-<a href="#2140" id="2140">2140</a>
-<a href="#2141" id="2141">2141</a>
-<a href="#2142" id="2142">2142</a>
-<a href="#2143" id="2143">2143</a>
-<a href="#2144" id="2144">2144</a>
-<a href="#2145" id="2145">2145</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the constant folding optimization pass is to propagate any constants forwards into
+<a href="#2074" id="2074">2074</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the constant folding optimization pass is to propagate any constants forwards into
 //! later [`Instruction`]s to maximize the impact of [compile-time simplifications][crate::ssa::ir::dfg::simplify::simplify()].
 //!
 //! The pass works as follows:
@@ -2159,36 +2088,28 @@
 //!
 //! This is the only pass which removes duplicated pure [`Instruction`]s however and so is needed when
 //! different blocks are merged, i.e. after the [`flatten_cfg`][super::flatten_cfg] pass.
-</span><span class="kw">use </span>std::collections::{BTreeMap, HashSet, VecDeque};
-
-<span class="kw">use </span>acvm::{
-    FieldElement,
-    acir::AcirField,
-    brillig_vm::{MemoryValue, VM, VMStatus},
+</span><span class="kw">use </span>std::{
+    collections::{BTreeMap, HashSet, VecDeque},
+    io::Empty,
 };
-<span class="kw">use </span>bn254_blackbox_solver::Bn254BlackBoxSolver;
+
+<span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
 <span class="kw">use </span>im::Vector;
 <span class="kw">use </span>iter_extended::vecmap;
 
-<span class="kw">use crate</span>::{
-    brillig::{
-        Brillig, BrilligOptions,
-        brillig_gen::gen_brillig_for,
-        brillig_ir::{artifact::BrilligParameter, brillig_variable::get_bit_size_from_ssa_type},
+<span class="kw">use </span><span class="kw">crate</span>::ssa::{
+    interpreter::{Interpreter, InterpreterOptions, value::Value <span class="kw">as </span>InterpreterValue},
+    ir::{
+        basic_block::BasicBlockId,
+        dfg::{DataFlowGraph, InsertInstructionResult},
+        dom::DominatorTree,
+        function::{Function, FunctionId, RuntimeType},
+        instruction::{ArrayOffset, Instruction, InstructionId},
+        types::{NumericType, Type},
+        value::{Value, ValueId, ValueMapping},
     },
-    ssa::{
-        ir::{
-            basic_block::BasicBlockId,
-            dfg::{DataFlowGraph, InsertInstructionResult},
-            dom::DominatorTree,
-            function::{Function, FunctionId, RuntimeType},
-            instruction::{ArrayOffset, Instruction, InstructionId},
-            types::{NumericType, Type},
-            value::{Value, ValueId, ValueMapping},
-        },
-        opt::pure::Purity,
-        ssa_gen::Ssa,
-    },
+    opt::pure::Purity,
+    ssa_gen::Ssa,
 };
 <span class="kw">use </span>fxhash::FxHashMap <span class="kw">as </span>HashMap;
 
@@ -2202,7 +2123,7 @@
     </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip(<span class="self">self</span>))]
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>fold_constants(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; Ssa {
         <span class="kw">for </span>function <span class="kw">in </span><span class="self">self</span>.functions.values_mut() {
-            function.constant_fold(<span class="bool-val">false</span>, <span class="prelude-val">None</span>);
+            function.constant_fold(<span class="bool-val">false</span>, <span class="kw-2">&amp;mut </span><span class="prelude-val">None</span>);
         }
         <span class="self">self
     </span>}
@@ -2215,15 +2136,15 @@
     </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip(<span class="self">self</span>))]
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>fold_constants_using_constraints(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; Ssa {
         <span class="kw">for </span>function <span class="kw">in </span><span class="self">self</span>.functions.values_mut() {
-            function.constant_fold(<span class="bool-val">true</span>, <span class="prelude-val">None</span>);
+            function.constant_fold(<span class="bool-val">true</span>, <span class="kw-2">&amp;mut </span><span class="prelude-val">None</span>);
         }
         <span class="self">self
     </span>}
 
     <span class="doccomment">/// Performs constant folding on each instruction while also replacing calls to brillig functions
     /// with all constant arguments by trying to evaluate those calls.
-    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip(<span class="self">self</span>, brillig))]
-    </span><span class="kw">pub fn </span>fold_constants_with_brillig(<span class="kw-2">mut </span><span class="self">self</span>, brillig: <span class="kw-2">&amp;</span>Brillig) -&gt; Ssa {
+    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip(<span class="self">self</span>))]
+    </span><span class="kw">pub fn </span>fold_constants_with_brillig(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; Ssa {
         <span class="comment">// Collect all brillig functions so that later we can find them when processing a call instruction
         </span><span class="kw">let </span><span class="kw-2">mut </span>brillig_functions: BTreeMap&lt;FunctionId, Function&gt; = BTreeMap::new();
         <span class="kw">for </span>(func_id, func) <span class="kw">in </span><span class="kw-2">&amp;</span><span class="self">self</span>.functions {
@@ -2232,16 +2153,21 @@
                 brillig_functions.insert(<span class="kw-2">*</span>func_id, cloned_function);
             };
         }
-
-        <span class="kw">let </span>brillig_info = <span class="prelude-val">Some</span>(BrilligInfo { brillig, brillig_functions: <span class="kw-2">&amp;</span>brillig_functions });
+        <span class="kw">let </span><span class="kw-2">mut </span>interpreter = <span class="kw">if </span>brillig_functions.is_empty() {
+            <span class="prelude-val">None
+        </span>} <span class="kw">else </span>{
+            <span class="kw">let </span><span class="kw-2">mut </span>interpreter = Interpreter::new_from_functions(
+                <span class="kw-2">&amp;</span>brillig_functions,
+                InterpreterOptions { no_foreign_calls: <span class="bool-val">true</span>, ..Default::default() },
+                std::io::empty(),
+            );
+            <span class="comment">// Interpret globals once so that we do not have to repeat this computation on every Brillig call.
+            </span>interpreter.interpret_globals().expect(<span class="string">"ICE: Interpreter failed to interpret globals"</span>);
+            <span class="prelude-val">Some</span>(interpreter)
+        };
 
         <span class="kw">for </span>function <span class="kw">in </span><span class="self">self</span>.functions.values_mut() {
-            <span class="comment">// We have already performed our final Brillig generation, so constant folding
-            // Brillig functions is unnecessary work.
-            </span><span class="kw">if </span>function.dfg.runtime().is_brillig() {
-                <span class="kw">continue</span>;
-            }
-            function.constant_fold(<span class="bool-val">false</span>, brillig_info);
+            function.constant_fold(<span class="bool-val">false</span>, <span class="kw-2">&amp;mut </span>interpreter);
         }
 
         <span class="self">self
@@ -2254,9 +2180,9 @@
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>constant_fold(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         use_constraint_info: bool,
-        brillig_info: <span class="prelude-ty">Option</span>&lt;BrilligInfo&gt;,
+        interpreter: <span class="kw-2">&amp;mut </span><span class="prelude-ty">Option</span>&lt;Interpreter&lt;Empty&gt;&gt;,
     ) {
-        <span class="kw">let </span><span class="kw-2">mut </span>context = Context::new(use_constraint_info, brillig_info);
+        <span class="kw">let </span><span class="kw-2">mut </span>context = Context::new(use_constraint_info);
         <span class="kw">let </span><span class="kw-2">mut </span>dom = DominatorTree::with_function(<span class="self">self</span>);
         context.block_queue.push_back(<span class="self">self</span>.entry_block());
 
@@ -2266,7 +2192,7 @@
             }
 
             context.visited_blocks.insert(block);
-            context.fold_constants_in_block(<span class="self">self</span>, <span class="kw-2">&amp;mut </span>dom, block);
+            context.fold_constants_in_block(<span class="self">self</span>, <span class="kw-2">&amp;mut </span>dom, block, interpreter);
         }
 
         <span class="attr">#[cfg(debug_assertions)]
@@ -2282,9 +2208,8 @@
     </span>);
 }
 
-<span class="kw">struct </span>Context&lt;<span class="lifetime">'a</span>&gt; {
+<span class="kw">struct </span>Context {
     use_constraint_info: bool,
-    brillig_info: <span class="prelude-ty">Option</span>&lt;BrilligInfo&lt;<span class="lifetime">'a</span>&gt;&gt;,
     <span class="doccomment">/// Maps pre-folded ValueIds to the new ValueIds obtained by re-inserting the instruction.
     </span>visited_blocks: HashSet&lt;BasicBlockId&gt;,
     block_queue: VecDeque&lt;BasicBlockId&gt;,
@@ -2302,12 +2227,6 @@
     </span>cached_instruction_results: InstructionResultCache,
 
     values_to_replace: ValueMapping,
-}
-
-<span class="attr">#[derive(Copy, Clone)]
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>BrilligInfo&lt;<span class="lifetime">'a</span>&gt; {
-    brillig: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>Brillig,
-    brillig_functions: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>BTreeMap&lt;FunctionId, Function&gt;,
 }
 
 <span class="doccomment">/// Records a simplified equivalents of an [`Instruction`] in the blocks
@@ -2372,11 +2291,10 @@
     result: <span class="prelude-ty">Option</span>&lt;(BasicBlockId, Vec&lt;ValueId&gt;)&gt;,
 }
 
-<span class="kw">impl</span>&lt;<span class="lifetime">'brillig</span>&gt; Context&lt;<span class="lifetime">'brillig</span>&gt; {
-    <span class="kw">fn </span>new(use_constraint_info: bool, brillig_info: <span class="prelude-ty">Option</span>&lt;BrilligInfo&lt;<span class="lifetime">'brillig</span>&gt;&gt;) -&gt; <span class="self">Self </span>{
+<span class="kw">impl </span>Context {
+    <span class="kw">fn </span>new(use_constraint_info: bool) -&gt; <span class="self">Self </span>{
         <span class="self">Self </span>{
             use_constraint_info,
-            brillig_info,
             visited_blocks: Default::default(),
             block_queue: Default::default(),
             constraint_simplification_mappings: Default::default(),
@@ -2390,6 +2308,7 @@
         function: <span class="kw-2">&amp;mut </span>Function,
         dom: <span class="kw-2">&amp;mut </span>DominatorTree,
         block_id: BasicBlockId,
+        interpreter: <span class="kw-2">&amp;mut </span><span class="prelude-ty">Option</span>&lt;Interpreter&lt;Empty&gt;&gt;,
     ) {
         <span class="kw">let </span>instructions = function.dfg[block_id].take_instructions();
 
@@ -2407,6 +2326,7 @@
                 block_id,
                 instruction_id,
                 <span class="kw-2">&amp;mut </span>side_effects_enabled_var,
+                interpreter,
             );
         }
 
@@ -2451,6 +2371,7 @@
         <span class="kw-2">mut </span>block: BasicBlockId,
         id: InstructionId,
         side_effects_enabled_var: <span class="kw-2">&amp;mut </span>ValueId,
+        interpreter: <span class="kw-2">&amp;mut </span><span class="prelude-ty">Option</span>&lt;Interpreter&lt;Empty&gt;&gt;,
     ) {
         <span class="kw">let </span>constraint_simplification_mapping = <span class="self">self</span>.get_constraint_map(<span class="kw-2">*</span>side_effects_enabled_var);
         <span class="kw">let </span>dfg = <span class="kw-2">&amp;mut </span>function.dfg;
@@ -2508,10 +2429,9 @@
             <span class="comment">// We only want to try to inline Brillig calls for Brillig entry points (functions called from an ACIR runtime).
             </span><span class="self">Self</span>::try_inline_brillig_call_with_all_constants(
                 <span class="kw-2">&amp;</span>instruction,
-                <span class="kw-2">&amp;</span>old_results,
                 block,
                 dfg,
-                <span class="self">self</span>.brillig_info,
+                interpreter.as_mut(),
             )
             <span class="comment">// Otherwise, try inserting the instruction again to apply any optimizations using the newly resolved inputs.
             </span>.unwrap_or_else(|| {
@@ -2746,31 +2666,17 @@
     /// If so, we can try to evaluate that function and replace the results with the evaluation results.
     </span><span class="kw">fn </span>try_inline_brillig_call_with_all_constants(
         instruction: <span class="kw-2">&amp;</span>Instruction,
-        old_results: <span class="kw-2">&amp;</span>[ValueId],
         block: BasicBlockId,
         dfg: <span class="kw-2">&amp;mut </span>DataFlowGraph,
-        brillig_info: <span class="prelude-ty">Option</span>&lt;BrilligInfo&gt;,
+        interpreter: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;mut </span>Interpreter&lt;Empty&gt;&gt;,
     ) -&gt; <span class="prelude-ty">Option</span>&lt;Vec&lt;ValueId&gt;&gt; {
-        <span class="kw">let </span>evaluation_result = <span class="self">Self</span>::evaluate_const_brillig_call(
-            instruction,
-            brillig_info<span class="question-mark">?</span>.brillig,
-            brillig_info<span class="question-mark">?</span>.brillig_functions,
-            dfg,
-        );
+        <span class="kw">let </span>evaluation_result = <span class="self">Self</span>::evaluate_const_brillig_call(instruction, interpreter<span class="question-mark">?</span>, dfg);
 
         <span class="kw">match </span>evaluation_result {
             EvaluationResult::NotABrilligCall | EvaluationResult::CannotEvaluate =&gt; <span class="prelude-val">None</span>,
-            EvaluationResult::Evaluated(memory_values) =&gt; {
-                <span class="kw">let </span><span class="kw-2">mut </span>memory_index = <span class="number">0</span>;
-                <span class="kw">let </span>new_results = vecmap(old_results, |old_result| {
-                    <span class="kw">let </span>typ = dfg.type_of_value(<span class="kw-2">*</span>old_result);
-                    <span class="self">Self</span>::new_value_for_type_and_memory_values(
-                        typ,
-                        block,
-                        <span class="kw-2">&amp;</span>memory_values,
-                        <span class="kw-2">&amp;mut </span>memory_index,
-                        dfg,
-                    )
+            EvaluationResult::Evaluated(const_results) =&gt; {
+                <span class="kw">let </span>new_results = vecmap(const_results, |const_result| {
+                    interpreter_value_to_ir_value(const_result, dfg, block)
                 });
                 <span class="prelude-val">Some</span>(new_results)
             }
@@ -2782,8 +2688,7 @@
     /// We do this by directly executing the function with a brillig VM.
     </span><span class="kw">fn </span>evaluate_const_brillig_call(
         instruction: <span class="kw-2">&amp;</span>Instruction,
-        brillig: <span class="kw-2">&amp;</span>Brillig,
-        brillig_functions: <span class="kw-2">&amp;</span>BTreeMap&lt;FunctionId, Function&gt;,
+        interpreter: <span class="kw-2">&amp;mut </span>Interpreter&lt;Empty&gt;,
         dfg: <span class="kw-2">&amp;mut </span>DataFlowGraph,
     ) -&gt; EvaluationResult {
         <span class="kw">let </span>Instruction::Call { func: func_id, arguments } = instruction <span class="kw">else </span>{
@@ -2795,114 +2700,23 @@
             <span class="kw">return </span>EvaluationResult::NotABrilligCall;
         };
 
-        <span class="kw">let </span><span class="prelude-val">Some</span>(func) = brillig_functions.get(func_id) <span class="kw">else </span>{
+        <span class="kw">let </span><span class="prelude-val">Some</span>(func) = interpreter.functions().get(func_id) <span class="kw">else </span>{
             <span class="kw">return </span>EvaluationResult::NotABrilligCall;
         };
 
-        <span class="kw">if </span>!arguments.iter().all(|argument| dfg.is_constant(<span class="kw-2">*</span>argument)) {
+        <span class="comment">// Ensure all arguments to the call are constant
+        </span><span class="kw">if </span>!arguments.iter().all(|argument| dfg.is_constant(<span class="kw-2">*</span>argument)) {
             <span class="kw">return </span>EvaluationResult::CannotEvaluate;
         }
 
-        <span class="kw">let </span><span class="kw-2">mut </span>brillig_arguments = Vec::new();
-        <span class="kw">for </span>argument <span class="kw">in </span>arguments {
-            <span class="kw">let </span>typ = dfg.type_of_value(<span class="kw-2">*</span>argument);
-            <span class="kw">let </span><span class="prelude-val">Some</span>(parameter) = type_to_brillig_parameter(<span class="kw-2">&amp;</span>typ) <span class="kw">else </span>{
-                <span class="kw">return </span>EvaluationResult::CannotEvaluate;
-            };
-            brillig_arguments.push(parameter);
-        }
+        <span class="kw">let </span>interpreter_args =
+            arguments.iter().map(|arg| const_ir_value_to_interpreter_value(<span class="kw-2">*</span>arg, dfg)).collect();
 
-        <span class="comment">// Check that the function returns (doesn't always fail)
-        </span><span class="kw">let </span><span class="prelude-val">Some</span>(returns) = func.returns() <span class="kw">else </span>{
+        <span class="kw">let </span><span class="prelude-val">Ok</span>(result_values) = interpreter.call_function(func.id(), interpreter_args) <span class="kw">else </span>{
             <span class="kw">return </span>EvaluationResult::CannotEvaluate;
         };
 
-        <span class="comment">// Check that return value types are supported by brillig
-        </span><span class="kw">for </span>return_id <span class="kw">in </span>returns {
-            <span class="kw">let </span>typ = func.dfg.type_of_value(<span class="kw-2">*</span>return_id);
-            <span class="kw">if </span>type_to_brillig_parameter(<span class="kw-2">&amp;</span>typ).is_none() {
-                <span class="kw">return </span>EvaluationResult::CannotEvaluate;
-            }
-        }
-
-        <span class="kw">let </span><span class="prelude-val">Ok</span>(generated_brillig) =
-            gen_brillig_for(func, brillig_arguments, brillig, <span class="kw-2">&amp;</span>BrilligOptions::default())
-        <span class="kw">else </span>{
-            <span class="kw">return </span>EvaluationResult::CannotEvaluate;
-        };
-
-        <span class="kw">let </span><span class="kw-2">mut </span>calldata = Vec::new();
-        <span class="kw">for </span>argument <span class="kw">in </span>arguments {
-            value_id_to_calldata(<span class="kw-2">*</span>argument, dfg, <span class="kw-2">&amp;mut </span>calldata);
-        }
-
-        <span class="kw">let </span>bytecode = <span class="kw-2">&amp;</span>generated_brillig.byte_code;
-        <span class="kw">let </span>pedantic_solving = <span class="bool-val">true</span>;
-        <span class="kw">let </span>black_box_solver = Bn254BlackBoxSolver(pedantic_solving);
-        <span class="kw">let </span>profiling_active = <span class="bool-val">false</span>;
-        <span class="kw">let </span><span class="kw-2">mut </span>vm = VM::new(calldata, bytecode, <span class="kw-2">&amp;</span>black_box_solver, profiling_active, <span class="prelude-val">None</span>);
-        <span class="kw">let </span>vm_status: VMStatus&lt;<span class="kw">_</span>&gt; = vm.process_opcodes();
-        <span class="kw">let </span>VMStatus::Finished { return_data_offset, return_data_size } = vm_status <span class="kw">else </span>{
-            <span class="kw">return </span>EvaluationResult::CannotEvaluate;
-        };
-
-        <span class="kw">let </span>memory =
-            vm.get_memory()[return_data_offset..(return_data_offset + return_data_size)].to_vec();
-
-        EvaluationResult::Evaluated(memory)
-    }
-
-    <span class="doccomment">/// Creates a new value inside this function by reading it from `memory_values` starting at
-    /// `memory_index` depending on the given Type: if it's an array multiple values will be read
-    /// and a new `make_array` instruction will be created.
-    </span><span class="kw">fn </span>new_value_for_type_and_memory_values(
-        typ: Type,
-        block_id: BasicBlockId,
-        memory_values: <span class="kw-2">&amp;</span>[MemoryValue&lt;FieldElement&gt;],
-        memory_index: <span class="kw-2">&amp;mut </span>usize,
-        dfg: <span class="kw-2">&amp;mut </span>DataFlowGraph,
-    ) -&gt; ValueId {
-        <span class="kw">match </span>typ {
-            Type::Numeric(typ) =&gt; {
-                <span class="kw">let </span>memory = memory_values[<span class="kw-2">*</span>memory_index];
-                <span class="kw-2">*</span>memory_index += <span class="number">1</span>;
-
-                <span class="kw">let </span>field_value = memory.to_field();
-                dfg.make_constant(field_value, typ)
-            }
-            Type::Array(types, length) =&gt; {
-                <span class="kw">let </span><span class="kw-2">mut </span>new_array_values = Vector::new();
-                <span class="kw">for _ in </span><span class="number">0</span>..length {
-                    <span class="kw">for </span>typ <span class="kw">in </span>types.iter() {
-                        <span class="kw">let </span>new_value = <span class="self">Self</span>::new_value_for_type_and_memory_values(
-                            typ.clone(),
-                            block_id,
-                            memory_values,
-                            memory_index,
-                            dfg,
-                        );
-                        new_array_values.push_back(new_value);
-                    }
-                }
-
-                <span class="kw">let </span>instruction = Instruction::MakeArray {
-                    elements: new_array_values,
-                    typ: Type::Array(types, length),
-                };
-                <span class="kw">let </span>instruction_id = dfg.make_instruction(instruction, <span class="prelude-val">None</span>);
-                dfg[block_id].instructions_mut().push(instruction_id);
-                <span class="kw-2">*</span>dfg.instruction_results(instruction_id).first().unwrap()
-            }
-            Type::Reference(<span class="kw">_</span>) =&gt; {
-                <span class="macro">panic!</span>(<span class="string">"Unexpected reference type in brillig function result"</span>)
-            }
-            Type::Slice(<span class="kw">_</span>) =&gt; {
-                <span class="macro">panic!</span>(<span class="string">"Unexpected slice type in brillig function result"</span>)
-            }
-            Type::Function =&gt; {
-                <span class="macro">panic!</span>(<span class="string">"Unexpected function type in brillig function result"</span>)
-            }
-        }
+        EvaluationResult::Evaluated(result_values)
     }
 
     <span class="doccomment">/// Remove previously cached instructions that created arrays,
@@ -3025,39 +2839,8 @@
     /// This can occur in the situation where the brillig function reaches a "trap" or a foreign call opcode.
     </span>CannotEvaluate,
     <span class="doccomment">/// The instruction was a call to a brillig function and we were able to evaluate it,
-    /// returning evaluation memory values.
-    </span>Evaluated(Vec&lt;MemoryValue&lt;FieldElement&gt;&gt;),
-}
-
-<span class="doccomment">/// Similar to FunctionContext::ssa_type_to_parameter but never panics and disallows reference types.
-</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>type_to_brillig_parameter(typ: <span class="kw-2">&amp;</span>Type) -&gt; <span class="prelude-ty">Option</span>&lt;BrilligParameter&gt; {
-    <span class="kw">match </span>typ {
-        Type::Numeric(<span class="kw">_</span>) =&gt; <span class="prelude-val">Some</span>(BrilligParameter::SingleAddr(get_bit_size_from_ssa_type(typ))),
-        Type::Array(item_type, size) =&gt; {
-            <span class="kw">let </span><span class="kw-2">mut </span>parameters = Vec::with_capacity(item_type.len());
-            <span class="kw">for </span>item_typ <span class="kw">in </span>item_type.iter() {
-                parameters.push(type_to_brillig_parameter(item_typ)<span class="question-mark">?</span>);
-            }
-            <span class="prelude-val">Some</span>(BrilligParameter::Array(parameters, <span class="kw-2">*</span>size <span class="kw">as </span>usize))
-        }
-        <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
-    }
-}
-
-<span class="kw">fn </span>value_id_to_calldata(value_id: ValueId, dfg: <span class="kw-2">&amp;</span>DataFlowGraph, calldata: <span class="kw-2">&amp;mut </span>Vec&lt;FieldElement&gt;) {
-    <span class="kw">if let </span><span class="prelude-val">Some</span>(value) = dfg.get_numeric_constant(value_id) {
-        calldata.push(value);
-        <span class="kw">return</span>;
-    }
-
-    <span class="kw">if let </span><span class="prelude-val">Some</span>((values, _type)) = dfg.get_array_constant(value_id) {
-        <span class="kw">for </span>value <span class="kw">in </span>values {
-            value_id_to_calldata(value, dfg, calldata);
-        }
-        <span class="kw">return</span>;
-    }
-
-    <span class="macro">panic!</span>(<span class="string">"Expected ValueId to be numeric constant or array constant"</span>);
+    /// returning [SSA interpreter][Interpreter] [values][InterpreterValue].
+    </span>Evaluated(Vec&lt;InterpreterValue&gt;),
 }
 
 <span class="doccomment">/// Check if one expression is simpler than the other.
@@ -3144,11 +2927,94 @@
     }
 }
 
+<span class="doccomment">/// Converts a constant [SSA value][Value] into an [interpreter value][InterpreterValue] for execution.
+</span><span class="kw">fn </span>const_ir_value_to_interpreter_value(value_id: ValueId, dfg: <span class="kw-2">&amp;</span>DataFlowGraph) -&gt; InterpreterValue {
+    <span class="kw">let </span>typ = dfg.type_of_value(value_id);
+    <span class="kw">match </span>typ {
+        Type::Numeric(numeric_type) =&gt; {
+            <span class="kw">let </span>constant =
+                dfg.get_numeric_constant(value_id).expect(<span class="string">"Should have a numeric constant"</span>);
+            InterpreterValue::from_constant(constant, numeric_type)
+                .expect(<span class="string">"Should be a valid constant"</span>)
+        }
+        Type::Reference(<span class="kw">_</span>) =&gt; <span class="macro">unreachable!</span>(<span class="string">"References cannot be constant values"</span>),
+        Type::Array(element_types, <span class="kw">_</span>) =&gt; {
+            <span class="kw">let </span>(array_constant, <span class="kw">_</span>) =
+                dfg.get_array_constant(value_id).expect(<span class="string">"Should have an array constant"</span>);
+            <span class="kw">let </span><span class="kw-2">mut </span>elements = Vec::new();
+            <span class="kw">for </span>element <span class="kw">in </span>array_constant {
+                elements.push(const_ir_value_to_interpreter_value(element, dfg));
+            }
+            InterpreterValue::array(elements, element_types.to_vec())
+        }
+        Type::Slice(element_types) =&gt; {
+            <span class="kw">let </span>(array_constant, <span class="kw">_</span>) =
+                dfg.get_array_constant(value_id).expect(<span class="string">"Should have an array constant"</span>);
+            <span class="kw">let </span><span class="kw-2">mut </span>elements = Vec::new();
+            <span class="kw">for </span>element <span class="kw">in </span>array_constant {
+                elements.push(const_ir_value_to_interpreter_value(element, dfg));
+            }
+            InterpreterValue::slice(elements, element_types)
+        }
+        Type::Function =&gt; <span class="macro">unreachable!</span>(<span class="string">"Functions cannot be constant values"</span>),
+    }
+}
+
+<span class="doccomment">/// Converts a constant [interpreter value][InterpreterValue] back into an SSA constant.
+</span><span class="kw">fn </span>interpreter_value_to_ir_value(
+    value: InterpreterValue,
+    dfg: <span class="kw-2">&amp;mut </span>DataFlowGraph,
+    block_id: BasicBlockId,
+) -&gt; ValueId {
+    <span class="kw">let </span>typ = value.get_type();
+    <span class="kw">match </span>typ {
+        Type::Numeric(numeric_type) =&gt; {
+            <span class="kw">let </span>constant = value.as_numeric().expect(<span class="string">"Should be numeric"</span>).convert_to_field();
+            dfg.make_constant(constant, numeric_type)
+        }
+        Type::Array(element_types, length) =&gt; {
+            <span class="kw">let </span>array = <span class="kw">match </span>value {
+                InterpreterValue::ArrayOrSlice(array) =&gt; array,
+                <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"Expected an ArrayOrSlice"</span>),
+            };
+
+            <span class="kw">let </span><span class="kw-2">mut </span>elements = Vector::new();
+            <span class="kw">for </span>element <span class="kw">in </span>array.elements.unwrap_or_clone() {
+                elements.push_back(interpreter_value_to_ir_value(element, dfg, block_id));
+            }
+
+            <span class="kw">let </span>instruction =
+                Instruction::MakeArray { elements, typ: Type::Array(element_types, length) };
+
+            <span class="kw">let </span>instruction_id = dfg.make_instruction(instruction, <span class="prelude-val">None</span>);
+            dfg[block_id].instructions_mut().push(instruction_id);
+            <span class="kw-2">*</span>dfg.instruction_results(instruction_id).first().unwrap()
+        }
+        Type::Slice(element_types) =&gt; {
+            <span class="kw">let </span>array = <span class="kw">match </span>value {
+                InterpreterValue::ArrayOrSlice(array) =&gt; array,
+                <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"Expected an ArrayOrSlice"</span>),
+            };
+
+            <span class="kw">let </span><span class="kw-2">mut </span>elements = Vector::new();
+            <span class="kw">for </span>element <span class="kw">in </span>array.elements.unwrap_or_clone() {
+                elements.push_back(interpreter_value_to_ir_value(element, dfg, block_id));
+            }
+
+            <span class="kw">let </span>instruction = Instruction::MakeArray { elements, typ: Type::Slice(element_types) };
+
+            <span class="kw">let </span>instruction_id = dfg.make_instruction(instruction, <span class="prelude-val">None</span>);
+            dfg[block_id].instructions_mut().push(instruction_id);
+            <span class="kw-2">*</span>dfg.instruction_results(instruction_id).first().unwrap()
+        }
+        Type::Function | Type::Reference(<span class="kw">_</span>) =&gt; <span class="macro">unreachable!</span>(<span class="string">"Cannot be a constant value"</span>),
+    }
+}
+
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>test {
     <span class="kw">use crate</span>::{
         assert_ssa_snapshot,
-        brillig::BrilligOptions,
         ssa::{
             Ssa,
             function_builder::FunctionBuilder,
@@ -3581,9 +3447,8 @@
             }
             "</span>;
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-        <span class="kw">let </span>brillig = ssa.to_brillig(<span class="kw-2">&amp;</span>BrilligOptions::default());
 
-        <span class="kw">let </span>ssa = ssa.fold_constants_with_brillig(<span class="kw-2">&amp;</span>brillig);
+        <span class="kw">let </span>ssa = ssa.fold_constants_with_brillig();
         <span class="kw">let </span>ssa = ssa.remove_unreachable_functions();
         <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
         acir(inline) fn main f0 {
@@ -3609,9 +3474,8 @@
             }
             "</span>;
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-        <span class="kw">let </span>brillig = ssa.to_brillig(<span class="kw-2">&amp;</span>BrilligOptions::default());
 
-        <span class="kw">let </span>ssa = ssa.fold_constants_with_brillig(<span class="kw-2">&amp;</span>brillig);
+        <span class="kw">let </span>ssa = ssa.fold_constants_with_brillig();
         <span class="kw">let </span>ssa = ssa.remove_unreachable_functions();
         <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
         acir(inline) fn main f0 {
@@ -3638,9 +3502,8 @@
             }
             "</span>;
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-        <span class="kw">let </span>brillig = ssa.to_brillig(<span class="kw-2">&amp;</span>BrilligOptions::default());
 
-        <span class="kw">let </span>ssa = ssa.fold_constants_with_brillig(<span class="kw-2">&amp;</span>brillig);
+        <span class="kw">let </span>ssa = ssa.fold_constants_with_brillig();
         <span class="kw">let </span>ssa = ssa.remove_unreachable_functions();
         <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
         acir(inline) fn main f0 {
@@ -3666,9 +3529,8 @@
             }
             "</span>;
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-        <span class="kw">let </span>brillig = ssa.to_brillig(<span class="kw-2">&amp;</span>BrilligOptions::default());
 
-        <span class="kw">let </span>ssa = ssa.fold_constants_with_brillig(<span class="kw-2">&amp;</span>brillig);
+        <span class="kw">let </span>ssa = ssa.fold_constants_with_brillig();
         <span class="kw">let </span>ssa = ssa.remove_unreachable_functions();
         <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
         acir(inline) fn main f0 {
@@ -3695,9 +3557,8 @@
             }
             "</span>;
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-        <span class="kw">let </span>brillig = ssa.to_brillig(<span class="kw-2">&amp;</span>BrilligOptions::default());
 
-        <span class="kw">let </span>ssa = ssa.fold_constants_with_brillig(<span class="kw-2">&amp;</span>brillig);
+        <span class="kw">let </span>ssa = ssa.fold_constants_with_brillig();
         <span class="kw">let </span>ssa = ssa.remove_unreachable_functions();
         <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
         acir(inline) fn main f0 {
@@ -3731,9 +3592,8 @@
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
         <span class="comment">// Need to run SSA pass that sets up Brillig array gets
         </span><span class="kw">let </span>ssa = ssa.brillig_array_get_and_set();
-        <span class="kw">let </span>brillig = ssa.to_brillig(<span class="kw-2">&amp;</span>BrilligOptions::default());
 
-        <span class="kw">let </span>ssa = ssa.fold_constants_with_brillig(<span class="kw-2">&amp;</span>brillig);
+        <span class="kw">let </span>ssa = ssa.fold_constants_with_brillig();
         <span class="kw">let </span>ssa = ssa.remove_unreachable_functions();
         <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
         acir(inline) fn main f0 {
@@ -3762,9 +3622,8 @@
         }
         "</span>;
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-        <span class="kw">let </span>brillig = ssa.to_brillig(<span class="kw-2">&amp;</span>BrilligOptions::default());
 
-        <span class="kw">let </span>ssa = ssa.fold_constants_with_brillig(<span class="kw-2">&amp;</span>brillig);
+        <span class="kw">let </span>ssa = ssa.fold_constants_with_brillig();
         <span class="kw">let </span>ssa = ssa.remove_unreachable_functions();
         <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
         g0 = Field 2
@@ -3800,9 +3659,8 @@
         }
         "</span>;
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-        <span class="kw">let </span>brillig = ssa.to_brillig(<span class="kw-2">&amp;</span>BrilligOptions::default());
 
-        <span class="kw">let </span>ssa = ssa.fold_constants_with_brillig(<span class="kw-2">&amp;</span>brillig);
+        <span class="kw">let </span>ssa = ssa.fold_constants_with_brillig();
         <span class="kw">let </span>ssa = ssa.remove_unreachable_functions();
         <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
         g0 = Field 2

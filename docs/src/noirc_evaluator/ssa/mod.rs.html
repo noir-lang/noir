@@ -522,52 +522,7 @@
 <a href="#521" id="521">521</a>
 <a href="#522" id="522">522</a>
 <a href="#523" id="523">523</a>
-<a href="#524" id="524">524</a>
-<a href="#525" id="525">525</a>
-<a href="#526" id="526">526</a>
-<a href="#527" id="527">527</a>
-<a href="#528" id="528">528</a>
-<a href="#529" id="529">529</a>
-<a href="#530" id="530">530</a>
-<a href="#531" id="531">531</a>
-<a href="#532" id="532">532</a>
-<a href="#533" id="533">533</a>
-<a href="#534" id="534">534</a>
-<a href="#535" id="535">535</a>
-<a href="#536" id="536">536</a>
-<a href="#537" id="537">537</a>
-<a href="#538" id="538">538</a>
-<a href="#539" id="539">539</a>
-<a href="#540" id="540">540</a>
-<a href="#541" id="541">541</a>
-<a href="#542" id="542">542</a>
-<a href="#543" id="543">543</a>
-<a href="#544" id="544">544</a>
-<a href="#545" id="545">545</a>
-<a href="#546" id="546">546</a>
-<a href="#547" id="547">547</a>
-<a href="#548" id="548">548</a>
-<a href="#549" id="549">549</a>
-<a href="#550" id="550">550</a>
-<a href="#551" id="551">551</a>
-<a href="#552" id="552">552</a>
-<a href="#553" id="553">553</a>
-<a href="#554" id="554">554</a>
-<a href="#555" id="555">555</a>
-<a href="#556" id="556">556</a>
-<a href="#557" id="557">557</a>
-<a href="#558" id="558">558</a>
-<a href="#559" id="559">559</a>
-<a href="#560" id="560">560</a>
-<a href="#561" id="561">561</a>
-<a href="#562" id="562">562</a>
-<a href="#563" id="563">563</a>
-<a href="#564" id="564">564</a>
-<a href="#565" id="565">565</a>
-<a href="#566" id="566">566</a>
-<a href="#567" id="567">567</a>
-<a href="#568" id="568">568</a>
-<a href="#569" id="569">569</a></pre></div><pre class="rust"><code><span class="doccomment">//! SSA stands for Single Static Assignment
+<a href="#524" id="524">524</a></pre></div><pre class="rust"><code><span class="doccomment">//! SSA stands for Single Static Assignment
 //! The IR presented in this module will already
 //! be in SSA form and will be used to apply
 //! conventional optimizations like Common Subexpression
@@ -582,7 +537,7 @@
 
 <span class="kw">use crate</span>::{
     acir::ssa::Artifacts,
-    brillig::{Brillig, BrilligOptions},
+    brillig::BrilligOptions,
     errors::{RuntimeError, SsaReport},
 };
 <span class="kw">use </span>acvm::{
@@ -671,9 +626,6 @@
 <span class="kw">pub struct </span>ArtifactsAndWarnings(<span class="kw">pub </span>Artifacts, <span class="kw">pub </span>Vec&lt;SsaReport&gt;);
 
 <span class="doccomment">/// The default SSA optimization pipeline.
-///
-/// After these passes everything is ready for execution, which is
-/// something we take can advantage of in the [secondary_passes].
 </span><span class="kw">pub fn </span>primary_passes(options: <span class="kw-2">&amp;</span>SsaEvaluatorOptions) -&gt; Vec&lt;SsaPass&gt; {
     <span class="macro">vec!</span>[
         SsaPass::new(Ssa::expand_signed_checks, <span class="string">"expand signed checks"</span>),
@@ -757,6 +709,10 @@
             <span class="comment">// Remove any potentially unnecessary duplication from the Brillig entry point analysis.
             </span>.and_then(Ssa::remove_unreachable_functions),
         SsaPass::new(Ssa::remove_truncate_after_range_check, <span class="string">"Removing Truncate after RangeCheck"</span>),
+        SsaPass::new(Ssa::checked_to_unchecked, <span class="string">"Checked to unchecked"</span>),
+        SsaPass::new(Ssa::fold_constants_with_brillig, <span class="string">"Inlining Brillig Calls"</span>),
+        SsaPass::new(Ssa::remove_unreachable_instructions, <span class="string">"Remove Unreachable Instructions"</span>)
+            .and_then(Ssa::remove_unreachable_functions),
         <span class="comment">// This pass makes transformations specific to Brillig generation.
         // It must be the last pass to either alter or add new instructions before Brillig generation,
         // as other semantics in the compiler can potentially break (e.g. inserting instructions).
@@ -764,7 +720,6 @@
         SsaPass::new(Ssa::dead_instruction_elimination, <span class="string">"Dead Instruction Elimination"</span>)
             <span class="comment">// A function can be potentially unreachable post-DIE if all calls to that function were removed.
             </span>.and_then(Ssa::remove_unreachable_functions),
-        SsaPass::new(Ssa::checked_to_unchecked, <span class="string">"Checked to unchecked"</span>),
         SsaPass::new_try(
             Ssa::verify_no_dynamic_indices_to_references,
             <span class="string">"Verifying no dynamic array indices to reference value elements"</span>,
@@ -775,20 +730,6 @@
             </span>ssa.dead_instruction_elimination_post_check(<span class="bool-val">true</span>);
             ssa
         }),
-    ]
-}
-
-<span class="doccomment">/// The second SSA pipeline, in which we take the Brillig functions compiled after
-/// the primary pipeline, and execute the ones with all-constant arguments,
-/// to replace the calls with the return value.
-</span><span class="kw">pub fn </span>secondary_passes(brillig: <span class="kw-2">&amp;</span>Brillig) -&gt; Vec&lt;SsaPass&gt; {
-    <span class="macro">vec!</span>[
-        SsaPass::new(<span class="kw">move </span>|ssa| ssa.fold_constants_with_brillig(brillig), <span class="string">"Inlining Brillig Calls"</span>),
-        SsaPass::new(Ssa::remove_unreachable_instructions, <span class="string">"Remove Unreachable Instructions"</span>)
-            <span class="comment">// It could happen that we inlined all calls to a given brillig function.
-            // In that case it's unused so we can remove it. This is what we check next.
-            </span>.and_then(Ssa::remove_unreachable_functions),
-        SsaPass::new(Ssa::dead_instruction_elimination_acir, <span class="string">"Dead Instruction Elimination - ACIR"</span>),
     ]
 }
 
@@ -822,38 +763,24 @@
 /// convert the final SSA into an ACIR program and return it.
 /// An ACIR program is made up of both ACIR functions
 /// and Brillig functions for unconstrained execution.
-///
-/// The `primary` SSA passes are applied on the initial SSA.
-/// Then we compile the Brillig functions, and use the output
-/// to run a `secondary` pass, which can use the Brillig
-/// artifacts to do constant folding.
-///
-/// See the [primary_passes] and [secondary_passes] for
-/// the default implementations.
-</span><span class="kw">pub fn </span>optimize_ssa_builder_into_acir&lt;S&gt;(
+</span><span class="kw">pub fn </span>optimize_ssa_builder_into_acir(
     builder: SsaBuilder,
     options: <span class="kw-2">&amp;</span>SsaEvaluatorOptions,
-    primary: <span class="kw-2">&amp;</span>[SsaPass],
-    secondary: S,
-) -&gt; <span class="prelude-ty">Result</span>&lt;ArtifactsAndWarnings, RuntimeError&gt;
-<span class="kw">where
-    </span>S: <span class="kw">for</span>&lt;<span class="lifetime">'b</span>&gt; Fn(<span class="kw-2">&amp;</span><span class="lifetime">'b </span>Brillig) -&gt; Vec&lt;SsaPass&lt;<span class="lifetime">'b</span>&gt;&gt;,
-{
+    passes: <span class="kw-2">&amp;</span>[SsaPass],
+) -&gt; <span class="prelude-ty">Result</span>&lt;ArtifactsAndWarnings, RuntimeError&gt; {
     <span class="kw">let </span>ssa_gen_span = <span class="macro">span!</span>(Level::TRACE, <span class="string">"ssa_generation"</span>);
     <span class="kw">let </span>ssa_gen_span_guard = ssa_gen_span.enter();
-    <span class="kw">let </span>builder = builder.with_skip_passes(options.skip_passes.clone()).run_passes(primary)<span class="question-mark">?</span>;
+    <span class="kw">let </span>builder = builder.with_skip_passes(options.skip_passes.clone()).run_passes(passes)<span class="question-mark">?</span>;
 
     drop(ssa_gen_span_guard);
 
-    <span class="kw">let </span>ssa = builder.ssa();
     <span class="kw">let </span>brillig = time(<span class="string">"SSA to Brillig"</span>, options.print_codegen_timings, || {
-        ssa.to_brillig(<span class="kw-2">&amp;</span>options.brillig_options)
+        builder.ssa().to_brillig(<span class="kw-2">&amp;</span>options.brillig_options)
     });
 
     <span class="kw">let </span>ssa_gen_span_guard = ssa_gen_span.enter();
 
-    <span class="kw">let </span><span class="kw-2">mut </span>ssa = builder.run_passes(<span class="kw-2">&amp;</span>secondary(<span class="kw-2">&amp;</span>brillig))<span class="question-mark">?</span>.finish();
-
+    <span class="kw">let </span><span class="kw-2">mut </span>ssa = builder.finish();
     <span class="kw">let </span><span class="kw-2">mut </span>ssa_level_warnings = <span class="macro">vec!</span>[];
     <span class="kw">if </span>!options.skip_underconstrained_check {
         ssa_level_warnings.extend(time(
@@ -888,24 +815,12 @@
 /// convert the final SSA into an ACIR program and return it.
 /// An ACIR program is made up of both ACIR functions
 /// and Brillig functions for unconstrained execution.
-///
-/// The `primary` SSA passes are applied on the initial SSA.
-/// Then we compile the Brillig functions, and use the output
-/// to run a `secondary` pass, which can use the Brillig
-/// artifacts to do constant folding.
-///
-/// See the [primary_passes] and [secondary_passes] for
-/// the default implementations.
-</span><span class="kw">pub fn </span>optimize_into_acir&lt;S&gt;(
+</span><span class="kw">pub fn </span>optimize_into_acir(
     program: Program,
     options: <span class="kw-2">&amp;</span>SsaEvaluatorOptions,
-    primary: <span class="kw-2">&amp;</span>[SsaPass],
-    secondary: S,
+    passes: <span class="kw-2">&amp;</span>[SsaPass],
     files: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>fm::FileManager&gt;,
-) -&gt; <span class="prelude-ty">Result</span>&lt;ArtifactsAndWarnings, RuntimeError&gt;
-<span class="kw">where
-    </span>S: <span class="kw">for</span>&lt;<span class="lifetime">'b</span>&gt; Fn(<span class="kw-2">&amp;</span><span class="lifetime">'b </span>Brillig) -&gt; Vec&lt;SsaPass&lt;<span class="lifetime">'b</span>&gt;&gt;,
-{
+) -&gt; <span class="prelude-ty">Result</span>&lt;ArtifactsAndWarnings, RuntimeError&gt; {
     <span class="kw">let </span>builder = SsaBuilder::from_program(
         program,
         options.ssa_logging.clone(),
@@ -914,7 +829,7 @@
         files,
     )<span class="question-mark">?</span>;
 
-    optimize_ssa_builder_into_acir(builder, options, primary, secondary)
+    optimize_ssa_builder_into_acir(builder, options, passes)
 }
 
 <span class="doccomment">/// Compiles the [`Program`] into [`ACIR`][acvm::acir::circuit::Program].
@@ -926,7 +841,7 @@
     options: <span class="kw-2">&amp;</span>SsaEvaluatorOptions,
     files: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>fm::FileManager&gt;,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;SsaProgramArtifact, RuntimeError&gt; {
-    create_program_with_passes(program, options, <span class="kw-2">&amp;</span>primary_passes(options), secondary_passes, files)
+    create_program_with_passes(program, options, <span class="kw-2">&amp;</span>primary_passes(options), files)
 }
 
 <span class="doccomment">/// Compiles the [`Program`] into [`ACIR`][acvm::acir::circuit::Program] using the minimum amount of SSA passes.
@@ -946,22 +861,17 @@
             func.name
         );
     }
-    create_program_with_passes(program, options, <span class="kw-2">&amp;</span>minimal_passes(), |<span class="kw">_</span>| <span class="macro">vec!</span>[], <span class="prelude-val">Some</span>(files))
+    create_program_with_passes(program, options, <span class="kw-2">&amp;</span>minimal_passes(), <span class="prelude-val">Some</span>(files))
 }
 
-<span class="doccomment">/// Compiles the [`Program`] into [`ACIR`][acvm::acir::circuit::Program] by running it through
-/// `primary` and `secondary` SSA passes.
+<span class="doccomment">/// Compiles the [`Program`] into [`ACIR`][acvm::acir::circuit::Program] by running it through SSA `passes`.
 </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip_all)]
-</span><span class="kw">pub fn </span>create_program_with_passes&lt;S&gt;(
+</span><span class="kw">pub fn </span>create_program_with_passes(
     program: Program,
     options: <span class="kw-2">&amp;</span>SsaEvaluatorOptions,
-    primary: <span class="kw-2">&amp;</span>[SsaPass],
-    secondary: S,
+    passes: <span class="kw-2">&amp;</span>[SsaPass],
     files: <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>fm::FileManager&gt;,
-) -&gt; <span class="prelude-ty">Result</span>&lt;SsaProgramArtifact, RuntimeError&gt;
-<span class="kw">where
-    </span>S: <span class="kw">for</span>&lt;<span class="lifetime">'b</span>&gt; Fn(<span class="kw-2">&amp;</span><span class="lifetime">'b </span>Brillig) -&gt; Vec&lt;SsaPass&lt;<span class="lifetime">'b</span>&gt;&gt;,
-{
+) -&gt; <span class="prelude-ty">Result</span>&lt;SsaProgramArtifact, RuntimeError&gt; {
     <span class="kw">let </span>debug_variables = program.debug_variables.clone();
     <span class="kw">let </span>debug_types = program.debug_types.clone();
     <span class="kw">let </span>debug_functions = program.debug_functions.clone();
@@ -969,7 +879,7 @@
     <span class="kw">let </span>arg_size_and_visibilities: Vec&lt;Vec&lt;(u32, Visibility)&gt;&gt; =
         program.function_signatures.iter().map(resolve_function_signature).collect();
 
-    <span class="kw">let </span>artifacts = optimize_into_acir(program, options, primary, secondary, files)<span class="question-mark">?</span>;
+    <span class="kw">let </span>artifacts = optimize_into_acir(program, options, passes, files)<span class="question-mark">?</span>;
 
     <span class="prelude-val">Ok</span>(combine_artifacts(
         artifacts,

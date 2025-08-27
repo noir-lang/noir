@@ -337,9 +337,7 @@
 <a href="#336" id="336">336</a>
 <a href="#337" id="337">337</a>
 <a href="#338" id="338">338</a>
-<a href="#339" id="339">339</a>
-<a href="#340" id="340">340</a>
-<a href="#341" id="341">341</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
+<a href="#339" id="339">339</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{
     FieldElement,
     acir::{
         circuit::{Circuit, ExpressionWidth, Program <span class="kw">as </span>AcirProgram},
@@ -351,7 +349,6 @@
 <span class="kw">use </span>noirc_evaluator::ssa::ssa_gen::Ssa;
 <span class="kw">use </span>noirc_evaluator::ssa::{
     SsaEvaluatorOptions, ir::map::Id, optimize_ssa_builder_into_acir, primary_passes,
-    secondary_passes,
 };
 <span class="kw">use </span>noirc_evaluator::ssa::{SsaLogging, ir::function::Function};
 
@@ -591,7 +588,6 @@
         builder,
         <span class="kw-2">&amp;</span>ssa_evaluator_options,
         <span class="kw-2">&amp;</span>primary_passes(<span class="kw-2">&amp;</span>ssa_evaluator_options),
-        secondary_passes,
     ) {
         <span class="prelude-val">Ok</span>(artifacts_and_warnings) =&gt; artifacts_and_warnings.<span class="number">0</span>,
         <span class="prelude-val">Err</span>(<span class="kw">_</span>) =&gt; <span class="macro">panic!</span>(<span class="string">"Should compile manually generated SSA into acir"</span>),

@@ -596,7 +596,7 @@
 
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
         <span class="comment">// DIE is necessary to fetch the block parameters liveness information
-        </span><span class="kw">let </span>(ssa, die_result) = ssa.dead_instruction_elimination_inner(<span class="bool-val">false</span>, <span class="bool-val">false</span>);
+        </span><span class="kw">let </span>(ssa, die_result) = ssa.dead_instruction_elimination_inner(<span class="bool-val">false</span>);
 
         <span class="macro">assert!</span>(die_result.unused_parameters.len() == <span class="number">1</span>);
         <span class="kw">let </span>function = die_result
@@ -648,7 +648,7 @@
 
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
         <span class="comment">// DIE is necessary to fetch the block parameters liveness information
-        </span><span class="kw">let </span>(ssa, die_result) = ssa.dead_instruction_elimination_inner(<span class="bool-val">false</span>, <span class="bool-val">false</span>);
+        </span><span class="kw">let </span>(ssa, die_result) = ssa.dead_instruction_elimination_inner(<span class="bool-val">false</span>);
 
         <span class="macro">assert!</span>(die_result.unused_parameters.len() == <span class="number">1</span>);
         <span class="kw">let </span>function = die_result
@@ -670,7 +670,7 @@
         <span class="macro">assert_eq!</span>(b3_unused[<span class="number">0</span>].to_u32(), <span class="number">2</span>);
 
         <span class="kw">let </span>ssa = ssa.prune_dead_parameters(<span class="kw-2">&amp;</span>die_result.unused_parameters);
-        <span class="kw">let </span>(ssa, <span class="kw">_</span>) = ssa.dead_instruction_elimination_inner(<span class="bool-val">false</span>, <span class="bool-val">false</span>);
+        <span class="kw">let </span>(ssa, <span class="kw">_</span>) = ssa.dead_instruction_elimination_inner(<span class="bool-val">false</span>);
 
         <span class="comment">// We expect b3 to have no parameters anymore and both predecessors (b1 and b2)
         // should no longer pass any arguments to their terminator (which jumps to b3).
@@ -705,7 +705,7 @@
 
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
         <span class="comment">// DIE is necessary to fetch the block parameters liveness information
-        </span><span class="kw">let </span>(ssa, die_result) = ssa.dead_instruction_elimination_inner(<span class="bool-val">false</span>, <span class="bool-val">false</span>);
+        </span><span class="kw">let </span>(ssa, die_result) = ssa.dead_instruction_elimination_inner(<span class="bool-val">false</span>);
 
         <span class="macro">assert!</span>(die_result.unused_parameters.len() == <span class="number">1</span>);
         <span class="kw">let </span>function = die_result
@@ -783,7 +783,7 @@
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
 
         <span class="comment">// DIE is necessary to fetch the block parameters liveness information
-        </span><span class="kw">let </span>(ssa, die_result) = ssa.dead_instruction_elimination_inner(<span class="bool-val">false</span>, <span class="bool-val">false</span>);
+        </span><span class="kw">let </span>(ssa, die_result) = ssa.dead_instruction_elimination_inner(<span class="bool-val">false</span>);
 
         <span class="macro">assert!</span>(die_result.unused_parameters.len() == <span class="number">1</span>);
         <span class="kw">let </span>function = die_result
@@ -807,7 +807,7 @@
 
         <span class="kw">let </span>ssa = ssa.prune_dead_parameters(<span class="kw-2">&amp;</span>die_result.unused_parameters);
 
-        <span class="kw">let </span>(ssa, die_result) = ssa.dead_instruction_elimination_inner(<span class="bool-val">false</span>, <span class="bool-val">false</span>);
+        <span class="kw">let </span>(ssa, die_result) = ssa.dead_instruction_elimination_inner(<span class="bool-val">false</span>);
 
         <span class="macro">assert!</span>(die_result.unused_parameters.len() == <span class="number">1</span>);
         <span class="kw">let </span>function = die_result
@@ -848,7 +848,7 @@
 
         <span class="comment">// Now check that calling the DIE -&gt; parameter pruning feedback loop produces the same result
         </span><span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-        <span class="kw">let </span>ssa = ssa.dead_instruction_elimination_with_pruning(<span class="bool-val">false</span>, <span class="bool-val">false</span>);
+        <span class="kw">let </span>ssa = ssa.dead_instruction_elimination_with_pruning(<span class="bool-val">false</span>);
         <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r#"
         brillig(inline) predicate_pure fn main f0 {
           b0(v0: i16):

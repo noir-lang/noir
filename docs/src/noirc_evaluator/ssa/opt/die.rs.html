@@ -1691,28 +1691,7 @@
 <a href="#1690" id="1690">1690</a>
 <a href="#1691" id="1691">1691</a>
 <a href="#1692" id="1692">1692</a>
-<a href="#1693" id="1693">1693</a>
-<a href="#1694" id="1694">1694</a>
-<a href="#1695" id="1695">1695</a>
-<a href="#1696" id="1696">1696</a>
-<a href="#1697" id="1697">1697</a>
-<a href="#1698" id="1698">1698</a>
-<a href="#1699" id="1699">1699</a>
-<a href="#1700" id="1700">1700</a>
-<a href="#1701" id="1701">1701</a>
-<a href="#1702" id="1702">1702</a>
-<a href="#1703" id="1703">1703</a>
-<a href="#1704" id="1704">1704</a>
-<a href="#1705" id="1705">1705</a>
-<a href="#1706" id="1706">1706</a>
-<a href="#1707" id="1707">1707</a>
-<a href="#1708" id="1708">1708</a>
-<a href="#1709" id="1709">1709</a>
-<a href="#1710" id="1710">1710</a>
-<a href="#1711" id="1711">1711</a>
-<a href="#1712" id="1712">1712</a>
-<a href="#1713" id="1713">1713</a>
-<a href="#1714" id="1714">1714</a></pre></div><pre class="rust"><code><span class="doccomment">//! Dead Instruction Elimination (DIE) pass: Removes any instruction without side-effects for
+<a href="#1693" id="1693">1693</a></pre></div><pre class="rust"><code><span class="doccomment">//! Dead Instruction Elimination (DIE) pass: Removes any instruction without side-effects for
 //! which the results are unused.
 //!
 //! DIE also tracks which block parameters are unused.
@@ -1747,13 +1726,7 @@
     /// This step should come after the flattening of the CFG and mem2reg.
     </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip(<span class="self">self</span>))]
     </span><span class="kw">pub fn </span>dead_instruction_elimination(<span class="self">self</span>) -&gt; Ssa {
-        <span class="self">self</span>.dead_instruction_elimination_with_pruning(<span class="bool-val">true</span>, <span class="bool-val">false</span>)
-    }
-
-    <span class="doccomment">/// Post the Brillig generation we do not need to run this pass on Brillig functions.
-    </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip(<span class="self">self</span>))]
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>dead_instruction_elimination_acir(<span class="self">self</span>) -&gt; Ssa {
-        <span class="self">self</span>.dead_instruction_elimination_with_pruning(<span class="bool-val">true</span>, <span class="bool-val">true</span>)
+        <span class="self">self</span>.dead_instruction_elimination_with_pruning(<span class="bool-val">true</span>)
     }
 
     <span class="doccomment">/// The elimination of certain unused instructions assumes that the DIE pass runs after
@@ -1761,21 +1734,16 @@
     /// them just yet.
     </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip(<span class="self">self</span>))]
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>dead_instruction_elimination_pre_flattening(<span class="self">self</span>) -&gt; Ssa {
-        <span class="self">self</span>.dead_instruction_elimination_with_pruning(<span class="bool-val">false</span>, <span class="bool-val">false</span>)
+        <span class="self">self</span>.dead_instruction_elimination_with_pruning(<span class="bool-val">false</span>)
     }
 
-    <span class="kw">fn </span>dead_instruction_elimination_with_pruning(
-        <span class="kw-2">mut </span><span class="self">self</span>,
-        flattened: bool,
-        skip_brillig: bool,
-    ) -&gt; Ssa {
+    <span class="kw">fn </span>dead_instruction_elimination_with_pruning(<span class="kw-2">mut </span><span class="self">self</span>, flattened: bool) -&gt; Ssa {
         <span class="attr">#[cfg(debug_assertions)]
         </span><span class="self">self</span>.functions.values().for_each(|func| die_pre_check(func, flattened));
 
         <span class="kw">let </span><span class="kw-2">mut </span>previous_unused_params = <span class="prelude-val">None</span>;
         <span class="kw">loop </span>{
-            <span class="kw">let </span>(new_ssa, result) =
-                <span class="self">self</span>.dead_instruction_elimination_inner(flattened, skip_brillig);
+            <span class="kw">let </span>(new_ssa, result) = <span class="self">self</span>.dead_instruction_elimination_inner(flattened);
 
             <span class="comment">// Determine whether we have any unused variables
             </span><span class="kw">let </span>has_unused = result
@@ -1801,17 +1769,12 @@
         }
     }
 
-    <span class="kw">fn </span>dead_instruction_elimination_inner(
-        <span class="kw-2">mut </span><span class="self">self</span>,
-        flattened: bool,
-        skip_brillig: bool,
-    ) -&gt; (Ssa, DIEResult) {
+    <span class="kw">fn </span>dead_instruction_elimination_inner(<span class="kw-2">mut </span><span class="self">self</span>, flattened: bool) -&gt; (Ssa, DIEResult) {
         <span class="kw">let </span>result = <span class="self">self
             </span>.functions
             .par_iter_mut()
             .map(|(id, func)| {
-                <span class="kw">let </span>unused_params =
-                    func.dead_instruction_elimination(<span class="bool-val">true</span>, flattened, skip_brillig);
+                <span class="kw">let </span>unused_params = func.dead_instruction_elimination(<span class="bool-val">true</span>, flattened);
                 <span class="kw">let </span><span class="kw-2">mut </span>result = DIEResult::default();
 
                 result.unused_parameters.insert(<span class="kw-2">*</span>id, unused_params);
@@ -1862,12 +1825,7 @@
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         insert_out_of_bounds_checks: bool,
         flattened: bool,
-        skip_brillig: bool,
     ) -&gt; HashMap&lt;BasicBlockId, Vec&lt;ValueId&gt;&gt; {
-        <span class="kw">if </span>skip_brillig &amp;&amp; <span class="self">self</span>.dfg.runtime().is_brillig() {
-            <span class="kw">return </span>HashMap::default();
-        }
-
         <span class="kw">let </span><span class="kw-2">mut </span>context = Context { flattened, ..Default::default() };
 
         context.mark_function_parameter_arrays_as_used(<span class="self">self</span>);
@@ -1907,7 +1865,7 @@
         // instructions (we don't want to remove those checks, or instructions that are
         // dependencies of those checks)
         </span><span class="kw">if </span>inserted_out_of_bounds_checks {
-            <span class="kw">return </span><span class="self">self</span>.dead_instruction_elimination(<span class="bool-val">false</span>, flattened, skip_brillig);
+            <span class="kw">return </span><span class="self">self</span>.dead_instruction_elimination(<span class="bool-val">false</span>, flattened);
         }
 
         context.remove_rc_instructions(<span class="kw-2">&amp;mut </span><span class="self">self</span>.dfg);
@@ -2757,7 +2715,7 @@
             }
             "</span>;
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
-        <span class="kw">let </span>(ssa, <span class="kw">_</span>) = ssa.dead_instruction_elimination_inner(<span class="bool-val">false</span>, <span class="bool-val">false</span>);
+        <span class="kw">let </span>(ssa, <span class="kw">_</span>) = ssa.dead_instruction_elimination_inner(<span class="bool-val">false</span>);
 
         <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
         acir(inline) fn main f0 {
@@ -3055,7 +3013,7 @@
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
 
         <span class="comment">// Even though these ACIR functions only have 1 block, we have not inlined and flattened anything yet.
-        </span><span class="kw">let </span>(ssa, <span class="kw">_</span>) = ssa.dead_instruction_elimination_inner(<span class="bool-val">false</span>, <span class="bool-val">false</span>);
+        </span><span class="kw">let </span>(ssa, <span class="kw">_</span>) = ssa.dead_instruction_elimination_inner(<span class="bool-val">false</span>);
 
         <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
         acir(inline) fn main f0 {
@@ -3126,7 +3084,7 @@
         "#</span>;
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
         <span class="kw">let </span>ssa = ssa.purity_analysis();
-        <span class="kw">let </span>(ssa, <span class="kw">_</span>) = ssa.dead_instruction_elimination_inner(<span class="bool-val">false</span>, <span class="bool-val">false</span>);
+        <span class="kw">let </span>(ssa, <span class="kw">_</span>) = ssa.dead_instruction_elimination_inner(<span class="bool-val">false</span>);
 
         <span class="comment">// We expect the call to f1 in f0 to be removed
         </span><span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r#"
@@ -3160,7 +3118,7 @@
 
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
         <span class="kw">let </span>ssa = ssa.purity_analysis();
-        <span class="kw">let </span>(ssa, <span class="kw">_</span>) = ssa.dead_instruction_elimination_inner(<span class="bool-val">false</span>, <span class="bool-val">false</span>);
+        <span class="kw">let </span>(ssa, <span class="kw">_</span>) = ssa.dead_instruction_elimination_inner(<span class="bool-val">false</span>);
 
         <span class="comment">// We expect the program to be unchanged except that functions are labeled with purities now
         </span><span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r#"
@@ -3194,7 +3152,7 @@
 
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
         <span class="kw">let </span>ssa = ssa.purity_analysis();
-        <span class="kw">let </span>(ssa, <span class="kw">_</span>) = ssa.dead_instruction_elimination_inner(<span class="bool-val">false</span>, <span class="bool-val">false</span>);
+        <span class="kw">let </span>(ssa, <span class="kw">_</span>) = ssa.dead_instruction_elimination_inner(<span class="bool-val">false</span>);
 
         <span class="comment">// We expect the program to be unchanged except that functions are labeled with purities now
         </span><span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r#"

@@ -1596,7 +1596,29 @@
 <a href="#1595" id="1595">1595</a>
 <a href="#1596" id="1596">1596</a>
 <a href="#1597" id="1597">1597</a>
-<a href="#1598" id="1598">1598</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{cmp::Ordering, io::Write};
+<a href="#1598" id="1598">1598</a>
+<a href="#1599" id="1599">1599</a>
+<a href="#1600" id="1600">1600</a>
+<a href="#1601" id="1601">1601</a>
+<a href="#1602" id="1602">1602</a>
+<a href="#1603" id="1603">1603</a>
+<a href="#1604" id="1604">1604</a>
+<a href="#1605" id="1605">1605</a>
+<a href="#1606" id="1606">1606</a>
+<a href="#1607" id="1607">1607</a>
+<a href="#1608" id="1608">1608</a>
+<a href="#1609" id="1609">1609</a>
+<a href="#1610" id="1610">1610</a>
+<a href="#1611" id="1611">1611</a>
+<a href="#1612" id="1612">1612</a>
+<a href="#1613" id="1613">1613</a>
+<a href="#1614" id="1614">1614</a>
+<a href="#1615" id="1615">1615</a>
+<a href="#1616" id="1616">1616</a>
+<a href="#1617" id="1617">1617</a>
+<a href="#1618" id="1618">1618</a>
+<a href="#1619" id="1619">1619</a>
+<a href="#1620" id="1620">1620</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{cmp::Ordering, collections::BTreeMap, io::Write};
 
 <span class="kw">use super</span>::{
     Ssa,
@@ -1625,13 +1647,13 @@
 
 <span class="kw">use </span>value::Value;
 
-<span class="kw">struct </span>Interpreter&lt;<span class="lifetime">'ssa</span>, W&gt; {
+<span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>Interpreter&lt;<span class="lifetime">'ssa</span>, W&gt; {
     <span class="doccomment">/// Contains each function called with `main` (or the first called function if
     /// the interpreter was manually invoked on a different function) at
     /// the front of the Vec.
     </span>call_stack: Vec&lt;CallContext&gt;,
 
-    ssa: <span class="kw-2">&amp;</span><span class="lifetime">'ssa </span>Ssa,
+    functions: <span class="kw-2">&amp;</span><span class="lifetime">'ssa </span>BTreeMap&lt;FunctionId, Function&gt;,
 
     <span class="doccomment">/// This variable can be modified by `enable_side_effects_if` instructions and is
     /// expected to have no effect if there are no such instructions or if the code
@@ -1647,6 +1669,8 @@
 </span><span class="kw">pub struct </span>InterpreterOptions {
     <span class="doccomment">/// If true, the interpreter will trace its execution.
     </span><span class="kw">pub </span>trace: bool,
+    <span class="doccomment">/// If true, the interpreter treats all foreign function calls (e.g., `print`) as unknown
+    </span><span class="kw">pub </span>no_foreign_calls: bool,
 }
 
 <span class="kw">struct </span>CallContext {
@@ -1701,8 +1725,20 @@
 
 <span class="kw">impl</span>&lt;<span class="lifetime">'ssa</span>, W: Write&gt; Interpreter&lt;<span class="lifetime">'ssa</span>, W&gt; {
     <span class="kw">fn </span>new(ssa: <span class="kw-2">&amp;</span><span class="lifetime">'ssa </span>Ssa, options: InterpreterOptions, output: W) -&gt; <span class="self">Self </span>{
+        <span class="self">Self</span>::new_from_functions(<span class="kw-2">&amp;</span>ssa.functions, options, output)
+    }
+
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new_from_functions(
+        functions: <span class="kw-2">&amp;</span><span class="lifetime">'ssa </span>BTreeMap&lt;FunctionId, Function&gt;,
+        options: InterpreterOptions,
+        output: W,
+    ) -&gt; <span class="self">Self </span>{
         <span class="kw">let </span>call_stack = <span class="macro">vec!</span>[CallContext::global_context()];
-        <span class="self">Self </span>{ ssa, call_stack, side_effects_enabled: <span class="bool-val">true</span>, options, output }
+        <span class="self">Self </span>{ functions, call_stack, side_effects_enabled: <span class="bool-val">true</span>, options, output }
+    }
+
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>functions(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>BTreeMap&lt;FunctionId, Function&gt; {
+        <span class="self">self</span>.functions
     }
 
     <span class="kw">fn </span>call_context(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>CallContext {
@@ -1719,7 +1755,7 @@
 
     <span class="kw">fn </span>try_current_function(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span><span class="lifetime">'ssa </span>Function&gt; {
         <span class="kw">let </span>current_function_id = <span class="self">self</span>.call_context().called_function;
-        current_function_id.map(|current_function_id| <span class="kw-2">&amp;</span><span class="self">self</span>.ssa.functions[<span class="kw-2">&amp;</span>current_function_id])
+        current_function_id.map(|current_function_id| <span class="kw-2">&amp;</span><span class="self">self</span>.functions[<span class="kw-2">&amp;</span>current_function_id])
     }
 
     <span class="kw">fn </span>current_function(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span><span class="lifetime">'ssa </span>Function {
@@ -1761,8 +1797,9 @@
         <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="kw">fn </span>interpret_globals(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; IResult&lt;()&gt; {
-        <span class="kw">let </span>globals = <span class="kw-2">&amp;</span><span class="self">self</span>.ssa.main().dfg.globals;
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>interpret_globals(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; IResult&lt;()&gt; {
+        <span class="kw">let </span>(<span class="kw">_</span>, function) = <span class="self">self</span>.functions.first_key_value().unwrap();
+        <span class="kw">let </span>globals = <span class="kw-2">&amp;</span>function.dfg.globals;
         <span class="kw">for </span>(global_id, global) <span class="kw">in </span>globals.values_iter() {
             <span class="kw">let </span>value = <span class="kw">match </span>global {
                 <span class="kw">super</span>::ir::value::Value::Instruction { instruction, .. } =&gt; {
@@ -1787,10 +1824,14 @@
         <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="kw">fn </span>call_function(<span class="kw-2">&amp;mut </span><span class="self">self</span>, function_id: FunctionId, <span class="kw-2">mut </span>arguments: Vec&lt;Value&gt;) -&gt; IResults {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>call_function(
+        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        function_id: FunctionId,
+        <span class="kw-2">mut </span>arguments: Vec&lt;Value&gt;,
+    ) -&gt; IResults {
         <span class="self">self</span>.call_stack.push(CallContext::new(function_id));
 
-        <span class="kw">let </span>function = <span class="kw-2">&amp;</span><span class="self">self</span>.ssa.functions[<span class="kw-2">&amp;</span>function_id];
+        <span class="kw">let </span>function = <span class="kw-2">&amp;</span><span class="self">self</span>.functions[<span class="kw-2">&amp;</span>function_id];
         <span class="kw">if </span><span class="self">self</span>.options.trace {
             <span class="macro">println!</span>();
             <span class="macro">println!</span>(<span class="string">"enter function {} ({})"</span>, function_id, function.name());
@@ -1878,7 +1919,7 @@
         <span class="kw">if </span><span class="self">self</span>.options.trace {
             <span class="kw">if let </span><span class="prelude-val">Some</span>(context) = <span class="self">self</span>.call_stack.last() {
                 <span class="kw">if let </span><span class="prelude-val">Some</span>(function_id) = context.called_function {
-                    <span class="kw">let </span>function = <span class="kw-2">&amp;</span><span class="self">self</span>.ssa.functions[<span class="kw-2">&amp;</span>function_id];
+                    <span class="kw">let </span>function = <span class="kw-2">&amp;</span><span class="self">self</span>.functions[<span class="kw-2">&amp;</span>function_id];
                     <span class="macro">println!</span>(<span class="string">"back in function {} ({})"</span>, function_id, function.name());
                 }
             }
@@ -2339,7 +2380,7 @@
                     // any shared mutable fields in our arguments since brillig should conceptually
                     // receive fresh array on each invocation.
                     </span><span class="kw">if </span>!<span class="self">self</span>.in_unconstrained_context()
-                        &amp;&amp; <span class="self">self</span>.ssa.functions[<span class="kw-2">&amp;</span>id].runtime().is_brillig()
+                        &amp;&amp; <span class="self">self</span>.functions[<span class="kw-2">&amp;</span>id].runtime().is_brillig()
                     {
                         <span class="kw">for </span>argument <span class="kw">in </span>arguments.iter_mut() {
                             <span class="self">Self</span>::reset_array_state(argument)<span class="question-mark">?</span>;
@@ -2350,6 +2391,9 @@
                 Value::Intrinsic(intrinsic) =&gt; {
                     <span class="self">self</span>.call_intrinsic(intrinsic, argument_ids, results)<span class="question-mark">?
                 </span>}
+                Value::ForeignFunction(name) <span class="kw">if </span><span class="self">self</span>.options.no_foreign_calls =&gt; {
+                    <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::UnknownForeignFunctionCall { name });
+                }
                 Value::ForeignFunction(name) <span class="kw">if </span>name == <span class="string">"print" </span>=&gt; <span class="self">self</span>.call_print(arguments)<span class="question-mark">?</span>,
                 Value::ForeignFunction(name) =&gt; {
                     <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::UnknownForeignFunctionCall { name });
@@ -2387,7 +2431,7 @@
     <span class="doccomment">/// Try to get a function's name or approximate it if it is not known
     </span><span class="kw">fn </span>try_get_function_name(<span class="kw-2">&amp;</span><span class="self">self</span>, function: ValueId) -&gt; String {
         <span class="kw">match </span><span class="self">self</span>.lookup(function) {
-            <span class="prelude-val">Ok</span>(Value::Function(id)) =&gt; <span class="kw">match </span><span class="self">self</span>.ssa.functions.get(<span class="kw-2">&amp;</span>id) {
+            <span class="prelude-val">Ok</span>(Value::Function(id)) =&gt; <span class="kw">match </span><span class="self">self</span>.functions.get(<span class="kw-2">&amp;</span>id) {
                 <span class="prelude-val">Some</span>(function) =&gt; function.name().to_string(),
                 <span class="prelude-val">None </span>=&gt; <span class="string">"unknown function"</span>.to_string(),
             },
