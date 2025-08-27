@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use fxhash::FxHashMap as HashMap;
@@ -44,7 +45,7 @@ impl Ssa {
         // Then transitively 'infect' any functions which call impure functions as also
         // impure.
         let call_graph = CallGraph::from_ssa(&self);
-        let purities = analyze_call_graph(call_graph, purities);
+        let purities = analyze_call_graph(call_graph, purities, &self.functions);
         let purities = Arc::new(purities);
 
         // We're done, now store purities somewhere every dfg can find it.
@@ -224,6 +225,7 @@ impl Function {
 fn analyze_call_graph(
     call_graph: CallGraph,
     starting_purities: FunctionPurities,
+    functions: &BTreeMap<FunctionId, Function>,
 ) -> FunctionPurities {
     // Now we can analyze it: a function is only as pure as all of
     // its called functions
@@ -257,8 +259,10 @@ fn analyze_call_graph(
                     // to detect strongly connected components. Instead, since this should be
                     // a rare case, we bail and assume impure for now.
                     if neighbor == id {
-                        // If the recursive call is to the same function we can ignore it
-                        purity
+                        // If the recursive call is to the same function we can ignore it,
+                        // unless it's a brillig function in which case we need to set it to impure
+                        // as it could recurse inifinitely, and that's a side-effect
+                        if functions[&id].runtime().is_brillig() { Purity::Impure } else { purity }
                     } else {
                         Purity::Impure
                     }
@@ -512,6 +516,29 @@ mod test {
             dec_rc v0  // We wouldn't produce this code. This is just to ensure dec_rc is impure.
             v3 = array_set v0, index u32 0, value Field 5
             return v3
+        }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.purity_analysis();
+
+        let purities = &ssa.main().dfg.function_purities;
+        assert_eq!(purities[&FunctionId::test_new(0)], Purity::Impure);
+        assert_eq!(purities[&FunctionId::test_new(1)], Purity::Impure);
+    }
+
+    #[test]
+    fn direct_brillig_recursion_marks_functions_impure() {
+        let src = r#"
+        brillig(inline) fn main f0 {
+          b0():
+            call f1()
+            return
+        }
+        brillig(inline) fn f1 f1 {
+          b0():
+            call f1()
+            return
         }
         "#;
 
