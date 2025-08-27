@@ -941,7 +941,6 @@ impl BlockContext {
             }
             Instruction::EcdsaSecp256r1 {
                 msg,
-                hash_size,
                 corrupt_hash,
                 corrupt_pubkey_x,
                 corrupt_pubkey_y,
@@ -986,7 +985,6 @@ impl BlockContext {
             }
             Instruction::EcdsaSecp256k1 {
                 msg,
-                hash_size,
                 corrupt_hash,
                 corrupt_pubkey_x,
                 corrupt_pubkey_y,
