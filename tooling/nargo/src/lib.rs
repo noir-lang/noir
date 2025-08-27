@@ -244,8 +244,8 @@ pub fn parse_all(file_manager: &FileManager) -> ParsedFiles {
         .copied()
         .collect();
 
-    // Limit threads to the actual number of files we need to process, but at least 1
-    let num_threads = rayon::current_num_threads().min(nr_files.len()).max(1);
+    // Limit threads to the actual number of files we need to process.
+    let num_threads = rayon::current_num_threads().min(nr_files.len());
 
     let (sender, receiver) = mpsc::channel();
     let iter = &Mutex::new(nr_files.into_iter());

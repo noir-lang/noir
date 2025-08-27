@@ -366,8 +366,8 @@ impl<'a> TestRunner<'a> {
             Vec<Test<'a>>,
         ) = tests.into_iter().partition(|test| !test.has_arguments);
 
-        // Calculate the actual number of threads needed based on test count, but at least 1
-        let num_threads = self.num_threads.min(iter_tests_without_arguments.len()).max(1);
+        // Calculate the actual number of threads needed based on test count.
+        let num_threads = self.num_threads.min(iter_tests_without_arguments.len());
 
         let iter_tests_without_arguments = &Mutex::new(iter_tests_without_arguments.into_iter());
         let iter_tests_with_arguments = &Mutex::new(iter_tests_with_arguments.into_iter());
@@ -401,7 +401,7 @@ impl<'a> TestRunner<'a> {
                     // Wait for at least half of the threads to finish processing the standard tests
                     while standard_tests_finished_receiver.recv().is_ok() {
                         standard_tests_threads_finished += 1;
-                        if standard_tests_threads_finished >= max(1, self.num_threads / 2) {
+                        if standard_tests_threads_finished >= max(1, num_threads / 2) {
                             break;
                         }
                     }
@@ -496,11 +496,13 @@ impl<'a> TestRunner<'a> {
         let mut error = None;
 
         let (sender, receiver) = mpsc::channel();
+        // Calculate the actual number of threads needed based on package count.
+        let num_threads = self.num_threads.min(self.workspace.members.len());
         let iter = &Mutex::new(self.workspace.into_iter());
 
         thread::scope(|scope| {
             // Start worker threads
-            for _ in 0..self.num_threads {
+            for _ in 0..num_threads {
                 // Clone sender so it's dropped once the thread finishes
                 let thread_sender = sender.clone();
                 thread::Builder::new()
