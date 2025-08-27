@@ -12,6 +12,6 @@ fn main() {
 
 fn foo(param: [&mut str<4>; 1]) {
     let s: &mut str<4> = param[0_u32];
-    *(s) = "GOOD";
+    *s = "GOOD";
     for _ in 0_u32..1_u32 {}
 }
