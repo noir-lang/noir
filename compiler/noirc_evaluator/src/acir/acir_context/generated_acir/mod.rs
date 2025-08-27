@@ -222,6 +222,16 @@ impl<F: AcirField> GeneratedAcir<F> {
                 outputs: outputs.try_into().expect("Compiler should generate correct size outputs"),
             },
             BlackBoxFunc::EcdsaSecp256k1 => {
+                if function_inputs[0].len() != 32
+                    || function_inputs[1].len() != 32
+                    || function_inputs[2].len() != 64
+                    || function_inputs[3].len() != 32
+                {
+                    return Err(InternalError::General {
+                        message: "Compiler should generate correct size inputs".to_string(),
+                        call_stack: self.get_call_stack(),
+                    });
+                }
                 BlackBoxFuncCall::EcdsaSecp256k1 {
                     // 32 bytes for each public key co-ordinate
                     public_key_x: function_inputs[0]

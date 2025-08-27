@@ -325,17 +325,23 @@ pub(super) fn simplify_signature(
         dfg.get_array_constant(arguments[1]),
         dfg.get_array_constant(arguments[2]),
         dfg.get_array_constant(arguments[3]),
+        dfg.get_array_constant(arguments[4]),
     ) {
         (
             Some((public_key_x, _)),
             Some((public_key_y, _)),
             Some((signature, _)),
             Some((hashed_message, _)),
+            Some((predicate, _)),
         ) if array_is_constant(dfg, &public_key_x)
             && array_is_constant(dfg, &public_key_y)
             && array_is_constant(dfg, &signature)
             && array_is_constant(dfg, &hashed_message) =>
         {
+            if dfg.get_numeric_constant(predicate[0]) == Some(FieldElement::zero()) {
+                let valid_signature = dfg.make_constant(1_u128.into(), NumericType::bool());
+                return SimplifyResult::SimplifiedTo(valid_signature);
+            }
             let public_key_x: [u8; 32] = to_u8_vec(dfg, public_key_x)
                 .try_into()
                 .expect("ECDSA public key fields are 32 bytes");
