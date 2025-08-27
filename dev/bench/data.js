@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1756320250236,
+  "lastUpdate": 1756324672462,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -20161,48 +20161,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "fb01ee5f318a91838c8141c8272abcff1206c089",
-          "message": "chore(ssa): Simplify shl/shr identity operations (#9587)",
-          "timestamp": "2025-08-20T19:52:33Z",
-          "tree_id": "66bc83f3987c5a0fc88f9d3fb40e4db400afeb2a",
-          "url": "https://github.com/noir-lang/noir/commit/fb01ee5f318a91838c8141c8272abcff1206c089"
-        },
-        "date": 1755721177311,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 249072,
-            "range": "± 402",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 218100,
-            "range": "± 3672",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2779911,
-            "range": "± 3055",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -22254,6 +22212,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2782471,
             "range": "± 11623",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "70bc8931e1b42623b6c32bfe03607dd2e35be765",
+          "message": "chore: LICM refactors (#9642)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
+          "timestamp": "2025-08-27T19:26:15Z",
+          "tree_id": "80b379310149d25115633555324bfa3e341781d4",
+          "url": "https://github.com/noir-lang/noir/commit/70bc8931e1b42623b6c32bfe03607dd2e35be765"
+        },
+        "date": 1756324654021,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 249287,
+            "range": "± 2989",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 218905,
+            "range": "± 5940",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2779634,
+            "range": "± 7029",
             "unit": "ns/iter"
           }
         ]
