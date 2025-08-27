@@ -255,16 +255,7 @@
 <a href="#254" id="254">254</a>
 <a href="#255" id="255">255</a>
 <a href="#256" id="256">256</a>
-<a href="#257" id="257">257</a>
-<a href="#258" id="258">258</a>
-<a href="#259" id="259">259</a>
-<a href="#260" id="260">260</a>
-<a href="#261" id="261">261</a>
-<a href="#262" id="262">262</a>
-<a href="#263" id="263">263</a>
-<a href="#264" id="264">264</a>
-<a href="#265" id="265">265</a>
-<a href="#266" id="266">266</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::borrow::Cow;
+<a href="#257" id="257">257</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::borrow::Cow;
 
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{
     function::Function,
@@ -296,7 +287,7 @@
     <span class="doccomment">/// Each allocate instruction result (and some reference block parameters)
     /// will map to a Reference value which tracks whether the last value stored
     /// to the reference is known.
-    </span><span class="kw">pub</span>(<span class="kw">super</span>) references: im::OrdMap&lt;ValueId, ReferenceValue&gt;,
+    </span><span class="kw">pub</span>(<span class="kw">super</span>) references: im::OrdMap&lt;ValueId, ValueId&gt;,
 
     <span class="doccomment">/// The last instance of a `Store` instruction to each address in this block
     </span><span class="kw">pub</span>(<span class="kw">super</span>) last_stores: im::OrdMap&lt;ValueId, InstructionId&gt;,
@@ -315,42 +306,22 @@
     Other(ValueId),
 }
 
-<span class="doccomment">/// Every reference's value is either Known and can be optimized away, or Unknown.
-</span><span class="attr">#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-</span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">enum </span>ReferenceValue {
-    Unknown,
-    Known(ValueId),
-}
-
-<span class="kw">impl </span>ReferenceValue {
-    <span class="kw">fn </span>unify(<span class="self">self</span>, other: <span class="self">Self</span>) -&gt; <span class="self">Self </span>{
-        <span class="kw">if </span><span class="self">self </span>== other { <span class="self">self </span>} <span class="kw">else </span>{ ReferenceValue::Unknown }
-    }
-}
-
 <span class="kw">impl </span>Block {
     <span class="doccomment">/// If the given reference id points to a known value, return the value
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>get_known_value(<span class="kw-2">&amp;</span><span class="self">self</span>, address: ValueId) -&gt; <span class="prelude-ty">Option</span>&lt;ValueId&gt; {
-        <span class="comment">// We could allow multiple aliases if we check that the reference value in each is equal.
-        </span><span class="kw">if let </span><span class="prelude-val">Some</span>(alias) = <span class="self">self</span>.get_aliases_for_value(address).single_alias() {
-            <span class="kw">if let </span><span class="prelude-val">Some</span>(ReferenceValue::Known(value)) = <span class="self">self</span>.references.get(<span class="kw-2">&amp;</span>alias) {
-                <span class="kw">return </span><span class="prelude-val">Some</span>(<span class="kw-2">*</span>value);
-            }
-        }
+        <span class="self">self</span>.references.get(<span class="kw-2">&amp;</span>address).copied()
+    }
 
-        <span class="prelude-val">None
-    </span>}
-
-    <span class="doccomment">/// If the given address is known, set its value to `ReferenceValue::Known(value)`.
+    <span class="doccomment">/// If the given address is known, set its value to `value`.
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>set_known_value(<span class="kw-2">&amp;mut </span><span class="self">self</span>, address: ValueId, value: ValueId) {
-        <span class="self">self</span>.set_value(address, ReferenceValue::Known(value));
+        <span class="self">self</span>.set_value(address, <span class="prelude-val">Some</span>(value));
     }
 
     <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>set_unknown(<span class="kw-2">&amp;mut </span><span class="self">self</span>, address: ValueId) {
-        <span class="self">self</span>.set_value(address, ReferenceValue::Unknown);
+        <span class="self">self</span>.set_value(address, <span class="prelude-val">None</span>);
     }
 
-    <span class="kw">fn </span>set_value(<span class="kw-2">&amp;mut </span><span class="self">self</span>, address: ValueId, value: ReferenceValue) {
+    <span class="kw">fn </span>set_value(<span class="kw-2">&amp;mut </span><span class="self">self</span>, address: ValueId, value: <span class="prelude-ty">Option</span>&lt;ValueId&gt;) {
         <span class="kw">let </span>expression = <span class="self">self</span>.expressions.entry(address).or_insert(Expression::Other(address));
         <span class="kw">let </span>aliases = <span class="self">self</span>.aliases.entry(<span class="kw-2">*</span>expression).or_default();
 
@@ -359,15 +330,24 @@
             // Now we have to invalidate every reference we know of
             </span><span class="self">self</span>.invalidate_all_references();
         } <span class="kw">else if let </span><span class="prelude-val">Some</span>(alias) = aliases.single_alias() {
-            <span class="self">self</span>.references.insert(alias, value);
+            <span class="self">self</span>.set_reference_value(alias, value);
         } <span class="kw">else </span>{
             <span class="comment">// More than one alias. We're not sure which it refers to so we have to
             // conservatively invalidate all references it may refer to.
             </span><span class="kw">for </span>alias <span class="kw">in </span>aliases.iter() {
-                <span class="kw">if let </span><span class="prelude-val">Some</span>(reference_value) = <span class="self">self</span>.references.get_mut(<span class="kw-2">&amp;</span>alias) {
-                    <span class="kw-2">*</span>reference_value = ReferenceValue::Unknown;
-                }
+                <span class="self">self</span>.references.remove(<span class="kw-2">&amp;</span>alias);
             }
+        }
+
+        <span class="comment">// We always know address points to value
+        </span><span class="self">self</span>.set_reference_value(address, value);
+    }
+
+    <span class="kw">fn </span>set_reference_value(<span class="kw-2">&amp;mut </span><span class="self">self</span>, address: ValueId, value: <span class="prelude-ty">Option</span>&lt;ValueId&gt;) {
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(value) = value {
+            <span class="self">self</span>.references.insert(address, value);
+        } <span class="kw">else </span>{
+            <span class="self">self</span>.references.remove(<span class="kw-2">&amp;</span>address);
         }
     }
 
@@ -402,7 +382,9 @@
         </span><span class="kw">let </span><span class="kw-2">mut </span>intersection = im::OrdMap::new();
         <span class="kw">for </span>(value_id, reference) <span class="kw">in </span><span class="kw-2">&amp;</span>other.references {
             <span class="kw">if let </span><span class="prelude-val">Some</span>(existing) = <span class="self">self</span>.references.get(value_id) {
-                intersection.insert(<span class="kw-2">*</span>value_id, existing.unify(<span class="kw-2">*</span>reference));
+                <span class="kw">if </span>reference == existing {
+                    intersection.insert(<span class="kw-2">*</span>value_id, <span class="kw-2">*</span>reference);
+                }
             }
         }
         <span class="self">self</span>.references = intersection;
