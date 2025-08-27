@@ -118,6 +118,10 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         Self { functions, call_stack, side_effects_enabled: true, options, output }
     }
 
+    pub(crate) fn functions(&self) -> &BTreeMap<FunctionId, Function> {
+        self.functions
+    }
+
     fn call_context(&self) -> &CallContext {
         self.call_stack.last().expect("call_stack should always be non-empty")
     }

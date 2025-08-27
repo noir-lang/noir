@@ -14,7 +14,10 @@
 //!
 //! This is the only pass which removes duplicated pure [`Instruction`]s however and so is needed when
 //! different blocks are merged, i.e. after the [`flatten_cfg`][super::flatten_cfg] pass.
-use std::collections::{BTreeMap, HashSet, VecDeque};
+use std::{
+    collections::{BTreeMap, HashSet, VecDeque},
+    io::Empty,
+};
 
 use acvm::{FieldElement, acir::AcirField};
 use im::Vector;
@@ -77,10 +80,8 @@ impl Ssa {
             };
         }
 
-        let brillig_info = Some(BrilligInfo { brillig_functions: &brillig_functions });
-
         for function in self.functions.values_mut() {
-            function.constant_fold(false, brillig_info);
+            function.constant_fold(false, Some(&brillig_functions));
         }
 
         self
@@ -93,7 +94,7 @@ impl Function {
     pub(crate) fn constant_fold(
         &mut self,
         use_constraint_info: bool,
-        brillig_info: Option<BrilligInfo>,
+        brillig_info: Option<&BTreeMap<FunctionId, Function>>,
     ) {
         let mut context = Context::new(use_constraint_info, brillig_info);
         let mut dom = DominatorTree::with_function(self);
@@ -123,7 +124,6 @@ fn constant_folding_post_check(context: &Context, dfg: &DataFlowGraph) {
 
 struct Context<'a> {
     use_constraint_info: bool,
-    brillig_info: Option<BrilligInfo<'a>>,
     /// Maps pre-folded ValueIds to the new ValueIds obtained by re-inserting the instruction.
     visited_blocks: HashSet<BasicBlockId>,
     block_queue: VecDeque<BasicBlockId>,
@@ -141,11 +141,8 @@ struct Context<'a> {
     cached_instruction_results: InstructionResultCache,
 
     values_to_replace: ValueMapping,
-}
 
-#[derive(Copy, Clone)]
-pub(crate) struct BrilligInfo<'a> {
-    brillig_functions: &'a BTreeMap<FunctionId, Function>,
+    interpreter: Option<Interpreter<'a, Empty>>,
 }
 
 /// Records a simplified equivalents of an [`Instruction`] in the blocks
@@ -211,15 +208,34 @@ struct ResultCache {
 }
 
 impl<'brillig> Context<'brillig> {
-    fn new(use_constraint_info: bool, brillig_info: Option<BrilligInfo<'brillig>>) -> Self {
+    fn new(
+        use_constraint_info: bool,
+        brillig_functions: Option<&'brillig BTreeMap<FunctionId, Function>>,
+    ) -> Self {
+        let interpreter = brillig_functions.and_then(|brillig_functions| {
+            if brillig_functions.is_empty() {
+                None
+            } else {
+                let mut interpreter = Interpreter::new_from_functions(
+                    brillig_functions,
+                    InterpreterOptions { no_foreign_calls: true, ..Default::default() },
+                    std::io::empty(),
+                );
+                // Interpret globals once so that we do not have to repeat this computation on every Brillig call.
+                interpreter
+                    .interpret_globals()
+                    .expect("ICE: Interpreter failed to interpret globals");
+                Some(interpreter)
+            }
+        });
         Self {
             use_constraint_info,
-            brillig_info,
             visited_blocks: Default::default(),
             block_queue: Default::default(),
             constraint_simplification_mappings: Default::default(),
             cached_instruction_results: Default::default(),
             values_to_replace: Default::default(),
+            interpreter,
         }
     }
 
@@ -348,7 +364,7 @@ impl<'brillig> Context<'brillig> {
                 &instruction,
                 block,
                 dfg,
-                self.brillig_info,
+                self.interpreter.as_mut(),
             )
             // Otherwise, try inserting the instruction again to apply any optimizations using the newly resolved inputs.
             .unwrap_or_else(|| {
@@ -585,10 +601,9 @@ impl<'brillig> Context<'brillig> {
         instruction: &Instruction,
         block: BasicBlockId,
         dfg: &mut DataFlowGraph,
-        brillig_info: Option<BrilligInfo>,
+        interpreter: Option<&mut Interpreter<Empty>>,
     ) -> Option<Vec<ValueId>> {
-        let evaluation_result =
-            Self::evaluate_const_brillig_call(instruction, brillig_info?.brillig_functions, dfg);
+        let evaluation_result = Self::evaluate_const_brillig_call(instruction, interpreter?, dfg);
 
         match evaluation_result {
             EvaluationResult::NotABrilligCall | EvaluationResult::CannotEvaluate => None,
@@ -606,7 +621,7 @@ impl<'brillig> Context<'brillig> {
     /// We do this by directly executing the function with a brillig VM.
     fn evaluate_const_brillig_call(
         instruction: &Instruction,
-        brillig_functions: &BTreeMap<FunctionId, Function>,
+        interpreter: &mut Interpreter<Empty>,
         dfg: &mut DataFlowGraph,
     ) -> EvaluationResult {
         let Instruction::Call { func: func_id, arguments } = instruction else {
@@ -618,7 +633,7 @@ impl<'brillig> Context<'brillig> {
             return EvaluationResult::NotABrilligCall;
         };
 
-        let Some(func) = brillig_functions.get(func_id) else {
+        let Some(func) = interpreter.functions().get(func_id) else {
             return EvaluationResult::NotABrilligCall;
         };
 
@@ -629,15 +644,6 @@ impl<'brillig> Context<'brillig> {
 
         let interpreter_args =
             arguments.iter().map(|arg| const_ir_value_to_interpreter_value(*arg, dfg)).collect();
-
-        let mut interpreter = Interpreter::new_from_functions(
-            brillig_functions,
-            InterpreterOptions { no_foreign_calls: true, ..Default::default() },
-            std::io::empty(),
-        );
-        let Ok(()) = interpreter.interpret_globals() else {
-            return EvaluationResult::CannotEvaluate;
-        };
 
         let Ok(result_values) = interpreter.call_function(func.id(), interpreter_args) else {
             return EvaluationResult::CannotEvaluate;
