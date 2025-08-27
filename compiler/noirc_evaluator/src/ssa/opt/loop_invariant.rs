@@ -178,23 +178,33 @@ impl Loop {
 
 struct LoopInvariantContext<'f> {
     inserter: FunctionInserter<'f>,
-    defined_in_loop: HashSet<ValueId>,
-    loop_invariants: HashSet<ValueId>,
-    /// Maps current loop induction variable with a fixed lower and upper loop bound
-    current_induction_variable: Option<(ValueId, (IntegerConstant, IntegerConstant))>,
+
+    /// All state which is local to a single loop.
+    loop_context: LoopContext,
     /// Maps outer loop induction variable -> fixed lower and upper loop bound
     /// This will be used by inner loops to determine whether they
     /// have safe operations reliant upon an outer loop's maximum induction variable
     outer_induction_variables: HashMap<ValueId, (IntegerConstant, IntegerConstant)>,
     /// All induction variables collected up front.
     all_induction_variables: HashMap<ValueId, (IntegerConstant, IntegerConstant)>,
-    /// This context struct processes runs across all loops.
-    /// This stores the current loop's pre-header block.
-    /// It is wrapped in an Option as our SSA `Id<T>` does not allow dummy values.
-    current_pre_header: Option<BasicBlockId>,
 
     cfg: ControlFlowGraph,
 
+    /// Maps a block to its post-dominance frontiers
+    post_dom_frontiers: PostDominanceFrontiers,
+
+    // Helper constants
+    true_value: ValueId,
+    false_value: ValueId,
+}
+
+#[derive(Default)]
+struct LoopContext {
+    /// Maps current loop induction variable with a fixed lower and upper loop bound
+    current_induction_variable: Option<(ValueId, (IntegerConstant, IntegerConstant))>,
+    pre_header: Option<BasicBlockId>,
+    defined_in_loop: HashSet<ValueId>,
+    loop_invariants: HashSet<ValueId>,
     /// Caches all blocks that belong to nested loops determined to be control dependent
     /// on blocks in an outer loop. This allows short circuiting future control dependence
     /// checks during loop invariant analysis, as these blocks are guaranteed to be
@@ -202,9 +212,8 @@ struct LoopInvariantContext<'f> {
     ///
     /// Reset for each new loop as the set should not be shared across different outer loops.
     nested_loop_control_dependent_blocks: HashSet<BasicBlockId>,
-
-    /// Maps a block to its post-dominance frontiers
-    post_dom_frontiers: PostDominanceFrontiers,
+    // Indicates whether the current loop has break or early returns
+    no_break: bool,
 
     // Stores whether the current block being processed is control dependent
     current_block_control_dependent: bool,
@@ -216,12 +225,52 @@ struct LoopInvariantContext<'f> {
     // Stores whether the current block has known fix upper and lower bounds that
     // indicate that it is guaranteed to execute at least once.
     current_block_executes: bool,
+}
 
-    // Indicates whether the current loop has break or early returns
-    no_break: bool,
-    // Helper constants
-    true_value: ValueId,
-    false_value: ValueId,
+impl LoopContext {
+    fn pre_header(&self) -> BasicBlockId {
+        self.pre_header.expect("ICE: Pre-header block should have been set")
+    }
+
+    fn is_loop_invariant(&self, value_id: &ValueId) -> bool {
+        !self.defined_in_loop.contains(value_id) || self.loop_invariants.contains(value_id)
+    }
+
+    /// A control dependent instruction (e.g. constrain or division) has more strict conditions for hoisting.
+    /// This function check the following conditions:
+    /// - The current block is non control dependent
+    /// - The loop body is guaranteed to be executed
+    /// - The current block is not impure
+    fn can_hoist_control_dependent_instruction(&self) -> bool {
+        !self.current_block_control_dependent
+            && self.current_block_executes
+            && !self.current_block_impure
+    }
+
+    /// A control dependent instruction (e.g. constrain or division) has more strict conditions for simplifying.
+    /// This function matches [LoopInvariantContext::can_hoist_control_dependent_instruction] except
+    /// that simplification does not require that current block is pure to be simplified.
+    fn can_simplify_control_dependent_instruction(&self) -> bool {
+        !self.current_block_control_dependent && self.current_block_executes
+    }
+
+    /// Check [can_be_hoisted] with extra control dependence information that
+    /// lives within the context of this pass.
+    fn can_be_hoisted_with_control_dependence(
+        &self,
+        instruction: &Instruction,
+        function: &Function,
+    ) -> bool {
+        can_be_hoisted(instruction, function, true)
+            && self.can_hoist_control_dependent_instruction()
+    }
+
+    fn get_current_induction_variable_bounds(
+        &self,
+        id: ValueId,
+    ) -> Option<(IntegerConstant, IntegerConstant)> {
+        self.current_induction_variable.filter(|(val, _)| *val == id).map(|(_, bounds)| bounds)
+    }
 }
 
 #[derive(Default)]
@@ -261,21 +310,14 @@ impl<'f> LoopInvariantContext<'f> {
             function.dfg.make_constant(FieldElement::zero(), NumericType::Unsigned { bit_size: 1 });
         let mut context = Self {
             inserter: FunctionInserter::new(function),
-            defined_in_loop: HashSet::default(),
-            loop_invariants: HashSet::default(),
-            current_induction_variable: None,
+            loop_context: LoopContext::default(),
             outer_induction_variables: HashMap::default(),
             all_induction_variables: HashMap::default(),
-            current_pre_header: None,
             cfg,
-            nested_loop_control_dependent_blocks: HashSet::default(),
             post_dom_frontiers,
-            current_block_control_dependent: false,
-            current_block_impure: false,
-            current_block_executes: false,
+
             true_value,
             false_value,
-            no_break: false,
         };
 
         // Insert all loop bounds up front, so we can inspect both outer and nested loops.
@@ -292,10 +334,6 @@ impl<'f> LoopInvariantContext<'f> {
         context
     }
 
-    fn pre_header(&self) -> BasicBlockId {
-        self.current_pre_header.expect("ICE: Pre-header block should have been set")
-    }
-
     /// Perform loop invariant code motion and induction variable analysis.
     /// See [`loop_invariant`][self] module for more information.
     fn hoist_loop_invariants(
@@ -304,12 +342,12 @@ impl<'f> LoopInvariantContext<'f> {
         all_loops: &[Loop],
         pre_header: BasicBlockId,
     ) {
-        self.set_values_defined_in_loop(loop_, pre_header);
+        self.loop_context = self.get_values_defined_in_loop(loop_, pre_header);
 
         for block in loop_.blocks.iter() {
             // Reset the per block state
-            self.current_block_executes = self.does_block_execute(*block, all_loops);
-            self.current_block_impure = false;
+            self.loop_context.current_block_executes = self.does_block_execute(*block, all_loops);
+            self.loop_context.current_block_impure = false;
             self.is_control_dependent_post_pre_header(loop_, *block, all_loops);
             let header = loop_.header == *block;
 
@@ -347,8 +385,9 @@ impl<'f> LoopInvariantContext<'f> {
                     let dfg = &self.inserter.function.dfg;
                     // If the block has already been labelled as impure, we do need to check the current
                     // instruction's side effects.
-                    if !self.current_block_impure {
-                        self.current_block_impure = dfg[instruction_id].has_side_effects(dfg);
+                    if !self.loop_context.current_block_impure {
+                        self.loop_context.current_block_impure =
+                            dfg[instruction_id].has_side_effects(dfg);
                     }
                     self.inserter.push_instruction(instruction_id, *block);
                 }
@@ -373,8 +412,8 @@ impl<'f> LoopInvariantContext<'f> {
     ) {
         // The block is already known to be in a control dependent nested loop
         // Thus, we can avoid checking for control dependence again.
-        if self.nested_loop_control_dependent_blocks.contains(&block) {
-            self.current_block_control_dependent = true;
+        if self.loop_context.nested_loop_control_dependent_blocks.contains(&block) {
+            self.loop_context.current_block_control_dependent = true;
             return;
         }
 
@@ -389,8 +428,11 @@ impl<'f> LoopInvariantContext<'f> {
         // When hoisting a control dependent instruction, if a side effectual instruction comes in the predecessor block
         // of that instruction we can no longer hoist the control dependent instruction.
         // This is important for maintaining ordering semantic correctness of the code.
-        assert!(!self.current_block_impure, "ICE: Block impurity should be defaulted to false");
-        self.current_block_impure = all_predecessors.iter().any(|block| {
+        assert!(
+            !self.loop_context.current_block_impure,
+            "ICE: Block impurity should be defaulted to false"
+        );
+        self.loop_context.current_block_impure = all_predecessors.iter().any(|block| {
             dfg[*block]
                 .instructions()
                 .iter()
@@ -400,7 +442,7 @@ impl<'f> LoopInvariantContext<'f> {
         // Reset the current block control dependent flag, the check will set it to true if needed.
         // If we fail to reset it, a block may be inadvertently labelled
         // as control dependent thus preventing optimizations.
-        self.current_block_control_dependent = false;
+        self.loop_context.current_block_control_dependent = false;
 
         // Now check whether the current block is dependent on any blocks between
         // the current block and the loop header, exclusive of the current block and loop header themselves
@@ -408,7 +450,7 @@ impl<'f> LoopInvariantContext<'f> {
             .iter()
             .any(|predecessor| self.post_dom_frontiers.is_control_dependent(*predecessor, block))
         {
-            self.current_block_control_dependent = true;
+            self.loop_context.current_block_control_dependent = true;
             return;
         }
 
@@ -450,12 +492,12 @@ impl<'f> LoopInvariantContext<'f> {
                         self.post_dom_frontiers.is_control_dependent(*predecessor, nested.header)
                     });
             if nested_loop_is_control_dep {
-                self.current_block_control_dependent = true;
+                self.loop_context.current_block_control_dependent = true;
                 // Mark all blocks in the nested loop as control dependent to avoid redundant checks
                 // for each of these blocks when they are later visited during hoisting.
                 // This is valid because control dependence of the loop header implies dependence
                 // for the entire loop body.
-                self.nested_loop_control_dependent_blocks.extend(nested.blocks.iter());
+                self.loop_context.nested_loop_control_dependent_blocks.extend(nested.blocks.iter());
                 return;
             }
         }
@@ -483,7 +525,7 @@ impl<'f> LoopInvariantContext<'f> {
         }
 
         // If the current loop doesn't execute, then nothing does.
-        if !check_bounds(self.current_induction_variable.map(|(_, bounds)| bounds)) {
+        if !check_bounds(self.loop_context.current_induction_variable.map(|(_, bounds)| bounds)) {
             return false;
         }
 
@@ -510,32 +552,38 @@ impl<'f> LoopInvariantContext<'f> {
     }
 
     /// Gather the variables declared within the loop
-    fn set_values_defined_in_loop(&mut self, loop_: &Loop, pre_header: BasicBlockId) {
-        self.current_pre_header = Some(pre_header);
-
+    fn get_values_defined_in_loop(
+        &mut self,
+        loop_: &Loop,
+        pre_header: BasicBlockId,
+    ) -> LoopContext {
         // Clear any values that may be defined in previous loops, as the context is per function.
-        self.defined_in_loop.clear();
-        // These are safe to keep per function, but we want to be clear that these values
-        // are used per loop.
-        self.loop_invariants.clear();
-        // There is only ever one current induction variable for a loop.
-        // For a new loop, we clear the previous induction variable and then
-        // set the new current induction variable.
-        self.current_induction_variable = self.get_induction_var_bounds(loop_, pre_header);
-        self.no_break = loop_.is_fully_executed(&self.cfg);
-        // Clear any cached control dependent nested loop blocks from the previous loop.
-        // This set is only relevant within the scope of a single loop.
-        // Keeping previous data would incorrectly classify blocks as control dependent,
-        // leading to missed hoisting opportunities.
-        self.nested_loop_control_dependent_blocks.clear();
 
+        let mut defined_in_loop = HashSet::default();
         for block in loop_.blocks.iter() {
             let params = self.inserter.function.dfg.block_parameters(*block);
-            self.defined_in_loop.extend(params);
+            defined_in_loop.extend(params);
             for instruction_id in self.inserter.function.dfg[*block].instructions() {
                 let results = self.inserter.function.dfg.instruction_results(*instruction_id);
-                self.defined_in_loop.extend(results);
+                defined_in_loop.extend(results);
             }
+        }
+
+        LoopContext {
+            // There is only ever one current induction variable for a loop.
+            current_induction_variable: self.get_induction_var_bounds(loop_, pre_header),
+            pre_header: Some(pre_header),
+            defined_in_loop,
+            loop_invariants: HashSet::default(),
+            // Clear any cached control dependent nested loop blocks from the previous loop.
+            // This set is only relevant within the scope of a single loop.
+            // Keeping previous data would incorrectly classify blocks as control dependent,
+            // leading to missed hoisting opportunities.
+            nested_loop_control_dependent_blocks: HashSet::default(),
+            no_break: loop_.is_fully_executed(&self.cfg),
+            current_block_control_dependent: false,
+            current_block_impure: false,
+            current_block_executes: false,
         }
     }
 
@@ -551,13 +599,13 @@ impl<'f> LoopInvariantContext<'f> {
         // We should mark the resolved result IDs as also being defined within the loop.
         let results =
             results.into_iter().map(|value| self.inserter.resolve(value)).collect::<Vec<_>>();
-        self.defined_in_loop.extend(results.iter());
+        self.loop_context.defined_in_loop.extend(results.iter());
 
         // We also want the update result IDs when we are marking loop invariants as we may not
         // be going through the blocks of the loop in execution order
         if hoist_invariant {
             // Track already found loop invariants
-            self.loop_invariants.extend(results.iter());
+            self.loop_context.loop_invariants.extend(results.iter());
         }
     }
 
@@ -576,7 +624,7 @@ impl<'f> LoopInvariantContext<'f> {
             // We are implicitly checking whether the values are constant as well.
             // The set of values defined in the loop only contains instruction results and block parameters
             // which cannot be constants.
-            is_loop_invariant &= self.is_loop_invariant(&value);
+            is_loop_invariant &= self.loop_context.is_loop_invariant(&value);
         });
 
         if !is_loop_invariant {
@@ -585,23 +633,10 @@ impl<'f> LoopInvariantContext<'f> {
 
         matches!(instruction, MakeArray { .. })
             || can_be_hoisted(&instruction, self.inserter.function, false)
-            || self.can_be_hoisted_with_control_dependence(&instruction, self.inserter.function)
+            || self
+                .loop_context
+                .can_be_hoisted_with_control_dependence(&instruction, self.inserter.function)
             || self.can_be_hoisted_from_loop_bounds(&instruction)
-    }
-
-    fn is_loop_invariant(&self, value_id: &ValueId) -> bool {
-        !self.defined_in_loop.contains(value_id) || self.loop_invariants.contains(value_id)
-    }
-
-    /// Check [can_be_hoisted] with extra control dependence information that
-    /// lives within the context of this pass.
-    fn can_be_hoisted_with_control_dependence(
-        &self,
-        instruction: &Instruction,
-        function: &Function,
-    ) -> bool {
-        can_be_hoisted(instruction, function, true)
-            && self.can_hoist_control_dependent_instruction()
     }
 
     /// Keep track of a loop induction variable and respective upper bound.
@@ -645,7 +680,7 @@ impl<'f> LoopInvariantContext<'f> {
             }
             Binary(binary) => self.can_evaluate_binary_op(binary),
             Constrain(..) | ConstrainNotEqual(..) | RangeCheck { .. } => {
-                self.can_hoist_control_dependent_instruction()
+                self.loop_context.can_hoist_control_dependent_instruction()
             }
             Call { func, .. } => {
                 let purity = match self.inserter.function.dfg[*func] {
@@ -654,28 +689,10 @@ impl<'f> LoopInvariantContext<'f> {
                     _ => None,
                 };
                 matches!(purity, Some(Purity::PureWithPredicate))
-                    && self.can_hoist_control_dependent_instruction()
+                    && self.loop_context.can_hoist_control_dependent_instruction()
             }
             _ => false,
         }
-    }
-
-    /// A control dependent instruction (e.g. constrain or division) has more strict conditions for hoisting.
-    /// This function check the following conditions:
-    /// - The current block is non control dependent
-    /// - The loop body is guaranteed to be executed
-    /// - The current block is not impure
-    fn can_hoist_control_dependent_instruction(&self) -> bool {
-        !self.current_block_control_dependent
-            && self.current_block_executes
-            && !self.current_block_impure
-    }
-
-    /// A control dependent instruction (e.g. constrain or division) has more strict conditions for simplifying.
-    /// This function matches [LoopInvariantContext::can_hoist_control_dependent_instruction] except
-    /// that simplification does not require that current block is pure to be simplified.
-    fn can_simplify_control_dependent_instruction(&self) -> bool {
-        !self.current_block_control_dependent && self.current_block_executes
     }
 
     /// Loop invariant hoisting only operates over loop instructions.

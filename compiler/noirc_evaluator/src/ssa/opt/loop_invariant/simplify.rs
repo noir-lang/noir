@@ -124,7 +124,12 @@ impl LoopInvariantContext<'_> {
             .inserter
             .function
             .dfg
-            .insert_instruction_and_results(new_binary, self.pre_header(), None, call_stack)
+            .insert_instruction_and_results(
+                new_binary,
+                self.loop_context.pre_header(),
+                None,
+                call_stack,
+            )
             .results();
         assert!(comparison_results.len() == 1);
         SimplifyResult::SimplifiedToInstruction(Instruction::Constrain(
@@ -157,7 +162,12 @@ impl LoopInvariantContext<'_> {
                 .inserter
                 .function
                 .dfg
-                .insert_instruction_and_results(binary, self.pre_header(), None, call_stack)
+                .insert_instruction_and_results(
+                    binary,
+                    self.loop_context.pre_header(),
+                    None,
+                    call_stack,
+                )
                 .results();
             assert!(results.len() == 1);
             results[0]
@@ -203,8 +213,8 @@ impl LoopInvariantContext<'_> {
         rhs: &ValueId,
     ) -> Option<(bool, ValueId, ValueId)> {
         let (is_left, lower, upper) = match (
-            self.get_current_induction_variable_bounds(*lhs),
-            self.get_current_induction_variable_bounds(*rhs),
+            self.loop_context.get_current_induction_variable_bounds(*lhs),
+            self.loop_context.get_current_induction_variable_bounds(*rhs),
         ) {
             (_, Some((lower, upper))) => Some((false, lower, upper)),
             (Some((lower, upper)), _) => Some((true, lower, upper)),
@@ -216,7 +226,9 @@ impl LoopInvariantContext<'_> {
 
         let min_iter = self.inserter.function.dfg.make_constant(lower_field, lower_type);
         let max_iter = self.inserter.function.dfg.make_constant(upper_field, upper_type);
-        if (is_left && self.is_loop_invariant(rhs)) || (!is_left && self.is_loop_invariant(lhs)) {
+        if (is_left && self.loop_context.is_loop_invariant(rhs))
+            || (!is_left && self.loop_context.is_loop_invariant(lhs))
+        {
             return Some((is_left, min_iter, max_iter));
         }
         None
@@ -235,8 +247,13 @@ impl LoopInvariantContext<'_> {
             }
             Instruction::Constrain(x, y, err) => {
                 // Ensure the loop is fully executed
-                if self.no_break && self.can_simplify_control_dependent_instruction() {
-                    assert!(self.current_block_executes, "executing a non executable loop");
+                if self.loop_context.no_break
+                    && self.loop_context.can_simplify_control_dependent_instruction()
+                {
+                    assert!(
+                        self.loop_context.current_block_executes,
+                        "executing a non executable loop"
+                    );
                     self.simplify_induction_in_constrain(*x, *y, err, call_stack)
                 } else {
                     SimplifyResult::None
@@ -244,8 +261,13 @@ impl LoopInvariantContext<'_> {
             }
             Instruction::ConstrainNotEqual(x, y, err) => {
                 // Ensure the loop is fully executed
-                if self.no_break && self.can_simplify_control_dependent_instruction() {
-                    assert!(self.current_block_executes, "executing a non executable loop");
+                if self.loop_context.no_break
+                    && self.loop_context.can_simplify_control_dependent_instruction()
+                {
+                    assert!(
+                        self.loop_context.current_block_executes,
+                        "executing a non executable loop"
+                    );
                     self.simplify_not_equal_constraint(x, y, err, call_stack)
                 } else {
                     SimplifyResult::None
@@ -253,13 +275,6 @@ impl LoopInvariantContext<'_> {
             }
             _ => SimplifyResult::None,
         }
-    }
-
-    fn get_current_induction_variable_bounds(
-        &self,
-        id: ValueId,
-    ) -> Option<(IntegerConstant, IntegerConstant)> {
-        self.current_induction_variable.filter(|(val, _)| *val == id).map(|(_, bounds)| bounds)
     }
 
     /// If the inputs are an induction variable and a constant, it returns
@@ -277,10 +292,12 @@ impl LoopInvariantContext<'_> {
         match (
             lhs_const,
             rhs_const,
-            self.get_current_induction_variable_bounds(*lhs)
+            self.loop_context
+                .get_current_induction_variable_bounds(*lhs)
                 .and_then(|v| if only_outer_induction { None } else { Some(v) })
                 .or(self.outer_induction_variables.get(lhs).copied()),
-            self.get_current_induction_variable_bounds(*rhs)
+            self.loop_context
+                .get_current_induction_variable_bounds(*rhs)
                 .and_then(|v| if only_outer_induction { None } else { Some(v) })
                 .or(self.outer_induction_variables.get(rhs).copied()),
         ) {
