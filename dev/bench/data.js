@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1756296762436,
+  "lastUpdate": 1756296764712,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -4208,90 +4208,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "66ba28ef33757afecc2d3fd62337117f84344913",
-          "message": "fix: bind trait impl func generics to trait func generics during monomorphization (#9566)",
-          "timestamp": "2025-08-19T19:48:07Z",
-          "tree_id": "f7d0965011a4ff085106394a49f9827f41310366",
-          "url": "https://github.com/noir-lang/noir/commit/66ba28ef33757afecc2d3fd62337117f84344913"
-        },
-        "date": 1755635229197,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 1.832,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 7.734,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.324,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 16.24,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 13.64,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 21.02,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 197,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 200,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.338,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.584,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.828,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 1.576,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -8401,6 +8317,90 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 1.573,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d12ce98b613bab6a0d1cddbac681e989acbb84a0",
+          "message": "chore: remove handling for slice arguments to MSM (#9648)",
+          "timestamp": "2025-08-27T11:39:42Z",
+          "tree_id": "10114c6e43f59ec2a3ef5de8e5197e8ec9bef425",
+          "url": "https://github.com/noir-lang/noir/commit/d12ce98b613bab6a0d1cddbac681e989acbb84a0"
+        },
+        "date": 1756296742950,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1.706,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 8.148,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.314,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 15.56,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 13.04,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 20.32,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 205,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 212,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.354,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.472,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.778,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 1.663,
             "unit": "s"
           }
         ]
