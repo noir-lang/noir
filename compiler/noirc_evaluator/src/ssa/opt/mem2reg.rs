@@ -134,9 +134,10 @@ struct PerFunctionContext<'f> {
     /// from the middle of Vecs many times will be slower than a single call to `retain`.
     instructions_to_remove: HashSet<InstructionId>,
 
-    /// Track values which there are still `Load` instructions for that have not been removed.
+    /// Track addresses which there are still instructions for that have not been removed.
+    /// This may be load instructions, make-array instructions, store instructions, or call instructions.
     /// If a value is not used in any more loads we can remove the last store to that value.
-    addresses_loaded_from: HashSet<ValueId>,
+    used_addresses: HashSet<ValueId>,
 
     /// Track whether a reference was passed into another instruction (e.g. Call)
     /// This is needed to determine whether we can remove a store.
@@ -159,7 +160,7 @@ impl<'f> PerFunctionContext<'f> {
             inserter: FunctionInserter::new(function),
             blocks: BTreeMap::new(),
             instructions_to_remove: HashSet::default(),
-            addresses_loaded_from: HashSet::default(),
+            used_addresses: HashSet::default(),
             aliased_references: HashMap::default(),
             instruction_input_references: HashSet::default(),
         }
@@ -210,7 +211,7 @@ impl<'f> PerFunctionContext<'f> {
                     &per_func_block_params,
                 );
 
-                if !self.addresses_loaded_from.contains(store_address) && !store_alias_used {
+                if !self.used_addresses.contains(store_address) && !store_alias_used {
                     self.instructions_to_remove.insert(*store_instruction);
                 }
             }
@@ -333,7 +334,7 @@ impl<'f> PerFunctionContext<'f> {
     /// possibly aliased to each other. If there are parameters with nested references (arrays of
     /// references or references containing other references) we give up and assume all parameter
     /// references are `AliasSet::unknown()`.
-    fn add_aliases_for_reference_parameters(&self, block: BasicBlockId, references: &mut Block) {
+    fn add_aliases_for_reference_parameters(&mut self, block: BasicBlockId, references: &mut Block) {
         let dfg = &self.inserter.function.dfg;
         let params = dfg.block_parameters(block);
 
@@ -344,7 +345,8 @@ impl<'f> PerFunctionContext<'f> {
                 // If the type indirectly contains a reference we have to assume all references
                 // are unknown since we don't have any ValueIds to use.
                 Type::Reference(element) if element.contains_reference() => {
-                    self.mark_all_unknown(params, references);
+                    let params = params.to_vec();
+                    self.mark_all_unknown(&params, references);
                     return;
                 }
                 Type::Reference(element) => {
@@ -354,7 +356,8 @@ impl<'f> PerFunctionContext<'f> {
                     alias_set.insert(*param);
                 }
                 typ if typ.contains_reference() => {
-                    self.mark_all_unknown(params, references);
+                    let params = params.to_vec();
+                    self.mark_all_unknown(&params, references);
                     return;
                 }
                 _ => continue,
@@ -430,14 +433,14 @@ impl<'f> PerFunctionContext<'f> {
                     self.instructions_to_remove.insert(instruction);
                 } else {
                     // Remember that this address has been loaded, so stores to it should not be removed.
-                    self.addresses_loaded_from.insert(address);
+                    self.used_addresses.insert(address);
                     // Stores to any of its aliases should also be considered loaded.
-                    self.addresses_loaded_from.extend(references.get_aliases_for_value(address).iter());
+                    self.used_addresses.extend(references.get_aliases_for_value(address).iter());
                 }
 
                 // If the address is potentially aliased we must keep the stores to it
                 if references.get_aliases_for_value(address).single_alias().is_none() {
-                    references.mark_value_used(address, self.inserter.function);
+                    self.mark_address_used(address, references);
                 }
 
                 // The result of loading this address is now known to be `result`.
@@ -487,7 +490,11 @@ impl<'f> PerFunctionContext<'f> {
                 if array_typ.contains_reference() {
                     self.instruction_input_references
                         .extend(references.get_aliases_for_value(array).iter());
-                    references.mark_value_used(array, self.inserter.function);
+
+                    // TODO: Is this needed? `array` isn't a reference.
+                    // This only does things on constants but if it was a constant we should
+                    // already have handled it in a make-array instruction.
+                    // references.mark_value_used(array, self.inserter.function);
 
                     if let Some(container) = references.containers.get(&array) {
                         // Check if value is already a reference or a nested array
@@ -507,7 +514,9 @@ impl<'f> PerFunctionContext<'f> {
                 }
             }
             Instruction::ArraySet { array, value, .. } => {
-                references.mark_value_used(*array, self.inserter.function);
+                // TODO: Is this needed?
+                // references.mark_value_used(*array, self.inserter.function);
+
                 let element_type = self.inserter.function.dfg.type_of_value(*value);
 
                 if element_type.contains_reference() {
@@ -545,7 +554,8 @@ impl<'f> PerFunctionContext<'f> {
                     self.instruction_input_references
                         .extend(references.get_aliases_for_value(*arg).iter());
                 }
-                self.mark_all_unknown(arguments, references);
+                let arguments = arguments.clone();
+                self.mark_all_unknown(&arguments, references);
             }
             Instruction::MakeArray { elements, typ } => {
                 // If `array` is an array constant that contains reference types, then insert each element
@@ -561,8 +571,9 @@ impl<'f> PerFunctionContext<'f> {
                     // Their make_array instructions should have already marked their references used.
                     let element_types = typ.clone().element_types();
                     if element_types.iter().any(|typ| typ.is_reference()) {
+                        let elements = elements.clone();
                         for element in elements {
-                            references.mark_value_used(*element, &self.inserter.function);
+                            self.mark_address_used(element, references);
                         }
                     }
                 }
@@ -570,18 +581,22 @@ impl<'f> PerFunctionContext<'f> {
             Instruction::IfElse { then_value, else_value, .. } => {
                 let result = self.inserter.function.dfg.instruction_results(instruction)[0];
                 let result_type = self.inserter.function.dfg.type_of_value(result);
+                let (then_value, else_value) = (*then_value, *else_value);
 
                 if result_type.contains_reference() {
                     if result_type.is_reference() {
+                        self.mark_address_used(then_value, references);
+                        self.mark_address_used(else_value, references);
+
                         references.insert_fresh_reference(result);
                         // `then_value` and `else_value` are now aliased by `result`
-                        references.add_alias(result, *then_value);
-                        references.add_alias(result, *else_value);
+                        references.add_alias(result, then_value);
+                        references.add_alias(result, else_value);
                     } else {
                         let mut result_container =
-                            references.containers.get(then_value).cloned().unwrap_or_default();
+                            references.containers.get(&then_value).cloned().unwrap_or_default();
 
-                        match references.containers.get(else_value) {
+                        match references.containers.get(&else_value) {
                             Some(else_container) => result_container.unify(else_container),
                             None => result_container = AliasSet::unknown(),
                         }
@@ -592,6 +607,18 @@ impl<'f> PerFunctionContext<'f> {
             }
             _ => (),
         }
+    }
+
+    /// Mark an address as being used in the program. This may be from a load instruction that was
+    /// not removed, a store instruction, make-array, or call instruction.
+    fn mark_address_used(&mut self, address: ValueId, block: &mut Block) {
+        self.used_addresses.insert(address);
+
+        for alias in block.get_aliases_for_value(address).iter() {
+            self.used_addresses.insert(alias);
+        }
+
+        block.mark_value_used(address, self.inserter.function);
     }
 
     /// In order to handle nested arrays we need to recursively search whether there are any references
@@ -626,13 +653,15 @@ impl<'f> PerFunctionContext<'f> {
         }
     }
 
-    fn mark_all_unknown(&self, values: &[ValueId], references: &mut Block) {
+    fn mark_all_unknown(&mut self, values: &[ValueId], references: &mut Block) {
         for value in values {
             let typ = self.inserter.function.dfg.type_of_value(*value);
+
             if typ.contains_reference() {
                 let value = *value;
                 references.set_unknown(value);
-                references.mark_value_used(value, self.inserter.function);
+                self.mark_address_used(value, references);
+                // references.mark_value_used(value, self.inserter.function);
 
                 // If a reference is an argument to a call, the last load to that address and its aliases needs to remain.
                 // references.keep_last_load_for(value);
@@ -679,7 +708,8 @@ impl<'f> PerFunctionContext<'f> {
                         // If the type indirectly contains a reference we have to assume all references
                         // are unknown since we don't have any ValueIds to use.
                         Type::Reference(element) if element.contains_reference() => {
-                            self.mark_all_unknown(destination_parameters, references);
+                            let destination_parameters = destination_parameters.to_vec();
+                            self.mark_all_unknown(&destination_parameters, references);
                             return;
                         }
                         Type::Reference(_) => {
@@ -702,7 +732,8 @@ impl<'f> PerFunctionContext<'f> {
                             }
                         }
                         typ if typ.contains_reference() => {
-                            self.mark_all_unknown(destination_parameters, references);
+                            let destination_parameters = destination_parameters.to_vec();
+                            self.mark_all_unknown(&destination_parameters, references);
                             return;
                         }
                         _ => continue,
@@ -727,7 +758,8 @@ impl<'f> PerFunctionContext<'f> {
                 // Removing all `last_stores` for each returned reference is more important here
                 // than setting them all to unknown since no other block should
                 // have a block with a Return terminator as a predecessor anyway.
-                self.mark_all_unknown(return_values, references);
+                let return_values = return_values.clone();
+                self.mark_all_unknown(&return_values, references);
             }
         }
     }
