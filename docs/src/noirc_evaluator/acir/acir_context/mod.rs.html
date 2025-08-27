@@ -1758,7 +1758,22 @@
 <a href="#1757" id="1757">1757</a>
 <a href="#1758" id="1758">1758</a>
 <a href="#1759" id="1759">1759</a>
-<a href="#1760" id="1760">1760</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir_context` module acts as a high-level wrapper around [`generated_acir`], maintaining a small amount
+<a href="#1760" id="1760">1760</a>
+<a href="#1761" id="1761">1761</a>
+<a href="#1762" id="1762">1762</a>
+<a href="#1763" id="1763">1763</a>
+<a href="#1764" id="1764">1764</a>
+<a href="#1765" id="1765">1765</a>
+<a href="#1766" id="1766">1766</a>
+<a href="#1767" id="1767">1767</a>
+<a href="#1768" id="1768">1768</a>
+<a href="#1769" id="1769">1769</a>
+<a href="#1770" id="1770">1770</a>
+<a href="#1771" id="1771">1771</a>
+<a href="#1772" id="1772">1772</a>
+<a href="#1773" id="1773">1773</a>
+<a href="#1774" id="1774">1774</a>
+<a href="#1775" id="1775">1775</a></pre></div><pre class="rust"><code><span class="doccomment">//! The `acir_context` module acts as a high-level wrapper around [`generated_acir`], maintaining a small amount
 //! of type information from SSA in order to allow efficient ACIR-gen.
 //!
 //! The [`AcirContext`] struct defines how to translate SSA instructions into equivalent ACIR constructs. This
@@ -2139,18 +2154,23 @@
             </span><span class="kw">return </span><span class="prelude-val">Ok</span>(lhs);
         }
 
-        <span class="kw">let </span>bit_size = typ.bit_size::&lt;F&gt;();
-        <span class="kw">if </span>bit_size == <span class="number">1 </span>{
-            <span class="comment">// Operands are booleans.
-            //
-            // a ^ b == a + b - 2*a*b
-            </span><span class="kw">let </span>prod = <span class="self">self</span>.mul_var(lhs, rhs)<span class="question-mark">?</span>;
-            <span class="kw">let </span>sum = <span class="self">self</span>.add_var(lhs, rhs)<span class="question-mark">?</span>;
-            <span class="self">self</span>.add_mul_var(sum, -F::from(<span class="number">2_u128</span>), prod)
-        } <span class="kw">else </span>{
-            <span class="kw">let </span>inputs = <span class="macro">vec!</span>[AcirValue::Var(lhs, typ.clone()), AcirValue::Var(rhs, typ)];
-            <span class="kw">let </span>outputs = <span class="self">self</span>.black_box_function(BlackBoxFunc::XOR, inputs, <span class="number">1</span>)<span class="question-mark">?</span>;
-            <span class="prelude-val">Ok</span>(outputs[<span class="number">0</span>])
+        <span class="kw">match </span>typ.to_numeric_type() {
+            NumericType::Signed { bit_size: <span class="number">1 </span>} | NumericType::Unsigned { bit_size: <span class="number">1 </span>} =&gt; {
+                <span class="comment">// Operands are booleans.
+                //
+                // a ^ b == a + b - 2*a*b
+                </span><span class="kw">let </span>prod = <span class="self">self</span>.mul_var(lhs, rhs)<span class="question-mark">?</span>;
+                <span class="kw">let </span>sum = <span class="self">self</span>.add_var(lhs, rhs)<span class="question-mark">?</span>;
+                <span class="self">self</span>.add_mul_var(sum, -F::from(<span class="number">2_u128</span>), prod)
+            }
+            NumericType::Signed { .. } | NumericType::Unsigned { .. } =&gt; {
+                <span class="kw">let </span>inputs = <span class="macro">vec!</span>[AcirValue::Var(lhs, typ.clone()), AcirValue::Var(rhs, typ)];
+                <span class="kw">let </span>outputs = <span class="self">self</span>.black_box_function(BlackBoxFunc::XOR, inputs, <span class="number">1</span>)<span class="question-mark">?</span>;
+                <span class="prelude-val">Ok</span>(outputs[<span class="number">0</span>])
+            }
+            NumericType::NativeField =&gt; {
+                <span class="macro">unreachable!</span>(<span class="string">"Attempted to perform bitwise operation on `Field` type"</span>)
+            }
         }
     }
 
@@ -2173,14 +2193,19 @@
             <span class="kw">return </span><span class="prelude-val">Ok</span>(zero);
         }
 
-        <span class="kw">let </span>bit_size = typ.bit_size::&lt;F&gt;();
-        <span class="kw">if </span>bit_size == <span class="number">1 </span>{
-            <span class="comment">// Operands are booleans.
-            </span><span class="self">self</span>.mul_var(lhs, rhs)
-        } <span class="kw">else </span>{
-            <span class="kw">let </span>inputs = <span class="macro">vec!</span>[AcirValue::Var(lhs, typ.clone()), AcirValue::Var(rhs, typ)];
-            <span class="kw">let </span>outputs = <span class="self">self</span>.black_box_function(BlackBoxFunc::AND, inputs, <span class="number">1</span>)<span class="question-mark">?</span>;
-            <span class="prelude-val">Ok</span>(outputs[<span class="number">0</span>])
+        <span class="kw">match </span>typ.to_numeric_type() {
+            NumericType::Signed { bit_size: <span class="number">1 </span>} | NumericType::Unsigned { bit_size: <span class="number">1 </span>} =&gt; {
+                <span class="comment">// Operands are booleans.
+                </span><span class="self">self</span>.mul_var(lhs, rhs)
+            }
+            NumericType::Signed { .. } | NumericType::Unsigned { .. } =&gt; {
+                <span class="kw">let </span>inputs = <span class="macro">vec!</span>[AcirValue::Var(lhs, typ.clone()), AcirValue::Var(rhs, typ)];
+                <span class="kw">let </span>outputs = <span class="self">self</span>.black_box_function(BlackBoxFunc::AND, inputs, <span class="number">1</span>)<span class="question-mark">?</span>;
+                <span class="prelude-val">Ok</span>(outputs[<span class="number">0</span>])
+            }
+            NumericType::NativeField =&gt; {
+                <span class="macro">unreachable!</span>(<span class="string">"Attempted to perform bitwise operation on `Field` type"</span>)
+            }
         }
     }
 
@@ -2201,20 +2226,25 @@
             </span><span class="kw">return </span><span class="prelude-val">Ok</span>(lhs);
         }
 
-        <span class="kw">let </span>bit_size = typ.bit_size::&lt;F&gt;();
-        <span class="kw">if </span>bit_size == <span class="number">1 </span>{
-            <span class="comment">// Operands are booleans
-            // a + b - ab
-            </span><span class="kw">let </span>mul = <span class="self">self</span>.mul_var(lhs, rhs)<span class="question-mark">?</span>;
-            <span class="kw">let </span>sum = <span class="self">self</span>.add_var(lhs, rhs)<span class="question-mark">?</span>;
-            <span class="self">self</span>.sub_var(sum, mul)
-        } <span class="kw">else </span>{
-            <span class="comment">// Implement OR in terms of AND
-            // (NOT a) AND (NOT b) =&gt; NOT (a OR b)
-            </span><span class="kw">let </span>a = <span class="self">self</span>.not_var(lhs, typ.clone())<span class="question-mark">?</span>;
-            <span class="kw">let </span>b = <span class="self">self</span>.not_var(rhs, typ.clone())<span class="question-mark">?</span>;
-            <span class="kw">let </span>a_and_b = <span class="self">self</span>.and_var(a, b, typ.clone())<span class="question-mark">?</span>;
-            <span class="self">self</span>.not_var(a_and_b, typ)
+        <span class="kw">match </span>typ.to_numeric_type() {
+            NumericType::Signed { bit_size: <span class="number">1 </span>} | NumericType::Unsigned { bit_size: <span class="number">1 </span>} =&gt; {
+                <span class="comment">// Operands are booleans
+                // a + b - ab
+                </span><span class="kw">let </span>mul = <span class="self">self</span>.mul_var(lhs, rhs)<span class="question-mark">?</span>;
+                <span class="kw">let </span>sum = <span class="self">self</span>.add_var(lhs, rhs)<span class="question-mark">?</span>;
+                <span class="self">self</span>.sub_var(sum, mul)
+            }
+            NumericType::Signed { .. } | NumericType::Unsigned { .. } =&gt; {
+                <span class="comment">// Implement OR in terms of AND
+                // (NOT a) AND (NOT b) =&gt; NOT (a OR b)
+                </span><span class="kw">let </span>a = <span class="self">self</span>.not_var(lhs, typ.clone())<span class="question-mark">?</span>;
+                <span class="kw">let </span>b = <span class="self">self</span>.not_var(rhs, typ.clone())<span class="question-mark">?</span>;
+                <span class="kw">let </span>a_and_b = <span class="self">self</span>.and_var(a, b, typ.clone())<span class="question-mark">?</span>;
+                <span class="self">self</span>.not_var(a_and_b, typ)
+            }
+            NumericType::NativeField =&gt; {
+                <span class="macro">unreachable!</span>(<span class="string">"Attempted to perform bitwise operation on `Field` type"</span>)
+            }
         }
     }
 
@@ -3035,7 +3065,7 @@
         <span class="kw">let </span>same_sign = <span class="self">self</span>.xor_var(
             lhs_sign,
             rhs_sign,
-            AcirType::NumericType(NumericType::Signed { bit_size: <span class="number">1 </span>}),
+            AcirType::NumericType(NumericType::Unsigned { bit_size: <span class="number">1 </span>}),
         )<span class="question-mark">?</span>;
 
         <span class="comment">// We compute the input difference
@@ -3049,7 +3079,7 @@
         </span><span class="self">self</span>.xor_var(
             diff_sign,
             same_sign,
-            AcirType::NumericType(NumericType::Signed { bit_size: <span class="number">1 </span>}),
+            AcirType::NumericType(NumericType::Unsigned { bit_size: <span class="number">1 </span>}),
         )
     }
 
