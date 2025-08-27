@@ -736,7 +736,7 @@ fn get_induction_var_bounds(
     loop_: &Loop,
     pre_header: BasicBlockId,
 ) -> Option<(ValueId, (IntegerConstant, IntegerConstant))> {
-    let bounds = loop_.get_const_bounds(inserter.function, pre_header);
+    let bounds = loop_.get_const_bounds(&inserter.function.dfg, pre_header);
 
     get_induction_variable(inserter, loop_)
         .and_then(|induction_variable| bounds.map(|bounds| (induction_variable, bounds)))

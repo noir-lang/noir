@@ -370,11 +370,11 @@ impl Loop {
     /// ```
     fn get_const_lower_bound(
         &self,
-        function: &Function,
+        dfg: &DataFlowGraph,
         pre_header: BasicBlockId,
     ) -> Option<IntegerConstant> {
-        let jump_value = get_induction_variable(function, pre_header).ok()?;
-        function.dfg.get_integer_constant(jump_value)
+        let jump_value = get_induction_variable(dfg, pre_header).ok()?;
+        dfg.get_integer_constant(jump_value)
     }
 
     /// Find the upper bound of the loop in the loop header and return it
@@ -391,8 +391,8 @@ impl Loop {
     ///     v5 = lt v1, u32 4           // Upper bound
     ///     jmpif v5 then: b3, else: b2
     /// ```
-    fn get_const_upper_bound(&self, function: &Function) -> Option<IntegerConstant> {
-        let block = &function.dfg[self.header];
+    fn get_const_upper_bound(&self, dfg: &DataFlowGraph) -> Option<IntegerConstant> {
+        let block = &dfg[self.header];
         let instructions = block.instructions();
         if instructions.is_empty() {
             // If the loop condition is constant time, the loop header will be
@@ -406,16 +406,16 @@ impl Loop {
             return None;
         }
 
-        match &function.dfg[instructions[0]] {
+        match &dfg[instructions[0]] {
             Instruction::Binary(Binary { lhs: _, operator: BinaryOp::Lt, rhs }) => {
-                function.dfg.get_integer_constant(*rhs)
+                dfg.get_integer_constant(*rhs)
             }
             Instruction::Binary(Binary { lhs: _, operator: BinaryOp::Eq, rhs }) => {
                 // `for i in 0..1` is turned into:
                 // b1(v0: u32):
                 //   v12 = eq v0, u32 0
                 //   jmpif v12 then: b2, else: b3
-                function.dfg.get_integer_constant(*rhs).map(|c| c.inc())
+                dfg.get_integer_constant(*rhs).map(|c| c.inc())
             }
             Instruction::Not(_) => {
                 // We simplify equality operations with booleans like `(boolean == false)` into `!boolean`.
@@ -440,11 +440,11 @@ impl Loop {
     /// Get the lower and upper bounds of the loop if both are constant numeric values.
     pub(super) fn get_const_bounds(
         &self,
-        function: &Function,
+        dfg: &DataFlowGraph,
         pre_header: BasicBlockId,
     ) -> Option<(IntegerConstant, IntegerConstant)> {
-        let lower = self.get_const_lower_bound(function, pre_header)?;
-        let upper = self.get_const_upper_bound(function)?;
+        let lower = self.get_const_lower_bound(dfg, pre_header)?;
+        let upper = self.get_const_upper_bound(dfg)?;
         Some((lower, upper))
     }
 
@@ -508,7 +508,7 @@ impl Loop {
     /// that a few SSA passes are required to evaluate and simplify these values.
     fn unroll(&self, function: &mut Function, cfg: &ControlFlowGraph) -> Result<(), CallStack> {
         let mut unroll_into = self.get_pre_header(function, cfg)?;
-        let mut jump_value = get_induction_variable(function, unroll_into)?;
+        let mut jump_value = get_induction_variable(&function.dfg, unroll_into)?;
 
         while let Some(context) = self.unroll_header(function, unroll_into, jump_value)? {
             (unroll_into, jump_value) = context.unroll_loop_iteration();
@@ -755,7 +755,7 @@ impl Loop {
         cfg: &ControlFlowGraph,
     ) -> Option<BoilerplateStats> {
         let pre_header = self.get_pre_header(function, cfg).ok()?;
-        let (lower, upper) = self.get_const_bounds(function, pre_header)?;
+        let (lower, upper) = self.get_const_bounds(&function.dfg, pre_header)?;
         let refs = self.find_pre_header_reference_values(function, cfg)?;
 
         let (loads, stores) = self.count_loads_and_stores(function, &refs);
@@ -854,8 +854,8 @@ impl BoilerplateStats {
 ///   ...
 /// ```
 /// We're looking for the terminating jump of the `main` predecessor of `loop_entry`.
-fn get_induction_variable(function: &Function, block: BasicBlockId) -> Result<ValueId, CallStack> {
-    match function.dfg[block].terminator() {
+fn get_induction_variable(dfg: &DataFlowGraph, block: BasicBlockId) -> Result<ValueId, CallStack> {
+    match dfg[block].terminator() {
         Some(TerminatorInstruction::Jmp { arguments, call_stack: location, .. }) => {
             // This assumption will no longer be valid if e.g. mutable variables are represented as
             // block parameters. If that becomes the case we'll need to figure out which variable
@@ -864,19 +864,19 @@ fn get_induction_variable(function: &Function, block: BasicBlockId) -> Result<Va
             if arguments.len() != 1 {
                 // It is expected that a loop's induction variable is the only block parameter of the loop header.
                 // If there's no variable this might be a `loop`.
-                let call_stack = function.dfg.get_call_stack(*location);
+                let call_stack = dfg.get_call_stack(*location);
                 return Err(call_stack);
             }
 
             let value = arguments[0];
-            if function.dfg.get_numeric_constant(value).is_some() {
+            if dfg.get_numeric_constant(value).is_some() {
                 Ok(value)
             } else {
-                let call_stack = function.dfg.get_call_stack(*location);
+                let call_stack = dfg.get_call_stack(*location);
                 Err(call_stack)
             }
         }
-        Some(terminator) => Err(function.dfg.get_call_stack(terminator.call_stack())),
+        Some(terminator) => Err(dfg.get_call_stack(terminator.call_stack())),
         None => Err(CallStack::new()),
     }
 }
@@ -1239,7 +1239,7 @@ mod tests {
         let pre_header =
             loop_.get_pre_header(function, &loops.cfg).expect("Should have a pre_header");
         let (lower, upper) =
-            loop_.get_const_bounds(function, pre_header).expect("bounds are numeric const");
+            loop_.get_const_bounds(&function.dfg, pre_header).expect("bounds are numeric const");
 
         assert_eq!(lower, IntegerConstant::Unsigned { value: 0, bit_size: 32 });
         assert_eq!(upper, IntegerConstant::Unsigned { value: 4, bit_size: 32 });
