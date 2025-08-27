@@ -193,7 +193,7 @@ fn test_ecdsa_k1() {
     let src = "
     acir(inline) predicate_pure fn main f0 {
       b0(v0: [u8; 32], v1: [u8; 32], v2: [u8; 64], v3: [u8; 32]):
-        v4 = call ecdsa_secp256k1(v0, v1, v2, v3) -> u1
+        v4 = call ecdsa_secp256k1(v0, v1, v2, v3, u1 1) -> u1
         return v4
     }
       ";
@@ -240,7 +240,7 @@ fn test_ecdsa_r1() {
     let src = "
     acir(inline) predicate_pure fn main f0 {
       b0(v0: [u8; 32], v1: [u8; 32], v2: [u8; 64], v3: [u8; 32]):
-        v4 = call ecdsa_secp256r1(v0, v1, v2, v3) -> u1
+        v4 = call ecdsa_secp256r1(v0, v1, v2, v3, u1 1) -> u1
         return v4
     }
       ";
