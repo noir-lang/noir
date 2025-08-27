@@ -282,7 +282,7 @@ impl<'f> LoopInvariantContext<'f> {
             self.get_current_induction_variable_bounds(*lhs)
                 .and_then(|v| if only_outer_induction { None } else { Some(v) })
                 .or(self.outer_induction_variables.get(lhs).copied()),
-            self.get_current_induction_variable_bounds(*lhs)
+            self.get_current_induction_variable_bounds(*rhs)
                 .and_then(|v| if only_outer_induction { None } else { Some(v) })
                 .or(self.outer_induction_variables.get(rhs).copied()),
         ) {
