@@ -1,19 +1,109 @@
+//! This file contains the SSA `remove_if_else` pass - a required pass for ACIR to remove any remaining
+//! `Instruction::IfElse` in the singular program-function, and replace them with
+//! arithmetic operations using the `then_condition`.
+//!
+//! ACIR/Brillig differences within this pass:
+//!   - This pass is strictly ACIR-only and never mutates brillig functions.
+//!
+//!
+//! Conditions:
+//!   - Precondition: Flatten CFG has been performed which should result in the function having only
+//!     one basic block.
+//!   - Precondition: `then_value` and `else_value` of `Instruction::IfElse` return arrays or slices. Numeric values should be handled previously by the flattening pass.
+//!     Reference or function values are not handled by remove if-else and will cause an error.
+//!   - Postcondition: A program without any `IfElse` instructions.
+//!
+//! Relevance to other passes:
+//!   - Flattening inserts `Instruction::IfElse` to merge array or slice values from an if-expression's "then"
+//!     and "else" branches. `Instruction::IfElse` with numeric values are directly handled during the flattening
+//!     and will cause a panic in the `remove_if_else` pass.
+//!   - Defunctionalize removes first-class function values from the program which eliminates the need for remove-if-else to handle `Instruction::IfElse` returning function values.
+//!
+//! Implementation details & examples:
+//! `IfElse` instructions choose between its two operand values,
+//! `then_value` and `else_value`, based on the `then_condition`:
+//! ```
+//!  if then_condition {
+//!      then_value
+//!  } else {
+//!      else_value
+//!  }
+//! ```
+//!
+//! These instructions are inserted during the flatten cfg pass, which convert conditional control flow
+//! at the basic block level into simple ternary operations returning a value, using these IfElse instructions,
+//! and leaving only one basic block. The flatten cfg pass directly handles numeric values and issues
+//! `Instruction::IfElse` only for arrays and slices. The remove-if-else pass is used for array and slices
+//! in order to track their lengths, depending on existing slice intrinsics which modify slices,
+//! or the array set instructions.
+//! The `Instruction::IfElse` is removed using a `ValueMerger` which operates recursively for nested arrays/slices.
+//!
+//! For example, this code:
+//! ```noir
+//! fn main(x: bool, mut y: [u32; 2]) {
+//!     if x {
+//!          y[0] = 1;
+//!     } else {
+//!          y[0] = 2;
+//!     }
+//!
+//!     assert(y[0] == 1);
+//!  }
+//!  ```
+//!
+//! will be translated into this code, where the `IfElse` instruction: `v9 = if v0 then v5 else (if v6) v8`
+//! is using array v5 from then branch, and array v8 from the else branch:
+//! ```
+//! acir(inline) predicate_pure fn main f0 {
+//!   b0(v0: u1, v1: [u32; 2]):
+//!     v2 = allocate -> &mut [u32; 2]
+//!     enable_side_effects v0
+//!     v5 = array_set v1, index u32 0, value u32 1
+//!     v6 = not v0
+//!     enable_side_effects v6
+//!     v8 = array_set v1, index u32 0, value u32 2
+//!     v9 = if v0 then v5 else (if v6) v8
+//!     enable_side_effects u1 1
+//!     v11 = array_get v9, index u32 0 -> u32
+//!     constrain v11 == u32 3
+//!     return
+//! }
+//! ```
+//!
+//! The IfElse instruction is then replaced by these instruction during the remove if-else pass:
+//! ```
+//! v13 = cast v0 as u32
+//! v14 = cast v6 as u32
+//! v15 = unchecked_mul v14, u32 2  
+//! v16 = unchecked_add v13, v15
+//! v17 = array_get v5, index u32 1 -> u32
+//! v18 = array_get v8, index u32 1 -> u32
+//! v19 = cast v0 as u32
+//! v20 = cast v6 as u32
+//! v21 = unchecked_mul v19, v17
+//! v22 = unchecked_mul v20, v18   
+//! v23 = unchecked_add v21, v22
+//! v24 = make_array [v16, v23] : [u32; 2]
+//! ```
+//!
+//! The result of the removed `IfElse` instruction, array `v24`, is a merge of each of the elements of `v5` and `v8`.
+//! The elements at index 0 are replaced by their known value, instead of doing an additional array get.
+//! Operations with the conditions are unchecked operations, because the conditions are 0 or 1, so it cannot overflow.
+
 use std::collections::hash_map::Entry;
 
 use fxhash::FxHashMap as HashMap;
 
 use crate::errors::RtResult;
-use crate::ssa::ir::function::RuntimeType;
-use crate::ssa::ir::instruction::Hint;
-use crate::ssa::ir::value::ValueId;
+
 use crate::ssa::{
     Ssa,
     ir::{
         dfg::DataFlowGraph,
         function::Function,
-        instruction::{Instruction, Intrinsic},
+        instruction::{Hint, Instruction, Intrinsic},
         types::Type,
-        value::Value,
+        value::{Value, ValueId},
     },
     opt::flatten_cfg::value_merger::ValueMerger,
 };
@@ -42,12 +132,14 @@ impl Ssa {
 
 impl Function {
     pub(crate) fn remove_if_else(&mut self) -> RtResult<()> {
-        // This should match the check in flatten_cfg
-        if matches!(self.runtime(), RuntimeType::Brillig(_)) {
-            // skip
-        } else {
-            Context::default().remove_if_else(self)?;
+        if self.runtime().is_brillig() {
+            return Ok(());
         }
+
+        #[cfg(debug_assertions)]
+        remove_if_else_pre_check(self);
+
+        Context::default().remove_if_else(self)?;
 
         #[cfg(debug_assertions)]
         remove_if_else_post_check(self);
@@ -61,6 +153,9 @@ struct Context {
 }
 
 impl Context {
+    /// Process each instruction in the entry block of the (fully flattened) function.
+    /// Merge any `IfElse` instruction using a `ValueMerger` and track slice sizes
+    /// through intrinsic calls and array set instructions.
     fn remove_if_else(&mut self, function: &mut Function) -> RtResult<()> {
         let block = function.entry_block();
 
@@ -79,6 +174,7 @@ impl Context {
                     let else_value = *else_value;
 
                     let typ = context.dfg.type_of_value(then_value);
+                    // Numeric values should have been handled during flattening
                     assert!(!matches!(typ, Type::Numeric(_)));
 
                     let call_stack = context.dfg.get_instruction_call_stack_id(instruction_id);
@@ -97,9 +193,11 @@ impl Context {
                     let result = results[0];
 
                     context.remove_current_instruction();
+                    // The `IfElse` instruction is replaced by the merge done with the `ValueMerger`
                     context.replace_value(result, value);
                 }
                 Instruction::Call { func, arguments } => {
+                    // Track slice sizes through intrinsic calls
                     if let Value::Intrinsic(intrinsic) = context.dfg[*func] {
                         let results = context.dfg.instruction_results(instruction_id);
 
@@ -121,6 +219,7 @@ impl Context {
                         }
                     }
                 }
+                // Track slice sizes through array set instructions
                 Instruction::ArraySet { array, .. } => {
                     let results = context.dfg.instruction_results(instruction_id);
                     let result = if results.len() == 2 { results[1] } else { results[0] };
@@ -134,6 +233,7 @@ impl Context {
         })
     }
 
+    //Get the tracked size of array/slices, or retrieve (and track) it for arrays.
     fn get_or_find_capacity(&mut self, dfg: &DataFlowGraph, value: ValueId) -> u32 {
         match self.slice_sizes.entry(value) {
             Entry::Occupied(entry) => return *entry.get(),
@@ -226,6 +326,28 @@ fn slice_capacity_change(
         | Intrinsic::ArrayRefCount
         | Intrinsic::SliceRefCount
         | Intrinsic::FieldLessThan => SizeChange::None,
+    }
+}
+
+#[cfg(debug_assertions)]
+fn remove_if_else_pre_check(func: &Function) {
+    // This pass should only run post-flattening.
+    super::flatten_cfg::flatten_cfg_post_check(func);
+
+    // We expect to only encounter `IfElse` instructions on array and slice types.
+    for block_id in func.reachable_blocks() {
+        let instruction_ids = func.dfg[block_id].instructions();
+
+        for instruction_id in instruction_ids {
+            if matches!(func.dfg[*instruction_id], Instruction::IfElse { .. }) {
+                assert!(
+                    func.dfg.instruction_results(*instruction_id).iter().all(|value| {
+                        matches!(func.dfg.type_of_value(*value), Type::Array(_, _) | Type::Slice(_))
+                    }),
+                    "IfElse instruction returns unexpected type"
+                );
+            }
+        }
     }
 }
 
@@ -396,5 +518,56 @@ mod tests {
             return
         }
         ");
+    }
+
+    #[test]
+    fn merge_slice() {
+        let src = "
+acir(inline) impure fn main f0 {
+  b0(v0: u1, v1: Field, v2: Field):
+    v3 = make_array [] : [Field]   
+    v4 = allocate -> &mut u32       
+    v5 = allocate -> &mut [Field]    
+    enable_side_effects v0
+    v6 = cast v0 as u32
+    v7, v8 = call slice_push_back(v6, v3, v2) -> (u32, [Field])
+    v9 = not v0                                   
+    v10 = cast v0 as u32   
+    v12 = if v0 then v8 else (if v9) v3   
+    enable_side_effects u1 1        
+    v15, v16 = call slice_push_back(v10, v12, v2) -> (u32, [Field])
+    v17 = array_get v16, index u32 0 -> Field    
+    constrain v17 == Field 1
+    return
+}
+        ";
+
+        let mut ssa = Ssa::from_str(src).unwrap();
+        ssa = ssa.remove_if_else().unwrap();
+
+        // Merge slices v3 (empty) and v8 ([v2]) into v12, using a dummy value for the element at index 0 of v3, which does not exist.
+        assert_ssa_snapshot!(ssa, @r"
+acir(inline) impure fn main f0 {
+  b0(v0: u1, v1: Field, v2: Field):
+    v3 = make_array [] : [Field]
+    v4 = allocate -> &mut u32
+    v5 = allocate -> &mut [Field]
+    enable_side_effects v0
+    v6 = cast v0 as u32
+    v8, v9 = call slice_push_back(v6, v3, v2) -> (u32, [Field])
+    v10 = not v0
+    v11 = cast v0 as u32
+    v13 = array_get v9, index u32 0 -> Field
+    v14 = cast v0 as Field
+    v15 = cast v10 as Field
+    v16 = mul v14, v13
+    v17 = make_array [v16] : [Field]
+    enable_side_effects u1 1
+    v19, v20 = call slice_push_back(v11, v17, v2) -> (u32, [Field])
+    v21 = array_get v20, index u32 0 -> Field
+    constrain v21 == Field 1
+    return
+}
+      ");
     }
 }
