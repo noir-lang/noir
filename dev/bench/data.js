@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1756292006782,
+  "lastUpdate": 1756296409523,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -20161,48 +20161,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "66ba28ef33757afecc2d3fd62337117f84344913",
-          "message": "fix: bind trait impl func generics to trait func generics during monomorphization (#9566)",
-          "timestamp": "2025-08-19T19:48:07Z",
-          "tree_id": "f7d0965011a4ff085106394a49f9827f41310366",
-          "url": "https://github.com/noir-lang/noir/commit/66ba28ef33757afecc2d3fd62337117f84344913"
-        },
-        "date": 1755634789317,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 247851,
-            "range": "± 789",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 217493,
-            "range": "± 4616",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2778532,
-            "range": "± 11189",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -22254,6 +22212,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2787052,
             "range": "± 8430",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d12ce98b613bab6a0d1cddbac681e989acbb84a0",
+          "message": "chore: remove handling for slice arguments to MSM (#9648)",
+          "timestamp": "2025-08-27T11:39:42Z",
+          "tree_id": "10114c6e43f59ec2a3ef5de8e5197e8ec9bef425",
+          "url": "https://github.com/noir-lang/noir/commit/d12ce98b613bab6a0d1cddbac681e989acbb84a0"
+        },
+        "date": 1756296390996,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 249351,
+            "range": "± 581",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 219322,
+            "range": "± 4180",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2778582,
+            "range": "± 10955",
             "unit": "ns/iter"
           }
         ]
