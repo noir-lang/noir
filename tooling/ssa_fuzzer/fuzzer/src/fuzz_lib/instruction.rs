@@ -166,6 +166,7 @@ pub(crate) enum Instruction {
         corrupt_pubkey_x: bool,
         corrupt_pubkey_y: bool,
         corrupt_signature: bool,
+        predicate: bool,
     },
 
     /// ECDSA secp256k1
@@ -176,6 +177,7 @@ pub(crate) enum Instruction {
         corrupt_pubkey_x: bool,
         corrupt_pubkey_y: bool,
         corrupt_signature: bool,
+        predicate: bool,
     },
 }
 

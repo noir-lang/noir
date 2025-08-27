@@ -19,6 +19,7 @@ fn test_valid_ecdsa_signature_secp256r1() {
         corrupt_pubkey_x: false,
         corrupt_pubkey_y: false,
         corrupt_signature: false,
+        predicate: true,
     };
     let block = InstructionBlock { instructions: vec![instruction] };
     let commands = vec![];
@@ -44,6 +45,7 @@ fn test_valid_ecdsa_signature_secp256k1() {
         corrupt_pubkey_x: false,
         corrupt_pubkey_y: false,
         corrupt_signature: false,
+        predicate: true,
     };
     let block = InstructionBlock { instructions: vec![instruction] };
     let commands = vec![];
@@ -69,6 +71,7 @@ fn test_corrupted_ecdsa_signature_secp256r1() {
         corrupt_pubkey_x: true,
         corrupt_pubkey_y: true,
         corrupt_signature: true,
+        predicate: false,
     };
     let block = InstructionBlock { instructions: vec![instruction] };
     let commands = vec![];
@@ -97,6 +100,7 @@ fn test_corrupted_ecdsa_signature_secp256k1() {
         corrupt_pubkey_x: true,
         corrupt_pubkey_y: true,
         corrupt_signature: true,
+        predicate: false,
     };
     let block = InstructionBlock { instructions: vec![instruction] };
     let commands = vec![];

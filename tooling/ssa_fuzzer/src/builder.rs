@@ -955,7 +955,10 @@ impl FuzzerBuilder {
         hash: Vec<u8>,
         hash_size: u32,
         signature: Vec<u8>,
+        predicate: bool,
     ) -> TypedValue {
+        let predicate =
+            self.builder.numeric_constant(predicate as u32, NumericType::Unsigned { bit_size: 1 });
         let pub_key_x = self.bytes_to_ssa_array(pub_key_x);
         let pub_key_y = self.bytes_to_ssa_array(pub_key_y);
         let hash_size_id =
@@ -973,8 +976,8 @@ impl FuzzerBuilder {
                 pub_key_x.value_id,
                 pub_key_y.value_id,
                 signature.value_id,
-                hash_size_id,
                 hash.value_id,
+                predicate,
             ],
             vec![return_type.clone()],
         );
@@ -990,7 +993,10 @@ impl FuzzerBuilder {
         hash: Vec<u8>,
         hash_size: u32,
         signature: Vec<u8>,
+        predicate: bool,
     ) -> TypedValue {
+        let predicate =
+            self.builder.numeric_constant(predicate as u32, NumericType::Unsigned { bit_size: 1 });
         let pub_key_x = self.bytes_to_ssa_array(pub_key_x);
         let pub_key_y = self.bytes_to_ssa_array(pub_key_y);
         let hash_size_id =
@@ -1008,8 +1014,8 @@ impl FuzzerBuilder {
                 pub_key_x.value_id,
                 pub_key_y.value_id,
                 signature.value_id,
-                hash_size_id,
                 hash.value_id,
+                predicate,
             ],
             vec![return_type.clone()],
         );

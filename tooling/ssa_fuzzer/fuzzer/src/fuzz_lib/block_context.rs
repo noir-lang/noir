@@ -946,6 +946,7 @@ impl BlockContext {
                 corrupt_pubkey_x,
                 corrupt_pubkey_y,
                 corrupt_signature,
+                predicate,
             } => {
                 if !self.options.instruction_options.ecdsa_secp256r1_enabled {
                     return;
@@ -964,6 +965,7 @@ impl BlockContext {
                     prepared_signature.hash.clone(),
                     hash_size,
                     prepared_signature.signature.clone(),
+                    predicate,
                 );
                 assert_eq!(
                     result.value_id,
@@ -974,6 +976,7 @@ impl BlockContext {
                             prepared_signature.hash,
                             hash_size,
                             prepared_signature.signature,
+                            predicate,
                         )
                         .value_id
                 );
@@ -990,6 +993,7 @@ impl BlockContext {
                 corrupt_pubkey_x,
                 corrupt_pubkey_y,
                 corrupt_signature,
+                predicate,
             } => {
                 if !self.options.instruction_options.ecdsa_secp256k1_enabled {
                     return;
@@ -1008,6 +1012,7 @@ impl BlockContext {
                     prepared_signature.hash.clone(),
                     hash_size,
                     prepared_signature.signature.clone(),
+                    predicate,
                 );
                 assert_eq!(
                     result.value_id,
@@ -1018,6 +1023,7 @@ impl BlockContext {
                             prepared_signature.hash,
                             hash_size,
                             prepared_signature.signature,
+                            predicate,
                         )
                         .value_id
                 );

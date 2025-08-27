@@ -180,6 +180,7 @@ fn generate_random_instruction(rng: &mut StdRng) -> Instruction {
                     rng,
                     GENERATE_BOOL_CONFIGURATION_MOST_FALSE,
                 ),
+                predicate: true,
             }
         }
         GenerateInstruction::EcdsaSecp256k1 => {
@@ -195,6 +196,7 @@ fn generate_random_instruction(rng: &mut StdRng) -> Instruction {
                     rng,
                     GENERATE_BOOL_CONFIGURATION_MOST_FALSE,
                 ),
+                predicate: true,
             }
         }
     }

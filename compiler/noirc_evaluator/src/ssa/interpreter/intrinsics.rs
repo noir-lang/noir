@@ -164,11 +164,12 @@ impl<W: Write> Interpreter<'_, W> {
                     Ok(vec![results])
                 }
                 acvm::acir::BlackBoxFunc::EcdsaSecp256k1 => {
-                    check_argument_count(args, 4, intrinsic)?;
+                    check_argument_count(args, 5, intrinsic)?;
                     let x = self.lookup_bytes(args[0], "call EcdsaSecp256k1 BlackBox")?;
                     let y = self.lookup_bytes(args[1], "call EcdsaSecp256k1 BlackBox")?;
                     let s = self.lookup_bytes(args[2], "call EcdsaSecp256k1 BlackBox")?;
                     let m = self.lookup_bytes(args[3], "call EcdsaSecp256k1 BlackBox")?;
+                    let predicate = self.lookup_bool(args[4], "call EcdsaSecp256k1 BlackBox")?;
                     let x_len = x.len();
                     let x_array: &[u8; 32] = &x.try_into().map_err(|_| {
                         InterpreterError::Internal(InternalError::InvalidInputSize {
@@ -190,21 +191,24 @@ impl<W: Write> Interpreter<'_, W> {
                             size: s_len,
                         })
                     })?;
-                    let result = acvm::blackbox_solver::ecdsa_secp256k1_verify(
-                        &m, x_array, y_array, s_array,
-                    )
-                    .map_err(Self::convert_error)?;
+                    let result = if predicate {
+                        acvm::blackbox_solver::ecdsa_secp256k1_verify(&m, x_array, y_array, s_array)
+                            .map_err(Self::convert_error)?
+                    } else {
+                        true
+                    };
                     Ok(vec![Value::from_constant(
                         result.into(),
                         NumericType::Unsigned { bit_size: 1 },
                     )?])
                 }
                 acvm::acir::BlackBoxFunc::EcdsaSecp256r1 => {
-                    check_argument_count(args, 4, intrinsic)?;
+                    check_argument_count(args, 5, intrinsic)?;
                     let x = self.lookup_bytes(args[0], "call EcdsaSecp256r1 BlackBox")?;
                     let y = self.lookup_bytes(args[1], "call EcdsaSecp256r1 BlackBox")?;
                     let s = self.lookup_bytes(args[2], "call EcdsaSecp256r1 BlackBox")?;
                     let m = self.lookup_bytes(args[3], "call EcdsaSecp256r1 BlackBox")?;
+                    let predicate = self.lookup_bool(args[4], "call EcdsaSecp256r1 BlackBox")?;
                     let x_len = x.len();
                     let x_array: &[u8; 32] = &x.try_into().map_err(|_| {
                         InterpreterError::Internal(InternalError::InvalidInputSize {
@@ -226,10 +230,13 @@ impl<W: Write> Interpreter<'_, W> {
                             size: s_len,
                         })
                     })?;
-                    let result = acvm::blackbox_solver::ecdsa_secp256r1_verify(
-                        &m, x_array, y_array, s_array,
-                    )
-                    .map_err(Self::convert_error)?;
+
+                    let result = if predicate {
+                        acvm::blackbox_solver::ecdsa_secp256r1_verify(&m, x_array, y_array, s_array)
+                            .map_err(Self::convert_error)?
+                    } else {
+                        true
+                    };
                     Ok(vec![Value::from_constant(
                         result.into(),
                         NumericType::Unsigned { bit_size: 1 },

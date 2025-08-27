@@ -290,6 +290,7 @@ impl InstructionArgumentsMutation {
                 corrupt_pubkey_x,
                 corrupt_pubkey_y,
                 corrupt_signature,
+                ..
             }
             | Instruction::EcdsaSecp256r1 {
                 msg,
@@ -298,6 +299,7 @@ impl InstructionArgumentsMutation {
                 corrupt_pubkey_x,
                 corrupt_pubkey_y,
                 corrupt_signature,
+                ..
             } => {
                 mutate_vec(
                     msg,
