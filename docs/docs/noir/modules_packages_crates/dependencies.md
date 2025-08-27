@@ -14,11 +14,11 @@ Nargo allows you to upload packages to GitHub and use them as dependencies.
 Specifying a dependency requires a tag to a specific commit and the git url to the url containing
 the package.
 
-Currently, there are no requirements on the tag contents. If requirements are added, it would follow
-semver 2.0 guidelines.
+:::note
 
-> Note: Without a `tag` , there would be no versioning and dependencies would change each time you
-> compile your project.
+Without a `tag` , there would be no versioning and dependencies would change each time you compile your project.
+
+:::
 
 For example, to add the [bignum library](https://github.com/noir-lang/noir-bignum) to your project, add it to `Nargo.toml`:
 
@@ -37,6 +37,12 @@ If the module is in a subdirectory, you can define a subdirectory in your git re
 [dependencies]
 blob = {tag ="v1.2.1", git = "https://github.com/AztecProtocol/aztec-packages", directory = "noir-projects/noir-protocol-circuits/crates/blob"}
 ```
+
+:::info
+
+Currently, there are no requirements on the tag contents. If requirements are added, it would follow semver 2.0 guidelines.
+
+:::
 
 ## Specifying a local dependency
 
