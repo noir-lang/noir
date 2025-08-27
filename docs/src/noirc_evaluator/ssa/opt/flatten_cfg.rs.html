@@ -2004,17 +2004,7 @@
 <a href="#2003" id="2003">2003</a>
 <a href="#2004" id="2004">2004</a>
 <a href="#2005" id="2005">2005</a>
-<a href="#2006" id="2006">2006</a>
-<a href="#2007" id="2007">2007</a>
-<a href="#2008" id="2008">2008</a>
-<a href="#2009" id="2009">2009</a>
-<a href="#2010" id="2010">2010</a>
-<a href="#2011" id="2011">2011</a>
-<a href="#2012" id="2012">2012</a>
-<a href="#2013" id="2013">2013</a>
-<a href="#2014" id="2014">2014</a>
-<a href="#2015" id="2015">2015</a>
-<a href="#2016" id="2016">2016</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file contains the SSA flattening pass - a required pass for ACIR to remove any remaining
+<a href="#2006" id="2006">2006</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file contains the SSA flattening pass - a required pass for ACIR to remove any remaining
 //! control-flow in the singular program-function, resulting in a single block containing the
 //! program logic.
 //!
@@ -2926,25 +2916,15 @@
 
                         <span class="comment">// For MSM, we also ensure the inputs are on the curve if the predicate is false.
                         </span>BlackBoxFunc::MultiScalarMul =&gt; {
-                            <span class="kw">let </span>points_array_idx = <span class="kw">if </span><span class="macro">matches!</span>(
-                                <span class="self">self</span>.inserter.function.dfg.type_of_value(arguments[<span class="number">0</span>]),
-                                Type::Array { .. }
-                            ) {
-                                <span class="number">0
-                            </span>} <span class="kw">else </span>{
-                                <span class="comment">// if the first argument is not an array, we assume it is a slice
-                                // which means the array is the second argument
-                                </span><span class="number">1
-                            </span>};
                             <span class="kw">let </span>(elements, typ) = <span class="self">self</span>.apply_predicate_to_msm_argument(
-                                arguments[points_array_idx],
+                                arguments[<span class="number">0</span>],
                                 condition,
                                 call_stack,
                             );
 
                             <span class="kw">let </span>instruction = Instruction::MakeArray { elements, typ };
                             <span class="kw">let </span>array = <span class="self">self</span>.insert_instruction(instruction, call_stack);
-                            arguments[points_array_idx] = array;
+                            arguments[<span class="number">0</span>] = array;
                             Instruction::Call { func, arguments }
                         }
 
