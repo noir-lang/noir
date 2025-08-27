@@ -2023,11 +2023,11 @@
     /// ```
     </span><span class="kw">fn </span>get_const_lower_bound(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        function: <span class="kw-2">&amp;</span>Function,
+        dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
         pre_header: BasicBlockId,
     ) -&gt; <span class="prelude-ty">Option</span>&lt;IntegerConstant&gt; {
-        <span class="kw">let </span>jump_value = get_induction_variable(function, pre_header).ok()<span class="question-mark">?</span>;
-        function.dfg.get_integer_constant(jump_value)
+        <span class="kw">let </span>jump_value = get_induction_variable(dfg, pre_header).ok()<span class="question-mark">?</span>;
+        dfg.get_integer_constant(jump_value)
     }
 
     <span class="doccomment">/// Find the upper bound of the loop in the loop header and return it
@@ -2044,8 +2044,8 @@
     ///     v5 = lt v1, u32 4           // Upper bound
     ///     jmpif v5 then: b3, else: b2
     /// ```
-    </span><span class="kw">fn </span>get_const_upper_bound(<span class="kw-2">&amp;</span><span class="self">self</span>, function: <span class="kw-2">&amp;</span>Function) -&gt; <span class="prelude-ty">Option</span>&lt;IntegerConstant&gt; {
-        <span class="kw">let </span>block = <span class="kw-2">&amp;</span>function.dfg[<span class="self">self</span>.header];
+    </span><span class="kw">fn </span>get_const_upper_bound(<span class="kw-2">&amp;</span><span class="self">self</span>, dfg: <span class="kw-2">&amp;</span>DataFlowGraph) -&gt; <span class="prelude-ty">Option</span>&lt;IntegerConstant&gt; {
+        <span class="kw">let </span>block = <span class="kw-2">&amp;</span>dfg[<span class="self">self</span>.header];
         <span class="kw">let </span>instructions = block.instructions();
         <span class="kw">if </span>instructions.is_empty() {
             <span class="comment">// If the loop condition is constant time, the loop header will be
@@ -2059,16 +2059,16 @@
             </span><span class="kw">return </span><span class="prelude-val">None</span>;
         }
 
-        <span class="kw">match </span><span class="kw-2">&amp;</span>function.dfg[instructions[<span class="number">0</span>]] {
+        <span class="kw">match </span><span class="kw-2">&amp;</span>dfg[instructions[<span class="number">0</span>]] {
             Instruction::Binary(Binary { lhs: <span class="kw">_</span>, operator: BinaryOp::Lt, rhs }) =&gt; {
-                function.dfg.get_integer_constant(<span class="kw-2">*</span>rhs)
+                dfg.get_integer_constant(<span class="kw-2">*</span>rhs)
             }
             Instruction::Binary(Binary { lhs: <span class="kw">_</span>, operator: BinaryOp::Eq, rhs }) =&gt; {
                 <span class="comment">// `for i in 0..1` is turned into:
                 // b1(v0: u32):
                 //   v12 = eq v0, u32 0
                 //   jmpif v12 then: b2, else: b3
-                </span>function.dfg.get_integer_constant(<span class="kw-2">*</span>rhs).map(|c| c.inc())
+                </span>dfg.get_integer_constant(<span class="kw-2">*</span>rhs).map(|c| c.inc())
             }
             Instruction::Not(<span class="kw">_</span>) =&gt; {
                 <span class="comment">// We simplify equality operations with booleans like `(boolean == false)` into `!boolean`.
@@ -2093,11 +2093,11 @@
     <span class="doccomment">/// Get the lower and upper bounds of the loop if both are constant numeric values.
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>get_const_bounds(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        function: <span class="kw-2">&amp;</span>Function,
+        dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
         pre_header: BasicBlockId,
     ) -&gt; <span class="prelude-ty">Option</span>&lt;(IntegerConstant, IntegerConstant)&gt; {
-        <span class="kw">let </span>lower = <span class="self">self</span>.get_const_lower_bound(function, pre_header)<span class="question-mark">?</span>;
-        <span class="kw">let </span>upper = <span class="self">self</span>.get_const_upper_bound(function)<span class="question-mark">?</span>;
+        <span class="kw">let </span>lower = <span class="self">self</span>.get_const_lower_bound(dfg, pre_header)<span class="question-mark">?</span>;
+        <span class="kw">let </span>upper = <span class="self">self</span>.get_const_upper_bound(dfg)<span class="question-mark">?</span>;
         <span class="prelude-val">Some</span>((lower, upper))
     }
 
@@ -2161,7 +2161,7 @@
     /// that a few SSA passes are required to evaluate and simplify these values.
     </span><span class="kw">fn </span>unroll(<span class="kw-2">&amp;</span><span class="self">self</span>, function: <span class="kw-2">&amp;mut </span>Function, cfg: <span class="kw-2">&amp;</span>ControlFlowGraph) -&gt; <span class="prelude-ty">Result</span>&lt;(), CallStack&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>unroll_into = <span class="self">self</span>.get_pre_header(function, cfg)<span class="question-mark">?</span>;
-        <span class="kw">let </span><span class="kw-2">mut </span>jump_value = get_induction_variable(function, unroll_into)<span class="question-mark">?</span>;
+        <span class="kw">let </span><span class="kw-2">mut </span>jump_value = get_induction_variable(<span class="kw-2">&amp;</span>function.dfg, unroll_into)<span class="question-mark">?</span>;
 
         <span class="kw">while let </span><span class="prelude-val">Some</span>(context) = <span class="self">self</span>.unroll_header(function, unroll_into, jump_value)<span class="question-mark">? </span>{
             (unroll_into, jump_value) = context.unroll_loop_iteration();
@@ -2408,7 +2408,7 @@
         cfg: <span class="kw-2">&amp;</span>ControlFlowGraph,
     ) -&gt; <span class="prelude-ty">Option</span>&lt;BoilerplateStats&gt; {
         <span class="kw">let </span>pre_header = <span class="self">self</span>.get_pre_header(function, cfg).ok()<span class="question-mark">?</span>;
-        <span class="kw">let </span>(lower, upper) = <span class="self">self</span>.get_const_bounds(function, pre_header)<span class="question-mark">?</span>;
+        <span class="kw">let </span>(lower, upper) = <span class="self">self</span>.get_const_bounds(<span class="kw-2">&amp;</span>function.dfg, pre_header)<span class="question-mark">?</span>;
         <span class="kw">let </span>refs = <span class="self">self</span>.find_pre_header_reference_values(function, cfg)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>(loads, stores) = <span class="self">self</span>.count_loads_and_stores(function, <span class="kw-2">&amp;</span>refs);
@@ -2507,8 +2507,8 @@
 ///   ...
 /// ```
 /// We're looking for the terminating jump of the `main` predecessor of `loop_entry`.
-</span><span class="kw">fn </span>get_induction_variable(function: <span class="kw-2">&amp;</span>Function, block: BasicBlockId) -&gt; <span class="prelude-ty">Result</span>&lt;ValueId, CallStack&gt; {
-    <span class="kw">match </span>function.dfg[block].terminator() {
+</span><span class="kw">fn </span>get_induction_variable(dfg: <span class="kw-2">&amp;</span>DataFlowGraph, block: BasicBlockId) -&gt; <span class="prelude-ty">Result</span>&lt;ValueId, CallStack&gt; {
+    <span class="kw">match </span>dfg[block].terminator() {
         <span class="prelude-val">Some</span>(TerminatorInstruction::Jmp { arguments, call_stack: location, .. }) =&gt; {
             <span class="comment">// This assumption will no longer be valid if e.g. mutable variables are represented as
             // block parameters. If that becomes the case we'll need to figure out which variable
@@ -2517,19 +2517,19 @@
             </span><span class="kw">if </span>arguments.len() != <span class="number">1 </span>{
                 <span class="comment">// It is expected that a loop's induction variable is the only block parameter of the loop header.
                 // If there's no variable this might be a `loop`.
-                </span><span class="kw">let </span>call_stack = function.dfg.get_call_stack(<span class="kw-2">*</span>location);
+                </span><span class="kw">let </span>call_stack = dfg.get_call_stack(<span class="kw-2">*</span>location);
                 <span class="kw">return </span><span class="prelude-val">Err</span>(call_stack);
             }
 
             <span class="kw">let </span>value = arguments[<span class="number">0</span>];
-            <span class="kw">if </span>function.dfg.get_numeric_constant(value).is_some() {
+            <span class="kw">if </span>dfg.get_numeric_constant(value).is_some() {
                 <span class="prelude-val">Ok</span>(value)
             } <span class="kw">else </span>{
-                <span class="kw">let </span>call_stack = function.dfg.get_call_stack(<span class="kw-2">*</span>location);
+                <span class="kw">let </span>call_stack = dfg.get_call_stack(<span class="kw-2">*</span>location);
                 <span class="prelude-val">Err</span>(call_stack)
             }
         }
-        <span class="prelude-val">Some</span>(terminator) =&gt; <span class="prelude-val">Err</span>(function.dfg.get_call_stack(terminator.call_stack())),
+        <span class="prelude-val">Some</span>(terminator) =&gt; <span class="prelude-val">Err</span>(dfg.get_call_stack(terminator.call_stack())),
         <span class="prelude-val">None </span>=&gt; <span class="prelude-val">Err</span>(CallStack::new()),
     }
 }
@@ -2892,7 +2892,7 @@
         <span class="kw">let </span>pre_header =
             loop_.get_pre_header(function, <span class="kw-2">&amp;</span>loops.cfg).expect(<span class="string">"Should have a pre_header"</span>);
         <span class="kw">let </span>(lower, upper) =
-            loop_.get_const_bounds(function, pre_header).expect(<span class="string">"bounds are numeric const"</span>);
+            loop_.get_const_bounds(<span class="kw-2">&amp;</span>function.dfg, pre_header).expect(<span class="string">"bounds are numeric const"</span>);
 
         <span class="macro">assert_eq!</span>(lower, IntegerConstant::Unsigned { value: <span class="number">0</span>, bit_size: <span class="number">32 </span>});
         <span class="macro">assert_eq!</span>(upper, IntegerConstant::Unsigned { value: <span class="number">4</span>, bit_size: <span class="number">32 </span>});

@@ -523,7 +523,7 @@
             <span class="comment">// If the loop does not have a preheader we skip checking whether the loop is empty
             </span><span class="kw">continue</span>;
         };
-        <span class="kw">let </span>const_bounds = loop_.get_const_bounds(function, pre_header);
+        <span class="kw">let </span>const_bounds = loop_.get_const_bounds(<span class="kw-2">&amp;</span>function.dfg, pre_header);
 
         <span class="kw">let </span>does_execute = const_bounds
             .and_then(|(lower_bound, upper_bound)| {

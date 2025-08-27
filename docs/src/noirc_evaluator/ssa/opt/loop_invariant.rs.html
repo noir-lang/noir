@@ -3599,7 +3599,7 @@
             </span><span class="kw">return</span>;
         };
 
-        <span class="kw">let </span>bounds = loop_.get_const_bounds(<span class="self">self</span>.inserter.function, pre_header);
+        <span class="kw">let </span>bounds = loop_.get_const_bounds(<span class="kw-2">&amp;</span><span class="self">self</span>.inserter.function.dfg, pre_header);
 
         <span class="kw">if let </span><span class="prelude-val">Some</span>((lower_bound, upper_bound)) = bounds {
             <span class="kw">let </span><span class="prelude-val">Some</span>(induction_variable) = <span class="self">self</span>.get_induction_variable(loop_) <span class="kw">else </span>{
