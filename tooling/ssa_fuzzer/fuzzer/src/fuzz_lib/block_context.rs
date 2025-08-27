@@ -1168,6 +1168,9 @@ impl BlockContext {
             return None;
         }
         let arrays = get_all_arrays_from_map(&self.stored_variables);
+        if arrays.is_empty() {
+            return None;
+        }
         let array = arrays.get(array_index % arrays.len());
         let array = match array {
             Some(array) => array,
@@ -1231,6 +1234,9 @@ impl BlockContext {
             return None;
         }
         let arrays = get_all_arrays_from_map(&self.stored_variables);
+        if arrays.is_empty() {
+            return None;
+        }
         let array = arrays.get(array_index % arrays.len());
         let array = match array {
             Some(array) => array,
