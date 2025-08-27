@@ -105,7 +105,7 @@ impl<'f> FunctionInserter<'f> {
         id: InstructionId,
         block: BasicBlockId,
         call_stack: CallStackId,
-    ) -> InsertInstructionResult {
+    ) -> InsertInstructionResult<'_> {
         let results = self.function.dfg.instruction_results(id).to_vec();
 
         let ctrl_typevars = instruction
@@ -136,6 +136,8 @@ impl<'f> FunctionInserter<'f> {
         }
     }
 
+    /// Associates each block parameter with a value, unless the parameter already has a value,
+    /// in which case it is kept as-is.
     pub(crate) fn remember_block_params(&mut self, block: BasicBlockId, new_values: &[ValueId]) {
         let old_parameters = self.function.dfg.block_parameters(block);
 

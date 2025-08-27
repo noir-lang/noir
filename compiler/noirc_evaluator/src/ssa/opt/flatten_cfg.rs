@@ -42,17 +42,21 @@
 //! a jmpif, an instruction is inserted to capture a condition that is analogous to the activeness
 //! of the program point. For example:
 //!
+//! ```text
 //! b0(v0: u1):
 //!   jmpif v0, then: b1, else: b2
 //! b1():
 //!   v1 = call f0
 //!   jmp b3(v1)
 //! ... blocks b2 & b3 ...
+//! ```
 //!
 //! Would brace the call instruction as such:
+//! ```text
 //!   enable_side_effects v0
 //!   v1 = call f0
 //!   enable_side_effects u1 1
+//! ```
 //!
 //! (Note: we restore to "true" to indicate that this program point is not nested within any
 //! other branches. Each `enable_side_effects` overrides the previous, they do not implicitly stack.)
@@ -62,12 +66,13 @@
 //!
 //! 1. A constraint is multiplied by the condition and changes the constraint to
 //!    an equality with c:
-//!
+//! ```text
 //! constrain v0
 //! ============
 //! v1 = mul v0, c
 //! v2 = eq v1, c
 //! constrain v2
+//! ```
 //!
 //! 2. If we reach the end block of the branch created by the jmpif instruction, its block parameters
 //!    will be merged. To merge the jmp arguments of the then and else branches, the formula
@@ -76,6 +81,7 @@
 //!    of complex values (arrays and slices) this simplification is delayed until the
 //!    `remove_if_else` SSA pass.
 //!
+//! ```text
 //! b0(v0: u1, v1: Field, v2: Field):
 //!   jmpif v0, then: b1, else: b2
 //! b1():
@@ -91,12 +97,14 @@
 //!   v5 = mul v4, v2
 //!   v6 = add v3, v5
 //!   ... b3 instructions ...
+//! ```
 //!
 //! 3. Each `store v0 in v1` is replaced with a store of a new value
 //!    `v4 = if v3 then v0 else v2` where `v3` is the current condition
 //!    given by `enable_side_effects v3` and `v2` is the result of
 //!    a newly-given `v2 = load v0` inserted before the store.
 //!
+//! ```text
 //! b0(v0: u1):
 //!   v1 = allocate -> &mut Field
 //!   store Field 3 at v1
@@ -128,6 +136,7 @@
 //!   ... b2 instructions ...
 //!   enable_side_effects u1 1
 //!   ... b3 instructions ...
+//! ```
 use std::sync::Arc;
 
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
@@ -163,10 +172,8 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn flatten_cfg(mut self) -> Ssa {
         // Retrieve the 'no_predicates' attribute of the functions in a map, to avoid problems with borrowing
-        let mut no_predicates = HashMap::default();
-        for function in self.functions.values() {
-            no_predicates.insert(function.id(), function.is_no_predicates());
-        }
+        let no_predicates: HashMap<_, _> =
+            self.functions.values().map(|f| (f.id(), f.is_no_predicates())).collect();
 
         for function in self.functions.values_mut() {
             // This pass may run forever on a brillig function - we check if block predecessors have
@@ -191,7 +198,7 @@ impl Ssa {
 /// Pre-check condition for [Ssa::flatten_cfg].
 ///
 /// Panics if:
-///   - Any acir function has at least 1 loop
+///   - Any ACIR function has at least 1 loop
 #[cfg(debug_assertions)]
 fn flatten_cfg_pre_check(function: &Function) {
     if !function.runtime().is_acir() {
@@ -204,7 +211,7 @@ fn flatten_cfg_pre_check(function: &Function) {
 /// Post-check condition for [Ssa::flatten_cfg].
 ///
 /// Panics if:
-///   - Any acir function contains > 1 block
+///   - Any ACIR function contains > 1 block
 #[cfg(debug_assertions)]
 pub(super) fn flatten_cfg_post_check(function: &Function) {
     if !function.runtime().is_acir() {
@@ -217,13 +224,13 @@ pub(super) fn flatten_cfg_post_check(function: &Function) {
 pub(crate) struct Context<'f> {
     pub(crate) inserter: FunctionInserter<'f>,
 
-    /// This ControlFlowGraph is the graph from before the function was modified by this flattening pass.
+    /// This `ControlFlowGraph` is the graph from before the function was modified by this flattening pass.
     cfg: ControlFlowGraph,
 
-    /// Target block of the flattening
+    /// Target block of the flattening.
     pub(crate) target_block: BasicBlockId,
 
-    /// Maps start of branch -> end of branch
+    /// Maps start of branch -> end of branch.
     branch_ends: HashMap<BasicBlockId, BasicBlockId>,
 
     /// A stack of each jmpif condition that was taken to reach a particular point in the program.
@@ -234,24 +241,27 @@ pub(crate) struct Context<'f> {
     /// the most recent condition combined with all previous conditions via `And` instructions.
     condition_stack: Vec<ConditionalContext>,
 
-    /// Stack of block arguments
+    /// Stack of block arguments.
+    ///
     /// When processing a block, we pop this stack to get its arguments
-    /// and at the end we push the arguments for his successor
+    /// and at the end we push the arguments for its successor.
+    ///
+    /// It does not contain the parameters of the entry block of the function.
     arguments_stack: Vec<Vec<ValueId>>,
 
     /// Stores all allocations local to the current branch.
     ///
-    /// Since these branches are local to the current branch (i.e. only defined within one branch of
+    /// Since these are local to the current branch (i.e. only defined within one branch of
     /// an if expression), they should not be merged with their previous value or stored value in
     /// the other branch since there is no such value.
     ///
     /// The `ValueId` here is that which is returned by the allocate instruction.
     local_allocations: HashSet<ValueId>,
 
-    /// A map from `cond` to `Not(cond)`
+    /// A map from `cond` to `Not(cond)`.
     ///
     /// `Not` instructions are inserted constantly by this pass and this map helps keep
-    /// us from unnecessarily inserting extra instructions, and keeps ids unique which
+    /// us from unnecessarily inserting extra instructions, and keeps IDs unique which
     /// helps simplifications.
     not_instructions: HashMap<ValueId, ValueId>,
 
@@ -259,7 +269,8 @@ pub(crate) struct Context<'f> {
     ///
     /// It is set with an attribute when defining a function that cannot fail whatsoever to avoid
     /// the overhead of handling side effects.
-    /// It can also be set to true by flatten_single(), when no instruction is known to fail.
+    ///
+    /// It can also be set to true when no instruction is known to fail.
     pub(crate) no_predicate: bool,
 }
 
@@ -300,17 +311,8 @@ fn flatten_function_cfg(function: &mut Function, no_predicates: &HashMap<Functio
     let branch_ends = branch_analysis::find_branch_ends(function, &cfg);
     let target_block = function.entry_block();
 
-    let mut context = Context {
-        inserter: FunctionInserter::new(function),
-        cfg,
-        branch_ends,
-        condition_stack: Vec::new(),
-        arguments_stack: Vec::new(),
-        local_allocations: HashSet::default(),
-        not_instructions: HashMap::default(),
-        target_block,
-        no_predicate: false,
-    };
+    let mut context = Context::new(function, cfg, branch_ends, target_block);
+
     context.flatten(no_predicates);
 }
 
@@ -337,29 +339,33 @@ impl<'f> Context<'f> {
 
     /// Flatten the CFG by inlining all instructions from the queued blocks
     /// until all blocks have been flattened.
+    ///
     /// We follow the terminator of each block to determine which blocks to
     /// process next:
-    /// If the terminator is a 'JumpIf', we assume we are entering a conditional statement and
+    /// * If the terminator is a 'JumpIf', we assume we are entering a conditional statement and
     /// add the start blocks of the 'then_branch', 'else_branch' and the 'exit' block to the queue.
-    /// Other blocks will have only one successor, so we will process them iteratively,
-    /// until we reach one block already in the queue, i.e added when entering a conditional statement,
-    /// i.e the 'else_branch' or the 'exit'. In that case we switch to the next block in the queue, instead
-    /// of the successor.
-    /// This process ensure that the blocks are always processed in this order:
-    /// if_entry -> then_branch -> else_branch -> exit
+    /// * Other blocks will have only one successor, so we will process them iteratively,
+    /// until we reach one block already in the queue, added when entering a conditional statement,
+    /// i.e. the 'else_branch' or the 'exit'. In that case we switch to the next block in the queue,
+    /// instead of the successor.
+    ///
+    /// This process ensures that the blocks are always processed in this order:
+    /// * if_entry -> then_branch -> else_branch -> exit
+    ///
     /// In case of nested if statements, for instance in the 'then_branch', it will be:
-    /// if_entry -> then_branch -> if_entry_2 -> then_branch_2 -> exit_2 -> else_branch -> exit
+    /// * if_entry -> then_branch -> if_entry_2 -> then_branch_2 -> exit_2 -> else_branch -> exit
+    ///
     /// Information about the nested if statements is stored in the 'condition_stack' which
-    /// is pop-ed/push-ed when entering/leaving a conditional statement.
+    /// is popped/pushed when entering/leaving a conditional statement.
     pub(crate) fn flatten(&mut self, no_predicates: &HashMap<FunctionId, bool>) {
-        let mut queue = vec![self.target_block];
-        while let Some(block) = queue.pop() {
+        let mut stack = vec![self.target_block];
+        while let Some(block) = stack.pop() {
             self.inline_block(block, no_predicates);
-            let to_process = self.handle_terminator(block, &queue);
+            let to_process = self.handle_terminator(block, &stack);
             for incoming_block in to_process {
-                // Do not add blocks already in the queue
-                if !queue.contains(&incoming_block) {
-                    queue.push(incoming_block);
+                // Do not add blocks already on the stack
+                if !stack.contains(&incoming_block) {
+                    stack.push(incoming_block);
                 }
             }
         }
@@ -385,7 +391,7 @@ impl<'f> Context<'f> {
     /// The conditions are in a stack, they are added as conditional branches are encountered
     /// so the last one is the current condition.
     /// When processing a conditional branch, we first follow the 'then' branch and only after we
-    /// process the 'else' branch. At that point, the ConditionalContext has the 'else_branch'
+    /// process the 'else' branch. At that point, the `ConditionalContext` has the 'else_branch'
     fn get_last_condition(&self) -> Option<ValueId> {
         self.condition_stack.last().map(|context| match &context.else_branch {
             Some(else_branch) => else_branch.condition,
@@ -393,34 +399,33 @@ impl<'f> Context<'f> {
         })
     }
 
-    /// Use the provided map to say if the instruction is a call to a no_predicates function
-    fn is_no_predicate(
+    /// Use the provided map to say if the instruction is a call to a `no_predicates` function
+    fn is_call_to_no_predicate_function(
         &self,
         no_predicates: &HashMap<FunctionId, bool>,
         instruction: &InstructionId,
     ) -> bool {
-        let mut result = false;
         if let Instruction::Call { func, .. } = self.inserter.function.dfg[*instruction] {
             if let Value::Function(fid) = self.inserter.function.dfg[func] {
-                result = *no_predicates.get(&fid).unwrap_or(&false);
+                return no_predicates.get(&fid).copied().unwrap_or_default();
             }
         }
-        result
+        false
     }
 
-    /// Inline all instructions from the given block into the target block, and track slice capacities
-    /// This is done by processing every instructions in the block and using the flattening context
-    /// to push them in the target block
+    /// Inline all instructions from the given block into the target block, and track slice capacities.
+    /// This is done by processing every instruction in the block and using the flattening context
+    /// to push them in the target block.
     ///
-    /// - `no_predicates` indicates which functions have no predicates and for which we disable the handling side effects
+    /// - `no_predicates` indicates which functions have no predicates and for which we disable the handling of side effects.
     pub(crate) fn inline_block(
         &mut self,
         block: BasicBlockId,
         no_predicates: &HashMap<FunctionId, bool>,
     ) {
         if self.target_block == block {
-            // we do not inline the target block into itself
-            // for the outer block before we start inlining
+            // We do not inline the target block into itself.
+            // This is the case in the beginning for the entry block.
             return;
         }
 
@@ -430,8 +435,8 @@ impl<'f> Context<'f> {
         // If this is not a separate variable, clippy gets confused and says the to_vec is
         // unnecessary, when removing it actually causes an aliasing/mutability error.
         let instructions = self.inserter.function.dfg[block].instructions().to_vec();
-        for instruction in instructions.iter() {
-            if self.is_no_predicate(no_predicates, instruction) {
+        for instruction in instructions {
+            if self.is_call_to_no_predicate_function(no_predicates, &instruction) {
                 // disable side effect for no_predicate functions
                 let bool_type = NumericType::bool();
                 let one = self.inserter.function.dfg.make_constant(FieldElement::one(), bool_type);
@@ -440,23 +445,26 @@ impl<'f> Context<'f> {
                     None,
                     CallStackId::root(),
                 );
-                self.push_instruction(*instruction);
+                self.push_instruction(instruction);
                 self.insert_current_side_effects_enabled();
             } else {
-                self.push_instruction(*instruction);
+                self.push_instruction(instruction);
             }
         }
     }
 
-    /// Returns the list of blocks that need to be processed after the given block
-    /// For a normal block, it would be its successor
+    /// Returns the list of blocks that need to be processed after the given block.
+    ///
+    /// For a normal block, it would be its successor.
+    ///
     /// For blocks related to a conditional statement, we ensure to process
-    /// the 'then-branch', then the 'else-branch' (if it exists), and finally the end block
-    /// The update of the context is done by the functions 'if_start', 'then_stop' and 'else_stop'
-    /// which perform the business logic when  entering a conditional statement, finishing the 'then-branch'
-    /// and the 'else-branch, respectively.
-    /// We know if a block is related to the conditional statement if is referenced by the 'work_list'
-    /// Indeed, the start blocks of the 'then_branch' and 'else_branch' are added to the 'work_list' when
+    /// the 'then_branch', then the 'else_branch' (if it exists), and finally the end block
+    /// The update of the context is done by the functions `if_start`, `then_stop` and `else_stop`
+    /// which perform the business logic when entering a conditional statement, finishing the 'then_branch'
+    /// and the 'else_branch', respectively.
+    ///
+    /// We know if a block is related to the conditional statement if is referenced by the `work_list`.
+    /// Indeed, the start blocks of the 'then_branch' and 'else_branch' are added to the `work_list` when
     /// starting to process a conditional statement.
     pub(crate) fn handle_terminator(
         &mut self,
@@ -477,12 +485,19 @@ impl<'f> Context<'f> {
             TerminatorInstruction::Jmp { destination, arguments, call_stack: _ } => {
                 let arguments = vecmap(arguments.clone(), |value| self.inserter.resolve(value));
                 self.arguments_stack.push(arguments);
+                // Both the 'then_branch' and the 'else_branch' are expected to end with a jmp to the exit branch.
+                // If the `work_list` already contains the destination, that means we it was put there by `if_start`,
+                // which means this must be the end of the 'then_branch' or an 'else_branch'.
+                // Since we enqueued [exit, else, then], it means if the destination of the current jump is the last
+                // item on the work list, then this must be the 'else_branch'.
                 if work_list.contains(destination) {
                     if work_list.last() == Some(destination) {
-                        self.else_stop(&block)
+                        self.else_stop(&block);
                     } else {
-                        self.then_stop(&block)
+                        self.then_stop(&block);
                     }
+                    // The destination is already in the queue.
+                    vec![]
                 } else {
                     vec![*destination]
                 }
@@ -498,17 +513,17 @@ impl<'f> Context<'f> {
                 vec![]
             }
             TerminatorInstruction::Unreachable { .. } => {
-                // Nothing to do
-                vec![]
+                // The pass which introduces unreachable terminators must come after flattening, as it destroys the CFG.
+                unreachable!("unexpected unreachable terminator in flattening")
             }
         }
     }
 
-    /// Process a conditional statement by creating a 'ConditionalContext'
+    /// Process a conditional statement by creating a `ConditionalContext`
     /// with information about the branch, and storing it in the dedicated stack.
-    /// Local allocations are moved to the 'then_branch' of the ConditionalContext.
-    /// Returns the blocks corresponding to the 'then_branch', 'else_branch', and exit block of the conditional statement,
-    /// so that they will be processed in this order.
+    /// Local allocations are moved to the 'then_branch' of the `ConditionalContext`.
+    /// Returns the blocks corresponding to the 'then_branch', 'else_branch',
+    /// and exit block of the conditional statement, so that they will be processed in this order.
     fn if_start(
         &mut self,
         condition: &ValueId,
@@ -551,13 +566,14 @@ impl<'f> Context<'f> {
         vec![self.branch_ends[if_entry], *else_destination, *then_destination]
     }
 
-    /// Switch context to the 'else-branch':
-    /// - Negates the condition for the 'else_branch' and set it in the ConditionalContext
+    /// Switch context to the 'else_branch':
+    /// - Negates the condition for the 'else_branch' and set it in the `ConditionalContext`
     /// - Move the local allocations to the 'else_branch'
     /// - Reset the predicated values to their old mapping in the inserter
     /// - Issues the 'enable_side_effect' instruction
-    /// - Returns the exit block of the conditional statement
-    fn then_stop(&mut self, block: &BasicBlockId) -> Vec<BasicBlockId> {
+    fn then_stop(&mut self, block: &BasicBlockId) {
+        assert_eq!(self.cfg.successors(*block).len(), 1);
+
         let mut cond_context = self.condition_stack.pop().unwrap();
         cond_context.then_branch.last_block = *block;
 
@@ -580,9 +596,6 @@ impl<'f> Context<'f> {
         self.condition_stack.push(cond_context);
 
         self.insert_current_side_effects_enabled();
-
-        assert_eq!(self.cfg.successors(*block).len(), 1);
-        vec![self.cfg.successors(*block).next().unwrap()]
     }
 
     /// Negates a boolean value by inserting a Not instruction
@@ -601,7 +614,9 @@ impl<'f> Context<'f> {
     /// - Reset the predicated values to their old mapping in the inserter
     /// - Issues the 'enable_side_effect' instruction
     /// - Joins the arguments from both branches
-    fn else_stop(&mut self, block: &BasicBlockId) -> Vec<BasicBlockId> {
+    fn else_stop(&mut self, block: &BasicBlockId) {
+        assert_eq!(self.cfg.successors(*block).len(), 1);
+
         let mut cond_context = self.condition_stack.pop().unwrap();
         if cond_context.else_branch.is_none() {
             // then_stop() has not been called, this means that the conditional statement has no else branch
@@ -630,8 +645,6 @@ impl<'f> Context<'f> {
 
         // Merge arguments and stores from the else/end branches
         self.inline_branch_end(end, cond_context);
-
-        vec![self.cfg.successors(*block).next().unwrap()]
     }
 
     /// Inline the ending block of a branch, the point where all blocks from a jmpif instruction
@@ -641,14 +654,8 @@ impl<'f> Context<'f> {
     ///
     /// The merge of arguments is done by inserting an 'IfElse' instructions which returns
     /// the argument from the then_branch or the else_branch depending the the condition.
-    /// They are added to the 'arguments_stack' instead of the arguments of the 2 branches.
-    ///
-    /// Returns the final block that was inlined.
-    fn inline_branch_end(
-        &mut self,
-        destination: BasicBlockId,
-        cond_context: ConditionalContext,
-    ) -> BasicBlockId {
+    /// They are added to the 'arguments_stack', replacing the arguments of the 2 branches.
+    fn inline_branch_end(&mut self, destination: BasicBlockId, cond_context: ConditionalContext) {
         assert_eq!(self.cfg.predecessors(destination).len(), 2);
         let last_then = cond_context.then_branch.last_block;
         let mut else_args = Vec::new();
@@ -692,7 +699,6 @@ impl<'f> Context<'f> {
         self.arguments_stack.pop();
         self.arguments_stack.pop();
         self.arguments_stack.push(args);
-        destination
     }
 
     /// Map the value to its predicated value, and store the previous mapping
@@ -736,7 +742,7 @@ impl<'f> Context<'f> {
         instruction: Instruction,
         ctrl_typevars: Option<Vec<Type>>,
         call_stack: CallStackId,
-    ) -> InsertInstructionResult {
+    ) -> InsertInstructionResult<'_> {
         let block = self.target_block;
         self.inserter.function.dfg.insert_instruction_and_results(
             instruction,
@@ -1166,7 +1172,7 @@ impl<'f> Context<'f> {
         (array_with_predicate, array_typ)
     }
 
-    // Computes: if condition { var } else { 1 }
+    /// Computes: `if condition { var } else { 1 }`
     fn var_or_one(&mut self, var: ValueId, condition: ValueId, call_stack: CallStackId) -> ValueId {
         let field = self.mul_by_condition(var, condition, call_stack);
         let not_condition = self.not_instruction(condition, call_stack);
@@ -1176,7 +1182,8 @@ impl<'f> Context<'f> {
             call_stack,
         )
     }
-    // Computes: if condition { var } else { other }
+
+    /// Computes: `if condition { var } else { other }`
     #[cfg(feature = "bn254")]
     fn var_or(
         &mut self,
