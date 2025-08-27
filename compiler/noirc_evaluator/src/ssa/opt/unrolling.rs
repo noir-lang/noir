@@ -973,7 +973,7 @@ impl<'f> LoopIteration<'f> {
 
         let terminator = self.inserter.function.dfg[self.insert_block].unwrap_terminator();
 
-        let mut next_blocks = match terminator {
+        let next_blocks = match terminator {
             TerminatorInstruction::JmpIf {
                 condition,
                 then_destination,
@@ -983,21 +983,29 @@ impl<'f> LoopIteration<'f> {
             TerminatorInstruction::Jmp { destination, arguments, call_stack: _ } => {
                 if self.get_original_block(*destination) == self.loop_.header {
                     // We found the back-edge of the loop.
-                    assert_eq!(arguments.len(), 1);
+                    assert_eq!(arguments.len(), 1, "back-edge should only have 1 argument");
+                    assert!(self.induction_value.is_none(), "there should be only one back-edge");
                     self.induction_value = Some((self.insert_block, arguments[0]));
                 }
                 vec![*destination]
             }
-            TerminatorInstruction::Return { .. } | TerminatorInstruction::Unreachable { .. } => {
-                vec![]
+            TerminatorInstruction::Return { .. } => {
+                // Early returns from loops are not implemented.
+                unreachable!("unexpected return terminator in loop body");
+            }
+            TerminatorInstruction::Unreachable { .. } => {
+                // The SSA pass that adds unreachable terminators must come after unrolling.
+                unreachable!("unexpected unreachable terminator in loop body");
             }
         };
 
         // Guarantee that the next blocks we set up to be unrolled, are actually part of the loop,
         // which we recorded while inlining the instructions of the blocks already processed.
-        next_blocks.retain(|block| {
+        // Since we only call `unroll_loop_block` from `unroll_loop_iteration`, which we only call
+        // if the single destination in `unroll_header` is *not* outside the loop, this should hold.
+        next_blocks.iter().for_each(|block| {
             let b = self.get_original_block(*block);
-            self.loop_.blocks.contains(&b)
+            assert!(self.loop_.blocks.contains(&b), "destination not in original loop");
         });
 
         next_blocks
@@ -1034,8 +1042,10 @@ impl<'f> LoopIteration<'f> {
         }
     }
 
-    /// Translate a block id to a block id in the unrolled loop. If the given
-    /// block id is not within the loop, it is returned as-is.
+    /// Translate a block id to a block id in the unrolled loop.
+    ///
+    /// If the given block id is not within the loop, it is returned as-is,
+    /// which is the case for when the header jumps to the block following the loop.
     fn get_or_insert_block(&mut self, block: BasicBlockId) -> BasicBlockId {
         if let Some(new_block) = self.blocks.get(&block) {
             return *new_block;
