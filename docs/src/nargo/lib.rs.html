@@ -300,7 +300,14 @@
 <a href="#299" id="299">299</a>
 <a href="#300" id="300">300</a>
 <a href="#301" id="301">301</a>
-<a href="#302" id="302">302</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#302" id="302">302</a>
+<a href="#303" id="303">303</a>
+<a href="#304" id="304">304</a>
+<a href="#305" id="305">305</a>
+<a href="#306" id="306">306</a>
+<a href="#307" id="307">307</a>
+<a href="#308" id="308">308</a>
+<a href="#309" id="309">309</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![warn(unused_crate_dependencies, unused_extern_crates)]
 
 </span><span class="doccomment">//! Nargo is the package manager for Noir
@@ -533,9 +540,24 @@
 
 <span class="attr">#[cfg(not(any(target_arch = <span class="string">"wasm32"</span>, target_arch = <span class="string">"wasm64"</span>)))]
 </span><span class="kw">pub fn </span>parse_all(file_manager: <span class="kw-2">&amp;</span>FileManager) -&gt; ParsedFiles {
-    <span class="kw">let </span>num_threads = rayon::current_num_threads();
+    <span class="comment">// Collect only .nr files to process
+    </span><span class="kw">let </span>nr_files: Vec&lt;<span class="kw">_</span>&gt; = file_manager
+        .as_file_map()
+        .all_file_ids()
+        .filter(|&amp;&amp;file_id| {
+            <span class="kw">let </span>file_path = file_manager.path(file_id).expect(<span class="string">"expected file to exist"</span>);
+            <span class="kw">let </span>file_extension =
+                file_path.extension().expect(<span class="string">"expected all file paths to have an extension"</span>);
+            file_extension == <span class="string">"nr"
+        </span>})
+        .copied()
+        .collect();
+
+    <span class="comment">// Limit threads to the actual number of files we need to process.
+    </span><span class="kw">let </span>num_threads = rayon::current_num_threads().min(nr_files.len()).max(<span class="number">1</span>);
+
     <span class="kw">let </span>(sender, receiver) = mpsc::channel();
-    <span class="kw">let </span>iter = <span class="kw-2">&amp;</span>Mutex::new(file_manager.as_file_map().all_file_ids());
+    <span class="kw">let </span>iter = <span class="kw-2">&amp;</span>Mutex::new(nr_files.into_iter());
 
     thread::scope(|scope| {
         <span class="comment">// Start worker threads
@@ -549,17 +571,9 @@
                 .spawn_scoped(scope, <span class="kw">move </span>|| {
                     <span class="kw">loop </span>{
                         <span class="comment">// Get next file to process from the iterator.
-                        </span><span class="kw">let </span><span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>file_id) = iter.lock().unwrap().next() <span class="kw">else </span>{
+                        </span><span class="kw">let </span><span class="prelude-val">Some</span>(file_id) = iter.lock().unwrap().next() <span class="kw">else </span>{
                             <span class="kw">break</span>;
                         };
-
-                        <span class="kw">let </span>file_path = file_manager.path(file_id).expect(<span class="string">"expected file to exist"</span>);
-                        <span class="kw">let </span>file_extension = file_path
-                            .extension()
-                            .expect(<span class="string">"expected all file paths to have an extension"</span>);
-                        <span class="kw">if </span>file_extension != <span class="string">"nr" </span>{
-                            <span class="kw">continue</span>;
-                        }
 
                         <span class="kw">let </span>parsed_file = parse_file(file_manager, file_id);
 

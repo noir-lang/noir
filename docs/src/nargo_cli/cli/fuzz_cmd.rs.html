@@ -506,7 +506,14 @@
 <a href="#505" id="505">505</a>
 <a href="#506" id="506">506</a>
 <a href="#507" id="507">507</a>
-<a href="#508" id="508">508</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{io::Write, path::PathBuf};
+<a href="#508" id="508">508</a>
+<a href="#509" id="509">509</a>
+<a href="#510" id="510">510</a>
+<a href="#511" id="511">511</a>
+<a href="#512" id="512">512</a>
+<a href="#513" id="513">513</a>
+<a href="#514" id="514">514</a>
+<a href="#515" id="515">515</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{io::Write, path::PathBuf};
 
 <span class="kw">use </span>acvm::{BlackBoxFunctionSolver, FieldElement};
 <span class="kw">use </span>bn254_blackbox_solver::Bn254BlackBoxSolver;
@@ -603,7 +610,14 @@
     parsed_files: <span class="kw-2">&amp;</span>ParsedFiles,
     pattern: <span class="kw-2">&amp;</span>FunctionNameMatch,
 ) -&gt; <span class="prelude-ty">Result</span>&lt;(), CliError&gt; {
-    <span class="kw">let </span>pool = rayon::ThreadPoolBuilder::new().stack_size(<span class="number">4 </span>* <span class="number">1024 </span>* <span class="number">1024</span>).build().unwrap();
+    <span class="comment">// Configure a thread pool with a larger stack size to prevent overflowing stack in large programs.
+    // Default is 2MB. Limit threads to the number of packages we actually need to compile.
+    </span><span class="kw">let </span>num_threads = rayon::current_num_threads().min(workspace.members.len()).max(<span class="number">1</span>);
+    <span class="kw">let </span>pool = rayon::ThreadPoolBuilder::new()
+        .num_threads(num_threads)
+        .stack_size(<span class="number">4 </span>* <span class="number">1024 </span>* <span class="number">1024</span>)
+        .build()
+        .unwrap();
     <span class="kw">let </span>all_harnesses_by_package: Vec&lt;(CrateName, Vec&lt;String&gt;)&gt; = pool
         .install(|| {
             workspace.into_iter().par_bridge().map(|package| {

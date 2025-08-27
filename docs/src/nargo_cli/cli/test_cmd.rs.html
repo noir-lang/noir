@@ -681,7 +681,12 @@
 <a href="#680" id="680">680</a>
 <a href="#681" id="681">681</a>
 <a href="#682" id="682">682</a>
-<a href="#683" id="683">683</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
+<a href="#683" id="683">683</a>
+<a href="#684" id="684">684</a>
+<a href="#685" id="685">685</a>
+<a href="#686" id="686">686</a>
+<a href="#687" id="687">687</a>
+<a href="#688" id="688">688</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     cmp::max,
     collections::{BTreeMap, HashMap},
     fmt::Display,
@@ -1049,12 +1054,15 @@
             Vec&lt;Test&lt;<span class="lifetime">'a</span>&gt;&gt;,
         ) = tests.into_iter().partition(|test| !test.has_arguments);
 
+        <span class="comment">// Calculate the actual number of threads needed based on test count.
+        </span><span class="kw">let </span>num_threads = <span class="self">self</span>.num_threads.min(iter_tests_without_arguments.len()).max(<span class="number">1</span>);
+
         <span class="kw">let </span>iter_tests_without_arguments = <span class="kw-2">&amp;</span>Mutex::new(iter_tests_without_arguments.into_iter());
         <span class="kw">let </span>iter_tests_with_arguments = <span class="kw-2">&amp;</span>Mutex::new(iter_tests_with_arguments.into_iter());
 
         thread::scope(|scope| {
             <span class="comment">// Start worker threads
-            </span><span class="kw">for _ in </span><span class="number">0</span>..<span class="self">self</span>.num_threads {
+            </span><span class="kw">for _ in </span><span class="number">0</span>..num_threads {
                 <span class="comment">// Clone sender so it's dropped once the thread finishes
                 </span><span class="kw">let </span>test_result_thread_sender = sender.clone();
                 <span class="kw">let </span>standard_tests_finished_thread_sender = standard_tests_finished_sender.clone();
@@ -1081,7 +1089,7 @@
                     <span class="comment">// Wait for at least half of the threads to finish processing the standard tests
                     </span><span class="kw">while </span>standard_tests_finished_receiver.recv().is_ok() {
                         standard_tests_threads_finished += <span class="number">1</span>;
-                        <span class="kw">if </span>standard_tests_threads_finished &gt;= max(<span class="number">1</span>, <span class="self">self</span>.num_threads / <span class="number">2</span>) {
+                        <span class="kw">if </span>standard_tests_threads_finished &gt;= max(<span class="number">1</span>, num_threads / <span class="number">2</span>) {
                             <span class="kw">break</span>;
                         }
                     }
@@ -1176,11 +1184,13 @@
         <span class="kw">let </span><span class="kw-2">mut </span>error = <span class="prelude-val">None</span>;
 
         <span class="kw">let </span>(sender, receiver) = mpsc::channel();
+        <span class="comment">// Calculate the actual number of threads needed based on package count.
+        </span><span class="kw">let </span>num_threads = <span class="self">self</span>.num_threads.min(<span class="self">self</span>.workspace.members.len()).max(<span class="number">1</span>);
         <span class="kw">let </span>iter = <span class="kw-2">&amp;</span>Mutex::new(<span class="self">self</span>.workspace.into_iter());
 
         thread::scope(|scope| {
             <span class="comment">// Start worker threads
-            </span><span class="kw">for _ in </span><span class="number">0</span>..<span class="self">self</span>.num_threads {
+            </span><span class="kw">for _ in </span><span class="number">0</span>..num_threads {
                 <span class="comment">// Clone sender so it's dropped once the thread finishes
                 </span><span class="kw">let </span>thread_sender = sender.clone();
                 thread::Builder::new()
