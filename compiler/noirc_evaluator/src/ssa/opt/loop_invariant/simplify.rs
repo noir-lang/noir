@@ -204,8 +204,7 @@ impl LoopInvariantContext<'_> {
     }
 
     /// If the inputs are an induction and loop invariant variables, it returns
-    /// the maximum and minimum values of the induction variable, based on the loop bounds,
-    /// and a boolean indicating if the induction variable is on the lhs or rhs (true for lhs)
+    /// the induction variable along with its minimum and  maximum values, based on the loop bounds,
     fn match_induction_and_invariant(
         &mut self,
         loop_context: &LoopContext,
