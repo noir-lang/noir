@@ -283,17 +283,23 @@ struct ConditionalBranch {
 }
 
 struct ConditionalContext {
-    // Condition from the conditional statement
+    /// Condition from the conditional statement
     condition: ValueId,
-    // Block containing the conditional statement
+    /// Block containing the conditional statement
     entry_block: BasicBlockId,
-    // First block of the then branch
+    /// First block of the then branch
     then_branch: ConditionalBranch,
-    // First block of the else branch
+    /// First block of the else branch
     else_branch: Option<ConditionalBranch>,
-    // Call stack where the final location is that of the entire `if` expression
+    /// Call stack where the final location is that of the entire `if` expression
     call_stack: CallStackId,
-    // List of predicated values, and their previous mapping
+    /// List of values which have been replaced with a predicated variant,
+    /// mapping them to their original value.
+    ///
+    /// For example if we have `v1 = v2` predicated upon `v0`, then `v1` becomes `v0 * v2`,
+    /// and this mapping will contain `v1 -> v2`.
+    ///
+    /// We use this information to reset the values to their originals when we exit from branches.
     predicated_values: HashMap<ValueId, ValueId>,
 }
 
@@ -431,10 +437,10 @@ impl<'f> Context<'f> {
     /// When processing a conditional branch, we first follow the 'then' branch and only after we
     /// process the 'else' branch. At that point, the `ConditionalContext` has the 'else_branch'
     fn get_last_condition(&self) -> Option<ValueId> {
-        self.condition_stack.last().map(|context| match &context.else_branch {
-            Some(else_branch) => else_branch.condition,
-            None => context.then_branch.condition,
-        })
+        self.condition_stack
+            .last()
+            .map(|context| context.else_branch.as_ref().unwrap_or(&context.then_branch))
+            .map(|branch| branch.condition)
     }
 
     /// Use the provided map to say if the instruction is a call to a `no_predicates` function
@@ -771,7 +777,7 @@ impl<'f> Context<'f> {
         self.prepare_args(args);
     }
 
-    /// Map the value to its predicated value, and store the previous mapping
+    /// Map the value to its predicated value in the current conditional context, and store the previous mapping
     /// to the 'predicated_values' map if not already stored.
     fn predicate_value(&mut self, value: ValueId, predicated_value: ValueId) {
         let conditional_context = self.condition_stack.last_mut().unwrap();
@@ -844,14 +850,10 @@ impl<'f> Context<'f> {
 
     /// Push the given instruction to the end of the target block of the current function.
     ///
-    /// Note that each ValueId of the instruction will be mapped via self.inserter.resolve.
+    /// Note that each ValueId of the instruction will be mapped via `self.inserter.resolve`.
     /// As a result, the instruction that will be pushed will actually be a new instruction
     /// with a different InstructionId from the original. The results of the given instruction
     /// will also be mapped to the results of the new instruction.
-    ///
-    /// `previous_allocate_result` should only be set to the result of an allocate instruction
-    /// if that instruction was the instruction immediately previous to this one - if there are
-    /// any instructions in between it should be None.
     fn push_instruction(&mut self, id: InstructionId) {
         let (instruction, call_stack) = self.inserter.map_instruction(id);
         let instruction = self.handle_instruction_side_effects(instruction, call_stack);
@@ -870,6 +872,7 @@ impl<'f> Context<'f> {
     /// If we are currently in a branch, we need to modify instructions that have side effects
     /// (e.g. constraints, stores, range checks) to ensure that the side effect is only applied
     /// if their branch is taken.
+    ///
     /// For instance we multiply constrain instructions by the branch's condition (see optimization #1 in the module comment).
     fn handle_instruction_side_effects(
         &mut self,
@@ -889,11 +892,13 @@ impl<'f> Context<'f> {
                     Instruction::Constrain(lhs, rhs, message)
                 }
                 Instruction::Store { address, value } => {
-                    // If this instruction immediately follows an allocate, and stores to that
-                    // address there is no previous value to load and we don't need a merge anyway.
+                    // If this store is to a reference that was allocated on this branch,
+                    // then we don't have to merge with anything else, we can ignore the condition.
                     if self.local_allocations.contains(&address) {
                         Instruction::Store { address, value }
                     } else {
+                        // If the reference was allocated before this condition took effect, then we must only
+                        // overwrite it if the condition is true.
                         // Instead of storing `value`, we store: `if condition { value } else { previous_value }`
                         let typ = self.inserter.function.dfg.type_of_value(value);
                         let load = Instruction::Load { address };
@@ -1183,8 +1188,9 @@ impl<'f> Context<'f> {
 
     /// 'Cast' the 'condition' to 'value' type
     ///
-    /// This needed because we need to multiply the condition with several values
-    /// in order to 'nullify' side-effects when the 'condition' is false (in 'handle_instruction_side_effects()' function).
+    /// This is needed because we need to multiply the condition with several values
+    /// in order to 'nullify' side-effects when the 'condition' is false (in 'handle_instruction_side_effects' function).
+    ///
     /// Since the condition is a boolean, it can be safely casted to any other type.
     fn cast_condition_to_value_type(
         &mut self,
@@ -1192,6 +1198,7 @@ impl<'f> Context<'f> {
         value: ValueId,
         call_stack: CallStackId,
     ) -> ValueId {
+        // TODO: Can we early return in the value is a boolean?
         let argument_type = self.inserter.function.dfg.type_of_value(value);
         let cast = Instruction::Cast(condition, argument_type.unwrap_numeric());
         self.insert_instruction(cast, call_stack)
@@ -2156,6 +2163,37 @@ mod test {
             v14 = unchecked_mul v12, v9
             v15 = unchecked_add v13, v14
             return v15
+        }
+        ");
+    }
+
+    #[test]
+    fn simplifies_during_insertion() {
+        // `if v0 { false } else { true }`
+        let src = "
+            acir(inline) fn main f0 {
+              b0(v0: u1):
+                jmpif v0 then: b1, else: b2
+              b1():
+                jmp b3(u1 0)
+              b2():
+                jmp b3(u1 1)
+              b3(v1: u1):
+                return v1
+            }
+            ";
+        let ssa = Ssa::from_str(src).unwrap();
+        assert_eq!(ssa.main().reachable_blocks().len(), 4);
+
+        let ssa = ssa.flatten_cfg();
+        // All the casting an merging should be simplified out and reduced to: `not v0`
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            enable_side_effects v0
+            v1 = not v0
+            enable_side_effects u1 1
+            return v1
         }
         ");
     }

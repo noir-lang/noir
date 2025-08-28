@@ -84,8 +84,8 @@ impl<'f> FunctionInserter<'f> {
         self.function.dfg.data_bus = data_bus;
     }
 
-    /// Push a new instruction to the given block and return its new InstructionId.
-    /// If the instruction was simplified out of the program, None is returned.
+    /// Push a new instruction to the given block and return its new `InstructionId`.
+    /// If the instruction was simplified out of the program, `None` is returned.
     pub(crate) fn push_instruction(
         &mut self,
         id: InstructionId,
