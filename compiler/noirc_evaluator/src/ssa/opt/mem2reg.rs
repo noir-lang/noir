@@ -513,9 +513,8 @@ impl<'f> PerFunctionContext<'f> {
             Instruction::ArrayGet { array, .. } => {
                 let result = self.inserter.function.dfg.instruction_results(instruction)[0];
 
-                let array = *array;
-                let array_typ = self.inserter.function.dfg.type_of_value(array);
-                if array_typ.contains_reference() {
+                if self.inserter.function.dfg.type_of_value(result).contains_reference() {
+                    let array = *array;
                     self.instruction_input_references
                         .extend(references.get_aliases_for_value(array).iter());
                     references.mark_value_used(array, self.inserter.function);
