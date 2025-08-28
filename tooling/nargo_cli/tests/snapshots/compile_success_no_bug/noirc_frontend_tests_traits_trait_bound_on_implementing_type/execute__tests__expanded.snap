@@ -1,0 +1,39 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+struct GenericStruct<T> {
+    inner: T,
+}
+
+impl<T> Foo for GenericStruct<T>
+where
+    T: Foo,
+{
+    fn foo() {}
+}
+
+impl<T> Bar for GenericStruct<T>
+where
+    GenericStruct<T>: Foo,
+{
+    fn bar() {
+        Self::foo()
+    }
+}
+
+trait Foo {
+    fn foo() {}
+}
+
+impl Foo for Field {
+    fn foo() {}
+}
+
+trait Bar {
+    fn bar();
+}
+
+fn main() {
+    GenericStruct::<Field>::bar();
+}
