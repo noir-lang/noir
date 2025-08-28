@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1756342286259,
+  "lastUpdate": 1756342287702,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -4218,90 +4218,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "49a3185374382ff61eb7537188a09e87db699628",
-          "message": "fix: Consume correct number of fields when printing references (#9579)",
-          "timestamp": "2025-08-21T09:27:26Z",
-          "tree_id": "80afe133d60151fb00e42420b4abaf6ef383dc82",
-          "url": "https://github.com/noir-lang/noir/commit/49a3185374382ff61eb7537188a09e87db699628"
-        },
-        "date": 1755770925815,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 2.108,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 7.868,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.36,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 15.14,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 14.02,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 20.72,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 196,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 207,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.352,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.45,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.763,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 1.665,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "b97ccf5a3cfa00fa00e7de6f7ac354cbf8904a1c",
           "message": "fix(mem2reg): Consider aliases of a loaded address to be loaded from as well (#9567)",
           "timestamp": "2025-08-21T09:30:08Z",
@@ -8401,6 +8317,90 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 1.522,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "radikpadik76@gmail.com",
+            "name": "radik878",
+            "username": "radik878"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f30e34255fb237676e3bfb6068d20fce43123981",
+          "message": "fix: make Ord for slices lexicographic (elements first, then length) (#9555)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-08-28T00:18:42Z",
+          "tree_id": "1e7acf730eb5888f5f921464f30b0e8bdb268989",
+          "url": "https://github.com/noir-lang/noir/commit/f30e34255fb237676e3bfb6068d20fce43123981"
+        },
+        "date": 1756342268584,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1.896,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 7.8,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.352,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 16.44,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 13.78,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 22.26,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 198,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 209,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.376,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.462,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.795,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 1.674,
             "unit": "s"
           }
         ]
