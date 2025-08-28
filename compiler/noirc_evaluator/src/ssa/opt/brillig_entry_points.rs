@@ -192,9 +192,7 @@ fn build_functions_to_clone(
         let should_clone = inner_call_entry_points.len() > 1 || entry_points.contains(&inner_call);
         if should_clone {
             for entry_point in inner_call_entry_points {
-                // if entry_point != inner_call {
                 functions_to_clone_map.entry(entry_point).or_default().push(inner_call);
-                // }
             }
         }
     }
