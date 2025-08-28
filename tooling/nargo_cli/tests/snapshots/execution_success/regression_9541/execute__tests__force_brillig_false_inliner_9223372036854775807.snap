@@ -86,13 +86,8 @@ expression: artifact
     "unconstrained func 1",
     "[Const { destination: Direct(5), bit_size: Integer(U32), value: 0 }, Const { destination: Direct(6), bit_size: Integer(U32), value: 1 }, Const { destination: Direct(7), bit_size: Integer(U32), value: 3 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(7), offset_address: Direct(5) }, Cast { destination: Direct(1), source: Direct(1), bit_size: Integer(U32) }, Const { destination: Direct(9), bit_size: Integer(U32), value: 10 }, BinaryIntOp { destination: Direct(7), op: Add, bit_size: U32, lhs: Direct(9), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(3), op: IntegerDiv, lhs: Direct(0), rhs: Direct(2) }, BinaryFieldOp { destination: Direct(4), op: Mul, lhs: Direct(3), rhs: Direct(2) }, BinaryFieldOp { destination: Direct(4), op: Sub, lhs: Direct(0), rhs: Direct(4) }, Store { destination_pointer: Direct(9), source: Direct(4) }, BinaryIntOp { destination: Direct(9), op: Add, bit_size: U32, lhs: Direct(9), rhs: Direct(6) }, Mov { destination: Direct(0), source: Direct(3) }, BinaryIntOp { destination: Direct(8), op: LessThan, bit_size: U32, lhs: Direct(9), rhs: Direct(7) }, JumpIf { condition: Direct(8), location: 7 }, Const { destination: Direct(9), bit_size: Integer(U32), value: 10 }, Stop { return_data: HeapVector { pointer: Direct(9), size: Direct(1) } }]"
   ],
-  "debug_symbols": "jZFNjoMwDEbv4nUWxEM6M1xlNEIBTBUpCihNKlWIuzfYpT+LSt18JjHvIeMFBurysXVhnE7Q/C3QRee9O7Z+6m1yUyi3y6pgP7YpEpUreOoXaraRQoImZO8VnK3P/NJptoFrsrF0KwUUhlKLcHSetqdVPejqPVofbqyp77D5nN6/bMwL/V9OtnfxZVpAaFDBF2fNaTgPnN+cP5y/nLqSoqUIroXXItBi0KLQ4tAi0WJBsaBYUCwoFhQLigXFgmLBzbJus0dnO0+3hY059E/7S5d57+wbnuPU05AjbdNzr/yPKw==",
-  "file_map": {
-    "50": {
-      "source": "fn main(a: u32, b: u8) -> pub u32 {\n    a << (b as u32)\n}\n",
-      "path": ""
-    }
-  },
+  "debug_symbols": "[debug_symbols]",
+  "file_map": "[file_map]",
   "names": [
     "main"
   ],
