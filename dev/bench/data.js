@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1756342734605,
+  "lastUpdate": 1756384102532,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -20211,48 +20211,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "b97ccf5a3cfa00fa00e7de6f7ac354cbf8904a1c",
-          "message": "fix(mem2reg): Consider aliases of a loaded address to be loaded from as well (#9567)",
-          "timestamp": "2025-08-21T09:30:08Z",
-          "tree_id": "d47bd326a1ef69f595a1af434b648a2e8198c1a5",
-          "url": "https://github.com/noir-lang/noir/commit/b97ccf5a3cfa00fa00e7de6f7ac354cbf8904a1c"
-        },
-        "date": 1755770141421,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 249602,
-            "range": "± 740",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 218698,
-            "range": "± 1793",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2779811,
-            "range": "± 2085",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -22304,6 +22262,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2784721,
             "range": "± 5645",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "3906847dbcb7d33a0b9e6d340c60c9785c5df978",
+          "message": "feat: brillig functions can be pure if they are not entry points (#9659)",
+          "timestamp": "2025-08-28T12:02:33Z",
+          "tree_id": "aa58d8f364cb2e8d8803d06fe0a21894874a7aff",
+          "url": "https://github.com/noir-lang/noir/commit/3906847dbcb7d33a0b9e6d340c60c9785c5df978"
+        },
+        "date": 1756384083767,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 250477,
+            "range": "± 1424",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 219977,
+            "range": "± 2021",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2778323,
+            "range": "± 10983",
             "unit": "ns/iter"
           }
         ]
