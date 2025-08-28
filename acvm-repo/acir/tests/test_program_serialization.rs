@@ -64,7 +64,7 @@ fn multi_scalar_mul_circuit() {
             ],
             scalars: vec![FunctionInput::Witness(Witness(4)), FunctionInput::Witness(Witness(5))],
             predicate: FunctionInput::Witness(Witness(6)),
-            outputs: (Witness(7), Witness(9), Witness(9)),
+            outputs: (Witness(7), Witness(8), Witness(9)),
         });
 
     let circuit = Circuit {
@@ -85,7 +85,7 @@ fn multi_scalar_mul_circuit() {
 
     let bytes = Program::serialize_program(&program);
 
-    insta::assert_compact_debug_snapshot!(bytes, @"[31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 101, 142, 11, 10, 0, 32, 8, 67, 53, 51, 179, 251, 31, 56, 133, 9, 70, 194, 99, 234, 240, 195, 244, 198, 9, 24, 121, 234, 14, 164, 213, 197, 128, 10, 242, 242, 39, 84, 3, 11, 28, 100, 111, 1, 106, 59, 4, 51, 218, 60, 106, 55, 13, 63, 56, 253, 113, 1, 122, 163, 43, 29, 188, 0, 0, 0]");
+    insta::assert_compact_debug_snapshot!(bytes, @"[31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 93, 141, 137, 9, 0, 32, 12, 3, 171, 245, 223, 127, 96, 43, 156, 16, 45, 28, 233, 67, 210, 100, 111, 173, 32, 209, 31, 29, 129, 203, 124, 201, 168, 211, 223, 123, 65, 107, 208, 241, 79, 118, 13, 76, 50, 28, 79, 149, 155, 201, 79, 205, 248, 107, 3, 75, 128, 49, 13, 188, 0, 0, 0]");
 
     let program_de = Program::deserialize_program(&bytes).unwrap();
     assert_eq!(program_de, program);
