@@ -26,34 +26,6 @@ pub(crate) struct BlockContext {
     pub(crate) options: SsaBlockOptions,
 }
 
-/// Returns a typed value from the map
-/// Variables are stored in a map with type as key and vector of typed values as value
-/// We use modulo to wrap index around the length of the vector, because fuzzer can produce index that is greater than the length of the vector
-fn get_typed_value_from_map(
-    map: &HashMap<Type, Vec<TypedValue>>,
-    type_: &Type,
-    idx: usize,
-) -> Option<TypedValue> {
-    let arr = map.get(type_);
-    arr?;
-    let arr = arr.unwrap();
-    let value = arr.get(idx % arr.len());
-    value?;
-    Some(value.unwrap().clone())
-}
-
-fn append_typed_value_to_map(
-    map: &mut HashMap<Type, Vec<TypedValue>>,
-    type_: &Type,
-    value: TypedValue,
-) {
-    map.entry(type_.clone()).or_default().push(value);
-}
-
-fn get_all_arrays_from_map(map: &HashMap<Type, Vec<TypedValue>>) -> Vec<TypedValue> {
-    map.iter().filter(|(key, _)| key.is_array()).flat_map(|(_, arr)| arr.clone()).collect()
-}
-
 impl BlockContext {
     pub(crate) fn new(
         stored_variables: HashMap<Type, Vec<TypedValue>>,
@@ -61,6 +33,30 @@ impl BlockContext {
         options: SsaBlockOptions,
     ) -> Self {
         Self { stored_variables, parent_blocks_history, children_blocks: Vec::new(), options }
+    }
+
+    fn store_variable(&mut self, value: &TypedValue) {
+        self.stored_variables
+            .entry(value.type_of_variable.clone())
+            .or_default()
+            .push(value.clone());
+    }
+
+    fn get_stored_variable(&self, type_: &Type, index: usize) -> Option<TypedValue> {
+        let arr = self.stored_variables.get(type_);
+        arr?;
+        let arr = arr.unwrap();
+        let value = arr.get(index % arr.len());
+        value?;
+        Some(value.unwrap().clone())
+    }
+
+    fn get_stored_arrays(&self) -> Vec<TypedValue> {
+        self.stored_variables
+            .iter()
+            .filter(|(key, _)| key.is_array())
+            .flat_map(|(_, arr)| arr.clone())
+            .collect()
     }
 
     /// Inserts an instruction that takes a single argument
@@ -71,11 +67,7 @@ impl BlockContext {
         arg: Argument,
         instruction: InstructionWithOneArg,
     ) {
-        let value = get_typed_value_from_map(
-            &self.stored_variables,
-            &Type::Numeric(arg.numeric_type),
-            arg.index,
-        );
+        let value = self.get_stored_variable(&Type::Numeric(arg.numeric_type), arg.index);
         let value = match value {
             Some(value) => value,
             _ => return,
@@ -83,11 +75,7 @@ impl BlockContext {
         let acir_result = instruction(acir_builder, value.clone());
         // insert to brillig, assert id is the same
         assert_eq!(acir_result, instruction(brillig_builder, value));
-        append_typed_value_to_map(
-            &mut self.stored_variables,
-            &acir_result.type_of_variable.clone(),
-            acir_result,
-        );
+        self.store_variable(&acir_result);
     }
 
     /// Inserts an instruction that takes two arguments
@@ -99,17 +87,9 @@ impl BlockContext {
         rhs: Argument,
         instruction: InstructionWithTwoArgs,
     ) {
-        let instr_lhs = get_typed_value_from_map(
-            &self.stored_variables,
-            &Type::Numeric(lhs.numeric_type),
-            lhs.index,
-        );
+        let instr_lhs = self.get_stored_variable(&Type::Numeric(lhs.numeric_type), lhs.index);
         // We ignore type of the second argument, because all binary instructions must use the same type
-        let instr_rhs = get_typed_value_from_map(
-            &self.stored_variables,
-            &Type::Numeric(lhs.numeric_type),
-            rhs.index,
-        );
+        let instr_rhs = self.get_stored_variable(&Type::Numeric(lhs.numeric_type), rhs.index);
         let (instr_lhs, instr_rhs) = match (instr_lhs, instr_rhs) {
             (Some(acir_lhs), Some(acir_rhs)) => (acir_lhs, acir_rhs),
             _ => return,
@@ -117,11 +97,7 @@ impl BlockContext {
         let result = instruction(acir_builder, instr_lhs.clone(), instr_rhs.clone());
         // insert to brillig, assert id of return is the same
         assert_eq!(result, instruction(brillig_builder, instr_lhs, instr_rhs));
-        append_typed_value_to_map(
-            &mut self.stored_variables,
-            &result.type_of_variable.clone(),
-            result,
-        );
+        self.store_variable(&result);
     }
 
     /// Inserts an instruction into both ACIR and Brillig programs
@@ -196,11 +172,7 @@ impl BlockContext {
                 if !self.options.instruction_options.cast_enabled {
                     return;
                 }
-                let value = get_typed_value_from_map(
-                    &self.stored_variables,
-                    &Type::Numeric(lhs.numeric_type),
-                    lhs.index,
-                );
+                let value = self.get_stored_variable(&Type::Numeric(lhs.numeric_type), lhs.index);
                 let value = match value {
                     Some(value) => value,
                     _ => return,
@@ -210,11 +182,7 @@ impl BlockContext {
                     acir_result,
                     brillig_builder.insert_cast(value.clone(), Type::Numeric(type_))
                 );
-                append_typed_value_to_map(
-                    &mut self.stored_variables,
-                    &acir_result.type_of_variable.clone(),
-                    acir_result,
-                );
+                self.store_variable(&acir_result);
             }
             Instruction::Mod { lhs, rhs } => {
                 if !self.options.instruction_options.mod_enabled {
@@ -332,16 +300,8 @@ impl BlockContext {
 
             Instruction::AddSubConstrain { lhs, rhs } => {
                 // inserts lhs' = lhs + rhs
-                let lhs_orig = get_typed_value_from_map(
-                    &self.stored_variables,
-                    &Type::Numeric(NumericType::Field),
-                    lhs,
-                );
-                let rhs = get_typed_value_from_map(
-                    &self.stored_variables,
-                    &Type::Numeric(NumericType::Field),
-                    rhs,
-                );
+                let lhs_orig = self.get_stored_variable(&Type::Numeric(NumericType::Field), lhs);
+                let rhs = self.get_stored_variable(&Type::Numeric(NumericType::Field), rhs);
                 let (lhs_orig, rhs) = match (lhs_orig, rhs) {
                     (Some(lhs_orig), Some(rhs)) => (lhs_orig, rhs),
                     _ => return,
@@ -371,16 +331,8 @@ impl BlockContext {
                 brillig_builder.insert_constrain(lhs_orig.clone(), morphed.clone());
             }
             Instruction::MulDivConstrain { lhs, rhs } => {
-                let lhs_orig = get_typed_value_from_map(
-                    &self.stored_variables,
-                    &Type::Numeric(NumericType::Field),
-                    lhs,
-                );
-                let rhs = get_typed_value_from_map(
-                    &self.stored_variables,
-                    &Type::Numeric(NumericType::Field),
-                    rhs,
-                );
+                let lhs_orig = self.get_stored_variable(&Type::Numeric(NumericType::Field), lhs);
+                let rhs = self.get_stored_variable(&Type::Numeric(NumericType::Field), rhs);
                 let (lhs_orig, rhs) = match (lhs_orig, rhs) {
                     (Some(lhs_orig), Some(rhs)) => (lhs_orig, rhs),
                     _ => return,
@@ -413,30 +365,22 @@ impl BlockContext {
                     return;
                 }
 
-                let value = match get_typed_value_from_map(
-                    &self.stored_variables,
-                    &Type::Numeric(lhs.numeric_type),
-                    lhs.index,
-                ) {
-                    Some(value) => value,
-                    _ => return,
-                };
+                let value =
+                    match self.get_stored_variable(&Type::Numeric(lhs.numeric_type), lhs.index) {
+                        Some(value) => value,
+                        _ => return,
+                    };
 
                 let addr = acir_builder.insert_add_to_memory(value.clone());
                 assert_eq!(addr, brillig_builder.insert_add_to_memory(value.clone()));
                 // Append the memory address to stored_values with the type of the result
-                append_typed_value_to_map(
-                    &mut self.stored_variables,
-                    &addr.type_of_variable.clone(),
-                    addr,
-                );
+                self.store_variable(&addr);
             }
             Instruction::LoadFromMemory { memory_addr } => {
                 if !self.options.instruction_options.load_enabled {
                     return;
                 }
-                let addr = get_typed_value_from_map(
-                    &self.stored_variables,
+                let addr = self.get_stored_variable(
                     &Type::Reference(Arc::new(Type::Numeric(memory_addr.numeric_type))),
                     memory_addr.index,
                 );
@@ -446,18 +390,13 @@ impl BlockContext {
                 };
                 let value = acir_builder.insert_load_from_memory(addr.clone());
                 assert_eq!(value, brillig_builder.insert_load_from_memory(addr.clone()));
-                append_typed_value_to_map(
-                    &mut self.stored_variables,
-                    &value.type_of_variable,
-                    value.clone(),
-                );
+                self.store_variable(&value);
             }
             Instruction::SetToMemory { memory_addr_index, value } => {
                 if !self.options.instruction_options.store_enabled {
                     return;
                 }
-                let addr = get_typed_value_from_map(
-                    &self.stored_variables,
+                let addr = self.get_stored_variable(
                     &Type::Reference(Arc::new(Type::Numeric(value.numeric_type))),
                     memory_addr_index,
                 );
@@ -465,11 +404,8 @@ impl BlockContext {
                     Some(addr) => addr,
                     _ => return,
                 };
-                let value = get_typed_value_from_map(
-                    &self.stored_variables,
-                    &Type::Numeric(value.numeric_type),
-                    value.index,
-                );
+                let value =
+                    self.get_stored_variable(&Type::Numeric(value.numeric_type), value.index);
                 let value = match value {
                     Some(value) => value,
                     _ => return,
@@ -490,19 +426,13 @@ impl BlockContext {
                     Some(array) => array,
                     _ => return,
                 };
-                append_typed_value_to_map(
-                    &mut self.stored_variables,
-                    &array.type_of_variable.clone(),
-                    array,
-                );
+                self.store_variable(&array);
             }
             Instruction::ArrayGet { array_index, index, safe_index } => {
                 // insert array get to both acir and brillig builders
-                let index = match get_typed_value_from_map(
-                    &self.stored_variables,
-                    &Type::Numeric(index.numeric_type),
-                    index.index,
-                ) {
+                let index = match self
+                    .get_stored_variable(&Type::Numeric(index.numeric_type), index.index)
+                {
                     Some(index) => index,
                     _ => return,
                 };
@@ -516,11 +446,7 @@ impl BlockContext {
                 );
                 if let Some((value, is_references)) = value {
                     if !is_references {
-                        append_typed_value_to_map(
-                            &mut self.stored_variables,
-                            &value.type_of_variable.clone(),
-                            value.clone(),
-                        );
+                        self.store_variable(&value);
                     } else {
                         panic!("References are not supported for array get with dynamic index");
                     }
@@ -528,11 +454,8 @@ impl BlockContext {
             }
             Instruction::ArraySet { array_index, index, value_index, safe_index } => {
                 // get the index from the stored variables
-                let index = get_typed_value_from_map(
-                    &self.stored_variables,
-                    &Type::Numeric(index.numeric_type),
-                    index.index,
-                );
+                let index =
+                    self.get_stored_variable(&Type::Numeric(index.numeric_type), index.index);
                 let index = match index {
                     Some(index) => index,
                     _ => return,
@@ -562,11 +485,7 @@ impl BlockContext {
                     let element_type = new_array.type_of_variable.unwrap_array_element_type();
                     match element_type {
                         Type::Numeric(_element_type) => {
-                            append_typed_value_to_map(
-                                &mut self.stored_variables,
-                                &new_array.type_of_variable.clone(),
-                                new_array.clone(),
-                            );
+                            self.store_variable(&new_array);
                         }
                         _ => panic!("Expected NumericType, found {element_type:?}"),
                     }
@@ -585,11 +504,7 @@ impl BlockContext {
                     safe_index,
                 );
                 if let Some((value, _is_references)) = value {
-                    append_typed_value_to_map(
-                        &mut self.stored_variables,
-                        &value.type_of_variable.clone(),
-                        value.clone(),
-                    );
+                    self.store_variable(&value);
                 }
             }
             Instruction::ArraySetWithConstantIndex {
@@ -621,11 +536,7 @@ impl BlockContext {
                                 !is_references,
                                 "Encountered numeric element in an array with references"
                             );
-                            append_typed_value_to_map(
-                                &mut self.stored_variables,
-                                &new_array.type_of_variable.clone(),
-                                new_array.clone(),
-                            );
+                            self.store_variable(&new_array);
                         }
                         Type::Reference(type_ref) => {
                             assert!(
@@ -636,11 +547,7 @@ impl BlockContext {
                                 type_ref.is_numeric(),
                                 "Expected reference to a numeric type, found {type_ref:?}"
                             );
-                            append_typed_value_to_map(
-                                &mut self.stored_variables,
-                                &new_array.type_of_variable.clone(),
-                                new_array.clone(),
-                            );
+                            self.store_variable(&new_array);
                         }
                         _ => {
                             panic!("Expected NumericType or ReferenceType, found {element_type:?}")
@@ -649,11 +556,7 @@ impl BlockContext {
                 }
             }
             Instruction::FieldToBytesToField { field_idx } => {
-                let field = get_typed_value_from_map(
-                    &self.stored_variables,
-                    &Type::Numeric(NumericType::Field),
-                    field_idx,
-                );
+                let field = self.get_stored_variable(&Type::Numeric(NumericType::Field), field_idx);
                 let field = match field {
                     Some(field) => field,
                     _ => return,
@@ -662,18 +565,10 @@ impl BlockContext {
                 assert_eq!(bytes, brillig_builder.insert_to_le_radix(field.clone(), 256, 32));
                 let field = acir_builder.insert_from_le_radix(bytes.clone(), 256);
                 assert_eq!(field, brillig_builder.insert_from_le_radix(bytes.clone(), 256));
-                append_typed_value_to_map(
-                    &mut self.stored_variables,
-                    &field.type_of_variable.clone(),
-                    field.clone(),
-                );
+                self.store_variable(&field);
             }
             Instruction::Blake2sHash { field_idx, limbs_count } => {
-                let input = get_typed_value_from_map(
-                    &self.stored_variables,
-                    &Type::Numeric(NumericType::Field),
-                    field_idx,
-                );
+                let input = self.get_stored_variable(&Type::Numeric(NumericType::Field), field_idx);
                 let input = match input {
                     Some(input) => input,
                     _ => return,
@@ -690,18 +585,10 @@ impl BlockContext {
                 assert_eq!(hash, brillig_builder.insert_blake2s_hash(bytes.clone()));
                 let hash_as_field = acir_builder.insert_from_le_radix(hash.clone(), 256);
                 assert_eq!(hash_as_field, brillig_builder.insert_from_le_radix(hash.clone(), 256));
-                append_typed_value_to_map(
-                    &mut self.stored_variables,
-                    &hash_as_field.type_of_variable.clone(),
-                    hash_as_field.clone(),
-                );
+                self.store_variable(&hash_as_field);
             }
             Instruction::Blake3Hash { field_idx, limbs_count } => {
-                let input = get_typed_value_from_map(
-                    &self.stored_variables,
-                    &Type::Numeric(NumericType::Field),
-                    field_idx,
-                );
+                let input = self.get_stored_variable(&Type::Numeric(NumericType::Field), field_idx);
                 let input = match input {
                     Some(input) => input,
                     _ => return,
@@ -718,11 +605,7 @@ impl BlockContext {
                 assert_eq!(hash, brillig_builder.insert_blake3_hash(bytes.clone()));
                 let hash_as_field = acir_builder.insert_from_le_radix(hash.clone(), 256);
                 assert_eq!(hash_as_field, brillig_builder.insert_from_le_radix(hash.clone(), 256));
-                append_typed_value_to_map(
-                    &mut self.stored_variables,
-                    &hash_as_field.type_of_variable.clone(),
-                    hash_as_field.clone(),
-                );
+                self.store_variable(&hash_as_field);
             }
             Instruction::Keccakf1600Hash { u64_indices, load_elements_of_array } => {
                 let input = match self.insert_array(
@@ -740,11 +623,7 @@ impl BlockContext {
                     hash_array_u64,
                     brillig_builder.insert_keccakf1600_permutation(input.clone())
                 );
-                append_typed_value_to_map(
-                    &mut self.stored_variables,
-                    &hash_array_u64.type_of_variable.clone(),
-                    hash_array_u64.clone(),
-                );
+                self.store_variable(&hash_array_u64);
                 if load_elements_of_array {
                     for i in 0..25_u32 {
                         let index = acir_builder.insert_constant(i, NumericType::U32);
@@ -764,11 +643,7 @@ impl BlockContext {
                                 /*safe_index =*/ false
                             )
                         );
-                        append_typed_value_to_map(
-                            &mut self.stored_variables,
-                            &value.type_of_variable.clone(),
-                            value.clone(),
-                        );
+                        self.store_variable(&value);
                     }
                 }
             }
@@ -776,27 +651,18 @@ impl BlockContext {
                 if input_limbs_count == 0 {
                     return;
                 }
-                let input = match get_typed_value_from_map(
-                    &self.stored_variables,
-                    &Type::Numeric(NumericType::Field),
-                    input_idx,
-                ) {
-                    Some(input) => input,
-                    _ => return,
-                };
-                let key = match get_typed_value_from_map(
-                    &self.stored_variables,
-                    &Type::Numeric(NumericType::Field),
-                    key_idx,
-                ) {
-                    Some(key) => key,
-                    _ => return,
-                };
-                let iv = match get_typed_value_from_map(
-                    &self.stored_variables,
-                    &Type::Numeric(NumericType::Field),
-                    iv_idx,
-                ) {
+                let input =
+                    match self.get_stored_variable(&Type::Numeric(NumericType::Field), input_idx) {
+                        Some(input) => input,
+                        _ => return,
+                    };
+                let key =
+                    match self.get_stored_variable(&Type::Numeric(NumericType::Field), key_idx) {
+                        Some(key) => key,
+                        _ => return,
+                    };
+                let iv = match self.get_stored_variable(&Type::Numeric(NumericType::Field), iv_idx)
+                {
                     Some(iv) => iv,
                     _ => return,
                 };
@@ -824,11 +690,7 @@ impl BlockContext {
                     encrypted_as_field,
                     brillig_builder.insert_from_le_radix(encrypted.clone(), 256)
                 );
-                append_typed_value_to_map(
-                    &mut self.stored_variables,
-                    &encrypted_as_field.type_of_variable.clone(),
-                    encrypted_as_field.clone(),
-                );
+                self.store_variable(&encrypted_as_field);
             }
             Instruction::Sha256Compression {
                 input_indices,
@@ -858,11 +720,7 @@ impl BlockContext {
                 let compressed =
                     acir_builder.insert_sha256_compression(input.clone(), state.clone());
                 assert_eq!(compressed, brillig_builder.insert_sha256_compression(input, state));
-                append_typed_value_to_map(
-                    &mut self.stored_variables,
-                    &compressed.type_of_variable.clone(),
-                    compressed.clone(),
-                );
+                self.store_variable(&compressed);
                 if load_elements_of_array {
                     for i in 0..8_u32 {
                         let index = acir_builder.insert_constant(i, NumericType::U32);
@@ -882,11 +740,7 @@ impl BlockContext {
                                 /*safe_index =*/ false
                             )
                         );
-                        append_typed_value_to_map(
-                            &mut self.stored_variables,
-                            &value.type_of_variable,
-                            value.clone(),
-                        );
+                        self.store_variable(&value);
                     }
                 }
             }
@@ -905,11 +759,7 @@ impl BlockContext {
                 let brillig_point = brillig_builder.point_add(p1, p2);
                 assert_eq!(acir_point, brillig_point);
                 for typed_value in [&acir_point.x, &acir_point.y, &acir_point.is_infinite] {
-                    append_typed_value_to_map(
-                        &mut self.stored_variables,
-                        &typed_value.type_of_variable,
-                        typed_value.clone(),
-                    );
+                    self.store_variable(&typed_value);
                 }
             }
             Instruction::MultiScalarMul { points_and_scalars } => {
@@ -939,11 +789,7 @@ impl BlockContext {
                 let brillig_point = brillig_builder.multi_scalar_mul(points_vec, scalars_vec);
                 assert_eq!(acir_point, brillig_point);
                 for typed_value in [&acir_point.x, &acir_point.y, &acir_point.is_infinite] {
-                    append_typed_value_to_map(
-                        &mut self.stored_variables,
-                        &typed_value.type_of_variable,
-                        typed_value.clone(),
-                    );
+                    self.store_variable(&typed_value);
                 }
             }
             Instruction::EcdsaSecp256r1 {
@@ -982,11 +828,7 @@ impl BlockContext {
                         prepared_signature.signature,
                     )
                 );
-                append_typed_value_to_map(
-                    &mut self.stored_variables,
-                    &result.type_of_variable,
-                    result.clone(),
-                );
+                self.store_variable(&result);
             }
             Instruction::EcdsaSecp256k1 {
                 msg,
@@ -1024,27 +866,15 @@ impl BlockContext {
                         prepared_signature.signature,
                     )
                 );
-                append_typed_value_to_map(
-                    &mut self.stored_variables,
-                    &result.type_of_variable,
-                    result.clone(),
-                );
+                self.store_variable(&result);
             }
         }
     }
 
     /// Takes scalar from [`super::instruction::Scalar`] and converts it to [`noir_ssa_fuzzer::typed_value::Scalar`]
     fn ssa_scalar_from_instruction_scalar(&mut self, scalar: InstructionScalar) -> Option<Scalar> {
-        let lo = get_typed_value_from_map(
-            &self.stored_variables,
-            &Type::Numeric(NumericType::Field),
-            scalar.field_lo_idx,
-        );
-        let hi = get_typed_value_from_map(
-            &self.stored_variables,
-            &Type::Numeric(NumericType::Field),
-            scalar.field_hi_idx,
-        );
+        let lo = self.get_stored_variable(&Type::Numeric(NumericType::Field), scalar.field_lo_idx);
+        let hi = self.get_stored_variable(&Type::Numeric(NumericType::Field), scalar.field_hi_idx);
         match (lo, hi) {
             (Some(lo), Some(hi)) => Some(Scalar { lo, hi }),
             _ => None,
@@ -1097,20 +927,13 @@ impl BlockContext {
         let elements = if !is_references {
             elements_indices
                 .iter()
-                .map(|index| {
-                    get_typed_value_from_map(
-                        &self.stored_variables,
-                        &Type::Numeric(element_type),
-                        *index,
-                    )
-                })
+                .map(|index| self.get_stored_variable(&Type::Numeric(element_type), *index))
                 .collect::<Option<Vec<TypedValue>>>()
         } else {
             elements_indices
                 .iter()
                 .map(|index| {
-                    get_typed_value_from_map(
-                        &self.stored_variables,
+                    self.get_stored_variable(
                         &Type::Reference(Arc::new(Type::Numeric(element_type))),
                         *index,
                     )
@@ -1159,7 +982,7 @@ impl BlockContext {
         if !safe_index && !self.options.instruction_options.unsafe_get_set_enabled {
             return None;
         }
-        let arrays = get_all_arrays_from_map(&self.stored_variables);
+        let arrays = self.get_stored_arrays();
         if arrays.is_empty() {
             return None;
         }
@@ -1225,7 +1048,7 @@ impl BlockContext {
         if !safe_index && !self.options.instruction_options.unsafe_get_set_enabled {
             return None;
         }
-        let arrays = get_all_arrays_from_map(&self.stored_variables);
+        let arrays = self.get_stored_arrays();
         if arrays.is_empty() {
             return None;
         }
@@ -1242,11 +1065,8 @@ impl BlockContext {
         if is_array_of_references && !index_is_constant {
             return None;
         }
-        let value = get_typed_value_from_map(
-            &self.stored_variables,
-            &array.type_of_variable.unwrap_array_element_type(),
-            value_index,
-        );
+        let value = self
+            .get_stored_variable(&array.type_of_variable.unwrap_array_element_type(), value_index);
         let value = match value {
             Some(value) => value,
             _ => return None,
@@ -1309,12 +1129,8 @@ impl BlockContext {
         match type_ {
             // On numeric simple cast from boolean
             Type::Numeric(_) => {
-                let boolean_value = get_typed_value_from_map(
-                    &self.stored_variables,
-                    &Type::Numeric(NumericType::Boolean),
-                    0,
-                )
-                .unwrap();
+                let boolean_value =
+                    self.get_stored_variable(&Type::Numeric(NumericType::Boolean), 0).unwrap();
                 let acir_value = acir_builder.insert_cast(boolean_value.clone(), type_.clone());
                 let brillig_value = brillig_builder.insert_cast(boolean_value, type_.clone());
                 assert_eq!(acir_value, brillig_value);
@@ -1461,10 +1277,6 @@ impl BlockContext {
             type_of_variable: function_signature.return_type.clone(),
         };
         // Append the return value to stored_values map
-        append_typed_value_to_map(
-            &mut self.stored_variables,
-            &function_signature.return_type,
-            typed_ret_val,
-        );
+        self.store_variable(&typed_ret_val);
     }
 }
