@@ -683,7 +683,9 @@
 <a href="#682" id="682">682</a>
 <a href="#683" id="683">683</a>
 <a href="#684" id="684">684</a>
-<a href="#685" id="685">685</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
+<a href="#685" id="685">685</a>
+<a href="#686" id="686">686</a>
+<a href="#687" id="687">687</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
 <span class="kw">use </span>std::sync::Arc;
 
 <span class="kw">use </span>fxhash::FxHashMap <span class="kw">as </span>HashMap;
@@ -714,7 +716,10 @@
     /// identified as calling known pure functions.
     </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip(<span class="self">self</span>))]
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>purity_analysis(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; Ssa {
-        <span class="kw">let </span>brillig_entry_points = get_brillig_entry_points(<span class="kw-2">&amp;</span><span class="self">self</span>.functions, <span class="self">self</span>.main_id);
+        <span class="kw">let </span>call_graph = CallGraph::from_ssa(<span class="kw-2">&amp;</span><span class="self">self</span>);
+
+        <span class="kw">let </span>brillig_entry_points =
+            get_brillig_entry_points(<span class="kw-2">&amp;</span><span class="self">self</span>.functions, <span class="self">self</span>.main_id, <span class="kw-2">&amp;</span>call_graph);
 
         <span class="comment">// First look through each function to get a baseline on its purity and collect
         // the functions it calls to build a call graph.
@@ -729,8 +734,7 @@
 
         <span class="comment">// Then transitively 'infect' any functions which call impure functions as also
         // impure.
-        </span><span class="kw">let </span>call_graph = CallGraph::from_ssa(<span class="kw-2">&amp;</span><span class="self">self</span>);
-        <span class="kw">let </span>purities = analyze_call_graph(call_graph, purities, <span class="kw-2">&amp;</span><span class="self">self</span>.functions);
+        </span><span class="kw">let </span>purities = analyze_call_graph(call_graph, purities, <span class="kw-2">&amp;</span><span class="self">self</span>.functions);
         <span class="kw">let </span>purities = Arc::new(purities);
 
         <span class="comment">// We're done, now store purities somewhere every dfg can find it.

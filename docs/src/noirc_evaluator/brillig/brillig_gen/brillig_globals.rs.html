@@ -634,7 +634,11 @@
 <a href="#633" id="633">633</a>
 <a href="#634" id="634">634</a>
 <a href="#635" id="635">635</a>
-<a href="#636" id="636">636</a></pre></div><pre class="rust"><code><span class="doccomment">//! Codegen for converting SSA globals to Brillig bytecode.
+<a href="#636" id="636">636</a>
+<a href="#637" id="637">637</a>
+<a href="#638" id="638">638</a>
+<a href="#639" id="639">639</a>
+<a href="#640" id="640">640</a></pre></div><pre class="rust"><code><span class="doccomment">//! Codegen for converting SSA globals to Brillig bytecode.
 </span><span class="kw">use </span>std::collections::{BTreeMap, BTreeSet};
 
 <span class="kw">use </span>acvm::FieldElement;
@@ -642,6 +646,8 @@
 
 <span class="kw">use </span><span class="kw">super</span>::brillig_block::BrilligBlock;
 <span class="kw">use super</span>::{BrilligVariable, Function, FunctionContext, ValueId};
+<span class="kw">use </span><span class="kw">crate</span>::ssa::ir::call_graph::CallGraph;
+<span class="kw">use </span><span class="kw">crate</span>::ssa::ssa_gen::Ssa;
 <span class="kw">use crate</span>::{
     brillig::{
         Brillig, BrilligOptions, ConstantAllocation, DataFlowGraph, FunctionId, Label,
@@ -691,11 +697,12 @@
 
 <span class="kw">impl </span>BrilligGlobals {
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(
-        functions: <span class="kw-2">&amp;</span>BTreeMap&lt;FunctionId, Function&gt;,
+        ssa: <span class="kw-2">&amp;</span>Ssa,
         <span class="kw-2">mut </span>used_globals: HashMap&lt;FunctionId, HashSet&lt;ValueId&gt;&gt;,
         main_id: FunctionId,
     ) -&gt; <span class="self">Self </span>{
-        <span class="kw">let </span>brillig_entry_points = get_brillig_entry_points(functions, main_id);
+        <span class="kw">let </span>call_graph = CallGraph::from_ssa(ssa);
+        <span class="kw">let </span>brillig_entry_points = get_brillig_entry_points(<span class="kw-2">&amp;</span>ssa.functions, main_id, <span class="kw-2">&amp;</span>call_graph);
 
         <span class="kw">let </span><span class="kw-2">mut </span>hoisted_global_constants: HashMap&lt;FunctionId, ConstantCounterMap&gt; =
             HashMap::default();
@@ -706,14 +713,14 @@
             <span class="self">Self</span>::mark_globals_for_hoisting(
                 <span class="kw-2">&amp;mut </span>hoisted_global_constants,
                 <span class="kw-2">*</span>entry_point,
-                <span class="kw-2">&amp;</span>functions[entry_point],
+                <span class="kw-2">&amp;</span>ssa.functions[entry_point],
             );
 
             <span class="kw">for </span>inner_call <span class="kw">in </span>entry_point_inner_calls.iter() {
                 <span class="self">Self</span>::mark_globals_for_hoisting(
                     <span class="kw-2">&amp;mut </span>hoisted_global_constants,
                     <span class="kw-2">*</span>entry_point,
-                    <span class="kw-2">&amp;</span>functions[inner_call],
+                    <span class="kw-2">&amp;</span>ssa.functions[inner_call],
                 );
 
                 <span class="kw">let </span>inner_globals = used_globals
@@ -921,6 +928,7 @@
         (artifact, function_context.ssa_value_allocations, globals_size, hoisted_global_constants)
     }
 }
+
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>tests {
     <span class="kw">use </span>acvm::{
