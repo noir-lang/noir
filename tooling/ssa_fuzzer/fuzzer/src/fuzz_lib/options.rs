@@ -159,7 +159,7 @@ impl Default for FuzzerOptions {
     fn default() -> Self {
         Self {
             compile_options: CompileOptions {
-                show_ssa: false,
+                show_ssa: true,
                 show_ssa_pass: vec![],
                 ..Default::default()
             },

@@ -7,7 +7,7 @@ use crate::fuzz_target_lib::fuzz_target;
 use crate::fuzzer::FuzzerData;
 use crate::instruction::{Argument, Instruction, InstructionBlock};
 use crate::options::FuzzerOptions;
-use crate::tests::common::default_witness;
+use crate::tests::common::{default_input_types, default_witness};
 use acvm::FieldElement;
 use noir_ssa_fuzzer::r#type::{NumericType, Type};
 
@@ -60,6 +60,7 @@ fn array_get_and_set() {
     ];
     let main_func = FunctionData {
         commands,
+        input_types: default_input_types(),
         return_instruction_block_idx: 2,
         return_type: Type::Numeric(NumericType::Field),
     };
@@ -150,6 +151,7 @@ fn test_reference_in_array() {
     ];
     let main_func = FunctionData {
         commands,
+        input_types: default_input_types(),
         return_instruction_block_idx: 6,
         return_type: Type::Numeric(NumericType::Field),
     };

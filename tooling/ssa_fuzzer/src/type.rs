@@ -66,6 +66,13 @@ pub enum Type {
     Slice(Arc<Vec<Type>>),
 }
 
+/// Used as default value for mutations
+impl Default for Type {
+    fn default() -> Self {
+        Type::Numeric(NumericType::Field)
+    }
+}
+
 impl Type {
     pub fn bit_length(&self) -> u32 {
         match self {
@@ -221,6 +228,9 @@ impl From<SsaType> for Type {
             ),
             SsaType::Reference(element_type) => {
                 Type::Reference(Arc::new((*element_type).clone().into()))
+            }
+            SsaType::Slice(element_types) => {
+                Type::Slice(Arc::new(element_types.iter().map(|t| t.clone().into()).collect()))
             }
             _ => unreachable!("Not supported type: {:?}", type_),
         }

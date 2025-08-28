@@ -1,3 +1,4 @@
+mod advanced_references;
 mod arrays;
 mod basic_tests;
 mod basic_unsigned_test;

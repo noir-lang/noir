@@ -43,20 +43,35 @@ fn initialize_witness_map(
     (witness_map, values, types)
 }
 
+fn ensure_boolean_defined_in_all_functions(data: &mut FuzzerData) {
+    for func in &mut data.functions {
+        let boolean_presented_in_input_types =
+            func.input_types.iter().any(|t| t == &Type::Numeric(NumericType::Boolean));
+        if !boolean_presented_in_input_types {
+            func.input_types.push(Type::Numeric(NumericType::Boolean));
+        }
+    }
+}
+
 /// Creates ACIR and Brillig programs from the data, runs and compares them
 pub(crate) fn fuzz_target(data: FuzzerData, options: FuzzerOptions) -> Option<FuzzerOutput> {
-    // to triage
     if data.instruction_blocks.is_empty() {
+        return None;
+    }
+    if data.functions.is_empty() {
         return None;
     }
     log::debug!("instruction_blocks: {:?}", data.instruction_blocks);
     let (witness_map, values, types) = initialize_witness_map(&data.initial_witness);
-
+    let mut data = data;
+    ensure_boolean_defined_in_all_functions(&mut data);
     let mut fuzzer = Fuzzer::new(data.instruction_blocks, values, options);
+    data.functions[0].input_types = types.iter().map(|t| Type::Numeric(*t)).collect();
     for func in data.functions {
         log::debug!("initial_witness: {witness_map:?}");
         log::debug!("commands: {:?}", func.commands);
-        fuzzer.process_function(func, types.iter().map(|t| Type::Numeric(*t)).collect());
+        log::debug!("input_types: {:?}", func.input_types);
+        fuzzer.process_function(func.clone(), func.input_types.clone());
     }
     fuzzer.finalize_and_run(witness_map)
 }

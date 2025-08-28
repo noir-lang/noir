@@ -56,11 +56,11 @@ impl Default for WitnessValue {
     }
 }
 
-/// TODO(sn): initial_witness should be in ProgramData
 /// Represents the data describing a function
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct FunctionData {
     pub(crate) commands: Vec<FuzzerFunctionCommand>,
+    pub(crate) input_types: Vec<Type>,
     pub(crate) return_instruction_block_idx: usize,
     pub(crate) return_type: Type,
 }
@@ -69,6 +69,7 @@ impl Default for FunctionData {
     fn default() -> Self {
         FunctionData {
             commands: vec![],
+            input_types: vec![Type::Numeric(NumericType::Field)],
             return_instruction_block_idx: 0,
             return_type: Type::Numeric(NumericType::Field),
         }

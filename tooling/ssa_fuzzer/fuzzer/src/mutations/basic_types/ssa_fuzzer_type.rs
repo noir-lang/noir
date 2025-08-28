@@ -43,10 +43,6 @@ pub(crate) fn generate_random_ssa_fuzzer_type(
 }
 
 // TODO
-pub(crate) fn mutate_ssa_fuzzer_type(
-    type_: &mut Type,
-    rng: &mut StdRng,
-    _config: GenerateTypeConfig,
-) {
+pub(crate) fn mutate_ssa_fuzzer_type(type_: &mut Type, rng: &mut StdRng) {
     *type_ = generate_random_ssa_fuzzer_type(rng, BASIC_GENERATE_TYPE_CONFIGURATION);
 }

@@ -3,7 +3,7 @@ use crate::fuzz_target_lib::fuzz_target;
 use crate::fuzzer::FuzzerData;
 use crate::instruction::{Instruction, InstructionBlock};
 use crate::options::FuzzerOptions;
-use crate::tests::common::default_witness;
+use crate::tests::common::{default_input_types, default_witness};
 use acvm::AcirField;
 use acvm::FieldElement;
 use noir_ssa_fuzzer::r#type::{NumericType, Type};
@@ -24,6 +24,7 @@ fn test_valid_ecdsa_signature_secp256r1() {
     let commands = vec![];
     let function = FunctionData {
         commands,
+        input_types: default_input_types(),
         return_instruction_block_idx: 0,
         return_type: Type::Numeric(NumericType::Boolean),
     };
@@ -52,6 +53,7 @@ fn test_valid_ecdsa_signature_secp256k1() {
     let commands = vec![];
     let function = FunctionData {
         commands,
+        input_types: default_input_types(),
         return_instruction_block_idx: 0,
         return_type: Type::Numeric(NumericType::Boolean),
     };
@@ -80,6 +82,7 @@ fn test_corrupted_ecdsa_signature_secp256r1() {
     let commands = vec![];
     let function = FunctionData {
         commands,
+        input_types: default_input_types(),
         return_instruction_block_idx: 0,
         return_type: Type::Numeric(NumericType::Boolean),
     };
@@ -111,6 +114,7 @@ fn test_corrupted_ecdsa_signature_secp256k1() {
     let commands = vec![];
     let function = FunctionData {
         commands,
+        input_types: default_input_types(),
         return_instruction_block_idx: 0,
         return_type: Type::Numeric(NumericType::Boolean),
     };

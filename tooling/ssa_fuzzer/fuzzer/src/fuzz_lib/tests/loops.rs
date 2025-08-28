@@ -8,7 +8,7 @@ use crate::fuzz_target_lib::fuzz_target;
 use crate::fuzzer::FuzzerData;
 use crate::instruction::{Argument, Instruction, InstructionBlock};
 use crate::options::FuzzerOptions;
-use crate::tests::common::default_witness;
+use crate::tests::common::{default_input_types, default_witness};
 use acvm::FieldElement;
 use noir_ssa_fuzzer::r#type::{NumericType, Type};
 
@@ -49,6 +49,7 @@ fn test_simple_loop() {
     let data = FuzzerData {
         instruction_blocks: vec![add_to_memory_block, load_block, load_mul_set_block],
         functions: vec![FunctionData {
+            input_types: default_input_types(),
             commands,
             return_instruction_block_idx: 1, // v12 = load v8 -> Field; return v12
             return_type: Type::Numeric(NumericType::Field),
@@ -117,6 +118,7 @@ fn test_nested_loop() {
             load_mul_set_block2,
         ],
         functions: vec![FunctionData {
+            input_types: default_input_types(),
             commands,
             return_instruction_block_idx: 1, // v13 = load v9 -> Field; return v13
             return_type: Type::Numeric(NumericType::Field),
@@ -187,6 +189,7 @@ fn test_loop_broken_with_jmp() {
     let data = FuzzerData {
         instruction_blocks: vec![add_to_memory_block, load_block, load_mul_set_block],
         functions: vec![FunctionData {
+            input_types: default_input_types(),
             commands,
             return_instruction_block_idx: 1,
             return_type: Type::Numeric(NumericType::Field),
@@ -257,6 +260,7 @@ fn test_jmp_if_in_cycle() {
             load_add_set_block.clone(),
         ],
         functions: vec![FunctionData {
+            input_types: default_input_types(),
             commands: commands.clone(),
             return_instruction_block_idx: 1,
             return_type: Type::Numeric(NumericType::Field),
@@ -292,6 +296,7 @@ fn test_jmp_if_in_cycle() {
             add_boolean_block,
         ],
         functions: vec![FunctionData {
+            input_types: default_input_types(),
             commands,
             return_instruction_block_idx: 1,
             return_type: Type::Numeric(NumericType::Field),

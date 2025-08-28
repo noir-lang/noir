@@ -8,7 +8,7 @@ use crate::fuzz_target_lib::fuzz_target;
 use crate::fuzzer::FuzzerData;
 use crate::instruction::{Argument, Instruction, InstructionBlock};
 use crate::options::FuzzerOptions;
-use crate::tests::common::default_witness;
+use crate::tests::common::{default_input_types, default_witness};
 use acvm::AcirField;
 use acvm::FieldElement;
 use noir_ssa_fuzzer::r#type::{NumericType, Type};
@@ -41,11 +41,13 @@ fn simple_function_call() {
         instruction_blocks: vec![dummy_block, add_block],
         functions: vec![
             FunctionData {
+                input_types: default_input_types(),
                 commands: commands1,
                 return_instruction_block_idx: 0,
                 return_type: Type::Numeric(NumericType::Field),
             },
             FunctionData {
+                input_types: default_input_types(),
                 commands: vec![],
                 return_instruction_block_idx: 1,
                 return_type: Type::Numeric(NumericType::Field),
@@ -108,6 +110,7 @@ fn several_functions_several_calls() {
         FuzzerFunctionCommand::InsertSimpleInstructionBlock { instruction_block_idx: 0 },
     ];
     let main_func = FunctionData {
+        input_types: default_input_types(),
         commands: commands_for_main,
         return_instruction_block_idx: 3,
         return_type: Type::Numeric(NumericType::Field),
@@ -115,12 +118,14 @@ fn several_functions_several_calls() {
     // for f1 the only defined function is f2
     let commands_for_f1 = vec![FuzzerFunctionCommand::InsertFunctionCall { function_idx: 0, args }];
     let f1_func = FunctionData {
+        input_types: default_input_types(),
         commands: commands_for_f1,
         return_instruction_block_idx: 1,
         return_type: Type::Numeric(NumericType::Field),
     };
 
     let f2_func = FunctionData {
+        input_types: default_input_types(),
         commands: vec![],
         return_instruction_block_idx: 2,
         return_type: Type::Numeric(NumericType::Field),
@@ -191,11 +196,13 @@ fn call_in_if_else() {
         instructions: vec![Instruction::AddChecked { lhs: arg_3_field, rhs: arg_3_field }], // v3 + v3
     };
     let f1_func = FunctionData {
+        input_types: default_input_types(),
         commands: vec![],
         return_instruction_block_idx: 4,
         return_type: Type::Numeric(NumericType::Field),
     };
     let f2_func = FunctionData {
+        input_types: default_input_types(),
         commands: vec![],
         return_instruction_block_idx: 5,
         return_type: Type::Numeric(NumericType::Field),
@@ -220,6 +227,7 @@ fn call_in_if_else() {
         add_block_f2,
     ];
     let main_func = FunctionData {
+        input_types: default_input_types(),
         commands: commands_for_main.clone(),
         return_instruction_block_idx: 3,
         return_type: Type::Numeric(NumericType::Field),
@@ -253,6 +261,7 @@ fn call_in_if_else() {
     blocks.push(add_boolean_block);
     log::debug!("blocks: {blocks:?}");
     let main_func = FunctionData {
+        input_types: default_input_types(),
         commands,
         return_instruction_block_idx: 3,
         return_type: Type::Numeric(NumericType::Field),
@@ -324,16 +333,19 @@ fn test_does_not_insert_too_many_instructions_with_function_calls() {
         FuzzerFunctionCommand::InsertCycle { block_body_idx: 2, start_iter: 1, end_iter: 10 }, // for i in 1..10 do load_mul_set_block
     ];
     let main_func = FunctionData {
+        input_types: default_input_types(),
         commands: commands_for_main,
         return_instruction_block_idx: 3, // dummy block
         return_type: Type::Numeric(NumericType::Field),
     };
     let function_func = FunctionData {
+        input_types: default_input_types(),
         commands: commands_for_function1,
         return_instruction_block_idx: 1, // v12 = load v8 -> Field; return v12
         return_type: Type::Numeric(NumericType::Field),
     };
     let function_func2 = FunctionData {
+        input_types: default_input_types(),
         commands: commands_for_function2,
         return_instruction_block_idx: 1, // v12 = load v8 -> Field; return v12
         return_type: Type::Numeric(NumericType::Field),

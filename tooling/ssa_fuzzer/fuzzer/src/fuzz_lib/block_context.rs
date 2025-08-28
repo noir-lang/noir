@@ -43,12 +43,9 @@ impl BlockContext {
     }
 
     fn get_stored_variable(&self, type_: &Type, index: usize) -> Option<TypedValue> {
-        let arr = self.stored_variables.get(type_);
-        arr?;
-        let arr = arr.unwrap();
-        let value = arr.get(index % arr.len());
-        value?;
-        Some(value.unwrap().clone())
+        let arr = self.stored_variables.get(type_)?;
+        let value = arr.get(index % arr.len())?;
+        Some(value.clone())
     }
 
     fn get_stored_arrays(&self) -> Vec<TypedValue> {
@@ -1109,7 +1106,7 @@ impl BlockContext {
     /// If variables of such type are not defined, uh ohh.. we need to create it
     /// The only thing we know is that one boolean is defined
     fn find_values_with_type(
-        &self,
+        &mut self,
         acir_builder: &mut FuzzerBuilder,
         brillig_builder: &mut FuzzerBuilder,
         type_: &Type,
@@ -1134,6 +1131,7 @@ impl BlockContext {
                 let acir_value = acir_builder.insert_cast(boolean_value.clone(), type_.clone());
                 let brillig_value = brillig_builder.insert_cast(boolean_value, type_.clone());
                 assert_eq!(acir_value, brillig_value);
+                self.store_variable(&acir_value);
                 acir_value
             }
             // On reference, try to find value with reference type,
@@ -1148,6 +1146,7 @@ impl BlockContext {
                 let acir_value = acir_builder.insert_add_to_memory(value.clone());
                 let brillig_value = brillig_builder.insert_add_to_memory(value);
                 assert_eq!(acir_value, brillig_value);
+                self.store_variable(&acir_value);
                 acir_value
             }
             Type::Array(array_type, _) => {
@@ -1165,6 +1164,7 @@ impl BlockContext {
                 let acir_value = acir_builder.insert_array(values.clone());
                 let brillig_value = brillig_builder.insert_array(values);
                 assert_eq!(acir_value, brillig_value);
+                self.store_variable(&acir_value);
                 acir_value
             }
             Type::Slice(slice_type) => {
@@ -1182,6 +1182,7 @@ impl BlockContext {
                 let acir_value = acir_builder.insert_slice(values.clone());
                 let brillig_value = brillig_builder.insert_slice(values);
                 assert_eq!(acir_value, brillig_value);
+                self.store_variable(&acir_value);
                 acir_value
             }
         }
@@ -1189,7 +1190,7 @@ impl BlockContext {
 
     /// Finalizes the function by setting the return value
     pub(crate) fn finalize_block_with_return(
-        self,
+        &mut self,
         acir_builder: &mut FuzzerBuilder,
         brillig_builder: &mut FuzzerBuilder,
         return_type: Type,
@@ -1248,13 +1249,16 @@ impl BlockContext {
 
         // Get values from stored_values map by indices
         let mut values = vec![];
-        for (value_type, index) in zip(function_signature.input_types, args) {
-            let value = self.find_values_with_type(
-                acir_builder,
-                brillig_builder,
-                &value_type,
-                Some(*index),
-            );
+
+        // if the length of args is less than the number of input types, we fill it with random values
+        // don't really like this, but there is no other way to predict it on mutation level
+        let mut args_to_use = args.to_vec();
+        if args.len() < function_signature.input_types.len() {
+            args_to_use.extend(vec![0; function_signature.input_types.len() - args.len()]);
+        }
+        for (value_type, index) in zip(function_signature.input_types, args_to_use) {
+            let value =
+                self.find_values_with_type(acir_builder, brillig_builder, &value_type, Some(index));
             values.push(value);
         }
 

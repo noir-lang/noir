@@ -55,13 +55,15 @@ pub(crate) enum FunctionMutationOptions {
     ReturnBlockIdx,
     FunctionFuzzerCommands,
     ReturnType,
+    InputTypes,
 }
 
-pub(crate) type MutationConfig = WeightedSelectionConfig<FunctionMutationOptions, 3>;
+pub(crate) type MutationConfig = WeightedSelectionConfig<FunctionMutationOptions, 4>;
 pub(crate) const BASIC_FUNCTION_MUTATION_CONFIGURATION: MutationConfig = MutationConfig::new([
     (FunctionMutationOptions::ReturnBlockIdx, 1),
     (FunctionMutationOptions::FunctionFuzzerCommands, 1),
     (FunctionMutationOptions::ReturnType, 1),
+    (FunctionMutationOptions::InputTypes, 1),
 ]);
 
 /// Mutations of witness values

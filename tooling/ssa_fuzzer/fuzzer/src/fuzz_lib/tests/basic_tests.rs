@@ -3,12 +3,13 @@
 //! 2) jmpif
 //! 3) mutable variable
 //! 4) Test that from_le_radix(to_le_radix(field)) == field
+//! 5) Test that function can return array
 use crate::function_context::{FunctionData, FuzzerFunctionCommand};
 use crate::fuzz_target_lib::fuzz_target;
 use crate::fuzzer::FuzzerData;
 use crate::instruction::{Argument, Instruction, InstructionBlock};
 use crate::options::FuzzerOptions;
-use crate::tests::common::default_witness;
+use crate::tests::common::{default_input_types, default_witness};
 use acvm::FieldElement;
 use noir_ssa_fuzzer::r#type::{NumericType, Type};
 use std::sync::Arc;
@@ -29,6 +30,7 @@ fn test_field_addition_zero_plus_one() {
 
     // Create function that executes the addition and returns the result
     let main_function = FunctionData {
+        input_types: default_input_types(),
         commands: vec![],                // No additional commands needed
         return_instruction_block_idx: 0, // Return the result of the add block
         return_type: Type::Numeric(NumericType::Field),
@@ -84,6 +86,7 @@ fn test_jmp_if() {
     let data = FuzzerData {
         instruction_blocks: vec![failing_block.clone(), succeeding_block.clone()],
         functions: vec![FunctionData {
+            input_types: default_input_types(),
             commands,
             return_instruction_block_idx: 1, // ends with non-failing block
             return_type: Type::Numeric(NumericType::Field),
@@ -109,6 +112,7 @@ fn test_jmp_if() {
     let data = FuzzerData {
         instruction_blocks: vec![failing_block, succeeding_block, adding_bool_block],
         functions: vec![FunctionData {
+            input_types: default_input_types(),
             commands,
             return_instruction_block_idx: 1, // ends with non-failing block
             return_type: Type::Numeric(NumericType::Field),
@@ -174,6 +178,7 @@ fn test_mutable_variable() {
             add_block_2,
         ],
         functions: vec![FunctionData {
+            input_types: default_input_types(),
             commands,
             return_instruction_block_idx: 4, // last block adds v2 to loaded value, returns the result
             return_type: Type::Numeric(NumericType::Field),
@@ -197,6 +202,7 @@ fn smoke_test_field_to_bytes_to_field() {
     let commands =
         vec![FuzzerFunctionCommand::InsertSimpleInstructionBlock { instruction_block_idx: 0 }];
     let main_func = FunctionData {
+        input_types: default_input_types(),
         commands,
         return_instruction_block_idx: 0,
         return_type: Type::Numeric(NumericType::Field),
@@ -229,6 +235,7 @@ fn test_function_can_return_array() {
     let commands_for_main =
         vec![FuzzerFunctionCommand::InsertSimpleInstructionBlock { instruction_block_idx: 0 }];
     let main_func = FunctionData {
+        input_types: default_input_types(),
         commands: commands_for_main,
         return_instruction_block_idx: 1,
         return_type: Type::Array(Arc::new(vec![Type::Numeric(NumericType::Field)]), 3),
