@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1756397062340,
+  "lastUpdate": 1756397434158,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22317,90 +22317,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "d31b724246695d0588529f62055d45bc0ed4e817",
-          "message": "fix: `assert_constant` refactors and fixes from audit (#9547)",
-          "timestamp": "2025-08-21T12:59:08Z",
-          "tree_id": "65fbcabd17c8a236cdb2a2d03e204ffd6ef862a0",
-          "url": "https://github.com/noir-lang/noir/commit/d31b724246695d0588529f62055d45bc0ed4e817"
-        },
-        "date": 1755783092110,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 709.1,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 2033.1,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 535.9,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 4317.7,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 3329.6,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 3846.8,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 30728.8,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 30774.4,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 187,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 388.9,
-            "unit": "KB"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 631.5,
-            "unit": "KB"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 525.2,
-            "unit": "KB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "75a0e3e73c2a3d1c4f73e52da9a528d18b4fb905",
           "message": "chore: `--no-ssa-locations` for `nargo interpret` and show negative values when printing SSA (#9586)",
@@ -26466,6 +26382,90 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-base-public",
             "value": 3334.7,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 3855.1,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 30753.8,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 30786.8,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 188.2,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 391,
+            "unit": "KB"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 631.5,
+            "unit": "KB"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 525.5,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "26174818+jialinli98@users.noreply.github.com",
+            "name": "Jialin Li",
+            "username": "jialinli98"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "9efaea78cd493146264a327b13654cc0d790ae22",
+          "message": "chore: add tests for bounded_vec (#9576)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-08-28T15:37:55Z",
+          "tree_id": "aafbf48ab4352d0695128e2ce490012bd68033c4",
+          "url": "https://github.com/noir-lang/noir/commit/9efaea78cd493146264a327b13654cc0d790ae22"
+        },
+        "date": 1756397415730,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 709.4,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 2033.2,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 537,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 4320,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 3334.6,
             "unit": "KB"
           },
           {
