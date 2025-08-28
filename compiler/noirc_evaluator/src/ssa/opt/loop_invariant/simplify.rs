@@ -113,9 +113,9 @@ impl LoopInvariantContext<'_> {
         let mut extract_variables = |rhs, lhs| {
             let rhs_true =
                 self.inserter.function.dfg.get_numeric_constant(rhs)? == FieldElement::one();
-            let (is_left, min, max, binary) =
+            let (induction_variable, min, max, binary) =
                 self.extract_induction_and_invariant(loop_context, lhs)?;
-            match (is_left, rhs_true) {
+            match (induction_variable == lhs, rhs_true) {
                 (true, true) => Some((max, binary.rhs)),
                 (false, true) => Some((binary.lhs, min)),
                 _ => None,
@@ -148,17 +148,16 @@ impl LoopInvariantContext<'_> {
     fn simplify_not_equal_constraint(
         &mut self,
         loop_context: &LoopContext,
-        lhs: &ValueId,
-        rhs: &ValueId,
+        lhs: ValueId,
+        rhs: ValueId,
         err: &Option<ConstrainError>,
         call_stack: CallStackId,
     ) -> SimplifyResult {
-        let (invariant, upper, lower) =
-            match self.match_induction_and_invariant(loop_context, lhs, rhs) {
-                Some((true, upper, lower)) => (rhs, upper, lower),
-                Some((false, upper, lower)) => (lhs, upper, lower),
-                _ => return SimplifyResult::None,
-            };
+        let Some((invariant, upper, lower)) =
+            self.match_induction_and_invariant(loop_context, lhs, rhs)
+        else {
+            return SimplifyResult::None;
+        };
 
         let mut insert_binary_to_preheader = |lhs, rhs, operator| {
             let binary = Instruction::Binary(Binary { lhs, rhs, operator });
@@ -172,8 +171,8 @@ impl LoopInvariantContext<'_> {
             results[0]
         };
         // The comparisons can be safely hoisted to the pre-header because they are loop invariant and control independent
-        let check_lower_bound = insert_binary_to_preheader(*invariant, lower, BinaryOp::Lt);
-        let check_upper_bound = insert_binary_to_preheader(upper, *invariant, BinaryOp::Lt);
+        let check_lower_bound = insert_binary_to_preheader(invariant, lower, BinaryOp::Lt);
+        let check_upper_bound = insert_binary_to_preheader(upper, invariant, BinaryOp::Lt);
         let check_bounds =
             insert_binary_to_preheader(check_lower_bound, check_upper_bound, BinaryOp::Or);
 
@@ -193,15 +192,15 @@ impl LoopInvariantContext<'_> {
         &mut self,
         loop_context: &LoopContext,
         value: ValueId,
-    ) -> Option<(bool, ValueId, ValueId, Binary)> {
+    ) -> Option<(ValueId, ValueId, ValueId, Binary)> {
         let Value::Instruction { instruction, .. } = &self.inserter.function.dfg[value] else {
             return None;
         };
         let Instruction::Binary(binary) = self.inserter.function.dfg[*instruction].clone() else {
             return None;
         };
-        self.match_induction_and_invariant(loop_context, &binary.lhs, &binary.rhs)
-            .map(|(is_left, min, max)| (is_left, min, max, binary))
+        self.match_induction_and_invariant(loop_context, binary.lhs, binary.rhs)
+            .map(|(induction_variable, min, max)| (induction_variable, min, max, binary))
     }
 
     /// If the inputs are an induction and loop invariant variables, it returns
@@ -210,29 +209,28 @@ impl LoopInvariantContext<'_> {
     fn match_induction_and_invariant(
         &mut self,
         loop_context: &LoopContext,
-        lhs: &ValueId,
-        rhs: &ValueId,
-    ) -> Option<(bool, ValueId, ValueId)> {
-        let (is_left, lower, upper) = match (
-            loop_context.get_current_induction_variable_bounds(*lhs),
-            loop_context.get_current_induction_variable_bounds(*rhs),
-        ) {
-            (_, Some((lower, upper))) => Some((false, lower, upper)),
-            (Some((lower, upper)), _) => Some((true, lower, upper)),
-            _ => None,
-        }?;
+        lhs: ValueId,
+        rhs: ValueId,
+    ) -> Option<(ValueId, ValueId, ValueId)> {
+        let left_is_induction_var =
+            loop_context.current_induction_variable.is_some_and(|(var, _)| var == lhs);
+        let right_is_induction_var =
+            loop_context.current_induction_variable.is_some_and(|(var, _)| var == rhs);
 
-        let (upper_field, upper_type) = upper.dec().into_numeric_constant();
-        let (lower_field, lower_type) = lower.into_numeric_constant();
-
-        let min_iter = self.inserter.function.dfg.make_constant(lower_field, lower_type);
-        let max_iter = self.inserter.function.dfg.make_constant(upper_field, upper_type);
-        if (is_left && loop_context.is_loop_invariant(rhs))
-            || (!is_left && loop_context.is_loop_invariant(lhs))
+        if (left_is_induction_var && loop_context.is_loop_invariant(&rhs))
+            || (right_is_induction_var && loop_context.is_loop_invariant(&lhs))
         {
-            return Some((is_left, min_iter, max_iter));
+            let (induction_variable, (lower, upper)) =
+                loop_context.current_induction_variable.expect("induction variable must exist");
+            let (upper_field, upper_type) = upper.dec().into_numeric_constant();
+            let (lower_field, lower_type) = lower.into_numeric_constant();
+
+            let min_iter = self.inserter.function.dfg.make_constant(lower_field, lower_type);
+            let max_iter = self.inserter.function.dfg.make_constant(upper_field, upper_type);
+            Some((induction_variable, min_iter, max_iter))
+        } else {
+            None
         }
-        None
     }
 
     /// Simplify certain instructions using the lower/upper bounds of induction variables
@@ -264,7 +262,7 @@ impl LoopInvariantContext<'_> {
                     && loop_context.can_simplify_control_dependent_instruction()
                 {
                     assert!(loop_context.current_block_executes, "executing a non executable loop");
-                    self.simplify_not_equal_constraint(loop_context, x, y, err, call_stack)
+                    self.simplify_not_equal_constraint(loop_context, *x, *y, err, call_stack)
                 } else {
                     SimplifyResult::None
                 }

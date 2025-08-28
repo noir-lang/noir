@@ -551,7 +551,7 @@ impl<'f> LoopInvariantContext<'f> {
     ///
     /// A block might be in a nested loop that isn't guaranteed to execute even if the current loop does.
     fn does_block_execute(
-        &mut self,
+        &self,
         loop_context: &LoopContext,
         block: BasicBlockId,
         all_loops: &[Loop],
@@ -588,11 +588,7 @@ impl<'f> LoopInvariantContext<'f> {
     }
 
     /// Gather the variables declared within the loop
-    fn get_values_defined_in_loop(
-        &mut self,
-        loop_: &Loop,
-        pre_header: BasicBlockId,
-    ) -> LoopContext {
+    fn get_values_defined_in_loop(&self, loop_: &Loop, pre_header: BasicBlockId) -> LoopContext {
         // Clear any values that may be defined in previous loops, as the context is per function.
 
         let mut defined_in_loop = HashSet::default();
