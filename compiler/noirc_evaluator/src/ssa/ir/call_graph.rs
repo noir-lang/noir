@@ -112,10 +112,19 @@ impl CallGraph {
     /// - It is self-recursive (calls itself), or
     /// - It is part of a mutual recursion cycle with other functions.
     pub(crate) fn get_recursive_functions(&self) -> HashSet<FunctionId> {
+        let (_, recursive_functions) = self.sccs();
+        recursive_functions
+    }
+
+    /// Returns both the call graph's strongly connected components (SCCs)
+    /// as well as a utility set of all recursive functions.
+    pub(crate) fn sccs(&self) -> (Vec<Vec<FunctionId>>, HashSet<FunctionId>) {
         let mut recursive_functions = HashSet::default();
 
         let sccs = kosaraju_scc(&self.graph);
+        let mut sccs_ids = Vec::new();
         for scc in sccs {
+            let scc_ids: Vec<_> = scc.iter().map(|idx| self.indices_to_ids[idx]).collect();
             if scc.len() > 1 {
                 // Mutual recursion
                 for idx in scc {
@@ -128,8 +137,9 @@ impl CallGraph {
                     recursive_functions.insert(self.indices_to_ids[&idx]);
                 }
             }
+            sccs_ids.push(scc_ids);
         }
-        recursive_functions
+        (sccs_ids, recursive_functions)
     }
 
     pub(crate) fn graph(&self) -> &DiGraph<FunctionId, usize> {

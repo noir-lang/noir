@@ -327,6 +327,17 @@ pub(crate) fn get_brillig_entry_points(
     call_graph: &CallGraph,
 ) -> BTreeMap<FunctionId, BTreeSet<FunctionId>> {
     let recursive_functions = call_graph.get_recursive_functions();
+    get_brillig_entry_points_with_recursive(functions, main_id, call_graph, &recursive_functions)
+}
+
+/// Like [get_brillig_entry_points], but uses a precomputed set of recursive functions
+/// to avoid recomputing SCCs.
+pub(crate) fn get_brillig_entry_points_with_recursive(
+    functions: &BTreeMap<FunctionId, Function>,
+    main_id: FunctionId,
+    call_graph: &CallGraph,
+    recursive_functions: &HashSet<FunctionId>,
+) -> BTreeMap<FunctionId, BTreeSet<FunctionId>> {
     let mut brillig_entry_points = BTreeMap::default();
 
     // Only ACIR callers can introduce Brillig entry points
@@ -340,7 +351,7 @@ pub(crate) fn get_brillig_entry_points(
         for &entry_point in entry_points {
             brillig_entry_points.insert(
                 entry_point,
-                brillig_reachable(call_graph, &recursive_functions, entry_point),
+                brillig_reachable(call_graph, recursive_functions, entry_point),
             );
         }
     }
@@ -349,7 +360,7 @@ pub(crate) fn get_brillig_entry_points(
     // Run the same analysis from above on main.
     if functions[&main_id].runtime().is_brillig() {
         brillig_entry_points
-            .insert(main_id, brillig_reachable(call_graph, &recursive_functions, main_id));
+            .insert(main_id, brillig_reachable(call_graph, recursive_functions, main_id));
     }
 
     brillig_entry_points
