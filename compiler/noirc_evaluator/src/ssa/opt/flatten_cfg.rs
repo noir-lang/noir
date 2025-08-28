@@ -11,6 +11,7 @@
 //!     This also means the only acir functions in the program should be `main` (if main is
 //!     constrained), or any constrained `InlineType::Fold` functions.
 //!   - Precondition: Each constrained function should have no loops (unrolling has been performed).
+//!   - Precondition: "Equal" constraints have not been turned into "NotEqual".
 //!   - Postcondition: Each constrained function should now consist of only one block where the
 //!     terminator instruction is always a return.
 //!
@@ -200,6 +201,7 @@ impl Ssa {
 ///
 /// Panics if:
 ///   - Any ACIR function has at least 1 loop
+///   - Any ACIR function has a `ConstrainNotEqual` instruction
 #[cfg(debug_assertions)]
 fn flatten_cfg_pre_check(function: &Function) {
     if !function.runtime().is_acir() {
@@ -207,6 +209,14 @@ fn flatten_cfg_pre_check(function: &Function) {
     }
     let loops = super::unrolling::Loops::find_all(function);
     assert_eq!(loops.yet_to_unroll.len(), 0);
+
+    for block in function.reachable_blocks() {
+        for instruction in function.dfg[block].instructions() {
+            if matches!(function.dfg[*instruction], Instruction::ConstrainNotEqual(_, _, _)) {
+                panic!("ConstrainNotEqual should not be introduced before flattening");
+            }
+        }
+    }
 }
 
 /// Post-check condition for [Ssa::flatten_cfg].
@@ -879,225 +889,260 @@ impl<'f> Context<'f> {
         instruction: Instruction,
         call_stack: CallStackId,
     ) -> Instruction {
-        if let Some(condition) = self.get_last_condition() {
-            match instruction {
-                Instruction::Constrain(lhs, rhs, message) => {
-                    // Replace constraint `lhs == rhs` with `condition * lhs == condition * rhs`.
+        let Some(condition) = self.get_last_condition() else { return instruction };
 
-                    // Condition needs to be cast to argument type in order to multiply them together.
-                    let casted_condition =
-                        self.cast_condition_to_value_type(condition, lhs, call_stack);
-                    let lhs = self.mul_by_condition(lhs, casted_condition, call_stack);
-                    let rhs = self.mul_by_condition(rhs, casted_condition, call_stack);
-                    Instruction::Constrain(lhs, rhs, message)
-                }
-                Instruction::Store { address, value } => {
-                    // If this store is to a reference that was allocated on this branch,
-                    // then we don't have to merge with anything else, we can ignore the condition.
-                    if self.local_allocations.contains(&address) {
-                        Instruction::Store { address, value }
-                    } else {
-                        // If the reference was allocated before this condition took effect, then we must only
-                        // overwrite it if the condition is true.
-                        // Instead of storing `value`, we store: `if condition { value } else { previous_value }`
-                        let typ = self.inserter.function.dfg.type_of_value(value);
-                        let load = Instruction::Load { address };
-                        let previous_value = self
-                            .insert_instruction_with_typevars(load, Some(vec![typ]), call_stack)
-                            .first();
+        match instruction {
+            Instruction::Constrain(lhs, rhs, message) => {
+                // Replace constraint `lhs == rhs` with `condition * lhs == condition * rhs`.
 
-                        let else_condition = self.not_instruction(condition, call_stack);
-
-                        let instruction = Instruction::IfElse {
-                            then_condition: condition,
-                            then_value: value,
-                            else_condition,
-                            else_value: previous_value,
-                        };
-
-                        let updated_value = self.insert_instruction(instruction, call_stack);
-                        Instruction::Store { address, value: updated_value }
-                    }
-                }
-                Instruction::RangeCheck { value, max_bit_size, assert_message } => {
-                    // Replace value with `value * predicate` to zero out value when predicate is inactive.
-
-                    // Condition needs to be cast to argument type in order to multiply them together.
-                    let casted_condition =
-                        self.cast_condition_to_value_type(condition, value, call_stack);
-                    let predicate_value =
-                        self.mul_by_condition(value, casted_condition, call_stack);
-                    // Issue #8617: update the value to be the predicated value.
-                    // This ensures that the value has the correct bit size in all cases.
-                    self.predicate_value(value, predicate_value);
-                    Instruction::RangeCheck { value: predicate_value, max_bit_size, assert_message }
-                }
-                Instruction::Call { func, mut arguments } => match self.inserter.function.dfg[func]
-                {
-                    // A ToBits (or ToRadix in general) can fail if the input has more bits than the target.
-                    // We ensure it does not fail by multiplying the input by the condition.
-                    Value::Intrinsic(Intrinsic::ToBits(_) | Intrinsic::ToRadix(_)) => {
-                        let field = arguments[0];
-                        let casted_condition =
-                            self.cast_condition_to_value_type(condition, field, call_stack);
-                        let field = self.mul_by_condition(field, casted_condition, call_stack);
-
-                        arguments[0] = field;
-
-                        Instruction::Call { func, arguments }
-                    }
-
-                    Value::Intrinsic(Intrinsic::BlackBox(blackbox)) => match blackbox {
-                        //Issue #5045: We set curve points to g1, g2=2g1 if condition is false, to ensure that they are on the curve, if not the addition may fail.
-                        // If inputs are distinct curve points, then so is their predicate version.
-                        // If inputs are identical (point doubling), then so is their predicate version
-                        // Hence the assumptions for calling EmbeddedCurveAdd are kept by this transformation.
-                        BlackBoxFunc::EmbeddedCurveAdd => {
-                            #[cfg(feature = "bn254")]
-                            {
-                                let generators = Self::grumpkin_generators();
-                                // Convert the generators to ValueId
-                                let generators = generators
-                                    .iter()
-                                    .map(|v| {
-                                        self.inserter
-                                            .function
-                                            .dfg
-                                            .make_constant(*v, NumericType::NativeField)
-                                    })
-                                    .collect::<Vec<ValueId>>();
-                                let (point1_x, point2_x) = self.predicate_argument(
-                                    &arguments,
-                                    &generators,
-                                    true,
-                                    condition,
-                                    call_stack,
-                                );
-                                let (point1_y, point2_y) = self.predicate_argument(
-                                    &arguments,
-                                    &generators,
-                                    false,
-                                    condition,
-                                    call_stack,
-                                );
-                                arguments[0] = point1_x;
-                                arguments[1] = point1_y;
-                                arguments[3] = point2_x;
-                                arguments[4] = point2_y;
-                            }
-
-                            Instruction::Call { func, arguments }
-                        }
-
-                        // For MSM, we also ensure the inputs are on the curve if the predicate is false.
-                        BlackBoxFunc::MultiScalarMul => {
-                            let (elements, typ) = self.apply_predicate_to_msm_argument(
-                                arguments[0],
-                                condition,
-                                call_stack,
-                            );
-
-                            let instruction = Instruction::MakeArray { elements, typ };
-                            let array = self.insert_instruction(instruction, call_stack);
-                            arguments[0] = array;
-                            Instruction::Call { func, arguments }
-                        }
-
-                        // The ECDSA blackbox functions will fail to prove inside barretenberg in the situation where
-                        // the public key doesn't not sit on the relevant curve.
-                        //
-                        // We then replace the public key with the generator point if the constraint is inactive to avoid
-                        // invalid public keys from causing constraints to fail.
-                        BlackBoxFunc::EcdsaSecp256k1 => {
-                            // See: https://github.com/RustCrypto/elliptic-curves/blob/3381a99b6412ef9fa556e32a834e401d569007e3/k256/src/arithmetic/affine.rs#L57-L76
-                            const GENERATOR_X: [u8; 32] = [
-                                0x79, 0xbe, 0x66, 0x7e, 0xf9, 0xdc, 0xbb, 0xac, 0x55, 0xa0, 0x62,
-                                0x95, 0xce, 0x87, 0x0b, 0x07, 0x02, 0x9b, 0xfc, 0xdb, 0x2d, 0xce,
-                                0x28, 0xd9, 0x59, 0xf2, 0x81, 0x5b, 0x16, 0xf8, 0x17, 0x98,
-                            ];
-                            const GENERATOR_Y: [u8; 32] = [
-                                0x48, 0x3a, 0xda, 0x77, 0x26, 0xa3, 0xc4, 0x65, 0x5d, 0xa4, 0xfb,
-                                0xfc, 0x0e, 0x11, 0x08, 0xa8, 0xfd, 0x17, 0xb4, 0x48, 0xa6, 0x85,
-                                0x54, 0x19, 0x9c, 0x47, 0xd0, 0x8f, 0xfb, 0x10, 0xd4, 0xb8,
-                            ];
-
-                            arguments[0] = self.merge_with_array_constant(
-                                arguments[0],
-                                GENERATOR_X,
-                                condition,
-                                call_stack,
-                            );
-                            arguments[1] = self.merge_with_array_constant(
-                                arguments[1],
-                                GENERATOR_Y,
-                                condition,
-                                call_stack,
-                            );
-
-                            Instruction::Call { func, arguments }
-                        }
-                        BlackBoxFunc::EcdsaSecp256r1 => {
-                            // See: https://github.com/RustCrypto/elliptic-curves/blob/3381a99b6412ef9fa556e32a834e401d569007e3/p256/src/arithmetic.rs#L46-L57
-                            const GENERATOR_X: [u8; 32] = [
-                                0x6b, 0x17, 0xd1, 0xf2, 0xe1, 0x2c, 0x42, 0x47, 0xf8, 0xbc, 0xe6,
-                                0xe5, 0x63, 0xa4, 0x40, 0xf2, 0x77, 0x03, 0x7d, 0x81, 0x2d, 0xeb,
-                                0x33, 0xa0, 0xf4, 0xa1, 0x39, 0x45, 0xd8, 0x98, 0xc2, 0x96,
-                            ];
-                            const GENERATOR_Y: [u8; 32] = [
-                                0x4f, 0xe3, 0x42, 0xe2, 0xfe, 0x1a, 0x7f, 0x9b, 0x8e, 0xe7, 0xeb,
-                                0x4a, 0x7c, 0x0f, 0x9e, 0x16, 0x2b, 0xce, 0x33, 0x57, 0x6b, 0x31,
-                                0x5e, 0xce, 0xcb, 0xb6, 0x40, 0x68, 0x37, 0xbf, 0x51, 0xf5,
-                            ];
-
-                            arguments[0] = self.merge_with_array_constant(
-                                arguments[0],
-                                GENERATOR_X,
-                                condition,
-                                call_stack,
-                            );
-                            arguments[1] = self.merge_with_array_constant(
-                                arguments[1],
-                                GENERATOR_Y,
-                                condition,
-                                call_stack,
-                            );
-
-                            Instruction::Call { func, arguments }
-                        }
-
-                        // TODO: https://github.com/noir-lang/noir/issues/8998
-                        BlackBoxFunc::RecursiveAggregation => Instruction::Call { func, arguments },
-
-                        // These functions will always be satisfiable no matter the input so no modification is needed.
-                        BlackBoxFunc::AND
-                        | BlackBoxFunc::XOR
-                        | BlackBoxFunc::AES128Encrypt
-                        | BlackBoxFunc::Blake2s
-                        | BlackBoxFunc::Blake3
-                        | BlackBoxFunc::Keccakf1600
-                        | BlackBoxFunc::Poseidon2Permutation
-                        | BlackBoxFunc::Sha256Compression => Instruction::Call { func, arguments },
-
-                        BlackBoxFunc::RANGE => unreachable!(
-                            "RANGE should have been converted into `Instruction::RangeCheck`"
-                        ),
-
-                        BlackBoxFunc::BigIntAdd
-                        | BlackBoxFunc::BigIntSub
-                        | BlackBoxFunc::BigIntMul
-                        | BlackBoxFunc::BigIntDiv
-                        | BlackBoxFunc::BigIntFromLeBytes
-                        | BlackBoxFunc::BigIntToLeBytes => {
-                            todo!("BigInt opcodes are not supported yet")
-                        }
-                    },
-
-                    _ => Instruction::Call { func, arguments },
-                },
-                other => other,
+                // Condition needs to be cast to argument type in order to multiply them together.
+                let casted_condition =
+                    self.cast_condition_to_value_type(condition, lhs, call_stack);
+                let lhs = self.mul_by_condition(lhs, casted_condition, call_stack);
+                let rhs = self.mul_by_condition(rhs, casted_condition, call_stack);
+                Instruction::Constrain(lhs, rhs, message)
             }
-        } else {
-            instruction
+            Instruction::ConstrainNotEqual(_, _, _) => {
+                unreachable!("flattening cannot handle ConstrainNotEqual");
+            }
+            Instruction::Store { address, value } => {
+                // If this store is to a reference that was allocated on this branch,
+                // then we don't have to merge with anything else, we can ignore the condition.
+                if self.local_allocations.contains(&address) {
+                    Instruction::Store { address, value }
+                } else {
+                    // If the reference was allocated before this condition took effect, then we must only
+                    // overwrite it if the condition is true.
+                    // Instead of storing `value`, we store: `if condition { value } else { previous_value }`
+                    let typ = self.inserter.function.dfg.type_of_value(value);
+                    let load = Instruction::Load { address };
+                    let previous_value = self
+                        .insert_instruction_with_typevars(load, Some(vec![typ]), call_stack)
+                        .first();
+
+                    let else_condition = self.not_instruction(condition, call_stack);
+
+                    let instruction = Instruction::IfElse {
+                        then_condition: condition,
+                        then_value: value,
+                        else_condition,
+                        else_value: previous_value,
+                    };
+
+                    let updated_value = self.insert_instruction(instruction, call_stack);
+                    Instruction::Store { address, value: updated_value }
+                }
+            }
+            Instruction::RangeCheck { value, max_bit_size, assert_message } => {
+                // Replace value with `value * predicate` to zero out value when predicate is inactive.
+
+                // Condition needs to be cast to argument type in order to multiply them together.
+                let casted_condition =
+                    self.cast_condition_to_value_type(condition, value, call_stack);
+                let predicate_value = self.mul_by_condition(value, casted_condition, call_stack);
+                // Issue #8617: update the value to be the predicated value.
+                // This ensures that the value has the correct bit size in all cases.
+                self.predicate_value(value, predicate_value);
+                Instruction::RangeCheck { value: predicate_value, max_bit_size, assert_message }
+            }
+            Instruction::Call { func, arguments } => {
+                let arguments =
+                    self.handle_call_side_effects(condition, func, arguments, call_stack);
+                Instruction::Call { func, arguments }
+            }
+            // The following instructions don't need their arguments nullified:
+            Instruction::Binary(_)
+            | Instruction::Cast(_, _)
+            | Instruction::Not(_)
+            | Instruction::Truncate { .. }
+            | Instruction::Allocate
+            | Instruction::Load { .. }
+            | Instruction::EnableSideEffectsIf { .. }
+            | Instruction::ArrayGet { .. }
+            | Instruction::ArraySet { .. }
+            | Instruction::IncrementRc { .. }
+            | Instruction::DecrementRc { .. }
+            | Instruction::IfElse { .. }
+            | Instruction::MakeArray { .. }
+            | Instruction::Noop => instruction,
+        }
+    }
+
+    fn handle_call_side_effects(
+        &mut self,
+        condition: ValueId,
+        func: ValueId,
+        mut arguments: Vec<ValueId>,
+        call_stack: CallStackId,
+    ) -> Vec<ValueId> {
+        match self.inserter.function.dfg[func] {
+            Value::Intrinsic(Intrinsic::ToBits(_) | Intrinsic::ToRadix(_)) => {
+                let field = arguments[0];
+                let casted_condition =
+                    self.cast_condition_to_value_type(condition, field, call_stack);
+                let field = self.mul_by_condition(field, casted_condition, call_stack);
+
+                arguments[0] = field;
+
+                arguments
+            }
+            Value::Intrinsic(Intrinsic::BlackBox(blackbox)) => {
+                match blackbox {
+                    //Issue #5045: We set curve points to g1, g2=2g1 if condition is false, to ensure that they are on the curve, if not the addition may fail.
+                    // If inputs are distinct curve points, then so is their predicate version.
+                    // If inputs are identical (point doubling), then so is their predicate version
+                    // Hence the assumptions for calling EmbeddedCurveAdd are kept by this transformation.
+                    BlackBoxFunc::EmbeddedCurveAdd => {
+                        #[cfg(feature = "bn254")]
+                        {
+                            let generators = Self::grumpkin_generators();
+                            // Convert the generators to ValueId
+                            let generators = generators
+                                .iter()
+                                .map(|v| {
+                                    self.inserter
+                                        .function
+                                        .dfg
+                                        .make_constant(*v, NumericType::NativeField)
+                                })
+                                .collect::<Vec<ValueId>>();
+                            let (point1_x, point2_x) = self.predicate_argument(
+                                &arguments,
+                                &generators,
+                                true,
+                                condition,
+                                call_stack,
+                            );
+                            let (point1_y, point2_y) = self.predicate_argument(
+                                &arguments,
+                                &generators,
+                                false,
+                                condition,
+                                call_stack,
+                            );
+                            arguments[0] = point1_x;
+                            arguments[1] = point1_y;
+                            arguments[3] = point2_x;
+                            arguments[4] = point2_y;
+                        }
+
+                        arguments
+                    }
+
+                    // For MSM, we also ensure the inputs are on the curve if the predicate is false.
+                    BlackBoxFunc::MultiScalarMul => {
+                        let (elements, typ) = self.apply_predicate_to_msm_argument(
+                            arguments[0],
+                            condition,
+                            call_stack,
+                        );
+
+                        let instruction = Instruction::MakeArray { elements, typ };
+                        let array = self.insert_instruction(instruction, call_stack);
+                        arguments[0] = array;
+                        arguments
+                    }
+
+                    // The ECDSA blackbox functions will fail to prove inside barretenberg in the situation where
+                    // the public key doesn't not sit on the relevant curve.
+                    //
+                    // We then replace the public key with the generator point if the constraint is inactive to avoid
+                    // invalid public keys from causing constraints to fail.
+                    BlackBoxFunc::EcdsaSecp256k1 => {
+                        // See: https://github.com/RustCrypto/elliptic-curves/blob/3381a99b6412ef9fa556e32a834e401d569007e3/k256/src/arithmetic/affine.rs#L57-L76
+                        const GENERATOR_X: [u8; 32] = [
+                            0x79, 0xbe, 0x66, 0x7e, 0xf9, 0xdc, 0xbb, 0xac, 0x55, 0xa0, 0x62, 0x95,
+                            0xce, 0x87, 0x0b, 0x07, 0x02, 0x9b, 0xfc, 0xdb, 0x2d, 0xce, 0x28, 0xd9,
+                            0x59, 0xf2, 0x81, 0x5b, 0x16, 0xf8, 0x17, 0x98,
+                        ];
+                        const GENERATOR_Y: [u8; 32] = [
+                            0x48, 0x3a, 0xda, 0x77, 0x26, 0xa3, 0xc4, 0x65, 0x5d, 0xa4, 0xfb, 0xfc,
+                            0x0e, 0x11, 0x08, 0xa8, 0xfd, 0x17, 0xb4, 0x48, 0xa6, 0x85, 0x54, 0x19,
+                            0x9c, 0x47, 0xd0, 0x8f, 0xfb, 0x10, 0xd4, 0xb8,
+                        ];
+
+                        arguments[0] = self.merge_with_array_constant(
+                            arguments[0],
+                            GENERATOR_X,
+                            condition,
+                            call_stack,
+                        );
+                        arguments[1] = self.merge_with_array_constant(
+                            arguments[1],
+                            GENERATOR_Y,
+                            condition,
+                            call_stack,
+                        );
+
+                        arguments
+                    }
+                    BlackBoxFunc::EcdsaSecp256r1 => {
+                        // See: https://github.com/RustCrypto/elliptic-curves/blob/3381a99b6412ef9fa556e32a834e401d569007e3/p256/src/arithmetic.rs#L46-L57
+                        const GENERATOR_X: [u8; 32] = [
+                            0x6b, 0x17, 0xd1, 0xf2, 0xe1, 0x2c, 0x42, 0x47, 0xf8, 0xbc, 0xe6, 0xe5,
+                            0x63, 0xa4, 0x40, 0xf2, 0x77, 0x03, 0x7d, 0x81, 0x2d, 0xeb, 0x33, 0xa0,
+                            0xf4, 0xa1, 0x39, 0x45, 0xd8, 0x98, 0xc2, 0x96,
+                        ];
+                        const GENERATOR_Y: [u8; 32] = [
+                            0x4f, 0xe3, 0x42, 0xe2, 0xfe, 0x1a, 0x7f, 0x9b, 0x8e, 0xe7, 0xeb, 0x4a,
+                            0x7c, 0x0f, 0x9e, 0x16, 0x2b, 0xce, 0x33, 0x57, 0x6b, 0x31, 0x5e, 0xce,
+                            0xcb, 0xb6, 0x40, 0x68, 0x37, 0xbf, 0x51, 0xf5,
+                        ];
+
+                        arguments[0] = self.merge_with_array_constant(
+                            arguments[0],
+                            GENERATOR_X,
+                            condition,
+                            call_stack,
+                        );
+                        arguments[1] = self.merge_with_array_constant(
+                            arguments[1],
+                            GENERATOR_Y,
+                            condition,
+                            call_stack,
+                        );
+
+                        arguments
+                    }
+
+                    // TODO: https://github.com/noir-lang/noir/issues/8998
+                    BlackBoxFunc::RecursiveAggregation => arguments,
+
+                    // These functions will always be satisfiable no matter the input so no modification is needed.
+                    BlackBoxFunc::AND
+                    | BlackBoxFunc::XOR
+                    | BlackBoxFunc::AES128Encrypt
+                    | BlackBoxFunc::Blake2s
+                    | BlackBoxFunc::Blake3
+                    | BlackBoxFunc::Keccakf1600
+                    | BlackBoxFunc::Poseidon2Permutation
+                    | BlackBoxFunc::Sha256Compression => arguments,
+
+                    BlackBoxFunc::RANGE => {
+                        unreachable!(
+                            "RANGE should have been converted into `Instruction::RangeCheck`"
+                        )
+                    }
+
+                    BlackBoxFunc::BigIntAdd
+                    | BlackBoxFunc::BigIntSub
+                    | BlackBoxFunc::BigIntMul
+                    | BlackBoxFunc::BigIntDiv
+                    | BlackBoxFunc::BigIntFromLeBytes
+                    | BlackBoxFunc::BigIntToLeBytes => {
+                        todo!("BigInt opcodes are not supported yet")
+                    }
+                }
+            }
+            Value::Intrinsic(intrinsic) => {
+                assert!(!intrinsic.has_side_effects(), "{intrinsic} has side effects!");
+                arguments
+            }
+            Value::Function(_) | Value::ForeignFunction(_) => arguments,
+            Value::Instruction { .. }
+            | Value::Param { .. }
+            | Value::NumericConstant { .. }
+            | Value::Global(_) => unreachable!("unexpected function value"),
         }
     }
 
