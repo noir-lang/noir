@@ -27,7 +27,7 @@ impl<'f> FunctionInserter<'f> {
     /// Resolves a ValueId to its new, updated value.
     /// If there is no updated value for this id, this returns the same
     /// ValueId that was passed in.
-    pub(crate) fn resolve(&mut self, value: ValueId) -> ValueId {
+    pub(crate) fn resolve(&self, value: ValueId) -> ValueId {
         match self.values.get(&value) {
             Some(value) => self.resolve(*value),
             None => value,

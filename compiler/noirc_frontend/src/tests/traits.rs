@@ -2199,3 +2199,39 @@ fn trait_method_numeric_generic_on_function() {
     "#;
     check_monomorphization_error!(src);
 }
+
+#[named]
+#[test]
+fn trait_bound_on_implementing_type() {
+    let src = r#"
+    struct GenericStruct<T> {
+        inner: T,
+    }
+
+    trait Foo {
+        fn foo() {}
+    }
+
+    impl Foo for Field {}
+
+    impl<T: Foo> Foo for GenericStruct<T> {}
+
+    trait Bar {
+        fn bar();
+    }
+
+    impl<T> Bar for GenericStruct<T>
+    where
+        GenericStruct<T>: Foo,
+    {
+        fn bar() {
+            <Self as Foo>::foo()
+        }
+    }
+    
+    fn main() {
+        GenericStruct::<Field>::bar();
+    }
+    "#;
+    assert_no_errors!(src);
+}
