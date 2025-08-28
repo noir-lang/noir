@@ -1,3 +1,15 @@
+//! A simple SSA pass to go through each instruction and evaluate:
+//! - each call to `assert_constant`, issuing an error if any arguments to the function
+//!   are not constants
+//! - each call to `static_assert`, issuing an error if the assertion does not hold,
+//!   the value to test is not a constant, or the message is dynamic.
+//!
+//! Note that this pass must be placed directly before [`loop unrolling`](super::unrolling) to be
+//! useful. Any optimization passes between this and loop unrolling will cause
+//! the constants that this pass sees to be potentially different than the constants
+//! seen by loop unrolling. Furthermore, this pass cannot be a part of loop unrolling
+//! since we must go through every instruction to find all references to `assert_constant`
+//! while loop unrolling only touches blocks with loops in them.
 use acvm::{FieldElement, acir::brillig::ForeignCallParam};
 use fxhash::FxHashSet as HashSet;
 use iter_extended::vecmap;
@@ -7,6 +19,7 @@ use crate::{
     errors::RuntimeError,
     ssa::{
         ir::{
+            basic_block::BasicBlockId,
             cfg::ControlFlowGraph,
             dfg::DataFlowGraph,
             function::Function,
@@ -20,18 +33,7 @@ use crate::{
 use super::unrolling::Loops;
 
 impl Ssa {
-    /// A simple SSA pass to go through each instruction and evaluate:
-    /// - each call to `assert_constant`, issuing an error if any arguments to the function
-    ///   are not constants
-    /// - each call to `static_assert`, issuing an error if the assertion does not hold,
-    ///   the value to test is not a constant, or the message is dynamic.
-    ///
-    /// Note that this pass must be placed directly before loop unrolling to be
-    /// useful. Any optimization passes between this and loop unrolling will cause
-    /// the constants that this pass sees to be potentially different than the constants
-    /// seen by loop unrolling. Furthermore, this pass cannot be a part of loop unrolling
-    /// since we must go through every instruction to find all references to `assert_constant`
-    /// while loop unrolling only touches blocks with loops in them.
+    /// See [`evaluate_static_assert_and_assert_constant`][self] module for more information.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn evaluate_static_assert_and_assert_constant(
         mut self,
@@ -44,32 +46,15 @@ impl Ssa {
 }
 
 impl Function {
-    pub(crate) fn evaluate_static_assert_and_assert_constant(
-        &mut self,
-    ) -> Result<(), RuntimeError> {
-        let loops = Loops::find_all(self);
-
-        let cfg = ControlFlowGraph::with_function(self);
-        let mut blocks_within_empty_loop = HashSet::default();
-        for loop_ in loops.yet_to_unroll {
-            let Ok(pre_header) = loop_.get_pre_header(self, &cfg) else {
-                // If the loop does not have a preheader we skip checking whether the loop is empty
-                continue;
-            };
-            let const_bounds = loop_.get_const_bounds(self, pre_header);
-
-            let does_execute = const_bounds
-                .and_then(|(lower_bound, upper_bound)| {
-                    upper_bound.reduce(lower_bound, |u, l| u > l, |u, l| u > l)
-                })
-                // We default to `true` if the bounds are dynamic so that we still
-                // evaluate static assertion in dynamic loops.
-                .unwrap_or(true);
-
-            if !does_execute {
-                blocks_within_empty_loop.extend(loop_.blocks);
-            }
+    fn evaluate_static_assert_and_assert_constant(&mut self) -> Result<(), RuntimeError> {
+        let assert_constant_id = self.dfg.get_intrinsic(Intrinsic::AssertConstant).copied();
+        let static_assert_id = self.dfg.get_intrinsic(Intrinsic::StaticAssert).copied();
+        if assert_constant_id.is_none() && static_assert_id.is_none() {
+            // If there are no calls to either intrinsic there's nothing to evaluate
+            return Ok(());
         }
+
+        let blocks_within_empty_loop = get_blocks_within_empty_loop(self);
 
         for block in self.reachable_blocks() {
             // Unfortunately we can't just use instructions.retain(...) here since
@@ -79,7 +64,13 @@ impl Function {
 
             let inside_empty_loop = blocks_within_empty_loop.contains(&block);
             for instruction in instructions {
-                if check_instruction(self, instruction, inside_empty_loop)? {
+                if check_instruction(
+                    self,
+                    instruction,
+                    assert_constant_id,
+                    static_assert_id,
+                    inside_empty_loop,
+                )? {
                     filtered_instructions.push(instruction);
                 }
             }
@@ -88,6 +79,35 @@ impl Function {
         }
         Ok(())
     }
+}
+
+/// Returns all of a function's block that are part of empty loops.
+fn get_blocks_within_empty_loop(function: &Function) -> HashSet<BasicBlockId> {
+    let loops = Loops::find_all(function);
+
+    let cfg = ControlFlowGraph::with_function(function);
+    let mut blocks_within_empty_loop = HashSet::default();
+    for loop_ in loops.yet_to_unroll {
+        let Ok(pre_header) = loop_.get_pre_header(function, &cfg) else {
+            // If the loop does not have a preheader we skip checking whether the loop is empty
+            continue;
+        };
+        let const_bounds = loop_.get_const_bounds(&function.dfg, pre_header);
+
+        let does_execute = const_bounds
+            .and_then(|(lower_bound, upper_bound)| {
+                upper_bound.reduce(lower_bound, |u, l| u > l, |u, l| u > l)
+            })
+            // We default to `true` if the bounds are dynamic so that we still
+            // evaluate static assertion in dynamic loops.
+            .unwrap_or(true);
+
+        if !does_execute {
+            blocks_within_empty_loop.extend(loop_.blocks);
+        }
+    }
+
+    blocks_within_empty_loop
 }
 
 /// During the loop unrolling pass we also evaluate calls to `assert_constant`.
@@ -99,18 +119,14 @@ impl Function {
 fn check_instruction(
     function: &mut Function,
     instruction: InstructionId,
+    assert_constant_id: Option<ValueId>,
+    static_assert_id: Option<ValueId>,
     inside_empty_loop: bool,
 ) -> Result<bool, RuntimeError> {
-    let assert_constant_id = function.dfg.get_intrinsic(Intrinsic::AssertConstant);
-    let static_assert_id = function.dfg.get_intrinsic(Intrinsic::StaticAssert);
-    if assert_constant_id.is_none() && static_assert_id.is_none() {
-        return Ok(true);
-    }
-
     match &function.dfg[instruction] {
         Instruction::Call { func, arguments } => {
-            let is_assert_constant = Some(*func) == assert_constant_id.copied();
-            let is_static_assert = Some(*func) == static_assert_id.copied();
+            let is_assert_constant = Some(*func) == assert_constant_id;
+            let is_static_assert = Some(*func) == static_assert_id;
 
             // Skip assertions inside known empty loops
             if inside_empty_loop && (is_assert_constant || is_static_assert) {
@@ -165,11 +181,7 @@ fn evaluate_static_assert(
     // were passed to the built-in foreign call "print" functions.
     let mut foreign_call_params = Vec::with_capacity(arguments.len() - 1);
     for arg in arguments.iter().skip(1) {
-        if !function.dfg.is_constant(*arg) {
-            let call_stack = function.dfg.get_instruction_call_stack(instruction);
-            return Err(RuntimeError::StaticAssertDynamicMessage { call_stack });
-        }
-        append_foreign_call_param(*arg, &function.dfg, &mut foreign_call_params);
+        append_foreign_call_param(*arg, &function.dfg, instruction, &mut foreign_call_params)?;
     }
 
     if function.dfg.is_constant_true(arguments[0]) {
@@ -200,17 +212,21 @@ fn evaluate_static_assert(
 fn append_foreign_call_param(
     value: ValueId,
     dfg: &DataFlowGraph,
+    instruction: InstructionId,
     foreign_call_params: &mut Vec<ForeignCallParam<FieldElement>>,
-) {
+) -> Result<(), RuntimeError> {
     if let Some(field) = dfg.get_numeric_constant(value) {
         foreign_call_params.push(ForeignCallParam::Single(field));
+        Ok(())
     } else if let Some((values, _typ)) = dfg.get_array_constant(value) {
         let values = vecmap(values, |value| {
             dfg.get_numeric_constant(value).expect("ICE: expected constant value")
         });
         foreign_call_params.push(ForeignCallParam::Array(values));
+        Ok(())
     } else {
-        panic!("ICE: expected constant value");
+        let call_stack = dfg.get_instruction_call_stack(instruction);
+        Err(RuntimeError::StaticAssertDynamicMessage { call_stack })
     }
 }
 

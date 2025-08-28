@@ -31,6 +31,9 @@ fn main(mut x: Field) {
     regression_2218_else(x, 3);
     regression_2218_loop(x, 10);
     regression_2560(s_ref);
+    nested_struct_aliases(x, 10);
+    assert_eq(x, 3);
+    nested_struct_aliases(x, 3);
 }
 
 fn add1(x: &mut Field) {
@@ -241,4 +244,66 @@ fn regression_2218_loop(x: Field, y: Field) {
 // Now, we insert as many `*` as necessary to get to `S`.
 fn regression_2560(s_ref: &mut S) {
     assert(s_ref.get_y() == 7);
+}
+
+struct MyStruct {
+    a: Field,
+    b: u32,
+}
+
+struct Outer {
+    inner: MyStruct,
+}
+
+fn nested_struct_aliases(x: Field, y: Field) {
+    let mut var = Outer { inner: MyStruct { a: 0, b: 0 } };
+    let ref_outer = &mut var;
+    let ref_inner1 = &mut ref_outer.inner;
+    let ref_inner2 = &mut var.inner;
+
+    if x != y {
+        (*ref_inner1).a = 5;
+        (*ref_inner1).b = 7;
+        (*ref_inner2).a = 3;
+        (*ref_inner2).b = 10;
+
+        for _ in 0..3 {
+            (*ref_inner1).a += 1;
+            (*ref_inner1).b += 2;
+            (*ref_inner2).a += 2;
+            (*ref_inner2).b += 4;
+        }
+    } else {
+        (*ref_inner2).a = 20;
+        (*ref_inner2).b = 15;
+        (*ref_inner1).a = 25;
+        (*ref_inner1).b = 30;
+
+        for _ in 0..3 {
+            (*ref_inner2).a += 5;
+            (*ref_inner2).b += 3;
+            (*ref_inner1).a += 4;
+            (*ref_inner1).b += 10;
+        }
+    }
+
+    if x != y {
+        assert(var.inner.a == 12);
+        assert(var.inner.b == 28);
+        assert(ref_inner1.a == 12);
+        assert(ref_inner1.b == 28);
+        assert(ref_inner2.a == 12);
+        assert(ref_inner2.b == 28);
+        assert(ref_outer.inner.a == 12);
+        assert(ref_outer.inner.b == 28);
+    } else {
+        assert(var.inner.a == 52);
+        assert(var.inner.b == 69);
+        assert(ref_inner1.a == 52);
+        assert(ref_inner1.b == 69);
+        assert(ref_inner2.a == 52);
+        assert(ref_inner2.b == 69);
+        assert(ref_outer.inner.a == 52);
+        assert(ref_outer.inner.b == 69);
+    }
 }

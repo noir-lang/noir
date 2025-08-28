@@ -3171,6 +3171,7 @@ name = "nargo"
 version = "1.0.0-beta.11"
 dependencies = [
  "acvm",
+ "brillig",
  "fm",
  "iter-extended",
  "jsonrpsee",
@@ -5593,6 +5594,7 @@ dependencies = [
  "base64",
  "bincode",
  "env_logger",
+ "k256",
  "lazy_static",
  "libfuzzer-sys",
  "log",
@@ -5600,11 +5602,13 @@ dependencies = [
  "noir_ssa_fuzzer",
  "noirc_driver",
  "noirc_evaluator",
+ "p256",
  "rand 0.8.5",
  "redis",
  "serde",
  "serde_json",
  "sha1",
+ "sha2",
  "strum",
  "strum_macros",
 ]

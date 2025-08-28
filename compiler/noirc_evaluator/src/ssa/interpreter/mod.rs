@@ -1,4 +1,4 @@
-use std::{cmp::Ordering, io::Write};
+use std::{cmp::Ordering, collections::BTreeMap, io::Write};
 
 use super::{
     Ssa,
@@ -27,13 +27,13 @@ pub mod value;
 
 use value::Value;
 
-struct Interpreter<'ssa, W> {
+pub(crate) struct Interpreter<'ssa, W> {
     /// Contains each function called with `main` (or the first called function if
     /// the interpreter was manually invoked on a different function) at
     /// the front of the Vec.
     call_stack: Vec<CallContext>,
 
-    ssa: &'ssa Ssa,
+    functions: &'ssa BTreeMap<FunctionId, Function>,
 
     /// This variable can be modified by `enable_side_effects_if` instructions and is
     /// expected to have no effect if there are no such instructions or if the code
@@ -49,6 +49,8 @@ struct Interpreter<'ssa, W> {
 pub struct InterpreterOptions {
     /// If true, the interpreter will trace its execution.
     pub trace: bool,
+    /// If true, the interpreter treats all foreign function calls (e.g., `print`) as unknown
+    pub no_foreign_calls: bool,
 }
 
 struct CallContext {
@@ -103,8 +105,20 @@ impl Ssa {
 
 impl<'ssa, W: Write> Interpreter<'ssa, W> {
     fn new(ssa: &'ssa Ssa, options: InterpreterOptions, output: W) -> Self {
+        Self::new_from_functions(&ssa.functions, options, output)
+    }
+
+    pub(crate) fn new_from_functions(
+        functions: &'ssa BTreeMap<FunctionId, Function>,
+        options: InterpreterOptions,
+        output: W,
+    ) -> Self {
         let call_stack = vec![CallContext::global_context()];
-        Self { ssa, call_stack, side_effects_enabled: true, options, output }
+        Self { functions, call_stack, side_effects_enabled: true, options, output }
+    }
+
+    pub(crate) fn functions(&self) -> &BTreeMap<FunctionId, Function> {
+        self.functions
     }
 
     fn call_context(&self) -> &CallContext {
@@ -121,7 +135,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
 
     fn try_current_function(&self) -> Option<&'ssa Function> {
         let current_function_id = self.call_context().called_function;
-        current_function_id.map(|current_function_id| &self.ssa.functions[&current_function_id])
+        current_function_id.map(|current_function_id| &self.functions[&current_function_id])
     }
 
     fn current_function(&self) -> &'ssa Function {
@@ -163,8 +177,9 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         Ok(())
     }
 
-    fn interpret_globals(&mut self) -> IResult<()> {
-        let globals = &self.ssa.main().dfg.globals;
+    pub(crate) fn interpret_globals(&mut self) -> IResult<()> {
+        let (_, function) = self.functions.first_key_value().unwrap();
+        let globals = &function.dfg.globals;
         for (global_id, global) in globals.values_iter() {
             let value = match global {
                 super::ir::value::Value::Instruction { instruction, .. } => {
@@ -189,10 +204,14 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         Ok(())
     }
 
-    fn call_function(&mut self, function_id: FunctionId, mut arguments: Vec<Value>) -> IResults {
+    pub(crate) fn call_function(
+        &mut self,
+        function_id: FunctionId,
+        mut arguments: Vec<Value>,
+    ) -> IResults {
         self.call_stack.push(CallContext::new(function_id));
 
-        let function = &self.ssa.functions[&function_id];
+        let function = &self.functions[&function_id];
         if self.options.trace {
             println!();
             println!("enter function {} ({})", function_id, function.name());
@@ -280,7 +299,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         if self.options.trace {
             if let Some(context) = self.call_stack.last() {
                 if let Some(function_id) = context.called_function {
-                    let function = &self.ssa.functions[&function_id];
+                    let function = &self.functions[&function_id];
                     println!("back in function {} ({})", function_id, function.name());
                 }
             }
@@ -741,7 +760,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                     // any shared mutable fields in our arguments since brillig should conceptually
                     // receive fresh array on each invocation.
                     if !self.in_unconstrained_context()
-                        && self.ssa.functions[&id].runtime().is_brillig()
+                        && self.functions[&id].runtime().is_brillig()
                     {
                         for argument in arguments.iter_mut() {
                             Self::reset_array_state(argument)?;
@@ -751,6 +770,9 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                 }
                 Value::Intrinsic(intrinsic) => {
                     self.call_intrinsic(intrinsic, argument_ids, results)?
+                }
+                Value::ForeignFunction(name) if self.options.no_foreign_calls => {
+                    return Err(InterpreterError::UnknownForeignFunctionCall { name });
                 }
                 Value::ForeignFunction(name) if name == "print" => self.call_print(arguments)?,
                 Value::ForeignFunction(name) => {
@@ -789,7 +811,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
     /// Try to get a function's name or approximate it if it is not known
     fn try_get_function_name(&self, function: ValueId) -> String {
         match self.lookup(function) {
-            Ok(Value::Function(id)) => match self.ssa.functions.get(&id) {
+            Ok(Value::Function(id)) => match self.functions.get(&id) {
                 Some(function) => function.name().to_string(),
                 None => "unknown function".to_string(),
             },
@@ -835,14 +857,15 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                 "Result of allocate should always be a reference type, but found {other}"
             ),
         };
-        self.define(result, Value::reference(result, element_type))
+        let value = Value::reference(result, element_type);
+        self.define(result, value)
     }
 
     fn interpret_load(&mut self, address: ValueId, result: ValueId) -> IResult<()> {
         let address = self.lookup_reference(address, "load")?;
 
         let element = address.element.borrow();
-        let Some(value) = &*element else {
+        let Some(value) = element.as_ref() else {
             let value = address.to_string();
             return Err(internal(InternalError::UninitializedReferenceValueLoaded { value }));
         };

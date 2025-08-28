@@ -1,4 +1,5 @@
 pub(crate) mod block_context;
+pub(crate) mod ecdsa;
 pub(crate) mod function_context;
 pub(crate) mod fuzz_target_lib;
 pub(crate) mod fuzzer;
