@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1756418075084,
+  "lastUpdate": 1756423228955,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -20206,48 +20206,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "ef436d0f75d2fc439c2423fcd1ecbced386a31ee",
-          "message": "fix(ssa): Do not simplify on lhs being zero for shifts (#9596)",
-          "timestamp": "2025-08-21T14:41:32Z",
-          "tree_id": "e86535a95488be77daea700fcfc6bc418b096355",
-          "url": "https://github.com/noir-lang/noir/commit/ef436d0f75d2fc439c2423fcd1ecbced386a31ee"
-        },
-        "date": 1755788816452,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 249349,
-            "range": "± 813",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 220021,
-            "range": "± 1615",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2793228,
-            "range": "± 1184",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -22299,6 +22257,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2779566,
             "range": "± 9811",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "585175e56f2c34f225fe6ac87a91f4962c61553d",
+          "message": "chore(ssa): Greenlight `brillig_entry_points` and switch to centralized CallGraph (#9668)",
+          "timestamp": "2025-08-28T22:53:30Z",
+          "tree_id": "e3426df4dacd6368512ce28681f0e2e2e1e58aea",
+          "url": "https://github.com/noir-lang/noir/commit/585175e56f2c34f225fe6ac87a91f4962c61553d"
+        },
+        "date": 1756423209459,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 248766,
+            "range": "± 413",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 218421,
+            "range": "± 3412",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2788293,
+            "range": "± 10286",
             "unit": "ns/iter"
           }
         ]
