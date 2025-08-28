@@ -78,7 +78,14 @@ use crate::ssa::{
 
 impl Ssa {
     pub(crate) fn brillig_entry_point_analysis(mut self) -> Ssa {
-        if self.main().runtime().is_brillig() {
+        let main = self.main();
+        if main.runtime().is_brillig() {
+            return self;
+        }
+
+        // Check whether any globals have been specified.
+        // If not, specialization is not required and we can return early.
+        if main.dfg.globals.values_iter().next().is_none() {
             return self;
         }
 
