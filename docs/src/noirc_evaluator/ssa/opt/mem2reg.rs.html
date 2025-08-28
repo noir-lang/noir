@@ -1958,7 +1958,129 @@
 <a href="#1957" id="1957">1957</a>
 <a href="#1958" id="1958">1958</a>
 <a href="#1959" id="1959">1959</a>
-<a href="#1960" id="1960">1960</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the mem2reg SSA optimization pass is to replace any `Load` instructions to known
+<a href="#1960" id="1960">1960</a>
+<a href="#1961" id="1961">1961</a>
+<a href="#1962" id="1962">1962</a>
+<a href="#1963" id="1963">1963</a>
+<a href="#1964" id="1964">1964</a>
+<a href="#1965" id="1965">1965</a>
+<a href="#1966" id="1966">1966</a>
+<a href="#1967" id="1967">1967</a>
+<a href="#1968" id="1968">1968</a>
+<a href="#1969" id="1969">1969</a>
+<a href="#1970" id="1970">1970</a>
+<a href="#1971" id="1971">1971</a>
+<a href="#1972" id="1972">1972</a>
+<a href="#1973" id="1973">1973</a>
+<a href="#1974" id="1974">1974</a>
+<a href="#1975" id="1975">1975</a>
+<a href="#1976" id="1976">1976</a>
+<a href="#1977" id="1977">1977</a>
+<a href="#1978" id="1978">1978</a>
+<a href="#1979" id="1979">1979</a>
+<a href="#1980" id="1980">1980</a>
+<a href="#1981" id="1981">1981</a>
+<a href="#1982" id="1982">1982</a>
+<a href="#1983" id="1983">1983</a>
+<a href="#1984" id="1984">1984</a>
+<a href="#1985" id="1985">1985</a>
+<a href="#1986" id="1986">1986</a>
+<a href="#1987" id="1987">1987</a>
+<a href="#1988" id="1988">1988</a>
+<a href="#1989" id="1989">1989</a>
+<a href="#1990" id="1990">1990</a>
+<a href="#1991" id="1991">1991</a>
+<a href="#1992" id="1992">1992</a>
+<a href="#1993" id="1993">1993</a>
+<a href="#1994" id="1994">1994</a>
+<a href="#1995" id="1995">1995</a>
+<a href="#1996" id="1996">1996</a>
+<a href="#1997" id="1997">1997</a>
+<a href="#1998" id="1998">1998</a>
+<a href="#1999" id="1999">1999</a>
+<a href="#2000" id="2000">2000</a>
+<a href="#2001" id="2001">2001</a>
+<a href="#2002" id="2002">2002</a>
+<a href="#2003" id="2003">2003</a>
+<a href="#2004" id="2004">2004</a>
+<a href="#2005" id="2005">2005</a>
+<a href="#2006" id="2006">2006</a>
+<a href="#2007" id="2007">2007</a>
+<a href="#2008" id="2008">2008</a>
+<a href="#2009" id="2009">2009</a>
+<a href="#2010" id="2010">2010</a>
+<a href="#2011" id="2011">2011</a>
+<a href="#2012" id="2012">2012</a>
+<a href="#2013" id="2013">2013</a>
+<a href="#2014" id="2014">2014</a>
+<a href="#2015" id="2015">2015</a>
+<a href="#2016" id="2016">2016</a>
+<a href="#2017" id="2017">2017</a>
+<a href="#2018" id="2018">2018</a>
+<a href="#2019" id="2019">2019</a>
+<a href="#2020" id="2020">2020</a>
+<a href="#2021" id="2021">2021</a>
+<a href="#2022" id="2022">2022</a>
+<a href="#2023" id="2023">2023</a>
+<a href="#2024" id="2024">2024</a>
+<a href="#2025" id="2025">2025</a>
+<a href="#2026" id="2026">2026</a>
+<a href="#2027" id="2027">2027</a>
+<a href="#2028" id="2028">2028</a>
+<a href="#2029" id="2029">2029</a>
+<a href="#2030" id="2030">2030</a>
+<a href="#2031" id="2031">2031</a>
+<a href="#2032" id="2032">2032</a>
+<a href="#2033" id="2033">2033</a>
+<a href="#2034" id="2034">2034</a>
+<a href="#2035" id="2035">2035</a>
+<a href="#2036" id="2036">2036</a>
+<a href="#2037" id="2037">2037</a>
+<a href="#2038" id="2038">2038</a>
+<a href="#2039" id="2039">2039</a>
+<a href="#2040" id="2040">2040</a>
+<a href="#2041" id="2041">2041</a>
+<a href="#2042" id="2042">2042</a>
+<a href="#2043" id="2043">2043</a>
+<a href="#2044" id="2044">2044</a>
+<a href="#2045" id="2045">2045</a>
+<a href="#2046" id="2046">2046</a>
+<a href="#2047" id="2047">2047</a>
+<a href="#2048" id="2048">2048</a>
+<a href="#2049" id="2049">2049</a>
+<a href="#2050" id="2050">2050</a>
+<a href="#2051" id="2051">2051</a>
+<a href="#2052" id="2052">2052</a>
+<a href="#2053" id="2053">2053</a>
+<a href="#2054" id="2054">2054</a>
+<a href="#2055" id="2055">2055</a>
+<a href="#2056" id="2056">2056</a>
+<a href="#2057" id="2057">2057</a>
+<a href="#2058" id="2058">2058</a>
+<a href="#2059" id="2059">2059</a>
+<a href="#2060" id="2060">2060</a>
+<a href="#2061" id="2061">2061</a>
+<a href="#2062" id="2062">2062</a>
+<a href="#2063" id="2063">2063</a>
+<a href="#2064" id="2064">2064</a>
+<a href="#2065" id="2065">2065</a>
+<a href="#2066" id="2066">2066</a>
+<a href="#2067" id="2067">2067</a>
+<a href="#2068" id="2068">2068</a>
+<a href="#2069" id="2069">2069</a>
+<a href="#2070" id="2070">2070</a>
+<a href="#2071" id="2071">2071</a>
+<a href="#2072" id="2072">2072</a>
+<a href="#2073" id="2073">2073</a>
+<a href="#2074" id="2074">2074</a>
+<a href="#2075" id="2075">2075</a>
+<a href="#2076" id="2076">2076</a>
+<a href="#2077" id="2077">2077</a>
+<a href="#2078" id="2078">2078</a>
+<a href="#2079" id="2079">2079</a>
+<a href="#2080" id="2080">2080</a>
+<a href="#2081" id="2081">2081</a>
+<a href="#2082" id="2082">2082</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the mem2reg SSA optimization pass is to replace any `Load` instructions to known
 //! addresses with the value stored at that address, if it is also known. This pass will also remove
 //! any `Store` instructions within a block that are no longer needed because no more loads occur in
 //! between the Store in question and the next Store.
@@ -2289,7 +2411,7 @@
         // as well. We can't do this if there are multiple blocks since subsequent blocks may
         // reference these stores.
         </span><span class="kw">if </span><span class="self">self</span>.post_order.as_slice().len() == <span class="number">1 </span>{
-            <span class="self">self</span>.remove_stores_that_do_not_alias_parameters(<span class="kw-2">&amp;</span>references);
+            <span class="self">self</span>.remove_stores_that_do_not_alias_parameters_or_returns(<span class="kw-2">&amp;</span>references);
         }
 
         <span class="self">self</span>.blocks.insert(block, references);
@@ -2344,17 +2466,26 @@
 
     <span class="doccomment">/// Add all instructions in `last_stores` to `self.instructions_to_remove` which do not
     /// possibly alias any parameters of the given function.
-    </span><span class="kw">fn </span>remove_stores_that_do_not_alias_parameters(<span class="kw-2">&amp;mut </span><span class="self">self</span>, references: <span class="kw-2">&amp;</span>Block) {
+    </span><span class="kw">fn </span>remove_stores_that_do_not_alias_parameters_or_returns(<span class="kw-2">&amp;mut </span><span class="self">self</span>, references: <span class="kw-2">&amp;</span>Block) {
         <span class="kw">let </span>reference_parameters = <span class="self">self</span>.reference_parameters();
 
         <span class="kw">for </span>(allocation, instruction) <span class="kw">in </span><span class="kw-2">&amp;</span>references.last_stores {
             <span class="kw">let </span>aliases = references.get_aliases_for_value(<span class="kw-2">*</span>allocation);
+
             <span class="kw">let </span>allocation_aliases_parameter =
                 aliases.any(|alias| reference_parameters.contains(<span class="kw-2">&amp;</span>alias));
             <span class="comment">// If `allocation_aliases_parameter` is known to be false
-            </span><span class="kw">if </span>allocation_aliases_parameter == <span class="prelude-val">Some</span>(<span class="bool-val">false</span>) {
-                <span class="self">self</span>.instructions_to_remove.insert(<span class="kw-2">*</span>instruction);
+            </span><span class="kw">if </span>allocation_aliases_parameter != <span class="prelude-val">Some</span>(<span class="bool-val">false</span>) {
+                <span class="kw">continue</span>;
             }
+
+            <span class="kw">let </span>allocation_aliases_input_reference =
+                aliases.any(|alias| <span class="self">self</span>.instruction_input_references.contains(<span class="kw-2">&amp;</span>alias));
+            <span class="kw">if </span>allocation_aliases_input_reference != <span class="prelude-val">Some</span>(<span class="bool-val">false</span>) {
+                <span class="kw">continue</span>;
+            }
+
+            <span class="self">self</span>.instructions_to_remove.insert(<span class="kw-2">*</span>instruction);
         }
     }
 
@@ -2473,18 +2604,26 @@
             Instruction::ArrayGet { array, .. } =&gt; {
                 <span class="kw">let </span>result = <span class="self">self</span>.inserter.function.dfg.instruction_results(instruction)[<span class="number">0</span>];
 
-                <span class="kw">let </span>array = <span class="kw-2">*</span>array;
-                <span class="kw">let </span>array_typ = <span class="self">self</span>.inserter.function.dfg.type_of_value(array);
-                <span class="kw">if </span>array_typ.contains_reference() {
+                <span class="kw">if </span><span class="self">self</span>.inserter.function.dfg.type_of_value(result).contains_reference() {
+                    <span class="kw">let </span>array = <span class="kw-2">*</span>array;
                     <span class="self">self</span>.instruction_input_references
                         .extend(references.get_aliases_for_value(array).iter());
                     references.mark_value_used(array, <span class="self">self</span>.inserter.function);
 
-                    <span class="kw">let </span>expression = Expression::ArrayElement(array);
+                    <span class="comment">// An expression for the array might already exist, so try to fetch it first
+                    </span><span class="kw">let </span>expression = references.expressions.get(<span class="kw-2">&amp;</span>array).copied();
+                    <span class="kw">let </span>expression = expression.unwrap_or(Expression::Other(array));
 
                     <span class="kw">if let </span><span class="prelude-val">Some</span>(aliases) = references.aliases.get_mut(<span class="kw-2">&amp;</span>expression) {
                         aliases.insert(result);
                     }
+
+                    <span class="comment">// In this SSA:
+                    //
+                    // v2 = array_get v0, index v1 -&gt; Field
+                    //
+                    // make v2 point to v0 so they share the same alias set
+                    </span>references.expressions.insert(result, expression);
                 }
             }
             Instruction::ArraySet { array, value, .. } =&gt; {
@@ -2495,7 +2634,8 @@
                     <span class="kw">let </span>result = <span class="self">self</span>.inserter.function.dfg.instruction_results(instruction)[<span class="number">0</span>];
                     <span class="kw">let </span>array = <span class="kw-2">*</span>array;
 
-                    <span class="kw">let </span>expression = Expression::ArrayElement(array);
+                    <span class="kw">let </span>expression = references.expressions.get(<span class="kw-2">&amp;</span>array).copied();
+                    <span class="kw">let </span>expression = expression.unwrap_or(Expression::Other(array));
 
                     <span class="kw">let </span><span class="kw-2">mut </span>aliases = <span class="kw">if let </span><span class="prelude-val">Some</span>(aliases) = references.aliases.get_mut(<span class="kw-2">&amp;</span>expression)
                     {
@@ -2693,8 +2833,8 @@
                 <span class="comment">// We need to appropriately mark each alias of a reference as being used as a return terminator argument.
                 // This prevents us potentially removing a last store from a preceding block or is altered within another function.
                 </span><span class="kw">for </span>return_value <span class="kw">in </span>return_values {
-                    <span class="self">self</span>.instruction_input_references
-                        .extend(references.get_aliases_for_value(<span class="kw-2">*</span>return_value).iter());
+                    <span class="kw">let </span>aliases = references.get_aliases_for_value(<span class="kw-2">*</span>return_value);
+                    <span class="self">self</span>.instruction_input_references.extend(aliases.iter());
                 }
                 <span class="comment">// Removing all `last_stores` for each returned reference is more important here
                 // than setting them all to unknown since no other block should
@@ -3518,8 +3658,43 @@
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>removes_last_store_in_single_block() {
+        <span class="kw">let </span>src = <span class="string">"
+        brillig(inline) impure fn main f0 {
+          b0():
+            v0 = allocate -&gt; &amp;mut [Field; 2]
+            v1 = load v0 -&gt; [Field; 2]
+            store v1 at v0
+            return
+        }
+
+        brillig(inline) impure fn append_note_hashes_with_logs f1 {
+          b0(v0: &amp;mut [Field; 2]):
+            return
+        }
+        "</span>;
+
+        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+
+        <span class="kw">let </span>ssa = ssa.mem2reg();
+        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
+        brillig(inline) impure fn main f0 {
+          b0():
+            v0 = allocate -&gt; &amp;mut [Field; 2]
+            v1 = load v0 -&gt; [Field; 2]
+            return
+        }
+        brillig(inline) impure fn append_note_hashes_with_logs f1 {
+          b0(v0: &amp;mut [Field; 2]):
+            return
+        }
+        "</span>);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>does_not_remove_last_store_in_single_block() {
         <span class="comment">// Even though v0 is a reference passed to a function, the store that comes next
-        // can be removed as it is later never read, and this is the only block in the function.
+        // isn't removed because it's considered an "input reference" and we can't currently
+        // tell if that value is going to be returned from the function.
         </span><span class="kw">let </span>src = <span class="string">"
         brillig(inline) impure fn main f0 {
           b0():
@@ -3545,6 +3720,7 @@
             v0 = allocate -&gt; &amp;mut [Field; 2]
             call f1(v0)
             v2 = load v0 -&gt; [Field; 2]
+            store v2 at v0
             return
         }
         brillig(inline) impure fn append_note_hashes_with_logs f1 {
@@ -3916,6 +4092,74 @@
             return
         }
         "</span>);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>does_not_reuse_load_from_aliased_array_element() {
+        <span class="kw">let </span>src = <span class="string">"
+        brillig(inline) fn main f0 {
+          b0(v0: &amp;mut Field, v1: &amp;mut Field, v2: u32):
+            v3 = make_array [v0] : [&amp;mut Field; 1]
+            v4 = array_set v3, index v2, value v1
+            v5 = load v0 -&gt; Field
+            v6 = array_get v4, index v2 -&gt; &amp;mut Field
+            store Field 0 at v6
+            v7 = load v0 -&gt; Field
+            return v7
+        }
+        "</span>;
+
+        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+        <span class="kw">let </span>ssa = ssa.mem2reg();
+        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r#"
+        brillig(inline) fn main f0 {
+          b0(v0: &amp;mut Field, v1: &amp;mut Field, v2: u32):
+            v3 = make_array [v0] : [&amp;mut Field; 1]
+            v4 = array_set v3, index v2, value v1
+            v5 = load v0 -&gt; Field
+            constrain v2 == u32 0, "Index out of bounds"
+            v7 = array_get v4, index u32 0 -&gt; &amp;mut Field
+            store Field 0 at v7
+            v9 = load v0 -&gt; Field
+            return v9
+        }
+        "#</span>);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>does_not_remove_store_from_aliased_array_element() {
+        <span class="kw">let </span>src = <span class="string">"
+        brillig(inline) fn main f0 {
+          b0(v0: u32):
+            v1 = allocate -&gt; &amp;mut Field
+            store Field 0 at v1
+            v3 = make_array [v1] : [&amp;mut Field; 1]
+            v5 = array_set v3, index v0, value v1
+            v6 = array_get v5, index v0 -&gt; &amp;mut Field
+            store Field 100 at v6
+            v8 = load v1 -&gt; Field
+            constrain v8 == Field 100
+            return v8
+        }
+        "</span>;
+
+        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+        <span class="kw">let </span>ssa = ssa.mem2reg();
+        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r#"
+        brillig(inline) fn main f0 {
+          b0(v0: u32):
+            v1 = allocate -&gt; &amp;mut Field
+            store Field 0 at v1
+            v3 = make_array [v1] : [&amp;mut Field; 1]
+            v4 = array_set v3, index v0, value v1
+            constrain v0 == u32 0, "Index out of bounds"
+            v6 = array_get v4, index u32 0 -&gt; &amp;mut Field
+            store Field 100 at v6
+            v8 = load v1 -&gt; Field
+            constrain v8 == Field 100
+            return v8
+        }
+        "#</span>);
     }
 }
 </code></pre></div></section></main></body></html>
