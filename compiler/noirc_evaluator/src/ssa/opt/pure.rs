@@ -512,4 +512,113 @@ mod test {
         assert_eq!(purities[&FunctionId::test_new(0)], Purity::Impure);
         assert_eq!(purities[&FunctionId::test_new(1)], Purity::Impure);
     }
+
+    #[test]
+    fn mutual_recursion_marks_functions_impure() {
+        // We want to test that two pure mutually recursive functions do in fact mark each other as impure
+        let src = r#"
+        acir(inline) fn main f0 {
+          b0():
+            v0 = call f1(u32 4) -> bool
+            return
+        }
+        acir(inline) fn is_even f1 {
+          b0(v0: u32):
+            v1 = eq v0, u32 0
+            jmpif v1 then: b1, else: b2
+          b1():
+            jmp b3(u1 1)
+          b2():
+            v2 = unchecked_sub v0, u32 1
+            v3 = call f2(v2) -> bool
+            jmp b3(v3)
+          b3(v4: bool):
+            return v4
+        }
+        acir(inline) fn is_odd f2 {
+          b0(v0: u32):
+            v1 = eq v0, u32 0
+            jmpif v1 then: b1, else: b2
+          b1():
+            jmp b3(u1 0)
+          b2():
+            v2 = unchecked_sub v0, u32 1
+            v3 = call f1(v2) -> bool
+            jmp b3(v3)
+          b3(v4: bool):
+            return v4
+        }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.purity_analysis();
+
+        let purities = &ssa.main().dfg.function_purities;
+        assert_eq!(purities[&FunctionId::test_new(0)], Purity::Impure);
+        // Impure due to mutual recursion fallback.
+        assert_eq!(purities[&FunctionId::test_new(1)], Purity::Impure);
+        assert_eq!(purities[&FunctionId::test_new(2)], Purity::Impure);
+    }
+
+    /// TODO(https://github.com/noir-lang/noir/issues/9444)
+    #[test]
+    fn brillig_functions_never_pure() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u1):
+            call f1()
+            call f1()
+            return
+        }
+        brillig(inline) fn pure_basic f1 {
+          b0():
+            v2 = make_array [Field 0, Field 1] : [Field; 2]
+            v4 = array_get v2, index u32 1 -> Field
+            v5 = allocate -> &mut Field
+            store Field 0 at v5
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.purity_analysis();
+
+        let purities = &ssa.main().dfg.function_purities;
+        // PureWithPredicates is the default purity for all Brillig functions.
+        // So even though `f1` is technically pure it will be marked as PureWithPredicates
+        assert_eq!(purities[&FunctionId::test_new(0)], Purity::PureWithPredicate);
+        assert_eq!(purities[&FunctionId::test_new(1)], Purity::PureWithPredicate);
+    }
+
+    #[test]
+    fn call_to_function_value() {
+        let src = r#"
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v5 = make_array [f1, f2] : [function; 2]
+            v7 = lt v0, u32 2
+            constrain v7 == u1 1, "Index out of bounds"
+            v9 = array_get v5, index v0 -> function
+            call v9()
+            return
+        }
+        acir(inline) fn lambda f1 {
+          b0():
+            return
+        }
+        acir(inline) fn lambda f2 {
+          b0():
+            return
+        }"#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.purity_analysis();
+
+        let purities = &ssa.main().dfg.function_purities;
+        // Even though the functions referenced by the function values are pure
+        // we assume the worse case for functions containing calls to function values.
+        assert_eq!(purities[&FunctionId::test_new(0)], Purity::Impure);
+        assert_eq!(purities[&FunctionId::test_new(1)], Purity::Pure);
+        assert_eq!(purities[&FunctionId::test_new(1)], Purity::Pure);
+    }
 }
