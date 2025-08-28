@@ -2079,4 +2079,51 @@ mod tests {
         }
         "#);
     }
+
+    #[test]
+    fn return_references_1() {
+        // Here the last load can't be replaced with `Field 1` as v0 and v1 are potentially
+        // aliases of one another (in our logic the alias set of v0 and v1 will be unknown)
+        let src = "
+        brillig(inline) impure fn main f0 {
+          b0():
+            v0, v1 = call f1() -> (&mut Field, &mut Field)
+            store Field 0 at v0
+            store Field 1 at v1
+            v2 = load v0 -> Field
+            return v2
+        }
+
+        brillig(inline) impure fn f1 f1 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 0 at v0
+            return v0, v0
+        }
+        ";
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
+    }
+
+    #[test]
+    fn return_references_2() {
+        // Here the last load can't be replaced with `Field 1` as v0 and v1 are potentially
+        // aliases of one another (in our logic the alias set of v0 and v1 will be unknown)
+        let src = "
+        brillig(inline) impure fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            v1 = call f1(v0) -> &mut Field
+            store Field 0 at v0
+            store Field 1 at v1
+            v2 = load v0 -> Field
+            return v2
+        }
+
+        brillig(inline) impure fn f1 f1 {
+          b0(v0: &mut Field):
+            return v0
+        }
+        ";
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
+    }
 }
