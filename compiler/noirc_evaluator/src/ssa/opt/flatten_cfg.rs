@@ -282,13 +282,15 @@ pub(crate) struct Context<'f> {
 
 #[derive(Clone)]
 struct ConditionalBranch {
-    // Contains the last processed block during the processing of the branch.
-    last_block: BasicBlockId,
-    // The unresolved condition of the branch
+    /// Contains the last processed block during the processing of the branch.
+    ///
+    /// It starts out empty, then gets filled in when we finish the branch.
+    last_block: Option<BasicBlockId>,
+    /// The unresolved condition of the branch
     old_condition: ValueId,
-    // The condition of the branch
+    /// The resolved condition of the branch, AND-ed with all outer branch conditions.
     condition: ValueId,
-    // The allocations accumulated when processing the branch
+    /// The allocations accumulated when processing the branch
     local_allocations: HashSet<ValueId>,
 }
 
@@ -559,7 +561,7 @@ impl<'f> Context<'f> {
             }
             TerminatorInstruction::Jmp { destination, arguments, call_stack: _ } => {
                 // If the destination is already on the work list, it means it's an exit block in an if-then-else,
-                // and was put there `if_start` as the last to be processed out of [then, else, exit].
+                // and was put there by `if_start` as the last to be processed out of [then, else, exit].
                 if work_list.contains(destination) {
                     // Since we enqueued [then, else, exit] after each other, if the next block on the work list
                     // is the exit block, then this must be the else.
@@ -620,7 +622,7 @@ impl<'f> Context<'f> {
         let branch = ConditionalBranch {
             old_condition,
             condition: self.link_condition(then_condition),
-            last_block: *then_destination,
+            last_block: None, // Will be determined later.
             local_allocations: old_allocations,
         };
         let cond_context = ConditionalContext {
@@ -655,7 +657,7 @@ impl<'f> Context<'f> {
         assert_eq!(self.cfg.successors(*block).len(), 1);
 
         let mut cond_context = self.condition_stack.pop().unwrap();
-        cond_context.then_branch.last_block = *block;
+        cond_context.then_branch.last_block = Some(*block);
 
         let condition_call_stack =
             self.inserter.function.dfg.get_value_call_stack_id(cond_context.condition);
@@ -667,7 +669,7 @@ impl<'f> Context<'f> {
         let else_branch = ConditionalBranch {
             old_condition: cond_context.then_branch.old_condition,
             condition: else_condition,
-            last_block: *block,
+            last_block: None,
             local_allocations: old_allocations,
         };
         cond_context.then_branch.local_allocations.clear();
@@ -708,7 +710,7 @@ impl<'f> Context<'f> {
 
         let mut else_branch = cond_context.else_branch.unwrap();
         self.local_allocations = std::mem::take(&mut else_branch.local_allocations);
-        else_branch.last_block = *block;
+        else_branch.last_block = Some(*block);
         cond_context.else_branch = Some(else_branch);
 
         self.reset_predicated_values(&mut cond_context);
@@ -743,11 +745,11 @@ impl<'f> Context<'f> {
         // rather than rely on argument passing in the context.
         let mut else_args = Vec::new();
         if cond_context.else_branch.is_some() {
-            let last_else = cond_context.else_branch.clone().unwrap().last_block;
+            let last_else = cond_context.else_branch.clone().unwrap().last_block.unwrap();
             else_args = self.inserter.function.dfg[last_else].terminator_arguments().to_vec();
         }
 
-        let last_then = cond_context.then_branch.last_block;
+        let last_then = cond_context.then_branch.last_block.unwrap();
         let then_args = self.inserter.function.dfg[last_then].terminator_arguments().to_vec();
 
         let params = self.inserter.function.dfg.block_parameters(destination);
