@@ -275,7 +275,9 @@ fn analyze_call_graph(
                     }
                 }
 
-                // If this function is recursive AND a Brillig function, mark as PureWithPredicate
+                // Recursive Brillig functions cannot be fully pure (may loop indefinitely),
+                // but we still treat them as PureWithPredicate for deduplication purposes.
+                // If this function is recursive AND a Brillig function, mark as PureWithPredicate.
                 if recursive_functions.contains(&func) && functions[&func].runtime().is_brillig() {
                     combined_purity = combined_purity.unify(Purity::PureWithPredicate);
                 }
