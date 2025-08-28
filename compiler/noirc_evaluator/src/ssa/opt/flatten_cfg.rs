@@ -193,8 +193,10 @@ impl Ssa {
 /// Panics if:
 ///   - Any acir function has at least 1 loop
 #[cfg(debug_assertions)]
-#[allow(dead_code)]
 fn flatten_cfg_pre_check(function: &Function) {
+    if !function.runtime().is_acir() {
+        return;
+    }
     let loops = super::unrolling::Loops::find_all(function);
     assert_eq!(loops.yet_to_unroll.len(), 0);
 }
@@ -204,10 +206,12 @@ fn flatten_cfg_pre_check(function: &Function) {
 /// Panics if:
 ///   - Any acir function contains > 1 block
 #[cfg(debug_assertions)]
-#[allow(dead_code)]
-fn flatten_cfg_post_check(function: &Function) {
+pub(super) fn flatten_cfg_post_check(function: &Function) {
+    if !function.runtime().is_acir() {
+        return;
+    }
     let blocks = function.reachable_blocks();
-    assert_eq!(blocks.len(), 1);
+    assert_eq!(blocks.len(), 1, "CFG contains more than 1 block");
 }
 
 pub(crate) struct Context<'f> {
@@ -906,25 +910,15 @@ impl<'f> Context<'f> {
 
                         // For MSM, we also ensure the inputs are on the curve if the predicate is false.
                         BlackBoxFunc::MultiScalarMul => {
-                            let points_array_idx = if matches!(
-                                self.inserter.function.dfg.type_of_value(arguments[0]),
-                                Type::Array { .. }
-                            ) {
-                                0
-                            } else {
-                                // if the first argument is not an array, we assume it is a slice
-                                // which means the array is the second argument
-                                1
-                            };
                             let (elements, typ) = self.apply_predicate_to_msm_argument(
-                                arguments[points_array_idx],
+                                arguments[0],
                                 condition,
                                 call_stack,
                             );
 
                             let instruction = Instruction::MakeArray { elements, typ };
                             let array = self.insert_instruction(instruction, call_stack);
-                            arguments[points_array_idx] = array;
+                            arguments[0] = array;
                             Instruction::Call { func, arguments }
                         }
 

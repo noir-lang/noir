@@ -131,22 +131,8 @@ impl<'f> FunctionInserter<'f> {
         new_results: &InsertInstructionResult,
     ) {
         assert_eq!(old_results.len(), new_results.len());
-
-        match new_results {
-            InsertInstructionResult::SimplifiedTo(new_result) => {
-                values.insert(old_results[0], *new_result);
-            }
-            InsertInstructionResult::SimplifiedToMultiple(new_results) => {
-                for (old_result, new_result) in old_results.iter().zip(new_results) {
-                    values.insert(*old_result, *new_result);
-                }
-            }
-            InsertInstructionResult::Results(_, new_results) => {
-                for (old_result, new_result) in old_results.iter().zip(*new_results) {
-                    values.insert(*old_result, *new_result);
-                }
-            }
-            InsertInstructionResult::InstructionRemoved => (),
+        for i in 0..old_results.len() {
+            values.insert(old_results[i], new_results[i]);
         }
     }
 
