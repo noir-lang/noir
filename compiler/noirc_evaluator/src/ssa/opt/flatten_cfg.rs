@@ -242,13 +242,8 @@ pub(crate) struct Context<'f> {
     /// the most recent condition combined with all previous conditions via `And` instructions.
     condition_stack: Vec<ConditionalContext>,
 
-    /// Stack of block arguments.
-    ///
-    /// When processing a block, we pop this stack to get its arguments
-    /// and at the end we push the arguments for its successor.
-    ///
-    /// It does not contain the parameters of the entry block of the function.
-    arguments_stack: Vec<Vec<ValueId>>,
+    /// Arguments prepared by the last inlined block for the for the next block we are about to process.
+    next_arguments: Option<Vec<ValueId>>,
 
     /// Stores all allocations local to the current branch.
     ///
@@ -375,7 +370,7 @@ impl<'f> Context<'f> {
             cfg,
             branch_ends,
             condition_stack: Vec::new(),
-            arguments_stack: Vec::new(),
+            next_arguments: None,
             local_allocations: HashSet::default(),
             not_instructions: HashMap::default(),
             target_block,
@@ -411,6 +406,7 @@ impl<'f> Context<'f> {
                 work_list.add(incoming_block);
             }
         }
+        assert!(self.next_arguments.is_none(), "no leftover arguments");
         self.inserter.map_data_bus_in_place();
     }
 
@@ -455,6 +451,22 @@ impl<'f> Context<'f> {
         false
     }
 
+    /// Prepare the arguments for the next block to consume.
+    ///
+    /// Panics if we already have something prepared.
+    fn prepare_args(&mut self, args: Vec<ValueId>) {
+        assert!(self.next_arguments.is_none(), "already prepared the arguments");
+        assert!(!args.is_empty(), "only prepare args for non-empty parameter list");
+        self.next_arguments = Some(args);
+    }
+
+    /// Consume the arguments prepared by the previous block.
+    ///
+    /// Panics if there was nothing prepared.
+    fn consume_args(&mut self) -> Vec<ValueId> {
+        self.next_arguments.take().expect("there are no arguments prepared")
+    }
+
     /// Inline all instructions from the given block into the target block, and track slice capacities.
     /// This is done by processing every instruction in the block and using the flattening context
     /// to push them in the target block.
@@ -465,14 +477,17 @@ impl<'f> Context<'f> {
         block: BasicBlockId,
         no_predicates: &HashMap<FunctionId, bool>,
     ) {
+        // We do not inline the target block into itself.
+        // This is the case in the beginning for the entry block.
         if self.target_block == block {
-            // We do not inline the target block into itself.
-            // This is the case in the beginning for the entry block.
             return;
         }
 
-        let arguments = self.arguments_stack.pop().unwrap();
-        self.inserter.remember_block_params(block, &arguments);
+        // If the block has parameters, they should have been prepared by the last block.
+        if !self.inserter.function.dfg.block_parameters(block).is_empty() {
+            let arguments = self.consume_args();
+            self.inserter.remember_block_params(block, &arguments);
+        }
 
         // If this is not a separate variable, clippy gets confused and says the to_vec is
         // unnecessary, when removing it actually causes an aliasing/mutability error.
@@ -495,12 +510,14 @@ impl<'f> Context<'f> {
         }
     }
 
-    /// Returns the list of blocks that need to be processed after the given block.
+    /// Returns the list of blocks that need to be processed after the given block,
+    /// and prepare any arguments for the next-to-be-inlined block to consume.
     ///
     /// For a normal block, it would be its successor.
     ///
     /// For blocks related to a conditional statement, we ensure to process
-    /// the 'then_branch', then the 'else_branch' (if it exists), and finally the end block
+    /// the 'then_branch', then the 'else_branch' (if it exists), and finally the exit block.
+    ///
     /// The update of the context is done by the functions `if_start`, `then_stop` and `else_stop`
     /// which perform the business logic when entering a conditional statement, finishing the 'then_branch'
     /// and the 'else_branch', respectively.
@@ -521,26 +538,31 @@ impl<'f> Context<'f> {
                 else_destination,
                 call_stack,
             } => {
-                self.arguments_stack.push(vec![]);
+                // The 'then' and 'else' blocks have no arguments, so we have nothing to prepare.
                 self.if_start(condition, then_destination, else_destination, &block, *call_stack)
             }
             TerminatorInstruction::Jmp { destination, arguments, call_stack: _ } => {
-                let arguments = vecmap(arguments.clone(), |value| self.inserter.resolve(value));
-                self.arguments_stack.push(arguments);
-                // Both the 'then_branch' and the 'else_branch' are expected to end with a jmp to the exit branch.
-                // If the `work_list` already contains the destination, that means we it was put there by `if_start`,
-                // which means this must be the end of the 'then_branch' or an 'else_branch'.
-                // Since we enqueued [exit, else, then], it means if the destination of the current jump is the last
-                // item on the work list, then this must be the 'else_branch'.
+                // If the destination is already on the work list, it means it's an exit block in an if-then-else,
+                // and was put there `if_start` as the last to be processed out of [then, else, exit].
                 if work_list.contains(destination) {
-                    if work_list.last() == Some(destination) {
+                    // Since we enqueued [then, else, exit] after each other, if the next block on the work list
+                    // is the exit block, then this must be the else.
+                    if work_list.last().unwrap() == destination {
+                        // The arguments for the exit block will be prepared here.
                         self.else_stop(&block);
                     } else {
+                        // No need to prepare arguments: the eventual `else_stop` will look them up directly.
                         self.then_stop(&block);
                     }
-                    // The destination is already in the queue.
+                    // The destination was in the queue, no need to return anything.
                     vec![]
                 } else {
+                    // The destination is a normal block, not an exit block, so there is no argument merging involved,
+                    // we can prepare any arguments for direct consumption.
+                    if !arguments.is_empty() {
+                        let arguments = vecmap(arguments, |value| self.inserter.resolve(*value));
+                        self.prepare_args(arguments);
+                    }
                     vec![*destination]
                 }
             }
@@ -695,22 +717,30 @@ impl<'f> Context<'f> {
     /// each branch.
     ///
     /// The merge of arguments is done by inserting an 'IfElse' instructions which returns
-    /// the argument from the then_branch or the else_branch depending the the condition.
-    /// They are added to the 'arguments_stack', replacing the arguments of the 2 branches.
+    /// the argument from the 'then_branch' or the 'else_branch' depending the the condition.
+    ///
+    /// The arguments are prepared for the destination to consume in the next immediate inlining.
     fn inline_branch_end(&mut self, destination: BasicBlockId, cond_context: ConditionalContext) {
         assert_eq!(self.cfg.predecessors(destination).len(), 2);
-        let last_then = cond_context.then_branch.last_block;
+
+        // Look up and resolve the 'else' and 'then' arguments directly in their terminators,
+        // rather than rely on argument passing in the context.
         let mut else_args = Vec::new();
         if cond_context.else_branch.is_some() {
             let last_else = cond_context.else_branch.clone().unwrap().last_block;
             else_args = self.inserter.function.dfg[last_else].terminator_arguments().to_vec();
         }
 
+        let last_then = cond_context.then_branch.last_block;
         let then_args = self.inserter.function.dfg[last_then].terminator_arguments().to_vec();
 
         let params = self.inserter.function.dfg.block_parameters(destination);
         assert_eq!(params.len(), then_args.len());
         assert_eq!(params.len(), else_args.len());
+
+        if params.is_empty() {
+            return;
+        }
 
         let args = vecmap(then_args.iter().zip(else_args), |(then_arg, else_arg)| {
             (self.inserter.resolve(*then_arg), self.inserter.resolve(else_arg))
@@ -738,9 +768,7 @@ impl<'f> Context<'f> {
                 .first()
         });
 
-        self.arguments_stack.pop();
-        self.arguments_stack.pop();
-        self.arguments_stack.push(args);
+        self.prepare_args(args);
     }
 
     /// Map the value to its predicated value, and store the previous mapping
@@ -1536,6 +1564,85 @@ mod test {
             return v31
         }
         ");
+    }
+
+    #[test]
+    fn nested_branch_args() {
+        // Here we build some SSA with control flow given by the following graph.
+        //
+        //
+        //         b0
+        //         ↓
+        //         b1
+        //       ↙   ↘
+        //     b2     b3
+        //     ↓      |
+        //     b4     |
+        //   ↙  ↘     |
+        // b5    b6   |
+        //   ↘  ↙     ↓
+        //    b7      b8
+        //      ↘   ↙
+        //       b9
+
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u1):
+            jmp b1(u32 0)
+          b1(v2: u32):
+            jmpif v0 then: b2, else: b3
+          b2():
+            jmp b4(u32 2)
+          b4(v3: u32):
+            jmpif v1 then: b5, else: b6
+          b5():
+            jmp b7(u32 5)
+          b7(v4: u32):
+            jmp b9(v4)
+          b9(v5: u32):
+            return v5
+          b6():
+            jmp b7(u32 6)
+          b3():
+            jmp b8(u32 3)
+          b8(v6: u32):
+            jmp b9(v6)
+        }";
+
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.flatten_cfg();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u1):
+            enable_side_effects v0
+            v2 = unchecked_mul v0, v1
+            enable_side_effects v2
+            v3 = not v1
+            v4 = unchecked_mul v0, v3
+            enable_side_effects v0
+            v5 = cast v2 as u32
+            v6 = cast v4 as u32
+            v8 = unchecked_mul v5, u32 5
+            v10 = unchecked_mul v6, u32 6
+            v11 = unchecked_add v8, v10
+            v12 = not v0
+            enable_side_effects u1 1
+            v14 = cast v0 as u32
+            v15 = cast v12 as u32
+            v16 = unchecked_mul v14, v11
+            v18 = unchecked_mul v15, u32 3
+            v19 = unchecked_add v16, v18
+            return v19
+        }
+        ");
+        // v19 = v16 + v18
+        //     = v14 * v11 + v15 * 3 =
+        //     = v0 * (v8 + v10) + !v0 * 3
+        //     = v0 * (v5 * 5 + v6 * 6) + !v0 * 3
+        //     = v0 * (v0 * v1 * 5 + v0 * !v1 * 6) + !v0 * 3
+        //     = v0 * v1 * 5 + v0 * !v1 * 6 + !v0 * 3
     }
 
     #[test]
