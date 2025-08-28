@@ -178,7 +178,6 @@ impl FunctionBuilder {
     }
 
     /// Insert a numeric constant into the current function of type Field
-    #[cfg(test)]
     pub fn field_constant(&mut self, value: impl Into<FieldElement>) -> ValueId {
         self.numeric_constant(value.into(), NumericType::NativeField)
     }
