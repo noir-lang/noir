@@ -52,12 +52,14 @@
 //!   CONST M32836 = 3
 //!   RETURN
 //! ```
-//! It is then not clear when generating the bytecode for `inner_func` which global allocations map should be used,
-//! and any choice will lead to an incorrect program.
+//! Here, `inner_func` is called by two different entry points. It is then not clear when generating the bytecode 
+//! for `inner_func` which global allocations map should be used, and any choice will lead to an incorrect program.
 //! If `inner_func` used the map for `entry_point_one` the bytecode generated would use `M32837` to represent `THREE`.
 //! However, when `inner_func` is called from `entry_point_two`, the address for `THREE` is `M32836`.
 //!
-//! This pass will duplicate `inner_func` so that different functions are called by the different entry points.
+//! This pass duplicates functions like `inner_func` so that each entry point gets its own specialized
+//! version. The result is that bytecode can safely reference the correct globals without conflicts.
+//!
 //! The test module for this pass can be referenced to see how this function duplication looks in SSA.
 
 use std::collections::{BTreeMap, BTreeSet};
