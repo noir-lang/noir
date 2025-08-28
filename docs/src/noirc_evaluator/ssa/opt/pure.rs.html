@@ -622,12 +622,75 @@
 <a href="#621" id="621">621</a>
 <a href="#622" id="622">622</a>
 <a href="#623" id="623">623</a>
-<a href="#624" id="624">624</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::sync::Arc;
+<a href="#624" id="624">624</a>
+<a href="#625" id="625">625</a>
+<a href="#626" id="626">626</a>
+<a href="#627" id="627">627</a>
+<a href="#628" id="628">628</a>
+<a href="#629" id="629">629</a>
+<a href="#630" id="630">630</a>
+<a href="#631" id="631">631</a>
+<a href="#632" id="632">632</a>
+<a href="#633" id="633">633</a>
+<a href="#634" id="634">634</a>
+<a href="#635" id="635">635</a>
+<a href="#636" id="636">636</a>
+<a href="#637" id="637">637</a>
+<a href="#638" id="638">638</a>
+<a href="#639" id="639">639</a>
+<a href="#640" id="640">640</a>
+<a href="#641" id="641">641</a>
+<a href="#642" id="642">642</a>
+<a href="#643" id="643">643</a>
+<a href="#644" id="644">644</a>
+<a href="#645" id="645">645</a>
+<a href="#646" id="646">646</a>
+<a href="#647" id="647">647</a>
+<a href="#648" id="648">648</a>
+<a href="#649" id="649">649</a>
+<a href="#650" id="650">650</a>
+<a href="#651" id="651">651</a>
+<a href="#652" id="652">652</a>
+<a href="#653" id="653">653</a>
+<a href="#654" id="654">654</a>
+<a href="#655" id="655">655</a>
+<a href="#656" id="656">656</a>
+<a href="#657" id="657">657</a>
+<a href="#658" id="658">658</a>
+<a href="#659" id="659">659</a>
+<a href="#660" id="660">660</a>
+<a href="#661" id="661">661</a>
+<a href="#662" id="662">662</a>
+<a href="#663" id="663">663</a>
+<a href="#664" id="664">664</a>
+<a href="#665" id="665">665</a>
+<a href="#666" id="666">666</a>
+<a href="#667" id="667">667</a>
+<a href="#668" id="668">668</a>
+<a href="#669" id="669">669</a>
+<a href="#670" id="670">670</a>
+<a href="#671" id="671">671</a>
+<a href="#672" id="672">672</a>
+<a href="#673" id="673">673</a>
+<a href="#674" id="674">674</a>
+<a href="#675" id="675">675</a>
+<a href="#676" id="676">676</a>
+<a href="#677" id="677">677</a>
+<a href="#678" id="678">678</a>
+<a href="#679" id="679">679</a>
+<a href="#680" id="680">680</a>
+<a href="#681" id="681">681</a>
+<a href="#682" id="682">682</a>
+<a href="#683" id="683">683</a>
+<a href="#684" id="684">684</a>
+<a href="#685" id="685">685</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
+<span class="kw">use </span>std::sync::Arc;
 
 <span class="kw">use </span>fxhash::FxHashMap <span class="kw">as </span>HashMap;
 <span class="kw">use </span>petgraph::visit::DfsPostOrder;
 
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::call_graph::CallGraph;
+<span class="kw">use </span><span class="kw">crate</span>::ssa::opt::brillig_entry_points::get_brillig_entry_points;
 <span class="kw">use </span><span class="kw">crate</span>::ssa::{
     ir::{
         function::{Function, FunctionId},
@@ -651,15 +714,23 @@
     /// identified as calling known pure functions.
     </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip(<span class="self">self</span>))]
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>purity_analysis(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; Ssa {
+        <span class="kw">let </span>brillig_entry_points = get_brillig_entry_points(<span class="kw-2">&amp;</span><span class="self">self</span>.functions, <span class="self">self</span>.main_id);
+
         <span class="comment">// First look through each function to get a baseline on its purity and collect
         // the functions it calls to build a call graph.
-        </span><span class="kw">let </span>purities: HashMap&lt;<span class="kw">_</span>, <span class="kw">_</span>&gt; =
-            <span class="self">self</span>.functions.values().map(|function| (function.id(), function.is_pure())).collect();
+        </span><span class="kw">let </span>purities: HashMap&lt;<span class="kw">_</span>, <span class="kw">_</span>&gt; = <span class="self">self
+            </span>.functions
+            .values()
+            .map(|function| {
+                <span class="kw">let </span>is_brillig_entry_point = brillig_entry_points.contains_key(<span class="kw-2">&amp;</span>function.id());
+                (function.id(), function.is_pure(is_brillig_entry_point))
+            })
+            .collect();
 
         <span class="comment">// Then transitively 'infect' any functions which call impure functions as also
         // impure.
         </span><span class="kw">let </span>call_graph = CallGraph::from_ssa(<span class="kw-2">&amp;</span><span class="self">self</span>);
-        <span class="kw">let </span>purities = analyze_call_graph(call_graph, purities);
+        <span class="kw">let </span>purities = analyze_call_graph(call_graph, purities, <span class="kw-2">&amp;</span><span class="self">self</span>.functions);
         <span class="kw">let </span>purities = Arc::new(purities);
 
         <span class="comment">// We're done, now store purities somewhere every dfg can find it.
@@ -735,7 +806,7 @@
 }
 
 <span class="kw">impl </span>Function {
-    <span class="kw">fn </span>is_pure(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; Purity {
+    <span class="kw">fn </span>is_pure(<span class="kw-2">&amp;</span><span class="self">self</span>, is_brillig_entrypoint: bool) -&gt; Purity {
         <span class="kw">let </span>contains_reference = |value_id: <span class="kw-2">&amp;</span>ValueId| {
             <span class="kw">let </span>typ = <span class="self">self</span>.dfg.type_of_value(<span class="kw-2">*</span>value_id);
             typ.contains_reference()
@@ -745,7 +816,7 @@
             <span class="kw">return </span>Purity::Impure;
         }
 
-        <span class="kw">let </span><span class="kw-2">mut </span>result = <span class="kw">if </span><span class="self">self</span>.runtime().is_acir() {
+        <span class="kw">let </span><span class="kw-2">mut </span>result = <span class="kw">if </span><span class="self">self</span>.runtime().is_acir() || !is_brillig_entrypoint {
             Purity::Pure
         } <span class="kw">else </span>{
             <span class="comment">// Because we return bogus values when a brillig function is called from acir
@@ -839,6 +910,7 @@
 <span class="kw">fn </span>analyze_call_graph(
     call_graph: CallGraph,
     starting_purities: FunctionPurities,
+    functions: <span class="kw-2">&amp;</span>BTreeMap&lt;FunctionId, Function&gt;,
 ) -&gt; FunctionPurities {
     <span class="comment">// Now we can analyze it: a function is only as pure as all of
     // its called functions
@@ -872,8 +944,10 @@
                     // to detect strongly connected components. Instead, since this should be
                     // a rare case, we bail and assume impure for now.
                     </span><span class="kw">if </span>neighbor == id {
-                        <span class="comment">// If the recursive call is to the same function we can ignore it
-                        </span>purity
+                        <span class="comment">// If the recursive call is to the same function we can ignore it,
+                        // unless it's a brillig function in which case we need to set it to impure
+                        // as it could recurse inifinitely, and that's a side-effect
+                        </span><span class="kw">if </span>functions[<span class="kw-2">&amp;</span>id].runtime().is_brillig() { Purity::Impure } <span class="kw">else </span>{ purity }
                     } <span class="kw">else </span>{
                         Purity::Impure
                     }
@@ -895,6 +969,7 @@
 
     finished_purities
 }
+
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>test {
     <span class="kw">use crate</span>::{
@@ -1072,7 +1147,7 @@
             call f3()
             return
         }
-        brillig(inline) fn pure_with_predicate_func f3 {
+        brillig(inline) fn pure f3 {
           b0():
             return
         }"#</span>;
@@ -1084,7 +1159,7 @@
         <span class="macro">assert_eq!</span>(purities[<span class="kw-2">&amp;</span>FunctionId::test_new(<span class="number">0</span>)], Purity::Impure);
         <span class="macro">assert_eq!</span>(purities[<span class="kw-2">&amp;</span>FunctionId::test_new(<span class="number">1</span>)], Purity::Impure);
         <span class="macro">assert_eq!</span>(purities[<span class="kw-2">&amp;</span>FunctionId::test_new(<span class="number">2</span>)], Purity::Impure);
-        <span class="macro">assert_eq!</span>(purities[<span class="kw-2">&amp;</span>FunctionId::test_new(<span class="number">3</span>)], Purity::PureWithPredicate);
+        <span class="macro">assert_eq!</span>(purities[<span class="kw-2">&amp;</span>FunctionId::test_new(<span class="number">3</span>)], Purity::Pure);
     }
 
     <span class="attr">#[test]
@@ -1105,7 +1180,7 @@
 
         <span class="kw">let </span>purities = <span class="kw-2">&amp;</span>ssa.main().dfg.function_purities;
         <span class="macro">assert_eq!</span>(purities[<span class="kw-2">&amp;</span>FunctionId::test_new(<span class="number">0</span>)], Purity::PureWithPredicate);
-        <span class="macro">assert_eq!</span>(purities[<span class="kw-2">&amp;</span>FunctionId::test_new(<span class="number">1</span>)], Purity::PureWithPredicate);
+        <span class="macro">assert_eq!</span>(purities[<span class="kw-2">&amp;</span>FunctionId::test_new(<span class="number">1</span>)], Purity::Pure);
     }
 
     <span class="doccomment">/// Functions using inc_rc or dec_rc are always impure - see constant_folding::do_not_deduplicate_call_with_inc_rc
@@ -1126,6 +1201,29 @@
             dec_rc v0  // We wouldn't produce this code. This is just to ensure dec_rc is impure.
             v3 = array_set v0, index u32 0, value Field 5
             return v3
+        }
+        "#</span>;
+
+        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+        <span class="kw">let </span>ssa = ssa.purity_analysis();
+
+        <span class="kw">let </span>purities = <span class="kw-2">&amp;</span>ssa.main().dfg.function_purities;
+        <span class="macro">assert_eq!</span>(purities[<span class="kw-2">&amp;</span>FunctionId::test_new(<span class="number">0</span>)], Purity::Impure);
+        <span class="macro">assert_eq!</span>(purities[<span class="kw-2">&amp;</span>FunctionId::test_new(<span class="number">1</span>)], Purity::Impure);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>direct_brillig_recursion_marks_functions_impure() {
+        <span class="kw">let </span>src = <span class="string">r#"
+        brillig(inline) fn main f0 {
+          b0():
+            call f1()
+            return
+        }
+        brillig(inline) fn f1 f1 {
+          b0():
+            call f1()
+            return
         }
         "#</span>;
 
@@ -1184,9 +1282,35 @@
         <span class="macro">assert_eq!</span>(purities[<span class="kw-2">&amp;</span>FunctionId::test_new(<span class="number">2</span>)], Purity::Impure);
     }
 
-    <span class="doccomment">/// TODO(https://github.com/noir-lang/noir/issues/9444)
-    </span><span class="attr">#[test]
-    </span><span class="kw">fn </span>brillig_functions_never_pure() {
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>brillig_functions_are_pure_with_predicate_if_they_are_an_entry_point() {
+        <span class="kw">let </span>src = <span class="string">"
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            call f1()
+            call f1()
+            return
+        }
+        brillig(inline) fn pure_basic f1 {
+          b0():
+            v2 = make_array [Field 0, Field 1] : [Field; 2]
+            v4 = array_get v2, index u32 1 -&gt; Field
+            v5 = allocate -&gt; &amp;mut Field
+            store Field 0 at v5
+            return
+        }
+        "</span>;
+
+        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+        <span class="kw">let </span>ssa = ssa.purity_analysis();
+
+        <span class="kw">let </span>purities = <span class="kw-2">&amp;</span>ssa.main().dfg.function_purities;
+        <span class="macro">assert_eq!</span>(purities[<span class="kw-2">&amp;</span>FunctionId::test_new(<span class="number">0</span>)], Purity::PureWithPredicate);
+        <span class="macro">assert_eq!</span>(purities[<span class="kw-2">&amp;</span>FunctionId::test_new(<span class="number">1</span>)], Purity::PureWithPredicate);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>brillig_functions_are_pure_if_they_are_not_an_entry_point() {
         <span class="kw">let </span>src = <span class="string">"
         brillig(inline) fn main f0 {
           b0(v0: u1):
@@ -1208,10 +1332,8 @@
         <span class="kw">let </span>ssa = ssa.purity_analysis();
 
         <span class="kw">let </span>purities = <span class="kw-2">&amp;</span>ssa.main().dfg.function_purities;
-        <span class="comment">// PureWithPredicates is the default purity for all Brillig functions.
-        // So even though `f1` is technically pure it will be marked as PureWithPredicates
-        </span><span class="macro">assert_eq!</span>(purities[<span class="kw-2">&amp;</span>FunctionId::test_new(<span class="number">0</span>)], Purity::PureWithPredicate);
-        <span class="macro">assert_eq!</span>(purities[<span class="kw-2">&amp;</span>FunctionId::test_new(<span class="number">1</span>)], Purity::PureWithPredicate);
+        <span class="macro">assert_eq!</span>(purities[<span class="kw-2">&amp;</span>FunctionId::test_new(<span class="number">0</span>)], Purity::PureWithPredicate);
+        <span class="macro">assert_eq!</span>(purities[<span class="kw-2">&amp;</span>FunctionId::test_new(<span class="number">1</span>)], Purity::Pure);
     }
 
     <span class="attr">#[test]
