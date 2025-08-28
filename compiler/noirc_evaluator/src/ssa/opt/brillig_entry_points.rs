@@ -85,7 +85,7 @@ impl Ssa {
 
         // Check whether any globals have been specified.
         // If not, specialization is not required and we can return early.
-        if main.dfg.globals.values_iter().next().is_none() {
+        if main.dfg.globals.is_empty() {
             return self;
         }
 
