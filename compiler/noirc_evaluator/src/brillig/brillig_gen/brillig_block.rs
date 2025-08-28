@@ -714,9 +714,12 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
 
                             if matches!(
                                 bb_func,
-                                BlackBoxFunc::EcdsaSecp256k1 | BlackBoxFunc::EcdsaSecp256r1
+                                BlackBoxFunc::EcdsaSecp256k1
+                                    | BlackBoxFunc::EcdsaSecp256r1
+                                    | BlackBoxFunc::MultiScalarMul
+                                    | BlackBoxFunc::EmbeddedCurveAdd
                             ) {
-                                // ECDSA black box functions have a predicate argument in SSA which we don't want to
+                                // Some black box functions have a predicate argument in SSA which we don't want to
                                 // use in the brillig VM. This is as we do not need to flatten the CFG in brillig
                                 // so we expect the predicate to always be true.
                                 let predicate = &arguments_no_slice_len.pop().expect(

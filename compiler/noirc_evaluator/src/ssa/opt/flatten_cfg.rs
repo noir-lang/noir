@@ -904,7 +904,10 @@ impl<'f> Context<'f> {
                                 arguments[3] = point2_x;
                                 arguments[4] = point2_y;
                             }
-
+                            // TODO: We now use a predicate in order to disable the blackbox on the backend side
+                            // the predicates on the inputs above will be removed once the backend is updated
+                            arguments[5] =
+                                self.mul_by_condition(arguments[5], condition, call_stack);
                             Instruction::Call { func, arguments }
                         }
 
@@ -915,10 +918,13 @@ impl<'f> Context<'f> {
                                 condition,
                                 call_stack,
                             );
-
                             let instruction = Instruction::MakeArray { elements, typ };
                             let array = self.insert_instruction(instruction, call_stack);
                             arguments[0] = array;
+                            // TODO: We now use a predicate in order to disable the blackbox on the backend side
+                            // the predicates on the inputs above will be removed once the backend is updated
+                            arguments[2] =
+                                self.mul_by_condition(arguments[2], condition, call_stack);
                             Instruction::Call { func, arguments }
                         }
 

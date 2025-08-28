@@ -140,10 +140,10 @@ pub(crate) fn solve<F: AcirField>(
             message.as_ref(),
             *output,
         ),
-        BlackBoxFuncCall::MultiScalarMul { points, scalars, outputs } => {
+        BlackBoxFuncCall::MultiScalarMul { points, scalars, outputs, .. } => {
             multi_scalar_mul(backend, initial_witness, points, scalars, *outputs)
         }
-        BlackBoxFuncCall::EmbeddedCurveAdd { input1, input2, outputs } => {
+        BlackBoxFuncCall::EmbeddedCurveAdd { input1, input2, outputs, .. } => {
             embedded_curve_add(backend, initial_witness, **input1, **input2, *outputs)
         }
         // Recursive aggregation will be entirely handled by the backend and is not solved by the ACVM

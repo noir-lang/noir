@@ -2892,16 +2892,18 @@ namespace Acir {
             std::vector<Acir::FunctionInput> points;
             std::vector<Acir::FunctionInput> scalars;
             std::shared_ptr<std::array<Acir::Witness, 3>> outputs;
+            Acir::FunctionInput predicate;
 
             friend bool operator==(const MultiScalarMul&, const MultiScalarMul&);
             std::vector<uint8_t> bincodeSerialize() const;
             static MultiScalarMul bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
-                packer.pack_map(3);
+                packer.pack_map(4);
                 packer.pack(std::make_pair("points", points));
                 packer.pack(std::make_pair("scalars", scalars));
                 packer.pack(std::make_pair("outputs", outputs));
+                packer.pack(std::make_pair("predicate", predicate));
             }
 
             void msgpack_unpack(msgpack::object const& o) {
@@ -2910,12 +2912,14 @@ namespace Acir {
                 Helpers::conv_fld_from_kvmap(kvmap, name, "points", points, false);
                 Helpers::conv_fld_from_kvmap(kvmap, name, "scalars", scalars, false);
                 Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "predicate", predicate, false);
             }
         };
 
         struct EmbeddedCurveAdd {
             std::shared_ptr<std::array<Acir::FunctionInput, 3>> input1;
             std::shared_ptr<std::array<Acir::FunctionInput, 3>> input2;
+            Acir::FunctionInput predicate;
             std::shared_ptr<std::array<Acir::Witness, 3>> outputs;
 
             friend bool operator==(const EmbeddedCurveAdd&, const EmbeddedCurveAdd&);
@@ -2923,9 +2927,10 @@ namespace Acir {
             static EmbeddedCurveAdd bincodeDeserialize(std::vector<uint8_t>);
 
             void msgpack_pack(auto& packer) const {
-                packer.pack_map(3);
+                packer.pack_map(4);
                 packer.pack(std::make_pair("input1", input1));
                 packer.pack(std::make_pair("input2", input2));
+                packer.pack(std::make_pair("predicate", predicate));
                 packer.pack(std::make_pair("outputs", outputs));
             }
 
@@ -2934,6 +2939,7 @@ namespace Acir {
                 auto kvmap = Helpers::make_kvmap(o, name);
                 Helpers::conv_fld_from_kvmap(kvmap, name, "input1", input1, false);
                 Helpers::conv_fld_from_kvmap(kvmap, name, "input2", input2, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "predicate", predicate, false);
                 Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs, false);
             }
         };
@@ -5915,6 +5921,7 @@ namespace Acir {
         if (!(lhs.points == rhs.points)) { return false; }
         if (!(lhs.scalars == rhs.scalars)) { return false; }
         if (!(lhs.outputs == rhs.outputs)) { return false; }
+        if (!(lhs.predicate == rhs.predicate)) { return false; }
         return true;
     }
 
@@ -5941,6 +5948,7 @@ void serde::Serializable<Acir::BlackBoxFuncCall::MultiScalarMul>::serialize(cons
     serde::Serializable<decltype(obj.points)>::serialize(obj.points, serializer);
     serde::Serializable<decltype(obj.scalars)>::serialize(obj.scalars, serializer);
     serde::Serializable<decltype(obj.outputs)>::serialize(obj.outputs, serializer);
+    serde::Serializable<decltype(obj.predicate)>::serialize(obj.predicate, serializer);
 }
 
 template <>
@@ -5950,6 +5958,7 @@ Acir::BlackBoxFuncCall::MultiScalarMul serde::Deserializable<Acir::BlackBoxFuncC
     obj.points = serde::Deserializable<decltype(obj.points)>::deserialize(deserializer);
     obj.scalars = serde::Deserializable<decltype(obj.scalars)>::deserialize(deserializer);
     obj.outputs = serde::Deserializable<decltype(obj.outputs)>::deserialize(deserializer);
+    obj.predicate = serde::Deserializable<decltype(obj.predicate)>::deserialize(deserializer);
     return obj;
 }
 
@@ -5958,6 +5967,7 @@ namespace Acir {
     inline bool operator==(const BlackBoxFuncCall::EmbeddedCurveAdd &lhs, const BlackBoxFuncCall::EmbeddedCurveAdd &rhs) {
         if (!(lhs.input1 == rhs.input1)) { return false; }
         if (!(lhs.input2 == rhs.input2)) { return false; }
+        if (!(lhs.predicate == rhs.predicate)) { return false; }
         if (!(lhs.outputs == rhs.outputs)) { return false; }
         return true;
     }
@@ -5984,6 +5994,7 @@ template <typename Serializer>
 void serde::Serializable<Acir::BlackBoxFuncCall::EmbeddedCurveAdd>::serialize(const Acir::BlackBoxFuncCall::EmbeddedCurveAdd &obj, Serializer &serializer) {
     serde::Serializable<decltype(obj.input1)>::serialize(obj.input1, serializer);
     serde::Serializable<decltype(obj.input2)>::serialize(obj.input2, serializer);
+    serde::Serializable<decltype(obj.predicate)>::serialize(obj.predicate, serializer);
     serde::Serializable<decltype(obj.outputs)>::serialize(obj.outputs, serializer);
 }
 
@@ -5993,6 +6004,7 @@ Acir::BlackBoxFuncCall::EmbeddedCurveAdd serde::Deserializable<Acir::BlackBoxFun
     Acir::BlackBoxFuncCall::EmbeddedCurveAdd obj;
     obj.input1 = serde::Deserializable<decltype(obj.input1)>::deserialize(deserializer);
     obj.input2 = serde::Deserializable<decltype(obj.input2)>::deserialize(deserializer);
+    obj.predicate = serde::Deserializable<decltype(obj.predicate)>::deserialize(deserializer);
     obj.outputs = serde::Deserializable<decltype(obj.outputs)>::deserialize(deserializer);
     return obj;
 }

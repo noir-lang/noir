@@ -788,9 +788,10 @@ impl FuzzerBuilder {
             Arc::new(vec![field_type.clone(), field_type.clone(), boolean_type.clone()]),
             1,
         );
+        let predicate = self.builder.numeric_constant(1_u32, NumericType::Unsigned { bit_size: 1 });
         let result = self.builder.insert_call(
             intrinsic,
-            vec![basic_point, scalar_id],
+            vec![basic_point, scalar_id, predicate],
             vec![return_type.clone()],
         );
         assert_eq!(result.len(), 1);
@@ -822,7 +823,12 @@ impl FuzzerBuilder {
         Point { x: scalar.lo, y: scalar.hi, is_infinite }
     }
 
-    pub fn multi_scalar_mul(&mut self, points: Vec<Point>, scalars: Vec<Scalar>) -> Point {
+    pub fn multi_scalar_mul(
+        &mut self,
+        points: Vec<Point>,
+        scalars: Vec<Scalar>,
+        predicate: bool,
+    ) -> Point {
         assert_eq!(points.len(), scalars.len());
         for point in &points {
             assert!(point.validate());
@@ -830,7 +836,8 @@ impl FuzzerBuilder {
         for scalar in &scalars {
             assert!(scalar.validate());
         }
-
+        let predicate =
+            self.builder.numeric_constant(predicate as u32, NumericType::Unsigned { bit_size: 1 });
         let field_type = Type::Numeric(NumericType::NativeField);
         let boolean_type = Type::Numeric(NumericType::Unsigned { bit_size: 1 });
         let intrinsic = self
@@ -859,7 +866,7 @@ impl FuzzerBuilder {
         );
         let result = self.builder.insert_call(
             intrinsic,
-            vec![point_ids_array, scalar_ids_array],
+            vec![point_ids_array, scalar_ids_array, predicate],
             vec![return_type.clone()],
         );
         assert_eq!(result.len(), 1);
@@ -883,22 +890,24 @@ impl FuzzerBuilder {
         }
     }
 
-    pub fn point_add(&mut self, p1: Point, p2: Point) -> Point {
+    pub fn point_add(&mut self, p1: Point, p2: Point, predicate: bool) -> Point {
         assert!(p1.validate());
         assert!(p2.validate());
         let field_type = Type::Numeric(NumericType::NativeField);
         let boolean_type = Type::Numeric(NumericType::Unsigned { bit_size: 1 });
+        let predicate =
+            self.builder.numeric_constant(predicate as u32, NumericType::Unsigned { bit_size: 1 });
         let intrinsic = self
             .builder
             .import_intrinsic("embedded_curve_add")
             .expect("embedded_curve_add intrinsic should be available");
-        let points_flattened = p1.to_id_vec().into_iter().chain(p2.to_id_vec()).collect::<Vec<_>>();
+        let mut arguments = p1.to_id_vec().into_iter().chain(p2.to_id_vec()).collect::<Vec<_>>();
+        arguments.push(predicate);
         let return_type = Type::Array(
             Arc::new(vec![field_type.clone(), field_type.clone(), boolean_type.clone()]),
             1,
         );
-        let result =
-            self.builder.insert_call(intrinsic, points_flattened, vec![return_type.clone()]);
+        let result = self.builder.insert_call(intrinsic, arguments, vec![return_type.clone()]);
         assert_eq!(result.len(), 1);
         let result = result[0];
         let x_idx = self.builder.numeric_constant(0_u32, NumericType::Unsigned { bit_size: 32 });

@@ -147,12 +147,14 @@ message BlackBoxFuncCall {
   message MultiScalarMul {
     repeated FunctionInput points = 1;
     repeated FunctionInput scalars = 2;
-    repeated native.Witness outputs = 3;
+    FunctionInput predicate = 3;
+    repeated native.Witness outputs = 4;
   }
   message EmbeddedCurveAdd {
     repeated FunctionInput input1 = 1;
     repeated FunctionInput input2 = 2;
-    repeated native.Witness outputs = 3;
+    FunctionInput predicate = 3;
+    repeated native.Witness outputs = 4;
   }
   message Keccakf1600 {
     repeated FunctionInput inputs = 1;

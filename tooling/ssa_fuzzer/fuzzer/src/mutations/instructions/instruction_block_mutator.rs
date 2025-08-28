@@ -162,10 +162,13 @@ fn generate_random_instruction(rng: &mut StdRng) -> Instruction {
                 (generate_random_point(rng), generate_random_scalar(rng)),
                 (generate_random_point(rng), generate_random_scalar(rng)),
             ],
+            predicate: true,
         },
-        GenerateInstruction::PointAdd => {
-            Instruction::PointAdd { p1: generate_random_point(rng), p2: generate_random_point(rng) }
-        }
+        GenerateInstruction::PointAdd => Instruction::PointAdd {
+            p1: generate_random_point(rng),
+            p2: generate_random_point(rng),
+            predicate: true,
+        },
 
         GenerateInstruction::EcdsaSecp256r1 => {
             let mut msg = [0; SIZE_OF_LARGE_ARBITRARY_BUFFER];

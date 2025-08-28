@@ -63,11 +63,12 @@ fn multi_scalar_mul_circuit() {
                 FunctionInput::Witness(Witness(3)),
             ],
             scalars: vec![FunctionInput::Witness(Witness(4)), FunctionInput::Witness(Witness(5))],
-            outputs: (Witness(6), Witness(7), Witness(8)),
+            predicate: FunctionInput::Witness(Witness(6)),
+            outputs: (Witness(7), Witness(9), Witness(9)),
         });
 
     let circuit = Circuit {
-        current_witness_index: 9,
+        current_witness_index: 10,
         opcodes: vec![multi_scalar_mul],
         private_parameters: BTreeSet::from([
             Witness(1),
@@ -75,15 +76,16 @@ fn multi_scalar_mul_circuit() {
             Witness(3),
             Witness(4),
             Witness(5),
+            Witness(6),
         ]),
-        return_values: PublicInputs(BTreeSet::from_iter(vec![Witness(6), Witness(7), Witness(8)])),
+        return_values: PublicInputs(BTreeSet::from_iter(vec![Witness(7), Witness(8), Witness(9)])),
         ..Circuit::default()
     };
     let program = Program { functions: vec![circuit], unconstrained_functions: vec![] };
 
     let bytes = Program::serialize_program(&program);
 
-    insta::assert_compact_debug_snapshot!(bytes, @"[31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 93, 141, 7, 10, 0, 48, 8, 3, 157, 29, 255, 255, 112, 45, 68, 72, 43, 28, 113, 69, 85, 222, 216, 133, 34, 191, 186, 10, 167, 186, 49, 168, 35, 239, 121, 64, 179, 24, 197, 196, 141, 164, 29, 131, 47, 168, 47, 244, 135, 125, 127, 28, 219, 196, 243, 113, 176, 0, 0, 0]");
+    insta::assert_compact_debug_snapshot!(bytes, @"[31, 139, 8, 0, 0, 0, 0, 0, 0, 255, 101, 142, 11, 10, 0, 32, 8, 67, 53, 51, 179, 251, 31, 56, 133, 9, 70, 194, 99, 234, 240, 195, 244, 198, 9, 24, 121, 234, 14, 164, 213, 197, 128, 10, 242, 242, 39, 84, 3, 11, 28, 100, 111, 1, 106, 59, 4, 51, 218, 60, 106, 55, 13, 63, 56, 253, 113, 1, 122, 163, 43, 29, 188, 0, 0, 0]");
 
     let program_de = Program::deserialize_program(&bytes).unwrap();
     assert_eq!(program_de, program);

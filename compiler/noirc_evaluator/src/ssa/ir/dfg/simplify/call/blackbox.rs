@@ -75,7 +75,7 @@ pub(super) fn simplify_msm(
     call_stack: CallStackId,
 ) -> SimplifyResult {
     let mut is_constant;
-
+    let predicate = arguments[2];
     match (dfg.get_array_constant(arguments[0]), dfg.get_array_constant(arguments[1])) {
         (Some((points, _)), Some((scalars, _))) => {
             // We decompose points and scalars into constant and non-constant parts in order to simplify MSMs where a subset of the terms are constant.
@@ -197,7 +197,7 @@ pub(super) fn simplify_msm(
             let msm = dfg.import_intrinsic(Intrinsic::BlackBox(BlackBoxFunc::MultiScalarMul));
             SimplifyResult::SimplifiedToInstruction(Instruction::Call {
                 func: msm,
-                arguments: vec![points, scalars],
+                arguments: vec![points, scalars, predicate],
             })
         }
         _ => SimplifyResult::None,

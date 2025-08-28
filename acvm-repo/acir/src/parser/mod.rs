@@ -405,16 +405,16 @@ impl<'a> Parser<'a> {
             }
             BlackBoxFunc::EmbeddedCurveAdd => {
                 let mut inputs = self.parse_blackbox_inputs()?;
-
+                let predicate = self.try_extract_tail::<1, _>(&mut inputs, "predicate")?[0];
                 let input2 = self.try_extract_tail::<3, _>(&mut inputs, "EC add input2")?;
                 let input1 = self.try_extract_tail::<3, _>(&mut inputs, "EC add input1")?;
-
                 let outputs = self.parse_witness_vector()?;
                 self.expect_len(&outputs, 3, "EmbeddedCurveAdd", true)?;
 
                 BlackBoxFuncCall::EmbeddedCurveAdd {
                     input1,
                     input2,
+                    predicate,
                     outputs: (outputs[0], outputs[1], outputs[2]),
                 }
             }

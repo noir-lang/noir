@@ -369,7 +369,7 @@ fn embedded_curve_add() {
     private parameters indices : []
     public parameters indices : []
     return value indices : []
-    BLACKBOX::EMBEDDED_CURVE_ADD [_0, _1, _2, _3, _4, _5] [_6, _7, _8]
+    BLACKBOX::EMBEDDED_CURVE_ADD [_0, _1, _2, _3, _4, _5, _6] [_7, _8, _9]
     ";
     assert_circuit_roundtrip(src);
 }
@@ -378,11 +378,11 @@ fn embedded_curve_add() {
 #[should_panic]
 fn embedded_curve_add_wrong_output_count() {
     let src = "
-        current witness index : _8
+        current witness index : _9
         private parameters indices : []
         public parameters indices : []
         return value indices : []
-        BLACKBOX::EMBEDDED_CURVE_ADD [_0, _1, _2, _3, _4, _5] [_6, _7]
+        BLACKBOX::EMBEDDED_CURVE_ADD [_0, _1, _2, _3, _4, _5, _6] [_7, _8]
     ";
     let _ = Circuit::from_str(src).unwrap();
 }
