@@ -173,8 +173,8 @@ pub enum BlackBoxFuncCall<F> {
     MultiScalarMul {
         points: Vec<FunctionInput<F>>,
         scalars: Vec<FunctionInput<F>>,
-        outputs: (Witness, Witness, Witness),
         predicate: FunctionInput<F>,
+        outputs: (Witness, Witness, Witness),
     },
     /// Addition over the embedded curve on which the witness is defined
     /// The opcode makes the following assumptions but does not enforce them because

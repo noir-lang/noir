@@ -2891,8 +2891,8 @@ namespace Acir {
         struct MultiScalarMul {
             std::vector<Acir::FunctionInput> points;
             std::vector<Acir::FunctionInput> scalars;
-            std::shared_ptr<std::array<Acir::Witness, 3>> outputs;
             Acir::FunctionInput predicate;
+            std::shared_ptr<std::array<Acir::Witness, 3>> outputs;
 
             friend bool operator==(const MultiScalarMul&, const MultiScalarMul&);
             std::vector<uint8_t> bincodeSerialize() const;
@@ -2902,8 +2902,8 @@ namespace Acir {
                 packer.pack_map(4);
                 packer.pack(std::make_pair("points", points));
                 packer.pack(std::make_pair("scalars", scalars));
-                packer.pack(std::make_pair("outputs", outputs));
                 packer.pack(std::make_pair("predicate", predicate));
+                packer.pack(std::make_pair("outputs", outputs));
             }
 
             void msgpack_unpack(msgpack::object const& o) {
@@ -2911,8 +2911,8 @@ namespace Acir {
                 auto kvmap = Helpers::make_kvmap(o, name);
                 Helpers::conv_fld_from_kvmap(kvmap, name, "points", points, false);
                 Helpers::conv_fld_from_kvmap(kvmap, name, "scalars", scalars, false);
-                Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs, false);
                 Helpers::conv_fld_from_kvmap(kvmap, name, "predicate", predicate, false);
+                Helpers::conv_fld_from_kvmap(kvmap, name, "outputs", outputs, false);
             }
         };
 
@@ -5920,8 +5920,8 @@ namespace Acir {
     inline bool operator==(const BlackBoxFuncCall::MultiScalarMul &lhs, const BlackBoxFuncCall::MultiScalarMul &rhs) {
         if (!(lhs.points == rhs.points)) { return false; }
         if (!(lhs.scalars == rhs.scalars)) { return false; }
-        if (!(lhs.outputs == rhs.outputs)) { return false; }
         if (!(lhs.predicate == rhs.predicate)) { return false; }
+        if (!(lhs.outputs == rhs.outputs)) { return false; }
         return true;
     }
 
@@ -5947,8 +5947,8 @@ template <typename Serializer>
 void serde::Serializable<Acir::BlackBoxFuncCall::MultiScalarMul>::serialize(const Acir::BlackBoxFuncCall::MultiScalarMul &obj, Serializer &serializer) {
     serde::Serializable<decltype(obj.points)>::serialize(obj.points, serializer);
     serde::Serializable<decltype(obj.scalars)>::serialize(obj.scalars, serializer);
-    serde::Serializable<decltype(obj.outputs)>::serialize(obj.outputs, serializer);
     serde::Serializable<decltype(obj.predicate)>::serialize(obj.predicate, serializer);
+    serde::Serializable<decltype(obj.outputs)>::serialize(obj.outputs, serializer);
 }
 
 template <>
@@ -5957,8 +5957,8 @@ Acir::BlackBoxFuncCall::MultiScalarMul serde::Deserializable<Acir::BlackBoxFuncC
     Acir::BlackBoxFuncCall::MultiScalarMul obj;
     obj.points = serde::Deserializable<decltype(obj.points)>::deserialize(deserializer);
     obj.scalars = serde::Deserializable<decltype(obj.scalars)>::deserialize(deserializer);
-    obj.outputs = serde::Deserializable<decltype(obj.outputs)>::deserialize(deserializer);
     obj.predicate = serde::Deserializable<decltype(obj.predicate)>::deserialize(deserializer);
+    obj.outputs = serde::Deserializable<decltype(obj.outputs)>::deserialize(deserializer);
     return obj;
 }
 
