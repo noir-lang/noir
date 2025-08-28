@@ -1,6 +1,6 @@
 use libfuzzer_sys::arbitrary;
 use libfuzzer_sys::arbitrary::Arbitrary;
-use noir_ssa_fuzzer::r#type::NumericType;
+use noir_ssa_fuzzer::r#type::{NumericType, Type};
 use serde::{Deserialize, Serialize};
 use strum_macros::EnumCount;
 #[derive(Arbitrary, Debug, Clone, Copy, Serialize, Deserialize)]
@@ -200,8 +200,8 @@ pub(crate) struct InstructionBlock {
 
 #[derive(Clone)]
 pub(crate) struct FunctionInfo {
-    pub(crate) input_types: Vec<NumericType>,
-    pub(crate) return_type: NumericType,
+    pub(crate) input_types: Vec<Type>,
+    pub(crate) return_type: Type,
     /// Max size of unrolled loops in the function
     pub(crate) max_unrolled_size: usize,
 }

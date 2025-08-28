@@ -6,7 +6,7 @@ use crate::options::FuzzerOptions;
 use crate::tests::common::default_witness;
 use acvm::AcirField;
 use acvm::FieldElement;
-use noir_ssa_fuzzer::r#type::NumericType;
+use noir_ssa_fuzzer::r#type::{NumericType, Type};
 
 #[test]
 fn test_valid_ecdsa_signature_secp256r1() {
@@ -25,7 +25,7 @@ fn test_valid_ecdsa_signature_secp256r1() {
     let function = FunctionData {
         commands,
         return_instruction_block_idx: 0,
-        return_type: NumericType::Boolean,
+        return_type: Type::Numeric(NumericType::Boolean),
     };
     let data = FuzzerData {
         instruction_blocks: vec![block],
@@ -33,7 +33,7 @@ fn test_valid_ecdsa_signature_secp256r1() {
         initial_witness: default_witness(),
     };
     let result = fuzz_target(data, FuzzerOptions::default()).unwrap();
-    assert_eq!(result.get_return_value(), FieldElement::one());
+    assert_eq!(result.get_return_values()[0], FieldElement::one());
 }
 
 #[test]
@@ -53,7 +53,7 @@ fn test_valid_ecdsa_signature_secp256k1() {
     let function = FunctionData {
         commands,
         return_instruction_block_idx: 0,
-        return_type: NumericType::Boolean,
+        return_type: Type::Numeric(NumericType::Boolean),
     };
     let data = FuzzerData {
         instruction_blocks: vec![block],
@@ -61,7 +61,7 @@ fn test_valid_ecdsa_signature_secp256k1() {
         initial_witness: default_witness(),
     };
     let result = fuzz_target(data, FuzzerOptions::default()).unwrap();
-    assert_eq!(result.get_return_value(), FieldElement::one());
+    assert_eq!(result.get_return_values()[0], FieldElement::one());
 }
 
 #[test]
@@ -81,7 +81,7 @@ fn test_corrupted_ecdsa_signature_secp256r1() {
     let function = FunctionData {
         commands,
         return_instruction_block_idx: 0,
-        return_type: NumericType::Boolean,
+        return_type: Type::Numeric(NumericType::Boolean),
     };
     let data = FuzzerData {
         instruction_blocks: vec![block],
@@ -90,7 +90,7 @@ fn test_corrupted_ecdsa_signature_secp256r1() {
     };
     let result = fuzz_target(data, FuzzerOptions::default());
     match result {
-        Some(res) => panic!("Programs executed with the Result: {:?}", res.get_return_value()),
+        Some(res) => panic!("Programs executed with the Result: {:?}", res.get_return_values()),
         None => println!("Error. As expected"),
     }
 }
@@ -112,7 +112,7 @@ fn test_corrupted_ecdsa_signature_secp256k1() {
     let function = FunctionData {
         commands,
         return_instruction_block_idx: 0,
-        return_type: NumericType::Boolean,
+        return_type: Type::Numeric(NumericType::Boolean),
     };
     let data = FuzzerData {
         instruction_blocks: vec![block],
@@ -121,7 +121,7 @@ fn test_corrupted_ecdsa_signature_secp256k1() {
     };
     let result = fuzz_target(data, FuzzerOptions::default());
     match result {
-        Some(res) => panic!("Programs executed with the Result: {:?}", res.get_return_value()),
+        Some(res) => panic!("Programs executed with the Result: {:?}", res.get_return_values()),
         None => println!("Error. As expected"),
     }
 }

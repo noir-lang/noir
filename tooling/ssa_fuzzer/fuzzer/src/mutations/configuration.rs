@@ -131,17 +131,15 @@ pub(crate) const BASIC_ARGUMENT_MUTATION_CONFIGURATION: ArgumentMutationConfig =
 
 #[derive(Copy, Clone, Debug)]
 pub(crate) enum VecMutationOptions {
-    Random,
     Insertion,
     Deletion,
     Swap,
     ElementMutation,
     PushDefault,
 }
-pub(crate) type VecMutationConfig = WeightedSelectionConfig<VecMutationOptions, 6>;
+pub(crate) type VecMutationConfig = WeightedSelectionConfig<VecMutationOptions, 5>;
 
 pub(crate) const BASIC_VEC_MUTATION_CONFIGURATION: VecMutationConfig = VecMutationConfig::new([
-    (VecMutationOptions::Random, 1),
     (VecMutationOptions::Insertion, 7),
     (VecMutationOptions::Deletion, 22),
     (VecMutationOptions::Swap, 20),
@@ -416,6 +414,31 @@ const _: () = {
     assert!(
         BASIC_GENERATE_NUMERIC_TYPE_CONFIGURATION.options_with_weights.len() == NumericType::COUNT,
         "BASIC_GENERATE_NUMERIC_TYPE_CONFIGURATION must have an entry for every GenerateNumericType variant"
+    );
+};
+
+#[derive(Copy, Clone, Debug)]
+pub(crate) enum GenerateType {
+    Numeric,
+    Reference,
+    Array,
+    Slice,
+}
+
+pub(crate) type GenerateTypeConfig = WeightedSelectionConfig<GenerateType, 4>;
+pub(crate) const BASIC_GENERATE_TYPE_CONFIGURATION: GenerateTypeConfig = GenerateTypeConfig::new([
+    (GenerateType::Numeric, 20),
+    (GenerateType::Reference, 4),
+    (GenerateType::Array, 1),
+    (GenerateType::Slice, 1),
+]);
+
+const _: () = {
+    use noir_ssa_fuzzer::r#type::Type;
+    use strum::EnumCount;
+    assert!(
+        BASIC_GENERATE_TYPE_CONFIGURATION.options_with_weights.len() == Type::COUNT,
+        "BASIC_GENERATE_TYPE_CONFIGURATION must have an entry for every Type variant"
     );
 };
 

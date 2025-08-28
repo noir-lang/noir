@@ -6,6 +6,7 @@ use acvm::{
     },
 };
 use noir_ssa_executor::runner::execute_single;
+use std::collections::BTreeSet;
 
 #[derive(Debug)]
 pub enum CompareResults {
@@ -29,10 +30,8 @@ pub fn run_and_compare(
 
     let return_witnesses_acir = &acir_program.functions[0].return_values;
     let return_witnesses_brillig = &brillig_program.functions[0].return_values;
-    assert!(return_witnesses_acir.0.len() <= 1, "Multiple return value witnesses encountered");
-    assert!(return_witnesses_brillig.0.len() <= 1, "Multiple return value witnesses encountered");
-    let return_witness_acir: Option<&Witness> = return_witnesses_acir.0.first();
-    let return_witness_brillig: Option<&Witness> = return_witnesses_brillig.0.first();
+    let return_witness_acir: BTreeSet<Witness> = return_witnesses_acir.0.clone();
+    let return_witness_brillig: BTreeSet<Witness> = return_witnesses_brillig.0.clone();
 
     // we found bug in case of
     // 1) acir_result != brillig_result
@@ -43,28 +42,21 @@ pub fn run_and_compare(
             // we assume that if execution for both modes succeeds both programs returned something
             let acir_witness_map = acir_witness.peek().unwrap().witness.clone();
             let brillig_witness_map = brillig_witness.peek().unwrap().witness.clone();
-            let acir_result = acir_witness_map[return_witness_acir.unwrap()];
-            let brillig_result = brillig_witness_map[return_witness_brillig.unwrap()];
-            if acir_result == brillig_result {
+            let acir_results = return_witness_acir.iter().map(|w| acir_witness_map[w]);
+            let brillig_results = return_witness_brillig.iter().map(|w| brillig_witness_map[w]);
+            let results_equal = acir_results.eq(brillig_results);
+            if results_equal {
                 CompareResults::Agree(acir_witness)
             } else {
                 CompareResults::Disagree(acir_witness, brillig_witness)
             }
         }
-        (Err(acir_error), Ok(brillig_witness)) => match return_witness_brillig {
-            Some(_) => CompareResults::AcirFailed(acir_error.to_string(), brillig_witness),
-            None => CompareResults::BothFailed(
-                acir_error.to_string(),
-                "Brillig program does not return anything".into(),
-            ),
-        },
-        (Ok(acir_witness), Err(brillig_error)) => match return_witness_acir {
-            Some(_) => CompareResults::BrilligFailed(brillig_error.to_string(), acir_witness),
-            None => CompareResults::BothFailed(
-                "ACIR program does not return anything".into(),
-                brillig_error.to_string(),
-            ),
-        },
+        (Err(acir_error), Ok(brillig_witness)) => {
+            CompareResults::AcirFailed(acir_error.to_string(), brillig_witness)
+        }
+        (Ok(acir_witness), Err(brillig_error)) => {
+            CompareResults::BrilligFailed(brillig_error.to_string(), acir_witness)
+        }
         (Err(acir_error), Err(brillig_error)) => {
             CompareResults::BothFailed(acir_error.to_string(), brillig_error.to_string())
         }

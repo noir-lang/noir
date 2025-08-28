@@ -20,7 +20,7 @@ use crate::instruction::{Argument, Instruction, InstructionBlock};
 use crate::options::FuzzerOptions;
 use crate::{NUMBER_OF_PREDEFINED_VARIABLES, NUMBER_OF_VARIABLES_INITIAL};
 use acvm::FieldElement;
-use noir_ssa_fuzzer::r#type::NumericType;
+use noir_ssa_fuzzer::r#type::{NumericType, Type};
 
 /// Creates default witness values for testing
 /// Returns [U64(0), U64(1), U64(2), U64(3), U64(4)]
@@ -73,11 +73,11 @@ fn test_op_u64(op: UnsignedOp) -> FieldElement {
         functions: vec![FunctionData {
             commands: vec![],
             return_instruction_block_idx: 0,
-            return_type: NumericType::U64,
+            return_type: Type::Numeric(NumericType::U64),
         }],
         initial_witness: default_unsigned_witness(),
     };
-    fuzz_target(data, FuzzerOptions::default()).unwrap().get_return_value()
+    fuzz_target(data, FuzzerOptions::default()).unwrap().get_return_values()[0]
 }
 
 #[test]

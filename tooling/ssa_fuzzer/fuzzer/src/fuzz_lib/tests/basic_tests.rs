@@ -10,7 +10,8 @@ use crate::instruction::{Argument, Instruction, InstructionBlock};
 use crate::options::FuzzerOptions;
 use crate::tests::common::default_witness;
 use acvm::FieldElement;
-use noir_ssa_fuzzer::r#type::NumericType;
+use noir_ssa_fuzzer::r#type::{NumericType, Type};
+use std::sync::Arc;
 
 /// Test basic field addition: field_0 + field_1 = 1
 #[test]
@@ -30,7 +31,7 @@ fn test_field_addition_zero_plus_one() {
     let main_function = FunctionData {
         commands: vec![],                // No additional commands needed
         return_instruction_block_idx: 0, // Return the result of the add block
-        return_type: NumericType::Field,
+        return_type: Type::Numeric(NumericType::Field),
     };
 
     // Create the fuzzer data with our test setup
@@ -46,12 +47,12 @@ fn test_field_addition_zero_plus_one() {
     // Verify the result
     match result {
         Some(result) => {
-            assert_eq!(result.get_return_value(), FieldElement::from(1_u32));
+            assert_eq!(result.get_return_values()[0], FieldElement::from(1_u32));
             println!(
                 "✓ Test passed: field_0 + field_1 = {} + {} = {}",
                 0,
                 1,
-                result.get_return_value()
+                result.get_return_values()[0]
             );
         }
         None => panic!("Program failed to execute"),
@@ -85,14 +86,14 @@ fn test_jmp_if() {
         functions: vec![FunctionData {
             commands,
             return_instruction_block_idx: 1, // ends with non-failing block
-            return_type: NumericType::Field,
+            return_type: Type::Numeric(NumericType::Field),
         }],
         initial_witness: default_witness(),
     };
     let result = fuzz_target(data, FuzzerOptions::default());
     // we expect that this program executed successfully
     match result {
-        Some(result) => assert_eq!(result.get_return_value(), FieldElement::from(1_u32)),
+        Some(result) => assert_eq!(result.get_return_values()[0], FieldElement::from(1_u32)),
         None => panic!("Program failed to execute"),
     }
 
@@ -110,14 +111,14 @@ fn test_jmp_if() {
         functions: vec![FunctionData {
             commands,
             return_instruction_block_idx: 1, // ends with non-failing block
-            return_type: NumericType::Field,
+            return_type: Type::Numeric(NumericType::Field),
         }],
         initial_witness: default_witness(),
     };
     let result = fuzz_target(data, FuzzerOptions::default());
     // we expect that this program failed to execute
     if let Some(result) = result {
-        panic!("Program executed successfully with result: {:?}", result.get_return_value());
+        panic!("Program executed successfully with result: {:?}", result.get_return_values());
     }
 }
 
@@ -175,13 +176,13 @@ fn test_mutable_variable() {
         functions: vec![FunctionData {
             commands,
             return_instruction_block_idx: 4, // last block adds v2 to loaded value, returns the result
-            return_type: NumericType::Field,
+            return_type: Type::Numeric(NumericType::Field),
         }],
         initial_witness: default_witness(),
     };
     let result = fuzz_target(data, FuzzerOptions::default());
     match result {
-        Some(result) => assert_eq!(result.get_return_value(), FieldElement::from(4_u32)),
+        Some(result) => assert_eq!(result.get_return_values()[0], FieldElement::from(4_u32)),
         None => panic!("Program failed to execute"),
     }
 }
@@ -195,8 +196,11 @@ fn smoke_test_field_to_bytes_to_field() {
     let instructions_blocks = vec![field_to_bytes_to_field_block];
     let commands =
         vec![FuzzerFunctionCommand::InsertSimpleInstructionBlock { instruction_block_idx: 0 }];
-    let main_func =
-        FunctionData { commands, return_instruction_block_idx: 0, return_type: NumericType::Field };
+    let main_func = FunctionData {
+        commands,
+        return_instruction_block_idx: 0,
+        return_type: Type::Numeric(NumericType::Field),
+    };
     let fuzzer_data = FuzzerData {
         instruction_blocks: instructions_blocks,
         functions: vec![main_func],
@@ -204,7 +208,47 @@ fn smoke_test_field_to_bytes_to_field() {
     };
     let result = fuzz_target(fuzzer_data, FuzzerOptions::default());
     match result {
-        Some(result) => assert_eq!(result.get_return_value(), FieldElement::from(1_u32)),
+        Some(result) => assert_eq!(result.get_return_values()[0], FieldElement::from(1_u32)),
+        None => panic!("Program failed to execute"),
+    }
+}
+
+/// fn main(a: Field, b: Field, c: Field) -> pub [Field; 3] {
+//      [a, b, c]
+/// }
+#[test]
+fn test_function_can_return_array() {
+    let _ = env_logger::try_init();
+    let add_array_block = InstructionBlock {
+        instructions: vec![Instruction::CreateArray {
+            elements_indices: vec![0, 1, 2],
+            element_type: NumericType::Field,
+            is_references: false,
+        }],
+    };
+    let commands_for_main =
+        vec![FuzzerFunctionCommand::InsertSimpleInstructionBlock { instruction_block_idx: 0 }];
+    let main_func = FunctionData {
+        commands: commands_for_main,
+        return_instruction_block_idx: 1,
+        return_type: Type::Array(Arc::new(vec![Type::Numeric(NumericType::Field)]), 3),
+    };
+    let data = FuzzerData {
+        instruction_blocks: vec![add_array_block],
+        functions: vec![main_func],
+        initial_witness: default_witness(),
+    };
+    let result = fuzz_target(data, FuzzerOptions::default());
+    match result {
+        Some(result) => {
+            assert!(
+                result
+                    .get_return_values()
+                    .iter()
+                    .enumerate()
+                    .all(|(i, v)| v == &FieldElement::from(i as u32))
+            );
+        }
         None => panic!("Program failed to execute"),
     }
 }

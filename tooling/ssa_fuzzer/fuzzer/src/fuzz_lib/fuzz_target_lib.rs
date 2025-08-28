@@ -6,7 +6,7 @@ use super::{
 };
 use acvm::FieldElement;
 use acvm::acir::native_types::{Witness, WitnessMap};
-use noir_ssa_fuzzer::r#type::NumericType;
+use noir_ssa_fuzzer::r#type::{NumericType, Type};
 
 fn initialize_witness_map(
     initial_witness: &[WitnessValue;
@@ -56,7 +56,7 @@ pub(crate) fn fuzz_target(data: FuzzerData, options: FuzzerOptions) -> Option<Fu
     for func in data.functions {
         log::debug!("initial_witness: {witness_map:?}");
         log::debug!("commands: {:?}", func.commands);
-        fuzzer.process_function(func, types.clone());
+        fuzzer.process_function(func, types.iter().map(|t| Type::Numeric(*t)).collect());
     }
     fuzzer.finalize_and_run(witness_map)
 }

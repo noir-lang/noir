@@ -58,7 +58,7 @@ impl From<NumericType> for SsaNumericType {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, EnumCount)]
 pub enum Type {
     Numeric(NumericType),
     Reference(Arc<Type>),

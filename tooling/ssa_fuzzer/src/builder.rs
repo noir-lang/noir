@@ -172,7 +172,7 @@ impl FuzzerBuilder {
     /// Inserts a cast instruction
     pub fn insert_cast(&mut self, value: TypedValue, cast_type: Type) -> TypedValue {
         assert!(value.is_numeric(), "must be numeric");
-        assert!(cast_type.is_numeric(), "must be numeric");
+        assert!(cast_type.is_numeric(), "must be numeric, got {cast_type:?}");
 
         let init_bit_length = value.bit_length();
 
@@ -376,6 +376,20 @@ impl FuzzerBuilder {
             "All elements must have the same type"
         );
         let array_elements_type = Type::Array(Arc::new(vec![element_type]), array_length);
+        let res = self.builder.insert_make_array(
+            elements.into_iter().map(|e| e.value_id).collect(),
+            array_elements_type.clone().into(),
+        );
+        TypedValue::new(res, array_elements_type)
+    }
+
+    pub fn insert_slice(&mut self, elements: Vec<TypedValue>) -> TypedValue {
+        let element_type = elements[0].type_of_variable.clone();
+        assert!(
+            elements.iter().all(|e| e.type_of_variable == element_type),
+            "All elements must have the same type"
+        );
+        let array_elements_type = Type::Slice(Arc::new(vec![element_type]));
         let res = self.builder.insert_make_array(
             elements.into_iter().map(|e| e.value_id).collect(),
             array_elements_type.clone().into(),

@@ -10,7 +10,7 @@ use crate::mutations::{
 };
 use rand::rngs::StdRng;
 
-fn generate_random_fuzzer_function_command(rng: &mut StdRng) -> FuzzerFunctionCommand {
+pub(crate) fn generate_random_fuzzer_function_command(rng: &mut StdRng) -> FuzzerFunctionCommand {
     match BASIC_GENERATE_COMMAND_CONFIGURATION.select(rng) {
         GenerateCommand::InsertJmpIfBlock => {
             FuzzerFunctionCommand::InsertJmpIfBlock { block_then_idx: 0, block_else_idx: 0 }
