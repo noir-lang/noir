@@ -543,7 +543,8 @@ impl<'f> PerFunctionContext<'f> {
                     let result = self.inserter.function.dfg.instruction_results(instruction)[0];
                     let array = *array;
 
-                    let expression = Expression::ArrayElement(array);
+                    let expression = references.expressions.get(&array).copied();
+                    let expression = expression.unwrap_or(Expression::ArrayElement(array));
 
                     let mut aliases = if let Some(aliases) = references.aliases.get_mut(&expression)
                     {
