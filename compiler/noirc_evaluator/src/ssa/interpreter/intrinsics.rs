@@ -243,7 +243,7 @@ impl<W: Write> Interpreter<'_, W> {
                     )?])
                 }
                 acvm::acir::BlackBoxFunc::MultiScalarMul => {
-                    check_argument_count(args, 2, intrinsic)?;
+                    check_argument_count(args, 3, intrinsic)?;
                     let input_points =
                         self.lookup_array_or_slice(args[0], "call to MultiScalarMul blackbox")?;
                     let mut points = Vec::new();
@@ -323,7 +323,7 @@ impl<W: Write> Interpreter<'_, W> {
                     Ok(vec![])
                 }
                 acvm::acir::BlackBoxFunc::EmbeddedCurveAdd => {
-                    check_argument_count(args, 6, intrinsic)?;
+                    check_argument_count(args, 7, intrinsic)?;
                     let solver = bn254_blackbox_solver::Bn254BlackBoxSolver(false);
                     let lhs = (
                         self.lookup_field(args[0], "call EmbeddedCurveAdd BlackBox")?,
