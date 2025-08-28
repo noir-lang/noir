@@ -519,11 +519,20 @@ impl<'f> PerFunctionContext<'f> {
                         .extend(references.get_aliases_for_value(array).iter());
                     references.mark_value_used(array, self.inserter.function);
 
-                    let expression = Expression::ArrayElement(array);
+                    // An expression for the array might already exist, so try to fetch it first
+                    let expression = references.expressions.get(&array).copied();
+                    let expression = expression.unwrap_or(Expression::ArrayElement(array));
 
                     if let Some(aliases) = references.aliases.get_mut(&expression) {
                         aliases.insert(result);
                     }
+
+                    // In this SSA:
+                    //
+                    // v2 = array_get v0, index v1 -> Field
+                    //
+                    // make v2 point to v0 so they share the same alias set
+                    references.expressions.insert(result, expression);
                 }
             }
             Instruction::ArraySet { array, value, .. } => {
@@ -1955,5 +1964,37 @@ mod tests {
             return
         }
         ");
+    }
+
+    #[test]
+    fn does_not_reuse_load_from_aliased_array_element() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: &mut Field, v1: &mut Field, v2: u32):
+            v3 = make_array [v0] : [&mut Field; 1]
+            v4 = array_set v3, index v2, value v1
+            v5 = load v0 -> Field
+            v6 = array_get v4, index v2 -> &mut Field
+            store Field 0 at v6
+            v7 = load v0 -> Field
+            return v7
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
+        assert_ssa_snapshot!(ssa, @r#"
+        brillig(inline) fn main f0 {
+          b0(v0: &mut Field, v1: &mut Field, v2: u32):
+            v3 = make_array [v0] : [&mut Field; 1]
+            v4 = array_set v3, index v2, value v1
+            v5 = load v0 -> Field
+            constrain v2 == u32 0, "Index out of bounds"
+            v7 = array_get v4, index u32 0 -> &mut Field
+            store Field 0 at v7
+            v9 = load v0 -> Field
+            return v9
+        }
+        "#);
     }
 }
