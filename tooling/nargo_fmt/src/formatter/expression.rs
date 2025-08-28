@@ -2628,4 +2628,16 @@ global y = 1;
 "#;
         assert_format_with_max_width(src, src, 40);
     }
+
+    #[test]
+    fn regression_9556() {
+        let src = r#"fn foo() {
+    let x = a()
+        .bcde(fghijk
+            );
+    x
+}
+"#;
+        assert_format_with_max_width(src, src, 20)
+    }
 }
