@@ -1618,7 +1618,67 @@
 <a href="#1617" id="1617">1617</a>
 <a href="#1618" id="1618">1618</a>
 <a href="#1619" id="1619">1619</a>
-<a href="#1620" id="1620">1620</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{cmp::Ordering, collections::BTreeMap, io::Write};
+<a href="#1620" id="1620">1620</a>
+<a href="#1621" id="1621">1621</a>
+<a href="#1622" id="1622">1622</a>
+<a href="#1623" id="1623">1623</a>
+<a href="#1624" id="1624">1624</a>
+<a href="#1625" id="1625">1625</a>
+<a href="#1626" id="1626">1626</a>
+<a href="#1627" id="1627">1627</a>
+<a href="#1628" id="1628">1628</a>
+<a href="#1629" id="1629">1629</a>
+<a href="#1630" id="1630">1630</a>
+<a href="#1631" id="1631">1631</a>
+<a href="#1632" id="1632">1632</a>
+<a href="#1633" id="1633">1633</a>
+<a href="#1634" id="1634">1634</a>
+<a href="#1635" id="1635">1635</a>
+<a href="#1636" id="1636">1636</a>
+<a href="#1637" id="1637">1637</a>
+<a href="#1638" id="1638">1638</a>
+<a href="#1639" id="1639">1639</a>
+<a href="#1640" id="1640">1640</a>
+<a href="#1641" id="1641">1641</a>
+<a href="#1642" id="1642">1642</a>
+<a href="#1643" id="1643">1643</a>
+<a href="#1644" id="1644">1644</a>
+<a href="#1645" id="1645">1645</a>
+<a href="#1646" id="1646">1646</a>
+<a href="#1647" id="1647">1647</a>
+<a href="#1648" id="1648">1648</a>
+<a href="#1649" id="1649">1649</a>
+<a href="#1650" id="1650">1650</a>
+<a href="#1651" id="1651">1651</a>
+<a href="#1652" id="1652">1652</a>
+<a href="#1653" id="1653">1653</a>
+<a href="#1654" id="1654">1654</a>
+<a href="#1655" id="1655">1655</a>
+<a href="#1656" id="1656">1656</a>
+<a href="#1657" id="1657">1657</a>
+<a href="#1658" id="1658">1658</a>
+<a href="#1659" id="1659">1659</a>
+<a href="#1660" id="1660">1660</a>
+<a href="#1661" id="1661">1661</a>
+<a href="#1662" id="1662">1662</a>
+<a href="#1663" id="1663">1663</a>
+<a href="#1664" id="1664">1664</a>
+<a href="#1665" id="1665">1665</a>
+<a href="#1666" id="1666">1666</a>
+<a href="#1667" id="1667">1667</a>
+<a href="#1668" id="1668">1668</a>
+<a href="#1669" id="1669">1669</a>
+<a href="#1670" id="1670">1670</a>
+<a href="#1671" id="1671">1671</a>
+<a href="#1672" id="1672">1672</a>
+<a href="#1673" id="1673">1673</a>
+<a href="#1674" id="1674">1674</a>
+<a href="#1675" id="1675">1675</a>
+<a href="#1676" id="1676">1676</a>
+<a href="#1677" id="1677">1677</a>
+<a href="#1678" id="1678">1678</a>
+<a href="#1679" id="1679">1679</a>
+<a href="#1680" id="1680">1680</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{cmp::Ordering, collections::BTreeMap, io::Write};
 
 <span class="kw">use super</span>::{
     Ssa,
@@ -2715,6 +2775,17 @@
         });
         <span class="self">self</span>.define(result, array)
     }
+
+    <span class="kw">fn </span>interpret_binary(<span class="kw-2">&amp;</span><span class="self">self</span>, binary: <span class="kw-2">&amp;</span>Binary, side_effects_enabled: bool) -&gt; IResult&lt;Value&gt; {
+        <span class="kw">let </span>lhs_id = binary.lhs;
+        <span class="kw">let </span>rhs_id = binary.rhs;
+        <span class="kw">let </span>lhs = <span class="self">self</span>.lookup_numeric(lhs_id, <span class="string">"binary op lhs"</span>)<span class="question-mark">?</span>;
+        <span class="kw">let </span>rhs = <span class="self">self</span>.lookup_numeric(rhs_id, <span class="string">"binary op rhs"</span>)<span class="question-mark">?</span>;
+        evaluate_binary(binary, lhs, rhs, side_effects_enabled, |binary| {
+            display_binary(binary, <span class="self">self</span>.dfg())
+        })
+        .map(Value::Numeric)
+    }
 }
 
 <span class="doccomment">/// Applies an infallible integer binary operation to two `NumericValue`s.
@@ -2782,7 +2853,7 @@
 /// # Returns
 /// A `NumericValue` containing the result of the operation, or an `Err` with the appropriate error.
 </span><span class="macro">macro_rules!</span> apply_int_binop_opt {
-    (<span class="macro-nonterminal">$dfg</span>:expr, <span class="macro-nonterminal">$lhs</span>:expr, <span class="macro-nonterminal">$rhs</span>:expr, <span class="macro-nonterminal">$binary</span>:expr, <span class="macro-nonterminal">$f</span>:expr) =&gt; {{
+    (<span class="macro-nonterminal">$lhs</span>:expr, <span class="macro-nonterminal">$rhs</span>:expr, <span class="macro-nonterminal">$binary</span>:expr, <span class="macro-nonterminal">$f</span>:expr, <span class="macro-nonterminal">$display_binary</span>:expr) =&gt; {{
         <span class="kw">use </span>value::NumericValue::<span class="kw-2">*</span>;
 
         <span class="kw">let </span>lhs = <span class="macro-nonterminal">$lhs</span>;
@@ -2799,7 +2870,7 @@
                 InterpreterError::DivisionByZero { lhs_id, lhs, rhs_id, rhs }
             } <span class="kw">else </span>{
                 <span class="kw">let </span>instruction =
-                    <span class="macro">format!</span>(<span class="string">"`{}` ({operator} {lhs}, {rhs})"</span>, display_binary(binary, <span class="macro-nonterminal">$dfg</span>));
+                    <span class="macro">format!</span>(<span class="string">"`{}` ({operator} {lhs}, {rhs})"</span>, <span class="macro-nonterminal">$display_binary</span>(binary));
                 InterpreterError::Overflow { operator, instruction }
             }
         };
@@ -2862,324 +2933,350 @@
     }};
 }
 
-<span class="kw">impl</span>&lt;W: Write&gt; Interpreter&lt;<span class="lifetime">'_</span>, W&gt; {
-    <span class="kw">fn </span>interpret_binary(<span class="kw-2">&amp;mut </span><span class="self">self</span>, binary: <span class="kw-2">&amp;</span>Binary, side_effects_enabled: bool) -&gt; IResult&lt;Value&gt; {
-        <span class="kw">let </span>lhs_id = binary.lhs;
-        <span class="kw">let </span>rhs_id = binary.rhs;
-        <span class="kw">let </span>lhs = <span class="self">self</span>.lookup_numeric(lhs_id, <span class="string">"binary op lhs"</span>)<span class="question-mark">?</span>;
-        <span class="kw">let </span>rhs = <span class="self">self</span>.lookup_numeric(rhs_id, <span class="string">"binary op rhs"</span>)<span class="question-mark">?</span>;
+<span class="kw">fn </span>evaluate_binary(
+    binary: <span class="kw-2">&amp;</span>Binary,
+    lhs: NumericValue,
+    rhs: NumericValue,
+    side_effects_enabled: bool,
+    display_binary: <span class="kw">impl </span>Fn(<span class="kw-2">&amp;</span>Binary) -&gt; String,
+) -&gt; IResult&lt;NumericValue&gt; {
+    <span class="kw">let </span>lhs_id = binary.lhs;
+    <span class="kw">let </span>rhs_id = binary.rhs;
 
-        <span class="kw">if </span>lhs.get_type() != rhs.get_type()
-            &amp;&amp; !<span class="macro">matches!</span>(binary.operator, BinaryOp::Shl | BinaryOp::Shr)
-        {
-            <span class="kw">return </span><span class="prelude-val">Err</span>(internal(InternalError::MismatchedTypesInBinaryOperator {
-                lhs_id,
-                lhs: lhs.to_string(),
-                operator: binary.operator,
-                rhs_id,
-                rhs: rhs.to_string(),
-            }));
+    <span class="kw">if </span>lhs.get_type() != rhs.get_type() {
+        <span class="kw">return </span><span class="prelude-val">Err</span>(internal(InternalError::MismatchedTypesInBinaryOperator {
+            lhs_id,
+            lhs: lhs.to_string(),
+            operator: binary.operator,
+            rhs_id,
+            rhs: rhs.to_string(),
+        }));
+    }
+
+    <span class="comment">// Disable this instruction if it is side-effectual and side effects are disabled.
+    </span><span class="kw">if </span>!side_effects_enabled {
+        <span class="kw">return </span><span class="prelude-val">Ok</span>(NumericValue::zero(lhs.get_type()));
+    }
+
+    <span class="kw">if let </span>(<span class="prelude-val">Some</span>(lhs), <span class="prelude-val">Some</span>(rhs)) = (lhs.as_field(), rhs.as_field()) {
+        <span class="kw">return </span>interpret_field_binary_op(lhs, binary.operator, rhs, lhs_id, rhs_id);
+    }
+
+    <span class="kw">if let </span>(<span class="prelude-val">Some</span>(lhs), <span class="prelude-val">Some</span>(rhs)) = (lhs.as_bool(), rhs.as_bool()) {
+        <span class="kw">return </span>interpret_u1_binary_op(lhs, rhs, binary, <span class="kw-2">&amp;</span>display_binary);
+    }
+
+    <span class="kw">let </span>result = <span class="kw">match </span>binary.operator {
+        BinaryOp::Add { unchecked: <span class="bool-val">false </span>} =&gt; {
+            <span class="macro">apply_int_binop_opt!</span>(
+                lhs,
+                rhs,
+                binary,
+                num_traits::CheckedAdd::checked_add,
+                display_binary
+            )
         }
-
-        <span class="comment">// Disable this instruction if it is side-effectual and side effects are disabled.
-        </span><span class="kw">if </span>!side_effects_enabled {
-            <span class="kw">let </span>zero = NumericValue::zero(lhs.get_type());
-            <span class="kw">return </span><span class="prelude-val">Ok</span>(Value::Numeric(zero));
+        BinaryOp::Add { unchecked: <span class="bool-val">true </span>} =&gt; {
+            <span class="macro">apply_int_binop!</span>(lhs, rhs, binary, num_traits::WrappingAdd::wrapping_add)
         }
-
-        <span class="kw">if let </span>(<span class="prelude-val">Some</span>(lhs), <span class="prelude-val">Some</span>(rhs)) = (lhs.as_field(), rhs.as_field()) {
-            <span class="kw">return </span><span class="self">self</span>.interpret_field_binary_op(lhs, binary.operator, rhs, lhs_id, rhs_id);
+        BinaryOp::Sub { unchecked: <span class="bool-val">false </span>} =&gt; {
+            <span class="macro">apply_int_binop_opt!</span>(
+                lhs,
+                rhs,
+                binary,
+                num_traits::CheckedSub::checked_sub,
+                display_binary
+            )
         }
-
-        <span class="kw">if let </span>(<span class="prelude-val">Some</span>(lhs), <span class="prelude-val">Some</span>(rhs)) = (lhs.as_bool(), rhs.as_bool()) {
-            <span class="kw">return </span><span class="self">self</span>.interpret_u1_binary_op(lhs, rhs, binary);
+        BinaryOp::Sub { unchecked: <span class="bool-val">true </span>} =&gt; {
+            <span class="macro">apply_int_binop!</span>(lhs, rhs, binary, num_traits::WrappingSub::wrapping_sub)
         }
-
-        <span class="kw">let </span>dfg = <span class="self">self</span>.dfg();
-        <span class="kw">let </span>result = <span class="kw">match </span>binary.operator {
-            BinaryOp::Add { unchecked: <span class="bool-val">false </span>} =&gt; {
-                <span class="macro">apply_int_binop_opt!</span>(dfg, lhs, rhs, binary, num_traits::CheckedAdd::checked_add)
+        BinaryOp::Mul { unchecked: <span class="bool-val">false </span>} =&gt; {
+            <span class="comment">// Only unsigned multiplication has side effects
+            </span><span class="macro">apply_int_binop_opt!</span>(
+                lhs,
+                rhs,
+                binary,
+                num_traits::CheckedMul::checked_mul,
+                display_binary
+            )
+        }
+        BinaryOp::Mul { unchecked: <span class="bool-val">true </span>} =&gt; {
+            <span class="macro">apply_int_binop!</span>(lhs, rhs, binary, num_traits::WrappingMul::wrapping_mul)
+        }
+        BinaryOp::Div =&gt; {
+            <span class="macro">apply_int_binop_opt!</span>(
+                lhs,
+                rhs,
+                binary,
+                num_traits::CheckedDiv::checked_div,
+                display_binary
+            )
+        }
+        BinaryOp::Mod =&gt; <span class="kw">match </span>(lhs, rhs) {
+            (NumericValue::I8(i8::MIN), NumericValue::I8(-<span class="number">1</span>)) =&gt; NumericValue::I8(<span class="number">0</span>),
+            (NumericValue::I16(i16::MIN), NumericValue::I16(-<span class="number">1</span>)) =&gt; NumericValue::I16(<span class="number">0</span>),
+            (NumericValue::I32(i32::MIN), NumericValue::I32(-<span class="number">1</span>)) =&gt; NumericValue::I32(<span class="number">0</span>),
+            (NumericValue::I64(i64::MIN), NumericValue::I64(-<span class="number">1</span>)) =&gt; NumericValue::I64(<span class="number">0</span>),
+            <span class="kw">_ </span>=&gt; {
+                <span class="macro">apply_int_binop_opt!</span>(
+                    lhs,
+                    rhs,
+                    binary,
+                    num_traits::CheckedRem::checked_rem,
+                    display_binary
+                )
             }
-            BinaryOp::Add { unchecked: <span class="bool-val">true </span>} =&gt; {
-                <span class="macro">apply_int_binop!</span>(lhs, rhs, binary, num_traits::WrappingAdd::wrapping_add)
-            }
-            BinaryOp::Sub { unchecked: <span class="bool-val">false </span>} =&gt; {
-                <span class="macro">apply_int_binop_opt!</span>(dfg, lhs, rhs, binary, num_traits::CheckedSub::checked_sub)
-            }
-            BinaryOp::Sub { unchecked: <span class="bool-val">true </span>} =&gt; {
-                <span class="macro">apply_int_binop!</span>(lhs, rhs, binary, num_traits::WrappingSub::wrapping_sub)
-            }
-            BinaryOp::Mul { unchecked: <span class="bool-val">false </span>} =&gt; {
-                <span class="comment">// Only unsigned multiplication has side effects
-                </span><span class="macro">apply_int_binop_opt!</span>(dfg, lhs, rhs, binary, num_traits::CheckedMul::checked_mul)
-            }
-            BinaryOp::Mul { unchecked: <span class="bool-val">true </span>} =&gt; {
-                <span class="macro">apply_int_binop!</span>(lhs, rhs, binary, num_traits::WrappingMul::wrapping_mul)
-            }
-            BinaryOp::Div =&gt; {
-                <span class="macro">apply_int_binop_opt!</span>(dfg, lhs, rhs, binary, num_traits::CheckedDiv::checked_div)
-            }
-            BinaryOp::Mod =&gt; <span class="kw">match </span>(lhs, rhs) {
-                (NumericValue::I8(i8::MIN), NumericValue::I8(-<span class="number">1</span>)) =&gt; NumericValue::I8(<span class="number">0</span>),
-                (NumericValue::I16(i16::MIN), NumericValue::I16(-<span class="number">1</span>)) =&gt; NumericValue::I16(<span class="number">0</span>),
-                (NumericValue::I32(i32::MIN), NumericValue::I32(-<span class="number">1</span>)) =&gt; NumericValue::I32(<span class="number">0</span>),
-                (NumericValue::I64(i64::MIN), NumericValue::I64(-<span class="number">1</span>)) =&gt; NumericValue::I64(<span class="number">0</span>),
+        },
+        BinaryOp::Eq =&gt; <span class="macro">apply_int_comparison_op!</span>(lhs, rhs, binary, |a, b| a == b),
+        BinaryOp::Lt =&gt; <span class="macro">apply_int_comparison_op!</span>(lhs, rhs, binary, |a, b| a &lt; b),
+        BinaryOp::And =&gt; {
+            <span class="macro">apply_int_binop!</span>(lhs, rhs, binary, std::ops::BitAnd::bitand)
+        }
+        BinaryOp::Or =&gt; {
+            <span class="macro">apply_int_binop!</span>(lhs, rhs, binary, std::ops::BitOr::bitor)
+        }
+        BinaryOp::Xor =&gt; {
+            <span class="macro">apply_int_binop!</span>(lhs, rhs, binary, std::ops::BitXor::bitxor)
+        }
+        BinaryOp::Shl =&gt; {
+            <span class="kw">use </span>NumericValue::<span class="kw-2">*</span>;
+            <span class="kw">let </span>instruction = <span class="macro">format!</span>(<span class="string">"`{}` ({lhs} &lt;&lt; {rhs})"</span>, display_binary(binary));
+            <span class="kw">let </span>overflow = InterpreterError::Overflow { operator: BinaryOp::Shl, instruction };
+            <span class="kw">match </span>(lhs, rhs) {
+                (Field(<span class="kw">_</span>), <span class="kw">_</span>) | (<span class="kw">_</span>, Field(<span class="kw">_</span>)) =&gt; {
+                    <span class="kw">return </span><span class="prelude-val">Err</span>(internal(InternalError::UnsupportedOperatorForType {
+                        operator: <span class="string">"&lt;&lt;"</span>,
+                        typ: <span class="string">"Field"</span>,
+                    }));
+                }
+                (U1(lhs_value), U1(rhs_value)) =&gt; U1(<span class="kw">if </span>!rhs_value { lhs_value } <span class="kw">else </span>{ <span class="bool-val">false </span>}),
+                (U8(lhs_value), U8(rhs_value)) =&gt; {
+                    lhs_value.checked_shl(rhs_value.into()).map(U8).ok_or(overflow)<span class="question-mark">?
+                </span>}
+                (U16(lhs_value), U16(rhs_value)) =&gt; {
+                    lhs_value.checked_shl(rhs_value.into()).map(U16).ok_or(overflow)<span class="question-mark">?
+                </span>}
+                (U32(lhs_value), U32(rhs_value)) =&gt; {
+                    lhs_value.checked_shl(rhs_value).map(U32).ok_or(overflow)<span class="question-mark">?
+                </span>}
+                (U64(lhs_value), U64(rhs_value)) =&gt; {
+                    <span class="kw">let </span>rhs_value: u32 = rhs_value.try_into().map_err(|<span class="kw">_</span>| overflow.clone())<span class="question-mark">?</span>;
+                    lhs_value.checked_shl(rhs_value).map(U64).ok_or(overflow)<span class="question-mark">?
+                </span>}
+                (U128(lhs_value), U128(rhs_value)) =&gt; {
+                    <span class="kw">let </span>rhs_value: u32 = rhs_value.try_into().map_err(|<span class="kw">_</span>| overflow.clone())<span class="question-mark">?</span>;
+                    lhs_value.checked_shl(rhs_value).map(U128).ok_or(overflow)<span class="question-mark">?
+                </span>}
+                (I8(lhs_value), I8(rhs_value)) =&gt; {
+                    <span class="kw">let </span>rhs_value: u32 = rhs_value.try_into().map_err(|<span class="kw">_</span>| overflow.clone())<span class="question-mark">?</span>;
+                    lhs_value.checked_shl(rhs_value).map(I8).ok_or(overflow)<span class="question-mark">?
+                </span>}
+                (I16(lhs_value), I16(rhs_value)) =&gt; {
+                    <span class="kw">let </span>rhs_value: u32 = rhs_value.try_into().map_err(|<span class="kw">_</span>| overflow.clone())<span class="question-mark">?</span>;
+                    lhs_value.checked_shl(rhs_value).map(I16).ok_or(overflow)<span class="question-mark">?
+                </span>}
+                (I32(lhs_value), I32(rhs_value)) =&gt; {
+                    <span class="kw">let </span>rhs_value: u32 = rhs_value.try_into().map_err(|<span class="kw">_</span>| overflow.clone())<span class="question-mark">?</span>;
+                    lhs_value.checked_shl(rhs_value).map(I32).ok_or(overflow)<span class="question-mark">?
+                </span>}
+                (I64(lhs_value), I64(rhs_value)) =&gt; {
+                    <span class="kw">let </span>rhs_value: u32 = rhs_value.try_into().map_err(|<span class="kw">_</span>| overflow.clone())<span class="question-mark">?</span>;
+                    lhs_value.checked_shl(rhs_value).map(I64).ok_or(overflow)<span class="question-mark">?
+                </span>}
                 <span class="kw">_ </span>=&gt; {
-                    <span class="macro">apply_int_binop_opt!</span>(dfg, lhs, rhs, binary, num_traits::CheckedRem::checked_rem)
-                }
-            },
-            BinaryOp::Eq =&gt; <span class="macro">apply_int_comparison_op!</span>(lhs, rhs, binary, |a, b| a == b),
-            BinaryOp::Lt =&gt; <span class="macro">apply_int_comparison_op!</span>(lhs, rhs, binary, |a, b| a &lt; b),
-            BinaryOp::And =&gt; {
-                <span class="macro">apply_int_binop!</span>(lhs, rhs, binary, std::ops::BitAnd::bitand)
-            }
-            BinaryOp::Or =&gt; {
-                <span class="macro">apply_int_binop!</span>(lhs, rhs, binary, std::ops::BitOr::bitor)
-            }
-            BinaryOp::Xor =&gt; {
-                <span class="macro">apply_int_binop!</span>(lhs, rhs, binary, std::ops::BitXor::bitxor)
-            }
-            BinaryOp::Shl =&gt; {
-                <span class="kw">use </span>NumericValue::<span class="kw-2">*</span>;
-                <span class="kw">let </span>instruction =
-                    <span class="macro">format!</span>(<span class="string">"`{}` ({lhs} &lt;&lt; {rhs})"</span>, display_binary(binary, <span class="self">self</span>.dfg()));
-                <span class="kw">let </span>overflow = InterpreterError::Overflow { operator: BinaryOp::Shl, instruction };
-                <span class="kw">match </span>(lhs, rhs) {
-                    (Field(<span class="kw">_</span>), <span class="kw">_</span>) | (<span class="kw">_</span>, Field(<span class="kw">_</span>)) =&gt; {
-                        <span class="kw">return </span><span class="prelude-val">Err</span>(internal(InternalError::UnsupportedOperatorForType {
-                            operator: <span class="string">"&lt;&lt;"</span>,
-                            typ: <span class="string">"Field"</span>,
-                        }));
-                    }
-                    (U1(lhs_value), U1(rhs_value)) =&gt; {
-                        U1(<span class="kw">if </span>!rhs_value { lhs_value } <span class="kw">else </span>{ <span class="bool-val">false </span>})
-                    }
-                    (U8(lhs_value), U8(rhs_value)) =&gt; {
-                        lhs_value.checked_shl(rhs_value.into()).map(U8).ok_or(overflow)<span class="question-mark">?
-                    </span>}
-                    (U16(lhs_value), U16(rhs_value)) =&gt; {
-                        lhs_value.checked_shl(rhs_value.into()).map(U16).ok_or(overflow)<span class="question-mark">?
-                    </span>}
-                    (U32(lhs_value), U32(rhs_value)) =&gt; {
-                        lhs_value.checked_shl(rhs_value).map(U32).ok_or(overflow)<span class="question-mark">?
-                    </span>}
-                    (U64(lhs_value), U64(rhs_value)) =&gt; {
-                        <span class="kw">let </span>rhs_value: u32 = rhs_value.try_into().map_err(|<span class="kw">_</span>| overflow.clone())<span class="question-mark">?</span>;
-                        lhs_value.checked_shl(rhs_value).map(U64).ok_or(overflow)<span class="question-mark">?
-                    </span>}
-                    (U128(lhs_value), U128(rhs_value)) =&gt; {
-                        <span class="kw">let </span>rhs_value: u32 = rhs_value.try_into().map_err(|<span class="kw">_</span>| overflow.clone())<span class="question-mark">?</span>;
-                        lhs_value.checked_shl(rhs_value).map(U128).ok_or(overflow)<span class="question-mark">?
-                    </span>}
-                    (I8(lhs_value), I8(rhs_value)) =&gt; {
-                        <span class="kw">let </span>rhs_value: u32 = rhs_value.try_into().map_err(|<span class="kw">_</span>| overflow.clone())<span class="question-mark">?</span>;
-                        lhs_value.checked_shl(rhs_value).map(I8).ok_or(overflow)<span class="question-mark">?
-                    </span>}
-                    (I16(lhs_value), I16(rhs_value)) =&gt; {
-                        <span class="kw">let </span>rhs_value: u32 = rhs_value.try_into().map_err(|<span class="kw">_</span>| overflow.clone())<span class="question-mark">?</span>;
-                        lhs_value.checked_shl(rhs_value).map(I16).ok_or(overflow)<span class="question-mark">?
-                    </span>}
-                    (I32(lhs_value), I32(rhs_value)) =&gt; {
-                        <span class="kw">let </span>rhs_value: u32 = rhs_value.try_into().map_err(|<span class="kw">_</span>| overflow.clone())<span class="question-mark">?</span>;
-                        lhs_value.checked_shl(rhs_value).map(I32).ok_or(overflow)<span class="question-mark">?
-                    </span>}
-                    (I64(lhs_value), I64(rhs_value)) =&gt; {
-                        <span class="kw">let </span>rhs_value: u32 = rhs_value.try_into().map_err(|<span class="kw">_</span>| overflow.clone())<span class="question-mark">?</span>;
-                        lhs_value.checked_shl(rhs_value).map(I64).ok_or(overflow)<span class="question-mark">?
-                    </span>}
-                    <span class="kw">_ </span>=&gt; {
-                        <span class="kw">return </span><span class="prelude-val">Err</span>(internal(InternalError::MismatchedTypesInBinaryOperator {
-                            lhs: lhs.to_string(),
-                            rhs: rhs.to_string(),
-                            operator: binary.operator,
-                            lhs_id: binary.lhs,
-                            rhs_id: binary.rhs,
-                        }));
-                    }
+                    <span class="kw">return </span><span class="prelude-val">Err</span>(internal(InternalError::MismatchedTypesInBinaryOperator {
+                        lhs: lhs.to_string(),
+                        rhs: rhs.to_string(),
+                        operator: binary.operator,
+                        lhs_id: binary.lhs,
+                        rhs_id: binary.rhs,
+                    }));
                 }
             }
-            BinaryOp::Shr =&gt; {
-                <span class="kw">let </span>instruction =
-                    <span class="macro">format!</span>(<span class="string">"`{}` ({lhs} &gt;&gt; {rhs})"</span>, display_binary(binary, <span class="self">self</span>.dfg()));
-                <span class="kw">let </span>overflow = InterpreterError::Overflow { operator: BinaryOp::Shr, instruction };
+        }
+        BinaryOp::Shr =&gt; {
+            <span class="kw">let </span>instruction = <span class="macro">format!</span>(<span class="string">"`{}` ({lhs} &gt;&gt; {rhs})"</span>, display_binary(binary));
+            <span class="kw">let </span>overflow = InterpreterError::Overflow { operator: BinaryOp::Shr, instruction };
 
-                <span class="kw">use </span>NumericValue::<span class="kw-2">*</span>;
-                <span class="kw">match </span>(lhs, rhs) {
-                    (Field(<span class="kw">_</span>), <span class="kw">_</span>) | (<span class="kw">_</span>, Field(<span class="kw">_</span>)) =&gt; {
-                        <span class="kw">return </span><span class="prelude-val">Err</span>(internal(InternalError::UnsupportedOperatorForType {
-                            operator: <span class="string">"&lt;&lt;"</span>,
-                            typ: <span class="string">"Field"</span>,
-                        }));
-                    }
-                    (U1(lhs_value), U1(rhs_value)) =&gt; {
-                        U1(<span class="kw">if </span>!rhs_value { lhs_value } <span class="kw">else </span>{ <span class="bool-val">false </span>})
-                    }
-                    (U8(lhs_value), U8(rhs_value)) =&gt; {
-                        lhs_value.checked_shr(rhs_value.into()).map(U8).ok_or(overflow)<span class="question-mark">?
-                    </span>}
-                    (U16(lhs_value), U16(rhs_value)) =&gt; {
-                        lhs_value.checked_shr(rhs_value.into()).map(U16).ok_or(overflow)<span class="question-mark">?
-                    </span>}
-                    (U32(lhs_value), U32(rhs_value)) =&gt; {
-                        lhs_value.checked_shr(rhs_value).map(U32).ok_or(overflow)<span class="question-mark">?
-                    </span>}
-                    (U64(lhs_value), U64(rhs_value)) =&gt; {
-                        <span class="kw">let </span>rhs_value: u32 = rhs_value.try_into().map_err(|<span class="kw">_</span>| overflow.clone())<span class="question-mark">?</span>;
-                        lhs_value.checked_shr(rhs_value).map(U64).ok_or(overflow)<span class="question-mark">?
-                    </span>}
-                    (U128(lhs_value), U128(rhs_value)) =&gt; {
-                        <span class="kw">let </span>rhs_value: u32 = rhs_value.try_into().map_err(|<span class="kw">_</span>| overflow.clone())<span class="question-mark">?</span>;
-                        lhs_value.checked_shr(rhs_value).map(U128).ok_or(overflow)<span class="question-mark">?
-                    </span>}
-                    (I8(lhs_value), I8(rhs_value)) =&gt; {
-                        <span class="kw">let </span>rhs_value: u32 = rhs_value.try_into().map_err(|<span class="kw">_</span>| overflow.clone())<span class="question-mark">?</span>;
-                        lhs_value.checked_shr(rhs_value).map(I8).ok_or(overflow)<span class="question-mark">?
-                    </span>}
-                    (I16(lhs_value), I16(rhs_value)) =&gt; {
-                        <span class="kw">let </span>rhs_value: u32 = rhs_value.try_into().map_err(|<span class="kw">_</span>| overflow.clone())<span class="question-mark">?</span>;
-                        lhs_value.checked_shr(rhs_value).map(I16).ok_or(overflow)<span class="question-mark">?
-                    </span>}
-                    (I32(lhs_value), I32(rhs_value)) =&gt; {
-                        <span class="kw">let </span>rhs_value: u32 = rhs_value.try_into().map_err(|<span class="kw">_</span>| overflow.clone())<span class="question-mark">?</span>;
-                        lhs_value.checked_shr(rhs_value).map(I32).ok_or(overflow)<span class="question-mark">?
-                    </span>}
-                    (I64(lhs_value), I64(rhs_value)) =&gt; {
-                        <span class="kw">let </span>rhs_value: u32 = rhs_value.try_into().map_err(|<span class="kw">_</span>| overflow.clone())<span class="question-mark">?</span>;
-                        lhs_value.checked_shr(rhs_value).map(I64).ok_or(overflow)<span class="question-mark">?
-                    </span>}
-                    <span class="kw">_ </span>=&gt; {
-                        <span class="kw">return </span><span class="prelude-val">Err</span>(internal(InternalError::MismatchedTypesInBinaryOperator {
-                            lhs: lhs.to_string(),
-                            rhs: rhs.to_string(),
-                            operator: binary.operator,
-                            lhs_id: binary.lhs,
-                            rhs_id: binary.rhs,
-                        }));
-                    }
+            <span class="kw">use </span>NumericValue::<span class="kw-2">*</span>;
+            <span class="kw">match </span>(lhs, rhs) {
+                (Field(<span class="kw">_</span>), <span class="kw">_</span>) | (<span class="kw">_</span>, Field(<span class="kw">_</span>)) =&gt; {
+                    <span class="kw">return </span><span class="prelude-val">Err</span>(internal(InternalError::UnsupportedOperatorForType {
+                        operator: <span class="string">"&lt;&lt;"</span>,
+                        typ: <span class="string">"Field"</span>,
+                    }));
+                }
+                (U1(lhs_value), U1(rhs_value)) =&gt; U1(<span class="kw">if </span>!rhs_value { lhs_value } <span class="kw">else </span>{ <span class="bool-val">false </span>}),
+                (U8(lhs_value), U8(rhs_value)) =&gt; {
+                    lhs_value.checked_shr(rhs_value.into()).map(U8).ok_or(overflow)<span class="question-mark">?
+                </span>}
+                (U16(lhs_value), U16(rhs_value)) =&gt; {
+                    lhs_value.checked_shr(rhs_value.into()).map(U16).ok_or(overflow)<span class="question-mark">?
+                </span>}
+                (U32(lhs_value), U32(rhs_value)) =&gt; {
+                    lhs_value.checked_shr(rhs_value).map(U32).ok_or(overflow)<span class="question-mark">?
+                </span>}
+                (U64(lhs_value), U64(rhs_value)) =&gt; {
+                    <span class="kw">let </span>rhs_value: u32 = rhs_value.try_into().map_err(|<span class="kw">_</span>| overflow.clone())<span class="question-mark">?</span>;
+                    lhs_value.checked_shr(rhs_value).map(U64).ok_or(overflow)<span class="question-mark">?
+                </span>}
+                (U128(lhs_value), U128(rhs_value)) =&gt; {
+                    <span class="kw">let </span>rhs_value: u32 = rhs_value.try_into().map_err(|<span class="kw">_</span>| overflow.clone())<span class="question-mark">?</span>;
+                    lhs_value.checked_shr(rhs_value).map(U128).ok_or(overflow)<span class="question-mark">?
+                </span>}
+                (I8(lhs_value), I8(rhs_value)) =&gt; {
+                    <span class="kw">let </span>rhs_value: u32 = rhs_value.try_into().map_err(|<span class="kw">_</span>| overflow.clone())<span class="question-mark">?</span>;
+                    lhs_value.checked_shr(rhs_value).map(I8).ok_or(overflow)<span class="question-mark">?
+                </span>}
+                (I16(lhs_value), I16(rhs_value)) =&gt; {
+                    <span class="kw">let </span>rhs_value: u32 = rhs_value.try_into().map_err(|<span class="kw">_</span>| overflow.clone())<span class="question-mark">?</span>;
+                    lhs_value.checked_shr(rhs_value).map(I16).ok_or(overflow)<span class="question-mark">?
+                </span>}
+                (I32(lhs_value), I32(rhs_value)) =&gt; {
+                    <span class="kw">let </span>rhs_value: u32 = rhs_value.try_into().map_err(|<span class="kw">_</span>| overflow.clone())<span class="question-mark">?</span>;
+                    lhs_value.checked_shr(rhs_value).map(I32).ok_or(overflow)<span class="question-mark">?
+                </span>}
+                (I64(lhs_value), I64(rhs_value)) =&gt; {
+                    <span class="kw">let </span>rhs_value: u32 = rhs_value.try_into().map_err(|<span class="kw">_</span>| overflow.clone())<span class="question-mark">?</span>;
+                    lhs_value.checked_shr(rhs_value).map(I64).ok_or(overflow)<span class="question-mark">?
+                </span>}
+                <span class="kw">_ </span>=&gt; {
+                    <span class="kw">return </span><span class="prelude-val">Err</span>(internal(InternalError::MismatchedTypesInBinaryOperator {
+                        lhs: lhs.to_string(),
+                        rhs: rhs.to_string(),
+                        operator: binary.operator,
+                        lhs_id: binary.lhs,
+                        rhs_id: binary.rhs,
+                    }));
                 }
             }
-        };
-        <span class="prelude-val">Ok</span>(Value::Numeric(result))
-    }
+        }
+    };
+    <span class="prelude-val">Ok</span>(result)
+}
 
-    <span class="kw">fn </span>interpret_field_binary_op(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        lhs: FieldElement,
-        operator: BinaryOp,
-        rhs: FieldElement,
-        lhs_id: ValueId,
-        rhs_id: ValueId,
-    ) -&gt; IResult&lt;Value&gt; {
-        <span class="kw">let </span>unsupported_operator = |operator| -&gt; IResult&lt;Value&gt; {
-            <span class="kw">let </span>typ = <span class="string">"Field"</span>;
-            <span class="prelude-val">Err</span>(internal(InternalError::UnsupportedOperatorForType { operator, typ }))
-        };
+<span class="kw">fn </span>interpret_field_binary_op(
+    lhs: FieldElement,
+    operator: BinaryOp,
+    rhs: FieldElement,
+    lhs_id: ValueId,
+    rhs_id: ValueId,
+) -&gt; IResult&lt;NumericValue&gt; {
+    <span class="kw">let </span>unsupported_operator = |operator| -&gt; IResult&lt;NumericValue&gt; {
+        <span class="kw">let </span>typ = <span class="string">"Field"</span>;
+        <span class="prelude-val">Err</span>(internal(InternalError::UnsupportedOperatorForType { operator, typ }))
+    };
 
-        <span class="kw">let </span>result = <span class="kw">match </span>operator {
-            BinaryOp::Add { unchecked: <span class="kw">_ </span>} =&gt; NumericValue::Field(lhs + rhs),
-            BinaryOp::Sub { unchecked: <span class="kw">_ </span>} =&gt; NumericValue::Field(lhs - rhs),
-            BinaryOp::Mul { unchecked: <span class="kw">_ </span>} =&gt; NumericValue::Field(lhs * rhs),
-            BinaryOp::Div =&gt; {
-                <span class="kw">if </span>rhs.is_zero() {
-                    <span class="kw">let </span>lhs = lhs.to_string();
-                    <span class="kw">let </span>rhs = rhs.to_string();
-                    <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::DivisionByZero { lhs_id, lhs, rhs_id, rhs });
-                }
-                NumericValue::Field(lhs / rhs)
+    <span class="kw">let </span>result = <span class="kw">match </span>operator {
+        BinaryOp::Add { unchecked: <span class="kw">_ </span>} =&gt; NumericValue::Field(lhs + rhs),
+        BinaryOp::Sub { unchecked: <span class="kw">_ </span>} =&gt; NumericValue::Field(lhs - rhs),
+        BinaryOp::Mul { unchecked: <span class="kw">_ </span>} =&gt; NumericValue::Field(lhs * rhs),
+        BinaryOp::Div =&gt; {
+            <span class="kw">if </span>rhs.is_zero() {
+                <span class="kw">let </span>lhs = lhs.to_string();
+                <span class="kw">let </span>rhs = rhs.to_string();
+                <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::DivisionByZero { lhs_id, lhs, rhs_id, rhs });
             }
-            BinaryOp::Mod =&gt; <span class="kw">return </span>unsupported_operator(<span class="string">"%"</span>),
-            BinaryOp::Eq =&gt; NumericValue::U1(lhs == rhs),
-            BinaryOp::Lt =&gt; NumericValue::U1(lhs &lt; rhs),
-            BinaryOp::And =&gt; <span class="kw">return </span>unsupported_operator(<span class="string">"&amp;"</span>),
-            BinaryOp::Or =&gt; <span class="kw">return </span>unsupported_operator(<span class="string">"|"</span>),
-            BinaryOp::Xor =&gt; <span class="kw">return </span>unsupported_operator(<span class="string">"^"</span>),
-            BinaryOp::Shl =&gt; <span class="kw">return </span>unsupported_operator(<span class="string">"&lt;&lt;"</span>),
-            BinaryOp::Shr =&gt; <span class="kw">return </span>unsupported_operator(<span class="string">"&gt;&gt;"</span>),
-        };
-        <span class="prelude-val">Ok</span>(Value::Numeric(result))
-    }
+            NumericValue::Field(lhs / rhs)
+        }
+        BinaryOp::Mod =&gt; <span class="kw">return </span>unsupported_operator(<span class="string">"%"</span>),
+        BinaryOp::Eq =&gt; NumericValue::U1(lhs == rhs),
+        BinaryOp::Lt =&gt; NumericValue::U1(lhs &lt; rhs),
+        BinaryOp::And =&gt; <span class="kw">return </span>unsupported_operator(<span class="string">"&amp;"</span>),
+        BinaryOp::Or =&gt; <span class="kw">return </span>unsupported_operator(<span class="string">"|"</span>),
+        BinaryOp::Xor =&gt; <span class="kw">return </span>unsupported_operator(<span class="string">"^"</span>),
+        BinaryOp::Shl =&gt; <span class="kw">return </span>unsupported_operator(<span class="string">"&lt;&lt;"</span>),
+        BinaryOp::Shr =&gt; <span class="kw">return </span>unsupported_operator(<span class="string">"&gt;&gt;"</span>),
+    };
+    <span class="prelude-val">Ok</span>(result)
+}
 
-    <span class="kw">fn </span>interpret_u1_binary_op(<span class="kw-2">&amp;mut </span><span class="self">self</span>, lhs: bool, rhs: bool, binary: <span class="kw-2">&amp;</span>Binary) -&gt; IResult&lt;Value&gt; {
-        <span class="kw">let </span>overflow = || {
-            <span class="kw">let </span>instruction = <span class="macro">format!</span>(<span class="string">"`{}` ({lhs} &lt;&lt; {rhs})"</span>, display_binary(binary, <span class="self">self</span>.dfg()));
-            <span class="kw">let </span>operator = binary.operator;
-            InterpreterError::Overflow { operator, instruction }
-        };
+<span class="kw">fn </span>interpret_u1_binary_op(
+    lhs: bool,
+    rhs: bool,
+    binary: <span class="kw-2">&amp;</span>Binary,
+    display_binary: <span class="kw-2">&amp;</span><span class="kw">impl </span>Fn(<span class="kw-2">&amp;</span>Binary) -&gt; String,
+) -&gt; IResult&lt;NumericValue&gt; {
+    <span class="kw">let </span>overflow = || {
+        <span class="kw">let </span>instruction = <span class="macro">format!</span>(<span class="string">"`{}` ({lhs} &lt;&lt; {rhs})"</span>, display_binary(binary));
+        <span class="kw">let </span>operator = binary.operator;
+        InterpreterError::Overflow { operator, instruction }
+    };
 
-        <span class="kw">let </span>lhs_id = binary.lhs;
-        <span class="kw">let </span>rhs_id = binary.rhs;
+    <span class="kw">let </span>lhs_id = binary.lhs;
+    <span class="kw">let </span>rhs_id = binary.rhs;
 
-        <span class="kw">let </span>result = <span class="kw">match </span>binary.operator {
-            BinaryOp::Add { unchecked: <span class="bool-val">true </span>} =&gt; lhs ^ rhs,
-            BinaryOp::Add { unchecked: <span class="bool-val">false </span>} =&gt; {
-                <span class="kw">if </span>lhs &amp;&amp; rhs {
-                    <span class="kw">return </span><span class="prelude-val">Err</span>(overflow());
-                } <span class="kw">else </span>{
-                    lhs ^ rhs
-                }
+    <span class="kw">let </span>result = <span class="kw">match </span>binary.operator {
+        BinaryOp::Add { unchecked: <span class="bool-val">true </span>} =&gt; lhs ^ rhs,
+        BinaryOp::Add { unchecked: <span class="bool-val">false </span>} =&gt; {
+            <span class="kw">if </span>lhs &amp;&amp; rhs {
+                <span class="kw">return </span><span class="prelude-val">Err</span>(overflow());
+            } <span class="kw">else </span>{
+                lhs ^ rhs
             }
-            BinaryOp::Sub { unchecked: <span class="bool-val">true </span>} =&gt; {
-                <span class="comment">// (0, 0) -&gt; 0
-                // (0, 1) -&gt; 1  (underflow)
-                // (1, 0) -&gt; 1
-                // (1, 1) -&gt; 0
-                </span>lhs ^ rhs
+        }
+        BinaryOp::Sub { unchecked: <span class="bool-val">true </span>} =&gt; {
+            <span class="comment">// (0, 0) -&gt; 0
+            // (0, 1) -&gt; 1  (underflow)
+            // (1, 0) -&gt; 1
+            // (1, 1) -&gt; 0
+            </span>lhs ^ rhs
+        }
+        BinaryOp::Sub { unchecked: <span class="bool-val">false </span>} =&gt; {
+            <span class="kw">if </span>!lhs &amp;&amp; rhs {
+                <span class="kw">return </span><span class="prelude-val">Err</span>(overflow());
+            } <span class="kw">else </span>{
+                lhs ^ rhs
             }
-            BinaryOp::Sub { unchecked: <span class="bool-val">false </span>} =&gt; {
-                <span class="kw">if </span>!lhs &amp;&amp; rhs {
-                    <span class="kw">return </span><span class="prelude-val">Err</span>(overflow());
-                } <span class="kw">else </span>{
-                    lhs ^ rhs
-                }
+        }
+        BinaryOp::Mul { unchecked: <span class="kw">_ </span>} =&gt; lhs &amp; rhs, <span class="comment">// (*) = (&amp;) for u1
+        </span>BinaryOp::Div =&gt; {
+            <span class="comment">// (0, 0) -&gt; (division by 0)
+            // (0, 1) -&gt; 0
+            // (1, 0) -&gt; (division by 0)
+            // (1, 1) -&gt; 1
+            </span><span class="kw">if </span>!rhs {
+                <span class="kw">let </span>lhs = (lhs <span class="kw">as </span>u8).to_string();
+                <span class="kw">let </span>rhs = (rhs <span class="kw">as </span>u8).to_string();
+                <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::DivisionByZero { lhs_id, lhs, rhs_id, rhs });
             }
-            BinaryOp::Mul { unchecked: <span class="kw">_ </span>} =&gt; lhs &amp; rhs, <span class="comment">// (*) = (&amp;) for u1
-            </span>BinaryOp::Div =&gt; {
-                <span class="comment">// (0, 0) -&gt; (division by 0)
-                // (0, 1) -&gt; 0
-                // (1, 0) -&gt; (division by 0)
-                // (1, 1) -&gt; 1
-                </span><span class="kw">if </span>!rhs {
-                    <span class="kw">let </span>lhs = (lhs <span class="kw">as </span>u8).to_string();
-                    <span class="kw">let </span>rhs = (rhs <span class="kw">as </span>u8).to_string();
-                    <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::DivisionByZero { lhs_id, lhs, rhs_id, rhs });
-                }
+            lhs
+        }
+        BinaryOp::Mod =&gt; {
+            <span class="comment">// (0, 0) -&gt; (division by 0)
+            // (0, 1) -&gt; 0
+            // (1, 0) -&gt; (division by 0)
+            // (1, 1) -&gt; 0
+            </span><span class="kw">if </span>!rhs {
+                <span class="kw">let </span>lhs = <span class="macro">format!</span>(<span class="string">"u1 {}"</span>, lhs <span class="kw">as </span>u8);
+                <span class="kw">let </span>rhs = <span class="macro">format!</span>(<span class="string">"u1 {}"</span>, rhs <span class="kw">as </span>u8);
+                <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::DivisionByZero { lhs_id, lhs, rhs_id, rhs });
+            }
+            <span class="bool-val">false
+        </span>}
+        BinaryOp::Eq =&gt; lhs == rhs,
+        <span class="comment">// clippy complains when you do `lhs &lt; rhs` and recommends this instead
+        </span>BinaryOp::Lt =&gt; !lhs &amp; rhs,
+        BinaryOp::And =&gt; lhs &amp; rhs,
+        BinaryOp::Or =&gt; lhs | rhs,
+        BinaryOp::Xor =&gt; lhs ^ rhs,
+        BinaryOp::Shl =&gt; {
+            <span class="kw">if </span>rhs {
+                <span class="bool-val">false
+            </span>} <span class="kw">else </span>{
                 lhs
             }
-            BinaryOp::Mod =&gt; {
-                <span class="comment">// (0, 0) -&gt; (division by 0)
-                // (0, 1) -&gt; 0
-                // (1, 0) -&gt; (division by 0)
-                // (1, 1) -&gt; 0
-                </span><span class="kw">if </span>!rhs {
-                    <span class="kw">let </span>lhs = <span class="macro">format!</span>(<span class="string">"u1 {}"</span>, lhs <span class="kw">as </span>u8);
-                    <span class="kw">let </span>rhs = <span class="macro">format!</span>(<span class="string">"u1 {}"</span>, rhs <span class="kw">as </span>u8);
-                    <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::DivisionByZero { lhs_id, lhs, rhs_id, rhs });
-                }
+        }
+        BinaryOp::Shr =&gt; {
+            <span class="kw">if </span>rhs {
                 <span class="bool-val">false
-            </span>}
-            BinaryOp::Eq =&gt; lhs == rhs,
-            <span class="comment">// clippy complains when you do `lhs &lt; rhs` and recommends this instead
-            </span>BinaryOp::Lt =&gt; !lhs &amp; rhs,
-            BinaryOp::And =&gt; lhs &amp; rhs,
-            BinaryOp::Or =&gt; lhs | rhs,
-            BinaryOp::Xor =&gt; lhs ^ rhs,
-            BinaryOp::Shl =&gt; {
-                <span class="kw">if </span>rhs {
-                    <span class="bool-val">false
-                </span>} <span class="kw">else </span>{
-                    lhs
-                }
+            </span>} <span class="kw">else </span>{
+                lhs
             }
-            BinaryOp::Shr =&gt; {
-                <span class="kw">if </span>rhs {
-                    <span class="bool-val">false
-                </span>} <span class="kw">else </span>{
-                    lhs
-                }
-            }
-        };
-        <span class="prelude-val">Ok</span>(Value::Numeric(NumericValue::U1(result)))
-    }
+        }
+    };
+    <span class="prelude-val">Ok</span>(NumericValue::U1(result))
 }
 
 <span class="kw">fn </span>truncate_unsigned&lt;T&gt;(value: T, bit_size: u32) -&gt; IResult&lt;T&gt;
@@ -3209,6 +3306,14 @@
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>test {
+    <span class="kw">use </span><span class="kw">crate</span>::ssa::{
+        interpreter::value::NumericValue,
+        ir::{
+            instruction::{Binary, BinaryOp},
+            value::ValueId,
+        },
+    };
+
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_truncate_unsigned() {
         <span class="macro">assert_eq!</span>(<span class="kw">super</span>::truncate_unsigned(<span class="number">57_u32</span>, <span class="number">8</span>).unwrap(), <span class="number">57</span>);
@@ -3236,6 +3341,21 @@
 
         <span class="comment">// underflow to i16::MAX
         </span><span class="macro">assert_eq!</span>(<span class="kw">super</span>::truncate_unsigned(i16::MIN <span class="kw">as </span>u32 - <span class="number">1</span>, <span class="number">16</span>).unwrap() <span class="kw">as </span>i16, <span class="number">32767</span>);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>test_shl() {
+        <span class="macro">assert_eq!</span>(
+            <span class="kw">super</span>::evaluate_binary(
+                <span class="kw-2">&amp;</span>Binary { lhs: ValueId::new(<span class="number">0</span>), rhs: ValueId::new(<span class="number">1</span>), operator: BinaryOp::Shl },
+                NumericValue::I8(<span class="number">1</span>),
+                NumericValue::I8(<span class="number">7</span>),
+                <span class="bool-val">true</span>,
+                |<span class="kw">_</span>| { String::new() }
+            )
+            .unwrap(),
+            NumericValue::I8(-<span class="number">128</span>)
+        );
     }
 }
 </code></pre></div></section></main></body></html>
