@@ -530,7 +530,7 @@ impl<'f> PerFunctionContext<'f> {
 
                     // An expression for the array might already exist, so try to fetch it first
                     let expression = references.expressions.get(&array).copied();
-                    let expression = expression.unwrap_or(Expression::ArrayElement(array));
+                    let expression = expression.unwrap_or(Expression::Other(array));
 
                     if let Some(aliases) = references.aliases.get_mut(&expression) {
                         aliases.insert(result);
@@ -553,7 +553,7 @@ impl<'f> PerFunctionContext<'f> {
                     let array = *array;
 
                     let expression = references.expressions.get(&array).copied();
-                    let expression = expression.unwrap_or(Expression::ArrayElement(array));
+                    let expression = expression.unwrap_or(Expression::Other(array));
 
                     let mut aliases = if let Some(aliases) = references.aliases.get_mut(&expression)
                     {
