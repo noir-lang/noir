@@ -140,10 +140,6 @@ impl GlobalsGraph {
     pub(crate) fn values_iter(&self) -> impl DoubleEndedIterator<Item = (ValueId, &Value)> {
         self.values.iter()
     }
-
-    pub(crate) fn is_empty(&self) -> bool {
-        self.values.is_empty()
-    }
 }
 
 impl From<GlobalsGraph> for DataFlowGraph {

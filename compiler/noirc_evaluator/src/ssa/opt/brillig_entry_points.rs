@@ -83,12 +83,6 @@ impl Ssa {
             return self;
         }
 
-        // Check whether any globals have been specified.
-        // If not, specialization is not required and we can return early.
-        if main.dfg.globals.is_empty() {
-            return self;
-        }
-
         // Build a call graph from the SSA
         let call_graph = CallGraph::from_ssa(&self);
 

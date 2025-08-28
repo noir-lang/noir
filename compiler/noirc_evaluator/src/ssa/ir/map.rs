@@ -194,10 +194,6 @@ impl<T> DenseMap<T> {
         let ids_iter = (0..self.storage.len() as u32).map(|idx| Id::new(idx));
         ids_iter.zip(self.storage.iter())
     }
-
-    pub(crate) fn is_empty(&self) -> bool {
-        self.storage.is_empty()
-    }
 }
 
 impl<T> Default for DenseMap<T> {
