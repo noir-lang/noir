@@ -23,8 +23,8 @@ expression: artifact
     "return value indices : [_0]",
     "EXPR [ (1, _0) 0 ]"
   ],
-  "debug_symbols": "dY/RCoMwDEX/Jc99UGEw/JUxJNYohdCW2ApD/PdFsZsM9pTenJ5Lu8JAfZ4658cwQ/tYoRfH7KaOg8XkgtftuhkosUtCpCu4cLUiCvkErc/MBhbkfFyaI/pjJhSllQHyg04tHB3TftrM167+q3XVnHLd3D/6Tf2nJrROfl+8oDjsmc44Zm8vNL1iIeXHUYKlIQvtTQfT7jc=",
-  "file_map": {},
+  "debug_symbols": "[debug_symbols]",
+  "file_map": "[file_map]",
   "names": [
     "main"
   ],
