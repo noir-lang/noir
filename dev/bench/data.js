@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1756391772406,
+  "lastUpdate": 1756391774179,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -4208,90 +4208,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "1f164984dea1b53b982e719929589a5a96cb8b18",
-          "message": "fix(ssa): Consider `shl` and `shr` to have side effects (#9580)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-08-21T11:05:48Z",
-          "tree_id": "2f454afae9dd8085aa9a905bf60cd41c03972a4a",
-          "url": "https://github.com/noir-lang/noir/commit/1f164984dea1b53b982e719929589a5a96cb8b18"
-        },
-        "date": 1755776332129,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 1.686,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 7.854,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.3,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 15.84,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 13.64,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 20.6,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 260,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 210,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.362,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.462,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.774,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 1.581,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -8401,6 +8317,90 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 1.613,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "15a18e6051177bd4f57de9cb4c5c68019045094c",
+          "message": "chore: redact debug info and file maps from snapshots (#9666)",
+          "timestamp": "2025-08-28T15:27:58+01:00",
+          "tree_id": "2bd746d8e27958b42be1a9a7379d8b21dd92b928",
+          "url": "https://github.com/noir-lang/noir/commit/15a18e6051177bd4f57de9cb4c5c68019045094c"
+        },
+        "date": 1756391754572,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1.72,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 7.932,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.334,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 15.58,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 13.46,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 21.6,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 210,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 200,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.326,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.55,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.786,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 1.601,
             "unit": "s"
           }
         ]
