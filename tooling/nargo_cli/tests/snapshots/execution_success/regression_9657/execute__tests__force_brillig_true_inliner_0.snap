@@ -8,7 +8,7 @@ expression: artifact
   "abi": {
     "parameters": [
       {
-        "name": "index",
+        "name": "v2",
         "type": {
           "kind": "integer",
           "sign": "unsigned",
