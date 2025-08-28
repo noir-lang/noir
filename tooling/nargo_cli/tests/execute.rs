@@ -520,7 +520,8 @@ mod tests {
                     let program = Program::<FieldElement>::deserialize_program(&bytecode).unwrap();
                     Content::Seq(program.to_string().split("\n").filter(|line: &&str| !line.is_empty()).map(Content::from).collect::<Vec<Content>>())
                 }),
-                ".file_map.**.path" => file_map_path_redaction(),
+                ".file_map" => "[file_map]",
+                ".debug_symbols" => "[debug_symbols]",
             });
         });
     }
@@ -551,17 +552,10 @@ mod tests {
             insta::assert_json_snapshot!(snapshot_name, artifact, {
                 ".noir_version" => "[noir_version]",
                 ".functions[].hash" => "[hash]",
-                ".file_map.**.path" => file_map_path_redaction(),
+                ".file_map" => "[file_map]",
+                ".debug_symbols" => "[debug_symbols]",
             });
         });
-    }
-
-    fn file_map_path_redaction() -> Redaction {
-        insta::dynamic_redaction(|value, _path| {
-            // Some paths are absolute: clear those out.
-            let value = value.as_str().expect("Expected a string value in a path entry");
-            if value.starts_with("/") { String::new() } else { value.to_string() }
-        })
     }
 
     fn find_program_artifact_in_dir(dir: &PathBuf) -> Option<PathBuf> {
