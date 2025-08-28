@@ -674,17 +674,18 @@ impl ItemPrinter<'_, '_> {
     }
 
     fn show_hir_lvalue(&mut self, lvalue: HirLValue) {
+        let lvalue = simplify_hir_lvalue(lvalue);
         match lvalue {
             HirLValue::Ident(hir_ident, _) => {
                 self.show_hir_ident(hir_ident, None);
             }
             HirLValue::MemberAccess { object, field_name, field_index: _, typ: _, location: _ } => {
-                let object_is_dereference =
-                    matches!(*object, HirLValue::Dereference { implicitly_added: false, .. });
+                let object = simplify_hir_lvalue(*object);
+                let object_is_dereference = matches!(object, HirLValue::Dereference { .. });
                 if object_is_dereference {
                     self.push('(');
                 }
-                self.show_hir_lvalue(*object);
+                self.show_hir_lvalue(object);
                 if object_is_dereference {
                     self.push(')');
                 }
@@ -692,21 +693,20 @@ impl ItemPrinter<'_, '_> {
                 self.push_str(&field_name.to_string());
             }
             HirLValue::Index { array, index, typ: _, location: _ } => {
-                self.show_hir_lvalue(*array);
+                let array = simplify_hir_lvalue(*array);
+                self.show_hir_lvalue(array);
                 self.push('[');
                 self.show_hir_expression_id(index);
                 self.push(']');
             }
-            HirLValue::Dereference { lvalue, implicitly_added, element_type: _, location: _ } => {
-                if implicitly_added {
-                    self.show_hir_lvalue(*lvalue);
-                } else {
-                    // Even though parentheses aren't always required, it's tricky to
-                    // figure out exactly when so we always include them.
-                    self.push_str("*(");
-                    self.show_hir_lvalue(*lvalue);
-                    self.push(')');
-                }
+            HirLValue::Dereference {
+                lvalue,
+                implicitly_added: _,
+                element_type: _,
+                location: _,
+            } => {
+                self.push_str("*");
+                self.show_hir_lvalue(*lvalue);
             }
         }
     }
@@ -1055,5 +1055,14 @@ fn get_type_fields(typ: &Type) -> Option<Vec<(String, Type, ItemVisibility)>> {
             data_type.get_fields(&generics)
         }
         _ => None,
+    }
+}
+
+// Remove any implicit dereferences from `lvalue`
+fn simplify_hir_lvalue(lvalue: HirLValue) -> HirLValue {
+    if let HirLValue::Dereference { lvalue, implicitly_added: true, .. } = lvalue {
+        simplify_hir_lvalue(*lvalue)
+    } else {
+        lvalue
     }
 }

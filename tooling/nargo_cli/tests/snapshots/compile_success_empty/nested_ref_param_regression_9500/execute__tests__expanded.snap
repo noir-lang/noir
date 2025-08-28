@@ -10,7 +10,7 @@ fn main() {
 }
 
 fn foo(ref1: &mut Field, ref2: &mut Field, _ref3: &mut &mut Field) {
-    *(ref1) = 1_Field;
-    *(ref2) = 2_Field;
+    *ref1 = 1_Field;
+    *ref2 = 2_Field;
     for _ in 0_u32..10_u32 {}
 }

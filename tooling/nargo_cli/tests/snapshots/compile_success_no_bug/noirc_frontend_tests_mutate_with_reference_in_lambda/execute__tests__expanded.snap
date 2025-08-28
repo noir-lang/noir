@@ -4,7 +4,7 @@ expression: expanded_code
 ---
 fn main() {
     let x: &mut Field = &mut 3_Field;
-    let f: fn[(&mut Field,)]() = || { *(x) = *x + 2_Field; };
+    let f: fn[(&mut Field,)]() = || { *x = *x + 2_Field; };
     f();
     assert(*x == 5_Field);
 }
