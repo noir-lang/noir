@@ -1,7 +1,7 @@
 use crate::mutations::{
-    basic_types::{numeric_type::mutate_numeric_type, usize::mutate_usize},
+    basic_types::{ssa_fuzzer_type::mutate_ssa_fuzzer_type, usize::mutate_usize},
     configuration::{
-        BASIC_FUNCTION_MUTATION_CONFIGURATION, BASIC_NUMERIC_TYPE_MUTATION_CONFIGURATION,
+        BASIC_FUNCTION_MUTATION_CONFIGURATION, BASIC_GENERATE_TYPE_CONFIGURATION,
         BASIC_USIZE_MUTATION_CONFIGURATION, FunctionMutationOptions,
     },
     functions::{FunctionData, commands_mutator},
@@ -21,11 +21,7 @@ pub(crate) fn mutate_function(data: &mut FunctionData, rng: &mut StdRng) {
             commands_mutator::mutate_vec_fuzzer_command(&mut data.commands, rng);
         }
         FunctionMutationOptions::ReturnType => {
-            mutate_numeric_type(
-                &mut data.return_type,
-                rng,
-                BASIC_NUMERIC_TYPE_MUTATION_CONFIGURATION,
-            );
+            mutate_ssa_fuzzer_type(&mut data.return_type, rng, BASIC_GENERATE_TYPE_CONFIGURATION);
         }
     }
 }

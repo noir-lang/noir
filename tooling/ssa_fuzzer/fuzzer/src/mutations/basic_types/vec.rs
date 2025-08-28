@@ -7,24 +7,8 @@
 //! 5. Mutate a random element at a random index
 //! 6. Push a default element to the end of the vector
 
-use crate::mutations::configuration::{
-    SIZE_OF_LARGE_ARBITRARY_BUFFER, VecMutationConfig, VecMutationOptions,
-};
-use libfuzzer_sys::arbitrary::{Arbitrary, Unstructured};
+use crate::mutations::configuration::{VecMutationConfig, VecMutationOptions};
 use rand::{Rng, rngs::StdRng};
-
-/// Mutate the entire vector, replacing it with a random vector
-struct RandomMutation;
-impl RandomMutation {
-    fn mutate<T>(rng: &mut StdRng, vec: &mut Vec<T>)
-    where
-        T: for<'a> Arbitrary<'a>,
-    {
-        let mut bytes = [0u8; SIZE_OF_LARGE_ARBITRARY_BUFFER];
-        rng.fill(&mut bytes);
-        *vec = Unstructured::new(&bytes).arbitrary().unwrap();
-    }
-}
 
 /// Insert a random element at a random index
 struct RandomInsertion;
@@ -33,9 +17,7 @@ impl RandomInsertion {
         rng: &mut StdRng,
         vec: &mut Vec<T>,
         generate_random_element_function: impl Fn(&mut StdRng) -> T,
-    ) where
-        T: for<'a> Arbitrary<'a>,
-    {
+    ) {
         let element = generate_random_element_function(rng);
         if !vec.is_empty() {
             let index = rng.gen_range(0..vec.len());
@@ -102,10 +84,9 @@ pub(crate) fn mutate_vec<T>(
     generate_random_element_function: impl Fn(&mut StdRng) -> T,
     config: VecMutationConfig,
 ) where
-    T: for<'a> Arbitrary<'a> + Default,
+    T: Default,
 {
     match config.select(rng) {
-        VecMutationOptions::Random => RandomMutation::mutate(rng, vec),
         VecMutationOptions::Insertion => {
             RandomInsertion::mutate(rng, vec, generate_random_element_function);
         }

@@ -9,7 +9,7 @@ use crate::instruction::{Argument, Instruction, InstructionBlock};
 use crate::options::FuzzerOptions;
 use crate::tests::common::default_witness;
 use acvm::FieldElement;
-use noir_ssa_fuzzer::r#type::NumericType;
+use noir_ssa_fuzzer::r#type::{NumericType, Type};
 
 /// Test array get and set
 /// fn main f0 {
@@ -58,8 +58,11 @@ fn array_get_and_set() {
         FuzzerFunctionCommand::InsertSimpleInstructionBlock { instruction_block_idx: 0 },
         FuzzerFunctionCommand::InsertSimpleInstructionBlock { instruction_block_idx: 1 },
     ];
-    let main_func =
-        FunctionData { commands, return_instruction_block_idx: 2, return_type: NumericType::Field };
+    let main_func = FunctionData {
+        commands,
+        return_instruction_block_idx: 2,
+        return_type: Type::Numeric(NumericType::Field),
+    };
     let fuzzer_data = FuzzerData {
         instruction_blocks: instructions_blocks,
         functions: vec![main_func],
@@ -67,7 +70,7 @@ fn array_get_and_set() {
     };
     let result = fuzz_target(fuzzer_data, FuzzerOptions::default());
     match result {
-        Some(result) => assert_eq!(result.get_return_value(), FieldElement::from(4_u32)),
+        Some(result) => assert_eq!(result.get_return_values()[0], FieldElement::from(4_u32)),
         None => panic!("Program failed to execute"),
     }
 }
@@ -145,8 +148,11 @@ fn test_reference_in_array() {
         FuzzerFunctionCommand::InsertSimpleInstructionBlock { instruction_block_idx: 4 },
         FuzzerFunctionCommand::InsertSimpleInstructionBlock { instruction_block_idx: 5 },
     ];
-    let main_func =
-        FunctionData { commands, return_instruction_block_idx: 6, return_type: NumericType::Field };
+    let main_func = FunctionData {
+        commands,
+        return_instruction_block_idx: 6,
+        return_type: Type::Numeric(NumericType::Field),
+    };
     let fuzzer_data = FuzzerData {
         instruction_blocks: instructions_blocks,
         functions: vec![main_func],
@@ -154,7 +160,7 @@ fn test_reference_in_array() {
     };
     let result = fuzz_target(fuzzer_data, FuzzerOptions::default());
     match result {
-        Some(result) => assert_eq!(result.get_return_value(), FieldElement::from(1_u32)),
+        Some(result) => assert_eq!(result.get_return_values()[0], FieldElement::from(1_u32)),
         None => panic!("Program failed to execute"),
     }
 }

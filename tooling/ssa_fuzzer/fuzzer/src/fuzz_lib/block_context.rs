@@ -1271,42 +1271,117 @@ impl BlockContext {
         }
     }
 
-    /// Finalizes the function by setting the return value
-    pub(crate) fn finalize_block_with_return(
-        self,
+    /// Finds values with the given type and index
+    ///
+    /// # Arguments
+    ///
+    /// * `type_` - Type of the value to find
+    /// * `index` - Index of the value to find
+    ///
+    /// # Returns
+    /// * TypedValue with the given type and index, if index is provided, otherwise the last value
+    /// * If no value is found, we create it from predefined boolean
+    ///
+    /// # Examples
+    ///
+    /// If we want to proceed function call, e.g. f1(&mut a: Field, b: [Field; 3])
+    /// We have to find values with type &mut Field and [Field; 3]
+    /// If variables of such type are not defined, uh ohh.. we need to create it
+    /// The only thing we know is that one boolean is defined
+    fn find_values_with_type(
+        &self,
         acir_builder: &mut FuzzerBuilder,
         brillig_builder: &mut FuzzerBuilder,
-        return_type: NumericType,
-    ) {
-        let array_of_values_with_return_type =
-            self.stored_variables.get(&Type::Numeric(return_type));
-        let return_value = match array_of_values_with_return_type {
-            Some(arr) => arr.iter().last(),
-            _ => None,
-        };
-        match return_value {
-            Some(return_value) => {
-                acir_builder.finalize_function(return_value);
-                brillig_builder.finalize_function(return_value);
+        type_: &Type,
+        index: Option<usize>,
+    ) -> TypedValue {
+        log::debug!("Finding values with type: {type_:?}");
+        let values_of_such_type = self.stored_variables.get(type_);
+        if values_of_such_type.is_some() {
+            if let Some(index) = index {
+                let length = values_of_such_type.unwrap().len();
+                return values_of_such_type.unwrap().get(index % length).cloned().unwrap();
+            } else {
+                return values_of_such_type.unwrap().last().cloned().unwrap();
             }
-            _ => {
-                // If no last value was set, we take a boolean that is definitely set and cast it to the return type
+        }
+
+        match type_ {
+            // On numeric simple cast from boolean
+            Type::Numeric(_) => {
                 let boolean_value = get_typed_value_from_map(
                     &self.stored_variables,
                     &Type::Numeric(NumericType::Boolean),
                     0,
                 )
                 .unwrap();
-                let return_value =
-                    acir_builder.insert_cast(boolean_value.clone(), Type::Numeric(return_type));
-                assert_eq!(
-                    brillig_builder.insert_cast(boolean_value, Type::Numeric(return_type)),
-                    return_value
+                let acir_value = acir_builder.insert_cast(boolean_value.clone(), type_.clone());
+                let brillig_value = brillig_builder.insert_cast(boolean_value, type_.clone());
+                assert_eq!(acir_value, brillig_value);
+                acir_value
+            }
+            // On reference, try to find value with reference type,
+            // allocate and store it in memory
+            Type::Reference(reference_type) => {
+                let value = self.find_values_with_type(
+                    acir_builder,
+                    brillig_builder,
+                    reference_type.as_ref(),
+                    None,
                 );
-                acir_builder.finalize_function(&return_value);
-                brillig_builder.finalize_function(&return_value);
+                let acir_value = acir_builder.insert_add_to_memory(value.clone());
+                let brillig_value = brillig_builder.insert_add_to_memory(value);
+                assert_eq!(acir_value, brillig_value);
+                acir_value
+            }
+            Type::Array(array_type, _) => {
+                let values = array_type
+                    .iter()
+                    .map(|element_type| {
+                        self.find_values_with_type(
+                            acir_builder,
+                            brillig_builder,
+                            element_type,
+                            None,
+                        )
+                    })
+                    .collect::<Vec<TypedValue>>();
+                let acir_value = acir_builder.insert_array(values.clone());
+                let brillig_value = brillig_builder.insert_array(values);
+                assert_eq!(acir_value, brillig_value);
+                acir_value
+            }
+            Type::Slice(slice_type) => {
+                let values = slice_type
+                    .iter()
+                    .map(|element_type| {
+                        self.find_values_with_type(
+                            acir_builder,
+                            brillig_builder,
+                            element_type,
+                            None,
+                        )
+                    })
+                    .collect::<Vec<TypedValue>>();
+                let acir_value = acir_builder.insert_slice(values.clone());
+                let brillig_value = brillig_builder.insert_slice(values);
+                assert_eq!(acir_value, brillig_value);
+                acir_value
             }
         }
+    }
+
+    /// Finalizes the function by setting the return value
+    pub(crate) fn finalize_block_with_return(
+        self,
+        acir_builder: &mut FuzzerBuilder,
+        brillig_builder: &mut FuzzerBuilder,
+        return_type: Type,
+    ) {
+        let return_value =
+            self.find_values_with_type(acir_builder, brillig_builder, &return_type, None);
+        acir_builder.finalize_function(&return_value);
+        brillig_builder.finalize_function(&return_value);
     }
 
     pub(crate) fn finalize_block_with_jmp(
@@ -1356,18 +1431,14 @@ impl BlockContext {
         assert_eq!(func_as_value_id, brillig_builder.insert_import(function_id));
 
         // Get values from stored_values map by indices
-        // If we don't have some value of type of the argument, we skip the function call
         let mut values = vec![];
         for (value_type, index) in zip(function_signature.input_types, args) {
-            let value = match get_typed_value_from_map(
-                &self.stored_variables,
-                &Type::Numeric(value_type),
-                *index,
-            ) {
-                Some(value) => value,
-                None => return,
-            };
-
+            let value = self.find_values_with_type(
+                acir_builder,
+                brillig_builder,
+                &value_type,
+                Some(*index),
+            );
             values.push(value);
         }
 
@@ -1375,24 +1446,24 @@ impl BlockContext {
         let ret_val = acir_builder.insert_call(
             func_as_value_id,
             &values,
-            Type::Numeric(function_signature.return_type),
+            function_signature.return_type.clone(),
         );
         assert_eq!(
             ret_val,
             brillig_builder.insert_call(
                 func_as_value_id,
                 &values,
-                Type::Numeric(function_signature.return_type)
+                function_signature.return_type.clone()
             )
         );
         let typed_ret_val = TypedValue {
             value_id: ret_val,
-            type_of_variable: Type::Numeric(function_signature.return_type),
+            type_of_variable: function_signature.return_type.clone(),
         };
         // Append the return value to stored_values map
         append_typed_value_to_map(
             &mut self.stored_variables,
-            &Type::Numeric(function_signature.return_type),
+            &function_signature.return_type,
             typed_ret_val,
         );
     }

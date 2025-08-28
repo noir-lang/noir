@@ -10,7 +10,7 @@ use crate::instruction::{Argument, Instruction, InstructionBlock};
 use crate::options::FuzzerOptions;
 use crate::tests::common::default_witness;
 use acvm::FieldElement;
-use noir_ssa_fuzzer::r#type::NumericType;
+use noir_ssa_fuzzer::r#type::{NumericType, Type};
 
 /// fn main(x: Field) -> pub Field {
 ///   let mut y = x;
@@ -51,13 +51,13 @@ fn test_simple_loop() {
         functions: vec![FunctionData {
             commands,
             return_instruction_block_idx: 1, // v12 = load v8 -> Field; return v12
-            return_type: NumericType::Field,
+            return_type: Type::Numeric(NumericType::Field),
         }],
         initial_witness: default_witness(),
     };
     let result = fuzz_target(data, FuzzerOptions::default());
     match result {
-        Some(result) => assert_eq!(result.get_return_value(), FieldElement::from(1024_u32)),
+        Some(result) => assert_eq!(result.get_return_values()[0], FieldElement::from(1024_u32)),
         None => panic!("Program failed to execute"),
     }
 }
@@ -119,13 +119,13 @@ fn test_nested_loop() {
         functions: vec![FunctionData {
             commands,
             return_instruction_block_idx: 1, // v13 = load v9 -> Field; return v13
-            return_type: NumericType::Field,
+            return_type: Type::Numeric(NumericType::Field),
         }],
         initial_witness: default_witness(),
     };
     let result = fuzz_target(data, FuzzerOptions::default());
     match result {
-        Some(result) => assert_eq!(result.get_return_value(), FieldElement::from(131072_u32)),
+        Some(result) => assert_eq!(result.get_return_values()[0], FieldElement::from(131072_u32)),
         None => panic!("Program failed to execute"),
     }
 }
@@ -189,13 +189,13 @@ fn test_loop_broken_with_jmp() {
         functions: vec![FunctionData {
             commands,
             return_instruction_block_idx: 1,
-            return_type: NumericType::Field,
+            return_type: Type::Numeric(NumericType::Field),
         }],
         initial_witness: default_witness(),
     };
     let result = fuzz_target(data, FuzzerOptions::default());
     match result {
-        Some(result) => assert_eq!(result.get_return_value(), FieldElement::from(4096_u32)),
+        Some(result) => assert_eq!(result.get_return_values()[0], FieldElement::from(4096_u32)),
         None => panic!("Program failed to execute"),
     }
 }
@@ -259,13 +259,13 @@ fn test_jmp_if_in_cycle() {
         functions: vec![FunctionData {
             commands: commands.clone(),
             return_instruction_block_idx: 1,
-            return_type: NumericType::Field,
+            return_type: Type::Numeric(NumericType::Field),
         }],
         initial_witness: default_witness(),
     };
     let result = fuzz_target(data, FuzzerOptions::default());
     match result {
-        Some(result) => assert_eq!(result.get_return_value(), FieldElement::from(22_u32)),
+        Some(result) => assert_eq!(result.get_return_values()[0], FieldElement::from(22_u32)),
         None => panic!("Program failed to execute"),
     }
 
@@ -294,13 +294,13 @@ fn test_jmp_if_in_cycle() {
         functions: vec![FunctionData {
             commands,
             return_instruction_block_idx: 1,
-            return_type: NumericType::Field,
+            return_type: Type::Numeric(NumericType::Field),
         }],
         initial_witness: default_witness(),
     };
     let result = fuzz_target(data, FuzzerOptions::default());
     match result {
-        Some(result) => assert_eq!(result.get_return_value(), FieldElement::from(2048_u32)),
+        Some(result) => assert_eq!(result.get_return_values()[0], FieldElement::from(2048_u32)),
         None => panic!("Program failed to execute"),
     }
 }

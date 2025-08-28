@@ -58,11 +58,11 @@ impl Default for WitnessValue {
 
 /// TODO(sn): initial_witness should be in ProgramData
 /// Represents the data describing a function
-#[derive(Arbitrary, Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct FunctionData {
     pub(crate) commands: Vec<FuzzerFunctionCommand>,
     pub(crate) return_instruction_block_idx: usize,
-    pub(crate) return_type: NumericType,
+    pub(crate) return_type: Type,
 }
 
 impl Default for FunctionData {
@@ -70,7 +70,7 @@ impl Default for FunctionData {
         FunctionData {
             commands: vec![],
             return_instruction_block_idx: 0,
-            return_type: NumericType::Field,
+            return_type: Type::Numeric(NumericType::Field),
         }
     }
 }
@@ -152,7 +152,7 @@ pub(crate) struct FuzzerFunctionContext<'a> {
     /// Number of iterations of loops in the program
     parent_iterations_count: usize,
 
-    return_type: NumericType,
+    return_type: Type,
     defined_functions: BTreeMap<Id<Function>, FunctionInfo>,
 }
 
@@ -160,20 +160,20 @@ impl<'a> FuzzerFunctionContext<'a> {
     /// Creates a new fuzzer context with the given types
     /// It creates a new variable for each type and stores it in the map
     pub(crate) fn new(
-        types: Vec<NumericType>,
+        types: Vec<Type>,
         instruction_blocks: &'a Vec<InstructionBlock>,
         context_options: FunctionContextOptions,
-        return_type: NumericType,
+        return_type: Type,
         defined_functions: BTreeMap<Id<Function>, FunctionInfo>,
         acir_builder: &'a mut FuzzerBuilder,
         brillig_builder: &'a mut FuzzerBuilder,
     ) -> Self {
         let mut acir_ids = HashMap::new();
         for type_ in types {
-            let acir_id = acir_builder.insert_variable(Type::Numeric(type_).into());
-            let brillig_id = brillig_builder.insert_variable(Type::Numeric(type_).into());
+            let acir_id = acir_builder.insert_variable(type_.clone().into());
+            let brillig_id = brillig_builder.insert_variable(type_.clone().into());
             assert_eq!(acir_id, brillig_id);
-            acir_ids.entry(Type::Numeric(type_)).or_insert(Vec::new()).push(acir_id);
+            acir_ids.entry(type_.clone()).or_insert(Vec::new()).push(acir_id);
         }
 
         let main_block = acir_builder.get_current_block();
@@ -211,7 +211,7 @@ impl<'a> FuzzerFunctionContext<'a> {
         values_types: Vec<ValueWithType>,
         instruction_blocks: &'a Vec<InstructionBlock>,
         context_options: FunctionContextOptions,
-        return_type: NumericType,
+        return_type: Type,
         defined_functions: BTreeMap<Id<Function>, FunctionInfo>,
         acir_builder: &'a mut FuzzerBuilder,
         brillig_builder: &'a mut FuzzerBuilder,
@@ -943,7 +943,7 @@ impl<'a> FuzzerFunctionContext<'a> {
         return_block_context.finalize_block_with_return(
             self.acir_builder,
             self.brillig_builder,
-            self.return_type,
+            self.return_type.clone(),
         );
     }
 }
