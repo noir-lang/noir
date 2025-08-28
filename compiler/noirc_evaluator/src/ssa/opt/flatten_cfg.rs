@@ -30,6 +30,7 @@
 //! special handling for operations with side-effects and can lead to a loss of information since
 //! the jmpif will no longer be in the program. As a result, this pass should usually be towards or
 //! at the end of the optimization passes.
+//!
 //! Furthermore, this pass assumes that no loops are present in the program and will assume
 //! that a jmpif is a branch point and will attempt to merge both blocks. No actual looping will occur.
 //!
@@ -61,11 +62,11 @@
 //! (Note: we restore to "true" to indicate that this program point is not nested within any
 //! other branches. Each `enable_side_effects` overrides the previous, they do not implicitly stack.)
 //!
-//! When we are flattening a block that was reached via a jmpif with a non-constant condition c,
+//! When we are flattening a block that was reached via a jmpif with a non-constant condition `c`,
 //! the following transformations of certain instructions within the block are expected:
 //!
 //! 1. A constraint is multiplied by the condition and changes the constraint to
-//!    an equality with c:
+//!    an equality with `c`:
 //! ```text
 //! constrain v0
 //! ============
@@ -316,8 +317,53 @@ fn flatten_function_cfg(function: &mut Function, no_predicates: &HashMap<Functio
     context.flatten(no_predicates);
 }
 
+/// Blocks enqueued for processing.
+/// It contains a block at most once.
+#[derive(Debug, Default)]
+pub(crate) struct WorkList {
+    /// Stack of blocks to process, always popping from the back.
+    stack: Vec<BasicBlockId>,
+    /// Blocks currently on the stack, for quick inclusion checks.
+    added: HashSet<BasicBlockId>,
+}
+
+impl WorkList {
+    pub(crate) fn new(start: BasicBlockId) -> Self {
+        Self { stack: vec![start], added: HashSet::from_iter(std::iter::once(start)) }
+    }
+
+    /// Push a block to the work list, unless it's already added.
+    ///
+    /// Returns a flag indicating whether the block was added.
+    pub(crate) fn add(&mut self, block: BasicBlockId) -> bool {
+        let added = self.added.insert(block);
+        if added {
+            self.stack.push(block);
+        }
+        added
+    }
+
+    /// Pop the last block the work list.
+    pub(crate) fn pop(&mut self) -> Option<BasicBlockId> {
+        let popped = self.stack.pop();
+        if let Some(block) = popped.as_ref() {
+            self.added.remove(block);
+        }
+        popped
+    }
+
+    /// Peek at the last block on the work list.
+    pub(crate) fn last(&self) -> Option<&BasicBlockId> {
+        self.stack.last()
+    }
+
+    /// Check if a block is already added to the work list.
+    pub(crate) fn contains(&self, block: &BasicBlockId) -> bool {
+        self.added.contains(block)
+    }
+}
+
 impl<'f> Context<'f> {
-    //impl Context<'_> {
     pub(crate) fn new(
         function: &'f mut Function,
         cfg: ControlFlowGraph,
@@ -340,14 +386,13 @@ impl<'f> Context<'f> {
     /// Flatten the CFG by inlining all instructions from the queued blocks
     /// until all blocks have been flattened.
     ///
-    /// We follow the terminator of each block to determine which blocks to
-    /// process next:
+    /// We follow the terminator of each block to determine which blocks to process next:
     /// * If the terminator is a 'JumpIf', we assume we are entering a conditional statement and
-    /// add the start blocks of the 'then_branch', 'else_branch' and the 'exit' block to the queue.
+    ///   add the start blocks of the 'then_branch', 'else_branch' and the 'exit' block to the queue.
     /// * Other blocks will have only one successor, so we will process them iteratively,
-    /// until we reach one block already in the queue, added when entering a conditional statement,
-    /// i.e. the 'else_branch' or the 'exit'. In that case we switch to the next block in the queue,
-    /// instead of the successor.
+    ///   until we reach one block already in the queue, added when entering a conditional statement,
+    ///   i.e. the 'else_branch' or the 'exit'. In that case we switch to the next block in the queue,
+    ///   instead of the successor.
     ///
     /// This process ensures that the blocks are always processed in this order:
     /// * if_entry -> then_branch -> else_branch -> exit
@@ -358,15 +403,12 @@ impl<'f> Context<'f> {
     /// Information about the nested if statements is stored in the 'condition_stack' which
     /// is popped/pushed when entering/leaving a conditional statement.
     pub(crate) fn flatten(&mut self, no_predicates: &HashMap<FunctionId, bool>) {
-        let mut stack = vec![self.target_block];
-        while let Some(block) = stack.pop() {
+        let mut work_list = WorkList::new(self.target_block);
+        while let Some(block) = work_list.pop() {
             self.inline_block(block, no_predicates);
-            let to_process = self.handle_terminator(block, &stack);
+            let to_process = self.handle_terminator(block, &work_list);
             for incoming_block in to_process {
-                // Do not add blocks already on the stack
-                if !stack.contains(&incoming_block) {
-                    stack.push(incoming_block);
-                }
+                work_list.add(incoming_block);
             }
         }
         self.inserter.map_data_bus_in_place();
@@ -469,7 +511,7 @@ impl<'f> Context<'f> {
     pub(crate) fn handle_terminator(
         &mut self,
         block: BasicBlockId,
-        work_list: &[BasicBlockId],
+        work_list: &WorkList,
     ) -> Vec<BasicBlockId> {
         let terminator = self.inserter.function.dfg[block].unwrap_terminator().clone();
         match &terminator {
