@@ -1674,7 +1674,7 @@ mod test {
                 |_| { String::new() }
             )
             .unwrap(),
-            NumericValue::I8(-127)
+            NumericValue::I8(-128)
         );
     }
 }
