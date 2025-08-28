@@ -329,7 +329,7 @@ impl<'f> PerFunctionContext<'f> {
         // as well. We can't do this if there are multiple blocks since subsequent blocks may
         // reference these stores.
         if self.post_order.as_slice().len() == 1 {
-            self.remove_stores_that_do_not_alias_parameters(&references);
+            self.remove_stores_that_do_not_alias_parameters_or_returns(&references);
         }
 
         self.blocks.insert(block, references);
@@ -384,17 +384,26 @@ impl<'f> PerFunctionContext<'f> {
 
     /// Add all instructions in `last_stores` to `self.instructions_to_remove` which do not
     /// possibly alias any parameters of the given function.
-    fn remove_stores_that_do_not_alias_parameters(&mut self, references: &Block) {
+    fn remove_stores_that_do_not_alias_parameters_or_returns(&mut self, references: &Block) {
         let reference_parameters = self.reference_parameters();
 
         for (allocation, instruction) in &references.last_stores {
             let aliases = references.get_aliases_for_value(*allocation);
+
             let allocation_aliases_parameter =
                 aliases.any(|alias| reference_parameters.contains(&alias));
             // If `allocation_aliases_parameter` is known to be false
-            if allocation_aliases_parameter == Some(false) {
-                self.instructions_to_remove.insert(*instruction);
+            if allocation_aliases_parameter != Some(false) {
+                continue;
             }
+
+            let allocation_aliases_input_reference =
+                aliases.any(|alias| self.instruction_input_references.contains(&alias));
+            if allocation_aliases_input_reference != Some(false) {
+                continue;
+            }
+
+            self.instructions_to_remove.insert(*instruction);
         }
     }
 
@@ -742,8 +751,8 @@ impl<'f> PerFunctionContext<'f> {
                 // We need to appropriately mark each alias of a reference as being used as a return terminator argument.
                 // This prevents us potentially removing a last store from a preceding block or is altered within another function.
                 for return_value in return_values {
-                    self.instruction_input_references
-                        .extend(references.get_aliases_for_value(*return_value).iter());
+                    let aliases = references.get_aliases_for_value(*return_value);
+                    self.instruction_input_references.extend(aliases.iter());
                 }
                 // Removing all `last_stores` for each returned reference is more important here
                 // than setting them all to unknown since no other block should
@@ -1567,8 +1576,43 @@ mod tests {
 
     #[test]
     fn removes_last_store_in_single_block() {
+        let src = "
+        brillig(inline) impure fn main f0 {
+          b0():
+            v0 = allocate -> &mut [Field; 2]
+            v1 = load v0 -> [Field; 2]
+            store v1 at v0
+            return
+        }
+
+        brillig(inline) impure fn append_note_hashes_with_logs f1 {
+          b0(v0: &mut [Field; 2]):
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.mem2reg();
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) impure fn main f0 {
+          b0():
+            v0 = allocate -> &mut [Field; 2]
+            v1 = load v0 -> [Field; 2]
+            return
+        }
+        brillig(inline) impure fn append_note_hashes_with_logs f1 {
+          b0(v0: &mut [Field; 2]):
+            return
+        }
+        ");
+    }
+
+    #[test]
+    fn does_not_remove_last_store_in_single_block() {
         // Even though v0 is a reference passed to a function, the store that comes next
-        // can be removed as it is later never read, and this is the only block in the function.
+        // isn't removed because it's considered an "input reference" and we can't currently
+        // tell if that value is going to be returned from the function.
         let src = "
         brillig(inline) impure fn main f0 {
           b0():
@@ -1594,6 +1638,7 @@ mod tests {
             v0 = allocate -> &mut [Field; 2]
             call f1(v0)
             v2 = load v0 -> [Field; 2]
+            store v2 at v0
             return
         }
         brillig(inline) impure fn append_note_hashes_with_logs f1 {
@@ -1995,6 +2040,42 @@ mod tests {
             store Field 0 at v7
             v9 = load v0 -> Field
             return v9
+        }
+        "#);
+    }
+
+    #[test]
+    fn does_not_remove_store_from_aliased_array_element() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32):
+            v1 = allocate -> &mut Field
+            store Field 0 at v1
+            v3 = make_array [v1] : [&mut Field; 1]
+            v5 = array_set v3, index v0, value v1
+            v6 = array_get v5, index v0 -> &mut Field
+            store Field 100 at v6
+            v8 = load v1 -> Field
+            constrain v8 == Field 100
+            return v8
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
+        assert_ssa_snapshot!(ssa, @r#"
+        brillig(inline) fn main f0 {
+          b0(v0: u32):
+            v1 = allocate -> &mut Field
+            store Field 0 at v1
+            v3 = make_array [v1] : [&mut Field; 1]
+            v4 = array_set v3, index v0, value v1
+            constrain v0 == u32 0, "Index out of bounds"
+            v6 = array_get v4, index u32 0 -> &mut Field
+            store Field 100 at v6
+            v8 = load v1 -> Field
+            constrain v8 == Field 100
+            return v8
         }
         "#);
     }
