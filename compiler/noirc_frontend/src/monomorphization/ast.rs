@@ -62,8 +62,8 @@ impl Expression {
     }
 
     /// The return type of an expression, if it has an obvious one.
-    pub fn return_type(&self) -> Option<Cow<Type>> {
-        fn borrowed(typ: &Type) -> Option<Cow<Type>> {
+    pub fn return_type(&'_ self) -> Option<Cow<'_, Type>> {
+        fn borrowed(typ: &'_ Type) -> Option<Cow<'_, Type>> {
             Some(Cow::Borrowed(typ))
         }
         let owned = |typ: Type| Some(Cow::Owned(typ));

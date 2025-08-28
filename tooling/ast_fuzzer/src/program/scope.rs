@@ -174,7 +174,7 @@ impl<T: Clone> Stack<T> {
     }
 
     /// Iterate over the layers, starting the base layer.
-    pub fn iter_mut(&mut self) -> std::slice::IterMut<T> {
+    pub fn iter_mut(&'_ mut self) -> std::slice::IterMut<'_, T> {
         self.0.iter_mut()
     }
 }

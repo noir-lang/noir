@@ -102,7 +102,7 @@ pub struct SsaEvaluatorOptions {
 pub struct ArtifactsAndWarnings(pub Artifacts, pub Vec<SsaReport>);
 
 /// The default SSA optimization pipeline.
-pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
+pub fn primary_passes(options: &'_ SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
     vec![
         SsaPass::new(Ssa::expand_signed_checks, "expand signed checks"),
         SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions"),

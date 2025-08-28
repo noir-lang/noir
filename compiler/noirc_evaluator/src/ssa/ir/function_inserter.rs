@@ -100,12 +100,12 @@ impl<'f> FunctionInserter<'f> {
     }
 
     pub(crate) fn push_instruction_value(
-        &mut self,
+        &'_ mut self,
         instruction: Instruction,
         id: InstructionId,
         block: BasicBlockId,
         call_stack: CallStackId,
-    ) -> InsertInstructionResult {
+    ) -> InsertInstructionResult<'_> {
         let results = self.function.dfg.instruction_results(id).to_vec();
 
         let ctrl_typevars = instruction

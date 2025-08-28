@@ -61,7 +61,7 @@ pub enum Value {
 
 impl Value {
     /// Retrieves the type of this Value
-    pub(crate) fn get_type(&self) -> Cow<Type> {
+    pub(crate) fn get_type(&'_ self) -> Cow<'_, Type> {
         match self {
             Value::Instruction { typ, .. } | Value::Param { typ, .. } => Cow::Borrowed(typ),
             Value::NumericConstant { typ, .. } => Cow::Owned(Type::Numeric(*typ)),

@@ -226,7 +226,7 @@ impl Block {
         aliases
     }
 
-    pub(super) fn get_aliases_for_value(&self, value: ValueId) -> Cow<AliasSet> {
+    pub(super) fn get_aliases_for_value(&'_ self, value: ValueId) -> Cow<'_, AliasSet> {
         if let Some(expression) = self.expressions.get(&value) {
             if let Some(aliases) = self.aliases.get(expression) {
                 return Cow::Borrowed(aliases);

@@ -339,11 +339,11 @@ impl Context<'_, '_, '_> {
     /// Insert a call instruction at the end of the current block and return
     /// the results of the call.
     pub(crate) fn insert_call(
-        &mut self,
+        &'_ mut self,
         func: ValueId,
         arguments: Vec<ValueId>,
         result_types: Vec<Type>,
-    ) -> Cow<[ValueId]> {
+    ) -> Cow<'_, [ValueId]> {
         self.context
             .insert_instruction(Instruction::Call { func, arguments }, Some(result_types))
             .results()

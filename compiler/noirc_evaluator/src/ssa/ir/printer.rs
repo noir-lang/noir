@@ -28,7 +28,7 @@ pub struct Printer<'local> {
 }
 
 impl Ssa {
-    pub fn print_without_locations(&self) -> Printer {
+    pub fn print_without_locations(&'_ self) -> Printer<'_> {
         Printer { ssa: self, fm: None }
     }
 

@@ -1703,7 +1703,7 @@ impl<F> AcirVarData<F> {
 
 impl<F: AcirField> AcirVarData<F> {
     /// Converts all enum variants to an Expression.
-    pub(crate) fn to_expression(&self) -> Cow<Expression<F>> {
+    pub(crate) fn to_expression(&'_ self) -> Cow<'_, Expression<F>> {
         match self {
             AcirVarData::Witness(witness) => Cow::Owned(Expression::from(*witness)),
             AcirVarData::Expr(expr) => Cow::Borrowed(expr),

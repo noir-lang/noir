@@ -212,10 +212,10 @@ impl FunctionBuilder {
 
     /// Inserts a new instruction at the end of the current block and returns its results
     pub fn insert_instruction(
-        &mut self,
+        &'_ mut self,
         instruction: Instruction,
         ctrl_typevars: Option<Vec<Type>>,
-    ) -> InsertInstructionResult {
+    ) -> InsertInstructionResult<'_> {
         let block = self.current_block();
 
         if self.simplify {
@@ -341,11 +341,11 @@ impl FunctionBuilder {
     /// Insert a call instruction at the end of the current block and return
     /// the results of the call.
     pub fn insert_call(
-        &mut self,
+        &'_ mut self,
         func: ValueId,
         arguments: Vec<ValueId>,
         result_types: Vec<Type>,
-    ) -> Cow<[ValueId]> {
+    ) -> Cow<'_, [ValueId]> {
         self.insert_instruction(Instruction::Call { func, arguments }, Some(result_types)).results()
     }
 

@@ -245,12 +245,12 @@ impl DataFlowGraph {
     }
 
     pub(crate) fn insert_instruction_and_results_without_simplification(
-        &mut self,
+        &'_ mut self,
         instruction: Instruction,
         block: BasicBlockId,
         ctrl_typevars: Option<Vec<Type>>,
         call_stack: CallStackId,
-    ) -> InsertInstructionResult {
+    ) -> InsertInstructionResult<'_> {
         if !self.is_handled_by_runtime(&instruction) {
             // Panicking to raise attention. If we're not supposed to simplify it immediately,
             // pushing the instruction would just cause a potential panic later on.
@@ -269,12 +269,12 @@ impl DataFlowGraph {
     /// Simplifies a new instruction and inserts it at the end of the given block and returns its results.
     /// If the instruction is not handled by the current runtime, `InstructionRemoved` is returned.
     pub(crate) fn insert_instruction_and_results(
-        &mut self,
+        &'_ mut self,
         instruction: Instruction,
         block: BasicBlockId,
         ctrl_typevars: Option<Vec<Type>>,
         call_stack: CallStackId,
-    ) -> InsertInstructionResult {
+    ) -> InsertInstructionResult<'_> {
         self.insert_instruction_and_results_if_simplified(
             instruction,
             block,
@@ -286,13 +286,13 @@ impl DataFlowGraph {
 
     /// Simplifies a potentially existing instruction and inserts it only if it changed.
     pub(crate) fn insert_instruction_and_results_if_simplified(
-        &mut self,
+        &'_ mut self,
         instruction: Instruction,
         block: BasicBlockId,
         ctrl_typevars: Option<Vec<Type>>,
         call_stack: CallStackId,
         existing_id: Option<InstructionId>,
-    ) -> InsertInstructionResult {
+    ) -> InsertInstructionResult<'_> {
         if !self.is_handled_by_runtime(&instruction) {
             // BUG: With panicking it fails to build the `token_contract`; see:
             // https://github.com/AztecProtocol/aztec-packages/pull/11294#issuecomment-2624379102

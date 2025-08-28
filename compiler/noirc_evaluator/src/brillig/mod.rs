@@ -76,10 +76,10 @@ impl Brillig {
 
     /// Finds a brillig artifact by its label
     pub(crate) fn find_by_label(
-        &self,
+        &'_ self,
         function_label: Label,
         options: &BrilligOptions,
-    ) -> Option<Cow<BrilligArtifact<FieldElement>>> {
+    ) -> Option<Cow<'_, BrilligArtifact<FieldElement>>> {
         match function_label.label_type {
             LabelType::Function(function_id, _) => {
                 self.ssa_function_to_brillig.get(&function_id).map(Cow::Borrowed)

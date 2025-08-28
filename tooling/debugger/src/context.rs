@@ -898,11 +898,11 @@ impl<'a, B: BlackBoxFunctionSolver<FieldElement>> DebugContext<'a, B> {
         }
     }
 
-    pub(super) fn get_variables(&self) -> Vec<StackFrame<FieldElement>> {
+    pub(super) fn get_variables(&'_ self) -> Vec<StackFrame<'_, FieldElement>> {
         self.foreign_call_executor.get_variables()
     }
 
-    pub(super) fn current_stack_frame(&self) -> Option<StackFrame<FieldElement>> {
+    pub(super) fn current_stack_frame(&'_ self) -> Option<StackFrame<'_, FieldElement>> {
         self.foreign_call_executor.current_stack_frame()
     }
 

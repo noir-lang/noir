@@ -1621,13 +1621,13 @@ impl<'interner> Monomorphizer<'interner> {
             });
         }
         let to_value = to.evaluate_to_signed_field(&to.kind(), location);
-        if to_value.is_ok() {
+        if let Ok(to_value) = to_value {
             let skip_simplifications = false;
             let from_value =
                 from.evaluate_to_signed_field_helper(&to.kind(), location, skip_simplifications);
-            if from_value.is_err() || from_value.unwrap() != to_value.clone().unwrap() {
+            if from_value.is_err() || from_value.unwrap() != to_value {
                 return Err(MonomorphizationError::CheckedCastFailed {
-                    actual: HirType::Constant(to_value.unwrap(), to.kind()),
+                    actual: HirType::Constant(to_value, to.kind()),
                     expected: from.clone(),
                     location,
                 });
