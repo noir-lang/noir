@@ -149,13 +149,8 @@ expression: artifact
     "unconstrained func 1",
     "[Const { destination: Direct(10), bit_size: Integer(U32), value: 2 }, Const { destination: Direct(11), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(10), offset_address: Direct(11) }, BinaryFieldOp { destination: Direct(2), op: IntegerDiv, lhs: Direct(0), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Mul, lhs: Direct(2), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Sub, lhs: Direct(0), rhs: Direct(1) }, Mov { destination: Direct(0), source: Direct(2) }, Stop { return_data: HeapVector { pointer: Direct(11), size: Direct(10) } }]"
   ],
-  "debug_symbols": "pdXLjoIwFAbgd+maRS+nN19lMjGodUJC0CBMMjG++5zKX0YXsymrT6j/KWkP9C5O6TB/7bvhfLmJ3cddHMau77uvfX85tlN3Gfju/dGIcrmfxpT4lngZ59S1HdMwid0w930jvtt+fv7pdm2Hp1M78qhsRBpOLBc8d33Kvx7NX1r+H9VBI6yDW+O2Im+kqshTMMhT8BV5qwLyVuuavHUl72RNnsriW2sq8s6V9XOhZv0cled3Nm57fqKN89esn4sl72XN/nlT9t+TrcnTmrcb56/qH7/2v6/qf+/DpnywhHywoSZPa97VfD+iKvmoauaPcs3r9/k/+ao9duPbF1dEsVONUHJBMVkNDSSW30tloYMeBpb3TcVFncvxc2gFNTSQYK5nWQc9zPX4PdBx0UiooIa5nmcJWuighwHGRZJQQQ1Rj1CPUI9Qj1CPUI9yPe43K6GCGhqY60XWQgc9DDAuOq6neZOdghoaSNlH7oKxaw99wuF5nofjy1k6/VzLSDltr+PlmE7zmHIXPMe4L34B",
-  "file_map": {
-    "50": {
-      "source": "struct foo {\n    value: Field,\n    counter: u8,\n    dummy: u8,\n}\nstruct bar {\n    dummy: [u8; 3],\n    value: Field,\n    counter: u8,\n}\nstruct bar_field {\n    dummy: [Field; 3],\n    value: Field,\n    counter: u8,\n}\nfn main(x: [foo; 3], y: u32, z: u32) -> pub u8 {\n    let a = [y, z, x[y].counter as u32];\n    let mut b = [bar { value: 0, counter: 0, dummy: [0; 3] }; 3];\n    let mut c = [bar_field { value: 0, counter: 0, dummy: [0; 3] }; 3];\n    for i in 0..3 {\n        b[i].value = x[i].value;\n        b[i].counter = x[i].counter;\n        b[i].dummy[0] = x[i].dummy;\n        c[i].value = x[i].value;\n        c[i].counter = x[i].counter;\n        c[i].dummy[0] = x[i].dummy as Field;\n    }\n    if z == 0 {\n        // offset\n        assert(y as u8 < x[y].counter);\n        assert(y <= a[y]);\n        // first element is compatible\n        assert(y as u8 < b[y].counter);\n        // fallback\n        assert(y as u8 < c[y].counter);\n    }\n    x[0].counter\n}\n",
-      "path": ""
-    }
-  },
+  "debug_symbols": "[debug_symbols]",
+  "file_map": "[file_map]",
   "names": [
     "main"
   ],
