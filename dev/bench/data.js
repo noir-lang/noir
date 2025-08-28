@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1756329704722,
+  "lastUpdate": 1756341899956,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -20171,48 +20171,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "49a3185374382ff61eb7537188a09e87db699628",
-          "message": "fix: Consume correct number of fields when printing references (#9579)",
-          "timestamp": "2025-08-21T09:27:26Z",
-          "tree_id": "80afe133d60151fb00e42420b4abaf6ef383dc82",
-          "url": "https://github.com/noir-lang/noir/commit/49a3185374382ff61eb7537188a09e87db699628"
-        },
-        "date": 1755769988743,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 248802,
-            "range": "± 577",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 217818,
-            "range": "± 4106",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2778702,
-            "range": "± 1904",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "b97ccf5a3cfa00fa00e7de6f7ac354cbf8904a1c",
           "message": "fix(mem2reg): Consider aliases of a loaded address to be loaded from as well (#9567)",
           "timestamp": "2025-08-21T09:30:08Z",
@@ -22254,6 +22212,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2779394,
             "range": "± 1983",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "radikpadik76@gmail.com",
+            "name": "radik878",
+            "username": "radik878"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f30e34255fb237676e3bfb6068d20fce43123981",
+          "message": "fix: make Ord for slices lexicographic (elements first, then length) (#9555)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-08-28T00:18:42Z",
+          "tree_id": "1e7acf730eb5888f5f921464f30b0e8bdb268989",
+          "url": "https://github.com/noir-lang/noir/commit/f30e34255fb237676e3bfb6068d20fce43123981"
+        },
+        "date": 1756341880573,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 251445,
+            "range": "± 1006",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 220696,
+            "range": "± 2993",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2784721,
+            "range": "± 5645",
             "unit": "ns/iter"
           }
         ]
