@@ -52,7 +52,7 @@
 //!   CONST M32836 = 3
 //!   RETURN
 //! ```
-//! Here, `inner_func` is called by two different entry points. It is then not clear when generating the bytecode 
+//! Here, `inner_func` is called by two different entry points. It is then not clear when generating the bytecode
 //! for `inner_func` which global allocations map should be used, and any choice will lead to an incorrect program.
 //! If `inner_func` used the map for `entry_point_one` the bytecode generated would use `M32837` to represent `THREE`.
 //! However, when `inner_func` is called from `entry_point_two`, the address for `THREE` is `M32836`.
