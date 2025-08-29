@@ -58,7 +58,7 @@ clippy: print-env
 cargo := if use-cross != "" { "cross" } else { "cargo" }
 [private]
 build-bins: install-binstall
-  cargo binstall cross@0.2.5 -y
+  cargo binstall cross@0.2.5 -y --force
 
   {{cargo}} build --package nargo_cli --release --target={{target}} --no-default-features
   {{cargo}} build --package noir_profiler --release --target={{target}} --no-default-features
