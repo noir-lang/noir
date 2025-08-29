@@ -12,7 +12,7 @@ export default {
   tagline: 'The Universal ZK Circuit Language',
   favicon: 'img/favicon.svg',
   url: 'https://noir-lang.org',
-  baseUrl: '/docs/',
+  baseUrl: process.env.ENV === 'dev' ? '/' : '/docs/',
   onBrokenLinks: 'throw',
   onBrokenMarkdownLinks: process.env.ENV === 'dev' ? 'warn' : 'throw',
   trailingSlash: false,
@@ -149,6 +149,9 @@ export default {
       name: 'resolve-react',
       configureWebpack() {
         return {
+          output: {
+            publicPath: process.env.ENV === 'dev' ? '/' : '/docs/',
+          },
           optimization: {
             innerGraph: false,
           },
