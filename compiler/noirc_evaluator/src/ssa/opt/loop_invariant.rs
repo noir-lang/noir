@@ -196,11 +196,11 @@ struct LoopInvariantContext<'f> {
     false_value: ValueId,
 }
 
-#[derive(Default)]
 struct LoopContext {
     /// Maps current loop induction variable with a fixed lower and upper loop bound
     current_induction_variable: Option<(ValueId, (IntegerConstant, IntegerConstant))>,
-    pre_header: Option<BasicBlockId>,
+    pre_header: BasicBlockId,
+    /// Any values defined in the loop: block parameters and instruction results.
     defined_in_loop: HashSet<ValueId>,
     loop_invariants: HashSet<ValueId>,
     /// Caches all blocks that belong to nested loops determined to be control dependent
@@ -210,24 +210,21 @@ struct LoopContext {
     ///
     /// Reset for each new loop as the set should not be shared across different outer loops.
     nested_loop_control_dependent_blocks: HashSet<BasicBlockId>,
-    // Indicates whether the current loop has break or early returns
+    /// Indicates whether the current loop has break or early returns
     no_break: bool,
-
-    // Stores whether the current block being processed is control dependent
+    /// Stores whether the current block being processed is control dependent
     current_block_control_dependent: bool,
-
-    // Tracks whether the current block has a side-effectual instruction.
-    // This is maintained per instruction for hoisting control dependent instructions
+    /// Tracks whether the current block has a side-effectual instruction.
+    /// This is maintained per instruction for hoisting control dependent instructions
     current_block_impure: bool,
-
-    // Stores whether the current block has known fix upper and lower bounds that
-    // indicate that it is guaranteed to execute at least once.
+    /// Stores whether the current block has known fix upper and lower bounds that
+    /// indicate that it is guaranteed to execute at least once.
     current_block_executes: bool,
 }
 
 impl LoopContext {
     fn pre_header(&self) -> BasicBlockId {
-        self.pre_header.expect("ICE: Pre-header block should have been set")
+        self.pre_header
     }
 
     fn is_loop_invariant(&self, value_id: &ValueId) -> bool {
@@ -608,7 +605,7 @@ impl<'f> LoopInvariantContext<'f> {
         LoopContext {
             // There is only ever one current induction variable for a loop.
             current_induction_variable: get_induction_var_bounds(&self.inserter, loop_, pre_header),
-            pre_header: Some(pre_header),
+            pre_header,
             defined_in_loop,
             loop_invariants: HashSet::default(),
             // Clear any cached control dependent nested loop blocks from the previous loop.
@@ -736,10 +733,9 @@ fn get_induction_var_bounds(
     loop_: &Loop,
     pre_header: BasicBlockId,
 ) -> Option<(ValueId, (IntegerConstant, IntegerConstant))> {
-    let bounds = loop_.get_const_bounds(&inserter.function.dfg, pre_header);
-
-    get_induction_variable(inserter, loop_)
-        .and_then(|induction_variable| bounds.map(|bounds| (induction_variable, bounds)))
+    let bounds = loop_.get_const_bounds(&inserter.function.dfg, pre_header)?;
+    let induction_variable = get_induction_variable(inserter, loop_)?;
+    Some((induction_variable, bounds))
 }
 
 /// Indicates if the instruction can be safely hoisted out of a loop.
@@ -889,7 +885,7 @@ mod test {
           b2():
             return
           b3():
-            v6 = unchecked_mul v0, v1 // loop invariant 
+            v6 = unchecked_mul v0, v1 // loop invariant
             constrain v6 == v2 // local loop instruction (checks against induction variable)
             v8 = unchecked_add v2, i32 1
             jmp b1(v8)
