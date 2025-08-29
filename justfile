@@ -9,6 +9,7 @@ target := env_var_or_default("CARGO_BUILD_TARGET", target-host)
 # Install tools
 install-tools: install-rust-tools install-js-tools
 
+[private]
 install-binstall:
   #!/usr/bin/env bash
   has_binstall=$(command -v cargo-binstall >/dev/null 2>&1 && echo "true" || { echo >&2 "$1 is not installed" && echo "false"; })
@@ -26,9 +27,11 @@ install-js-tools: install-binstall
   cargo-binstall wasm-pack@0.12.1 -y
   cargo binstall wasm-bindgen-cli@0.2.100 -y
 
+# Installs Playwright (necessary for Javascript browser tests but slow to install)
 install-playwright:
   npx -y playwright@1.49 install --with-deps
 
+# Installs Playwright (necessary for examples)
 install-foundry:
   # TODO: Install foundryup if not already.
   foundryup -v nightly-8660e5b941fe7f4d67e246cfd3dafea330fb53b1
@@ -36,19 +39,24 @@ install-foundry:
 # Rust
 
 export RUSTFLAGS := (if ci == "1" { "-Dwarnings" } else { "" })
+[private]
 print-env:
     @echo "env RUSTFLAGS='$RUSTFLAGS'"
 
+# Formats Rust code
 format:
   cargo fmt --all
 
+# Checks formatting of Rust code
 format-check:
   cargo fmt --all --check
 
+# Runs clippy on Rust code
 clippy: print-env
   cargo clippy --all-targets --workspace --locked --release
 
 cargo := if use-cross != "" { "cross" } else { "cargo" }
+[private]
 build-bins: install-binstall
   cargo binstall cross@0.2.5 -y
 
@@ -57,6 +65,7 @@ build-bins: install-binstall
   {{cargo}} build --package noir_inspector --release --target={{target}} --no-default-features
 
 
+# Package release artifacts
 [linux]
 package: build-bins
   mkdir dist
@@ -85,6 +94,7 @@ test:
 
 export NOIR_AST_FUZZER_BUDGET_SECS := env_var_or_default("NOIR_AST_FUZZER_BUDGET_SECS", "300")
 
+# Performs a nightly fuzzing run
 fuzz-nightly: install-rust-tools
   @echo "env NOIR_AST_FUZZER_BUDGET_SECS='$NOIR_AST_FUZZER_BUDGET_SECS'"
   # On regular PRs we run deterministic fuzzing to avoid flaky tests on CI.
@@ -106,19 +116,23 @@ format-noir:
 
 # Javascript
 
+# Lints Javascript code
 lint:
   yarn lint
 
+# Builds named Javascript package
 build_package PACKAGE: install-js-tools
   yarn workspace {{PACKAGE}} build
 
 # Examples
 
+# Runs test for all examples
 run-examples:
   for file in `ls {{justfile_dir()}}/examples`; do \
       just --justfile {{justfile()}} run_example $file; \
   done
 
+# Runs test for example named `EXAMPLE`
 run-example EXAMPLE:
   echo "Running {{EXAMPLE}}"; \
   cd {{justfile_dir()}}/examples/{{EXAMPLE}} && ./test.sh; \
@@ -126,5 +140,6 @@ run-example EXAMPLE:
 
 # Spellcheck
 
+# Runs spellcheck on Rust source and markdown files
 spellcheck:
   yarn spellcheck
