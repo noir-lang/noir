@@ -29,7 +29,10 @@ impl Ssa {
     /// identified as calling known pure functions.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn purity_analysis(mut self) -> Ssa {
-        let brillig_entry_points = get_brillig_entry_points(&self.functions, self.main_id);
+        let call_graph = CallGraph::from_ssa(&self);
+
+        let brillig_entry_points =
+            get_brillig_entry_points(&self.functions, self.main_id, &call_graph);
 
         // First look through each function to get a baseline on its purity and collect
         // the functions it calls to build a call graph.
@@ -44,7 +47,6 @@ impl Ssa {
 
         // Then transitively 'infect' any functions which call impure functions as also
         // impure.
-        let call_graph = CallGraph::from_ssa(&self);
         let purities = analyze_call_graph(call_graph, purities, &self.functions);
         let purities = Arc::new(purities);
 

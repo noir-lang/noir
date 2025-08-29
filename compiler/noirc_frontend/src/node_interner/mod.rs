@@ -216,19 +216,19 @@ pub struct NodeInterner {
     /// into `quoted` expressions, we preserve the original type by assigning it a unique id
     /// and creating a `Token::QuotedType(id)` from this id. We cannot create a token holding
     /// the actual type since types do not implement Send or Sync.
-    quoted_types: noirc_arena::Arena<Type>,
+    quoted_types: Arena<Type>,
 
     // Interned `ExpressionKind`s during comptime code.
-    interned_expression_kinds: noirc_arena::Arena<ExpressionKind>,
+    interned_expression_kinds: Arena<ExpressionKind>,
 
     // Interned `StatementKind`s during comptime code.
-    interned_statement_kinds: noirc_arena::Arena<StatementKind>,
+    interned_statement_kinds: Arena<StatementKind>,
 
     // Interned `UnresolvedTypeData`s during comptime code.
-    interned_unresolved_type_data: noirc_arena::Arena<UnresolvedTypeData>,
+    interned_unresolved_type_data: Arena<UnresolvedTypeData>,
 
     // Interned `Pattern`s during comptime code.
-    interned_patterns: noirc_arena::Arena<Pattern>,
+    interned_patterns: Arena<Pattern>,
 
     /// Determines whether to run in LSP mode. In LSP mode references are tracked.
     pub(crate) lsp_mode: bool,
@@ -428,7 +428,7 @@ impl Default for NodeInterner {
             function_modules: HashMap::default(),
             module_attributes: HashMap::default(),
             func_id_to_trait: HashMap::default(),
-            dependency_graph: petgraph::graph::DiGraph::new(),
+            dependency_graph: DiGraph::new(),
             dependency_graph_indices: HashMap::default(),
             id_to_location: HashMap::default(),
             definitions: vec![],
@@ -461,7 +461,7 @@ impl Default for NodeInterner {
             interned_patterns: Default::default(),
             lsp_mode: false,
             location_indices: LocationIndices::default(),
-            reference_graph: petgraph::graph::DiGraph::new(),
+            reference_graph: DiGraph::new(),
             reference_graph_indices: HashMap::default(),
             auto_import_names: HashMap::default(),
             comptime_scopes: vec![HashMap::default()],

@@ -110,12 +110,12 @@ impl Type {
         let rhs = other.follow_bindings_shallow();
 
         let lhs = match lhs.as_ref() {
-            Type::InfixExpr(..) => Cow::Owned(self.substitute(bindings).canonicalize()),
+            InfixExpr(..) => Cow::Owned(self.substitute(bindings).canonicalize()),
             other => Cow::Borrowed(other),
         };
 
         let rhs = match rhs.as_ref() {
-            Type::InfixExpr(..) => Cow::Owned(other.substitute(bindings).canonicalize()),
+            InfixExpr(..) => Cow::Owned(other.substitute(bindings).canonicalize()),
             other => Cow::Borrowed(other),
         };
 
@@ -131,7 +131,7 @@ impl Type {
                 TypeBinding::Bound(typ) => {
                     if typ.is_numeric_value() {
                         other.try_unify_to_type_variable(var, flags, bindings, |bindings| {
-                            let only_integer = matches!(typ, Type::Integer(..));
+                            let only_integer = matches!(typ, Integer(..));
                             other.try_bind_to_polymorphic_int(var, bindings, only_integer)
                         })
                     } else {
