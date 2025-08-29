@@ -144,6 +144,7 @@ use std::sync::Arc;
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use acvm::{FieldElement, acir::AcirField, acir::BlackBoxFunc};
+use indexmap::set::IndexSet;
 use iter_extended::vecmap;
 use noirc_errors::call_stack::CallStackId;
 
@@ -331,50 +332,9 @@ fn flatten_function_cfg(function: &mut Function, no_predicates: &HashMap<Functio
 }
 
 /// Blocks enqueued for processing.
+///
 /// It contains a block at most once.
-#[derive(Debug, Default)]
-pub(crate) struct WorkList {
-    /// Stack of blocks to process, always popping from the back.
-    stack: Vec<BasicBlockId>,
-    /// Blocks currently on the stack, for quick inclusion checks.
-    added: HashSet<BasicBlockId>,
-}
-
-impl WorkList {
-    pub(crate) fn new(start: BasicBlockId) -> Self {
-        Self { stack: vec![start], added: HashSet::from_iter(std::iter::once(start)) }
-    }
-
-    /// Push a block to the work list, unless it's already added.
-    ///
-    /// Returns a flag indicating whether the block was added.
-    pub(crate) fn add(&mut self, block: BasicBlockId) -> bool {
-        let added = self.added.insert(block);
-        if added {
-            self.stack.push(block);
-        }
-        added
-    }
-
-    /// Pop the last block the work list.
-    pub(crate) fn pop(&mut self) -> Option<BasicBlockId> {
-        let popped = self.stack.pop();
-        if let Some(block) = popped.as_ref() {
-            self.added.remove(block);
-        }
-        popped
-    }
-
-    /// Peek at the last block on the work list.
-    pub(crate) fn last(&self) -> Option<&BasicBlockId> {
-        self.stack.last()
-    }
-
-    /// Check if a block is already added to the work list.
-    pub(crate) fn contains(&self, block: &BasicBlockId) -> bool {
-        self.added.contains(block)
-    }
-}
+pub(crate) type WorkList = IndexSet<BasicBlockId>;
 
 impl<'f> Context<'f> {
     pub(crate) fn new(
@@ -416,13 +376,12 @@ impl<'f> Context<'f> {
     /// Information about the nested if statements is stored in the 'condition_stack' which
     /// is popped/pushed when entering/leaving a conditional statement.
     pub(crate) fn flatten(&mut self, no_predicates: &HashMap<FunctionId, bool>) {
-        let mut work_list = WorkList::new(self.target_block);
+        let mut work_list = WorkList::new();
+        work_list.insert(self.target_block);
         while let Some(block) = work_list.pop() {
             self.inline_block(block, no_predicates);
             let to_process = self.handle_terminator(block, &work_list);
-            for incoming_block in to_process {
-                work_list.add(incoming_block);
-            }
+            work_list.extend(to_process);
         }
         assert!(self.next_arguments.is_none(), "no leftover arguments");
         self.inserter.map_data_bus_in_place();

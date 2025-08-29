@@ -3737,6 +3737,7 @@ dependencies = [
  "function_name",
  "fxhash",
  "im",
+ "indexmap 2.10.0",
  "insta",
  "iter-extended",
  "noirc_errors",

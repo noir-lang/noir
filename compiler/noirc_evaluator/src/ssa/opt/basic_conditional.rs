@@ -309,18 +309,15 @@ impl Context<'_> {
         self.no_predicate = true;
         //1. process 'then' branch
         self.inline_block(conditional.block_entry, no_predicates);
-        let mut work_list = WorkList::default();
-        for to_process in self.handle_terminator(conditional.block_entry, &work_list) {
-            work_list.add(to_process);
-        }
+        let mut work_list = WorkList::new();
+        let to_process = self.handle_terminator(conditional.block_entry, &work_list);
+        work_list.extend(to_process);
+
         if let Some(then) = conditional.block_then {
             assert_eq!(work_list.pop(), conditional.block_then);
             self.inline_block(then, no_predicates);
             let to_process = self.handle_terminator(then, &work_list);
-
-            for incoming_block in to_process {
-                work_list.add(incoming_block);
-            }
+            work_list.extend(to_process);
         }
 
         //2. process 'else' branch, in case there is no 'then'
