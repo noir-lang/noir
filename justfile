@@ -12,7 +12,7 @@ install-tools: install-rust-tools install-js-tools
 [private]
 install-binstall:
   #!/usr/bin/env bash
-  has_binstall=$(command -v cargo-binstall >/dev/null 2>&1 && echo "true" || { echo >&2 "$1 is not installed" && echo "false"; })
+  has_binstall=$(command -v cargo-binstall >/dev/null 2>&1 && echo "true" || { echo >&2 "cargo-binstall is not installed" && echo "false"; })
   if [[ $has_binstall != "true" ]]; then
     curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
   fi
