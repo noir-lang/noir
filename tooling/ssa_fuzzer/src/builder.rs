@@ -1,4 +1,4 @@
-use crate::r#type::{NumericType, Point, Scalar, Type, TypedValue};
+use crate::typed_value::{NumericType, Point, Scalar, Type, TypedValue};
 use acvm::FieldElement;
 use noir_ssa_executor::compiler::compile_from_ssa;
 use noirc_driver::{CompileOptions, CompiledProgram};

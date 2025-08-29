@@ -1,10 +1,10 @@
 use crate::mutations::{
     basic_types::{ssa_fuzzer_type::mutate_ssa_fuzzer_type, usize::mutate_usize},
     configuration::{
-        BASIC_FUNCTION_MUTATION_CONFIGURATION, BASIC_GENERATE_TYPE_CONFIGURATION,
-        BASIC_USIZE_MUTATION_CONFIGURATION, FunctionMutationOptions,
+        BASIC_FUNCTION_MUTATION_CONFIGURATION, BASIC_USIZE_MUTATION_CONFIGURATION,
+        FunctionMutationOptions,
     },
-    functions::{FunctionData, commands_mutator},
+    functions::{FunctionData, commands_mutator, input_types},
 };
 use rand::rngs::StdRng;
 
@@ -21,7 +21,10 @@ pub(crate) fn mutate_function(data: &mut FunctionData, rng: &mut StdRng) {
             commands_mutator::mutate_vec_fuzzer_command(&mut data.commands, rng);
         }
         FunctionMutationOptions::ReturnType => {
-            mutate_ssa_fuzzer_type(&mut data.return_type, rng, BASIC_GENERATE_TYPE_CONFIGURATION);
+            mutate_ssa_fuzzer_type(&mut data.return_type, rng);
+        }
+        FunctionMutationOptions::InputTypes => {
+            input_types::mutate_input_types(&mut data.input_types, rng);
         }
     }
 }

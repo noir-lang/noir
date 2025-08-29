@@ -55,13 +55,15 @@ pub(crate) enum FunctionMutationOptions {
     ReturnBlockIdx,
     FunctionFuzzerCommands,
     ReturnType,
+    InputTypes,
 }
 
-pub(crate) type MutationConfig = WeightedSelectionConfig<FunctionMutationOptions, 3>;
+pub(crate) type MutationConfig = WeightedSelectionConfig<FunctionMutationOptions, 4>;
 pub(crate) const BASIC_FUNCTION_MUTATION_CONFIGURATION: MutationConfig = MutationConfig::new([
     (FunctionMutationOptions::ReturnBlockIdx, 1),
     (FunctionMutationOptions::FunctionFuzzerCommands, 1),
     (FunctionMutationOptions::ReturnType, 1),
+    (FunctionMutationOptions::InputTypes, 1),
 ]);
 
 /// Mutations of witness values
@@ -409,13 +411,25 @@ pub(crate) const BASIC_GENERATE_NUMERIC_TYPE_CONFIGURATION: GenerateNumericTypeC
 
 // Compile-time check that configuration has correct number of entries
 const _: () = {
-    use noir_ssa_fuzzer::r#type::NumericType;
+    use noir_ssa_fuzzer::typed_value::NumericType;
     use strum::EnumCount;
     assert!(
         BASIC_GENERATE_NUMERIC_TYPE_CONFIGURATION.options_with_weights.len() == NumericType::COUNT,
         "BASIC_GENERATE_NUMERIC_TYPE_CONFIGURATION must have an entry for every GenerateNumericType variant"
     );
 };
+
+#[derive(Copy, Clone, Debug)]
+pub(crate) enum GenerateInitialWitness {
+    Numeric,
+    Array,
+}
+pub(crate) type GenerateInitialWitnessConfig = WeightedSelectionConfig<GenerateInitialWitness, 2>;
+pub(crate) const BASIC_GENERATE_INITIAL_WITNESS_CONFIGURATION: GenerateInitialWitnessConfig =
+    GenerateInitialWitnessConfig::new([
+        (GenerateInitialWitness::Numeric, 10),
+        (GenerateInitialWitness::Array, 1),
+    ]);
 
 #[derive(Copy, Clone, Debug)]
 pub(crate) enum GenerateType {
@@ -427,14 +441,15 @@ pub(crate) enum GenerateType {
 
 pub(crate) type GenerateTypeConfig = WeightedSelectionConfig<GenerateType, 4>;
 pub(crate) const BASIC_GENERATE_TYPE_CONFIGURATION: GenerateTypeConfig = GenerateTypeConfig::new([
-    (GenerateType::Numeric, 20),
-    (GenerateType::Reference, 4),
-    (GenerateType::Array, 1),
-    (GenerateType::Slice, 1),
+    (GenerateType::Numeric, 25),
+    (GenerateType::Reference, 5),
+    (GenerateType::Array, 1), // to avoid [[[u64; 10]; 10]; 10]; 10; 10; 10....]
+    (GenerateType::Slice, 2),
 ]);
+pub(crate) const MAX_ARRAY_SIZE: usize = 10;
 
 const _: () = {
-    use noir_ssa_fuzzer::r#type::Type;
+    use noir_ssa_fuzzer::typed_value::Type;
     use strum::EnumCount;
     assert!(
         BASIC_GENERATE_TYPE_CONFIGURATION.options_with_weights.len() == Type::COUNT,

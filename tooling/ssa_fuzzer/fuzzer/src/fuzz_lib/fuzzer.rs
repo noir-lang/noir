@@ -14,8 +14,8 @@
 //!    - If one program fails to compile but the other executes successfully
 
 use super::{
-    NUMBER_OF_PREDEFINED_VARIABLES, NUMBER_OF_VARIABLES_INITIAL,
-    function_context::{FunctionData, WitnessValue},
+    function_context::FunctionData,
+    initial_witness::WitnessValue,
     instruction::InstructionBlock,
     options::{FuzzerMode, FuzzerOptions},
     program_context::{FuzzerProgramContext, program_context_by_mode},
@@ -25,7 +25,7 @@ use acvm::acir::native_types::{WitnessMap, WitnessStack};
 use noir_ssa_executor::runner::execute_single;
 use noir_ssa_fuzzer::{
     runner::{CompareResults, run_and_compare},
-    r#type::Type,
+    typed_value::Type,
 };
 use noirc_driver::CompiledProgram;
 use serde::{Deserialize, Serialize};
@@ -34,8 +34,7 @@ use std::collections::{HashMap, HashSet};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct FuzzerData {
     pub(crate) functions: Vec<FunctionData>,
-    pub(crate) initial_witness:
-        [WitnessValue; (NUMBER_OF_VARIABLES_INITIAL - NUMBER_OF_PREDEFINED_VARIABLES) as usize],
+    pub(crate) initial_witness: Vec<WitnessValue>,
     pub(crate) instruction_blocks: Vec<InstructionBlock>,
 }
 
@@ -43,8 +42,7 @@ impl Default for FuzzerData {
     fn default() -> Self {
         FuzzerData {
             functions: vec![FunctionData::default()],
-            initial_witness: [WitnessValue::default();
-                (NUMBER_OF_VARIABLES_INITIAL - NUMBER_OF_PREDEFINED_VARIABLES) as usize],
+            initial_witness: vec![WitnessValue::default()],
             instruction_blocks: vec![],
         }
     }

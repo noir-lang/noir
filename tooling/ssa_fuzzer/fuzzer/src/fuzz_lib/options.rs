@@ -53,7 +53,7 @@ impl Default for InstructionOptions {
             create_array_enabled: true,
             array_get_enabled: true,
             array_set_enabled: true,
-            unsafe_get_set_enabled: false,
+            unsafe_get_set_enabled: true,
             point_add_enabled: true,
             multi_scalar_mul_enabled: true,
             ecdsa_secp256r1_enabled: true,
