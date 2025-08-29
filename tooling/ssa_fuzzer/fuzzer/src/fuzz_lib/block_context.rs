@@ -1149,18 +1149,19 @@ impl BlockContext {
                 self.store_variable(&acir_value);
                 acir_value
             }
-            Type::Array(array_type, _) => {
-                let values = array_type
-                    .iter()
-                    .map(|element_type| {
+            Type::Array(array_type, array_size) => {
+                let mut values = Vec::with_capacity((*array_size as usize) * array_type.len());
+                for _ in 0..*array_size {
+                    let value = array_type.iter().map(|element_type| {
                         self.find_values_with_type(
                             acir_builder,
                             brillig_builder,
                             element_type,
                             None,
                         )
-                    })
-                    .collect::<Vec<TypedValue>>();
+                    });
+                    values.extend(value);
+                }
                 let acir_value = acir_builder.insert_array(values.clone());
                 let brillig_value = brillig_builder.insert_array(values);
                 assert_eq!(acir_value, brillig_value);

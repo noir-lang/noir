@@ -60,6 +60,9 @@ impl Default for WitnessValue {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct FunctionData {
     pub(crate) commands: Vec<FuzzerFunctionCommand>,
+    /// Input types of the function
+    ///
+    /// Overwritten for main function by the types of the initial witness
     pub(crate) input_types: Vec<Type>,
     pub(crate) return_instruction_block_idx: usize,
     pub(crate) return_type: Type,
