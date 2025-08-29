@@ -203,7 +203,7 @@ pub(crate) fn eval_constant_binary_op(
                     return Failure("attempt to divide by zero".to_string());
                 }
                 BinaryOp::Shr | BinaryOp::Shl => {
-                    if rhs >= bit_size  as i128 {
+                    if rhs >= bit_size as i128 {
                         let op = binary_op_function_name(operator);
                         return Failure(format!("attempt to {op} with overflow"));
                     } else {
