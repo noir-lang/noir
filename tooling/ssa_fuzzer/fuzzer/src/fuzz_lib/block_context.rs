@@ -883,7 +883,7 @@ impl BlockContext {
                     }
                 }
             }
-            Instruction::PointAdd { p1, p2 } => {
+            Instruction::PointAdd { p1, p2, predicate } => {
                 if !self.options.instruction_options.point_add_enabled {
                     return;
                 }
@@ -894,8 +894,8 @@ impl BlockContext {
                 }
                 let p1 = p1.unwrap();
                 let p2 = p2.unwrap();
-                let acir_point = acir_builder.point_add(p1.clone(), p2.clone());
-                let brillig_point = brillig_builder.point_add(p1, p2);
+                let acir_point = acir_builder.point_add(p1.clone(), p2.clone(), predicate);
+                let brillig_point = brillig_builder.point_add(p1, p2, true);
                 assert_eq!(acir_point, brillig_point);
                 for typed_value in [&acir_point.x, &acir_point.y, &acir_point.is_infinite] {
                     append_typed_value_to_map(
@@ -905,7 +905,7 @@ impl BlockContext {
                     );
                 }
             }
-            Instruction::MultiScalarMul { points_and_scalars } => {
+            Instruction::MultiScalarMul { points_and_scalars, predicate } => {
                 if !self.options.instruction_options.multi_scalar_mul_enabled {
                     return;
                 }
@@ -927,9 +927,12 @@ impl BlockContext {
                 if points_vec.len() != scalars_vec.len() {
                     unreachable!("points_vec.len() != scalars_vec.len()");
                 }
-                let acir_point =
-                    acir_builder.multi_scalar_mul(points_vec.clone(), scalars_vec.clone());
-                let brillig_point = brillig_builder.multi_scalar_mul(points_vec, scalars_vec);
+                let acir_point = acir_builder.multi_scalar_mul(
+                    points_vec.clone(),
+                    scalars_vec.clone(),
+                    predicate,
+                );
+                let brillig_point = brillig_builder.multi_scalar_mul(points_vec, scalars_vec, true);
                 assert_eq!(acir_point, brillig_point);
                 for typed_value in [&acir_point.x, &acir_point.y, &acir_point.is_infinite] {
                     append_typed_value_to_map(

@@ -334,19 +334,21 @@ where
                 output: Self::encode_some(output),
                 predicate: Self::encode_some(predicate),
             }),
-            opcodes::BlackBoxFuncCall::MultiScalarMul { points, scalars, outputs } => {
+            opcodes::BlackBoxFuncCall::MultiScalarMul { points, scalars, predicate, outputs } => {
                 let (w1, w2, w3) = outputs;
                 Value::MultiScalarMul(MultiScalarMul {
                     points: Self::encode_vec(points),
                     scalars: Self::encode_vec(scalars),
+                    predicate: Self::encode_some(predicate),
                     outputs: Self::encode_vec([w1, w2, w3]),
                 })
             }
-            opcodes::BlackBoxFuncCall::EmbeddedCurveAdd { input1, input2, outputs } => {
+            opcodes::BlackBoxFuncCall::EmbeddedCurveAdd { input1, input2, predicate, outputs } => {
                 let (w1, w2, w3) = outputs;
                 Value::EmbeddedCurveAdd(EmbeddedCurveAdd {
                     input1: Self::encode_vec(input1.as_ref()),
                     input2: Self::encode_vec(input2.as_ref()),
+                    predicate: Self::encode_some(predicate),
                     outputs: Self::encode_vec([w1, w2, w3]),
                 })
             }
@@ -449,12 +451,14 @@ where
                     Value::MultiScalarMul(v) => Ok(opcodes::BlackBoxFuncCall::MultiScalarMul {
                         points: Self::decode_vec_wrap(&v.points, "points")?,
                         scalars: Self::decode_vec_wrap(&v.scalars, "scalars")?,
+                        predicate: Self::decode_some_wrap(&v.predicate, "predicate")?,
                         outputs: Self::decode_arr_wrap(&v.outputs, "outputs")
                             .map(|[w1, w2, w3]| (w1, w2, w3))?,
                     }),
                     Value::EmbeddedCurveAdd(v) => Ok(opcodes::BlackBoxFuncCall::EmbeddedCurveAdd {
                         input1: Self::decode_box_arr_wrap(&v.input1, "input1")?,
                         input2: Self::decode_box_arr_wrap(&v.input2, "input2")?,
+                        predicate: Self::decode_some_wrap(&v.predicate, "predicate")?,
                         outputs: Self::decode_arr_wrap(&v.outputs, "outputs")
                             .map(|[w1, w2, w3]| (w1, w2, w3))?,
                     }),

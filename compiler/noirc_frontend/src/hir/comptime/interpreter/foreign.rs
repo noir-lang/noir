@@ -204,7 +204,8 @@ fn embedded_curve_add(
     location: Location,
     pedantic_solving: bool,
 ) -> IResult<Value> {
-    let (point1, point2) = check_two_arguments(arguments, location)?;
+    let (point1, point2, predicate) = check_three_arguments(arguments, location)?;
+    assert_eq!(predicate.0, Value::Bool(true), "ec_add predicate should be true");
 
     let embedded_curve_point_typ = point1.0.get_type().into_owned();
 
@@ -234,7 +235,8 @@ fn multi_scalar_mul(
     location: Location,
     pedantic_solving: bool,
 ) -> IResult<Value> {
-    let (points, scalars) = check_two_arguments(arguments, location)?;
+    let (points, scalars, predicate) = check_three_arguments(arguments, location)?;
+    assert_eq!(predicate.0, Value::Bool(true), "verify_signature predicate should be true");
 
     let (points, _) = get_array_map(interner, points, get_embedded_curve_point)?;
     let (scalars, _) = get_array_map(interner, scalars, get_embedded_curve_scalar)?;

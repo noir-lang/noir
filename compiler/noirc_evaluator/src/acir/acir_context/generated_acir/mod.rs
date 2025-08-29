@@ -285,6 +285,7 @@ impl<F: AcirField> GeneratedAcir<F> {
             BlackBoxFunc::MultiScalarMul => BlackBoxFuncCall::MultiScalarMul {
                 points: function_inputs[0].clone(),
                 scalars: function_inputs[1].clone(),
+                predicate: function_inputs[2].clone()[0],
                 outputs: (outputs[0], outputs[1], outputs[2]),
             },
 
@@ -299,6 +300,7 @@ impl<F: AcirField> GeneratedAcir<F> {
                     function_inputs[4].clone()[0],
                     function_inputs[5].clone()[0],
                 ]),
+                predicate: function_inputs[6].clone()[0],
                 outputs: (outputs[0], outputs[1], outputs[2]),
             },
             BlackBoxFunc::Keccakf1600 => BlackBoxFuncCall::Keccakf1600 {
@@ -704,7 +706,8 @@ fn black_box_func_expected_input_size(name: BlackBoxFunc) -> Option<usize> {
         BlackBoxFunc::RecursiveAggregation => None,
 
         // Addition over the embedded curve: input are coordinates (x1,y1,infinite1) and (x2,y2,infinite2) of the Grumpkin points
-        BlackBoxFunc::EmbeddedCurveAdd => Some(6),
+        // to add, plus a predicate to conditionally perform the addition.
+        BlackBoxFunc::EmbeddedCurveAdd => Some(7),
     }
 }
 
