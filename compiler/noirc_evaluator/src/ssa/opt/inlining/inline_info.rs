@@ -306,7 +306,7 @@ fn compute_function_own_weight(func: &Function) -> usize {
         for instruction in func.dfg[block_id].instructions() {
             weight += brillig_cost(*instruction, &func.dfg);
         }
-        // TODO: We add one for the terminator. This can be improved
+        // TODO: We add one for the terminator. This can be improved as Jmp and Return must move their arguments
         weight += 1;
     }
     // We use an approximation of the average increase in instruction ratio from SSA to Brillig
