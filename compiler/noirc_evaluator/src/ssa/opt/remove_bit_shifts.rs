@@ -642,7 +642,7 @@ mod tests {
             acir(inline) fn main f0 {
               b0(v0: i32, v1: i32):
                 v2 = cast v1 as u32
-                v4 = lt v2, u32 31
+                v4 = lt v2, u32 32
                 constrain v4 == u1 1, "attempt to bit-shift with overflow"
                 v6 = cast v1 as Field
                 v8 = call to_le_bits(v6) -> [u1; 5]
@@ -742,7 +742,7 @@ mod tests {
             acir(inline) fn main f0 {
               b0(v0: i32, v1: i32):
                 v2 = cast v1 as u32
-                v4 = lt v2, u32 31
+                v4 = lt v2, u32 32
                 constrain v4 == u1 1, "attempt to bit-shift with overflow"
                 v6 = cast v1 as Field
                 v8 = call to_le_bits(v6) -> [u1; 5]
