@@ -1252,7 +1252,6 @@ impl<'f> Context<'f> {
         value: ValueId,
         call_stack: CallStackId,
     ) -> ValueId {
-        // TODO: Can we early return in the value is a boolean?
         let argument_type = self.inserter.function.dfg.type_of_value(value);
         let cast = Instruction::Cast(condition, argument_type.unwrap_numeric());
         self.insert_instruction(cast, call_stack)
