@@ -670,7 +670,7 @@
                     </span><span class="kw">return </span>Failure(<span class="string">"attempt to divide by zero"</span>.to_string());
                 }
                 BinaryOp::Shr | BinaryOp::Shl =&gt; {
-                    <span class="kw">if </span>rhs &gt;= (bit_size - <span class="number">1</span>) <span class="kw">as </span>i128 {
+                    <span class="kw">if </span>rhs &gt;= bit_size <span class="kw">as </span>i128 {
                         <span class="kw">let </span>op = binary_op_function_name(operator);
                         <span class="kw">return </span>Failure(<span class="macro">format!</span>(<span class="string">"attempt to {op} with overflow"</span>));
                     } <span class="kw">else </span>{

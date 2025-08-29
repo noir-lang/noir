@@ -888,8 +888,7 @@
 <a href="#887" id="887">887</a>
 <a href="#888" id="888">888</a>
 <a href="#889" id="889">889</a>
-<a href="#890" id="890">890</a>
-<a href="#891" id="891">891</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, sync::Arc};
+<a href="#890" id="890">890</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, sync::Arc};
 
 <span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
 
@@ -1147,16 +1146,15 @@
 
         <span class="kw">let </span>assert_message = <span class="prelude-val">Some</span>(<span class="string">"attempt to bit-shift with overflow"</span>.to_owned());
 
-        <span class="kw">let </span>(bit_size, max_bit_size) = <span class="kw">match </span>rhs_type {
-            Type::Numeric(NumericType::Unsigned { bit_size }) =&gt; (bit_size, bit_size),
+        <span class="kw">let </span>bit_size = <span class="kw">match </span>rhs_type {
+            Type::Numeric(NumericType::Unsigned { bit_size }) =&gt; bit_size,
             Type::Numeric(NumericType::Signed { bit_size }) =&gt; {
                 <span class="macro">assert!</span>(bit_size &gt; <span class="number">1</span>, <span class="string">"ICE - i1 is not a valid type"</span>);
-
-                (bit_size, bit_size - <span class="number">1</span>)
+                bit_size
             }
             <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"check_shift_overflow called with non-numeric type"</span>),
         };
-        <span class="kw">let </span>bit_size_field = FieldElement::from(max_bit_size);
+        <span class="kw">let </span>bit_size_field = FieldElement::from(bit_size);
 
         <span class="kw">let </span>unsigned_typ = NumericType::unsigned(bit_size);
         <span class="kw">let </span>max = <span class="self">self</span>.numeric_constant(bit_size_field, unsigned_typ);
@@ -1164,7 +1162,7 @@
         <span class="kw">let </span>overflow = <span class="self">self</span>.insert_binary(rhs, BinaryOp::Lt, max);
         <span class="self">self</span>.insert_constrain(overflow, one, assert_message.map(Into::into));
 
-        max_bit_size
+        bit_size
     }
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>field_constant(<span class="kw-2">&amp;mut </span><span class="self">self</span>, constant: FieldElement) -&gt; ValueId {
@@ -1534,7 +1532,7 @@
             acir(inline) fn main f0 {
               b0(v0: i32, v1: i32):
                 v2 = cast v1 as u32
-                v4 = lt v2, u32 31
+                v4 = lt v2, u32 32
                 constrain v4 == u1 1, "attempt to bit-shift with overflow"
                 v6 = cast v1 as Field
                 v8 = call to_le_bits(v6) -&gt; [u1; 5]
@@ -1634,7 +1632,7 @@
             acir(inline) fn main f0 {
               b0(v0: i32, v1: i32):
                 v2 = cast v1 as u32
-                v4 = lt v2, u32 31
+                v4 = lt v2, u32 32
                 constrain v4 == u1 1, "attempt to bit-shift with overflow"
                 v6 = cast v1 as Field
                 v8 = call to_le_bits(v6) -&gt; [u1; 5]
