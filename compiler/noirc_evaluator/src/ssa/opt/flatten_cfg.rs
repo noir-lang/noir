@@ -628,7 +628,9 @@ impl<'f> Context<'f> {
         let else_condition = self.link_condition(else_condition);
 
         // Pass on the local allocations that came before the 'then_branch' to the 'else_branch'.
-        let old_allocations = std::mem::take(&mut cond_context.then_branch.local_allocations);
+        // XXX:
+        // let old_allocations = std::mem::take(&mut cond_context.then_branch.local_allocations);
+        let old_allocations = std::mem::take(&mut self.local_allocations);
         let else_branch = ConditionalBranch {
             old_condition: cond_context.then_branch.old_condition,
             condition: else_condition,
@@ -636,7 +638,9 @@ impl<'f> Context<'f> {
             local_allocations: old_allocations,
         };
         // All local allocations on the stopped 'then_branch' go out of scope.
-        self.local_allocations.clear();
+        // XXX:
+        // self.local_allocations.clear();
+        cond_context.then_branch.local_allocations.clear();
         cond_context.else_branch = Some(else_branch);
         self.reset_predicated_values(&mut cond_context);
         self.condition_stack.push(cond_context);
@@ -1490,6 +1494,82 @@ mod test {
             store v16 at v1
             enable_side_effects u1 1
             return
+        }
+        ");
+    }
+
+    #[test]
+    fn not_merge_with_previous_store_if_local_before_branch() {
+        // The SSA is for the following graph:
+        // * We allocate a reference under the v0 condition in b1
+        // * We branch off from b1 under the v1 condition
+        // * We store to the reference in the exit block b5:
+        //   it should not involve merging store value because it's local to the b1-b6 branch.
+        //         b0
+        //       ↙   ↘
+        //     b1     b2  (allocate and store)
+        //   ↙  ↘     |
+        // b3    b4   |
+        //   ↘  ↙     |
+        //    b5      |  (store)
+        //    |       |
+        //    b6      |  (load)
+        //      ↘   ↙
+        //       b7
+        let src = "
+            acir(inline) fn main f0 {
+              b0(v0: u1, v1: u1):
+                jmpif v0 then: b1, else: b2
+              b1():
+                v2 = allocate -> &mut Field
+                store Field 1 at v2
+                jmpif v1 then: b3, else: b4
+              b2():
+                jmp b7(Field 2)
+              b3():
+                jmp b5()
+              b4():
+                jmp b5()
+              b5():
+                store Field 5 at v2
+                jmp b6()
+              b6():
+                v3 = load v2 -> Field
+                jmp b7(v3)
+              b7(v4: Field):
+                return v4
+            }
+            ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.flatten_cfg();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1, v1: u1):
+            enable_side_effects v0
+            v2 = allocate -> &mut Field
+            store Field 1 at v2
+            v4 = unchecked_mul v0, v1
+            enable_side_effects v4
+            v5 = not v1
+            v6 = unchecked_mul v0, v5
+            enable_side_effects v0
+            v7 = load v2 -> Field
+            v8 = not v0
+            v9 = cast v0 as Field
+            v10 = cast v8 as Field
+            v12 = mul v9, Field 5
+            v13 = mul v10, v7
+            v14 = add v12, v13
+            store v14 at v2
+            v15 = load v2 -> Field
+            enable_side_effects u1 1
+            v17 = cast v0 as Field
+            v18 = cast v8 as Field
+            v19 = mul v17, v15
+            v21 = mul v18, Field 2
+            v22 = add v19, v21
+            return v22
         }
         ");
     }
