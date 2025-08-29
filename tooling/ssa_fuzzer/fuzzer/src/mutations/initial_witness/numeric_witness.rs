@@ -6,10 +6,53 @@
 
 use crate::fuzz_lib::initial_witness::{FieldRepresentation, WitnessValueNumeric};
 use crate::mutations::configuration::{
-    BASIC_WITNESS_MUTATION_CONFIGURATION, WitnessMutationOptions,
+    SIZE_OF_SMALL_ARBITRARY_BUFFER, WitnessMutationConfig, WitnessMutationOptions,
 };
 use libfuzzer_sys::arbitrary::Unstructured;
 use rand::{Rng, rngs::StdRng};
+
+pub(crate) fn generate_element_of_the_same_type(
+    rng: &mut StdRng,
+    value: WitnessValueNumeric,
+) -> WitnessValueNumeric {
+    let mut bytes = [0u8; SIZE_OF_SMALL_ARBITRARY_BUFFER];
+    rng.fill(&mut bytes);
+    match value {
+        WitnessValueNumeric::Field(_) => {
+            WitnessValueNumeric::Field(Unstructured::new(&bytes).arbitrary().unwrap())
+        }
+        WitnessValueNumeric::U128(_) => {
+            WitnessValueNumeric::U128(Unstructured::new(&bytes).arbitrary().unwrap())
+        }
+        WitnessValueNumeric::U64(_) => {
+            WitnessValueNumeric::U64(Unstructured::new(&bytes).arbitrary().unwrap())
+        }
+        WitnessValueNumeric::U32(_) => {
+            WitnessValueNumeric::U32(Unstructured::new(&bytes).arbitrary().unwrap())
+        }
+        WitnessValueNumeric::U16(_) => {
+            WitnessValueNumeric::U16(Unstructured::new(&bytes).arbitrary().unwrap())
+        }
+        WitnessValueNumeric::U8(_) => {
+            WitnessValueNumeric::U8(Unstructured::new(&bytes).arbitrary().unwrap())
+        }
+        WitnessValueNumeric::Boolean(_) => {
+            WitnessValueNumeric::Boolean(Unstructured::new(&bytes).arbitrary().unwrap())
+        }
+        WitnessValueNumeric::I64(_) => {
+            WitnessValueNumeric::I64(Unstructured::new(&bytes).arbitrary().unwrap())
+        }
+        WitnessValueNumeric::I32(_) => {
+            WitnessValueNumeric::I32(Unstructured::new(&bytes).arbitrary().unwrap())
+        }
+        WitnessValueNumeric::I16(_) => {
+            WitnessValueNumeric::I16(Unstructured::new(&bytes).arbitrary().unwrap())
+        }
+        WitnessValueNumeric::I8(_) => {
+            WitnessValueNumeric::I8(Unstructured::new(&bytes).arbitrary().unwrap())
+        }
+    }
+}
 
 /// Return new random witness value
 struct RandomMutation;
@@ -213,8 +256,12 @@ impl WitnessAddSubPowerOfTwoMutation {
     }
 }
 
-pub(crate) fn mutate(witness_value: &mut WitnessValueNumeric, rng: &mut StdRng) {
-    match BASIC_WITNESS_MUTATION_CONFIGURATION.select(rng) {
+pub(crate) fn mutate(
+    witness_value: &mut WitnessValueNumeric,
+    rng: &mut StdRng,
+    config: WitnessMutationConfig,
+) {
+    match config.select(rng) {
         WitnessMutationOptions::Random => RandomMutation::mutate(rng, witness_value),
         WitnessMutationOptions::MaxValue => MaxValueMutation::mutate(witness_value),
         WitnessMutationOptions::MinValue => MinValueMutation::mutate(witness_value),

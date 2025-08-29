@@ -1,6 +1,6 @@
 //! This file describes initial witness passed to the program
 
-use super::{NUMBER_OF_PREDEFINED_VARIABLES, NUMBER_OF_VARIABLES_INITIAL, fuzzer::FuzzerData};
+use super::fuzzer::FuzzerData;
 use acvm::FieldElement;
 use acvm::acir::native_types::{Witness, WitnessMap};
 use libfuzzer_sys::arbitrary;
@@ -98,10 +98,17 @@ impl WitnessValue {
     fn to_ssa_type(&self) -> Type {
         match self {
             WitnessValue::Numeric(numeric) => Type::Numeric(NumericType::from(*numeric)),
-            WitnessValue::Array(arr) => Type::Array(
-                Arc::new(arr.iter().map(|v| v.to_ssa_type()).collect::<Vec<_>>()),
-                arr.len() as u32,
-            ),
+            WitnessValue::Array(arr) => {
+                let ssa_type = arr
+                    .iter()
+                    .map(|v| v.to_ssa_type())
+                    .reduce(|a, b| {
+                        assert_eq!(a, b, "All SSA types in the array must be the same");
+                        a
+                    })
+                    .unwrap();
+                Type::Array(Arc::new(vec![ssa_type; 1]), arr.len() as u32)
+            }
         }
     }
 }
@@ -109,7 +116,7 @@ impl WitnessValue {
 fn initialize_witness_map_internal(witness: &Vec<WitnessValue>) -> (Vec<FieldElement>, Vec<Type>) {
     let mut types = vec![];
     let mut witness_vec = vec![];
-    for (i, witness_value) in witness.iter().enumerate() {
+    for witness_value in witness.iter() {
         match witness_value {
             WitnessValue::Numeric(numeric) => {
                 witness_vec.push(FieldElement::from(*numeric));

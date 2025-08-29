@@ -3,7 +3,6 @@ use super::{
     initial_witness::{ensure_boolean_defined_in_all_functions, initialize_witness_map},
     options::FuzzerOptions,
 };
-use noir_ssa_fuzzer::typed_value::Type;
 
 /// Creates ACIR and Brillig programs from the data, runs and compares them
 pub(crate) fn fuzz_target(data: FuzzerData, options: FuzzerOptions) -> Option<FuzzerOutput> {
@@ -16,10 +15,12 @@ pub(crate) fn fuzz_target(data: FuzzerData, options: FuzzerOptions) -> Option<Fu
     log::debug!("instruction_blocks: {:?}", data.instruction_blocks);
     let (witness_map, values, types) = initialize_witness_map(&data.initial_witness);
     let mut data = data;
+    data.functions[0].input_types = types;
+    log::debug!("initial_witness: {:?}", data.initial_witness);
     ensure_boolean_defined_in_all_functions(&mut data);
+
     let mut fuzzer = Fuzzer::new(data.instruction_blocks, values, options);
     for func in data.functions {
-        log::debug!("initial_witness: {witness_map:?}");
         log::debug!("commands: {:?}", func.commands);
         log::debug!("input_types: {:?}", func.input_types);
         fuzzer.process_function(func.clone(), func.input_types.clone());

@@ -420,6 +420,18 @@ const _: () = {
 };
 
 #[derive(Copy, Clone, Debug)]
+pub(crate) enum GenerateInitialWitness {
+    Numeric,
+    Array,
+}
+pub(crate) type GenerateInitialWitnessConfig = WeightedSelectionConfig<GenerateInitialWitness, 2>;
+pub(crate) const BASIC_GENERATE_INITIAL_WITNESS_CONFIGURATION: GenerateInitialWitnessConfig =
+    GenerateInitialWitnessConfig::new([
+        (GenerateInitialWitness::Numeric, 30),
+        (GenerateInitialWitness::Array, 1),
+    ]);
+
+#[derive(Copy, Clone, Debug)]
 pub(crate) enum GenerateType {
     Numeric,
     Reference,

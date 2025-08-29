@@ -1,5 +1,4 @@
 use crate::initial_witness::{FieldRepresentation, WitnessValue, WitnessValueNumeric};
-use crate::{NUMBER_OF_PREDEFINED_VARIABLES, NUMBER_OF_VARIABLES_INITIAL};
 use noir_ssa_fuzzer::typed_value::{NumericType, Type};
 
 /// Creates default witness values for testing
@@ -15,8 +14,5 @@ pub(crate) fn default_witness() -> Vec<WitnessValue> {
 }
 
 pub(crate) fn default_input_types() -> Vec<Type> {
-    vec![
-        Type::Numeric(NumericType::Field);
-        (NUMBER_OF_VARIABLES_INITIAL - NUMBER_OF_PREDEFINED_VARIABLES) as usize
-    ]
+    vec![Type::Numeric(NumericType::Field); 5]
 }
