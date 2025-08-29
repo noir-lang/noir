@@ -33,7 +33,7 @@
 //!
 //! ## Unsigned shift-left
 //!
-//! Shifting an unsigned integer to the right by N is the same as multipling by 2^N.
+//! Shifting an unsigned integer to the right by N is the same as multiplying by 2^N.
 //! However, since that can overflow the target bit size, the operation is done using
 //! Field, then truncated to the target bit size.
 //!
