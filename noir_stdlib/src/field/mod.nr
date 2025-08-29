@@ -422,18 +422,18 @@ mod tests {
         }
     }
 
-    // TODO: Update this test to account for the Brillig restriction that the radix must be greater than 2
-    //#[test]
-    //fn test_to_le_radix_brillig_1() {
-    //    // this test should only fail in constrained mode
-    //    if runtime::is_unconstrained() {
-    //        let field = 1;
-    //        let out: [u8; 8] = field.to_le_radix(1);
-    //        crate::println(out);
-    //        let expected = [0; 8];
-    //        assert(out == expected, "unexpected result");
-    //    }
-    //}
+    // Updated test to account for Brillig restriction that radix must be greater than 2
+    #[test]
+    fn test_to_le_radix_brillig_2() {
+        // Test with radix 2 (minimum valid radix for Brillig)
+        if runtime::is_unconstrained() {
+            let field = 1;
+            let out: [u8; 8] = field.to_le_radix(2);
+            let mut expected = [0; 8];
+            expected[0] = 1; // 1 in binary is [1, 0, 0, 0, 0, 0, 0, 0] in little-endian
+            assert(out == expected, "unexpected result");
+        }
+    }
 
     #[test(should_fail_with = "radix must be a power of 2")]
     fn test_to_le_radix_3() {
@@ -479,18 +479,26 @@ mod tests {
         let _: [u8; 16] = 0x100000000000000000000000000000000.to_le_bytes();
     }
 
-    // TODO: Update this test to account for the Brillig restriction that the radix must be less than 512
-    //#[test]
-    //fn test_to_le_radix_brillig_512() {
-    //    // this test should only fail in constrained mode
-    //    if runtime::is_unconstrained() {
-    //        let field = 1;
-    //        let out: [u8; 8] = field.to_le_radix(512);
-    //        let mut expected = [0; 8];
-    //        expected[0] = 1;
-    //        assert(out == expected, "unexpected result");
-    //    }
-    //}
+    #[test(should_fail_with = "radix must be less than or equal to 256")]
+    fn test_to_le_radix_brillig_512() {
+        let field = 1;
+        let out: [u8; 8] = field.to_le_radix(512);
+        let mut expected = [0; 8];
+        expected[0] = 1;
+        assert(out == expected, "unexpected result");
+    }
+
+    #[test]
+    fn test_to_le_radix_brillig_256() {
+        // test with radix 256 (maximum valid radix)
+        if !runtime::is_unconstrained() {
+            let field = 1;
+            let out: [u8; 8] = field.to_le_radix(256);
+            let mut expected = [0; 8];
+            expected[0] = 1; // 1 in base 256 is [1, 0, 0, 0, 0, 0, 0, 0] in little-endian
+            assert(out == expected, "unexpected result");
+        }
+    }
 
     #[test]
     unconstrained fn test_field_less_than() {
@@ -499,4 +507,106 @@ mod tests {
         assert(field_less_than(0x100, 0 - 1));
         assert(!field_less_than(0 - 1, 0));
     }
+
+
+    #[test]
+    unconstrained fn test_large_field_values_unconstrained() {
+        let large_field = 0xffffffffffffffff;
+        
+        let bits: [u1; 64] = large_field.to_le_bits();
+        assert_eq(bits[0], 1);
+        
+        let bytes: [u8; 8] = large_field.to_le_bytes();
+        assert_eq(Field::from_le_bytes::<8>(bytes), large_field);
+
+        let radix_bytes: [u8; 8] = large_field.to_le_radix(256);
+        assert_eq(Field::from_le_bytes::<8>(radix_bytes), large_field);
+    }
+
+    #[test]
+    fn test_large_field_values() {
+        let large_val = 0xffffffffffffffff;
+        
+        let bits: [u1; 64] = large_val.to_le_bits();
+        assert_eq(bits[0], 1);
+        
+        let bytes: [u8; 8] = large_val.to_le_bytes();
+        assert_eq(Field::from_le_bytes::<8>(bytes), large_val);
+        
+        let radix_bytes: [u8; 8] = large_val.to_le_radix(256);
+        assert_eq(Field::from_le_bytes::<8>(radix_bytes), large_val);
+    }
+
+    #[test]
+    fn test_decomposition_edge_cases() {
+        let zero_bits: [u1; 8] = 0.to_le_bits();
+        assert_eq(zero_bits, [0; 8]);
+        
+        let zero_bytes: [u8; 8] = 0.to_le_bytes();
+        assert_eq(zero_bytes, [0; 8]);
+        
+        let one_bits: [u1; 8] = 1.to_le_bits();
+        assert_eq(one_bits[0], 1);
+        assert_eq(one_bits[1], 0);
+        assert_eq(one_bits[2], 0);
+        assert_eq(one_bits[3], 0);
+        assert_eq(one_bits[4], 0);
+        assert_eq(one_bits[5], 0);
+        assert_eq(one_bits[6], 0);
+        assert_eq(one_bits[7], 0);
+        
+        let pow2_bits: [u1; 8] = 4.to_le_bits();
+        assert_eq(pow2_bits[0], 0);
+        assert_eq(pow2_bits[1], 0);
+        assert_eq(pow2_bits[2], 1);
+        assert_eq(pow2_bits[3], 0);
+        assert_eq(pow2_bits[4], 0);
+        assert_eq(pow2_bits[5], 0);
+        assert_eq(pow2_bits[6], 0);
+        assert_eq(pow2_bits[7], 0);
+    }
+
+    #[test]
+    fn test_pow_32() {
+        assert_eq(2.pow_32(3), 8);
+        assert_eq(3.pow_32(2), 9);
+        assert_eq(5.pow_32(0), 1);
+        assert_eq(7.pow_32(1), 7);
+        
+
+        assert_eq(2.pow_32(10), 1024);
+        
+        assert_eq(0.pow_32(5), 0);
+        assert_eq(0.pow_32(0), 1);
+
+        assert_eq(1.pow_32(100), 1);
+    }
+
+    #[test]
+    fn test_sgn0() {
+        assert_eq(0.sgn0(), 0);
+        assert_eq(2.sgn0(), 0);
+        assert_eq(4.sgn0(), 0);
+        assert_eq(100.sgn0(), 0);
+        
+        assert_eq(1.sgn0(), 1);
+        assert_eq(3.sgn0(), 1);
+        assert_eq(5.sgn0(), 1);
+        assert_eq(101.sgn0(), 1);
+    }
+
+    #[test(should_fail_with = "Field failed to decompose into specified 8 limbs")]
+    fn test_bit_decomposition_overflow() {
+        // 8 bits can't represent large field values
+        let large_val = 0x1000000000000000;
+        let _: [u1; 8] = large_val.to_le_bits();
+    }
+
+    #[test(should_fail_with = "Field failed to decompose into specified 4 limbs")]
+    fn test_byte_decomposition_overflow() {
+        // 4 bytes can't represent large field values
+        let large_val = 0x1000000000000000;
+        let _: [u8; 4] = large_val.to_le_bytes();
+    }
+
 }
