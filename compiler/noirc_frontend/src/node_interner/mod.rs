@@ -45,11 +45,11 @@ mod methods;
 mod reexports;
 mod trait_impl;
 
-use dependency::DependencyId;
+pub use dependency::DependencyId;
 use globals::GlobalInfo;
 pub use globals::{GlobalId, GlobalValue};
 pub use ids::*;
-use methods::Methods;
+pub use methods::{ImplMethod, Methods};
 pub use reexports::Reexport;
 
 #[derive(Debug)]

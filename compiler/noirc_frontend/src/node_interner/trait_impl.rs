@@ -179,7 +179,7 @@ impl NodeInterner {
     /// - 1+ failing trait constraints, including the original.
     ///   Each constraint after the first represents a `where` clause that was followed.
     /// - 0 trait constraints indicating type annotations are needed to choose an impl.
-    fn try_lookup_trait_implementation(
+    pub(crate) fn try_lookup_trait_implementation(
         &self,
         object_type: &Type,
         trait_id: TraitId,

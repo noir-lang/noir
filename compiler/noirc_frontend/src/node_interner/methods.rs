@@ -79,15 +79,7 @@ impl Methods {
         results
     }
 
-    /// Iterate through each method, starting with the direct methods
-    fn iter(&self) -> impl Iterator<Item = (FuncId, &Type, Option<TraitId>)> {
-        let trait_impl_methods =
-            self.trait_impl_methods.iter().map(|m| (m.method, &m.typ, Some(m.trait_id)));
-        let direct = self.direct.iter().map(|method| (method.method, &method.typ, None));
-        direct.chain(trait_impl_methods)
-    }
-
-    fn find_matching_methods<'a>(
+    pub fn find_matching_methods<'a>(
         &'a self,
         typ: &'a Type,
         has_self_param: bool,
@@ -100,6 +92,14 @@ impl Methods {
                 None
             }
         })
+    }
+
+    /// Iterate through each method, starting with the direct methods
+    fn iter(&self) -> impl Iterator<Item = (FuncId, &Type, Option<TraitId>)> {
+        let trait_impl_methods =
+            self.trait_impl_methods.iter().map(|m| (m.method, &m.typ, Some(m.trait_id)));
+        let direct = self.direct.iter().map(|method| (method.method, &method.typ, None));
+        direct.chain(trait_impl_methods)
     }
 
     fn method_matches(
