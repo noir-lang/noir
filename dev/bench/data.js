@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1756467435642,
+  "lastUpdate": 1756467445430,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -12112,80 +12112,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "8e8ce66d5d04b6a270b8764a4f3a1f03b23884d4",
-          "message": "chore!: remove `verify_signature_slice` methods from stdlib (#9597)",
-          "timestamp": "2025-08-21T17:05:10Z",
-          "tree_id": "afb9b655db4000e66baab502f9c90781a1039b1d",
-          "url": "https://github.com/noir-lang/noir/commit/8e8ce66d5d04b6a270b8764a4f3a1f03b23884d4"
-        },
-        "date": 1755799549324,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 206.72,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 243.54,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 195.95,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 500.25,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 432.89,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1500,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 328.19,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 330.55,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 69.5,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 54.99,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -15755,6 +15681,80 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/585175e56f2c34f225fe6ac87a91f4962c61553d"
         },
         "date": 1756423981776,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 213.88,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 247.08,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 198.71,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 502.47,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 434.93,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1500,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 329.26,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 331.79,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 70.43,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 57.32,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "81b4089e025db64570d17dc4d4ad82d7aa49aae9",
+          "message": "chore(ssa): Refactor flattening (#9663)",
+          "timestamp": "2025-08-29T10:53:17Z",
+          "tree_id": "a93307b6649641a732e9057dd2a92bf4128e13b4",
+          "url": "https://github.com/noir-lang/noir/commit/81b4089e025db64570d17dc4d4ad82d7aa49aae9"
+        },
+        "date": 1756467426102,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
