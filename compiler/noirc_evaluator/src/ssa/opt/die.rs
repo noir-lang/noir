@@ -33,13 +33,7 @@ impl Ssa {
     /// This step should come after the flattening of the CFG and mem2reg.
     #[tracing::instrument(level = "trace", skip(self))]
     pub fn dead_instruction_elimination(self) -> Ssa {
-        self.dead_instruction_elimination_with_pruning(true, false)
-    }
-
-    /// Post the Brillig generation we do not need to run this pass on Brillig functions.
-    #[tracing::instrument(level = "trace", skip(self))]
-    pub(crate) fn dead_instruction_elimination_acir(self) -> Ssa {
-        self.dead_instruction_elimination_with_pruning(true, true)
+        self.dead_instruction_elimination_with_pruning(true)
     }
 
     /// The elimination of certain unused instructions assumes that the DIE pass runs after
@@ -47,21 +41,16 @@ impl Ssa {
     /// them just yet.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn dead_instruction_elimination_pre_flattening(self) -> Ssa {
-        self.dead_instruction_elimination_with_pruning(false, false)
+        self.dead_instruction_elimination_with_pruning(false)
     }
 
-    fn dead_instruction_elimination_with_pruning(
-        mut self,
-        flattened: bool,
-        skip_brillig: bool,
-    ) -> Ssa {
+    fn dead_instruction_elimination_with_pruning(mut self, flattened: bool) -> Ssa {
         #[cfg(debug_assertions)]
         self.functions.values().for_each(|func| die_pre_check(func, flattened));
 
         let mut previous_unused_params = None;
         loop {
-            let (new_ssa, result) =
-                self.dead_instruction_elimination_inner(flattened, skip_brillig);
+            let (new_ssa, result) = self.dead_instruction_elimination_inner(flattened);
 
             // Determine whether we have any unused variables
             let has_unused = result
@@ -87,17 +76,12 @@ impl Ssa {
         }
     }
 
-    fn dead_instruction_elimination_inner(
-        mut self,
-        flattened: bool,
-        skip_brillig: bool,
-    ) -> (Ssa, DIEResult) {
+    fn dead_instruction_elimination_inner(mut self, flattened: bool) -> (Ssa, DIEResult) {
         let result = self
             .functions
             .par_iter_mut()
             .map(|(id, func)| {
-                let unused_params =
-                    func.dead_instruction_elimination(true, flattened, skip_brillig);
+                let unused_params = func.dead_instruction_elimination(true, flattened);
                 let mut result = DIEResult::default();
 
                 result.unused_parameters.insert(*id, unused_params);
@@ -148,12 +132,7 @@ impl Function {
         &mut self,
         insert_out_of_bounds_checks: bool,
         flattened: bool,
-        skip_brillig: bool,
     ) -> HashMap<BasicBlockId, Vec<ValueId>> {
-        if skip_brillig && self.dfg.runtime().is_brillig() {
-            return HashMap::default();
-        }
-
         let mut context = Context { flattened, ..Default::default() };
 
         context.mark_function_parameter_arrays_as_used(self);
@@ -193,7 +172,7 @@ impl Function {
         // instructions (we don't want to remove those checks, or instructions that are
         // dependencies of those checks)
         if inserted_out_of_bounds_checks {
-            return self.dead_instruction_elimination(false, flattened, skip_brillig);
+            return self.dead_instruction_elimination(false, flattened);
         }
 
         context.remove_rc_instructions(&mut self.dfg);
@@ -1043,7 +1022,7 @@ mod test {
             }
             ";
         let ssa = Ssa::from_str(src).unwrap();
-        let (ssa, _) = ssa.dead_instruction_elimination_inner(false, false);
+        let (ssa, _) = ssa.dead_instruction_elimination_inner(false);
 
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
@@ -1341,7 +1320,7 @@ mod test {
         let ssa = Ssa::from_str(src).unwrap();
 
         // Even though these ACIR functions only have 1 block, we have not inlined and flattened anything yet.
-        let (ssa, _) = ssa.dead_instruction_elimination_inner(false, false);
+        let (ssa, _) = ssa.dead_instruction_elimination_inner(false);
 
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
@@ -1412,7 +1391,7 @@ mod test {
         "#;
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.purity_analysis();
-        let (ssa, _) = ssa.dead_instruction_elimination_inner(false, false);
+        let (ssa, _) = ssa.dead_instruction_elimination_inner(false);
 
         // We expect the call to f1 in f0 to be removed
         assert_ssa_snapshot!(ssa, @r#"
@@ -1446,7 +1425,7 @@ mod test {
 
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.purity_analysis();
-        let (ssa, _) = ssa.dead_instruction_elimination_inner(false, false);
+        let (ssa, _) = ssa.dead_instruction_elimination_inner(false);
 
         // We expect the program to be unchanged except that functions are labeled with purities now
         assert_ssa_snapshot!(ssa, @r#"
@@ -1480,7 +1459,7 @@ mod test {
 
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.purity_analysis();
-        let (ssa, _) = ssa.dead_instruction_elimination_inner(false, false);
+        let (ssa, _) = ssa.dead_instruction_elimination_inner(false);
 
         // We expect the program to be unchanged except that functions are labeled with purities now
         assert_ssa_snapshot!(ssa, @r#"

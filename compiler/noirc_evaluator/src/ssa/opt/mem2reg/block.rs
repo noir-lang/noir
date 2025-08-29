@@ -40,7 +40,9 @@ pub(super) type Container = AliasSet;
 impl Block {
     /// If the given reference id points to a known value, return the value
     pub(super) fn get_known_value(&self, address: ValueId) -> Option<ValueId> {
-        self.references.get(&address).copied()
+        let r = self.references.get(&address).copied();
+        println!("known_value({address}) = {r:?}");
+        r
     }
 
     /// If the given address is known, set its value to `value`.
@@ -63,6 +65,7 @@ impl Block {
 
     fn set_value(&mut self, address: ValueId, value: Option<ValueId>) {
         let aliases = self.aliases.entry(address).or_default();
+        println!("set_value {address} := {value:?} with {} aliases", aliases.len());
 
         if aliases.is_unknown() {
             // uh-oh, we don't know at all what this reference refers to, could be anything.
@@ -75,6 +78,7 @@ impl Block {
             // invalidate all references it may refer to. If there is exactly is exactly
             // 1 alias, its value becomes known on the call to `set_reference_value` below.
             for alias in aliases.iter() {
+                println!("  invalidating {alias}");
                 self.references.remove(&alias);
             }
         }
@@ -105,19 +109,6 @@ impl Block {
         self.containers = Self::unify_alias_sets(&self.containers, &other.containers);
         self.aliases = Self::unify_alias_sets(&self.aliases, &other.aliases);
 
-        // for (expression, new_aliases) in &other.aliases {
-        //     // If nothing would change, then don't call `.entry(...).and_modify(...)` as it involves creating more `Arc`s.
-        //     if let Some(aliases) = self.aliases.get(expression) {
-        //         if !aliases.should_unify(new_aliases) {
-        //             continue;
-        //         }
-        //     }
-        //     self.aliases
-        //         .entry(*expression)
-        //         .and_modify(|aliases| aliases.unify(new_aliases))
-        //         .or_insert_with(|| new_aliases.clone());
-        // }
-
         // Keep only the references present in both maps.
         let mut intersection = im::OrdMap::new();
         for (value_id, reference) in &other.references {
@@ -141,8 +132,12 @@ impl Block {
         for (value_id, other_set) in map2 {
             if let Some(existing) = map1.get(value_id) {
                 if !existing.is_unknown() && !other_set.is_unknown() {
+                    println!("Unifying alias set {value_id} with old set:");
+                    println!("  Set1: {existing:?}");
+                    println!("  Set2: {other_set:?}");
                     let mut new_set = existing.clone();
                     new_set.unify(other_set);
+                    println!("  New : {new_set:?}");
                     intersection.insert(*value_id, new_set);
                 }
             }

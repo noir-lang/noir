@@ -602,14 +602,8 @@ impl<'f> PerFunctionContext<'f> {
                         references.add_alias(result, then_value);
                         references.add_alias(result, else_value);
                     } else {
-                        let mut result_container =
-                            references.containers.get(&then_value).cloned().unwrap_or_default();
-
-                        match references.containers.get(&else_value) {
-                            Some(else_container) => result_container.unify(else_container),
-                            None => result_container = AliasSet::unknown(),
-                        }
-
+                        let mut result_container = references.get_container(then_value).into_owned();
+                        result_container.unify(&references.get_container(else_value));
                         references.containers.insert(result, result_container);
                     }
                 }
@@ -648,16 +642,8 @@ impl<'f> PerFunctionContext<'f> {
                 aliases.unify(&element_aliases);
             // element is an array which contains references
             } else if element_type.is_array_or_slice() && element_type.contains_reference() {
-                match references.containers.get(&element) {
-                    Some(element_aliases) if !element_aliases.is_unknown() => {
-                        aliases.unify(element_aliases)
-                    }
-                    _ => {
-                        *aliases = AliasSet::unknown();
-                        // No need to continue
-                        return;
-                    }
-                }
+                let element_references = references.get_container(element);
+                aliases.unify(&element_references);
             }
         }
     }
@@ -711,6 +697,24 @@ impl<'f> PerFunctionContext<'f> {
                 // parameters as aliasing one another.
                 let mut arg_set: HashMap<ValueId, VecSet<[ValueId; 1]>> = HashMap::default();
 
+                // To handle block parameters which may alias we need to alias the parameters to
+                // each argument before we unify all aliases in the next loop so that e.g. the
+                // first argument can see the aliases of the last.
+                for (parameter, argument) in destination_parameters.iter().zip(arguments) {
+                    if let Type::Reference(element) = self.inserter.function.dfg.type_of_value(*parameter) {
+                        if !element.contains_reference() {
+                            if !references.aliases.contains_key(parameter) {
+                                references.insert_fresh_reference(*parameter);
+                            }
+
+                            // If `argument` is passed to multiple parameters we need to ensure it
+                            // has all of them as aliases first before we add all the aliases of
+                            // `argument` to each `parameter` below.
+                            references.add_alias(*argument, *parameter);
+                        }
+                    }
+                }
+
                 // Add an alias for each reference parameter
                 for (parameter, argument) in destination_parameters.iter().zip(arguments) {
                     match self.inserter.function.dfg.type_of_value(*parameter) {
@@ -722,6 +726,15 @@ impl<'f> PerFunctionContext<'f> {
                             return;
                         }
                         Type::Reference(_) => {
+                            let argument_aliases = references.get_aliases_for_value(*argument).into_owned();
+                            if let Some(parameter_aliases) = references.aliases.get_mut(parameter) {
+                                println!("Unifying block terminator refs:");
+                                println!("  {parameter_aliases:?}");
+                                println!("  {argument_aliases:?}");
+                                parameter_aliases.unify(&argument_aliases);
+                                println!(" ={parameter_aliases:?}");
+                            }
+
                             if let Some(aliases) = references.aliases.get_mut(&argument) {
                                 let argument = *argument;
 
@@ -1812,6 +1825,18 @@ mod tests {
         assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 
+    // Alias graph:
+    //   v0 <-> v1
+    //   ^      ^
+    //   |      |  All refs should invalidate each other
+    //   |      |
+    //   v2     v3
+    //
+    // Invalidates graph:
+    // v0 -> v1, v2, v3
+    // v1 -> v0, v2, v3
+    // v2 -> v0, v1, v3
+    // v3 -> v0, v1, v2
     #[test]
     fn aliases_block_parameter_to_its_argument() {
         // Here:
@@ -1834,17 +1859,190 @@ mod tests {
         assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
 
-    // For aliases_block_parameter_to_its_argument:
-    // starting references for Block b1 {
-    //   containers: {},
-    //   aliases: {
-    //     // Why are both v0 and v1 aliased to v3? And why not v2 & v3?
-    //     Id(0): AliasSet { aliases: Some({Id(0), Id(1), Id(3)}) },
-    //     Id(1): AliasSet { aliases: Some({Id(0), Id(1), Id(3)}) },
-    //     Id(2): AliasSet { aliases: Some({Id(0), Id(1), Id(2)}) },
-    //     Id(3): AliasSet { aliases: Some({Id(0), Id(1), Id(3)}) }
-    //   },
-    //   references: {},
-    //   last_stores: {},
-    // }
+    // Alias graph:
+    //   v0 <-> v1
+    //   ^      ^  v4
+    //   |      |  ^
+    //   |      | /
+    //   v2     v3
+    //
+    // Invalidates graph:
+    // v0 -> v1, v2, v3
+    // v1 -> v0, v2, v3
+    // v2 -> v0, v1, v3
+    // v3 -> v0, v1, v2
+    #[test]
+    fn aliases_block_parameter_to_its_argument_complex() {
+        // Here:
+        // - v0 and v1 are potentially aliases of each other
+        // - v2 must be an alias of v0 (there was a bug around this)
+        // - v3 must be an alias of v1 (same as previous point)
+        // - `v4 = load v2` cannot be replaced with `Field 2` because
+        //   v2 and v3 are also potentially aliases of each other
+        let src = r#"
+        acir(inline) fn create_note f0 {
+          b0(v0: &mut Field, v1: &mut Field, v2: u1):
+            jmpif v2, then: b1, else: b2
+          b1():
+            jmp b3(v0, v1)
+          b2():
+            v4 = allocate -> &mut Field
+            store Field 0 in v4
+            jmp b3(v0, v4)
+          b3(v2: &mut Field, v3: &mut Field):
+            store Field 2 at v2
+            store Field 3 at v3
+            v5 = load v2 -> Field
+            return v4
+        }
+        "#;
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
+    }
+
+    // Alias graph:
+    //   v0 <- v4 -> v2
+    //
+    //   v0 -> v4 <- v2
+    //
+    // How do we express "v0 may invalidate v4 but never v2?"
+    // While also expressing "v4 should invalidate both v0 and v2?"
+    //
+    // Invalidates graph:
+    // v0 -> v4
+    // v2 -> v4
+    // v4 -> v0, v2
+    //
+    // Invalidate direct neighbors only:
+    // v0 <-> v4 <-> v2
+    //
+    // Step by Step build of graph:
+    // 1: v0
+    // 2: v0, v2
+    // 3: v0, v2, v4
+    // 4: v0->{v4}, v2->{v4}, v4{v0,v2}
+    #[test]
+    fn does_not_remove_store_used_in_if_then() {
+        let src = "
+        brillig(inline) fn func f0 {
+          b0(v0: &mut u1, v1: u1):
+            v2 = allocate -> &mut u1
+            store v1 at v2
+            jmp b1()
+          b1():
+            v3 = not v1
+            v4 = if v1 then v0 else (if v3) v2
+            v6 = call f0(v4, v1) -> Field
+            return v6
+        }
+        ";
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
+    }
+
+    #[test]
+    fn block_argument_is_alias_of_block_parameter_1() {
+        // Here the last load can't be replaced with `Field 0` as v0 and v1 are aliases of one another.
+        let src = "
+        brillig(inline) impure fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 0 at v0
+            jmp b1(v0)
+          b1(v1: &mut Field):
+            store Field 1 at v1
+            v2 = load v0 -> Field
+            return v2
+        }
+        ";
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
+    }
+
+    #[test]
+    fn block_argument_is_alias_of_block_parameter_2() {
+        // Here the last load can't be replaced with `Field 1` as v0 and v1 are aliases of one another.
+        let src = "
+        brillig(inline) impure fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 0 at v0
+            jmp b1(v0)
+          b1(v1: &mut Field):
+            store Field 1 at v1
+            store Field 2 at v0
+            v2 = load v1 -> Field
+            return v2
+        }
+        ";
+        assert_ssa_does_not_change(src, Ssa::mem2reg);
+    }
+
+    #[test]
+    fn nested_alias_in_array() {
+        let src = "
+        acir(inline) fn regression_2445_deeper_ref f2 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 0 at v0
+            v2 = allocate -> &mut &mut Field
+            store v0 at v2
+            v3 = allocate -> &mut &mut &mut Field
+            store v2 at v3
+            v4 = make_array [v3, v3] : [&mut &mut &mut Field; 2]
+            v5 = allocate -> &mut [&mut &mut &mut Field; 2]
+            store v4 at v5
+            v6 = load v5 -> [&mut &mut &mut Field; 2]
+            v8 = array_get v6, index u32 0 -> &mut &mut &mut Field
+            v9 = load v8 -> &mut &mut Field
+            v10 = load v9 -> &mut Field
+            store Field 1 at v10
+            v12 = load v5 -> [&mut &mut &mut Field; 2]
+            v14 = array_get v12, index u32 1 -> &mut &mut &mut Field
+            v15 = load v14 -> &mut &mut Field
+            v16 = load v15 -> &mut Field
+            store Field 2 at v16
+            v18 = load v0 -> Field
+            v19 = eq v18, Field 2
+            constrain v18 == Field 2
+            v20 = load v3 -> &mut &mut Field
+            v21 = load v20 -> &mut Field
+            v22 = load v21 -> Field
+            v23 = eq v22, Field 2
+            constrain v22 == Field 2
+            v24 = load v5 -> [&mut &mut &mut Field; 2]
+            v25 = array_get v24, index u32 0 -> &mut &mut &mut Field
+            v26 = load v25 -> &mut &mut Field
+            v27 = load v26 -> &mut Field
+            v28 = load v27 -> Field
+            v29 = eq v28, Field 2
+            constrain v28 == Field 2
+            v30 = load v5 -> [&mut &mut &mut Field; 2]
+            v31 = array_get v30, index u32 1 -> &mut &mut &mut Field
+            v32 = load v31 -> &mut &mut Field
+            v33 = load v32 -> &mut Field
+            v34 = load v33 -> Field
+            v35 = eq v34, Field 2
+            constrain v34 == Field 2
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
+
+        // We expect the final references to both be resolved to `Field 2` and thus the constrain instructions
+        // will be trivially true and simplified out.
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn regression_2445_deeper_ref f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 0 at v0
+            v2 = allocate -> &mut &mut Field
+            store v0 at v2
+            v3 = allocate -> &mut &mut &mut Field
+            store v2 at v3
+            v4 = make_array [v3, v3] : [&mut &mut &mut Field; 2]
+            v5 = allocate -> &mut [&mut &mut &mut Field; 2]
+            store Field 1 at v0
+            return
+        }
+        ");
+    }
 }
