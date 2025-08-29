@@ -8,11 +8,11 @@ use crate::mutations::configuration::BOOL_MUTATION_CONFIGURATION_MOSTLY_FALSE;
 use crate::mutations::{
     basic_types::{
         bool::mutate_bool,
+        numeric_type::mutate_numeric_type,
         point::{generate_random_point, mutate_point},
         scalar::generate_random_scalar,
         scalar::mutate_scalar,
         usize::mutate_usize,
-        value_type::mutate_value_type,
         vec::mutate_vec,
     },
     configuration::{
@@ -21,8 +21,8 @@ use crate::mutations::{
         BASIC_ARRAY_SET_MUTATION_CONFIGURATION, BASIC_BLAKE_HASH_MUTATION_CONFIGURATION,
         BASIC_BOOL_MUTATION_CONFIGURATION, BASIC_CREATE_ARRAY_MUTATION_CONFIGURATION,
         BASIC_INSTRUCTION_ARGUMENT_MUTATION_CONFIGURATION,
-        BASIC_INSTRUCTION_MUTATION_CONFIGURATION, BASIC_SHA256_COMPRESSION_MUTATION_CONFIGURATION,
-        BASIC_USIZE_MUTATION_CONFIGURATION, BASIC_VALUE_TYPE_MUTATION_CONFIGURATION,
+        BASIC_INSTRUCTION_MUTATION_CONFIGURATION, BASIC_NUMERIC_TYPE_MUTATION_CONFIGURATION,
+        BASIC_SHA256_COMPRESSION_MUTATION_CONFIGURATION, BASIC_USIZE_MUTATION_CONFIGURATION,
         BASIC_VEC_MUTATION_CONFIGURATION, BOOL_MUTATION_CONFIGURATION_MOSTLY_TRUE,
         BlakeHashMutationOptions, CreateArrayMutationOptions, InstructionArgumentMutationOptions,
         InstructionMutationOptions, SIZE_OF_SMALL_ARBITRARY_BUFFER,
@@ -85,7 +85,7 @@ impl InstructionArgumentsMutation {
                         argument_mutator(lhs, rng);
                     }
                     InstructionArgumentMutationOptions::Right => {
-                        mutate_value_type(type_, rng, BASIC_VALUE_TYPE_MUTATION_CONFIGURATION);
+                        mutate_numeric_type(type_, rng, BASIC_NUMERIC_TYPE_MUTATION_CONFIGURATION);
                     }
                 }
             }
@@ -156,10 +156,10 @@ impl InstructionArgumentsMutation {
                         );
                     }
                     CreateArrayMutationOptions::ElementType => {
-                        mutate_value_type(
+                        mutate_numeric_type(
                             element_type,
                             rng,
-                            BASIC_VALUE_TYPE_MUTATION_CONFIGURATION,
+                            BASIC_NUMERIC_TYPE_MUTATION_CONFIGURATION,
                         );
                     }
                     CreateArrayMutationOptions::IsReferences => {

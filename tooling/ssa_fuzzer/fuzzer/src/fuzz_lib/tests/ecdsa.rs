@@ -6,7 +6,7 @@ use crate::options::FuzzerOptions;
 use crate::tests::common::default_witness;
 use acvm::AcirField;
 use acvm::FieldElement;
-use noir_ssa_fuzzer::typed_value::ValueType;
+use noir_ssa_fuzzer::r#type::NumericType;
 
 #[test]
 fn test_valid_ecdsa_signature_secp256r1() {
@@ -22,8 +22,11 @@ fn test_valid_ecdsa_signature_secp256r1() {
     };
     let block = InstructionBlock { instructions: vec![instruction] };
     let commands = vec![];
-    let function =
-        FunctionData { commands, return_instruction_block_idx: 0, return_type: ValueType::Boolean };
+    let function = FunctionData {
+        commands,
+        return_instruction_block_idx: 0,
+        return_type: NumericType::Boolean,
+    };
     let data = FuzzerData {
         instruction_blocks: vec![block],
         functions: vec![function],
@@ -47,8 +50,11 @@ fn test_valid_ecdsa_signature_secp256k1() {
     };
     let block = InstructionBlock { instructions: vec![instruction] };
     let commands = vec![];
-    let function =
-        FunctionData { commands, return_instruction_block_idx: 0, return_type: ValueType::Boolean };
+    let function = FunctionData {
+        commands,
+        return_instruction_block_idx: 0,
+        return_type: NumericType::Boolean,
+    };
     let data = FuzzerData {
         instruction_blocks: vec![block],
         functions: vec![function],
@@ -72,8 +78,11 @@ fn test_corrupted_ecdsa_signature_secp256r1() {
     };
     let block = InstructionBlock { instructions: vec![instruction] };
     let commands = vec![];
-    let function =
-        FunctionData { commands, return_instruction_block_idx: 0, return_type: ValueType::Boolean };
+    let function = FunctionData {
+        commands,
+        return_instruction_block_idx: 0,
+        return_type: NumericType::Boolean,
+    };
     let data = FuzzerData {
         instruction_blocks: vec![block],
         functions: vec![function],
@@ -100,8 +109,11 @@ fn test_corrupted_ecdsa_signature_secp256k1() {
     };
     let block = InstructionBlock { instructions: vec![instruction] };
     let commands = vec![];
-    let function =
-        FunctionData { commands, return_instruction_block_idx: 0, return_type: ValueType::Boolean };
+    let function = FunctionData {
+        commands,
+        return_instruction_block_idx: 0,
+        return_type: NumericType::Boolean,
+    };
     let data = FuzzerData {
         instruction_blocks: vec![block],
         functions: vec![function],

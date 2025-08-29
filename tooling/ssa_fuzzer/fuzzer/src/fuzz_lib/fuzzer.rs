@@ -26,7 +26,7 @@ use libfuzzer_sys::{arbitrary, arbitrary::Arbitrary};
 use noir_ssa_executor::runner::execute_single;
 use noir_ssa_fuzzer::{
     runner::{CompareResults, run_and_compare},
-    typed_value::ValueType,
+    r#type::NumericType,
 };
 use noirc_driver::CompiledProgram;
 use serde::{Deserialize, Serialize};
@@ -86,7 +86,11 @@ impl Fuzzer {
         Self { contexts }
     }
 
-    pub(crate) fn process_function(&mut self, function_data: FunctionData, types: Vec<ValueType>) {
+    pub(crate) fn process_function(
+        &mut self,
+        function_data: FunctionData,
+        types: Vec<NumericType>,
+    ) {
         for context in &mut self.contexts {
             context.process_function(function_data.clone(), types.clone());
         }
