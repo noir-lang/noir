@@ -2716,7 +2716,33 @@
 <a href="#2715" id="2715">2715</a>
 <a href="#2716" id="2716">2716</a>
 <a href="#2717" id="2717">2717</a>
-<a href="#2718" id="2718">2718</a></pre></div><pre class="rust"><code><span class="doccomment">//! The loop invariant code motion (LICM) pass performs two related optimizations:
+<a href="#2718" id="2718">2718</a>
+<a href="#2719" id="2719">2719</a>
+<a href="#2720" id="2720">2720</a>
+<a href="#2721" id="2721">2721</a>
+<a href="#2722" id="2722">2722</a>
+<a href="#2723" id="2723">2723</a>
+<a href="#2724" id="2724">2724</a>
+<a href="#2725" id="2725">2725</a>
+<a href="#2726" id="2726">2726</a>
+<a href="#2727" id="2727">2727</a>
+<a href="#2728" id="2728">2728</a>
+<a href="#2729" id="2729">2729</a>
+<a href="#2730" id="2730">2730</a>
+<a href="#2731" id="2731">2731</a>
+<a href="#2732" id="2732">2732</a>
+<a href="#2733" id="2733">2733</a>
+<a href="#2734" id="2734">2734</a>
+<a href="#2735" id="2735">2735</a>
+<a href="#2736" id="2736">2736</a>
+<a href="#2737" id="2737">2737</a>
+<a href="#2738" id="2738">2738</a>
+<a href="#2739" id="2739">2739</a>
+<a href="#2740" id="2740">2740</a>
+<a href="#2741" id="2741">2741</a>
+<a href="#2742" id="2742">2742</a>
+<a href="#2743" id="2743">2743</a>
+<a href="#2744" id="2744">2744</a></pre></div><pre class="rust"><code><span class="doccomment">//! The loop invariant code motion (LICM) pass performs two related optimizations:
 //! 1. Loop-Invariant Code Motion: Moves computations that produce the same result
 //!    on every iteration out of the loop and into its pre-header.
 //! 2. Loop-Bounds Simplification: Simplifies computations inside the loop body
@@ -2751,6 +2777,10 @@
 //! (1) there exists a directed path P from X to Y with any 2 in P (excluding X
 //! and Y) post-dominated by Y and
 //! (2) X is not post-dominated by Y.
+//!
+//! If Y is control dependent on X then X must have two exits. Following one of the
+//! exits from X always results in Y being executed, while taking the other exit may
+//! result in Y not being executed.
 //! ```
 //!
 //! Verifying these conditions for every loop block would be quite inefficient.
@@ -2796,7 +2826,9 @@
 //! - On Brillig, additional reference-counting rules apply. For example, hoisting [Instruction::MakeArray]
 //!   requires inserting an [Instruction::IncrementRc] to preserve reference semantics if the array
 //!   may later be mutated.
-</span><span class="kw">use </span><span class="kw">crate</span>::ssa::{
+</span><span class="kw">use </span>std::collections::BTreeSet;
+
+<span class="kw">use </span><span class="kw">crate</span>::ssa::{
     Ssa,
     ir::{
         basic_block::BasicBlockId,
@@ -2894,7 +2926,8 @@
     </span>}
 }
 
-<span class="kw">struct </span>LoopInvariantContext&lt;<span class="lifetime">'f</span>&gt; {
+<span class="doccomment">/// Context with the scope of an entire function.
+</span><span class="kw">struct </span>LoopInvariantContext&lt;<span class="lifetime">'f</span>&gt; {
     inserter: FunctionInserter&lt;<span class="lifetime">'f</span>&gt;,
 
     <span class="doccomment">/// Maps outer loop induction variable -&gt; fixed lower and upper loop bound
@@ -2914,12 +2947,19 @@
     false_value: ValueId,
 }
 
-<span class="attr">#[derive(Default)]
+<span class="doccomment">/// Context with the scope of just one loop.
 </span><span class="kw">struct </span>LoopContext {
-    <span class="doccomment">/// Maps current loop induction variable with a fixed lower and upper loop bound
-    </span>current_induction_variable: <span class="prelude-ty">Option</span>&lt;(ValueId, (IntegerConstant, IntegerConstant))&gt;,
-    pre_header: <span class="prelude-ty">Option</span>&lt;BasicBlockId&gt;,
-    defined_in_loop: HashSet&lt;ValueId&gt;,
+    pre_header: BasicBlockId,
+    <span class="doccomment">/// Maps current loop induction variable with a fixed lower and upper loop bound.
+    /// If the loop doesn't have constant bounds then it's `None`.
+    </span>induction_variable: <span class="prelude-ty">Option</span>&lt;(ValueId, (IntegerConstant, IntegerConstant))&gt;,
+
+    <span class="doccomment">/// Indicate whether this loop has fixed bounds that are guaranteed to execute at least once.
+    </span>does_loop_execute: bool,
+
+    <span class="doccomment">/// Any values defined in the loop: block parameters and instruction results.
+    </span>defined_in_loop: HashSet&lt;ValueId&gt;,
+
     loop_invariants: HashSet&lt;ValueId&gt;,
     <span class="doccomment">/// Caches all blocks that belong to nested loops determined to be control dependent
     /// on blocks in an outer loop. This allows short circuiting future control dependence
@@ -2928,46 +2968,38 @@
     ///
     /// Reset for each new loop as the set should not be shared across different outer loops.
     </span>nested_loop_control_dependent_blocks: HashSet&lt;BasicBlockId&gt;,
-    <span class="comment">// Indicates whether the current loop has break or early returns
+    <span class="doccomment">/// Indicates whether the current loop has break or early returns
     </span>no_break: bool,
-
-    <span class="comment">// Stores whether the current block being processed is control dependent
-    </span>current_block_control_dependent: bool,
-
-    <span class="comment">// Tracks whether the current block has a side-effectual instruction.
-    // This is maintained per instruction for hoisting control dependent instructions
-    </span>current_block_impure: bool,
-
-    <span class="comment">// Stores whether the current block has known fix upper and lower bounds that
-    // indicate that it is guaranteed to execute at least once.
-    </span>current_block_executes: bool,
 }
 
-<span class="kw">impl </span>LoopContext {
-    <span class="kw">fn </span>pre_header(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; BasicBlockId {
-        <span class="self">self</span>.pre_header.expect(<span class="string">"ICE: Pre-header block should have been set"</span>)
-    }
+<span class="kw">struct </span>BlockContext {
+    <span class="doccomment">/// Indicate that this block is the header of the current loop.
+    </span>is_header: bool,
+    <span class="doccomment">/// Stores whether the current block being processed is control dependent.
+    </span>is_control_dependent: bool,
+    <span class="doccomment">/// Tracks whether the current block has a side-effectual instruction.
+    /// This is maintained per instruction for hoisting control dependent instructions
+    </span>is_impure: bool,
+    <span class="doccomment">/// Stores whether the current loop has known fixed upper and lower bounds that
+    /// indicate that it is guaranteed to execute at least once.
+    </span>does_execute: bool,
+}
 
-    <span class="kw">fn </span>is_loop_invariant(<span class="kw-2">&amp;</span><span class="self">self</span>, value_id: <span class="kw-2">&amp;</span>ValueId) -&gt; bool {
-        !<span class="self">self</span>.defined_in_loop.contains(value_id) || <span class="self">self</span>.loop_invariants.contains(value_id)
-    }
-
+<span class="kw">impl </span>BlockContext {
     <span class="doccomment">/// A control dependent instruction (e.g. constrain or division) has more strict conditions for hoisting.
     /// This function check the following conditions:
     /// - The current block is non control dependent
     /// - The loop body is guaranteed to be executed
     /// - The current block is not impure
     </span><span class="kw">fn </span>can_hoist_control_dependent_instruction(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-        !<span class="self">self</span>.current_block_control_dependent
-            &amp;&amp; <span class="self">self</span>.current_block_executes
-            &amp;&amp; !<span class="self">self</span>.current_block_impure
+        !<span class="self">self</span>.is_control_dependent &amp;&amp; <span class="self">self</span>.does_execute &amp;&amp; !<span class="self">self</span>.is_impure
     }
 
     <span class="doccomment">/// A control dependent instruction (e.g. constrain or division) has more strict conditions for simplifying.
     /// This function matches [Self::can_hoist_control_dependent_instruction] except
     /// that simplification does not require that the current block is pure to be simplified.
     </span><span class="kw">fn </span>can_simplify_control_dependent_instruction(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; bool {
-        !<span class="self">self</span>.current_block_control_dependent &amp;&amp; <span class="self">self</span>.current_block_executes
+        !<span class="self">self</span>.is_control_dependent &amp;&amp; <span class="self">self</span>.does_execute
     }
 
     <span class="doccomment">/// Check [can_be_hoisted] with extra control dependence information that
@@ -2980,12 +3012,23 @@
         can_be_hoisted(instruction, function, <span class="bool-val">true</span>)
             &amp;&amp; <span class="self">self</span>.can_hoist_control_dependent_instruction()
     }
+}
 
-    <span class="kw">fn </span>get_current_induction_variable_bounds(
+<span class="kw">impl </span>LoopContext {
+    <span class="kw">fn </span>pre_header(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; BasicBlockId {
+        <span class="self">self</span>.pre_header
+    }
+
+    <span class="kw">fn </span>is_loop_invariant(<span class="kw-2">&amp;</span><span class="self">self</span>, value_id: <span class="kw-2">&amp;</span>ValueId) -&gt; bool {
+        !<span class="self">self</span>.defined_in_loop.contains(value_id) || <span class="self">self</span>.loop_invariants.contains(value_id)
+    }
+
+    <span class="doccomment">/// Get the induction variable bounds if it the current variable matches the `id`.
+    </span><span class="kw">fn </span>get_current_induction_variable_bounds(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         id: ValueId,
     ) -&gt; <span class="prelude-ty">Option</span>&lt;(IntegerConstant, IntegerConstant)&gt; {
-        <span class="self">self</span>.current_induction_variable.filter(|(val, <span class="kw">_</span>)| <span class="kw-2">*</span>val == id).map(|(<span class="kw">_</span>, bounds)| bounds)
+        <span class="self">self</span>.induction_variable.filter(|(val, <span class="kw">_</span>)| <span class="kw-2">*</span>val == id).map(|(<span class="kw">_</span>, bounds)| bounds)
     }
 
     <span class="doccomment">/// Update any values defined in the loop and loop invariants after
@@ -3073,21 +3116,18 @@
         all_loops: <span class="kw-2">&amp;</span>[Loop],
         pre_header: BasicBlockId,
     ) {
-        <span class="kw">let </span><span class="kw-2">mut </span>loop_context = <span class="self">self</span>.get_values_defined_in_loop(loop_, pre_header);
+        <span class="kw">let </span><span class="kw-2">mut </span>loop_context = <span class="self">self</span>.init_loop_context(loop_, pre_header);
 
         <span class="kw">for </span>block <span class="kw">in </span>loop_.blocks.iter() {
-            <span class="comment">// Reset the per block state
-            </span>loop_context.current_block_executes =
-                <span class="self">self</span>.does_block_execute(<span class="kw-2">&amp;</span>loop_context, <span class="kw-2">*</span>block, all_loops);
-            loop_context.current_block_impure = <span class="bool-val">false</span>;
-            <span class="self">self</span>.is_control_dependent_post_pre_header(<span class="kw-2">&amp;mut </span>loop_context, loop_, <span class="kw-2">*</span>block, all_loops);
-            <span class="kw">let </span>header = loop_.header == <span class="kw-2">*</span>block;
+            <span class="kw">let </span><span class="kw-2">mut </span>block_context =
+                <span class="self">self</span>.init_block_context(<span class="kw-2">&amp;mut </span>loop_context, loop_, all_loops, <span class="kw-2">*</span>block);
 
             <span class="kw">for </span>instruction_id <span class="kw">in </span><span class="self">self</span>.inserter.function.dfg[<span class="kw-2">*</span>block].take_instructions() {
-                <span class="kw">if </span><span class="self">self</span>.simplify_from_loop_bounds(<span class="kw-2">&amp;</span>loop_context, instruction_id, header) {
+                <span class="kw">if </span><span class="self">self</span>.simplify_from_loop_bounds(<span class="kw-2">&amp;</span>loop_context, <span class="kw-2">&amp;</span>block_context, instruction_id) {
                     <span class="kw">continue</span>;
                 }
-                <span class="kw">let </span>hoist_invariant = <span class="self">self</span>.can_hoist_invariant(<span class="kw-2">&amp;</span>loop_context, instruction_id);
+                <span class="kw">let </span>hoist_invariant =
+                    <span class="self">self</span>.can_hoist_invariant(<span class="kw-2">&amp;</span>loop_context, <span class="kw-2">&amp;</span>block_context, instruction_id);
 
                 <span class="kw">if </span>hoist_invariant {
                     <span class="self">self</span>.inserter.push_instruction(instruction_id, pre_header);
@@ -3115,11 +3155,10 @@
                     }
                 } <span class="kw">else </span>{
                     <span class="kw">let </span>dfg = <span class="kw-2">&amp;</span><span class="self">self</span>.inserter.function.dfg;
-                    <span class="comment">// If the block has already been labelled as impure, we do need to check the current
+                    <span class="comment">// If the block has already been labelled as impure, we don't need to check the current
                     // instruction's side effects.
-                    </span><span class="kw">if </span>!loop_context.current_block_impure {
-                        loop_context.current_block_impure =
-                            dfg[instruction_id].has_side_effects(dfg);
+                    </span><span class="kw">if </span>!block_context.is_impure {
+                        block_context.is_impure = dfg[instruction_id].has_side_effects(dfg);
                     }
                     <span class="self">self</span>.inserter.push_instruction(instruction_id, <span class="kw-2">*</span>block);
                 }
@@ -3152,66 +3191,44 @@
     /// the given loop's header.
     </span><span class="kw">fn </span>is_control_dependent_post_pre_header(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        loop_context: <span class="kw-2">&amp;mut </span>LoopContext,
         loop_: <span class="kw-2">&amp;</span>Loop,
-        block: BasicBlockId,
         all_loops: <span class="kw-2">&amp;</span>[Loop],
-    ) {
+        block: BasicBlockId,
+        all_predecessors: <span class="kw-2">&amp;</span>BTreeSet&lt;BasicBlockId&gt;,
+        nested_loop_control_dependent_blocks: <span class="kw-2">&amp;mut </span>HashSet&lt;BasicBlockId&gt;,
+    ) -&gt; bool {
         <span class="comment">// The block is already known to be in a control dependent nested loop
         // Thus, we can avoid checking for control dependence again.
-        </span><span class="kw">if </span>loop_context.nested_loop_control_dependent_blocks.contains(<span class="kw-2">&amp;</span>block) {
-            loop_context.current_block_control_dependent = <span class="bool-val">true</span>;
-            <span class="kw">return</span>;
+        </span><span class="kw">if </span>nested_loop_control_dependent_blocks.contains(<span class="kw-2">&amp;</span>block) {
+            <span class="kw">return </span><span class="bool-val">true</span>;
         }
 
-        <span class="comment">// Find all blocks between the current block and the loop header, exclusive of the current block and loop header themselves.
-        </span><span class="kw">let </span>all_predecessors = Loop::find_blocks_in_loop(loop_.header, block, <span class="kw-2">&amp;</span><span class="self">self</span>.cfg).blocks;
-        <span class="kw">let </span>all_predecessors = all_predecessors
-            .into_iter()
-            .filter(|<span class="kw-2">&amp;</span>predecessor| predecessor != block &amp;&amp; predecessor != loop_.header)
-            .collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
-
-        <span class="kw">let </span>dfg = <span class="kw-2">&amp;</span><span class="self">self</span>.inserter.function.dfg;
-        <span class="comment">// When hoisting a control dependent instruction, if a side effectual instruction comes in the predecessor block
-        // of that instruction we can no longer hoist the control dependent instruction.
-        // This is important for maintaining ordering semantic correctness of the code.
-        </span><span class="macro">assert!</span>(
-            !loop_context.current_block_impure,
-            <span class="string">"ICE: Block impurity should be defaulted to false"
-        </span>);
-        loop_context.current_block_impure = all_predecessors.iter().any(|block| {
-            dfg[<span class="kw-2">*</span>block]
-                .instructions()
-                .iter()
-                .any(|instruction| dfg[<span class="kw-2">*</span>instruction].has_side_effects(dfg))
-        });
-
-        <span class="comment">// Reset the current block control dependent flag, the check will set it to true if needed.
-        // If we fail to reset it, a block may be inadvertently labelled
-        // as control dependent thus preventing optimizations.
-        </span>loop_context.current_block_control_dependent = <span class="bool-val">false</span>;
-
         <span class="comment">// Now check whether the current block is dependent on any blocks between
-        // the current block and the loop header, exclusive of the current block and loop header themselves
+        // the current block and the loop header, exclusive of the current block and loop header themselves.
         </span><span class="kw">if </span>all_predecessors
             .iter()
             .any(|predecessor| <span class="self">self</span>.post_dom_frontiers.is_control_dependent(<span class="kw-2">*</span>predecessor, block))
         {
-            loop_context.current_block_control_dependent = <span class="bool-val">true</span>;
-            <span class="kw">return</span>;
+            <span class="kw">return </span><span class="bool-val">true</span>;
         }
 
-        <span class="self">self</span>.is_nested_loop_control_dependent(
-            loop_context,
-            loop_,
-            block,
-            all_loops,
-            all_predecessors,
-        );
-    }
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(nested) =
+            <span class="self">self</span>.find_control_dependent_nested_loop(loop_, block, all_loops, all_predecessors)
+        {
+            <span class="comment">// Mark all blocks in the nested loop as control dependent to avoid redundant checks
+            // for each of these blocks when they are later visited during hoisting.
+            // This is valid because control dependence of the loop header implies dependence
+            // for the entire loop body.
+            </span>nested_loop_control_dependent_blocks.extend(nested.blocks.iter().copied());
+            <span class="kw">return </span><span class="bool-val">true</span>;
+        }
+
+        <span class="bool-val">false
+    </span>}
 
     <span class="doccomment">/// Determines if the `block` is in a nested loop that is control dependent
-    /// on a block in the outer loop.
+    /// on a block in the outer loop. Returns the first such loop found, if any.
+    ///
     /// If this is the case, we block hoisting as control is not guaranteed.
     /// If the block is not control dependent on the inner loop itself, it will be marked appropriately
     /// when the inner loop is processed later.
@@ -3219,14 +3236,13 @@
     /// Control dependence on a nested loop is determined by checking whether the nested loop's header
     /// is control dependent on any blocks between itself and the outer loop's header.
     /// It is expected that `all_predecessors` contains at least all of these blocks.
-    </span><span class="kw">fn </span>is_nested_loop_control_dependent(
+    </span><span class="kw">fn </span>find_control_dependent_nested_loop&lt;<span class="lifetime">'a</span>&gt;(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        loop_context: <span class="kw-2">&amp;mut </span>LoopContext,
         loop_: <span class="kw-2">&amp;</span>Loop,
         block: BasicBlockId,
-        all_loops: <span class="kw-2">&amp;</span>[Loop],
-        all_predecessors: Vec&lt;BasicBlockId&gt;,
-    ) {
+        all_loops: <span class="kw-2">&amp;</span><span class="lifetime">'a </span>[Loop],
+        all_predecessors: <span class="kw-2">&amp;</span>BTreeSet&lt;BasicBlockId&gt;,
+    ) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span><span class="lifetime">'a </span>Loop&gt; {
         <span class="comment">// Now check for nested loops within the current loop
         </span><span class="kw">for </span>nested <span class="kw">in </span>all_loops.iter() {
             <span class="kw">if </span>!nested.blocks.contains(<span class="kw-2">&amp;</span>block) {
@@ -3245,17 +3261,13 @@
                     </span>.any(|predecessor| {
                         <span class="self">self</span>.post_dom_frontiers.is_control_dependent(<span class="kw-2">*</span>predecessor, nested.header)
                     });
+
             <span class="kw">if </span>nested_loop_is_control_dep {
-                loop_context.current_block_control_dependent = <span class="bool-val">true</span>;
-                <span class="comment">// Mark all blocks in the nested loop as control dependent to avoid redundant checks
-                // for each of these blocks when they are later visited during hoisting.
-                // This is valid because control dependence of the loop header implies dependence
-                // for the entire loop body.
-                </span>loop_context.nested_loop_control_dependent_blocks.extend(nested.blocks.iter());
-                <span class="kw">return</span>;
+                <span class="kw">return </span><span class="prelude-val">Some</span>(nested);
             }
         }
-    }
+        <span class="prelude-val">None
+    </span>}
 
     <span class="doccomment">/// Determine whether a block in the loop body is guaranteed to execute.
     ///
@@ -3269,22 +3281,13 @@
     ///
     /// A block might be in a nested loop that isn't guaranteed to execute even if the current loop does.
     </span><span class="kw">fn </span>does_block_execute(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
         loop_context: <span class="kw-2">&amp;</span>LoopContext,
-        block: BasicBlockId,
         all_loops: <span class="kw-2">&amp;</span>[Loop],
+        block: BasicBlockId,
     ) -&gt; bool {
-        <span class="doccomment">/// Check that we have fixed bounds and upper is higher than lower.
-        </span><span class="kw">fn </span>check_bounds(bounds: <span class="prelude-ty">Option</span>&lt;(IntegerConstant, IntegerConstant)&gt;) -&gt; bool {
-            bounds
-                .and_then(|(lower_bound, upper_bound)| {
-                    upper_bound.reduce(lower_bound, |u, l| u &gt; l, |u, l| u &gt; l)
-                })
-                .unwrap_or(<span class="bool-val">false</span>)
-        }
-
         <span class="comment">// If the current loop doesn't execute, then nothing does.
-        </span><span class="kw">if </span>!check_bounds(loop_context.current_induction_variable.map(|(<span class="kw">_</span>, bounds)| bounds)) {
+        </span><span class="kw">if </span>!loop_context.does_loop_execute {
             <span class="kw">return </span><span class="bool-val">false</span>;
         }
 
@@ -3297,7 +3300,7 @@
                 <span class="comment">// If we don't know what the induction variable is, we can't say if it executes.
                 </span><span class="kw">return </span><span class="bool-val">false</span>;
             };
-            <span class="kw">if </span>!check_bounds(<span class="self">self</span>.all_induction_variables.get(<span class="kw-2">&amp;</span>induction_variable).copied()) {
+            <span class="kw">if </span>!does_loop_execute(<span class="self">self</span>.all_induction_variables.get(<span class="kw-2">&amp;</span>induction_variable).copied()) {
                 <span class="kw">return </span><span class="bool-val">false</span>;
             }
         }
@@ -3305,15 +3308,11 @@
         <span class="bool-val">true
     </span>}
 
-    <span class="doccomment">/// Gather the variables declared within the loop
-    </span><span class="kw">fn </span>get_values_defined_in_loop(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        loop_: <span class="kw-2">&amp;</span>Loop,
-        pre_header: BasicBlockId,
-    ) -&gt; LoopContext {
-        <span class="comment">// Clear any values that may be defined in previous loops, as the context is per function.
-
-        </span><span class="kw">let </span><span class="kw-2">mut </span>defined_in_loop = HashSet::default();
+    <span class="doccomment">/// Create a `LoopContext`:
+    /// * Gather the variables declared within the loop
+    /// * Determine the induction variable bounds
+    </span><span class="kw">fn </span>init_loop_context(<span class="kw-2">&amp;mut </span><span class="self">self</span>, loop_: <span class="kw-2">&amp;</span>Loop, pre_header: BasicBlockId) -&gt; LoopContext {
+        <span class="kw">let </span><span class="kw-2">mut </span>defined_in_loop = HashSet::default();
         <span class="kw">for </span>block <span class="kw">in </span>loop_.blocks.iter() {
             <span class="kw">let </span>params = <span class="self">self</span>.inserter.function.dfg.block_parameters(<span class="kw-2">*</span>block);
             defined_in_loop.extend(params);
@@ -3322,11 +3321,13 @@
                 defined_in_loop.extend(results);
             }
         }
+        <span class="kw">let </span>induction_variable = get_induction_var_bounds(<span class="kw-2">&amp;</span><span class="self">self</span>.inserter, loop_, pre_header);
 
         LoopContext {
             <span class="comment">// There is only ever one current induction variable for a loop.
-            </span>current_induction_variable: get_induction_var_bounds(<span class="kw-2">&amp;</span><span class="self">self</span>.inserter, loop_, pre_header),
-            pre_header: <span class="prelude-val">Some</span>(pre_header),
+            </span>induction_variable,
+            does_loop_execute: does_loop_execute(induction_variable.map(|(<span class="kw">_</span>, bounds)| bounds)),
+            pre_header,
             defined_in_loop,
             loop_invariants: HashSet::default(),
             <span class="comment">// Clear any cached control dependent nested loop blocks from the previous loop.
@@ -3335,15 +3336,57 @@
             // leading to missed hoisting opportunities.
             </span>nested_loop_control_dependent_blocks: HashSet::default(),
             no_break: loop_.is_fully_executed(<span class="kw-2">&amp;</span><span class="self">self</span>.cfg),
-            current_block_control_dependent: <span class="bool-val">false</span>,
-            current_block_impure: <span class="bool-val">false</span>,
-            current_block_executes: <span class="bool-val">false</span>,
+        }
+    }
+
+    <span class="doccomment">/// Create a `BlockContext`.
+    </span><span class="kw">fn </span>init_block_context(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        loop_context: <span class="kw-2">&amp;mut </span>LoopContext,
+        loop_: <span class="kw-2">&amp;</span>Loop,
+        all_loops: <span class="kw-2">&amp;</span>[Loop],
+        block: BasicBlockId,
+    ) -&gt; BlockContext {
+        <span class="kw">let </span>dfg = <span class="kw-2">&amp;</span><span class="self">self</span>.inserter.function.dfg;
+
+        <span class="comment">// Find all blocks between the current block and the loop header, exclusive of the current block and loop header themselves.
+        </span><span class="kw">let </span><span class="kw-2">mut </span>all_predecessors = Loop::find_blocks_in_loop(loop_.header, block, <span class="kw-2">&amp;</span><span class="self">self</span>.cfg).blocks;
+        all_predecessors.retain(|<span class="kw-2">&amp;</span>predecessor| predecessor != block &amp;&amp; predecessor != loop_.header);
+
+        <span class="comment">// When hoisting a control dependent instruction, if a side effectual instruction comes in the predecessor block
+        // of that instruction we can no longer hoist the control dependent instruction.
+        // This is important for maintaining the execution order and semantic correctness of the code.
+        // If the predecessors are all pure, the block might turn impure as an when we encounter
+        // a side-effectful instruction in it later.
+        </span><span class="kw">let </span>is_impure = all_predecessors.iter().any(|block| {
+            dfg[<span class="kw-2">*</span>block]
+                .instructions()
+                .iter()
+                .any(|instruction| dfg[<span class="kw-2">*</span>instruction].has_side_effects(dfg))
+        });
+
+        <span class="kw">let </span>does_execute = <span class="self">self</span>.does_block_execute(loop_context, all_loops, block);
+
+        <span class="kw">let </span>is_control_dependent = <span class="self">self</span>.is_control_dependent_post_pre_header(
+            loop_,
+            all_loops,
+            block,
+            <span class="kw-2">&amp;</span>all_predecessors,
+            <span class="kw-2">&amp;mut </span>loop_context.nested_loop_control_dependent_blocks,
+        );
+
+        BlockContext {
+            is_header: loop_.header == block,
+            is_control_dependent,
+            does_execute,
+            is_impure,
         }
     }
 
     <span class="kw">fn </span>can_hoist_invariant(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         loop_context: <span class="kw-2">&amp;</span>LoopContext,
+        block_context: <span class="kw-2">&amp;</span>BlockContext,
         instruction_id: InstructionId,
     ) -&gt; bool {
         <span class="kw">use </span>Instruction::<span class="kw-2">*</span>;
@@ -3369,9 +3412,9 @@
 
         <span class="macro">matches!</span>(instruction, MakeArray { .. })
             || can_be_hoisted(<span class="kw-2">&amp;</span>instruction, <span class="self">self</span>.inserter.function, <span class="bool-val">false</span>)
-            || loop_context
+            || block_context
                 .can_be_hoisted_with_control_dependence(<span class="kw-2">&amp;</span>instruction, <span class="self">self</span>.inserter.function)
-            || <span class="self">self</span>.can_be_hoisted_from_loop_bounds(loop_context, <span class="kw-2">&amp;</span>instruction)
+            || <span class="self">self</span>.can_be_hoisted_from_loop_bounds(loop_context, block_context, <span class="kw-2">&amp;</span>instruction)
     }
 
     <span class="doccomment">/// Certain instructions can take advantage of that our induction variable has a fixed minimum/maximum.
@@ -3385,6 +3428,7 @@
     </span><span class="kw">fn </span>can_be_hoisted_from_loop_bounds(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
         loop_context: <span class="kw-2">&amp;</span>LoopContext,
+        block_context: <span class="kw-2">&amp;</span>BlockContext,
         instruction: <span class="kw-2">&amp;</span>Instruction,
     ) -&gt; bool {
         <span class="kw">use </span>Instruction::<span class="kw-2">*</span>;
@@ -3401,7 +3445,7 @@
             }
             Binary(binary) =&gt; <span class="self">self</span>.can_evaluate_binary_op(loop_context, binary),
             Constrain(..) | ConstrainNotEqual(..) | RangeCheck { .. } =&gt; {
-                loop_context.can_hoist_control_dependent_instruction()
+                block_context.can_hoist_control_dependent_instruction()
             }
             Call { func, .. } =&gt; {
                 <span class="kw">let </span>purity = <span class="kw">match </span><span class="self">self</span>.inserter.function.dfg[<span class="kw-2">*</span>func] {
@@ -3410,7 +3454,7 @@
                     <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
                 };
                 <span class="macro">matches!</span>(purity, <span class="prelude-val">Some</span>(Purity::PureWithPredicate))
-                    &amp;&amp; loop_context.can_hoist_control_dependent_instruction()
+                    &amp;&amp; block_context.can_hoist_control_dependent_instruction()
             }
             <span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
         }
@@ -3442,6 +3486,15 @@
     loop_.get_induction_variable(inserter.function).map(|v| inserter.resolve(v))
 }
 
+<span class="doccomment">/// Check that a loop has have fixed bounds and upper is higher than lower, indicating that it would execute.
+</span><span class="kw">fn </span>does_loop_execute(bounds: <span class="prelude-ty">Option</span>&lt;(IntegerConstant, IntegerConstant)&gt;) -&gt; bool {
+    bounds
+        .and_then(|(lower_bound, upper_bound)| {
+            upper_bound.reduce(lower_bound, |u, l| u &gt; l, |u, l| u &gt; l)
+        })
+        .unwrap_or(<span class="bool-val">false</span>)
+}
+
 <span class="doccomment">/// Keep track of a loop induction variable and respective upper bound.
 ///
 /// In the case of a nested loop, this will be used by later loops to determine
@@ -3454,10 +3507,9 @@
     loop_: <span class="kw-2">&amp;</span>Loop,
     pre_header: BasicBlockId,
 ) -&gt; <span class="prelude-ty">Option</span>&lt;(ValueId, (IntegerConstant, IntegerConstant))&gt; {
-    <span class="kw">let </span>bounds = loop_.get_const_bounds(<span class="kw-2">&amp;</span>inserter.function.dfg, pre_header);
-
-    get_induction_variable(inserter, loop_)
-        .and_then(|induction_variable| bounds.map(|bounds| (induction_variable, bounds)))
+    <span class="kw">let </span>bounds = loop_.get_const_bounds(<span class="kw-2">&amp;</span>inserter.function.dfg, pre_header)<span class="question-mark">?</span>;
+    <span class="kw">let </span>induction_variable = get_induction_variable(inserter, loop_)<span class="question-mark">?</span>;
+    <span class="prelude-val">Some</span>((induction_variable, bounds))
 }
 
 <span class="doccomment">/// Indicates if the instruction can be safely hoisted out of a loop.
@@ -3647,7 +3699,7 @@
           b2():
             return
           b3():
-            v6 = unchecked_mul v0, v1 // loop invariant 
+            v6 = unchecked_mul v0, v1 // loop invariant
             constrain v6 == v2 // local loop instruction (checks against induction variable)
             v8 = unchecked_add v2, i32 1
             jmp b1(v8)
