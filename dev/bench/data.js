@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1756469918090,
+  "lastUpdate": 1756471921874,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -20176,48 +20176,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "5cc5e135b7a0c91adc4e36b3a2c0b87f68a58b7c",
-          "message": "chore: remove redundant globals creation (#9606)",
-          "timestamp": "2025-08-21T18:34:24Z",
-          "tree_id": "91e10dbfcb30a8af1413efcf02b054d712621d6a",
-          "url": "https://github.com/noir-lang/noir/commit/5cc5e135b7a0c91adc4e36b3a2c0b87f68a58b7c"
-        },
-        "date": 1755802856117,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 249522,
-            "range": "± 1477",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 217760,
-            "range": "± 4427",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2786420,
-            "range": "± 2697",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jfecher11@gmail.com",
             "name": "jfecher",
             "username": "jfecher"
@@ -22269,6 +22227,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2779863,
             "range": "± 2767",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "52ded2bd09895e2a000f10051d172138fc125e25",
+          "message": "fix(formatter): don't revert indentation increase after popping it (#9673)",
+          "timestamp": "2025-08-29T12:23:33Z",
+          "tree_id": "8c568c2a5954491463f0a9003fc21eb1707d5e48",
+          "url": "https://github.com/noir-lang/noir/commit/52ded2bd09895e2a000f10051d172138fc125e25"
+        },
+        "date": 1756471902493,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 260149,
+            "range": "± 876",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 229771,
+            "range": "± 4777",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2800108,
+            "range": "± 5665",
             "unit": "ns/iter"
           }
         ]
