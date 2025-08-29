@@ -1106,7 +1106,18 @@
 <a href="#1105" id="1105">1105</a>
 <a href="#1106" id="1106">1106</a>
 <a href="#1107" id="1107">1107</a>
-<a href="#1108" id="1108">1108</a></pre></div><pre class="rust"><code><span class="doccomment">//! The purpose of this pass is to perform function specialization of Brillig functions based upon
+<a href="#1108" id="1108">1108</a>
+<a href="#1109" id="1109">1109</a>
+<a href="#1110" id="1110">1110</a>
+<a href="#1111" id="1111">1111</a>
+<a href="#1112" id="1112">1112</a>
+<a href="#1113" id="1113">1113</a>
+<a href="#1114" id="1114">1114</a>
+<a href="#1115" id="1115">1115</a>
+<a href="#1116" id="1116">1116</a>
+<a href="#1117" id="1117">1117</a>
+<a href="#1118" id="1118">1118</a>
+<a href="#1119" id="1119">1119</a></pre></div><pre class="rust"><code><span class="doccomment">//! The purpose of this pass is to perform function specialization of Brillig functions based upon
 //! a function's entry points. Function specialization is performed through duplication of functions.
 //! Brillig entry points are defined as functions called directly by ACIR functions or are `main`.
 //!
@@ -1433,6 +1444,17 @@
     call_graph: <span class="kw-2">&amp;</span>CallGraph,
 ) -&gt; BTreeMap&lt;FunctionId, BTreeSet&lt;FunctionId&gt;&gt; {
     <span class="kw">let </span>recursive_functions = call_graph.get_recursive_functions();
+    get_brillig_entry_points_with_recursive(functions, main_id, call_graph, <span class="kw-2">&amp;</span>recursive_functions)
+}
+
+<span class="doccomment">/// Like [get_brillig_entry_points], but uses a precomputed set of recursive functions
+/// to avoid recomputing SCCs.
+</span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_brillig_entry_points_with_recursive(
+    functions: <span class="kw-2">&amp;</span>BTreeMap&lt;FunctionId, Function&gt;,
+    main_id: FunctionId,
+    call_graph: <span class="kw-2">&amp;</span>CallGraph,
+    recursive_functions: <span class="kw-2">&amp;</span>HashSet&lt;FunctionId&gt;,
+) -&gt; BTreeMap&lt;FunctionId, BTreeSet&lt;FunctionId&gt;&gt; {
     <span class="kw">let </span><span class="kw-2">mut </span>brillig_entry_points = BTreeMap::default();
 
     <span class="comment">// Only ACIR callers can introduce Brillig entry points
@@ -1446,7 +1468,7 @@
         <span class="kw">for </span><span class="kw-2">&amp;</span>entry_point <span class="kw">in </span>entry_points {
             brillig_entry_points.insert(
                 entry_point,
-                brillig_reachable(call_graph, <span class="kw-2">&amp;</span>recursive_functions, entry_point),
+                brillig_reachable(call_graph, recursive_functions, entry_point),
             );
         }
     }
@@ -1455,7 +1477,7 @@
     // Run the same analysis from above on main.
     </span><span class="kw">if </span>functions[<span class="kw-2">&amp;</span>main_id].runtime().is_brillig() {
         brillig_entry_points
-            .insert(main_id, brillig_reachable(call_graph, <span class="kw-2">&amp;</span>recursive_functions, main_id));
+            .insert(main_id, brillig_reachable(call_graph, recursive_functions, main_id));
     }
 
     brillig_entry_points

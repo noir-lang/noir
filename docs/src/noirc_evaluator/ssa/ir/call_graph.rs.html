@@ -674,7 +674,17 @@
 <a href="#673" id="673">673</a>
 <a href="#674" id="674">674</a>
 <a href="#675" id="675">675</a>
-<a href="#676" id="676">676</a></pre></div><pre class="rust"><code><span class="doccomment">//! Call graph analysis
+<a href="#676" id="676">676</a>
+<a href="#677" id="677">677</a>
+<a href="#678" id="678">678</a>
+<a href="#679" id="679">679</a>
+<a href="#680" id="680">680</a>
+<a href="#681" id="681">681</a>
+<a href="#682" id="682">682</a>
+<a href="#683" id="683">683</a>
+<a href="#684" id="684">684</a>
+<a href="#685" id="685">685</a>
+<a href="#686" id="686">686</a></pre></div><pre class="rust"><code><span class="doccomment">//! Call graph analysis
 //!
 //! This module provides a `CallGraph` structure that builds a directed call graph from SSA functions.
 //!
@@ -788,10 +798,19 @@
     /// - It is self-recursive (calls itself), or
     /// - It is part of a mutual recursion cycle with other functions.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>get_recursive_functions(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; HashSet&lt;FunctionId&gt; {
+        <span class="kw">let </span>(<span class="kw">_</span>, recursive_functions) = <span class="self">self</span>.sccs();
+        recursive_functions
+    }
+
+    <span class="doccomment">/// Returns both the call graph's strongly connected components (SCCs)
+    /// as well as a utility set of all recursive functions.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>sccs(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; (Vec&lt;Vec&lt;FunctionId&gt;&gt;, HashSet&lt;FunctionId&gt;) {
+        <span class="kw">let </span><span class="kw-2">mut </span>sccs_ids = Vec::new();
         <span class="kw">let </span><span class="kw-2">mut </span>recursive_functions = HashSet::default();
 
         <span class="kw">let </span>sccs = kosaraju_scc(<span class="kw-2">&amp;</span><span class="self">self</span>.graph);
         <span class="kw">for </span>scc <span class="kw">in </span>sccs {
+            <span class="kw">let </span>scc_ids: Vec&lt;<span class="kw">_</span>&gt; = scc.iter().map(|idx| <span class="self">self</span>.indices_to_ids[idx]).collect();
             <span class="kw">if </span>scc.len() &gt; <span class="number">1 </span>{
                 <span class="comment">// Mutual recursion
                 </span><span class="kw">for </span>idx <span class="kw">in </span>scc {
@@ -804,8 +823,9 @@
                     recursive_functions.insert(<span class="self">self</span>.indices_to_ids[<span class="kw-2">&amp;</span>idx]);
                 }
             }
+            sccs_ids.push(scc_ids);
         }
-        recursive_functions
+        (sccs_ids, recursive_functions)
     }
 
     <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>graph(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>DiGraph&lt;FunctionId, usize&gt; {
