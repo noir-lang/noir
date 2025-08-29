@@ -421,7 +421,7 @@ impl<'f> LoopInvariantContext<'f> {
                     }
                 } else {
                     let dfg = &self.inserter.function.dfg;
-                    // If the block has already been labelled as impure, we do need to check the current
+                    // If the block has already been labelled as impure, we don't need to check the current
                     // instruction's side effects.
                     if !block_context.is_impure {
                         block_context.is_impure = dfg[instruction_id].has_side_effects(dfg);
