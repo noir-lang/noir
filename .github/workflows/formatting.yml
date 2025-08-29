@@ -22,8 +22,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - uses: taiki-e/install-action@just
-
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.85.0
         with:
@@ -35,6 +33,8 @@ jobs:
           key: x86_64-unknown-linux-gnu
           cache-on-failure: true
           save-if: ${{ github.event_name != 'merge_group' }}
+
+      - uses: taiki-e/install-action@just
 
       - name: Run `cargo clippy`
         run: just clippy
@@ -50,8 +50,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - uses: taiki-e/install-action@just
-
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.85.0
         with:
@@ -63,6 +61,8 @@ jobs:
           key: x86_64-unknown-linux-gnu
           cache-on-failure: true
           save-if: ${{ github.event_name != 'merge_group' }}
+
+      - uses: taiki-e/install-action@just
 
       - name: Check formatting
         run: just format-check
@@ -76,8 +76,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - uses: taiki-e/install-action@just
-
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.85.0
         with:
@@ -89,6 +87,8 @@ jobs:
           key: x86_64-unknown-linux-gnu
           cache-on-failure: true
           save-if: ${{ github.event_name != 'merge_group' }}
+
+      - uses: taiki-e/install-action@just
 
       - name: Run `cargo doc`
         run: just doc

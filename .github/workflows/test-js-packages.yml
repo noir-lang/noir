@@ -123,8 +123,6 @@ jobs:
       - name: Checkout Noir repo
         uses: actions/checkout@v5
 
-      - uses: taiki-e/install-action@just
-
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.85.0
 
@@ -136,6 +134,8 @@ jobs:
 
       - name: Install Yarn dependencies
         uses: ./.github/actions/setup
+
+      - uses: taiki-e/install-action@just
 
       - name: Build noirc_abi
         run: just build-package @noir-lang/noirc_abi
@@ -157,8 +157,6 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v5
 
-      - uses: taiki-e/install-action@just
-
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.85.0
 
@@ -170,6 +168,8 @@ jobs:
 
       - name: Install Yarn dependencies
         uses: ./.github/actions/setup
+
+      - uses: taiki-e/install-action@just
 
       - name: Build noir_js_types
         run: just build-package @noir-lang/types
@@ -305,8 +305,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - uses: taiki-e/install-action@just
-
       - name: Download nargo binary
         uses: ./.github/actions/download-nargo
 
@@ -324,6 +322,8 @@ jobs:
 
       - name: Install Yarn dependencies
         uses: ./.github/actions/setup
+
+      - uses: taiki-e/install-action@just
 
       - name: Build noir_js_types
         run: just build-package @noir-lang/types
@@ -377,8 +377,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - uses: taiki-e/install-action@just
-
       - name: Download nargo binary
         uses: ./.github/actions/download-nargo
 
@@ -396,6 +394,8 @@ jobs:
 
       - name: Install Yarn dependencies
         uses: ./.github/actions/setup
+
+      - uses: taiki-e/install-action@just
 
       - name: Build noir_js_types
         run: just build-package @noir-lang/types

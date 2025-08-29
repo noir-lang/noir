@@ -56,8 +56,6 @@ jobs:
         with:
           ref: ${{ inputs.noir-ref }}
 
-      - uses: taiki-e/install-action@just
-
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.85.0
 
@@ -66,9 +64,10 @@ jobs:
           key: noir-wasm
           save-if: false
 
+      - uses: taiki-e/install-action@just
+
       - name: Install Yarn dependencies
         uses: ./.github/actions/setup
-
 
       - name: Build noir_js_types
         run: just build-package @noir-lang/types
@@ -93,8 +92,6 @@ jobs:
         with:
           ref: ${{ inputs.noir-ref }}
 
-      - uses: taiki-e/install-action@just
-
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.85.0
 
@@ -105,6 +102,8 @@ jobs:
 
       - name: Install Yarn dependencies
         uses: ./.github/actions/setup
+
+      - uses: taiki-e/install-action@just
 
       - name: Build acvm_js
         run: just build-package @noir-lang/acvm_js

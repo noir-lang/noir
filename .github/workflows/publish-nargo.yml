@@ -38,7 +38,6 @@ jobs:
         with:
           ref: ${{ inputs.tag || env.GITHUB_REF }}
 
-      - uses: taiki-e/install-action@just
 
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.85.0
@@ -50,6 +49,8 @@ jobs:
           key: ${{ matrix.target }}
           cache-on-failure: true
           save-if: ${{ github.event_name != 'merge_group' }}
+
+      - uses: taiki-e/install-action@just
 
       - name: Build binaries
         run: just package
@@ -134,8 +135,6 @@ jobs:
         with:
           ref: ${{ inputs.tag || env.GITHUB_REF }}
 
-      - uses: taiki-e/install-action@just
-
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.85.0
         with:
@@ -146,6 +145,8 @@ jobs:
           key: ${{ matrix.target }}
           cache-on-failure: true
           save-if: ${{ github.event_name != 'merge_group' }}
+
+      - uses: taiki-e/install-action@just
 
       - name: Build binaries
         run: just package
