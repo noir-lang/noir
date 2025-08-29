@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1756491595917,
+  "lastUpdate": 1756493458985,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -20211,48 +20211,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "3c6914c167766724446296550fc6d81699fc41ac",
-          "message": "chore: greenlight `checked_to_unchecked` for audits (#9537)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
-          "timestamp": "2025-08-22T16:38:08Z",
-          "tree_id": "399785bacfa032ccdc642484a3d72cfa82e82267",
-          "url": "https://github.com/noir-lang/noir/commit/3c6914c167766724446296550fc6d81699fc41ac"
-        },
-        "date": 1755882304972,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 261235,
-            "range": "± 848",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 230465,
-            "range": "± 1289",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2811020,
-            "range": "± 2576",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jfecher11@gmail.com",
             "name": "jfecher",
             "username": "jfecher"
@@ -22304,6 +22262,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2781223,
             "range": "± 9896",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "3b6b3592bd3058c4325637f4b13556b2ed704124",
+          "message": "chore(licm): Break things up further in LICM (#9683)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
+          "timestamp": "2025-08-29T18:25:01Z",
+          "tree_id": "c5250f4666ab31013e7243aa1559503b0c40c504",
+          "url": "https://github.com/noir-lang/noir/commit/3b6b3592bd3058c4325637f4b13556b2ed704124"
+        },
+        "date": 1756493438792,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 257263,
+            "range": "± 895",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 226307,
+            "range": "± 5533",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2791197,
+            "range": "± 2191",
             "unit": "ns/iter"
           }
         ]
