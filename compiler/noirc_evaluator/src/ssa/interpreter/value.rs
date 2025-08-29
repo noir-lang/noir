@@ -88,6 +88,7 @@ impl Value {
         }
     }
 
+    /// Create an empty reference value.
     pub(crate) fn reference(original_id: ValueId, element_type: Arc<Type>) -> Self {
         Value::Reference(ReferenceValue { original_id, element_type, element: Shared::new(None) })
     }
@@ -184,7 +185,16 @@ impl Value {
     pub(crate) fn uninitialized(typ: &Type, id: ValueId) -> Value {
         match typ {
             Type::Numeric(typ) => Value::Numeric(NumericValue::zero(*typ)),
-            Type::Reference(element_type) => Self::reference(id, element_type.clone()),
+            Type::Reference(element_type) => {
+                // Initialize the reference to a default value, so that if we execute a
+                // Load instruction when side effects are disabled, we don't get an error.
+                let value = Self::uninitialized(element_type, id);
+                Self::Reference(ReferenceValue {
+                    original_id: id,
+                    element_type: element_type.clone(),
+                    element: Shared::new(Some(value)),
+                })
+            }
             Type::Array(element_types, length) => {
                 let first_elements =
                     vecmap(element_types.iter(), |typ| Self::uninitialized(typ, id));

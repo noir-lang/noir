@@ -140,7 +140,7 @@ fn compute_index_and_offset(
 
 #[cfg(test)]
 mod tests {
-    use crate::{assert_ssa_snapshot, ssa::opt::assert_normalized_ssa_equals};
+    use crate::{assert_ssa_snapshot, ssa::opt::assert_ssa_does_not_change};
 
     use super::Ssa;
 
@@ -197,10 +197,7 @@ mod tests {
             return v2
         }
         ";
-
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.brillig_array_get_and_set();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::brillig_array_get_and_set);
     }
 
     #[test]
@@ -212,10 +209,7 @@ mod tests {
             return v2
         }
         ";
-
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.brillig_array_get_and_set();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::brillig_array_get_and_set);
     }
 
     #[test]
@@ -271,10 +265,7 @@ mod tests {
             return v2
         }
         ";
-
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.brillig_array_get_and_set();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::brillig_array_get_and_set);
     }
 
     #[test]
@@ -286,9 +277,6 @@ mod tests {
             return v2
         }
         ";
-
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.brillig_array_get_and_set();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::brillig_array_get_and_set);
     }
 }

@@ -140,7 +140,7 @@ fn used_functions(func: &Function) -> BTreeSet<FunctionId> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{assert_ssa_snapshot, ssa::opt::assert_normalized_ssa_equals};
+    use crate::{assert_ssa_snapshot, ssa::opt::assert_ssa_does_not_change};
 
     use super::Ssa;
 
@@ -215,12 +215,7 @@ mod tests {
               return v3
           }
         "#;
-
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.remove_unreachable_functions();
-
-        // It should not remove anything.
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::remove_unreachable_functions);
     }
 
     #[test]
@@ -245,11 +240,7 @@ mod tests {
             return
         }
         "#;
-
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.remove_unreachable_functions();
-
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::remove_unreachable_functions);
     }
 
     #[test]
@@ -266,23 +257,20 @@ mod tests {
             v4 = array_get v3, index u32 0 -> function
             v5 = call v4(v0) -> Field
             return
-          }
-          
-          acir(inline) fn my_fun f1 {
-            b0(v0: Field):
-              v2 = add v0, Field 1
-              return v2
-          }
-          
-          acir(inline) fn my_fun2 f2 {
-            b0(v0: Field):
-              v2 = add v0, Field 2
-              return v2
-          }"#;
-
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.remove_unreachable_functions();
-
-        assert_normalized_ssa_equals(ssa, src);
+        }
+        
+        acir(inline) fn my_fun f1 {
+          b0(v0: Field):
+            v2 = add v0, Field 1
+            return v2
+        }
+        
+        acir(inline) fn my_fun2 f2 {
+          b0(v0: Field):
+            v2 = add v0, Field 2
+            return v2
+        }
+        "#;
+        assert_ssa_does_not_change(src, Ssa::remove_unreachable_functions);
     }
 }

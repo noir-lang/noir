@@ -432,7 +432,7 @@ fn try_inline_into_predecessor(
 mod test {
     use crate::{
         assert_ssa_snapshot,
-        ssa::{Ssa, opt::assert_normalized_ssa_equals},
+        ssa::{Ssa, opt::assert_ssa_does_not_change},
     };
 
     #[test]
@@ -532,8 +532,7 @@ mod test {
           b2():
             return
         }";
-        let ssa = Ssa::from_str(src).unwrap();
-        assert_normalized_ssa_equals(ssa.simplify_cfg(), src);
+        assert_ssa_does_not_change(src, Ssa::simplify_cfg);
     }
 
     #[test]
@@ -785,20 +784,7 @@ mod test {
             return
         }
         ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.simplify_cfg();
-        assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) predicate_pure fn main f0 {
-          b0(v0: i16):
-            v2 = lt i16 3, v0
-            jmpif v2 then: b1, else: b2
-          b1():
-            v4 = unchecked_add i16 1, v0
-            jmp b2()
-          b2():
-            return
-        }
-        ");
+        assert_ssa_does_not_change(src, Ssa::simplify_cfg);
     }
 
     #[test]

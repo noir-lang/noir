@@ -356,16 +356,26 @@ fn zeroed_value(
             dfg.insert_instruction_and_results(instruction, block_id, None, stack).first()
         }
         Type::Reference(element_type) => {
+            // The result of the instruction is a reference; Allocate creates a reference,
+            // but if we tried to Load from it we would get an error, so follow it with a
+            // Store of a default value.
             let instruction = Instruction::Allocate;
             let reference_type = Type::Reference(Arc::new((**element_type).clone()));
 
-            dfg.insert_instruction_and_results(
-                instruction,
-                block_id,
-                Some(vec![reference_type]),
-                CallStackId::root(),
-            )
-            .first()
+            let reference_id = dfg
+                .insert_instruction_and_results(
+                    instruction,
+                    block_id,
+                    Some(vec![reference_type]),
+                    CallStackId::root(),
+                )
+                .first();
+
+            let value = zeroed_value(dfg, func_id, block_id, element_type.as_ref());
+            let instruction = Instruction::Store { address: reference_id, value };
+            dfg.insert_instruction_and_results(instruction, block_id, None, CallStackId::root());
+
+            reference_id
         }
         Type::Function => dfg.import_function(func_id),
     }
@@ -406,7 +416,7 @@ fn insert_constraint(
 mod test {
     use crate::{
         assert_ssa_snapshot,
-        ssa::{opt::assert_normalized_ssa_equals, ssa_gen::Ssa},
+        ssa::{opt::assert_ssa_does_not_change, ssa_gen::Ssa},
     };
 
     #[test]
@@ -515,9 +525,7 @@ mod test {
             return v1
         }
         "#;
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.remove_unreachable_instructions();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::remove_unreachable_instructions);
     }
 
     #[test]
@@ -599,6 +607,42 @@ mod test {
             return u32 0
         }
         ");
+    }
+
+    #[test]
+    fn replaces_references_following_conditional_constraint_with_allocate_and_store_of_default() {
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1):
+            v1 = make_array [] : [&mut u1; 0]
+            enable_side_effects v0
+            v2 = mod u32 1, u32 0
+            constrain u1 0 == v0, "Index out of bounds"
+            v3 = array_get v1, index v2 -> &mut u1
+            v4 = load v3 -> u1
+            enable_side_effects u1 1
+            return v4
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.remove_unreachable_instructions();
+
+        // The `array_get` is replaced by `allocate+store`.
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1):
+            v1 = make_array [] : [&mut u1; 0]
+            enable_side_effects v0
+            v4 = mod u32 1, u32 0
+            constrain u1 0 == v0, "attempt to calculate the remainder with a divisor of zero"
+            constrain u1 0 == v0, "Index out of bounds"
+            v6 = allocate -> &mut u1
+            store u1 0 at v6
+            v7 = load v6 -> u1
+            enable_side_effects u1 1
+            return v7
+        }
+        "#);
     }
 
     #[test]
@@ -756,7 +800,7 @@ mod test {
     }
 
     #[test]
-    fn does_not_removes_instructions_from_non_dominated_block_1() {
+    fn does_not_remove_instructions_from_non_dominated_block_1() {
         // Here both b1 and b4 are successors of b3, but both are not dominated by it.
         let src = r#"
         acir(inline) predicate_pure fn main f0 {
@@ -798,7 +842,7 @@ mod test {
     }
 
     #[test]
-    fn does_not_removes_instructions_from_non_dominated_block_2() {
+    fn does_not_remove_instructions_from_non_dominated_block_2() {
         // Here b3 is a successor of b2 but is not dominated by it.
         let src = r#"
         acir(inline) predicate_pure fn main f0 {
@@ -834,7 +878,7 @@ mod test {
     }
 
     #[test]
-    fn does_not_removes_instructions_from_non_dominated_block_3() {
+    fn does_not_remove_instructions_from_non_dominated_block_3() {
         // Here b4 is a transitive successor of b2 but is not dominated by it.
         let src = r#"
         acir(inline) predicate_pure fn main f0 {
@@ -874,7 +918,7 @@ mod test {
     }
 
     #[test]
-    fn does_not_removes_instructions_from_non_dominated_block_4() {
+    fn does_not_remove_instructions_from_non_dominated_block_4() {
         // Here b5 is a transitive successor of b2, but is not dominated by it
         // (it's a transitive successor of b1)
         let src = r#"
@@ -1004,10 +1048,7 @@ mod test {
             return v4
         }
         ";
-
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.remove_unreachable_instructions();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::remove_unreachable_instructions);
     }
 
     #[test]

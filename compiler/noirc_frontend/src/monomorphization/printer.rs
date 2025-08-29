@@ -22,7 +22,7 @@ pub struct FunctionPrintOptions {
 }
 
 /// Some calls can be printed with the intention of parsing the code.
-#[derive(PartialEq)]
+#[derive(Debug, PartialEq)]
 enum SpecialCall {
     Print,
     Object(String),
@@ -248,43 +248,43 @@ impl AstPrinter {
 
     pub fn print_literal(
         &mut self,
-        literal: &super::ast::Literal,
+        literal: &Literal,
         f: &mut Formatter,
     ) -> Result<(), std::fmt::Error> {
         match literal {
-            super::ast::Literal::Array(array) => {
+            Literal::Array(array) => {
                 write!(f, "[")?;
                 self.print_comma_separated(&array.contents, f)?;
                 write!(f, "]")
             }
-            super::ast::Literal::Slice(array) => {
+            Literal::Slice(array) => {
                 write!(f, "&[")?;
                 self.print_comma_separated(&array.contents, f)?;
                 write!(f, "]")
             }
-            super::ast::Literal::Integer(x, typ, _) => {
+            Literal::Integer(x, typ, _) => {
                 if self.show_type_of_int_literal && *typ != Type::Field {
                     write!(f, "{x}_{typ}")
                 } else {
                     x.fmt(f)
                 }
             }
-            super::ast::Literal::Bool(x) => x.fmt(f),
-            super::ast::Literal::Str(s) => {
+            Literal::Bool(x) => x.fmt(f),
+            Literal::Str(s) => {
                 if s.contains("\"") {
                     write!(f, "r#\"{s}\"#")
                 } else {
                     write!(f, "\"{s}\"")
                 }
             }
-            super::ast::Literal::FmtStr(fragments, _, _) => {
+            Literal::FmtStr(fragments, _, _) => {
                 write!(f, "f\"")?;
                 for fragment in fragments {
                     fragment.fmt(f)?;
                 }
                 write!(f, "\"")
             }
-            super::ast::Literal::Unit => {
+            Literal::Unit => {
                 write!(f, "()")
             }
         }
@@ -499,29 +499,49 @@ impl AstPrinter {
         write!(f, ")")
     }
 
+    fn get_called_function(expr: &Expression) -> Option<(bool, &Definition, &String)> {
+        let is_unconstrained = |typ: &Type| match typ {
+            Type::Function(_, _, _, unconstrained) => *unconstrained,
+            Type::Tuple(elements) => match elements.first() {
+                Some(Type::Function(_, _, _, unconstrained)) => *unconstrained,
+                _ => false,
+            },
+            _ => false,
+        };
+
+        match expr {
+            Expression::Ident(Ident { typ, definition, name, .. }) => {
+                Some((is_unconstrained(typ), definition, name))
+            }
+            Expression::Tuple(elements) => match elements.first() {
+                Some(Expression::Ident(Ident { typ, definition, name, .. })) => {
+                    Some((is_unconstrained(typ), definition, name))
+                }
+                _ => None,
+            },
+            _ => None,
+        }
+    }
+
     fn print_call(
         &mut self,
         call: &super::ast::Call,
         f: &mut Formatter,
     ) -> Result<(), std::fmt::Error> {
-        let (print_unsafe, special) = match call.func.as_ref() {
-            Expression::Ident(Ident {
-                typ: Type::Function(_, _, _, unconstrained),
-                definition,
-                name,
-                ..
-            }) => {
-                let is_unsafe = *unconstrained && !self.in_unconstrained;
-                let special = match definition {
-                    Definition::Oracle(s) if s == "print" => Some(SpecialCall::Print),
-                    Definition::Builtin(s) if s.starts_with("array") || s.starts_with("slice") => {
-                        Some(SpecialCall::Object(name.clone()))
-                    }
-                    _ => None,
-                };
-                (is_unsafe, special)
-            }
-            _ => (false, None),
+        let (print_unsafe, special) = if let Some((unconstrained, definition, name)) =
+            Self::get_called_function(&call.func)
+        {
+            let is_unsafe = unconstrained && !self.in_unconstrained;
+            let special = match definition {
+                Definition::Oracle(s) if s == "print" => Some(SpecialCall::Print),
+                Definition::Builtin(s) if s.starts_with("array") || s.starts_with("slice") => {
+                    Some(SpecialCall::Object(name.clone()))
+                }
+                _ => None,
+            };
+            (is_unsafe, special)
+        } else {
+            (false, None)
         };
 
         if let Some(special) = special {
@@ -627,7 +647,7 @@ impl AstPrinter {
             LValue::Clone(lvalue) => {
                 self.print_lvalue(lvalue, f)?;
                 if self.show_clone_and_drop {
-                    write!(f, ".clone()")?
+                    write!(f, ".clone()")?;
                 }
                 Ok(())
             }

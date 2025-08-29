@@ -102,10 +102,5 @@ expression: artifact
     "structs": {},
     "globals": {}
   },
-  "file_map": {
-    "50": {
-      "source": "contract Foo {\n    use crate::times_10;\n\n    fn double(x: Field) -> pub Field {\n        x * 2\n    }\n    fn triple(x: Field) -> pub Field {\n        x * 3\n    }\n    fn times_40(x: Field) -> pub Field {\n        times_10(x) * 4\n    }\n}\n\n#[fold]\nfn times_10(x: Field) -> Field {\n    x * 10\n}\n",
-      "path": ""
-    }
-  }
+  "file_map": "[file_map]"
 }

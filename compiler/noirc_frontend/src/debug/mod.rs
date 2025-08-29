@@ -187,7 +187,7 @@ impl DebugInstrumenter {
         let last_stmt = if has_ret_expr {
             ast::Statement {
                 kind: ast::StatementKind::Expression(ast::Expression {
-                    kind: ast::ExpressionKind::Variable(ast::Path::plain(
+                    kind: ast::ExpressionKind::Variable(Path::plain(
                         vec![PathSegment::from(ident("__debug_expr", location))],
                         location,
                     )),
@@ -649,7 +649,7 @@ fn build_assign_var_stmt(var_id: SourceVarId, expr: ast::Expression) -> ast::Sta
     let location = expr.location;
     let kind = ast::ExpressionKind::Call(Box::new(ast::CallExpression {
         func: Box::new(ast::Expression {
-            kind: ast::ExpressionKind::Variable(ast::Path::plain(
+            kind: ast::ExpressionKind::Variable(Path::plain(
                 vec![PathSegment::from(ident("__debug_var_assign", location))],
                 location,
             )),
@@ -664,7 +664,7 @@ fn build_assign_var_stmt(var_id: SourceVarId, expr: ast::Expression) -> ast::Sta
 fn build_drop_var_stmt(var_id: SourceVarId, location: Location) -> ast::Statement {
     let kind = ast::ExpressionKind::Call(Box::new(ast::CallExpression {
         func: Box::new(ast::Expression {
-            kind: ast::ExpressionKind::Variable(ast::Path::plain(
+            kind: ast::ExpressionKind::Variable(Path::plain(
                 vec![PathSegment::from(ident("__debug_var_drop", location))],
                 location,
             )),
@@ -688,7 +688,7 @@ fn build_assign_member_stmt(
     let location = expr.location;
     let kind = ast::ExpressionKind::Call(Box::new(ast::CallExpression {
         func: Box::new(ast::Expression {
-            kind: ast::ExpressionKind::Variable(ast::Path::plain(
+            kind: ast::ExpressionKind::Variable(Path::plain(
                 vec![PathSegment::from(ident(&format!["__debug_member_assign_{arity}"], location))],
                 location,
             )),
@@ -708,7 +708,7 @@ fn build_assign_member_stmt(
 fn build_debug_call_stmt(fname: &str, fn_id: DebugFnId, location: Location) -> ast::Statement {
     let kind = ast::ExpressionKind::Call(Box::new(ast::CallExpression {
         func: Box::new(ast::Expression {
-            kind: ast::ExpressionKind::Variable(ast::Path::plain(
+            kind: ast::ExpressionKind::Variable(Path::plain(
                 vec![PathSegment::from(ident(&format!["__debug_fn_{fname}"], location))],
                 location,
             )),
