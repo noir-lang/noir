@@ -1155,7 +1155,7 @@
         block: BasicBlockId,
         ctrl_typevars: <span class="prelude-ty">Option</span>&lt;Vec&lt;Type&gt;&gt;,
         call_stack: CallStackId,
-    ) -&gt; InsertInstructionResult {
+    ) -&gt; InsertInstructionResult&lt;<span class="lifetime">'_</span>&gt; {
         <span class="kw">if </span>!<span class="self">self</span>.is_handled_by_runtime(<span class="kw-2">&amp;</span>instruction) {
             <span class="comment">// Panicking to raise attention. If we're not supposed to simplify it immediately,
             // pushing the instruction would just cause a potential panic later on.
@@ -1179,7 +1179,7 @@
         block: BasicBlockId,
         ctrl_typevars: <span class="prelude-ty">Option</span>&lt;Vec&lt;Type&gt;&gt;,
         call_stack: CallStackId,
-    ) -&gt; InsertInstructionResult {
+    ) -&gt; InsertInstructionResult&lt;<span class="lifetime">'_</span>&gt; {
         <span class="self">self</span>.insert_instruction_and_results_if_simplified(
             instruction,
             block,
@@ -1197,7 +1197,7 @@
         ctrl_typevars: <span class="prelude-ty">Option</span>&lt;Vec&lt;Type&gt;&gt;,
         call_stack: CallStackId,
         existing_id: <span class="prelude-ty">Option</span>&lt;InstructionId&gt;,
-    ) -&gt; InsertInstructionResult {
+    ) -&gt; InsertInstructionResult&lt;<span class="lifetime">'_</span>&gt; {
         <span class="kw">if </span>!<span class="self">self</span>.is_handled_by_runtime(<span class="kw-2">&amp;</span>instruction) {
             <span class="comment">// BUG: With panicking it fails to build the `token_contract`; see:
             // https://github.com/AztecProtocol/aztec-packages/pull/11294#issuecomment-2624379102

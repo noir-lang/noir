@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="This file contains the SSA flattening pass - a required pass for ACIR to remove any remaining control-flow in the singular program-function, resulting in a single block containing the program logic."><title>noirc_evaluator::ssa::opt::flatten_cfg - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../../static.files/rustdoc-46132b98.css"><meta name="rustdoc-vars" data-root-path="../../../../" data-static-root-path="../../../../static.files/" data-current-crate="noirc_evaluator" data-themes="" data-resource-suffix="" data-rustdoc-version="1.85.0 (4d91de4e4 2025-02-17)" data-channel="1.85.0" data-search-js="search-75f5ac3e.js" data-settings-js="settings-0f613d39.js" ><script src="../../../../static.files/storage-59e33391.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../../../static.files/main-5f194d8c.js"></script><noscript><link rel="stylesheet" href="../../../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle" title="show sidebar"></button></nav><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../../noirc_evaluator/index.html">noirc_<wbr>evaluator</a><span class="version">1.0.0-beta.11</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Module flatten_<wbr>cfg</a></h2><h3><a href="#">Sections</a></h3><ul class="block top-toc"><li><a href="#constrain-v0" title="constrain v0">constrain v0</a></li><li><a href="#b0v0-u1-v1-field-v2-fieldjmpif-v0-then-b1-else-b2b1jmp-b3v1b2jmp-b3v2b3v3-field-b3-instructions-" title="b0(v0: u1, v1: Field, v2: Field): jmpif v0, then: b1, else: b2 b1(): jmp b3(v1) b2(): jmp b3(v2) b3(v3: Field): … b3 instructions …">b0(v0: u1, v1: Field, v2: Field): jmpif v0, then: b1, else: b2 b1(): jmp b3(v1) b2(): jmp b3(v2) b3(v3: Field): … b3 instructions …</a></li><li><a href="#b0v0-u1v1--allocate---mut-fieldstore-field-3-at-v1jmpif-v0-then-b1-else-b2b1store-field-5-at-v1-b1-instructions-jmp-b3b2store-field-7-at-v1-b2-instructions-jmp-b3b3-b3-instructions-" title="b0(v0: u1): v1 = allocate -&#62; &#38;mut Field store Field 3 at v1 jmpif v0, then: b1, else: b2 b1(): store Field 5 at v1 … b1 instructions … jmp b3 b2(): store Field 7 at v1 … b2 instructions … jmp b3 b3(): … b3 instructions …">b0(v0: u1): v1 = allocate -&gt; &amp;mut Field store Field 3 at v1 jmpif v0, then: b1, else: b2 b1(): store Field 5 at v1 … b1 instructions … jmp b3 b2(): store Field 7 at v1 … b2 instructions … jmp b3 b3(): … b3 instructions …</a></li></ul><h3><a href="#modules">Module Items</a></h3><ul class="block"><li><a href="#modules" title="Modules">Modules</a></li><li><a href="#structs" title="Structs">Structs</a></li><li><a href="#functions" title="Functions">Functions</a></li></ul></section><div id="rustdoc-modnav"><h2><a href="../index.html">In noirc_<wbr>evaluator::<wbr>ssa::<wbr>opt</a></h2></div></div></nav><div class="sidebar-resizer"></div><main><div class="width-limiter"><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><span class="rustdoc-breadcrumbs"><a href="../../../index.html">noirc_evaluator</a>::<wbr><a href="../../index.html">ssa</a>::<wbr><a href="../index.html">opt</a></span><h1>Module <span>flatten_cfg</span><button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../../../src/noirc_evaluator/ssa/opt/flatten_cfg.rs.html#1-2006">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>This file contains the SSA flattening pass - a required pass for ACIR to remove any remaining
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="This file contains the SSA flattening pass - a required pass for ACIR to remove any remaining control-flow in the singular program-function, resulting in a single block containing the program logic."><title>noirc_evaluator::ssa::opt::flatten_cfg - Rust</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../../static.files/rustdoc-46132b98.css"><meta name="rustdoc-vars" data-root-path="../../../../" data-static-root-path="../../../../static.files/" data-current-crate="noirc_evaluator" data-themes="" data-resource-suffix="" data-rustdoc-version="1.85.0 (4d91de4e4 2025-02-17)" data-channel="1.85.0" data-search-js="search-75f5ac3e.js" data-settings-js="settings-0f613d39.js" ><script src="../../../../static.files/storage-59e33391.js"></script><script defer src="../sidebar-items.js"></script><script defer src="../../../../static.files/main-5f194d8c.js"></script><noscript><link rel="stylesheet" href="../../../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../../static.files/favicon-044be391.svg"></head><body class="rustdoc mod"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="mobile-topbar"><button class="sidebar-menu-toggle" title="show sidebar"></button></nav><nav class="sidebar"><div class="sidebar-crate"><h2><a href="../../../../noirc_evaluator/index.html">noirc_<wbr>evaluator</a><span class="version">1.0.0-beta.11</span></h2></div><div class="sidebar-elems"><section id="rustdoc-toc"><h2 class="location"><a href="#">Module flatten_<wbr>cfg</a></h2><h3><a href="#modules">Module Items</a></h3><ul class="block"><li><a href="#modules" title="Modules">Modules</a></li><li><a href="#structs" title="Structs">Structs</a></li><li><a href="#functions" title="Functions">Functions</a></li><li><a href="#types" title="Type Aliases">Type Aliases</a></li></ul></section><div id="rustdoc-modnav"><h2><a href="../index.html">In noirc_<wbr>evaluator::<wbr>ssa::<wbr>opt</a></h2></div></div></nav><div class="sidebar-resizer"></div><main><div class="width-limiter"><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><span class="rustdoc-breadcrumbs"><a href="../../../index.html">noirc_evaluator</a>::<wbr><a href="../../index.html">ssa</a>::<wbr><a href="../index.html">opt</a></span><h1>Module <span>flatten_cfg</span><button id="copy-path" title="Copy item path to clipboard">Copy item path</button></h1><rustdoc-toolbar></rustdoc-toolbar><span class="sub-heading"><a class="src" href="../../../../src/noirc_evaluator/ssa/opt/flatten_cfg.rs.html#1-2323">Source</a> </span></div><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>This file contains the SSA flattening pass - a required pass for ACIR to remove any remaining
 control-flow in the singular program-function, resulting in a single block containing the
 program logic.</p>
 <p>ACIR/Brillig differences within this pass:</p>
@@ -12,6 +12,7 @@ program logic.</p>
 This also means the only acir functions in the program should be <code>main</code> (if main is
 constrained), or any constrained <code>InlineType::Fold</code> functions.</li>
 <li>Precondition: Each constrained function should have no loops (unrolling has been performed).</li>
+<li>Precondition: “Equal” constraints have not been turned into “NotEqual”.</li>
 <li>Postcondition: Each constrained function should now consist of only one block where the
 terminator instruction is always a return.</li>
 </ul>
@@ -30,8 +31,8 @@ remaining <code>Instruction::IfElse</code> instructions.</li>
 This includes branches in the CFG with non-constant conditions. Flattening these requires
 special handling for operations with side-effects and can lead to a loss of information since
 the jmpif will no longer be in the program. As a result, this pass should usually be towards or
-at the end of the optimization passes.
-Furthermore, this pass assumes that no loops are present in the program and will assume
+at the end of the optimization passes.</p>
+<p>Furthermore, this pass assumes that no loops are present in the program and will assume
 that a jmpif is a branch point and will attempt to merge both blocks. No actual looping will occur.</p>
 <p>This pass is also known to produce some extra instructions which may go unused (usually ‘Not’)
 while merging branches. These extra instructions can be cleaned up by a later dead instruction
@@ -40,28 +41,29 @@ elimination (DIE) pass.</p>
 of <code>EnableSideEffectsIf</code> instructions. Each time the flattening pass enters and exits a branch of
 a jmpif, an instruction is inserted to capture a condition that is analogous to the activeness
 of the program point. For example:</p>
-<p>b0(v0: u1):
-jmpif v0, then: b1, else: b2
+<div class="example-wrap"><pre class="language-text"><code>b0(v0: u1):
+  jmpif v0, then: b1, else: b2
 b1():
-v1 = call f0
-jmp b3(v1)
-… blocks b2 &amp; b3 …</p>
-<p>Would brace the call instruction as such:
-enable_side_effects v0
-v1 = call f0
-enable_side_effects u1 1</p>
+  v1 = call f0
+  jmp b3(v1)
+... blocks b2 &amp; b3 ...</code></pre></div>
+<p>Would brace the call instruction as such:</p>
+<div class="example-wrap"><pre class="language-text"><code>  enable_side_effects v0
+  v1 = call f0
+  enable_side_effects u1 1</code></pre></div>
 <p>(Note: we restore to “true” to indicate that this program point is not nested within any
 other branches. Each <code>enable_side_effects</code> overrides the previous, they do not implicitly stack.)</p>
-<p>When we are flattening a block that was reached via a jmpif with a non-constant condition c,
+<p>When we are flattening a block that was reached via a jmpif with a non-constant condition <code>c</code>,
 the following transformations of certain instructions within the block are expected:</p>
 <ol>
 <li>A constraint is multiplied by the condition and changes the constraint to
-an equality with c:</li>
+an equality with <code>c</code>:</li>
 </ol>
-<h2 id="constrain-v0"><a class="doc-anchor" href="#constrain-v0">§</a>constrain v0</h2>
-<p>v1 = mul v0, c
+<div class="example-wrap"><pre class="language-text"><code>constrain v0
+============
+v1 = mul v0, c
 v2 = eq v1, c
-constrain v2</p>
+constrain v2</code></pre></div>
 <ol start="2">
 <li>If we reach the end block of the branch created by the jmpif instruction, its block parameters
 will be merged. To merge the jmp arguments of the then and else branches, the formula
@@ -70,55 +72,56 @@ will be merged. To merge the jmp arguments of the then and else branches, the fo
 of complex values (arrays and slices) this simplification is delayed until the
 <code>remove_if_else</code> SSA pass.</li>
 </ol>
-<h2 id="b0v0-u1-v1-field-v2-fieldjmpif-v0-then-b1-else-b2b1jmp-b3v1b2jmp-b3v2b3v3-field-b3-instructions-"><a class="doc-anchor" href="#b0v0-u1-v1-field-v2-fieldjmpif-v0-then-b1-else-b2b1jmp-b3v1b2jmp-b3v2b3v3-field-b3-instructions-">§</a>b0(v0: u1, v1: Field, v2: Field):
-jmpif v0, then: b1, else: b2
+<div class="example-wrap"><pre class="language-text"><code>b0(v0: u1, v1: Field, v2: Field):
+  jmpif v0, then: b1, else: b2
 b1():
-jmp b3(v1)
+  jmp b3(v1)
 b2():
-jmp b3(v2)
+  jmp b3(v2)
 b3(v3: Field):
-… b3 instructions …</h2>
-<p>b0(v0: u1, v1: Field, v2: Field):
-v3 = mul v0, v1
-v4 = not v0
-v5 = mul v4, v2
-v6 = add v3, v5
-… b3 instructions …</p>
+  ... b3 instructions ...
+=========================
+b0(v0: u1, v1: Field, v2: Field):
+  v3 = mul v0, v1
+  v4 = not v0
+  v5 = mul v4, v2
+  v6 = add v3, v5
+  ... b3 instructions ...</code></pre></div>
 <ol start="3">
 <li>Each <code>store v0 in v1</code> is replaced with a store of a new value
 <code>v4 = if v3 then v0 else v2</code> where <code>v3</code> is the current condition
 given by <code>enable_side_effects v3</code> and <code>v2</code> is the result of
 a newly-given <code>v2 = load v0</code> inserted before the store.</li>
 </ol>
-<h2 id="b0v0-u1v1--allocate---mut-fieldstore-field-3-at-v1jmpif-v0-then-b1-else-b2b1store-field-5-at-v1-b1-instructions-jmp-b3b2store-field-7-at-v1-b2-instructions-jmp-b3b3-b3-instructions-"><a class="doc-anchor" href="#b0v0-u1v1--allocate---mut-fieldstore-field-3-at-v1jmpif-v0-then-b1-else-b2b1store-field-5-at-v1-b1-instructions-jmp-b3b2store-field-7-at-v1-b2-instructions-jmp-b3b3-b3-instructions-">§</a>b0(v0: u1):
-v1 = allocate -&gt; &amp;mut Field
-store Field 3 at v1
-jmpif v0, then: b1, else: b2
+<div class="example-wrap"><pre class="language-text"><code>b0(v0: u1):
+  v1 = allocate -&gt; &amp;mut Field
+  store Field 3 at v1
+  jmpif v0, then: b1, else: b2
 b1():
-store Field 5 at v1
-… b1 instructions …
-jmp b3
+  store Field 5 at v1
+  ... b1 instructions ...
+  jmp b3
 b2():
-store Field 7 at v1
-… b2 instructions …
-jmp b3
+  store Field 7 at v1
+  ... b2 instructions ...
+  jmp b3
 b3():
-… b3 instructions …</h2>
-<p>b0():
-v1 = allocate -&gt; &amp;mut Field
-store Field 3 at v1     // no prior value so we do not load &amp; merge
-enable_side_effects v0  // former block b1
-v2 = load v1 -&gt; Field
-v3 = not v0
-v4 = if v0 then Field 5 else (if v3) v2
-store v4 at v1
-… b1 instructions …
-enable_side_effects v3  // former block b2
-v5 = load v1 -&gt; Field
-v6 = if v3 then Field 7 else (if v0) v5
-store v6 at v1
-… b2 instructions …
-enable_side_effects u1 1
-… b3 instructions …</p>
-</div></details><h2 id="modules" class="section-header">Modules<a href="#modules" class="anchor">§</a></h2><ul class="item-table"><li><div class="item-name"><a class="mod" href="branch_analysis/index.html" title="mod noirc_evaluator::ssa::opt::flatten_cfg::branch_analysis">branch_<wbr>analysis</a><span title="Restricted Visibility">&nbsp;🔒</span> </div><div class="desc docblock-short">This is an algorithm for identifying branch starts and ends.</div></li><li><div class="item-name"><a class="mod" href="value_merger/index.html" title="mod noirc_evaluator::ssa::opt::flatten_cfg::value_merger">value_<wbr>merger</a><span title="Restricted Visibility">&nbsp;🔒</span> </div></li></ul><h2 id="structs" class="section-header">Structs<a href="#structs" class="anchor">§</a></h2><ul class="item-table"><li><div class="item-name"><a class="struct" href="struct.ConditionalBranch.html" title="struct noirc_evaluator::ssa::opt::flatten_cfg::ConditionalBranch">Conditional<wbr>Branch</a><span title="Restricted Visibility">&nbsp;🔒</span> </div></li><li><div class="item-name"><a class="struct" href="struct.ConditionalContext.html" title="struct noirc_evaluator::ssa::opt::flatten_cfg::ConditionalContext">Conditional<wbr>Context</a><span title="Restricted Visibility">&nbsp;🔒</span> </div></li><li><div class="item-name"><a class="struct" href="struct.Context.html" title="struct noirc_evaluator::ssa::opt::flatten_cfg::Context">Context</a><span title="Restricted Visibility">&nbsp;🔒</span> </div></li></ul><h2 id="functions" class="section-header">Functions<a href="#functions" class="anchor">§</a></h2><ul class="item-table"><li><div class="item-name"><a class="fn" href="fn.flatten_cfg_post_check.html" title="fn noirc_evaluator::ssa::opt::flatten_cfg::flatten_cfg_post_check">flatten_<wbr>cfg_<wbr>post_<wbr>check</a><span title="Restricted Visibility">&nbsp;🔒</span> </div><div class="desc docblock-short">Post-check condition for <a href="../../ssa_gen/struct.Ssa.html#method.flatten_cfg" title="method noirc_evaluator::ssa::ssa_gen::Ssa::flatten_cfg">Ssa::flatten_cfg</a>.</div></li><li><div class="item-name"><a class="fn" href="fn.flatten_cfg_pre_check.html" title="fn noirc_evaluator::ssa::opt::flatten_cfg::flatten_cfg_pre_check">flatten_<wbr>cfg_<wbr>pre_<wbr>check</a><span title="Restricted Visibility">&nbsp;🔒</span> </div><div class="desc docblock-short">Pre-check condition for <a href="../../ssa_gen/struct.Ssa.html#method.flatten_cfg" title="method noirc_evaluator::ssa::ssa_gen::Ssa::flatten_cfg">Ssa::flatten_cfg</a>.</div></li><li><div class="item-name"><a class="fn" href="fn.flatten_function_cfg.html" title="fn noirc_evaluator::ssa::opt::flatten_cfg::flatten_function_cfg">flatten_<wbr>function_<wbr>cfg</a><span title="Restricted Visibility">&nbsp;🔒</span> </div><div class="desc docblock-short">Flattens the control flow graph of the function such that it is left with a
-single block containing all instructions and no more control-flow.</div></li></ul></section></div></main></body></html>
+  ... b3 instructions ...
+=========================
+b0():
+  v1 = allocate -&gt; &amp;mut Field
+  store Field 3 at v1     // no prior value so we do not load &amp; merge
+  enable_side_effects v0  // former block b1
+  v2 = load v1 -&gt; Field
+  v3 = not v0
+  v4 = if v0 then Field 5 else (if v3) v2
+  store v4 at v1
+  ... b1 instructions ...
+  enable_side_effects v3  // former block b2
+  v5 = load v1 -&gt; Field
+  v6 = if v3 then Field 7 else (if v0) v5
+  store v6 at v1
+  ... b2 instructions ...
+  enable_side_effects u1 1
+  ... b3 instructions ...</code></pre></div></div></details><h2 id="modules" class="section-header">Modules<a href="#modules" class="anchor">§</a></h2><ul class="item-table"><li><div class="item-name"><a class="mod" href="branch_analysis/index.html" title="mod noirc_evaluator::ssa::opt::flatten_cfg::branch_analysis">branch_<wbr>analysis</a><span title="Restricted Visibility">&nbsp;🔒</span> </div><div class="desc docblock-short">This is an algorithm for identifying branch starts and ends.</div></li><li><div class="item-name"><a class="mod" href="value_merger/index.html" title="mod noirc_evaluator::ssa::opt::flatten_cfg::value_merger">value_<wbr>merger</a><span title="Restricted Visibility">&nbsp;🔒</span> </div></li></ul><h2 id="structs" class="section-header">Structs<a href="#structs" class="anchor">§</a></h2><ul class="item-table"><li><div class="item-name"><a class="struct" href="struct.ConditionalBranch.html" title="struct noirc_evaluator::ssa::opt::flatten_cfg::ConditionalBranch">Conditional<wbr>Branch</a><span title="Restricted Visibility">&nbsp;🔒</span> </div></li><li><div class="item-name"><a class="struct" href="struct.ConditionalContext.html" title="struct noirc_evaluator::ssa::opt::flatten_cfg::ConditionalContext">Conditional<wbr>Context</a><span title="Restricted Visibility">&nbsp;🔒</span> </div></li><li><div class="item-name"><a class="struct" href="struct.Context.html" title="struct noirc_evaluator::ssa::opt::flatten_cfg::Context">Context</a><span title="Restricted Visibility">&nbsp;🔒</span> </div></li></ul><h2 id="functions" class="section-header">Functions<a href="#functions" class="anchor">§</a></h2><ul class="item-table"><li><div class="item-name"><a class="fn" href="fn.flatten_cfg_post_check.html" title="fn noirc_evaluator::ssa::opt::flatten_cfg::flatten_cfg_post_check">flatten_<wbr>cfg_<wbr>post_<wbr>check</a><span title="Restricted Visibility">&nbsp;🔒</span> </div><div class="desc docblock-short">Post-check condition for <a href="../../ssa_gen/struct.Ssa.html#method.flatten_cfg" title="method noirc_evaluator::ssa::ssa_gen::Ssa::flatten_cfg">Ssa::flatten_cfg</a>.</div></li><li><div class="item-name"><a class="fn" href="fn.flatten_cfg_pre_check.html" title="fn noirc_evaluator::ssa::opt::flatten_cfg::flatten_cfg_pre_check">flatten_<wbr>cfg_<wbr>pre_<wbr>check</a><span title="Restricted Visibility">&nbsp;🔒</span> </div><div class="desc docblock-short">Pre-check condition for <a href="../../ssa_gen/struct.Ssa.html#method.flatten_cfg" title="method noirc_evaluator::ssa::ssa_gen::Ssa::flatten_cfg">Ssa::flatten_cfg</a>.</div></li><li><div class="item-name"><a class="fn" href="fn.flatten_function_cfg.html" title="fn noirc_evaluator::ssa::opt::flatten_cfg::flatten_function_cfg">flatten_<wbr>function_<wbr>cfg</a><span title="Restricted Visibility">&nbsp;🔒</span> </div><div class="desc docblock-short">Flattens the control flow graph of the function such that it is left with a
+single block containing all instructions and no more control-flow.</div></li></ul><h2 id="types" class="section-header">Type Aliases<a href="#types" class="anchor">§</a></h2><ul class="item-table"><li><div class="item-name"><a class="type" href="type.WorkList.html" title="type noirc_evaluator::ssa::opt::flatten_cfg::WorkList">Work<wbr>List</a><span title="Restricted Visibility">&nbsp;🔒</span> </div><div class="desc docblock-short">Blocks enqueued for processing.</div></li></ul></section></div></main></body></html>

@@ -626,7 +626,7 @@
 <span class="kw">pub struct </span>ArtifactsAndWarnings(<span class="kw">pub </span>Artifacts, <span class="kw">pub </span>Vec&lt;SsaReport&gt;);
 
 <span class="doccomment">/// The default SSA optimization pipeline.
-</span><span class="kw">pub fn </span>primary_passes(options: <span class="kw-2">&amp;</span>SsaEvaluatorOptions) -&gt; Vec&lt;SsaPass&gt; {
+</span><span class="kw">pub fn </span>primary_passes(options: <span class="kw-2">&amp;</span>SsaEvaluatorOptions) -&gt; Vec&lt;SsaPass&lt;<span class="lifetime">'_</span>&gt;&gt; {
     <span class="macro">vec!</span>[
         SsaPass::new(Ssa::expand_signed_checks, <span class="string">"expand signed checks"</span>),
         SsaPass::new(Ssa::remove_unreachable_functions, <span class="string">"Removing Unreachable Functions"</span>),

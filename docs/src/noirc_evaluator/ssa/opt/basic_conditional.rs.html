@@ -523,10 +523,7 @@
 <a href="#522" id="522">522</a>
 <a href="#523" id="523">523</a>
 <a href="#524" id="524">524</a>
-<a href="#525" id="525">525</a>
-<a href="#526" id="526">526</a>
-<a href="#527" id="527">527</a>
-<a href="#528" id="528">528</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashSet;
+<a href="#525" id="525">525</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::HashSet;
 
 <span class="kw">use </span>acvm::AcirField;
 <span class="kw">use </span>fxhash::FxHashMap <span class="kw">as </span>HashMap;
@@ -544,6 +541,7 @@
         post_order::PostOrder,
         value::ValueId,
     },
+    opt::flatten_cfg::WorkList,
 };
 
 <span class="kw">use </span><span class="kw">super</span>::flatten_cfg::Context;
@@ -832,31 +830,27 @@
         //0. initialize the context for flattening a 'single conditional'
         </span><span class="kw">let </span>old_target = <span class="self">self</span>.target_block;
         <span class="kw">let </span>old_no_predicate = <span class="self">self</span>.no_predicate;
-        <span class="kw">let </span><span class="kw-2">mut </span>queue = <span class="macro">vec!</span>[];
         <span class="self">self</span>.target_block = conditional.block_entry;
         <span class="self">self</span>.no_predicate = <span class="bool-val">true</span>;
         <span class="comment">//1. process 'then' branch
         </span><span class="self">self</span>.inline_block(conditional.block_entry, no_predicates);
-        <span class="kw">let </span>to_process = <span class="self">self</span>.handle_terminator(conditional.block_entry, <span class="kw-2">&amp;</span>queue);
-        queue.extend(to_process);
-        <span class="kw">if let </span><span class="prelude-val">Some</span>(then) = conditional.block_then {
-            <span class="macro">assert_eq!</span>(queue.pop(), conditional.block_then);
-            <span class="self">self</span>.inline_block(then, no_predicates);
-            <span class="kw">let </span>to_process = <span class="self">self</span>.handle_terminator(then, <span class="kw-2">&amp;</span>queue);
+        <span class="kw">let </span><span class="kw-2">mut </span>work_list = WorkList::new();
+        <span class="kw">let </span>to_process = <span class="self">self</span>.handle_terminator(conditional.block_entry, <span class="kw-2">&amp;</span>work_list);
+        work_list.extend(to_process);
 
-            <span class="kw">for </span>incoming_block <span class="kw">in </span>to_process {
-                <span class="kw">if </span>!queue.contains(<span class="kw-2">&amp;</span>incoming_block) {
-                    queue.push(incoming_block);
-                }
-            }
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(then) = conditional.block_then {
+            <span class="macro">assert_eq!</span>(work_list.pop(), conditional.block_then);
+            <span class="self">self</span>.inline_block(then, no_predicates);
+            <span class="kw">let </span>to_process = <span class="self">self</span>.handle_terminator(then, <span class="kw-2">&amp;</span>work_list);
+            work_list.extend(to_process);
         }
 
         <span class="comment">//2. process 'else' branch, in case there is no 'then'
-        </span><span class="kw">let </span>next = queue.pop();
+        </span><span class="kw">let </span>next = work_list.pop();
         <span class="kw">if </span>next == conditional.block_else {
             <span class="kw">let </span>next = next.unwrap();
             <span class="self">self</span>.inline_block(next, no_predicates);
-            <span class="kw">let _ </span>= <span class="self">self</span>.handle_terminator(next, <span class="kw-2">&amp;</span>queue);
+            <span class="kw">let _ </span>= <span class="self">self</span>.handle_terminator(next, <span class="kw-2">&amp;</span>work_list);
         } <span class="kw">else </span>{
             <span class="macro">assert_eq!</span>(next, <span class="prelude-val">Some</span>(conditional.block_exit));
         }

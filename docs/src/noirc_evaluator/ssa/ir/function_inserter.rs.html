@@ -176,7 +176,9 @@
 <a href="#175" id="175">175</a>
 <a href="#176" id="176">176</a>
 <a href="#177" id="177">177</a>
-<a href="#178" id="178">178</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
+<a href="#178" id="178">178</a>
+<a href="#179" id="179">179</a>
+<a href="#180" id="180">180</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::call_stack::CallStackId;
 
 <span class="kw">use super</span>::{
@@ -262,8 +264,8 @@
         <span class="self">self</span>.function.dfg.data_bus = data_bus;
     }
 
-    <span class="doccomment">/// Push a new instruction to the given block and return its new InstructionId.
-    /// If the instruction was simplified out of the program, None is returned.
+    <span class="doccomment">/// Push a new instruction to the given block and return its new `InstructionId`.
+    /// If the instruction was simplified out of the program, `None` is returned.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>push_instruction(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         id: InstructionId,
@@ -283,7 +285,7 @@
         id: InstructionId,
         block: BasicBlockId,
         call_stack: CallStackId,
-    ) -&gt; InsertInstructionResult {
+    ) -&gt; InsertInstructionResult&lt;<span class="lifetime">'_</span>&gt; {
         <span class="kw">let </span>results = <span class="self">self</span>.function.dfg.instruction_results(id).to_vec();
 
         <span class="kw">let </span>ctrl_typevars = instruction
@@ -314,9 +316,11 @@
         }
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>remember_block_params(<span class="kw-2">&amp;mut </span><span class="self">self</span>, block: BasicBlockId, new_values: <span class="kw-2">&amp;</span>[ValueId]) {
+    <span class="doccomment">/// Associates each block parameter with a value, unless the parameter already has a value,
+    /// in which case it is kept as-is.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>remember_block_params(<span class="kw-2">&amp;mut </span><span class="self">self</span>, block: BasicBlockId, new_values: <span class="kw-2">&amp;</span>[ValueId]) {
         <span class="kw">let </span>old_parameters = <span class="self">self</span>.function.dfg.block_parameters(block);
-
+        <span class="macro">assert_eq!</span>(old_parameters.len(), new_values.len());
         <span class="kw">for </span>(param, new_param) <span class="kw">in </span>old_parameters.iter().zip(new_values) {
             <span class="self">self</span>.values.entry(<span class="kw-2">*</span>param).or_insert(<span class="kw-2">*</span>new_param);
         }
@@ -329,7 +333,7 @@
     ) {
         <span class="kw">let </span>old_parameters = <span class="self">self</span>.function.dfg.block_parameters(block);
         <span class="kw">let </span>new_parameters = <span class="self">self</span>.function.dfg.block_parameters(new_block);
-
+        <span class="macro">assert_eq!</span>(old_parameters.len(), new_parameters.len(),);
         <span class="kw">for </span>(param, new_param) <span class="kw">in </span>old_parameters.iter().zip(new_parameters) {
             <span class="comment">// Don't overwrite any existing entries to avoid overwriting the induction variable
             </span><span class="self">self</span>.values.entry(<span class="kw-2">*</span>param).or_insert(<span class="kw-2">*</span>new_param);
