@@ -1,5 +1,6 @@
 use iter_extended::vecmap;
 use noirc_errors::Location;
+use rustc_hash::FxHashMap as HashMap;
 use std::collections::HashSet;
 
 use crate::{
@@ -22,6 +23,11 @@ impl NodeInterner {
         let next_id = self.next_trait_implementation_id;
         self.next_trait_implementation_id += 1;
         TraitImplId(next_id)
+    }
+
+    /// Gets the trait implementations from the node interner.
+    pub fn trait_implementations(&self) -> &HashMap<TraitImplId, Shared<TraitImpl>> {
+        &self.trait_implementations
     }
 
     pub fn try_get_trait_implementation(&self, id: TraitImplId) -> Option<Shared<TraitImpl>> {

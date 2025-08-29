@@ -1,7 +1,10 @@
 use std::borrow::Cow;
 
 use noirc_errors::Location;
-use petgraph::{algo::tarjan_scc, graph::NodeIndex as PetGraphIndex};
+use petgraph::{
+    algo::tarjan_scc,
+    graph::{DiGraph, NodeIndex as PetGraphIndex},
+};
 
 use crate::{
     Type,
@@ -32,6 +35,11 @@ pub enum DependencyId {
 }
 
 impl NodeInterner {
+    /// Gets the dependency graph from the node interner.
+    pub fn dependency_graph(&self) -> &DiGraph<DependencyId, ()> {
+        &self.dependency_graph
+    }
+
     /// Register that `dependent` depends on `dependency`.
     /// This is usually because `dependent` refers to `dependency` in one of its struct fields.
     pub fn add_type_dependency(&mut self, dependent: DependencyId, dependency: TypeId) {
