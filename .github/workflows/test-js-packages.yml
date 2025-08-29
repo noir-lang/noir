@@ -206,6 +206,8 @@ jobs:
       - name: Install Yarn dependencies
         uses: ./.github/actions/setup
 
+      - uses: taiki-e/install-action@just
+
       - name: Build acvm_js
         run: just build-package @noir-lang/noir_wasm
         env:
