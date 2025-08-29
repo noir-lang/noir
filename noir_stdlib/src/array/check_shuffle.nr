@@ -151,14 +151,12 @@ mod test {
         check_shuffle(lhs, rhs);
     }
 
-
     #[test]
     fn test_shuffle_bool() {
         let lhs: [bool; 4] = [true, false, true, false];
         let rhs: [bool; 4] = [false, true, false, true];
         check_shuffle(lhs, rhs);
     }
-
 
     #[test]
     fn test_shuffle_compound_struct_with_duplicates() {
@@ -171,10 +169,8 @@ mod test {
 
     #[test(should_fail_with = "check_shuffle, lhs and rhs arrays do not contain equivalent values")]
     fn test_shuffle_compound_struct_fail() {
-        let lhs: [CompoundStruct; 2] = [
-            CompoundStruct { a: true, b: 42, c: 100 },
-            CompoundStruct { a: false, b: 0, c: 200 },
-        ];
+        let lhs: [CompoundStruct; 2] =
+            [CompoundStruct { a: true, b: 42, c: 100 }, CompoundStruct { a: false, b: 0, c: 200 }];
         let rhs: [CompoundStruct; 2] = [
             CompoundStruct { a: true, b: 42, c: 100 },
             CompoundStruct { a: false, b: 1, c: 200 }, // Different b field

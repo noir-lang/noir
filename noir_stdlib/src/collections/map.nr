@@ -1,7 +1,7 @@
 use crate::cmp::Eq;
 use crate::collections::bounded_vec::BoundedVec;
 use crate::default::Default;
-use crate::hash::{BuildHasher, Hash, BuildHasherDefault, poseidon2::Poseidon2Hasher};
+use crate::hash::{BuildHasher, BuildHasherDefault, Hash, poseidon2::Poseidon2Hasher};
 use crate::option::Option;
 
 // We use load factor alpha_max = 0.75.
@@ -708,15 +708,16 @@ where
 }
 
 mod test {
-    use super::HashMap;
+    use crate::default::Default;
     use crate::hash::BuildHasherDefault;
     use crate::hash::poseidon2::Poseidon2Hasher;
-    use crate::default::Default;
+    use super::HashMap;
 
     #[test]
     pub fn test_quadratic_probe_function() {
-        let map: HashMap<Field, Field, 1000, BuildHasherDefault<Poseidon2Hasher>> = HashMap::default();
-        
+        let map: HashMap<Field, Field, 1000, BuildHasherDefault<Poseidon2Hasher>> =
+            HashMap::default();
+
         let hash1: u32 = 123;
         let attempt1: u32 = 1000000;
 
