@@ -12,7 +12,7 @@ export default {
   tagline: 'The Universal ZK Circuit Language',
   favicon: 'img/favicon.svg',
   url: 'https://noir-lang.org',
-  baseUrl: '/',
+  baseUrl: '/docs/',
   onBrokenLinks: 'throw',
   onBrokenMarkdownLinks: process.env.ENV === 'dev' ? 'warn' : 'throw',
   trailingSlash: false,
@@ -28,7 +28,7 @@ export default {
         docs: {
           path: process.env.ENV === 'dev' ? 'docs' : 'processed-docs',
           sidebarPath: './sidebars.js',
-          routeBasePath: '/docs',
+          routeBasePath: '/',
           remarkPlugins: [math],
           rehypePlugins: [katex],
           versions: {
