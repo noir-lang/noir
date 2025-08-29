@@ -1,14 +1,14 @@
 use crate::cmp::Eq;
 use crate::collections::bounded_vec::BoundedVec;
 use crate::default::Default;
-use crate::hash::{BuildHasher, Hash};
+use crate::hash::{BuildHasher, Hash, BuildHasherDefault, poseidon2::Poseidon2Hasher};
 use crate::option::Option;
 
 // We use load factor alpha_max = 0.75.
 // Upon exceeding it, assert will fail in order to inform the user
 // about performance degradation, so that he can adjust the capacity.
 global MAX_LOAD_FACTOR_NUMERATOR: u32 = 3;
-global MAX_LOAD_FACTOR_DEN0MINATOR: u32 = 4;
+global MAX_LOAD_FACTOR_DENOMINATOR: u32 = 4;
 
 /// `HashMap<Key, Value, MaxLen, Hasher>` is used to efficiently store and look up key-value pairs.
 ///
@@ -492,6 +492,8 @@ impl<K, V, let N: u32, B> HashMap<K, V, N, B> {
                         result = Option::some(value);
                         should_break = true;
                     }
+                } else if slot._key_value.is_none() {
+                    should_break = true;
                 }
             }
         }
@@ -588,6 +590,8 @@ impl<K, V, let N: u32, B> HashMap<K, V, N, B> {
                         self._len -= 1;
                         should_break = true;
                     }
+                } else if slot._key_value.is_none() {
+                    should_break = true;
                 }
             }
         }
@@ -609,16 +613,19 @@ impl<K, V, let N: u32, B> HashMap<K, V, N, B> {
     // This ensures good uniformity of distribution for table sizes
     // equal to prime numbers or powers of two.
     fn quadratic_probe(_self: Self, hash: u32, attempt: u32) -> u32 {
-        (hash + (attempt + attempt * attempt) / 2) % N
+        // use u64 to prevent overflow in attempt * attempt
+        let attempt_u64 = attempt as u64;
+        let offset = (attempt_u64 + attempt_u64 * attempt_u64) / 2;
+        ((hash as u64 + offset) % (N as u64)) as u32
     }
 
     // Amount of elements in the table in relation to available slots exceeds alpha_max.
     // To avoid a comparatively more expensive division operation
     // we conduct cross-multiplication instead.
-    // n / m >= MAX_LOAD_FACTOR_NUMERATOR / MAX_LOAD_FACTOR_DEN0MINATOR
-    // n * MAX_LOAD_FACTOR_DEN0MINATOR >= m * MAX_LOAD_FACTOR_NUMERATOR
+    // n / m >= MAX_LOAD_FACTOR_NUMERATOR / MAX_LOAD_FACTOR_DENOMINATOR
+    // n * MAX_LOAD_FACTOR_DENOMINATOR >= m * MAX_LOAD_FACTOR_NUMERATOR
     fn assert_load_factor(self) {
-        let lhs = self._len * MAX_LOAD_FACTOR_DEN0MINATOR;
+        let lhs = self._len * MAX_LOAD_FACTOR_DENOMINATOR;
         let rhs = self._table.len() * MAX_LOAD_FACTOR_NUMERATOR;
         let exceeded = lhs >= rhs;
         assert(!exceeded, "Load factor is exceeded, consider increasing the capacity.");
@@ -697,5 +704,25 @@ where
         let _build_hasher = B::default();
         let map: HashMap<K, V, N, B> = HashMap::with_hasher(_build_hasher);
         map
+    }
+}
+
+mod test {
+    use super::HashMap;
+    use crate::hash::BuildHasherDefault;
+    use crate::hash::poseidon2::Poseidon2Hasher;
+    use crate::default::Default;
+
+    /// Test function for quadratic_probe to verify overflow prevention
+    #[test]
+    pub fn test_quadratic_probe_function() {
+        let map: HashMap<Field, Field, 1000, BuildHasherDefault<Poseidon2Hasher>> = HashMap::default();
+        
+        let hash1: u32 = 123;
+        let attempt1: u32 = 1000000;
+
+        let result: u32 = map.quadratic_probe(hash1, attempt1);
+        // Ensure no overflow occurs when calculating the result
+        assert(result == 123, "Result should be within table bounds");
     }
 }
