@@ -253,7 +253,7 @@ pub(crate) struct Context<'f> {
     /// the most recent condition combined with all previous conditions via `And` instructions.
     condition_stack: Vec<ConditionalContext>,
 
-    /// Arguments prepared by the last inlined block for the for the next block we are about to process.
+    /// Arguments prepared by the last inlined block for the next block we are about to process.
     next_arguments: Option<Vec<ValueId>>,
 
     /// Stores all allocations local to the current branch.
