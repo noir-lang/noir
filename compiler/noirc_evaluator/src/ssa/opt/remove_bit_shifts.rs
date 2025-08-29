@@ -136,23 +136,14 @@ impl Context<'_, '_, '_> {
                 let zero =
                     self.numeric_constant(FieldElement::zero(), NumericType::signed(bit_size));
                 let lhs_sign = self.insert_binary(lhs, BinaryOp::Lt, zero);
-                let lhs_sign_as_field = self.insert_cast(lhs_sign, NumericType::NativeField);
-                let lhs_as_field = self.insert_cast(lhs, NumericType::NativeField);
-                // For negative numbers, convert to 1-complement using wrapping addition of a + 1
-                // Unchecked add as these are fields
-                let one_complement = self.insert_binary(
-                    lhs_sign_as_field,
-                    BinaryOp::Add { unchecked: true },
-                    lhs_as_field,
-                );
-                let one_complement = self.insert_truncate(one_complement, bit_size, bit_size + 1);
-                let one_complement =
-                    self.insert_cast(one_complement, NumericType::signed(bit_size));
-                // Performs the division on the 1-complement (or the operand if positive)
-                let shifted_complement = self.insert_binary(one_complement, BinaryOp::Div, pow);
-                // Convert back to 2-complement representation if operand is negative
                 let lhs_sign_as_int = self.insert_cast(lhs_sign, lhs_typ);
+                let adjusted_lhs =
+                    self.insert_binary(lhs, BinaryOp::Add { unchecked: true }, lhs_sign_as_int);
 
+                // Performs the division on the 1-complement (or the operand if positive)
+                let shifted_complement = self.insert_binary(adjusted_lhs, BinaryOp::Div, pow);
+
+                // Convert back to 2-complement representation if operand is negative
                 // The requirements for this to underflow are all of these:
                 // - lhs < 0
                 // - ones_complement(lhs) / (2^rhs) == 0
@@ -712,15 +703,11 @@ mod tests {
             acir(inline) fn main f0 {
               b0(v0: i32):
                 v2 = lt v0, i32 0
-                v3 = cast v2 as Field
-                v4 = cast v0 as Field
-                v5 = add v3, v4
-                v6 = truncate v5 to 32 bits, max_bit_size: 33
-                v7 = cast v6 as i32
-                v9 = div v7, i32 4
-                v10 = cast v2 as i32
-                v11 = unchecked_sub v9, v10
-                return v11
+                v3 = cast v2 as i32
+                v4 = unchecked_add v0, v3
+                v6 = div v4, i32 4
+                v7 = unchecked_sub v6, v3
+                return v7
             }
             ");
         }
@@ -789,15 +776,11 @@ mod tests {
                 v56 = add v53, v55
                 v57 = cast v56 as i32
                 v59 = lt v0, i32 0
-                v60 = cast v59 as Field
-                v61 = cast v0 as Field
-                v62 = add v60, v61
-                v63 = truncate v62 to 32 bits, max_bit_size: 33
-                v64 = cast v63 as i32
-                v65 = div v64, v57
-                v66 = cast v59 as i32
-                v67 = unchecked_sub v65, v66
-                return v67
+                v60 = cast v59 as i32
+                v61 = unchecked_add v0, v60
+                v62 = div v61, v57
+                v63 = unchecked_sub v62, v60
+                return v63
             }
             "#);
         }
