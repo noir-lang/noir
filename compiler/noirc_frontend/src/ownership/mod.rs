@@ -267,7 +267,7 @@ impl Context {
     }
 
     fn handle_index(&mut self, index_expr: &mut Expression) {
-        let crate::monomorphization::ast::Expression::Index(index) = index_expr else {
+        let Expression::Index(index) = index_expr else {
             panic!("handle_index should only be called with Index nodes");
         };
 
