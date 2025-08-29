@@ -17,8 +17,8 @@ expression: artifact
     "public parameters indices : []",
     "return value indices : []"
   ],
-  "debug_symbols": "ndLRCoMgFAbgd/G6i7Scba8yRlidQhAT02BE7z4LbREMhld2/PvOUXBBHTRuqIXqxwk9ngtqjJBSDLUcW27FqPzusmYolrU1AH4LnXKvNDegLHooJ2WGZi7d/tOkudpXy41P8wyB6vzqG/ZCwva1Zl+d/6aYsoAxrQ5O//esip7dEzzJy+AJzlM8PfwtxRclCb4oU+5PGI3zK5wyn8TzFwVJ8QxHf5n/8hVvhbm+uJkbwRsJoeydak+pfeuYxBerzdhC5wxsnfbM9/4A",
-  "file_map": {},
+  "debug_symbols": "[debug_symbols]",
+  "file_map": "[file_map]",
   "expression_width": {
     "Bounded": {
       "width": 4

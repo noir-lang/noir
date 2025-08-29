@@ -104,5 +104,5 @@ expression: artifact
     "structs": {},
     "globals": {}
   },
-  "file_map": {}
+  "file_map": "[file_map]"
 }

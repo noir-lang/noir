@@ -83,13 +83,8 @@ expression: artifact
     "MEM (id: 1, read at: EXPR [ (1, _34) 0 ], value: EXPR [ (1, _35) 0 ]) ",
     "EXPR [ (-1, _0, _1) (-1, _0, _2) (1, _0, _35) (1, _0) (1, _1) (1, _2) -1 ]"
   ],
-  "debug_symbols": "nZHNCoMwDIDfJecedK5u+ipjSNUohVJLbQdDfPdFW1EPg7HT1/x8JSQTtFj7vpK6G0YoHxPUViol+0oNjXBy0JSdZgZbWDmLSCk41MkywqJ2UGqvFIOXUH5tGo3QK52wVE0YoG6J9GEnFS6vme128l3leXTzXeY/23ce7SL/w06TIuppyk/+kyLRSHvaFmQX6mSQZQHXAB6QB9wC7gEFlNm8DGClqBXGnXdeN4cTuLfZKtuRjB0abL3FZYC1RiN9AA==",
-  "file_map": {
-    "50": {
-      "source": "fn main(x: bool, mut y: [u32; 30]) {\n    if x {\n        y[0] = 1;\n    }\n\n    let z = y[0] + y[1];\n    assert(z == 1);\n}\n",
-      "path": ""
-    }
-  },
+  "debug_symbols": "[debug_symbols]",
+  "file_map": "[file_map]",
   "expression_width": {
     "Bounded": {
       "width": 4

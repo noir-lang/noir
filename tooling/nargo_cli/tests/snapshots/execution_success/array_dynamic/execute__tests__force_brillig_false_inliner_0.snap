@@ -218,13 +218,8 @@ expression: artifact
     "unconstrained func 1",
     "[Const { destination: Direct(21), bit_size: Integer(U32), value: 1 }, Const { destination: Direct(20), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(21), offset_address: Direct(20) }, Const { destination: Direct(2), bit_size: Field, value: 0 }, BinaryFieldOp { destination: Direct(3), op: Equals, lhs: Direct(0), rhs: Direct(2) }, JumpIf { condition: Direct(3), location: 8 }, Const { destination: Direct(1), bit_size: Field, value: 1 }, BinaryFieldOp { destination: Direct(0), op: Div, lhs: Direct(1), rhs: Direct(0) }, Stop { return_data: HeapVector { pointer: Direct(20), size: Direct(21) } }]"
   ],
-  "debug_symbols": "rZbdjtowEIXfxde58PhvbF6lqlCAsIoUBZSFlSq0794xOXZpJarW7NVnCN+ZwYkd39Rh2F3ftuN8PL2rzbeb2i3jNI1v2+m07y/jaZZvb5+dKh+3l2UY5Cv1cF2sc78M80Vt5us0deqjn673H72f+/nOS7/IVd2pYT4IJfA4TkMefXa/bP1cJR8gU6Cq+//wzZf5vsE35OEbY1rqJ66+feb75763pX9vw2u+a6rvS//++fz/ox9b/Fj7j039c7l/nlOLn8rzG7R+0ecGPxgqvvGv+bal/+DK4g++Zf4D1/rsX/Rb7l8IrvhNzx/rBJ9JN/nl+WXdsn7Z1PpON+w/tvZvqcl31ffc5IfqxyafXvO57D/2+f7xNz+V/+/INPmu+i31nS39O8dNPlW/Zf5cfX+6pvfvQ/0//O/yqd+Py28nFkVe3pmdorCC5b0piCuSzGenjJYwAcmaFhhZGgKrNlHg1EZumMkp0pUJIIMRlCSSfKtBySKpYCWMpISVNJIa1oE5T1apzXlS1DIYwbTS5TzpxhGY86QtZ0EHejCADEYw58n/8Bok0IAWdKAHA8hgBJEXkBeQF5AXkBckz8j8BJ9PPsIAMhjBtJI1SKDJ5xyh5BmZL3agBwPIYATTyqhBAg2IvJjzZF6jB3OezFdkMIJpZdIggQa0oAM9iLyU82Q+UgTTStK6DCjvrXlgysDmPTYPXBlIqs2L/qNfxn43DTiTH6/z/uGIfvlxLlfKIf68nPbD4boMeXHcr8ly+Qk=",
-  "file_map": {
-    "50": {
-      "source": "fn main(\n    x: [u32; 5],\n    mut z: u32,\n    t: u32,\n    index: [u32; 5],\n    index2: [u32; 5],\n    offset: u32,\n    sublen: Field,\n) {\n    let idx = (z - 5 * t - 5);\n    //dynamic array test\n    dyn_array(x, idx, idx - 3);\n    //regression for issue 1283\n    let mut s = 0;\n    let x3 = [246, 159, 32, 176, 8];\n    for i in 0..5 {\n        s += x3[index[i]];\n    }\n    assert(s != 0);\n\n    if 3 < (sublen as u32) {\n        assert(index[offset + 3] == index2[3]);\n    }\n}\n\nfn dyn_array(mut x: [u32; 5], y: u32, z: u32) {\n    assert(x[y] == 111);\n    assert(x[z] == 101);\n    x[z] = 0;\n    assert(x[y] == 111);\n    assert(x[1] == 0);\n    if y as u32 < 10 {\n        x[y] = x[y] - 2;\n    } else {\n        x[y] = 0;\n    }\n    assert(x[4] == 109);\n}\n",
-      "path": ""
-    }
-  },
+  "debug_symbols": "[debug_symbols]",
+  "file_map": "[file_map]",
   "expression_width": {
     "Bounded": {
       "width": 4

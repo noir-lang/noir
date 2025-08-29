@@ -47,13 +47,8 @@ expression: artifact
     "unconstrained func 1",
     "[Const { destination: Direct(21), bit_size: Integer(U32), value: 1 }, Const { destination: Direct(20), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(21), offset_address: Direct(20) }, Const { destination: Direct(2), bit_size: Field, value: 0 }, BinaryFieldOp { destination: Direct(3), op: Equals, lhs: Direct(0), rhs: Direct(2) }, JumpIf { condition: Direct(3), location: 8 }, Const { destination: Direct(1), bit_size: Field, value: 1 }, BinaryFieldOp { destination: Direct(0), op: Div, lhs: Direct(1), rhs: Direct(0) }, Stop { return_data: HeapVector { pointer: Direct(20), size: Direct(21) } }]"
   ],
-  "debug_symbols": "nZHNqsMgEIXfZdYu1MT0Jq9SSjDJtAhigtULJfjuHfND20WgdDNHnfnmCGeGAbt4a427jndozjN03lhrbq0dex3M6Oh1Bp6LKKERDIRapVrltMrfKjVJSgx2ug0eMcNv68hk0h5dgMZFaxn8axuXofuk3aJBe+pyBugGUlp4NRbzKbEXzY9RVasNrvgLV1/zp2LDBRdHuDzGy7rceMXVD/aFqDa+kNUHf6Gb7o3/zEfQIAO51GKplFWZsoE3urOYp/Ke6Podomt4THtnj33yY49D9JgN3rKnepacSXVJ+RNP",
-  "file_map": {
-    "50": {
-      "source": "fn main(input: Field, enable: bool) {\n    if enable {\n        let hash = no_predicate_function(input);\n        // `EnableSideEffects` instruction from above instruction leaks out and removes the predicate from this call,\n        // resulting in execution failure.\n        // Safety: testing context\n        unsafe { fail(hash) };\n    }\n}\n\n#[no_predicates]\nfn no_predicate_function(enable: Field) -> Field {\n    // if-statement ensures that an `EnableSideEffects` instruction is emitted.\n    if enable == 0 {\n        1\n    } else {\n        0\n    }\n}\n\nunconstrained fn fail(_: Field) {\n    assert(false);\n}\n",
-      "path": ""
-    }
-  },
+  "debug_symbols": "[debug_symbols]",
+  "file_map": "[file_map]",
   "expression_width": {
     "Bounded": {
       "width": 4

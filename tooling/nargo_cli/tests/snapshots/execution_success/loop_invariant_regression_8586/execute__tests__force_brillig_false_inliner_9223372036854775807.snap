@@ -32,13 +32,8 @@ expression: artifact
     "unconstrained func 0",
     "[Const { destination: Direct(21), bit_size: Integer(U32), value: 1 }, Const { destination: Direct(20), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(21), offset_address: Direct(20) }, Const { destination: Direct(2), bit_size: Field, value: 0 }, BinaryFieldOp { destination: Direct(3), op: Equals, lhs: Direct(0), rhs: Direct(2) }, JumpIf { condition: Direct(3), location: 8 }, Const { destination: Direct(1), bit_size: Field, value: 1 }, BinaryFieldOp { destination: Direct(0), op: Div, lhs: Direct(1), rhs: Direct(0) }, Stop { return_data: HeapVector { pointer: Direct(20), size: Direct(21) } }]"
   ],
-  "debug_symbols": "jZDBCoMwDIbfJece1ClMX2UMqTVKobQltoMhvvtiUaeHwS5Jkz9fSv4Zeuzi2Go7uAmaxwwdaWP02BqnZNDOcndeBOxlGwiRW3DSmfKS0AZobDRGwEuamIYmL23KQRKrmQC0PWdeOGiD62sRXzr7jeZ1ucFFVh549T9/rw++uvBPrqTSdLkYch4UUKR447isq0nLzuDmyBCtOhkU3n5Xdgs9OYV9JFxXJ40/+wA=",
-  "file_map": {
-    "50": {
-      "source": "// Regression for issue #8586 (https://github.com/noir-lang/noir/issues/8586)\nfn main(a: pub bool) {\n    for _ in 0..1 {\n        if a {\n            for _ in 0..1 {\n                let _ = (1 / (a as Field));\n            }\n        };\n    }\n}\n",
-      "path": ""
-    }
-  },
+  "debug_symbols": "[debug_symbols]",
+  "file_map": "[file_map]",
   "expression_width": {
     "Bounded": {
       "width": 4

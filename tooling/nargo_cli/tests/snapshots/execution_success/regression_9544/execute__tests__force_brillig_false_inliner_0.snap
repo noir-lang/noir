@@ -150,13 +150,8 @@ expression: artifact
     "unconstrained func 2",
     "[Const { destination: Direct(5), bit_size: Integer(U32), value: 0 }, Const { destination: Direct(6), bit_size: Integer(U32), value: 1 }, Const { destination: Direct(7), bit_size: Integer(U32), value: 3 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(7), offset_address: Direct(5) }, Cast { destination: Direct(1), source: Direct(1), bit_size: Integer(U32) }, Const { destination: Direct(9), bit_size: Integer(U32), value: 10 }, BinaryIntOp { destination: Direct(7), op: Add, bit_size: U32, lhs: Direct(9), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(3), op: IntegerDiv, lhs: Direct(0), rhs: Direct(2) }, BinaryFieldOp { destination: Direct(4), op: Mul, lhs: Direct(3), rhs: Direct(2) }, BinaryFieldOp { destination: Direct(4), op: Sub, lhs: Direct(0), rhs: Direct(4) }, Store { destination_pointer: Direct(9), source: Direct(4) }, BinaryIntOp { destination: Direct(9), op: Add, bit_size: U32, lhs: Direct(9), rhs: Direct(6) }, Mov { destination: Direct(0), source: Direct(3) }, BinaryIntOp { destination: Direct(8), op: LessThan, bit_size: U32, lhs: Direct(9), rhs: Direct(7) }, JumpIf { condition: Direct(8), location: 7 }, Const { destination: Direct(9), bit_size: Integer(U32), value: 10 }, Stop { return_data: HeapVector { pointer: Direct(9), size: Direct(1) } }]"
   ],
-  "debug_symbols": "ndTdasIwGMbxe8lxD0zy5stbGUOqxlEoVWo7GOK9L+ZvNz0YDE/exzZ9fgcx5KL2eTt/bLrhcDyr9dtFbceu77uPTX/ctVN3HMrby7VRy+NmGnMur9TDemmd2jEPk1oPc9836rPt5/rR+dQONad2LKurRuVhX7KAh67Pt1/X5re9+rtq/b0r5qfs/t12S9u/0g7h3o72hbaWdK9r517ph2XbdPBP/ffy1O668em/Urp82ChTp61T1No0ytXp6wxlQxsV60x16hWhCUNYQghHeAJDg2gUg2JQDIpBMSgGxaAYFINiUCyKRbEoFsWiWBSLYlEsikURFEERFEERFEERFEERFEFxKA7FFUVKWEKIorgSnghEJFINvyI0YQhLCIHiUTyKR/EoASWgBJSAElACSkAJKAEloESUiBJRIkpEiSgRJaJElIiSUBJKQkkoCSWxu4ndTbfdvd6O+di12z7f75XDPOwerpnp67SsLBfRaTzu8n4e8+2Y17Vy8L8B",
-  "file_map": {
-    "50": {
-      "source": "fn main(c: u64) -> pub u64 {\n    if c == 1 {\n        if c == 2 {\n            c >> c\n        } else {\n            3\n        }\n    } else {\n        if c == 4 {\n            c >> c\n        } else {\n            5\n        }\n    }\n}\n",
-      "path": ""
-    }
-  },
+  "debug_symbols": "[debug_symbols]",
+  "file_map": "[file_map]",
   "expression_width": {
     "Bounded": {
       "width": 4

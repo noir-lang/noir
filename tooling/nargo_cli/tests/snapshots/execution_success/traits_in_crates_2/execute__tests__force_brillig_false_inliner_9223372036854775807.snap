@@ -33,13 +33,8 @@ expression: artifact
     "return value indices : []",
     "EXPR [ (1, _0) (-1, _1) 10 ]"
   ],
-  "debug_symbols": "jZBNCoMwEIXvMmsXieLGq5QiMY4SCEkYE6GId+8opuqipav5efPNg7dAj10aW+MGP0HzWKAjY60ZW+u1isY73i5rAXlsIyHyCi46U0ERugiNS9YWMCub9qMpKLfXqIhVUQC6nis/HIzFrVuLkxbfUSmqA5byxOs7L3/w8sOX9cmXf/uXdear6ub/5ElpQ7fEQECznc2KjOosHikOyelLqPEVspJjD+Q19olwe7drbPAG",
-  "file_map": {
-    "50": {
-      "source": "use crate1::MyTrait;\n\nfn main(x: Field, y: pub Field) {\n    let mut V = crate2::MyStruct { Q: x };\n    V.Add10();\n    assert(V.Q == y);\n}\n",
-      "path": ""
-    }
-  },
+  "debug_symbols": "[debug_symbols]",
+  "file_map": "[file_map]",
   "expression_width": {
     "Bounded": {
       "width": 4

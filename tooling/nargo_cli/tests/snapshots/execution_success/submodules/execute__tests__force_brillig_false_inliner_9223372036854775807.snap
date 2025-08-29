@@ -39,13 +39,8 @@ expression: artifact
     "BLACKBOX::RANGE [_1]:1 bits []",
     "EXPR [ (-1, _0, _1) (1, _0) (1, _1) -1 ]"
   ],
-  "debug_symbols": "pZBNCoMwEIXvMuss1CJar1KKxDhKICRhTApFvHtHMa0uXHU1P2++N/Bm6LGLY6vt4CZoHjN0pI3RY2uckkE7y9t5EZDGNhAir+CgM+UloQ3Q2GiMgJc0cTuavLRbDZJYzQSg7bmy4aANrt0ifnR2jVblzuZZ+aXLM55f43ldJL6u/uPvxYl/8iSVplNgUEBzW1Y70rIzuIc4RKsOmYa3T0pK3ZNT2EfC1W7T+MEH",
-  "file_map": {
-    "50": {
-      "source": "use my_submodule::my_helper;\n\nfn main(x: u1, y: u1) {\n    my_helper();\n    my_submodule::my_bool_or(x, y);\n}\n\nmod my_submodule {\n    pub fn my_bool_or(x: u1, y: u1) {\n        assert(x | y == 1);\n    }\n\n    pub fn my_helper() {}\n}\n",
-      "path": ""
-    }
-  },
+  "debug_symbols": "[debug_symbols]",
+  "file_map": "[file_map]",
   "expression_width": {
     "Bounded": {
       "width": 4

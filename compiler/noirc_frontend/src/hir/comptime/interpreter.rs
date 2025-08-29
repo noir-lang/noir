@@ -1557,7 +1557,7 @@ fn evaluate_integer(typ: Type, value: SignedField, location: Location) -> IResul
                 Ok(Value::U128(value))
             }
             (Signedness::Signed, IntegerBitSize::One) => {
-                return Err(InterpreterError::TypeUnsupported { typ, location });
+                Err(InterpreterError::TypeUnsupported { typ, location })
             }
             (Signedness::Signed, IntegerBitSize::Eight) => {
                 let value = value
@@ -1584,7 +1584,7 @@ fn evaluate_integer(typ: Type, value: SignedField, location: Location) -> IResul
                 Ok(Value::I64(value))
             }
             (Signedness::Signed, IntegerBitSize::HundredTwentyEight) => {
-                return Err(InterpreterError::TypeUnsupported { typ, location });
+                Err(InterpreterError::TypeUnsupported { typ, location })
             }
         }
     } else if let Type::TypeVariable(variable) = &typ {

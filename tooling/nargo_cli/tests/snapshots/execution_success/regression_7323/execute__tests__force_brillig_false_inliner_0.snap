@@ -45,17 +45,8 @@ expression: artifact
     "unconstrained func 0",
     "[Const { destination: Direct(21), bit_size: Integer(U32), value: 1 }, Const { destination: Direct(20), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(21), offset_address: Direct(20) }, Const { destination: Direct(2), bit_size: Field, value: 0 }, BinaryFieldOp { destination: Direct(3), op: Equals, lhs: Direct(0), rhs: Direct(2) }, JumpIf { condition: Direct(3), location: 8 }, Const { destination: Direct(1), bit_size: Field, value: 1 }, BinaryFieldOp { destination: Direct(0), op: Div, lhs: Direct(1), rhs: Direct(0) }, Stop { return_data: HeapVector { pointer: Direct(20), size: Direct(21) } }]"
   ],
-  "debug_symbols": "tZLdzoMgDIbvpcccKOhw3sqXLwa1LiQEDYMli/HeV5ns58BkO9hJCy0Pbymdocc2nBpth/EM9d8MrdPG6FNjxk55PVqKzguDtG28Q6QQvOSJmpRD66G2wRgGF2VCPHSelI3eK0fZjAHanjxdOGiD62phTzrbR3lVbLDg/IGX73y+z0u+4VI+6EJ8qi6ETOqy3FMXP1M/psYVvNpTL79X/6ed6rR7+2sQ1GwGRexmGe0hWkkQgyq+8xhtnt1dDvVhWeWdVq3BbWKGYLuXAfLXKWXSiE1u7LAPDtcCYo5KugE=",
-  "file_map": {
-    "43": {
-      "source": "pub fn panic<T, U, let N: u32>(message: fmtstr<N, T>) -> U {\n    assert(false, message);\n    crate::mem::zeroed()\n}\n",
-      "path": "std/panic.nr"
-    },
-    "50": {
-      "source": "// This program lead to panics previously due to the compiler lowering it to multiple blocks\n// which all jumped to the same end block. It runs now due to the compiler lowering to the\n// equivalent of a nested series of if-else instead.\nfn main(x: Field) {\n    match x {\n        1 => panic(f\"Branch 1 should not be taken\"),\n        2 => panic(f\"Branch 2 should not be taken\"),\n        3 => panic(f\"Branch 3 should not be taken\"),\n        _ => (),\n    }\n}\n",
-      "path": ""
-    }
-  },
+  "debug_symbols": "[debug_symbols]",
+  "file_map": "[file_map]",
   "expression_width": {
     "Bounded": {
       "width": 4

@@ -31,13 +31,8 @@ expression: artifact
     "return value indices : []",
     "EXPR [ (-1, _0) 0 ]"
   ],
-  "debug_symbols": "dY/BDoIwDIbfpecdMOpBXsUYMkYhTZpuKZuJIby7hYDiwVPX/vv+9p+gw7YMDUkfR6jvE7RKzDQ0HIPPFMWm0+xgb5usiDaCg25U8oqSoZbC7ODpuayfxuRlrdmrqZUDlM6qGfbEuLxm96Wr/+j5srHn2we+Gv2wzgfSn3uhgvo0L2ZKvmXcMvRFwiFSfqVd2UMnjQG7orjYrZoteAM=",
-  "file_map": {
-    "50": {
-      "source": "fn main(a: bool) {\n    if a { 1 / [][0]; };\n}\n",
-      "path": ""
-    }
-  },
+  "debug_symbols": "[debug_symbols]",
+  "file_map": "[file_map]",
   "expression_width": {
     "Bounded": {
       "width": 4

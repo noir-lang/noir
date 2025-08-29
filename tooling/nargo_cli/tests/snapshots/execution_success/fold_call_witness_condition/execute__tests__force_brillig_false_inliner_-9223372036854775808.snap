@@ -63,13 +63,8 @@ expression: artifact
     "unconstrained func 0",
     "[Const { destination: Direct(21), bit_size: Integer(U32), value: 1 }, Const { destination: Direct(20), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(21), offset_address: Direct(20) }, Const { destination: Direct(2), bit_size: Field, value: 0 }, BinaryFieldOp { destination: Direct(3), op: Equals, lhs: Direct(0), rhs: Direct(2) }, JumpIf { condition: Direct(3), location: 8 }, Const { destination: Direct(1), bit_size: Field, value: 1 }, BinaryFieldOp { destination: Direct(0), op: Div, lhs: Direct(1), rhs: Direct(0) }, Stop { return_data: HeapVector { pointer: Direct(20), size: Direct(21) } }]"
   ],
-  "debug_symbols": "zZBNCsMgEEbvMmsX5peSq5QQTDIJgqgYLZTg3ashtsmikEUXXY0zn2/Qt8KIvZs7Lie1QHNfoTdcCD53Qg3MciXDdPUEUttZgxhGcMgDpZlBaaGRTggCDybcdmnRTG7VMhNSSgDlGGpYOHGB8eTJh6bf0Ty77XBe1G+8us7TOvFZdeLb0LGBm9OPIYMm83Gd4awXuFuYnBwOUuxTpyRp00YNODqDcd2WxQf+qdSiKHe4KOkFKTRIIb9U0/oX",
-  "file_map": {
-    "50": {
-      "source": "global NUM_RESULTS: u32 = 2;\nfn main(x: Field, y: pub Field, enable: bool) -> pub [Field; NUM_RESULTS] {\n    let mut result = [0; NUM_RESULTS];\n    for i in 0..NUM_RESULTS {\n        if enable {\n            result[i] = return_value(x, y);\n        }\n    }\n    result\n}\n\n#[fold]\nfn return_value(x: Field, y: Field) -> Field {\n    assert(x != y);\n    x\n}\n",
-      "path": ""
-    }
-  },
+  "debug_symbols": "[debug_symbols]",
+  "file_map": "[file_map]",
   "expression_width": {
     "Bounded": {
       "width": 4

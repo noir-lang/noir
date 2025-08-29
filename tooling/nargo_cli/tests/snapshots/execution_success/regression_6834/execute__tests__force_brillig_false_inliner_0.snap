@@ -85,13 +85,8 @@ expression: artifact
     "unconstrained func 1",
     "[Const { destination: Direct(10), bit_size: Integer(U32), value: 2 }, Const { destination: Direct(11), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(10), offset_address: Direct(11) }, BinaryFieldOp { destination: Direct(2), op: IntegerDiv, lhs: Direct(0), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Mul, lhs: Direct(2), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Sub, lhs: Direct(0), rhs: Direct(1) }, Mov { destination: Direct(0), source: Direct(2) }, Stop { return_data: HeapVector { pointer: Direct(11), size: Direct(10) } }]"
   ],
-  "debug_symbols": "nZLBjoQgDED/pWcPgiKjv7LZGFSckBA0DGyyMf77VqruzGGSiZc+oLyGlC4w6C7eW+PG6QHN1wKdN9aae2unXgUzOTxd1gyObRu81ngET3m0ZuW1C9C4aG0GP8rGdOkxK5cYlMdsnoF2AxILjsbqbbVm/3b+XhV8d6vylMXHtqx2+3bJFoddX7BZXu46Y/yKz0+/uOYXpy9f/G/cqd74l78GjhczKFIsUxTQYPerFCU0WO6WYp0iywmMwAkFAQvg65kgVARJwCLYWFYn8JzACFgFv4wXhJIgCBVBEugpfHvLujXBG9VZvU/tGF3/NMThdz4yx5jPfur1EL3empBy2JY/",
-  "file_map": {
-    "50": {
-      "source": "fn main(year: u32, min_age: u8) -> pub u32 {\n    if min_age == 0 {\n        (year - 2) / 4\n    } else if year > 1 {\n        (year - 2) / 4\n    } else {\n        0\n    }\n}\n",
-      "path": ""
-    }
-  },
+  "debug_symbols": "[debug_symbols]",
+  "file_map": "[file_map]",
   "expression_width": {
     "Bounded": {
       "width": 4

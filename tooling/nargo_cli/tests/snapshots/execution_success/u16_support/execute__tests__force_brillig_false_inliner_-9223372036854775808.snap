@@ -82,13 +82,8 @@ expression: artifact
     "unconstrained func 3",
     "[Const { destination: Direct(21), bit_size: Integer(U32), value: 1 }, Const { destination: Direct(20), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(21), offset_address: Direct(20) }, Const { destination: Direct(2), bit_size: Field, value: 0 }, BinaryFieldOp { destination: Direct(3), op: Equals, lhs: Direct(0), rhs: Direct(2) }, JumpIf { condition: Direct(3), location: 8 }, Const { destination: Direct(1), bit_size: Field, value: 1 }, BinaryFieldOp { destination: Direct(0), op: Div, lhs: Direct(1), rhs: Direct(0) }, Stop { return_data: HeapVector { pointer: Direct(20), size: Direct(21) } }]"
   ],
-  "debug_symbols": "tZXdisIwEIXfJde96OSnSXyVRSRqlEJoS2yFRfruO8mkrrsgLC17cz5jPcfMTJs+2Nkfp+uh7S79je0+HuwY2xDa6yH0Jze2fYffPlidBBTbQcWgIWiCIdgMXhNwxSsmcCUQQOAEQZAEzJQIzFQITTAEmyExpUEAAVM0QhAkQREwRc9zxZa9H8bofdr6SzFY4uCi70a266YQKnZ3Yco/ug2uyxxdxKt1xXx3RmLgpQ0+fZqrb3f93gpaFzMY87SrP/uFNsUvLF/hl7UqfglqjZ/bxS/sNr9atX/bFL+q9TY/rPl/zpf2i3dus3F6ZuP0zMbpmY3TMxunZ/5veub58P2y73HlTm38ebbhuYL18qwiq8yqsjZZdVaT1WaFmkBuIDuQHygAKAEoAigDKAQohVMKL3ugFI4pgPVxmUpAqsKmUBeaQktMx20mFGIccDpx8410d7F1x+BT2akxU3dauoDL8XNYrizvgCH2J3+eok8de3kRoH7gM8L1fk5d/QI=",
-  "file_map": {
-    "50": {
-      "source": "fn main(x: u16) {\n    test_u16(x);\n    // Safety: testing context\n    unsafe {\n        test_u16_unconstrained(x);\n    }\n}\n\nunconstrained fn test_u16_unconstrained(x: u16) {\n    test_u16(x)\n}\n\nfn test_u16(x: u16) {\n    let t1: u16 = 1234;\n    let t2: u16 = 4321;\n    let t = t1 + t2;\n\n    let t4 = t - t2;\n    assert(t4 == t1);\n\n    let mut small_int = x as u16;\n    let shift = small_int << x;\n    assert(shift == 8);\n    assert(shift >> x == small_int);\n    assert(shift >> 15 == 0);\n    assert(shift << 15 == 0);\n}\n",
-      "path": ""
-    }
-  },
+  "debug_symbols": "[debug_symbols]",
+  "file_map": "[file_map]",
   "expression_width": {
     "Bounded": {
       "width": 4

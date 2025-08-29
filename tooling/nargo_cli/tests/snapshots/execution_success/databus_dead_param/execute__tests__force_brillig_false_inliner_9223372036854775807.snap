@@ -114,7 +114,7 @@ expression: artifact
     "BLACKBOX::RANGE [_10]:1 bits []",
     "INIT CALLDATA 0 (id: 1, len: 7, witnesses: [_3, _4, _5, _6, _7, _8, _9])"
   ],
-  "debug_symbols": "XY5BCsQwCEXv4rqLWfcqw1BsaosgJtikMITefWyYQOlK/3/6tcJCc9km1jXuML4rzMYivE0SA2aO6m49B+hyykbkFty4byU00gyjFpEBDpTShvaE2mpGc/oagHTx6oErC13d+XGBge158UBjnIX+ci0abjR/Uyf942Qx0FKMrqTGPPsH",
+  "debug_symbols": "[debug_symbols]",
   "file_map": {},
   "names": [
     "main"

@@ -153,8 +153,7 @@ impl Ssa {
             return brillig;
         }
 
-        let mut brillig_globals =
-            BrilligGlobals::new(&self.functions, used_globals_map, self.main_id);
+        let mut brillig_globals = BrilligGlobals::new(self, used_globals_map, self.main_id);
 
         // SSA Globals are computed once at compile time and shared across all functions,
         // thus we can just fetch globals from the main function.

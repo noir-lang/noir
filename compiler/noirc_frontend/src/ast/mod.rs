@@ -151,7 +151,7 @@ pub enum UnresolvedTypeData {
 
     /// An "as Trait" path leading to an associated type.
     /// E.g. `<Foo as Trait>::Bar`
-    AsTraitPath(Box<crate::ast::AsTraitPath>),
+    AsTraitPath(Box<AsTraitPath>),
 
     /// An already resolved type. These can only be parsed if they were present in the token stream
     /// as a result of being spliced into a macro's token stream input.
@@ -295,10 +295,10 @@ impl std::fmt::Display for UnresolvedTypeData {
                 let args = vecmap(args, ToString::to_string).join(", ");
 
                 match &env.as_ref().typ {
-                    UnresolvedTypeData::Unit => {
+                    Unit => {
                         write!(f, "fn({args}) -> {ret}")
                     }
-                    UnresolvedTypeData::Tuple(env_types) => {
+                    Tuple(env_types) => {
                         let env_types = vecmap(env_types, |arg| arg.typ.to_string()).join(", ");
                         write!(f, "fn[{env_types}]({args}) -> {ret}")
                     }

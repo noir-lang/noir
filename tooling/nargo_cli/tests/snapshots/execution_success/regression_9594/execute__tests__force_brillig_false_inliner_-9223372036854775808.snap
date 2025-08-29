@@ -61,13 +61,8 @@ expression: artifact
     "EXPR [ (1, _0) 0 ]",
     "EXPR [ (1, _3) -2 ]"
   ],
-  "debug_symbols": "dY/BCoMwDIbfJece5th28FXGkFqjBEJaYjsY4rsviqI77JQmf76/+SfosC1DQ9LHEernBK0SMw0Nx+AzRbHpNDvY2yYroo3gpBuVvKJkqKUwO3h7LuvSmLysNXs19eIApbNqhj0xLq/ZHfTlP1pVjw2ubgd+N/5lnQ+kPxfD1RbnxU7Jt4xbir5IOIXKn7Qre+ykMWBXFBe7VbMPvg==",
-  "file_map": {
-    "50": {
-      "source": "fn main(a: bool, mut b: bool, c: i32) -> pub i32 {\n    if a {\n        let mut e: [&mut bool] = &[];\n        b = *e[(1132210792_u32 % e.len())];\n        c\n    } else {\n        2\n    }\n}\n",
-      "path": ""
-    }
-  },
+  "debug_symbols": "[debug_symbols]",
+  "file_map": "[file_map]",
   "expression_width": {
     "Bounded": {
       "width": 4

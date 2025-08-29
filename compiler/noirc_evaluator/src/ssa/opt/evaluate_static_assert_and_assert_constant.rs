@@ -92,7 +92,7 @@ fn get_blocks_within_empty_loop(function: &Function) -> HashSet<BasicBlockId> {
             // If the loop does not have a preheader we skip checking whether the loop is empty
             continue;
         };
-        let const_bounds = loop_.get_const_bounds(function, pre_header);
+        let const_bounds = loop_.get_const_bounds(&function.dfg, pre_header);
 
         let does_execute = const_bounds
             .and_then(|(lower_bound, upper_bound)| {

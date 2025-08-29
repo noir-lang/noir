@@ -60,7 +60,7 @@ expression: artifact
     "EXPR [ (-1, _1) (1, _2) 0 ]",
     "INIT CALLDATA 0 (id: 1, len: 1, witnesses: [_1])"
   ],
-  "debug_symbols": "lZDBCoMwDIbfJece3HSw+SpjSK1RCqEtsR0M8d0Xi2562GGXpsmf7y/9J+iwTUNjXe9HqO8TtGyJ7NCQNzpa72Q6zQq2tomMKCPY6UIFzegi1C4RKXhqSnlpDNrlGjWLWihA10kVw94SLrdZfeniN3otV/ZWfeDL//SpKA/4QzptLB++C2dZVFDms4L6PC/ObHVLuMbRJ2d26cRX2JQtv8DeYJcYF+usyWNv",
+  "debug_symbols": "[debug_symbols]",
   "file_map": {
     "50": {
       "source": "fn main(_empty: [u32; 0], value_1: u32, value_2: call_data(0) u32) {\n    assert_eq(value_1 + 1, value_2);\n}\n",
