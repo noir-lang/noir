@@ -1599,8 +1599,7 @@ impl Elaborator<'_> {
             }
             UnaryOp::Dereference { implicitly_added: _ } => {
                 let element_type = self.interner.next_type_variable();
-                let make_expected =
-                    |mutable| Reference(Box::new(element_type.clone()), mutable);
+                let make_expected = |mutable| Reference(Box::new(element_type.clone()), mutable);
 
                 let immutable = make_expected(false);
                 let mutable = make_expected(true);
