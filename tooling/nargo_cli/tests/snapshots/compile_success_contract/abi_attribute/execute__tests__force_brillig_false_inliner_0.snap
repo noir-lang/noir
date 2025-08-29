@@ -33,5 +33,5 @@ expression: artifact
       ]
     }
   },
-  "file_map": {}
+  "file_map": "[file_map]"
 }

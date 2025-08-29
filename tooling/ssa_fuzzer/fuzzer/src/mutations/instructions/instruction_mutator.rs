@@ -4,6 +4,7 @@
 //! 2. Argument mutation
 
 use crate::fuzz_lib::instruction::Instruction;
+use crate::mutations::configuration::BOOL_MUTATION_CONFIGURATION_MOSTLY_FALSE;
 use crate::mutations::{
     basic_types::{
         bool::mutate_bool,
@@ -281,6 +282,41 @@ impl InstructionArgumentsMutation {
                     |rng| (generate_random_point(rng), generate_random_scalar(rng)),
                     BASIC_VEC_MUTATION_CONFIGURATION,
                 );
+            }
+            Instruction::EcdsaSecp256k1 {
+                msg,
+                hash_size,
+                corrupt_hash,
+                corrupt_pubkey_x,
+                corrupt_pubkey_y,
+                corrupt_signature,
+            }
+            | Instruction::EcdsaSecp256r1 {
+                msg,
+                hash_size,
+                corrupt_hash,
+                corrupt_pubkey_x,
+                corrupt_pubkey_y,
+                corrupt_signature,
+            } => {
+                mutate_vec(
+                    msg,
+                    rng,
+                    |byte, rng| {
+                        *byte = rng.gen_range(0..=255);
+                    },
+                    |rng| rng.gen_range(0..=255),
+                    BASIC_VEC_MUTATION_CONFIGURATION,
+                );
+                if rng.gen_bool(0.001) {
+                    *hash_size = rng.gen_range(0..=255);
+                } else {
+                    *hash_size = 32_u32; //sha256 hash size
+                }
+                mutate_bool(corrupt_hash, rng, BOOL_MUTATION_CONFIGURATION_MOSTLY_FALSE);
+                mutate_bool(corrupt_pubkey_x, rng, BOOL_MUTATION_CONFIGURATION_MOSTLY_FALSE);
+                mutate_bool(corrupt_pubkey_y, rng, BOOL_MUTATION_CONFIGURATION_MOSTLY_FALSE);
+                mutate_bool(corrupt_signature, rng, BOOL_MUTATION_CONFIGURATION_MOSTLY_FALSE);
             }
         }
     }

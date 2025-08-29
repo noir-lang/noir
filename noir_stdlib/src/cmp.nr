@@ -393,13 +393,26 @@ where
     // The first non-equal element of both arrays determines
     // the ordering for the whole array.
     fn cmp(self, other: [T]) -> Ordering {
-        let mut result = self.len().cmp(other.len());
-        for i in 0..self.len() {
+        let self_len = self.len();
+        let other_len = other.len();
+        let min_len = if self_len < other_len {
+            self_len
+        } else {
+            other_len
+        };
+
+        let mut result = Ordering::equal();
+        for i in 0..min_len {
             if result == Ordering::equal() {
                 result = self[i].cmp(other[i]);
             }
         }
-        result
+
+        if result != Ordering::equal() {
+            result
+        } else {
+            self_len.cmp(other_len)
+        }
     }
 }
 
@@ -544,7 +557,7 @@ where
 }
 
 mod cmp_tests {
-    use super::{Eq, max, min};
+    use super::{Eq, max, min, Ord};
 
     #[test]
     fn sanity_check_min() {
@@ -567,5 +580,11 @@ mod cmp_tests {
         let slice_1 = &[0, 1, 2, 3];
         let slice_2 = &[0, 1, 2];
         assert(!slice_1.eq(slice_2));
+    }
+
+    #[test]
+    fn lexicographic_ordering_for_slices() {
+        assert(&[2_u32].cmp(&[1_u32, 1_u32, 1_u32]) == super::Ordering::greater());
+        assert(&[1_u32, 2_u32].cmp(&[1_u32, 2_u32, 3_u32]) == super::Ordering::less());
     }
 }
