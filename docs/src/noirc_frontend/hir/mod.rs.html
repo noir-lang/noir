@@ -355,7 +355,7 @@
 
 <span class="kw">use </span><span class="self">self</span>::def_map::TestFunction;
 
-<span class="kw">pub type </span>ParsedFiles = HashMap&lt;fm::FileId, (ParsedModule, Vec&lt;ParserError&gt;)&gt;;
+<span class="kw">pub type </span>ParsedFiles = HashMap&lt;FileId, (ParsedModule, Vec&lt;ParserError&gt;)&gt;;
 
 <span class="doccomment">/// Helper object which groups together several useful context objects used
 /// during name resolution. Once name resolution is finished, only the
@@ -374,7 +374,7 @@
 
     <span class="doccomment">/// A map of each file that already has been visited from a prior `mod foo;` declaration.
     /// This is used to issue an error if a second `mod foo;` is declared to the same file.
-    </span><span class="kw">pub </span>visited_files: BTreeMap&lt;fm::FileId, Location&gt;,
+    </span><span class="kw">pub </span>visited_files: BTreeMap&lt;FileId, Location&gt;,
 
     <span class="comment">// A map of all parsed files.
     // Same as the file manager, we take ownership of the parsed files in the WASM context.

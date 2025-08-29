@@ -397,7 +397,7 @@
     allow_parser_errors: bool,
     options: FrontendOptions,
 ) -&gt; (ParsedModule, Context&lt;<span class="lifetime">'static</span>, <span class="lifetime">'static</span>&gt;, Vec&lt;CompilationError&gt;) {
-    <span class="kw">let </span>root = std::path::Path::new(<span class="string">"/"</span>);
+    <span class="kw">let </span>root = Path::new(<span class="string">"/"</span>);
     <span class="kw">let </span><span class="kw-2">mut </span>fm = FileManager::new(root);
     <span class="kw">let </span>root_file_id = fm.add_file_with_source(Path::new(<span class="string">"test_file"</span>), src.to_string()).unwrap();
     <span class="kw">let </span><span class="kw-2">mut </span>context = Context::new(fm, Default::default());

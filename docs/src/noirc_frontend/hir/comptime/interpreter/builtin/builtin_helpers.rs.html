@@ -1163,7 +1163,7 @@
             tokens.push(Token::Ident(name));
         }
         HirPattern::Mutable(pattern, <span class="kw">_</span>) =&gt; {
-            tokens.push(Token::Keyword(<span class="kw">crate</span>::token::Keyword::Mut));
+            tokens.push(Token::Keyword(Keyword::Mut));
             gather_hir_pattern_tokens(interner, pattern, tokens);
         }
         HirPattern::Tuple(patterns, <span class="kw">_</span>) =&gt; {

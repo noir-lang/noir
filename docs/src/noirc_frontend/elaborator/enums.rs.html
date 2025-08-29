@@ -1405,8 +1405,7 @@
 <a href="#1404" id="1404">1404</a>
 <a href="#1405" id="1405">1405</a>
 <a href="#1406" id="1406">1406</a>
-<a href="#1407" id="1407">1407</a>
-<a href="#1408" id="1408">1408</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::{BTreeMap, BTreeSet};
+<a href="#1407" id="1407">1407</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::{BTreeMap, BTreeSet};
 
 <span class="kw">use </span>fxhash::FxHashMap <span class="kw">as </span>HashMap;
 <span class="kw">use </span>iter_extended::{btree_map, try_vecmap, vecmap};
@@ -1591,14 +1590,13 @@
         <span class="kw">let </span>no_parameters = Parameters(Vec::new());
         <span class="kw">let </span>global_body =
             <span class="self">self</span>.make_enum_variant_constructor(datatype, variant_index, <span class="kw-2">&amp;</span>no_parameters, location);
-        <span class="kw">let </span>let_statement = <span class="kw">crate</span>::hir_def::stmt::HirStatement::Expression(global_body);
+        <span class="kw">let </span>let_statement = HirStatement::Expression(global_body);
 
         <span class="kw">let </span>statement_id = <span class="self">self</span>.interner.get_global(global_id).let_statement;
         <span class="self">self</span>.interner.replace_statement(statement_id, let_statement);
 
-        <span class="self">self</span>.interner.get_global_mut(global_id).value = GlobalValue::Resolved(
-            <span class="kw">crate</span>::hir::comptime::Value::Enum(variant_index, Vec::new(), typ),
-        );
+        <span class="self">self</span>.interner.get_global_mut(global_id).value =
+            GlobalValue::Resolved(Value::Enum(variant_index, Vec::new(), typ));
 
         <span class="self">Self</span>::get_module_mut(<span class="self">self</span>.def_maps, type_id.module_id())
             .declare_global(name.clone(), enum_.visibility, global_id)

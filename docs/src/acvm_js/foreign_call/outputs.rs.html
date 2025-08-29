@@ -54,7 +54,7 @@
         }
         <span class="prelude-val">Ok</span>(ForeignCallParam::Array(values))
     } <span class="kw">else </span>{
-        <span class="kw">return </span><span class="prelude-val">Err</span>(<span class="string">"Non-string-or-array element in foreign_call_handler return"</span>.into());
+        <span class="prelude-val">Err</span>(<span class="string">"Non-string-or-array element in foreign_call_handler return"</span>.into())
     }
 }
 

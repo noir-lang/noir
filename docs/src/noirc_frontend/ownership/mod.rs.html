@@ -699,7 +699,7 @@
     }
 
     <span class="kw">fn </span>handle_index(<span class="kw-2">&amp;mut </span><span class="self">self</span>, index_expr: <span class="kw-2">&amp;mut </span>Expression) {
-        <span class="kw">let </span><span class="kw">crate</span>::monomorphization::ast::Expression::Index(index) = index_expr <span class="kw">else </span>{
+        <span class="kw">let </span>Expression::Index(index) = index_expr <span class="kw">else </span>{
             <span class="macro">panic!</span>(<span class="string">"handle_index should only be called with Index nodes"</span>);
         };
 

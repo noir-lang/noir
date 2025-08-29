@@ -849,7 +849,7 @@
     UnresolvedType(UnresolvedTypeData),
 }
 
-<span class="kw">pub type </span>StructFields = HashMap&lt;Rc&lt;String&gt;, Shared&lt;Value&gt;&gt;;
+<span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">type </span>StructFields = HashMap&lt;Rc&lt;String&gt;, Shared&lt;Value&gt;&gt;;
 
 <span class="attr">#[derive(Debug, Clone, PartialEq, Eq)]
 </span><span class="kw">pub struct </span>Closure {

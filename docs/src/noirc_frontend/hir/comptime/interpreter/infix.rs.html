@@ -431,7 +431,9 @@
 <a href="#430" id="430">430</a>
 <a href="#431" id="431">431</a>
 <a href="#432" id="432">432</a>
-<a href="#433" id="433">433</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::AcirField;
+<a href="#433" id="433">433</a>
+<a href="#434" id="434">434</a>
+<a href="#435" id="435">435</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::AcirField;
 
 <span class="kw">use </span><span class="kw">crate</span>::ast::BinaryOpKind;
 <span class="kw">use </span><span class="kw">crate</span>::hir::Location;
@@ -615,10 +617,12 @@
         BinaryOpKind::Xor =&gt; <span class="macro">match_bitwise!</span> {
             (lhs_value <span class="kw">as </span>lhs <span class="string">"^" </span>rhs_value <span class="kw">as </span>rhs) =&gt; lhs ^ rhs
         },
-        BinaryOpKind::ShiftRight =&gt; <span class="macro">match_integer!</span> {
+        <span class="attr">#[allow(trivial_numeric_casts)]
+        </span>BinaryOpKind::ShiftRight =&gt; <span class="macro">match_integer!</span> {
             (lhs_value <span class="kw">as </span>lhs <span class="string">"&gt;&gt;" </span>rhs_value <span class="kw">as </span>rhs) =&gt; lhs.checked_shr(rhs <span class="kw">as </span>u32)
         },
-        BinaryOpKind::ShiftLeft =&gt; <span class="macro">match_integer!</span> {
+        <span class="attr">#[allow(trivial_numeric_casts)]
+        </span>BinaryOpKind::ShiftLeft =&gt; <span class="macro">match_integer!</span> {
             (lhs_value <span class="kw">as </span>lhs <span class="string">"&lt;&lt;" </span>rhs_value <span class="kw">as </span>rhs) =&gt; lhs.checked_shl(rhs <span class="kw">as </span>u32)
         },
         BinaryOpKind::Modulo =&gt; <span class="kw">match </span>(<span class="kw-2">&amp;</span>lhs_value, <span class="kw-2">&amp;</span>rhs_value) {

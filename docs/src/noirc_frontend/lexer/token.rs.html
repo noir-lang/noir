@@ -1809,7 +1809,7 @@
     }
 }
 
-<span class="kw">impl </span>std::fmt::Display <span class="kw">for </span>LocatedToken {
+<span class="kw">impl </span>Display <span class="kw">for </span>LocatedToken {
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; fmt::Result {
         <span class="self">self</span>.token().fmt(f)
     }
@@ -1859,13 +1859,13 @@
     }
 }
 
-<span class="kw">impl </span>std::fmt::Display <span class="kw">for </span>SpannedToken {
+<span class="kw">impl </span>Display <span class="kw">for </span>SpannedToken {
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; fmt::Result {
         <span class="self">self</span>.token().fmt(f)
     }
 }
 
-<span class="kw">impl </span>fmt::Display <span class="kw">for </span>Token {
+<span class="kw">impl </span>Display <span class="kw">for </span>Token {
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter) -&gt; fmt::Result {
         <span class="kw">match </span><span class="kw-2">*</span><span class="self">self </span>{
             Token::Ident(<span class="kw-2">ref </span>s) =&gt; <span class="macro">write!</span>(f, <span class="string">"{s}"</span>),
@@ -1962,7 +1962,7 @@
     }
 }
 
-<span class="kw">impl </span>fmt::Display <span class="kw">for </span>IntegerTypeSuffix {
+<span class="kw">impl </span>Display <span class="kw">for </span>IntegerTypeSuffix {
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; fmt::Result {
         <span class="kw">match </span><span class="self">self </span>{
             IntegerTypeSuffix::I8 =&gt; <span class="macro">write!</span>(f, <span class="string">"i8"</span>),
@@ -2002,7 +2002,7 @@
     InnerDocComment,
 }
 
-<span class="kw">impl </span>fmt::Display <span class="kw">for </span>TokenKind {
+<span class="kw">impl </span>Display <span class="kw">for </span>TokenKind {
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter) -&gt; fmt::Result {
         <span class="kw">match </span><span class="self">self </span>{
             TokenKind::Token(tok) =&gt; <span class="macro">write!</span>(f, <span class="string">"{tok}"</span>),
@@ -2103,7 +2103,7 @@
     </span>Signed(u32),   <span class="comment">// i64 = Signed(64)
 </span>}
 
-<span class="kw">impl </span>fmt::Display <span class="kw">for </span>IntType {
+<span class="kw">impl </span>Display <span class="kw">for </span>IntType {
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter) -&gt; fmt::Result {
         <span class="kw">match </span><span class="kw-2">*</span><span class="self">self </span>{
             IntType::Unsigned(num) =&gt; <span class="macro">write!</span>(f, <span class="string">"u{num}"</span>),
@@ -2156,7 +2156,7 @@
     </span><span class="prelude-val">None</span>,
 }
 
-<span class="kw">impl </span>fmt::Display <span class="kw">for </span>TestScope {
+<span class="kw">impl </span>Display <span class="kw">for </span>TestScope {
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter) -&gt; fmt::Result {
         <span class="kw">match </span><span class="self">self </span>{
             TestScope::None =&gt; <span class="macro">write!</span>(f, <span class="string">""</span>),
@@ -2188,7 +2188,7 @@
     <span class="prelude-val">None</span>,
 }
 
-<span class="kw">impl </span>fmt::Display <span class="kw">for </span>FuzzingScope {
+<span class="kw">impl </span>Display <span class="kw">for </span>FuzzingScope {
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter) -&gt; fmt::Result {
         <span class="kw">match </span><span class="self">self </span>{
             FuzzingScope::None =&gt; <span class="macro">write!</span>(f, <span class="string">""</span>),
@@ -2328,7 +2328,7 @@
     Secondary(SecondaryAttribute),
 }
 
-<span class="kw">impl </span>fmt::Display <span class="kw">for </span>Attribute {
+<span class="kw">impl </span>Display <span class="kw">for </span>Attribute {
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter) -&gt; fmt::Result {
         <span class="kw">match </span><span class="self">self </span>{
             Attribute::Function(attribute) =&gt; <span class="macro">write!</span>(f, <span class="string">"{attribute}"</span>),
@@ -2421,13 +2421,13 @@
     }
 }
 
-<span class="kw">impl </span>fmt::Display <span class="kw">for </span>FunctionAttribute {
+<span class="kw">impl </span>Display <span class="kw">for </span>FunctionAttribute {
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; fmt::Result {
         <span class="self">self</span>.kind.fmt(f)
     }
 }
 
-<span class="kw">impl </span>fmt::Display <span class="kw">for </span>FunctionAttributeKind {
+<span class="kw">impl </span>Display <span class="kw">for </span>FunctionAttributeKind {
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; fmt::Result {
         <span class="kw">match </span><span class="self">self </span>{
             FunctionAttributeKind::Test(scope) =&gt; <span class="macro">write!</span>(f, <span class="string">"#[test{scope}]"</span>),
@@ -2512,13 +2512,13 @@
     }
 }
 
-<span class="kw">impl </span>fmt::Display <span class="kw">for </span>SecondaryAttribute {
+<span class="kw">impl </span>Display <span class="kw">for </span>SecondaryAttribute {
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; fmt::Result {
         <span class="self">self</span>.kind.fmt(f)
     }
 }
 
-<span class="kw">impl </span>fmt::Display <span class="kw">for </span>SecondaryAttributeKind {
+<span class="kw">impl </span>Display <span class="kw">for </span>SecondaryAttributeKind {
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; fmt::Result {
         <span class="macro">write!</span>(f, <span class="string">"#[{}]"</span>, <span class="self">self</span>.contents())
     }
@@ -2602,7 +2602,7 @@
     While,
 }
 
-<span class="kw">impl </span>fmt::Display <span class="kw">for </span>Keyword {
+<span class="kw">impl </span>Display <span class="kw">for </span>Keyword {
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>fmt::Formatter) -&gt; fmt::Result {
         <span class="kw">match </span><span class="kw-2">*</span><span class="self">self </span>{
             Keyword::As =&gt; <span class="macro">write!</span>(f, <span class="string">"as"</span>),

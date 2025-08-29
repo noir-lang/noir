@@ -917,43 +917,43 @@
 
     <span class="kw">pub fn </span>print_literal(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        literal: <span class="kw-2">&amp;</span><span class="kw">super</span>::ast::Literal,
+        literal: <span class="kw-2">&amp;</span>Literal,
         f: <span class="kw-2">&amp;mut </span>Formatter,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;(), std::fmt::Error&gt; {
         <span class="kw">match </span>literal {
-            <span class="kw">super</span>::ast::Literal::Array(array) =&gt; {
+            Literal::Array(array) =&gt; {
                 <span class="macro">write!</span>(f, <span class="string">"["</span>)<span class="question-mark">?</span>;
                 <span class="self">self</span>.print_comma_separated(<span class="kw-2">&amp;</span>array.contents, f)<span class="question-mark">?</span>;
                 <span class="macro">write!</span>(f, <span class="string">"]"</span>)
             }
-            <span class="kw">super</span>::ast::Literal::Slice(array) =&gt; {
+            Literal::Slice(array) =&gt; {
                 <span class="macro">write!</span>(f, <span class="string">"&amp;["</span>)<span class="question-mark">?</span>;
                 <span class="self">self</span>.print_comma_separated(<span class="kw-2">&amp;</span>array.contents, f)<span class="question-mark">?</span>;
                 <span class="macro">write!</span>(f, <span class="string">"]"</span>)
             }
-            <span class="kw">super</span>::ast::Literal::Integer(x, typ, <span class="kw">_</span>) =&gt; {
+            Literal::Integer(x, typ, <span class="kw">_</span>) =&gt; {
                 <span class="kw">if </span><span class="self">self</span>.show_type_of_int_literal &amp;&amp; <span class="kw-2">*</span>typ != Type::Field {
                     <span class="macro">write!</span>(f, <span class="string">"{x}_{typ}"</span>)
                 } <span class="kw">else </span>{
                     x.fmt(f)
                 }
             }
-            <span class="kw">super</span>::ast::Literal::Bool(x) =&gt; x.fmt(f),
-            <span class="kw">super</span>::ast::Literal::Str(s) =&gt; {
+            Literal::Bool(x) =&gt; x.fmt(f),
+            Literal::Str(s) =&gt; {
                 <span class="kw">if </span>s.contains(<span class="string">"\""</span>) {
                     <span class="macro">write!</span>(f, <span class="string">"r#\"{s}\"#"</span>)
                 } <span class="kw">else </span>{
                     <span class="macro">write!</span>(f, <span class="string">"\"{s}\""</span>)
                 }
             }
-            <span class="kw">super</span>::ast::Literal::FmtStr(fragments, <span class="kw">_</span>, <span class="kw">_</span>) =&gt; {
+            Literal::FmtStr(fragments, <span class="kw">_</span>, <span class="kw">_</span>) =&gt; {
                 <span class="macro">write!</span>(f, <span class="string">"f\""</span>)<span class="question-mark">?</span>;
                 <span class="kw">for </span>fragment <span class="kw">in </span>fragments {
                     fragment.fmt(f)<span class="question-mark">?</span>;
                 }
                 <span class="macro">write!</span>(f, <span class="string">"\""</span>)
             }
-            <span class="kw">super</span>::ast::Literal::Unit =&gt; {
+            Literal::Unit =&gt; {
                 <span class="macro">write!</span>(f, <span class="string">"()"</span>)
             }
         }
@@ -1316,8 +1316,8 @@
             LValue::Clone(lvalue) =&gt; {
                 <span class="self">self</span>.print_lvalue(lvalue, f)<span class="question-mark">?</span>;
                 <span class="kw">if </span><span class="self">self</span>.show_clone_and_drop {
-                    <span class="macro">write!</span>(f, <span class="string">".clone()"</span>)<span class="question-mark">?
-                </span>}
+                    <span class="macro">write!</span>(f, <span class="string">".clone()"</span>)<span class="question-mark">?</span>;
+                }
                 <span class="prelude-val">Ok</span>(())
             }
         }

@@ -507,7 +507,7 @@
             <span class="kw">return </span><span class="prelude-val">None</span>;
         }
 
-        <span class="macro">assert!</span>(std::mem::size_of::&lt;T&gt;() &lt;= std::mem::size_of::&lt;u128&gt;());
+        <span class="macro">assert!</span>(size_of::&lt;T&gt;() &lt;= size_of::&lt;u128&gt;());
         <span class="kw">let </span>u128_value = <span class="self">self</span>.field.try_into_u128()<span class="question-mark">?</span>;
         u128_value.try_into().ok()
     }
@@ -722,7 +722,7 @@
     (<span class="macro-nonterminal">$typ</span>:ty) =&gt; {
         <span class="kw">impl </span>AbsU128 <span class="kw">for </span><span class="macro-nonterminal">$typ </span>{
             <span class="kw">fn </span>abs_u128(<span class="self">self</span>) -&gt; u128 {
-                <span class="self">self</span>.unsigned_abs() <span class="kw">as </span>u128
+                <span class="self">self</span>.unsigned_abs().into()
             }
         }
     };

@@ -1143,7 +1143,7 @@
     }
 }
 
-<span class="kw">impl </span>std::fmt::Display <span class="kw">for </span>InlineType {
+<span class="kw">impl </span>Display <span class="kw">for </span>InlineType {
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
         <span class="kw">match </span><span class="self">self </span>{
             InlineType::Inline =&gt; <span class="macro">write!</span>(f, <span class="string">"inline"</span>),
@@ -1293,13 +1293,13 @@
     }
 }
 
-<span class="kw">impl </span>std::fmt::Display <span class="kw">for </span>Program {
+<span class="kw">impl </span>Display <span class="kw">for </span>Program {
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
         <span class="kw">super</span>::printer::AstPrinter::default().print_program(<span class="self">self</span>, f)
     }
 }
 
-<span class="kw">impl </span>std::fmt::Display <span class="kw">for </span>Function {
+<span class="kw">impl </span>Display <span class="kw">for </span>Function {
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
         <span class="kw">super</span>::printer::AstPrinter::default().print_function(
             <span class="self">self</span>,
@@ -1309,13 +1309,13 @@
     }
 }
 
-<span class="kw">impl </span>std::fmt::Display <span class="kw">for </span>Expression {
+<span class="kw">impl </span>Display <span class="kw">for </span>Expression {
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
         <span class="kw">super</span>::printer::AstPrinter::default().print_expr(<span class="self">self</span>, f)
     }
 }
 
-<span class="kw">impl </span>std::fmt::Display <span class="kw">for </span>Type {
+<span class="kw">impl </span>Display <span class="kw">for </span>Type {
     <span class="kw">fn </span>fmt(<span class="kw-2">&amp;</span><span class="self">self</span>, f: <span class="kw-2">&amp;mut </span>std::fmt::Formatter&lt;<span class="lifetime">'_</span>&gt;) -&gt; std::fmt::Result {
         <span class="kw">match </span><span class="self">self </span>{
             Type::Field =&gt; <span class="macro">write!</span>(f, <span class="string">"Field"</span>),

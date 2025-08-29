@@ -3116,7 +3116,7 @@
         //
         // let source = std::str::from_utf8(..).unwrap().to_string();
         </span><span class="kw">let </span>s: Cow&lt;<span class="lifetime">'_</span>, str&gt; = <span class="kw">match </span>std::str::from_utf8(<span class="kw-2">&amp;</span>base64_decoded) {
-            <span class="prelude-val">Ok</span>(s) =&gt; std::borrow::Cow::Borrowed(s),
+            <span class="prelude-val">Ok</span>(s) =&gt; Cow::Borrowed(s),
             <span class="prelude-val">Err</span>(_err) =&gt; {
                 <span class="comment">// recover as much of the string as possible
                 // when str::from_utf8 fails

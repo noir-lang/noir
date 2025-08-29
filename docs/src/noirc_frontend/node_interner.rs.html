@@ -2927,19 +2927,19 @@
     /// into `quoted` expressions, we preserve the original type by assigning it a unique id
     /// and creating a `Token::QuotedType(id)` from this id. We cannot create a token holding
     /// the actual type since types do not implement Send or Sync.
-    </span>quoted_types: noirc_arena::Arena&lt;Type&gt;,
+    </span>quoted_types: Arena&lt;Type&gt;,
 
     <span class="comment">// Interned `ExpressionKind`s during comptime code.
-    </span>interned_expression_kinds: noirc_arena::Arena&lt;ExpressionKind&gt;,
+    </span>interned_expression_kinds: Arena&lt;ExpressionKind&gt;,
 
     <span class="comment">// Interned `StatementKind`s during comptime code.
-    </span>interned_statement_kinds: noirc_arena::Arena&lt;StatementKind&gt;,
+    </span>interned_statement_kinds: Arena&lt;StatementKind&gt;,
 
     <span class="comment">// Interned `UnresolvedTypeData`s during comptime code.
-    </span>interned_unresolved_type_data: noirc_arena::Arena&lt;UnresolvedTypeData&gt;,
+    </span>interned_unresolved_type_data: Arena&lt;UnresolvedTypeData&gt;,
 
     <span class="comment">// Interned `Pattern`s during comptime code.
-    </span>interned_patterns: noirc_arena::Arena&lt;Pattern&gt;,
+    </span>interned_patterns: Arena&lt;Pattern&gt;,
 
     <span class="doccomment">/// Determines whether to run in LSP mode. In LSP mode references are tracked.
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) lsp_mode: bool,
@@ -3350,19 +3350,19 @@
 }
 
 <span class="attr">#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-</span><span class="kw">pub struct </span>QuotedTypeId(noirc_arena::Index);
+</span><span class="kw">pub struct </span>QuotedTypeId(Index);
 
 <span class="attr">#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-</span><span class="kw">pub struct </span>InternedExpressionKind(noirc_arena::Index);
+</span><span class="kw">pub struct </span>InternedExpressionKind(Index);
 
 <span class="attr">#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-</span><span class="kw">pub struct </span>InternedStatementKind(noirc_arena::Index);
+</span><span class="kw">pub struct </span>InternedStatementKind(Index);
 
 <span class="attr">#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-</span><span class="kw">pub struct </span>InternedUnresolvedTypeData(noirc_arena::Index);
+</span><span class="kw">pub struct </span>InternedUnresolvedTypeData(Index);
 
 <span class="attr">#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-</span><span class="kw">pub struct </span>InternedPattern(noirc_arena::Index);
+</span><span class="kw">pub struct </span>InternedPattern(Index);
 
 <span class="doccomment">/// Captures a reexport that happens inside a module. For example:
 ///
@@ -3392,7 +3392,7 @@
             function_modules: HashMap::default(),
             module_attributes: HashMap::default(),
             func_id_to_trait: HashMap::default(),
-            dependency_graph: petgraph::graph::DiGraph::new(),
+            dependency_graph: DiGraph::new(),
             dependency_graph_indices: HashMap::default(),
             id_to_location: HashMap::default(),
             definitions: <span class="macro">vec!</span>[],
@@ -3425,7 +3425,7 @@
             interned_patterns: Default::default(),
             lsp_mode: <span class="bool-val">false</span>,
             location_indices: LocationIndices::default(),
-            reference_graph: petgraph::graph::DiGraph::new(),
+            reference_graph: DiGraph::new(),
             reference_graph_indices: HashMap::default(),
             auto_import_names: HashMap::default(),
             comptime_scopes: <span class="macro">vec!</span>[HashMap::default()],
@@ -3859,10 +3859,10 @@
         <span class="self">self</span>.func_meta.get(func_id)
     }
 
-    <span class="kw">pub fn </span>function_ident(<span class="kw-2">&amp;</span><span class="self">self</span>, func_id: <span class="kw-2">&amp;</span>FuncId) -&gt; <span class="kw">crate</span>::ast::Ident {
+    <span class="kw">pub fn </span>function_ident(<span class="kw-2">&amp;</span><span class="self">self</span>, func_id: <span class="kw-2">&amp;</span>FuncId) -&gt; Ident {
         <span class="kw">let </span>name = <span class="self">self</span>.function_name(func_id).to_owned();
         <span class="kw">let </span>location = <span class="self">self</span>.function_meta(func_id).name.location;
-        <span class="kw">crate</span>::ast::Ident::new(name, location)
+        Ident::new(name, location)
     }
 
     <span class="kw">pub fn </span>function_name(<span class="kw-2">&amp;</span><span class="self">self</span>, func_id: <span class="kw-2">&amp;</span>FuncId) -&gt; <span class="kw-2">&amp;</span>str {

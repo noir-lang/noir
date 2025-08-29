@@ -991,12 +991,12 @@
         <span class="kw">let </span>rhs = other.follow_bindings_shallow();
 
         <span class="kw">let </span>lhs = <span class="kw">match </span>lhs.as_ref() {
-            Type::InfixExpr(..) =&gt; Cow::Owned(<span class="self">self</span>.substitute(bindings).canonicalize()),
+            InfixExpr(..) =&gt; Cow::Owned(<span class="self">self</span>.substitute(bindings).canonicalize()),
             other =&gt; Cow::Borrowed(other),
         };
 
         <span class="kw">let </span>rhs = <span class="kw">match </span>rhs.as_ref() {
-            Type::InfixExpr(..) =&gt; Cow::Owned(other.substitute(bindings).canonicalize()),
+            InfixExpr(..) =&gt; Cow::Owned(other.substitute(bindings).canonicalize()),
             other =&gt; Cow::Borrowed(other),
         };
 
@@ -1012,7 +1012,7 @@
                 TypeBinding::Bound(typ) =&gt; {
                     <span class="kw">if </span>typ.is_numeric_value() {
                         other.try_unify_to_type_variable(var, flags, bindings, |bindings| {
-                            <span class="kw">let </span>only_integer = <span class="macro">matches!</span>(typ, Type::Integer(..));
+                            <span class="kw">let </span>only_integer = <span class="macro">matches!</span>(typ, Integer(..));
                             other.try_bind_to_polymorphic_int(var, bindings, only_integer)
                         })
                     } <span class="kw">else </span>{

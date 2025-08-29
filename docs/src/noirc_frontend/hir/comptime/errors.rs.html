@@ -1049,7 +1049,7 @@
 }
 
 <span class="attr">#[allow(unused)]
-</span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">type </span>IResult&lt;T&gt; = std::result::Result&lt;T, InterpreterError&gt;;
+</span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">type </span>IResult&lt;T&gt; = <span class="prelude-ty">Result</span>&lt;T, InterpreterError&gt;;
 
 <span class="kw">impl </span>From&lt;InterpreterError&gt; <span class="kw">for </span>CompilationError {
     <span class="kw">fn </span>from(error: InterpreterError) -&gt; <span class="self">Self </span>{

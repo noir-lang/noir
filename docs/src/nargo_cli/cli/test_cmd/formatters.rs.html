@@ -678,7 +678,7 @@
                 <span class="kw">if let </span><span class="prelude-val">Some</span>(diag) = error_diagnostic {
                     noirc_errors::reporter::report_all(
                         file_manager.as_file_map(),
-                        <span class="kw-2">&amp;</span>[diag.clone()],
+                        std::slice::from_ref(diag),
                         deny_warnings,
                         silence_warnings,
                     );
@@ -694,7 +694,7 @@
             TestStatus::CompileError(file_diagnostic) =&gt; {
                 noirc_errors::reporter::report_all(
                     file_manager.as_file_map(),
-                    <span class="kw-2">&amp;</span>[file_diagnostic.clone()],
+                    std::slice::from_ref(file_diagnostic),
                     deny_warnings,
                     silence_warnings,
                 );
@@ -868,7 +868,7 @@
                         <span class="kw">if let </span><span class="prelude-val">Some</span>(diag) = error_diagnostic {
                             noirc_errors::reporter::report_all(
                                 file_manager.as_file_map(),
-                                <span class="kw-2">&amp;</span>[diag.clone()],
+                                std::slice::from_ref(diag),
                                 deny_warnings,
                                 silence_warnings,
                             );
@@ -877,7 +877,7 @@
                     TestStatus::CompileError(file_diagnostic) =&gt; {
                         noirc_errors::reporter::report_all(
                             file_manager.as_file_map(),
-                            <span class="kw-2">&amp;</span>[file_diagnostic.clone()],
+                            std::slice::from_ref(file_diagnostic),
                             deny_warnings,
                             silence_warnings,
                         );

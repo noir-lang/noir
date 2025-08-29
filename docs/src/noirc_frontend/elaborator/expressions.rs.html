@@ -2348,7 +2348,7 @@
             <span class="comment">// Given that we already produced an error, let's make this an `assert(true)` so
             // we don't get further errors.
             </span><span class="kw">let </span>message = <span class="prelude-val">None</span>;
-            <span class="kw">let </span>kind = ExpressionKind::Literal(<span class="kw">crate</span>::ast::Literal::Bool(<span class="bool-val">true</span>));
+            <span class="kw">let </span>kind = ExpressionKind::Literal(Literal::Bool(<span class="bool-val">true</span>));
             <span class="kw">let </span>expr = Expression { kind, location };
             (message, expr)
         } <span class="kw">else </span>{
@@ -2811,7 +2811,7 @@
         match_expr: MatchExpression,
         location: Location,
     ) -&gt; (HirExpression, Type) {
-        <span class="self">self</span>.use_unstable_feature(<span class="kw">super</span>::UnstableFeature::Enums, location);
+        <span class="self">self</span>.use_unstable_feature(UnstableFeature::Enums, location);
 
         <span class="kw">let </span>expr_location = match_expr.expression.location;
         <span class="kw">let </span>(expression, typ) = <span class="self">self</span>.elaborate_expression(match_expr.expression);

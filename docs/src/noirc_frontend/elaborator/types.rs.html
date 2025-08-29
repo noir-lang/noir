@@ -2506,8 +2506,7 @@
 <a href="#2505" id="2505">2505</a>
 <a href="#2506" id="2506">2506</a>
 <a href="#2507" id="2507">2507</a>
-<a href="#2508" id="2508">2508</a>
-<a href="#2509" id="2509">2509</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, rc::Rc};
+<a href="#2508" id="2508">2508</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, rc::Rc};
 
 <span class="kw">use </span>im::HashSet;
 <span class="kw">use </span>iter_extended::vecmap;
@@ -4048,7 +4047,7 @@
         <span class="kw">use </span>Type::<span class="kw-2">*</span>;
 
         <span class="kw">match </span>op {
-            <span class="kw">crate</span>::ast::UnaryOp::Minus | <span class="kw">crate</span>::ast::UnaryOp::Not =&gt; {
+            UnaryOp::Minus | UnaryOp::Not =&gt; {
                 <span class="kw">match </span>rhs_type {
                     <span class="comment">// An error type will always return an error
                     </span>Error =&gt; <span class="prelude-val">Ok</span>((Error, <span class="bool-val">false</span>)),
@@ -4066,7 +4065,7 @@
 
                         <span class="comment">// The `!` prefix operator is not valid for Field, so if this is a numeric
                         // type we constrain it to just (non-Field) integer types.
-                        </span><span class="kw">if </span><span class="macro">matches!</span>(op, <span class="kw">crate</span>::ast::UnaryOp::Not) &amp;&amp; rhs_type.is_numeric_value() {
+                        </span><span class="kw">if </span><span class="macro">matches!</span>(op, UnaryOp::Not) &amp;&amp; rhs_type.is_numeric_value() {
                             <span class="kw">let </span>integer_type = Type::polymorphic_integer(<span class="self">self</span>.interner);
                             <span class="self">self</span>.unify(rhs_type, <span class="kw-2">&amp;</span>integer_type, || {
                                 TypeCheckError::InvalidUnaryOp {
@@ -4102,14 +4101,13 @@
                     <span class="kw">_ </span>=&gt; <span class="prelude-val">Ok</span>((rhs_type.clone(), <span class="bool-val">true</span>)),
                 }
             }
-            <span class="kw">crate</span>::ast::UnaryOp::Reference { mutable } =&gt; {
-                <span class="kw">let </span>typ = Type::Reference(Box::new(rhs_type.follow_bindings()), <span class="kw-2">*</span>mutable);
+            UnaryOp::Reference { mutable } =&gt; {
+                <span class="kw">let </span>typ = Reference(Box::new(rhs_type.follow_bindings()), <span class="kw-2">*</span>mutable);
                 <span class="prelude-val">Ok</span>((typ, <span class="bool-val">false</span>))
             }
-            <span class="kw">crate</span>::ast::UnaryOp::Dereference { implicitly_added: <span class="kw">_ </span>} =&gt; {
+            UnaryOp::Dereference { implicitly_added: <span class="kw">_ </span>} =&gt; {
                 <span class="kw">let </span>element_type = <span class="self">self</span>.interner.next_type_variable();
-                <span class="kw">let </span>make_expected =
-                    |mutable| Type::Reference(Box::new(element_type.clone()), mutable);
+                <span class="kw">let </span>make_expected = |mutable| Reference(Box::new(element_type.clone()), mutable);
 
                 <span class="kw">let </span>immutable = make_expected(<span class="bool-val">false</span>);
                 <span class="kw">let </span>mutable = make_expected(<span class="bool-val">true</span>);
@@ -4195,7 +4193,7 @@
         <span class="kw">let </span>dereference_lhs = |this: <span class="kw-2">&amp;mut </span><span class="self">Self</span>, lhs_type, element| {
             <span class="kw">let </span>old_lhs = <span class="kw-2">*</span>access_lhs;
             <span class="kw-2">*</span>access_lhs = this.interner.push_expr(HirExpression::Prefix(HirPrefixExpression::new(
-                <span class="kw">crate</span>::ast::UnaryOp::Dereference { implicitly_added: <span class="bool-val">true </span>},
+                UnaryOp::Dereference { implicitly_added: <span class="bool-val">true </span>},
                 old_lhs,
             )));
             this.interner.push_expr_type(old_lhs, lhs_type);
@@ -4737,7 +4735,7 @@
         }
     }
 
-    <span class="kw">fn </span>function_info(<span class="kw-2">&amp;</span><span class="self">self</span>, function_body_id: ExprId) -&gt; (noirc_errors::Location, bool) {
+    <span class="kw">fn </span>function_info(<span class="kw-2">&amp;</span><span class="self">self</span>, function_body_id: ExprId) -&gt; (Location, bool) {
         <span class="kw">let </span>(expr_location, empty_function) =
             <span class="kw">if let </span>HirExpression::Block(block) = <span class="self">self</span>.interner.expression(<span class="kw-2">&amp;</span>function_body_id) {
                 <span class="kw">let </span>last_stmt = block.statements().last();

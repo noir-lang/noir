@@ -992,7 +992,7 @@
         </span><span class="kw">let </span>last_stmt = <span class="kw">if </span>has_ret_expr {
             ast::Statement {
                 kind: ast::StatementKind::Expression(ast::Expression {
-                    kind: ast::ExpressionKind::Variable(ast::Path::plain(
+                    kind: ast::ExpressionKind::Variable(Path::plain(
                         <span class="macro">vec!</span>[PathSegment::from(ident(<span class="string">"__debug_expr"</span>, location))],
                         location,
                     )),
@@ -1454,7 +1454,7 @@
     <span class="kw">let </span>location = expr.location;
     <span class="kw">let </span>kind = ast::ExpressionKind::Call(Box::new(ast::CallExpression {
         func: Box::new(ast::Expression {
-            kind: ast::ExpressionKind::Variable(ast::Path::plain(
+            kind: ast::ExpressionKind::Variable(Path::plain(
                 <span class="macro">vec!</span>[PathSegment::from(ident(<span class="string">"__debug_var_assign"</span>, location))],
                 location,
             )),
@@ -1469,7 +1469,7 @@
 <span class="kw">fn </span>build_drop_var_stmt(var_id: SourceVarId, location: Location) -&gt; ast::Statement {
     <span class="kw">let </span>kind = ast::ExpressionKind::Call(Box::new(ast::CallExpression {
         func: Box::new(ast::Expression {
-            kind: ast::ExpressionKind::Variable(ast::Path::plain(
+            kind: ast::ExpressionKind::Variable(Path::plain(
                 <span class="macro">vec!</span>[PathSegment::from(ident(<span class="string">"__debug_var_drop"</span>, location))],
                 location,
             )),
@@ -1493,7 +1493,7 @@
     <span class="kw">let </span>location = expr.location;
     <span class="kw">let </span>kind = ast::ExpressionKind::Call(Box::new(ast::CallExpression {
         func: Box::new(ast::Expression {
-            kind: ast::ExpressionKind::Variable(ast::Path::plain(
+            kind: ast::ExpressionKind::Variable(Path::plain(
                 <span class="macro">vec!</span>[PathSegment::from(ident(<span class="kw-2">&amp;</span><span class="macro">format!</span>[<span class="string">"__debug_member_assign_{arity}"</span>], location))],
                 location,
             )),
@@ -1513,7 +1513,7 @@
 <span class="kw">fn </span>build_debug_call_stmt(fname: <span class="kw-2">&amp;</span>str, fn_id: DebugFnId, location: Location) -&gt; ast::Statement {
     <span class="kw">let </span>kind = ast::ExpressionKind::Call(Box::new(ast::CallExpression {
         func: Box::new(ast::Expression {
-            kind: ast::ExpressionKind::Variable(ast::Path::plain(
+            kind: ast::ExpressionKind::Variable(Path::plain(
                 <span class="macro">vec!</span>[PathSegment::from(ident(<span class="kw-2">&amp;</span><span class="macro">format!</span>[<span class="string">"__debug_fn_{fname}"</span>], location))],
                 location,
             )),

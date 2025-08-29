@@ -656,8 +656,7 @@
 <a href="#655" id="655">655</a>
 <a href="#656" id="656">656</a>
 <a href="#657" id="657">657</a>
-<a href="#658" id="658">658</a>
-<a href="#659" id="659">659</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
+<a href="#658" id="658">658</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
 
 <span class="kw">use </span>noirc_errors::Location;
 
@@ -1110,7 +1109,6 @@
     <span class="kw">use </span>proptest::collection;
     <span class="kw">use </span>proptest::prelude::<span class="kw-2">*</span>;
     <span class="kw">use </span>proptest::result::maybe_ok;
-    <span class="kw">use </span>proptest::strategy;
 
     <span class="kw">use </span><span class="kw">crate</span>::ast::IntegerBitSize;
     <span class="kw">use </span><span class="kw">crate</span>::hir_def::types::{BinaryTypeOperator, Kind, Type, TypeVariable, TypeVariableId};
@@ -1146,13 +1144,13 @@
     </span><span class="kw">fn </span>arbitrary_unsigned_type_with_generator() -&gt; BoxedStrategy&lt;(Type, BoxedStrategy&lt;FieldElement&gt;)&gt;
     {
         <span class="macro">prop_oneof!</span>[
-            strategy::Just((Type::FieldElement, arbitrary_field_element().boxed())),
+            Just((Type::FieldElement, arbitrary_field_element().boxed())),
             any::&lt;IntegerBitSize&gt;().prop_map(|bit_size| {
                 <span class="kw">let </span>typ = Type::Integer(Signedness::Unsigned, bit_size);
                 <span class="kw">let </span>maximum_size = typ.integral_maximum_size().unwrap().to_u128();
                 (typ, arbitrary_u128_field_element(maximum_size).boxed())
             }),
-            strategy::Just((Type::Bool, arbitrary_u128_field_element(<span class="number">1</span>).boxed())),
+            Just((Type::Bool, arbitrary_u128_field_element(<span class="number">1</span>).boxed())),
         ]
         .boxed()
     }

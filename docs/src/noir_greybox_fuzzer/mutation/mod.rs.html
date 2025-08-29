@@ -732,7 +732,9 @@
 <a href="#731" id="731">731</a>
 <a href="#732" id="732">732</a>
 <a href="#733" id="733">733</a>
-<a href="#734" id="734">734</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, FieldElement};
+<a href="#734" id="734">734</a>
+<a href="#735" id="735">735</a>
+<a href="#736" id="736">736</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{AcirField, FieldElement};
 
 <span class="kw">use </span>array::{mutate_vector_structure, splice_array_structure};
 <span class="kw">use </span>configurations::{
@@ -1404,9 +1406,11 @@
     ) -&gt; InputMap {
         <span class="kw">let </span><span class="kw-2">mut </span>starting_input_value = previous_input_map.clone();
 
-        <span class="kw">if </span>additional_input_map.is_some() &amp;&amp; prng.gen_range(<span class="number">0</span>..<span class="number">4</span>).is_zero() {
-            starting_input_value =
-                <span class="self">self</span>.splice_two_maps(<span class="kw-2">&amp;</span>previous_input_map, <span class="kw-2">&amp;</span>additional_input_map.unwrap(), prng);
+        <span class="kw">if let </span><span class="prelude-val">Some</span>(additional_input_map) = additional_input_map {
+            <span class="kw">if </span>prng.gen_range(<span class="number">0</span>..<span class="number">4</span>).is_zero() {
+                starting_input_value =
+                    <span class="self">self</span>.splice_two_maps(<span class="kw-2">&amp;</span>previous_input_map, <span class="kw-2">&amp;</span>additional_input_map, prng);
+            }
         }
         <span class="kw">for _ in </span><span class="number">0</span>..(<span class="number">1 </span>&lt;&lt; prng.gen_range(MUTATION_LOG_MIN..=MUTATION_LOG_MAX)) {
             starting_input_value = <span class="self">self</span>.mutate_input_map_single(<span class="kw-2">&amp;</span>starting_input_value, prng);

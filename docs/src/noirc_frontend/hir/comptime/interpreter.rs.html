@@ -3326,7 +3326,7 @@
                 <span class="prelude-val">Ok</span>(Value::U128(value))
             }
             (Signedness::Signed, IntegerBitSize::One) =&gt; {
-                <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::TypeUnsupported { typ, location });
+                <span class="prelude-val">Err</span>(InterpreterError::TypeUnsupported { typ, location })
             }
             (Signedness::Signed, IntegerBitSize::Eight) =&gt; {
                 <span class="kw">let </span>value = value
@@ -3353,7 +3353,7 @@
                 <span class="prelude-val">Ok</span>(Value::I64(value))
             }
             (Signedness::Signed, IntegerBitSize::HundredTwentyEight) =&gt; {
-                <span class="kw">return </span><span class="prelude-val">Err</span>(InterpreterError::TypeUnsupported { typ, location });
+                <span class="prelude-val">Err</span>(InterpreterError::TypeUnsupported { typ, location })
             }
         }
     } <span class="kw">else if let </span>Type::TypeVariable(variable) = <span class="kw-2">&amp;</span>typ {

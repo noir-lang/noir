@@ -608,12 +608,7 @@
 <a href="#607" id="607">607</a>
 <a href="#608" id="608">608</a>
 <a href="#609" id="609">609</a>
-<a href="#610" id="610">610</a>
-<a href="#611" id="611">611</a>
-<a href="#612" id="612">612</a>
-<a href="#613" id="613">613</a>
-<a href="#614" id="614">614</a>
-<a href="#615" id="615">615</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">super</span>::dc_mod::collect_defs;
+<a href="#610" id="610">610</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">super</span>::dc_mod::collect_defs;
 <span class="kw">use </span><span class="kw">super</span>::errors::{DefCollectorErrorKind, DuplicateType};
 <span class="kw">use </span><span class="kw">crate</span>::elaborator::Elaborator;
 <span class="kw">use </span><span class="kw">crate</span>::graph::CrateId;
@@ -1174,12 +1169,7 @@
     <span class="kw">if </span>!crate_id.is_stdlib() {
         <span class="kw">let </span>segments: Vec&lt;<span class="kw">_</span>&gt; = <span class="string">"std::prelude"
             </span>.split(<span class="string">"::"</span>)
-            .map(|segment| {
-                <span class="kw">crate</span>::ast::PathSegment::from(<span class="kw">crate</span>::ast::Ident::new(
-                    segment.into(),
-                    Location::dummy(),
-                ))
-            })
+            .map(|segment| PathSegment::from(Ident::new(segment.into(), Location::dummy())))
             .collect();
 
         <span class="kw">let </span>path = Path::plain(segments.clone(), Location::dummy());

@@ -813,7 +813,7 @@
 
     <span class="doccomment">/// An "as Trait" path leading to an associated type.
     /// E.g. `&lt;Foo as Trait&gt;::Bar`
-    </span>AsTraitPath(Box&lt;<span class="kw">crate</span>::ast::AsTraitPath&gt;),
+    </span>AsTraitPath(Box&lt;AsTraitPath&gt;),
 
     <span class="doccomment">/// An already resolved type. These can only be parsed if they were present in the token stream
     /// as a result of being spliced into a macro's token stream input.
@@ -957,10 +957,10 @@
                 <span class="kw">let </span>args = vecmap(args, ToString::to_string).join(<span class="string">", "</span>);
 
                 <span class="kw">match </span><span class="kw-2">&amp;</span>env.as_ref().typ {
-                    UnresolvedTypeData::Unit =&gt; {
+                    Unit =&gt; {
                         <span class="macro">write!</span>(f, <span class="string">"fn({args}) -&gt; {ret}"</span>)
                     }
-                    UnresolvedTypeData::Tuple(env_types) =&gt; {
+                    Tuple(env_types) =&gt; {
                         <span class="kw">let </span>env_types = vecmap(env_types, |arg| arg.typ.to_string()).join(<span class="string">", "</span>);
                         <span class="macro">write!</span>(f, <span class="string">"fn[{env_types}]({args}) -&gt; {ret}"</span>)
                     }

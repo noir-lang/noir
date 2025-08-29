@@ -766,7 +766,8 @@
 <a href="#765" id="765">765</a>
 <a href="#766" id="766">766</a>
 <a href="#767" id="767">767</a>
-<a href="#768" id="768">768</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#768" id="768">768</a>
+<a href="#769" id="769">769</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
 </span><span class="kw">use </span>std::{
@@ -1458,11 +1459,12 @@
                     );
 
                     <span class="comment">// Go into the last created directory
-                    </span><span class="kw">if </span>indent &gt; current_indent &amp;&amp; last_item.is_some() {
-                        <span class="kw">let </span>last_item = last_item.unwrap();
-                        <span class="macro">assert!</span>(is_dir(<span class="kw-2">&amp;</span>last_item), <span class="string">"last item was not a dir: {last_item}"</span>);
-                        current_dir.push(last_item);
-                        current_indent += <span class="number">1</span>;
+                    </span><span class="kw">if let </span><span class="prelude-val">Some</span>(last_item) = last_item {
+                        <span class="kw">if </span>indent &gt; current_indent {
+                            <span class="macro">assert!</span>(is_dir(<span class="kw-2">&amp;</span>last_item), <span class="string">"last item was not a dir: {last_item}"</span>);
+                            current_dir.push(last_item);
+                            current_indent += <span class="number">1</span>;
+                        }
                     }
                     <span class="comment">// Go back into an ancestor directory
                     </span><span class="kw">while </span>indent &lt; current_indent {

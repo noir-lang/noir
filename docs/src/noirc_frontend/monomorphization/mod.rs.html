@@ -2894,16 +2894,7 @@
 <a href="#2893" id="2893">2893</a>
 <a href="#2894" id="2894">2894</a>
 <a href="#2895" id="2895">2895</a>
-<a href="#2896" id="2896">2896</a>
-<a href="#2897" id="2897">2897</a>
-<a href="#2898" id="2898">2898</a>
-<a href="#2899" id="2899">2899</a>
-<a href="#2900" id="2900">2900</a>
-<a href="#2901" id="2901">2901</a>
-<a href="#2902" id="2902">2902</a>
-<a href="#2903" id="2903">2903</a>
-<a href="#2904" id="2904">2904</a>
-<a href="#2905" id="2905">2905</a></pre></div><pre class="rust"><code><span class="doccomment">//! Coming after type checking, monomorphization is the last pass in Noir's frontend.
+<a href="#2896" id="2896">2896</a></pre></div><pre class="rust"><code><span class="doccomment">//! Coming after type checking, monomorphization is the last pass in Noir's frontend.
 //! It accepts the type checked HIR as input and produces a monomorphized AST as output.
 //! This file implements the pass itself, while the AST is defined in the ast module.
 //!
@@ -2928,7 +2919,6 @@
         expr::<span class="kw-2">*</span>,
         function::{FunctionSignature, Parameters},
         stmt::{HirAssignStatement, HirLValue, HirLetStatement, HirPattern, HirStatement},
-        types,
     },
     node_interner::{<span class="self">self</span>, DefinitionKind, NodeInterner, StmtId, TraitImplKind},
 };
@@ -3030,7 +3020,7 @@
     HashMap&lt;HirType, HashMap&lt;Vec&lt;HirType&gt;, FuncId&gt;&gt;,
 &gt;;
 
-<span class="kw">type </span>HirType = <span class="kw">crate</span>::Type;
+<span class="kw">type </span>HirType = Type;
 
 <span class="doccomment">/// Starting from the given `main` function, monomorphize the entire program,
 /// replacing all references to type variables and NamedGenerics with concrete
@@ -3146,10 +3136,10 @@
         LocalId(id)
     }
 
-    <span class="kw">fn </span>next_function_id(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; ast::FuncId {
+    <span class="kw">fn </span>next_function_id(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; FuncId {
         <span class="kw">let </span>id = <span class="self">self</span>.next_function_id;
         <span class="self">self</span>.next_function_id += <span class="number">1</span>;
-        ast::FuncId(id)
+        FuncId(id)
     }
 
     <span class="kw">fn </span>next_global_id(<span class="kw-2">&amp;mut </span><span class="self">self</span>) -&gt; GlobalId {
@@ -3171,7 +3161,7 @@
     <span class="kw">fn </span>lookup_function(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         id: node_interner::FuncId,
-        expr_id: node_interner::ExprId,
+        expr_id: ExprId,
         typ: <span class="kw-2">&amp;</span>HirType,
         turbofish_generics: <span class="kw-2">&amp;</span>[HirType],
         trait_method: <span class="prelude-ty">Option</span>&lt;TraitItemId&gt;,
@@ -3313,7 +3303,7 @@
 
         <span class="kw">let </span>parameters = <span class="self">self</span>.parameters(<span class="kw-2">&amp;</span>meta.parameters)<span class="question-mark">?</span>;
         <span class="kw">let </span>body = <span class="self">self</span>.expr(body_expr_id)<span class="question-mark">?</span>;
-        <span class="kw">let </span>function = ast::Function {
+        <span class="kw">let </span>function = Function {
             id,
             name,
             parameters,
@@ -3329,7 +3319,7 @@
         <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="kw">fn </span>push_function(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: FuncId, function: ast::Function) {
+    <span class="kw">fn </span>push_function(<span class="kw-2">&amp;mut </span><span class="self">self</span>, id: FuncId, function: Function) {
         <span class="kw">let </span>existing = <span class="self">self</span>.finished_functions.insert(id, function);
         <span class="macro">assert!</span>(existing.is_none());
     }
@@ -3340,8 +3330,7 @@
     </span><span class="kw">fn </span>parameters(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         params: <span class="kw-2">&amp;</span>Parameters,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;(ast::LocalId, bool, String, ast::Type, Visibility)&gt;, MonomorphizationError&gt;
-    {
+    ) -&gt; <span class="prelude-ty">Result</span>&lt;Vec&lt;(LocalId, bool, String, ast::Type, Visibility)&gt;, MonomorphizationError&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>new_params = Vec::with_capacity(params.len());
         <span class="kw">for </span>(parameter, typ, visibility) <span class="kw">in </span><span class="kw-2">&amp;</span>params.<span class="number">0 </span>{
             <span class="self">self</span>.parameter(parameter, typ, visibility, <span class="kw-2">&amp;mut </span>new_params)<span class="question-mark">?</span>;
@@ -3354,7 +3343,7 @@
         param: <span class="kw-2">&amp;</span>HirPattern,
         typ: <span class="kw-2">&amp;</span>HirType,
         visibility: <span class="kw-2">&amp;</span>Visibility,
-        new_params: <span class="kw-2">&amp;mut </span>Vec&lt;(ast::LocalId, bool, String, ast::Type, Visibility)&gt;,
+        new_params: <span class="kw-2">&amp;mut </span>Vec&lt;(LocalId, bool, String, ast::Type, Visibility)&gt;,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;(), MonomorphizationError&gt; {
         <span class="kw">match </span>param {
             HirPattern::Identifier(ident) =&gt; {
@@ -3395,10 +3384,7 @@
         <span class="prelude-val">Ok</span>(())
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>expr(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        expr: node_interner::ExprId,
-    ) -&gt; <span class="prelude-ty">Result</span>&lt;ast::Expression, MonomorphizationError&gt; {
+    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>expr(<span class="kw-2">&amp;mut </span><span class="self">self</span>, expr: ExprId) -&gt; <span class="prelude-ty">Result</span>&lt;ast::Expression, MonomorphizationError&gt; {
         <span class="kw">use </span>ast::Expression::Literal;
         <span class="kw">use </span>ast::Literal::<span class="kw-2">*</span>;
 
@@ -3569,7 +3555,7 @@
         <span class="prelude-val">Ok</span>(expr)
     }
 
-    <span class="kw">fn </span>contains_reference(typ: <span class="kw-2">&amp;</span>types::Type) -&gt; bool {
+    <span class="kw">fn </span>contains_reference(typ: <span class="kw-2">&amp;</span>Type) -&gt; bool {
         <span class="kw">match </span>typ {
             Type::FieldElement
             | Type::Bool
@@ -3624,8 +3610,8 @@
 
     <span class="kw">fn </span>standard_array(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        array: node_interner::ExprId,
-        array_elements: Vec&lt;node_interner::ExprId&gt;,
+        array: ExprId,
+        array_elements: Vec&lt;ExprId&gt;,
         is_slice: bool,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;ast::Expression, MonomorphizationError&gt; {
         <span class="kw">let </span>location = <span class="self">self</span>.interner.expr_location(<span class="kw-2">&amp;</span>array);
@@ -3640,8 +3626,8 @@
 
     <span class="kw">fn </span>repeated_array(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        array: node_interner::ExprId,
-        repeated_element: node_interner::ExprId,
+        array: ExprId,
+        repeated_element: ExprId,
         length: HirType,
         is_slice: bool,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;ast::Expression, MonomorphizationError&gt; {
@@ -3663,7 +3649,7 @@
 
     <span class="kw">fn </span>index(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        id: node_interner::ExprId,
+        id: ExprId,
         index: HirIndexExpression,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;ast::Expression, MonomorphizationError&gt; {
         <span class="kw">let </span>location = <span class="self">self</span>.interner.expr_location(<span class="kw-2">&amp;</span>id);
@@ -3737,7 +3723,7 @@
     <span class="kw">fn </span>constructor(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         constructor: HirConstructorExpression,
-        id: node_interner::ExprId,
+        id: ExprId,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;ast::Expression, MonomorphizationError&gt; {
         <span class="kw">let </span>location = <span class="self">self</span>.interner.expr_location(<span class="kw-2">&amp;</span>id);
 
@@ -3807,7 +3793,7 @@
     </span><span class="kw">fn </span>enum_constructor(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         constructor: HirEnumConstructorExpression,
-        id: node_interner::ExprId,
+        id: ExprId,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;ast::Expression, MonomorphizationError&gt; {
         <span class="kw">let </span>location = <span class="self">self</span>.interner.expr_location(<span class="kw-2">&amp;</span>id);
         <span class="kw">let </span>typ = <span class="self">self</span>.interner.id_type(id);
@@ -3965,7 +3951,7 @@
     <span class="kw">fn </span>ident(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         ident: HirIdent,
-        expr_id: node_interner::ExprId,
+        expr_id: ExprId,
         generics: <span class="prelude-ty">Option</span>&lt;Vec&lt;HirType&gt;&gt;,
         <span class="comment">// If set and this is a function value, only monomorphize the function for the
         // constrainedness given by `self.in_unconstrained_function` rather than returning a tuple
@@ -4526,13 +4512,13 @@
             });
         }
         <span class="kw">let </span>to_value = to.evaluate_to_signed_field(<span class="kw-2">&amp;</span>to.kind(), location);
-        <span class="kw">if </span>to_value.is_ok() {
+        <span class="kw">if let </span><span class="prelude-val">Ok</span>(to_value) = to_value {
             <span class="kw">let </span>skip_simplifications = <span class="bool-val">false</span>;
             <span class="kw">let </span>from_value =
                 from.evaluate_to_signed_field_helper(<span class="kw-2">&amp;</span>to.kind(), location, skip_simplifications);
-            <span class="kw">if </span>from_value.is_err() || from_value.unwrap() != to_value.clone().unwrap() {
+            <span class="kw">if </span>from_value.is_err() || from_value.unwrap() != to_value {
                 <span class="kw">return </span><span class="prelude-val">Err</span>(MonomorphizationError::CheckedCastFailed {
-                    actual: HirType::Constant(to_value.unwrap(), to.kind()),
+                    actual: HirType::Constant(to_value, to.kind()),
                     expected: from.clone(),
                     location,
                 });
@@ -4570,7 +4556,7 @@
 
     <span class="kw">fn </span>resolve_trait_item_expr(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        expr_id: node_interner::ExprId,
+        expr_id: ExprId,
         function_type: HirType,
         trait_item_id: TraitItemId,
         use_current_runtime: bool,
@@ -4596,7 +4582,7 @@
     <span class="kw">fn </span>resolve_trait_method_expr(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         func_id: node_interner::FuncId,
-        expr_id: node_interner::ExprId,
+        expr_id: ExprId,
         function_type: HirType,
         trait_item_id: TraitItemId,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;ast::Expression, MonomorphizationError&gt; {
@@ -4664,7 +4650,7 @@
     <span class="kw">fn </span>function_call(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         call: HirCallExpression,
-        id: node_interner::ExprId,
+        id: ExprId,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;ast::Expression, MonomorphizationError&gt; {
         <span class="kw">let </span>original_func = Box::new(<span class="self">self</span>.extract_function(call.func)<span class="question-mark">?</span>);
 
@@ -4781,8 +4767,8 @@
     </span><span class="kw">fn </span>try_evaluate_call(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         func: <span class="kw-2">&amp;</span>ast::Expression,
-        expr_id: <span class="kw-2">&amp;</span>node_interner::ExprId,
-        arguments: <span class="kw-2">&amp;</span>[node_interner::ExprId],
+        expr_id: <span class="kw-2">&amp;</span>ExprId,
+        arguments: <span class="kw-2">&amp;</span>[ExprId],
         argument_values: <span class="kw-2">&amp;</span>[ast::Expression],
         result_type: <span class="kw-2">&amp;</span>ast::Type,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;<span class="prelude-ty">Option</span>&lt;ast::Expression&gt;, MonomorphizationError&gt; {
@@ -4830,8 +4816,8 @@
 
     <span class="kw">fn </span>checked_transmute(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        expr_id: node_interner::ExprId,
-        arguments: <span class="kw-2">&amp;</span>[node_interner::ExprId],
+        expr_id: ExprId,
+        arguments: <span class="kw-2">&amp;</span>[ExprId],
         argument_values: <span class="kw-2">&amp;</span>[ast::Expression],
     ) -&gt; <span class="prelude-ty">Result</span>&lt;ast::Expression, MonomorphizationError&gt; {
         <span class="kw">let </span>location = <span class="self">self</span>.interner.expr_location(<span class="kw-2">&amp;</span>expr_id);
@@ -4872,7 +4858,7 @@
     <span class="kw">fn </span>queue_function(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         id: node_interner::FuncId,
-        expr_id: node_interner::ExprId,
+        expr_id: ExprId,
         function_type: HirType,
         turbofish_generics: Vec&lt;HirType&gt;,
         trait_method: <span class="prelude-ty">Option</span>&lt;TraitItemId&gt;,
@@ -4958,7 +4944,7 @@
     <span class="kw">fn </span>lambda(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         lambda: HirLambda,
-        expr: node_interner::ExprId,
+        expr: ExprId,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;ast::Expression, MonomorphizationError&gt; {
         <span class="comment">// Function values are represented as a tuple of (constrained version, unconstrained version)
         </span><span class="self">self</span>.monomorphize_constrained_and_unconstrained(<span class="bool-val">false</span>, |this: <span class="kw-2">&amp;mut </span><span class="self">Self</span>| {
@@ -4974,7 +4960,7 @@
     <span class="kw">fn </span>lambda_no_capture(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         lambda: HirLambda,
-        expr: node_interner::ExprId,
+        expr: ExprId,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;ast::Expression, MonomorphizationError&gt; {
         <span class="kw">let </span>location = <span class="self">self</span>.interner.expr_location(<span class="kw-2">&amp;</span>expr);
         <span class="kw">let </span>ret_type = <span class="self">Self</span>::convert_type(<span class="kw-2">&amp;</span>lambda.return_type, location)<span class="question-mark">?</span>;
@@ -4990,7 +4976,7 @@
         <span class="kw">let </span>body = <span class="self">self</span>.expr(lambda.body)<span class="question-mark">?</span>;
         <span class="kw">let </span>id = <span class="self">self</span>.next_function_id();
 
-        <span class="kw">let </span>function = ast::Function {
+        <span class="kw">let </span>function = Function {
             id,
             name: lambda_name.to_owned(),
             parameters,
@@ -5024,7 +5010,7 @@
     <span class="kw">fn </span>lambda_with_setup(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         lambda: HirLambda,
-        expr: node_interner::ExprId,
+        expr: ExprId,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;(ast::Expression, ast::Expression), MonomorphizationError&gt; {
         <span class="comment">// returns (&lt;closure setup&gt;, &lt;closure variable&gt;)
         //   which can be used directly in callsites or transformed
@@ -5078,7 +5064,7 @@
             })<span class="question-mark">?</span>);
 
         <span class="kw">let </span>expr_type = <span class="self">self</span>.interner.id_type(expr);
-        <span class="kw">let </span>env_typ = <span class="kw">if let </span>types::Type::Function(<span class="kw">_</span>, <span class="kw">_</span>, function_env_type, <span class="kw">_</span>) = expr_type {
+        <span class="kw">let </span>env_typ = <span class="kw">if let </span>Type::Function(<span class="kw">_</span>, <span class="kw">_</span>, function_env_type, <span class="kw">_</span>) = expr_type {
             <span class="self">Self</span>::convert_type(<span class="kw-2">&amp;</span>function_env_type, location)<span class="question-mark">?
         </span>} <span class="kw">else </span>{
             <span class="macro">unreachable!</span>(<span class="string">"expected a Function type for a Lambda node"</span>)
@@ -5128,7 +5114,7 @@
             <span class="macro">vec!</span>[(env_local_id, <span class="bool-val">true</span>, env_name.to_string(), env_typ.clone(), Visibility::Private)];
         parameters.append(<span class="kw-2">&amp;mut </span>converted_parameters);
 
-        <span class="kw">let </span>function = ast::Function {
+        <span class="kw">let </span>function = Function {
             id,
             name,
             parameters,
@@ -5238,11 +5224,7 @@
     <span class="doccomment">/// Implements std::unsafe_func::zeroed by returning an appropriate zeroed
     /// ast literal or collection node for the given type. Note that for functions
     /// there is no obvious zeroed value so this should be considered unsafe to use.
-    </span><span class="kw">fn </span>zeroed_value_of_type(
-        <span class="kw-2">&amp;mut </span><span class="self">self</span>,
-        typ: <span class="kw-2">&amp;</span>ast::Type,
-        location: noirc_errors::Location,
-    ) -&gt; ast::Expression {
+    </span><span class="kw">fn </span>zeroed_value_of_type(<span class="kw-2">&amp;mut </span><span class="self">self</span>, typ: <span class="kw-2">&amp;</span>ast::Type, location: Location) -&gt; ast::Expression {
         <span class="kw">match </span>typ {
             ast::Type::Field | ast::Type::Integer(..) =&gt; {
                 <span class="kw">let </span>typ = typ.clone();
@@ -5313,7 +5295,7 @@
         ret_type: <span class="kw-2">&amp;</span>ast::Type,
         env_type: <span class="kw-2">&amp;</span>ast::Type,
         unconstrained: bool,
-        location: noirc_errors::Location,
+        location: Location,
     ) -&gt; ast::Expression {
         <span class="kw">let </span>lambda_name = <span class="string">"zeroed_lambda"</span>;
 
@@ -5327,7 +5309,7 @@
         <span class="kw">let </span>return_type = ret_type.clone();
         <span class="kw">let </span>name = lambda_name.to_owned();
 
-        <span class="kw">let </span>function = ast::Function {
+        <span class="kw">let </span>function = Function {
             id,
             name,
             parameters,
