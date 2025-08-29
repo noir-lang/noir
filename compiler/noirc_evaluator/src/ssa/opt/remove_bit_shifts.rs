@@ -158,12 +158,11 @@ impl Context<'_, '_, '_> {
                 // - ones_complement(lhs) / (2^rhs) == 0
                 // As the upper bit is set for the ones complement of negative numbers we'd need 2^rhs
                 // to be larger than the lhs bitsize for this to overflow.
-                let shifted = self.insert_binary(
+                self.insert_binary(
                     shifted_complement,
                     BinaryOp::Sub { unchecked: true },
                     lhs_sign_as_int,
-                );
-                self.insert_truncate(shifted, bit_size, bit_size + 1)
+                )
             }
 
             NumericType::NativeField => unreachable!("Bit shifts are disallowed on `Field` type"),
@@ -721,8 +720,7 @@ mod tests {
                 v9 = div v7, i32 4
                 v10 = cast v2 as i32
                 v11 = unchecked_sub v9, v10
-                v12 = truncate v11 to 32 bits, max_bit_size: 33
-                return v12
+                return v11
             }
             ");
         }
@@ -799,8 +797,7 @@ mod tests {
                 v65 = div v64, v57
                 v66 = cast v59 as i32
                 v67 = unchecked_sub v65, v66
-                v68 = truncate v67 to 32 bits, max_bit_size: 33
-                return v68
+                return v67
             }
             "#);
         }
