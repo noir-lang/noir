@@ -2638,6 +2638,6 @@ global y = 1;
     x
 }
 "#;
-        assert_format_with_max_width(src, src, 20)
+        assert_format_with_max_width(src, src, 20);
     }
 }
