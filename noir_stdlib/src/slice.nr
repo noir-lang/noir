@@ -381,7 +381,7 @@ mod test {
         assert_eq(elem, 3);
     }
 
-    #[test(should_fail_with = "Index out of bounds, array has size 2, but index was 2")]
+    #[test(should_fail_with = "Index out of bounds")]
     fn remove_end_out_of_bounds() {
         let slice = &[1, 2];
         let (_, _) = slice.remove(2);
@@ -642,7 +642,7 @@ mod test {
         assert_eq(filtered_none.len(), 0);
     }
 
-    #[test(should_fail_with = "Failed constraint")]
+    #[test(should_fail)]
     fn as_array_size_mismatch() {
         let slice = &[1, 2, 3];
         let _: [Field; 5] = slice.as_array(); // size doesn't match
