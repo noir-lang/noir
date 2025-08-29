@@ -236,7 +236,7 @@ struct BlockContext {
     /// Tracks whether the current block has a side-effectual instruction.
     /// This is maintained per instruction for hoisting control dependent instructions
     is_impure: bool,
-    /// Stores whether the current loop has known fix upper and lower bounds that
+    /// Stores whether the current loop has known fixed upper and lower bounds that
     /// indicate that it is guaranteed to execute at least once.
     does_execute: bool,
 }
