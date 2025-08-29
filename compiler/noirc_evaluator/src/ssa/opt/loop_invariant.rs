@@ -792,13 +792,17 @@ fn can_be_hoisted(
             }
         }
 
-        // These instructions can always be hoisted
-        Cast(_, NumericType::NativeField) | Not(_) | Truncate { .. } | IfElse { .. } => true,
-
-        // A cast may have dependence on a range-check, which may not be hoisted, so we cannot always hoist a cast.
-        Cast(_, _) | Constrain(..) | ConstrainNotEqual(..) | RangeCheck { .. } => {
-            hoist_with_predicate
+        Cast(source, target_type) => {
+            // A cast may have dependence on a range-check, which may not be hoisted, so we cannot always hoist a cast.
+            // We can safely hoist a cast from a smaller to a larger type as no range check is necessary in this case.
+            let source_type = function.dfg.type_of_value(*source).unwrap_numeric();
+            source_type.bit_size() <= target_type.bit_size()
         }
+
+        // These instructions can always be hoisted
+        Not(_) | Truncate { .. } | IfElse { .. } => true,
+
+        Constrain(..) | ConstrainNotEqual(..) | RangeCheck { .. } => hoist_with_predicate,
 
         // Noop instructions can always be hoisted, although they're more likely to be
         // removed entirely.
@@ -822,6 +826,42 @@ mod test {
     use crate::assert_ssa_snapshot;
     use crate::ssa::Ssa;
     use crate::ssa::opt::{assert_normalized_ssa_equals, assert_ssa_does_not_change};
+
+    #[test]
+    fn hoists_casts() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32):
+            jmp b1(u32 2)
+          b1(v1: u32):
+            v5 = lt v1, u32 2
+            jmpif v5 then: b2, else: b3
+          b2():
+            v6 = cast v0 as u64
+            v7 = unchecked_add v1, u32 1
+            jmp b1(v7)
+          b3():
+            return
+        }";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.loop_invariant_code_motion();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32):
+            v2 = cast v0 as u64
+            jmp b1(u32 2)
+          b1(v1: u32):
+            v4 = lt v1, u32 2
+            jmpif v4 then: b2, else: b3
+          b2():
+            v6 = unchecked_add v1, u32 1
+            jmp b1(v6)
+          b3():
+            return
+        }
+        ");
+    }
 
     #[test]
     fn simple_loop_invariant_code_motion() {
@@ -2638,36 +2678,36 @@ mod control_dependence {
         acir(inline) impure fn main f0 {
           b0(v0: u1, v1: i8):
             v4 = mul v1, i8 127
-            v5 = cast v1 as Field
-            v7 = sub Field 256, v5
+            v5 = cast v4 as u16
+            v6 = truncate v5 to 8 bits, max_bit_size: 16
+            v7 = cast v1 as u8
+            v9 = lt v7, u8 128
+            v10 = not v9
+            v11 = cast v1 as Field
+            v12 = cast v9 as Field
+            v13 = mul v12, v11
+            v15 = sub Field 256, v11
+            v16 = cast v10 as Field
+            v17 = mul v16, v15
+            v18 = add v13, v17
+            v20 = mul v18, Field 127
+            v21 = not v9
+            v22 = cast v21 as u8
+            v23 = unchecked_add u8 128, v22
             jmp b1(u32 0)
           b1(v2: u32):
-            v9 = eq v2, u32 0
-            jmpif v9 then: b2, else: b3
+            v25 = eq v2, u32 0
+            jmpif v25 then: b2, else: b3
           b2():
             jmpif v0 then: b4, else: b5
           b3():
             return i16 3
           b4():
-            v11 = cast v4 as u16
-            v12 = truncate v11 to 8 bits, max_bit_size: 16
-            v13 = cast v1 as u8
-            v15 = lt v13, u8 128
-            v16 = not v15
-            v17 = cast v15 as Field
-            v18 = mul v17, v5
-            v19 = cast v16 as Field
-            v20 = mul v19, v7
-            v21 = add v18, v20
-            v23 = mul v21, Field 127
-            range_check v23 to 8 bits
-            v24 = cast v23 as u8
-            v25 = not v15
-            v26 = cast v25 as u8
-            v27 = unchecked_add u8 128, v26
-            v28 = lt v24, v27
+            range_check v20 to 8 bits
+            v27 = cast v20 as u8
+            v28 = lt v27, v23
             constrain v28 == u1 1
-            v30 = cast v12 as i8
+            v30 = cast v6 as i8
             jmp b5()
           b5():
             v32 = unchecked_add v2, u32 1
