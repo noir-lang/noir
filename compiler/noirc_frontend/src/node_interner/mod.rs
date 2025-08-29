@@ -1,14 +1,9 @@
-use std::borrow::Cow;
-use std::collections::HashSet;
-use std::fmt;
 use std::hash::Hash;
 use std::marker::Copy;
 
 use fm::FileId;
-use iter_extended::vecmap;
 use noirc_arena::{Arena, Index};
 use noirc_errors::{Location, Span};
-use petgraph::algo::tarjan_scc;
 use petgraph::prelude::DiGraph;
 use petgraph::prelude::NodeIndex as PetGraphIndex;
 use rustc_hash::FxHashMap as HashMap;
@@ -20,26 +15,18 @@ use crate::ast::{
 };
 use crate::graph::CrateId;
 use crate::hir::comptime;
-use crate::hir::def_collector::dc_crate::CompilationError;
 use crate::hir::def_collector::dc_crate::{UnresolvedTrait, UnresolvedTypeAlias};
-use crate::hir::def_map::DefMaps;
 use crate::hir::def_map::{LocalModuleId, ModuleDefId, ModuleId};
 use crate::hir::type_check::generics::TraitGenerics;
 use crate::hir_def::traits::NamedType;
-use crate::hir_def::traits::ResolvedTraitBound;
 use crate::locations::AutoImportEntry;
 use crate::token::MetaAttribute;
 use crate::token::MetaAttributeName;
 
-use crate::GenericTypeVars;
 use crate::Generics;
 use crate::TraitAssociatedType;
-use crate::ast::{BinaryOpKind, FunctionDefinition, ItemVisibility};
-use crate::hir::resolution::errors::ResolverError;
-use crate::hir_def::expr::HirIdent;
-use crate::hir_def::stmt::HirLetStatement;
-use crate::hir_def::traits::TraitImpl;
-use crate::hir_def::traits::{Trait, TraitConstraint};
+use crate::ast::{BinaryOpKind, ItemVisibility};
+use crate::hir_def::traits::{Trait, TraitConstraint, TraitImpl};
 use crate::hir_def::types::{DataType, Kind, Type};
 use crate::hir_def::{
     expr::HirExpression,
@@ -50,9 +37,20 @@ use crate::locations::LocationIndices;
 use crate::token::{Attributes, SecondaryAttribute};
 use crate::{Shared, TypeAlias, TypeBindings, TypeVariable, TypeVariableId};
 
-/// An arbitrary number to limit the recursion depth when searching for trait impls.
-/// This is needed to stop recursing for cases such as `impl<T> Foo for T where T: Eq`
-const IMPL_SEARCH_RECURSION_LIMIT: u32 = 10;
+mod dependency;
+mod function;
+mod globals;
+mod ids;
+mod methods;
+mod reexports;
+mod trait_impl;
+
+pub use dependency::DependencyId;
+use globals::GlobalInfo;
+pub use globals::{GlobalId, GlobalValue};
+pub use ids::*;
+pub use methods::{ImplMethod, Methods};
+pub use reexports::Reexport;
 
 #[derive(Debug)]
 pub struct ModuleAttributes {
@@ -282,49 +280,6 @@ pub struct NodeInterner {
     pub reexports: HashMap<ModuleDefId, Vec<Reexport>>,
 }
 
-/// A dependency in the dependency graph may be a type or a definition.
-/// Types can depend on definitions too. E.g. `Foo` depends on `COUNT` in:
-///
-/// ```struct
-/// global COUNT = 3;
-///
-/// struct Foo {
-///     array: [Field; COUNT],
-/// }
-/// ```
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub enum DependencyId {
-    Struct(TypeId),
-    Global(GlobalId),
-    Function(FuncId),
-    Alias(TypeAliasId),
-    Trait(TraitId),
-    Variable(Location),
-}
-
-/// A reference to a module, struct, trait, etc., mainly used by the LSP code
-/// to keep track of how symbols reference each other.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub enum ReferenceId {
-    Module(ModuleId),
-    Type(TypeId),
-    StructMember(TypeId, usize),
-    EnumVariant(TypeId, usize),
-    Trait(TraitId),
-    TraitAssociatedType(TraitAssociatedTypeId),
-    Global(GlobalId),
-    Function(FuncId),
-    Alias(TypeAliasId),
-    Local(DefinitionId),
-    Reference(Location, bool /* is Self */),
-}
-
-impl ReferenceId {
-    pub fn is_self_type_name(&self) -> bool {
-        matches!(self, Self::Reference(_, true))
-    }
-}
-
 /// A trait implementation is either a normal implementation that is present in the source
 /// program via an `impl` block, or it is assumed to exist from a `where` clause or similar.
 #[derive(Debug, Clone)]
@@ -355,33 +310,6 @@ pub enum ImplSearchErrorKind {
     TypeAnnotationsNeededOnObjectType,
     Nested(Vec<TraitConstraint>),
     MultipleMatching(Vec<String>),
-}
-
-/// Represents the methods on a given type that each share the same name.
-///
-/// Methods are split into inherent methods and trait methods. If there is
-/// ever a name that is defined on both a type directly, and defined indirectly
-/// via a trait impl, the direct (inherent) name will always take precedence.
-///
-/// Additionally, types can define specialized impls with methods of the same name
-/// as long as these specialized impls do not overlap. E.g. `impl Struct<u32>` and `impl Struct<u64>`
-#[derive(Default, Debug, Clone)]
-pub struct Methods {
-    pub direct: Vec<ImplMethod>,
-    pub trait_impl_methods: Vec<TraitImplMethod>,
-}
-
-#[derive(Debug, Clone)]
-pub struct ImplMethod {
-    pub typ: Type,
-    pub method: FuncId,
-}
-
-#[derive(Debug, Clone)]
-pub struct TraitImplMethod {
-    pub typ: Type,
-    pub method: FuncId,
-    pub trait_id: TraitId,
 }
 
 /// All the information from a function that is filled out during definition collection rather than
@@ -422,136 +350,6 @@ impl FunctionModifiers {
         }
     }
 }
-
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
-pub struct DefinitionId(usize);
-
-impl DefinitionId {
-    //dummy id for error reporting
-    pub fn dummy_id() -> DefinitionId {
-        DefinitionId(usize::MAX)
-    }
-}
-
-/// An ID for a global value
-#[derive(Debug, Eq, PartialEq, Hash, Clone, Copy, PartialOrd, Ord)]
-pub struct GlobalId(usize);
-
-impl GlobalId {
-    // Dummy id for error reporting
-    pub fn dummy_id() -> Self {
-        GlobalId(usize::MAX)
-    }
-}
-
-#[derive(Debug, Eq, PartialEq, Hash, Clone, Copy)]
-pub struct StmtId(Index);
-
-impl StmtId {
-    //dummy id for error reporting
-    // This can be anything, as the program will ultimately fail
-    // after resolution
-    pub fn dummy_id() -> StmtId {
-        StmtId(Index::dummy())
-    }
-}
-
-#[derive(Debug, Eq, PartialEq, Hash, Copy, Clone, PartialOrd, Ord)]
-pub struct ExprId(Index);
-
-#[derive(Debug, Eq, PartialEq, Hash, Copy, Clone)]
-pub struct FuncId(Index);
-
-impl FuncId {
-    //dummy id for error reporting
-    // This can be anything, as the program will ultimately fail
-    // after resolution
-    pub fn dummy_id() -> FuncId {
-        FuncId(Index::dummy())
-    }
-}
-
-impl fmt::Display for FuncId {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        self.0.fmt(f)
-    }
-}
-
-#[derive(Debug, Eq, PartialEq, Hash, Copy, Clone, PartialOrd, Ord)]
-pub struct TypeId(ModuleId);
-
-impl TypeId {
-    //dummy id for error reporting
-    // This can be anything, as the program will ultimately fail
-    // after resolution
-    pub fn dummy_id() -> TypeId {
-        TypeId(ModuleId { krate: CrateId::dummy_id(), local_id: LocalModuleId::dummy_id() })
-    }
-
-    pub fn module_id(self) -> ModuleId {
-        self.0
-    }
-
-    pub fn krate(self) -> CrateId {
-        self.0.krate
-    }
-
-    pub fn local_module_id(self) -> LocalModuleId {
-        self.0.local_id
-    }
-
-    /// Returns the module where this struct is defined.
-    pub fn parent_module_id(self, def_maps: &DefMaps) -> ModuleId {
-        self.module_id().parent(def_maps).expect("Expected struct module parent to exist")
-    }
-}
-
-#[derive(Debug, Eq, PartialEq, Hash, Copy, Clone, PartialOrd, Ord)]
-pub struct TypeAliasId(pub usize);
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct TraitId(pub ModuleId);
-
-impl TraitId {
-    // dummy id for error reporting
-    // This can be anything, as the program will ultimately fail
-    // after resolution
-    pub fn dummy_id() -> TraitId {
-        TraitId(ModuleId { krate: CrateId::dummy_id(), local_id: LocalModuleId::dummy_id() })
-    }
-}
-
-#[derive(Debug, Eq, PartialEq, Hash, Copy, Clone, PartialOrd, Ord)]
-pub struct TraitAssociatedTypeId(pub usize);
-
-#[derive(Debug, Eq, PartialEq, Hash, Clone, Copy)]
-pub struct TraitImplId(pub usize);
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub struct TraitItemId {
-    pub trait_id: TraitId,
-    /// This is the definition id of the method or associated constant in the trait, not an impl
-    pub item_id: DefinitionId,
-}
-
-macro_rules! into_index {
-    ($id_type:ty) => {
-        impl From<$id_type> for Index {
-            fn from(t: $id_type) -> Self {
-                t.0
-            }
-        }
-
-        impl From<&$id_type> for Index {
-            fn from(t: &$id_type) -> Self {
-                t.0
-            }
-        }
-    };
-}
-
-into_index!(ExprId);
-into_index!(StmtId);
 
 /// A Definition enum specifies anything that we can intern in the NodeInterner
 /// We use one Arena for all types that can be interned as that has better cache locality
@@ -618,59 +416,6 @@ impl DefinitionKind {
             DefinitionKind::AssociatedConstant(_, _) => None,
         }
     }
-}
-
-#[derive(Debug, Clone)]
-pub struct GlobalInfo {
-    pub id: GlobalId,
-    pub definition_id: DefinitionId,
-    pub ident: Ident,
-    pub visibility: ItemVisibility,
-    pub local_id: LocalModuleId,
-    pub crate_id: CrateId,
-    pub location: Location,
-    pub let_statement: StmtId,
-    pub value: GlobalValue,
-}
-
-#[derive(Debug, Clone)]
-pub enum GlobalValue {
-    Unresolved,
-    Resolving,
-    Resolved(comptime::Value),
-}
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct QuotedTypeId(Index);
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct InternedExpressionKind(Index);
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct InternedStatementKind(Index);
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct InternedUnresolvedTypeData(Index);
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct InternedPattern(Index);
-
-/// Captures a reexport that happens inside a module. For example:
-///
-/// ```noir
-/// mod moo {
-/// //  ^^^ module_id
-///
-///   pub use foo::bar as baz;
-/// //^^^ visibility      ^^^ name
-/// }
-/// ```
-///
-#[derive(Debug, Clone)]
-pub struct Reexport {
-    pub module_id: ModuleId,
-    pub name: Ident,
-    pub visibility: ItemVisibility,
 }
 
 impl Default for NodeInterner {
@@ -915,103 +660,6 @@ impl NodeInterner {
         self.type_ref_locations.push((typ.clone(), location));
     }
 
-    #[allow(clippy::too_many_arguments)]
-    fn push_global(
-        &mut self,
-        ident: Ident,
-        local_id: LocalModuleId,
-        crate_id: CrateId,
-        let_statement: StmtId,
-        file: FileId,
-        attributes: Vec<SecondaryAttribute>,
-        mutable: bool,
-        comptime: bool,
-        visibility: ItemVisibility,
-    ) -> GlobalId {
-        let id = GlobalId(self.globals.len());
-        let location = Location::new(ident.span(), file);
-        let name = ident.to_string();
-
-        let definition_id =
-            self.push_definition(name, mutable, comptime, DefinitionKind::Global(id), location);
-
-        self.globals.push(GlobalInfo {
-            id,
-            definition_id,
-            ident,
-            local_id,
-            crate_id,
-            let_statement,
-            location,
-            visibility,
-            value: GlobalValue::Unresolved,
-        });
-        self.global_attributes.insert(id, attributes);
-        id
-    }
-
-    pub fn next_global_id(&mut self) -> GlobalId {
-        GlobalId(self.globals.len())
-    }
-
-    /// Intern an empty global. Used for collecting globals before they're defined
-    #[allow(clippy::too_many_arguments)]
-    pub fn push_empty_global(
-        &mut self,
-        name: Ident,
-        local_id: LocalModuleId,
-        crate_id: CrateId,
-        file: FileId,
-        attributes: Vec<SecondaryAttribute>,
-        mutable: bool,
-        comptime: bool,
-        visibility: ItemVisibility,
-    ) -> GlobalId {
-        let statement = self.push_stmt(HirStatement::Error);
-        let location = name.location();
-
-        let id = self.push_global(
-            name, local_id, crate_id, statement, file, attributes, mutable, comptime, visibility,
-        );
-        self.push_stmt_location(statement, location);
-        id
-    }
-
-    /// Intern an empty function.
-    pub fn push_empty_fn(&mut self) -> FuncId {
-        self.push_fn(HirFunction::empty())
-    }
-    /// Updates the underlying interned Function.
-    ///
-    /// This method is used as we eagerly intern empty functions to
-    /// generate function identifiers and then we update at a later point in
-    /// time.
-    pub fn update_fn(&mut self, func_id: FuncId, hir_func: HirFunction) {
-        let def =
-            self.nodes.get_mut(func_id.0).expect("ice: all function ids should have definitions");
-
-        let func = match def {
-            Node::Function(func) => func,
-            _ => panic!("ice: all function ids should correspond to a function in the interner"),
-        };
-        *func = hir_func;
-    }
-
-    pub fn find_function(&self, function_name: &str) -> Option<FuncId> {
-        self.func_meta
-            .iter()
-            .find(|(func_id, _func_meta)| self.function_name(func_id) == function_name)
-            .map(|(func_id, _meta)| *func_id)
-    }
-
-    ///Interns a function's metadata.
-    ///
-    /// Note that the FuncId has been created already.
-    /// See ModCollector for it's usage.
-    pub fn push_fn_meta(&mut self, func_data: FuncMeta, func_id: FuncId) {
-        self.func_meta.insert(func_id, func_data);
-    }
-
     pub fn definition_count(&self) -> usize {
         self.definitions.len()
     }
@@ -1039,137 +687,6 @@ impl NodeInterner {
         }
 
         id
-    }
-
-    /// Push a function with the default modifiers and [`ModuleId`] for testing
-    #[cfg(test)]
-    pub fn push_test_function_definition(&mut self, name: String) -> FuncId {
-        let id = self.push_fn(HirFunction::empty());
-        let mut modifiers = FunctionModifiers::new();
-        modifiers.name = name;
-        let module = ModuleId::dummy_id();
-        let location = Location::dummy();
-        self.push_function_definition(id, modifiers, module, location);
-        id
-    }
-
-    pub fn push_function(
-        &mut self,
-        id: FuncId,
-        function: &FunctionDefinition,
-        module: ModuleId,
-        location: Location,
-    ) -> DefinitionId {
-        let name_location = Location::new(function.name.span(), location.file);
-        let modifiers = FunctionModifiers {
-            name: function.name.to_string(),
-            visibility: function.visibility,
-            attributes: function.attributes.clone(),
-            is_unconstrained: function.is_unconstrained,
-            generic_count: function.generics.len(),
-            is_comptime: function.is_comptime,
-            name_location,
-        };
-        let definition_id = self.push_function_definition(id, modifiers, module, location);
-        self.add_definition_location(ReferenceId::Function(id), name_location);
-        definition_id
-    }
-
-    pub fn push_function_definition(
-        &mut self,
-        func: FuncId,
-        modifiers: FunctionModifiers,
-        module: ModuleId,
-        location: Location,
-    ) -> DefinitionId {
-        let name = modifiers.name.clone();
-        let comptime = modifiers.is_comptime;
-        self.function_modifiers.insert(func, modifiers);
-        self.function_modules.insert(func, module);
-        self.push_definition(name, false, comptime, DefinitionKind::Function(func), location)
-    }
-
-    pub fn set_function_trait(&mut self, func: FuncId, self_type: Type, trait_id: TraitId) {
-        self.func_id_to_trait.insert(func, (self_type, trait_id));
-    }
-
-    pub fn get_function_trait(&self, func: &FuncId) -> Option<(Type, TraitId)> {
-        self.func_id_to_trait.get(func).cloned()
-    }
-
-    /// Returns the visibility of the given function.
-    ///
-    /// The underlying function_visibilities map is populated during def collection,
-    /// so this function can be called anytime afterward.
-    pub fn function_visibility(&self, func: FuncId) -> ItemVisibility {
-        self.function_modifiers[&func].visibility
-    }
-
-    /// Returns the module this function was defined within
-    pub fn function_module(&self, func: FuncId) -> ModuleId {
-        self.function_modules[&func]
-    }
-
-    /// Returns the [`FuncId`] corresponding to the function referred to by `expr_id`
-    pub fn lookup_function_from_expr(&self, expr: &ExprId) -> Option<FuncId> {
-        if let HirExpression::Ident(HirIdent { id, .. }, _) = self.expression(expr) {
-            match self.try_definition(id).map(|def| &def.kind) {
-                Some(DefinitionKind::Function(func_id)) => Some(*func_id),
-                Some(DefinitionKind::Local(Some(expr_id))) => {
-                    self.lookup_function_from_expr(expr_id)
-                }
-                _ => None,
-            }
-        } else {
-            None
-        }
-    }
-
-    /// Returns the interned HIR function corresponding to `func_id`
-    //
-    // Cloning HIR structures is cheap, so we return owned structures
-    pub fn function(&self, func_id: &FuncId) -> HirFunction {
-        let def = self.nodes.get(func_id.0).expect("ice: all function ids should have definitions");
-
-        match def {
-            Node::Function(func) => func.clone(),
-            _ => panic!("ice: all function ids should correspond to a function in the interner"),
-        }
-    }
-
-    /// Returns the interned meta data corresponding to `func_id`
-    pub fn function_meta(&self, func_id: &FuncId) -> &FuncMeta {
-        self.func_meta.get(func_id).expect("ice: all function ids should have metadata")
-    }
-
-    pub fn function_meta_mut(&mut self, func_id: &FuncId) -> &mut FuncMeta {
-        self.func_meta.get_mut(func_id).expect("ice: all function ids should have metadata")
-    }
-
-    pub fn try_function_meta(&self, func_id: &FuncId) -> Option<&FuncMeta> {
-        self.func_meta.get(func_id)
-    }
-
-    pub fn function_ident(&self, func_id: &FuncId) -> Ident {
-        let name = self.function_name(func_id).to_owned();
-        let location = self.function_meta(func_id).name.location;
-        Ident::new(name, location)
-    }
-
-    pub fn function_name(&self, func_id: &FuncId) -> &str {
-        &self.function_modifiers[func_id].name
-    }
-
-    pub fn function_modifiers(&self, func_id: &FuncId) -> &FunctionModifiers {
-        &self.function_modifiers[func_id]
-    }
-
-    pub fn function_modifiers_mut(&mut self, func_id: &FuncId) -> &mut FunctionModifiers {
-        self.function_modifiers.get_mut(func_id).expect("func_id should always have modifiers")
-    }
-
-    pub fn function_attributes(&self, func_id: &FuncId) -> &Attributes {
-        &self.function_modifiers[func_id].attributes
     }
 
     pub fn type_attributes(&self, struct_id: &TypeId) -> &TypeAttributes {
@@ -1200,25 +717,6 @@ impl NodeInterner {
         match def {
             Node::Statement(stmt) => stmt.clone(),
             _ => panic!("ice: all statement ids should correspond to a statement in the interner"),
-        }
-    }
-
-    /// Try to get the `HirLetStatement` which defines a given global value
-    pub fn get_global_let_statement(&self, global: GlobalId) -> Option<HirLetStatement> {
-        let global = self.get_global(global);
-        let def = self.nodes.get(global.let_statement.0)?;
-
-        match def {
-            Node::Statement(hir_stmt) => match hir_stmt {
-                HirStatement::Let(let_stmt) => Some(let_stmt.clone()),
-                HirStatement::Error => None,
-                other => {
-                    panic!(
-                        "ice: all globals should correspond to a let statement in the interner: {other:?}"
-                    )
-                }
-            },
-            _ => panic!("ice: all globals should correspond to a statement in the interner"),
         }
     }
 
@@ -1313,28 +811,6 @@ impl NodeInterner {
 
     pub fn get_type_alias(&self, id: TypeAliasId) -> Shared<TypeAlias> {
         self.type_aliases[id.0].clone()
-    }
-
-    pub fn get_global(&self, global_id: GlobalId) -> &GlobalInfo {
-        &self.globals[global_id.0]
-    }
-
-    pub fn get_global_mut(&mut self, global_id: GlobalId) -> &mut GlobalInfo {
-        &mut self.globals[global_id.0]
-    }
-
-    pub fn get_global_definition(&self, global_id: GlobalId) -> &DefinitionInfo {
-        let global = self.get_global(global_id);
-        self.definition(global.definition_id)
-    }
-
-    pub fn get_global_definition_mut(&mut self, global_id: GlobalId) -> &mut DefinitionInfo {
-        let global = self.get_global(global_id);
-        self.definition_mut(global.definition_id)
-    }
-
-    pub fn get_all_globals(&self) -> &[GlobalInfo] {
-        &self.globals
     }
 
     /// Returns the type of an item stored in the Interner or Error if it was not found.
@@ -1507,398 +983,6 @@ impl NodeInterner {
         }
     }
 
-    pub fn try_get_trait_implementation(&self, id: TraitImplId) -> Option<Shared<TraitImpl>> {
-        self.trait_implementations.get(&id).cloned()
-    }
-
-    pub fn get_trait_implementation(&self, id: TraitImplId) -> Shared<TraitImpl> {
-        self.trait_implementations[&id].clone()
-    }
-
-    pub fn get_trait_implementations_in_crate(&self, crate_id: CrateId) -> HashSet<TraitImplId> {
-        let trait_impls = self.trait_implementations.iter();
-        let trait_impls = trait_impls.filter_map(|(id, trait_impl)| {
-            if trait_impl.borrow().crate_id == crate_id { Some(*id) } else { None }
-        });
-        trait_impls.collect()
-    }
-
-    #[allow(unused)]
-    pub fn trait_constraint_string(
-        &self,
-        object_type: &Type,
-        trait_id: TraitId,
-        trait_generics: &[Type],
-        trait_associated_types: &[NamedType],
-    ) -> String {
-        let name = self.get_trait(trait_id).name.to_string();
-        let mut generics = vecmap(trait_generics, |t| format!("{t:?}")).join(", ");
-        let associated =
-            vecmap(trait_associated_types, |t| format!("{}: {:?}", t.name, t.typ)).join(", ");
-
-        if !generics.is_empty() && !associated.is_empty() {
-            generics += ", ";
-            generics += &associated;
-        }
-
-        if !generics.is_empty() {
-            generics = format!("<{generics}>");
-        }
-        format!("{object_type:?}: {name}{generics}")
-    }
-
-    /// Given a `ObjectType: TraitId` pair, try to find an existing impl that satisfies the
-    /// constraint. If an impl cannot be found, this will return a vector of each constraint
-    /// in the path to get to the failing constraint. Usually this is just the single failing
-    /// constraint, but when where clauses are involved, the failing constraint may be several
-    /// constraints deep. In this case, all of the constraints are returned, starting with the
-    /// failing one.
-    /// If this list of failing constraints is empty, this means type annotations are required.
-    /// Returns the list of instantiation bindings as well, which should be stored on the
-    /// expression.
-    pub fn lookup_trait_implementation(
-        &self,
-        object_type: &Type,
-        trait_id: TraitId,
-        trait_generics: &[Type],
-        trait_associated_types: &[NamedType],
-    ) -> Result<(TraitImplKind, TypeBindings), ImplSearchErrorKind> {
-        let (impl_kind, bindings, instantiation_bindings) = self.try_lookup_trait_implementation(
-            object_type,
-            trait_id,
-            trait_generics,
-            trait_associated_types,
-        )?;
-
-        Type::apply_type_bindings(bindings);
-        Ok((impl_kind, instantiation_bindings))
-    }
-
-    /// Similar to `lookup_trait_implementation` but does not apply any type bindings on success.
-    /// On error returns either:
-    /// - 1+ failing trait constraints, including the original.
-    ///   Each constraint after the first represents a `where` clause that was followed.
-    /// - 0 trait constraints indicating type annotations are needed to choose an impl.
-    pub fn try_lookup_trait_implementation(
-        &self,
-        object_type: &Type,
-        trait_id: TraitId,
-        trait_generics: &[Type],
-        trait_associated_types: &[NamedType],
-    ) -> Result<(TraitImplKind, TypeBindings, TypeBindings), ImplSearchErrorKind> {
-        let mut bindings = TypeBindings::default();
-        let (impl_kind, instantiation_bindings) = self.lookup_trait_implementation_helper(
-            object_type,
-            trait_id,
-            trait_generics,
-            trait_associated_types,
-            &mut bindings,
-            IMPL_SEARCH_RECURSION_LIMIT,
-        )?;
-        Ok((impl_kind, bindings, instantiation_bindings))
-    }
-
-    /// Returns the trait implementation if found along with the instantiation bindings for
-    /// instantiating that trait impl. Note that this is separate from the passed-in TypeBindings
-    /// which can be bound via `Type::apply_type_bindings` if needed. Instantiation bindings should
-    /// be stored as such but not bound, lest the original named generics in trait impls get bound
-    /// over.
-    ///
-    /// On error returns either:
-    /// - 1+ failing trait constraints, including the original.
-    ///   Each constraint after the first represents a `where` clause that was followed.
-    /// - 0 trait constraints indicating type annotations are needed to choose an impl.
-    fn lookup_trait_implementation_helper(
-        &self,
-        object_type: &Type,
-        trait_id: TraitId,
-        trait_generics: &[Type],
-        trait_associated_types: &[NamedType],
-        type_bindings: &mut TypeBindings,
-        recursion_limit: u32,
-    ) -> Result<(TraitImplKind, TypeBindings), ImplSearchErrorKind> {
-        let make_constraint = || {
-            let ordered = trait_generics.to_vec();
-            let named = trait_associated_types.to_vec();
-            TraitConstraint {
-                typ: object_type.clone(),
-                trait_bound: ResolvedTraitBound {
-                    trait_id,
-                    trait_generics: TraitGenerics { ordered, named },
-                    location: Location::dummy(),
-                },
-            }
-        };
-
-        let nested_error = || ImplSearchErrorKind::Nested(vec![make_constraint()]);
-
-        // Prevent infinite recursion when looking for impls
-        if recursion_limit == 0 {
-            return Err(nested_error());
-        }
-
-        let object_type = object_type.substitute(type_bindings);
-
-        // If the object type isn't known, just return an error saying type annotations are needed.
-        if object_type.is_bindable() {
-            return Err(ImplSearchErrorKind::TypeAnnotationsNeededOnObjectType);
-        }
-
-        let impls = self.trait_implementation_map.get(&trait_id).ok_or_else(nested_error)?;
-
-        let mut matching_impls = Vec::new();
-        let mut where_clause_error = None;
-
-        for (existing_object_type, impl_kind) in impls {
-            let (existing_object_type, instantiation_bindings) =
-                existing_object_type.instantiate(self);
-
-            let mut fresh_bindings = type_bindings.clone();
-
-            if object_type.try_unify(&existing_object_type, &mut fresh_bindings).is_err() {
-                continue;
-            }
-
-            let impl_trait_generics = match impl_kind {
-                TraitImplKind::Normal(id) => {
-                    let shared_impl = self.get_trait_implementation(*id);
-                    let shared_impl = shared_impl.borrow();
-                    let named = self.get_associated_types_for_impl(*id).to_vec();
-                    let ordered = shared_impl.trait_generics.clone();
-                    TraitGenerics { named, ordered }
-                }
-                TraitImplKind::Assumed { trait_generics, .. } => trait_generics.clone(),
-            };
-
-            let generics_unify = trait_generics.iter().zip(&impl_trait_generics.ordered).all(
-                |(trait_generic, impl_generic)| {
-                    let impl_generic = impl_generic.force_substitute(&instantiation_bindings);
-                    trait_generic.try_unify(&impl_generic, &mut fresh_bindings).is_ok()
-                },
-            );
-
-            if !generics_unify {
-                continue;
-            }
-
-            if let TraitImplKind::Normal(impl_id) = impl_kind {
-                let trait_impl = self.get_trait_implementation(*impl_id);
-                let trait_impl = trait_impl.borrow();
-
-                if let Err(error) = self.validate_where_clause(
-                    &trait_impl.where_clause,
-                    &mut fresh_bindings,
-                    &instantiation_bindings,
-                    recursion_limit,
-                ) {
-                    // Only keep the first errors we get from a failing where clause
-                    if where_clause_error.is_none() {
-                        where_clause_error = Some(error);
-                    }
-                    continue;
-                }
-            }
-
-            let associated_types_unify = trait_associated_types
-                .iter()
-                .zip(&impl_trait_generics.named)
-                .all(|(trait_generic, impl_generic)| {
-                    let impl_generic2 = impl_generic.typ.force_substitute(&instantiation_bindings);
-                    trait_generic.typ.try_unify(&impl_generic2, &mut fresh_bindings).is_ok()
-                });
-            if !associated_types_unify {
-                continue;
-            }
-
-            let constraint = TraitConstraint {
-                typ: existing_object_type,
-                trait_bound: ResolvedTraitBound {
-                    trait_id,
-                    trait_generics: impl_trait_generics,
-                    location: Location::dummy(),
-                },
-            };
-            matching_impls.push((
-                impl_kind.clone(),
-                fresh_bindings,
-                instantiation_bindings,
-                constraint,
-            ));
-        }
-
-        if matching_impls.len() == 1 {
-            let (impl_, fresh_bindings, instantiation_bindings, _) = matching_impls.pop().unwrap();
-            *type_bindings = fresh_bindings;
-            Ok((impl_, instantiation_bindings))
-        } else if matching_impls.is_empty() {
-            let mut errors = match where_clause_error {
-                Some((_, ImplSearchErrorKind::Nested(errors))) => errors,
-                Some((constraint, _other)) => vec![constraint],
-                None => vec![],
-            };
-            errors.push(make_constraint());
-            Err(ImplSearchErrorKind::Nested(errors))
-        } else {
-            let impls = vecmap(matching_impls, |(_, _, _, constraint)| {
-                let name = &self.get_trait(constraint.trait_bound.trait_id).name;
-                format!("{}: {name}{}", constraint.typ, constraint.trait_bound.trait_generics)
-            });
-            Err(ImplSearchErrorKind::MultipleMatching(impls))
-        }
-    }
-
-    /// Verifies that each constraint in the given where clause is valid.
-    /// If an impl cannot be found for any constraint, the erroring constraint is returned.
-    fn validate_where_clause(
-        &self,
-        where_clause: &[TraitConstraint],
-        type_bindings: &mut TypeBindings,
-        instantiation_bindings: &TypeBindings,
-        recursion_limit: u32,
-    ) -> Result<(), (TraitConstraint, ImplSearchErrorKind)> {
-        for constraint in where_clause {
-            // Instantiation bindings are generally safe to force substitute into the same type.
-            // This is needed here to undo any bindings done to trait methods by monomorphization.
-            // Otherwise, an impl for any (A, B) could get narrowed to only an impl for e.g. (u8, u16).
-            let constraint_type =
-                constraint.typ.force_substitute(instantiation_bindings).substitute(type_bindings);
-
-            let trait_generics =
-                vecmap(&constraint.trait_bound.trait_generics.ordered, |generic| {
-                    generic.force_substitute(instantiation_bindings).substitute(type_bindings)
-                });
-
-            let trait_associated_types =
-                vecmap(&constraint.trait_bound.trait_generics.named, |generic| {
-                    let typ = generic.typ.force_substitute(instantiation_bindings);
-                    NamedType { name: generic.name.clone(), typ: typ.substitute(type_bindings) }
-                });
-
-            // We can ignore any associated types on the constraint since those should not affect
-            // which impl we choose.
-            self.lookup_trait_implementation_helper(
-                &constraint_type,
-                constraint.trait_bound.trait_id,
-                &trait_generics,
-                &trait_associated_types,
-                // Use a fresh set of type bindings here since the constraint_type originates from
-                // our impl list, which we don't want to bind to.
-                type_bindings,
-                recursion_limit - 1,
-            )
-            .map_err(|error| (constraint.clone(), error))?;
-        }
-
-        Ok(())
-    }
-
-    /// Adds an "assumed" trait implementation to the currently known trait implementations.
-    /// Unlike normal trait implementations, these are only assumed to exist. They often correspond
-    /// to `where` clauses in functions where we assume there is some `T: Eq` even though we do
-    /// not yet know T. For these cases, we store an impl here so that we assume they exist and
-    /// can resolve them. They are then later verified when the function is called, and linked
-    /// properly after being monomorphized to the correct variant.
-    ///
-    /// Returns true on success, or false if there is already an overlapping impl in scope.
-    pub fn add_assumed_trait_implementation(
-        &mut self,
-        object_type: Type,
-        trait_id: TraitId,
-        trait_generics: TraitGenerics,
-    ) -> bool {
-        // Make sure there are no overlapping impls
-        let existing = self.try_lookup_trait_implementation(
-            &object_type,
-            trait_id,
-            &trait_generics.ordered,
-            &trait_generics.named,
-        );
-        if existing.is_ok() {
-            return false;
-        }
-
-        let entries = self.trait_implementation_map.entry(trait_id).or_default();
-        entries.push((object_type.clone(), TraitImplKind::Assumed { object_type, trait_generics }));
-        true
-    }
-
-    /// Adds a trait implementation to the list of known implementations.
-    pub fn add_trait_implementation(
-        &mut self,
-        object_type: Type,
-        trait_id: TraitId,
-        impl_id: TraitImplId,
-        impl_generics: GenericTypeVars,
-        trait_impl: Shared<TraitImpl>,
-    ) -> Result<(), Location> {
-        self.trait_implementations.insert(impl_id, trait_impl.clone());
-
-        // Avoid adding error types to impls since they'll conflict with every other type.
-        // We don't need to return an error since we expect an error to already be issued when
-        // the error type is created.
-        if object_type == Type::Error {
-            return Ok(());
-        }
-
-        // Replace each generic with a fresh type variable
-        let substitutions = impl_generics
-            .into_iter()
-            .map(|typevar| {
-                let typevar_kind = typevar.kind();
-                let typevar_id = typevar.id();
-                let substitution = (
-                    typevar,
-                    typevar_kind.clone(),
-                    self.next_type_variable_with_kind(typevar_kind),
-                );
-                (typevar_id, substitution)
-            })
-            .collect();
-
-        let instantiated_object_type = object_type.substitute(&substitutions);
-
-        let trait_generics = &trait_impl.borrow().trait_generics;
-
-        // Replace any associated types with fresh type variables so that we match
-        // any existing impl regardless of associated types if one already exists.
-        // E.g. if we already have an `impl Foo<Bar = i32> for Baz`, we should
-        // reject `impl Foo<Bar = u32> for Baz` if it were to be added.
-        let associated_types = self.get_associated_types_for_impl(impl_id);
-
-        let associated_types = vecmap(associated_types, |named| {
-            let typ = self.next_type_variable();
-            NamedType { name: named.name.clone(), typ }
-        });
-
-        // Ignoring overlapping `TraitImplKind::Assumed` impls here is perfectly fine.
-        // It should never happen since impls are defined at global scope, but even
-        // if they were, we should never prevent defining a new impl because a 'where'
-        // clause already assumes it exists.
-        if let Ok((TraitImplKind::Normal(existing), ..)) = self.try_lookup_trait_implementation(
-            &instantiated_object_type,
-            trait_id,
-            trait_generics,
-            &associated_types,
-        ) {
-            let existing_impl = self.get_trait_implementation(existing);
-            let existing_impl = existing_impl.borrow();
-            return Err(existing_impl.ident.location());
-        }
-
-        for method in &trait_impl.borrow().methods {
-            let method_name = self.function_name(method).to_owned();
-            self.add_method(&object_type, method_name, *method, Some(trait_id));
-        }
-
-        // The object type is generalized so that a generic impl will apply
-        // to any type T, rather than just the generic type named T.
-        let generalized_object_type = object_type.generalize_from_substitutions(substitutions);
-
-        let entries = self.trait_implementation_map.entry(trait_id).or_default();
-        entries.push((generalized_object_type, TraitImplKind::Normal(impl_id)));
-        Ok(())
-    }
-
     /// Looks up a method that's directly defined in the given type.
     /// If `check_self_param` is `true`, only a method that has a `self` parameter with a type
     /// that unifies with `typ` will be returned.
@@ -1947,44 +1031,6 @@ impl NodeInterner {
             .and_then(|h| h.get(method_name))
             .map(|methods| methods.find_trait_methods(typ, has_self_arg, self))
             .unwrap_or_default()
-    }
-
-    /// Returns what the next trait impl id is expected to be.
-    pub fn next_trait_impl_id(&mut self) -> TraitImplId {
-        let next_id = self.next_trait_implementation_id;
-        self.next_trait_implementation_id += 1;
-        TraitImplId(next_id)
-    }
-
-    /// Removes all TraitImplKind::Assumed from the list of known impls for the given trait
-    pub fn remove_assumed_trait_implementations_for_trait(&mut self, trait_id: TraitId) {
-        self.remove_assumed_trait_implementations_for_trait_and_parents(trait_id, trait_id);
-    }
-
-    fn remove_assumed_trait_implementations_for_trait_and_parents(
-        &mut self,
-        trait_id: TraitId,
-        starting_trait_id: TraitId,
-    ) {
-        let entries = self.trait_implementation_map.entry(trait_id).or_default();
-        entries.retain(|(_, kind)| matches!(kind, TraitImplKind::Normal(_)));
-
-        // Also remove assumed implementations for the parent traits, if any
-        if let Some(trait_bounds) =
-            self.try_get_trait(trait_id).map(|the_trait| the_trait.trait_bounds.clone())
-        {
-            for parent_trait_bound in trait_bounds {
-                // Avoid looping forever in case there are cycles
-                if parent_trait_bound.trait_id == starting_trait_id {
-                    continue;
-                }
-
-                self.remove_assumed_trait_implementations_for_trait_and_parents(
-                    parent_trait_bound.trait_id,
-                    starting_trait_id,
-                );
-            }
-        }
     }
 
     /// Tags the given identifier with the selected trait_impl so that monomorphization
@@ -2152,130 +1198,6 @@ impl NodeInterner {
 
     pub(crate) fn ordering_type(&self) -> Type {
         self.ordering_type.clone().expect("Expected ordering_type to be set in the NodeInterner")
-    }
-
-    /// Register that `dependent` depends on `dependency`.
-    /// This is usually because `dependent` refers to `dependency` in one of its struct fields.
-    pub fn add_type_dependency(&mut self, dependent: DependencyId, dependency: TypeId) {
-        self.add_dependency(dependent, DependencyId::Struct(dependency));
-    }
-
-    pub fn add_global_dependency(&mut self, dependent: DependencyId, dependency: GlobalId) {
-        self.add_dependency(dependent, DependencyId::Global(dependency));
-    }
-
-    pub fn add_function_dependency(&mut self, dependent: DependencyId, dependency: FuncId) {
-        self.add_dependency(dependent, DependencyId::Function(dependency));
-    }
-
-    pub fn add_type_alias_dependency(&mut self, dependent: DependencyId, dependency: TypeAliasId) {
-        self.add_dependency(dependent, DependencyId::Alias(dependency));
-    }
-
-    pub fn add_trait_dependency(&mut self, dependent: DependencyId, dependency: TraitId) {
-        self.add_dependency(dependent, DependencyId::Trait(dependency));
-    }
-
-    pub fn add_dependency(&mut self, dependent: DependencyId, dependency: DependencyId) {
-        let dependent_index = self.get_or_insert_dependency(dependent);
-        let dependency_index = self.get_or_insert_dependency(dependency);
-        self.dependency_graph.update_edge(dependent_index, dependency_index, ());
-    }
-
-    pub fn get_or_insert_dependency(&mut self, id: DependencyId) -> PetGraphIndex {
-        if let Some(index) = self.dependency_graph_indices.get(&id) {
-            return *index;
-        }
-
-        let index = self.dependency_graph.add_node(id);
-        self.dependency_graph_indices.insert(id, index);
-        index
-    }
-
-    pub(crate) fn check_for_dependency_cycles(&self) -> Vec<CompilationError> {
-        let strongly_connected_components = tarjan_scc(&self.dependency_graph);
-        let mut errors = Vec::new();
-
-        let mut push_error = |item: String, scc: &[_], i, location: Location| {
-            let cycle = self.get_cycle_error_string(scc, i);
-            let error = ResolverError::DependencyCycle { item, cycle, location };
-            errors.push(error.into());
-        };
-
-        for scc in strongly_connected_components {
-            if scc.len() > 1 {
-                // If a SCC contains a type, type alias, or global, it must be the only element in the SCC
-                for (i, index) in scc.iter().enumerate() {
-                    match self.dependency_graph[*index] {
-                        DependencyId::Struct(struct_id) => {
-                            let struct_type = self.get_type(struct_id);
-                            let struct_type = struct_type.borrow();
-                            push_error(struct_type.name.to_string(), &scc, i, struct_type.location);
-                            break;
-                        }
-                        DependencyId::Global(global_id) => {
-                            let global = self.get_global(global_id);
-                            let name = global.ident.to_string();
-                            push_error(name, &scc, i, global.location);
-                            break;
-                        }
-                        DependencyId::Alias(alias_id) => {
-                            let alias = self.get_type_alias(alias_id);
-                            // If type aliases form a cycle, we have to manually break the cycle
-                            // here to prevent infinite recursion in the type checker.
-                            alias.borrow_mut().typ = Type::Error;
-
-                            // push_error will borrow the alias so we have to drop the mutable borrow
-                            let alias = alias.borrow();
-                            push_error(alias.name.to_string(), &scc, i, alias.location);
-                            break;
-                        }
-                        DependencyId::Trait(trait_id) => {
-                            let the_trait = self.get_trait(trait_id);
-                            push_error(the_trait.name.to_string(), &scc, i, the_trait.location);
-                            break;
-                        }
-                        // Mutually recursive functions are allowed
-                        DependencyId::Function(_) => (),
-                        // Local variables should never be in a dependency cycle, scoping rules
-                        // prevents referring to them before they're defined
-                        DependencyId::Variable(loc) => unreachable!(
-                            "Variable used at location {loc:?} caught in a dependency cycle"
-                        ),
-                    }
-                }
-            }
-        }
-
-        errors
-    }
-
-    /// Build up a string starting from the given item containing each item in the dependency
-    /// cycle. The final result will resemble `foo -> bar -> baz -> foo`, always going back to the
-    /// element at the given start index.
-    fn get_cycle_error_string(&self, scc: &[PetGraphIndex], start_index: usize) -> String {
-        let index_to_string = |index: PetGraphIndex| match self.dependency_graph[index] {
-            DependencyId::Struct(id) => Cow::Owned(self.get_type(id).borrow().name.to_string()),
-            DependencyId::Function(id) => Cow::Borrowed(self.function_name(&id)),
-            DependencyId::Alias(id) => {
-                Cow::Owned(self.get_type_alias(id).borrow().name.to_string())
-            }
-            DependencyId::Global(id) => Cow::Borrowed(self.get_global(id).ident.as_str()),
-            DependencyId::Trait(id) => Cow::Owned(self.get_trait(id).name.to_string()),
-            DependencyId::Variable(loc) => {
-                unreachable!("Variable used at location {loc:?} caught in a dependency cycle")
-            }
-        };
-
-        let mut cycle = index_to_string(scc[start_index]).to_string();
-
-        // Reversing the dependencies here matches the order users would expect for the error message
-        for i in (0..scc.len()).rev() {
-            cycle += " -> ";
-            cycle += &index_to_string(scc[(start_index + i) % scc.len()]);
-        }
-
-        cycle
     }
 
     pub fn push_quoted_type(&mut self, typ: Type) -> QuotedTypeId {
@@ -2491,28 +1413,6 @@ impl NodeInterner {
         }
     }
 
-    pub fn add_reexport(
-        &mut self,
-        module_def_id: ModuleDefId,
-        module_id: ModuleId,
-        name: Ident,
-        visibility: ItemVisibility,
-    ) {
-        self.reexports.entry(module_def_id).or_default().push(Reexport {
-            module_id,
-            name,
-            visibility,
-        });
-    }
-
-    pub fn get_reexports(&self, module_def_id: ModuleDefId) -> &[Reexport] {
-        self.reexports.get(&module_def_id).map_or(&[], |reexport| reexport)
-    }
-
-    pub fn get_trait_reexports(&self, trait_id: TraitId) -> &[Reexport] {
-        self.get_reexports(ModuleDefId::TraitId(trait_id))
-    }
-
     pub fn get_meta_attribute_name(&self, meta: &MetaAttribute) -> Option<String> {
         match &meta.name {
             MetaAttributeName::Path(path) => Some(path.last_name().to_string()),
@@ -2523,132 +1423,6 @@ impl NodeInterner {
                 self.try_definition(ident.id).map(|def| def.name.clone())
             }
         }
-    }
-
-    /// Gets the dependency graph from the node interner.
-    pub fn dependency_graph(&self) -> &DiGraph<DependencyId, ()> {
-        &self.dependency_graph
-    }
-
-    /// Gets the trait implementations from the node interner.
-    pub fn trait_implementations(&self) -> &HashMap<TraitImplId, Shared<TraitImpl>> {
-        &self.trait_implementations
-    }
-}
-
-impl Methods {
-    fn add_method(&mut self, method: FuncId, typ: Type, trait_id: Option<TraitId>) {
-        if let Some(trait_id) = trait_id {
-            let trait_impl_method = TraitImplMethod { typ, method, trait_id };
-            self.trait_impl_methods.push(trait_impl_method);
-        } else {
-            let impl_method = ImplMethod { typ, method };
-            self.direct.push(impl_method);
-        }
-    }
-
-    /// Iterate through each method, starting with the direct methods
-    pub fn iter(&self) -> impl Iterator<Item = (FuncId, &Type, Option<TraitId>)> {
-        let trait_impl_methods =
-            self.trait_impl_methods.iter().map(|m| (m.method, &m.typ, Some(m.trait_id)));
-        let direct = self.direct.iter().map(|method| (method.method, &method.typ, None));
-        direct.chain(trait_impl_methods)
-    }
-
-    pub fn find_matching_methods<'a>(
-        &'a self,
-        typ: &'a Type,
-        has_self_param: bool,
-        interner: &'a NodeInterner,
-    ) -> impl Iterator<Item = (FuncId, Option<TraitId>)> + 'a {
-        self.iter().filter_map(move |(method, method_type, trait_id)| {
-            if Self::method_matches(typ, has_self_param, method, method_type, interner) {
-                Some((method, trait_id))
-            } else {
-                None
-            }
-        })
-    }
-
-    pub fn find_direct_method(
-        &self,
-        typ: &Type,
-        check_self_param: bool,
-        interner: &NodeInterner,
-    ) -> Option<FuncId> {
-        for method in &self.direct {
-            if Self::method_matches(typ, check_self_param, method.method, &method.typ, interner) {
-                return Some(method.method);
-            }
-        }
-
-        None
-    }
-
-    pub fn find_trait_methods(
-        &self,
-        typ: &Type,
-        has_self_param: bool,
-        interner: &NodeInterner,
-    ) -> Vec<(FuncId, TraitId)> {
-        let mut results = Vec::new();
-
-        for trait_impl_method in &self.trait_impl_methods {
-            let method = trait_impl_method.method;
-            let method_type = &trait_impl_method.typ;
-            let trait_id = trait_impl_method.trait_id;
-
-            if Self::method_matches(typ, has_self_param, method, method_type, interner) {
-                results.push((method, trait_id));
-            }
-        }
-
-        results
-    }
-
-    fn method_matches(
-        typ: &Type,
-        check_self_param: bool,
-        method: FuncId,
-        method_type: &Type,
-        interner: &NodeInterner,
-    ) -> bool {
-        match interner.function_meta(&method).typ.instantiate(interner).0 {
-            Type::Function(args, _, _, _) => {
-                if check_self_param {
-                    if let Some(object) = args.first() {
-                        if object.unify(typ).is_ok() {
-                            return true;
-                        }
-
-                        // Handle auto-dereferencing `&T` and `&mut T` into `T`
-                        if let Type::Reference(object, _mutable) = object {
-                            if object.unify(typ).is_ok() {
-                                return true;
-                            }
-                        }
-                    }
-                } else {
-                    // We still need to make sure the method is for the given type
-                    // (this might be false if for example a method for `Struct<i32>` was added but
-                    // now we are looking for a method in `Struct<i64>`)
-                    if method_type.unify(typ).is_ok() {
-                        return true;
-                    }
-
-                    // Handle auto-dereferencing `&T` and `&mut T` into `T`
-                    if let Type::Reference(method_type, _mutable) = method_type {
-                        if method_type.unify(typ).is_ok() {
-                            return true;
-                        }
-                    }
-                }
-            }
-            Type::Error => (),
-            other => unreachable!("Expected function type, found {other}"),
-        }
-
-        false
     }
 }
 
