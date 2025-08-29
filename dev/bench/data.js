@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1756479724840,
+  "lastUpdate": 1756480261037,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -20185,48 +20185,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "10a597f42aca9d2dbb9ab31e9343b0189e879671",
-          "message": "feat: keep last loads from predecessors in mem2reg (#9492)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
-          "timestamp": "2025-08-21T20:06:18Z",
-          "tree_id": "1ca58afd439cf916dec5d561b8c0a4c46c3ce46f",
-          "url": "https://github.com/noir-lang/noir/commit/10a597f42aca9d2dbb9ab31e9343b0189e879671"
-        },
-        "date": 1755808448509,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 248909,
-            "range": "± 1286",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 218242,
-            "range": "± 3353",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2780675,
-            "range": "± 1683",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "38473c156e5075591b7ea8a4e8267474c6ac6113",
           "message": "chore: some mem2reg refactors regarding expressions and aliases (#9610)",
@@ -22269,6 +22227,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2777751,
             "range": "± 7266",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "1b24d1c5533b103eff16e2ae134d4c82be918b8b",
+          "message": "feat: Propagate purities using SCCs (#9672)",
+          "timestamp": "2025-08-29T14:42:45Z",
+          "tree_id": "c02da68b9de2ea01275850a25e22257330fe3b68",
+          "url": "https://github.com/noir-lang/noir/commit/1b24d1c5533b103eff16e2ae134d4c82be918b8b"
+        },
+        "date": 1756480241468,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 250262,
+            "range": "± 1574",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 218678,
+            "range": "± 2324",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2780715,
+            "range": "± 1365",
             "unit": "ns/iter"
           }
         ]
