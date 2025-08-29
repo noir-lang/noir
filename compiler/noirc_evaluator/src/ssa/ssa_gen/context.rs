@@ -332,15 +332,6 @@ impl<'a> FunctionContext<'a> {
 
         let mut result = self.builder.insert_binary(lhs, op, rhs);
 
-        // Check for integer overflow
-        if matches!(operator, |BinaryOpKind::ShiftLeft| BinaryOpKind::ShiftRight) {
-            let result_type =
-                self.builder.current_function.dfg.type_of_value(result).unwrap_numeric();
-            if let NumericType::Signed { bit_size } = result_type {
-                result = self.builder.insert_truncate(result, bit_size, bit_size + 1);
-            }
-        };
-
         if operator_requires_not(operator) {
             result = self.builder.insert_not(result);
         }
