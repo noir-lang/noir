@@ -246,10 +246,8 @@ fn analyze_call_graph(
             // Each function belongs to exactly one SCC by definition of SCCs.
             // Therefore inserting into func_to_scc here is safe, and there will
             // be no overwrites.
-            debug_assert!(
-                func_to_scc.insert(func, i).is_none(),
-                "Function appears in multiple SCCs"
-            );
+            let inserted = func_to_scc.insert(func, i);
+            debug_assert!(inserted.is_none(), "Function appears in multiple SCCs");
         }
     }
 
