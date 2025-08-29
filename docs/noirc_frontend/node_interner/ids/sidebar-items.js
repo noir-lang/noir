@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["ReferenceId"],"macro":["into_index"],"struct":["DefinitionId","ExprId","FuncId","InternedExpressionKind","InternedPattern","InternedStatementKind","InternedUnresolvedTypeData","QuotedTypeId","StmtId","TraitAssociatedTypeId","TraitId","TraitImplId","TraitItemId","TypeAliasId","TypeId"]};
