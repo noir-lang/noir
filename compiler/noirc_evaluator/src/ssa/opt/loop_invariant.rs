@@ -332,16 +332,6 @@ impl PostDominanceFrontiers {
     }
 }
 
-/// Result for checking whether a block is control dependent.
-enum ControlDependenceResult<'a> {
-    No,
-    Yes,
-    /// The block was already marked as control dependent as part of a previously found loop.
-    InSomeNestedLoop,
-    /// We found a loop which is control dependent and this block is part of it.
-    InNestedLoop(&'a Loop),
-}
-
 impl<'f> LoopInvariantContext<'f> {
     fn new(function: &'f mut Function, loops: &[Loop]) -> Self {
         let cfg = ControlFlowGraph::with_function(function);
@@ -455,18 +445,18 @@ impl<'f> LoopInvariantContext<'f> {
 
     /// Checks whether a `block` is control dependent on any blocks after
     /// the given loop's header.
-    fn is_control_dependent_post_pre_header<'a>(
+    fn is_control_dependent_post_pre_header(
         &self,
-        loop_context: &LoopContext,
         loop_: &Loop,
-        all_loops: &'a [Loop],
+        all_loops: &[Loop],
         block: BasicBlockId,
         all_predecessors: &BTreeSet<BasicBlockId>,
-    ) -> ControlDependenceResult<'a> {
+        nested_loop_control_dependent_blocks: &mut HashSet<BasicBlockId>,
+    ) -> bool {
         // The block is already known to be in a control dependent nested loop
         // Thus, we can avoid checking for control dependence again.
-        if loop_context.nested_loop_control_dependent_blocks.contains(&block) {
-            return ControlDependenceResult::InSomeNestedLoop;
+        if nested_loop_control_dependent_blocks.contains(&block) {
+            return true;
         }
 
         // Now check whether the current block is dependent on any blocks between
@@ -475,12 +465,21 @@ impl<'f> LoopInvariantContext<'f> {
             .iter()
             .any(|predecessor| self.post_dom_frontiers.is_control_dependent(*predecessor, block))
         {
-            return ControlDependenceResult::Yes;
+            return true;
         }
 
-        self.find_control_dependent_nested_loop(loop_, block, all_loops, all_predecessors)
-            .map(ControlDependenceResult::InNestedLoop)
-            .unwrap_or(ControlDependenceResult::No)
+        if let Some(nested) =
+            self.find_control_dependent_nested_loop(loop_, block, all_loops, all_predecessors)
+        {
+            // Mark all blocks in the nested loop as control dependent to avoid redundant checks
+            // for each of these blocks when they are later visited during hoisting.
+            // This is valid because control dependence of the loop header implies dependence
+            // for the entire loop body.
+            nested_loop_control_dependent_blocks.extend(nested.blocks.iter().copied());
+            return true;
+        }
+
+        false
     }
 
     /// Determines if the `block` is in a nested loop that is control dependent
@@ -624,26 +623,13 @@ impl<'f> LoopInvariantContext<'f> {
 
         let does_execute = self.does_block_execute(loop_context, all_loops, block);
 
-        let is_control_dependent = match self.is_control_dependent_post_pre_header(
-            loop_context,
+        let is_control_dependent = self.is_control_dependent_post_pre_header(
             loop_,
             all_loops,
             block,
             &all_predecessors,
-        ) {
-            ControlDependenceResult::No => false,
-            ControlDependenceResult::Yes | ControlDependenceResult::InSomeNestedLoop => true,
-            ControlDependenceResult::InNestedLoop(loop_) => {
-                // Mark all blocks in the nested loop as control dependent to avoid redundant checks
-                // for each of these blocks when they are later visited during hoisting.
-                // This is valid because control dependence of the loop header implies dependence
-                // for the entire loop body.
-                loop_context
-                    .nested_loop_control_dependent_blocks
-                    .extend(loop_.blocks.iter().copied());
-                true
-            }
-        };
+            &mut loop_context.nested_loop_control_dependent_blocks,
+        );
 
         BlockContext {
             is_header: loop_.header == block,
