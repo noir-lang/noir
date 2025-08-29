@@ -9,7 +9,7 @@ use libfuzzer_sys::arbitrary;
 use libfuzzer_sys::arbitrary::Arbitrary;
 use noir_ssa_fuzzer::{
     builder::FuzzerBuilder,
-    r#type::{NumericType, Type, TypedValue},
+    typed_value::{NumericType, Type, TypedValue},
 };
 use noirc_evaluator::ssa::ir::{basic_block::BasicBlockId, function::Function, map::Id};
 use serde::{Deserialize, Serialize};
@@ -24,37 +24,6 @@ const NUMBER_OF_BLOCKS_INSERTING_IN_JMP_IF: usize = 2;
 const NUMBER_OF_BLOCKS_INSERTING_IN_LOOP: usize = 4;
 
 pub(crate) type ValueWithType = (FieldElement, NumericType);
-
-/// Field modulus has 254 bits, and FieldElement::from supports u128, so we use two unsigned integers to represent a field element
-/// field = low + high * 2^128
-#[derive(Debug, Clone, Copy, Hash, Arbitrary, Serialize, Deserialize)]
-pub(crate) struct FieldRepresentation {
-    pub(crate) high: u128,
-    pub(crate) low: u128,
-}
-
-impl From<&FieldRepresentation> for FieldElement {
-    fn from(field: &FieldRepresentation) -> FieldElement {
-        let lower = FieldElement::from(field.low);
-        let upper = FieldElement::from(field.high);
-        lower + upper * (FieldElement::from(u128::MAX) + FieldElement::from(1_u128))
-    }
-}
-
-#[derive(Debug, Clone, Copy, Hash, Arbitrary, Serialize, Deserialize)]
-pub(crate) enum WitnessValue {
-    Field(FieldRepresentation),
-    U64(u64),
-    Boolean(bool),
-    I64(u64),
-    I32(u32),
-}
-
-impl Default for WitnessValue {
-    fn default() -> Self {
-        WitnessValue::Field(FieldRepresentation { high: 0, low: 0 })
-    }
-}
 
 /// Represents the data describing a function
 #[derive(Debug, Clone, Serialize, Deserialize)]

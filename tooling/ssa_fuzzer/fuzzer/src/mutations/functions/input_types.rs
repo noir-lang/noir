@@ -5,7 +5,7 @@ use crate::mutations::{
     },
     configuration::{BASIC_GENERATE_TYPE_CONFIGURATION, BASIC_VEC_MUTATION_CONFIGURATION},
 };
-use noir_ssa_fuzzer::r#type::Type;
+use noir_ssa_fuzzer::typed_value::Type;
 use rand::rngs::StdRng;
 
 pub(crate) fn generate_input_type(rng: &mut StdRng) -> Type {

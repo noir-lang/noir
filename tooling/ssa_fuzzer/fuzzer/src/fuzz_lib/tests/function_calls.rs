@@ -11,7 +11,7 @@ use crate::options::FuzzerOptions;
 use crate::tests::common::{default_input_types, default_witness};
 use acvm::AcirField;
 use acvm::FieldElement;
-use noir_ssa_fuzzer::r#type::{NumericType, Type};
+use noir_ssa_fuzzer::typed_value::{NumericType, Type};
 
 /// brillig(inline) fn main f0 {
 ///    b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: u1, v6: u1):

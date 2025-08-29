@@ -11,8 +11,8 @@ use crate::instruction::{Argument, Instruction, InstructionBlock};
 use crate::options::FuzzerOptions;
 use crate::tests::common::{default_input_types, default_witness};
 use acvm::FieldElement;
-use noir_ssa_fuzzer::r#type::NumericType;
-use noir_ssa_fuzzer::r#type::Type;
+use noir_ssa_fuzzer::typed_value::NumericType;
+use noir_ssa_fuzzer::typed_value::Type;
 
 /// blake2s(to_le_radix(0, 256, 32)) == blake2s computed with noir
 ///

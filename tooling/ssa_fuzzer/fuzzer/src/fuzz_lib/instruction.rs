@@ -1,6 +1,6 @@
 use libfuzzer_sys::arbitrary;
 use libfuzzer_sys::arbitrary::Arbitrary;
-use noir_ssa_fuzzer::r#type::{NumericType, Type};
+use noir_ssa_fuzzer::typed_value::{NumericType, Type};
 use serde::{Deserialize, Serialize};
 use strum_macros::EnumCount;
 #[derive(Arbitrary, Debug, Clone, Copy, Serialize, Deserialize)]

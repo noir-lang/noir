@@ -13,26 +13,24 @@
 //! 11) Xor
 
 use crate::function_context::FunctionData;
-use crate::function_context::WitnessValue;
 use crate::fuzz_target_lib::fuzz_target;
 use crate::fuzzer::FuzzerData;
+use crate::initial_witness::{WitnessValue, WitnessValueNumeric};
 use crate::instruction::{Argument, Instruction, InstructionBlock};
 use crate::options::FuzzerOptions;
 use crate::tests::common::default_input_types;
-use crate::{NUMBER_OF_PREDEFINED_VARIABLES, NUMBER_OF_VARIABLES_INITIAL};
 use acvm::FieldElement;
-use noir_ssa_fuzzer::r#type::{NumericType, Type};
+use noir_ssa_fuzzer::typed_value::{NumericType, Type};
 
 /// Creates default witness values for testing
 /// Returns [U64(0), U64(1), U64(2), U64(3), U64(4)]
-fn default_unsigned_witness()
--> [WitnessValue; (NUMBER_OF_VARIABLES_INITIAL - NUMBER_OF_PREDEFINED_VARIABLES) as usize] {
-    [
-        WitnessValue::U64(0),
-        WitnessValue::U64(1),
-        WitnessValue::U64(2),
-        WitnessValue::U64(3),
-        WitnessValue::U64(4),
+fn default_unsigned_witness() -> Vec<WitnessValue> {
+    vec![
+        WitnessValue::Numeric(WitnessValueNumeric::U64(0)),
+        WitnessValue::Numeric(WitnessValueNumeric::U64(1)),
+        WitnessValue::Numeric(WitnessValueNumeric::U64(2)),
+        WitnessValue::Numeric(WitnessValueNumeric::U64(3)),
+        WitnessValue::Numeric(WitnessValueNumeric::U64(4)),
     ]
 }
 

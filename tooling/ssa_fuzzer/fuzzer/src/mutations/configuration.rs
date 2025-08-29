@@ -411,7 +411,7 @@ pub(crate) const BASIC_GENERATE_NUMERIC_TYPE_CONFIGURATION: GenerateNumericTypeC
 
 // Compile-time check that configuration has correct number of entries
 const _: () = {
-    use noir_ssa_fuzzer::r#type::NumericType;
+    use noir_ssa_fuzzer::typed_value::NumericType;
     use strum::EnumCount;
     assert!(
         BASIC_GENERATE_NUMERIC_TYPE_CONFIGURATION.options_with_weights.len() == NumericType::COUNT,
@@ -429,14 +429,15 @@ pub(crate) enum GenerateType {
 
 pub(crate) type GenerateTypeConfig = WeightedSelectionConfig<GenerateType, 4>;
 pub(crate) const BASIC_GENERATE_TYPE_CONFIGURATION: GenerateTypeConfig = GenerateTypeConfig::new([
-    (GenerateType::Numeric, 20),
-    (GenerateType::Reference, 4),
-    (GenerateType::Array, 1),
-    (GenerateType::Slice, 1),
+    (GenerateType::Numeric, 25),
+    (GenerateType::Reference, 5),
+    (GenerateType::Array, 1), // to avoid [[[u64; 10]; 10]; 10]; 10; 10; 10....]
+    (GenerateType::Slice, 2),
 ]);
+pub(crate) const MAX_ARRAY_SIZE: usize = 10;
 
 const _: () = {
-    use noir_ssa_fuzzer::r#type::Type;
+    use noir_ssa_fuzzer::typed_value::Type;
     use strum::EnumCount;
     assert!(
         BASIC_GENERATE_TYPE_CONFIGURATION.options_with_weights.len() == Type::COUNT,

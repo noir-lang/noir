@@ -6,7 +6,7 @@ use super::{
     options::SsaBlockOptions,
 };
 use noir_ssa_fuzzer::builder::{FuzzerBuilder, InstructionWithOneArg, InstructionWithTwoArgs};
-use noir_ssa_fuzzer::r#type::{NumericType, Point, Scalar, Type, TypedValue};
+use noir_ssa_fuzzer::typed_value::{NumericType, Point, Scalar, Type, TypedValue};
 use noirc_evaluator::ssa::ir::{basic_block::BasicBlockId, function::Function, map::Id};
 use std::collections::{HashMap, VecDeque};
 use std::iter::zip;
