@@ -12,8 +12,15 @@ Noir cannot check internally whether a recursive proof is valid or not as this c
 
 In order to verify recursive proofs from Barretenberg, it's recommended to use the [bb_proof_verification](https://github.com/AztecProtocol/aztec-packages/tree/next/barretenberg/noir/bb_proof_verification) library which is published by the Barretenberg team.
 
+## Verifying Recursive Proofs
+
+```rust
+#[foreign(recursive_aggregation)]
+pub fn verify_proof(verification_key: [Field], proof: [Field], public_inputs: [Field], key_hash: Field) {}
+```
+
 <BlackBoxInfo to="black_box_fns"/>
 
-Read [the explainer on recursion](../../explainers/explainer-recursion.md) to know more about this function and the [guide on how to use it.](../../how_to/how-to-recursion.md)
+Read [the explainer on recursion](https://barretenberg.aztec.network/docs/explainers/recursive_aggregation) to know more about this function and the [guide on how to use it.](https://barretenberg.aztec.network/docs/how_to_guides/recursive_aggregation)
 
 You can see a full example of recursive proofs in [this example recursion demo repo](https://github.com/noir-lang/noir-examples/tree/master/recursion).
