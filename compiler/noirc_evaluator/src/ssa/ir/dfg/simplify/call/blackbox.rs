@@ -377,7 +377,7 @@ mod multi_scalar_mul {
               b0():
                 v0 = make_array [Field 2, Field 3, Field 5, Field 5] : [(Field, Field); 2]
                 v1 = make_array [Field 1, Field 17631683881184975370165255887551781615748388533673675138860, u1 0, Field 1, Field 17631683881184975370165255887551781615748388533673675138860, u1 0] : [(Field, Field, u1); 2]
-                v2 = call multi_scalar_mul (v1, v0) -> [(Field, Field, u1); 1]
+                v2 = call multi_scalar_mul (v1, v0, u1 1) -> [(Field, Field, u1); 1]
                 return v2
             }"#;
         let ssa = Ssa::from_str_simplifying(src).unwrap();
@@ -402,7 +402,7 @@ mod multi_scalar_mul {
                 v2 = make_array [v0, Field 0, Field 0, Field 0, v0, Field 0] : [(Field, Field); 3]
                 v3 = make_array [
                 Field 0, Field 0, u1 1, v0, v1, u1 0, Field 1, v0, u1 0] : [(Field, Field, u1); 3]
-                v4 = call multi_scalar_mul (v3, v2) -> [(Field, Field, u1); 1]
+                v4 = call multi_scalar_mul (v3, v2, u1 1) -> [(Field, Field, u1); 1]
 
                 return v4
             
@@ -416,7 +416,7 @@ mod multi_scalar_mul {
             v7 = make_array [Field 0, Field 0, u1 1, v0, v1, u1 0, Field 1, v0, u1 0] : [(Field, Field, u1); 3]
             v8 = make_array [v0, Field 0] : [(Field, Field); 1]
             v9 = make_array [Field 1, v0, u1 0] : [(Field, Field, u1); 1]
-            v11 = call multi_scalar_mul(v9, v8) -> [(Field, Field, u1); 1]
+            v11 = call multi_scalar_mul(v9, v8, u1 1) -> [(Field, Field, u1); 1]
             return v11
         }
         ");
@@ -431,7 +431,7 @@ mod multi_scalar_mul {
                 v2 = make_array [Field 1, Field 0, v0, Field 0, Field 2, Field 0] : [(Field, Field); 3]
                 v3 = make_array [
                 Field 1, Field 17631683881184975370165255887551781615748388533673675138860, u1 0, v0, v1, u1 0, Field 1, Field 17631683881184975370165255887551781615748388533673675138860, u1 0] : [(Field, Field, u1); 3]
-                v4 = call multi_scalar_mul (v3, v2) -> [(Field, Field, u1); 1]
+                v4 = call multi_scalar_mul (v3, v2, u1 1) -> [(Field, Field, u1); 1]
                 return v4
             }"#;
         let ssa = Ssa::from_str_simplifying(src).unwrap();
@@ -443,8 +443,8 @@ mod multi_scalar_mul {
             v8 = make_array [Field 1, Field 17631683881184975370165255887551781615748388533673675138860, u1 0, v0, v1, u1 0, Field 1, Field 17631683881184975370165255887551781615748388533673675138860, u1 0] : [(Field, Field, u1); 3]
             v9 = make_array [v0, Field 0, Field 1, Field 0] : [(Field, Field); 2]
             v12 = make_array [v0, v1, u1 0, Field -3227352362257037263902424173275354266044964400219754872043023745437788450996, Field 8902249110305491597038405103722863701255802573786510474664632793109847672620, u1 0] : [(Field, Field, u1); 2]
-            v14 = call multi_scalar_mul(v12, v9) -> [(Field, Field, u1); 1]
-            return v14
+            v15 = call multi_scalar_mul(v12, v9, u1 1) -> [(Field, Field, u1); 1]
+            return v15
         }
         ");
     }
