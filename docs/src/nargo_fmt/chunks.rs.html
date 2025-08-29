@@ -1118,7 +1118,11 @@
 <a href="#1117" id="1117">1117</a>
 <a href="#1118" id="1118">1118</a>
 <a href="#1119" id="1119">1119</a>
-<a href="#1120" id="1120">1120</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module has all the logic to format a series of chunks (a piece of text) in a way
+<a href="#1120" id="1120">1120</a>
+<a href="#1121" id="1121">1121</a>
+<a href="#1122" id="1122">1122</a>
+<a href="#1123" id="1123">1123</a>
+<a href="#1124" id="1124">1124</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module has all the logic to format a series of chunks (a piece of text) in a way
 //! that we (almost always) never exceed the configurable maximum line width.
 //!
 //! It's heavily inspired by this excellent blog post:
@@ -2153,6 +2157,10 @@
                 }
                 Chunk::PopIndentation =&gt; {
                     <span class="self">self</span>.pop_indentation();
+
+                    <span class="comment">// Any increased indentation that we were planning to undo must not be undone
+                    // if we change the current indentation to something completely different.
+                    </span>increased_indentation = <span class="number">0</span>;
                 }
                 Chunk::TrailingComma =&gt; {
                     <span class="macro">unreachable!</span>(

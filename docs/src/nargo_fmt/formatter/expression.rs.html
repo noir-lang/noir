@@ -2629,7 +2629,19 @@
 <a href="#2628" id="2628">2628</a>
 <a href="#2629" id="2629">2629</a>
 <a href="#2630" id="2630">2630</a>
-<a href="#2631" id="2631">2631</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::{
+<a href="#2631" id="2631">2631</a>
+<a href="#2632" id="2632">2632</a>
+<a href="#2633" id="2633">2633</a>
+<a href="#2634" id="2634">2634</a>
+<a href="#2635" id="2635">2635</a>
+<a href="#2636" id="2636">2636</a>
+<a href="#2637" id="2637">2637</a>
+<a href="#2638" id="2638">2638</a>
+<a href="#2639" id="2639">2639</a>
+<a href="#2640" id="2640">2640</a>
+<a href="#2641" id="2641">2641</a>
+<a href="#2642" id="2642">2642</a>
+<a href="#2643" id="2643">2643</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_frontend::{
     ast::{
         ArrayLiteral, BinaryOpKind, BlockExpression, CallExpression, CastExpression,
         ConstrainExpression, ConstrainKind, ConstructorExpression, Expression, ExpressionKind,
@@ -5258,6 +5270,18 @@ global y = 1;
 }
 "#</span>;
         assert_format_with_max_width(src, src, <span class="number">40</span>);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>regression_9556() {
+        <span class="kw">let </span>src = <span class="string">r#"fn foo() {
+    let x = a()
+        .bcde(fghijk
+            );
+    x
+}
+"#</span>;
+        assert_format_with_max_width(src, src, <span class="number">20</span>);
     }
 }
 </code></pre></div></section></main></body></html>
