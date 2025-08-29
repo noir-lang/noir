@@ -68,7 +68,7 @@ fn test_other_function_mutates_reference() {
     let data = FuzzerData {
         functions: vec![main_function, func_function],
         initial_witness: default_witness(),
-        instruction_blocks: instruction_blocks,
+        instruction_blocks,
     };
 
     let result = fuzz_target(data, FuzzerOptions::default());

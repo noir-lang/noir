@@ -427,7 +427,7 @@ pub(crate) enum GenerateInitialWitness {
 pub(crate) type GenerateInitialWitnessConfig = WeightedSelectionConfig<GenerateInitialWitness, 2>;
 pub(crate) const BASIC_GENERATE_INITIAL_WITNESS_CONFIGURATION: GenerateInitialWitnessConfig =
     GenerateInitialWitnessConfig::new([
-        (GenerateInitialWitness::Numeric, 30),
+        (GenerateInitialWitness::Numeric, 10),
         (GenerateInitialWitness::Array, 1),
     ]);
 

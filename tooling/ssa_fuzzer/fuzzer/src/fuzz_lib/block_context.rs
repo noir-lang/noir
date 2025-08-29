@@ -756,7 +756,7 @@ impl BlockContext {
                 let brillig_point = brillig_builder.point_add(p1, p2);
                 assert_eq!(acir_point, brillig_point);
                 for typed_value in [&acir_point.x, &acir_point.y, &acir_point.is_infinite] {
-                    self.store_variable(&typed_value);
+                    self.store_variable(typed_value);
                 }
             }
             Instruction::MultiScalarMul { points_and_scalars } => {
@@ -786,7 +786,7 @@ impl BlockContext {
                 let brillig_point = brillig_builder.multi_scalar_mul(points_vec, scalars_vec);
                 assert_eq!(acir_point, brillig_point);
                 for typed_value in [&acir_point.x, &acir_point.y, &acir_point.is_infinite] {
-                    self.store_variable(&typed_value);
+                    self.store_variable(typed_value);
                 }
             }
             Instruction::EcdsaSecp256r1 {
