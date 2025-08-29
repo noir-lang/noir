@@ -22,7 +22,7 @@
 //! Implementation details & examples:
 //! `IfElse` instructions choose between its two operand values,
 //! `then_value` and `else_value`, based on the `then_condition`:
-//! ```
+//! ```ssa
 //!  if then_condition {
 //!      then_value
 //!  } else {
@@ -53,7 +53,7 @@
 //!
 //! will be translated into this code, where the `IfElse` instruction: `v9 = if v0 then v5 else (if v6) v8`
 //! is using array v5 from then branch, and array v8 from the else branch:
-//! ```
+//! ```ssa
 //! acir(inline) predicate_pure fn main f0 {
 //!   b0(v0: u1, v1: [u32; 2]):
 //!     v2 = allocate -> &mut [u32; 2]
@@ -71,7 +71,7 @@
 //! ```
 //!
 //! The IfElse instruction is then replaced by these instruction during the remove if-else pass:
-//! ```
+//! ```ssa
 //! v13 = cast v0 as u32
 //! v14 = cast v6 as u32
 //! v15 = unchecked_mul v14, u32 2  
