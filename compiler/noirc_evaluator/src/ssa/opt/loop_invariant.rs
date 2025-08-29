@@ -33,6 +33,10 @@
 //! (1) there exists a directed path P from X to Y with any 2 in P (excluding X
 //! and Y) post-dominated by Y and
 //! (2) X is not post-dominated by Y.
+//!
+//! If Y is control dependent on X then X must have two exits. Following one of the
+//! exits from X always results in Y being executed, while taking the other exit may
+//! result in Y not being executed.
 //! ```
 //!
 //! Verifying these conditions for every loop block would be quite inefficient.
@@ -197,7 +201,8 @@ struct LoopInvariantContext<'f> {
 }
 
 struct LoopContext {
-    /// Maps current loop induction variable with a fixed lower and upper loop bound
+    /// Maps current loop induction variable with a fixed lower and upper loop bound.
+    /// If the loop doesn't have constant bounds then it's `None`.
     current_induction_variable: Option<(ValueId, (IntegerConstant, IntegerConstant))>,
     pre_header: BasicBlockId,
     /// Any values defined in the loop: block parameters and instruction results.
@@ -260,6 +265,7 @@ impl LoopContext {
             && self.can_hoist_control_dependent_instruction()
     }
 
+    /// Get the induction variable bounds if it the current variable matches the `id`.
     fn get_current_induction_variable_bounds(
         &self,
         id: ValueId,
@@ -352,7 +358,7 @@ impl<'f> LoopInvariantContext<'f> {
         all_loops: &[Loop],
         pre_header: BasicBlockId,
     ) {
-        let mut loop_context = self.get_values_defined_in_loop(loop_, pre_header);
+        let mut loop_context = self.init_loop_context(loop_, pre_header);
 
         for block in loop_.blocks.iter() {
             // Reset the per block state
@@ -471,7 +477,7 @@ impl<'f> LoopInvariantContext<'f> {
         loop_context.current_block_control_dependent = false;
 
         // Now check whether the current block is dependent on any blocks between
-        // the current block and the loop header, exclusive of the current block and loop header themselves
+        // the current block and the loop header, exclusive of the current block and loop header themselves.
         if all_predecessors
             .iter()
             .any(|predecessor| self.post_dom_frontiers.is_control_dependent(*predecessor, block))
@@ -584,12 +590,10 @@ impl<'f> LoopInvariantContext<'f> {
         true
     }
 
-    /// Gather the variables declared within the loop
-    fn get_values_defined_in_loop(
-        &mut self,
-        loop_: &Loop,
-        pre_header: BasicBlockId,
-    ) -> LoopContext {
+    /// Create a `LoopContext`:
+    /// * Gather the variables declared within the loop
+    /// * Determine the induction variable bounds
+    fn init_loop_context(&mut self, loop_: &Loop, pre_header: BasicBlockId) -> LoopContext {
         // Clear any values that may be defined in previous loops, as the context is per function.
 
         let mut defined_in_loop = HashSet::default();
