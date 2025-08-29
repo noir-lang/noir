@@ -97,7 +97,7 @@ pub(crate) fn get_program_with_options(
     allow_parser_errors: bool,
     options: FrontendOptions,
 ) -> (ParsedModule, Context<'static, 'static>, Vec<CompilationError>) {
-    let root = std::path::Path::new("/");
+    let root = Path::new("/");
     let mut fm = FileManager::new(root);
     let root_file_id = fm.add_file_with_source(Path::new("test_file"), src.to_string()).unwrap();
     let mut context = Context::new(fm, Default::default());
