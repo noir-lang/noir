@@ -1419,7 +1419,7 @@ impl Type {
     /// The point of inputs to entry points is to process input data.
     /// Thus, passing empty arrays is pointless and adds extra complexity to the compiler
     /// for handling them.
-    fn array_or_string_len_is_not_zero(&self) -> bool {
+    pub fn array_or_string_len_is_not_zero(&self) -> bool {
         match self {
             Type::Array(length, _) | Type::String(length) => {
                 let length = length.evaluate_to_u32(Location::dummy()).unwrap_or(0);
