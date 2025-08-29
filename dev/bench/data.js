@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1756489252814,
+  "lastUpdate": 1756490655615,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -20220,48 +20220,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "92aa75d2fc665a83c8c1b7f9596d2ec09ffdb01c",
-          "message": "feat(mem2reg): address last known value is independent of its aliases (#9613)",
-          "timestamp": "2025-08-22T14:55:34Z",
-          "tree_id": "0dd9ac8a28a8e171c2b5af4185a4a92d5355c7fc",
-          "url": "https://github.com/noir-lang/noir/commit/92aa75d2fc665a83c8c1b7f9596d2ec09ffdb01c"
-        },
-        "date": 1755876152627,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 255351,
-            "range": "± 726",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 218287,
-            "range": "± 3036",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2786579,
-            "range": "± 2456",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "3c6914c167766724446296550fc6d81699fc41ac",
           "message": "chore: greenlight `checked_to_unchecked` for audits (#9537)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
@@ -22304,6 +22262,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2789345,
             "range": "± 1922",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "jose@aztecprotocol.com",
+            "name": "José Pedro Sousa",
+            "username": "signorecello"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "e5bd63846b7b408f8dd890afbb902d473bdf792d",
+          "message": "chore(docs): spinning out bb docs (#9402)\n\nCo-authored-by: Savio <72797635+Savio-Sou@users.noreply.github.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-08-29T17:37:58Z",
+          "tree_id": "99788380e7972e3da85fd3039c197277da9a348e",
+          "url": "https://github.com/noir-lang/noir/commit/e5bd63846b7b408f8dd890afbb902d473bdf792d"
+        },
+        "date": 1756490636904,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 249347,
+            "range": "± 604",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 218360,
+            "range": "± 2989",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2781223,
+            "range": "± 9896",
             "unit": "ns/iter"
           }
         ]
