@@ -611,7 +611,7 @@ mod test {
         assert_eq!(purities[&FunctionId::test_new(2)], Purity::Pure);
     }
 
-    /// This test matches [mutual_recursion_marks_functions_pure] except the runtime of all the function's is Brillig
+    /// This test matches [mutual_recursion_marks_functions_pure] except all functions have a Brillig runtime
     #[test]
     fn brillig_mutual_recursion_marks_functions_pure_with_predicate() {
         let src = r#"
@@ -660,7 +660,7 @@ mod test {
     #[test]
     fn mutual_recursion_marks_functions_impure() {
         // f1 -> f2 -> f3 -> f1 (a cycle of three functions)
-        // Only f3 is locally impure (it does an allocate).
+        // Only f3 is locally impure (it returns a reference).
         // All three must be marked Impure.
         //
         // We call f2 in main as we want the DFS to not look at f3 first (which is "Impure").
@@ -704,7 +704,7 @@ mod test {
         assert_eq!(purities[&FunctionId::test_new(3)], Purity::Impure);
     }
 
-    /// This test matches [mutual_recursion_marks_functions_impure] except the runtime of all the function's is Brillig
+    /// This test matches [mutual_recursion_marks_functions_impure] except all functions have a Brillig runtime
     #[test]
     fn brillig_mutual_recursion_marks_functions_impure() {
         let src = r#"

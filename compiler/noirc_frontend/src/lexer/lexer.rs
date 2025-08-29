@@ -1476,7 +1476,7 @@ mod tests {
         //
         // let source = std::str::from_utf8(..).unwrap().to_string();
         let s: Cow<'_, str> = match std::str::from_utf8(&base64_decoded) {
-            Ok(s) => std::borrow::Cow::Borrowed(s),
+            Ok(s) => Cow::Borrowed(s),
             Err(_err) => {
                 // recover as much of the string as possible
                 // when str::from_utf8 fails

@@ -119,10 +119,10 @@ impl CallGraph {
     /// Returns both the call graph's strongly connected components (SCCs)
     /// as well as a utility set of all recursive functions.
     pub(crate) fn sccs(&self) -> (Vec<Vec<FunctionId>>, HashSet<FunctionId>) {
+        let mut sccs_ids = Vec::new();
         let mut recursive_functions = HashSet::default();
 
         let sccs = kosaraju_scc(&self.graph);
-        let mut sccs_ids = Vec::new();
         for scc in sccs {
             let scc_ids: Vec<_> = scc.iter().map(|idx| self.indices_to_ids[idx]).collect();
             if scc.len() > 1 {
