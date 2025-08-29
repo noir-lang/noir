@@ -82,6 +82,8 @@
 //! - On Brillig, additional reference-counting rules apply. For example, hoisting [Instruction::MakeArray]
 //!   requires inserting an [Instruction::IncrementRc] to preserve reference semantics if the array
 //!   may later be mutated.
+use std::collections::BTreeSet;
+
 use crate::ssa::{
     Ssa,
     ir::{
@@ -180,6 +182,7 @@ impl Loop {
     }
 }
 
+/// Context with the scope of an entire function.
 struct LoopInvariantContext<'f> {
     inserter: FunctionInserter<'f>,
 
@@ -200,13 +203,19 @@ struct LoopInvariantContext<'f> {
     false_value: ValueId,
 }
 
+/// Context with the scope of just one loop.
 struct LoopContext {
+    pre_header: BasicBlockId,
     /// Maps current loop induction variable with a fixed lower and upper loop bound.
     /// If the loop doesn't have constant bounds then it's `None`.
-    current_induction_variable: Option<(ValueId, (IntegerConstant, IntegerConstant))>,
-    pre_header: BasicBlockId,
+    induction_variable: Option<(ValueId, (IntegerConstant, IntegerConstant))>,
+
+    /// Indicate whether this loop has fixed bounds that are guaranteed to execute at least once.
+    does_loop_execute: bool,
+
     /// Any values defined in the loop: block parameters and instruction results.
     defined_in_loop: HashSet<ValueId>,
+
     loop_invariants: HashSet<ValueId>,
     /// Caches all blocks that belong to nested loops determined to be control dependent
     /// on blocks in an outer loop. This allows short circuiting future control dependence
@@ -217,41 +226,36 @@ struct LoopContext {
     nested_loop_control_dependent_blocks: HashSet<BasicBlockId>,
     /// Indicates whether the current loop has break or early returns
     no_break: bool,
-    /// Stores whether the current block being processed is control dependent
-    current_block_control_dependent: bool,
-    /// Tracks whether the current block has a side-effectual instruction.
-    /// This is maintained per instruction for hoisting control dependent instructions
-    current_block_impure: bool,
-    /// Stores whether the current block has known fix upper and lower bounds that
-    /// indicate that it is guaranteed to execute at least once.
-    current_block_executes: bool,
 }
 
-impl LoopContext {
-    fn pre_header(&self) -> BasicBlockId {
-        self.pre_header
-    }
+struct BlockContext {
+    /// Indicate that this block is the header of the current loop.
+    is_header: bool,
+    /// Stores whether the current block being processed is control dependent.
+    is_control_dependent: bool,
+    /// Tracks whether the current block has a side-effectual instruction.
+    /// This is maintained per instruction for hoisting control dependent instructions
+    is_impure: bool,
+    /// Stores whether the current loop has known fix upper and lower bounds that
+    /// indicate that it is guaranteed to execute at least once.
+    does_execute: bool,
+}
 
-    fn is_loop_invariant(&self, value_id: &ValueId) -> bool {
-        !self.defined_in_loop.contains(value_id) || self.loop_invariants.contains(value_id)
-    }
-
+impl BlockContext {
     /// A control dependent instruction (e.g. constrain or division) has more strict conditions for hoisting.
     /// This function check the following conditions:
     /// - The current block is non control dependent
     /// - The loop body is guaranteed to be executed
     /// - The current block is not impure
     fn can_hoist_control_dependent_instruction(&self) -> bool {
-        !self.current_block_control_dependent
-            && self.current_block_executes
-            && !self.current_block_impure
+        !self.is_control_dependent && self.does_execute && !self.is_impure
     }
 
     /// A control dependent instruction (e.g. constrain or division) has more strict conditions for simplifying.
     /// This function matches [Self::can_hoist_control_dependent_instruction] except
     /// that simplification does not require that the current block is pure to be simplified.
     fn can_simplify_control_dependent_instruction(&self) -> bool {
-        !self.current_block_control_dependent && self.current_block_executes
+        !self.is_control_dependent && self.does_execute
     }
 
     /// Check [can_be_hoisted] with extra control dependence information that
@@ -264,13 +268,23 @@ impl LoopContext {
         can_be_hoisted(instruction, function, true)
             && self.can_hoist_control_dependent_instruction()
     }
+}
+
+impl LoopContext {
+    fn pre_header(&self) -> BasicBlockId {
+        self.pre_header
+    }
+
+    fn is_loop_invariant(&self, value_id: &ValueId) -> bool {
+        !self.defined_in_loop.contains(value_id) || self.loop_invariants.contains(value_id)
+    }
 
     /// Get the induction variable bounds if it the current variable matches the `id`.
     fn get_current_induction_variable_bounds(
         &self,
         id: ValueId,
     ) -> Option<(IntegerConstant, IntegerConstant)> {
-        self.current_induction_variable.filter(|(val, _)| *val == id).map(|(_, bounds)| bounds)
+        self.induction_variable.filter(|(val, _)| *val == id).map(|(_, bounds)| bounds)
     }
 
     /// Update any values defined in the loop and loop invariants after
@@ -318,6 +332,16 @@ impl PostDominanceFrontiers {
     }
 }
 
+/// Result for checking whether a block is control dependent.
+enum ControlDependenceResult<'a> {
+    No,
+    Yes,
+    /// The block was already marked as control dependent as part of a previously found loop.
+    InSomeNestedLoop,
+    /// We found a loop which is control dependent and this block is part of it.
+    InNestedLoop(&'a Loop),
+}
+
 impl<'f> LoopInvariantContext<'f> {
     fn new(function: &'f mut Function, loops: &[Loop]) -> Self {
         let cfg = ControlFlowGraph::with_function(function);
@@ -361,18 +385,15 @@ impl<'f> LoopInvariantContext<'f> {
         let mut loop_context = self.init_loop_context(loop_, pre_header);
 
         for block in loop_.blocks.iter() {
-            // Reset the per block state
-            loop_context.current_block_executes =
-                self.does_block_execute(&loop_context, *block, all_loops);
-            loop_context.current_block_impure = false;
-            self.is_control_dependent_post_pre_header(&mut loop_context, loop_, *block, all_loops);
-            let header = loop_.header == *block;
+            let mut block_context =
+                self.init_block_context(&mut loop_context, loop_, all_loops, *block);
 
             for instruction_id in self.inserter.function.dfg[*block].take_instructions() {
-                if self.simplify_from_loop_bounds(&loop_context, instruction_id, header) {
+                if self.simplify_from_loop_bounds(&loop_context, &block_context, instruction_id) {
                     continue;
                 }
-                let hoist_invariant = self.can_hoist_invariant(&loop_context, instruction_id);
+                let hoist_invariant =
+                    self.can_hoist_invariant(&loop_context, &block_context, instruction_id);
 
                 if hoist_invariant {
                     self.inserter.push_instruction(instruction_id, pre_header);
@@ -402,9 +423,8 @@ impl<'f> LoopInvariantContext<'f> {
                     let dfg = &self.inserter.function.dfg;
                     // If the block has already been labelled as impure, we do need to check the current
                     // instruction's side effects.
-                    if !loop_context.current_block_impure {
-                        loop_context.current_block_impure =
-                            dfg[instruction_id].has_side_effects(dfg);
+                    if !block_context.is_impure {
+                        block_context.is_impure = dfg[instruction_id].has_side_effects(dfg);
                     }
                     self.inserter.push_instruction(instruction_id, *block);
                 }
@@ -435,46 +455,19 @@ impl<'f> LoopInvariantContext<'f> {
 
     /// Checks whether a `block` is control dependent on any blocks after
     /// the given loop's header.
-    fn is_control_dependent_post_pre_header(
+    fn is_control_dependent_post_pre_header<'a>(
         &self,
-        loop_context: &mut LoopContext,
+        loop_context: &LoopContext,
         loop_: &Loop,
+        all_loops: &'a [Loop],
         block: BasicBlockId,
-        all_loops: &[Loop],
-    ) {
+        all_predecessors: &BTreeSet<BasicBlockId>,
+    ) -> ControlDependenceResult<'a> {
         // The block is already known to be in a control dependent nested loop
         // Thus, we can avoid checking for control dependence again.
         if loop_context.nested_loop_control_dependent_blocks.contains(&block) {
-            loop_context.current_block_control_dependent = true;
-            return;
+            return ControlDependenceResult::InSomeNestedLoop;
         }
-
-        // Find all blocks between the current block and the loop header, exclusive of the current block and loop header themselves.
-        let all_predecessors = Loop::find_blocks_in_loop(loop_.header, block, &self.cfg).blocks;
-        let all_predecessors = all_predecessors
-            .into_iter()
-            .filter(|&predecessor| predecessor != block && predecessor != loop_.header)
-            .collect::<Vec<_>>();
-
-        let dfg = &self.inserter.function.dfg;
-        // When hoisting a control dependent instruction, if a side effectual instruction comes in the predecessor block
-        // of that instruction we can no longer hoist the control dependent instruction.
-        // This is important for maintaining ordering semantic correctness of the code.
-        assert!(
-            !loop_context.current_block_impure,
-            "ICE: Block impurity should be defaulted to false"
-        );
-        loop_context.current_block_impure = all_predecessors.iter().any(|block| {
-            dfg[*block]
-                .instructions()
-                .iter()
-                .any(|instruction| dfg[*instruction].has_side_effects(dfg))
-        });
-
-        // Reset the current block control dependent flag, the check will set it to true if needed.
-        // If we fail to reset it, a block may be inadvertently labelled
-        // as control dependent thus preventing optimizations.
-        loop_context.current_block_control_dependent = false;
 
         // Now check whether the current block is dependent on any blocks between
         // the current block and the loop header, exclusive of the current block and loop header themselves.
@@ -482,21 +475,17 @@ impl<'f> LoopInvariantContext<'f> {
             .iter()
             .any(|predecessor| self.post_dom_frontiers.is_control_dependent(*predecessor, block))
         {
-            loop_context.current_block_control_dependent = true;
-            return;
+            return ControlDependenceResult::Yes;
         }
 
-        self.is_nested_loop_control_dependent(
-            loop_context,
-            loop_,
-            block,
-            all_loops,
-            all_predecessors,
-        );
+        self.find_control_dependent_nested_loop(loop_, block, all_loops, all_predecessors)
+            .map(ControlDependenceResult::InNestedLoop)
+            .unwrap_or(ControlDependenceResult::No)
     }
 
     /// Determines if the `block` is in a nested loop that is control dependent
-    /// on a block in the outer loop.
+    /// on a block in the outer loop. Returns the first such loop found, if any.
+    ///
     /// If this is the case, we block hoisting as control is not guaranteed.
     /// If the block is not control dependent on the inner loop itself, it will be marked appropriately
     /// when the inner loop is processed later.
@@ -504,14 +493,13 @@ impl<'f> LoopInvariantContext<'f> {
     /// Control dependence on a nested loop is determined by checking whether the nested loop's header
     /// is control dependent on any blocks between itself and the outer loop's header.
     /// It is expected that `all_predecessors` contains at least all of these blocks.
-    fn is_nested_loop_control_dependent(
+    fn find_control_dependent_nested_loop<'a>(
         &self,
-        loop_context: &mut LoopContext,
         loop_: &Loop,
         block: BasicBlockId,
-        all_loops: &[Loop],
-        all_predecessors: Vec<BasicBlockId>,
-    ) {
+        all_loops: &'a [Loop],
+        all_predecessors: &BTreeSet<BasicBlockId>,
+    ) -> Option<&'a Loop> {
         // Now check for nested loops within the current loop
         for nested in all_loops.iter() {
             if !nested.blocks.contains(&block) {
@@ -530,16 +518,12 @@ impl<'f> LoopInvariantContext<'f> {
                     .any(|predecessor| {
                         self.post_dom_frontiers.is_control_dependent(*predecessor, nested.header)
                     });
+
             if nested_loop_is_control_dep {
-                loop_context.current_block_control_dependent = true;
-                // Mark all blocks in the nested loop as control dependent to avoid redundant checks
-                // for each of these blocks when they are later visited during hoisting.
-                // This is valid because control dependence of the loop header implies dependence
-                // for the entire loop body.
-                loop_context.nested_loop_control_dependent_blocks.extend(nested.blocks.iter());
-                return;
+                return Some(nested);
             }
         }
+        None
     }
 
     /// Determine whether a block in the loop body is guaranteed to execute.
@@ -554,22 +538,13 @@ impl<'f> LoopInvariantContext<'f> {
     ///
     /// A block might be in a nested loop that isn't guaranteed to execute even if the current loop does.
     fn does_block_execute(
-        &mut self,
+        &self,
         loop_context: &LoopContext,
-        block: BasicBlockId,
         all_loops: &[Loop],
+        block: BasicBlockId,
     ) -> bool {
-        /// Check that we have fixed bounds and upper is higher than lower.
-        fn check_bounds(bounds: Option<(IntegerConstant, IntegerConstant)>) -> bool {
-            bounds
-                .and_then(|(lower_bound, upper_bound)| {
-                    upper_bound.reduce(lower_bound, |u, l| u > l, |u, l| u > l)
-                })
-                .unwrap_or(false)
-        }
-
         // If the current loop doesn't execute, then nothing does.
-        if !check_bounds(loop_context.current_induction_variable.map(|(_, bounds)| bounds)) {
+        if !loop_context.does_loop_execute {
             return false;
         }
 
@@ -582,7 +557,7 @@ impl<'f> LoopInvariantContext<'f> {
                 // If we don't know what the induction variable is, we can't say if it executes.
                 return false;
             };
-            if !check_bounds(self.all_induction_variables.get(&induction_variable).copied()) {
+            if !does_loop_execute(self.all_induction_variables.get(&induction_variable).copied()) {
                 return false;
             }
         }
@@ -594,8 +569,6 @@ impl<'f> LoopInvariantContext<'f> {
     /// * Gather the variables declared within the loop
     /// * Determine the induction variable bounds
     fn init_loop_context(&mut self, loop_: &Loop, pre_header: BasicBlockId) -> LoopContext {
-        // Clear any values that may be defined in previous loops, as the context is per function.
-
         let mut defined_in_loop = HashSet::default();
         for block in loop_.blocks.iter() {
             let params = self.inserter.function.dfg.block_parameters(*block);
@@ -605,10 +578,12 @@ impl<'f> LoopInvariantContext<'f> {
                 defined_in_loop.extend(results);
             }
         }
+        let induction_variable = get_induction_var_bounds(&self.inserter, loop_, pre_header);
 
         LoopContext {
             // There is only ever one current induction variable for a loop.
-            current_induction_variable: get_induction_var_bounds(&self.inserter, loop_, pre_header),
+            induction_variable,
+            does_loop_execute: does_loop_execute(induction_variable.map(|(_, bounds)| bounds)),
             pre_header,
             defined_in_loop,
             loop_invariants: HashSet::default(),
@@ -618,15 +593,70 @@ impl<'f> LoopInvariantContext<'f> {
             // leading to missed hoisting opportunities.
             nested_loop_control_dependent_blocks: HashSet::default(),
             no_break: loop_.is_fully_executed(&self.cfg),
-            current_block_control_dependent: false,
-            current_block_impure: false,
-            current_block_executes: false,
+        }
+    }
+
+    /// Create a `BlockContext`.
+    fn init_block_context(
+        &self,
+        loop_context: &mut LoopContext,
+        loop_: &Loop,
+        all_loops: &[Loop],
+        block: BasicBlockId,
+    ) -> BlockContext {
+        let dfg = &self.inserter.function.dfg;
+
+        // Find all blocks between the current block and the loop header, exclusive of the current block and loop header themselves.
+        let mut all_predecessors = Loop::find_blocks_in_loop(loop_.header, block, &self.cfg).blocks;
+        all_predecessors.retain(|&predecessor| predecessor != block && predecessor != loop_.header);
+
+        // When hoisting a control dependent instruction, if a side effectual instruction comes in the predecessor block
+        // of that instruction we can no longer hoist the control dependent instruction.
+        // This is important for maintaining ordering semantic correctness of the code.
+        // If the predecessors are all pure, the block might turn impure as an when we encounter
+        // a side-effectful instruction in it later.
+        let is_impure = all_predecessors.iter().any(|block| {
+            dfg[*block]
+                .instructions()
+                .iter()
+                .any(|instruction| dfg[*instruction].has_side_effects(dfg))
+        });
+
+        let does_execute = self.does_block_execute(loop_context, all_loops, block);
+
+        let is_control_dependent = match self.is_control_dependent_post_pre_header(
+            loop_context,
+            loop_,
+            all_loops,
+            block,
+            &all_predecessors,
+        ) {
+            ControlDependenceResult::No => false,
+            ControlDependenceResult::Yes | ControlDependenceResult::InSomeNestedLoop => true,
+            ControlDependenceResult::InNestedLoop(loop_) => {
+                // Mark all blocks in the nested loop as control dependent to avoid redundant checks
+                // for each of these blocks when they are later visited during hoisting.
+                // This is valid because control dependence of the loop header implies dependence
+                // for the entire loop body.
+                loop_context
+                    .nested_loop_control_dependent_blocks
+                    .extend(loop_.blocks.iter().copied());
+                true
+            }
+        };
+
+        BlockContext {
+            is_header: loop_.header == block,
+            is_control_dependent,
+            does_execute,
+            is_impure,
         }
     }
 
     fn can_hoist_invariant(
         &mut self,
         loop_context: &LoopContext,
+        block_context: &BlockContext,
         instruction_id: InstructionId,
     ) -> bool {
         use Instruction::*;
@@ -652,9 +682,9 @@ impl<'f> LoopInvariantContext<'f> {
 
         matches!(instruction, MakeArray { .. })
             || can_be_hoisted(&instruction, self.inserter.function, false)
-            || loop_context
+            || block_context
                 .can_be_hoisted_with_control_dependence(&instruction, self.inserter.function)
-            || self.can_be_hoisted_from_loop_bounds(loop_context, &instruction)
+            || self.can_be_hoisted_from_loop_bounds(loop_context, block_context, &instruction)
     }
 
     /// Certain instructions can take advantage of that our induction variable has a fixed minimum/maximum.
@@ -668,6 +698,7 @@ impl<'f> LoopInvariantContext<'f> {
     fn can_be_hoisted_from_loop_bounds(
         &self,
         loop_context: &LoopContext,
+        block_context: &BlockContext,
         instruction: &Instruction,
     ) -> bool {
         use Instruction::*;
@@ -684,7 +715,7 @@ impl<'f> LoopInvariantContext<'f> {
             }
             Binary(binary) => self.can_evaluate_binary_op(loop_context, binary),
             Constrain(..) | ConstrainNotEqual(..) | RangeCheck { .. } => {
-                loop_context.can_hoist_control_dependent_instruction()
+                block_context.can_hoist_control_dependent_instruction()
             }
             Call { func, .. } => {
                 let purity = match self.inserter.function.dfg[*func] {
@@ -693,7 +724,7 @@ impl<'f> LoopInvariantContext<'f> {
                     _ => None,
                 };
                 matches!(purity, Some(Purity::PureWithPredicate))
-                    && loop_context.can_hoist_control_dependent_instruction()
+                    && block_context.can_hoist_control_dependent_instruction()
             }
             _ => false,
         }
@@ -723,6 +754,15 @@ impl<'f> LoopInvariantContext<'f> {
 /// Get and resolve the induction variable of a loop.
 fn get_induction_variable(inserter: &FunctionInserter, loop_: &Loop) -> Option<ValueId> {
     loop_.get_induction_variable(inserter.function).map(|v| inserter.resolve(v))
+}
+
+/// Check that a loop has have fixed bounds and upper is higher than lower, indicating that it would execute.
+fn does_loop_execute(bounds: Option<(IntegerConstant, IntegerConstant)>) -> bool {
+    bounds
+        .and_then(|(lower_bound, upper_bound)| {
+            upper_bound.reduce(lower_bound, |u, l| u > l, |u, l| u > l)
+        })
+        .unwrap_or(false)
 }
 
 /// Keep track of a loop induction variable and respective upper bound.
