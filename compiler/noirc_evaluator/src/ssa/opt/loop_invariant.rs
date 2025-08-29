@@ -612,7 +612,7 @@ impl<'f> LoopInvariantContext<'f> {
 
         // When hoisting a control dependent instruction, if a side effectual instruction comes in the predecessor block
         // of that instruction we can no longer hoist the control dependent instruction.
-        // This is important for maintaining ordering semantic correctness of the code.
+        // This is important for maintaining the execution order and semantic correctness of the code.
         // If the predecessors are all pure, the block might turn impure as an when we encounter
         // a side-effectful instruction in it later.
         let is_impure = all_predecessors.iter().any(|block| {
