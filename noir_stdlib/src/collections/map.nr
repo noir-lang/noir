@@ -713,7 +713,6 @@ mod test {
     use crate::hash::poseidon2::Poseidon2Hasher;
     use crate::default::Default;
 
-    /// Test function for quadratic_probe to verify overflow prevention
     #[test]
     pub fn test_quadratic_probe_function() {
         let map: HashMap<Field, Field, 1000, BuildHasherDefault<Poseidon2Hasher>> = HashMap::default();
