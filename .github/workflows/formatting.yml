@@ -17,12 +17,12 @@ jobs:
     name: cargo clippy
     runs-on: ubuntu-22.04
     timeout-minutes: 30
-    env:
-      RUSTFLAGS: -Dwarnings
 
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+
+      - uses: taiki-e/install-action@just
 
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.85.0
@@ -37,7 +37,7 @@ jobs:
           save-if: ${{ github.event_name != 'merge_group' }}
 
       - name: Run `cargo clippy`
-        run: ./scripts/clippy.sh
+        run: just clippy
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -45,12 +45,12 @@ jobs:
     name: cargo fmt
     runs-on: ubuntu-22.04
     timeout-minutes: 30
-    env:
-      RUSTFLAGS: -Dwarnings
 
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+
+      - uses: taiki-e/install-action@just
 
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.85.0
@@ -64,19 +64,19 @@ jobs:
           cache-on-failure: true
           save-if: ${{ github.event_name != 'merge_group' }}
 
-      - name: Run `cargo fmt`
-        run: cargo fmt --all --check
+      - name: Check formatting
+        run: just format-check
 
   rustdoc:
     name: cargo doc
     runs-on: ubuntu-22.04
     timeout-minutes: 30
-    env:
-      RUSTDOCFLAGS: -Dwarnings -Drustdoc::unescaped_backticks
 
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+
+      - uses: taiki-e/install-action@just
 
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.85.0
@@ -91,7 +91,7 @@ jobs:
           save-if: ${{ github.event_name != 'merge_group' }}
 
       - name: Run `cargo doc`
-        run: cargo doc --no-deps --document-private-items --workspace
+        run: just doc
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -104,11 +104,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
+      - uses: taiki-e/install-action@just
+
       - name: Install Yarn dependencies
         uses: ./.github/actions/setup
 
-      - name: Run `yarn lint`
-        run: yarn lint
+      - name: Run eslint
+        run: just lint
 
   build-nargo:
     runs-on: ubuntu-22.04
