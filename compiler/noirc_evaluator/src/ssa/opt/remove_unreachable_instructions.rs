@@ -40,7 +40,7 @@
 //! the operation is left in the SSA but a constrain failure is added after it,
 //! and every subsequent instruction is removed:
 //!
-//! //! ```ssa
+//! ```ssa
 //! v4 = add u8 254, u8 127
 //! constrain u1 0 == u1 1, "attempt to add with overflow"
 //! unreachable
