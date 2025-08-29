@@ -121,7 +121,7 @@ lint:
   yarn lint
 
 # Builds named Javascript package
-build_package PACKAGE: install-js-tools
+build-package PACKAGE: install-js-tools
   yarn workspace {{PACKAGE}} build
 
 # Examples

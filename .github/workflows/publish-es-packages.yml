@@ -37,7 +37,7 @@ jobs:
       - uses: taiki-e/install-action@just
 
       - name: Build noirc_abi
-        run: just build_package @noir-lang/noirc_abi
+        run: just build-package @noir-lang/noirc_abi
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -71,10 +71,10 @@ jobs:
 
 
       - name: Build noir_js_types
-        run: just build_package @noir-lang/types
+        run: just build-package @noir-lang/types
 
       - name: Build noir_wasm
-        run: just build_package @noir-lang/noir_wasm
+        run: just build-package @noir-lang/noir_wasm
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -107,7 +107,7 @@ jobs:
         uses: ./.github/actions/setup
 
       - name: Build acvm_js
-        run: just build_package @noir-lang/acvm_js
+        run: just build-package @noir-lang/acvm_js
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
