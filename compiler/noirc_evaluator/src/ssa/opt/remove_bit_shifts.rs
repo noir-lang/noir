@@ -254,7 +254,7 @@ impl Context<'_, '_, '_> {
             } else {
                 FieldElement::from(2u32).pow(&exponent_const)
             };
-            return self.numeric_constant(pow, NumericType::NativeField);
+            return self.field_constant(pow);
         }
 
         // When shifting, for instance, `u32` values the maximum allowed value is 31, one less than the bit size.
