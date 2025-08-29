@@ -270,7 +270,7 @@ pub fn parse_expression_width(input: &str) -> Result<ExpressionWidth, std::io::E
 }
 
 impl CompileOptions {
-    pub(crate) fn frontend_options(&'_ self) -> FrontendOptions<'_> {
+    pub(crate) fn frontend_options(&self) -> FrontendOptions {
         FrontendOptions {
             debug_comptime_in_file: self.debug_comptime_in_file.as_deref(),
             pedantic_solving: self.pedantic_solving,

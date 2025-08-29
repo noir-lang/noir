@@ -899,7 +899,7 @@ impl Display for FunctionDefinition {
 }
 
 impl FunctionReturnType {
-    pub fn get_type(&'_ self) -> Cow<'_, UnresolvedType> {
+    pub fn get_type(&self) -> Cow<UnresolvedType> {
         match self {
             FunctionReturnType::Default(location) => {
                 Cow::Owned(UnresolvedType { typ: UnresolvedTypeData::Unit, location: *location })

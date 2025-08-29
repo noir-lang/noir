@@ -26,11 +26,11 @@ impl<F: AcirField> DebugVars<F> {
         self.functions.extend(info.functions.clone());
     }
 
-    pub fn get_variables(&'_ self) -> Vec<StackFrame<'_, F>> {
+    pub fn get_variables(&self) -> Vec<StackFrame<F>> {
         self.frames.iter().map(|(fn_id, frame)| self.build_stack_frame(fn_id, frame)).collect()
     }
 
-    pub fn current_stack_frame(&'_ self) -> Option<StackFrame<'_, F>> {
+    pub fn current_stack_frame(&self) -> Option<StackFrame<F>> {
         self.frames.last().map(|(fn_id, frame)| self.build_stack_frame(fn_id, frame))
     }
 

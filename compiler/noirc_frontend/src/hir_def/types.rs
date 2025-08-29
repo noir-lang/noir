@@ -837,11 +837,11 @@ impl<T> Shared<T> {
         Shared(Rc::new(RefCell::new(thing)))
     }
 
-    pub fn borrow(&'_ self) -> std::cell::Ref<'_, T> {
+    pub fn borrow(&self) -> std::cell::Ref<T> {
         self.0.borrow()
     }
 
-    pub fn borrow_mut(&'_ self) -> std::cell::RefMut<'_, T> {
+    pub fn borrow_mut(&self) -> std::cell::RefMut<T> {
         self.0.borrow_mut()
     }
 
@@ -941,7 +941,7 @@ impl TypeVariable {
     }
 
     /// Borrows this TypeVariable to (e.g.) manually match on the inner TypeBinding.
-    pub fn borrow(&'_ self) -> std::cell::Ref<'_, TypeBinding> {
+    pub fn borrow(&self) -> std::cell::Ref<TypeBinding> {
         self.1.borrow()
     }
 
@@ -1576,7 +1576,7 @@ impl Type {
 
     /// Return the generics and type within this `Type::Forall`.
     /// Panics if `self` is not `Type::Forall`
-    pub fn unwrap_forall(&'_ self) -> (Cow<'_, GenericTypeVars>, &'_ Type) {
+    pub fn unwrap_forall(&self) -> (Cow<GenericTypeVars>, &Type) {
         match self {
             Type::Forall(generics, typ) => (Cow::Borrowed(generics), typ.as_ref()),
             other => (Cow::Owned(GenericTypeVars::new()), other),
@@ -2436,7 +2436,7 @@ impl Type {
     /// Follow bindings if this is a type variable or generic to the first non-type-variable
     /// type. Unlike `follow_bindings`, this won't recursively follow any bindings on any
     /// fields or arguments of this type.
-    pub fn follow_bindings_shallow(&'_ self) -> Cow<'_, Type> {
+    pub fn follow_bindings_shallow(&self) -> Cow<Type> {
         match self {
             Type::TypeVariable(var) | Type::NamedGeneric(NamedGeneric { type_var: var, .. }) => {
                 if let TypeBinding::Bound(typ) = &*var.borrow() {

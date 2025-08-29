@@ -40,8 +40,8 @@ impl DebugForeignCall {
 }
 
 pub trait DebugForeignCallExecutor: ForeignCallExecutor<FieldElement> {
-    fn get_variables(&'_ self) -> Vec<StackFrame<'_, FieldElement>>;
-    fn current_stack_frame(&'_ self) -> Option<StackFrame<'_, FieldElement>>;
+    fn get_variables(&self) -> Vec<StackFrame<FieldElement>>;
+    fn current_stack_frame(&self) -> Option<StackFrame<FieldElement>>;
     fn restart(&mut self, artifact: &DebugArtifact);
 }
 
@@ -102,11 +102,11 @@ impl DefaultDebugForeignCallExecutor {
 }
 
 impl DebugForeignCallExecutor for DefaultDebugForeignCallExecutor {
-    fn get_variables(&'_ self) -> Vec<StackFrame<'_, FieldElement>> {
+    fn get_variables(&self) -> Vec<StackFrame<FieldElement>> {
         self.debug_vars.get_variables()
     }
 
-    fn current_stack_frame(&'_ self) -> Option<StackFrame<'_, FieldElement>> {
+    fn current_stack_frame(&self) -> Option<StackFrame<FieldElement>> {
         self.debug_vars.current_stack_frame()
     }
 
@@ -209,11 +209,11 @@ where
     H: DebugForeignCallExecutor,
     I: ForeignCallExecutor<FieldElement>,
 {
-    fn get_variables(&'_ self) -> Vec<StackFrame<'_, FieldElement>> {
+    fn get_variables(&self) -> Vec<StackFrame<FieldElement>> {
         self.handler().get_variables()
     }
 
-    fn current_stack_frame(&'_ self) -> Option<StackFrame<'_, FieldElement>> {
+    fn current_stack_frame(&self) -> Option<StackFrame<FieldElement>> {
         self.handler().current_stack_frame()
     }
     fn restart(&mut self, artifact: &DebugArtifact) {

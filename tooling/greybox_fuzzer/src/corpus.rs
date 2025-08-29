@@ -341,7 +341,7 @@ impl Corpus {
     }
 
     /// Returns all testcases that have ever been added to the corpus, including cached ones
-    pub fn get_full_stored_corpus(&'_ mut self) -> Vec<TestCase<'_>> {
+    pub fn get_full_stored_corpus(&mut self) -> Vec<TestCase> {
         let stored_corpus: Vec<_> =
             self.corpus_file_manager.get_full_corpus().into_iter().map(TestCase::from).collect();
         let id_testcase_pair: Vec<_> =
@@ -413,7 +413,7 @@ impl Corpus {
     }
 
     /// Returns a vector of all currently active testcases
-    pub fn get_current_discovered_testcases(&'_ self) -> Vec<TestCase<'_>> {
+    pub fn get_current_discovered_testcases(&self) -> Vec<TestCase> {
         self.discovered_testcases.iter().map(|(&id, value)| TestCase::with_id(id, value)).collect()
     }
 }

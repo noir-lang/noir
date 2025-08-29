@@ -732,11 +732,11 @@ impl<'f> Context<'f> {
     /// Unlike push_instruction, this function will not map any ValueIds.
     /// within the given instruction, nor will it modify self.values in any way.
     fn insert_instruction_with_typevars(
-        &'_ mut self,
+        &mut self,
         instruction: Instruction,
         ctrl_typevars: Option<Vec<Type>>,
         call_stack: CallStackId,
-    ) -> InsertInstructionResult<'_> {
+    ) -> InsertInstructionResult {
         let block = self.target_block;
         self.inserter.function.dfg.insert_instruction_and_results(
             instruction,

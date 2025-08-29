@@ -127,7 +127,7 @@ impl Value {
         Value::Expr(Box::new(ExprValue::Pattern(pattern)))
     }
 
-    pub(crate) fn get_type(&'_ self) -> Cow<'_, Type> {
+    pub(crate) fn get_type(&self) -> Cow<Type> {
         Cow::Owned(match self {
             Value::Unit => Type::Unit,
             Value::Bool(_) => Type::Bool,

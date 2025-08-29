@@ -73,7 +73,7 @@ impl FileMap {
         file_id
     }
 
-    pub fn get_file(&'_ self, file_id: FileId) -> Option<File<'_>> {
+    pub fn get_file(&self, file_id: FileId) -> Option<File> {
         self.files.get(file_id.0).map(File).ok()
     }
 

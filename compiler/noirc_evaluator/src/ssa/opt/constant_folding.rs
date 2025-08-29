@@ -552,14 +552,14 @@ impl Context {
 
     /// Get a cached result if it can be used in this context.
     fn get_cached(
-        &'_ self,
+        &self,
         dfg: &DataFlowGraph,
         dom: &mut DominatorTree,
         id: InstructionId,
         instruction: &Instruction,
         side_effects_enabled_var: ValueId,
         block: BasicBlockId,
-    ) -> Option<CacheResult<'_>> {
+    ) -> Option<CacheResult> {
         let results_for_instruction = self.cached_instruction_results.get(instruction)?;
         let predicate = self.use_constraint_info && instruction.requires_acir_gen_predicate(dfg);
         let predicate = predicate.then_some(side_effects_enabled_var);
@@ -731,11 +731,11 @@ impl ResultCache {
     /// cycles causing issues (e.g. two instructions being replaced with the results of each other
     /// such that neither instruction exists anymore.)
     fn get(
-        &'_ self,
+        &self,
         block: BasicBlockId,
         dom: &mut DominatorTree,
         has_side_effects: bool,
-    ) -> Option<CacheResult<'_>> {
+    ) -> Option<CacheResult> {
         self.result.as_ref().and_then(|(origin_block, results)| {
             if dom.dominates(*origin_block, block) {
                 Some(CacheResult::Cached(results))

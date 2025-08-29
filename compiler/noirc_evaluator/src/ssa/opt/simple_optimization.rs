@@ -137,10 +137,10 @@ impl SimpleOptimizationContext<'_, '_> {
 
     /// Inserts an instruction in the current block right away.
     pub(crate) fn insert_instruction(
-        &'_ mut self,
+        &mut self,
         instruction: Instruction,
         ctrl_typevars: Option<Vec<Type>>,
-    ) -> InsertInstructionResult<'_> {
+    ) -> InsertInstructionResult {
         self.dfg.insert_instruction_and_results(
             instruction,
             self.block_id,
