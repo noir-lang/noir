@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1756480604389,
+  "lastUpdate": 1756480609712,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -4217,90 +4217,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "10a597f42aca9d2dbb9ab31e9343b0189e879671",
-          "message": "feat: keep last loads from predecessors in mem2reg (#9492)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
-          "timestamp": "2025-08-21T20:06:18Z",
-          "tree_id": "1ca58afd439cf916dec5d561b8c0a4c46c3ce46f",
-          "url": "https://github.com/noir-lang/noir/commit/10a597f42aca9d2dbb9ab31e9343b0189e879671"
-        },
-        "date": 1755808823516,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 1.676,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 7.76,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.336,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 16.74,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 14.16,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 20.78,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 195,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 194,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.332,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.676,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.764,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 1.642,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "38473c156e5075591b7ea8a4e8267474c6ac6113",
           "message": "chore: some mem2reg refactors regarding expressions and aliases (#9610)",
@@ -8401,6 +8317,90 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 1.584,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "1b24d1c5533b103eff16e2ae134d4c82be918b8b",
+          "message": "feat: Propagate purities using SCCs (#9672)",
+          "timestamp": "2025-08-29T14:42:45Z",
+          "tree_id": "c02da68b9de2ea01275850a25e22257330fe3b68",
+          "url": "https://github.com/noir-lang/noir/commit/1b24d1c5533b103eff16e2ae134d4c82be918b8b"
+        },
+        "date": 1756480588024,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1.868,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 7.568,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.356,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 15.84,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 14.02,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 21.6,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 215,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 200,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.39,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.492,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.779,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 1.63,
             "unit": "s"
           }
         ]
