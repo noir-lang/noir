@@ -1678,7 +1678,33 @@
 <a href="#1677" id="1677">1677</a>
 <a href="#1678" id="1678">1678</a>
 <a href="#1679" id="1679">1679</a>
-<a href="#1680" id="1680">1680</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{cmp::Ordering, collections::BTreeMap, io::Write};
+<a href="#1680" id="1680">1680</a>
+<a href="#1681" id="1681">1681</a>
+<a href="#1682" id="1682">1682</a>
+<a href="#1683" id="1683">1683</a>
+<a href="#1684" id="1684">1684</a>
+<a href="#1685" id="1685">1685</a>
+<a href="#1686" id="1686">1686</a>
+<a href="#1687" id="1687">1687</a>
+<a href="#1688" id="1688">1688</a>
+<a href="#1689" id="1689">1689</a>
+<a href="#1690" id="1690">1690</a>
+<a href="#1691" id="1691">1691</a>
+<a href="#1692" id="1692">1692</a>
+<a href="#1693" id="1693">1693</a>
+<a href="#1694" id="1694">1694</a>
+<a href="#1695" id="1695">1695</a>
+<a href="#1696" id="1696">1696</a>
+<a href="#1697" id="1697">1697</a>
+<a href="#1698" id="1698">1698</a>
+<a href="#1699" id="1699">1699</a>
+<a href="#1700" id="1700">1700</a>
+<a href="#1701" id="1701">1701</a>
+<a href="#1702" id="1702">1702</a>
+<a href="#1703" id="1703">1703</a>
+<a href="#1704" id="1704">1704</a>
+<a href="#1705" id="1705">1705</a>
+<a href="#1706" id="1706">1706</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{cmp::Ordering, collections::BTreeMap, io::Write};
 
 <span class="kw">use super</span>::{
     Ssa,
@@ -3307,7 +3333,7 @@
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>test {
     <span class="kw">use </span><span class="kw">crate</span>::ssa::{
-        interpreter::value::NumericValue,
+        interpreter::{IResult, errors::InterpreterError, value::NumericValue},
         ir::{
             instruction::{Binary, BinaryOp},
             value::ValueId,
@@ -3345,17 +3371,43 @@
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_shl() {
-        <span class="macro">assert_eq!</span>(
-            <span class="kw">super</span>::evaluate_binary(
-                <span class="kw-2">&amp;</span>Binary { lhs: ValueId::new(<span class="number">0</span>), rhs: ValueId::new(<span class="number">1</span>), operator: BinaryOp::Shl },
-                NumericValue::I8(<span class="number">1</span>),
-                NumericValue::I8(<span class="number">7</span>),
-                <span class="bool-val">true</span>,
-                |<span class="kw">_</span>| { String::new() }
-            )
-            .unwrap(),
-            NumericValue::I8(-<span class="number">128</span>)
-        );
+        <span class="kw">let </span>binary = Binary { lhs: ValueId::new(<span class="number">0</span>), rhs: ValueId::new(<span class="number">1</span>), operator: BinaryOp::Shl };
+
+        <span class="kw">fn </span>display(<span class="kw">_</span>: <span class="kw-2">&amp;</span>Binary) -&gt; String {
+            String::new()
+        }
+
+        <span class="kw">let </span>i8_testcases: Vec&lt;((i8, i8), IResult&lt;i8&gt;)&gt; = <span class="macro">vec!</span>[
+            ((<span class="number">1</span>, <span class="number">7</span>), <span class="prelude-val">Ok</span>(-<span class="number">128</span>)),
+            ((<span class="number">2</span>, <span class="number">6</span>), <span class="prelude-val">Ok</span>(-<span class="number">128</span>)),
+            ((<span class="number">4</span>, <span class="number">5</span>), <span class="prelude-val">Ok</span>(-<span class="number">128</span>)),
+            ((<span class="number">8</span>, <span class="number">4</span>), <span class="prelude-val">Ok</span>(-<span class="number">128</span>)),
+            ((<span class="number">16</span>, <span class="number">3</span>), <span class="prelude-val">Ok</span>(-<span class="number">128</span>)),
+            ((<span class="number">32</span>, <span class="number">2</span>), <span class="prelude-val">Ok</span>(-<span class="number">128</span>)),
+            ((<span class="number">64</span>, <span class="number">1</span>), <span class="prelude-val">Ok</span>(-<span class="number">128</span>)),
+            ((<span class="number">3</span>, <span class="number">7</span>), <span class="prelude-val">Ok</span>(-<span class="number">128</span>)),
+            (
+                (<span class="number">1</span>, <span class="number">8</span>),
+                <span class="prelude-val">Err</span>(InterpreterError::Overflow {
+                    operator: BinaryOp::Shl,
+                    instruction: <span class="string">"`` (i8 1 &lt;&lt; i8 8)"</span>.to_string(),
+                }),
+            ),
+        ];
+
+        <span class="kw">for </span>((lhs, rhs), expected_result) <span class="kw">in </span>i8_testcases {
+            <span class="macro">assert_eq!</span>(
+                <span class="kw">super</span>::evaluate_binary(
+                    <span class="kw-2">&amp;</span>binary,
+                    NumericValue::I8(lhs),
+                    NumericValue::I8(rhs),
+                    <span class="bool-val">true</span>,
+                    display
+                ),
+                expected_result.map(NumericValue::I8),
+                <span class="string">"{lhs} &lt;&lt; {rhs}"</span>,
+            );
+        }
     }
 }
 </code></pre></div></section></main></body></html>
