@@ -260,7 +260,7 @@ impl InstructionArgumentsMutation {
                     }
                 }
             }
-            Instruction::PointAdd { p1, p2 } => {
+            Instruction::PointAdd { p1, p2, .. } => {
                 match BASIC_INSTRUCTION_ARGUMENT_MUTATION_CONFIGURATION.select(rng) {
                     InstructionArgumentMutationOptions::Left => {
                         mutate_point(p1, rng);
@@ -271,7 +271,7 @@ impl InstructionArgumentsMutation {
                 }
             }
 
-            Instruction::MultiScalarMul { points_and_scalars } => {
+            Instruction::MultiScalarMul { points_and_scalars, .. } => {
                 mutate_vec(
                     points_and_scalars,
                     rng,
@@ -285,19 +285,19 @@ impl InstructionArgumentsMutation {
             }
             Instruction::EcdsaSecp256k1 {
                 msg,
-                hash_size,
                 corrupt_hash,
                 corrupt_pubkey_x,
                 corrupt_pubkey_y,
                 corrupt_signature,
+                ..
             }
             | Instruction::EcdsaSecp256r1 {
                 msg,
-                hash_size,
                 corrupt_hash,
                 corrupt_pubkey_x,
                 corrupt_pubkey_y,
                 corrupt_signature,
+                ..
             } => {
                 mutate_vec(
                     msg,
@@ -308,11 +308,6 @@ impl InstructionArgumentsMutation {
                     |rng| rng.gen_range(0..=255),
                     BASIC_VEC_MUTATION_CONFIGURATION,
                 );
-                if rng.gen_bool(0.001) {
-                    *hash_size = rng.gen_range(0..=255);
-                } else {
-                    *hash_size = 32_u32; //sha256 hash size
-                }
                 mutate_bool(corrupt_hash, rng, BOOL_MUTATION_CONFIGURATION_MOSTLY_FALSE);
                 mutate_bool(corrupt_pubkey_x, rng, BOOL_MUTATION_CONFIGURATION_MOSTLY_FALSE);
                 mutate_bool(corrupt_pubkey_y, rng, BOOL_MUTATION_CONFIGURATION_MOSTLY_FALSE);

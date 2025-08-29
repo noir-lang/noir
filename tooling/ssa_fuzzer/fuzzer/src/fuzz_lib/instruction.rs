@@ -153,29 +153,29 @@ pub(crate) enum Instruction {
     },
 
     /// Point addition
-    PointAdd { p1: Point, p2: Point },
+    PointAdd { p1: Point, p2: Point, predicate: bool },
 
     /// Multi-scalar multiplication
-    MultiScalarMul { points_and_scalars: Vec<PointAndScalar> },
+    MultiScalarMul { points_and_scalars: Vec<PointAndScalar>, predicate: bool },
 
     /// ECDSA secp256r1
     EcdsaSecp256r1 {
         msg: Vec<u8>,
-        hash_size: u32,
         corrupt_hash: bool,
         corrupt_pubkey_x: bool,
         corrupt_pubkey_y: bool,
         corrupt_signature: bool,
+        predicate: bool,
     },
 
     /// ECDSA secp256k1
     EcdsaSecp256k1 {
         msg: Vec<u8>,
-        hash_size: u32,
         corrupt_hash: bool,
         corrupt_pubkey_x: bool,
         corrupt_pubkey_y: bool,
         corrupt_signature: bool,
+        predicate: bool,
     },
 }
 

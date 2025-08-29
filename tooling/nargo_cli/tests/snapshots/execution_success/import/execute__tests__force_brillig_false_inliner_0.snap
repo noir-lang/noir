@@ -47,11 +47,9 @@ expression: artifact
   ],
   "debug_symbols": "[debug_symbols]",
   "file_map": "[file_map]",
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "decompose_hint",
-    "directive_invert"
-  ]
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
+  }
 }

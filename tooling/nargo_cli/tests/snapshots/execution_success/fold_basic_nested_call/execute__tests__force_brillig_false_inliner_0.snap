@@ -55,12 +55,9 @@ expression: artifact
   ],
   "debug_symbols": "[debug_symbols]",
   "file_map": "[file_map]",
-  "names": [
-    "main",
-    "func_with_nested_foo_call",
-    "foo"
-  ],
-  "brillig_names": [
-    "directive_invert"
-  ]
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
+  }
 }

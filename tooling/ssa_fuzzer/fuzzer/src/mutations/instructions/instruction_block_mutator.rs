@@ -162,17 +162,19 @@ fn generate_random_instruction(rng: &mut StdRng) -> Instruction {
                 (generate_random_point(rng), generate_random_scalar(rng)),
                 (generate_random_point(rng), generate_random_scalar(rng)),
             ],
+            predicate: true,
         },
-        GenerateInstruction::PointAdd => {
-            Instruction::PointAdd { p1: generate_random_point(rng), p2: generate_random_point(rng) }
-        }
+        GenerateInstruction::PointAdd => Instruction::PointAdd {
+            p1: generate_random_point(rng),
+            p2: generate_random_point(rng),
+            predicate: true,
+        },
 
         GenerateInstruction::EcdsaSecp256r1 => {
             let mut msg = [0; SIZE_OF_LARGE_ARBITRARY_BUFFER];
             rng.fill_bytes(&mut msg);
             Instruction::EcdsaSecp256r1 {
                 msg: msg.to_vec(),
-                hash_size: 32_u32,
                 corrupt_hash: generate_random_bool(rng, GENERATE_BOOL_CONFIGURATION_MOST_FALSE),
                 corrupt_pubkey_x: generate_random_bool(rng, GENERATE_BOOL_CONFIGURATION_MOST_FALSE),
                 corrupt_pubkey_y: generate_random_bool(rng, GENERATE_BOOL_CONFIGURATION_MOST_FALSE),
@@ -180,6 +182,7 @@ fn generate_random_instruction(rng: &mut StdRng) -> Instruction {
                     rng,
                     GENERATE_BOOL_CONFIGURATION_MOST_FALSE,
                 ),
+                predicate: true,
             }
         }
         GenerateInstruction::EcdsaSecp256k1 => {
@@ -187,7 +190,6 @@ fn generate_random_instruction(rng: &mut StdRng) -> Instruction {
             rng.fill_bytes(&mut msg);
             Instruction::EcdsaSecp256k1 {
                 msg: msg.to_vec(),
-                hash_size: 32_u32,
                 corrupt_hash: generate_random_bool(rng, GENERATE_BOOL_CONFIGURATION_MOST_FALSE),
                 corrupt_pubkey_x: generate_random_bool(rng, GENERATE_BOOL_CONFIGURATION_MOST_FALSE),
                 corrupt_pubkey_y: generate_random_bool(rng, GENERATE_BOOL_CONFIGURATION_MOST_FALSE),
@@ -195,6 +197,7 @@ fn generate_random_instruction(rng: &mut StdRng) -> Instruction {
                     rng,
                     GENERATE_BOOL_CONFIGURATION_MOST_FALSE,
                 ),
+                predicate: true,
             }
         }
     }

@@ -32,7 +32,6 @@ use crate::{
     errors::{InternalBug, InternalError, RuntimeError, SsaReport},
 };
 
-mod big_int;
 mod black_box;
 mod brillig_call;
 mod generated_acir;
@@ -41,7 +40,6 @@ use super::{
     AcirDynamicArray, AcirValue,
     types::{AcirType, AcirVar},
 };
-use big_int::BigIntContext;
 
 pub use generated_acir::GeneratedAcir;
 pub(crate) use generated_acir::{BrilligStdLib, BrilligStdlibFunc};
@@ -67,9 +65,6 @@ pub(crate) struct AcirContext<F: AcirField, B: BlackBoxFunctionSolver<F>> {
     /// addition.
     pub(super) acir_ir: GeneratedAcir<F>,
 
-    /// The BigIntContext, used to generate identifiers for BigIntegers
-    big_int_ctx: BigIntContext,
-
     expression_width: ExpressionWidth,
 
     pub(super) warnings: Vec<SsaReport>,
@@ -83,7 +78,6 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
             vars: Default::default(),
             constant_witnesses: Default::default(),
             acir_ir: Default::default(),
-            big_int_ctx: Default::default(),
             expression_width: Default::default(),
             warnings: Default::default(),
         }
@@ -388,9 +382,10 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
                 let sum = self.add_var(lhs, rhs)?;
                 self.add_mul_var(sum, -F::from(2_u128), prod)
             }
-            NumericType::Signed { .. } | NumericType::Unsigned { .. } => {
+            NumericType::Signed { bit_size } | NumericType::Unsigned { bit_size } => {
                 let inputs = vec![AcirValue::Var(lhs, typ.clone()), AcirValue::Var(rhs, typ)];
-                let outputs = self.black_box_function(BlackBoxFunc::XOR, inputs, 1)?;
+                let outputs =
+                    self.black_box_function(BlackBoxFunc::XOR, inputs, Some(bit_size), 1, None)?;
                 Ok(outputs[0])
             }
             NumericType::NativeField => {
@@ -423,9 +418,10 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
                 // Operands are booleans.
                 self.mul_var(lhs, rhs)
             }
-            NumericType::Signed { .. } | NumericType::Unsigned { .. } => {
+            NumericType::Signed { bit_size } | NumericType::Unsigned { bit_size } => {
                 let inputs = vec![AcirValue::Var(lhs, typ.clone()), AcirValue::Var(rhs, typ)];
-                let outputs = self.black_box_function(BlackBoxFunc::AND, inputs, 1)?;
+                let outputs =
+                    self.black_box_function(BlackBoxFunc::AND, inputs, Some(bit_size), 1, None)?;
                 Ok(outputs[0])
             }
             NumericType::NativeField => {
@@ -1517,7 +1513,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
 
         // Add the memory read operation to the list of opcodes
         let op = MemOp::read_at_mem_index(index_witness.into(), value_read_witness);
-        self.acir_ir.push_opcode(Opcode::MemoryOp { block_id, op, predicate: None });
+        self.acir_ir.push_opcode(Opcode::MemoryOp { block_id, op });
 
         Ok(value_read_var)
     }
@@ -1539,7 +1535,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
 
         // Add the memory write operation to the list of opcodes
         let op = MemOp::write_to_mem_index(index_witness.into(), value_write_witness.into());
-        self.acir_ir.push_opcode(Opcode::MemoryOp { block_id, op, predicate: None });
+        self.acir_ir.push_opcode(Opcode::MemoryOp { block_id, op });
 
         Ok(())
     }
