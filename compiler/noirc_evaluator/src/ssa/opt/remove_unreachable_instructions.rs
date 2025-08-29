@@ -6,6 +6,119 @@
 //!
 //! This pass might also add constrain checks after existing instructions,
 //! for example binary operations that are guaranteed to overflow.
+//!
+//! ## Handling of `constrain`
+//!
+//! Given an SSA like this:
+//!
+//! ```ssa
+//! constrain u1 0 == u1 1
+//! v1 = load v0 -> Field
+//! return v1
+//! ```
+//!
+//! because the constrain is guaranteed to fail, every instruction after it is removed
+//! and the terminator is replaced with `unreachable`:
+//!
+//! ```ssa
+//! constrain u1 0 == u1 1
+//! unreachable
+//! ```
+//!
+//! Similarly, `constrain u1 0 != u1 0` will have the same treatment.
+//!
+//! ## Handling of binary operations
+//!
+//! If a binary operation is guaranteed to overflow or fail:
+//!
+//! ```ssa
+//! v4 = add u8 254, u8 127 // guaranteed to overflow
+//! v5 = add v4, v6
+//! return v5
+//! ```
+//!
+//! the operation is left in the SSA but a constrain failure is added after it,
+//! and every subsequent instruction is removed:
+//!
+//! //! ```ssa
+//! v4 = add u8 254, u8 127
+//! constrain u1 0 == u1 1, "attempt to add with overflow"
+//! unreachable
+//! ```
+//!
+//! An operation that is guaranteed to fail but doesn't overflow is division by zero.
+//!
+//! Because binary operations can depend on a side-effects variable (`enable_side_effects`),
+//! if there's an active non-constant side-effects in place the constrain will check
+//! the value of this side-effects variable, and every subsequent instruction will be replaced
+//! with a zeroed-value. So for example this SSA:
+//!
+//! ```ssa
+//! enable_side_effects v3
+//! v4 = add u8 254, u8 127 // guaranteed to overflow
+//! v5 = add v4, v6
+//! return v5
+//! ```
+//!
+//! is replaced with this one:
+//!
+//! ```ssa
+//! enable_side_effects v3
+//! v4 = add u8 254, u8 127 // guaranteed to overflow
+//! constrain u1 0 == v3, "attempt to add with overflow"
+//! return u8 0
+//! ```
+//!
+//! ## Handling of array_get and array_set
+//!
+//! If an array operation in ACIR is guaranteed to produce an index-out-of-bounds:
+//!
+//! ```ssa
+//! v0 = allocate -> &mut Field
+//! v1 = make_array [v0] -> [&mut Field; 0]
+//! v2 = array_get v1, index u32 0 -> Field
+//! v3 = add v2, Field 2
+//! return v3
+//! ```
+//!
+//! the array operation is replaced with a similar operation but on an `u1` array.
+//! The reason is that the original array might contain references and by doing this
+//! there's no longer a need to keep track of those references:
+//!
+//! ```ssa
+//! v0 = allocate -> &mut Field
+//! v1 = make_array [v0] -> [&mut Field; 0]
+//! v2 = make_array [u1 0] -> [u1; 0]
+//! v3 = array_get v2, index u32 2 -> u1
+//! unreachable
+//! ```
+//!
+//! ## Handling of slice operations
+//!
+//! If a slice operation like `slice_push_back` or `slice_pop_front` in ACIR is guaranteed
+//! to fail, which can only happen if the slice is empty, the operation is removed
+//! and replaced with a constrain failure, then the returned slice is replaced with
+//! an empty slice. So this SSA:
+//!
+//! ```ssa
+//! v0 = make_array [] -> [u32]
+//! v2, v3, v4 = call slice_pop_front(u32 0, v0) -> (u32, u32, [u32])
+//! v5 = add v2, u32 1
+//! return v4, v5
+//! ```
+//!
+//! is replaced with this SSA:
+//!
+//! ```ssa
+//! v0 = make_array [] -> [u32]
+//! constrain u1 0 == u1 1, "Index out of bounds"
+//! v1 = make_array [] -> [u32]
+//! return v1, u32 0
+//! ```
+//!
+//! ## Preconditions:
+//! - the [inlining][`super::inlining`] and [flatten_cfg][`super::flatten_cfg`] must
+//!   not run after this pass as they can't handle the `unreachable` terminator.
 use std::sync::Arc;
 
 use acvm::{AcirField, FieldElement};
