@@ -1,10 +1,9 @@
-ci := env_var_or_default("CI", "")
-use-cross := env_var_or_default("JUST_USE_CROSS", "")
+ci := env("CI", "")
+use-cross := env("JUST_USE_CROSS", "")
 
 # target information
 target-host := `rustc -vV | grep host: | cut -d ' ' -f 2`
-target := env_var_or_default("CARGO_BUILD_TARGET", target-host)
-
+target := env("CARGO_BUILD_TARGET", target-host)
 
 # Install tools
 install-tools: install-rust-tools install-js-tools
@@ -38,11 +37,6 @@ install-foundry:
 
 # Rust
 
-export RUSTFLAGS := (if ci == "1" { "-Dwarnings" } else { "" })
-[private]
-print-env:
-    @echo "env RUSTFLAGS='$RUSTFLAGS'"
-
 # Formats Rust code
 format:
   cargo fmt --all
@@ -51,9 +45,11 @@ format:
 format-check:
   cargo fmt --all --check
 
+cargo-clippy-args := if ci == "1" { "-Dwarnings" } else { "" }
+
 # Runs clippy on Rust code
-clippy: print-env
-  cargo clippy --all-targets --workspace --locked --release
+clippy:
+  cargo clippy --all-targets --workspace --locked --release -- {{cargo-clippy-args}}
 
 cargo := if use-cross != "" { "cross" } else { "cargo" }
 [private]
