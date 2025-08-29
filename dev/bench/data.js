@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1756468064310,
+  "lastUpdate": 1756469144222,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -20186,48 +20186,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "6be34fcf24fac15f2e1a66e246f7ba8af8d93489",
-          "message": "chore: simplify Expression in mem2reg (#9599)",
-          "timestamp": "2025-08-21T18:08:45Z",
-          "tree_id": "8e87ce47bbf74797361622a82fab0bf0ee1604f2",
-          "url": "https://github.com/noir-lang/noir/commit/6be34fcf24fac15f2e1a66e246f7ba8af8d93489"
-        },
-        "date": 1755801629784,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 249789,
-            "range": "± 488",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 218552,
-            "range": "± 3238",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2796692,
-            "range": "± 3003",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "5cc5e135b7a0c91adc4e36b3a2c0b87f68a58b7c",
           "message": "chore: remove redundant globals creation (#9606)",
           "timestamp": "2025-08-21T18:34:24Z",
@@ -22269,6 +22227,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2781117,
             "range": "± 1914",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "318ff16c53dc11133a4f85654507f16bf85b52a4",
+          "message": "feat: hoist safe casts from loops (#9645)",
+          "timestamp": "2025-08-29T11:37:20Z",
+          "tree_id": "784d0d76f10b9508a2e6a1bc727a860a01c7477b",
+          "url": "https://github.com/noir-lang/noir/commit/318ff16c53dc11133a4f85654507f16bf85b52a4"
+        },
+        "date": 1756469124620,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 250500,
+            "range": "± 548",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 218723,
+            "range": "± 4740",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2779863,
+            "range": "± 2767",
             "unit": "ns/iter"
           }
         ]
