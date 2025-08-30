@@ -1,0 +1,15 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stdout
+---
+(1, <<mutable ref>>, ())
+(2, <<mutable ref>>, 0x7b)
+(3, <<mutable ref>>, [0x01, 0x02, 0x03])
+(4, <<mutable ref>>, (0x01, 0x02, 0x03))
+(5, <<mutable ref>>, [(0x01, 0x02), (0x03, 0x04)])
+(6, <<mutable ref>>, ((0x01, 0x02), [0x03]))
+(7, <<mutable ref>>, 123)
+(8, <<mutable ref>>, (<<mutable ref>>, 0x03))
+(9, <<mutable ref>>, &[0x01, 0x02, 0x03])
+(9, <<mutable ref>>, &[(0x01, 0x02), (0x03, 0x04)])
+(10, <<mutable ref>>, Foo { a: 1, b: (true, [3, 4]), c: [5, 6, 7] })
