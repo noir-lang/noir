@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1756758169670,
+  "lastUpdate": 1756758171095,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -4208,90 +4208,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "37b5bdc6d5fd63647a9c330f34060826b2d145ed",
-          "message": "chore: only run remove_paired_rc in brillig functions (#9624)",
-          "timestamp": "2025-08-25T16:24:33Z",
-          "tree_id": "195b760bcd532442fa0b6e9ad9a8d6d3af1a7cf8",
-          "url": "https://github.com/noir-lang/noir/commit/37b5bdc6d5fd63647a9c330f34060826b2d145ed"
-        },
-        "date": 1756140955969,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 1.852,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 8.54,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.296,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 15.42,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 13.84,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 20.46,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 198,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 223,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.414,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.474,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.775,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 1.63,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -8401,6 +8317,90 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 1.708,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f5cbfb4b58988d502f70cd891409bf52eced4509",
+          "message": "chore: remove duplicated frontend tests (#9706)",
+          "timestamp": "2025-09-01T19:51:20Z",
+          "tree_id": "ff5b4943a468e9d82869cdd3df9efba28e15c3c5",
+          "url": "https://github.com/noir-lang/noir/commit/f5cbfb4b58988d502f70cd891409bf52eced4509"
+        },
+        "date": 1756758149204,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1.762,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 7.814,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.33,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 15.5,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 12.66,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 22.2,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 198,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 221,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.36,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.474,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.769,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 1.599,
             "unit": "s"
           }
         ]
