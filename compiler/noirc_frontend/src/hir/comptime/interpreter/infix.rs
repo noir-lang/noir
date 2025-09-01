@@ -182,9 +182,11 @@ pub(super) fn evaluate_infix(
         BinaryOpKind::Xor => match_bitwise! {
             (lhs_value as lhs "^" rhs_value as rhs) => lhs ^ rhs
         },
+        #[allow(trivial_numeric_casts)]
         BinaryOpKind::ShiftRight => match_integer! {
             (lhs_value as lhs ">>" rhs_value as rhs) => lhs.checked_shr(rhs as u32)
         },
+        #[allow(trivial_numeric_casts)]
         BinaryOpKind::ShiftLeft => match_integer! {
             (lhs_value as lhs "<<" rhs_value as rhs) => lhs.checked_shl(rhs as u32)
         },
