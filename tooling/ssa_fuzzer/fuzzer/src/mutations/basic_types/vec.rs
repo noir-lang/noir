@@ -38,7 +38,7 @@ impl RandomInsertion {
     {
         let element = generate_random_element_function(rng);
         if !vec.is_empty() {
-            let index = rng.gen_range(0..vec.len());
+            let index = rng.random_range(0..vec.len());
             vec.insert(index, element);
         } else {
             vec.push(element);
@@ -51,7 +51,7 @@ struct RandomDeletion;
 impl RandomDeletion {
     fn mutate<T>(rng: &mut StdRng, vec: &mut Vec<T>) {
         if !vec.is_empty() {
-            let index = rng.gen_range(0..vec.len());
+            let index = rng.random_range(0..vec.len());
             vec.remove(index);
         }
     }
@@ -62,8 +62,8 @@ struct RandomSwap;
 impl RandomSwap {
     fn mutate<T>(rng: &mut StdRng, vec: &mut [T]) {
         if !vec.is_empty() {
-            let index1 = rng.gen_range(0..vec.len());
-            let index2 = rng.gen_range(0..vec.len());
+            let index1 = rng.random_range(0..vec.len());
+            let index2 = rng.random_range(0..vec.len());
             vec.swap(index1, index2);
         }
     }
@@ -78,7 +78,7 @@ impl RandomElementMutation {
         mutate_element_function: impl Fn(&mut T, &mut StdRng),
     ) {
         if !vec.is_empty() {
-            let index = rng.gen_range(0..vec.len());
+            let index = rng.random_range(0..vec.len());
             mutate_element_function(&mut vec[index], rng);
         }
     }

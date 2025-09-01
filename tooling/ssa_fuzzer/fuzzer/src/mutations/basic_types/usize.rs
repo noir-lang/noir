@@ -12,7 +12,7 @@ use rand::{Rng, rngs::StdRng};
 struct RandomMutation;
 impl RandomMutation {
     fn mutate(rng: &mut StdRng, value: &mut usize) {
-        *value = rng.gen_range(0..usize::MAX);
+        *value = rng.random_range(0..usize::MAX);
     }
 }
 
@@ -33,14 +33,14 @@ impl DecrementMutation {
 struct AddRandomMutation;
 impl AddRandomMutation {
     fn mutate(rng: &mut StdRng, value: &mut usize) {
-        *value = value.saturating_add(rng.gen_range(0..usize::MAX));
+        *value = value.saturating_add(rng.random_range(0..usize::MAX));
     }
 }
 
 struct SubtractRandomMutation;
 impl SubtractRandomMutation {
     fn mutate(rng: &mut StdRng, value: &mut usize) {
-        *value = value.saturating_sub(rng.gen_range(0..usize::MAX));
+        *value = value.saturating_sub(rng.random_range(0..usize::MAX));
     }
 }
 
