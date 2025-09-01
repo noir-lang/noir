@@ -787,6 +787,34 @@ mod tests {
     }
 
     #[test]
+    fn dom_frontiers_not_include_self() {
+        // In this example b1 is its own successor, by definition dominates itself,
+        // but not strictly (because it equals itself), so it fits the definition of
+        // the blocks in its own Dominance Frontier. But its dominance does not end
+        // there, so we don't consider it part of the DF.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u1):
+            jmp b1()
+          b1():
+            jmpif v0 then: b1, else: b2
+          b2():
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let main = ssa.main();
+
+        let cfg = ControlFlowGraph::with_function(main);
+        let post_order = PostOrder::with_cfg(&cfg);
+
+        let mut dt = DominatorTree::with_cfg_and_post_order(&cfg, &post_order);
+        let dom_frontiers = dt.compute_dominance_frontiers(&cfg);
+
+        assert!(dom_frontiers.is_empty());
+    }
+
+    #[test]
     fn post_dom_frontiers() {
         let ssa = loop_with_cond();
         let main = ssa.main();
