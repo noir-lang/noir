@@ -6,7 +6,7 @@ use crate::function_context::FunctionData;
 use crate::fuzz_target_lib::fuzz_target;
 use crate::fuzzer::FuzzerData;
 use crate::initial_witness::{FieldRepresentation, WitnessValue, WitnessValueNumeric};
-use crate::instruction::{Argument, Instruction, InstructionBlock};
+use crate::instruction::{Instruction, InstructionBlock, NumericArgument};
 use crate::options::FuzzerOptions;
 use acvm::FieldElement;
 use noir_ssa_fuzzer::typed_value::{NumericType, Type};
@@ -28,7 +28,7 @@ fn test_array_as_initial_witness() {
     let _ = env_logger::try_init();
     let instruction_get = Instruction::ArrayGet {
         array_index: 0,
-        index: Argument { index: 0, numeric_type: NumericType::U32 },
+        index: NumericArgument { index: 0, numeric_type: NumericType::U32 },
         safe_index: false,
     };
     let array_get_block = InstructionBlock { instructions: vec![instruction_get] };
@@ -78,7 +78,7 @@ fn test_array_of_arrays_as_initial_witness() {
     let _ = env_logger::try_init();
     let instruction_get = Instruction::ArrayGet {
         array_index: 0,
-        index: Argument { index: 0, numeric_type: NumericType::U32 },
+        index: NumericArgument { index: 0, numeric_type: NumericType::U32 },
         safe_index: false,
     };
     let array_get_block = InstructionBlock { instructions: vec![instruction_get] };

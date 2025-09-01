@@ -58,7 +58,7 @@ impl From<NumericType> for SsaNumericType {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, EnumCount)]
+#[derive(Arbitrary, Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, EnumCount)]
 pub enum Type {
     Numeric(NumericType),
     Reference(Arc<Type>),
@@ -107,7 +107,6 @@ impl Type {
         matches!(self, Type::Numeric(NumericType::Boolean))
     }
 
-    // TODO(sn): legacy
     pub fn is_array_of_references(&self) -> bool {
         match self {
             Type::Array(element_types, _) => element_types.iter().all(|t| t.is_reference()),

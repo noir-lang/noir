@@ -16,7 +16,7 @@ use crate::function_context::FunctionData;
 use crate::fuzz_target_lib::fuzz_target;
 use crate::fuzzer::FuzzerData;
 use crate::initial_witness::{WitnessValue, WitnessValueNumeric};
-use crate::instruction::{Argument, Instruction, InstructionBlock};
+use crate::instruction::{Instruction, InstructionBlock, NumericArgument};
 use crate::options::FuzzerOptions;
 use crate::tests::common::default_input_types;
 use acvm::FieldElement;
@@ -50,8 +50,8 @@ enum UnsignedOp {
 
 /// Returns `4_u64 op 2_u64` if binary, `op 4_u64` if unary
 fn test_op_u64(op: UnsignedOp) -> FieldElement {
-    let arg_2_u64 = Argument { index: 2, numeric_type: NumericType::U64 };
-    let arg_4_u64 = Argument { index: 4, numeric_type: NumericType::U64 };
+    let arg_2_u64 = NumericArgument { index: 2, numeric_type: NumericType::U64 };
+    let arg_4_u64 = NumericArgument { index: 4, numeric_type: NumericType::U64 };
     let instruction = match op {
         UnsignedOp::Add => Instruction::AddChecked { lhs: arg_4_u64, rhs: arg_2_u64 },
         UnsignedOp::Sub => Instruction::SubChecked { lhs: arg_4_u64, rhs: arg_2_u64 },

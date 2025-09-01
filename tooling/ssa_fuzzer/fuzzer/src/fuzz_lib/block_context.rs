@@ -2,7 +2,7 @@ use super::instruction::Point as InstructionPoint;
 use super::instruction::Scalar as InstructionScalar;
 use super::{
     ecdsa::{Curve, generate_ecdsa_signature_and_corrupt_it},
-    instruction::{Argument, FunctionInfo, Instruction},
+    instruction::{FunctionInfo, Instruction, NumericArgument},
     options::SsaBlockOptions,
 };
 use noir_ssa_fuzzer::builder::{FuzzerBuilder, InstructionWithOneArg, InstructionWithTwoArgs};
@@ -10,7 +10,6 @@ use noir_ssa_fuzzer::typed_value::{NumericType, Point, Scalar, Type, TypedValue}
 use noirc_evaluator::ssa::ir::{basic_block::BasicBlockId, function::Function, map::Id};
 use std::collections::{HashMap, VecDeque};
 use std::iter::zip;
-use std::sync::Arc;
 
 /// Main context for the ssa block containing both ACIR and Brillig builders and their state
 /// It works with indices of variables Ids, because it cannot handle Ids logic for ACIR and Brillig
@@ -56,12 +55,20 @@ impl BlockContext {
             .collect()
     }
 
+    fn get_stored_references_to_type(&self, type_: &Type) -> Vec<TypedValue> {
+        self.stored_variables
+            .iter()
+            .filter(|(key, _)| key.is_reference() && key.unwrap_reference() == *type_)
+            .flat_map(|(_, arr)| arr.clone())
+            .collect()
+    }
+
     /// Inserts an instruction that takes a single argument
     fn insert_instruction_with_single_arg(
         &mut self,
         acir_builder: &mut FuzzerBuilder,
         brillig_builder: &mut FuzzerBuilder,
-        arg: Argument,
+        arg: NumericArgument,
         instruction: InstructionWithOneArg,
     ) {
         let value = self.get_stored_variable(&Type::Numeric(arg.numeric_type), arg.index);
@@ -80,8 +87,8 @@ impl BlockContext {
         &mut self,
         acir_builder: &mut FuzzerBuilder,
         brillig_builder: &mut FuzzerBuilder,
-        lhs: Argument,
-        rhs: Argument,
+        lhs: NumericArgument,
+        rhs: NumericArgument,
         instruction: InstructionWithTwoArgs,
     ) {
         let instr_lhs = self.get_stored_variable(&Type::Numeric(lhs.numeric_type), lhs.index);
@@ -362,63 +369,56 @@ impl BlockContext {
                     return;
                 }
 
-                let value =
-                    match self.get_stored_variable(&Type::Numeric(lhs.numeric_type), lhs.index) {
-                        Some(value) => value,
-                        _ => return,
-                    };
+                let value = match self.get_stored_variable(&lhs.value_type, lhs.index) {
+                    Some(value) => value,
+                    _ => return,
+                };
 
                 let addr = acir_builder.insert_add_to_memory(value.clone());
                 assert_eq!(addr, brillig_builder.insert_add_to_memory(value.clone()));
-                // Append the memory address to stored_values with the type of the result
                 self.store_variable(&addr);
             }
             Instruction::LoadFromMemory { memory_addr } => {
                 if !self.options.instruction_options.load_enabled {
                     return;
                 }
-                let addr = self.get_stored_variable(
-                    &Type::Reference(Arc::new(Type::Numeric(memory_addr.numeric_type))),
-                    memory_addr.index,
-                );
-                let addr = match addr {
-                    Some(addr) => addr,
-                    _ => return,
-                };
-                let value = acir_builder.insert_load_from_memory(addr.clone());
-                assert_eq!(value, brillig_builder.insert_load_from_memory(addr.clone()));
+                let addresses = self.get_stored_references_to_type(&memory_addr.value_type);
+                if addresses.is_empty() {
+                    return;
+                }
+                let address = addresses[memory_addr.index % addresses.len()].clone();
+                let value = acir_builder.insert_load_from_memory(address.clone());
+                assert_eq!(value, brillig_builder.insert_load_from_memory(address.clone()));
                 self.store_variable(&value);
             }
             Instruction::SetToMemory { memory_addr_index, value } => {
                 if !self.options.instruction_options.store_enabled {
                     return;
                 }
-                let addr = self.get_stored_variable(
-                    &Type::Reference(Arc::new(Type::Numeric(value.numeric_type))),
-                    memory_addr_index,
-                );
-                let addr = match addr {
-                    Some(addr) => addr,
-                    _ => return,
-                };
-                let value =
-                    self.get_stored_variable(&Type::Numeric(value.numeric_type), value.index);
-                let value = match value {
+                let addresses = self.get_stored_references_to_type(&value.value_type);
+                let value = match self.get_stored_variable(&value.value_type, value.index) {
                     Some(value) => value,
                     _ => return,
                 };
-                acir_builder.insert_set_to_memory(addr.clone(), value.clone());
-                brillig_builder.insert_set_to_memory(addr.clone(), value);
+                let address = if addresses.is_empty() {
+                    let addr = acir_builder.insert_add_to_memory(value.clone());
+                    assert_eq!(addr, brillig_builder.insert_add_to_memory(value.clone()));
+                    self.store_variable(&addr);
+                    addr
+                } else {
+                    addresses[memory_addr_index % addresses.len()].clone()
+                };
+                acir_builder.insert_set_to_memory(address.clone(), value.clone());
+                brillig_builder.insert_set_to_memory(address, value);
             }
 
-            Instruction::CreateArray { elements_indices, element_type, is_references } => {
+            Instruction::CreateArray { elements_indices, element_type } => {
                 // insert to both acir and brillig builders
                 let array = match self.insert_array(
                     acir_builder,
                     brillig_builder,
                     elements_indices,
                     element_type,
-                    is_references,
                 ) {
                     Some(array) => array,
                     _ => return,
@@ -609,8 +609,7 @@ impl BlockContext {
                     acir_builder,
                     brillig_builder,
                     u64_indices.to_vec(),
-                    NumericType::U64,
-                    false,
+                    Type::Numeric(NumericType::U64),
                 ) {
                     Some(input) => input,
                     _ => return,
@@ -698,8 +697,7 @@ impl BlockContext {
                     acir_builder,
                     brillig_builder,
                     input_indices.to_vec(),
-                    NumericType::U32,
-                    false,
+                    Type::Numeric(NumericType::U32),
                 ) {
                     Some(input) => input,
                     _ => return,
@@ -708,8 +706,7 @@ impl BlockContext {
                     acir_builder,
                     brillig_builder,
                     state_indices.to_vec(),
-                    NumericType::U32,
-                    false,
+                    Type::Numeric(NumericType::U32),
                 ) {
                     Some(state) => state,
                     _ => return,
@@ -914,30 +911,16 @@ impl BlockContext {
         acir_builder: &mut FuzzerBuilder,
         brillig_builder: &mut FuzzerBuilder,
         elements_indices: Vec<usize>,
-        element_type: NumericType,
-        is_references: bool,
+        element_type: Type,
     ) -> Option<TypedValue> {
         if !self.options.instruction_options.create_array_enabled {
             return None;
         }
         // if we storing references, take values from memory addresses, otherwise from stored variables
-        let elements = if !is_references {
-            elements_indices
-                .iter()
-                .map(|index| self.get_stored_variable(&Type::Numeric(element_type), *index))
-                .collect::<Option<Vec<TypedValue>>>()
-        } else {
-            elements_indices
-                .iter()
-                .map(|index| {
-                    self.get_stored_variable(
-                        &Type::Reference(Arc::new(Type::Numeric(element_type))),
-                        *index,
-                    )
-                })
-                .collect::<Option<Vec<TypedValue>>>()
-        };
-
+        let elements = elements_indices
+            .iter()
+            .map(|index| self.get_stored_variable(&element_type, *index))
+            .collect::<Option<Vec<TypedValue>>>();
         let elements = match elements {
             Some(elements) => elements,
             _ => return None,

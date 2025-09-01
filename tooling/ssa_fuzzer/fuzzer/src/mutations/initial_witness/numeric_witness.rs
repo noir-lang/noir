@@ -6,7 +6,7 @@
 
 use crate::fuzz_lib::initial_witness::{FieldRepresentation, WitnessValueNumeric};
 use crate::mutations::configuration::{
-    SIZE_OF_SMALL_ARBITRARY_BUFFER, WitnessMutationConfig, WitnessMutationOptions,
+    NumericWitnessMutationConfig, SIZE_OF_SMALL_ARBITRARY_BUFFER, WitnessMutationOptions,
 };
 use libfuzzer_sys::arbitrary::Unstructured;
 use rand::{Rng, rngs::StdRng};
@@ -259,7 +259,7 @@ impl WitnessAddSubPowerOfTwoMutation {
 pub(crate) fn mutate(
     witness_value: &mut WitnessValueNumeric,
     rng: &mut StdRng,
-    config: WitnessMutationConfig,
+    config: NumericWitnessMutationConfig,
 ) {
     match config.select(rng) {
         WitnessMutationOptions::Random => RandomMutation::mutate(rng, witness_value),

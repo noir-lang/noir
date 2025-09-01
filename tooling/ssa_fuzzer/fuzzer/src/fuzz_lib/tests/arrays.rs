@@ -5,7 +5,7 @@
 use crate::function_context::{FunctionData, FuzzerFunctionCommand};
 use crate::fuzz_target_lib::fuzz_target;
 use crate::fuzzer::FuzzerData;
-use crate::instruction::{Argument, Instruction, InstructionBlock};
+use crate::instruction::{Argument, Instruction, InstructionBlock, NumericArgument};
 use crate::options::FuzzerOptions;
 use crate::tests::common::{default_input_types, default_witness};
 use acvm::FieldElement;
@@ -28,13 +28,12 @@ use std::sync::Arc;
 ///   }
 #[test]
 fn array_get_and_set() {
-    let arg_0_field = Argument { index: 0, numeric_type: NumericType::Field };
+    let arg_0_field = NumericArgument { index: 0, numeric_type: NumericType::Field };
     // create array [v0, v1]
     let create_array_block = InstructionBlock {
         instructions: vec![Instruction::CreateArray {
             elements_indices: vec![0, 1, 2, 3, 4],
-            element_type: NumericType::Field,
-            is_references: false,
+            element_type: Type::Numeric(NumericType::Field),
         }],
     };
     // create new array setting new_array[0] = v4
@@ -96,9 +95,9 @@ fn array_get_and_set() {
 #[test]
 fn test_reference_in_array() {
     let _ = env_logger::try_init();
-    let arg_0_field = Argument { index: 0, numeric_type: NumericType::Field };
-    let arg_1_field = Argument { index: 1, numeric_type: NumericType::Field };
-    let arg_2_field = Argument { index: 2, numeric_type: NumericType::Field };
+    let arg_0_field = Argument { index: 0, value_type: Type::Numeric(NumericType::Field) };
+    let arg_1_field = Argument { index: 1, value_type: Type::Numeric(NumericType::Field) };
+    let arg_2_field = Argument { index: 2, value_type: Type::Numeric(NumericType::Field) };
 
     let add_to_memory_block =
         InstructionBlock { instructions: vec![Instruction::AddToMemory { lhs: arg_0_field }] };
@@ -118,8 +117,7 @@ fn test_reference_in_array() {
     let create_array_block = InstructionBlock {
         instructions: vec![Instruction::CreateArray {
             elements_indices: vec![0, 1, 2],
-            element_type: NumericType::Field,
-            is_references: true,
+            element_type: Type::Reference(Arc::new(Type::Numeric(NumericType::Field))),
         }],
     };
     let get_from_array_block = InstructionBlock {
@@ -129,9 +127,9 @@ fn test_reference_in_array() {
             safe_index: true,
         }],
     };
-    let typed_memory_2 = Argument { index: 2, numeric_type: NumericType::Field };
+    let typed_memory_2 = Argument { index: 2, value_type: Type::Numeric(NumericType::Field) };
     let load_from_memory_block = InstructionBlock {
-        instructions: vec![Instruction::LoadFromMemory { memory_addr: typed_memory_2 }],
+        instructions: vec![Instruction::LoadFromMemory { memory_addr: typed_memory_2.clone() }],
     };
     let instructions_blocks = vec![
         add_to_memory_block,
@@ -202,8 +200,8 @@ fn test_reference_in_array() {
 #[test]
 fn regression_fuzzer_generated_wrong_arrays() {
     let _ = env_logger::try_init();
-    let arg_1_bool = Argument { index: 1, numeric_type: NumericType::Boolean };
-    let arg_0_u32 = Argument { index: 0, numeric_type: NumericType::U32 };
+    let arg_1_bool = NumericArgument { index: 1, numeric_type: NumericType::Boolean };
+    let arg_0_u32 = NumericArgument { index: 0, numeric_type: NumericType::U32 };
     let cast_block = InstructionBlock {
         instructions: vec![Instruction::Cast { lhs: arg_1_bool, type_: NumericType::U32 }],
     };
@@ -242,6 +240,51 @@ fn regression_fuzzer_generated_wrong_arrays() {
     let result = fuzz_target(fuzzer_data, FuzzerOptions::default());
     match result {
         Some(result) => assert_eq!(result.get_return_values()[0], FieldElement::from(0_u32)),
+        None => panic!("Program failed to execute"),
+    }
+}
+
+/// Test that creating array of arrays works
+/// fn main f0 {
+///     b0(v0: Field, v1: Field, v2: Field, v3: Field, v4: Field, v5: u1, v6: u1):
+///       v7 = make_array [v0, v1, v2] : [Field; 3]
+///       v8 = make_array [v7, v7] : [[Field; 3]; 2]
+///       return v8
+/// }
+/// output should be 0,1,2,0,1,2
+#[test]
+fn test_create_array_of_arrays() {
+    let _ = env_logger::try_init();
+
+    let array_type = Type::Array(Arc::new(vec![Type::Numeric(NumericType::Field)]), 3);
+    let array_of_arrays_type = Type::Array(Arc::new(vec![array_type.clone()]), 2);
+    let create_arrays_block = InstructionBlock {
+        instructions: vec![
+            Instruction::CreateArray {
+                elements_indices: vec![0, 1, 2],
+                element_type: Type::Numeric(NumericType::Field),
+            },
+            Instruction::CreateArray { elements_indices: vec![0, 1, 2], element_type: array_type },
+        ],
+    };
+    let main_commands =
+        vec![FuzzerFunctionCommand::InsertSimpleInstructionBlock { instruction_block_idx: 0 }];
+    let main_func = FunctionData {
+        commands: main_commands,
+        input_types: default_input_types(),
+        return_instruction_block_idx: 1,
+        return_type: array_of_arrays_type,
+    };
+    let fuzzer_data = FuzzerData {
+        instruction_blocks: vec![create_arrays_block],
+        functions: vec![main_func],
+        initial_witness: default_witness(),
+    };
+    let expected_return_value =
+        (0..3).map(|i| FieldElement::from(i as u32)).collect::<Vec<_>>().repeat(2);
+    let result = fuzz_target(fuzzer_data, FuzzerOptions::default());
+    match result {
+        Some(result) => assert_eq!(result.get_return_values(), expected_return_value),
         None => panic!("Program failed to execute"),
     }
 }
