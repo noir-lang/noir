@@ -1,0 +1,1 @@
+window.SIDEBAR_ITEMS = {"enum":["InvalidType"],"fn":["length_is_zero"]};

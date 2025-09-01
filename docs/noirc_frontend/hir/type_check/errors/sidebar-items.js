@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"constant":["MAX_MISSING_CASES"],"enum":["Source","TypeCheckError"],"struct":["NoMatchingImplFoundError"]};
+window.SIDEBAR_ITEMS = {"constant":["MAX_MISSING_CASES"],"enum":["Source","TypeCheckError"],"fn":["add_invalid_type_to_diagnostic"],"struct":["NoMatchingImplFoundError"]};

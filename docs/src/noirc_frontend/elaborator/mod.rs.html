@@ -2656,7 +2656,14 @@
 <a href="#2655" id="2655">2655</a>
 <a href="#2656" id="2656">2656</a>
 <a href="#2657" id="2657">2657</a>
-<a href="#2658" id="2658">2658</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
+<a href="#2658" id="2658">2658</a>
+<a href="#2659" id="2659">2659</a>
+<a href="#2660" id="2660">2660</a>
+<a href="#2661" id="2661">2661</a>
+<a href="#2662" id="2662">2662</a>
+<a href="#2663" id="2663">2663</a>
+<a href="#2664" id="2664">2664</a>
+<a href="#2665" id="2665">2665</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     cell::RefCell,
     collections::{BTreeMap, BTreeSet},
     rc::Rc,
@@ -3822,10 +3829,17 @@
         has_inline_attribute: bool,
         location: Location,
     ) {
-        <span class="kw">if </span>(is_entry_point &amp;&amp; !typ.is_valid_for_program_input())
-            || (has_inline_attribute &amp;&amp; !typ.is_valid_non_inlined_function_input())
-        {
-            <span class="self">self</span>.push_err(TypeCheckError::InvalidTypeForEntryPoint { location });
+        <span class="kw">if </span>is_entry_point {
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(invalid_type) = typ.program_input_validity() {
+                <span class="self">self</span>.push_err(TypeCheckError::InvalidTypeForEntryPoint { invalid_type, location });
+                <span class="kw">return</span>;
+            }
+        }
+
+        <span class="kw">if </span>has_inline_attribute {
+            <span class="kw">if let </span><span class="prelude-val">Some</span>(invalid_type) = typ.non_inlined_function_input_validity() {
+                <span class="self">self</span>.push_err(TypeCheckError::InvalidTypeForEntryPoint { invalid_type, location });
+            }
         }
     }
 
