@@ -170,11 +170,12 @@ impl Loop {
     /// Our SSA code generation restricts loops to having one exit block except in the case of a `break`.
     /// If a loop can have several exit blocks, we would need to update this function.
     pub(super) fn is_fully_executed(&self, cfg: &ControlFlowGraph) -> bool {
-        let Some(header) = self.blocks.first() else {
-            return true;
-        };
-        for block in cfg.successors(*header) {
+        // The header has 2 successors: the loop body and the exit block.
+        for block in cfg.successors(self.header) {
+            // The exit block is not contained in the loop.
             if !self.blocks.contains(&block) {
+                // If the exit block can be reached from the header and somewhere else in the loop,
+                // then there must be a `break`.
                 return cfg.predecessors(block).len() == 1;
             }
         }
@@ -2790,6 +2791,6 @@ mod control_dependence {
         let ssa = Ssa::from_str(src).unwrap();
         let mut loops = Loops::find_all(ssa.main());
         let loop_ = loops.yet_to_unroll.pop().unwrap();
-        assert!(!loop_.is_fully_executed(&loops.cfg))
+        assert!(!loop_.is_fully_executed(&loops.cfg));
     }
 }
