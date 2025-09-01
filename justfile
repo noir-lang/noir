@@ -34,7 +34,7 @@ install-playwright:
 # Installs Playwright (necessary for examples)
 install-foundry:
   # TODO: Install foundryup if not already.
-  foundryup -v nightly-8660e5b941fe7f4d67e246cfd3dafea330fb53b1
+  foundryup -v 1.3.3
 
 # Rust
 
