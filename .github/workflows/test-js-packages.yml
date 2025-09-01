@@ -258,7 +258,7 @@ jobs:
         uses: ./.github/actions/setup
 
       - name: Install Playwright
-        uses: ./.github/actions/install-playwright
+        run: ./.github/scripts/playwright-install.sh
 
       - name: Run browser tests
         run: yarn workspace @noir-lang/acvm_js test:browser
@@ -286,7 +286,7 @@ jobs:
         run: yarn workspace @noir-lang/noirc_abi test
 
       - name: Install Playwright
-        uses: ./.github/actions/install-playwright
+        run: ./.github/scripts/playwright-install.sh
 
       - name: Run browser tests
         run: yarn workspace @noir-lang/noirc_abi test:browser
@@ -353,7 +353,7 @@ jobs:
         run: yarn workspace @noir-lang/noir_wasm test:build_fixtures
 
       - name: Install Playwright
-        uses: ./.github/actions/install-playwright
+        run: ./.github/scripts/playwright-install.sh
 
       - name: Run node tests
         run: yarn workspace @noir-lang/noir_wasm test:node
@@ -513,8 +513,8 @@ jobs:
         uses: ./.github/actions/setup
 
       - name: Install Playwright
-        uses: ./.github/actions/install-playwright
-  
+        run: ./.github/scripts/playwright-install.sh
+
       - name: Install `bb`
         run: |
           ./scripts/install_bb.sh
