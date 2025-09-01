@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_quote_code_fragments"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

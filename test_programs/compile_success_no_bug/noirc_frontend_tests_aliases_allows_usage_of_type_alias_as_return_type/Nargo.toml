@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_aliases_allows_usage_of_type_alias_as_return_type"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_impl_not_found_for_inner_impl"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]
