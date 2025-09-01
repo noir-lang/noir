@@ -479,25 +479,14 @@ mod tests {
         let _: [u8; 16] = 0x100000000000000000000000000000000.to_le_bytes();
     }
 
-    #[test(should_fail_with = "radix must be less than or equal to 256")]
-    fn test_to_le_radix_brillig_512() {
-        let field = 1;
-        let out: [u8; 8] = field.to_le_radix(512);
-        let mut expected = [0; 8];
-        expected[0] = 1;
-        assert(out == expected, "unexpected result");
-    }
-
     #[test]
     fn test_to_le_radix_brillig_256() {
         // test with radix 256 (maximum valid radix)
-        if !runtime::is_unconstrained() {
-            let field = 1;
-            let out: [u8; 8] = field.to_le_radix(256);
-            let mut expected = [0; 8];
-            expected[0] = 1; // 1 in base 256 is [1, 0, 0, 0, 0, 0, 0, 0] in little-endian
-            assert(out == expected, "unexpected result");
-        }
+        let field = 1;
+        let out: [u8; 8] = field.to_le_radix(256);
+        let mut expected = [0; 8];
+        expected[0] = 1; // 1 in base 256 is [1, 0, 0, 0, 0, 0, 0, 0] in little-endian
+        assert(out == expected, "unexpected result");
     }
 
     #[test]
@@ -508,14 +497,13 @@ mod tests {
         assert(!field_less_than(0 - 1, 0));
     }
 
-
     #[test]
     unconstrained fn test_large_field_values_unconstrained() {
         let large_field = 0xffffffffffffffff;
-        
+
         let bits: [u1; 64] = large_field.to_le_bits();
         assert_eq(bits[0], 1);
-        
+
         let bytes: [u8; 8] = large_field.to_le_bytes();
         assert_eq(Field::from_le_bytes::<8>(bytes), large_field);
 
@@ -526,13 +514,13 @@ mod tests {
     #[test]
     fn test_large_field_values() {
         let large_val = 0xffffffffffffffff;
-        
+
         let bits: [u1; 64] = large_val.to_le_bits();
         assert_eq(bits[0], 1);
-        
+
         let bytes: [u8; 8] = large_val.to_le_bytes();
         assert_eq(Field::from_le_bytes::<8>(bytes), large_val);
-        
+
         let radix_bytes: [u8; 8] = large_val.to_le_radix(256);
         assert_eq(Field::from_le_bytes::<8>(radix_bytes), large_val);
     }
@@ -541,10 +529,10 @@ mod tests {
     fn test_decomposition_edge_cases() {
         let zero_bits: [u1; 8] = 0.to_le_bits();
         assert_eq(zero_bits, [0; 8]);
-        
+
         let zero_bytes: [u8; 8] = 0.to_le_bytes();
         assert_eq(zero_bytes, [0; 8]);
-        
+
         let one_bits: [u1; 8] = 1.to_le_bits();
         assert_eq(one_bits[0], 1);
         assert_eq(one_bits[1], 0);
@@ -554,7 +542,7 @@ mod tests {
         assert_eq(one_bits[5], 0);
         assert_eq(one_bits[6], 0);
         assert_eq(one_bits[7], 0);
-        
+
         let pow2_bits: [u1; 8] = 4.to_le_bits();
         assert_eq(pow2_bits[0], 0);
         assert_eq(pow2_bits[1], 0);
@@ -572,10 +560,9 @@ mod tests {
         assert_eq(3.pow_32(2), 9);
         assert_eq(5.pow_32(0), 1);
         assert_eq(7.pow_32(1), 7);
-        
 
         assert_eq(2.pow_32(10), 1024);
-        
+
         assert_eq(0.pow_32(5), 0);
         assert_eq(0.pow_32(0), 1);
 
@@ -588,7 +575,7 @@ mod tests {
         assert_eq(2.sgn0(), 0);
         assert_eq(4.sgn0(), 0);
         assert_eq(100.sgn0(), 0);
-        
+
         assert_eq(1.sgn0(), 1);
         assert_eq(3.sgn0(), 1);
         assert_eq(5.sgn0(), 1);

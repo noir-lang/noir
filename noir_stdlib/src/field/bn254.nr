@@ -129,13 +129,6 @@ mod tests {
     }
 
     #[test]
-    unconstrained fn check_decompose_unconstrained() {
-        assert_eq(decompose(TWO_POW_128), (0, 1));
-        assert_eq(decompose(TWO_POW_128 + 0x1234567890), (0x1234567890, 1));
-        assert_eq(decompose(0x1234567890), (0x1234567890, 0));
-    }
-
-    #[test]
     unconstrained fn check_lte_hint() {
         assert(lte_hint(0, 1));
         assert(lte_hint(0, 0x100));
@@ -149,19 +142,6 @@ mod tests {
 
     #[test]
     fn check_gt() {
-        assert(gt(1, 0));
-        assert(gt(0x100, 0));
-        assert(gt((0 - 1), (0 - 2)));
-        assert(gt(TWO_POW_128, 0));
-        assert(!gt(0, 0));
-        assert(!gt(0, 0x100));
-        assert(gt(0 - 1, 0 - 2));
-        assert(!gt(0 - 2, 0 - 1));
-        assert_gt(0 - 1, 0);
-    }
-
-    #[test]
-    unconstrained fn check_gt_unconstrained() {
         assert(gt(1, 0));
         assert(gt(0x100, 0));
         assert(gt((0 - 1), (0 - 2)));
@@ -200,21 +180,10 @@ mod tests {
     }
 
     #[test]
-    unconstrained fn check_decompose_edge_cases_unconstrained() {
-        assert_eq(decompose(0), (0, 0));
-        assert_eq(decompose(TWO_POW_128 - 1), (TWO_POW_128 - 1, 0));
-        assert_eq(decompose(TWO_POW_128 + 1), (1, 1));
-        assert_eq(decompose(TWO_POW_128 * 2), (0, 2));
-        assert_eq(decompose(TWO_POW_128 * 2 + 0x1234567890), (0x1234567890, 2));
-    }
-
-
-    #[test]
     fn check_decompose_large_values() {
         let large_field = 0xffffffffffffffff;
         let (lo, hi) = decompose(large_field);
         assert_eq(large_field, lo + TWO_POW_128 * hi);
-        
 
         let large_value = large_field - TWO_POW_128;
         let (lo2, hi2) = decompose(large_value);
@@ -227,21 +196,8 @@ mod tests {
         assert(!lt(1, 0));
         assert(!lt(0, 0));
         assert(!lt(42, 42));
-        
-        assert(lt(TWO_POW_128 - 1, TWO_POW_128));
-        assert(!lt(TWO_POW_128, TWO_POW_128 - 1));
-        
-    }
 
-    #[test]
-    unconstrained fn check_lt_comprehensive_unconstrained() {
-        assert(lt(0, 1));
-        assert(!lt(1, 0));
-        assert(!lt(0, 0));
-        assert(!lt(42, 42));
-        
         assert(lt(TWO_POW_128 - 1, TWO_POW_128));
         assert(!lt(TWO_POW_128, TWO_POW_128 - 1));
-        
     }
 }
