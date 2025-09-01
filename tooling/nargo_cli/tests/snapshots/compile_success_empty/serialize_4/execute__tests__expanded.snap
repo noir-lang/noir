@@ -25,8 +25,8 @@ where
         }
         for i in 0_u32..b.len() {
             {
-                let i_3988: u32 = i + a.len();
-                array[i_3988] = b[i];
+                let i_3983: u32 = i + a.len();
+                array[i_3983] = b[i];
             }
         }
         array

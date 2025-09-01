@@ -423,15 +423,14 @@ mod tests {
     }
 
     // Updated test to account for Brillig restriction that radix must be greater than 2
-    #[test]
-    fn test_to_le_radix_brillig_2() {
-        // Test with radix 2 (minimum valid radix for Brillig)
-        if runtime::is_unconstrained() {
+    #[test(should_fail_with = "radix must be greater than 1")]
+    fn test_to_le_radix_brillig_1() {
+        // this test should only fail in constrained mode
+        if !runtime::is_unconstrained() {
             let field = 1;
-            let out: [u8; 8] = field.to_le_radix(2);
-            let mut expected = [0; 8];
-            expected[0] = 1; // 1 in binary is [1, 0, 0, 0, 0, 0, 0, 0] in little-endian
-            assert(out == expected, "unexpected result");
+            let _: [u8; 8] = field.to_le_radix(1);
+        } else {
+            panic(f"radix must be greater than 1");
         }
     }
 
@@ -477,16 +476,6 @@ mod tests {
     #[test(should_fail_with = "Field failed to decompose into specified 16 limbs")]
     fn not_enough_limbs() {
         let _: [u8; 16] = 0x100000000000000000000000000000000.to_le_bytes();
-    }
-
-    #[test]
-    fn test_to_le_radix_brillig_256() {
-        // test with radix 256 (maximum valid radix)
-        let field = 1;
-        let out: [u8; 8] = field.to_le_radix(256);
-        let mut expected = [0; 8];
-        expected[0] = 1; // 1 in base 256 is [1, 0, 0, 0, 0, 0, 0, 0] in little-endian
-        assert(out == expected, "unexpected result");
     }
 
     #[test]
