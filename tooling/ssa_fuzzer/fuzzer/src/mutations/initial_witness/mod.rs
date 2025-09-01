@@ -11,17 +11,6 @@ use crate::mutations::configuration::{
 use libfuzzer_sys::arbitrary::Unstructured;
 use rand::{Rng, rngs::StdRng};
 
-impl WitnessValue {
-    fn contains_empty_array(&self) -> bool {
-        match self {
-            WitnessValue::Array(array) => {
-                array.is_empty() || array.iter().any(|elem| elem.contains_empty_array())
-            }
-            WitnessValue::Numeric(_) => false,
-        }
-    }
-}
-
 fn generate_random_element_function(rng: &mut StdRng) -> WitnessValue {
     match BASIC_GENERATE_INITIAL_WITNESS_CONFIGURATION.select(rng) {
         GenerateInitialWitness::Numeric => {
@@ -32,9 +21,6 @@ fn generate_random_element_function(rng: &mut StdRng) -> WitnessValue {
         GenerateInitialWitness::Array => {
             let size = rng.gen_range(1..MAX_ARRAY_SIZE);
             let first_element = generate_random_element_function(rng);
-            if first_element.contains_empty_array() {
-                return generate_random_element_function(rng);
-            }
             let values = (0..size)
                 .map(|_| witness::generate_witness_of_the_same_type(rng, &first_element))
                 .collect();
