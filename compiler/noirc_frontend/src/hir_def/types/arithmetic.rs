@@ -451,7 +451,6 @@ mod proptests {
     use proptest::collection;
     use proptest::prelude::*;
     use proptest::result::maybe_ok;
-    use proptest::strategy;
 
     use crate::ast::IntegerBitSize;
     use crate::hir_def::types::{BinaryTypeOperator, Kind, Type, TypeVariable, TypeVariableId};
@@ -487,13 +486,13 @@ mod proptests {
     fn arbitrary_unsigned_type_with_generator() -> BoxedStrategy<(Type, BoxedStrategy<FieldElement>)>
     {
         prop_oneof![
-            strategy::Just((Type::FieldElement, arbitrary_field_element().boxed())),
+            Just((Type::FieldElement, arbitrary_field_element().boxed())),
             any::<IntegerBitSize>().prop_map(|bit_size| {
                 let typ = Type::Integer(Signedness::Unsigned, bit_size);
                 let maximum_size = typ.integral_maximum_size().unwrap().to_u128();
                 (typ, arbitrary_u128_field_element(maximum_size).boxed())
             }),
-            strategy::Just((Type::Bool, arbitrary_u128_field_element(1).boxed())),
+            Just((Type::Bool, arbitrary_u128_field_element(1).boxed())),
         ]
         .boxed()
     }
