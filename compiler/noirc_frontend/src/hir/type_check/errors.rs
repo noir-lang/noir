@@ -837,7 +837,8 @@ fn add_invalid_type_to_diagnostic(
         InvalidType::Primitive(typ) => match typ {
             // Use a slightly better message for common types that might be used as entry point types
             Type::Unit => {
-                diagnostic.add_secondary(format!("Unit is not a valid entry point type"), location);
+                diagnostic
+                    .add_secondary("Unit is not a valid entry point type".to_string(), location);
             }
             Type::Reference(..) => {
                 diagnostic.add_secondary(
