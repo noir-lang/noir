@@ -4,7 +4,7 @@ services:
       context: ..
       dockerfile: docker/Dockerfile
     ports:
-      - "3000:80"
+      - "3003:80"
     container_name: noir-docs-production-test
     restart: unless-stopped
     healthcheck:
