@@ -299,7 +299,7 @@ pub struct ModuleDeclaration {
     pub has_semicolon: bool,
 }
 
-impl std::fmt::Display for ModuleDeclaration {
+impl Display for ModuleDeclaration {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "mod {}", self.ident)
     }

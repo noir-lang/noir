@@ -479,7 +479,7 @@ fn display_fuzzing_report_and_store(
             if let Some(diag) = error_diagnostic {
                 noirc_errors::reporter::report_all(
                     file_manager.as_file_map(),
-                    &[diag.clone()],
+                    std::slice::from_ref(diag),
                     compile_options.deny_warnings,
                     compile_options.silence_warnings,
                 );
@@ -488,7 +488,7 @@ fn display_fuzzing_report_and_store(
         FuzzingRunStatus::CompileError(err) => {
             noirc_errors::reporter::report_all(
                 file_manager.as_file_map(),
-                &[err.clone()],
+                std::slice::from_ref(err),
                 compile_options.deny_warnings,
                 compile_options.silence_warnings,
             );

@@ -1627,7 +1627,7 @@ fn internal(error: InternalError) -> InterpreterError {
 #[cfg(test)]
 mod test {
     use crate::ssa::{
-        interpreter::value::NumericValue,
+        interpreter::{IResult, errors::InterpreterError, value::NumericValue},
         ir::{
             instruction::{Binary, BinaryOp},
             value::ValueId,
@@ -1665,16 +1665,42 @@ mod test {
 
     #[test]
     fn test_shl() {
-        assert_eq!(
-            super::evaluate_binary(
-                &Binary { lhs: ValueId::new(0), rhs: ValueId::new(1), operator: BinaryOp::Shl },
-                NumericValue::I8(1),
-                NumericValue::I8(7),
-                true,
-                |_| { String::new() }
-            )
-            .unwrap(),
-            NumericValue::I8(-128)
-        );
+        let binary = Binary { lhs: ValueId::new(0), rhs: ValueId::new(1), operator: BinaryOp::Shl };
+
+        fn display(_: &Binary) -> String {
+            String::new()
+        }
+
+        let i8_testcases: Vec<((i8, i8), IResult<i8>)> = vec![
+            ((1, 7), Ok(-128)),
+            ((2, 6), Ok(-128)),
+            ((4, 5), Ok(-128)),
+            ((8, 4), Ok(-128)),
+            ((16, 3), Ok(-128)),
+            ((32, 2), Ok(-128)),
+            ((64, 1), Ok(-128)),
+            ((3, 7), Ok(-128)),
+            (
+                (1, 8),
+                Err(InterpreterError::Overflow {
+                    operator: BinaryOp::Shl,
+                    instruction: "`` (i8 1 << i8 8)".to_string(),
+                }),
+            ),
+        ];
+
+        for ((lhs, rhs), expected_result) in i8_testcases {
+            assert_eq!(
+                super::evaluate_binary(
+                    &binary,
+                    NumericValue::I8(lhs),
+                    NumericValue::I8(rhs),
+                    true,
+                    display
+                ),
+                expected_result.map(NumericValue::I8),
+                "{lhs} << {rhs}",
+            );
+        }
     }
 }
