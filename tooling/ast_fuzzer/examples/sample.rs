@@ -9,7 +9,7 @@ use rand::RngCore;
 
 fn main() {
     let data = {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let mut data = [0u8; 1024 * 1024];
         rng.fill_bytes(&mut data);
         data

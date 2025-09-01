@@ -26,7 +26,7 @@ gloo-utils.workspace = true
 
 # This is an unused dependency, we are adding it
 # so that we can enable the js feature in getrandom.
-getrandom = { workspace = true, features = ["js"] }
+getrandom = { workspace = true, features = ["wasm_js"] }
 
 [build-dependencies]
 build-data.workspace = true
