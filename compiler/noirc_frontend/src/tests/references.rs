@@ -1,6 +1,5 @@
 use crate::check_errors;
 
-#[named]
 #[test]
 fn cannot_mutate_immutable_variable() {
     let src = r#"
@@ -15,7 +14,6 @@ fn cannot_mutate_immutable_variable() {
     check_errors!(src);
 }
 
-#[named]
 #[test]
 fn cannot_mutate_immutable_variable_on_member_access() {
     let src = r#"
@@ -36,7 +34,6 @@ fn cannot_mutate_immutable_variable_on_member_access() {
     check_errors!(src);
 }
 
-#[named]
 #[test]
 fn does_not_crash_when_passing_mutable_undefined_variable() {
     let src = r#"
@@ -53,7 +50,6 @@ fn does_not_crash_when_passing_mutable_undefined_variable() {
     check_errors!(src);
 }
 
-#[named]
 #[test]
 fn constrained_reference_to_unconstrained() {
     let src = r#"
