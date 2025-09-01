@@ -481,7 +481,7 @@ jobs:
         uses: ./.github/actions/setup
 
       - name: Install Playwright
-        uses: ./.github/actions/install-playwright
+        run: ./.github/scripts/playwright-install.sh
 
       - name: Setup `integration-tests`
         run: |
