@@ -71,7 +71,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: nargo
-          path: ./dist/nargo
+          path: ./target/release/nargo
           retention-days: 3
 
   build-noir-execute:
@@ -100,7 +100,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: noir-execute
-          path: ./dist/noir-execute
+          path: ./target/release/noir-execute
           retention-days: 3
 
   build-noirc-abi:
@@ -512,7 +512,7 @@ jobs:
 
       - name: Install Playwright
         uses: ./.github/actions/install-playwright
-  
+
       - name: Install `bb`
         run: |
           ./scripts/install_bb.sh
