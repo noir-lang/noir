@@ -317,16 +317,15 @@ impl Context<'_, '_, '_> {
 
         let assert_message = Some("attempt to bit-shift with overflow".to_owned());
 
-        let (bit_size, max_bit_size) = match rhs_type {
-            Type::Numeric(NumericType::Unsigned { bit_size }) => (bit_size, bit_size),
+        let bit_size = match rhs_type {
+            Type::Numeric(NumericType::Unsigned { bit_size }) => bit_size,
             Type::Numeric(NumericType::Signed { bit_size }) => {
                 assert!(bit_size > 1, "ICE - i1 is not a valid type");
-
-                (bit_size, bit_size - 1)
+                bit_size
             }
             _ => unreachable!("check_shift_overflow called with non-numeric type"),
         };
-        let bit_size_field = FieldElement::from(max_bit_size);
+        let bit_size_field = FieldElement::from(bit_size);
 
         let unsigned_typ = NumericType::unsigned(bit_size);
         let max = self.numeric_constant(bit_size_field, unsigned_typ);
@@ -334,7 +333,7 @@ impl Context<'_, '_, '_> {
         let overflow = self.insert_binary(rhs, BinaryOp::Lt, max);
         self.insert_constrain(overflow, one, assert_message.map(Into::into));
 
-        max_bit_size
+        bit_size
     }
 
     pub(crate) fn field_constant(&mut self, constant: FieldElement) -> ValueId {
@@ -704,7 +703,7 @@ mod tests {
             acir(inline) fn main f0 {
               b0(v0: i32, v1: i32):
                 v2 = cast v1 as u32
-                v4 = lt v2, u32 31
+                v4 = lt v2, u32 32
                 constrain v4 == u1 1, "attempt to bit-shift with overflow"
                 v6 = cast v1 as Field
                 v8 = call to_le_bits(v6) -> [u1; 5]
@@ -804,7 +803,7 @@ mod tests {
             acir(inline) fn main f0 {
               b0(v0: i32, v1: i32):
                 v2 = cast v1 as u32
-                v4 = lt v2, u32 31
+                v4 = lt v2, u32 32
                 constrain v4 == u1 1, "attempt to bit-shift with overflow"
                 v6 = cast v1 as Field
                 v8 = call to_le_bits(v6) -> [u1; 5]

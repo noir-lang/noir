@@ -1164,10 +1164,17 @@ impl<'context> Elaborator<'context> {
         has_inline_attribute: bool,
         location: Location,
     ) {
-        if (is_entry_point && !typ.is_valid_for_program_input())
-            || (has_inline_attribute && !typ.is_valid_non_inlined_function_input())
-        {
-            self.push_err(TypeCheckError::InvalidTypeForEntryPoint { location });
+        if is_entry_point {
+            if let Some(invalid_type) = typ.program_input_validity() {
+                self.push_err(TypeCheckError::InvalidTypeForEntryPoint { invalid_type, location });
+                return;
+            }
+        }
+
+        if has_inline_attribute {
+            if let Some(invalid_type) = typ.non_inlined_function_input_validity() {
+                self.push_err(TypeCheckError::InvalidTypeForEntryPoint { invalid_type, location });
+            }
         }
     }
 
