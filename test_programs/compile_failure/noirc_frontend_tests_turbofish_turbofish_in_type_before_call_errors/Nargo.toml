@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_turbofish_turbofish_in_type_before_call_errors"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

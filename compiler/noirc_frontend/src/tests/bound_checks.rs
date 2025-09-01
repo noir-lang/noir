@@ -1,6 +1,5 @@
 use crate::check_errors;
 
-#[named]
 #[test]
 fn overflowing_u8() {
     let src = r#"
@@ -12,7 +11,6 @@ fn overflowing_u8() {
     check_errors!(src);
 }
 
-#[named]
 #[test]
 fn underflowing_u8() {
     let src = r#"
@@ -24,7 +22,6 @@ fn underflowing_u8() {
     check_errors!(src);
 }
 
-#[named]
 #[test]
 fn overflowing_i8() {
     let src = r#"
@@ -36,7 +33,6 @@ fn overflowing_i8() {
     check_errors!(src);
 }
 
-#[named]
 #[test]
 fn underflowing_i8() {
     let src = r#"
