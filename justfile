@@ -33,8 +33,12 @@ install-playwright:
 
 # Installs Foundry (necessary for examples)
 install-foundry:
-  # TODO: Install foundryup if not already.
-  foundryup -v 1.3.3
+  #!/usr/bin/env bash
+  has_foundryup=$(command -v foundryup >/dev/null 2>&1 && echo "true" ||  echo "false"; )
+  if [[ $has_foundryup != "true" ]]; then
+    curl -L https://foundry.paradigm.xyz | bash
+  fi
+  foundryup -i v1.3.3 > /dev/null
 
 # Rust
 
