@@ -549,7 +549,7 @@ jobs:
         run: yarn workspace @noir-lang/noir_js build
 
       - name: Run `browser`
-        working-directory: ./examples/docs_tutorials/browser
+        working-directory: ./examples//browser
         run: yarn playwright install && ./test.sh
 
   external-repo-checks:
