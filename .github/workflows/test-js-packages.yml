@@ -525,11 +525,6 @@ jobs:
       - name: Download noir-execute binary
         uses: ./.github/actions/download-noir-execute
 
-      - uses: taiki-e/install-action@just
-
-      - name: Run examples
-        run: just run-examples
-
       - name: Download acvm_js package artifact
         uses: actions/download-artifact@v4
         with:
@@ -542,15 +537,15 @@ jobs:
           name: noirc_abi_wasm
           path: ./tooling/noirc_abi_wasm
 
-      - name: Build noir_js_types
-        run: yarn workspace @noir-lang/types build
+      - uses: taiki-e/install-action@just
 
       - name: Build noir_js
-        run: yarn workspace @noir-lang/noir_js build
+        run: |
+          just build-package @noir-lang/types
+          just build-package @noir-lang/noir_js
 
-      - name: Run `browser`
-        working-directory: ./examples//browser
-        run: yarn playwright install && ./test.sh
+      - name: Run examples
+        run: just run-examples
 
   external-repo-checks:
     needs: [build-nargo, critical-library-list]
