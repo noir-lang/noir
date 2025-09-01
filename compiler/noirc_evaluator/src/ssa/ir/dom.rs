@@ -283,8 +283,8 @@ impl DominatorTree {
     /// successors to blocks dominated by X, but which aren’t themselves strictly dominated by X.
     /// It is the set of blocks that are not dominated X, and which are “first reached” on paths from X.
     ///
-    /// For example in the following CFG, the DF of `B` is `{E}`, because while `B` dominates `C`,
-    /// there is another path to `E` through `D`.
+    /// For example in the following CFG the DF of B is {E}, because B dominates {C},
+    /// but it's just one edge away from dominating E, as there is another path to E through D.
     /// ```text
     ///    A
     ///   / \
