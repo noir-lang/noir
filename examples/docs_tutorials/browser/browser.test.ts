@@ -15,7 +15,7 @@ const SERVER_PORT = 8080;
 function createStaticServer(rootDir: string): http.Server {
   return http.createServer((req, res) => {
     // Normalize and resolve the requested path to prevent directory traversal
-    const requestedPath = req.url === '/' ? 'index.html' : req.url!.slice(1); // Remove leading slash
+    const requestedPath = !req.url || req.url === '/' ? 'index.html' : req.url.slice(1);
     const candidatePath = path.resolve(rootDir, requestedPath);
 
     let filePath: string;
