@@ -6,7 +6,7 @@ target-host := `rustc -vV | grep host: | cut -d ' ' -f 2`
 target := env("CARGO_BUILD_TARGET", target-host)
 
 # Install tools
-install-tools: install-rust-tools install-js-tools
+install-tools: install-rust-tools install-js-tools install-foundry
 
 [private]
 install-binstall:
@@ -31,7 +31,7 @@ install-js-tools: install-binstall
 install-playwright:
   npx -y playwright@1.49 install --with-deps
 
-# Installs Playwright (necessary for examples)
+# Installs Foundry (necessary for examples)
 install-foundry:
   # TODO: Install foundryup if not already.
   foundryup -v 1.3.3
