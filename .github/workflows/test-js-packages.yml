@@ -519,6 +519,8 @@ jobs:
       - name: Download noir-execute binary
         uses: ./.github/actions/download-noir-execute
 
+      - uses: taiki-e/install-action@just
+
       - name: Run examples
         run: just run-examples
 
