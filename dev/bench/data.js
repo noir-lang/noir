@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1756740714887,
+  "lastUpdate": 1756751112130,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -20201,48 +20201,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "f4d008624409a6297f74222a9729f38172126b53",
-          "message": "chore: some inlining refactors (#9622)",
-          "timestamp": "2025-08-25T15:20:45Z",
-          "tree_id": "8a384f09a41c9f62d6c4d496610afe3467bb9ccc",
-          "url": "https://github.com/noir-lang/noir/commit/f4d008624409a6297f74222a9729f38172126b53"
-        },
-        "date": 1756136809484,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 249930,
-            "range": "± 716",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 219664,
-            "range": "± 820",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2784506,
-            "range": "± 935",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "37b5bdc6d5fd63647a9c330f34060826b2d145ed",
           "message": "chore: only run remove_paired_rc in brillig functions (#9624)",
           "timestamp": "2025-08-25T16:24:33Z",
@@ -22284,6 +22242,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2791398,
             "range": "± 12963",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "9f646acc9046e6e52cb992d1a9123ba779594a76",
+          "message": "chore: remove playwright workaround (#9704)",
+          "timestamp": "2025-09-01T19:22:22+01:00",
+          "tree_id": "5604bd9f0017c8412c002845c34d3a9df1372b54",
+          "url": "https://github.com/noir-lang/noir/commit/9f646acc9046e6e52cb992d1a9123ba779594a76"
+        },
+        "date": 1756751092264,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 260816,
+            "range": "± 823",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 235011,
+            "range": "± 5126",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2790280,
+            "range": "± 7801",
             "unit": "ns/iter"
           }
         ]
