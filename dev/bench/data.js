@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1756739837071,
+  "lastUpdate": 1756739926322,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -20201,48 +20201,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": false,
-          "id": "676352dc7381265ed836d9e3a9453771f348a71b",
-          "message": "chore(mem2reg): avoid redundant PostOrder computation (#9620)",
-          "timestamp": "2025-08-25T14:06:07Z",
-          "tree_id": "9fc4828e12feb758dcd210dd2738445967edb45c",
-          "url": "https://github.com/noir-lang/noir/commit/676352dc7381265ed836d9e3a9453771f348a71b"
-        },
-        "date": 1756132323428,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 249399,
-            "range": "± 486",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 217923,
-            "range": "± 4836",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2779317,
-            "range": "± 2192",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
           "id": "f4d008624409a6297f74222a9729f38172126b53",
           "message": "chore: some inlining refactors (#9622)",
           "timestamp": "2025-08-25T15:20:45Z",
@@ -22284,6 +22242,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2781719,
             "range": "± 2079",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "a869373de6d06ba2b8f9999d12813d5139eb664b",
+          "message": "fix(licm): Use `Loop::header` in `Loop::is_fully_executed` (#9700)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-09-01T14:52:52Z",
+          "tree_id": "d3f4a065daa9db0a8759adab5029262ee42ba4a4",
+          "url": "https://github.com/noir-lang/noir/commit/a869373de6d06ba2b8f9999d12813d5139eb664b"
+        },
+        "date": 1756739907008,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 258940,
+            "range": "± 620",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 229695,
+            "range": "± 2625",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2791398,
+            "range": "± 12963",
             "unit": "ns/iter"
           }
         ]
