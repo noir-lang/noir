@@ -51,7 +51,9 @@
 //! b dominates a predecessor of y but does not strictly dominate y.
 //! ```
 //! Reversing this for post-dominance we can see that the conditions for control dependence
-//! are the same as those for post-dominance frontiers.
+//! are the same as those for post-dominance frontiers: the post-dominance frontier of a block Y
+//! is the set of blocks closest to Y where a choice was made of whether to reach Y or not.
+//!
 //! Thus, we rewrite our control dependence condition as Y is control dependent on X iff X is in PDF(Y).
 //!
 //! We then can store the PDFs for every block as part of the context of this pass, and use it for checking control dependence.
@@ -326,7 +328,7 @@ impl PostDominanceFrontiers {
     /// regarding post-dominance frontiers and control dependence.
     fn is_control_dependent(&self, parent_block: BasicBlockId, block: BasicBlockId) -> bool {
         match self.post_dom_frontiers.get(&block) {
-            Some(dependent_blocks) => dependent_blocks.contains(&parent_block),
+            Some(frontier) => frontier.contains(&parent_block),
             None => false,
         }
     }
