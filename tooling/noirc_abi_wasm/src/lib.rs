@@ -2,6 +2,7 @@
 
 // See Cargo.toml for explanation.
 use getrandom as _;
+use getrandomv2 as _;
 
 use acvm::{
     FieldElement,

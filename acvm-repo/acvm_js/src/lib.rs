@@ -2,6 +2,7 @@
 
 // See Cargo.toml for explanation.
 use getrandom as _;
+use getrandomv2 as _;
 
 mod black_box_solvers;
 mod build_info;
