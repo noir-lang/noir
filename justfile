@@ -126,7 +126,7 @@ build-package PACKAGE: install-js-tools
 # Runs test for all examples
 run-examples:
   for file in `ls {{justfile_dir()}}/examples`; do \
-      just --justfile {{justfile()}} run_example $file; \
+      just --justfile {{justfile()}} run-example $file; \
   done
 
 # Runs test for example named `EXAMPLE`
