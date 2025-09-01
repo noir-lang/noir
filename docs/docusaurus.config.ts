@@ -158,6 +158,21 @@ export default {
         };
       },
     }),
+    // Create Netlify redirects only for production/staging
+    () => ({
+      name: 'netlify-redirects',
+      async postBuild({ outDir }) {
+        if (process.env.ENV !== 'dev') {
+          const { writeFileSync } = await import('fs');
+          const { join } = await import('path');
+          const redirectsContent = `# Netlify redirects for /docs/ routing
+/docs/assets/* /assets/:splat 200
+/docs/img/* /img/:splat 200
+/docs/* /:splat 200`;
+          writeFileSync(join(outDir, '_redirects'), redirectsContent);
+        }
+      },
+    }),
     [
       'docusaurus-plugin-typedoc',
       {
