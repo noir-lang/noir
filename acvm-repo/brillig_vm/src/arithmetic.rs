@@ -228,7 +228,7 @@ pub(crate) fn evaluate_binary_int_op<F: AcirField>(
 
 fn bit_shift_overflow(shift: Option<u32>, bit_size: u32) -> BrilligArithmeticError {
     if let Some(shift_size) = shift {
-        BrilligArithmeticError::BitshiftOverflow { bit_size: 8, shift_size }
+        BrilligArithmeticError::BitshiftOverflow { bit_size, shift_size }
     } else {
         BrilligArithmeticError::BitshiftOverflowBitSize { bit_size }
     }
