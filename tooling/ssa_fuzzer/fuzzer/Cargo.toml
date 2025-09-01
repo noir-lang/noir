@@ -30,8 +30,8 @@ lazy_static = "1.4"
 strum_macros = "0.24"
 strum = "0.24"
 sha2.workspace = true
-p256 = "0.13.2"
-k256 = "0.13.4"
+p256.workspace = true
+k256.workspace = true
 
 [dependencies.noir_ssa_fuzzer]
 path = "../"

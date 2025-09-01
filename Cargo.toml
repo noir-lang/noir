@@ -212,8 +212,10 @@ proptest = { version = "1.6.0", default-features = false, features = [
 ] }
 proptest-derive = "^0.6.0"
 rayon = "1.8.0"
-sha2 = { version = "0.10.6", features = ["compress"] }
-sha3 = "0.10.6"
+sha2 = "0.11.0-rc.0"
+sha3 = "0.11.0-rc.0"
+k256 = "0.14.0-pre.9"
+p256 = "0.14.0-pre.9"
 strum = "0.24"
 strum_macros = "0.24"
 tokio = "1.42"
