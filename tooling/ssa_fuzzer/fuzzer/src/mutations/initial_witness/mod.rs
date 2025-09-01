@@ -39,7 +39,7 @@ pub(crate) fn mutate(witness_value: &mut Vec<WitnessValue>, rng: &mut StdRng) {
                 rng,
                 BASIC_NUMERIC_WITNESS_MUTATION_CONFIGURATION,
                 ARRAY_WITNESS_MUTATION_CONFIGURATION,
-            )
+            );
         },
         generate_random_element_function,
         BASIC_VEC_MUTATION_CONFIGURATION,

@@ -13,9 +13,9 @@ pub(crate) fn generate_witness_of_the_same_type(
     value: &WitnessValue,
 ) -> WitnessValue {
     match value {
-        WitnessValue::Numeric(numeric) => WitnessValue::Numeric(
-            numeric_witness::generate_element_of_the_same_type(rng, numeric.clone()),
-        ),
+        WitnessValue::Numeric(numeric) => {
+            WitnessValue::Numeric(numeric_witness::generate_element_of_the_same_type(rng, *numeric))
+        }
         WitnessValue::Array(array) => WitnessValue::Array(
             array.iter().map(|elem| generate_witness_of_the_same_type(rng, elem)).collect(),
         ),

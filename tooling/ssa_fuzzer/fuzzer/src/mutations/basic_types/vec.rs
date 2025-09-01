@@ -33,7 +33,7 @@ struct RandomDeletion;
 impl RandomDeletion {
     fn mutate<T>(rng: &mut StdRng, vec: &mut Vec<T>) {
         // do not remove the last element
-        if !(vec.len() <= 1) {
+        if vec.len() > 1 {
             let index = rng.gen_range(0..vec.len());
             vec.remove(index);
         }
