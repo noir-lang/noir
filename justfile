@@ -23,8 +23,9 @@ install-rust-tools: install-binstall
 
 # Installs tools necessary for working with Javascript code
 install-js-tools: install-binstall
-  cargo-binstall wasm-pack@0.13.1 -y
+  cargo binstall wasm-pack@0.13.1 -y
   cargo binstall wasm-bindgen-cli@0.2.100 -y
+  cargo binstall wasm-opt@0.116.1 -y
 
 # Installs Playwright (necessary for Javascript browser tests but slow to install)
 install-playwright:
