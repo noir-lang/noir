@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1756812408680,
+  "lastUpdate": 1756812410540,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22293,90 +22293,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "d171555e29ae093ba7f1ce6012a50c8570eb9ffd",
-          "message": "fix: Revert \"feat(mem2reg): address last known value is independent of its… (#9628)",
-          "timestamp": "2025-08-25T19:07:57Z",
-          "tree_id": "bafe4b337b65ca3fbf02b73ec4b08c40cdbc27a7",
-          "url": "https://github.com/noir-lang/noir/commit/d171555e29ae093ba7f1ce6012a50c8570eb9ffd"
-        },
-        "date": 1756150757329,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 708.9,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 2032.5,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 535.2,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 4319.6,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 3332,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 3847.1,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 30747.8,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 30780.5,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 187,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 388.9,
-            "unit": "KB"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 631.5,
-            "unit": "KB"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 525.5,
-            "unit": "KB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -26426,6 +26342,90 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/4ac0daf94c891e09d27a517f53ab5c4e24a357df"
         },
         "date": 1756808612359,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 709.4,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 2033.2,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 537,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 4320.3,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 3331.3,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 3855,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 30753.7,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 30787.4,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 188.2,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 391,
+            "unit": "KB"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 631.5,
+            "unit": "KB"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 525.5,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "56325c40cf0a3986152c9b554cbab6ab97b4af4b",
+          "message": "chore: validate SSA blackbox function calls (#9705)\n\nCo-authored-by: jewelofchaos9 <jewelofchaos9@gmail.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-09-02T10:55:38Z",
+          "tree_id": "6c5b36786108e51016c93f6b8bfd252db6101819",
+          "url": "https://github.com/noir-lang/noir/commit/56325c40cf0a3986152c9b554cbab6ab97b4af4b"
+        },
+        "date": 1756812388795,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
