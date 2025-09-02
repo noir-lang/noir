@@ -49,8 +49,8 @@
 //! Division by zero is an operation that is guaranteed to fail, but it does not overflow.
 //!
 //! Because binary operations can depend on a side-effects variable (`enable_side_effects`),
-//! the constrain will check the value of this variable whenever a non-constant side effect 
-//! is active. Every subsequent instruction is then replaced with a zeroed-value. 
+//! the constrain will check the value of this variable whenever a non-constant side effect
+//! is active. Every subsequent instruction is then replaced with a zeroed-value.
 //! So for example this SSA:
 //!
 //! ```ssa
