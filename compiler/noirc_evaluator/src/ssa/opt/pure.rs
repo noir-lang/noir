@@ -13,8 +13,6 @@ use crate::ssa::{
     ssa_gen::Ssa,
 };
 
-use super::brillig_entry_points::get_brillig_entry_points_with_recursive;
-
 impl Ssa {
     /// Analyze the purity of each function and tag each function call with that function's purity.
     /// This is purely an analysis pass on its own but can help future optimizations.
@@ -32,23 +30,11 @@ impl Ssa {
         let call_graph = CallGraph::from_ssa(&self);
 
         let (sccs, recursive_functions) = call_graph.sccs();
-        let brillig_entry_points = get_brillig_entry_points_with_recursive(
-            &self.functions,
-            self.main_id,
-            &call_graph,
-            &recursive_functions,
-        );
 
         // First look through each function to get a baseline on its purity and collect
         // the functions it calls to build a call graph.
-        let purities: HashMap<_, _> = self
-            .functions
-            .values()
-            .map(|function| {
-                let is_brillig_entry_point = brillig_entry_points.contains_key(&function.id());
-                (function.id(), function.is_pure(is_brillig_entry_point))
-            })
-            .collect();
+        let purities: HashMap<_, _> =
+            self.functions.values().map(|function| (function.id(), function.is_pure())).collect();
 
         // Then transitively 'infect' any functions which call impure functions as also
         // impure.
@@ -129,7 +115,7 @@ impl std::fmt::Display for Purity {
 }
 
 impl Function {
-    fn is_pure(&self, is_brillig_entrypoint: bool) -> Purity {
+    fn is_pure(&self) -> Purity {
         let contains_reference = |value_id: &ValueId| {
             let typ = self.dfg.type_of_value(*value_id);
             typ.contains_reference()
@@ -139,7 +125,7 @@ impl Function {
             return Purity::Impure;
         }
 
-        let mut result = if self.runtime().is_acir() || !is_brillig_entrypoint {
+        let mut result = if self.runtime().is_acir() {
             Purity::Pure
         } else {
             // Because we return bogus values when a brillig function is called from acir
@@ -490,7 +476,7 @@ mod test {
         assert_eq!(purities[&FunctionId::test_new(0)], Purity::Impure);
         assert_eq!(purities[&FunctionId::test_new(1)], Purity::Impure);
         assert_eq!(purities[&FunctionId::test_new(2)], Purity::Impure);
-        assert_eq!(purities[&FunctionId::test_new(3)], Purity::Pure);
+        assert_eq!(purities[&FunctionId::test_new(3)], Purity::PureWithPredicate);
     }
 
     #[test]
@@ -511,7 +497,7 @@ mod test {
 
         let purities = &ssa.main().dfg.function_purities;
         assert_eq!(purities[&FunctionId::test_new(0)], Purity::PureWithPredicate);
-        assert_eq!(purities[&FunctionId::test_new(1)], Purity::Pure);
+        assert_eq!(purities[&FunctionId::test_new(1)], Purity::PureWithPredicate);
     }
 
     /// Functions using inc_rc or dec_rc are always impure - see constant_folding::do_not_deduplicate_call_with_inc_rc
@@ -771,7 +757,7 @@ mod test {
     }
 
     #[test]
-    fn brillig_functions_are_pure_if_they_are_not_an_entry_point() {
+    fn brillig_functions_are_pure_with_predicate_if_they_are_not_an_entry_point() {
         let src = "
         brillig(inline) fn main f0 {
           b0(v0: u1):
@@ -794,7 +780,10 @@ mod test {
 
         let purities = &ssa.main().dfg.function_purities;
         assert_eq!(purities[&FunctionId::test_new(0)], Purity::PureWithPredicate);
-        assert_eq!(purities[&FunctionId::test_new(1)], Purity::Pure);
+
+        // Note: even though it would be fine to mark f1 as pure, something in Aztec-Packages
+        // gets broken so until we figure out what that is we can't mark these as pure.
+        assert_eq!(purities[&FunctionId::test_new(1)], Purity::PureWithPredicate);
     }
 
     #[test]
