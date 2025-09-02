@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_aliases_identity_numeric_type_alias_works"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]
