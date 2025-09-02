@@ -141,11 +141,12 @@ impl SimpleOptimizationContext<'_, '_> {
             let ctrl_typevars = instruction
                 .requires_ctrl_typevars()
                 .then(|| vecmap(&results, |result| self.dfg.type_of_value(*result)));
-            let new_results = self.dfg.insert_instruction_and_results(
+            let new_results = self.dfg.insert_instruction_and_results_if_simplified(
                 instruction,
                 self.block_id,
                 ctrl_typevars,
                 self.call_stack_id,
+                Some(self.instruction_id),
             );
             assert_eq!(results.len(), new_results.len());
             for i in 0..results.len() {
