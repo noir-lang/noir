@@ -455,9 +455,9 @@ impl Instruction {
 
             Instruction::ArrayGet { array, index, offset: _ } => {
                 // `ArrayGet`s which read from "known good" indices from an array should not need a predicate.
-                // This extra out of bounds (OOB) check is only inserted in the ACIR runtime. 
-                // Thus, in Brillig an `ArrayGet` is always a pure operation in isolation and 
-                // it is expected that OOB checks are inserted separately. 
+                // This extra out of bounds (OOB) check is only inserted in the ACIR runtime.
+                // Thus, in Brillig an `ArrayGet` is always a pure operation in isolation and
+                // it is expected that OOB checks are inserted separately.
                 dfg.runtime().is_acir() && !dfg.is_safe_index(*index, *array)
             }
 
