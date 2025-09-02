@@ -86,7 +86,6 @@ impl Function {
                     insert_current_instruction_at_callback_end: true,
                     enable_side_effects,
                     orig_instruction_hash,
-                    simplify_instruction_if_changed: false,
                 };
                 f(&mut context)?;
 
@@ -110,11 +109,6 @@ pub(crate) struct SimpleOptimizationContext<'dfg, 'mapping> {
     pub(crate) call_stack_id: CallStackId,
     pub(crate) dfg: &'dfg mut DataFlowGraph,
     pub(crate) enable_side_effects: ValueId,
-    /// Simplify instructions before re-inserting them into the block.
-    ///
-    /// Only enabled this after the loops have been unrolled, otherwise induction variables might
-    /// be replaced by constants and lead to unexpected results.
-    pub(crate) simplify_instruction_if_changed: bool,
     values_to_replace: &'mapping mut ValueMapping,
     insert_current_instruction_at_callback_end: bool,
     orig_instruction_hash: u64,
@@ -145,9 +139,9 @@ impl SimpleOptimizationContext<'_, '_> {
         // If the instruction changed, then there is a chance that we can (or have to)
         // simplify it before we insert it back into the block.
         let instruction_hash = fxhash::hash64(self.instruction());
-        let instruction_changed = self.orig_instruction_hash != instruction_hash;
+        let simplify = self.orig_instruction_hash != instruction_hash;
 
-        if self.simplify_instruction_if_changed && instruction_changed {
+        if simplify {
             // Based on FunctionInserter::push_instruction_value.
             let instruction = self.instruction().clone();
             let results = self.dfg.instruction_results(self.instruction_id).to_vec();
