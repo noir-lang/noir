@@ -103,10 +103,7 @@
 <a href="#102" id="102">102</a>
 <a href="#103" id="103">103</a>
 <a href="#104" id="104">104</a>
-<a href="#105" id="105">105</a>
-<a href="#106" id="106">106</a>
-<a href="#107" id="107">107</a>
-<a href="#108" id="108">108</a></pre></div><pre class="rust"><code><span class="doccomment">//! Module containing Brillig-gen logic specific to SSA [Function]'s.
+<a href="#105" id="105">105</a></pre></div><pre class="rust"><code><span class="doccomment">//! Module containing Brillig-gen logic specific to SSA [Function]'s.
 </span><span class="kw">use </span>iter_extended::vecmap;
 
 <span class="kw">use crate</span>::{
@@ -153,10 +150,7 @@
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>new(function: <span class="kw-2">&amp;</span>Function, is_entry_point: bool) -&gt; <span class="self">Self </span>{
         <span class="kw">let </span>id = function.id();
 
-        <span class="kw">let </span><span class="kw-2">mut </span>reverse_post_order = Vec::new();
-        reverse_post_order.extend_from_slice(PostOrder::with_function(function).as_slice());
-        reverse_post_order.reverse();
-
+        <span class="kw">let </span>reverse_post_order = PostOrder::with_function(function).into_vec_reverse();
         <span class="kw">let </span>constants = ConstantAllocation::from_function(function);
         <span class="kw">let </span>liveness = VariableLiveness::from_function(function, <span class="kw-2">&amp;</span>constants);
 

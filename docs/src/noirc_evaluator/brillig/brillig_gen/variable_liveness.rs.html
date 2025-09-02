@@ -654,9 +654,7 @@
 <a href="#653" id="653">653</a>
 <a href="#654" id="654">654</a>
 <a href="#655" id="655">655</a>
-<a href="#656" id="656">656</a>
-<a href="#657" id="657">657</a>
-<a href="#658" id="658">658</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module analyzes the liveness of variables (non-constant values) throughout a function.
+<a href="#656" id="656">656</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module analyzes the liveness of variables (non-constant values) throughout a function.
 //! It uses the approach detailed in the section 4.2 of this paper &lt;https://inria.hal.science/inria-00558509v2/document&gt;
 
 </span><span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{
@@ -837,9 +835,7 @@
 
     <span class="kw">fn </span>compute_block_param_definitions(<span class="kw-2">&amp;mut </span><span class="self">self</span>, func: <span class="kw-2">&amp;</span>Function) {
         <span class="comment">// Going in reverse post order to process the entry block first
-        </span><span class="kw">let </span><span class="kw-2">mut </span>reverse_post_order = Vec::new();
-        reverse_post_order.extend_from_slice(<span class="self">self</span>.post_order.as_slice());
-        reverse_post_order.reverse();
+        </span><span class="kw">let </span>reverse_post_order = <span class="self">self</span>.post_order.clone().into_vec_reverse();
         <span class="kw">for </span>block <span class="kw">in </span>reverse_post_order {
             <span class="kw">let </span>params = func.dfg[block].parameters();
             <span class="comment">// If it has no dominator, it's the entry block

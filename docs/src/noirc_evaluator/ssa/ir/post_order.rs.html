@@ -163,7 +163,15 @@
 <a href="#162" id="162">162</a>
 <a href="#163" id="163">163</a>
 <a href="#164" id="164">164</a>
-<a href="#165" id="165">165</a></pre></div><pre class="rust"><code><span class="doccomment">//! The post-order for a given function represented as a vector of basic block ids.
+<a href="#165" id="165">165</a>
+<a href="#166" id="166">166</a>
+<a href="#167" id="167">167</a>
+<a href="#168" id="168">168</a>
+<a href="#169" id="169">169</a>
+<a href="#170" id="170">170</a>
+<a href="#171" id="171">171</a>
+<a href="#172" id="172">172</a>
+<a href="#173" id="173">173</a></pre></div><pre class="rust"><code><span class="doccomment">//! The post-order for a given function represented as a vector of basic block ids.
 //!
 //! This ordering is beneficial to the efficiency of various algorithms, such as those for dead
 //! code elimination and calculating dominance trees.
@@ -180,7 +188,7 @@
     Last,
 }
 
-<span class="attr">#[derive(Default)]
+<span class="attr">#[derive(Default, Clone)]
 </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">struct </span>PostOrder(Vec&lt;BasicBlockId&gt;);
 
 <span class="kw">impl </span>PostOrder {
@@ -201,9 +209,17 @@
         PostOrder(<span class="self">Self</span>::compute_post_order(cfg))
     }
 
-    <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>into_vec(<span class="self">self</span>) -&gt; Vec&lt;BasicBlockId&gt; {
+    <span class="doccomment">/// Return blocks in post-order.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>into_vec(<span class="self">self</span>) -&gt; Vec&lt;BasicBlockId&gt; {
         <span class="self">self</span>.<span class="number">0
     </span>}
+
+    <span class="doccomment">/// Return blocks in reverse-post-order a.k.a. forward-order.
+    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>into_vec_reverse(<span class="self">self</span>) -&gt; Vec&lt;BasicBlockId&gt; {
+        <span class="kw">let </span><span class="kw-2">mut </span>blocks = <span class="self">self</span>.into_vec();
+        blocks.reverse();
+        blocks
+    }
 
     <span class="comment">// Computes the post-order of the CFG by doing a depth-first traversal of the
     // function's entry block's previously unvisited children. Each block is sequenced according
