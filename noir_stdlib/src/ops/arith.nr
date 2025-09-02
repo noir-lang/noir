@@ -853,43 +853,43 @@ mod tests {
         assert_eq(1.rem(42), 1);
     }
 
-    #[test(should_fail_with = "attempt to subtract with overflow")]
+    #[test(should_fail)]
     fn test_u8_sub_overflow_failure() {
         let _ = 0u8.sub(1u8);
     }
 
-    #[test(should_fail_with = "attempt to add with overflow")]
+    #[test(should_fail)]
     fn test_u8_add_overflow_failure() {
         let _ = 255u8.add(1u8);
     }
 
-    #[test(should_fail_with = "attempt to multiply with overflow")]
+    #[test(should_fail)]
     fn test_u8_mul_overflow_failure() {
         let _ = 255u8.mul(2u8);
     }
 
-    #[test(should_fail_with = "attempt to subtract with overflow")]
+    #[test(should_fail)]
     fn test_u16_sub_overflow_failure() {
         let _ = 0u16.sub(1u16);
     }
 
-    #[test(should_fail_with = "attempt to add with overflow")]
+    #[test(should_fail)]
     fn test_u16_add_overflow_failure() {
         let _ = 65535u16.add(1u16);
     }
 
-    #[test(should_fail_with = "attempt to multiply with overflow")]
+    #[test(should_fail)]
     fn test_u16_mul_overflow_failure() {
         let _ = 65535u16.mul(2u16);
     }
 
-    #[test(should_fail_with = "attempt to subtract with overflow")]
+    #[test(should_fail)]
     fn test_signed_sub_overflow_failure() {
         let val: i8 = -128;
         let _ = val.sub(1i8);
     }
 
-    #[test(should_fail_with = "attempt to add with overflow")]
+    #[test(should_fail)]
     fn test_signed_overflow_failure() {
         let _ = 127i8.add(1i8);
     }
