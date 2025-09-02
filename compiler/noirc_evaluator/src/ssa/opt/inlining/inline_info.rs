@@ -10,6 +10,7 @@ use crate::ssa::{
         dfg::DataFlowGraph,
         function::{Function, FunctionId},
         instruction::{BinaryOp, Instruction, InstructionId, Intrinsic},
+        value::Value,
     },
     ssa_gen::Ssa,
 };
@@ -363,9 +364,40 @@ fn brillig_cost(instruction: InstructionId, dfg: &DataFlowGraph) -> usize {
         // TODO: look into how common this is in Brillig, just return one for now
         Instruction::RangeCheck { .. } => 1,
 
-        Instruction::Call { arguments, .. } => {
-            let results = dfg.instruction_results(instruction);
-            5 + arguments.len() + results.len()
+        Instruction::Call { func, arguments } => {
+            match dfg[*func] {
+                Value::Function(_) => {
+                    let results = dfg.instruction_results(instruction);
+                    5 + arguments.len() + results.len()
+                }
+                Value::ForeignFunction(_) => {
+                    // TODO: we should differentiate inputs/outputs with array and vector allocations
+                    1
+                }
+                Value::Intrinsic(intrinsic) => {
+                    match intrinsic {
+                        Intrinsic::ArrayLen => 1,
+                        Intrinsic::AsSlice => {
+                            10 // mem copy
+                            + 8 // vector and array pointer init
+                            + 2 // size registers
+                        }
+                        Intrinsic::BlackBox(_) => {
+                            // TODO: we could differentiate inputs/outputs with array and vector inputs (we add one to the pointer)
+                            1
+                        }
+                        Intrinsic::FieldLessThan => 1,
+                        _ => 1,
+                    }
+                }
+
+                Value::Instruction { .. }
+                | Value::Param { .. }
+                | Value::NumericConstant { .. }
+                | Value::Global(_) => {
+                    unreachable!("unsupported function call type {:?}", dfg[*func])
+                }
+            }
         }
 
         Instruction::Allocate | Instruction::Load { .. } | Instruction::Store { .. } => 1,
