@@ -1,92 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1756845469584,
+  "lastUpdate": 1756845474774,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "84741533+defkit@users.noreply.github.com",
-            "name": "defkit",
-            "username": "defkit"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "c6835b58e75cd4ec0def6a8b331bb22594ae8360",
-          "message": "feat(ssa_fuzzer): ecdsa blackbox functions (#9584)",
-          "timestamp": "2025-08-26T16:57:04Z",
-          "tree_id": "817257e05dd2ba25f94950d630404ec91c94a94c",
-          "url": "https://github.com/noir-lang/noir/commit/c6835b58e75cd4ec0def6a8b331bb22594ae8360"
-        },
-        "date": 1756230127510,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 239.65,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 549.1,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 213.85,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 1350,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 1400,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 1090,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 9580,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 9590,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 330.56,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 341.34,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 104.76,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 233.17,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -4199,6 +4115,90 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512_100_bytes",
             "value": 234.8,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8fd9446d746f05785cf2299522e94cf29c8df156",
+          "message": "fix: disallow references in globals (#9713)",
+          "timestamp": "2025-09-02T19:57:54Z",
+          "tree_id": "df07509cc70055925395bee4f65177162514f868",
+          "url": "https://github.com/noir-lang/noir/commit/8fd9446d746f05785cf2299522e94cf29c8df156"
+        },
+        "date": 1756845454117,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 240.54,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 550.07,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 214.96,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 1350,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 1400,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 1010,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 9690,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 9690,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 331.46,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 342.24,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 105.65,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 234.67,
             "unit": "MB"
           }
         ]
