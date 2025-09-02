@@ -34,11 +34,10 @@ jobs:
       - name: Install Yarn dependencies
         uses: ./.github/actions/setup
 
-      - name: Install wasm-opt
-        run: ./.github/scripts/wasm-opt-install.sh
+      - uses: taiki-e/install-action@just
 
       - name: Build noirc_abi
-        run: ./.github/scripts/noirc-abi-build.sh
+        run: just build-package @noir-lang/noirc_abi
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -65,17 +64,16 @@ jobs:
           key: noir-wasm
           save-if: false
 
+      - uses: taiki-e/install-action@just
+
       - name: Install Yarn dependencies
         uses: ./.github/actions/setup
 
-      - name: Install wasm-opt
-        run: ./.github/scripts/wasm-opt-install.sh
-
       - name: Build noir_js_types
-        run: yarn workspace @noir-lang/types build
+        run: just build-package @noir-lang/types
 
       - name: Build noir_wasm
-        run: ./.github/scripts/noir-wasm-build.sh
+        run: just build-package @noir-lang/noir_wasm
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -105,11 +103,10 @@ jobs:
       - name: Install Yarn dependencies
         uses: ./.github/actions/setup
 
-      - name: Install wasm-opt
-        run: ./.github/scripts/wasm-opt-install.sh
+      - uses: taiki-e/install-action@just
 
       - name: Build acvm_js
-        run: ./.github/scripts/acvm_js-build.sh
+        run: just build-package @noir-lang/acvm_js
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4

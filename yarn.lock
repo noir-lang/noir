@@ -15895,9 +15895,9 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"docs_tutorials_browser@workspace:examples/docs_tutorials/browser":
+"docs_tutorials_browser@workspace:examples/browser":
   version: 0.0.0-use.local
-  resolution: "docs_tutorials_browser@workspace:examples/docs_tutorials/browser"
+  resolution: "docs_tutorials_browser@workspace:examples/browser"
   dependencies:
     "@aztec/bb.js": "npm:0.87.0"
     "@noir-lang/noir_js": "workspace:*"
