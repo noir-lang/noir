@@ -413,7 +413,7 @@ impl<'f> Validator<'f> {
                                         points_elements.len()
                                     );
                                     assert_field(&points_elements[0], "multi_scalar_mul points x");
-                                    assert_field(&points_elements[1], "mutli_scalar_mul points y");
+                                    assert_field(&points_elements[1], "multi_scalar_mul points y");
                                     assert_u1(
                                         &points_elements[2],
                                         "multi_scalar_mul points is_infinite",
