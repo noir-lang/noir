@@ -948,10 +948,10 @@
     </span><span class="attr">#[arg(long, hide = <span class="bool-val">true</span>)]
     </span><span class="kw">pub </span>show_ssa_pass: Vec&lt;String&gt;,
 
-    <span class="doccomment">/// Do not emit source file locations when emitting debug information for the SSA IR to stdout.
-    /// By default, source file locations will be shown.
+    <span class="doccomment">/// Emit source file locations when emitting debug information for the SSA IR to stdout.
+    /// By default, source file locations won't be shown.
     </span><span class="attr">#[arg(long, hide = <span class="bool-val">true</span>)]
-    </span><span class="kw">pub </span>no_ssa_locations: bool,
+    </span><span class="kw">pub </span>with_ssa_locations: bool,
 
     <span class="doccomment">/// Only show the SSA and ACIR for the contract function with a given name.
     </span><span class="attr">#[arg(long, hide = <span class="bool-val">true</span>)]
@@ -1689,7 +1689,7 @@
             create_program(
                 program,
                 <span class="kw-2">&amp;</span>ssa_evaluator_options,
-                <span class="kw">if </span>options.no_ssa_locations { <span class="prelude-val">None </span>} <span class="kw">else </span>{ <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>context.file_manager) },
+                <span class="kw">if </span>options.with_ssa_locations { <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>context.file_manager) } <span class="kw">else </span>{ <span class="prelude-val">None </span>},
             )<span class="question-mark">?
         </span>};
 

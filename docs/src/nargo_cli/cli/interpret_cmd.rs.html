@@ -444,7 +444,7 @@
 
         <span class="kw">let </span>interpreter_options = InterpreterOptions { trace: args.trace, ..Default::default() };
         <span class="kw">let </span>file_manager =
-            <span class="kw">if </span>args.compile_options.no_ssa_locations { <span class="prelude-val">None </span>} <span class="kw">else </span>{ <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>file_manager) };
+            <span class="kw">if </span>args.compile_options.with_ssa_locations { <span class="prelude-val">Some</span>(<span class="kw-2">&amp;</span>file_manager) } <span class="kw">else </span>{ <span class="prelude-val">None </span>};
 
         print_and_interpret_ssa(
             ssa_options,
