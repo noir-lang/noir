@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1756831151311,
+  "lastUpdate": 1756832309147,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -20191,48 +20191,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "5657704f1688e5d00cbf5cb2133b5f2f75eb34bd",
-          "message": "chore: add another mem2reg regression for #9613 (#9635)",
-          "timestamp": "2025-08-26T15:45:05Z",
-          "tree_id": "b4e151ec92f4a9acd37441949bc6612bc3a3d4e0",
-          "url": "https://github.com/noir-lang/noir/commit/5657704f1688e5d00cbf5cb2133b5f2f75eb34bd"
-        },
-        "date": 1756224664495,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 248276,
-            "range": "± 1726",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 217324,
-            "range": "± 3822",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2778603,
-            "range": "± 4999",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -22284,6 +22242,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2795263,
             "range": "± 19051",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "23ba35f877d28da43f1cb464ebea60ae2b02fffd",
+          "message": "fix: greenlight `remove_bit_shifts` (#9686)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-09-02T16:31:51Z",
+          "tree_id": "6889d4a14bddaede6ce078af074e69596e123975",
+          "url": "https://github.com/noir-lang/noir/commit/23ba35f877d28da43f1cb464ebea60ae2b02fffd"
+        },
+        "date": 1756832289567,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 248972,
+            "range": "± 1125",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 222598,
+            "range": "± 3125",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2784347,
+            "range": "± 1786",
             "unit": "ns/iter"
           }
         ]
