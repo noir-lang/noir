@@ -481,9 +481,8 @@ impl<'f> Validator<'f> {
                                     //     public_inputs: [Field; K],
                                     //     key_hash: Field,
                                     //     proof_type: u32,
-                                    //     predicate: bool
                                     // ) {}
-                                    assert_arguments_length(arguments, 6, "recursive_aggregation");
+                                    assert_arguments_length(arguments, 5, "recursive_aggregation");
 
                                     let verification_key = arguments[0];
                                     let verification_key_type = dfg.type_of_value(verification_key);
@@ -506,10 +505,6 @@ impl<'f> Validator<'f> {
                                     let key_hash = arguments[3];
                                     let key_hash_type = dfg.type_of_value(key_hash);
                                     assert_field(&key_hash_type, "recursive_aggregation key_hash");
-
-                                    let predicate = arguments[4];
-                                    let predicate_type = dfg.type_of_value(predicate);
-                                    assert_u1(&predicate_type, "recursive_aggregation predicate");
 
                                     let proof_type = arguments[4];
                                     let proof_type_type = dfg.type_of_value(proof_type);
