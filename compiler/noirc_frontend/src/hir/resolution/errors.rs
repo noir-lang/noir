@@ -188,6 +188,8 @@ pub enum ResolverError {
     AmbiguousAssociatedType { trait_name: String, associated_type_name: String, location: Location },
     #[error("The placeholder `_` is not allowed within types on item signatures for functions")]
     WildcardTypeDisallowed { location: Location },
+    #[error("References are not allowed in globals")]
+    ReferencesNotAllowedInGlobals { location: Location },
 }
 
 impl ResolverError {
@@ -252,7 +254,8 @@ impl ResolverError {
             | ResolverError::UnreachableStatement { location, .. }
             | ResolverError::AssociatedItemConstraintsNotAllowedInGenerics { location }
             | ResolverError::AmbiguousAssociatedType { location, .. }
-            | ResolverError::WildcardTypeDisallowed { location } => *location,
+            | ResolverError::WildcardTypeDisallowed { location }
+            | ResolverError::ReferencesNotAllowedInGlobals { location } => *location,
             ResolverError::UnusedVariable { ident }
             | ResolverError::UnusedItem { ident, .. }
             | ResolverError::DuplicateField { field: ident }
@@ -794,6 +797,13 @@ impl<'a> From<&'a ResolverError> for Diagnostic {
             ResolverError::WildcardTypeDisallowed { location } => {
                 Diagnostic::simple_error(
                     "The placeholder `_` is not allowed within types on item signatures for functions".to_string(),
+                    String::new(),
+                    *location,
+                )
+            }
+            ResolverError::ReferencesNotAllowedInGlobals { location } => {
+                Diagnostic::simple_error(
+                    "References are not allowed in globals".to_string(),
                     String::new(),
                     *location,
                 )
