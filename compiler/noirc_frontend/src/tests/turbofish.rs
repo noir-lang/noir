@@ -2,7 +2,6 @@ use crate::check_errors;
 
 use crate::assert_no_errors;
 
-#[named]
 #[test]
 fn turbofish_numeric_generic_nested_function_call() {
     // Check for turbofish numeric generics used with function calls
@@ -24,7 +23,6 @@ fn turbofish_numeric_generic_nested_function_call() {
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn turbofish_numeric_generic_nested_method_call() {
     // Check for turbofish numeric generics used with method calls
@@ -58,7 +56,6 @@ fn turbofish_numeric_generic_nested_method_call() {
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn turbofish_in_constructor_generics_mismatch() {
     let src = r#"
@@ -74,7 +71,6 @@ fn turbofish_in_constructor_generics_mismatch() {
     check_errors!(src);
 }
 
-#[named]
 #[test]
 fn turbofish_in_constructor() {
     let src = r#"
@@ -91,7 +87,6 @@ fn turbofish_in_constructor() {
     check_errors!(src);
 }
 
-#[named]
 #[test]
 fn turbofish_in_struct_pattern() {
     let src = r#"
@@ -108,7 +103,6 @@ fn turbofish_in_struct_pattern() {
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn turbofish_in_struct_pattern_errors_if_type_mismatch() {
     // TODO: maybe the error should be on the expression
@@ -127,7 +121,6 @@ fn turbofish_in_struct_pattern_errors_if_type_mismatch() {
     check_errors!(src);
 }
 
-#[named]
 #[test]
 fn turbofish_in_struct_pattern_generic_count_mismatch() {
     let src = r#"
@@ -145,7 +138,6 @@ fn turbofish_in_struct_pattern_generic_count_mismatch() {
     check_errors!(src);
 }
 
-#[named]
 #[test]
 fn numeric_turbofish() {
     let src = r#"
@@ -164,7 +156,6 @@ fn numeric_turbofish() {
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn errors_if_turbofish_after_module() {
     let src = r#"
@@ -180,7 +171,6 @@ fn errors_if_turbofish_after_module() {
     check_errors!(src);
 }
 
-#[named]
 #[test]
 fn turbofish_in_type_before_call_does_not_error() {
     let src = r#"
@@ -201,7 +191,6 @@ fn turbofish_in_type_before_call_does_not_error() {
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn turbofish_in_type_before_call_errors() {
     let src = r#"
@@ -223,7 +212,6 @@ fn turbofish_in_type_before_call_errors() {
     check_errors!(src);
 }
 
-#[named]
 #[test]
 fn use_generic_type_alias_with_turbofish_in_method_call_does_not_error() {
     let src = r#"
@@ -249,7 +237,6 @@ fn use_generic_type_alias_with_turbofish_in_method_call_does_not_error() {
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn use_generic_type_alias_with_turbofish_in_method_call_errors() {
     let src = r#"
@@ -273,7 +260,6 @@ fn use_generic_type_alias_with_turbofish_in_method_call_errors() {
     check_errors!(src);
 }
 
-#[named]
 #[test]
 fn use_generic_type_alias_with_partial_generics_with_turbofish_in_method_call_does_not_error() {
     let src = r#"
@@ -297,7 +283,6 @@ fn use_generic_type_alias_with_partial_generics_with_turbofish_in_method_call_do
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn use_generic_type_alias_with_partial_generics_with_turbofish_in_method_call_errors_first_type() {
     let src = r#"
@@ -322,7 +307,6 @@ fn use_generic_type_alias_with_partial_generics_with_turbofish_in_method_call_er
     check_errors!(src);
 }
 
-#[named]
 #[test]
 fn use_generic_type_alias_with_partial_generics_with_turbofish_in_method_call_errors_second_type() {
     let src = r#"
@@ -347,7 +331,6 @@ fn use_generic_type_alias_with_partial_generics_with_turbofish_in_method_call_er
     check_errors!(src);
 }
 
-#[named]
 #[test]
 fn trait_function_with_turbofish_on_trait_gives_error() {
     let src = r#"
@@ -369,7 +352,6 @@ fn trait_function_with_turbofish_on_trait_gives_error() {
     check_errors!(src);
 }
 
-#[named]
 #[test]
 fn turbofish_named_numeric() {
     let src = r#"

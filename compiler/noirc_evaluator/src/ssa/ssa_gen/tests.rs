@@ -4,13 +4,10 @@ use crate::{errors::RuntimeError, ssa::opt::assert_normalized_ssa_equals};
 
 use super::{Ssa, generate_ssa};
 
-use function_name::named;
+use noirc_frontend::test_utils::get_monomorphized;
 
-use noirc_frontend::function_path;
-use noirc_frontend::test_utils::{Expect, get_monomorphized};
-
-fn get_initial_ssa(src: &str, test_path: &str) -> Result<Ssa, RuntimeError> {
-    let program = match get_monomorphized(src, Some(test_path), Expect::Success) {
+fn get_initial_ssa(src: &str) -> Result<Ssa, RuntimeError> {
+    let program = match get_monomorphized(src) {
         Ok(program) => program,
         Err(errors) => {
             panic!(
@@ -22,7 +19,6 @@ fn get_initial_ssa(src: &str, test_path: &str) -> Result<Ssa, RuntimeError> {
     generate_ssa(program)
 }
 
-#[named]
 #[test]
 fn assert() {
     let assert_src = "
@@ -30,7 +26,7 @@ fn assert() {
         assert(input == 5);
     }
     ";
-    let assert_ssa = get_initial_ssa(assert_src, function_path!()).unwrap();
+    let assert_ssa = get_initial_ssa(assert_src).unwrap();
 
     let expected = "
     acir(inline) fn main f0 {
@@ -43,7 +39,6 @@ fn assert() {
     assert_normalized_ssa_equals(assert_ssa, expected);
 }
 
-#[named]
 #[test]
 fn assert_eq() {
     let assert_eq_src = "
@@ -52,7 +47,7 @@ fn assert_eq() {
     }
     ";
 
-    let assert_eq_ssa = get_initial_ssa(assert_eq_src, function_path!()).unwrap();
+    let assert_eq_ssa = get_initial_ssa(assert_eq_src).unwrap();
 
     let expected = "
     acir(inline) fn main f0 {
@@ -67,7 +62,6 @@ fn assert_eq() {
     assert_normalized_ssa_equals(assert_eq_ssa, expected);
 }
 
-#[named]
 #[test]
 fn basic_loop() {
     let src = "
@@ -80,7 +74,7 @@ fn basic_loop() {
     }
     ";
 
-    let ssa = get_initial_ssa(src, function_path!()).unwrap();
+    let ssa = get_initial_ssa(src).unwrap();
 
     let expected = "
     acir(inline) fn main f0 {

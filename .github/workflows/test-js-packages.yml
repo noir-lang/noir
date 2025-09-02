@@ -251,8 +251,10 @@ jobs:
       - name: Set up test environment
         uses: ./.github/actions/setup
 
+      - uses: taiki-e/install-action@just
+
       - name: Install Playwright
-        uses: ./.github/actions/install-playwright
+        run: just install-playwright
 
       - name: Run browser tests
         run: yarn workspace @noir-lang/acvm_js test:browser
@@ -279,8 +281,10 @@ jobs:
       - name: Run node tests
         run: yarn workspace @noir-lang/noirc_abi test
 
+      - uses: taiki-e/install-action@just
+
       - name: Install Playwright
-        uses: ./.github/actions/install-playwright
+        run: just install-playwright
 
       - name: Run browser tests
         run: yarn workspace @noir-lang/noirc_abi test:browser
@@ -348,8 +352,10 @@ jobs:
       - name: Build fixtures
         run: yarn workspace @noir-lang/noir_wasm test:build_fixtures
 
+      - uses: taiki-e/install-action@just
+
       - name: Install Playwright
-        uses: ./.github/actions/install-playwright
+        run: just install-playwright
 
       - name: Run node tests
         run: yarn workspace @noir-lang/noir_wasm test:node
@@ -478,8 +484,10 @@ jobs:
       - name: Install Yarn dependencies
         uses: ./.github/actions/setup
 
+      - uses: taiki-e/install-action@just
+
       - name: Install Playwright
-        uses: ./.github/actions/install-playwright
+        run: just install-playwright
 
       - name: Setup `integration-tests`
         run: |
@@ -510,8 +518,10 @@ jobs:
       - name: Install Yarn dependencies
         uses: ./.github/actions/setup
 
+      - uses: taiki-e/install-action@just
+
       - name: Install Playwright
-        uses: ./.github/actions/install-playwright
+        run: just install-playwright
 
       - name: Install `bb`
         run: |
@@ -536,8 +546,6 @@ jobs:
         with:
           name: noirc_abi_wasm
           path: ./tooling/noirc_abi_wasm
-
-      - uses: taiki-e/install-action@just
 
       - name: Build noir_js
         run: |
