@@ -12,7 +12,6 @@ use crate::{
 use crate::{assert_no_errors, get_program_errors};
 
 // Regression for #5388
-#[named]
 #[test]
 fn comptime_let() {
     let src = r#"fn main() {
@@ -22,7 +21,6 @@ fn comptime_let() {
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn comptime_code_rejects_dynamic_variable() {
     let src = r#"
@@ -36,7 +34,6 @@ fn comptime_code_rejects_dynamic_variable() {
     check_errors!(src);
 }
 
-#[named]
 #[test]
 fn comptime_type_in_runtime_code() {
     let source = "
@@ -47,7 +44,6 @@ fn comptime_type_in_runtime_code() {
     check_errors!(source);
 }
 
-#[named]
 #[test]
 fn macro_result_type_mismatch() {
     let src = r#"
@@ -66,7 +62,6 @@ fn macro_result_type_mismatch() {
     check_errors!(src);
 }
 
-#[named]
 #[test]
 fn unquoted_integer_as_integer_token() {
     let src = r#"
@@ -95,7 +90,6 @@ fn unquoted_integer_as_integer_token() {
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn allows_references_to_structs_generated_by_macros() {
     let src = r#"
@@ -115,7 +109,6 @@ fn allows_references_to_structs_generated_by_macros() {
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn errors_if_macros_inject_functions_with_name_collisions() {
     // This can't be tested using `check_errors` right now because the two secondary
@@ -161,7 +154,6 @@ fn errors_if_macros_inject_functions_with_name_collisions() {
     assert_eq!(first_def.as_str(), "foo");
 }
 
-#[named]
 #[test]
 fn uses_correct_type_for_attribute_arguments() {
     let src = r#"
@@ -182,7 +174,6 @@ fn uses_correct_type_for_attribute_arguments() {
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn does_not_fail_to_parse_macro_on_parser_warning() {
     let src = r#"

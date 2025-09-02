@@ -1,11 +1,14 @@
-use crate::ssa::ir::{
-    dfg::simplify::SimplifyResult,
-    instruction::{
-        Binary, BinaryOp, ConstrainError, Instruction, InstructionId,
-        binary::{BinaryEvaluationResult, eval_constant_binary_op},
+use crate::ssa::{
+    ir::{
+        dfg::simplify::SimplifyResult,
+        instruction::{
+            Binary, BinaryOp, ConstrainError, Instruction, InstructionId,
+            binary::{BinaryEvaluationResult, eval_constant_binary_op},
+        },
+        integer::IntegerConstant,
+        value::{Value, ValueId},
     },
-    integer::IntegerConstant,
-    value::{Value, ValueId},
+    opt::loop_invariant::BlockContext,
 };
 use acvm::{FieldElement, acir::AcirField};
 use noirc_errors::call_stack::CallStackId;
@@ -74,11 +77,11 @@ impl LoopInvariantContext<'_> {
     pub(super) fn simplify_from_loop_bounds(
         &mut self,
         loop_context: &LoopContext,
+        block_context: &BlockContext,
         instruction_id: InstructionId,
-        header: bool,
     ) -> bool {
         // Simplify the instruction and update it in the DFG.
-        match self.simplify_induction_variable(loop_context, instruction_id, header) {
+        match self.simplify_induction_variable(loop_context, block_context, instruction_id) {
             SimplifyResult::SimplifiedTo(id) => {
                 let results =
                     self.inserter.function.dfg.instruction_results(instruction_id).to_vec();
@@ -239,20 +242,22 @@ impl LoopInvariantContext<'_> {
     fn simplify_induction_variable(
         &mut self,
         loop_context: &LoopContext,
+        block_context: &BlockContext,
         instruction_id: InstructionId,
-        header: bool,
     ) -> SimplifyResult {
         let (instruction, call_stack) = self.inserter.map_instruction(instruction_id);
         match &instruction {
-            Instruction::Binary(binary) => {
-                self.simplify_induction_variable_in_binary(loop_context, binary, header)
-            }
+            Instruction::Binary(binary) => self.simplify_induction_variable_in_binary(
+                loop_context,
+                binary,
+                block_context.is_header,
+            ),
             Instruction::Constrain(x, y, err) => {
                 // Ensure the loop is fully executed
                 if loop_context.no_break
-                    && loop_context.can_simplify_control_dependent_instruction()
+                    && block_context.can_simplify_control_dependent_instruction()
                 {
-                    assert!(loop_context.current_block_executes, "executing a non executable loop");
+                    assert!(block_context.does_execute, "executing a non executable loop");
                     self.simplify_induction_in_constrain(loop_context, *x, *y, err, call_stack)
                 } else {
                     SimplifyResult::None
@@ -261,9 +266,9 @@ impl LoopInvariantContext<'_> {
             Instruction::ConstrainNotEqual(x, y, err) => {
                 // Ensure the loop is fully executed
                 if loop_context.no_break
-                    && loop_context.can_simplify_control_dependent_instruction()
+                    && block_context.can_simplify_control_dependent_instruction()
                 {
-                    assert!(loop_context.current_block_executes, "executing a non executable loop");
+                    assert!(block_context.does_execute, "executing a non executable loop");
                     self.simplify_not_equal_constraint(loop_context, x, y, err, call_stack)
                 } else {
                     SimplifyResult::None
@@ -321,14 +326,14 @@ impl LoopInvariantContext<'_> {
         &mut self,
         loop_context: &LoopContext,
         binary: &Binary,
-        header: bool,
+        is_header: bool,
     ) -> SimplifyResult {
         // Checks the operands are an induction variable and a constant
         // Note that here we allow all_induction_variables
         let operand_type = self.inserter.function.dfg.type_of_value(binary.lhs).unwrap_numeric();
 
         let Some((is_induction_var_lhs, value, lower_bound, upper_bound)) =
-            self.match_induction_and_constant(loop_context, &binary.lhs, &binary.rhs, header)
+            self.match_induction_and_constant(loop_context, &binary.lhs, &binary.rhs, is_header)
         else {
             return SimplifyResult::None;
         };
