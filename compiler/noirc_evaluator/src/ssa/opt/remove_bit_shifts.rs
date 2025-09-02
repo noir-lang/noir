@@ -55,7 +55,7 @@
 //!
 //! This case is similar to unsigned shift-right except that for negative numbers we
 //! slightly adjust the value to shift, then adjust it again after performing the division,
-//! so the results are the exepcted ones.
+//! so the results are the expected ones.
 //!
 //! ## Signed shift-left
 //!
