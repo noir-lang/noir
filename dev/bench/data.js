@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1756826963699,
+  "lastUpdate": 1756830015729,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -20191,48 +20191,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "3629a256f5a820769b6d1ba62a280c745881bdcd",
-          "message": "chore: document remove_if_else (in preparation for audit) (#9621)\n\nCo-authored-by: jfecher <jfecher11@gmail.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-08-26T12:04:18Z",
-          "tree_id": "d25ddafeaee47b093b6870dbebf7f8d764c0b1ff",
-          "url": "https://github.com/noir-lang/noir/commit/3629a256f5a820769b6d1ba62a280c745881bdcd"
-        },
-        "date": 1756211820804,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 249317,
-            "range": "± 1414",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 218311,
-            "range": "± 1895",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2776515,
-            "range": "± 30609",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -22284,6 +22242,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2779950,
             "range": "± 21922",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2289e0715c7b2c5e45a9123e28605ef7db101f75",
+          "message": "chore: replace usage of shell scripts with justfile (#9691)",
+          "timestamp": "2025-09-02T15:53:16Z",
+          "tree_id": "dea8c3c89e4a2e4f606feb7f7db5d6df7e4298b3",
+          "url": "https://github.com/noir-lang/noir/commit/2289e0715c7b2c5e45a9123e28605ef7db101f75"
+        },
+        "date": 1756829996000,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 257612,
+            "range": "± 1373",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 234853,
+            "range": "± 1201",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2795263,
+            "range": "± 19051",
             "unit": "ns/iter"
           }
         ]
