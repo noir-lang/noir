@@ -15,6 +15,7 @@ mod constant_folding;
 mod defunctionalize;
 mod die;
 mod evaluate_static_assert_and_assert_constant;
+mod expand_array_oob_checks;
 mod expand_signed_checks;
 pub(crate) mod flatten_cfg;
 mod hint;
