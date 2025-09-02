@@ -95,8 +95,7 @@ impl Context {
         let reachable_blocks = old_function.reachable_blocks();
         self.new_ids.populate_blocks(reachable_blocks, old_function, new_function);
 
-        let mut reverse_post_order = PostOrder::with_function(old_function).into_vec();
-        reverse_post_order.reverse();
+        let reverse_post_order = PostOrder::with_function(old_function).into_vec_reverse();
 
         // Map each parameter, instruction, and terminator
         for old_block_id in reverse_post_order {
