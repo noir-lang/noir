@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_check_impl_struct_not_trait"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_turbofish_errors_if_turbofish_after_module"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]
