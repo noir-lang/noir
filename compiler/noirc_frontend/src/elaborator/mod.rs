@@ -9,7 +9,10 @@ use crate::{
     ast::{IdentOrQuotedType, ItemVisibility, UnresolvedType},
     graph::CrateGraph,
     hir::def_collector::dc_crate::UnresolvedTrait,
-    hir_def::traits::{NamedType, ResolvedTraitBound},
+    hir_def::{
+        stmt::HirStatement,
+        traits::{NamedType, ResolvedTraitBound},
+    },
     node_interner::{GlobalValue, QuotedTypeId},
     token::SecondaryAttributeKind,
     usage_tracker::UsageTracker,
@@ -2176,6 +2179,12 @@ impl<'context> Elaborator<'context> {
 
         let (let_statement, _typ) = self
             .elaborate_in_comptime_context(|this| this.elaborate_let(let_stmt, Some(global_id)));
+
+        if let_statement.r#type.contains_reference() {
+            self.push_err(ResolverError::ReferencesNotAllowedInGlobals { location });
+        }
+
+        let let_statement = HirStatement::Let(let_statement);
 
         let statement_id = self.interner.get_global(global_id).let_statement;
         self.interner.replace_statement(statement_id, let_statement);
