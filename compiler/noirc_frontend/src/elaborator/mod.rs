@@ -13,6 +13,7 @@ use crate::{
     node_interner::{GlobalValue, QuotedTypeId},
     token::SecondaryAttributeKind,
     usage_tracker::UsageTracker,
+    validity::length_is_zero,
 };
 use crate::{
     EnumVariant, Shared, Type, TypeVariable,
@@ -1192,19 +1193,21 @@ impl<'context> Elaborator<'context> {
     ) {
         match typ {
             Type::Unit => return,
-            Type::Array(_, _) => {
-                if !typ.array_or_string_len_is_not_zero() {
+            Type::Array(length, _) | Type::String(length) => {
+                if length_is_zero(length) {
                     //returning zero length arrays is allowed
                     return;
                 }
             }
             _ => (),
         }
-        if (is_entry_point && !typ.is_valid_for_program_input())
-            || (has_inline_attribute && !typ.is_valid_non_inlined_function_input())
-        {
-            self.push_err(TypeCheckError::InvalidTypeForEntryPoint { location });
-        }
+
+        self.check_if_type_is_valid_for_program_input(
+            typ,
+            is_entry_point,
+            has_inline_attribute,
+            location,
+        );
     }
 
     /// True if the `pub` keyword is allowed on parameters in this function
