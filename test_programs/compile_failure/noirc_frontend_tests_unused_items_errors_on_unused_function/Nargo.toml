@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_unused_items_errors_on_unused_function"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

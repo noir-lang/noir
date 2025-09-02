@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_metaprogramming_unquoted_integer_as_integer_token"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]
