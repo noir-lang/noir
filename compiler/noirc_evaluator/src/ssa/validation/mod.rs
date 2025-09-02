@@ -1265,9 +1265,9 @@ mod tests {
     fn msm_has_incorrect_type() {
         let src = "
         acir(inline) fn main f0 {
-          b0(v0: [(Field, Field, Field); 3], v1: [(Field, Field); 3]):
-            v2 = call multi_scalar_mul(v0, v1) -> [(Field, Field, u1); 1]
-            return v2
+          b0(v0: [(Field, Field, Field); 3], v1: [(Field, Field); 3], v2: u1):
+            v3 = call multi_scalar_mul(v0, v1, v2) -> [(Field, Field, u1); 1]
+            return v3
         }
         ";
         let _ = Ssa::from_str(src).unwrap();
