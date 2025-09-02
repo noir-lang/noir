@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1756812853476,
+  "lastUpdate": 1756826137074,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -20191,48 +20191,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "d4e3c0fe920061c9bfa6ca7799e886a85977f734",
-          "message": "fix(mem2reg): Assume all function reference parameters have an unknown alias set with nested references (#9632)",
-          "timestamp": "2025-08-25T20:43:02Z",
-          "tree_id": "892adb9f83f751bc9c63214ecf8c9a35d248007b",
-          "url": "https://github.com/noir-lang/noir/commit/d4e3c0fe920061c9bfa6ca7799e886a85977f734"
-        },
-        "date": 1756156059905,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 257701,
-            "range": "± 1193",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 223339,
-            "range": "± 1736",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2798810,
-            "range": "± 11679",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -22284,6 +22242,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2816100,
             "range": "± 1290",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "19f252519a431e961c594ac8b46d5319520871a8",
+          "message": "fix: revert \"feat: brillig functions can be pure if they are not entry points\" (#9659) (#9710)",
+          "timestamp": "2025-09-02T14:49:13Z",
+          "tree_id": "32feaa4940c0e69397ed4573ef1d709ae213430f",
+          "url": "https://github.com/noir-lang/noir/commit/19f252519a431e961c594ac8b46d5319520871a8"
+        },
+        "date": 1756826117236,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 249110,
+            "range": "± 1042",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 219427,
+            "range": "± 1401",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2779950,
+            "range": "± 21922",
             "unit": "ns/iter"
           }
         ]
