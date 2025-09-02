@@ -1,3 +1,65 @@
+//! This SSA pass replaces Shl and Shr instructions in ACIR functions with more primitive
+//! arithmetic instructions since ACIR doesn't directly support bit shifts.
+//!
+//! In all cases, if the shift amount is equal to or exceeds the operand's number of bits,
+//! the result will be a constrain failure (attempt to bit-shift with overflow).
+//!
+//! ## Unsigned shift-right
+//!
+//! Shifting an unsigned integer to the right by N is the same as diving by 2^N:
+//!
+//! ```ssa
+//! // this:
+//! v2 = shr v1, 3
+//!
+//! // is replaced with:
+//! v2 = div v1, 8
+//! ```
+//!
+//! If the shift amount is not a constant, 2^N is computed via square&multiply,
+//! using the bits decomposition of exponent.
+//!
+//! Pseudo-code of the computation:
+//!
+//! ```text
+//! let mut r = 1;
+//! let exponent_bits = to_bits(exponent);
+//! for i in 1 .. bit_size + 1 {
+//!     let r_squared = r * r;
+//!     let b = exponent_bits[bit_size - i];
+//!     r = if b { 2 * r_squared } else { r_squared };
+//! }
+//! ```
+//!
+//! ## Unsigned shift-left
+//!
+//! Shifting an unsigned integer to the right by N is the same as multiplying by 2^N.
+//! However, since that can overflow the target bit size, the operation is done using
+//! Field, then truncated to the target bit size.
+//!
+//! ```ssa
+//! // this, assuming v1 is a u8:
+//! v2 = shl v1, 3
+//!
+//! // is replaced with:
+//! v2 = cast v1 as Field
+//! v3 = mul v2, 8
+//! v4 = truncate v3 to 8 bits, max_bit_size: 11
+//! v5 = cast v4 as u8
+//! ```
+//!
+//! Like in the previous case, if the shift amount is not a constant it's computed
+//! via square&multiply.
+//!
+//! ## Signed shift-right
+//!
+//! This case is similar to unsigned shift-right except that for negative numbers we
+//! slightly adjust the value to shift, then adjust it again after performing the division,
+//! so the results are the expected ones.
+//!
+//! ## Signed shift-left
+//!
+//! This case is similar to unsigned shift-left.
 use std::{borrow::Cow, sync::Arc};
 
 use acvm::{FieldElement, acir::AcirField};
@@ -17,8 +79,7 @@ use crate::ssa::{
 use super::simple_optimization::SimpleOptimizationContext;
 
 impl Ssa {
-    /// Replaces Shl and Shr instructions with more primitive arithmetic instructions
-    /// since our backend doesn't directly support bit shifts.
+    /// Go through every ACIR function replacing bit shifts with more primitive arithmetic operations,
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn remove_bit_shifts(mut self) -> Ssa {
         for function in self.functions.values_mut() {
@@ -29,9 +90,9 @@ impl Ssa {
 }
 
 impl Function {
-    /// Go through every instruction, replacing bit shifts with more primitive arithmetic
-    /// operations.
-    pub(crate) fn remove_bit_shifts(&mut self) {
+    /// If this is an ACIR function, go through every instruction, replacing bit shifts with
+    /// more primitive arithmetic operations,
+    fn remove_bit_shifts(&mut self) {
         if self.runtime().is_brillig() {
             return;
         }
@@ -193,7 +254,7 @@ impl Context<'_, '_, '_> {
             } else {
                 FieldElement::from(2u32).pow(&exponent_const)
             };
-            return self.numeric_constant(pow, NumericType::NativeField);
+            return self.field_constant(pow);
         }
 
         // When shifting, for instance, `u32` values the maximum allowed value is 31, one less than the bit size.
