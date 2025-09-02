@@ -432,13 +432,23 @@ impl Loop {
     ///     v5 = lt v1, u32 4           // Upper bound
     ///     jmpif v5 then: b3, else: b2
     /// ```
-    fn get_const_upper_bound(&self, dfg: &DataFlowGraph) -> Option<IntegerConstant> {
+    fn get_const_upper_bound(
+        &self,
+        dfg: &DataFlowGraph,
+        pre_header: BasicBlockId,
+    ) -> Option<IntegerConstant> {
         let block = &dfg[self.header];
         let instructions = block.instructions();
         if instructions.is_empty() {
-            // If the loop condition is constant time, the loop header will be
+            // If the loop condition is constant, the loop header will be
             // simplified to a simple jump.
-            return None;
+            if self.has_const_zero_jump_condition(dfg) {
+                // There are cases where the upper bound jmpif degenerates into a constant `false`;
+                // in that case we can just return the `lower` to emulate a known empty loop.
+                return self.get_const_lower_bound(dfg, pre_header);
+            } else {
+                return None;
+            };
         }
 
         if instructions.len() != 1 {
@@ -485,15 +495,17 @@ impl Loop {
         pre_header: BasicBlockId,
     ) -> Option<(IntegerConstant, IntegerConstant)> {
         let lower = self.get_const_lower_bound(dfg, pre_header)?;
-        if let Some(upper) = self.get_const_upper_bound(dfg) {
-            Some((lower, upper))
-        } else if self.has_const_zero_jump_condition(dfg) {
-            // There are cases where the upper bound jmpif degenerates into a constant `false`;
-            // in that case we can just return the `lower` to emulate a known empty loop.
-            Some((lower, lower))
-        } else {
-            None
-        }
+        let upper = self.get_const_upper_bound(dfg, pre_header)?;
+        Some((lower, upper))
+    }
+
+    /// Check if the loop has known constant lower and upper bound, and they indicate
+    /// that the loop executes non-zero times.
+    pub(super) fn does_execute(&self, dfg: &DataFlowGraph, pre_header: BasicBlockId) -> bool {
+        let Some((lower, upper)) = self.get_const_bounds(dfg, pre_header) else {
+            return false;
+        };
+        upper.reduce(lower, |u, l| u > l, |u, l| u > l).unwrap_or(false)
     }
 
     /// Unroll a single loop in the function.
