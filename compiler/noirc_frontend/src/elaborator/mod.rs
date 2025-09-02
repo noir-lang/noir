@@ -1020,7 +1020,7 @@ impl<'context> Elaborator<'context> {
         let return_type = Box::new(self.use_type(func.return_type(), wildcard_allowed));
 
         // Temporary allow slices for contract functions, until contracts are re-factored.
-        if !func.attributes().is_contract_entry_point() {
+        if !func.attributes().has_contract_library_method() {
             self.check_if_type_is_valid_for_program_output(
                 &return_type,
                 is_entry_point || is_test_or_fuzz,
