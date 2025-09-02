@@ -459,13 +459,7 @@
 <a href="#458" id="458">458</a>
 <a href="#459" id="459">459</a>
 <a href="#460" id="460">460</a>
-<a href="#461" id="461">461</a>
-<a href="#462" id="462">462</a>
-<a href="#463" id="463">463</a>
-<a href="#464" id="464">464</a>
-<a href="#465" id="465">465</a>
-<a href="#466" id="466">466</a>
-<a href="#467" id="467">467</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
+<a href="#461" id="461">461</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
 <span class="kw">use </span>num_traits::ToPrimitive <span class="kw">as _</span>;
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 
@@ -660,51 +654,45 @@
                 <span class="kw">return </span>CouldNotEvaluate;
             };
             <span class="kw">let </span>result = function(lhs, rhs);
-            <span class="kw">let </span>result = <span class="kw">match </span>operator {
-                BinaryOp::Div | BinaryOp::Mod <span class="kw">if </span>rhs == <span class="number">0 </span>=&gt; {
-                    <span class="comment">// The divisor is being truncated into the type of the operand, which can potentially
-                    // lead to the rhs being zero.
-                    // If the rhs of a division is zero, attempting to evaluate the division will cause a compiler panic.
-                    // Thus, we do not evaluate the division in this method, as we want to avoid triggering a panic,
-                    // and the operation should be handled by ACIR generation.
-                    </span><span class="kw">return </span>Failure(<span class="string">"attempt to divide by zero"</span>.to_string());
-                }
-                BinaryOp::Shr | BinaryOp::Shl =&gt; {
-                    <span class="kw">if </span>rhs &gt;= bit_size <span class="kw">as </span>i128 {
-                        <span class="kw">let </span>op = binary_op_function_name(operator);
-                        <span class="kw">return </span>Failure(<span class="macro">format!</span>(<span class="string">"attempt to {op} with overflow"</span>));
-                    } <span class="kw">else </span>{
-                        <span class="kw">let </span><span class="prelude-val">Some</span>(result) = result <span class="kw">else </span>{
-                            <span class="kw">return </span>CouldNotEvaluate;
-                        };
-                        result
+
+            <span class="kw">let </span>result = {
+                <span class="kw">match </span>operator {
+                    BinaryOp::Div | BinaryOp::Mod <span class="kw">if </span>rhs == <span class="number">0 </span>=&gt; {
+                        <span class="comment">// The divisor is being truncated into the type of the operand, which can potentially
+                        // lead to the rhs being zero.
+                        // If the rhs of a division is zero, attempting to evaluate the division will cause a compiler panic.
+                        // Thus, we do not evaluate the division in this method, as we want to avoid triggering a panic,
+                        // and the operation should be handled by ACIR generation.
+                        </span><span class="kw">return </span>Failure(<span class="string">"attempt to divide by zero"</span>.to_string());
                     }
-                }
-
-                <span class="kw">_ </span>=&gt; {
-                    <span class="comment">// Check for overflow
-                    </span><span class="kw">let </span>two_pow_bit_size_minus_one = <span class="number">1i128 </span>&lt;&lt; (bit_size - <span class="number">1</span>);
-                    <span class="kw">let </span><span class="prelude-val">Some</span>(result) = result <span class="kw">else </span>{
-                        <span class="kw">if let </span>BinaryOp::Shl = operator {
-                            <span class="kw">return </span>CouldNotEvaluate;
-                        }
-
-                        <span class="kw">let </span>op = binary_op_function_name(operator);
-                        <span class="kw">return </span>Failure(<span class="macro">format!</span>(<span class="string">"attempt to {op} with overflow"</span>));
-                    };
-
-                    <span class="kw">if </span>result &gt;= two_pow_bit_size_minus_one || result &lt; -two_pow_bit_size_minus_one
-                    {
-                        <span class="kw">if let </span>BinaryOp::Shl = operator {
-                            <span class="kw">return </span>CouldNotEvaluate;
-                        }
-
+                    BinaryOp::Shr | BinaryOp::Shl <span class="kw">if </span>rhs &gt;= bit_size <span class="kw">as </span>i128 =&gt; {
                         <span class="kw">let </span>op = binary_op_function_name(operator);
                         <span class="kw">return </span>Failure(<span class="macro">format!</span>(<span class="string">"attempt to {op} with overflow"</span>));
                     }
-
-                    result
+                    <span class="kw">_ </span>=&gt; (),
                 }
+
+                <span class="comment">// Check for overflow
+                </span><span class="kw">let </span>two_pow_bit_size_minus_one = <span class="number">1i128 </span>&lt;&lt; (bit_size - <span class="number">1</span>);
+                <span class="kw">let </span><span class="prelude-val">Some</span>(result) = result <span class="kw">else </span>{
+                    <span class="kw">if let </span>BinaryOp::Shl = operator {
+                        <span class="kw">return </span>CouldNotEvaluate;
+                    }
+
+                    <span class="kw">let </span>op = binary_op_function_name(operator);
+                    <span class="kw">return </span>Failure(<span class="macro">format!</span>(<span class="string">"attempt to {op} with overflow"</span>));
+                };
+
+                <span class="kw">if </span>result &gt;= two_pow_bit_size_minus_one || result &lt; -two_pow_bit_size_minus_one {
+                    <span class="kw">if let </span>BinaryOp::Shl = operator {
+                        <span class="kw">return </span>CouldNotEvaluate;
+                    }
+
+                    <span class="kw">let </span>op = binary_op_function_name(operator);
+                    <span class="kw">return </span>Failure(<span class="macro">format!</span>(<span class="string">"attempt to {op} with overflow"</span>));
+                }
+
+                result
             };
             convert_signed_integer_to_field_element(result, bit_size)
         }

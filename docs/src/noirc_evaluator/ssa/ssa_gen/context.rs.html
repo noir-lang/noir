@@ -1007,15 +1007,7 @@
 <a href="#1006" id="1006">1006</a>
 <a href="#1007" id="1007">1007</a>
 <a href="#1008" id="1008">1008</a>
-<a href="#1009" id="1009">1009</a>
-<a href="#1010" id="1010">1010</a>
-<a href="#1011" id="1011">1011</a>
-<a href="#1012" id="1012">1012</a>
-<a href="#1013" id="1013">1013</a>
-<a href="#1014" id="1014">1014</a>
-<a href="#1015" id="1015">1015</a>
-<a href="#1016" id="1016">1016</a>
-<a href="#1017" id="1017">1017</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
+<a href="#1009" id="1009">1009</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
 <span class="kw">use </span>std::sync::{Arc, Mutex, RwLock};
 
 <span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
@@ -1349,18 +1341,10 @@
 
         <span class="kw">let </span><span class="kw-2">mut </span>result = <span class="self">self</span>.builder.insert_binary(lhs, op, rhs);
 
-        <span class="comment">// Check for integer overflow
-        </span><span class="kw">if </span><span class="macro">matches!</span>(operator, |BinaryOpKind::ShiftLeft| BinaryOpKind::ShiftRight) {
-            <span class="kw">let </span>result_type =
-                <span class="self">self</span>.builder.current_function.dfg.type_of_value(result).unwrap_numeric();
-            <span class="kw">if let </span>NumericType::Signed { bit_size } = result_type {
-                result = <span class="self">self</span>.builder.insert_truncate(result, bit_size, bit_size + <span class="number">1</span>);
-            }
-        };
-
         <span class="kw">if </span>operator_requires_not(operator) {
             result = <span class="self">self</span>.builder.insert_not(result);
         }
+
         result.into()
     }
 

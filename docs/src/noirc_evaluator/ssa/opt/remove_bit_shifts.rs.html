@@ -888,7 +888,130 @@
 <a href="#887" id="887">887</a>
 <a href="#888" id="888">888</a>
 <a href="#889" id="889">889</a>
-<a href="#890" id="890">890</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, sync::Arc};
+<a href="#890" id="890">890</a>
+<a href="#891" id="891">891</a>
+<a href="#892" id="892">892</a>
+<a href="#893" id="893">893</a>
+<a href="#894" id="894">894</a>
+<a href="#895" id="895">895</a>
+<a href="#896" id="896">896</a>
+<a href="#897" id="897">897</a>
+<a href="#898" id="898">898</a>
+<a href="#899" id="899">899</a>
+<a href="#900" id="900">900</a>
+<a href="#901" id="901">901</a>
+<a href="#902" id="902">902</a>
+<a href="#903" id="903">903</a>
+<a href="#904" id="904">904</a>
+<a href="#905" id="905">905</a>
+<a href="#906" id="906">906</a>
+<a href="#907" id="907">907</a>
+<a href="#908" id="908">908</a>
+<a href="#909" id="909">909</a>
+<a href="#910" id="910">910</a>
+<a href="#911" id="911">911</a>
+<a href="#912" id="912">912</a>
+<a href="#913" id="913">913</a>
+<a href="#914" id="914">914</a>
+<a href="#915" id="915">915</a>
+<a href="#916" id="916">916</a>
+<a href="#917" id="917">917</a>
+<a href="#918" id="918">918</a>
+<a href="#919" id="919">919</a>
+<a href="#920" id="920">920</a>
+<a href="#921" id="921">921</a>
+<a href="#922" id="922">922</a>
+<a href="#923" id="923">923</a>
+<a href="#924" id="924">924</a>
+<a href="#925" id="925">925</a>
+<a href="#926" id="926">926</a>
+<a href="#927" id="927">927</a>
+<a href="#928" id="928">928</a>
+<a href="#929" id="929">929</a>
+<a href="#930" id="930">930</a>
+<a href="#931" id="931">931</a>
+<a href="#932" id="932">932</a>
+<a href="#933" id="933">933</a>
+<a href="#934" id="934">934</a>
+<a href="#935" id="935">935</a>
+<a href="#936" id="936">936</a>
+<a href="#937" id="937">937</a>
+<a href="#938" id="938">938</a>
+<a href="#939" id="939">939</a>
+<a href="#940" id="940">940</a>
+<a href="#941" id="941">941</a>
+<a href="#942" id="942">942</a>
+<a href="#943" id="943">943</a>
+<a href="#944" id="944">944</a>
+<a href="#945" id="945">945</a>
+<a href="#946" id="946">946</a>
+<a href="#947" id="947">947</a>
+<a href="#948" id="948">948</a>
+<a href="#949" id="949">949</a>
+<a href="#950" id="950">950</a>
+<a href="#951" id="951">951</a></pre></div><pre class="rust"><code><span class="doccomment">//! This SSA pass replaces Shl and Shr instructions in ACIR functions with more primitive
+//! arithmetic instructions since ACIR doesn't directly support bit shifts.
+//!
+//! In all cases, if the shift amount is equal to or exceeds the operand's number of bits,
+//! the result will be a constrain failure (attempt to bit-shift with overflow).
+//!
+//! ## Unsigned shift-right
+//!
+//! Shifting an unsigned integer to the right by N is the same as diving by 2^N:
+//!
+//! ```ssa
+//! // this:
+//! v2 = shr v1, 3
+//!
+//! // is replaced with:
+//! v2 = div v1, 8
+//! ```
+//!
+//! If the shift amount is not a constant, 2^N is computed via square&amp;multiply,
+//! using the bits decomposition of exponent.
+//!
+//! Pseudo-code of the computation:
+//!
+//! ```text
+//! let mut r = 1;
+//! let exponent_bits = to_bits(exponent);
+//! for i in 1 .. bit_size + 1 {
+//!     let r_squared = r * r;
+//!     let b = exponent_bits[bit_size - i];
+//!     r = if b { 2 * r_squared } else { r_squared };
+//! }
+//! ```
+//!
+//! ## Unsigned shift-left
+//!
+//! Shifting an unsigned integer to the right by N is the same as multiplying by 2^N.
+//! However, since that can overflow the target bit size, the operation is done using
+//! Field, then truncated to the target bit size.
+//!
+//! ```ssa
+//! // this, assuming v1 is a u8:
+//! v2 = shl v1, 3
+//!
+//! // is replaced with:
+//! v2 = cast v1 as Field
+//! v3 = mul v2, 8
+//! v4 = truncate v3 to 8 bits, max_bit_size: 11
+//! v5 = cast v4 as u8
+//! ```
+//!
+//! Like in the previous case, if the shift amount is not a constant it's computed
+//! via square&amp;multiply.
+//!
+//! ## Signed shift-right
+//!
+//! This case is similar to unsigned shift-right except that for negative numbers we
+//! slightly adjust the value to shift, then adjust it again after performing the division,
+//! so the results are the expected ones.
+//!
+//! ## Signed shift-left
+//!
+//! This case is similar to unsigned shift-left.
+</span><span class="kw">use </span>std::{borrow::Cow, sync::Arc};
 
 <span class="kw">use </span>acvm::{FieldElement, acir::AcirField};
 
@@ -907,8 +1030,7 @@
 <span class="kw">use </span><span class="kw">super</span>::simple_optimization::SimpleOptimizationContext;
 
 <span class="kw">impl </span>Ssa {
-    <span class="doccomment">/// Replaces Shl and Shr instructions with more primitive arithmetic instructions
-    /// since our backend doesn't directly support bit shifts.
+    <span class="doccomment">/// Go through every ACIR function replacing bit shifts with more primitive arithmetic operations,
     </span><span class="attr">#[tracing::instrument(level = <span class="string">"trace"</span>, skip(<span class="self">self</span>))]
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>remove_bit_shifts(<span class="kw-2">mut </span><span class="self">self</span>) -&gt; Ssa {
         <span class="kw">for </span>function <span class="kw">in </span><span class="self">self</span>.functions.values_mut() {
@@ -919,9 +1041,9 @@
 }
 
 <span class="kw">impl </span>Function {
-    <span class="doccomment">/// Go through every instruction, replacing bit shifts with more primitive arithmetic
-    /// operations.
-    </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>remove_bit_shifts(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
+    <span class="doccomment">/// If this is an ACIR function, go through every instruction, replacing bit shifts with
+    /// more primitive arithmetic operations,
+    </span><span class="kw">fn </span>remove_bit_shifts(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
         <span class="kw">if </span><span class="self">self</span>.runtime().is_brillig() {
             <span class="kw">return</span>;
         }
@@ -1083,7 +1205,7 @@
             } <span class="kw">else </span>{
                 FieldElement::from(<span class="number">2u32</span>).pow(<span class="kw-2">&amp;</span>exponent_const)
             };
-            <span class="kw">return </span><span class="self">self</span>.numeric_constant(pow, NumericType::NativeField);
+            <span class="kw">return </span><span class="self">self</span>.field_constant(pow);
         }
 
         <span class="comment">// When shifting, for instance, `u32` values the maximum allowed value is 31, one less than the bit size.
