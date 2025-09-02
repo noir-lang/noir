@@ -178,7 +178,7 @@ impl Function {
                 }
 
                 // Check if we will be able to unroll this loop, before starting to modify the blocks.
-                if next_loop.has_const_back_edge_induction_value(self) {
+                if next_loop.has_const_back_edge_induction_value(&self.dfg) {
                     // Don't try to unroll this.
                     failed_to_unroll.insert(next_loop.header);
                     // If this is Brillig, we can still evaluate this loop at runtime.
@@ -353,8 +353,8 @@ impl Loop {
     ///     return
     /// }
     /// ```
-    fn has_const_back_edge_induction_value(&self, function: &Function) -> bool {
-        let back_edge = &function.dfg[self.back_edge_start];
+    fn has_const_back_edge_induction_value(&self, dfg: &DataFlowGraph) -> bool {
+        let back_edge = &dfg[self.back_edge_start];
         let Some(TerminatorInstruction::Jmp { destination, arguments, .. }) =
             back_edge.terminator()
         else {
@@ -362,7 +362,37 @@ impl Loop {
         };
         assert_eq!(*destination, self.header, "back edge goes to the header");
         assert_eq!(arguments.len(), 1);
-        function.dfg.get_numeric_constant(arguments[0]).is_some()
+        dfg.get_numeric_constant(arguments[0]).is_some()
+    }
+
+    /// Check if the loop header has a constant zero jump condition, which indicates an empty loop.
+    ///
+    /// This can happen if a jump condition has been simplified out.
+    ///
+    /// For example:
+    /// ```text
+    /// brillig(inline) predicate_pure fn main f0 {
+    ///   b0():
+    ///     jmp b1(u32 10)               // Pre-header
+    ///   b1(v0: u32):                   // Header
+    ///     // v3 = lt v0, u32 0         // Simplified to `u1 0`
+    ///     jmpif u1 0 then: b2, else: b3
+    ///   b2():                          // Back edge
+    ///     v1 = unchecked_add v0, u32 1 // Increment induction value
+    ///     jmp b1(v1)
+    ///   b3():
+    ///     return
+    /// }
+    /// ```
+    fn has_const_zero_jump_condition(&self, dfg: &DataFlowGraph) -> bool {
+        let header = &dfg[self.header];
+        let Some(TerminatorInstruction::JmpIf { condition, .. }) = header.terminator() else {
+            return false;
+        };
+        let Some(condition) = dfg.get_numeric_constant(*condition) else {
+            return false;
+        };
+        condition.is_zero()
     }
 
     /// Find the lower bound of the loop in the pre-header and return it
@@ -455,10 +485,15 @@ impl Loop {
         pre_header: BasicBlockId,
     ) -> Option<(IntegerConstant, IntegerConstant)> {
         let lower = self.get_const_lower_bound(dfg, pre_header)?;
-        // There are cases where the upper bound jmpif degenerates into a constant `false`;
-        // in that case we can just return the `lower` to emulate a known empty loop.
-        let upper = self.get_const_upper_bound(dfg).unwrap_or(lower);
-        Some((lower, upper))
+        if let Some(upper) = self.get_const_upper_bound(dfg) {
+            Some((lower, upper))
+        } else if self.has_const_zero_jump_condition(dfg) {
+            // There are cases where the upper bound jmpif degenerates into a constant `false`;
+            // in that case we can just return the `lower` to emulate a known empty loop.
+            Some((lower, lower))
+        } else {
+            None
+        }
     }
 
     /// Unroll a single loop in the function.
