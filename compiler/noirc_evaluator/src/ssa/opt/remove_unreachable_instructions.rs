@@ -46,7 +46,7 @@
 //! unreachable
 //! ```
 //!
-//! An operation that is guaranteed to fail but doesn't overflow is division by zero.
+//! Division by zero is an operation that is guaranteed to fail, but it does not overflow.
 //!
 //! Because binary operations can depend on a side-effects variable (`enable_side_effects`),
 //! if there's an active non-constant side-effects in place the constrain will check
