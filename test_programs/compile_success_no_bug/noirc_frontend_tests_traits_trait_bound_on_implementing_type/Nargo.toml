@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_traits_trait_bound_on_implementing_type"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

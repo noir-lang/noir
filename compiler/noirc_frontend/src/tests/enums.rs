@@ -1,12 +1,11 @@
 use crate::elaborator::UnstableFeature;
 use crate::{
     assert_no_errors, get_program_using_features, hir::def_collector::dc_crate::CompilationError,
-    parser::ParserErrorReason, tests::Expect,
+    parser::ParserErrorReason,
 };
 
 use crate::{check_errors, check_errors_using_features};
 
-#[named]
 #[test]
 fn error_with_duplicate_enum_variant() {
     let src = r#"
@@ -23,7 +22,6 @@ fn error_with_duplicate_enum_variant() {
     check_errors!(src);
 }
 
-#[named]
 #[test]
 fn errors_on_unspecified_unstable_enum() {
     // Enums are experimental - this will need to be updated when they are stabilized
@@ -40,7 +38,6 @@ fn errors_on_unspecified_unstable_enum() {
     check_errors_using_features!(src, no_features);
 }
 
-#[named]
 #[test]
 fn errors_on_unspecified_unstable_match() {
     // TODO: update this test. Right now it's hard to test because the span happens in the entire
@@ -55,7 +52,7 @@ fn errors_on_unspecified_unstable_match() {
     "#;
 
     let no_features = &[];
-    let errors = get_program_using_features!(src, Expect::Success, no_features).2;
+    let errors = get_program_using_features!(src, no_features).2;
     assert_eq!(errors.len(), 1);
 
     let CompilationError::ParseError(error) = &errors[0] else {
@@ -65,7 +62,6 @@ fn errors_on_unspecified_unstable_match() {
     assert!(matches!(error.reason(), Some(ParserErrorReason::ExperimentalFeature(_))));
 }
 
-#[named]
 #[test]
 fn errors_on_repeated_match_variables_in_pattern() {
     let src = r#"
@@ -81,7 +77,6 @@ fn errors_on_repeated_match_variables_in_pattern() {
     check_errors!(src);
 }
 
-#[named]
 #[test]
 fn duplicate_field_in_match_struct_pattern() {
     let src = r#"
@@ -101,7 +96,6 @@ fn duplicate_field_in_match_struct_pattern() {
     check_errors!(src);
 }
 
-#[named]
 #[test]
 fn missing_field_in_match_struct_pattern() {
     let src = r#"
@@ -121,7 +115,6 @@ fn missing_field_in_match_struct_pattern() {
     check_errors!(src);
 }
 
-#[named]
 #[test]
 fn no_such_field_in_match_struct_pattern() {
     let src = r#"
@@ -141,7 +134,6 @@ fn no_such_field_in_match_struct_pattern() {
     check_errors!(src);
 }
 
-#[named]
 #[test]
 fn match_integer_type_mismatch_in_pattern() {
     let src = r#"
@@ -159,7 +151,6 @@ fn match_integer_type_mismatch_in_pattern() {
     check_errors!(src);
 }
 
-#[named]
 #[test]
 fn match_shadow_global() {
     let src = r#"
@@ -174,7 +165,6 @@ fn match_shadow_global() {
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn match_no_shadow_global() {
     let src = r#"
@@ -190,7 +180,6 @@ fn match_no_shadow_global() {
     check_errors!(src);
 }
 
-#[named]
 #[test]
 fn constructor_arg_arity_mismatch_in_pattern() {
     let src = r#"
@@ -211,7 +200,6 @@ fn constructor_arg_arity_mismatch_in_pattern() {
     check_errors!(src);
 }
 
-#[named]
 #[test]
 fn unreachable_match_case() {
     check_errors!(
@@ -230,11 +218,10 @@ fn unreachable_match_case() {
             None,
             Some(T),
         }
-    "#,
+    "#
     );
 }
 
-#[named]
 #[test]
 fn match_reachability_errors_ignored_when_there_is_a_type_error() {
     // No comment on the second `None` case.
@@ -259,11 +246,10 @@ fn match_reachability_errors_ignored_when_there_is_a_type_error() {
             None,
             Some(T),
         }
-    ",
+    "
     );
 }
 
-#[named]
 #[test]
 fn missing_single_case() {
     check_errors!(
@@ -279,11 +265,10 @@ fn missing_single_case() {
             None,
             Some(T),
         }
-    ",
+    "
     );
 }
 
-#[named]
 #[test]
 fn missing_many_cases() {
     check_errors!(
@@ -299,11 +284,10 @@ fn missing_many_cases() {
         enum Abc {
             A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z
         }
-    ",
+    "
     );
 }
 
-#[named]
 #[test]
 fn missing_int_ranges() {
     check_errors!(
@@ -321,11 +305,9 @@ fn missing_int_ranges() {
             None,
             Some(T),
         }
-    ",
-    );
+    ");
 }
 
-#[named]
 #[test]
 fn missing_int_ranges_with_negatives() {
     check_errors!(
@@ -339,11 +321,10 @@ fn missing_int_ranges_with_negatives() {
                 3 => (),
             }
         }
-    ",
+    "
     );
 }
 
-#[named]
 #[test]
 fn missing_cases_with_empty_match() {
     check_errors!(
@@ -356,11 +337,10 @@ fn missing_cases_with_empty_match() {
         enum Abc {
             A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T,U,V,W,X,Y,Z
         }
-    ",
+    "
     );
 }
 
-#[named]
 #[test]
 fn missing_integer_cases_with_empty_match() {
     check_errors!(
@@ -371,11 +351,10 @@ fn missing_integer_cases_with_empty_match() {
                   ^ Missing cases: `i8` is non-empty
                   ~ Try adding a match-all pattern: `_`
         }
-    ",
+    "
     );
 }
 
-#[named]
 #[test]
 fn match_on_empty_enum() {
     let features = vec![UnstableFeature::Enums];

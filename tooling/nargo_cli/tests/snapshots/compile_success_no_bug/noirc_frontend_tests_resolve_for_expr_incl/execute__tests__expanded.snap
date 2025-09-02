@@ -1,9 +1,0 @@
----
-source: tooling/nargo_cli/tests/execute.rs
-expression: expanded_code
----
-fn main(x: u64) {
-    for i in 1_u64..20_u64 + 1_u64 {
-        let _z: u64 = x + i;
-    }
-}

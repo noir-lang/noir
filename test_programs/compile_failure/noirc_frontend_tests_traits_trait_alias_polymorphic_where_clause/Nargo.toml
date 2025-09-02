@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_traits_trait_alias_polymorphic_where_clause"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]
