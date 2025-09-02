@@ -2663,7 +2663,16 @@
 <a href="#2662" id="2662">2662</a>
 <a href="#2663" id="2663">2663</a>
 <a href="#2664" id="2664">2664</a>
-<a href="#2665" id="2665">2665</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
+<a href="#2665" id="2665">2665</a>
+<a href="#2666" id="2666">2666</a>
+<a href="#2667" id="2667">2667</a>
+<a href="#2668" id="2668">2668</a>
+<a href="#2669" id="2669">2669</a>
+<a href="#2670" id="2670">2670</a>
+<a href="#2671" id="2671">2671</a>
+<a href="#2672" id="2672">2672</a>
+<a href="#2673" id="2673">2673</a>
+<a href="#2674" id="2674">2674</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{
     cell::RefCell,
     collections::{BTreeMap, BTreeSet},
     rc::Rc,
@@ -2674,7 +2683,10 @@
     ast::{IdentOrQuotedType, ItemVisibility, UnresolvedType},
     graph::CrateGraph,
     hir::def_collector::dc_crate::UnresolvedTrait,
-    hir_def::traits::{NamedType, ResolvedTraitBound},
+    hir_def::{
+        stmt::HirStatement,
+        traits::{NamedType, ResolvedTraitBound},
+    },
     node_interner::{GlobalValue, QuotedTypeId},
     token::SecondaryAttributeKind,
     usage_tracker::UsageTracker,
@@ -4841,6 +4853,12 @@
 
         <span class="kw">let </span>(let_statement, _typ) = <span class="self">self
             </span>.elaborate_in_comptime_context(|this| this.elaborate_let(let_stmt, <span class="prelude-val">Some</span>(global_id)));
+
+        <span class="kw">if </span>let_statement.r#type.contains_reference() {
+            <span class="self">self</span>.push_err(ResolverError::ReferencesNotAllowedInGlobals { location });
+        }
+
+        <span class="kw">let </span>let_statement = HirStatement::Let(let_statement);
 
         <span class="kw">let </span>statement_id = <span class="self">self</span>.interner.get_global(global_id).let_statement;
         <span class="self">self</span>.interner.replace_statement(statement_id, let_statement);

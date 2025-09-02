@@ -713,7 +713,8 @@
 <a href="#712" id="712">712</a>
 <a href="#713" id="713">713</a>
 <a href="#714" id="714">714</a>
-<a href="#715" id="715">715</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::Location;
+<a href="#715" id="715">715</a>
+<a href="#716" id="716">716</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::Location;
 
 <span class="kw">use crate</span>::{
     DataType, Type,
@@ -797,7 +798,8 @@
     }
 
     <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>elaborate_local_let(<span class="kw-2">&amp;mut </span><span class="self">self</span>, let_stmt: LetStatement) -&gt; (HirStatement, Type) {
-        <span class="self">self</span>.elaborate_let(let_stmt, <span class="prelude-val">None</span>)
+        <span class="kw">let </span>(let_statement, typ) = <span class="self">self</span>.elaborate_let(let_stmt, <span class="prelude-val">None</span>);
+        (HirStatement::Let(let_statement), typ)
     }
 
     <span class="doccomment">/// Elaborate a local or global let statement.
@@ -808,7 +810,7 @@
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         let_stmt: LetStatement,
         global_id: <span class="prelude-ty">Option</span>&lt;GlobalId&gt;,
-    ) -&gt; (HirStatement, Type) {
+    ) -&gt; (HirLetStatement, Type) {
         <span class="kw">let </span>type_contains_unspecified = let_stmt.r#type.contains_unspecified();
         <span class="kw">let </span>annotated_type = <span class="self">self</span>.resolve_inferred_type(let_stmt.r#type);
 
@@ -860,7 +862,7 @@
         <span class="kw">let </span>is_global_let = let_stmt.is_global_let;
         <span class="kw">let </span>let_ =
             HirLetStatement::new(pattern, r#type, expression, attributes, comptime, is_global_let);
-        (HirStatement::Let(let_), Type::Unit)
+        (let_, Type::Unit)
     }
 
     <span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>elaborate_assign(<span class="kw-2">&amp;mut </span><span class="self">self</span>, assign: AssignStatement) -&gt; (HirStatement, Type) {
