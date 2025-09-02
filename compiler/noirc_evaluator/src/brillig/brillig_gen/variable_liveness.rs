@@ -179,9 +179,7 @@ impl VariableLiveness {
 
     fn compute_block_param_definitions(&mut self, func: &Function) {
         // Going in reverse post order to process the entry block first
-        let mut reverse_post_order = Vec::new();
-        reverse_post_order.extend_from_slice(self.post_order.as_slice());
-        reverse_post_order.reverse();
+        let reverse_post_order = self.post_order.clone().into_vec_reverse();
         for block in reverse_post_order {
             let params = func.dfg[block].parameters();
             // If it has no dominator, it's the entry block
