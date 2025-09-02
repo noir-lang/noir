@@ -378,6 +378,9 @@ impl Function {
                                 context.remove_current_instruction();
                                 Reachability::Unreachable
                             } else {
+                                // Here we could use the empty slice as the replacement of the return value,
+                                // except that slice operations also return the removed element and the new length
+                                // so it's easier to just use zeroed values here
                                 remove_and_replace_with_defaults(context, func_id, block_id);
                                 Reachability::UnreachableUnderPredicate
                             };
