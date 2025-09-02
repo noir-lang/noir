@@ -131,10 +131,8 @@ impl SimpleOptimizationContext<'_, '_> {
     /// Instructs this context to insert the current instruction right away, as opposed
     /// to doing this at the end of `mutate`'s block (unless `remove_current_instruction is called`).
     ///
-    /// If `simplify_instruction_if_changed` is `true` and the instruction or its values have been updated,
-    /// then it will attempt to simplify it before re-insertion. This should only be enabled after the CFG
-    /// itself has been flattened, as it has a chance to replace induction variables in `jmpif` terminators
-    /// with constants, which hinders the recognition of loops.
+    /// If the instruction or its values has relative to their original content,
+    /// we attempt to simplify the instruction before re-inserting it into the block.
     pub(crate) fn insert_current_instruction(&mut self) {
         // If the instruction changed, then there is a chance that we can (or have to)
         // simplify it before we insert it back into the block.
