@@ -523,24 +523,12 @@ mod tests {
         assert_eq(zero_bytes, [0; 8]);
 
         let one_bits: [u1; 8] = 1.to_le_bits();
-        assert_eq(one_bits[0], 1);
-        assert_eq(one_bits[1], 0);
-        assert_eq(one_bits[2], 0);
-        assert_eq(one_bits[3], 0);
-        assert_eq(one_bits[4], 0);
-        assert_eq(one_bits[5], 0);
-        assert_eq(one_bits[6], 0);
-        assert_eq(one_bits[7], 0);
+        let expected: [u1; 8] = [1, 0, 0, 0, 0, 0, 0, 0];
+        assert_eq(one_bits, expected);
 
         let pow2_bits: [u1; 8] = 4.to_le_bits();
-        assert_eq(pow2_bits[0], 0);
-        assert_eq(pow2_bits[1], 0);
-        assert_eq(pow2_bits[2], 1);
-        assert_eq(pow2_bits[3], 0);
-        assert_eq(pow2_bits[4], 0);
-        assert_eq(pow2_bits[5], 0);
-        assert_eq(pow2_bits[6], 0);
-        assert_eq(pow2_bits[7], 0);
+        let expected: [u1; 8] = [0, 0, 1, 0, 0, 0, 0, 0];
+        assert_eq(pow2_bits, expected);
     }
 
     #[test]
