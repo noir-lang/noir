@@ -1,3 +1,4 @@
+use iter_extended::vecmap;
 use noirc_errors::call_stack::CallStackId;
 
 use acvm::FieldElement;
@@ -83,12 +84,13 @@ impl Function {
                     dfg: &mut self.dfg,
                     values_to_replace: &mut values_to_replace,
                     insert_current_instruction_at_callback_end: true,
+                    insert_with_simplify: false,
                     enable_side_effects,
                 };
                 f(&mut context)?;
 
                 if context.insert_current_instruction_at_callback_end {
-                    self.dfg[block_id].insert_instruction(instruction_id);
+                    context.insert_current_instruction();
                 }
             }
 
@@ -107,12 +109,15 @@ pub(crate) struct SimpleOptimizationContext<'dfg, 'mapping> {
     pub(crate) call_stack_id: CallStackId,
     pub(crate) dfg: &'dfg mut DataFlowGraph,
     pub(crate) enable_side_effects: ValueId,
+    pub(crate) insert_with_simplify: bool,
     values_to_replace: &'mapping mut ValueMapping,
     insert_current_instruction_at_callback_end: bool,
 }
 
 impl SimpleOptimizationContext<'_, '_> {
     /// Returns the current instruction being visited.
+    ///
+    /// The instruction has already had its values updated with any replacements to be done.
     pub(crate) fn instruction(&self) -> &Instruction {
         &self.dfg[self.instruction_id]
     }
@@ -125,8 +130,31 @@ impl SimpleOptimizationContext<'_, '_> {
 
     /// Instructs this context to insert the current instruction right away, as opposed
     /// to doing this at the end of `mutate`'s block (unless `remove_current_instruction is called`).
+    ///
+    /// If `insert_with_simplify` is true, then the instructions are pushed after any potential
+    /// simplifications have been applied to them, which might be useful if values have been
+    /// replaced by constants or defaults. Otherwise the instruction is appended to the block as-is.
     pub(crate) fn insert_current_instruction(&mut self) {
-        self.dfg[self.block_id].insert_instruction(self.instruction_id);
+        if self.insert_with_simplify {
+            // Based on FunctionInserter::push_instruction_value.
+            let instruction = self.instruction().clone();
+            let results = self.dfg.instruction_results(self.instruction_id).to_vec();
+            let ctrl_typevars = instruction
+                .requires_ctrl_typevars()
+                .then(|| vecmap(&results, |result| self.dfg.type_of_value(*result)));
+            let new_results = self.dfg.insert_instruction_and_results(
+                instruction,
+                self.block_id,
+                ctrl_typevars,
+                self.call_stack_id,
+            );
+            assert_eq!(results.len(), new_results.len());
+            for i in 0..results.len() {
+                self.values_to_replace.insert(results[i], new_results[i]);
+            }
+        } else {
+            self.dfg[self.block_id].insert_instruction(self.instruction_id);
+        }
         self.insert_current_instruction_at_callback_end = false;
     }
 
