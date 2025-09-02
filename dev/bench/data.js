@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1756758615231,
+  "lastUpdate": 1756798087739,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -20200,48 +20200,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "22ceb270944bf6688828592d845d49527609b3eb",
-          "message": "chore(brillig): Include function name with `--count-array-copies` debug information (#9623)",
-          "timestamp": "2025-08-25T17:32:41Z",
-          "tree_id": "3b5ff66781565218201ab81d170ed8867dab2eb0",
-          "url": "https://github.com/noir-lang/noir/commit/22ceb270944bf6688828592d845d49527609b3eb"
-        },
-        "date": 1756144957663,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 249948,
-            "range": "± 695",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 217970,
-            "range": "± 2682",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2779793,
-            "range": "± 1502",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "f435c938ca1e1a2ce4449a484cc6d3dae270b3dd",
           "message": "fix(inlining): Do not inline globals and lower them during ACIR gen (#9626)",
@@ -22284,6 +22242,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2780176,
             "range": "± 7161",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "63f1528a210015029f1647285aaf084222051a63",
+          "message": "chore: Refactor `compute_dominance_frontiers` (#9703)",
+          "timestamp": "2025-09-02T06:48:23Z",
+          "tree_id": "dc8ce1ec04f8dc05b20db4ea75f94404ac0cb64f",
+          "url": "https://github.com/noir-lang/noir/commit/63f1528a210015029f1647285aaf084222051a63"
+        },
+        "date": 1756798068086,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 255829,
+            "range": "± 501",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 230414,
+            "range": "± 4599",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2792091,
+            "range": "± 1192",
             "unit": "ns/iter"
           }
         ]
