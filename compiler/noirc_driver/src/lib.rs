@@ -80,10 +80,10 @@ pub struct CompileOptions {
     #[arg(long, hide = true)]
     pub show_ssa_pass: Vec<String>,
 
-    /// Do not emit source file locations when emitting debug information for the SSA IR to stdout.
-    /// By default, source file locations will be shown.
+    /// Emit source file locations when emitting debug information for the SSA IR to stdout.
+    /// By default, source file locations won't be shown.
     #[arg(long, hide = true)]
-    pub no_ssa_locations: bool,
+    pub with_ssa_locations: bool,
 
     /// Only show the SSA and ACIR for the contract function with a given name.
     #[arg(long, hide = true)]
@@ -815,7 +815,7 @@ pub fn compile_no_check(
         create_program(
             program,
             &ssa_evaluator_options,
-            if options.no_ssa_locations { None } else { Some(&context.file_manager) },
+            if options.with_ssa_locations { Some(&context.file_manager) } else { None },
         )?
     };
 
