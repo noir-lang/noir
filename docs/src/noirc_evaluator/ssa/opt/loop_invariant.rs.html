@@ -2794,7 +2794,9 @@
 <a href="#2793" id="2793">2793</a>
 <a href="#2794" id="2794">2794</a>
 <a href="#2795" id="2795">2795</a>
-<a href="#2796" id="2796">2796</a></pre></div><pre class="rust"><code><span class="doccomment">//! The loop invariant code motion (LICM) pass performs two related optimizations:
+<a href="#2796" id="2796">2796</a>
+<a href="#2797" id="2797">2797</a>
+<a href="#2798" id="2798">2798</a></pre></div><pre class="rust"><code><span class="doccomment">//! The loop invariant code motion (LICM) pass performs two related optimizations:
 //! 1. Loop-Invariant Code Motion: Moves computations that produce the same result
 //!    on every iteration out of the loop and into its pre-header.
 //! 2. Loop-Bounds Simplification: Simplifies computations inside the loop body
@@ -2847,7 +2849,9 @@
 //! b dominates a predecessor of y but does not strictly dominate y.
 //! ```
 //! Reversing this for post-dominance we can see that the conditions for control dependence
-//! are the same as those for post-dominance frontiers.
+//! are the same as those for post-dominance frontiers: the post-dominance frontier of a block Y
+//! is the set of blocks closest to Y where a choice was made of whether to reach Y or not.
+//!
 //! Thus, we rewrite our control dependence condition as Y is control dependent on X iff X is in PDF(Y).
 //!
 //! We then can store the PDFs for every block as part of the context of this pass, and use it for checking control dependence.
@@ -3123,7 +3127,7 @@
     /// regarding post-dominance frontiers and control dependence.
     </span><span class="kw">fn </span>is_control_dependent(<span class="kw-2">&amp;</span><span class="self">self</span>, parent_block: BasicBlockId, block: BasicBlockId) -&gt; bool {
         <span class="kw">match </span><span class="self">self</span>.post_dom_frontiers.get(<span class="kw-2">&amp;</span>block) {
-            <span class="prelude-val">Some</span>(dependent_blocks) =&gt; dependent_blocks.contains(<span class="kw-2">&amp;</span>parent_block),
+            <span class="prelude-val">Some</span>(frontier) =&gt; frontier.contains(<span class="kw-2">&amp;</span>parent_block),
             <span class="prelude-val">None </span>=&gt; <span class="bool-val">false</span>,
         }
     }

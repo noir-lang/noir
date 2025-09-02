@@ -6,7 +6,7 @@
 <p>After dominator tree computation has complete, this will contain a node for every
 reachable block, and no nodes for unreachable blocks.</p>
 </div><span id="structfield.cache" class="structfield section-header"><a href="#structfield.cache" class="anchor field">§</a><code>cache: FxHashMap&lt;(<a class="type" href="../basic_block/type.BasicBlockId.html" title="type noirc_evaluator::ssa::ir::basic_block::BasicBlockId">BasicBlockId</a>, <a class="type" href="../basic_block/type.BasicBlockId.html" title="type noirc_evaluator::ssa::ir::basic_block::BasicBlockId">BasicBlockId</a>), <a class="primitive" href="https://doc.rust-lang.org/1.85.0/std/primitive.bool.html">bool</a>&gt;</code></span><div class="docblock"><p>Subsequent calls to <code>dominates</code> are cached to speed up access</p>
-</div><h2 id="implementations" class="section-header">Implementations<a href="#implementations" class="anchor">§</a></h2><div id="implementations-list"><details class="toggle implementors-toggle" open><summary><section id="impl-DominatorTree" class="impl"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/ir/dom.rs.html#55-324">Source</a><a href="#impl-DominatorTree" class="anchor">§</a><h3 class="code-header">impl <a class="struct" href="struct.DominatorTree.html" title="struct noirc_evaluator::ssa::ir::dom::DominatorTree">DominatorTree</a></h3><div class="docblock"><p>Methods for querying the dominator tree.</p>
+</div><h2 id="implementations" class="section-header">Implementations<a href="#implementations" class="anchor">§</a></h2><div id="implementations-list"><details class="toggle implementors-toggle" open><summary><section id="impl-DominatorTree" class="impl"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/ir/dom.rs.html#55-352">Source</a><a href="#impl-DominatorTree" class="anchor">§</a><h3 class="code-header">impl <a class="struct" href="struct.DominatorTree.html" title="struct noirc_evaluator::ssa::ir::dom::DominatorTree">DominatorTree</a></h3><div class="docblock"><p>Methods for querying the dominator tree.</p>
 </div></section></summary><div class="impl-items"><details class="toggle method-toggle" open><summary><section id="method.is_reachable" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/ir/dom.rs.html#57-59">Source</a><h4 class="code-header">pub(crate) fn <a href="#method.is_reachable" class="fn">is_reachable</a>(&amp;self, block_id: <a class="type" href="../basic_block/type.BasicBlockId.html" title="type noirc_evaluator::ssa::ir::basic_block::BasicBlockId">BasicBlockId</a>) -&gt; <a class="primitive" href="https://doc.rust-lang.org/1.85.0/std/primitive.bool.html">bool</a></h4></section></summary><div class="docblock"><p>Is <code>block_id</code> reachable from the entry block?</p>
 </div></details><details class="toggle method-toggle" open><summary><section id="method.immediate_dominator" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/ir/dom.rs.html#71-73">Source</a><h4 class="code-header">pub(crate) fn <a href="#method.immediate_dominator" class="fn">immediate_dominator</a>(
     &amp;self,
@@ -70,10 +70,22 @@ and build the dominator tree with <code>DominatorTree::with_cfg_and_post_order</
     block_b_id: <a class="type" href="../basic_block/type.BasicBlockId.html" title="type noirc_evaluator::ssa::ir::basic_block::BasicBlockId">BasicBlockId</a>,
 ) -&gt; <a class="type" href="../basic_block/type.BasicBlockId.html" title="type noirc_evaluator::ssa::ir::basic_block::BasicBlockId">BasicBlockId</a></h4></section></summary><div class="docblock"><p>Compute the common dominator of two basic blocks.</p>
 <p>Both basic blocks are assumed to be reachable.</p>
-</div></details><details class="toggle method-toggle" open><summary><section id="method.compute_dominance_frontiers" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/ir/dom.rs.html#290-323">Source</a><h4 class="code-header">pub(crate) fn <a href="#method.compute_dominance_frontiers" class="fn">compute_dominance_frontiers</a>(
+</div></details><details class="toggle method-toggle" open><summary><section id="method.compute_dominance_frontiers" class="method"><a class="src rightside" href="../../../../src/noirc_evaluator/ssa/ir/dom.rs.html#306-351">Source</a><h4 class="code-header">pub(crate) fn <a href="#method.compute_dominance_frontiers" class="fn">compute_dominance_frontiers</a>(
     &amp;mut self,
     cfg: &amp;<a class="struct" href="../cfg/struct.ControlFlowGraph.html" title="struct noirc_evaluator::ssa::ir::cfg::ControlFlowGraph">ControlFlowGraph</a>,
 ) -&gt; HashMap&lt;<a class="type" href="../basic_block/type.BasicBlockId.html" title="type noirc_evaluator::ssa::ir::basic_block::BasicBlockId">BasicBlockId</a>, HashSet&lt;<a class="type" href="../basic_block/type.BasicBlockId.html" title="type noirc_evaluator::ssa::ir::basic_block::BasicBlockId">BasicBlockId</a>&gt;&gt;</h4></section></summary><div class="docblock"><p>Computes the dominance frontier for all blocks in the dominator tree.</p>
+<p>The Dominance Frontier of a basic block X is the set of all blocks that are immediate
+successors to blocks dominated by X, but which aren’t themselves strictly dominated by X.
+It is the set of blocks that are not dominated X, and which are “first reached” on paths from X.</p>
+<p>For example in the following CFG the DF of B is {E}, because B dominates {C},
+but it’s just one edge away from dominating E, as there is another path to E through D.</p>
+<div class="example-wrap"><pre class="language-text"><code>   A
+  / \
+ B   D
+ |   |
+ C   |
+  \ /
+   E</code></pre></div>
 <p>This method uses the algorithm specified in Cooper, Keith D. et al. “A Simple, Fast Dominance Algorithm.” (1999).
 As referenced in the paper a dominance frontier is the set of all CFG nodes, y, such that
 b dominates a predecessor of y but does not strictly dominate y.</p>
