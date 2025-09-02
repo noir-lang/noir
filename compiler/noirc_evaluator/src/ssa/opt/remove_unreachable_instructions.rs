@@ -63,6 +63,9 @@ impl Function {
         self.simple_optimization(|context| {
             let block_id = context.block_id;
 
+            // If we replace values with defaults, we might have to simplify instructions that use them.
+            context.simplify_instruction_if_changed = true;
+
             if current_block_id != Some(block_id) {
                 current_block_id = Some(block_id);
                 current_block_reachability = Reachability::Reachable;
