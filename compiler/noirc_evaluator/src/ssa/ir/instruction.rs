@@ -556,7 +556,12 @@ impl Instruction {
             Cast(_, _) | Not(_) | Truncate { .. } | IfElse { .. } => false,
 
             // `ArrayGet`s which read from "known good" indices from an array have no side effects
-            ArrayGet { array, index, offset: _ } => !dfg.is_safe_index(*index, *array),
+            // This extra out of bounds (OOB) check is only inserted in the ACIR runtime.
+            // Thus, in Brillig an `ArrayGet` is always a pure operation in isolation and
+            // it is expected that OOB checks are inserted separately.
+            ArrayGet { array, index, offset: _ } => {
+                dfg.runtime().is_acir() && !dfg.is_safe_index(*index, *array)
+            }
 
             // ArraySet has side effects
             ArraySet { .. } => true,
