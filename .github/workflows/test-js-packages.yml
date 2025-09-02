@@ -497,7 +497,7 @@ jobs:
   test-examples:
     name: Example scripts
     runs-on: ubuntu-24.04
-    needs: [build-nargo, build-noir-execute]
+    needs: [build-nargo, build-noir-execute, build-acvm-js, build-noirc-abi]
     timeout-minutes: 30
 
     steps:
@@ -509,6 +509,12 @@ jobs:
         with:
           version: nightly-8660e5b941fe7f4d67e246cfd3dafea330fb53b1
 
+      - name: Install Yarn dependencies
+        uses: ./.github/actions/setup
+
+      - name: Install Playwright
+        uses: ./.github/actions/install-playwright
+  
       - name: Install `bb`
         run: |
           ./scripts/install_bb.sh
@@ -532,6 +538,28 @@ jobs:
       - name: Run `oracle_transcript`
         working-directory: ./examples/oracle_transcript
         run: ./test.sh
+
+      - name: Download acvm_js package artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: acvm-js
+          path: ./acvm-repo/acvm_js
+
+      - name: Download noirc_abi package artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: noirc_abi_wasm
+          path: ./tooling/noirc_abi_wasm
+
+      - name: Build noir_js_types
+        run: yarn workspace @noir-lang/types build
+
+      - name: Build noir_js
+        run: yarn workspace @noir-lang/noir_js build
+
+      - name: Run `browser`
+        working-directory: ./examples/docs_tutorials/browser
+        run: yarn playwright install && ./test.sh
 
   external-repo-checks:
     needs: [build-nargo, critical-library-list]

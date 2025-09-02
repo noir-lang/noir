@@ -65,7 +65,7 @@ fn main(x : Field) {
 
 Bit shifts left: `<<`, or right: `>>` require the right hand side operand to be less that the bit size `s` of the operands type:
 `x << y` or `x >> y` overflow if `x,y` are unsigned and `y >= s`
-`x << y` or `x >> y` overflow if `x,y` are signed and `y >= s-1`
+`x << y` or `x >> y` overflow if `x,y` are signed and `y >= s`
 
 ### Logical Operators
 

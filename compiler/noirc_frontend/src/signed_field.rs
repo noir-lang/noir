@@ -68,7 +68,7 @@ impl SignedField {
             return None;
         }
 
-        assert!(std::mem::size_of::<T>() <= std::mem::size_of::<u128>());
+        assert!(size_of::<T>() <= size_of::<u128>());
         let u128_value = self.field.try_into_u128()?;
         u128_value.try_into().ok()
     }
@@ -283,7 +283,7 @@ macro_rules! impl_unsigned_abs_for {
     ($typ:ty) => {
         impl AbsU128 for $typ {
             fn abs_u128(self) -> u128 {
-                self.unsigned_abs() as u128
+                self.unsigned_abs().into()
             }
         }
     };
