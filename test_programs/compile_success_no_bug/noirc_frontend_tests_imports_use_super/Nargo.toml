@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_imports_use_super"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

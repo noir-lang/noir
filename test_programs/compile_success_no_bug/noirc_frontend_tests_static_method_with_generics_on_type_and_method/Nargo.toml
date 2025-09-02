@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_static_method_with_generics_on_type_and_method"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]
