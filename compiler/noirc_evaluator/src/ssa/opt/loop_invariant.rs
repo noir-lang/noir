@@ -51,7 +51,9 @@
 //! b dominates a predecessor of y but does not strictly dominate y.
 //! ```
 //! Reversing this for post-dominance we can see that the conditions for control dependence
-//! are the same as those for post-dominance frontiers.
+//! are the same as those for post-dominance frontiers: the post-dominance frontier of a block Y
+//! is the set of blocks closest to Y where a choice was made of whether to reach Y or not.
+//!
 //! Thus, we rewrite our control dependence condition as Y is control dependent on X iff X is in PDF(Y).
 //!
 //! We then can store the PDFs for every block as part of the context of this pass, and use it for checking control dependence.
@@ -166,15 +168,16 @@ impl Loop {
         function.dfg.block_parameters(self.header).iter().next().copied()
     }
 
-    // Check if the loop will be fully executed by checking the number of predecessors of the loop exit
-    // Our SSA code generation restricts loops to having one exit block except in the case of a `break`.
-    // If a loop can have several exit blocks, we would need to update this function
+    /// Check if the loop will be fully executed by checking the number of predecessors of the loop exit
+    /// Our SSA code generation restricts loops to having one exit block except in the case of a `break`.
+    /// If a loop can have several exit blocks, we would need to update this function.
     pub(super) fn is_fully_executed(&self, cfg: &ControlFlowGraph) -> bool {
-        let Some(header) = self.blocks.first() else {
-            return true;
-        };
-        for block in cfg.successors(*header) {
+        // The header has 2 successors: the loop body and the exit block.
+        for block in cfg.successors(self.header) {
+            // The exit block is not contained in the loop.
             if !self.blocks.contains(&block) {
+                // If the exit block can be reached from the header and somewhere else in the loop,
+                // then there must be a `break`.
                 return cfg.predecessors(block).len() == 1;
             }
         }
@@ -326,7 +329,7 @@ impl PostDominanceFrontiers {
     /// regarding post-dominance frontiers and control dependence.
     fn is_control_dependent(&self, parent_block: BasicBlockId, block: BasicBlockId) -> bool {
         match self.post_dom_frontiers.get(&block) {
-            Some(dependent_blocks) => dependent_blocks.contains(&parent_block),
+            Some(frontier) => frontier.contains(&parent_block),
             None => false,
         }
     }
@@ -1776,7 +1779,7 @@ mod control_dependence {
         ssa::{
             interpreter::{errors::InterpreterError, tests::from_constant},
             ir::types::NumericType,
-            opt::{assert_normalized_ssa_equals, assert_ssa_does_not_change},
+            opt::{assert_normalized_ssa_equals, assert_ssa_does_not_change, unrolling::Loops},
             ssa_gen::Ssa,
         },
     };
@@ -2740,5 +2743,56 @@ mod control_dependence {
             jmp b1(v32)
         }
         ");
+    }
+
+    #[test]
+    fn loop_with_break_not_fully_executed() {
+        // Based on the SSA for the following program:
+        // ```noir
+        // unconstrained fn main(x: u32) -> pub u32 {
+        //     let mut s = 0;
+        //     for i in 0..10 {
+        //         s += i;
+        //         if i >= x {
+        //             break;
+        //         }
+        //     }
+        //     s
+        // }
+        // ```
+        // The ID of blocks and their order has been altered,
+        // so that the header is not the first block or the one
+        // with the lowest ID.
+        let src = r"
+        brillig(inline) fn main f0 {
+          b0(v0: u32):
+            v2 = allocate -> &mut u32
+            store u32 0 at v2
+            jmp b2(u32 0)
+          b1():
+            v6 = load v2 -> u32
+            v7 = add v6, v1
+            store v7 at v2
+            v8 = lt v1, v0
+            v9 = not v8
+            jmpif v9 then: b4, else: b5
+          b2(v1: u32):
+            v5 = lt v1, u32 10
+            jmpif v5 then: b1, else: b3
+          b4():
+            jmp b3()
+          b5():
+            v11 = unchecked_add v1, u32 1
+            jmp b2(v11)
+          b3():
+            v12 = load v2 -> u32
+            return v12
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let mut loops = Loops::find_all(ssa.main());
+        let loop_ = loops.yet_to_unroll.pop().unwrap();
+        assert!(!loop_.is_fully_executed(&loops.cfg));
     }
 }
