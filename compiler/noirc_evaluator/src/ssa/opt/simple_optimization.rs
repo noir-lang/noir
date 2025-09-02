@@ -69,6 +69,7 @@ impl Function {
             for instruction_id in &instruction_ids {
                 let instruction_id = *instruction_id;
                 let instruction = &mut self.dfg[instruction_id];
+                let orig_instruction_hash = fxhash::hash64(instruction);
                 if !values_to_replace.is_empty() {
                     instruction.replace_values(&values_to_replace);
                 }
@@ -83,8 +84,8 @@ impl Function {
                     dfg: &mut self.dfg,
                     values_to_replace: &mut values_to_replace,
                     insert_current_instruction_at_callback_end: true,
-                    insert_with_simplify: false,
                     enable_side_effects,
+                    orig_instruction_hash,
                 };
                 f(&mut context)?;
 
@@ -108,9 +109,9 @@ pub(crate) struct SimpleOptimizationContext<'dfg, 'mapping> {
     pub(crate) call_stack_id: CallStackId,
     pub(crate) dfg: &'dfg mut DataFlowGraph,
     pub(crate) enable_side_effects: ValueId,
-    pub(crate) insert_with_simplify: bool,
     values_to_replace: &'mapping mut ValueMapping,
     insert_current_instruction_at_callback_end: bool,
+    orig_instruction_hash: u64,
 }
 
 impl SimpleOptimizationContext<'_, '_> {
@@ -130,11 +131,15 @@ impl SimpleOptimizationContext<'_, '_> {
     /// Instructs this context to insert the current instruction right away, as opposed
     /// to doing this at the end of `mutate`'s block (unless `remove_current_instruction is called`).
     ///
-    /// If `insert_with_simplify` is true, then the instructions are pushed after any potential
-    /// simplifications have been applied to them, which might be useful if values have been
-    /// replaced by constants or defaults. Otherwise the instruction is appended to the block as-is.
+    /// If the instruction or its values have been updated, then it will attempt to simplify it before re-insertion.
     pub(crate) fn insert_current_instruction(&mut self) {
-        if self.insert_with_simplify {
+        let instruction_hash = fxhash::hash64(self.instruction());
+
+        // If the instruction changed, then there is a chance that we can (or have to)
+        // simplify it before we insert it back into the block.
+        let simplify = self.orig_instruction_hash != instruction_hash;
+
+        if simplify {
             // Based on FunctionInserter::push_instruction_value.
             let instruction = self.instruction().clone();
             let results = self.dfg.instruction_results(self.instruction_id).to_vec();
@@ -155,6 +160,7 @@ impl SimpleOptimizationContext<'_, '_> {
         } else {
             self.dfg[self.block_id].insert_instruction(self.instruction_id);
         }
+
         self.insert_current_instruction_at_callback_end = false;
     }
 

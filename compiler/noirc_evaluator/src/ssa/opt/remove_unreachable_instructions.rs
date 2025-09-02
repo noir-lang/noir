@@ -59,7 +59,6 @@ impl Function {
 
         let one = self.dfg.make_constant(1_u32.into(), NumericType::bool());
         let mut side_effects_condition = one;
-        let mut insert_with_simplify = false;
 
         self.simple_optimization(|context| {
             let block_id = context.block_id;
@@ -68,9 +67,6 @@ impl Function {
                 current_block_id = Some(block_id);
                 current_block_reachability = Reachability::Reachable;
                 side_effects_condition = one;
-                insert_with_simplify = false;
-            } else {
-                context.insert_with_simplify = insert_with_simplify;
             }
 
             if current_block_reachability == Reachability::Unreachable {
@@ -99,8 +95,6 @@ impl Function {
                     return;
                 }
                 remove_and_replace_with_defaults(context, func_id, block_id);
-                // Potentially we can (or have to) simplify subsequent instructions that now operate on default values.
-                insert_with_simplify = true;
                 return;
             }
 
