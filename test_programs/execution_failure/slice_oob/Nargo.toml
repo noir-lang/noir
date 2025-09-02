@@ -1,6 +1,0 @@
-[package]
-name = "slice_oob"
-type = "bin"
-authors = [""]
-
-[dependencies]
