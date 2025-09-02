@@ -4565,3 +4565,12 @@ fn cannot_assign_to_nested_struct() {
     "#;
     check_errors!(src);
 }
+
+#[test]
+fn disallows_references_in_globals() {
+    let src = r#"
+    pub global mutable: &mut Field = &mut 0;
+               ^^^^^^^ References are not allowed in globals
+    "#;
+    check_errors!(src);
+}
