@@ -499,15 +499,6 @@ impl Loop {
         Some((lower, upper))
     }
 
-    /// Check if the loop has known constant lower and upper bound, and they indicate
-    /// that the loop executes non-zero times.
-    pub(super) fn does_execute(&self, dfg: &DataFlowGraph, pre_header: BasicBlockId) -> bool {
-        let Some((lower, upper)) = self.get_const_bounds(dfg, pre_header) else {
-            return false;
-        };
-        upper.reduce(lower, |u, l| u > l, |u, l| u > l).unwrap_or(false)
-    }
-
     /// Unroll a single loop in the function.
     /// Returns Ok(()) if it succeeded, Err(callstack) if it failed,
     /// where the callstack indicates the location of the instruction

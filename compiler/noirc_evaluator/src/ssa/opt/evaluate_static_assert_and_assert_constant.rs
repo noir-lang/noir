@@ -92,7 +92,17 @@ fn get_blocks_within_empty_loop(function: &Function) -> HashSet<BasicBlockId> {
             // If the loop does not have a preheader we skip checking whether the loop is empty
             continue;
         };
-        if !loop_.does_execute(&function.dfg, pre_header) {
+        let const_bounds = loop_.get_const_bounds(&function.dfg, pre_header);
+
+        let does_execute = const_bounds
+            .and_then(|(lower_bound, upper_bound)| {
+                upper_bound.reduce(lower_bound, |u, l| u > l, |u, l| u > l)
+            })
+            // We default to `true` if the bounds are dynamic so that we still
+            // evaluate static assertion in dynamic loops.
+            .unwrap_or(true);
+
+        if !does_execute {
             blocks_within_empty_loop.extend(loop_.blocks);
         }
     }
