@@ -17,7 +17,7 @@
 //! return v1
 //! ```
 //!
-//! because the constrain is guaranteed to fail, every instruction after it is removed
+//! Because the constrain is guaranteed to fail, every instruction after it is removed
 //! and the terminator is replaced with `unreachable`:
 //!
 //! ```ssa
