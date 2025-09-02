@@ -455,7 +455,9 @@ impl Loop {
         pre_header: BasicBlockId,
     ) -> Option<(IntegerConstant, IntegerConstant)> {
         let lower = self.get_const_lower_bound(dfg, pre_header)?;
-        let upper = self.get_const_upper_bound(dfg)?;
+        // There are cases where the upper bound jmpif degenerates into a constant `false`;
+        // in that case we can just return the `lower` to emulate a known empty loop.
+        let upper = self.get_const_upper_bound(dfg).unwrap_or(lower);
         Some((lower, upper))
     }
 
@@ -1255,6 +1257,39 @@ mod tests {
 
         assert_eq!(lower, IntegerConstant::Unsigned { value: 0, bit_size: 32 });
         assert_eq!(upper, IntegerConstant::Unsigned { value: 4, bit_size: 32 });
+    }
+
+    #[test]
+    fn test_get_const_bounds_empty_simplified() {
+        // The following is an empty loop where the jmpif in b1 was simplified
+        // from `v1 = lt v0, u32 0` into `u1 0`.
+        let src = r#"
+        acir(inline) fn main f0 {
+          b0():
+            jmp b1(u32 0)
+          b1(v0: u32):
+            jmpif u1 0 then: b2, else: b3
+          b2():
+            v41 = unchecked_add v0, u32 1
+            jmp b1(v41)
+          b3():
+            return
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let function = ssa.main();
+        let loops = Loops::find_all(function);
+        assert_eq!(loops.yet_to_unroll.len(), 1);
+
+        let loop_ = &loops.yet_to_unroll[0];
+        let pre_header =
+            loop_.get_pre_header(function, &loops.cfg).expect("Should have a pre_header");
+        let (lower, upper) = loop_
+            .get_const_bounds(&function.dfg, pre_header)
+            .expect("should use the lower for upper");
+
+        assert_eq!(lower, IntegerConstant::Unsigned { value: 0, bit_size: 32 });
+        assert_eq!(upper, lower);
     }
 
     #[test]
