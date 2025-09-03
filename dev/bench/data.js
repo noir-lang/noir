@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1756899132765,
+  "lastUpdate": 1756899135265,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -4208,90 +4208,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "36a5064c10713414a0059f73632b509dda309e13",
-          "message": "fix(ssa): Put some default in `Value::uninitialized` for references in the SSA interpreter (#9603)\n\nCo-authored-by: jfecher <jfecher11@gmail.com>",
-          "timestamp": "2025-08-26T18:24:19Z",
-          "tree_id": "330a33360113d1e052d0e55dc7a9c6a7d4fc73ea",
-          "url": "https://github.com/noir-lang/noir/commit/36a5064c10713414a0059f73632b509dda309e13"
-        },
-        "date": 1756235166024,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 1.728,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 8.092,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.386,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 15.14,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 13.14,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 20.74,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 182,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 176,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.37,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.438,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.783,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 1.577,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -8401,6 +8317,90 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 1.675,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "910cd9349e0b9382c1512935bc3e1d791891bd21",
+          "message": "fix(ssa): Simplify instructions during `remove_unreachable_instructions` (#9709)",
+          "timestamp": "2025-09-03T10:53:07Z",
+          "tree_id": "a85d985806ba6b7b8b27e7cb5d778b92226ce324",
+          "url": "https://github.com/noir-lang/noir/commit/910cd9349e0b9382c1512935bc3e1d791891bd21"
+        },
+        "date": 1756899114290,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1.702,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 8.274,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.376,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 16.92,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 14.02,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 24.3,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 206,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 214,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.4,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.592,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.772,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 1.698,
             "unit": "s"
           }
         ]
