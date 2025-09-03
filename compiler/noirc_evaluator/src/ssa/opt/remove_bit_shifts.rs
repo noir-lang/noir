@@ -181,10 +181,7 @@ impl Context<'_, '_, '_> {
             // Otherwise, the result might not bit in a FieldElement.
             // For this, if we have to do `lhs << rhs` we can first shift by half of `rhs`, truncate,
             // then shift by `rhs - half_of_rhs` and trunate again.
-
-            // We know the code below works for u128, and it's the only case that can overflow Field,
-            // but it might not worker for larger types if they are ever introduced in the language.
-            assert_eq!(typ, NumericType::Unsigned { bit_size: 128 });
+            assert!(typ.bit_size() <= 128);
 
             let two = self.numeric_constant(FieldElement::from(2_u32), typ);
 
