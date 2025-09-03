@@ -822,7 +822,14 @@ impl Loop {
             )
             .unwrap_or_default();
 
-        Some(BoilerplateStats { iterations, loads, stores, increments, all_instructions })
+        Some(BoilerplateStats {
+            iterations,
+            loads,
+            stores,
+            increments,
+            all_instructions,
+            has_const_zero_jump_condition: self.has_const_zero_jump_condition(&function.dfg),
+        })
     }
 }
 
@@ -856,6 +863,8 @@ struct BoilerplateStats {
     /// Number of instructions in the loop, including boilerplate,
     /// but excluding the boilerplate which is outside the loop.
     all_instructions: usize,
+    /// Indicate whether the comparison with the upper bound has been simplified out.
+    has_const_zero_jump_condition: bool,
 }
 
 impl BoilerplateStats {
@@ -868,8 +877,9 @@ impl BoilerplateStats {
     /// Estimated number of _useful_ instructions, which is the ones in the loop
     /// minus all in-loop boilerplate.
     fn useful_instructions(&self) -> usize {
-        // Two jumps + plus the comparison with the upper bound
-        let boilerplate = 3;
+        // Two jumps + plus the comparison with the upper bound.
+        // This could be just 2 if the comparison has been simplified out.
+        let boilerplate = if self.has_const_zero_jump_condition { 2 } else { 3 };
         // Be conservative and only assume that mem2reg gets rid of load followed by store.
         // NB we have not checked that these are actual pairs.
         let load_and_store = self.loads.min(self.stores) * 2;
@@ -1397,6 +1407,25 @@ mod tests {
         assert_eq!(stats.stores, 1);
         assert_eq!(stats.useful_instructions(), 4); // cast, array get, add, array set
         assert_eq!(stats.baseline_instructions(), 12);
+        assert!(stats.is_small());
+    }
+
+    #[test]
+    fn test_boilerplate_stats_const_zero_jump_condition() {
+        let src = "
+        brillig(inline) impure fn main f0 {
+          b0():
+            jmp b1(u32 0)
+          b1(v0: u32):
+            jmpif u1 0 then: b2, else: b3
+          b2():
+            v1 = unchecked_add v0, u32 1
+            jmp b1(v1)
+          b3():
+            return
+        }";
+        let ssa = Ssa::from_str(src).unwrap();
+        let stats = loop0_stats(&ssa);
         assert!(stats.is_small());
     }
 
