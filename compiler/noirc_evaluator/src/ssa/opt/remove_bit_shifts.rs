@@ -197,23 +197,20 @@ impl Context<'_, '_, '_> {
                 let zero =
                     self.numeric_constant(FieldElement::zero(), NumericType::signed(bit_size));
                 let lhs_sign = self.insert_binary(lhs, BinaryOp::Lt, zero);
-                let lhs_sign_as_field = self.insert_cast(lhs_sign, NumericType::NativeField);
-                let lhs_as_field = self.insert_cast(lhs, NumericType::NativeField);
-                // For negative numbers, convert to 1-complement using wrapping addition of a + 1
-                // Unchecked add as these are fields
-                let one_complement = self.insert_binary(
-                    lhs_sign_as_field,
-                    BinaryOp::Add { unchecked: true },
-                    lhs_as_field,
-                );
-                let one_complement = self.insert_truncate(one_complement, bit_size, bit_size + 1);
-                let one_complement =
-                    self.insert_cast(one_complement, NumericType::signed(bit_size));
-                // Performs the division on the 1-complement (or the operand if positive)
-                let shifted_complement = self.insert_binary(one_complement, BinaryOp::Div, pow);
-                // Convert back to 2-complement representation if operand is negative
                 let lhs_sign_as_int = self.insert_cast(lhs_sign, lhs_typ);
 
+                // For negative numbers, convert to 1-complement using wrapping addition of a + 1.
+                // We achieve wrapping addition with an unchecked add followed by truncation. For example
+                // for `i8 -1`, which is represented as `Field 255`, it will result in `Field 256` which
+                // after truncation is `Field 0` so `i8 0`.
+                let one_complement =
+                    self.insert_binary(lhs, BinaryOp::Add { unchecked: true }, lhs_sign_as_int);
+                let one_complement = self.insert_truncate(one_complement, bit_size, bit_size + 1);
+
+                // Performs the division on the 1-complement (or the operand if positive)
+                let shifted_complement = self.insert_binary(one_complement, BinaryOp::Div, pow);
+
+                // Convert back to 2-complement representation if operand is negative
                 // The requirements for this to underflow are all of these:
                 // - lhs < 0
                 // - ones_complement(lhs) / (2^rhs) == 0
@@ -224,6 +221,10 @@ impl Context<'_, '_, '_> {
                     BinaryOp::Sub { unchecked: true },
                     lhs_sign_as_int,
                 );
+
+                // Similar to the above wrapping addition, this is a wrapping subtraction because if
+                // `shifted_complement` is `i8 0`, so `Field 0` which, so the subtraction would give
+                // the maximum Field value which, when truncated, equals `i8 -1`.
                 self.insert_truncate(shifted, bit_size, bit_size + 1)
             }
 
@@ -773,16 +774,13 @@ mod tests {
             acir(inline) fn main f0 {
               b0(v0: i32):
                 v2 = lt v0, i32 0
-                v3 = cast v2 as Field
-                v4 = cast v0 as Field
-                v5 = add v3, v4
-                v6 = truncate v5 to 32 bits, max_bit_size: 33
-                v7 = cast v6 as i32
-                v9 = div v7, i32 4
-                v10 = cast v2 as i32
-                v11 = unchecked_sub v9, v10
-                v12 = truncate v11 to 32 bits, max_bit_size: 33
-                return v12
+                v3 = cast v2 as i32
+                v4 = unchecked_add v0, v3
+                v5 = truncate v4 to 32 bits, max_bit_size: 33
+                v7 = div v5, i32 4
+                v8 = unchecked_sub v7, v3
+                v9 = truncate v8 to 32 bits, max_bit_size: 33
+                return v9
             }
             ");
         }
@@ -851,16 +849,13 @@ mod tests {
                 v56 = add v53, v55
                 v57 = cast v56 as i32
                 v59 = lt v0, i32 0
-                v60 = cast v59 as Field
-                v61 = cast v0 as Field
-                v62 = add v60, v61
-                v63 = truncate v62 to 32 bits, max_bit_size: 33
-                v64 = cast v63 as i32
-                v65 = div v64, v57
-                v66 = cast v59 as i32
-                v67 = unchecked_sub v65, v66
-                v68 = truncate v67 to 32 bits, max_bit_size: 33
-                return v68
+                v60 = cast v59 as i32
+                v61 = unchecked_add v0, v60
+                v62 = truncate v61 to 32 bits, max_bit_size: 33
+                v63 = div v62, v57
+                v64 = unchecked_sub v63, v60
+                v65 = truncate v64 to 32 bits, max_bit_size: 33
+                return v65
             }
             "#);
         }
