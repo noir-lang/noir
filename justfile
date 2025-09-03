@@ -1,4 +1,10 @@
-ci := env("CI", "")
+ci := if env("CI") == "true" {
+  "1"
+} else if env("CI") == "1" {
+  "1"
+} else {
+  "0"
+} 
 use-cross := env("JUST_USE_CROSS", "")
 
 # target information
