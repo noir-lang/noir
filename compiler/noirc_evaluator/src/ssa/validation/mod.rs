@@ -13,13 +13,17 @@
 //!   At the moment, only [Instruction::Binary], [Instruction::ArrayGet], and [Instruction::ArraySet]
 //!   are type checked.
 use core::panic;
+use std::sync::Arc;
 
-use acvm::{AcirField, FieldElement};
+use acvm::{AcirField, FieldElement, acir::BlackBoxFunc};
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 pub(crate) mod dynamic_array_indices;
 
-use crate::ssa::{ir::instruction::TerminatorInstruction, ssa_gen::Ssa};
+use crate::ssa::{
+    ir::{dfg::DataFlowGraph, instruction::TerminatorInstruction},
+    ssa_gen::Ssa,
+};
 
 use super::ir::{
     function::Function,
@@ -148,26 +152,25 @@ impl<'f> Validator<'f> {
             Instruction::Binary(Binary { lhs, rhs, operator }) => {
                 let lhs_type = dfg.type_of_value(*lhs);
                 let rhs_type = dfg.type_of_value(*rhs);
-                match operator {
-                    BinaryOp::Lt => {
-                        if lhs_type != rhs_type {
-                            panic!(
-                                "Left-hand side and right-hand side of `lt` must have the same type"
-                            );
-                        }
 
-                        if matches!(lhs_type, Type::Numeric(NumericType::NativeField)) {
-                            panic!("Cannot use `lt` with field elements");
-                        }
-                    }
-                    _ => {
-                        if lhs_type != rhs_type {
-                            panic!(
-                                "Left-hand side and right-hand side of `{operator}` must have the same type"
-                            );
-                        }
-                    }
-                }
+                assert_eq!(
+                    lhs_type, rhs_type,
+                    "Left-hand side and right-hand side of `{operator}` must have the same type"
+                );
+
+                if lhs_type == Type::field()
+                    && matches!(
+                        operator,
+                        BinaryOp::Lt
+                            | BinaryOp::And
+                            | BinaryOp::Or
+                            | BinaryOp::Xor
+                            | BinaryOp::Shl
+                            | BinaryOp::Shr
+                    )
+                {
+                    panic!("Cannot use `{operator}` with field elements");
+                };
             }
             Instruction::ArrayGet { index, .. } | Instruction::ArraySet { index, .. } => {
                 let index_type = dfg.type_of_value(*index);
@@ -180,29 +183,370 @@ impl<'f> Validator<'f> {
                     Value::Intrinsic(intrinsic) => {
                         match intrinsic {
                             Intrinsic::ToRadix(_) => {
-                                assert_eq!(arguments.len(), 2);
+                                assert_arguments_length(arguments, 2, "ToRadix");
 
-                                let value_typ = dfg.type_of_value(arguments[0]);
-                                assert!(matches!(
-                                    value_typ,
-                                    Type::Numeric(NumericType::NativeField)
-                                ));
+                                let value_type = dfg.type_of_value(arguments[0]);
+                                assert_field(&value_type, "ToRadix value");
 
-                                let radix_typ = dfg.type_of_value(arguments[1]);
-                                assert!(matches!(
-                                    radix_typ,
-                                    Type::Numeric(NumericType::Unsigned { bit_size: 32 })
-                                ));
+                                let radix_type = dfg.type_of_value(arguments[1]);
+                                assert_u32(&radix_type, "ToRadix radix");
                             }
                             Intrinsic::ToBits(_) => {
                                 // Intrinsic::ToBits always has a set radix
-                                assert_eq!(arguments.len(), 1);
-                                let value_typ = dfg.type_of_value(arguments[0]);
-                                assert!(matches!(
-                                    value_typ,
-                                    Type::Numeric(NumericType::NativeField)
-                                ));
+                                assert_arguments_length(arguments, 1, "ToBits");
+
+                                let value_type = dfg.type_of_value(arguments[0]);
+                                assert_field(&value_type, "ToBits value");
                             }
+                            Intrinsic::BlackBox(blackbox) => match blackbox {
+                                BlackBoxFunc::AND | BlackBoxFunc::XOR => {
+                                    assert_eq!(arguments.len(), 2);
+                                    let value_typ = dfg.type_of_value(arguments[0]);
+                                    assert!(
+                                        matches!(
+                                            value_typ,
+                                            Type::Numeric(
+                                                NumericType::Unsigned { .. }
+                                                    | NumericType::Signed { .. }
+                                            )
+                                        ),
+                                        "Bitwise operation performed on non-integer type"
+                                    );
+                                }
+                                BlackBoxFunc::AES128Encrypt => {
+                                    // fn aes128_encrypt<let N: u32>(
+                                    //     input: [u8; N],
+                                    //     iv: [u8; 16],
+                                    //     key: [u8; 16],
+                                    // ) -> [u8; N + 16 - N % 16] {}
+                                    assert_arguments_length(arguments, 3, "aes128_encrypt");
+
+                                    let input = arguments[0];
+                                    let input_type = dfg.type_of_value(input);
+                                    let input_length =
+                                        assert_u8_array(&input_type, "aes128_encrypt input");
+
+                                    let iv = arguments[1];
+                                    let iv_type = dfg.type_of_value(iv);
+                                    let iv_length = assert_u8_array(&iv_type, "aes128_encrypt iv");
+                                    assert_array_length(iv_length, 16, "aes128_encrypt iv");
+
+                                    let key = arguments[2];
+                                    let key_type = dfg.type_of_value(key);
+                                    let key_length =
+                                        assert_u8_array(&key_type, "aes128_encrypt key");
+                                    assert_array_length(key_length, 16, "aes128_encrypt key");
+
+                                    let results = dfg.instruction_results(instruction);
+                                    assert_eq!(results.len(), 1, "Expected one result",);
+                                    let result_type = dfg.type_of_value(results[0]);
+                                    let result_length =
+                                        assert_u8_array(&result_type, "aes128_encrypt output");
+                                    assert_eq!(
+                                        result_length,
+                                        input_length + 16 - input_length % 16,
+                                        "aes128_encrypt output length mismatch"
+                                    );
+                                }
+                                BlackBoxFunc::BigIntAdd
+                                | BlackBoxFunc::BigIntSub
+                                | BlackBoxFunc::BigIntMul
+                                | BlackBoxFunc::BigIntDiv
+                                | BlackBoxFunc::BigIntFromLeBytes
+                                | BlackBoxFunc::BigIntToLeBytes => {}
+                                BlackBoxFunc::Blake2s | BlackBoxFunc::Blake3 => {
+                                    // fn blake2s<let N: u32>(input: [u8; N]) -> [u8; 32]
+                                    // fn __blake3<let N: u32>(input: [u8; N]) -> [u8; 32] {}
+                                    assert_arguments_length(arguments, 1, "blake");
+
+                                    let input = arguments[0];
+                                    let input_type = dfg.type_of_value(input);
+                                    assert_u8_array(&input_type, "blake input");
+
+                                    let results = dfg.instruction_results(instruction);
+                                    assert_eq!(results.len(), 1, "Expected one result");
+                                    let result_type = dfg.type_of_value(results[0]);
+                                    let result_length =
+                                        assert_u8_array(&result_type, "blake output");
+                                    assert_array_length(result_length, 32, "blake output");
+                                }
+                                BlackBoxFunc::EcdsaSecp256k1 | BlackBoxFunc::EcdsaSecp256r1 => {
+                                    // fn verify_signature<let N: u32>(
+                                    //     public_key_x: [u8; 32],
+                                    //     public_key_y: [u8; 32],
+                                    //     signature: [u8; 64],
+                                    //     message_hash: [u8; N],
+                                    // ) -> bool
+                                    assert_arguments_length(arguments, 4, "ecdsa_secp_256");
+
+                                    let public_key_x = arguments[0];
+                                    let public_key_x_type = dfg.type_of_value(public_key_x);
+                                    let public_key_x_length = assert_u8_array(
+                                        &public_key_x_type,
+                                        "ecdsa_secp256 public_key_x",
+                                    );
+                                    assert_array_length(
+                                        public_key_x_length,
+                                        32,
+                                        "ecdsa_secp256 public_key_x",
+                                    );
+
+                                    let public_key_y = arguments[1];
+                                    let public_key_y_type = dfg.type_of_value(public_key_y);
+                                    let public_key_y_length = assert_u8_array(
+                                        &public_key_y_type,
+                                        "ecdsa_secp256 public_key_y",
+                                    );
+                                    assert_array_length(
+                                        public_key_y_length,
+                                        32,
+                                        "ecdsa_secp256 public_key_y",
+                                    );
+
+                                    let signature = arguments[2];
+                                    let signature_type = dfg.type_of_value(signature);
+                                    let signature_length =
+                                        assert_u8_array(&signature_type, "ecdsa_secp256 signature");
+                                    assert_array_length(
+                                        signature_length,
+                                        64,
+                                        "ecdsa_secp256 signature",
+                                    );
+
+                                    let message_hash = arguments[3];
+                                    let message_hash_type = dfg.type_of_value(message_hash);
+                                    assert_array(&message_hash_type, "ecdsa_secp256 message_hash");
+
+                                    let results = dfg.instruction_results(instruction);
+                                    assert_eq!(results.len(), 1, "Expected one result");
+                                    let result_type = dfg.type_of_value(results[0]);
+                                    assert_u1(&result_type, "ecdsa_secp256 result");
+                                }
+                                BlackBoxFunc::EmbeddedCurveAdd => {
+                                    // fn embedded_curve_add_array_return(
+                                    //     _point1: EmbeddedCurvePoint,
+                                    //     _point2: EmbeddedCurvePoint,
+                                    // ) -> [EmbeddedCurvePoint; 1] {}
+                                    //
+                                    // struct EmbeddedCurvePoint {
+                                    //     x: Field,
+                                    //     y: Field,
+                                    //     is_infinite: bool,
+                                    // }
+                                    assert_arguments_length(arguments, 6, "embedded_curve_add");
+
+                                    assert_embedded_curve_point(
+                                        arguments,
+                                        0,
+                                        dfg,
+                                        "embedded_curve_add _point1",
+                                    );
+                                    assert_embedded_curve_point(
+                                        arguments,
+                                        3,
+                                        dfg,
+                                        "embedded_curve_add _point2",
+                                    );
+
+                                    let results = dfg.instruction_results(instruction);
+                                    assert_eq!(results.len(), 1, "Expected one result");
+                                    let result_type = dfg.type_of_value(results[0]);
+                                    let (result_elements, result_length) =
+                                        assert_array(&result_type, "embedded_curve_add result");
+                                    assert_array_length(
+                                        result_length,
+                                        1,
+                                        "embedded_curve_add result length",
+                                    );
+                                    assert_eq!(
+                                        result_elements.len(),
+                                        3,
+                                        "Expected embedded_curve_add result element types length to be 3, got: {}",
+                                        result_elements.len(),
+                                    );
+                                    assert_field(
+                                        &result_elements[0],
+                                        "embedded_curve_add result x",
+                                    );
+                                    assert_field(
+                                        &result_elements[1],
+                                        "embedded_curve_add result y",
+                                    );
+                                    assert_u1(
+                                        &result_elements[2],
+                                        "embedded_curve_add result is_infinite",
+                                    );
+                                }
+                                BlackBoxFunc::Keccakf1600 => {
+                                    // fn keccakf1600(input: [u64; 25]) -> [u64; 25] {}
+                                    assert_eq!(arguments.len(), 1);
+
+                                    let input = arguments[0];
+                                    let input_type = dfg.type_of_value(input);
+                                    let input_length =
+                                        assert_u64_array(&input_type, "keccakf1600 input");
+                                    assert_array_length(input_length, 25, "keccakf1600 input");
+
+                                    let results = dfg.instruction_results(instruction);
+                                    assert_eq!(results.len(), 1);
+                                    let result_type = dfg.type_of_value(results[0]);
+                                    let result_length =
+                                        assert_u64_array(&result_type, "keccakf1600 result");
+                                    assert_array_length(result_length, 25, "keccakf1600 result");
+                                }
+                                BlackBoxFunc::MultiScalarMul => {
+                                    //  fn multi_scalar_mul_array_return<let N: u32>(
+                                    //     points: [EmbeddedCurvePoint; N],
+                                    //     scalars: [EmbeddedCurveScalar; N],
+                                    // ) -> [EmbeddedCurvePoint; 1] {}
+                                    assert_arguments_length(arguments, 2, "multi_scalar_mul");
+
+                                    let points_type = dfg.type_of_value(arguments[0]);
+                                    let scalars_type = dfg.type_of_value(arguments[1]);
+
+                                    let (points_elements, points_length) =
+                                        assert_array(&points_type, "multi_scalar_mul points");
+                                    assert_eq!(
+                                        points_elements.len(),
+                                        3,
+                                        "Expected multi_scalar_mul points element types length to be 3, got: {}",
+                                        points_elements.len()
+                                    );
+                                    assert_field(&points_elements[0], "multi_scalar_mul points x");
+                                    assert_field(&points_elements[1], "multi_scalar_mul points y");
+                                    assert_u1(
+                                        &points_elements[2],
+                                        "multi_scalar_mul points is_infinite",
+                                    );
+
+                                    let (scalars_elements, scalars_length) =
+                                        assert_array(&scalars_type, "multi_scalar_mul scalars");
+                                    assert_eq!(
+                                        scalars_elements.len(),
+                                        2,
+                                        "Expected multi_scalar_mul scalars element types length to be 2, got: {}",
+                                        scalars_elements.len()
+                                    );
+                                    assert_field(
+                                        &scalars_elements[0],
+                                        "multi_scalar_mul scalars lo",
+                                    );
+                                    assert_field(
+                                        &scalars_elements[1],
+                                        "multi_scalar_mul scalars hi",
+                                    );
+
+                                    assert_eq!(
+                                        points_length, scalars_length,
+                                        "MSM input array lengths mismatch"
+                                    );
+                                }
+                                BlackBoxFunc::Poseidon2Permutation => {
+                                    // fn poseidon2_permutation<let N: u32>(_input: [Field; N], _state_length: u32) -> [Field; N] {}
+                                    assert_arguments_length(arguments, 2, "poseidon2_permutation");
+
+                                    let input = arguments[0];
+                                    let input_type = dfg.type_of_value(input);
+                                    let input_length = assert_field_array(
+                                        &input_type,
+                                        "poseidon2_permutation _input",
+                                    );
+
+                                    let state_length = arguments[1];
+                                    let state_length_type = dfg.type_of_value(state_length);
+                                    assert_u32(
+                                        &state_length_type,
+                                        "poseidon2_permutation _state_length",
+                                    );
+
+                                    let results = dfg.instruction_results(instruction);
+                                    assert_eq!(results.len(), 1, "Expected one result");
+                                    let result_type = dfg.type_of_value(results[0]);
+                                    let result_length = assert_field_array(
+                                        &result_type,
+                                        "poseidon2_permutation result",
+                                    );
+                                    assert_eq!(
+                                        result_length, input_length,
+                                        "poseidon2_permutation input/output length mismatch"
+                                    );
+                                }
+                                BlackBoxFunc::RANGE => {}
+                                BlackBoxFunc::RecursiveAggregation => {
+                                    // fn verify_proof_internal<let N: u32, let M: u32, let K: u32>(
+                                    //     verification_key: [Field; N],
+                                    //     proof: [Field; M],
+                                    //     public_inputs: [Field; K],
+                                    //     key_hash: Field,
+                                    //     proof_type: u32,
+                                    // ) {}
+                                    assert_arguments_length(arguments, 5, "recursive_aggregation");
+
+                                    let verification_key = arguments[0];
+                                    let verification_key_type = dfg.type_of_value(verification_key);
+                                    assert_field_array(
+                                        &verification_key_type,
+                                        "recursive_aggregation verification_key",
+                                    );
+
+                                    let proof = arguments[1];
+                                    let proof_type = dfg.type_of_value(proof);
+                                    assert_field_array(&proof_type, "recursive_aggregation proof");
+
+                                    let public_inputs = arguments[2];
+                                    let public_inputs_type = dfg.type_of_value(public_inputs);
+                                    assert_field_array(
+                                        &public_inputs_type,
+                                        "recursive_aggregation public_inputs",
+                                    );
+
+                                    let key_hash = arguments[3];
+                                    let key_hash_type = dfg.type_of_value(key_hash);
+                                    assert_field(&key_hash_type, "recursive_aggregation key_hash");
+
+                                    let proof_type = arguments[4];
+                                    let proof_type_type = dfg.type_of_value(proof_type);
+                                    assert_u32(
+                                        &proof_type_type,
+                                        "recursive_aggregation proof_type",
+                                    );
+                                }
+                                BlackBoxFunc::Sha256Compression => {
+                                    // fn sha256_compression(input: [u32; 16], state: [u32; 8]) -> [u32; 8] {}
+                                    assert_arguments_length(arguments, 2, "sha256_compression");
+
+                                    let input = arguments[0];
+                                    let input_type = dfg.type_of_value(input);
+                                    let input_length =
+                                        assert_u32_array(&input_type, "sha256_compression input");
+                                    assert_array_length(
+                                        input_length,
+                                        16,
+                                        "sha256_compression input",
+                                    );
+
+                                    let state = arguments[1];
+                                    let state_type = dfg.type_of_value(state);
+                                    let state_length =
+                                        assert_u32_array(&state_type, "sha256_compression state");
+                                    assert_array_length(
+                                        state_length,
+                                        8,
+                                        "sha256_compression state",
+                                    );
+
+                                    let results = dfg.instruction_results(instruction);
+                                    assert_eq!(results.len(), 1, "Expected one result");
+                                    let result_type = dfg.type_of_value(results[0]);
+                                    let result_length =
+                                        assert_u32_array(&result_type, "sha256_compression result");
+                                    assert_array_length(
+                                        result_length,
+                                        8,
+                                        "sha256_compression result",
+                                    );
+                                }
+                            },
                             _ => {}
                         }
                     }
@@ -342,6 +686,127 @@ pub(crate) fn validate_function(function: &Function, ssa: &Ssa) {
     validator.run();
 }
 
+fn assert_arguments_length(arguments: &[ValueId], expected: usize, object: &str) {
+    let actual = arguments.len();
+    assert_eq!(actual, expected, "Expected {object} to have {expected} arguments, got {actual}");
+}
+
+fn assert_field(typ: &Type, object: &str) {
+    if !matches!(typ, Type::Numeric(NumericType::NativeField)) {
+        panic!("{object} must be a Field, not {typ}");
+    }
+}
+
+fn assert_u1(typ: &Type, object: &str) {
+    if !matches!(typ, Type::Numeric(NumericType::Unsigned { bit_size: 1 })) {
+        panic!("{object} must be u1, not {typ}");
+    }
+}
+
+fn assert_u8(typ: &Type, object: &str) {
+    if !matches!(typ, Type::Numeric(NumericType::Unsigned { bit_size: 8 })) {
+        panic!("{object} must be u8, not {typ}");
+    }
+}
+
+fn assert_u32(typ: &Type, object: &str) {
+    if !matches!(typ, Type::Numeric(NumericType::Unsigned { bit_size: 32 })) {
+        panic!("{object} must be u32, not {typ}");
+    }
+}
+
+fn assert_u64(typ: &Type, object: &str) {
+    if !matches!(typ, Type::Numeric(NumericType::Unsigned { bit_size: 64 })) {
+        panic!("{object} must be u64, not {typ}");
+    }
+}
+
+fn assert_array<'a>(typ: &'a Type, object: &str) -> (&'a Arc<Vec<Type>>, u32) {
+    let Type::Array(elements, length) = typ else {
+        panic!("{object} must be an array");
+    };
+    (elements, *length)
+}
+
+fn assert_u8_array(typ: &Type, object: &str) -> u32 {
+    let (elements, length) = assert_array(typ, object);
+    assert_eq!(
+        elements.len(),
+        1,
+        "Expected {object} to be an array of length 1, not {}",
+        elements.len()
+    );
+    assert_u8(&elements[0], &format!("{object} array element"));
+    length
+}
+
+fn assert_u32_array(typ: &Type, object: &str) -> u32 {
+    let (elements, length) = assert_array(typ, object);
+    assert_eq!(
+        elements.len(),
+        1,
+        "Expected {object} to be an array of length 1, not {}",
+        elements.len()
+    );
+    assert_u32(&elements[0], &format!("{object} array element"));
+    length
+}
+
+fn assert_u64_array(typ: &Type, object: &str) -> u32 {
+    let (elements, length) = assert_array(typ, object);
+    assert_eq!(
+        elements.len(),
+        1,
+        "Expected {object} to be an array of length 1, not {}",
+        elements.len()
+    );
+    assert_u64(&elements[0], &format!("{object} array element"));
+    length
+}
+
+fn assert_field_array(typ: &Type, object: &str) -> u32 {
+    let (elements, length) = assert_array(typ, object);
+    assert_eq!(
+        elements.len(),
+        1,
+        "Expected {object} to be an array of length 1, not {}",
+        elements.len()
+    );
+    assert_field(&elements[0], &format!("{object} array element"));
+    length
+}
+
+fn assert_array_length(actual_length: u32, expected_length: u32, object: &str) {
+    assert_eq!(
+        actual_length, expected_length,
+        "Expected {object} to have length {expected_length}, got {actual_length}"
+    );
+}
+
+fn assert_embedded_curve_point(
+    arguments: &[ValueId],
+    index: usize,
+    dfg: &DataFlowGraph,
+    object: &str,
+) {
+    // struct EmbeddedCurvePoint {
+    //     x: Field,
+    //     y: Field,
+    //     is_infinite: bool,
+    // }
+    let point_x = arguments[index];
+    let point_x_type = dfg.type_of_value(point_x);
+    assert_field(&point_x_type, &format!("{object} x"));
+
+    let point_y = arguments[index + 1];
+    let point_y_type = dfg.type_of_value(point_y);
+    assert_field(&point_y_type, &format!("{object} y"));
+
+    let point_is_infinite = arguments[index + 2];
+    let point_is_infinite_type = dfg.type_of_value(point_is_infinite);
+    assert_u1(&point_is_infinite_type, &format!("{object} is_infinite"));
+}
+
 #[cfg(test)]
 mod tests {
     use crate::ssa::ssa_gen::Ssa;
@@ -417,9 +882,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(
-        expected = "assertion failed: matches!(value_typ, Type::Numeric(NumericType::NativeField))"
-    )]
+    #[should_panic(expected = "ToRadix value must be a Field, not u1")]
     fn to_le_radix_on_non_field_value() {
         let src = "
         brillig(inline) predicate_pure fn main f0 {
@@ -437,9 +900,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(
-        expected = "assertion failed: matches!(value_typ, Type::Numeric(NumericType::NativeField))"
-    )]
+    #[should_panic(expected = "ToBits value must be a Field, not u1")]
     fn to_le_bits_on_non_field_value() {
         let src = "
         brillig(inline) predicate_pure fn main f0 {
@@ -748,6 +1209,58 @@ mod tests {
             v0 = allocate -> &mut u8
             store Field 1 at v0
             return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "Cannot use `and` with field elements")]
+    fn bitwise_and_has_incorrect_type() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: Field):
+            v2 = and v0, v1
+            return v2
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "Cannot use `or` with field elements")]
+    fn bitwise_or_has_incorrect_type() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: Field):
+            v2 = or v0, v1
+            return v2
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "Cannot use `xor` with field elements")]
+    fn bitwise_xor_has_incorrect_type() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: Field):
+            v2 = xor v0, v1
+            return v2
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "multi_scalar_mul points is_infinite must be u1, not Field")]
+    fn msm_has_incorrect_type() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: [(Field, Field, Field); 3], v1: [(Field, Field); 3]):
+            v2 = call multi_scalar_mul(v0, v1) -> [(Field, Field, u1); 1]
+            return v2
         }
         ";
         let _ = Ssa::from_str(src).unwrap();

@@ -84,7 +84,7 @@ pub enum Value {
     UnresolvedType(UnresolvedTypeData),
 }
 
-pub type StructFields = HashMap<Rc<String>, Shared<Value>>;
+pub(super) type StructFields = HashMap<Rc<String>, Shared<Value>>;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Closure {

@@ -118,13 +118,8 @@ expression: artifact
     "unconstrained func 0",
     "[Const { destination: Direct(10), bit_size: Integer(U32), value: 2 }, Const { destination: Direct(11), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(10), offset_address: Direct(11) }, BinaryFieldOp { destination: Direct(2), op: IntegerDiv, lhs: Direct(0), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Mul, lhs: Direct(2), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Sub, lhs: Direct(0), rhs: Direct(1) }, Mov { destination: Direct(0), source: Direct(2) }, Stop { return_data: HeapVector { pointer: Direct(11), size: Direct(10) } }]"
   ],
-  "debug_symbols": "pZTNjoMgGEXfhbULfkX7KpNJQy1tSAgaqpNMGt99roJOu+gGNx4Bz/UDhSe52st0P7tw6x/k9PUkl+i8d/ez7zszuj6g9zlXZGuex2gtusjLOKzBRBtGcgqT9xX5MX5aH3oMJqwcTcQorYgNVxCBN+ftcjdX/zb9rDLZZJmpZtdViV+zEl/vfqOP+S0t8DnV2eesPui3Jb6oN1/qY74qmn+919/wg74q8AXl2RdMH/N5yfyF2OoXSh703+v/Rst0Lr7teKLxo1akWa/temUUawcwRAA8QSRIcpKAQiRQJ+gEhODbM6SgBE4TWAJSsC84UlpAJqgEpDDMiC+l4P28yWwTBZIYChKIYqhB8EyRKZddPy9LEp25eJtPstsUupeDbfwdtpHt6Bti39nrFO2yJOsYFukP",
-  "file_map": {
-    "50": {
-      "source": "fn main(\n    zero: i32,\n    one: i32,\n    two: i32,\n    three: i32,\n    minus_one: i32,\n    minus_two: i32,\n    minus_three: i32,\n) {\n    assert_eq(zero as u1, 0);\n    assert_eq(one as u1, 1);\n    assert_eq(two as u1, 0);\n    assert_eq(three as u1, 1);\n    assert_eq(minus_one as u1, 1);\n    assert_eq(minus_two as u1, 0);\n    assert_eq(minus_three as u1, 1);\n\n    let zero: i32 = 0;\n    let one: i32 = 1;\n    let two: i32 = 2;\n    let three: i32 = 3;\n    let minus_one: i32 = -1;\n    let minus_two: i32 = -2;\n    let minus_three: i32 = -3;\n    assert_eq(zero as u1, 0);\n    assert_eq(one as u1, 1);\n    assert_eq(two as u1, 0);\n    assert_eq(three as u1, 1);\n    assert_eq(minus_one as u1, 1);\n    assert_eq(minus_two as u1, 0);\n    assert_eq(minus_three as u1, 1);\n}\n",
-      "path": ""
-    }
-  },
+  "debug_symbols": "[debug_symbols]",
+  "file_map": "[file_map]",
   "names": [
     "main"
   ],

@@ -82,7 +82,8 @@ impl Elaborator<'_> {
     }
 
     pub(super) fn elaborate_local_let(&mut self, let_stmt: LetStatement) -> (HirStatement, Type) {
-        self.elaborate_let(let_stmt, None)
+        let (let_statement, typ) = self.elaborate_let(let_stmt, None);
+        (HirStatement::Let(let_statement), typ)
     }
 
     /// Elaborate a local or global let statement.
@@ -93,7 +94,7 @@ impl Elaborator<'_> {
         &mut self,
         let_stmt: LetStatement,
         global_id: Option<GlobalId>,
-    ) -> (HirStatement, Type) {
+    ) -> (HirLetStatement, Type) {
         let type_contains_unspecified = let_stmt.r#type.contains_unspecified();
         let annotated_type = self.resolve_inferred_type(let_stmt.r#type);
 
@@ -145,7 +146,7 @@ impl Elaborator<'_> {
         let is_global_let = let_stmt.is_global_let;
         let let_ =
             HirLetStatement::new(pattern, r#type, expression, attributes, comptime, is_global_let);
-        (HirStatement::Let(let_), Type::Unit)
+        (let_, Type::Unit)
     }
 
     pub(super) fn elaborate_assign(&mut self, assign: AssignStatement) -> (HirStatement, Type) {

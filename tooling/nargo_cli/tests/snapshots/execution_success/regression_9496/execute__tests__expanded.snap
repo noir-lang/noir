@@ -1,0 +1,41 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(b: bool) -> pub (u32, u32, u32, u32) {
+    // Safety: comment added by `nargo expand`
+    let x1: u32 = unsafe { push_0_get_1(if { b } { &[10_u32] } else { &[20_u32, 30_u32] }) };
+    // Safety: comment added by `nargo expand`
+    let x2: u32 = unsafe { pop_back(if { b } { &[10_u32] } else { &[20_u32, 30_u32] }) };
+    // Safety: comment added by `nargo expand`
+    let x3: u32 = unsafe { pop_front(if { b } { &[10_u32] } else { &[20_u32, 30_u32] }) };
+    // Safety: comment added by `nargo expand`
+    let x4: u32 = unsafe {
+        pop_front(
+            if { b } {
+                &[10_u32, 20_u32, 30_u32]
+            } else {
+                &[40_u32, 50_u32, 60_u32]
+            },
+        )
+    };
+    (x1, x2, x3, x4)
+}
+
+unconstrained fn push_0_get_1(xs: [u32]) -> u32 {
+    let xs: [u32] = xs.push_back(xs[0_u32]);
+    println(xs);
+    xs[1_u32]
+}
+
+unconstrained fn pop_back(xs: [u32]) -> u32 {
+    let (xs, x): ([u32], u32) = xs.pop_back();
+    println(xs);
+    x
+}
+
+unconstrained fn pop_front(xs: [u32]) -> u32 {
+    let (x, xs): (u32, [u32]) = xs.pop_front();
+    println(xs);
+    x
+}

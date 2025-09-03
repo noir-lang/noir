@@ -5,7 +5,7 @@ use noirc_frontend::{
     hir_def::{
         expr::{
             Constructor, HirArrayLiteral, HirBlockExpression, HirCallExpression, HirExpression,
-            HirIdent, HirLambda, HirLiteral, HirMatch, ImplKind, TraitItem,
+            HirIdent, HirLambda, HirLiteral, HirMatch, HirPrefixExpression, ImplKind, TraitItem,
         },
         stmt::{HirLValue, HirPattern, HirStatement},
     },
@@ -170,7 +170,20 @@ impl ItemPrinter<'_, '_> {
                 }
             }
             HirExpression::MemberAccess(hir_member_access) => {
-                self.show_hir_expression_id_maybe_inside_parens(hir_member_access.lhs);
+                let lhs_exp = self.interner.expression(&hir_member_access.lhs);
+
+                if let HirExpression::Prefix(HirPrefixExpression {
+                    operator: UnaryOp::Dereference { implicitly_added: false },
+                    ..
+                }) = lhs_exp
+                {
+                    // In general we don't need parentheses around dereferences, but here we do
+                    self.push('(');
+                    self.show_hir_expression(lhs_exp, hir_member_access.lhs);
+                    self.push(')');
+                } else {
+                    self.show_hir_expression_id_maybe_inside_parens(hir_member_access.lhs);
+                }
                 self.push('.');
                 self.push_str(&hir_member_access.rhs.to_string());
             }
@@ -661,31 +674,39 @@ impl ItemPrinter<'_, '_> {
     }
 
     fn show_hir_lvalue(&mut self, lvalue: HirLValue) {
+        let lvalue = simplify_hir_lvalue(lvalue);
         match lvalue {
             HirLValue::Ident(hir_ident, _) => {
                 self.show_hir_ident(hir_ident, None);
             }
             HirLValue::MemberAccess { object, field_name, field_index: _, typ: _, location: _ } => {
-                self.show_hir_lvalue(*object);
+                let object = simplify_hir_lvalue(*object);
+                let object_is_dereference = matches!(object, HirLValue::Dereference { .. });
+                if object_is_dereference {
+                    self.push('(');
+                }
+                self.show_hir_lvalue(object);
+                if object_is_dereference {
+                    self.push(')');
+                }
                 self.push('.');
                 self.push_str(&field_name.to_string());
             }
             HirLValue::Index { array, index, typ: _, location: _ } => {
-                self.show_hir_lvalue(*array);
+                let array = simplify_hir_lvalue(*array);
+                self.show_hir_lvalue(array);
                 self.push('[');
                 self.show_hir_expression_id(index);
                 self.push(']');
             }
-            HirLValue::Dereference { lvalue, implicitly_added, element_type: _, location: _ } => {
-                if implicitly_added {
-                    self.show_hir_lvalue(*lvalue);
-                } else {
-                    // Even though parentheses aren't always required, it's tricky to
-                    // figure out exactly when so we always include them.
-                    self.push_str("*(");
-                    self.show_hir_lvalue(*lvalue);
-                    self.push(')');
-                }
+            HirLValue::Dereference {
+                lvalue,
+                implicitly_added: _,
+                element_type: _,
+                location: _,
+            } => {
+                self.push_str("*");
+                self.show_hir_lvalue(*lvalue);
             }
         }
     }
@@ -1034,5 +1055,14 @@ fn get_type_fields(typ: &Type) -> Option<Vec<(String, Type, ItemVisibility)>> {
             data_type.get_fields(&generics)
         }
         _ => None,
+    }
+}
+
+// Remove any implicit dereferences from `lvalue`
+fn simplify_hir_lvalue(lvalue: HirLValue) -> HirLValue {
+    if let HirLValue::Dereference { lvalue, implicitly_added: true, .. } = lvalue {
+        simplify_hir_lvalue(*lvalue)
+    } else {
+        lvalue
     }
 }
