@@ -698,9 +698,6 @@ impl<'f> LoopInvariantContext<'f> {
                 }
             }
             Binary(binary) => self.can_evaluate_binary_op(loop_context, binary),
-            Constrain(..) | ConstrainNotEqual(..) | RangeCheck { .. } => {
-                block_context.can_hoist_control_dependent_instruction()
-            }
             Call { func, .. } => {
                 let purity = match self.inserter.function.dfg[*func] {
                     Value::Intrinsic(intrinsic) => Some(intrinsic.purity()),
@@ -710,6 +707,7 @@ impl<'f> LoopInvariantContext<'f> {
                 matches!(purity, Some(Purity::PureWithPredicate))
                     && block_context.can_hoist_control_dependent_instruction()
             }
+            // The rest of the instructions should not depend on the loop bounds.
             _ => false,
         }
     }
