@@ -2126,8 +2126,7 @@
 <a href="#2125" id="2125">2125</a>
 <a href="#2126" id="2126">2126</a>
 <a href="#2127" id="2127">2127</a>
-<a href="#2128" id="2128">2128</a>
-<a href="#2129" id="2129">2129</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the mem2reg SSA optimization pass is to replace any `Load` instructions to known
+<a href="#2128" id="2128">2128</a></pre></div><pre class="rust"><code><span class="doccomment">//! The goal of the mem2reg SSA optimization pass is to replace any `Load` instructions to known
 //! addresses with the value stored at that address, if it is also known. This pass will also remove
 //! any `Store` instructions within a block that are no longer needed because no more loads occur in
 //! between the Store in question and the next Store.
@@ -2300,8 +2299,7 @@
     /// dom_tree were created from.
     </span><span class="kw">fn </span>mem2reg(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
         <span class="comment">// Iterate each block in reverse post order = forward order
-        </span><span class="kw">let </span><span class="kw-2">mut </span>block_order = <span class="self">self</span>.post_order.as_slice().to_vec();
-        block_order.reverse();
+        </span><span class="kw">let </span>block_order = <span class="self">self</span>.post_order.clone().into_vec_reverse();
 
         <span class="kw">for </span>block <span class="kw">in </span>block_order {
             <span class="kw">let </span>references = <span class="self">self</span>.find_starting_references(block);

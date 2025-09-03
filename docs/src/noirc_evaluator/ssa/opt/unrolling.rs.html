@@ -1663,7 +1663,109 @@
 <a href="#1662" id="1662">1662</a>
 <a href="#1663" id="1663">1663</a>
 <a href="#1664" id="1664">1664</a>
-<a href="#1665" id="1665">1665</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file contains the loop unrolling pass for the new SSA IR.
+<a href="#1665" id="1665">1665</a>
+<a href="#1666" id="1666">1666</a>
+<a href="#1667" id="1667">1667</a>
+<a href="#1668" id="1668">1668</a>
+<a href="#1669" id="1669">1669</a>
+<a href="#1670" id="1670">1670</a>
+<a href="#1671" id="1671">1671</a>
+<a href="#1672" id="1672">1672</a>
+<a href="#1673" id="1673">1673</a>
+<a href="#1674" id="1674">1674</a>
+<a href="#1675" id="1675">1675</a>
+<a href="#1676" id="1676">1676</a>
+<a href="#1677" id="1677">1677</a>
+<a href="#1678" id="1678">1678</a>
+<a href="#1679" id="1679">1679</a>
+<a href="#1680" id="1680">1680</a>
+<a href="#1681" id="1681">1681</a>
+<a href="#1682" id="1682">1682</a>
+<a href="#1683" id="1683">1683</a>
+<a href="#1684" id="1684">1684</a>
+<a href="#1685" id="1685">1685</a>
+<a href="#1686" id="1686">1686</a>
+<a href="#1687" id="1687">1687</a>
+<a href="#1688" id="1688">1688</a>
+<a href="#1689" id="1689">1689</a>
+<a href="#1690" id="1690">1690</a>
+<a href="#1691" id="1691">1691</a>
+<a href="#1692" id="1692">1692</a>
+<a href="#1693" id="1693">1693</a>
+<a href="#1694" id="1694">1694</a>
+<a href="#1695" id="1695">1695</a>
+<a href="#1696" id="1696">1696</a>
+<a href="#1697" id="1697">1697</a>
+<a href="#1698" id="1698">1698</a>
+<a href="#1699" id="1699">1699</a>
+<a href="#1700" id="1700">1700</a>
+<a href="#1701" id="1701">1701</a>
+<a href="#1702" id="1702">1702</a>
+<a href="#1703" id="1703">1703</a>
+<a href="#1704" id="1704">1704</a>
+<a href="#1705" id="1705">1705</a>
+<a href="#1706" id="1706">1706</a>
+<a href="#1707" id="1707">1707</a>
+<a href="#1708" id="1708">1708</a>
+<a href="#1709" id="1709">1709</a>
+<a href="#1710" id="1710">1710</a>
+<a href="#1711" id="1711">1711</a>
+<a href="#1712" id="1712">1712</a>
+<a href="#1713" id="1713">1713</a>
+<a href="#1714" id="1714">1714</a>
+<a href="#1715" id="1715">1715</a>
+<a href="#1716" id="1716">1716</a>
+<a href="#1717" id="1717">1717</a>
+<a href="#1718" id="1718">1718</a>
+<a href="#1719" id="1719">1719</a>
+<a href="#1720" id="1720">1720</a>
+<a href="#1721" id="1721">1721</a>
+<a href="#1722" id="1722">1722</a>
+<a href="#1723" id="1723">1723</a>
+<a href="#1724" id="1724">1724</a>
+<a href="#1725" id="1725">1725</a>
+<a href="#1726" id="1726">1726</a>
+<a href="#1727" id="1727">1727</a>
+<a href="#1728" id="1728">1728</a>
+<a href="#1729" id="1729">1729</a>
+<a href="#1730" id="1730">1730</a>
+<a href="#1731" id="1731">1731</a>
+<a href="#1732" id="1732">1732</a>
+<a href="#1733" id="1733">1733</a>
+<a href="#1734" id="1734">1734</a>
+<a href="#1735" id="1735">1735</a>
+<a href="#1736" id="1736">1736</a>
+<a href="#1737" id="1737">1737</a>
+<a href="#1738" id="1738">1738</a>
+<a href="#1739" id="1739">1739</a>
+<a href="#1740" id="1740">1740</a>
+<a href="#1741" id="1741">1741</a>
+<a href="#1742" id="1742">1742</a>
+<a href="#1743" id="1743">1743</a>
+<a href="#1744" id="1744">1744</a>
+<a href="#1745" id="1745">1745</a>
+<a href="#1746" id="1746">1746</a>
+<a href="#1747" id="1747">1747</a>
+<a href="#1748" id="1748">1748</a>
+<a href="#1749" id="1749">1749</a>
+<a href="#1750" id="1750">1750</a>
+<a href="#1751" id="1751">1751</a>
+<a href="#1752" id="1752">1752</a>
+<a href="#1753" id="1753">1753</a>
+<a href="#1754" id="1754">1754</a>
+<a href="#1755" id="1755">1755</a>
+<a href="#1756" id="1756">1756</a>
+<a href="#1757" id="1757">1757</a>
+<a href="#1758" id="1758">1758</a>
+<a href="#1759" id="1759">1759</a>
+<a href="#1760" id="1760">1760</a>
+<a href="#1761" id="1761">1761</a>
+<a href="#1762" id="1762">1762</a>
+<a href="#1763" id="1763">1763</a>
+<a href="#1764" id="1764">1764</a>
+<a href="#1765" id="1765">1765</a>
+<a href="#1766" id="1766">1766</a>
+<a href="#1767" id="1767">1767</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file contains the loop unrolling pass for the new SSA IR.
 //!
 //! This pass is divided into a few steps:
 //! 1. Find all loops in the program (`find_all_loops`)
@@ -1843,7 +1945,7 @@
                 }
 
                 <span class="comment">// Check if we will be able to unroll this loop, before starting to modify the blocks.
-                </span><span class="kw">if </span>next_loop.has_const_back_edge_induction_value(<span class="self">self</span>) {
+                </span><span class="kw">if </span>next_loop.has_const_back_edge_induction_value(<span class="kw-2">&amp;</span><span class="self">self</span>.dfg) {
                     <span class="comment">// Don't try to unroll this.
                     </span>failed_to_unroll.insert(next_loop.header);
                     <span class="comment">// If this is Brillig, we can still evaluate this loop at runtime.
@@ -1946,7 +2048,7 @@
         <span class="kw">let </span><span class="kw-2">mut </span>loops = <span class="macro">vec!</span>[];
 
         <span class="comment">// Iterating over blocks in reverse-post-order, ie. forward order, just because it's already available.
-        </span><span class="kw">for </span>block <span class="kw">in </span>post_order.into_vec().into_iter().rev() {
+        </span><span class="kw">for </span>block <span class="kw">in </span>post_order.into_vec_reverse() {
             <span class="kw">for </span>predecessor <span class="kw">in </span>cfg.predecessors(block) {
                 <span class="comment">// In the above example, we're looking for when `block` is `loop_entry` and `predecessor` is `loop_body`.
                 </span><span class="kw">if </span>dom_tree.dominates(block, predecessor) {
@@ -2018,8 +2120,8 @@
     ///     return
     /// }
     /// ```
-    </span><span class="kw">fn </span>has_const_back_edge_induction_value(<span class="kw-2">&amp;</span><span class="self">self</span>, function: <span class="kw-2">&amp;</span>Function) -&gt; bool {
-        <span class="kw">let </span>back_edge = <span class="kw-2">&amp;</span>function.dfg[<span class="self">self</span>.back_edge_start];
+    </span><span class="kw">fn </span>has_const_back_edge_induction_value(<span class="kw-2">&amp;</span><span class="self">self</span>, dfg: <span class="kw-2">&amp;</span>DataFlowGraph) -&gt; bool {
+        <span class="kw">let </span>back_edge = <span class="kw-2">&amp;</span>dfg[<span class="self">self</span>.back_edge_start];
         <span class="kw">let </span><span class="prelude-val">Some</span>(TerminatorInstruction::Jmp { destination, arguments, .. }) =
             back_edge.terminator()
         <span class="kw">else </span>{
@@ -2027,7 +2129,37 @@
         };
         <span class="macro">assert_eq!</span>(<span class="kw-2">*</span>destination, <span class="self">self</span>.header, <span class="string">"back edge goes to the header"</span>);
         <span class="macro">assert_eq!</span>(arguments.len(), <span class="number">1</span>);
-        function.dfg.get_numeric_constant(arguments[<span class="number">0</span>]).is_some()
+        dfg.get_numeric_constant(arguments[<span class="number">0</span>]).is_some()
+    }
+
+    <span class="doccomment">/// Check if the loop header has a constant zero jump condition, which indicates an empty loop.
+    ///
+    /// This can happen if a jump condition has been simplified out.
+    ///
+    /// For example:
+    /// ```text
+    /// brillig(inline) predicate_pure fn main f0 {
+    ///   b0():
+    ///     jmp b1(u32 10)               // Pre-header
+    ///   b1(v0: u32):                   // Header
+    ///     // v3 = lt v0, u32 0         // Simplified to `u1 0`
+    ///     jmpif u1 0 then: b2, else: b3
+    ///   b2():                          // Back edge
+    ///     v1 = unchecked_add v0, u32 1 // Increment induction value
+    ///     jmp b1(v1)
+    ///   b3():
+    ///     return
+    /// }
+    /// ```
+    </span><span class="kw">fn </span>has_const_zero_jump_condition(<span class="kw-2">&amp;</span><span class="self">self</span>, dfg: <span class="kw-2">&amp;</span>DataFlowGraph) -&gt; bool {
+        <span class="kw">let </span>header = <span class="kw-2">&amp;</span>dfg[<span class="self">self</span>.header];
+        <span class="kw">let </span><span class="prelude-val">Some</span>(TerminatorInstruction::JmpIf { condition, .. }) = header.terminator() <span class="kw">else </span>{
+            <span class="kw">return </span><span class="bool-val">false</span>;
+        };
+        <span class="kw">let </span><span class="prelude-val">Some</span>(condition) = dfg.get_numeric_constant(<span class="kw-2">*</span>condition) <span class="kw">else </span>{
+            <span class="kw">return </span><span class="bool-val">false</span>;
+        };
+        condition.is_zero()
     }
 
     <span class="doccomment">/// Find the lower bound of the loop in the pre-header and return it
@@ -2067,13 +2199,23 @@
     ///     v5 = lt v1, u32 4           // Upper bound
     ///     jmpif v5 then: b3, else: b2
     /// ```
-    </span><span class="kw">fn </span>get_const_upper_bound(<span class="kw-2">&amp;</span><span class="self">self</span>, dfg: <span class="kw-2">&amp;</span>DataFlowGraph) -&gt; <span class="prelude-ty">Option</span>&lt;IntegerConstant&gt; {
+    </span><span class="kw">fn </span>get_const_upper_bound(
+        <span class="kw-2">&amp;</span><span class="self">self</span>,
+        dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
+        pre_header: BasicBlockId,
+    ) -&gt; <span class="prelude-ty">Option</span>&lt;IntegerConstant&gt; {
         <span class="kw">let </span>block = <span class="kw-2">&amp;</span>dfg[<span class="self">self</span>.header];
         <span class="kw">let </span>instructions = block.instructions();
         <span class="kw">if </span>instructions.is_empty() {
-            <span class="comment">// If the loop condition is constant time, the loop header will be
+            <span class="comment">// If the loop condition is constant, the loop header will be
             // simplified to a simple jump.
-            </span><span class="kw">return </span><span class="prelude-val">None</span>;
+            </span><span class="kw">if </span><span class="self">self</span>.has_const_zero_jump_condition(dfg) {
+                <span class="comment">// There are cases where the upper bound jmpif degenerates into a constant `false`;
+                // in that case we can just return the `lower` to emulate a known empty loop.
+                </span><span class="kw">return </span><span class="self">self</span>.get_const_lower_bound(dfg, pre_header);
+            } <span class="kw">else </span>{
+                <span class="kw">return </span><span class="prelude-val">None</span>;
+            };
         }
 
         <span class="kw">if </span>instructions.len() != <span class="number">1 </span>{
@@ -2120,7 +2262,7 @@
         pre_header: BasicBlockId,
     ) -&gt; <span class="prelude-ty">Option</span>&lt;(IntegerConstant, IntegerConstant)&gt; {
         <span class="kw">let </span>lower = <span class="self">self</span>.get_const_lower_bound(dfg, pre_header)<span class="question-mark">?</span>;
-        <span class="kw">let </span>upper = <span class="self">self</span>.get_const_upper_bound(dfg)<span class="question-mark">?</span>;
+        <span class="kw">let </span>upper = <span class="self">self</span>.get_const_upper_bound(dfg, pre_header)<span class="question-mark">?</span>;
         <span class="prelude-val">Some</span>((lower, upper))
     }
 
@@ -2447,7 +2589,14 @@
             )
             .unwrap_or_default();
 
-        <span class="prelude-val">Some</span>(BoilerplateStats { iterations, loads, stores, increments, all_instructions })
+        <span class="prelude-val">Some</span>(BoilerplateStats {
+            iterations,
+            loads,
+            stores,
+            increments,
+            all_instructions,
+            has_const_zero_jump_condition: <span class="self">self</span>.has_const_zero_jump_condition(<span class="kw-2">&amp;</span>function.dfg),
+        })
     }
 }
 
@@ -2481,6 +2630,8 @@
     <span class="doccomment">/// Number of instructions in the loop, including boilerplate,
     /// but excluding the boilerplate which is outside the loop.
     </span>all_instructions: usize,
+    <span class="doccomment">/// Indicate whether the comparison with the upper bound has been simplified out.
+    </span>has_const_zero_jump_condition: bool,
 }
 
 <span class="kw">impl </span>BoilerplateStats {
@@ -2493,8 +2644,9 @@
     <span class="doccomment">/// Estimated number of _useful_ instructions, which is the ones in the loop
     /// minus all in-loop boilerplate.
     </span><span class="kw">fn </span>useful_instructions(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; usize {
-        <span class="comment">// Two jumps + plus the comparison with the upper bound
-        </span><span class="kw">let </span>boilerplate = <span class="number">3</span>;
+        <span class="comment">// Two jumps + plus the comparison with the upper bound.
+        // This could be just 2 if the comparison has been simplified out.
+        </span><span class="kw">let </span>boilerplate = <span class="kw">if </span><span class="self">self</span>.has_const_zero_jump_condition { <span class="number">2 </span>} <span class="kw">else </span>{ <span class="number">3 </span>};
         <span class="comment">// Be conservative and only assume that mem2reg gets rid of load followed by store.
         // NB we have not checked that these are actual pairs.
         </span><span class="kw">let </span>load_and_store = <span class="self">self</span>.loads.min(<span class="self">self</span>.stores) * <span class="number">2</span>;
@@ -2923,6 +3075,39 @@
     }
 
     <span class="attr">#[test]
+    </span><span class="kw">fn </span>test_get_const_bounds_empty_simplified() {
+        <span class="comment">// The following is an empty loop where the jmpif in b1 was simplified
+        // from `v1 = lt v0, u32 0` into `u1 0`.
+        </span><span class="kw">let </span>src = <span class="string">r#"
+        acir(inline) fn main f0 {
+          b0():
+            jmp b1(u32 0)
+          b1(v0: u32):
+            jmpif u1 0 then: b2, else: b3
+          b2():
+            v41 = unchecked_add v0, u32 1
+            jmp b1(v41)
+          b3():
+            return
+        }
+        "#</span>;
+        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+        <span class="kw">let </span>function = ssa.main();
+        <span class="kw">let </span>loops = Loops::find_all(function);
+        <span class="macro">assert_eq!</span>(loops.yet_to_unroll.len(), <span class="number">1</span>);
+
+        <span class="kw">let </span>loop_ = <span class="kw-2">&amp;</span>loops.yet_to_unroll[<span class="number">0</span>];
+        <span class="kw">let </span>pre_header =
+            loop_.get_pre_header(function, <span class="kw-2">&amp;</span>loops.cfg).expect(<span class="string">"Should have a pre_header"</span>);
+        <span class="kw">let </span>(lower, upper) = loop_
+            .get_const_bounds(<span class="kw-2">&amp;</span>function.dfg, pre_header)
+            .expect(<span class="string">"should use the lower for upper"</span>);
+
+        <span class="macro">assert_eq!</span>(lower, IntegerConstant::Unsigned { value: <span class="number">0</span>, bit_size: <span class="number">32 </span>});
+        <span class="macro">assert_eq!</span>(upper, lower);
+    }
+
+    <span class="attr">#[test]
     </span><span class="kw">fn </span>test_find_pre_header_reference_values() {
         <span class="kw">let </span>ssa = brillig_unroll_test_case();
         <span class="kw">let </span>function = ssa.main();
@@ -2989,6 +3174,25 @@
         <span class="macro">assert_eq!</span>(stats.stores, <span class="number">1</span>);
         <span class="macro">assert_eq!</span>(stats.useful_instructions(), <span class="number">4</span>); <span class="comment">// cast, array get, add, array set
         </span><span class="macro">assert_eq!</span>(stats.baseline_instructions(), <span class="number">12</span>);
+        <span class="macro">assert!</span>(stats.is_small());
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>test_boilerplate_stats_const_zero_jump_condition() {
+        <span class="kw">let </span>src = <span class="string">"
+        brillig(inline) impure fn main f0 {
+          b0():
+            jmp b1(u32 0)
+          b1(v0: u32):
+            jmpif u1 0 then: b2, else: b3
+          b2():
+            v1 = unchecked_add v0, u32 1
+            jmp b1(v1)
+          b3():
+            return
+        }"</span>;
+        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+        <span class="kw">let </span>stats = loop0_stats(<span class="kw-2">&amp;</span>ssa);
         <span class="macro">assert!</span>(stats.is_small());
     }
 
