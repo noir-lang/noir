@@ -180,7 +180,7 @@ impl Context<'_, '_, '_> {
         } else {
             // Otherwise, the result might not bit in a FieldElement.
             // For this, if we have to do `lhs << rhs` we can first shift by half of `rhs`, truncate,
-            // then shift by `rhs - half_of_rhs` and trunate again.
+            // then shift by `rhs - half_of_rhs` and truncate again.
 
             // We know the code below works for u128, and it's the only case that can overflow Field,
             // but it might not worker for larger types if they are ever introduced in the language.
