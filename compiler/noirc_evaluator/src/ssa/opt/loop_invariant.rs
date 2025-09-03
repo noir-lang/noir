@@ -663,7 +663,7 @@ impl<'f> LoopInvariantContext<'f> {
             return true;
         }
 
-        self.can_be_hoisted_from_loop_bounds(loop_context, block_context, &instruction)
+        self.can_be_hoisted_from_loop_bounds(loop_context, &instruction)
             || can_be_hoisted(&instruction, self.inserter.function, false)
             || can_be_hoisted(&instruction, self.inserter.function, true)
                 && block_context.can_hoist_control_dependent_instruction()
@@ -682,7 +682,6 @@ impl<'f> LoopInvariantContext<'f> {
     fn can_be_hoisted_from_loop_bounds(
         &self,
         loop_context: &LoopContext,
-        block_context: &BlockContext,
         instruction: &Instruction,
     ) -> bool {
         use Instruction::*;
@@ -698,15 +697,6 @@ impl<'f> LoopInvariantContext<'f> {
                 }
             }
             Binary(binary) => self.can_evaluate_binary_op(loop_context, binary),
-            Call { func, .. } => {
-                let purity = match self.inserter.function.dfg[*func] {
-                    Value::Intrinsic(intrinsic) => Some(intrinsic.purity()),
-                    Value::Function(id) => self.inserter.function.dfg.purity_of(id),
-                    _ => None,
-                };
-                matches!(purity, Some(Purity::PureWithPredicate))
-                    && block_context.can_hoist_control_dependent_instruction()
-            }
             // The rest of the instructions should not depend on the loop bounds.
             _ => false,
         }
