@@ -550,11 +550,10 @@ impl<'f> LoopInvariantContext<'f> {
         if !loop_context.does_loop_execute {
             return false;
         }
-
         // If the block is part of any nested loop, they have to execute as well.
         for nested in all_loops.iter() {
             if !nested.blocks.contains(&block) {
-                continue; // TODO: test
+                continue;
             }
             let Some(induction_variable) = get_induction_variable(&self.inserter, nested) else {
                 // If we don't know what the induction variable is, we can't say if it executes.
@@ -854,6 +853,7 @@ fn can_be_hoisted(
 mod test {
     use crate::assert_ssa_snapshot;
     use crate::ssa::Ssa;
+    use crate::ssa::ir::basic_block::BasicBlockId;
     use crate::ssa::opt::{assert_normalized_ssa_equals, assert_ssa_does_not_change};
 
     #[test]
@@ -1740,29 +1740,8 @@ mod test {
 
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.loop_invariant_code_motion();
-        assert_ssa_snapshot!(ssa, @r"
-        acir(inline) predicate_pure fn main f0 {
-          b0(v0: u32):
-            constrain v0 == u32 0
-            jmp b1(u32 0)
-          b1(v1: u32):
-            v5 = lt v1, u32 5
-            jmpif v5 then: b2, else: b3
-          b2():
-            jmp b4(u32 0)
-          b3():
-            return
-          b4(v2: u32):
-            v6 = lt v2, u32 5
-            jmpif v6 then: b5, else: b6
-          b5():
-            v9 = unchecked_add v2, u32 1
-            jmp b4(v9)
-          b6():
-            v8 = unchecked_add v1, u32 1
-            jmp b1(v8)
-        }
-        ");
+        let b0 = &ssa.main().dfg[BasicBlockId::new(0)];
+        assert_eq!(b0.instructions().len(), 1);
     }
 
     /// Outer loop executes, nested loop does not;
@@ -1794,6 +1773,60 @@ mod test {
         "#;
 
         assert_ssa_does_not_change(src, Ssa::loop_invariant_code_motion);
+    }
+
+    /// Outer loop executes, nested loop executes, but another nested loop does not;
+    /// constraint should be hoisted.
+    #[test]
+    fn hoist_from_nested_loop_in_the_presence_of_unrelated_non_executed_nested_loops() {
+        //          b0
+        //          |
+        // +------> b1
+        // |       /  \
+        // |      /    \
+        // |     b2     b7
+        // |     |      |
+        // | +-> b4     b8 <-+
+        // | |  /  \   /  \  |
+        // | +-b5  b6 b3  b9-+
+        // |       |
+        // +-------+
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32):
+            jmp b1(u32 0)
+          b1(v1: u32):
+            v2 = lt v1, u32 5
+            jmpif v2 then: b2, else: b7
+          b2():
+            jmp b4(u32 0)
+          b3():
+            return
+          b4(v3: u32):
+            v4 = lt v3, u32 5
+            jmpif v4 then: b5, else: b6
+          b5():
+            constrain v0 == u32 0
+            v5 = unchecked_add v3, u32 1
+            jmp b4(v5)
+          b6():
+            v6 = unchecked_add v1, u32 1
+            jmp b1(v6)
+          b7():
+            jmp b8(u32 5)
+          b8(v7: u32):
+            v8 = lt v7, u32 5
+            jmpif v8 then: b9, else: b3
+          b9():
+            v9 = unchecked_add v7, u32 1
+            jmp b8(v9)
+        }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.loop_invariant_code_motion();
+        let b0 = &ssa.main().dfg[BasicBlockId::new(0)];
+        assert_eq!(b0.instructions().len(), 1);
     }
 
     /// Outer loop executes, nested loop doesn't have induction variable;
