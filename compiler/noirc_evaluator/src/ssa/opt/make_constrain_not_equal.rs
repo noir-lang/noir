@@ -24,8 +24,9 @@
 //! unnecessary witnesses - one which is unconstrained and the other constrained to
 //! zero. This is unnecessary as we want the circuit to just fail in this case.
 //!
-//! Note that this pass must be placed after [`CFG flattening`](super::flatten_cfg)
-//! as the flattening pass cannot handle this instruction.
+//! ## Preconditions:
+//! - this pass must be placed after [`CFG flattening`](super::flatten_cfg)
+//!   as the flattening pass cannot handle this instruction.
 use acvm::AcirField;
 
 use crate::ssa::{
