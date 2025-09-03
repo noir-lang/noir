@@ -21,8 +21,6 @@ fn trait_inheritance() {
         pub fn foo<T>(baz: T) -> (Field, Field, Field) where T: Baz {
             (baz.foo(), baz.bar(), baz.baz())
         }
-
-        fn main() {}
     "#;
     assert_no_errors!(src);
 }
@@ -41,8 +39,6 @@ fn trait_inheritance_with_generics() {
         pub fn foo<T>(x: T) -> i32 where T: Bar<i32> {
             x.foo()
         }
-
-        fn main() {}
     "#;
     assert_no_errors!(src);
 }
@@ -61,8 +57,6 @@ fn trait_inheritance_with_generics_2() {
         pub fn foo<T>(x: T) -> i32 where T: Bar<i32, i32> {
             x.foo()
         }
-
-        fn main() {}
     "#;
     assert_no_errors!(src);
 }
@@ -77,8 +71,6 @@ fn trait_inheritance_with_generics_3() {
         impl Foo<i32> for () {}
 
         impl Bar<i32> for () {}
-
-        fn main() {}
     "#;
     assert_no_errors!(src);
 }
@@ -93,8 +85,6 @@ fn trait_inheritance_with_generics_4() {
         impl Foo for () { type A = i32; }
 
         impl Bar<i32> for () {}
-
-        fn main() {}
     "#;
     assert_no_errors!(src);
 }
@@ -106,7 +96,6 @@ fn trait_inheritance_dependency_cycle() {
               ^^^ Dependency cycle found
               ~~~ 'Foo' recursively depends on itself: Foo -> Bar -> Foo
         trait Bar: Foo {}
-        fn main() {}
     "#;
     check_errors!(src);
 }
@@ -170,8 +159,6 @@ fn does_not_error_if_impl_trait_constraint_is_satisfied_for_concrete_type() {
         pub struct Bar;
 
         impl Foo<SomeGreeter> for Bar {}
-
-        fn main() {}
     "#;
     assert_no_errors!(src);
 }
@@ -227,8 +214,6 @@ fn errors_if_impl_trait_constraint_is_not_satisfied() {
         impl Foo<SomeGreeter> for Bar {}
                                   ^^^ The trait bound `SomeGreeter: Greeter` is not satisfied
                                   ~~~ The trait `Greeter` is not implemented for `SomeGreeter`
-
-        fn main() {}
     "#;
     check_errors!(src);
 }
@@ -413,8 +398,6 @@ fn trait_alias_with_where_clause_has_equivalent_errors() {
             x.baz()
             ^^^^^^^ No method named 'baz' found for type 'T'
         }
-
-        fn main() {}
     "#;
     check_errors!(src);
 }
@@ -439,8 +422,6 @@ fn trait_alias_with_where_clause_has_equivalent_errors_2() {
             x.baz()
             ^^^^^^^ No method named 'baz' found for type 'T'
         }
-
-        fn main() {}
     "#;
     check_errors!(alias_src);
 }
@@ -460,8 +441,6 @@ fn removes_assumed_parent_traits_after_function_ends() {
     where
         T: Foo,
     {}
-
-    fn main() {}
     "#;
     assert_no_errors!(src);
 }
@@ -523,8 +502,6 @@ fn does_not_crash_on_as_trait_path_with_empty_path() {
         struct Foo {
             x: <N>,
         }
-
-        fn main() {}
     "#;
 
     let allow_parser_errors = true;
@@ -634,8 +611,6 @@ fn calls_trait_function_if_it_is_only_candidate_in_scope_in_nested_module_using_
             let _ = super::Bar::foo();
         }
     }
-
-    fn main() {}
 
     pub struct Bar {}
 
@@ -913,8 +888,6 @@ fn type_checks_trait_default_method_and_errors() {
                 ~~~~ bool returned here
             }
         }
-
-        fn main() {}
     "#;
     check_errors!(src);
 }
@@ -928,8 +901,6 @@ fn type_checks_trait_default_method_and_does_not_error() {
                 1
             }
         }
-
-        fn main() {}
     "#;
     assert_no_errors!(src);
 }
@@ -947,8 +918,6 @@ fn type_checks_trait_default_method_and_does_not_error_using_self() {
                 1
             }
         }
-
-        fn main() {}
     "#;
     assert_no_errors!(src);
 }
@@ -1041,8 +1010,6 @@ fn error_on_duplicate_impl_with_associated_type() {
                      ~~~ Overlapping impl
             type Bar = u8;
         }
-
-        fn main() {}
     "#;
     check_errors!(src);
 }
@@ -1064,8 +1031,6 @@ fn error_on_duplicate_impl_with_associated_constant() {
                      ~~~ Overlapping impl
             let Bar: u32 = 6;
         }
-
-        fn main() {}
     "#;
     check_errors!(src);
 }
@@ -1299,8 +1264,6 @@ fn returns_self_in_trait_method_1() {
             Self {}
         }
     }
-
-    fn main() {}
     ";
     assert_no_errors!(src);
 }
@@ -1330,8 +1293,6 @@ fn returns_self_in_trait_method_2() {
             Self {}
         }
     }
-
-    fn main() {}
     ";
     assert_no_errors!(src);
 }
@@ -1357,8 +1318,6 @@ fn returns_self_in_trait_method_3() {
             0
         }
     }
-
-    fn main() {}
     ";
     assert_no_errors!(src);
 }
@@ -1381,8 +1340,6 @@ fn trait_impl_with_where_clause_with_trait_with_associated_numeric() {
     impl Foo for Field{
         fn foo<B>(_: B) where B: Bar {} 
     }
-
-    fn main() {}
     ";
     assert_no_errors!(src);
 }
@@ -1405,8 +1362,6 @@ fn trait_impl_with_where_clause_with_trait_with_associated_type() {
     impl Foo for Field{
         fn foo<B>(_: B) where B: Bar {} 
     }
-
-    fn main() {}
     ";
     assert_no_errors!(src);
 }
@@ -1569,8 +1524,6 @@ fn trait_impl_with_child_constraint() {
 
     impl<T: Parent> Parent for Struct<T> {}
     impl<T: Child> Child for Struct<T> {}
-
-    fn main() {}
     "#;
     assert_no_errors!(src);
 }
@@ -1895,8 +1848,6 @@ fn associated_constant_sum_of_other_constants_2() {
         let f = <[Field; X] as Deserialize>::deserialize;
         let _ = f([0; X + 1]);
     }
-
-    fn main() {}
     "#;
     assert_no_errors!(src);
 }
@@ -1929,8 +1880,6 @@ fn associated_constant_sum_of_other_constants_3() {
         let f = <[Field; X] as Deserialize>::deserialize;
         let _ = f([0; X]);
     }
-
-    fn main() {}
     "#;
     assert_no_errors!(src);
 }
@@ -1963,8 +1912,6 @@ fn associated_constant_mul_of_other_constants() {
         let f = <[Field; X] as Deserialize>::deserialize;
         let _ = f([0; X]);
     }
-
-    fn main() {}
     "#;
     assert_no_errors!(src);
 }
@@ -1986,8 +1933,6 @@ fn trait_bound_with_associated_constant() {
     }
 
     impl Trait<Field> for i32 {}
-
-    fn main() {}
     "#;
     assert_no_errors!(src);
 }
@@ -2007,8 +1952,6 @@ fn trait_method_call_when_it_has_bounds_on_generic() {
     pub fn foo<B: BigNum, Curve: BigCurve<B>>() {
         let _: Curve = BigCurve::new();
     }
-
-    fn main() {}
     "#;
     assert_no_errors!(src);
 }
@@ -2028,8 +1971,6 @@ fn trait_bound_constraining_two_generics() {
 
     pub struct HasBaz1 {}
     impl Baz<HasFoo1, ()> for HasBaz1 {}
-
-    fn main() {}
     "#;
     assert_no_errors!(src);
 }
@@ -2059,8 +2000,6 @@ fn trait_where_clause_associated_type_constraint_expected_order() {
 
     pub struct HasBaz1 {}
     impl Baz<HasFoo1> for HasBaz1 {}
-
-    fn main() {}
     "#;
     assert_no_errors!(src);
 }
@@ -2090,8 +2029,6 @@ fn trait_where_clause_associated_type_constraint_unexpected_order() {
 
     pub struct HasBaz1 {}
     impl Baz<HasFoo1> for HasBaz1 {}
-
-    fn main() {}
     "#;
     assert_no_errors!(src);
 }
