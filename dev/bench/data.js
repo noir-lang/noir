@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1756911135815,
+  "lastUpdate": 1756911137292,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -4208,90 +4208,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "6870579e0aa844371db698cc52ab3cdf91877d2f",
-          "message": "fix(mem2reg): Mark block parameters with unknown alias sets in presence of nested references  (#9629)",
-          "timestamp": "2025-08-26T18:40:28Z",
-          "tree_id": "7547a6ffdf541aa93dacb57dc3f0b136a6d6aa5b",
-          "url": "https://github.com/noir-lang/noir/commit/6870579e0aa844371db698cc52ab3cdf91877d2f"
-        },
-        "date": 1756236640506,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 1.71,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 7.734,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.314,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 16.04,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 13.42,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 20.14,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 178,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 182,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.338,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.516,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.774,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 1.698,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jfecher11@gmail.com",
             "name": "jfecher",
             "username": "jfecher"
@@ -8401,6 +8317,90 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 1.698,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "569ce5f57f09f7559b5f0f89e9f9dbbfc0994fc7",
+          "message": "chore(ci): force cargo-binstall to install tools in CI (#9722)",
+          "timestamp": "2025-09-03T14:19:54Z",
+          "tree_id": "ba021257fdd79d701cb067cd68c38bcb462aec63",
+          "url": "https://github.com/noir-lang/noir/commit/569ce5f57f09f7559b5f0f89e9f9dbbfc0994fc7"
+        },
+        "date": 1756911117568,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1.838,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 8.266,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.33,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 16.28,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 14.18,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 21.96,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 209,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 204,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.442,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.514,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.772,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 1.584,
             "unit": "s"
           }
         ]
