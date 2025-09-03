@@ -16,9 +16,7 @@ pub(crate) enum BrilligArithmeticError {
     #[error("Bit size for rhs {rhs_bit_size} does not match op bit size {op_bit_size}")]
     MismatchedRhsBitSize { rhs_bit_size: u32, op_bit_size: u32 },
     #[error("Attempted to shift by {shift_size} bits on a type of bit size {bit_size}")]
-    BitshiftOverflow { bit_size: u32, shift_size: u32 },
-    #[error("Attempted to shift by more than {bit_size} bits on a type of bit size {bit_size}")]
-    BitshiftOverflowBitSize { bit_size: u32 },
+    BitshiftOverflow { bit_size: u32, shift_size: u128 },
     #[error("Attempted to divide by zero")]
     DivisionByZero,
 }
@@ -181,7 +179,7 @@ pub(crate) fn evaluate_binary_int_op<F: AcirField>(
                 } else {
                     Err(BrilligArithmeticError::BitshiftOverflow {
                         bit_size: 8,
-                        shift_size: rhs as u32,
+                        shift_size: rhs as u128,
                     })
                 }
             }
@@ -191,7 +189,7 @@ pub(crate) fn evaluate_binary_int_op<F: AcirField>(
                 } else {
                     Err(BrilligArithmeticError::BitshiftOverflow {
                         bit_size: 16,
-                        shift_size: rhs as u32,
+                        shift_size: rhs as u128,
                     })
                 }
             }
@@ -199,23 +197,27 @@ pub(crate) fn evaluate_binary_int_op<F: AcirField>(
                 if rhs < 32 {
                     Ok(MemoryValue::U32(evaluate_binary_int_op_shifts(op, lhs, rhs)))
                 } else {
-                    Err(BrilligArithmeticError::BitshiftOverflow { bit_size: 32, shift_size: rhs })
+                    Err(BrilligArithmeticError::BitshiftOverflow { bit_size: 32, shift_size: rhs as u128 })
                 }
             }
             (MemoryValue::U64(lhs), MemoryValue::U64(rhs), IntegerBitSize::U64) => {
                 if rhs < 64 {
                     Ok(MemoryValue::U64(evaluate_binary_int_op_shifts(op, lhs, rhs)))
                 } else {
-                    let shift_size = if rhs > u32::MAX as u64 { None } else { Some(rhs as u32) };
-                    Err(bit_shift_overflow(shift_size, 64))
+                    Err(BrilligArithmeticError::BitshiftOverflow {
+                        bit_size: 64,
+                        shift_size: rhs as u128,
+                    })
                 }
             }
             (MemoryValue::U128(lhs), MemoryValue::U128(rhs), IntegerBitSize::U128) => {
                 if rhs < 128 {
                     Ok(MemoryValue::U128(evaluate_binary_int_op_shifts(op, lhs, rhs)))
                 } else {
-                    let shift_size = if rhs > u32::MAX as u128 { None } else { Some(rhs as u32) };
-                    Err(bit_shift_overflow(shift_size, 128))
+                    Err(BrilligArithmeticError::BitshiftOverflow {
+                        bit_size: 128,
+                        shift_size: rhs,
+                    })
                 }
             }
             _ => Err(BrilligArithmeticError::MismatchedLhsBitSize {
@@ -223,14 +225,6 @@ pub(crate) fn evaluate_binary_int_op<F: AcirField>(
                 op_bit_size: bit_size.into(),
             }),
         },
-    }
-}
-
-fn bit_shift_overflow(shift: Option<u32>, bit_size: u32) -> BrilligArithmeticError {
-    if let Some(shift_size) = shift {
-        BrilligArithmeticError::BitshiftOverflow { bit_size, shift_size }
-    } else {
-        BrilligArithmeticError::BitshiftOverflowBitSize { bit_size }
     }
 }
 
