@@ -261,17 +261,6 @@ impl BlockContext {
     fn can_simplify_control_dependent_instruction(&self) -> bool {
         !self.is_control_dependent && self.does_execute
     }
-
-    /// Check [can_be_hoisted] with extra control dependence information that
-    /// lives within the context of this pass.
-    fn can_be_hoisted_with_control_dependence(
-        &self,
-        instruction: &Instruction,
-        function: &Function,
-    ) -> bool {
-        can_be_hoisted(instruction, function, true)
-            && self.can_hoist_control_dependent_instruction()
-    }
 }
 
 impl LoopContext {
@@ -668,19 +657,26 @@ impl<'f> LoopInvariantContext<'f> {
             return false;
         }
 
-        matches!(instruction, MakeArray { .. })
+        // MakeArray is only safe to hoist in ACIR, but we know that in Brillig we will insert an `IncRc`
+        // in `LoopInvariantContext::hoist_loop_invariants` to keep it safe, so it's okay to hoist them.
+        if matches!(instruction, MakeArray { .. }) {
+            return true;
+        }
+
+        self.can_be_hoisted_from_loop_bounds(loop_context, block_context, &instruction)
             || can_be_hoisted(&instruction, self.inserter.function, false)
-            || block_context
-                .can_be_hoisted_with_control_dependence(&instruction, self.inserter.function)
-            || self.can_be_hoisted_from_loop_bounds(loop_context, block_context, &instruction)
+            || can_be_hoisted(&instruction, self.inserter.function, true)
+                && block_context.can_hoist_control_dependent_instruction()
     }
 
     /// Certain instructions can take advantage of that our induction variable has a fixed minimum/maximum.
     ///
     /// For example, an array access can usually only be safely deduplicated when we have a constant
     /// index that is below the length of the array.
+    ///
     /// Checking an array get where the index is the loop's induction variable on its own
     /// would determine that the instruction is not safe for hoisting.
+    ///
     /// However, if we know that the induction variable's upper bound will always be in bounds of the array
     /// we can safely hoist the array access.
     fn can_be_hoisted_from_loop_bounds(
@@ -838,8 +834,9 @@ fn can_be_hoisted(
 
         // Arrays can be mutated in unconstrained code so code that handles this case must
         // take care to track whether the array was possibly mutated or not before
-        // hoisted. Since we don't know if the containing pass checks for this, we
-        // can only assume these are safe to hoist in constrained code.
+        // hoisted. We know that in this module we will insert a corresponding `IncRc` to
+        // allow safe hoisting in unconstrained code, but just in case we would expose this
+        // function to other modules, we return a more restrictive result here.
         MakeArray { .. } => function.runtime().is_acir(),
 
         // These can have different behavior depending on the predicate.
