@@ -7,7 +7,7 @@ use acvm::{
 };
 use std::collections::BTreeSet;
 
-use noirc_evaluator::ssa::ssa_gen::Ssa;
+use noirc_evaluator::ssa::{OptimizationLevel, ssa_gen::Ssa};
 use noirc_evaluator::ssa::{
     SsaEvaluatorOptions, ir::map::Id, optimize_ssa_builder_into_acir, primary_passes,
 };
@@ -244,6 +244,7 @@ fn ssa_to_acir_program(ssa: Ssa) -> AcirProgram<FieldElement> {
         brillig_options: BrilligOptions::default(),
         enable_brillig_constraints_check_lookback: false,
         skip_passes: vec![],
+        optimization_level: OptimizationLevel::All,
     };
     let (acir_functions, brillig, _, _) = match optimize_ssa_builder_into_acir(
         builder,
