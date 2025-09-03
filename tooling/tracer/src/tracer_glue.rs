@@ -3,15 +3,19 @@ use crate::{SourceLocation, StackFrame, stack_frame::Variable};
 use acvm::FieldElement;
 use acvm::acir::AcirField; // necessary, for `to_i128` to work
 use noirc_printable_type::{PrintableType, PrintableValue};
-use runtime_tracing::{EventLogKind, FullValueRecord, Line, TraceWriter, ValueRecord, TraceEventsFileFormat};
-use std::fmt::Write as _;
+use runtime_tracing::{
+    EventLogKind, FullValueRecord, Line, TraceEventsFileFormat, TraceWriter, ValueRecord,
+};
 use std::path::{Path, PathBuf};
 
-pub fn begin_trace(tracer: &mut dyn TraceWriter, trace_dir: &str, trace_format: TraceEventsFileFormat) {
+pub fn begin_trace(
+    tracer: &mut dyn TraceWriter,
+    trace_dir: &str,
+    trace_format: TraceEventsFileFormat,
+) {
     let trace_path = Path::new(trace_dir).join(match trace_format {
         TraceEventsFileFormat::Json => "trace.json",
-        TraceEventsFileFormat::BinaryV0 |
-        TraceEventsFileFormat::Binary => "trace.bin",
+        TraceEventsFileFormat::BinaryV0 | TraceEventsFileFormat::Binary => "trace.bin",
     });
     match TraceWriter::begin_writing_trace_events(tracer, &trace_path) {
         Ok(_) => {}
@@ -102,10 +106,17 @@ fn register_value(
     value: &PrintableValue<FieldElement>,
     typ: &PrintableType,
 ) -> ValueRecord {
+    if matches!(value, PrintableValue::Other) {
+        let (type_kind, type_name) = printable_type_to_kind_and_name(typ);
+        let type_id = TraceWriter::ensure_type_id(tracer, type_kind, &type_name);
+        return ValueRecord::None { type_id };
+    }
+
     match typ {
         PrintableType::Field => {
             if let PrintableValue::Field(field_value) = value {
-                let type_id = TraceWriter::ensure_type_id(tracer, runtime_tracing::TypeKind::Int, "Field");
+                let (type_kind, type_name) = printable_type_to_kind_and_name(typ);
+                let type_id = TraceWriter::ensure_type_id(tracer, type_kind, &type_name);
                 ValueRecord::Int { i: field_value.to_i128() as i64, type_id }
             } else {
                 // Note(stanm): panic here, because this means the compiler frontend is broken, which
@@ -116,14 +127,10 @@ fn register_value(
                 panic!("type-value mismatch: value: {:?} does not match type Field", value)
             }
         }
-        PrintableType::UnsignedInteger { width } => {
+        PrintableType::UnsignedInteger { .. } => {
             if let PrintableValue::Field(field_value) = value {
-                let mut noir_type_name = String::new();
-                if let Err(err) = write!(&mut noir_type_name, "u{width}") {
-                    panic!("failed to generate Noir type name: {err}");
-                }
-                let type_id =
-                    TraceWriter::ensure_type_id(tracer, runtime_tracing::TypeKind::Int, &noir_type_name);
+                let (type_kind, type_name) = printable_type_to_kind_and_name(typ);
+                let type_id = TraceWriter::ensure_type_id(tracer, type_kind, &type_name);
                 ValueRecord::Int { i: field_value.to_i128() as i64, type_id }
             } else {
                 panic!(
@@ -132,71 +139,69 @@ fn register_value(
                 )
             }
         }
-        PrintableType::SignedInteger { width } => {
+        PrintableType::SignedInteger { .. } => {
             if let PrintableValue::Field(field_value) = value {
-                let mut noir_type_name = String::new();
-                if let Err(err) = write!(&mut noir_type_name, "i{width}") {
-                    panic!("failed to generate Noir type name: {err}");
-                }
-                let type_id =
-                    TraceWriter::ensure_type_id(tracer, runtime_tracing::TypeKind::Int, &noir_type_name);
+                let (type_kind, type_name) = printable_type_to_kind_and_name(typ);
+                let type_id = TraceWriter::ensure_type_id(tracer, type_kind, &type_name);
                 ValueRecord::Int { i: field_value.to_i128() as i64, type_id }
             } else {
-                panic!(
-                    "type-value mismatch: value: {:?} does not match type UnsignedInteger",
-                    value
-                )
+                panic!("type-value mismatch: value: {:?} does not match type SignedInteger", value)
             }
         }
         PrintableType::Boolean => {
             if let PrintableValue::Field(field_value) = value {
-                let type_id = TraceWriter::ensure_type_id(tracer, runtime_tracing::TypeKind::Bool, "Bool");
+                let (type_kind, type_name) = printable_type_to_kind_and_name(typ);
+                let type_id = TraceWriter::ensure_type_id(tracer, type_kind, &type_name);
                 ValueRecord::Bool { b: field_value.to_i128() as i64 == 1, type_id }
             } else {
                 panic!("type-value mismatch: value: {:?} does not match type Bool", value)
             }
         }
-        PrintableType::Slice { typ } => {
+        PrintableType::Slice { typ: element_type } => {
             if let PrintableValue::Vec { array_elements, is_slice } = value {
                 if !is_slice {
                     panic!("value of is_slice: {:?} does not match type Slice", value)
                 }
-                let element_values: Vec<ValueRecord> =
-                    array_elements.iter().map(|e| register_value(tracer, e, typ)).collect();
-                let type_id = TraceWriter::ensure_type_id(tracer, runtime_tracing::TypeKind::Slice, "&[..]");
+                let element_values: Vec<ValueRecord> = array_elements
+                    .iter()
+                    .map(|e| register_value(tracer, e, element_type))
+                    .collect();
+                let (type_kind, type_name) = printable_type_to_kind_and_name(typ);
+                let type_id = TraceWriter::ensure_type_id(tracer, type_kind, &type_name);
                 ValueRecord::Sequence { elements: element_values, type_id, is_slice: true }
             } else {
                 panic!("type-value mismatch: value: {:?} does not match type Slice", value)
             }
         }
-        PrintableType::Array { length, typ } => {
+        PrintableType::Array { typ: element_type, .. } => {
             if let PrintableValue::Vec { array_elements, is_slice } = value {
                 if *is_slice {
                     panic!("value of is_slice: {:?} does not match type Array", value)
                 }
-                let element_values: Vec<ValueRecord> =
-                    array_elements.iter().map(|e| register_value(tracer, e, typ)).collect();
-                let type_id = TraceWriter::ensure_type_id(
-                    tracer,
-                    runtime_tracing::TypeKind::Seq,
-                    &format!("Array<{length}, ..>"),
-                ); // TODO: more precise?
+                let element_values: Vec<ValueRecord> = array_elements
+                    .iter()
+                    .map(|e| register_value(tracer, e, element_type))
+                    .collect();
+                let (type_kind, type_name) = printable_type_to_kind_and_name(typ);
+                let type_id = TraceWriter::ensure_type_id(tracer, type_kind, &type_name);
                 ValueRecord::Sequence { elements: element_values, type_id, is_slice: false }
             } else {
                 panic!("type-value mismatch: value: {:?} does not match type Array", value)
             }
         }
-        PrintableType::String { length: _ } => {
+        PrintableType::String { .. } => {
             if let PrintableValue::String(s) = value {
-                let type_id = TraceWriter::ensure_type_id(tracer, runtime_tracing::TypeKind::String, "String");
+                let (type_kind, type_name) = printable_type_to_kind_and_name(typ);
+                let type_id = TraceWriter::ensure_type_id(tracer, type_kind, &type_name);
                 ValueRecord::String { text: s.clone(), type_id }
             } else {
                 panic!("type-value mismatch: value: {:?} does not match type String", value);
             }
         }
-        PrintableType::Struct { name, fields } => {
+        PrintableType::Struct { fields, .. } => {
             if let PrintableValue::Struct(struc) = value {
-                let type_id = TraceWriter::ensure_type_id(tracer, runtime_tracing::TypeKind::Struct, name);
+                let (type_kind, type_name) = printable_type_to_kind_and_name(typ);
+                let type_id = TraceWriter::ensure_type_id(tracer, type_kind, &type_name);
                 let mut field_values = vec![];
                 for (field_name, field_type) in fields {
                     let field_value = struc
@@ -210,7 +215,8 @@ fn register_value(
             }
         }
         PrintableType::Unit => {
-            let type_id = TraceWriter::ensure_type_id(tracer, runtime_tracing::TypeKind::Raw, "()");
+            let (type_kind, type_name) = printable_type_to_kind_and_name(typ);
+            let type_id = TraceWriter::ensure_type_id(tracer, type_kind, &type_name);
             ValueRecord::Raw { r: "()".to_string(), type_id }
         }
         PrintableType::Tuple { types } => {
@@ -221,22 +227,29 @@ fn register_value(
                 let element_values: Vec<ValueRecord> = array_elements
                     .iter()
                     .zip(types.iter())
-                    .map(|e| register_value(tracer, e.0, e.1))
+                    .map(|(v, t)| register_value(tracer, v, t))
                     .collect();
-                let type_id = TraceWriter::ensure_type_id(tracer, runtime_tracing::TypeKind::Tuple, "(..)");
+                let (type_kind, type_name) = printable_type_to_kind_and_name(typ);
+                let type_id = TraceWriter::ensure_type_id(tracer, type_kind, &type_name);
                 ValueRecord::Tuple { elements: element_values, type_id }
             } else {
                 panic!("type-value mismatch: value: {:?} does not match type Tuple", value)
             }
         }
-        PrintableType::Reference { typ, mutable } => {
-            let type_id = TraceWriter::ensure_type_id(tracer, runtime_tracing::TypeKind::Ref, "&");
-            let v = register_value(tracer, value, typ);
-            ValueRecord::Reference { dereferenced: Box::new(v), address: 0, mutable: *mutable, type_id }
+        PrintableType::Reference { typ: dereferenced_type, mutable } => {
+            let (type_kind, type_name) = printable_type_to_kind_and_name(typ);
+            let type_id = TraceWriter::ensure_type_id(tracer, type_kind, &type_name);
+            let v = register_value(tracer, value, dereferenced_type);
+            ValueRecord::Reference {
+                dereferenced: Box::new(v),
+                address: 0,
+                mutable: *mutable,
+                type_id,
+            }
         }
-        PrintableType::Function { arguments: _, return_type: _, env: _, unconstrained } => {
-            let type_name = if *unconstrained { "unconstrained fn" } else { "fn" };
-            let type_id = TraceWriter::ensure_type_id(tracer, runtime_tracing::TypeKind::FunctionKind, type_name);
+        PrintableType::Function { .. } => {
+            let (type_kind, type_name) = printable_type_to_kind_and_name(typ);
+            let type_id = TraceWriter::ensure_type_id(tracer, type_kind, &type_name);
             ValueRecord::Raw { r: "fn".to_string(), type_id }
         }
         PrintableType::Enum { .. } => {
@@ -246,15 +259,14 @@ fn register_value(
             // added, we need to implement this as well.
             todo!("Tracing support for enums is not yet implemented")
         }
-        PrintableType::FmtString { length: _, typ } => {
+        PrintableType::FmtString { typ: element_type, .. } => {
             // TODO: Proper handling for FmtString type
             if let PrintableValue::FmtString(msg, printable_values) = value {
-                printable_values
-                    .iter()
-                    .for_each(|printable_value| {
-                        register_value(tracer, printable_value, typ);
-                    });
-                let type_id = TraceWriter::ensure_type_id(tracer, runtime_tracing::TypeKind::String, "String");
+                printable_values.iter().for_each(|printable_value| {
+                    register_value(tracer, printable_value, element_type);
+                });
+                let (type_kind, type_name) = printable_type_to_kind_and_name(typ);
+                let type_id = TraceWriter::ensure_type_id(tracer, type_kind, &type_name);
                 ValueRecord::String { text: msg.clone(), type_id }
             } else {
                 panic!("type-value mismatch: value: {:?} does not match type FmtString", value)
@@ -266,7 +278,11 @@ fn register_value(
 /// Registers a call to the given `frame` at the given `location` in the given `tracer`.
 ///
 /// A helper method, that makes it easier to interface with `Tracer`.
-pub(crate) fn register_call(tracer: &mut dyn TraceWriter, location: &SourceLocation, frame: &StackFrame) {
+pub(crate) fn register_call(
+    tracer: &mut dyn TraceWriter,
+    location: &SourceLocation,
+    frame: &StackFrame,
+) {
     let SourceLocation { filepath, line_number } = &location;
     let path = &PathBuf::from(filepath.to_string());
     let line = Line(*line_number as i64);
@@ -277,7 +293,10 @@ pub(crate) fn register_call(tracer: &mut dyn TraceWriter, location: &SourceLocat
 
 /// Extracts the relevant information from the given `frame` to construct a vector of `ArgRecord`
 /// that the `Tracer` interface expects when registering function calls.
-fn convert_params_to_args_vec(tracer: &mut dyn TraceWriter, frame: &StackFrame) -> Vec<FullValueRecord> {
+fn convert_params_to_args_vec(
+    tracer: &mut dyn TraceWriter,
+    frame: &StackFrame,
+) -> Vec<FullValueRecord> {
     let mut result = Vec::new();
     for param_index in &frame.function_param_indexes {
         let variable = &frame.variables[*param_index];
@@ -308,4 +327,40 @@ pub(crate) fn register_print(tracer: &mut dyn TraceWriter, s: &str) {
 
 pub(crate) fn register_error(tracer: &mut dyn TraceWriter, s: &str) {
     TraceWriter::register_special_event(tracer, EventLogKind::Error, s);
+}
+
+fn printable_type_to_kind_and_name(
+    printable_type: &PrintableType,
+) -> (runtime_tracing::TypeKind, String) {
+    match printable_type {
+        PrintableType::Field => (runtime_tracing::TypeKind::Int, "Field".to_string()),
+        PrintableType::UnsignedInteger { width } => {
+            (runtime_tracing::TypeKind::Int, format!("u{width}"))
+        }
+        PrintableType::SignedInteger { width } => {
+            (runtime_tracing::TypeKind::Int, format!("i{width}"))
+        }
+        PrintableType::Boolean => (runtime_tracing::TypeKind::Bool, "Bool".to_string()),
+        PrintableType::Slice { .. } => (runtime_tracing::TypeKind::Slice, "&[..]".to_string()),
+        PrintableType::Array { length, .. } => {
+            (runtime_tracing::TypeKind::Seq, format!("Array<{length}, ..>"))
+        }
+        PrintableType::String { .. } => (runtime_tracing::TypeKind::String, "String".to_string()),
+        PrintableType::Struct { name, .. } => (runtime_tracing::TypeKind::Struct, name.clone()),
+        PrintableType::Unit => (runtime_tracing::TypeKind::Raw, "()".to_string()),
+        PrintableType::Tuple { .. } => (runtime_tracing::TypeKind::Tuple, "(..)".to_string()),
+        PrintableType::Reference { .. } => (runtime_tracing::TypeKind::Ref, "&".to_string()),
+        PrintableType::Function { unconstrained, .. } => {
+            let type_name = if *unconstrained { "unconstrained fn" } else { "fn" };
+            (runtime_tracing::TypeKind::FunctionKind, type_name.to_string())
+        }
+        PrintableType::FmtString { .. } => {
+            // FmtString is ultimately traced as a regular String
+            (runtime_tracing::TypeKind::String, "String".to_string())
+        }
+        PrintableType::Enum { .. } => {
+            // As in the original code, tracing for enums is not yet implemented.
+            todo!("Tracing support for enums is not yet implemented")
+        }
+    }
 }
