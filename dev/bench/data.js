@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1756899137263,
+  "lastUpdate": 1756899138791,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -26495,90 +26495,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "36a5064c10713414a0059f73632b509dda309e13",
-          "message": "fix(ssa): Put some default in `Value::uninitialized` for references in the SSA interpreter (#9603)\n\nCo-authored-by: jfecher <jfecher11@gmail.com>",
-          "timestamp": "2025-08-26T18:24:19Z",
-          "tree_id": "330a33360113d1e052d0e55dc7a9c6a7d4fc73ea",
-          "url": "https://github.com/noir-lang/noir/commit/36a5064c10713414a0059f73632b509dda309e13"
-        },
-        "date": 1756235168013,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 14792,
-            "unit": "opcodes"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 68868,
-            "unit": "opcodes"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 11177,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 221335,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 159954,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 68106,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 964509,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 965795,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1409,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-root",
-            "value": 2631,
-            "unit": "opcodes"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 5700,
-            "unit": "opcodes"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 13173,
-            "unit": "opcodes"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -30628,6 +30544,90 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/8fd9446d746f05785cf2299522e94cf29c8df156"
         },
         "date": 1756844950607,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 14792,
+            "unit": "opcodes"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 68868,
+            "unit": "opcodes"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 11177,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 221339,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 159930,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 68108,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 964515,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 965801,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1409,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-root",
+            "value": 2631,
+            "unit": "opcodes"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 5700,
+            "unit": "opcodes"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 13173,
+            "unit": "opcodes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "910cd9349e0b9382c1512935bc3e1d791891bd21",
+          "message": "fix(ssa): Simplify instructions during `remove_unreachable_instructions` (#9709)",
+          "timestamp": "2025-09-03T10:53:07Z",
+          "tree_id": "a85d985806ba6b7b8b27e7cb5d778b92226ce324",
+          "url": "https://github.com/noir-lang/noir/commit/910cd9349e0b9382c1512935bc3e1d791891bd21"
+        },
+        "date": 1756899118095,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
