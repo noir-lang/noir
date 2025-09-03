@@ -7,6 +7,9 @@ on:
     branches:
       - master
 
+env:
+  CI: 1
+
 # This will cancel previous runs when a branch or PR is updated
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref || github.run_id }}
