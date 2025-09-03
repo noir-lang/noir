@@ -99,7 +99,7 @@ impl Function {
 mod tests {
     use crate::{
         assert_ssa_snapshot,
-        ssa::{opt::assert_normalized_ssa_equals, ssa_gen::Ssa},
+        ssa::{opt::assert_ssa_does_not_change, ssa_gen::Ssa},
     };
 
     #[test]
@@ -134,10 +134,6 @@ mod tests {
             return
         }
         ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.make_constrain_not_equal();
-
-        // Expect no changes
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::make_constrain_not_equal);
     }
 }
