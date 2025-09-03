@@ -243,7 +243,9 @@ struct LoopContext {
 struct BlockContext {
     /// Indicate that this block is the header of the current loop.
     is_header: bool,
-    /// Stores whether the current block being processed is control dependent.
+    /// Stores whether the current block being processed is control dependent on any block
+    /// between the loop header and itself. If it is, it means that even if the loop executes,
+    /// this particular block may or may not do so.
     is_control_dependent: bool,
     /// Tracks whether the current block has a side-effectual instruction.
     /// This is maintained per instruction for hoisting control dependent instructions
@@ -611,7 +613,7 @@ impl<'f> LoopInvariantContext<'f> {
         // When hoisting a control dependent instruction, if a side effectual instruction comes in the predecessor block
         // of that instruction we can no longer hoist the control dependent instruction.
         // This is important for maintaining the execution order and semantic correctness of the code.
-        // If the predecessors are all pure, the block might turn impure as an when we encounter
+        // If the predecessors are all pure, the block might turn impure as and when we encounter
         // a side-effectful instruction in it later.
         let is_impure = all_predecessors.iter().any(|block| {
             dfg[*block]
@@ -2920,7 +2922,7 @@ mod control_dependence {
     }
 
     #[test]
-    fn while_loop_with_break_not_fully_executed() {
+    fn while_loop_with_break_is_not_fully_executed() {
         // SSA from a program such as this:
         // let mut idx_d: u32 = 0_u32;
         // while true {
