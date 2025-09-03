@@ -496,9 +496,7 @@ fn create_apply_functions(
         } else if pre_runtime_filter_len != 0 && caller_runtime.is_brillig() {
             // We had variants, but they were all filtered out.
             // Frontend bug: only ACIR variants in a Brillig group.
-            panic!(
-                "ICE: invalid defunctionalization: only ACIR variants for a Brillig runtime",
-            );
+            panic!("ICE: invalid defunctionalization: only ACIR variants for a Brillig runtime",);
         } else {
             // If no variants exist for a dynamic call we leave removing those dead calls and parameters to DIE.
             // However, we have to construct a dummy function for these dead calls as to keep a well formed SSA
@@ -1765,7 +1763,7 @@ mod tests {
         let ssa = ssa.defunctionalize();
 
         // The `apply` method skips calling the acir function f3.
-        // As there is only one other variant, we just call f1 directly. 
+        // As there is only one other variant, we just call f1 directly.
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
           b0(v0: Field, v1: Field, v2: Field):
