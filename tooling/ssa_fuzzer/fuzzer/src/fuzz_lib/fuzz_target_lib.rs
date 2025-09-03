@@ -5,6 +5,15 @@ use super::{
 };
 use noir_ssa_fuzzer::typed_value::Type;
 
+fn type_contains_slice_or_reference(type_: &Type) -> bool {
+    match type_ {
+        Type::Slice(_) => true,
+        Type::Reference(_) => true,
+        Type::Array(arr, _) => arr.iter().any(|t| type_contains_slice_or_reference(t)),
+        Type::Numeric(_) => false,
+    }
+}
+
 /// Creates ACIR and Brillig programs from the data, runs and compares them
 pub(crate) fn fuzz_target(data: FuzzerData, options: FuzzerOptions) -> Option<FuzzerOutput> {
     if data.instruction_blocks.is_empty() {
@@ -20,7 +29,7 @@ pub(crate) fn fuzz_target(data: FuzzerData, options: FuzzerOptions) -> Option<Fu
     data.functions[0].input_types = types;
     ensure_boolean_defined_in_all_functions(&mut data);
 
-    if data.functions[0].return_type.is_reference() {
+    if type_contains_slice_or_reference(&data.functions[0].return_type) {
         // main cannot return a reference
         data.functions[0].return_type = Type::default();
     }

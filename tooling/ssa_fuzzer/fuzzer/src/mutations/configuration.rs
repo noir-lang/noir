@@ -465,7 +465,7 @@ pub(crate) type GenerateInitialWitnessConfig = WeightedSelectionConfig<GenerateI
 pub(crate) const BASIC_GENERATE_INITIAL_WITNESS_CONFIGURATION: GenerateInitialWitnessConfig =
     GenerateInitialWitnessConfig::new([
         (GenerateInitialWitness::Numeric, 10),
-        (GenerateInitialWitness::Array, 5),
+        (GenerateInitialWitness::Array, 1),
     ]);
 
 #[derive(Copy, Clone, Debug)]
