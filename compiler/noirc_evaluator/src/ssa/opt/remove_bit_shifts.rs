@@ -180,7 +180,7 @@ impl Context<'_, '_, '_> {
         } else {
             // Otherwise, the result might not bit in a FieldElement.
             // For this, if we have to do `lhs << rhs` we can first shift by half of `rhs`, truncate,
-            // then shift by `rhs - half_of_rhs` and trunate again.
+            // then shift by `rhs - half_of_rhs` and truncate again.
             assert!(typ.bit_size() <= 128);
 
             let two = self.numeric_constant(FieldElement::from(2_u32), typ);
