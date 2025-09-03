@@ -178,7 +178,7 @@ impl Function {
                 }
 
                 // Check if we will be able to unroll this loop, before starting to modify the blocks.
-                if next_loop.has_const_back_edge_induction_value(self) {
+                if next_loop.has_const_back_edge_induction_value(&self.dfg) {
                     // Don't try to unroll this.
                     failed_to_unroll.insert(next_loop.header);
                     // If this is Brillig, we can still evaluate this loop at runtime.
@@ -281,7 +281,7 @@ impl Loops {
         let mut loops = vec![];
 
         // Iterating over blocks in reverse-post-order, ie. forward order, just because it's already available.
-        for block in post_order.into_vec().into_iter().rev() {
+        for block in post_order.into_vec_reverse() {
             for predecessor in cfg.predecessors(block) {
                 // In the above example, we're looking for when `block` is `loop_entry` and `predecessor` is `loop_body`.
                 if dom_tree.dominates(block, predecessor) {
@@ -353,8 +353,8 @@ impl Loop {
     ///     return
     /// }
     /// ```
-    fn has_const_back_edge_induction_value(&self, function: &Function) -> bool {
-        let back_edge = &function.dfg[self.back_edge_start];
+    fn has_const_back_edge_induction_value(&self, dfg: &DataFlowGraph) -> bool {
+        let back_edge = &dfg[self.back_edge_start];
         let Some(TerminatorInstruction::Jmp { destination, arguments, .. }) =
             back_edge.terminator()
         else {
@@ -362,7 +362,37 @@ impl Loop {
         };
         assert_eq!(*destination, self.header, "back edge goes to the header");
         assert_eq!(arguments.len(), 1);
-        function.dfg.get_numeric_constant(arguments[0]).is_some()
+        dfg.get_numeric_constant(arguments[0]).is_some()
+    }
+
+    /// Check if the loop header has a constant zero jump condition, which indicates an empty loop.
+    ///
+    /// This can happen if a jump condition has been simplified out.
+    ///
+    /// For example:
+    /// ```text
+    /// brillig(inline) predicate_pure fn main f0 {
+    ///   b0():
+    ///     jmp b1(u32 10)               // Pre-header
+    ///   b1(v0: u32):                   // Header
+    ///     // v3 = lt v0, u32 0         // Simplified to `u1 0`
+    ///     jmpif u1 0 then: b2, else: b3
+    ///   b2():                          // Back edge
+    ///     v1 = unchecked_add v0, u32 1 // Increment induction value
+    ///     jmp b1(v1)
+    ///   b3():
+    ///     return
+    /// }
+    /// ```
+    fn has_const_zero_jump_condition(&self, dfg: &DataFlowGraph) -> bool {
+        let header = &dfg[self.header];
+        let Some(TerminatorInstruction::JmpIf { condition, .. }) = header.terminator() else {
+            return false;
+        };
+        let Some(condition) = dfg.get_numeric_constant(*condition) else {
+            return false;
+        };
+        condition.is_zero()
     }
 
     /// Find the lower bound of the loop in the pre-header and return it
@@ -402,13 +432,23 @@ impl Loop {
     ///     v5 = lt v1, u32 4           // Upper bound
     ///     jmpif v5 then: b3, else: b2
     /// ```
-    fn get_const_upper_bound(&self, dfg: &DataFlowGraph) -> Option<IntegerConstant> {
+    fn get_const_upper_bound(
+        &self,
+        dfg: &DataFlowGraph,
+        pre_header: BasicBlockId,
+    ) -> Option<IntegerConstant> {
         let block = &dfg[self.header];
         let instructions = block.instructions();
         if instructions.is_empty() {
-            // If the loop condition is constant time, the loop header will be
+            // If the loop condition is constant, the loop header will be
             // simplified to a simple jump.
-            return None;
+            if self.has_const_zero_jump_condition(dfg) {
+                // There are cases where the upper bound jmpif degenerates into a constant `false`;
+                // in that case we can just return the `lower` to emulate a known empty loop.
+                return self.get_const_lower_bound(dfg, pre_header);
+            } else {
+                return None;
+            };
         }
 
         if instructions.len() != 1 {
@@ -455,7 +495,7 @@ impl Loop {
         pre_header: BasicBlockId,
     ) -> Option<(IntegerConstant, IntegerConstant)> {
         let lower = self.get_const_lower_bound(dfg, pre_header)?;
-        let upper = self.get_const_upper_bound(dfg)?;
+        let upper = self.get_const_upper_bound(dfg, pre_header)?;
         Some((lower, upper))
     }
 
@@ -782,7 +822,14 @@ impl Loop {
             )
             .unwrap_or_default();
 
-        Some(BoilerplateStats { iterations, loads, stores, increments, all_instructions })
+        Some(BoilerplateStats {
+            iterations,
+            loads,
+            stores,
+            increments,
+            all_instructions,
+            has_const_zero_jump_condition: self.has_const_zero_jump_condition(&function.dfg),
+        })
     }
 }
 
@@ -816,6 +863,8 @@ struct BoilerplateStats {
     /// Number of instructions in the loop, including boilerplate,
     /// but excluding the boilerplate which is outside the loop.
     all_instructions: usize,
+    /// Indicate whether the comparison with the upper bound has been simplified out.
+    has_const_zero_jump_condition: bool,
 }
 
 impl BoilerplateStats {
@@ -828,8 +877,9 @@ impl BoilerplateStats {
     /// Estimated number of _useful_ instructions, which is the ones in the loop
     /// minus all in-loop boilerplate.
     fn useful_instructions(&self) -> usize {
-        // Two jumps + plus the comparison with the upper bound
-        let boilerplate = 3;
+        // Two jumps + plus the comparison with the upper bound.
+        // This could be just 2 if the comparison has been simplified out.
+        let boilerplate = if self.has_const_zero_jump_condition { 2 } else { 3 };
         // Be conservative and only assume that mem2reg gets rid of load followed by store.
         // NB we have not checked that these are actual pairs.
         let load_and_store = self.loads.min(self.stores) * 2;
@@ -1258,6 +1308,39 @@ mod tests {
     }
 
     #[test]
+    fn test_get_const_bounds_empty_simplified() {
+        // The following is an empty loop where the jmpif in b1 was simplified
+        // from `v1 = lt v0, u32 0` into `u1 0`.
+        let src = r#"
+        acir(inline) fn main f0 {
+          b0():
+            jmp b1(u32 0)
+          b1(v0: u32):
+            jmpif u1 0 then: b2, else: b3
+          b2():
+            v41 = unchecked_add v0, u32 1
+            jmp b1(v41)
+          b3():
+            return
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let function = ssa.main();
+        let loops = Loops::find_all(function);
+        assert_eq!(loops.yet_to_unroll.len(), 1);
+
+        let loop_ = &loops.yet_to_unroll[0];
+        let pre_header =
+            loop_.get_pre_header(function, &loops.cfg).expect("Should have a pre_header");
+        let (lower, upper) = loop_
+            .get_const_bounds(&function.dfg, pre_header)
+            .expect("should use the lower for upper");
+
+        assert_eq!(lower, IntegerConstant::Unsigned { value: 0, bit_size: 32 });
+        assert_eq!(upper, lower);
+    }
+
+    #[test]
     fn test_find_pre_header_reference_values() {
         let ssa = brillig_unroll_test_case();
         let function = ssa.main();
@@ -1324,6 +1407,25 @@ mod tests {
         assert_eq!(stats.stores, 1);
         assert_eq!(stats.useful_instructions(), 4); // cast, array get, add, array set
         assert_eq!(stats.baseline_instructions(), 12);
+        assert!(stats.is_small());
+    }
+
+    #[test]
+    fn test_boilerplate_stats_const_zero_jump_condition() {
+        let src = "
+        brillig(inline) impure fn main f0 {
+          b0():
+            jmp b1(u32 0)
+          b1(v0: u32):
+            jmpif u1 0 then: b2, else: b3
+          b2():
+            v1 = unchecked_add v0, u32 1
+            jmp b1(v1)
+          b3():
+            return
+        }";
+        let ssa = Ssa::from_str(src).unwrap();
+        let stats = loop0_stats(&ssa);
         assert!(stats.is_small());
     }
 
