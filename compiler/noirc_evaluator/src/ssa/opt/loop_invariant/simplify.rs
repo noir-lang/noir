@@ -296,11 +296,11 @@ impl LoopInvariantContext<'_> {
             rhs_const,
             loop_context
                 .get_current_induction_variable_bounds(*lhs)
-                .and_then(|v| if only_outer_induction { None } else { Some(v) })
+                .filter(|_| !only_outer_induction)
                 .or(self.outer_induction_variables.get(lhs).copied()),
             loop_context
                 .get_current_induction_variable_bounds(*rhs)
-                .and_then(|v| if only_outer_induction { None } else { Some(v) })
+                .filter(|_| !only_outer_induction)
                 .or(self.outer_induction_variables.get(rhs).copied()),
         ) {
             // LHS is a constant, RHS is the induction variable with a known lower and upper bound.
@@ -332,29 +332,36 @@ impl LoopInvariantContext<'_> {
         // Note that here we allow all_induction_variables
         let operand_type = self.inserter.function.dfg.type_of_value(binary.lhs).unwrap_numeric();
 
-        let Some((is_induction_var_lhs, value, lower_bound, upper_bound)) =
+        let Some((is_induction_var_lhs, constant, lower_bound, upper_bound)) =
             self.match_induction_and_constant(loop_context, &binary.lhs, &binary.rhs, is_header)
         else {
             return SimplifyResult::None;
         };
 
-        // Handle arithmetic operations
+        // Handle arithmetic operations:
+        // Check if we can simplify either `lower op const` or `const op upper` into an unchecked version of the operation.
         if let Some((lhs, rhs)) = match binary.operator {
             BinaryOp::Add { unchecked }
             | BinaryOp::Sub { unchecked }
             | BinaryOp::Mul { unchecked }
                 if unchecked =>
             {
+                // Already unchecked, no need to simplify.
                 return SimplifyResult::None;
             }
             BinaryOp::Sub { .. } => {
                 if is_induction_var_lhs {
-                    Some((lower_bound, value))
+                    // `i - const` won't overflow if the lowest `i` doesn't.
+                    Some((lower_bound, constant))
                 } else {
-                    Some((value, upper_bound))
+                    // `const - i` won't overflow if the highest `i` doesn't.
+                    Some((constant, upper_bound))
                 }
             }
-            BinaryOp::Add { .. } | BinaryOp::Mul { .. } => Some((value, upper_bound)),
+            BinaryOp::Add { .. } | BinaryOp::Mul { .. } => {
+                // `i + const` won't overflow if the highest `i` value doesn't.
+                Some((constant, upper_bound))
+            }
             BinaryOp::Div | BinaryOp::Mod => return SimplifyResult::None,
             _ => None,
         } {
@@ -379,20 +386,24 @@ impl LoopInvariantContext<'_> {
             }
         }
 
-        // Handle comparisons
+        // Handle comparisons. (The upper_bound is exclusive).
         match binary.operator {
             BinaryOp::Eq => {
-                if value >= upper_bound || value < lower_bound {
+                if constant >= upper_bound || constant < lower_bound {
+                    // `i == const` cannot be true if the constant is out of range.
                     SimplifyResult::SimplifiedTo(self.false_value)
                 } else {
                     SimplifyResult::None
                 }
             }
             BinaryOp::Lt => match is_induction_var_lhs {
-                true if upper_bound <= value => SimplifyResult::SimplifiedTo(self.true_value),
-                true if lower_bound >= value => SimplifyResult::SimplifiedTo(self.false_value),
-                false if lower_bound > value => SimplifyResult::SimplifiedTo(self.true_value),
-                false if upper_bound <= value.inc() => {
+                // `i < const`
+                true if upper_bound <= constant => SimplifyResult::SimplifiedTo(self.true_value),
+                true if lower_bound >= constant => SimplifyResult::SimplifiedTo(self.false_value),
+                // `const < i`
+                false if lower_bound > constant => SimplifyResult::SimplifiedTo(self.true_value),
+                false if upper_bound <= constant.inc() => {
+                    // If `const >= upper_bound - 1` then it will never be less than `i`.
                     SimplifyResult::SimplifiedTo(self.false_value)
                 }
                 _ => SimplifyResult::None,
