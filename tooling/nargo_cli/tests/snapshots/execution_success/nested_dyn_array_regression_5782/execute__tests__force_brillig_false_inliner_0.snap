@@ -1,6 +1,5 @@
 ---
 source: tooling/nargo_cli/tests/execute.rs
-assertion_line: 512
 expression: artifact
 ---
 {
@@ -74,13 +73,8 @@ expression: artifact
     "MEM (id: 2, read at: EXPR [ (1, _2) 0 ], value: EXPR [ (1, _19) 0 ]) ",
     "EXPR [ (1, _19) -2 ]"
   ],
-  "debug_symbols": "pZTbioMwEED/ZZ7zYGIu6q8sS0ltWgIhSqqFRfrvO3FHt31YWOKLx1zOMInjLHBx5/l28vE63KH7WOCcfAj+dgpDbyc/RJxdngy24WlKzuEUvKyjNdrk4gRdnENg8LBhXjfdRxtXTjbhasXAxQsSA159cPntyX7t6m9Vc3K13mX1b1upzTZHbFMV2I0hu1WH7LbA5rwmnXNZ4ldm90uy53L3lSjxzVYyvDnql+Qvakm+kPVBXx/0S76/0HrzTXPMb/ib/4kj2/v01ieA40UzELidQQ0dFp+EDo+gUGKg8Q9iYNZngxXNoF2fvMqVhsw6+lwQa6IkKqImGmJDbH8oKmKOhzmIHA+zEDVREnO8XBYPm7w9B0e97jrH/qX1TV/jtrI1xzENvbvMyeXjr2t4Id8=",
-  "file_map": {
-    "50": {
-      "source": "fn main(mut array: [Field; 2], i: u32) {\n    assert_eq(array[i - 1], 5);\n    assert_eq(array[i], 10);\n\n    array[i] = 2;\n\n    let array2 = [array, array];\n\n    assert_eq(array2[0][0], 5);\n    assert_eq(array2[0][i], 2);\n    assert_eq(array2[i][0], 5);\n    assert_eq(array2[i][i], 2);\n}\n",
-      "path": ""
-    }
-  },
+  "debug_symbols": "[debug_symbols]",
+  "file_map": "[file_map]",
   "names": [
     "main"
   ],

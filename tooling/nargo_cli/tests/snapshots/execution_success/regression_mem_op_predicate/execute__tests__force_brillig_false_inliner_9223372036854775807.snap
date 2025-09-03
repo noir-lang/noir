@@ -1,6 +1,5 @@
 ---
 source: tooling/nargo_cli/tests/execute.rs
-assertion_line: 468
 expression: artifact
 ---
 {
@@ -72,13 +71,8 @@ expression: artifact
     "unconstrained func 0",
     "[Const { destination: Direct(10), bit_size: Integer(U32), value: 2 }, Const { destination: Direct(11), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(10), offset_address: Direct(11) }, BinaryFieldOp { destination: Direct(2), op: IntegerDiv, lhs: Direct(0), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Mul, lhs: Direct(2), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Sub, lhs: Direct(0), rhs: Direct(1) }, Mov { destination: Direct(0), source: Direct(2) }, Stop { return_data: HeapVector { pointer: Direct(11), size: Direct(10) } }]"
   ],
-  "debug_symbols": "nZLLqsMgEED/ZdYu1Ob9K5dLMIkpgphg9cIl5N87cWofi0LpxqOOZxh1Npj0EM+9cfNyge5ng8Eba825t8uoglkc7m47g7zsg9cat+ApjtaqvHYBOhetZfCnbEyHLqtyiUF5jHIG2k1ITDgbq4/Zzh42f6+KQtxkUZZ3vfzcr5rs1+Irv7r78hu/zb7k9Yv/iys1Gv/y4lCjwqBJY5tGwQkCUyAk4UQoCCWhgu6EqAkNoU2QnCAIkoBZiv0o3hs1WH378zm68akFwv+aI7lJVr+MeopeH8WnGF7nCg==",
-  "file_map": {
-    "50": {
-      "source": "fn main(mut x: [u32; 5], idx: u32) {\n    // We should not hit out of bounds here as we have a predicate\n    // that should not be hit\n    if idx as u32 < 3 {\n        x[idx] = 10;\n    }\n    assert(x[4] == 111);\n}\n",
-      "path": ""
-    }
-  },
+  "debug_symbols": "[debug_symbols]",
+  "file_map": "[file_map]",
   "names": [
     "main"
   ],

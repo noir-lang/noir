@@ -670,9 +670,11 @@ impl InputMutator {
     ) -> InputMap {
         let mut starting_input_value = previous_input_map.clone();
 
-        if additional_input_map.is_some() && prng.gen_range(0..4).is_zero() {
-            starting_input_value =
-                self.splice_two_maps(&previous_input_map, &additional_input_map.unwrap(), prng);
+        if let Some(additional_input_map) = additional_input_map {
+            if prng.gen_range(0..4).is_zero() {
+                starting_input_value =
+                    self.splice_two_maps(&previous_input_map, &additional_input_map, prng);
+            }
         }
         for _ in 0..(1 << prng.gen_range(MUTATION_LOG_MIN..=MUTATION_LOG_MAX)) {
             starting_input_value = self.mutate_input_map_single(&starting_input_value, prng);

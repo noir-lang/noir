@@ -58,8 +58,8 @@ expression: artifact
     "EXPR [ (-1, _1) (1, _7) 0 ]",
     "EXPR [ (-1, _2) (1, _8) 0 ]"
   ],
-  "debug_symbols": "nZDRCoMwDEX/pc99WB90018ZQ2qNUghtia0wxH9fFItuMBh7Sm5uziVkFh20aWis6/0o6vssWrKIdmjQGx2tdzydFymybCIB8EicfKaCJnBR1C4hSjFpTNvSGLTbatTE7kUKcB1XDuwtwtot8qAv31F1K3dYVQde/M6XVeavf/FFPl4V6o1/sNLG0ufHJk1Wtwi77JMzJzc+Q3byxwN5A10iWJM2j7Nf",
-  "file_map": {},
+  "debug_symbols": "[debug_symbols]",
+  "file_map": "[file_map]",
   "names": [
     "main"
   ],

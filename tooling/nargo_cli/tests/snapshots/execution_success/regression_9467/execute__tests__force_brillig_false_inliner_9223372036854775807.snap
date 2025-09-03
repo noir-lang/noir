@@ -1,6 +1,5 @@
 ---
 source: tooling/nargo_cli/tests/execute.rs
-assertion_line: 512
 expression: artifact
 ---
 {
@@ -55,13 +54,8 @@ expression: artifact
     "EXPR [ (1, _0) (1, _1) -1 ]",
     "EXPR [ (2, _0) (1, _2) -2 ]"
   ],
-  "debug_symbols": "nZHBCoMwDIbfJece6tRt+ipjSNUohdKW2g6G+O6LxW56GIxdkiZ/vgb+zNBjG8ZG6sFMUN9maJ1USo6NMp3w0mjqzguDVDbeIVILdjpRVjjUHmodlGLwECrEockKHbMXjlTOAHVPmT4cpML1tbAPzb+jGS83OOPnN17+zheXxJfXf/gq8SdeHfg7VaKT7uAYcBpkkEGdMzjFmMdYUFzWNU6KVuHm7hB0tzPbP21S0jmsMx32weG6Jmq0+AU=",
-  "file_map": {
-    "50": {
-      "source": "fn main(b: bool) -> pub (u32, u32) {\n    let s0: [u32] = &[];\n    let s1: [u32] = &[10];\n    let s2 = if b { s1 } else { s0 };\n    let i1 = if b { s0.pop_back().1 } else { 1 };\n    let i2 = if b { s2.pop_front().0 } else { 2 };\n    (i1, i2)\n}\n",
-      "path": ""
-    }
-  },
+  "debug_symbols": "[debug_symbols]",
+  "file_map": "[file_map]",
   "names": [
     "main"
   ],

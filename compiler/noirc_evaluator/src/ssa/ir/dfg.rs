@@ -191,16 +191,6 @@ impl DataFlowGraph {
         new_block
     }
 
-    /// Get an iterator over references to each basic block within the dfg, paired with the basic
-    /// block's id.
-    ///
-    /// The pairs are order by id, which is not guaranteed to be meaningful.
-    pub(crate) fn basic_blocks_iter(
-        &self,
-    ) -> impl DoubleEndedIterator<Item = (BasicBlockId, &BasicBlock)> {
-        self.blocks.iter()
-    }
-
     /// Iterate over every Value in this DFG in no particular order, including unused Values
     pub(crate) fn values_iter(&self) -> impl DoubleEndedIterator<Item = (ValueId, &Value)> {
         self.values.iter()
@@ -260,7 +250,7 @@ impl DataFlowGraph {
         block: BasicBlockId,
         ctrl_typevars: Option<Vec<Type>>,
         call_stack: CallStackId,
-    ) -> InsertInstructionResult {
+    ) -> InsertInstructionResult<'_> {
         if !self.is_handled_by_runtime(&instruction) {
             // Panicking to raise attention. If we're not supposed to simplify it immediately,
             // pushing the instruction would just cause a potential panic later on.
@@ -284,7 +274,7 @@ impl DataFlowGraph {
         block: BasicBlockId,
         ctrl_typevars: Option<Vec<Type>>,
         call_stack: CallStackId,
-    ) -> InsertInstructionResult {
+    ) -> InsertInstructionResult<'_> {
         self.insert_instruction_and_results_if_simplified(
             instruction,
             block,
@@ -302,7 +292,7 @@ impl DataFlowGraph {
         ctrl_typevars: Option<Vec<Type>>,
         call_stack: CallStackId,
         existing_id: Option<InstructionId>,
-    ) -> InsertInstructionResult {
+    ) -> InsertInstructionResult<'_> {
         if !self.is_handled_by_runtime(&instruction) {
             // BUG: With panicking it fails to build the `token_contract`; see:
             // https://github.com/AztecProtocol/aztec-packages/pull/11294#issuecomment-2624379102

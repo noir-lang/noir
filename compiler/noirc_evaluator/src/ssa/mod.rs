@@ -13,7 +13,7 @@ use std::{
 
 use crate::{
     acir::ssa::Artifacts,
-    brillig::{Brillig, BrilligOptions},
+    brillig::BrilligOptions,
     errors::{RuntimeError, SsaReport},
 };
 use acvm::{
@@ -114,7 +114,7 @@ pub struct ArtifactsAndWarnings(pub Artifacts, pub Vec<SsaReport>);
 ///
 /// After these passes everything is ready for execution, which is
 /// something we take can advantage of in the [secondary_passes].
-pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
+pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
     let mut ssa_pass_builder = SsaPassBuilder::new(options.optimization_level.clone());
     use OptimizationLevel::*;
 
@@ -263,6 +263,11 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
         "Removing Truncate after RangeCheck",
         vec![All],
     );
+    // TODO(totel): Test if the following passes can be marked as debug
+    ssa_pass_builder.add_pass(Ssa::checked_to_unchecked, "Checked to unchecked", vec![All, Debug]);
+    ssa_pass_builder.add_pass(Ssa::fold_constants_with_brillig, "Inlining Brillig Calls", vec![All]);
+    ssa_pass_builder.add_pass(Ssa::remove_unreachable_instructions, "Remove Unreachable Instructions", vec![All]);
+    ssa_pass_builder.attach_pass_to_last(Ssa::remove_unreachable_functions, vec![All, Debug]);
     ssa_pass_builder.add_pass(
         Ssa::brillig_array_get_and_set,
         "Brillig Array Get and Set Optimizations",
@@ -281,7 +286,6 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
     // A function can be potentially unreachable post-DIE if all calls to that function were removed,
     // or after the removal of unreachable instructions.
     ssa_pass_builder.attach_pass_to_last(Ssa::remove_unreachable_functions, vec![All, Debug]);
-    ssa_pass_builder.add_pass(Ssa::checked_to_unchecked, "Checked to unchecked", vec![All, Debug]);
     ssa_pass_builder.add_try_pass(
         Ssa::verify_no_dynamic_indices_to_references,
         "Verifying no dynamic array indices to reference value elements",
@@ -295,20 +299,6 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass> {
     }, vec![All, Debug]);
 
     ssa_pass_builder.finish()
-}
-
-/// The second SSA pipeline, in which we take the Brillig functions compiled after
-/// the primary pipeline, and execute the ones with all-constant arguments,
-/// to replace the calls with the return value.
-pub fn secondary_passes(brillig: &Brillig) -> Vec<SsaPass> {
-    vec![
-        SsaPass::new(move |ssa| ssa.fold_constants_with_brillig(brillig), "Inlining Brillig Calls"),
-        SsaPass::new(Ssa::remove_unreachable_instructions, "Remove Unreachable Instructions")
-            // It could happen that we inlined all calls to a given brillig function.
-            // In that case it's unused so we can remove it. This is what we check next.
-            .and_then(Ssa::remove_unreachable_functions),
-        SsaPass::new(Ssa::dead_instruction_elimination_acir, "Dead Instruction Elimination - ACIR"),
-    ]
 }
 
 /// For testing purposes we want a list of the minimum number of SSA passes that should
@@ -341,38 +331,24 @@ pub fn minimal_passes() -> Vec<SsaPass<'static>> {
 /// convert the final SSA into an ACIR program and return it.
 /// An ACIR program is made up of both ACIR functions
 /// and Brillig functions for unconstrained execution.
-///
-/// The `primary` SSA passes are applied on the initial SSA.
-/// Then we compile the Brillig functions, and use the output
-/// to run a `secondary` pass, which can use the Brillig
-/// artifacts to do constant folding.
-///
-/// See the [primary_passes] and [secondary_passes] for
-/// the default implementations.
-pub fn optimize_ssa_builder_into_acir<S>(
+pub fn optimize_ssa_builder_into_acir(
     builder: SsaBuilder,
     options: &SsaEvaluatorOptions,
-    primary: &[SsaPass],
-    secondary: S,
-) -> Result<ArtifactsAndWarnings, RuntimeError>
-where
-    S: for<'b> Fn(&'b Brillig) -> Vec<SsaPass<'b>>,
-{
+    passes: &[SsaPass],
+) -> Result<ArtifactsAndWarnings, RuntimeError> {
     let ssa_gen_span = span!(Level::TRACE, "ssa_generation");
     let ssa_gen_span_guard = ssa_gen_span.enter();
-    let builder = builder.with_skip_passes(options.skip_passes.clone()).run_passes(primary)?;
+    let builder = builder.with_skip_passes(options.skip_passes.clone()).run_passes(passes)?;
 
     drop(ssa_gen_span_guard);
 
-    let ssa = builder.ssa();
     let brillig = time("SSA to Brillig", options.print_codegen_timings, || {
-        ssa.to_brillig(&options.brillig_options)
+        builder.ssa().to_brillig(&options.brillig_options)
     });
 
     let ssa_gen_span_guard = ssa_gen_span.enter();
 
-    let mut ssa = builder.run_passes(&secondary(&brillig))?.finish();
-
+    let mut ssa = builder.finish();
     let mut ssa_level_warnings = vec![];
     if !options.skip_underconstrained_check {
         ssa_level_warnings.extend(time(
@@ -407,24 +383,12 @@ where
 /// convert the final SSA into an ACIR program and return it.
 /// An ACIR program is made up of both ACIR functions
 /// and Brillig functions for unconstrained execution.
-///
-/// The `primary` SSA passes are applied on the initial SSA.
-/// Then we compile the Brillig functions, and use the output
-/// to run a `secondary` pass, which can use the Brillig
-/// artifacts to do constant folding.
-///
-/// See the [primary_passes] and [secondary_passes] for
-/// the default implementations.
-pub fn optimize_into_acir<S>(
+pub fn optimize_into_acir(
     program: Program,
     options: &SsaEvaluatorOptions,
-    primary: &[SsaPass],
-    secondary: S,
+    passes: &[SsaPass],
     files: Option<&fm::FileManager>,
-) -> Result<ArtifactsAndWarnings, RuntimeError>
-where
-    S: for<'b> Fn(&'b Brillig) -> Vec<SsaPass<'b>>,
-{
+) -> Result<ArtifactsAndWarnings, RuntimeError> {
     let builder = SsaBuilder::from_program(
         program,
         options.ssa_logging.clone(),
@@ -433,7 +397,7 @@ where
         files,
     )?;
 
-    optimize_ssa_builder_into_acir(builder, options, primary, secondary)
+    optimize_ssa_builder_into_acir(builder, options, passes)
 }
 
 /// Compiles the [`Program`] into [`ACIR`][acvm::acir::circuit::Program].
@@ -445,7 +409,7 @@ pub fn create_program(
     options: &SsaEvaluatorOptions,
     files: Option<&fm::FileManager>,
 ) -> Result<SsaProgramArtifact, RuntimeError> {
-    create_program_with_passes(program, options, &primary_passes(options), secondary_passes, files)
+    create_program_with_passes(program, options, &primary_passes(options), files)
 }
 
 /// Compiles the [`Program`] into [`ACIR`][acvm::acir::circuit::Program] using the minimum amount of SSA passes.
@@ -465,22 +429,17 @@ pub fn create_program_with_minimal_passes(
             func.name
         );
     }
-    create_program_with_passes(program, options, &minimal_passes(), |_| vec![], Some(files))
+    create_program_with_passes(program, options, &minimal_passes(), Some(files))
 }
 
-/// Compiles the [`Program`] into [`ACIR`][acvm::acir::circuit::Program] by running it through
-/// `primary` and `secondary` SSA passes.
+/// Compiles the [`Program`] into [`ACIR`][acvm::acir::circuit::Program] by running it through SSA `passes`.
 #[tracing::instrument(level = "trace", skip_all)]
-pub fn create_program_with_passes<S>(
+pub fn create_program_with_passes(
     program: Program,
     options: &SsaEvaluatorOptions,
-    primary: &[SsaPass],
-    secondary: S,
+    passes: &[SsaPass],
     files: Option<&fm::FileManager>,
-) -> Result<SsaProgramArtifact, RuntimeError>
-where
-    S: for<'b> Fn(&'b Brillig) -> Vec<SsaPass<'b>>,
-{
+) -> Result<SsaProgramArtifact, RuntimeError> {
     let debug_variables = program.debug_variables.clone();
     let debug_types = program.debug_types.clone();
     let debug_functions = program.debug_functions.clone();
@@ -488,7 +447,7 @@ where
     let arg_size_and_visibilities: Vec<Vec<(u32, Visibility)>> =
         program.function_signatures.iter().map(resolve_function_signature).collect();
 
-    let artifacts = optimize_into_acir(program, options, primary, secondary, files)?;
+    let artifacts = optimize_into_acir(program, options, passes, files)?;
 
     Ok(combine_artifacts(
         artifacts,

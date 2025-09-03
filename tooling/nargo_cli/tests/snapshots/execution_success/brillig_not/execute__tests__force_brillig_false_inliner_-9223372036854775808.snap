@@ -1,6 +1,5 @@
 ---
 source: tooling/nargo_cli/tests/execute.rs
-assertion_line: 468
 expression: artifact
 ---
 {
@@ -52,13 +51,8 @@ expression: artifact
     "unconstrained func 1",
     "[Const { destination: Direct(21), bit_size: Integer(U32), value: 1 }, Const { destination: Direct(20), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(21), offset_address: Direct(20) }, Const { destination: Direct(2), bit_size: Field, value: 0 }, BinaryFieldOp { destination: Direct(3), op: Equals, lhs: Direct(0), rhs: Direct(2) }, JumpIf { condition: Direct(3), location: 8 }, Const { destination: Direct(1), bit_size: Field, value: 1 }, BinaryFieldOp { destination: Direct(0), op: Div, lhs: Direct(1), rhs: Direct(0) }, Stop { return_data: HeapVector { pointer: Direct(20), size: Direct(21) } }]"
   ],
-  "debug_symbols": "pZLbisMgEIbfZa69iIeaja9SSjCJLYKYYLWwhLz7jlKzhaWwpDe/h/H7HZ1ZYTJDuvXWX+c7qPMKQ7DO2Vvv5lFHO3vcXaHJQiUoum0EaqiPwZgceTmLDosOxkdQPjlH4KFdKofui/ZljDpgtCFg/IQjGl6tM3m2kV+6eY9yzp8w52LHT//mGRVPnrHmCN/QnacHeNqxj3gm6+cxKY/wot359gjPuzf8BVd6tOFP9+CDaVFWlGPpCAhQWIgTogRk0bboFyhJoAOVzR86WD04k53yXcmP1RiX8Xupkdq4S5hHM6VgchIv3Yt6ph1h4rLlRH8A",
-  "file_map": {
-    "50": {
-      "source": "// Tests a very simple Brillig function.\n//\n// The features being tested is not instruction on brillig\nfn main(x: Field, y: Field) {\n    // Safety: testing context\n    unsafe {\n        assert(false == not_operator(x != 0));\n        assert(true == not_operator(y != 0));\n    }\n}\n\nunconstrained fn not_operator(x: bool) -> bool {\n    !x\n}\n",
-      "path": ""
-    }
-  },
+  "debug_symbols": "[debug_symbols]",
+  "file_map": "[file_map]",
   "names": [
     "main"
   ],

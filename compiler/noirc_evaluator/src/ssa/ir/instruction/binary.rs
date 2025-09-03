@@ -193,51 +193,45 @@ pub(crate) fn eval_constant_binary_op(
                 return CouldNotEvaluate;
             };
             let result = function(lhs, rhs);
-            let result = match operator {
-                BinaryOp::Div | BinaryOp::Mod if rhs == 0 => {
-                    // The divisor is being truncated into the type of the operand, which can potentially
-                    // lead to the rhs being zero.
-                    // If the rhs of a division is zero, attempting to evaluate the division will cause a compiler panic.
-                    // Thus, we do not evaluate the division in this method, as we want to avoid triggering a panic,
-                    // and the operation should be handled by ACIR generation.
-                    return Failure("attempt to divide by zero".to_string());
-                }
-                BinaryOp::Shr | BinaryOp::Shl => {
-                    if rhs >= (bit_size - 1) as i128 {
-                        let op = binary_op_function_name(operator);
-                        return Failure(format!("attempt to {op} with overflow"));
-                    } else {
-                        let Some(result) = result else {
-                            return CouldNotEvaluate;
-                        };
-                        result
+
+            let result = {
+                match operator {
+                    BinaryOp::Div | BinaryOp::Mod if rhs == 0 => {
+                        // The divisor is being truncated into the type of the operand, which can potentially
+                        // lead to the rhs being zero.
+                        // If the rhs of a division is zero, attempting to evaluate the division will cause a compiler panic.
+                        // Thus, we do not evaluate the division in this method, as we want to avoid triggering a panic,
+                        // and the operation should be handled by ACIR generation.
+                        return Failure("attempt to divide by zero".to_string());
                     }
-                }
-
-                _ => {
-                    // Check for overflow
-                    let two_pow_bit_size_minus_one = 1i128 << (bit_size - 1);
-                    let Some(result) = result else {
-                        if let BinaryOp::Shl = operator {
-                            return CouldNotEvaluate;
-                        }
-
-                        let op = binary_op_function_name(operator);
-                        return Failure(format!("attempt to {op} with overflow"));
-                    };
-
-                    if result >= two_pow_bit_size_minus_one || result < -two_pow_bit_size_minus_one
-                    {
-                        if let BinaryOp::Shl = operator {
-                            return CouldNotEvaluate;
-                        }
-
+                    BinaryOp::Shr | BinaryOp::Shl if rhs >= bit_size as i128 => {
                         let op = binary_op_function_name(operator);
                         return Failure(format!("attempt to {op} with overflow"));
                     }
-
-                    result
+                    _ => (),
                 }
+
+                // Check for overflow
+                let two_pow_bit_size_minus_one = 1i128 << (bit_size - 1);
+                let Some(result) = result else {
+                    if let BinaryOp::Shl = operator {
+                        return CouldNotEvaluate;
+                    }
+
+                    let op = binary_op_function_name(operator);
+                    return Failure(format!("attempt to {op} with overflow"));
+                };
+
+                if result >= two_pow_bit_size_minus_one || result < -two_pow_bit_size_minus_one {
+                    if let BinaryOp::Shl = operator {
+                        return CouldNotEvaluate;
+                    }
+
+                    let op = binary_op_function_name(operator);
+                    return Failure(format!("attempt to {op} with overflow"));
+                }
+
+                result
             };
             convert_signed_integer_to_field_element(result, bit_size)
         }

@@ -1,6 +1,5 @@
 ---
 source: tooling/nargo_cli/tests/execute.rs
-assertion_line: 512
 expression: artifact
 ---
 {
@@ -74,13 +73,8 @@ expression: artifact
     "unconstrained func 2",
     "[Const { destination: Direct(21), bit_size: Integer(U32), value: 1 }, Const { destination: Direct(20), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(21), offset_address: Direct(20) }, Const { destination: Direct(2), bit_size: Field, value: 0 }, BinaryFieldOp { destination: Direct(3), op: Equals, lhs: Direct(0), rhs: Direct(2) }, JumpIf { condition: Direct(3), location: 8 }, Const { destination: Direct(1), bit_size: Field, value: 1 }, BinaryFieldOp { destination: Direct(0), op: Div, lhs: Direct(1), rhs: Direct(0) }, Stop { return_data: HeapVector { pointer: Direct(20), size: Direct(21) } }]"
   ],
-  "debug_symbols": "pZTbisMgEIbfxetcqKM59FVKKTa1RRATbFJYSt59R6e2yy6FJbn5v5y+GU2iD3a2p/l6dOEy3Nhu/2Cn6Lx316MfejO5IeDVB+MppGQ7UTEJBEXQhJrQEFpClwFoi2WpWCl5nKK1qeKPHth5NNGGie3C7H3F7sbP+aHbaELmZCLe5RWz4YzEghfnbTpaqrfNP6sAzVMGaF+6/rcvePGF1Gt80MXX8MmHz74E+fSl4mt8WRcfxDZfrfJ1+XhSt2t8pV79u22+7rbN/5d/wDPTu/hn1eAHEzlx7WBzyKly6px1ziZnm7PLKThBEFDH3gJ9/AWFImhCTWgILaHLkJwgCJKAVdLw7yY6c/I2jTXNZg59GTqeTl9juVO2hDEOvT3P0aZpvvcFLLcHqBQcaNh7fM2qOyzptXwD",
-  "file_map": {
-    "50": {
-      "source": "fn main(x: Field, y: Field) -> pub Field {\n    // Safety: testing context\n    unsafe {\n        let notes = create_notes(x, y);\n        sum_x(notes, x, y)\n    }\n}\n\nfn sum_x(notes: [Field; 2], x: Field, y: Field) -> Field {\n    notes[x as u32] + notes[y as u32]\n}\n\nunconstrained fn create_notes(x: Field, y: Field) -> [Field; 2] {\n    [x, y]\n}\n",
-      "path": ""
-    }
-  },
+  "debug_symbols": "[debug_symbols]",
+  "file_map": "[file_map]",
   "names": [
     "main"
   ],

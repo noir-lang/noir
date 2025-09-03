@@ -6,8 +6,7 @@ use noir_ast_fuzzer::compare::{
     CompareInterpretedResult, HasPrograms,
 };
 use noirc_abi::input_parser::Format;
-use noirc_evaluator::brillig::Brillig;
-use noirc_evaluator::ssa::{SsaPass, primary_passes, secondary_passes};
+use noirc_evaluator::ssa::{SsaPass, primary_passes};
 use noirc_evaluator::{
     brillig::BrilligOptions,
     ssa::{self, OptimizationLevel, SsaEvaluatorOptions, SsaProgramArtifact},
@@ -54,22 +53,18 @@ pub fn create_ssa_or_die(
     options: &SsaEvaluatorOptions,
     msg: Option<&str>,
 ) -> SsaProgramArtifact {
-    create_ssa_with_passes_or_die(program, options, &primary_passes(options), secondary_passes, msg)
+    create_ssa_with_passes_or_die(program, options, &primary_passes(options), msg)
 }
 
 /// Compile a [Program] into SSA using the given primary and secondary passes, or panic.
 ///
 /// Prints the AST if `NOIR_AST_FUZZER_SHOW_AST` is set.
-pub fn create_ssa_with_passes_or_die<S>(
+pub fn create_ssa_with_passes_or_die(
     program: Program,
     options: &SsaEvaluatorOptions,
     primary: &[SsaPass],
-    secondary: S,
     msg: Option<&str>,
-) -> SsaProgramArtifact
-where
-    S: for<'b> Fn(&'b Brillig) -> Vec<SsaPass<'b>>,
-{
+) -> SsaProgramArtifact {
     // Unfortunately we can't use `std::panic::catch_unwind`
     // and `std::panic::resume_unwind` to catch any panic
     // and print the AST, then resume the panic, because
@@ -78,14 +73,12 @@ where
         eprintln!("---\n{}\n---", DisplayAstAsNoir(&program));
     }
 
-    ssa::create_program_with_passes(program, options, primary, secondary, None).unwrap_or_else(
-        |e| {
-            panic!(
-                "failed to compile program: {}{e}",
-                msg.map(|s| format!("{s}: ")).unwrap_or_default()
-            )
-        },
-    )
+    ssa::create_program_with_passes(program, options, primary, None).unwrap_or_else(|e| {
+        panic!(
+            "failed to compile program: {}{e}",
+            msg.map(|s| format!("{s}: ")).unwrap_or_default()
+        )
+    })
 }
 
 /// Compare the execution result and print the inputs if the result is a failure.

@@ -1,6 +1,5 @@
 ---
 source: tooling/nargo_cli/tests/execute.rs
-assertion_line: 512
 expression: artifact
 ---
 {
@@ -57,13 +56,8 @@ expression: artifact
     "unconstrained func 0",
     "[Const { destination: Direct(10), bit_size: Integer(U32), value: 2 }, Const { destination: Direct(11), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(10), offset_address: Direct(11) }, BinaryFieldOp { destination: Direct(2), op: IntegerDiv, lhs: Direct(0), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Mul, lhs: Direct(2), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Sub, lhs: Direct(0), rhs: Direct(1) }, Mov { destination: Direct(0), source: Direct(2) }, Stop { return_data: HeapVector { pointer: Direct(11), size: Direct(10) } }]"
   ],
-  "debug_symbols": "pZLbCoMwDIbfJde9aD1sulcZQ6rGUShVunYwxHdfjLrDxWBsN//fJvlCaDpCi3U8V8Z1/QUOxxFqb6w158r2jQ6mdxQdJwHbtQoekULwkidq0B5dgIOL1gq4ahu56DJoxx60p6wUgK4lp4adsTifJvGk5We0UCtbJA84/5pW+3LFVSl/4BOZrXwi8z/54o0/0U03xr+9NygqFJCwpqwZa866Y92zFqwlq5KLLbQiPCVLF8sWow7pNA/qja4trtvtomtelh1uw5bZvsPg+wbb6HEelHM0+h0=",
-  "file_map": {
-    "50": {
-      "source": "fn main(a: bool) -> pub str<2> {\n    let (_, d) = {\n        let b: [str<2>] = if a {\n            &[\"Aa\", \"Bb\", \"Cc\"]\n        } else {\n            &[\"Dd\", \"Ee\"]\n        };\n        b.pop_front()\n    };\n    d[1]\n}\n",
-      "path": ""
-    }
-  },
+  "debug_symbols": "[debug_symbols]",
+  "file_map": "[file_map]",
   "names": [
     "main"
   ],

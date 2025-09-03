@@ -8,7 +8,7 @@ unconstrained fn main(n: u32) {
     for _ in 0_u32..n {
         slice = slice.push_back(num1);
     }
-    *(slice[0_u32]) = 9_Field;
+    *slice[0_u32] = 9_Field;
     assert(*slice[0_u32] == 9_Field);
     assert(*num1 == 9_Field);
 }

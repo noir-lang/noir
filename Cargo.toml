@@ -76,6 +76,7 @@ unused_qualifications = "warn"
 unreachable_pub = "warn"
 unsafe_code = "deny"
 unused_must_use = "warn"
+mismatched_lifetime_syntaxes = "allow"
 
 [workspace.lints.clippy]
 semicolon_if_nothing_returned = "warn"
@@ -191,6 +192,7 @@ build-data = "^0.3.3"
 bincode = { version = "^2.0.1", features = ["serde"] }
 hex = "0.4.2"
 const_format = "0.2.30"
+indexmap = "^2.10.0"
 lazy_static = "1.4"
 libfuzzer-sys = "0.4"
 num-bigint = "0.4"

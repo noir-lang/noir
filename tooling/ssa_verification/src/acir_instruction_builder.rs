@@ -10,7 +10,6 @@ use std::collections::BTreeSet;
 use noirc_evaluator::ssa::{OptimizationLevel, ssa_gen::Ssa};
 use noirc_evaluator::ssa::{
     SsaEvaluatorOptions, ir::map::Id, optimize_ssa_builder_into_acir, primary_passes,
-    secondary_passes,
 };
 use noirc_evaluator::ssa::{SsaLogging, ir::function::Function};
 
@@ -251,7 +250,6 @@ fn ssa_to_acir_program(ssa: Ssa) -> AcirProgram<FieldElement> {
         builder,
         &ssa_evaluator_options,
         &primary_passes(&ssa_evaluator_options),
-        secondary_passes,
     ) {
         Ok(artifacts_and_warnings) => artifacts_and_warnings.0,
         Err(_) => panic!("Should compile manually generated SSA into acir"),

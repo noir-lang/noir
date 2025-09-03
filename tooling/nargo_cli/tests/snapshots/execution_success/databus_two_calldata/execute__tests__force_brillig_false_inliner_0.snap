@@ -1,6 +1,5 @@
 ---
 source: tooling/nargo_cli/tests/execute.rs
-assertion_line: 512
 expression: artifact
 ---
 {
@@ -118,13 +117,8 @@ expression: artifact
     "EXPR [ (1, _14) (-1, _32) 0 ]",
     "INIT RETURNDATA (id: 4, len: 4, witnesses: [_11, _12, _13, _14])"
   ],
-  "debug_symbols": "pZTbboQgEED/hWceuLmKv9I0BhU3JAQNq00a47935GJ3H5o07ItHmTkDDJEdjbrf7p1x0/xA7ceOem+sNffOzoNazexgdD8wyp/d6rWGIfQUB2tRXrsVtW6zFqMvZbeQ9FiUC1yVhyjBSLsRCAUnY/X5duBfm/ytcp5lzumlV//36yr7tSzwBeHJF6TIpyz7tHlv/iKfy1vevyxZP2/ktX9Ssn5eZ1+UnJ8Q+fxExYrmJ9f8RX7VZP8mXvxP+FKD8S9/DKqhZRg14SlBwoiSCAoagEVw1EJjqIioIm5Bo3UUmpgpAxgJKYyGFMZCCuMxJiJiFQZV4MwYVKGwMQZlKAXKSE4SaSJL5Ini5HF2xBvVW50ugmlzw9O9sH4vOZJvjsXPgx43r8+OhBj06Ac=",
-  "file_map": {
-    "50": {
-      "source": "// An simple program demonstrating two calldata array inputs and a single return data array. As an arbitrary example,\n// the return data is computed as a linear combination of the calldata.\nfn main(\n    mut x: [u32; 4],\n    y: call_data(0) [u32; 3],\n    z: call_data(1) [u32; 4],\n) -> return_data [u32; 4] {\n    let mut result = [0; 4];\n    for i in 0..3 {\n        let idx = x[i];\n        result[idx] = y[idx] + z[idx];\n    }\n    result[x[3]] = z[x[3]];\n    result\n}\n",
-      "path": ""
-    }
-  },
+  "debug_symbols": "[debug_symbols]",
+  "file_map": "[file_map]",
   "names": [
     "main"
   ],

@@ -1,6 +1,5 @@
 ---
 source: tooling/nargo_cli/tests/execute.rs
-assertion_line: 512
 expression: artifact
 ---
 {
@@ -103,13 +102,8 @@ expression: artifact
     "unconstrained func 0",
     "[Const { destination: Direct(10), bit_size: Integer(U32), value: 2 }, Const { destination: Direct(11), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(10), offset_address: Direct(11) }, BinaryFieldOp { destination: Direct(2), op: IntegerDiv, lhs: Direct(0), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Mul, lhs: Direct(2), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Sub, lhs: Direct(0), rhs: Direct(1) }, Mov { destination: Direct(0), source: Direct(2) }, Stop { return_data: HeapVector { pointer: Direct(11), size: Direct(10) } }]"
   ],
-  "debug_symbols": "nZJBDoMgEEXvMmsWgKLVqzSNQcWGhKCh0KQxvXtHKbZddMPqAZ8HA5kVRtWHa6ftNN+gPa/QO22MvnZmHqTXs8XV9UkgTTvvlMIl+MrRWqRT1kNrgzEE7tKEfdNtkXanlw5TSkDZEYkHTtqobfQkH5v+V1lRv2VWskMXWX6T5VfJr+osXyS/Fll+mfwTzfF5c/g8w+c03c9F1vvZ8X/s17/gTA7a/XQccIYpAc4jiogyQkCLp/Eqoo44RTQ7Cgrtds1dOi17o95dPAU7fDW1fywpSW2/uHlQY3BqK2fPsMAX",
-  "file_map": {
-    "50": {
-      "source": "global G_A: [[bool; 0]; 2] = [[], []];\n\nfn main(a: bool, b: [(u1, bool, u1, str<2>); 4]) -> pub [bool; 0] {\n    if (a) {\n        G_A[((((b[0].0 as u8) + (b[0].0 as u8)) as u32) % 2)]\n    } else {\n        G_A[((((b[0].0 as u8) + (b[0].0 as u8)) as u32) % 2)]\n    }\n}\n",
-      "path": ""
-    }
-  },
+  "debug_symbols": "[debug_symbols]",
+  "file_map": "[file_map]",
   "names": [
     "main"
   ],

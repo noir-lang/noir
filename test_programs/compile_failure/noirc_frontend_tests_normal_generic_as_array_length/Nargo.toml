@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_normal_generic_as_array_length"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

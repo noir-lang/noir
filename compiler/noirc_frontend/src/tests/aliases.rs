@@ -1,6 +1,5 @@
 use crate::{assert_no_errors, check_errors};
 
-#[named]
 #[test]
 fn allows_usage_of_type_alias_as_argument_type() {
     let src = r#"
@@ -17,7 +16,6 @@ fn allows_usage_of_type_alias_as_argument_type() {
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn allows_usage_of_type_alias_as_return_type() {
     let src = r#"
@@ -34,7 +32,6 @@ fn allows_usage_of_type_alias_as_return_type() {
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn alias_in_let_pattern() {
     let src = r#"
@@ -51,7 +48,6 @@ fn alias_in_let_pattern() {
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn double_alias_in_path() {
     let src = r#"
@@ -73,7 +69,6 @@ fn double_alias_in_path() {
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn double_generic_alias_in_path() {
     let src = r#"
@@ -95,7 +90,6 @@ fn double_generic_alias_in_path() {
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn identity_numeric_type_alias_works() {
     let src = r#"
@@ -106,7 +100,6 @@ fn identity_numeric_type_alias_works() {
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn self_referring_type_alias_is_not_allowed() {
     let src = r#"
@@ -121,7 +114,6 @@ fn self_referring_type_alias_is_not_allowed() {
     check_errors!(src);
 }
 
-#[named]
 #[test]
 fn type_alias_to_numeric_generic() {
     let src = r#"
@@ -141,7 +133,6 @@ fn type_alias_to_numeric_generic() {
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn disallows_composing_numeric_type_aliases() {
     let src = r#"
@@ -166,7 +157,6 @@ fn disallows_composing_numeric_type_aliases() {
     check_errors!(src);
 }
 
-#[named]
 #[test]
 fn disallows_numeric_type_aliases_to_expression_with_alias() {
     let src = r#"
@@ -191,7 +181,6 @@ fn disallows_numeric_type_aliases_to_expression_with_alias() {
     check_errors!(src);
 }
 
-#[named]
 #[test]
 fn disallows_numeric_type_aliases_to_expression_with_alias_2() {
     let src = r#"
@@ -217,7 +206,6 @@ fn disallows_numeric_type_aliases_to_expression_with_alias_2() {
     check_errors!(src);
 }
 
-#[named]
 #[test]
 fn disallows_numeric_type_aliases_to_type() {
     let src = r#"
@@ -232,7 +220,6 @@ fn disallows_numeric_type_aliases_to_type() {
     check_errors!(src);
 }
 
-#[named]
 #[test]
 fn type_alias_to_numeric_as_generic() {
     let src = r#"
@@ -256,7 +243,6 @@ fn type_alias_to_numeric_as_generic() {
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn self_referring_type_alias_with_generics_is_not_allowed() {
     let src = r#"
