@@ -347,14 +347,7 @@ impl Context<'_, '_, '_> {
 
         let assert_message = Some("attempt to bit-shift with overflow".to_owned());
 
-        let bit_size = match rhs_type {
-            Type::Numeric(NumericType::Unsigned { bit_size }) => bit_size,
-            Type::Numeric(NumericType::Signed { bit_size }) => {
-                assert!(bit_size > 1, "ICE - i1 is not a valid type");
-                bit_size
-            }
-            _ => unreachable!("check_shift_overflow called with non-numeric type"),
-        };
+        let bit_size = rhs_type.bit_size();
         let bit_size_field = FieldElement::from(bit_size);
 
         let unsigned_typ = NumericType::unsigned(bit_size);
