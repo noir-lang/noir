@@ -2073,9 +2073,8 @@ mod tests {
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
-        let mut ssa = ssa.defunctionalize();
-        ssa.normalize_ids();
-        println!("{}", ssa.print_with(None));
+        let ssa = ssa.defunctionalize();
+
         // A call to f4 will be created in the `apply` function in this case.
         // It is valid to call Brillig from ACIR as this will be treated as a new Brillig entry point.
         assert_ssa_snapshot!(ssa, @r"
