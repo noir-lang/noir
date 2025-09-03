@@ -118,6 +118,8 @@ impl Function {
             let old_result = *context.dfg.instruction_results(instruction_id).first().unwrap();
 
             let mut bitshift_context = Context { context };
+            bitshift_context.enforce_bitshift_rhs_lt_bit_size(rhs);
+
             let new_result = if operator == BinaryOp::Shl {
                 bitshift_context.insert_wrapping_shift_left(lhs, rhs)
             } else {
@@ -272,7 +274,7 @@ impl Context<'_, '_, '_> {
     /// }
     fn two_pow(&mut self, exponent: ValueId) -> ValueId {
         // Require that exponent < bit_size, ensuring that `pow` returns a value consistent with `lhs`'s type.
-        let max_bit_size = self.enforce_bitshift_rhs_lt_bit_size(exponent);
+        let max_bit_size = self.context.dfg.type_of_value(exponent).bit_size();
 
         if let Some(exponent_const) = self.context.dfg.get_numeric_constant(exponent) {
             let exponent_const_as_u32 = exponent_const.try_to_u32();
@@ -340,8 +342,7 @@ impl Context<'_, '_, '_> {
 
     /// Insert constraints ensuring that the right-hand side of a bit-shift operation
     /// is less than the bit size of the left-hand side.
-    /// Returns the maximum bit size allowed for `rhs`.
-    fn enforce_bitshift_rhs_lt_bit_size(&mut self, rhs: ValueId) -> u32 {
+    fn enforce_bitshift_rhs_lt_bit_size(&mut self, rhs: ValueId) {
         let one = self.numeric_constant(FieldElement::one(), NumericType::bool());
         let rhs_type = self.context.dfg.type_of_value(rhs);
 
@@ -355,8 +356,6 @@ impl Context<'_, '_, '_> {
         let rhs = self.insert_cast(rhs, unsigned_typ);
         let overflow = self.insert_binary(rhs, BinaryOp::Lt, max);
         self.insert_constrain(overflow, one, assert_message.map(Into::into));
-
-        bit_size
     }
 
     pub(crate) fn field_constant(&mut self, constant: FieldElement) -> ValueId {
