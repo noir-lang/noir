@@ -636,6 +636,7 @@ impl<'f> LoopInvariantContext<'f> {
         block_context: &BlockContext,
         instruction_id: InstructionId,
     ) -> bool {
+        use CanBeHoisted::*;
         use Instruction::*;
 
         let mut is_loop_invariant = true;
@@ -664,9 +665,11 @@ impl<'f> LoopInvariantContext<'f> {
         }
 
         self.can_be_hoisted_from_loop_bounds(loop_context, &instruction)
-            || can_be_hoisted(&instruction, self.inserter.function, false)
-            || can_be_hoisted(&instruction, self.inserter.function, true)
-                && block_context.can_hoist_control_dependent_instruction()
+            || match can_be_hoisted(&instruction, self.inserter.function) {
+                Yes => true,
+                No => false,
+                WithPredicate => block_context.can_hoist_control_dependent_instruction(),
+            }
     }
 
     /// Certain instructions can take advantage of that our induction variable has a fixed minimum/maximum.
@@ -754,10 +757,23 @@ fn get_induction_var_bounds(
     Some((induction_variable, bounds))
 }
 
+/// Indicate whether an instruction can be hoisted.
+enum CanBeHoisted {
+    Yes,
+    No,
+    WithPredicate,
+}
+
+impl From<bool> for CanBeHoisted {
+    fn from(value: bool) -> Self {
+        if value { Self::Yes } else { Self::No }
+    }
+}
+
 /// Indicates if the instruction can be safely hoisted out of a loop.
-/// If `hoist_with_predicate` is set, we assume we're hoisting the instruction
-/// and its predicate, rather than just the instruction. Setting this means instructions that
-/// rely on predicates can be hoisted as well.
+///
+/// If it returns `WithPredicate`, the instruction can only be hoisted together
+/// with the predicate it relies on.
 ///
 /// # Preconditions
 /// Certain instructions can be hoisted because they implicitly depend on a predicate.
@@ -774,11 +790,8 @@ fn get_induction_var_bounds(
 /// This differs from `can_be_deduplicated` as that method assumes there is a matching instruction
 /// with the same inputs. Hoisting is for lone instructions, meaning a mislabeled hoist could cause
 /// unexpected failures if the instruction was never meant to be executed.
-fn can_be_hoisted(
-    instruction: &Instruction,
-    function: &Function,
-    hoist_with_predicate: bool,
-) -> bool {
+fn can_be_hoisted(instruction: &Instruction, function: &Function) -> CanBeHoisted {
+    use CanBeHoisted::*;
     use Instruction::*;
 
     match instruction {
@@ -788,7 +801,7 @@ fn can_be_hoisted(
         | Load { .. }
         | Store { .. }
         | IncrementRc { .. }
-        | DecrementRc { .. } => false,
+        | DecrementRc { .. } => No,
 
         Call { func, .. } => {
             let purity = match function.dfg[*func] {
@@ -797,10 +810,10 @@ fn can_be_hoisted(
                 _ => None,
             };
             match purity {
-                Some(Purity::Pure) => true,
-                Some(Purity::PureWithPredicate) => hoist_with_predicate,
-                Some(Purity::Impure) => false,
-                None => false,
+                Some(Purity::Pure) => Yes,
+                Some(Purity::PureWithPredicate) => WithPredicate,
+                Some(Purity::Impure) => No,
+                None => No,
             }
         }
 
@@ -808,28 +821,32 @@ fn can_be_hoisted(
             // A cast may have dependence on a range-check, which may not be hoisted, so we cannot always hoist a cast.
             // We can safely hoist a cast from a smaller to a larger type as no range check is necessary in this case.
             let source_type = function.dfg.type_of_value(*source).unwrap_numeric();
-            source_type.bit_size() <= target_type.bit_size()
+            (source_type.bit_size() <= target_type.bit_size()).into()
         }
 
         // These instructions can always be hoisted
-        Not(_) | Truncate { .. } | IfElse { .. } => true,
+        Not(_) | Truncate { .. } | IfElse { .. } => Yes,
 
-        Constrain(..) | ConstrainNotEqual(..) | RangeCheck { .. } => hoist_with_predicate,
+        Constrain(..) | ConstrainNotEqual(..) | RangeCheck { .. } => WithPredicate,
 
         // Noop instructions can always be hoisted, although they're more likely to be
         // removed entirely.
-        Noop => true,
+        Noop => Yes,
 
         // Arrays can be mutated in unconstrained code so code that handles this case must
         // take care to track whether the array was possibly mutated or not before
         // hoisted. We know that in this module we will insert a corresponding `IncRc` to
         // allow safe hoisting in unconstrained code, but just in case we would expose this
         // function to other modules, we return a more restrictive result here.
-        MakeArray { .. } => function.runtime().is_acir(),
+        MakeArray { .. } => function.runtime().is_acir().into(),
 
         // These can have different behavior depending on the predicate.
         Binary(_) | ArrayGet { .. } | ArraySet { .. } => {
-            hoist_with_predicate || !instruction.requires_acir_gen_predicate(&function.dfg)
+            if !instruction.requires_acir_gen_predicate(&function.dfg) {
+                Yes
+            } else {
+                WithPredicate
+            }
         }
     }
 }
