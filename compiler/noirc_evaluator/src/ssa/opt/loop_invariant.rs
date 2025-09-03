@@ -231,6 +231,7 @@ struct LoopContext {
     no_break: bool,
 }
 
+#[derive(Debug)]
 struct BlockContext {
     /// Indicate that this block is the header of the current loop.
     is_header: bool,
@@ -557,13 +558,12 @@ impl<'f> LoopInvariantContext<'f> {
             }
             let Some(induction_variable) = get_induction_variable(&self.inserter, nested) else {
                 // If we don't know what the induction variable is, we can't say if it executes.
-                return false; // TODO: test
+                return false;
             };
             if !does_loop_execute(self.all_induction_variables.get(&induction_variable).copied()) {
                 return false;
             }
         }
-
         true
     }
 
@@ -1707,15 +1707,68 @@ mod test {
       }
       ";
 
+        assert_ssa_does_not_change(src, Ssa::loop_invariant_code_motion);
+    }
+
+    /// Outer loop executes, nested loop executes;
+    /// constraint from nested loop should be hoisted.
+    #[test]
+    fn hoist_from_nested_loop_known_to_execute() {
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32):
+            jmp b1(u32 0)
+          b1(v1: u32):
+            v2 = lt v1, u32 5
+            jmpif v2 then: b2, else: b3
+          b2():
+            jmp b4(u32 0)
+          b3():
+            return
+          b4(v3: u32):
+            v4 = lt v3, u32 5
+            jmpif v4 then: b5, else: b6
+          b5():
+            constrain v0 == u32 0
+            v5 = unchecked_add v3, u32 1
+            jmp b4(v5)
+          b6():
+            v6 = unchecked_add v1, u32 1
+            jmp b1(v6)
+        }
+        "#;
+
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.loop_invariant_code_motion();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32):
+            constrain v0 == u32 0
+            jmp b1(u32 0)
+          b1(v1: u32):
+            v5 = lt v1, u32 5
+            jmpif v5 then: b2, else: b3
+          b2():
+            jmp b4(u32 0)
+          b3():
+            return
+          b4(v2: u32):
+            v6 = lt v2, u32 5
+            jmpif v6 then: b5, else: b6
+          b5():
+            v9 = unchecked_add v2, u32 1
+            jmp b4(v9)
+          b6():
+            v8 = unchecked_add v1, u32 1
+            jmp b1(v8)
+        }
+        ");
     }
 
     /// Outer loop executes, nested loop does not;
     /// constraint from nested loop should not be hoisted.
     #[test]
-    fn do_not_hoist_from_non_executed_nested_loop() {
+    fn do_not_hoist_from_nested_loop_known_not_to_execute() {
         let src = r#"
         acir(inline) predicate_pure fn main f0 {
           b0(v0: u32):
@@ -1734,6 +1787,39 @@ mod test {
             constrain v0 == u32 0
             v5 = unchecked_add v3, u32 1
             jmp b4(v5)
+          b6():
+            v6 = unchecked_add v1, u32 1
+            jmp b1(v6)
+        }
+        "#;
+
+        assert_ssa_does_not_change(src, Ssa::loop_invariant_code_motion);
+    }
+
+    /// Outer loop executes, nested loop doesn't have induction variable;
+    /// constraint from nested loop should not be hoisted.
+    #[test]
+    fn do_not_hoist_from_nested_loop_without_induction_variable() {
+        // This SSA is artificial: the induction variable was removed from b4,
+        // but hasn't been replaced with e.g. the load of a reference, because
+        // that would make it impure and the constraint wouldn't be hoisted for
+        // that reason alone.
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32):
+            jmp b1(u32 0)
+          b1(v1: u32):
+            v2 = lt v1, u32 5
+            jmpif v2 then: b2, else: b3
+          b2():
+            jmp b4()
+          b3():
+            return
+          b4():
+            constrain v0 == u32 0
+            jmpif u1 0 then: b5, else: b6
+          b5():
+            jmp b4()
           b6():
             v6 = unchecked_add v1, u32 1
             jmp b1(v6)
