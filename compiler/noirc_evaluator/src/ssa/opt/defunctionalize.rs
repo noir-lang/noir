@@ -575,7 +575,9 @@ fn create_apply_function(
             };
 
             if runtime.is_acir() && caller_runtime.is_brillig() {
-                // Calling ACIR function from Brillig runtime is not allowed
+                // Calling an ACIR function from a Brillig runtime is not allowed.
+                // We expect all ACIR functions called from Brillig to be specialized
+                // as Brillig functions at compile time (e.g., before SSA generation).
                 // Closures are expected to be duplicated by their runtime.
                 // It is expected that the frontend has appropriately extracted the correct closure
                 // based on the current runtime of the caller function.
