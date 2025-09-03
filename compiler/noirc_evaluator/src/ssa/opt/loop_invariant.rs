@@ -274,6 +274,42 @@ impl BlockContext {
 }
 
 impl LoopContext {
+    /// Create a `LoopContext`:
+    /// * Gather the variables declared within the loop
+    /// * Determine the induction variable bounds
+    fn new(
+        inserter: &FunctionInserter,
+        cfg: &ControlFlowGraph,
+        loop_: &Loop,
+        pre_header: BasicBlockId,
+    ) -> Self {
+        let mut defined_in_loop = HashSet::default();
+        for block in loop_.blocks.iter() {
+            let params = inserter.function.dfg.block_parameters(*block);
+            defined_in_loop.extend(params);
+            for instruction_id in inserter.function.dfg[*block].instructions() {
+                let results = inserter.function.dfg.instruction_results(*instruction_id);
+                defined_in_loop.extend(results);
+            }
+        }
+        let induction_variable = get_induction_var_bounds(inserter, loop_, pre_header);
+
+        Self {
+            // There is only ever one current induction variable for a loop.
+            induction_variable,
+            does_loop_execute: does_loop_execute(induction_variable.map(|(_, bounds)| bounds)),
+            pre_header,
+            defined_in_loop,
+            loop_invariants: HashSet::default(),
+            // Clear any cached control dependent nested loop blocks from the previous loop.
+            // This set is only relevant within the scope of a single loop.
+            // Keeping previous data would incorrectly classify blocks as control dependent,
+            // leading to missed hoisting opportunities.
+            nested_loop_control_dependent_blocks: HashSet::default(),
+            no_break: loop_.is_fully_executed(cfg),
+        }
+    }
+
     fn pre_header(&self) -> BasicBlockId {
         self.pre_header
     }
@@ -375,7 +411,7 @@ impl<'f> LoopInvariantContext<'f> {
         all_loops: &[Loop],
         pre_header: BasicBlockId,
     ) {
-        let mut loop_context = self.init_loop_context(loop_, pre_header);
+        let mut loop_context = LoopContext::new(&self.inserter, &self.cfg, loop_, pre_header);
 
         for block in loop_.blocks.iter() {
             let mut block_context =
@@ -565,37 +601,6 @@ impl<'f> LoopInvariantContext<'f> {
         }
 
         true
-    }
-
-    /// Create a `LoopContext`:
-    /// * Gather the variables declared within the loop
-    /// * Determine the induction variable bounds
-    fn init_loop_context(&mut self, loop_: &Loop, pre_header: BasicBlockId) -> LoopContext {
-        let mut defined_in_loop = HashSet::default();
-        for block in loop_.blocks.iter() {
-            let params = self.inserter.function.dfg.block_parameters(*block);
-            defined_in_loop.extend(params);
-            for instruction_id in self.inserter.function.dfg[*block].instructions() {
-                let results = self.inserter.function.dfg.instruction_results(*instruction_id);
-                defined_in_loop.extend(results);
-            }
-        }
-        let induction_variable = get_induction_var_bounds(&self.inserter, loop_, pre_header);
-
-        LoopContext {
-            // There is only ever one current induction variable for a loop.
-            induction_variable,
-            does_loop_execute: does_loop_execute(induction_variable.map(|(_, bounds)| bounds)),
-            pre_header,
-            defined_in_loop,
-            loop_invariants: HashSet::default(),
-            // Clear any cached control dependent nested loop blocks from the previous loop.
-            // This set is only relevant within the scope of a single loop.
-            // Keeping previous data would incorrectly classify blocks as control dependent,
-            // leading to missed hoisting opportunities.
-            nested_loop_control_dependent_blocks: HashSet::default(),
-            no_break: loop_.is_fully_executed(&self.cfg),
-        }
     }
 
     /// Create a `BlockContext`.
