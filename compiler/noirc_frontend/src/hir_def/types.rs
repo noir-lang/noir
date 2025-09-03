@@ -1600,6 +1600,56 @@ impl Type {
         }
     }
 
+    pub(crate) fn contains_reference(&self) -> bool {
+        match self {
+            Type::Unit
+            | Type::Bool
+            | Type::String(..)
+            | Type::Integer(..)
+            | Type::FieldElement
+            | Type::Quoted(..)
+            | Type::Constant(..)
+            | Type::Function(..)
+            | Type::TraitAsType(..)
+            | Type::Forall(..)
+            | Type::Error => false,
+            Type::Array(length, typ) => length.contains_reference() || typ.contains_reference(),
+            Type::Slice(length) => length.contains_reference(),
+            Type::FmtString(length, typ) => length.contains_reference() || typ.contains_reference(),
+            Type::Tuple(types) => types.iter().any(|typ| typ.contains_reference()),
+            Type::DataType(typ, generics) => {
+                let typ = typ.borrow();
+                if let Some(fields) = typ.get_fields(generics) {
+                    if fields.iter().any(|(_, field, _)| field.contains_reference()) {
+                        return true;
+                    }
+                } else if let Some(variants) = typ.get_variants(generics) {
+                    if variants
+                        .iter()
+                        .flat_map(|(_, args)| args)
+                        .any(|typ| typ.contains_reference())
+                    {
+                        return true;
+                    }
+                }
+                false
+            }
+            Type::Alias(alias, generics) => alias.borrow().get_type(generics).is_nested_slice(),
+            Type::TypeVariable(type_variable)
+            | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) => {
+                match &*type_variable.borrow() {
+                    TypeBinding::Bound(binding) => binding.contains_reference(),
+                    TypeBinding::Unbound(_, _) => false,
+                }
+            }
+            Type::CheckedCast { from: _, to } => to.contains_reference(),
+            Type::InfixExpr(lhs, _op, rhs, _) => {
+                lhs.contains_reference() || rhs.contains_reference()
+            }
+            Type::Reference(..) => true,
+        }
+    }
+
     /// Try to bind a PolymorphicInt variable to self, succeeding if self is an integer, field,
     /// other PolymorphicInt type, or type variable. If successful, the binding is placed in the
     /// given TypeBindings map rather than linked immediately.

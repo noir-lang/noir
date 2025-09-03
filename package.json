@@ -10,7 +10,7 @@
     "tooling/noir_codegen",
     "acvm-repo/acvm_js",
     "docs",
-    "examples/docs_tutorials/*"
+    "examples/browser"
   ],
   "scripts": {
     "build": "yarn workspaces foreach -A -vp --topological-dev --exclude \"{docs,@noir-lang/root}\" run build",
