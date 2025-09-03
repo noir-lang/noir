@@ -181,7 +181,7 @@ impl Loop {
                 return cfg.predecessors(block).len() == 1;
             }
         }
-        true
+        unreachable!("exit block not found")
     }
 }
 
@@ -553,11 +553,11 @@ impl<'f> LoopInvariantContext<'f> {
         // If the block is part of any nested loop, they have to execute as well.
         for nested in all_loops.iter() {
             if !nested.blocks.contains(&block) {
-                continue;
+                continue; // TODO: test
             }
             let Some(induction_variable) = get_induction_variable(&self.inserter, nested) else {
                 // If we don't know what the induction variable is, we can't say if it executes.
-                return false;
+                return false; // TODO: test
             };
             if !does_loop_execute(self.all_induction_variables.get(&induction_variable).copied()) {
                 return false;
@@ -1712,63 +1712,35 @@ mod test {
         assert_normalized_ssa_equals(ssa, src);
     }
 
+    /// Outer loop executes, nested loop does not;
+    /// constraint from nested loop should not be hoisted.
     #[test]
     fn do_not_hoist_from_non_executed_nested_loop() {
         let src = r#"
         acir(inline) predicate_pure fn main f0 {
-          b0():
-            jmp b1(u128 2)
-          b1(v0: u128):
-            v4 = lt v0, u128 5
-            jmpif v4 then: b2, else: b3
+          b0(v0: u32):
+            jmp b1(u32 0)
+          b1(v1: u32):
+            v2 = lt v1, u32 5
+            jmpif v2 then: b2, else: b3
           b2():
-            v6 = mod v0, u128 9
-            jmp b4(u128 4)
+            jmp b4(u32 5)
           b3():
             return
-          b4(v1: u128):
-            v8 = lt v1, v6
-            jmpif v8 then: b5, else: b6
+          b4(v3: u32):
+            v4 = lt v3, u32 5
+            jmpif v4 then: b5, else: b6
           b5():
-            v12 = lt u128 0, v0
-            constrain v12 == u1 0
-            v14 = unchecked_add v1, u128 1
-            jmp b4(v14)
+            constrain v0 == u32 0
+            v5 = unchecked_add v3, u32 1
+            jmp b4(v5)
           b6():
-            v10 = unchecked_add v0, u128 1
-            jmp b1(v10)
+            v6 = unchecked_add v1, u32 1
+            jmp b1(v6)
         }
         "#;
 
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.loop_invariant_code_motion();
-
-        // We expect that the constraint will be turned into an always-fail one,
-        // but not be hoisted into the pre-header.
-        assert_ssa_snapshot!(ssa, @r"
-        acir(inline) predicate_pure fn main f0 {
-          b0():
-            jmp b1(u128 2)
-          b1(v0: u128):
-            v4 = lt v0, u128 5
-            jmpif v4 then: b2, else: b3
-          b2():
-            v6 = mod v0, u128 9
-            jmp b4(u128 4)
-          b3():
-            return
-          b4(v1: u128):
-            v8 = lt v1, v6
-            jmpif v8 then: b5, else: b6
-          b5():
-            constrain u1 1 == u1 0
-            v13 = unchecked_add v1, u128 1
-            jmp b4(v13)
-          b6():
-            v10 = unchecked_add v0, u128 1
-            jmp b1(v10)
-        }
-        ");
+        assert_ssa_does_not_change(src, Ssa::loop_invariant_code_motion);
     }
 }
 
