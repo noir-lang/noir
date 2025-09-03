@@ -636,7 +636,7 @@ impl<'f> LoopInvariantContext<'f> {
         block_context: &BlockContext,
         instruction_id: InstructionId,
     ) -> bool {
-        use CanBeHoisted::*;
+        use CanBeHoistedResult::*;
         use Instruction::*;
 
         let mut is_loop_invariant = true;
@@ -758,13 +758,13 @@ fn get_induction_var_bounds(
 }
 
 /// Indicate whether an instruction can be hoisted.
-enum CanBeHoisted {
+enum CanBeHoistedResult {
     Yes,
     No,
     WithPredicate,
 }
 
-impl From<bool> for CanBeHoisted {
+impl From<bool> for CanBeHoistedResult {
     fn from(value: bool) -> Self {
         if value { Self::Yes } else { Self::No }
     }
@@ -790,8 +790,8 @@ impl From<bool> for CanBeHoisted {
 /// This differs from `can_be_deduplicated` as that method assumes there is a matching instruction
 /// with the same inputs. Hoisting is for lone instructions, meaning a mislabeled hoist could cause
 /// unexpected failures if the instruction was never meant to be executed.
-fn can_be_hoisted(instruction: &Instruction, function: &Function) -> CanBeHoisted {
-    use CanBeHoisted::*;
+fn can_be_hoisted(instruction: &Instruction, function: &Function) -> CanBeHoistedResult {
+    use CanBeHoistedResult::*;
     use Instruction::*;
 
     match instruction {
