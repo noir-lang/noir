@@ -197,7 +197,10 @@ pub(crate) fn evaluate_binary_int_op<F: AcirField>(
                 if rhs < 32 {
                     Ok(MemoryValue::U32(evaluate_binary_int_op_shifts(op, lhs, rhs)))
                 } else {
-                    Err(BrilligArithmeticError::BitshiftOverflow { bit_size: 32, shift_size: rhs as u128 })
+                    Err(BrilligArithmeticError::BitshiftOverflow {
+                        bit_size: 32,
+                        shift_size: rhs as u128,
+                    })
                 }
             }
             (MemoryValue::U64(lhs), MemoryValue::U64(rhs), IntegerBitSize::U64) => {
@@ -214,10 +217,7 @@ pub(crate) fn evaluate_binary_int_op<F: AcirField>(
                 if rhs < 128 {
                     Ok(MemoryValue::U128(evaluate_binary_int_op_shifts(op, lhs, rhs)))
                 } else {
-                    Err(BrilligArithmeticError::BitshiftOverflow {
-                        bit_size: 128,
-                        shift_size: rhs,
-                    })
+                    Err(BrilligArithmeticError::BitshiftOverflow { bit_size: 128, shift_size: rhs })
                 }
             }
             _ => Err(BrilligArithmeticError::MismatchedLhsBitSize {
