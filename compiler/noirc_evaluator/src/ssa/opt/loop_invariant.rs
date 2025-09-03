@@ -168,11 +168,17 @@ impl Loop {
         function.dfg.block_parameters(self.header).iter().next().copied()
     }
 
-    /// Check if the loop will be fully executed by checking the number of predecessors of the loop exit
-    /// Our SSA code generation restricts loops to having one exit block except in the case of a `break`.
+    /// Check if the loop will be fully executed, that is, there is no early `break` in it.
+    ///
+    /// Our SSA code generation restricts loops to having one exit block.
+    /// If the exit block has only one predecessor, that means there is no `break` in the loop.
+    ///
     /// If a loop can have several exit blocks, we would need to update this function.
+    ///
+    /// If a loop has no exit block, then it must be a `loop` or `while`;
+    /// even if such blocks don't have a `break`, we don't consider them fully executed.
     pub(super) fn is_fully_executed(&self, cfg: &ControlFlowGraph) -> bool {
-        // The header has 2 successors: the loop body and the exit block.
+        // A typical for-loop header has 2 successors: the loop body and the exit block.
         for block in cfg.successors(self.header) {
             // The exit block is not contained in the loop.
             if !self.blocks.contains(&block) {
@@ -181,7 +187,9 @@ impl Loop {
                 return cfg.predecessors(block).len() == 1;
             }
         }
-        unreachable!("exit block not found")
+        // If we are here then we haven't found an exit block from the header,
+        // which means we must be dealing with a `loop` or `while`.
+        false
     }
 }
 
@@ -2839,7 +2847,7 @@ mod control_dependence {
     }
 
     #[test]
-    fn loop_with_break_not_fully_executed() {
+    fn loop_with_break_is_not_fully_executed() {
         // Based on the SSA for the following program:
         // ```noir
         // unconstrained fn main(x: u32) -> pub u32 {
@@ -2880,6 +2888,69 @@ mod control_dependence {
           b3():
             v12 = load v2 -> u32
             return v12
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let mut loops = Loops::find_all(ssa.main());
+        let loop_ = loops.yet_to_unroll.pop().unwrap();
+        assert!(!loop_.is_fully_executed(&loops.cfg));
+    }
+
+    #[test]
+    fn infinite_loop_is_not_fully_executed() {
+        let src = r"
+        brillig(inline) impure fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 0 at v0
+            jmp b1()
+          b1():
+            v1 = load v0 -> Field
+            v2 = add v1, Field 1
+            store v2 at v0
+            jmp b1()
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let mut loops = Loops::find_all(ssa.main());
+        let loop_ = loops.yet_to_unroll.pop().unwrap();
+        assert!(!loop_.is_fully_executed(&loops.cfg));
+    }
+
+    #[test]
+    fn while_loop_with_break_not_fully_executed() {
+        // SSA from a program such as this:
+        // let mut idx_d: u32 = 0_u32;
+        // while true {
+        //     if (idx_d == 3_u32) {
+        //         break
+        //     } else {
+        //         ...
+        //     }
+        // }
+        let src = r"
+        brillig(inline) fn main f0 {
+          b0(v0: u1, v1: &mut u32):
+            v17 = allocate -> &mut u32
+            store u32 0 at v17
+            jmp b8()
+          b1():
+            return
+          b8():
+            jmp b9()
+          b9():
+            v18 = load v17 -> u32
+            v20 = eq v18, u32 3
+            jmpif v20 then: b10, else: b11
+          b10():
+            jmp b1()
+          b11():
+            v21 = load v17 -> u32
+            v22 = add v21, u32 1
+            store v22 at v17
+            jmp b8()
         }
         ";
 
