@@ -28,6 +28,7 @@ fn main() -> Result<(), String> {
     // Rebuild if the tests have changed
     println!("cargo:rerun-if-changed=tests");
     println!("cargo:rerun-if-changed={}", test_dir.as_os_str().to_str().unwrap());
+    println!("cargo:rerun-if-env-changed=CI");
 
     generate_execution_success_tests(&mut test_file, &test_dir);
     generate_execution_failure_tests(&mut test_file, &test_dir);
@@ -68,6 +69,9 @@ fn main() -> Result<(), String> {
 
     Ok(())
 }
+
+/// Some tests take a very long time to run, which discourages local testing.
+const CI_ONLY_TESTS: [&str; 1] = ["ram_blowup_regression"];
 
 /// Some tests are explicitly ignored in brillig due to them failing.
 /// These should be fixed and removed from this list.
@@ -234,7 +238,9 @@ fn read_test_cases(
     let test_case_dirs =
         fs::read_dir(test_data_dir).unwrap().flatten().filter(|c| c.path().is_dir());
 
-    test_case_dirs.into_iter().filter_map(|dir| {
+    let is_ci = env::var("CI").is_ok();
+
+    test_case_dirs.into_iter().filter_map(move |dir| {
         // When switching git branches we might end up with non-empty directories that have a `target`
         // directory inside them but no `Nargo.toml`.
         // These "tests" would always fail, but it's okay to ignore them so we do that here.
@@ -244,11 +250,16 @@ fn read_test_cases(
 
         let test_name =
             dir.file_name().into_string().expect("Directory can't be converted to string");
+
         if test_name.contains('-') {
             panic!(
                 "Invalid test directory: {test_name}. Cannot include `-`, please convert to `_`"
             );
         }
+        if !is_ci && CI_ONLY_TESTS.contains(&test_name.as_str()) {
+            return None;
+        }
+
         Some((test_name, dir.path()))
     })
 }
