@@ -171,8 +171,7 @@ impl<'f> PerFunctionContext<'f> {
     /// dom_tree were created from.
     fn mem2reg(&mut self) {
         // Iterate each block in reverse post order = forward order
-        let mut block_order = self.post_order.as_slice().to_vec();
-        block_order.reverse();
+        let block_order = self.post_order.clone().into_vec_reverse();
 
         for block in block_order {
             let references = self.find_starting_references(block);
