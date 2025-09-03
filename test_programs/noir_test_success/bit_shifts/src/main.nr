@@ -93,9 +93,29 @@ fn test_bit_shifts00() {
     assert_eq(shift(2434, 11), a);
 }
 
+#[test]
+fn test_signed_shr_i8_rhs_bit_size_minus_one() {
+    assert_eq(2_i8 >> 7, 0)
+}
+
+#[test]
+fn test_signed_shl_i8_rhs_bit_size_minus_one() {
+    assert_eq(2_i8 << 7, 0)
+}
+
+#[test]
+fn test_signed_shr_i32_rhs_bit_size_minus_one() {
+    assert_eq(2_i32 >> 31, 0)
+}
+
+#[test]
+fn test_signed_shl_i32_rhs_bit_size_minus_one() {
+    assert_eq(2_i32 << 31, 0)
+}
+
 #[test(should_fail)]
 fn test_bit_shifts_overflow1() -> i8 {
-    2_i8 >> 7
+    2_i8 >> 8
 }
 
 #[test(should_fail)]
@@ -105,7 +125,7 @@ fn test_bit_shifts_overflow2() -> u8 {
 
 #[test(should_fail)]
 fn test_bit_shifts_overflow3() -> i32 {
-    2_i32 >> 31
+    2_i32 >> 32
 }
 
 #[test(should_fail)]

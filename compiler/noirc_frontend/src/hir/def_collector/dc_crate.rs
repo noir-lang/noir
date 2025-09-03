@@ -559,12 +559,7 @@ fn inject_prelude(
     if !crate_id.is_stdlib() {
         let segments: Vec<_> = "std::prelude"
             .split("::")
-            .map(|segment| {
-                crate::ast::PathSegment::from(crate::ast::Ident::new(
-                    segment.into(),
-                    Location::dummy(),
-                ))
-            })
+            .map(|segment| PathSegment::from(Ident::new(segment.into(), Location::dummy())))
             .collect();
 
         let path = Path::plain(segments.clone(), Location::dummy());
