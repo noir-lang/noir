@@ -880,6 +880,7 @@ impl BlockContext {
     fn ssa_scalar_from_instruction_scalar(&mut self, scalar: InstructionScalar) -> Option<Scalar> {
         let lo = self.get_stored_variable(&Type::Numeric(NumericType::Field), scalar.field_lo_idx);
         let hi = self.get_stored_variable(&Type::Numeric(NumericType::Field), scalar.field_hi_idx);
+        match (lo, hi) {
             (Some(lo), Some(hi)) => Some(Scalar { lo, hi }),
             _ => None,
         }
