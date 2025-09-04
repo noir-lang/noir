@@ -66,12 +66,12 @@ impl Ssa {
     /// Only inline calls to simple functions.
     ///
     /// A simple function is defined as the following:
-    /// - Contains no more than [MAX_INSTRUCTIONS] instructions
+    /// - Contains no more instructions than specified in [inline_info] 
     /// - The function only has a single block (e.g. no control flow or conditional branches)
     /// - It is not marked with the [no predicates inline type][noirc_frontend::monomorphization::ast::InlineType::NoPredicates]
     /// - It is not recursive
     pub(crate) fn inline_functions_simple(self) -> Result<Ssa, RuntimeError> {
-        self.inline_until_fixed_point(i64::MIN, true, true)
+        self.inline_until_fixed_point(i64::MIN, false, true)
     }
 
     /// Inline functions repeatedly until no new functions are inlined.
