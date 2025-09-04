@@ -488,7 +488,7 @@ impl<'function> PerFunctionContext<'function> {
     /// - ACIR -> ACIR
     /// - ACIR -> Brillig
     /// - Brillig -> Brillig
-    /// 
+    ///
     /// Invalid:
     /// - Brillig -> ACIR
     ///
