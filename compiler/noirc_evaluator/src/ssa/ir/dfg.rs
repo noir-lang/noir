@@ -550,6 +550,15 @@ impl DataFlowGraph {
         matches!(self.values[value].get_type().as_ref(), Type::Reference(_))
     }
 
+    /// True if the type of this value is a Type::Reference which contains another
+    /// Type::Reference within, even indirectly.
+    pub(crate) fn value_is_nested_reference(&self, value: ValueId) -> bool {
+        match self.values[value].get_type().as_ref() {
+            Type::Reference(element) => element.contains_reference(),
+            _ => false,
+        }
+    }
+
     /// Returns all of result values which are attached to this instruction.
     pub(crate) fn instruction_results(&self, instruction_id: InstructionId) -> &[ValueId] {
         self.results.get(&instruction_id).expect("expected a list of Values").as_slice()

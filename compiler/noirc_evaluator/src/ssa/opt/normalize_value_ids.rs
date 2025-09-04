@@ -31,6 +31,20 @@ impl Ssa {
     }
 }
 
+/// Normalize a `Ssa` containing only one function, returning the value map.
+/// Used for debugging. This is limited to only one function because the value
+/// map is cleared in between each function.
+pub(super) fn normalize_single_function(ssa: &mut Ssa) -> IdMaps {
+    assert_eq!(ssa.functions.len(), 1);
+
+    let mut context = Context::default();
+    context.populate_functions(&ssa.functions);
+    for function in ssa.functions.values_mut() {
+        context.normalize_ids(function);
+    }
+    context.new_ids
+}
+
 #[derive(Default)]
 struct Context {
     functions: SparseMap<Function>,
@@ -42,17 +56,17 @@ struct Context {
 /// Separate from the rest of Context so we can call mutable methods on it
 /// while Context gives out mutable references to functions within.
 #[derive(Default)]
-struct IdMaps {
+pub(super) struct IdMaps {
     // Maps old function id -> new function id
-    function_ids: HashMap<FunctionId, FunctionId>,
+    pub(super) function_ids: HashMap<FunctionId, FunctionId>,
 
     // Maps old block id -> new block id
     // Cleared in between each function.
-    blocks: HashMap<BasicBlockId, BasicBlockId>,
+    pub(super) blocks: HashMap<BasicBlockId, BasicBlockId>,
 
     // Maps old value id -> new value id
     // Cleared in between each function.
-    values: HashMap<ValueId, ValueId>,
+    pub(super) values: HashMap<ValueId, ValueId>,
 }
 
 impl Context {

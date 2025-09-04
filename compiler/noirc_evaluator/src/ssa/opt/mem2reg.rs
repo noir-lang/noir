@@ -73,15 +73,14 @@
 //! SSA optimization pipeline, although it will be more successful the simpler the program's CFG is.
 //! This pass is currently performed several times to enable other passes - most notably being
 //! performed before loop unrolling to try to allow for mutable variables used for loop indices.
-mod alias_set;
 mod alias_graph;
+mod alias_set;
 mod block;
 
 use std::collections::{BTreeMap, BTreeSet};
 
 use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use petgraph::graph::NodeIndex;
-use vec_collections::VecSet;
 
 use crate::ssa::{
     ir::{
@@ -179,7 +178,6 @@ impl<'f> PerFunctionContext<'f> {
 
         for block in block_order {
             let references = self.find_starting_references(block);
-            println!("Starting references = {references:?}\n");
             self.analyze_block(block, references);
         }
 
@@ -296,7 +294,7 @@ impl<'f> PerFunctionContext<'f> {
             // is always also empty so we'd never be able to track any references across blocks.
             predecessors.fold(first, |block, predecessor| {
                 let predecessor = self.blocks.entry(predecessor).or_default();
-                block.unify(predecessor)
+                block.unify(predecessor, &self.inserter.function.dfg)
             })
         } else {
             Block::default()
@@ -349,7 +347,12 @@ impl<'f> PerFunctionContext<'f> {
 
         for param in params {
             let typ = self.inserter.function.dfg.type_of_value(*param);
-            self.add_aliases_for_reference_parameters_helper(Some(*param), &typ, references, &mut aliases);
+            self.add_aliases_for_reference_parameters_helper(
+                Some(*param),
+                &typ,
+                references,
+                &mut aliases,
+            );
         }
 
         for aliases in aliases.into_values() {
@@ -357,19 +360,27 @@ impl<'f> PerFunctionContext<'f> {
             let Some(first) = aliases.next() else { continue };
 
             for alias in aliases {
-                references.alias_graph.add_undirected_alias(first, alias);
+                references.alias_graph.add_undirected_alias_from_indices(first, alias);
             }
         }
     }
 
     /// Recur on `typ`, adding an alias for each reference type found inside.
     /// Each possible reference type is keyed by the element type (rather than the entire type).
-    fn add_aliases_for_reference_parameters_helper(&self, parameter: Option<ValueId>, typ: &Type, block: &mut Block, aliases: &mut HashMap<Type, HashSet<NodeIndex>>) {
+    fn add_aliases_for_reference_parameters_helper(
+        &self,
+        parameter: Option<ValueId>,
+        typ: &Type,
+        block: &mut Block,
+        aliases: &mut HashMap<Type, HashSet<NodeIndex>>,
+    ) {
         let mut insert_reference = |typ: &Type| {
             let alias_set = aliases.entry(typ.clone()).or_default();
 
             let reference = match parameter {
-                Some(parameter) => block.alias_graph.new_reference(parameter),
+                Some(parameter) => {
+                    block.insert_fresh_reference(parameter, &self.inserter.function.dfg)
+                }
                 None => block.alias_graph.new_orphan_reference(),
             };
             alias_set.insert(reference);
@@ -389,7 +400,9 @@ impl<'f> PerFunctionContext<'f> {
             Type::Array(elements, _) | Type::Slice(elements) => {
                 for element in elements.iter() {
                     if element.contains_reference() {
-                        self.add_aliases_for_reference_parameters_helper(None, element, block, aliases);
+                        self.add_aliases_for_reference_parameters_helper(
+                            None, element, block, aliases,
+                        );
                     }
                 }
             }
@@ -450,10 +463,10 @@ impl<'f> PerFunctionContext<'f> {
         match ins {
             Instruction::Load { address } => {
                 let address = *address;
+                let result = self.inserter.function.dfg.instruction_results(instruction)[0];
 
                 // If the load is known, replace it with the known value and remove the load.
                 if let Some(value) = references.get_known_value(address) {
-                    let result = self.inserter.function.dfg.instruction_results(instruction)[0];
                     self.inserter.map_value(result, value);
                     self.instructions_to_remove.insert(instruction);
                 } else {
@@ -468,9 +481,21 @@ impl<'f> PerFunctionContext<'f> {
                     self.mark_address_used(address, references);
                 }
 
+                // If `address` is a nested reference we have to set each container alias as a
+                // possible alias of the new resulting reference.
+                if self.inserter.function.dfg.value_is_reference(result) {
+                    let aliases = references.containers[&address].clone();
+                    let dfg = &self.inserter.function.dfg;
+                    references.insert_derived_reference_from_alias_set(result, &aliases, dfg);
+
+                    // And if result is yet another nested reference, it needs its own container entry
+                    if dfg.value_is_nested_reference(result) {
+                        references.containers.insert(result, AliasSet::unknown());
+                    }
+                }
+
                 // The result of loading this address is now known to be `result`.
                 // This lets us remove any duplicate loads
-                let result = self.inserter.function.dfg.instruction_results(instruction)[0];
                 references.set_known_value(address, result);
             }
             Instruction::Store { address, value } => {
@@ -490,8 +515,16 @@ impl<'f> PerFunctionContext<'f> {
 
                 // Remember that we used the value in this instruction. If this instruction
                 // isn't removed at the end, we need to keep the stores to the value as well.
-                for alias in references.get_aliases_for_value(value).iter() {
+                for alias in address_aliases.iter() {
                     self.aliased_references.entry(alias).or_default().insert(instruction);
+                }
+
+                if self.inserter.function.dfg.value_is_nested_reference(address) {
+                    let container = references
+                        .containers
+                        .get_mut(&address)
+                        .expect("All containers should be in this map");
+                    container.insert(value);
                 }
 
                 references.set_known_value(address, value);
@@ -501,15 +534,13 @@ impl<'f> PerFunctionContext<'f> {
             }
             Instruction::Allocate => {
                 // Register the new reference
-                let result = self.inserter.function.dfg.instruction_results(instruction)[0];
+                let dfg = &self.inserter.function.dfg;
+                let result = dfg.instruction_results(instruction)[0];
 
-                let reference_type = self.inserter.function.dfg.type_of_value(result);
-                let element_type = reference_type.reference_element_type();
-
-                if element_type.map_or(false, Type::contains_reference) {
+                if dfg.value_is_nested_reference(result) {
                     references.containers.insert(result, Container::known_empty());
                 }
-                references.insert_fresh_reference(result);
+                references.insert_fresh_reference(result, dfg);
             }
             Instruction::ArrayGet { array, .. } => {
                 let result = self.inserter.function.dfg.instruction_results(instruction)[0];
@@ -525,18 +556,20 @@ impl<'f> PerFunctionContext<'f> {
                     // already have handled it in a make-array instruction.
                     // references.mark_value_used(array, self.inserter.function);
 
-                    if let Some(container) = references.containers.get(&array) {
-                        // Check if value is already a reference or a nested array
-                        // containing references.
-                        if self.inserter.function.dfg.value_is_reference(result) {
-                            if !container.is_unknown() {
-                                let possible_values = container.iter().collect::<Vec<_>>();
-                                references.insert_derived_reference(result, &possible_values);
-                            }
-                        } else {
-                            // result is an array containing references
-                            references.containers.insert(result, container.clone());
-                        }
+                    let container = references
+                        .containers
+                        .get(&array)
+                        .unwrap_or_else(|| unreachable!("Expected container for array {array}"))
+                        .clone();
+
+                    // Check if value is already a reference or a nested array
+                    // containing references.
+                    let dfg = &self.inserter.function.dfg;
+                    if dfg.value_is_reference(result) {
+                        references.insert_derived_reference_from_alias_set(result, &container, dfg);
+                    } else {
+                        // result is an array containing references
+                        references.containers.insert(result, container);
                     }
                 }
             }
@@ -552,7 +585,7 @@ impl<'f> PerFunctionContext<'f> {
 
                     let mut aliases = if let Some(aliases) = references.containers.get_mut(&array) {
                         aliases.clone()
-                    } else if let Some((elements, _)) =
+                    } else if let Some((_elements, _)) =
                         self.inserter.function.dfg.get_array_constant(array)
                     {
                         unreachable!()
@@ -563,14 +596,15 @@ impl<'f> PerFunctionContext<'f> {
                         AliasSet::unknown()
                     };
 
-                    aliases.unify(&references.get_aliases_for_value(*value));
+                    let value_aliases = references.get_aliases_for_value(*value);
+                    aliases.unify(&value_aliases);
 
                     references.containers.insert(result, aliases);
 
                     // Similar to how we remember that we used a value in a `Store` instruction,
                     // take note that it was used in the `ArraySet`. If this instruction is not
                     // going to be removed at the end, we shall keep the stores to this value as well.
-                    for alias in references.get_aliases_for_value(*value).iter() {
+                    for alias in value_aliases.iter() {
                         self.aliased_references.entry(alias).or_default().insert(instruction);
                     }
                 }
@@ -616,9 +650,11 @@ impl<'f> PerFunctionContext<'f> {
                         self.mark_address_used(then_value, references);
                         self.mark_address_used(else_value, references);
 
-                        references.insert_derived_reference(result, &[then_value, else_value]);
+                        let dfg = &self.inserter.function.dfg;
+                        references.insert_derived_reference(result, &[then_value, else_value], dfg);
                     } else {
-                        let mut result_container = references.get_container(then_value).into_owned();
+                        let mut result_container =
+                            references.get_container(then_value).into_owned();
                         result_container.unify(&references.get_container(else_value));
                         references.containers.insert(result, result_container);
                     }
@@ -711,7 +747,7 @@ impl<'f> PerFunctionContext<'f> {
                 // then those parameters also alias each other.
                 // We save parameters with repeat arguments to later mark those
                 // parameters as aliasing one another.
-                let mut arg_set: HashMap<ValueId, VecSet<[ValueId; 1]>> = HashMap::default();
+                // let mut arg_set: HashMap<ValueId, VecSet<[ValueId; 1]>> = HashMap::default();
 
                 // Add an alias for each reference parameter
                 for (parameter, argument) in destination_parameters.iter().zip(arguments) {
@@ -724,8 +760,9 @@ impl<'f> PerFunctionContext<'f> {
                             return;
                         }
                         Type::Reference(_) => {
-                            if !references.alias_graph.contains_key(parameter) {
-                                references.insert_fresh_reference(*parameter);
+                            if !references.alias_graph.has_node(*parameter) {
+                                let dfg = &self.inserter.function.dfg;
+                                references.insert_fresh_reference(*parameter, dfg);
                             }
 
                             // If `argument` is passed to multiple parameters we need to ensure it
@@ -733,23 +770,24 @@ impl<'f> PerFunctionContext<'f> {
                             // `argument` to each `parameter` below.
                             references.alias_graph.add_directed_alias(*argument, *parameter);
 
-                            if let Some(aliases) = references.alias_graph.get_mut(&argument) {
-                                let argument = *argument;
+                            // TODO: This shouldn't be needed anymore. Remove when tests pass.
+                            // if let Some(aliases) = references.alias_graph.get_mut(&argument) {
+                            //     let argument = *argument;
 
-                                // The argument reference is possibly aliased by this block parameter
-                                aliases.insert(*parameter);
+                            //     // The argument reference is possibly aliased by this block parameter
+                            //     aliases.insert(*parameter);
 
-                                // Check if we have seen the same argument
-                                let seen_parameters = arg_set
-                                    .entry(argument)
-                                    .or_insert_with(|| VecSet::single(argument));
+                            //     // Check if we have seen the same argument
+                            //     let seen_parameters = arg_set
+                            //         .entry(argument)
+                            //         .or_insert_with(|| VecSet::single(argument));
 
-                                // Add the current parameter to the parameters we have seen for this argument.
-                                // The previous parameters and the current one alias one another.
-                                seen_parameters.insert(*parameter);
-                                // Also add all of the argument aliases
-                                seen_parameters.extend(aliases.iter());
-                            }
+                            //     // Add the current parameter to the parameters we have seen for this argument.
+                            //     // The previous parameters and the current one alias one another.
+                            //     seen_parameters.insert(*parameter);
+                            //     // Also add all of the argument aliases
+                            //     seen_parameters.extend(aliases.iter());
+                            // }
                         }
                         typ if typ.contains_reference() => {
                             let destination_parameters = destination_parameters.to_vec();
@@ -761,12 +799,12 @@ impl<'f> PerFunctionContext<'f> {
                 }
 
                 // Set the aliases of the parameters
-                for (_, aliased_params) in arg_set {
-                    for param in aliased_params.iter() {
-                        let aliases = AliasSet::known_multiple(aliased_params.clone());
-                        references.alias_graph.insert(*param, aliases);
-                    }
-                }
+                // for (_, aliased_params) in arg_set {
+                //     for param in aliased_params.iter() {
+                //         let aliases = AliasSet::known_multiple(aliased_params.clone());
+                //         references.alias_graph.insert(*param, aliases);
+                //     }
+                // }
             }
             TerminatorInstruction::Return { return_values, .. } => {
                 // We need to appropriately mark each alias of a reference as being used as a return terminator argument.
@@ -1728,7 +1766,6 @@ mod tests {
           b3(v0: u32, v1: u32):
             constrain v0 == u32 0
             v8 = array_get v4, index v0 -> &mut u1
-            store u1 0 at v8
             return u1 0
         }
         ");

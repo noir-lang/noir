@@ -1,6 +1,9 @@
 use std::borrow::Cow;
 
+use petgraph::graph::NodeIndex;
+
 use crate::ssa::ir::{
+    dfg::DataFlowGraph,
     function::Function,
     instruction::{Instruction, InstructionId},
     value::ValueId,
@@ -57,18 +60,40 @@ impl Block {
     }
 
     /// Inserts a new reference, aliased to itself only
-    pub(super) fn insert_fresh_reference(&mut self, address: ValueId) {
-        self.alias_graph.new_reference(address);
+    pub(super) fn insert_fresh_reference(
+        &mut self,
+        address: ValueId,
+        dfg: &DataFlowGraph,
+    ) -> NodeIndex {
+        self.alias_graph.new_reference(address, dfg.type_of_value(address))
     }
 
     /// Inserts a reference derived from the given existing references
-    pub(super) fn insert_derived_reference(&mut self, address: ValueId, derived_from: &[ValueId]) {
-        self.alias_graph.new_derived_reference(address, derived_from);
+    pub(super) fn insert_derived_reference(
+        &mut self,
+        address: ValueId,
+        derived_from: &[ValueId],
+        dfg: &DataFlowGraph,
+    ) {
+        self.alias_graph.new_derived_reference(address, derived_from, dfg.type_of_value(address));
     }
 
-    pub(super) fn unify(mut self, other: &Self) -> Self {
+    pub(super) fn insert_derived_reference_from_alias_set(
+        &mut self,
+        address: ValueId,
+        aliases: &AliasSet,
+        dfg: &DataFlowGraph,
+    ) {
+        self.alias_graph.new_derived_reference_from_alias_set(
+            address,
+            aliases,
+            dfg.type_of_value(address),
+        );
+    }
+
+    pub(super) fn unify(mut self, other: &Self, dfg: &DataFlowGraph) -> Self {
         self.containers = Self::unify_alias_sets(&self.containers, &other.containers);
-        self.alias_graph = self.alias_graph.unify(&other.alias_graph);
+        self.alias_graph = self.alias_graph.unify(&other.alias_graph, dfg);
         self
     }
 
