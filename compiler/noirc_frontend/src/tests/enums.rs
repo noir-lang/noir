@@ -16,8 +16,6 @@ fn error_with_duplicate_enum_variant() {
         ^^^ Duplicate definitions of enum variant with name Bar found
         ~~~ Second enum variant found here
     }
-
-    fn main() {}
     "#;
     check_errors!(src);
 }
@@ -364,7 +362,6 @@ fn match_on_empty_enum() {
             match v {}
         }
         pub enum Void {}
-        fn main() {}
         ",
         &features
     );
