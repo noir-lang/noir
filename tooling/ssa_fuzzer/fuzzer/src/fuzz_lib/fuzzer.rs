@@ -14,29 +14,27 @@
 //!    - If one program fails to compile but the other executes successfully
 
 use super::{
-    NUMBER_OF_PREDEFINED_VARIABLES, NUMBER_OF_VARIABLES_INITIAL,
-    function_context::{FunctionData, WitnessValue},
+    function_context::FunctionData,
+    initial_witness::WitnessValue,
     instruction::InstructionBlock,
     options::{FuzzerMode, FuzzerOptions},
     program_context::{FuzzerProgramContext, program_context_by_mode},
 };
 use acvm::FieldElement;
 use acvm::acir::native_types::{WitnessMap, WitnessStack};
-use libfuzzer_sys::{arbitrary, arbitrary::Arbitrary};
 use noir_ssa_executor::runner::execute_single;
 use noir_ssa_fuzzer::{
     runner::{CompareResults, run_and_compare},
-    r#type::NumericType,
+    typed_value::Type,
 };
 use noirc_driver::CompiledProgram;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 
-#[derive(Arbitrary, Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct FuzzerData {
     pub(crate) functions: Vec<FunctionData>,
-    pub(crate) initial_witness:
-        [WitnessValue; (NUMBER_OF_VARIABLES_INITIAL - NUMBER_OF_PREDEFINED_VARIABLES) as usize],
+    pub(crate) initial_witness: Vec<WitnessValue>,
     pub(crate) instruction_blocks: Vec<InstructionBlock>,
 }
 
@@ -44,8 +42,7 @@ impl Default for FuzzerData {
     fn default() -> Self {
         FuzzerData {
             functions: vec![FunctionData::default()],
-            initial_witness: [WitnessValue::default();
-                (NUMBER_OF_VARIABLES_INITIAL - NUMBER_OF_PREDEFINED_VARIABLES) as usize],
+            initial_witness: vec![WitnessValue::default()],
             instruction_blocks: vec![],
         }
     }
@@ -62,9 +59,10 @@ pub(crate) struct FuzzerOutput {
 }
 
 impl FuzzerOutput {
-    pub(crate) fn get_return_value(&self) -> FieldElement {
-        let return_witness = self.program.program.functions[0].return_values.0.first().unwrap();
-        self.witness_stack.peek().unwrap().witness[return_witness]
+    pub(crate) fn get_return_values(&self) -> Vec<FieldElement> {
+        let return_witnesses = &self.program.program.functions[0].return_values.0;
+        let witness_vec = &self.witness_stack.peek().unwrap().witness;
+        return_witnesses.iter().map(|witness| witness_vec[witness]).collect()
     }
 }
 
@@ -86,11 +84,7 @@ impl Fuzzer {
         Self { contexts }
     }
 
-    pub(crate) fn process_function(
-        &mut self,
-        function_data: FunctionData,
-        types: Vec<NumericType>,
-    ) {
+    pub(crate) fn process_function(&mut self, function_data: FunctionData, types: Vec<Type>) {
         for context in &mut self.contexts {
             context.process_function(function_data.clone(), types.clone());
         }
@@ -111,7 +105,9 @@ impl Fuzzer {
         }
         let results_set = execution_results
             .values()
-            .map(|result| -> Option<FieldElement> { result.as_ref().map(|r| r.get_return_value()) })
+            .map(|result| -> Option<Vec<FieldElement>> {
+                result.as_ref().map(|r| r.get_return_values())
+            })
             .collect::<HashSet<_>>();
 
         if results_set.len() != 1 {
@@ -119,7 +115,7 @@ impl Fuzzer {
             for (mode, result) in execution_results {
                 if let Some(result) = result {
                     panic_string
-                        .push_str(&format!("Mode {mode:?}: {:?}\n", result.get_return_value()));
+                        .push_str(&format!("Mode {mode:?}: {:?}\n", result.get_return_values()));
                 } else {
                     panic_string.push_str(&format!("Mode {mode:?} failed\n"));
                 }
@@ -193,14 +189,12 @@ impl Fuzzer {
                 Some(FuzzerOutput { witness_stack: result, program: acir_program })
             }
             CompareResults::Disagree(acir_return_value, brillig_return_value) => {
-                let acir_return_witness =
-                    acir_program.program.functions[0].return_values.0.first().unwrap();
-                let brillig_return_witness =
-                    brillig_program.program.functions[0].return_values.0.first().unwrap();
-                let acir_return_value =
-                    acir_return_value.peek().unwrap().witness[acir_return_witness];
-                let brillig_return_value =
-                    brillig_return_value.peek().unwrap().witness[brillig_return_witness];
+                let acir_fuzzer_output =
+                    FuzzerOutput { witness_stack: acir_return_value, program: acir_program };
+                let brillig_fuzzer_output =
+                    FuzzerOutput { witness_stack: brillig_return_value, program: brillig_program };
+                let acir_return_value = acir_fuzzer_output.get_return_values();
+                let brillig_return_value = brillig_fuzzer_output.get_return_values();
                 panic!(
                     "ACIR and Brillig programs returned different results: \
                     ACIR returned {acir_return_value:?}, Brillig returned {brillig_return_value:?}"

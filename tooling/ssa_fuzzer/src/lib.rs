@@ -3,13 +3,13 @@
 
 pub mod builder;
 pub mod runner;
-pub mod r#type;
+pub mod typed_value;
 
 #[cfg(test)]
 mod tests {
     use crate::builder::{FuzzerBuilder, FuzzerBuilderError, InstructionWithTwoArgs};
     use crate::runner::{CompareResults, run_and_compare};
-    use crate::r#type::{NumericType, Type, TypedValue};
+    use crate::typed_value::{NumericType, Type, TypedValue};
     use acvm::acir::native_types::{Witness, WitnessMap};
     use acvm::{AcirField, FieldElement};
     use noirc_driver::{CompileOptions, CompiledProgram};

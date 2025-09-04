@@ -1,62 +1,44 @@
 use super::{
-    NUMBER_OF_PREDEFINED_VARIABLES, NUMBER_OF_VARIABLES_INITIAL,
-    function_context::WitnessValue,
     fuzzer::{Fuzzer, FuzzerData, FuzzerOutput},
+    initial_witness::{ensure_boolean_defined_in_all_functions, initialize_witness_map},
     options::FuzzerOptions,
 };
-use acvm::FieldElement;
-use acvm::acir::native_types::{Witness, WitnessMap};
-use noir_ssa_fuzzer::r#type::NumericType;
+use noir_ssa_fuzzer::typed_value::Type;
 
-fn initialize_witness_map(
-    initial_witness: &[WitnessValue;
-         (NUMBER_OF_VARIABLES_INITIAL - NUMBER_OF_PREDEFINED_VARIABLES) as usize],
-) -> (WitnessMap<FieldElement>, Vec<FieldElement>, Vec<NumericType>) {
-    let mut witness_map = WitnessMap::new();
-    let mut values = vec![];
-    let mut types = vec![];
-    for (i, witness_value) in initial_witness.iter().enumerate() {
-        let (value, type_) = match witness_value {
-            WitnessValue::Field(field) => (FieldElement::from(field), NumericType::Field),
-            WitnessValue::U64(u64) => (FieldElement::from(*u64), NumericType::U64),
-            WitnessValue::Boolean(bool) => (FieldElement::from(*bool as u64), NumericType::Boolean),
-            WitnessValue::I64(i64) => (FieldElement::from(*i64), NumericType::I64),
-            WitnessValue::I32(i32) => (FieldElement::from(*i32 as u64), NumericType::I32),
-        };
-        witness_map.insert(Witness(i as u32), value);
-        values.push(value);
-        types.push(type_);
+fn type_contains_slice_or_reference(type_: &Type) -> bool {
+    match type_ {
+        Type::Slice(_) => true,
+        Type::Reference(_) => true,
+        Type::Array(arr, _) => arr.iter().any(type_contains_slice_or_reference),
+        Type::Numeric(_) => false,
     }
-    // insert true and false boolean values
-    witness_map.insert(
-        Witness(NUMBER_OF_VARIABLES_INITIAL - NUMBER_OF_PREDEFINED_VARIABLES),
-        FieldElement::from(1_u32),
-    );
-    values.push(FieldElement::from(1_u32));
-    types.push(NumericType::Boolean);
-    witness_map.insert(
-        Witness(NUMBER_OF_VARIABLES_INITIAL - NUMBER_OF_PREDEFINED_VARIABLES + 1),
-        FieldElement::from(0_u32),
-    );
-    values.push(FieldElement::from(0_u32));
-    types.push(NumericType::Boolean);
-    (witness_map, values, types)
 }
 
 /// Creates ACIR and Brillig programs from the data, runs and compares them
 pub(crate) fn fuzz_target(data: FuzzerData, options: FuzzerOptions) -> Option<FuzzerOutput> {
-    // to triage
     if data.instruction_blocks.is_empty() {
         return None;
     }
+    if data.functions.is_empty() {
+        return None;
+    }
     log::debug!("instruction_blocks: {:?}", data.instruction_blocks);
+    log::debug!("initial_witness: {:?}", data.initial_witness);
     let (witness_map, values, types) = initialize_witness_map(&data.initial_witness);
+    let mut data = data;
+    data.functions[0].input_types = types;
+    ensure_boolean_defined_in_all_functions(&mut data);
+
+    if type_contains_slice_or_reference(&data.functions[0].return_type) {
+        // main cannot return a reference
+        data.functions[0].return_type = Type::default();
+    }
 
     let mut fuzzer = Fuzzer::new(data.instruction_blocks, values, options);
     for func in data.functions {
-        log::debug!("initial_witness: {witness_map:?}");
         log::debug!("commands: {:?}", func.commands);
-        fuzzer.process_function(func, types.clone());
+        log::debug!("input_types: {:?}", func.input_types);
+        fuzzer.process_function(func.clone(), func.input_types.clone());
     }
     fuzzer.finalize_and_run(witness_map)
 }
