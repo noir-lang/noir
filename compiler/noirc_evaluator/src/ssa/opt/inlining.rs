@@ -483,16 +483,17 @@ impl<'function> PerFunctionContext<'function> {
     }
 
     /// Extra error check where given a caller's runtime its callee runtime is valid.
-    /// We determine validity as the following (where we have caller -> callee):
+    /// We determine validity as the following (where we have caller -> callee).
     /// Valid:
     /// - ACIR -> ACIR
     /// - ACIR -> Brillig
     /// - Brillig -> Brillig
+    /// 
     /// Invalid:
     /// - Brillig -> ACIR
     ///
     /// Whether a valid callee should be inlined is determined separately by the inline info computation.
-    fn validate_callee<'a>(
+    fn validate_callee(
         &self,
         callee: &Function,
         call_stack: Vec<Location>,
