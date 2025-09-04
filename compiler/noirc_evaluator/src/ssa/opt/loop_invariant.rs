@@ -889,7 +889,7 @@ mod test {
     use crate::ssa::Ssa;
     use crate::ssa::ir::basic_block::BasicBlockId;
     use crate::ssa::ir::function::RuntimeType;
-    use crate::ssa::ir::instruction::{Instruction, Intrinsic};
+    use crate::ssa::ir::instruction::{Instruction, Intrinsic, TerminatorInstruction};
     use crate::ssa::ir::types::Type;
     use crate::ssa::opt::loop_invariant::{
         CanBeHoistedResult, LoopInvariantContext, can_be_hoisted,
@@ -897,6 +897,7 @@ mod test {
     use crate::ssa::opt::pure::Purity;
     use crate::ssa::opt::unrolling::Loops;
     use crate::ssa::opt::{assert_normalized_ssa_equals, assert_ssa_does_not_change};
+    use acvm::AcirField;
     use noirc_frontend::monomorphization::ast::InlineType;
     use test_case::test_case;
 
@@ -2062,6 +2063,80 @@ mod test {
             assert!(pre_header.instructions().is_empty(), "should not hoist");
         } else {
             assert_eq!(pre_header.instructions().len(), 1, "should hoist");
+        }
+    }
+
+    /// Test cases where `i < const` or `const < i` should or shouldn't be simplified.
+    #[test_case(10, 20, true, 25, Some(true))]
+    #[test_case(10, 20, true, 20, Some(true))]
+    #[test_case(10, 10, true, 25, Some(true))]
+    #[test_case(10, 20, true, 15, None)]
+    #[test_case(10, 20, true, 10, Some(false))]
+    #[test_case(10, 20, true, 5, Some(false))]
+    #[test_case(10, 10, true, 5, Some(false))]
+    #[test_case(10, 20, false, 25, Some(false))]
+    #[test_case(10, 20, false, 15, None)]
+    #[test_case(10, 20, false, 5, Some(true))]
+    #[test_case(10, 20, false, 20, Some(false))]
+    #[test_case(10, 20, false, 19, Some(false))]
+    #[test_case(10, 20, false, 18, None)]
+    fn hoist_from_loop_bounds_binary(
+        lower: u32,
+        upper: u32,
+        induction_is_left: bool,
+        constant: u32,
+        simplify_to: Option<bool>,
+    ) {
+        let i = "v0".to_string();
+        let c = format!("u32 {constant}");
+        let (lhs, rhs) = if induction_is_left { (i, c) } else { (c, i) };
+        let src = format!(
+            r#"
+            brillig(inline) impure fn main f0 {{
+              b0():
+                jmp b1(u32 {lower})
+              b1(v0: u32):
+                v3 = lt v0, u32 {upper}
+                jmpif v3 then: b2, else: b3
+              b2():
+                v5 = lt {lhs}, {rhs}
+                jmpif v5 then: b4, else: b5
+              b3():
+                return
+              b4():
+                jmp b5()
+              b5():
+                v30 = unchecked_add v0, u32 1
+                jmp b1(v30)
+            }}
+        "#
+        );
+        // If the condition simplifies, then the `jmpif v5` either becomes `jmpif u1 1` or `jmpif u1 0`
+
+        let ssa = Ssa::from_str(&src).unwrap();
+        let ssa = ssa.loop_invariant_code_motion();
+        let body = &ssa.main().dfg[BasicBlockId::new(2)];
+
+        let TerminatorInstruction::JmpIf { condition, .. } = body.unwrap_terminator() else {
+            unreachable!("body should end in jmpif");
+        };
+
+        let is_var = || ssa.main().dfg.get_numeric_constant(*condition).is_none();
+        let is_one =
+            || ssa.main().dfg.get_numeric_constant(*condition).map_or(false, |c| c.is_one());
+        let is_zero =
+            || ssa.main().dfg.get_numeric_constant(*condition).map_or(false, |c| c.is_zero());
+
+        match simplify_to {
+            None => {
+                assert!(is_var(), "shouldn't simplify");
+            }
+            Some(true) => {
+                assert!(is_one(), "should simplify to constant true");
+            }
+            Some(false) => {
+                assert!(is_zero(), "should simplify to constant false");
+            }
         }
     }
 
