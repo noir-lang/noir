@@ -889,11 +889,12 @@ mod test {
     use crate::ssa::Ssa;
     use crate::ssa::ir::basic_block::BasicBlockId;
     use crate::ssa::ir::function::RuntimeType;
-    use crate::ssa::ir::instruction::Instruction;
+    use crate::ssa::ir::instruction::{Instruction, Intrinsic};
     use crate::ssa::ir::types::Type;
     use crate::ssa::opt::loop_invariant::{
         CanBeHoistedResult, LoopInvariantContext, can_be_hoisted,
     };
+    use crate::ssa::opt::pure::Purity;
     use crate::ssa::opt::unrolling::Loops;
     use crate::ssa::opt::{assert_normalized_ssa_equals, assert_ssa_does_not_change};
     use noirc_frontend::monomorphization::ast::InlineType;
@@ -1991,11 +1992,76 @@ mod test {
         let ssa = Ssa::from_str(&src).unwrap();
         let ssa = ssa.loop_invariant_code_motion();
         // The pre-header of the loop b4 is b2
-        let b2 = &ssa.main().dfg[BasicBlockId::new(2)];
+        let pre_header = &ssa.main().dfg[BasicBlockId::new(2)];
         if !should_hoist {
-            assert!(b2.instructions().is_empty(), "should not hoist");
+            assert!(pre_header.instructions().is_empty(), "should not hoist");
         } else {
-            assert_eq!(b2.instructions().len(), 1, "should hoist into nested pre-header");
+            assert_eq!(pre_header.instructions().len(), 1, "should hoist into nested pre-header");
+        }
+    }
+
+    enum TestCall {
+        Function(Option<Purity>),
+        ForeignFunction,
+        Intrinsic(Intrinsic),
+    }
+
+    /// Test that calls to functions is hoisted into the pre-header based on their purity.
+    #[test_case(1, TestCall::Function(Some(Purity::Pure)), true; "non-empty loop, pure function")]
+    #[test_case(0, TestCall::Function(Some(Purity::Pure)), true; "empty loop, pure function")]
+    #[test_case(1, TestCall::Function(Some(Purity::PureWithPredicate)), true; "non-empty loop, predicate pure function")]
+    #[test_case(0, TestCall::Function(Some(Purity::PureWithPredicate)), false; "empty loop, predicate pure function")]
+    #[test_case(1, TestCall::Function(Some(Purity::Impure)), false; "impure function")]
+    #[test_case(1, TestCall::Function(None), false; "purity unknown")]
+    #[test_case(1, TestCall::ForeignFunction, false; "foreign functions always impure")]
+    #[test_case(0, TestCall::Intrinsic(Intrinsic::AsWitness), false; "empty loop; predicate pure intrinsic")]
+    #[test_case(1, TestCall::Intrinsic(Intrinsic::AsWitness), true; "non-empty loop; predicate pure intrinsic")]
+    #[test_case(1, TestCall::Intrinsic(Intrinsic::ArrayRefCount), false; "non-empty loop, impure intrinsic")]
+    #[test_case(0, TestCall::Intrinsic(Intrinsic::BlackBox(acvm::acir::BlackBoxFunc::Keccakf1600)), true; "empty loop, pure intrinsic")]
+    #[test_case(1, TestCall::Intrinsic(Intrinsic::BlackBox(acvm::acir::BlackBoxFunc::Keccakf1600)), true; "non-empty loop, pure intrinsic")]
+    fn hoist_from_loop_call_with_purity(upper: u32, test_call: TestCall, should_hoist: bool) {
+        let dummy_purity = if let TestCall::Function(purity) = &test_call { *purity } else { None };
+        let dummy_purity = dummy_purity.map_or("".to_string(), |p| format!("{p}"));
+
+        // The arguments are not meant to make sense, just pass SSA validation and not be simplified out.
+        let call_target = match test_call {
+            TestCall::Function(_) => "f1".to_string(),
+            TestCall::ForeignFunction => "print".to_string(), // The ony foreign function the SSA parser allows.
+            TestCall::Intrinsic(intrinsic) => format!("{intrinsic}"),
+        };
+
+        let src = format!(
+            r#"
+        acir(inline) fn main f0 {{
+          b0(v0: [u64; 25]):
+            jmp b1(u32 0)
+          b1(v1: u32):
+            v2 = lt v1, u32 {upper}
+            jmpif v2 then: b2, else: b3
+          b2():
+            v3 = call {call_target}(v0) -> [u64; 25]
+            v4 = unchecked_add v1, u32 1
+            jmp b1(v4)
+          b3():
+            return
+        }}
+
+        acir(inline) {dummy_purity} fn dummy f1 {{
+          b0(v0: [u64; 25]):
+            return v0
+        }}
+        "#,
+        );
+
+        let ssa = Ssa::from_str(&src).unwrap();
+        let ssa = ssa.loop_invariant_code_motion();
+
+        // The pre-header of the loop b1 is b0
+        let pre_header = &ssa.main().dfg[BasicBlockId::new(0)];
+        if !should_hoist {
+            assert!(pre_header.instructions().is_empty(), "should not hoist");
+        } else {
+            assert_eq!(pre_header.instructions().len(), 1, "should hoist");
         }
     }
 
@@ -2046,7 +2112,7 @@ mod test {
             typ: Type::Array(Arc::new(vec![]), 0),
         };
 
-        assert_eq!(can_be_hoisted(&instruction, function), result)
+        assert_eq!(can_be_hoisted(&instruction, function), result);
     }
 }
 
