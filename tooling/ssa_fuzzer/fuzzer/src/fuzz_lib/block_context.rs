@@ -220,6 +220,7 @@ impl BlockContext {
                 if !self.options.instruction_options.mod_enabled {
                     return;
                 }
+                // optimization: mod is not supported for field type (see ssa_validation)
                 if lhs.numeric_type == NumericType::Field {
                     return;
                 }
@@ -249,6 +250,10 @@ impl BlockContext {
                 if !self.options.instruction_options.shl_enabled {
                     return;
                 }
+                // optimization: not is not supported for field type (see ssa_validation)
+                if lhs.numeric_type == NumericType::Field {
+                    return;
+                }
                 self.insert_instruction_with_double_args(
                     acir_builder,
                     brillig_builder,
@@ -259,6 +264,10 @@ impl BlockContext {
             }
             Instruction::Shr { lhs, rhs } => {
                 if !self.options.instruction_options.shr_enabled {
+                    return;
+                }
+                // optimization: shl is not supported for field type (see ssa_validation)
+                if lhs.numeric_type == NumericType::Field {
                     return;
                 }
                 self.insert_instruction_with_double_args(
@@ -273,6 +282,7 @@ impl BlockContext {
                 if !self.options.instruction_options.and_enabled {
                     return;
                 }
+                // optimization: and is not supported for field type (see ssa_validation)
                 if lhs.numeric_type == NumericType::Field {
                     return;
                 }
@@ -288,6 +298,7 @@ impl BlockContext {
                 if !self.options.instruction_options.or_enabled {
                     return;
                 }
+                // optimization: or is not supported for field type (see ssa_validation)
                 if lhs.numeric_type == NumericType::Field {
                     return;
                 }
@@ -303,6 +314,7 @@ impl BlockContext {
                 if !self.options.instruction_options.xor_enabled {
                     return;
                 }
+                // optimization: xor is not supported for field type (see ssa_validation)
                 if lhs.numeric_type == NumericType::Field {
                     return;
                 }
@@ -318,6 +330,7 @@ impl BlockContext {
                 if !self.options.instruction_options.lt_enabled {
                     return;
                 }
+                // optimization: lt is not supported for field type (see ssa_validation)
                 if lhs.numeric_type == NumericType::Field {
                     return;
                 }
