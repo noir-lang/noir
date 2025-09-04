@@ -47,7 +47,7 @@ expression: artifact
     "private parameters indices : [_0, _2]",
     "public parameters indices : [_1]",
     "return value indices : [_3, _4]",
-    "BLACKBOX::RANGE [(_2, 1)] []",
+    "BLACKBOX::RANGE [_2]:1 bits []",
     "CALL func 1: PREDICATE: EXPR [ (1, _2) 0 ]",
     "inputs: [_0, _1], outputs: [_5]",
     "EXPR [ (-1, _2, _5) (1, _3) 0 ]",
@@ -65,11 +65,9 @@ expression: artifact
   ],
   "debug_symbols": "[debug_symbols]",
   "file_map": "[file_map]",
-  "names": [
-    "main",
-    "return_value"
-  ],
-  "brillig_names": [
-    "directive_invert"
-  ]
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
+  }
 }

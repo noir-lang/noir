@@ -52,7 +52,7 @@ expression: artifact
     "private parameters indices : [_0]",
     "public parameters indices : []",
     "return value indices : []",
-    "BLACKBOX::RANGE [(_0, 1)] []"
+    "BLACKBOX::RANGE [_0]:1 bits []"
   ],
   "debug_symbols": "[debug_symbols]",
   "file_map": {},

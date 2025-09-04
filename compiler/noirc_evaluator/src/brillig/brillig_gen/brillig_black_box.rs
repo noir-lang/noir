@@ -218,138 +218,9 @@ pub(crate) fn convert_black_box_call<F: AcirField + DebugToString, Registers: Re
             "ICE: `BlackBoxFunc::RANGE` calls should be transformed into a `Instruction::Cast`"
         ),
         BlackBoxFunc::RecursiveAggregation => {}
-        BlackBoxFunc::BigIntAdd => {
-            if let (
-                [
-                    BrilligVariable::SingleAddr(lhs),
-                    BrilligVariable::SingleAddr(_lhs_modulus),
-                    BrilligVariable::SingleAddr(rhs),
-                    BrilligVariable::SingleAddr(_rhs_modulus),
-                ],
-                [BrilligVariable::SingleAddr(output), BrilligVariable::SingleAddr(_modulus_id)],
-            ) = (function_arguments, function_results)
-            {
-                brillig_context.black_box_op_instruction(BlackBoxOp::BigIntAdd {
-                    lhs: lhs.address,
-                    rhs: rhs.address,
-                    output: output.address,
-                });
-            } else {
-                unreachable!(
-                    "ICE: BigIntAdd expects four register arguments and two result registers"
-                )
-            }
-        }
-        BlackBoxFunc::BigIntSub => {
-            if let (
-                [
-                    BrilligVariable::SingleAddr(lhs),
-                    BrilligVariable::SingleAddr(_lhs_modulus),
-                    BrilligVariable::SingleAddr(rhs),
-                    BrilligVariable::SingleAddr(_rhs_modulus),
-                ],
-                [BrilligVariable::SingleAddr(output), BrilligVariable::SingleAddr(_modulus_id)],
-            ) = (function_arguments, function_results)
-            {
-                brillig_context.black_box_op_instruction(BlackBoxOp::BigIntSub {
-                    lhs: lhs.address,
-                    rhs: rhs.address,
-                    output: output.address,
-                });
-            } else {
-                unreachable!(
-                    "ICE: BigIntSub expects four register arguments and two result registers"
-                )
-            }
-        }
-        BlackBoxFunc::BigIntMul => {
-            if let (
-                [
-                    BrilligVariable::SingleAddr(lhs),
-                    BrilligVariable::SingleAddr(_lhs_modulus),
-                    BrilligVariable::SingleAddr(rhs),
-                    BrilligVariable::SingleAddr(_rhs_modulus),
-                ],
-                [BrilligVariable::SingleAddr(output), BrilligVariable::SingleAddr(_modulus_id)],
-            ) = (function_arguments, function_results)
-            {
-                brillig_context.black_box_op_instruction(BlackBoxOp::BigIntMul {
-                    lhs: lhs.address,
-                    rhs: rhs.address,
-                    output: output.address,
-                });
-            } else {
-                unreachable!(
-                    "ICE: BigIntMul expects four register arguments and two result registers"
-                )
-            }
-        }
-        BlackBoxFunc::BigIntDiv => {
-            if let (
-                [
-                    BrilligVariable::SingleAddr(lhs),
-                    BrilligVariable::SingleAddr(_lhs_modulus),
-                    BrilligVariable::SingleAddr(rhs),
-                    BrilligVariable::SingleAddr(_rhs_modulus),
-                ],
-                [BrilligVariable::SingleAddr(output), BrilligVariable::SingleAddr(_modulus_id)],
-            ) = (function_arguments, function_results)
-            {
-                brillig_context.black_box_op_instruction(BlackBoxOp::BigIntDiv {
-                    lhs: lhs.address,
-                    rhs: rhs.address,
-                    output: output.address,
-                });
-            } else {
-                unreachable!(
-                    "ICE: BigIntDiv expects four register arguments and two result registers"
-                )
-            }
-        }
-        BlackBoxFunc::BigIntFromLeBytes => {
-            if let (
-                [inputs, modulus],
-                [BrilligVariable::SingleAddr(output), BrilligVariable::SingleAddr(_modulus_id)],
-            ) = (function_arguments, function_results)
-            {
-                let inputs = convert_array_or_vector(brillig_context, *inputs, bb_func);
-                let modulus = convert_array_or_vector(brillig_context, *modulus, bb_func);
-                brillig_context.black_box_op_instruction(BlackBoxOp::BigIntFromLeBytes {
-                    inputs,
-                    modulus,
-                    output: output.address,
-                });
-                brillig_context.deallocate_heap_vector(inputs);
-                brillig_context.deallocate_heap_vector(modulus);
-            } else {
-                unreachable!(
-                    "ICE: BigIntFromLeBytes expects a register and an array  as arguments and two result registers"
-                )
-            }
-        }
-        BlackBoxFunc::BigIntToLeBytes => {
-            if let (
-                [BrilligVariable::SingleAddr(input), BrilligVariable::SingleAddr(_modulus)],
-                [output],
-            ) = (function_arguments, function_results)
-            {
-                let output = convert_array_or_vector(brillig_context, *output, bb_func);
-                brillig_context.black_box_op_instruction(BlackBoxOp::BigIntToLeBytes {
-                    input: input.address,
-                    output,
-                });
-                brillig_context.deallocate_heap_vector(output);
-            } else {
-                unreachable!(
-                    "ICE: BigIntToLeBytes expects two register arguments and one array result"
-                )
-            }
-        }
         BlackBoxFunc::Poseidon2Permutation => {
-            if let (
-                [message, BrilligVariable::SingleAddr(state_len)],
-                [BrilligVariable::BrilligArray(result_array)],
-            ) = (function_arguments, function_results)
+            if let ([message], [BrilligVariable::BrilligArray(result_array)]) =
+                (function_arguments, function_results)
             {
                 let message_vector = convert_array_or_vector(brillig_context, *message, bb_func);
                 let output_heap_array =
@@ -358,7 +229,6 @@ pub(crate) fn convert_black_box_call<F: AcirField + DebugToString, Registers: Re
                 brillig_context.black_box_op_instruction(BlackBoxOp::Poseidon2Permutation {
                     message: message_vector,
                     output: output_heap_array,
-                    len: state_len.address,
                 });
 
                 brillig_context.deallocate_heap_vector(message_vector);

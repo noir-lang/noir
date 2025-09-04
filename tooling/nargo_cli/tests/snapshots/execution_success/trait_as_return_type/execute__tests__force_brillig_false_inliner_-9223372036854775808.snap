@@ -26,12 +26,13 @@ expression: artifact
     "private parameters indices : [_0]",
     "public parameters indices : []",
     "return value indices : []",
-    "BLACKBOX::RANGE [(_0, 32)] []"
+    "BLACKBOX::RANGE [_0]:32 bits []"
   ],
   "debug_symbols": "[debug_symbols]",
   "file_map": "[file_map]",
-  "names": [
-    "main"
-  ],
-  "brillig_names": []
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
+  }
 }
