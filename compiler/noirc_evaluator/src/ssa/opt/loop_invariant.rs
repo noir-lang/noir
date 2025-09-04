@@ -2166,6 +2166,35 @@ mod test {
         assert_ssa_does_not_change(src, Ssa::loop_invariant_code_motion);
     }
 
+    #[test]
+    fn do_not_hoist_div_by_zero_from_non_executed_nested_loop() {
+        let src = r#"
+          brillig(inline) predicate_pure fn main f0 {
+            b0():
+              jmp b1(u32 0)
+            b1(v0: u32):
+              v4 = lt v0, u32 10
+              jmpif v4 then: b2, else: b3
+            b2():
+              jmp b4(u32 10)
+            b3():
+              return
+            b4(v1: u32):
+              v6 = lt v1, u32 10
+              jmpif v6 then: b5, else: b6
+            b5():
+              v9 = div v0, u32 0
+              v10 = unchecked_add v1, u32 1
+              jmp b4(v10)
+            b6():
+              v8 = unchecked_add v0, u32 1
+              jmp b1(v8)
+          }
+        "#;
+
+        assert_ssa_does_not_change(src, Ssa::loop_invariant_code_motion);
+    }
+
     /// Test that in itself `MakeArray` is only safe to be hoisted in ACIR.
     #[test_case(RuntimeType::Brillig(InlineType::default()), CanBeHoistedResult::No)]
     #[test_case(RuntimeType::Acir(InlineType::default()), CanBeHoistedResult::Yes)]
