@@ -152,11 +152,19 @@ impl Function {
                     // For both cases we can still treat them as pure if the arguments are known
                     // constants.
                     ins @ (Instruction::Binary(_)
-                    | Instruction::ArrayGet { .. }
-                    | Instruction::ArraySet { .. }) => {
+                    | Instruction::ArrayGet { .. }) => {
                         if ins.requires_acir_gen_predicate(&self.dfg) {
                             result = Purity::PureWithPredicate;
                         }
+                    }
+                    ins @ Instruction::ArraySet { array, .. } => {
+                      if self.runtime().is_brillig() {
+                        if self.parameters().contains(array) {
+                          result = Purity::PureWithPredicate;
+                        }
+                      } else if ins.requires_acir_gen_predicate(&self.dfg) {
+                            result = Purity::PureWithPredicate;
+                      }
                     }
                     Instruction::Call { func, .. } => {
                         match &self.dfg[*func] {
@@ -198,8 +206,12 @@ impl Function {
                     | Instruction::MakeArray { .. }
                     | Instruction::Noop => (),
 
-                    Instruction::IncrementRc { .. }
-                    | Instruction::DecrementRc { .. } => return Purity::Impure,
+                    Instruction::IncrementRc { value }
+                    | Instruction::DecrementRc { value } => {
+                      if self.parameters().contains(value) {
+                        return Purity::Impure
+                      }
+                    }
                 };
             }
 
