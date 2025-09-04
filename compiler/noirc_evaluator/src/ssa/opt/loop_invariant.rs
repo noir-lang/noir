@@ -787,7 +787,7 @@ fn get_induction_var_bounds(
 }
 
 /// Indicate whether an instruction can be hoisted.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 enum CanBeHoistedResult {
     Yes,
     No,
@@ -883,12 +883,20 @@ fn can_be_hoisted(instruction: &Instruction, function: &Function) -> CanBeHoiste
 
 #[cfg(test)]
 mod test {
+    use std::sync::Arc;
+
     use crate::assert_ssa_snapshot;
     use crate::ssa::Ssa;
     use crate::ssa::ir::basic_block::BasicBlockId;
-    use crate::ssa::opt::loop_invariant::LoopInvariantContext;
+    use crate::ssa::ir::function::RuntimeType;
+    use crate::ssa::ir::instruction::Instruction;
+    use crate::ssa::ir::types::Type;
+    use crate::ssa::opt::loop_invariant::{
+        CanBeHoistedResult, LoopInvariantContext, can_be_hoisted,
+    };
     use crate::ssa::opt::unrolling::Loops;
     use crate::ssa::opt::{assert_normalized_ssa_equals, assert_ssa_does_not_change};
+    use noirc_frontend::monomorphization::ast::InlineType;
     use test_case::test_case;
 
     #[test]
@@ -2015,6 +2023,30 @@ mod test {
         "#;
 
         assert_ssa_does_not_change(src, Ssa::loop_invariant_code_motion);
+    }
+
+    /// Test that in itself `MakeArray` is only safe to be hoisted in ACIR.
+    #[test_case(RuntimeType::Brillig(InlineType::default()), CanBeHoistedResult::No)]
+    #[test_case(RuntimeType::Acir(InlineType::default()), CanBeHoistedResult::Yes)]
+    fn make_array_can_be_hoisted(runtime: RuntimeType, result: CanBeHoistedResult) {
+        // This is just a stub to create a function with the expected runtime.
+        let src = format!(
+            r#"
+        {runtime} predicate_pure fn main f0 {{
+          b0():
+            return
+        }}
+        "#
+        );
+        let ssa = Ssa::from_str(&src).unwrap();
+        let function = ssa.main();
+
+        let instruction = Instruction::MakeArray {
+            elements: Default::default(),
+            typ: Type::Array(Arc::new(vec![]), 0),
+        };
+
+        assert_eq!(can_be_hoisted(&instruction, function), result)
     }
 }
 
