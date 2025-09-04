@@ -801,7 +801,6 @@ impl BlockContext {
             }
             Instruction::EcdsaSecp256r1 {
                 msg,
-                hash_size,
                 corrupt_hash,
                 corrupt_pubkey_x,
                 corrupt_pubkey_y,
@@ -822,24 +821,28 @@ impl BlockContext {
                     prepared_signature.public_key_x.clone(),
                     prepared_signature.public_key_y.clone(),
                     prepared_signature.hash.clone(),
-                    hash_size,
                     prepared_signature.signature.clone(),
                 );
                 assert_eq!(
-                    result,
-                    brillig_builder.ecdsa_secp256r1(
-                        prepared_signature.public_key_x,
-                        prepared_signature.public_key_y,
-                        prepared_signature.hash,
-                        hash_size,
-                        prepared_signature.signature,
-                    )
+                    result.value_id,
+                    brillig_builder
+                        .ecdsa_secp256r1(
+                            prepared_signature.public_key_x,
+                            prepared_signature.public_key_y,
+                            prepared_signature.hash,
+                            prepared_signature.signature,
+                        )
+                        .value_id
+                );
+                append_typed_value_to_map(
+                    &mut self.stored_variables,
+                    &result.to_value_type(),
+                    result.clone(),
                 );
                 self.store_variable(&result);
             }
             Instruction::EcdsaSecp256k1 {
                 msg,
-                hash_size,
                 corrupt_hash,
                 corrupt_pubkey_x,
                 corrupt_pubkey_y,
@@ -860,18 +863,13 @@ impl BlockContext {
                     prepared_signature.public_key_x.clone(),
                     prepared_signature.public_key_y.clone(),
                     prepared_signature.hash.clone(),
-                    hash_size,
                     prepared_signature.signature.clone(),
                 );
                 assert_eq!(
-                    result,
-                    brillig_builder.ecdsa_secp256k1(
-                        prepared_signature.public_key_x,
-                        prepared_signature.public_key_y,
-                        prepared_signature.hash,
-                        hash_size,
-                        prepared_signature.signature,
-                    )
+                    result.value_id,
+                    &mut self.stored_variables,
+                    &result.to_value_type(),
+                    result.clone(),
                 );
                 self.store_variable(&result);
             }
@@ -882,7 +880,6 @@ impl BlockContext {
     fn ssa_scalar_from_instruction_scalar(&mut self, scalar: InstructionScalar) -> Option<Scalar> {
         let lo = self.get_stored_variable(&Type::Numeric(NumericType::Field), scalar.field_lo_idx);
         let hi = self.get_stored_variable(&Type::Numeric(NumericType::Field), scalar.field_hi_idx);
-        match (lo, hi) {
             (Some(lo), Some(hi)) => Some(Scalar { lo, hi }),
             _ => None,
         }

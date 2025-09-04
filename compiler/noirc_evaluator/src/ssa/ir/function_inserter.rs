@@ -27,7 +27,7 @@ impl<'f> FunctionInserter<'f> {
     /// Resolves a ValueId to its new, updated value.
     /// If there is no updated value for this id, this returns the same
     /// ValueId that was passed in.
-    pub(crate) fn resolve(&mut self, value: ValueId) -> ValueId {
+    pub(crate) fn resolve(&self, value: ValueId) -> ValueId {
         match self.values.get(&value) {
             Some(value) => self.resolve(*value),
             None => value,
@@ -84,8 +84,8 @@ impl<'f> FunctionInserter<'f> {
         self.function.dfg.data_bus = data_bus;
     }
 
-    /// Push a new instruction to the given block and return its new InstructionId.
-    /// If the instruction was simplified out of the program, None is returned.
+    /// Push a new instruction to the given block and return its new `InstructionId`.
+    /// If the instruction was simplified out of the program, `None` is returned.
     pub(crate) fn push_instruction(
         &mut self,
         id: InstructionId,
@@ -105,7 +105,7 @@ impl<'f> FunctionInserter<'f> {
         id: InstructionId,
         block: BasicBlockId,
         call_stack: CallStackId,
-    ) -> InsertInstructionResult {
+    ) -> InsertInstructionResult<'_> {
         let results = self.function.dfg.instruction_results(id).to_vec();
 
         let ctrl_typevars = instruction
@@ -136,9 +136,11 @@ impl<'f> FunctionInserter<'f> {
         }
     }
 
+    /// Associates each block parameter with a value, unless the parameter already has a value,
+    /// in which case it is kept as-is.
     pub(crate) fn remember_block_params(&mut self, block: BasicBlockId, new_values: &[ValueId]) {
         let old_parameters = self.function.dfg.block_parameters(block);
-
+        assert_eq!(old_parameters.len(), new_values.len());
         for (param, new_param) in old_parameters.iter().zip(new_values) {
             self.values.entry(*param).or_insert(*new_param);
         }
@@ -151,7 +153,7 @@ impl<'f> FunctionInserter<'f> {
     ) {
         let old_parameters = self.function.dfg.block_parameters(block);
         let new_parameters = self.function.dfg.block_parameters(new_block);
-
+        assert_eq!(old_parameters.len(), new_parameters.len(),);
         for (param, new_param) in old_parameters.iter().zip(new_parameters) {
             // Don't overwrite any existing entries to avoid overwriting the induction variable
             self.values.entry(*param).or_insert(*new_param);

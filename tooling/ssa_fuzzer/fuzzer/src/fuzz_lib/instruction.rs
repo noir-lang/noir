@@ -168,7 +168,6 @@ pub(crate) enum Instruction {
     /// ECDSA secp256r1
     EcdsaSecp256r1 {
         msg: Vec<u8>,
-        hash_size: u32,
         corrupt_hash: bool,
         corrupt_pubkey_x: bool,
         corrupt_pubkey_y: bool,
@@ -178,7 +177,6 @@ pub(crate) enum Instruction {
     /// ECDSA secp256k1
     EcdsaSecp256k1 {
         msg: Vec<u8>,
-        hash_size: u32,
         corrupt_hash: bool,
         corrupt_pubkey_x: bool,
         corrupt_pubkey_y: bool,

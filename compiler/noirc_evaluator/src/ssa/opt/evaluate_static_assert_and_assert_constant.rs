@@ -92,7 +92,7 @@ fn get_blocks_within_empty_loop(function: &Function) -> HashSet<BasicBlockId> {
             // If the loop does not have a preheader we skip checking whether the loop is empty
             continue;
         };
-        let const_bounds = loop_.get_const_bounds(function, pre_header);
+        let const_bounds = loop_.get_const_bounds(&function.dfg, pre_header);
 
         let does_execute = const_bounds
             .and_then(|(lower_bound, upper_bound)| {
@@ -328,11 +328,11 @@ mod test {
           b0(v0: u32, v1: u32):
             jmp b1(v0)
           b1(v2: u32):
-            v3 = lt v2, v1                                   
+            v3 = lt v2, v1
             jmpif v3 then: b2, else: b3
           b2():
-            call assert_constant(v0)                          
-            v6 = unchecked_add v2, u32 1                      
+            call assert_constant(v0)
+            v6 = unchecked_add v2, u32 1
             jmp b1(v6)
           b3():
             return

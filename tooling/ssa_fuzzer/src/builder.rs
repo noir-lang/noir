@@ -969,12 +969,10 @@ impl FuzzerBuilder {
         pub_key_x: Vec<u8>,
         pub_key_y: Vec<u8>,
         hash: Vec<u8>,
-        hash_size: u32,
         signature: Vec<u8>,
     ) -> TypedValue {
         let pub_key_x = self.bytes_to_ssa_array(pub_key_x);
         let pub_key_y = self.bytes_to_ssa_array(pub_key_y);
-        let hash_size_id = self.builder.numeric_constant(hash_size, NumericType::U32.into());
         let hash = self.bytes_to_ssa_slice(hash);
         let signature = self.bytes_to_ssa_array(signature);
         let return_type = Type::Numeric(NumericType::Boolean);
@@ -984,14 +982,8 @@ impl FuzzerBuilder {
             .expect("ecdsa_secp256r1 intrinsic should be available");
         let result = self.builder.insert_call(
             intrinsic,
-            vec![
-                pub_key_x.value_id,
-                pub_key_y.value_id,
-                signature.value_id,
-                hash_size_id,
-                hash.value_id,
-            ],
-            vec![return_type.clone().into()],
+            vec![pub_key_x.value_id, pub_key_y.value_id, signature.value_id, hash.value_id],
+            vec![return_type.clone()],
         );
         assert_eq!(result.len(), 1);
         let result = result[0];
@@ -1003,12 +995,10 @@ impl FuzzerBuilder {
         pub_key_x: Vec<u8>,
         pub_key_y: Vec<u8>,
         hash: Vec<u8>,
-        hash_size: u32,
         signature: Vec<u8>,
     ) -> TypedValue {
         let pub_key_x = self.bytes_to_ssa_array(pub_key_x);
         let pub_key_y = self.bytes_to_ssa_array(pub_key_y);
-        let hash_size_id = self.builder.numeric_constant(hash_size, NumericType::U32.into());
         let hash = self.bytes_to_ssa_slice(hash);
         let signature = self.bytes_to_ssa_array(signature);
         let return_type = Type::Numeric(NumericType::Boolean);
@@ -1018,14 +1008,8 @@ impl FuzzerBuilder {
             .expect("ecdsa_secp256k1 intrinsic should be available");
         let result = self.builder.insert_call(
             intrinsic,
-            vec![
-                pub_key_x.value_id,
-                pub_key_y.value_id,
-                signature.value_id,
-                hash_size_id,
-                hash.value_id,
-            ],
-            vec![return_type.clone().into()],
+            vec![pub_key_x.value_id, pub_key_y.value_id, signature.value_id, hash.value_id],
+            vec![return_type.clone()],
         );
         assert_eq!(result.len(), 1);
         let result = result[0];
