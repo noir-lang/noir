@@ -3289,15 +3289,15 @@
         BinaryOp::Xor =&gt; lhs ^ rhs,
         BinaryOp::Shl =&gt; {
             <span class="kw">if </span>rhs {
-                <span class="bool-val">false
-            </span>} <span class="kw">else </span>{
+                <span class="kw">return </span><span class="prelude-val">Err</span>(overflow());
+            } <span class="kw">else </span>{
                 lhs
             }
         }
         BinaryOp::Shr =&gt; {
             <span class="kw">if </span>rhs {
-                <span class="bool-val">false
-            </span>} <span class="kw">else </span>{
+                <span class="kw">return </span><span class="prelude-val">Err</span>(overflow());
+            } <span class="kw">else </span>{
                 lhs
             }
         }
