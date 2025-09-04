@@ -11,7 +11,7 @@ use crate::mutations::configuration::{
 use libfuzzer_sys::arbitrary::Unstructured;
 use rand::{Rng, rngs::StdRng};
 
-fn generate_random_element_function(rng: &mut StdRng) -> WitnessValue {
+fn generate_random_witness_value(rng: &mut StdRng) -> WitnessValue {
     match BASIC_GENERATE_INITIAL_WITNESS_CONFIGURATION.select(rng) {
         GenerateInitialWitness::Numeric => {
             let mut bytes = [0u8; SIZE_OF_SMALL_ARBITRARY_BUFFER];
@@ -20,7 +20,7 @@ fn generate_random_element_function(rng: &mut StdRng) -> WitnessValue {
         }
         GenerateInitialWitness::Array => {
             let size = rng.gen_range(1..MAX_ARRAY_SIZE);
-            let first_element = generate_random_element_function(rng);
+            let first_element = generate_random_witness_value(rng);
             let values = (0..size)
                 .map(|_| witness::generate_witness_of_the_same_type(rng, &first_element))
                 .collect();
@@ -41,7 +41,7 @@ pub(crate) fn mutate(witness_value: &mut Vec<WitnessValue>, rng: &mut StdRng) {
                 ARRAY_WITNESS_MUTATION_CONFIGURATION,
             );
         },
-        generate_random_element_function,
+        generate_random_witness_value,
         BASIC_VEC_MUTATION_CONFIGURATION,
     );
 }

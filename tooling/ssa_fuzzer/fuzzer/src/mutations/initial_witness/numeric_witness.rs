@@ -3,6 +3,8 @@
 //! 1. Random (randomly select a new witness value)
 //! 2. Max value
 //! 3. Min value
+//! 4. Small add/sub
+//! 5. Power of two add/sub
 
 use crate::fuzz_lib::initial_witness::{FieldRepresentation, WitnessValueNumeric};
 use crate::mutations::configuration::{
