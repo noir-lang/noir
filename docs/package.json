@@ -18,9 +18,6 @@
     "@docusaurus/preset-classic": "^3.7.0",
     "@easyops-cn/docusaurus-search-local": "^0.35.0",
     "@mdx-js/react": "^3.0.0",
-    "@noir-lang/noir_js": "workspace:*",
-    "@noir-lang/noirc_abi": "workspace:*",
-    "@noir-lang/types": "workspace:*",
     "axios": "^1.9.0",
     "clsx": "^1.2.1",
     "hast-util-is-element": "^1.1.0",
@@ -36,6 +33,7 @@
     "@docusaurus/tsconfig": "^3.7.0",
     "@docusaurus/types": "^3.7.0",
     "@types/prettier": "^3.0.0",
+    "docusaurus-plugin-llms": "^0.1.5",
     "docusaurus-plugin-typedoc": "1.2.3",
     "eslint-plugin-prettier": "^5.4.1",
     "prettier": "3.5.3",
@@ -60,6 +58,6 @@
     ]
   },
   "engines": {
-    "node": ">=20.18.3"
+    "node": ">=22.15.0"
   }
 }

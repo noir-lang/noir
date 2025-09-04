@@ -142,6 +142,15 @@ pub(crate) fn eval_constant_binary_op(
                 return Failure("attempt to divide by zero".to_string());
             }
 
+            // Check for overflow
+            if operator == BinaryOp::Shl || operator == BinaryOp::Shr {
+                let op = "bit-shift";
+
+                if rhs >= bit_size as u128 {
+                    return Failure(format!("attempt to {op} with overflow"));
+                }
+            }
+
             let Some(result) = function(lhs, rhs) else {
                 if let BinaryOp::Shl = operator {
                     return CouldNotEvaluate;
@@ -183,52 +192,46 @@ pub(crate) fn eval_constant_binary_op(
             let Some(rhs) = try_convert_field_element_to_signed_integer(rhs, bit_size) else {
                 return CouldNotEvaluate;
             };
-
             let result = function(lhs, rhs);
-            let result = match operator {
-                BinaryOp::Div | BinaryOp::Mod if rhs == 0 => {
-                    // The divisor is being truncated into the type of the operand, which can potentially
-                    // lead to the rhs being zero.
-                    // If the rhs of a division is zero, attempting to evaluate the division will cause a compiler panic.
-                    // Thus, we do not evaluate the division in this method, as we want to avoid triggering a panic,
-                    // and the operation should be handled by ACIR generation.
-                    return Failure("attempt to divide by zero".to_string());
-                }
-                BinaryOp::Shr => {
-                    if rhs >= bit_size as i128 {
-                        if lhs >= 0 { 0 } else { -1 }
-                    } else {
-                        let Some(result) = result else {
-                            return CouldNotEvaluate;
-                        };
-                        result
+
+            let result = {
+                match operator {
+                    BinaryOp::Div | BinaryOp::Mod if rhs == 0 => {
+                        // The divisor is being truncated into the type of the operand, which can potentially
+                        // lead to the rhs being zero.
+                        // If the rhs of a division is zero, attempting to evaluate the division will cause a compiler panic.
+                        // Thus, we do not evaluate the division in this method, as we want to avoid triggering a panic,
+                        // and the operation should be handled by ACIR generation.
+                        return Failure("attempt to divide by zero".to_string());
                     }
-                }
-
-                _ => {
-                    // Check for overflow
-                    let two_pow_bit_size_minus_one = 1i128 << (bit_size - 1);
-                    let Some(result) = result else {
-                        if let BinaryOp::Shl = operator {
-                            return CouldNotEvaluate;
-                        }
-
-                        let op = binary_op_function_name(operator);
-                        return Failure(format!("attempt to {op} with overflow"));
-                    };
-
-                    if result >= two_pow_bit_size_minus_one || result < -two_pow_bit_size_minus_one
-                    {
-                        if let BinaryOp::Shl = operator {
-                            return CouldNotEvaluate;
-                        }
-
+                    BinaryOp::Shr | BinaryOp::Shl if rhs >= bit_size as i128 => {
                         let op = binary_op_function_name(operator);
                         return Failure(format!("attempt to {op} with overflow"));
                     }
-
-                    result
+                    _ => (),
                 }
+
+                // Check for overflow
+                let two_pow_bit_size_minus_one = 1i128 << (bit_size - 1);
+                let Some(result) = result else {
+                    if let BinaryOp::Shl = operator {
+                        return CouldNotEvaluate;
+                    }
+
+                    let op = binary_op_function_name(operator);
+                    return Failure(format!("attempt to {op} with overflow"));
+                };
+
+                if result >= two_pow_bit_size_minus_one || result < -two_pow_bit_size_minus_one {
+                    if let BinaryOp::Shl = operator {
+                        return CouldNotEvaluate;
+                    }
+
+                    let op = binary_op_function_name(operator);
+                    return Failure(format!("attempt to {op} with overflow"));
+                }
+
+                result
             };
             convert_signed_integer_to_field_element(result, bit_size)
         }
@@ -286,10 +289,14 @@ pub(crate) fn convert_signed_integer_to_field_element(int: i128, bit_size: u32) 
         // signed to u128 conversion
         FieldElement::from(int as u128)
     } else {
-        // We add an offset of `bit_size` bits to shift the negative values into the range [2^(bitsize-1), 2^bitsize)
-        assert!(bit_size < 128, "{bit_size} is too large");
-        let offset_int = (1i128 << bit_size) + int;
-        FieldElement::from(offset_int)
+        let two_complement = match bit_size {
+            8 => ((int as i8) as u8) as u128,
+            16 => ((int as i16) as u16) as u128,
+            32 => ((int as i32) as u32) as u128,
+            64 => ((int as i64) as u64) as u128,
+            _ => unreachable!("ICE - invalid bit size {bit_size} for signed integer"),
+        };
+        FieldElement::from(two_complement)
     }
 }
 
@@ -406,7 +413,9 @@ mod test {
 
     proptest! {
         #[test]
-        fn signed_int_roundtrip(int: i128, bit_size in 1u32..=64) {
+        fn signed_int_roundtrip(int: i128, bit_size in 0usize..=3) {
+            let bit_sizes = [8,16,32,64];
+            let bit_size = bit_sizes[bit_size];
             let int = int % (1i128 << (bit_size - 1));
 
             let int_as_field = convert_signed_integer_to_field_element(int, bit_size);

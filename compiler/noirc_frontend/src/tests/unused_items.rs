@@ -1,6 +1,5 @@
 use crate::{assert_no_errors, check_errors};
 
-#[named]
 #[test]
 fn errors_on_unused_private_import() {
     let src = r#"
@@ -28,7 +27,6 @@ fn errors_on_unused_private_import() {
     check_errors!(src);
 }
 
-#[named]
 #[test]
 fn errors_on_unused_pub_crate_import() {
     let src = r#"
@@ -56,7 +54,6 @@ fn errors_on_unused_pub_crate_import() {
     check_errors!(src);
 }
 
-#[named]
 #[test]
 fn errors_on_unused_function() {
     let src = r#"
@@ -80,7 +77,6 @@ fn errors_on_unused_function() {
     check_errors!(src);
 }
 
-#[named]
 #[test]
 fn errors_on_unused_struct() {
     let src = r#"
@@ -96,7 +92,6 @@ fn errors_on_unused_struct() {
     check_errors!(src);
 }
 
-#[named]
 #[test]
 fn errors_on_unused_trait() {
     let src = r#"
@@ -116,7 +111,6 @@ fn errors_on_unused_trait() {
     check_errors!(src);
 }
 
-#[named]
 #[test]
 fn silences_unused_variable_warning() {
     let src = r#"
@@ -128,7 +122,6 @@ fn silences_unused_variable_warning() {
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn errors_on_unused_type_alias() {
     let src = r#"
@@ -137,12 +130,10 @@ fn errors_on_unused_type_alias() {
          ~~~ unused type alias
     type Bar = Field;
     pub fn bar(_: Bar) {}
-    fn main() {}
     "#;
     check_errors!(src);
 }
 
-#[named]
 #[test]
 fn warns_on_unused_global() {
     let src = r#"
@@ -158,7 +149,6 @@ fn warns_on_unused_global() {
     check_errors!(src);
 }
 
-#[named]
 #[test]
 fn does_not_warn_on_unused_global_if_it_has_an_abi_attribute() {
     let src = r#"
@@ -166,37 +156,28 @@ fn does_not_warn_on_unused_global_if_it_has_an_abi_attribute() {
         #[abi(notes)]
         global bar: u64 = 1;
     }
-
-    fn main() {}
     "#;
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn does_not_warn_on_unused_struct_if_it_has_an_abi_attribute() {
     let src = r#"
     #[abi(dummy)]
     struct Foo { bar: u8 }
-
-    fn main() {}
     "#;
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn does_not_warn_on_unused_function_if_it_has_an_export_attribute() {
     let src = r#"
     #[export]
     fn foo() {}
-
-    fn main() {}
     "#;
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn no_warning_on_inner_struct_when_parent_is_used() {
     let src = r#"
@@ -216,7 +197,6 @@ fn no_warning_on_inner_struct_when_parent_is_used() {
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn no_warning_on_struct_if_it_has_an_abi_attribute() {
     let src = r#"
@@ -224,13 +204,10 @@ fn no_warning_on_struct_if_it_has_an_abi_attribute() {
     struct Foo {
         a: Field,
     }
-
-    fn main() {}
     "#;
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn no_warning_on_indirect_struct_if_it_has_an_abi_attribute() {
     let src = r#"
@@ -242,13 +219,10 @@ fn no_warning_on_indirect_struct_if_it_has_an_abi_attribute() {
     struct Foo {
         bar: Bar,
     }
-
-    fn main() {}
     "#;
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn no_warning_on_self_in_trait_impl() {
     let src = r#"
@@ -269,7 +243,6 @@ fn no_warning_on_self_in_trait_impl() {
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn resolves_trait_where_clause_in_the_correct_module() {
     // This is a regression test for https://github.com/noir-lang/noir/issues/6479
@@ -284,13 +257,10 @@ fn resolves_trait_where_clause_in_the_correct_module() {
     where
         T: Foo,
     {}
-
-    fn main() {}
     "#;
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn considers_struct_as_constructed_if_impl_method_is_called() {
     let src = "
@@ -307,7 +277,6 @@ fn considers_struct_as_constructed_if_impl_method_is_called() {
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn considers_struct_as_constructed_if_trait_method_is_called() {
     let src = "
@@ -328,7 +297,6 @@ fn considers_struct_as_constructed_if_trait_method_is_called() {
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn considers_struct_as_constructed_if_mentioned_in_let_type() {
     let src = "
@@ -345,7 +313,6 @@ fn considers_struct_as_constructed_if_mentioned_in_let_type() {
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn considers_struct_as_constructed_if_mentioned_in_return_type() {
     let src = "
@@ -362,7 +329,6 @@ fn considers_struct_as_constructed_if_mentioned_in_return_type() {
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn considers_struct_as_constructed_if_passed_in_generic_args_in_constructor() {
     let src = "
@@ -377,7 +343,6 @@ fn considers_struct_as_constructed_if_passed_in_generic_args_in_constructor() {
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn considers_struct_as_constructed_if_passed_in_generic_args_in_function_call() {
     let src = "
@@ -392,7 +357,6 @@ fn considers_struct_as_constructed_if_passed_in_generic_args_in_function_call() 
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn does_not_consider_struct_as_constructed_if_mentioned_in_function_argument() {
     let src = "
@@ -410,7 +374,6 @@ fn does_not_consider_struct_as_constructed_if_mentioned_in_function_argument() {
     check_errors!(src);
 }
 
-#[named]
 #[test]
 fn allow_dead_code_on_unused_function() {
     let src = "
@@ -423,7 +386,6 @@ fn allow_dead_code_on_unused_function() {
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn allow_dead_code_on_unused_struct() {
     let src = "
@@ -436,7 +398,6 @@ fn allow_dead_code_on_unused_struct() {
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn allow_dead_code_on_unused_trait() {
     let src = "
@@ -449,7 +410,6 @@ fn allow_dead_code_on_unused_trait() {
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn allow_dead_code_on_unused_enum() {
     let src = "

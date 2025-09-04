@@ -1,7 +1,7 @@
+use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use fxhash::FxHashMap as HashMap;
-use petgraph::visit::DfsPostOrder;
+use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::ssa::ir::call_graph::CallGraph;
 use crate::ssa::{
@@ -27,6 +27,10 @@ impl Ssa {
     /// identified as calling known pure functions.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn purity_analysis(mut self) -> Ssa {
+        let call_graph = CallGraph::from_ssa(&self);
+
+        let (sccs, recursive_functions) = call_graph.sccs();
+
         // First look through each function to get a baseline on its purity and collect
         // the functions it calls to build a call graph.
         let purities: HashMap<_, _> =
@@ -34,8 +38,8 @@ impl Ssa {
 
         // Then transitively 'infect' any functions which call impure functions as also
         // impure.
-        let call_graph = CallGraph::from_ssa(&self);
-        let purities = analyze_call_graph(call_graph, purities);
+        let purities =
+            analyze_call_graph(call_graph, purities, &self.functions, &sccs, &recursive_functions);
         let purities = Arc::new(purities);
 
         // We're done, now store purities somewhere every dfg can find it.
@@ -187,14 +191,18 @@ impl Function {
                     | Instruction::Not(_)
                     | Instruction::Truncate { .. }
                     | Instruction::Allocate
+                    // Load and store are considered pure since there is a separate check ensuring
+                    // no parameters or return values are references. With this check, we can be
+                    // sure any load/store is purely local.
                     | Instruction::Load { .. }
                     | Instruction::Store { .. }
                     | Instruction::EnableSideEffectsIf { .. }
-                    | Instruction::IncrementRc { .. }
-                    | Instruction::DecrementRc { .. }
                     | Instruction::IfElse { .. }
                     | Instruction::MakeArray { .. }
                     | Instruction::Noop => (),
+
+                    Instruction::IncrementRc { .. }
+                    | Instruction::DecrementRc { .. } => return Purity::Impure,
                 };
             }
 
@@ -214,62 +222,74 @@ impl Function {
 fn analyze_call_graph(
     call_graph: CallGraph,
     starting_purities: FunctionPurities,
+    functions: &BTreeMap<FunctionId, Function>,
+    sccs: &[Vec<FunctionId>],
+    recursive_functions: &HashSet<FunctionId>,
 ) -> FunctionPurities {
-    // Now we can analyze it: a function is only as pure as all of
-    // its called functions
-    let times_called = call_graph.times_called();
-    let starting_points =
-        times_called.iter().filter_map(|(id, times_called)| (*times_called == 0).then_some(*id));
+    let mut finished = HashMap::default();
 
-    // The `starting_purities` are the preliminary results from `is_pure`
-    // that don't take into account function calls. These finished purities do.
-    let mut finished_purities = HashMap::default();
-
-    let graph = call_graph.graph();
-    let ids_to_indices = call_graph.ids_to_indices();
-    let indices_to_ids = call_graph.indices_to_ids();
-
-    for start_point in starting_points {
-        let start_index = ids_to_indices[&start_point];
-        let mut dfs = DfsPostOrder::new(graph, start_index);
-
-        while let Some(index) = dfs.next(graph) {
-            let id = indices_to_ids[&index];
-            let mut purity = starting_purities[&id];
-
-            for neighbor_index in graph.neighbors(index) {
-                let neighbor = indices_to_ids[&neighbor_index];
-
-                let neighbor_purity = finished_purities.get(&neighbor).copied().unwrap_or({
-                    // The dependent function isn't finished yet. Since we're following
-                    // calls in a DFS, this means there are mutually recursive functions.
-                    // We could handle these but would need a different, much slower algorithm
-                    // to detect strongly connected components. Instead, since this should be
-                    // a rare case, we bail and assume impure for now.
-                    if neighbor == id {
-                        // If the recursive call is to the same function we can ignore it
-                        purity
-                    } else {
-                        Purity::Impure
-                    }
-                });
-                purity = purity.unify(neighbor_purity);
-            }
-
-            finished_purities.insert(id, purity);
+    // Map FunctionId -> SCC index for quick lookup
+    let mut func_to_scc = HashMap::default();
+    for (i, scc) in sccs.iter().enumerate() {
+        for &func in scc {
+            // Each function belongs to exactly one SCC by definition of SCCs.
+            // Therefore inserting into func_to_scc here is safe, and there will
+            // be no overwrites.
+            let inserted = func_to_scc.insert(func, i);
+            debug_assert!(inserted.is_none(), "Function appears in multiple SCCs");
         }
     }
 
-    // Any remaining functions are completely unreachable and are either recursive or mutually recursive.
-    // As these functions will be removed from the program, we treat them as impure.
-    let unhandled_functions: Vec<_> =
-        starting_purities.keys().filter(|func| !finished_purities.contains_key(*func)).collect();
-    for id in unhandled_functions {
-        finished_purities.insert(*id, Purity::Impure);
+    // Track SCC purity
+    let mut scc_purities: Vec<Purity> = sccs
+        .iter()
+        .map(|scc| scc.iter().map(|f| starting_purities[f]).fold(Purity::Pure, |a, b| a.unify(b)))
+        .collect();
+
+    // Iteratively propagate purity between SCCs until convergence
+    let mut changed = true;
+    while changed {
+        changed = false;
+
+        for (i, scc) in sccs.iter().enumerate() {
+            let mut combined_purity = scc_purities[i];
+
+            // Look at neighbors outside the SCC
+            for &func in scc {
+                let idx = call_graph.ids_to_indices()[&func];
+                for neighbor_idx in call_graph.graph().neighbors(idx) {
+                    let neighbor = call_graph.indices_to_ids()[&neighbor_idx];
+                    let neighbor_scc = func_to_scc[&neighbor];
+                    if neighbor_scc != i {
+                        combined_purity = combined_purity.unify(scc_purities[neighbor_scc]);
+                    }
+                }
+
+                // Recursive Brillig functions cannot be fully pure (may loop indefinitely),
+                // but we still treat them as PureWithPredicate for deduplication purposes.
+                // If this function is recursive and a Brillig function, mark it as PureWithPredicate.
+                if recursive_functions.contains(&func) && functions[&func].runtime().is_brillig() {
+                    combined_purity = combined_purity.unify(Purity::PureWithPredicate);
+                }
+            }
+
+            if combined_purity != scc_purities[i] {
+                scc_purities[i] = combined_purity;
+                changed = true;
+            }
+        }
     }
 
-    finished_purities
+    // Assign SCC purity to all functions in the SCC
+    for (i, scc) in sccs.iter().enumerate() {
+        for &func in scc {
+            finished.insert(func, scc_purities[i]);
+        }
+    }
+
+    finished
 }
+
 #[cfg(test)]
 mod test {
     use crate::{
@@ -452,7 +472,7 @@ mod test {
             call f3()
             return
         }
-        brillig(inline) fn pure_with_predicate_func f3 {
+        brillig(inline) fn pure f3 {
           b0():
             return
         }"#;
@@ -488,16 +508,67 @@ mod test {
         assert_eq!(purities[&FunctionId::test_new(1)], Purity::PureWithPredicate);
     }
 
+    /// Functions using inc_rc or dec_rc are always impure - see constant_folding::do_not_deduplicate_call_with_inc_rc
+    /// as an example of a case in which semantics are changed if these are considered pure.
     #[test]
-    fn mutual_recursion_marks_functions_impure() {
-        // We want to test that two pure mutually recursive functions do in fact mark each other as impure
+    fn inc_rc_is_impure() {
+        // This test ensures that a function which mutates an array pointer is marked impure.
+        // This protects against future deduplication passes incorrectly assuming purity.
+        let src = r#"
+        brillig(inline) fn mutator f0 {
+          b0(v0: [Field; 2]):
+            inc_rc v0
+            v3 = array_set v0, index u32 0, value Field 5
+            return v3
+        }
+        brillig(inline) fn mutator f1 {
+          b0(v0: [Field; 2]):
+            dec_rc v0  // We wouldn't produce this code. This is just to ensure dec_rc is impure.
+            v3 = array_set v0, index u32 0, value Field 5
+            return v3
+        }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.purity_analysis();
+
+        let purities = &ssa.main().dfg.function_purities;
+        assert_eq!(purities[&FunctionId::test_new(0)], Purity::Impure);
+        assert_eq!(purities[&FunctionId::test_new(1)], Purity::Impure);
+    }
+
+    #[test]
+    fn direct_brillig_recursion_marks_functions_pure_with_predicate() {
+        let src = r#"
+        brillig(inline) fn main f0 {
+          b0():
+            call f1()
+            return
+        }
+        brillig(inline) fn f1 f1 {
+          b0():
+            call f1()
+            return
+        }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.purity_analysis();
+
+        let purities = &ssa.main().dfg.function_purities;
+        assert_eq!(purities[&FunctionId::test_new(0)], Purity::PureWithPredicate);
+        assert_eq!(purities[&FunctionId::test_new(1)], Purity::PureWithPredicate);
+    }
+
+    #[test]
+    fn mutual_recursion_marks_functions_pure() {
+        // We want to test that two pure mutually recursive functions do in fact mark each other as pure
         let src = r#"
         acir(inline) fn main f0 {
           b0():
             v0 = call f1(u32 4) -> bool
             return
         }
-
         acir(inline) fn is_even f1 {
           b0(v0: u32):
             v1 = eq v0, u32 0
@@ -511,7 +582,6 @@ mod test {
           b3(v4: bool):
             return v4
         }
-
         acir(inline) fn is_odd f2 {
           b0(v0: u32):
             v1 = eq v0, u32 0
@@ -531,15 +601,171 @@ mod test {
         let ssa = ssa.purity_analysis();
 
         let purities = &ssa.main().dfg.function_purities;
-        assert_eq!(purities[&FunctionId::test_new(0)], Purity::Impure);
-        // Impure due to mutual recursion fallback.
-        assert_eq!(purities[&FunctionId::test_new(1)], Purity::Impure);
-        assert_eq!(purities[&FunctionId::test_new(2)], Purity::Impure);
+        assert_eq!(purities[&FunctionId::test_new(0)], Purity::Pure);
+        assert_eq!(purities[&FunctionId::test_new(1)], Purity::Pure);
+        assert_eq!(purities[&FunctionId::test_new(2)], Purity::Pure);
     }
 
-    /// TODO(https://github.com/noir-lang/noir/issues/9444)
+    /// This test matches [mutual_recursion_marks_functions_pure] except all functions have a Brillig runtime
     #[test]
-    fn brillig_functions_never_pure() {
+    fn brillig_mutual_recursion_marks_functions_pure_with_predicate() {
+        let src = r#"
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = call f1(u32 4) -> bool
+            return
+        }
+        brillig(inline) fn is_even f1 {
+          b0(v0: u32):
+            v1 = eq v0, u32 0
+            jmpif v1 then: b1, else: b2
+          b1():
+            jmp b3(u1 1)
+          b2():
+            v2 = unchecked_sub v0, u32 1
+            v3 = call f2(v2) -> bool
+            jmp b3(v3)
+          b3(v4: bool):
+            return v4
+        }
+        brillig(inline) fn is_odd f2 {
+          b0(v0: u32):
+            v1 = eq v0, u32 0
+            jmpif v1 then: b1, else: b2
+          b1():
+            jmp b3(u1 0)
+          b2():
+            v2 = unchecked_sub v0, u32 1
+            v3 = call f1(v2) -> bool
+            jmp b3(v3)
+          b3(v4: bool):
+            return v4
+        }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.purity_analysis();
+
+        let purities = &ssa.main().dfg.function_purities;
+        assert_eq!(purities[&FunctionId::test_new(0)], Purity::PureWithPredicate);
+        assert_eq!(purities[&FunctionId::test_new(1)], Purity::PureWithPredicate);
+        assert_eq!(purities[&FunctionId::test_new(2)], Purity::PureWithPredicate);
+    }
+
+    #[test]
+    fn mutual_recursion_marks_functions_impure() {
+        // f1 -> f2 -> f3 -> f1 (a cycle of three functions)
+        // Only f3 is locally impure (it returns a reference).
+        // All three must be marked Impure.
+        //
+        // We call f2 in main as we want the DFS to not look at f3 first (which is "Impure").
+        // If f3 is found first the cycle will get correctly marked as impure.
+        // We want to make sure that even when the first function in the recursive cycle
+        // is not marked as impure that we still accurately mark the entire cycle impure.
+        // Calling f2 first, means the cycle will look at f1 first, which still
+        // has a starting purity of "Pure".
+        let src = r#"
+        acir(inline) fn main f0 {
+          b0():
+            v0 = call f2() -> Field
+            return
+        }
+        acir(inline) fn f1 f1 {
+          b0():
+            v0 = call f2() -> Field
+            return v0
+        }
+        acir(inline) fn f2 f2 {
+          b0():
+            v0 = call f3() -> &mut Field
+            v1 = load v0 -> Field
+            return v1
+        }
+        acir(inline) fn f3 f3 {
+          b0():
+            v0 = call f1() -> Field
+            v1 = allocate -> &mut Field
+            return v1
+        }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.purity_analysis();
+
+        let purities = &ssa.main().dfg.function_purities;
+        // All must be impure due to the cycle involved f3 when returns a reference.
+        assert_eq!(purities[&FunctionId::test_new(1)], Purity::Impure);
+        assert_eq!(purities[&FunctionId::test_new(2)], Purity::Impure);
+        assert_eq!(purities[&FunctionId::test_new(3)], Purity::Impure);
+    }
+
+    /// This test matches [mutual_recursion_marks_functions_impure] except all functions have a Brillig runtime
+    #[test]
+    fn brillig_mutual_recursion_marks_functions_impure() {
+        let src = r#"
+        brillig(inline) fn main f0 {
+          b0():
+            v0 = call f2() -> Field
+            return
+        }
+        brillig(inline) fn f1 f1 {
+          b0():
+            v0 = call f2() -> Field
+            return v0
+        }
+        brillig(inline) fn f2 f2 {
+          b0():
+            v0 = call f3() -> &mut Field
+            v1 = load v0 -> Field
+            return v1
+        }
+        brillig(inline) fn f3 f3 {
+          b0():
+            v0 = call f1() -> Field
+            v1 = allocate -> &mut Field
+            return v1
+        }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.purity_analysis();
+
+        let purities = &ssa.main().dfg.function_purities;
+        // All must be impure due to the cycle involved f3 when returns a reference.
+        assert_eq!(purities[&FunctionId::test_new(1)], Purity::Impure);
+        assert_eq!(purities[&FunctionId::test_new(2)], Purity::Impure);
+        assert_eq!(purities[&FunctionId::test_new(3)], Purity::Impure);
+    }
+
+    #[test]
+    fn brillig_functions_are_pure_with_predicate_if_they_are_an_entry_point() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            call f1()
+            call f1()
+            return
+        }
+        brillig(inline) fn pure_basic f1 {
+          b0():
+            v2 = make_array [Field 0, Field 1] : [Field; 2]
+            v4 = array_get v2, index u32 1 -> Field
+            v5 = allocate -> &mut Field
+            store Field 0 at v5
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.purity_analysis();
+
+        let purities = &ssa.main().dfg.function_purities;
+        assert_eq!(purities[&FunctionId::test_new(0)], Purity::PureWithPredicate);
+        assert_eq!(purities[&FunctionId::test_new(1)], Purity::PureWithPredicate);
+    }
+
+    #[test]
+    fn brillig_functions_are_pure_with_predicate_if_they_are_not_an_entry_point() {
         let src = "
         brillig(inline) fn main f0 {
           b0(v0: u1):
@@ -561,9 +787,10 @@ mod test {
         let ssa = ssa.purity_analysis();
 
         let purities = &ssa.main().dfg.function_purities;
-        // PureWithPredicates is the default purity for all Brillig functions.
-        // So even though `f1` is technically pure it will be marked as PureWithPredicates
         assert_eq!(purities[&FunctionId::test_new(0)], Purity::PureWithPredicate);
+
+        // Note: even though it would be fine to mark f1 as pure, something in Aztec-Packages
+        // gets broken so until we figure out what that is we can't mark these as pure.
         assert_eq!(purities[&FunctionId::test_new(1)], Purity::PureWithPredicate);
     }
 
@@ -597,73 +824,5 @@ mod test {
         assert_eq!(purities[&FunctionId::test_new(0)], Purity::Impure);
         assert_eq!(purities[&FunctionId::test_new(1)], Purity::Pure);
         assert_eq!(purities[&FunctionId::test_new(1)], Purity::Pure);
-
-        assert_ssa_snapshot!(ssa, @r#"
-        acir(inline) impure fn main f0 {
-          b0(v0: u32):
-            v3 = make_array [f1, f2] : [function; 2]
-            v5 = lt v0, u32 2
-            constrain v5 == u1 1, "Index out of bounds"
-            v7 = array_get v3, index v0 -> function
-            call v7()
-            return
-        }
-        acir(inline) pure fn lambda f1 {
-          b0():
-            return
-        }
-        acir(inline) pure fn lambda f2 {
-          b0():
-            return
-        }
-        "#);
-    }
-
-    ///TODO(https://github.com/noir-lang/noir/issues/9451): Remove the `should_panic` once the bug is fixed
-    #[test]
-    #[should_panic]
-    fn regression_array_pointer_mutation() {
-        // This test ensures that a function which mutates an array pointer is marked impure.
-        // This protects against future deduplication passes incorrectly assuming purity.
-        let src = r#"
-        brillig(inline) fn main f0 {
-          b0(v0: u32):
-            v3 = make_array [Field 1, Field 2] : [Field; 2]
-            v5 = call array_refcount(v3) -> u32
-            constrain v5 == u32 1
-            v8 = call f1(v3) -> [Field; 2]
-            v9 = call array_refcount(v3) -> u32
-            constrain v9 == u32 2
-            v11 = call f1(v3) -> [Field; 2]
-            v12 = call array_refcount(v3) -> u32
-            constrain v12 == u32 3
-            inc_rc v3
-            v15 = array_set v3, index v0, value Field 9
-            return v3, v15
-        }
-        brillig(inline) fn mutator f1 {
-          b0(v0: [Field; 2]):
-            inc_rc v0
-            v3 = array_set v0, index u32 0, value Field 5
-            return v3
-        }
-        "#;
-
-        let ssa = Ssa::from_str(src).unwrap();
-        // Can uncomment to see that we do not fail when running constant folding before purity analysis
-        let ssa = ssa.fold_constants_using_constraints();
-        let _ = ssa
-            .interpret(vec![Value::from_constant(1_u32.into(), NumericType::unsigned(32)).unwrap()])
-            .unwrap();
-
-        let ssa = ssa.purity_analysis();
-        let _ = ssa
-            .interpret(vec![Value::from_constant(1_u32.into(), NumericType::unsigned(32)).unwrap()])
-            .unwrap();
-
-        let ssa = ssa.fold_constants_using_constraints();
-        let _ = ssa
-            .interpret(vec![Value::from_constant(1_u32.into(), NumericType::unsigned(32)).unwrap()])
-            .unwrap();
     }
 }

@@ -769,7 +769,7 @@ impl Elaborator<'_> {
             // Given that we already produced an error, let's make this an `assert(true)` so
             // we don't get further errors.
             let message = None;
-            let kind = ExpressionKind::Literal(crate::ast::Literal::Bool(true));
+            let kind = ExpressionKind::Literal(Literal::Bool(true));
             let expr = Expression { kind, location };
             (message, expr)
         } else {
@@ -827,6 +827,7 @@ impl Elaborator<'_> {
 
     fn check_method_call_visibility(&mut self, func_id: FuncId, object_type: &Type, name: &Ident) {
         if !method_call_is_visible(
+            self.self_type.as_ref(),
             object_type,
             func_id,
             self.module_id(),
@@ -1231,7 +1232,7 @@ impl Elaborator<'_> {
         match_expr: MatchExpression,
         location: Location,
     ) -> (HirExpression, Type) {
-        self.use_unstable_feature(super::UnstableFeature::Enums, location);
+        self.use_unstable_feature(UnstableFeature::Enums, location);
 
         let expr_location = match_expr.expression.location;
         let (expression, typ) = self.elaborate_expression(match_expr.expression);

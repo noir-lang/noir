@@ -166,6 +166,9 @@ where
         LValue::Dereference { reference, .. } => {
             visit_lvalue_mut(reference.as_mut(), b, e, i);
         }
+        LValue::Clone(lvalue) => {
+            visit_lvalue_mut(lvalue, b, e, i);
+        }
     }
 }
 
@@ -327,6 +330,9 @@ where
         }
         LValue::Dereference { reference, .. } => {
             visit_lvalue(reference.as_ref(), b, e, i);
+        }
+        LValue::Clone(lvalue) => {
+            visit_lvalue(lvalue, b, e, i);
         }
     }
 }

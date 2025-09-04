@@ -146,7 +146,33 @@ where
 }
 
 #[cfg(test)]
-mod tests {
+mod serialization_tests {
+    use acvm::{
+        AcirField, FieldElement, acir::brillig::ForeignCallParam,
+        brillig_vm::brillig::ForeignCallResult,
+    };
+
+    #[test]
+    fn deserializes_json_as_expected() {
+        let raw_responses: [(&str, Vec<ForeignCallParam<FieldElement>>); 3] = [
+            ("[]", Vec::new()),
+            (
+                "[\"0x0000000000000000000000000000000000000000000000000000000000000001\"]",
+                vec![ForeignCallParam::Single(FieldElement::one())],
+            ),
+            ("[[]]", vec![ForeignCallParam::Array(Vec::new())]),
+        ];
+
+        for (raw_response, expected) in raw_responses {
+            let decoded_response: ForeignCallResult<FieldElement> =
+                serde_json::from_str(&format!("{{ \"values\": {raw_response} }}")).unwrap();
+            assert_eq!(decoded_response, ForeignCallResult { values: expected });
+        }
+    }
+}
+
+#[cfg(test)]
+mod server_tests {
     use acvm::{
         FieldElement, acir::brillig::ForeignCallParam, brillig_vm::brillig::ForeignCallResult,
         pwg::ForeignCallWaitInfo,

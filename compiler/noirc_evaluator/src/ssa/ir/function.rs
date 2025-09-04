@@ -212,6 +212,7 @@ impl Function {
         unreachable!("SSA Function {} has no reachable return instruction!", self.id())
     }
 
+    /// Total number of instructions in the reachable blocks of this function.
     pub(crate) fn num_instructions(&self) -> usize {
         self.reachable_blocks()
             .iter()

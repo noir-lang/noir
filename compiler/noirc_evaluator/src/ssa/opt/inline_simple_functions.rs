@@ -6,9 +6,11 @@
 //! - Contains no more than [MAX_INSTRUCTIONS] instructions
 //! - The function only has a single block (e.g. no control flow or conditional branches)
 //! - It is not marked with the [no predicates inline type][noirc_frontend::monomorphization::ast::InlineType::NoPredicates]
-use iter_extended::btree_map;
+
+use iter_extended::try_btree_map;
 
 use crate::ssa::{
+    RuntimeError,
     ir::{
         call_graph::CallGraph,
         function::{Function, RuntimeType},
@@ -29,7 +31,7 @@ const MAX_INSTRUCTIONS: usize = 10;
 impl Ssa {
     #[allow(dead_code)]
     /// See the [`inline_simple_functions`][self] module for more information.
-    pub(crate) fn inline_simple_functions(mut self: Ssa) -> Ssa {
+    pub(crate) fn inline_simple_functions(mut self: Ssa) -> Result<Ssa, RuntimeError> {
         let call_graph = CallGraph::from_ssa(&self);
         let recursive_functions = call_graph.get_recursive_functions();
 
@@ -67,17 +69,12 @@ impl Ssa {
 
             true
         };
+        self.functions = try_btree_map(&self.functions, |(id, function)| {
+            let inlined = function.inlined(&self, &should_inline_call);
+            inlined.map(|new_function| (*id, new_function))
+        })?;
 
-        self.functions = btree_map(&self.functions, |(id, function)| {
-            (
-                *id,
-                function
-                    .inlined(&self, &should_inline_call)
-                    .expect("simple function should not be recursive"),
-            )
-        });
-
-        self
+        Ok(self)
     }
 }
 
@@ -90,7 +87,7 @@ mod test {
 
     fn assert_does_not_inline(src: &str) {
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.inline_simple_functions();
+        let ssa = ssa.inline_simple_functions().unwrap();
         assert_normalized_ssa_equals(ssa, src);
     }
 
@@ -112,7 +109,7 @@ mod test {
         ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.inline_simple_functions();
+        let ssa = ssa.inline_simple_functions().unwrap();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: Field):
@@ -162,7 +159,7 @@ mod test {
         let ssa = Ssa::from_str(src).unwrap();
 
         // In the first pass it won't recognize that `main` could be simplified.
-        let mut ssa = ssa.inline_simple_functions();
+        let mut ssa = ssa.inline_simple_functions().unwrap();
         assert_ssa_snapshot!(&mut ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: Field):
@@ -181,7 +178,7 @@ mod test {
         ");
 
         // After `bar` has been simplified, it does `main` as well.
-        ssa = ssa.inline_simple_functions();
+        ssa = ssa.inline_simple_functions().unwrap();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: Field):
@@ -219,7 +216,7 @@ mod test {
         ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.inline_simple_functions();
+        let ssa = ssa.inline_simple_functions().unwrap();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: Field):

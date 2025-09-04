@@ -27,8 +27,6 @@ fn main() -> Result<(), String> {
 
     // Rebuild if the tests have changed
     println!("cargo:rerun-if-changed=tests");
-    // TODO: Running the tests changes the timestamps on test_programs files (file lock?).
-    // That has the knock-on effect of then needing to rebuild the tests after running the tests.
     println!("cargo:rerun-if-changed={}", test_dir.as_os_str().to_str().unwrap());
 
     generate_execution_success_tests(&mut test_file, &test_dir);
@@ -207,7 +205,7 @@ const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 9] = [
 
 /// These tests are ignored because of existing bugs in `nargo expand`.
 /// As the bugs are fixed these tests should be removed from this list.
-const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_NO_BUG_TESTS: [&str; 14] = [
+const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_NO_BUG_TESTS: [&str; 15] = [
     "noirc_frontend_tests_check_trait_as_type_as_fn_parameter",
     "noirc_frontend_tests_check_trait_as_type_as_two_fn_parameters",
     "noirc_frontend_tests_enums_match_on_empty_enum",
@@ -223,6 +221,7 @@ const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_NO_BUG_TESTS: [&str; 14] = [
     "noirc_frontend_tests_aliases_identity_numeric_type_alias_works",
     "noirc_frontend_tests_aliases_type_alias_to_numeric_as_generic",
     "noirc_frontend_tests_aliases_type_alias_to_numeric_generic",
+    "noirc_frontend_tests_traits_trait_bound_on_implementing_type",
 ];
 
 const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_WITH_BUG_TESTS: [&str; 0] = [];
@@ -742,7 +741,8 @@ fn generate_interpret_execution_success_tests(test_file: &mut File, test_data_di
 }
 
 /// Run integration tests with the `--minimal-ssa` option and check that the return
-/// value matches the expectations.
+/// value matches the expectations. This also enables `--force-brillig` since `--minimal-ssa`
+/// is only valid when all functions are unconstrained.
 fn generate_minimal_execution_success_tests(test_file: &mut File, test_data_dir: &Path) {
     let test_type = "execution_success";
     let test_cases = read_test_cases(test_data_dir, test_type);

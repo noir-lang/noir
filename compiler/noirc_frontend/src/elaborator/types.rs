@@ -9,9 +9,9 @@ use crate::{
     Generics, Kind, NamedGeneric, ResolvedGeneric, Type, TypeBinding, TypeBindings,
     UnificationError,
     ast::{
-        AsTraitPath, BinaryOpKind, GenericTypeArgs, Ident, IntegerBitSize, PathKind, UnaryOp,
-        UnresolvedGeneric, UnresolvedGenerics, UnresolvedType, UnresolvedTypeData,
-        UnresolvedTypeExpression, WILDCARD_TYPE,
+        AsTraitPath, BinaryOpKind, GenericTypeArgs, Ident, PathKind, UnaryOp, UnresolvedGeneric,
+        UnresolvedGenerics, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression,
+        WILDCARD_TYPE,
     },
     elaborator::UnstableFeature,
     hir::{
@@ -1458,20 +1458,6 @@ impl Elaborator<'_> {
             // Matches on TypeVariable must be first so that we follow any type
             // bindings.
             (TypeVariable(int), other) | (other, TypeVariable(int)) => {
-                if op.kind == BinaryOpKind::ShiftLeft || op.kind == BinaryOpKind::ShiftRight {
-                    self.unify(
-                        rhs_type,
-                        &Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight),
-                        || TypeCheckError::InvalidShiftSize { location },
-                    );
-                    let use_impl = if lhs_type.is_numeric_value() {
-                        let integer_type = self.polymorphic_integer();
-                        self.bind_type_variables_for_infix(lhs_type, op, &integer_type, location)
-                    } else {
-                        true
-                    };
-                    return Ok((lhs_type.clone(), use_impl));
-                }
                 if let TypeBinding::Bound(binding) = &*int.borrow() {
                     return self.infix_operand_type_rules(binding, op, other, location);
                 }
@@ -1479,12 +1465,6 @@ impl Elaborator<'_> {
                 Ok((other.clone(), use_impl))
             }
             (Integer(sign_x, bit_width_x), Integer(sign_y, bit_width_y)) => {
-                if op.kind == BinaryOpKind::ShiftLeft || op.kind == BinaryOpKind::ShiftRight {
-                    if *sign_y != Signedness::Unsigned || *bit_width_y != IntegerBitSize::Eight {
-                        return Err(TypeCheckError::InvalidShiftSize { location });
-                    }
-                    return Ok((Integer(*sign_x, *bit_width_x), false));
-                }
                 if sign_x != sign_y {
                     return Err(TypeCheckError::IntegerSignedness {
                         sign_x: *sign_x,
@@ -1535,12 +1515,6 @@ impl Elaborator<'_> {
             },
 
             (lhs, rhs) => {
-                if op.kind == BinaryOpKind::ShiftLeft || op.kind == BinaryOpKind::ShiftRight {
-                    if rhs == &Type::Integer(Signedness::Unsigned, IntegerBitSize::Eight) {
-                        return Ok((lhs.clone(), true));
-                    }
-                    return Err(TypeCheckError::InvalidShiftSize { location });
-                }
                 self.unify(lhs, rhs, || TypeCheckError::TypeMismatchWithSource {
                     expected: lhs.clone(),
                     actual: rhs.clone(),
@@ -1565,7 +1539,7 @@ impl Elaborator<'_> {
         use Type::*;
 
         match op {
-            crate::ast::UnaryOp::Minus | crate::ast::UnaryOp::Not => {
+            UnaryOp::Minus | UnaryOp::Not => {
                 match rhs_type {
                     // An error type will always return an error
                     Error => Ok((Error, false)),
@@ -1583,7 +1557,7 @@ impl Elaborator<'_> {
 
                         // The `!` prefix operator is not valid for Field, so if this is a numeric
                         // type we constrain it to just (non-Field) integer types.
-                        if matches!(op, crate::ast::UnaryOp::Not) && rhs_type.is_numeric_value() {
+                        if matches!(op, UnaryOp::Not) && rhs_type.is_numeric_value() {
                             let integer_type = Type::polymorphic_integer(self.interner);
                             self.unify(rhs_type, &integer_type, || {
                                 TypeCheckError::InvalidUnaryOp {
@@ -1619,14 +1593,13 @@ impl Elaborator<'_> {
                     _ => Ok((rhs_type.clone(), true)),
                 }
             }
-            crate::ast::UnaryOp::Reference { mutable } => {
-                let typ = Type::Reference(Box::new(rhs_type.follow_bindings()), *mutable);
+            UnaryOp::Reference { mutable } => {
+                let typ = Reference(Box::new(rhs_type.follow_bindings()), *mutable);
                 Ok((typ, false))
             }
-            crate::ast::UnaryOp::Dereference { implicitly_added: _ } => {
+            UnaryOp::Dereference { implicitly_added: _ } => {
                 let element_type = self.interner.next_type_variable();
-                let make_expected =
-                    |mutable| Type::Reference(Box::new(element_type.clone()), mutable);
+                let make_expected = |mutable| Reference(Box::new(element_type.clone()), mutable);
 
                 let immutable = make_expected(false);
                 let mutable = make_expected(true);
@@ -1712,7 +1685,7 @@ impl Elaborator<'_> {
         let dereference_lhs = |this: &mut Self, lhs_type, element| {
             let old_lhs = *access_lhs;
             *access_lhs = this.interner.push_expr(HirExpression::Prefix(HirPrefixExpression::new(
-                crate::ast::UnaryOp::Dereference { implicitly_added: true },
+                UnaryOp::Dereference { implicitly_added: true },
                 old_lhs,
             )));
             this.interner.push_expr_type(old_lhs, lhs_type);
@@ -2254,7 +2227,7 @@ impl Elaborator<'_> {
         }
     }
 
-    fn function_info(&self, function_body_id: ExprId) -> (noirc_errors::Location, bool) {
+    fn function_info(&self, function_body_id: ExprId) -> (Location, bool) {
         let (expr_location, empty_function) =
             if let HirExpression::Block(block) = self.interner.expression(&function_body_id) {
                 let last_stmt = block.statements().last();

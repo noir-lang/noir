@@ -6,13 +6,12 @@
 //! ACIR generation is performed by calling the [Ssa::into_acir] method, providing any necessary brillig bytecode.
 //! The compiled program will be returned as an [`Artifacts`] type.
 
-use fxhash::FxHashMap as HashMap;
+use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use noirc_errors::call_stack::CallStack;
-use std::collections::{BTreeMap, HashSet};
+use std::collections::BTreeMap;
 use types::{AcirDynamicArray, AcirValue};
 
 use acvm::acir::{
-    BlackBoxFunc,
     circuit::{
         AssertionPayload, ExpressionWidth, OpcodeLocation, brillig::BrilligFunctionId,
         opcodes::AcirFunctionId,
@@ -86,6 +85,12 @@ struct SharedContext<F: AcirField> {
     /// Keeps track of Brillig std lib calls per function that need to still be resolved
     /// with the correct function pointer from the `brillig_stdlib_func_pointer` map.
     brillig_stdlib_calls_to_resolve: HashMap<FunctionId, Vec<(OpcodeLocation, BrilligFunctionId)>>,
+
+    /// `used_globals` needs to be built from a function call graph.
+    ///
+    /// Maps an ACIR function to the globals used in that function.
+    /// This includes all globals used in functions called internally.
+    used_globals: HashMap<FunctionId, HashSet<ValueId>>,
 }
 
 impl<F: AcirField> SharedContext<F> {
@@ -240,7 +245,7 @@ impl<'a> Context<'a> {
             ssa_values: HashMap::default(),
             current_side_effects_enabled_var,
             acir_context,
-            initialized_arrays: HashSet::new(),
+            initialized_arrays: HashSet::default(),
             memory_blocks: HashMap::default(),
             internal_memory_blocks: HashMap::default(),
             internal_mem_block_lengths: HashMap::default(),
@@ -316,8 +321,37 @@ impl<'a> Context<'a> {
             expr.to_witness().expect("return vars should be witnesses")
         });
 
-        self.data_bus = dfg.data_bus.to_owned();
         let mut warnings = Vec::new();
+
+        let used_globals =
+            self.shared_context.used_globals.remove(&main_func.id()).unwrap_or_default();
+
+        let globals_dfg = (*main_func.dfg.globals).clone();
+        let globals_dfg = DataFlowGraph::from(globals_dfg);
+        for (id, value) in globals_dfg.values_iter() {
+            if !used_globals.contains(&id) {
+                continue;
+            }
+            match value {
+                Value::NumericConstant { .. } => {
+                    self.convert_value(id, dfg);
+                }
+                Value::Instruction { instruction, .. } => {
+                    warnings.extend(self.convert_ssa_instruction(
+                        *instruction,
+                        &globals_dfg,
+                        ssa,
+                    )?);
+                }
+                _ => {
+                    panic!(
+                        "Expected either an instruction or a numeric constant for a global value"
+                    )
+                }
+            }
+        }
+
+        self.data_bus = dfg.data_bus.to_owned();
         for instruction_id in entry_block.instructions() {
             warnings.extend(self.convert_ssa_instruction(*instruction_id, dfg, ssa)?);
         }
@@ -675,7 +709,7 @@ impl<'a> Context<'a> {
         ssa: &Ssa,
         result_ids: &[ValueId],
     ) -> Result<Vec<SsaReport>, RuntimeError> {
-        let mut warnings = Vec::new();
+        let warnings = Vec::new();
 
         match instruction {
             Instruction::Call { func, arguments } => {
@@ -795,14 +829,6 @@ impl<'a> Context<'a> {
                         }
                     }
                     Value::Intrinsic(intrinsic) => {
-                        if matches!(
-                            intrinsic,
-                            Intrinsic::BlackBox(BlackBoxFunc::RecursiveAggregation)
-                        ) {
-                            warnings.push(SsaReport::Warning(InternalWarning::VerifyProof {
-                                call_stack: self.acir_context.get_call_stack(),
-                            }));
-                        }
                         let outputs = self
                             .convert_ssa_intrinsic_call(*intrinsic, arguments, dfg, result_ids)?;
 
@@ -1431,6 +1457,7 @@ impl<'a> Context<'a> {
                 let new_slice_length = self.acir_context.sub_var(slice_length, one)?;
 
                 let slice = self.convert_value(slice_contents, dfg);
+                let is_dynamic = matches!(slice, AcirValue::DynamicArray(_));
 
                 let mut new_slice = self.read_array(slice)?;
 
@@ -1452,6 +1479,11 @@ impl<'a> Context<'a> {
 
                 // It is expected that the `popped_elements_size` is the flattened size of the elements,
                 // as the input slice should be a dynamic array which is represented by flat memory.
+                // However in some cases the input slice is an Array with a nested structure,
+                // in which case we only need to pop the items that represent a single entry.
+                let popped_elements_size =
+                    if is_dynamic { popped_elements_size } else { element_size };
+
                 new_slice = new_slice.slice(popped_elements_size..);
 
                 popped_elements.push(AcirValue::Var(new_slice_length, AcirType::field()));

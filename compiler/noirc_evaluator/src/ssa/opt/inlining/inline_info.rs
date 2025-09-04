@@ -173,16 +173,21 @@ fn compute_function_should_be_inlined(
     let function = &ssa.functions[&func_id];
     let assert_constant_id = function.dfg.get_intrinsic(Intrinsic::AssertConstant).copied();
     let static_assert_id = function.dfg.get_intrinsic(Intrinsic::StaticAssert).copied();
-    let contains_static_assertion = function.reachable_blocks().iter().any(|block| {
-        function.dfg[*block].instructions().iter().any(|instruction| {
-            match &function.dfg[*instruction] {
-                Instruction::Call { func, .. } => {
-                    Some(*func) == assert_constant_id || Some(*func) == static_assert_id
+
+    let contains_static_assertion = if assert_constant_id.is_none() && static_assert_id.is_none() {
+        false
+    } else {
+        function.reachable_blocks().iter().any(|block| {
+            function.dfg[*block].instructions().iter().any(|instruction| {
+                match &function.dfg[*instruction] {
+                    Instruction::Call { func, .. } => {
+                        Some(*func) == assert_constant_id || Some(*func) == static_assert_id
+                    }
+                    _ => false,
                 }
-                _ => false,
-            }
+            })
         })
-    });
+    };
 
     let neighbors = call_graph.graph().neighbors(index);
     let mut total_weight = compute_function_own_weight(function) as i64;

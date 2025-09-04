@@ -9,7 +9,10 @@ use crate::{
     ast::{IdentOrQuotedType, ItemVisibility, UnresolvedType},
     graph::CrateGraph,
     hir::def_collector::dc_crate::UnresolvedTrait,
-    hir_def::traits::{NamedType, ResolvedTraitBound},
+    hir_def::{
+        stmt::HirStatement,
+        traits::{NamedType, ResolvedTraitBound},
+    },
     node_interner::{GlobalValue, QuotedTypeId},
     token::SecondaryAttributeKind,
     usage_tracker::UsageTracker,
@@ -1164,10 +1167,17 @@ impl<'context> Elaborator<'context> {
         has_inline_attribute: bool,
         location: Location,
     ) {
-        if (is_entry_point && !typ.is_valid_for_program_input())
-            || (has_inline_attribute && !typ.is_valid_non_inlined_function_input())
-        {
-            self.push_err(TypeCheckError::InvalidTypeForEntryPoint { location });
+        if is_entry_point {
+            if let Some(invalid_type) = typ.program_input_validity() {
+                self.push_err(TypeCheckError::InvalidTypeForEntryPoint { invalid_type, location });
+                return;
+            }
+        }
+
+        if has_inline_attribute {
+            if let Some(invalid_type) = typ.non_inlined_function_input_validity() {
+                self.push_err(TypeCheckError::InvalidTypeForEntryPoint { invalid_type, location });
+            }
         }
     }
 
@@ -2170,6 +2180,12 @@ impl<'context> Elaborator<'context> {
         let (let_statement, _typ) = self
             .elaborate_in_comptime_context(|this| this.elaborate_let(let_stmt, Some(global_id)));
 
+        if let_statement.r#type.contains_reference() {
+            self.push_err(ResolverError::ReferencesNotAllowedInGlobals { location });
+        }
+
+        let let_statement = HirStatement::Let(let_statement);
+
         let statement_id = self.interner.get_global(global_id).let_statement;
         self.interner.replace_statement(statement_id, let_statement);
 
@@ -2652,7 +2668,7 @@ pub mod test_utils {
         };
 
         let mut monomorphizer =
-            Monomorphizer::new(elaborator.interner, DebugTypeTracker::default());
+            Monomorphizer::new(elaborator.interner, DebugTypeTracker::default(), false);
         Ok(monomorphizer.expr(expr_id).expect("monomorphization error while converting interpreter execution result, should not be possible"))
     }
 }

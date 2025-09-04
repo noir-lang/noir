@@ -272,7 +272,7 @@ pub enum InterpreterError {
 }
 
 #[allow(unused)]
-pub(super) type IResult<T> = std::result::Result<T, InterpreterError>;
+pub(super) type IResult<T> = Result<T, InterpreterError>;
 
 impl From<InterpreterError> for CompilationError {
     fn from(error: InterpreterError) -> Self {
@@ -521,8 +521,7 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                         "+" => "add",
                         "-" => "subtract",
                         "*" => "multiply",
-                        ">>" => "shift right",
-                        "<<" => "shift left",
+                        ">>" | "<<" => "bit-shift",
                         _ => operator,
                     };
                     format!("Attempt to {operator} with overflow")

@@ -1,4 +1,4 @@
-define: &AZ_COMMIT 3b763483388480356cd463a6447ade71cf6e1c50
+define: &AZ_COMMIT 8bd8f2033c441d7bb02feaa19528a71e93189db6
 projects:
   private-kernel-inner:
     repo: AztecProtocol/aztec-packages
@@ -8,7 +8,7 @@ projects:
     compilation-timeout: 3.0
     execution-timeout: 0.08
     compilation-memory-limit: 350
-    execution-memory-limit: 250
+    execution-memory-limit: 300
   private-kernel-tail:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
@@ -17,8 +17,8 @@ projects:
     timeout: 4
     compilation-timeout: 3
     execution-timeout: 0.04
-    compilation-memory-limit: 250
-    execution-memory-limit: 230
+    compilation-memory-limit: 300
+    execution-memory-limit: 250
   private-kernel-reset:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
@@ -56,7 +56,7 @@ projects:
     cannot_execute: true
     num_runs: 5
     timeout: 60
-    compilation-timeout: 25
+    compilation-timeout: 30
     compilation-memory-limit: 1500
   rollup-block-root-single-tx:
     repo: AztecProtocol/aztec-packages
