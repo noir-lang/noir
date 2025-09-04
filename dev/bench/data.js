@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1756997435577,
+  "lastUpdate": 1756999560072,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -20210,48 +20210,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "46e3595c36aedc1fa051c13b93d0ca931578d5e8",
-          "message": "feat(mem2reg): address last known value is independent of its aliases (take three) (#9633)",
-          "timestamp": "2025-08-27T12:37:17Z",
-          "tree_id": "7b89403e370f28a150daf7baf2f495eecd6f6fd7",
-          "url": "https://github.com/noir-lang/noir/commit/46e3595c36aedc1fa051c13b93d0ca931578d5e8"
-        },
-        "date": 1756300279311,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 249837,
-            "range": "± 760",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 217873,
-            "range": "± 6615",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2779383,
-            "range": "± 5170",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "cc0c20d4840a00025330a0b3420dd854544ac681",
           "message": "fix(expand): better handling of dereferences (again) (#9654)",
@@ -22294,6 +22252,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2812946,
             "range": "± 5735",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "387b9b20fed02cd4f06921e4315f0e7d056d92ff",
+          "message": "fix: error on boolean shift overflow in interpreter (#9724)",
+          "timestamp": "2025-09-04T14:58:49Z",
+          "tree_id": "4caa3baf937b42723d7ea5250e95135fdc60f728",
+          "url": "https://github.com/noir-lang/noir/commit/387b9b20fed02cd4f06921e4315f0e7d056d92ff"
+        },
+        "date": 1756999539588,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 260692,
+            "range": "± 768",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 228045,
+            "range": "± 5680",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2785159,
+            "range": "± 2679",
             "unit": "ns/iter"
           }
         ]
