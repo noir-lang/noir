@@ -447,7 +447,7 @@ impl<'f> LoopInvariantContext<'f> {
     }
 
     /// Checks whether a `block` is control dependent on any blocks after
-    /// the given loop's header.
+    /// the given loop's header (excluding itself and the header).
     fn is_control_dependent_post_header(
         &self,
         loop_: &Loop,
@@ -606,31 +606,33 @@ impl<'f> LoopInvariantContext<'f> {
     ) -> BlockContext {
         let dfg = &self.inserter.function.dfg;
 
-        // Find all blocks between the current block and the loop header, exclusive of the current block and loop header themselves.
+        // Find all blocks between the current block and the loop header.
         let mut all_predecessors = Loop::find_blocks_in_loop(loop_.header, block, &self.cfg).blocks;
-        all_predecessors.retain(|&predecessor| predecessor != block && predecessor != loop_.header);
 
-        // When hoisting a control dependent instruction, if a side effectual instruction comes in the predecessor block
-        // of that instruction we can no longer hoist the control dependent instruction.
-        // This is important for maintaining the execution order and semantic correctness of the code.
-        //
-        // Here we consider the header as a predecessor as well. In practice it doesn't matter,
-        // because an impure header implies that `does_execute` will be false, which already
-        // prevents hoisting instructions before we even look at `is_impure`, but it's clear
+        // For purity we consider the header as a predecessor as well (unless it's the block itself).
+        // In practice it doesn't matter, because an impure header implies that `does_execute` will be false,
+        // which already prevents hoisting instructions before we even look at `is_impure`, but it's clear
         // that the loop with side-effecting operations (typically a Load) in its header is impure.
         //
         // If the predecessors are all pure, the block might turn impure as and when we encounter
         // a side-effectful instruction in it later. Before that we can consider hoisting control
-        // dependent instructions.
-        let is_impure =
-            all_predecessors.iter().chain(std::iter::once(&loop_.header)).any(|block| {
-                dfg[*block]
-                    .instructions()
-                    .iter()
-                    .any(|instruction| dfg[*instruction].has_side_effects(dfg))
-            });
+        // dependent instructions. But the block we are going to process is considered pure until
+        // proven otherwise.
+        all_predecessors.remove(&block);
 
-        let does_execute = self.does_block_execute(loop_context, all_loops, block);
+        // When hoisting a control dependent instruction, if a side effectual instruction comes in the predecessor block
+        // of that instruction we can no longer hoist the control dependent instruction.
+        // This is important for maintaining the execution order and semantic correctness of the code.
+        let is_impure = all_predecessors.iter().any(|block| {
+            dfg[*block]
+                .instructions()
+                .iter()
+                .any(|instruction| dfg[*instruction].has_side_effects(dfg))
+        });
+
+        // For control dependence we don't consider the header: all blocks are obviously control
+        // dependent on it, as the header decides whether to loop one more time or not.
+        all_predecessors.remove(&loop_.header);
 
         let is_control_dependent = self.is_control_dependent_post_header(
             loop_,
@@ -639,6 +641,8 @@ impl<'f> LoopInvariantContext<'f> {
             &all_predecessors,
             &mut loop_context.nested_loop_control_dependent_blocks,
         );
+
+        let does_execute = self.does_block_execute(loop_context, all_loops, block);
 
         BlockContext {
             is_header: loop_.header == block,
@@ -1913,14 +1917,22 @@ mod test {
         let pre_header = BasicBlockId::new(0);
         let loop_ = loops.yet_to_unroll.pop().unwrap();
         let mut loop_ctx = ctx.init_loop_context(&loop_, pre_header);
-        let block_ctx = ctx.init_block_context(
-            &mut loop_ctx,
-            &loop_,
-            &loops.yet_to_unroll,
-            BasicBlockId::new(2),
-        );
-        assert!(!block_ctx.does_execute, "while loop execution treated as unknown");
-        assert!(block_ctx.is_impure, "header is already impure");
+
+        let mut get_block_ctx = |id| {
+            ctx.init_block_context(
+                &mut loop_ctx,
+                &loop_,
+                &loops.yet_to_unroll,
+                BasicBlockId::new(id),
+            )
+        };
+
+        let b1 = get_block_ctx(1);
+        assert!(!b1.is_impure, "header starts as pure until processed");
+
+        let b2_ctx = get_block_ctx(2);
+        assert!(!b2_ctx.does_execute, "while loop execution treated as unknown");
+        assert!(b2_ctx.is_impure, "header was impure");
     }
 }
 
