@@ -211,7 +211,8 @@ fn compute_function_should_be_inlined(
     let should_inline = (net_cost < aggressiveness)
         || runtime.is_inline_always()
         || (runtime.is_no_predicates() && inline_no_predicates_functions)
-        || contains_static_assertion;
+        || contains_static_assertion
+        || runtime.is_acir();
 
     info.should_inline = should_inline;
 }
