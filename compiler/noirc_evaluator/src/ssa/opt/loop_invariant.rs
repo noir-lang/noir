@@ -724,6 +724,7 @@ impl<'f> LoopInvariantContext<'f> {
                 if let (Type::Array(_, len), Some(upper_bound)) = (array_typ, upper_bound) {
                     upper_bound.apply(|i| i <= len.into(), |i| i <= len.into())
                 } else {
+                    // We're dealing with a loop that doesn't have a fixed upper bound.
                     false
                 }
             }
@@ -1988,6 +1989,32 @@ mod test {
         } else {
             assert_eq!(b2.instructions().len(), 1, "should hoist into nested pre-header");
         }
+    }
+
+    #[test]
+    fn do_not_hoist_array_get_from_loop_without_induction() {
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32, v11: u32):
+            v10 = make_array [u32 0, u32 0, u32 0, u32 0, u32 0] : [u32; 5]
+            v1 = allocate -> &mut u32
+            store u32 0 at v1
+            jmp b1()
+          b1():
+            v2 = load v1 -> u32
+            v3 = lt v2, u32 5
+            jmpif v3 then: b2, else: b3
+          b2():
+            v12 = array_get v10, index v11 -> u32
+            v4 = unchecked_add v2, u32 1
+            store v4 at v1
+            jmp b1()
+          b3():
+            return
+        }
+        "#;
+
+        assert_ssa_does_not_change(src, Ssa::loop_invariant_code_motion);
     }
 }
 
