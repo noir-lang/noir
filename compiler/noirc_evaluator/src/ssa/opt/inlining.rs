@@ -79,8 +79,6 @@ impl Ssa {
                 inline_no_predicates_functions,
                 aggressiveness,
             );
-            dbg!(&inline_infos);
-            println!("{}", self.print_with(None));
             self = Self::inline_functions_inner(self, &inline_infos)?;
 
             let num_functions_after = self.functions.len();
@@ -453,7 +451,7 @@ impl<'function> PerFunctionContext<'function> {
 
                         let callee = &ssa.functions[&func_id];
                         // Sanity check to validate runtime compatibility
-                        self.validate_callee(ssa, callee, call_stack)?;
+                        self.validate_callee(callee, call_stack)?;
                         if should_inline_call(callee) {
                             self.inline_function(ssa, *id, func_id, arguments, should_inline_call)?;
 
@@ -496,7 +494,6 @@ impl<'function> PerFunctionContext<'function> {
     /// Whether a valid callee should be inlined is determined separately by the inline info computation.
     fn validate_callee<'a>(
         &self,
-        ssa: &'a Ssa,
         callee: &Function,
         call_stack: Vec<Location>,
     ) -> Result<(), RuntimeError> {
@@ -511,48 +508,6 @@ impl<'function> PerFunctionContext<'function> {
         }
 
         Ok(())
-    }
-
-    fn should_inline_call<'a>(
-        &self,
-        ssa: &'a Ssa,
-        called_func_id: FunctionId,
-        call_stack: Vec<Location>,
-    ) -> Result<Option<&'a Function>, RuntimeError> {
-        // Do not inline self-recursive functions on the top level.
-        // Inlining a self-recursive function works when there is something to inline into
-        // by importing all the recursive blocks, but for the entry function there is no wrapper.
-        // if self.entry_function.id() == called_func_id {
-        //     return Ok(None);
-        // }
-
-        let callee = &ssa.functions[&called_func_id];
-
-        match callee.runtime() {
-            RuntimeType::Acir(inline_type) => {
-                // If the called function is acir, we inline if it's not an entry point
-                // If it is called from brillig, it cannot be inlined because runtimes do not share the same semantic
-                if self.entry_function.runtime().is_brillig() {
-                    return Err(RuntimeError::UnconstrainedCallingConstrained {
-                        call_stack,
-                        constrained: callee.name().to_string(),
-                        unconstrained: self.entry_function.name().to_string(),
-                    });
-                }
-                // if inline_type.is_entry_point() {
-                //     assert!(!self.entry_function.runtime().is_brillig());
-                //     return Ok(None);
-                // }
-            }
-            RuntimeType::Brillig(_) => {
-                // if self.entry_function.runtime().is_acir() {
-                //     // We never inline a brillig function into an ACIR function.
-                //     return Ok(None);
-                // }
-            }
-        }
-
-        Ok(Some(callee))
     }
 
     /// Inline a function call and remember the inlined return values in the values map
