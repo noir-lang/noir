@@ -1295,7 +1295,7 @@ mod tests {
             v4 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
             v5 = array_get v4, index v0 -> Field
             return
-                    }
+        }
         ";
         let _ = Ssa::from_str(src).unwrap();
     }
