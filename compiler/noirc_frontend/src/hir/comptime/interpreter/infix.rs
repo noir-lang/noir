@@ -20,8 +20,8 @@ pub(super) fn evaluate_infix(
         let rhs = rhs_type.clone();
         InterpreterError::InvalidValuesForBinary { lhs, rhs, location, operator }
     };
-    let lhs_overflow = InterpreterError::BinaryOperationOverflow { operator: "SHL", location };
-    let rhs_overflow = InterpreterError::BinaryOperationOverflow { operator: "SHR", location };
+    let lhs_overflow = InterpreterError::BinaryOperationOverflow { operator: "<<", location };
+    let rhs_overflow = InterpreterError::BinaryOperationOverflow { operator: ">>", location };
     let math_error = |operator| InterpreterError::BinaryOperationOverflow { location, operator };
 
     /// Generate matches that can promote the type of one side to the other if they are compatible.
