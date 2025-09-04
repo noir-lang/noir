@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1757006884076,
+  "lastUpdate": 1757006893965,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -12112,80 +12112,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "cc0c20d4840a00025330a0b3420dd854544ac681",
-          "message": "fix(expand): better handling of dereferences (again) (#9654)",
-          "timestamp": "2025-08-27T14:40:32Z",
-          "tree_id": "2db72233dbf089e2f94f49f83e4fb86d5c775473",
-          "url": "https://github.com/noir-lang/noir/commit/cc0c20d4840a00025330a0b3420dd854544ac681"
-        },
-        "date": 1756308430882,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 212.98,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 246.18,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 197.81,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 501.57,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 434.03,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1500,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 328.36,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 330.89,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 69.53,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 55.03,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -15755,6 +15681,80 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/387b9b20fed02cd4f06921e4315f0e7d056d92ff"
         },
         "date": 1757000312551,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 258.14,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 291.33,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 242.94,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 503.7,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 436.08,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1500,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 330.47,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 332.99,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 72.43,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 58.23,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "84741533+defkit@users.noreply.github.com",
+            "name": "defkit",
+            "username": "defkit"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5fe0c5025a302a63f5df8c5e8c4a291236fe8612",
+          "message": "chore(ssa_fuzzer): refactor ssa fuzzer (#9651)",
+          "timestamp": "2025-09-04T16:38:52Z",
+          "tree_id": "cbdee64ce834bff8e0523d332785517acec60e7d",
+          "url": "https://github.com/noir-lang/noir/commit/5fe0c5025a302a63f5df8c5e8c4a291236fe8612"
+        },
+        "date": 1757006872047,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
