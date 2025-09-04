@@ -687,12 +687,17 @@ impl<'f> LoopInvariantContext<'f> {
             return true;
         }
 
-        self.can_be_hoisted_from_loop_bounds(loop_context, &instruction)
-            || match can_be_hoisted(&instruction, self.inserter.function) {
-                Yes => true,
-                No => false,
-                WithPredicate => block_context.can_hoist_control_dependent_instruction(),
-            }
+        // Check if the operation depends only on the outer loop variable, in which case it can be hoisted
+        // into the pre-header of a nested loop even if the nested loop does not execute.
+        if self.can_be_hoisted_from_loop_bounds(loop_context, &instruction) {
+            return true;
+        }
+
+        match can_be_hoisted(&instruction, self.inserter.function) {
+            Yes => true,
+            No => false,
+            WithPredicate => block_context.can_hoist_control_dependent_instruction(),
+        }
     }
 
     /// Certain instructions can take advantage of that our induction variable has a fixed minimum/maximum.
@@ -781,6 +786,7 @@ fn get_induction_var_bounds(
 }
 
 /// Indicate whether an instruction can be hoisted.
+#[derive(Debug)]
 enum CanBeHoistedResult {
     Yes,
     No,
@@ -882,6 +888,7 @@ mod test {
     use crate::ssa::opt::loop_invariant::LoopInvariantContext;
     use crate::ssa::opt::unrolling::Loops;
     use crate::ssa::opt::{assert_normalized_ssa_equals, assert_ssa_does_not_change};
+    use test_case::test_case;
 
     #[test]
     fn hoists_casts() {
@@ -1934,6 +1941,53 @@ mod test {
         let b2_ctx = get_block_ctx(2);
         assert!(!b2_ctx.does_execute, "while loop execution treated as unknown");
         assert!(b2_ctx.is_impure, "header was impure");
+    }
+
+    /// Test cases where array_get should or shouldn't be hoisted from an inner loop
+    /// when its indexed by the outer loop induction variable.
+    #[test_case(4, 1, true; "upper less than size and both execute")]
+    #[test_case(5, 1, true; "upper equal size and both execute")]
+    #[test_case(6, 1, true; "upper greater than size and both execute")]
+    #[test_case(0, 1, true; "upper less than size but outer does not execute")]
+    #[test_case(4, 0, true; "upper less than size but inner does not execute")]
+    #[test_case(6, 0, false; "upper greater than size but inner does not execute")]
+    fn hoist_from_loop_bounds_array(outer_upper: u32, inner_upper: u32, should_hoist: bool) {
+        let src = format!(
+            r#"
+        acir(inline) predicate_pure fn main f0 {{
+          b0(v0: u32):
+            v10 = make_array [u32 0, u32 0, u32 0, u32 0, u32 0] : [u32; 5]
+            jmp b1(u32 0)
+          b1(v1: u32):
+            v2 = lt v1, u32 {outer_upper}
+            jmpif v2 then: b2, else: b3
+          b2():
+            jmp b4(u32 0)
+          b3():
+            return
+          b4(v3: u32):
+            v4 = lt v3, u32 {inner_upper}
+            jmpif v4 then: b5, else: b6
+          b5():
+            v11 = array_get v10, index v1 -> u32
+            v5 = unchecked_add v3, u32 1
+            jmp b4(v5)
+          b6():
+            v6 = unchecked_add v1, u32 1
+            jmp b1(v6)
+        }}
+        "#
+        );
+
+        let ssa = Ssa::from_str(&src).unwrap();
+        let ssa = ssa.loop_invariant_code_motion();
+        // The pre-header of the loop b4 is b2
+        let b2 = &ssa.main().dfg[BasicBlockId::new(2)];
+        if !should_hoist {
+            assert!(b2.instructions().is_empty(), "should not hoist");
+        } else {
+            assert_eq!(b2.instructions().len(), 1, "should hoist into nested pre-header");
+        }
     }
 }
 
