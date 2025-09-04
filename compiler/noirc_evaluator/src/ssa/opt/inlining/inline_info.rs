@@ -68,6 +68,7 @@ pub(crate) fn compute_inline_infos(
     ssa: &Ssa,
     call_graph: &CallGraph,
     inline_no_predicates_functions: bool,
+    only_inline_simple_functions: bool,
     aggressiveness: i64,
 ) -> InlineInfos {
     let mut inline_infos = InlineInfos::default();
@@ -110,6 +111,7 @@ pub(crate) fn compute_inline_infos(
         compute_function_should_be_inlined(
             ssa,
             inline_no_predicates_functions,
+            only_inline_simple_functions,
             aggressiveness,
             &times_called,
             &mut inline_infos,
@@ -127,6 +129,7 @@ pub(crate) fn compute_inline_infos(
         compute_function_should_be_inlined(
             ssa,
             inline_no_predicates_functions,
+            only_inline_simple_functions,
             aggressiveness,
             &times_called,
             &mut inline_infos,
@@ -156,9 +159,11 @@ pub(crate) fn compute_inline_infos(
 /// A function's net cost is then (cost of inlining - cost of retaining).
 /// The net cost is then compared against the inliner aggressiveness setting. If the net cost is less than the aggressiveness,
 /// we inline the function (granted there are not other restrictions such as recursion).
+#[allow(clippy::too_many_arguments)]
 fn compute_function_should_be_inlined(
     ssa: &Ssa,
     inline_no_predicates_functions: bool,
+    only_inline_simple_functions: bool,
     aggressiveness: i64,
     times_called: &HashMap<FunctionId, usize>,
     inline_infos: &mut InlineInfos,
@@ -218,12 +223,20 @@ fn compute_function_should_be_inlined(
     let entry_block = &function.dfg[entry_block_id];
     let should_inline_no_pred_function =
         runtime.is_no_predicates() && inline_no_predicates_functions;
-    let should_inline = (instruction_weight < MAX_INSTRUCTIONS as i64
-        && entry_block.successors().next().is_none())
-        || net_cost < aggressiveness
-        || runtime.is_inline_always()
-        || should_inline_no_pred_function
-        || contains_static_assertion;
+    let is_simple_function =
+        instruction_weight < MAX_INSTRUCTIONS as i64 && entry_block.successors().next().is_none();
+
+    let should_inline = if only_inline_simple_functions {
+        // When the flag is active we only want to inline simple functions
+        is_simple_function
+    } else {
+        // When the flag is inactive we use our normal heuristics, but also allow simple functions
+        is_simple_function
+            || net_cost < aggressiveness
+            || runtime.is_inline_always()
+            || should_inline_no_pred_function
+            || contains_static_assertion
+    };
 
     info.should_inline = should_inline;
 }
@@ -369,7 +382,7 @@ mod tests {
 
         let ssa = Ssa::from_str(src).unwrap();
         let call_graph = CallGraph::from_ssa_weighted(&ssa);
-        let inline_infos = compute_inline_infos(&ssa, &call_graph, false, i64::MAX);
+        let inline_infos = compute_inline_infos(&ssa, &call_graph, false, false, i64::MAX);
 
         let func_0 = inline_infos.get(&Id::test_new(0)).expect("Should have computed inline info");
         assert!(!func_0.is_recursive);
@@ -493,7 +506,7 @@ mod tests {
 
         let ssa = Ssa::from_str(src).unwrap();
         let call_graph = CallGraph::from_ssa_weighted(&ssa);
-        let infos = compute_inline_infos(&ssa, &call_graph, false, 0);
+        let infos = compute_inline_infos(&ssa, &call_graph, false, false, 0);
 
         let f1 = infos.get(&Id::test_new(1)).expect("f1 should be analyzed");
         assert!(
@@ -519,7 +532,7 @@ mod tests {
 
         let ssa = Ssa::from_str(src).unwrap();
         let call_graph = CallGraph::from_ssa_weighted(&ssa);
-        let infos = compute_inline_infos(&ssa, &call_graph, false, 0);
+        let infos = compute_inline_infos(&ssa, &call_graph, false, false, 0);
 
         let f1 = infos.get(&Id::test_new(1)).expect("Should analyze f1");
         assert!(
@@ -527,7 +540,7 @@ mod tests {
             "no_predicates functions should NOT be inlined if the flag is false"
         );
 
-        let infos = compute_inline_infos(&ssa, &call_graph, true, 0);
+        let infos = compute_inline_infos(&ssa, &call_graph, true, false, 0);
 
         let f1 = infos.get(&Id::test_new(1)).expect("Should analyze f1");
         assert!(f1.should_inline, "no_predicates functions should be inlined if the flag is true");
@@ -550,7 +563,7 @@ mod tests {
 
         let ssa = Ssa::from_str(src).unwrap();
         let call_graph = CallGraph::from_ssa_weighted(&ssa);
-        let infos = compute_inline_infos(&ssa, &call_graph, false, 0);
+        let infos = compute_inline_infos(&ssa, &call_graph, false, false, 0);
 
         let f1 = infos.get(&Id::test_new(1)).expect("Should analyze f1");
         assert!(f1.should_inline, "inline_always functions should be inlined");

@@ -18,8 +18,13 @@ impl Ssa {
         let bottom_up = inlining::inline_info::compute_bottom_up_order(&self, &call_graph);
 
         // Preliminary inlining decisions.
-        let inline_infos =
-            inlining::inline_info::compute_inline_infos(&self, &call_graph, false, aggressiveness);
+        let inline_infos = inlining::inline_info::compute_inline_infos(
+            &self,
+            &call_graph,
+            false,
+            false,
+            aggressiveness,
+        );
 
         let should_inline_call = |callee: &Function| -> bool {
             match callee.runtime() {

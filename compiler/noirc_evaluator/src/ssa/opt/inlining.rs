@@ -52,7 +52,7 @@ impl Ssa {
     /// This step should run after runtime separation, since it relies on the runtime of the called functions being final.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn inline_functions(self, aggressiveness: i64) -> Result<Ssa, RuntimeError> {
-        self.inline_until_fixed_point(aggressiveness, false)
+        self.inline_until_fixed_point(aggressiveness, false, false)
     }
 
     /// Run the inlining pass where functions marked with `InlineType::NoPredicates` as not entry points
@@ -60,7 +60,18 @@ impl Ssa {
         self,
         aggressiveness: i64,
     ) -> Result<Ssa, RuntimeError> {
-        self.inline_until_fixed_point(aggressiveness, true)
+        self.inline_until_fixed_point(aggressiveness, true, false)
+    }
+
+    /// Only inline calls to simple functions.
+    ///
+    /// A simple function is defined as the following:
+    /// - Contains no more than [MAX_INSTRUCTIONS] instructions
+    /// - The function only has a single block (e.g. no control flow or conditional branches)
+    /// - It is not marked with the [no predicates inline type][noirc_frontend::monomorphization::ast::InlineType::NoPredicates]
+    /// - It is not recursive
+    pub(crate) fn inline_functions_simple(self) -> Result<Ssa, RuntimeError> {
+        self.inline_until_fixed_point(i64::MIN, true, true)
     }
 
     /// Inline functions repeatedly until no new functions are inlined.
@@ -68,6 +79,7 @@ impl Ssa {
         mut self,
         aggressiveness: i64,
         inline_no_predicates_functions: bool,
+        inline_simple_functions: bool,
     ) -> Result<Ssa, RuntimeError> {
         loop {
             let num_functions_before = self.functions.len();
@@ -77,6 +89,7 @@ impl Ssa {
                 &self,
                 &call_graph,
                 inline_no_predicates_functions,
+                inline_simple_functions,
                 aggressiveness,
             );
             self =
