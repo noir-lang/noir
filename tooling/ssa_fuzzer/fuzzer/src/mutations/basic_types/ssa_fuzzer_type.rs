@@ -2,10 +2,10 @@ use crate::mutations::{
     basic_types::numeric_type::generate_random_numeric_type,
     configuration::{
         BASIC_GENERATE_NUMERIC_TYPE_CONFIGURATION, BASIC_GENERATE_TYPE_CONFIGURATION, GenerateType,
-        GenerateTypeConfig,
+        GenerateTypeConfig, MAX_ARRAY_SIZE,
     },
 };
-use noir_ssa_fuzzer::r#type::Type;
+use noir_ssa_fuzzer::typed_value::Type;
 use rand::{Rng, rngs::StdRng};
 use std::sync::Arc;
 
@@ -19,7 +19,7 @@ fn generate_random_reference_type(rng: &mut StdRng, config: GenerateTypeConfig) 
 fn generate_random_array_type(rng: &mut StdRng, config: GenerateTypeConfig) -> Type {
     Type::Array(
         Arc::new(vec![generate_random_ssa_fuzzer_type(rng, config)]),
-        rng.gen_range(u8::MIN..u8::MAX).into(),
+        rng.gen_range(1..MAX_ARRAY_SIZE) as u32, // empty arrays are not allowed
     )
 }
 
@@ -42,11 +42,6 @@ pub(crate) fn generate_random_ssa_fuzzer_type(
     }
 }
 
-// TODO
-pub(crate) fn mutate_ssa_fuzzer_type(
-    type_: &mut Type,
-    rng: &mut StdRng,
-    _config: GenerateTypeConfig,
-) {
+pub(crate) fn mutate_ssa_fuzzer_type(type_: &mut Type, rng: &mut StdRng) {
     *type_ = generate_random_ssa_fuzzer_type(rng, BASIC_GENERATE_TYPE_CONFIGURATION);
 }

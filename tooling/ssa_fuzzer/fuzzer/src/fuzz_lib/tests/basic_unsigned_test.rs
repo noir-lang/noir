@@ -13,25 +13,24 @@
 //! 11) Xor
 
 use crate::function_context::FunctionData;
-use crate::function_context::WitnessValue;
 use crate::fuzz_target_lib::fuzz_target;
 use crate::fuzzer::FuzzerData;
-use crate::instruction::{Argument, Instruction, InstructionBlock};
+use crate::initial_witness::{WitnessValue, WitnessValueNumeric};
+use crate::instruction::{Instruction, InstructionBlock, NumericArgument};
 use crate::options::FuzzerOptions;
-use crate::{NUMBER_OF_PREDEFINED_VARIABLES, NUMBER_OF_VARIABLES_INITIAL};
+use crate::tests::common::default_input_types;
 use acvm::FieldElement;
-use noir_ssa_fuzzer::r#type::{NumericType, Type};
+use noir_ssa_fuzzer::typed_value::{NumericType, Type};
 
 /// Creates default witness values for testing
 /// Returns [U64(0), U64(1), U64(2), U64(3), U64(4)]
-fn default_unsigned_witness()
--> [WitnessValue; (NUMBER_OF_VARIABLES_INITIAL - NUMBER_OF_PREDEFINED_VARIABLES) as usize] {
-    [
-        WitnessValue::U64(0),
-        WitnessValue::U64(1),
-        WitnessValue::U64(2),
-        WitnessValue::U64(3),
-        WitnessValue::U64(4),
+fn default_unsigned_witness() -> Vec<WitnessValue> {
+    vec![
+        WitnessValue::Numeric(WitnessValueNumeric::U64(0)),
+        WitnessValue::Numeric(WitnessValueNumeric::U64(1)),
+        WitnessValue::Numeric(WitnessValueNumeric::U64(2)),
+        WitnessValue::Numeric(WitnessValueNumeric::U64(3)),
+        WitnessValue::Numeric(WitnessValueNumeric::U64(4)),
     ]
 }
 
@@ -51,8 +50,8 @@ enum UnsignedOp {
 
 /// Returns `4_u64 op 2_u64` if binary, `op 4_u64` if unary
 fn test_op_u64(op: UnsignedOp) -> FieldElement {
-    let arg_2_u64 = Argument { index: 2, numeric_type: NumericType::U64 };
-    let arg_4_u64 = Argument { index: 4, numeric_type: NumericType::U64 };
+    let arg_2_u64 = NumericArgument { index: 2, numeric_type: NumericType::U64 };
+    let arg_4_u64 = NumericArgument { index: 4, numeric_type: NumericType::U64 };
     let instruction = match op {
         UnsignedOp::Add => Instruction::AddChecked { lhs: arg_4_u64, rhs: arg_2_u64 },
         UnsignedOp::Sub => Instruction::SubChecked { lhs: arg_4_u64, rhs: arg_2_u64 },
@@ -72,6 +71,7 @@ fn test_op_u64(op: UnsignedOp) -> FieldElement {
         instruction_blocks: vec![instruction_block],
         functions: vec![FunctionData {
             commands: vec![],
+            input_types: default_input_types(),
             return_instruction_block_idx: 0,
             return_type: Type::Numeric(NumericType::U64),
         }],

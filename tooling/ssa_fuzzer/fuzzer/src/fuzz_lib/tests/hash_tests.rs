@@ -7,12 +7,12 @@
 use crate::function_context::{FunctionData, FuzzerFunctionCommand};
 use crate::fuzz_target_lib::fuzz_target;
 use crate::fuzzer::FuzzerData;
-use crate::instruction::{Argument, Instruction, InstructionBlock};
+use crate::instruction::{Instruction, InstructionBlock, NumericArgument};
 use crate::options::FuzzerOptions;
-use crate::tests::common::default_witness;
+use crate::tests::common::{default_input_types, default_witness};
 use acvm::FieldElement;
-use noir_ssa_fuzzer::r#type::NumericType;
-use noir_ssa_fuzzer::r#type::Type;
+use noir_ssa_fuzzer::typed_value::NumericType;
+use noir_ssa_fuzzer::typed_value::Type;
 
 /// blake2s(to_le_radix(0, 256, 32)) == blake2s computed with noir
 ///
@@ -31,6 +31,7 @@ fn smoke_test_blake2s_hash() {
     let instructions_blocks = vec![blake2s_hash_block];
     let commands = vec![];
     let main_func = FunctionData {
+        input_types: default_input_types(),
         commands,
         return_instruction_block_idx: 0,
         return_type: Type::Numeric(NumericType::Field),
@@ -70,6 +71,7 @@ fn smoke_test_blake3_hash() {
     let instructions_blocks = vec![blake3_hash_block];
     let commands = vec![];
     let main_func = FunctionData {
+        input_types: default_input_types(),
         commands,
         return_instruction_block_idx: 0,
         return_type: Type::Numeric(NumericType::Field),
@@ -114,6 +116,7 @@ fn smoke_test_aes128_encrypt() {
     let instructions_blocks = vec![aes128_encrypt_block];
     let commands = vec![];
     let main_func = FunctionData {
+        input_types: default_input_types(),
         commands,
         return_instruction_block_idx: 0,
         return_type: Type::Numeric(NumericType::Field),
@@ -147,7 +150,7 @@ fn smoke_test_keccakf1600() {
     let _ = env_logger::try_init();
     // default witness are fields
     // so take the first one and cast it to u64
-    let arg_0_field = Argument { index: 0, numeric_type: NumericType::Field };
+    let arg_0_field = NumericArgument { index: 0, numeric_type: NumericType::Field };
     let cast_block = InstructionBlock {
         instructions: vec![Instruction::Cast { lhs: arg_0_field, type_: NumericType::U64 }],
     };
@@ -163,6 +166,7 @@ fn smoke_test_keccakf1600() {
         vec![FuzzerFunctionCommand::InsertSimpleInstructionBlock { instruction_block_idx: 0 }];
     // this function will take the last defined u64, which is equal to the last element of the keccakf1600 permuted array
     let main_func = FunctionData {
+        input_types: default_input_types(),
         commands,
         return_instruction_block_idx: 1,
         return_type: Type::Numeric(NumericType::U64),
@@ -191,7 +195,7 @@ fn smoke_test_keccakf1600() {
 #[test]
 fn smoke_test_sha256_compression() {
     let _ = env_logger::try_init();
-    let arg_0_field = Argument { index: 0, numeric_type: NumericType::Field };
+    let arg_0_field = NumericArgument { index: 0, numeric_type: NumericType::Field };
     let cast_block = InstructionBlock {
         instructions: vec![Instruction::Cast { lhs: arg_0_field, type_: NumericType::U32 }],
     };
@@ -206,6 +210,7 @@ fn smoke_test_sha256_compression() {
     let commands =
         vec![FuzzerFunctionCommand::InsertSimpleInstructionBlock { instruction_block_idx: 0 }];
     let main_func = FunctionData {
+        input_types: default_input_types(),
         commands,
         return_instruction_block_idx: 1,
         return_type: Type::Numeric(NumericType::U32),

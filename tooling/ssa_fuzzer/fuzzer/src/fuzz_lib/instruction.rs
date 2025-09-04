@@ -1,6 +1,6 @@
 use libfuzzer_sys::arbitrary;
 use libfuzzer_sys::arbitrary::Arbitrary;
-use noir_ssa_fuzzer::r#type::{NumericType, Type};
+use noir_ssa_fuzzer::typed_value::{NumericType, Type};
 use serde::{Deserialize, Serialize};
 use strum_macros::EnumCount;
 #[derive(Arbitrary, Debug, Clone, Copy, Serialize, Deserialize)]
@@ -10,7 +10,7 @@ pub(crate) struct Array {
 }
 
 #[derive(Arbitrary, Debug, Clone, Copy, Serialize, Deserialize)]
-pub(crate) struct Argument {
+pub(crate) struct NumericArgument {
     /// Index of the argument in the context of stored variables of this type
     /// e.g. if we have variables with ids [0, 1] in u64 vector and variables with ids [5, 8] in fields vector
     /// Argument(Index(0), ValueType::U64) -> id 0
@@ -19,6 +19,12 @@ pub(crate) struct Argument {
     pub(crate) index: usize,
     /// Type of the argument
     pub(crate) numeric_type: NumericType,
+}
+
+#[derive(Arbitrary, Debug, Clone, Serialize, Deserialize)]
+pub(crate) struct Argument {
+    pub(crate) index: usize,
+    pub(crate) value_type: Type,
 }
 
 #[derive(Arbitrary, Debug, Clone, Copy, Serialize, Deserialize, Default)]
@@ -44,34 +50,34 @@ pub(crate) type PointAndScalar = (Point, Scalar);
 #[derive(Arbitrary, Debug, Clone, Serialize, Deserialize, EnumCount)]
 pub(crate) enum Instruction {
     /// Addition of two values
-    AddChecked { lhs: Argument, rhs: Argument },
+    AddChecked { lhs: NumericArgument, rhs: NumericArgument },
     /// Subtraction of two values
-    SubChecked { lhs: Argument, rhs: Argument },
+    SubChecked { lhs: NumericArgument, rhs: NumericArgument },
     /// Multiplication of two values
-    MulChecked { lhs: Argument, rhs: Argument },
+    MulChecked { lhs: NumericArgument, rhs: NumericArgument },
     /// Division of two values
-    Div { lhs: Argument, rhs: Argument },
+    Div { lhs: NumericArgument, rhs: NumericArgument },
     /// Equality comparison
-    Eq { lhs: Argument, rhs: Argument },
+    Eq { lhs: NumericArgument, rhs: NumericArgument },
     /// Modulo operation
-    Mod { lhs: Argument, rhs: Argument },
+    Mod { lhs: NumericArgument, rhs: NumericArgument },
     /// Bitwise NOT
-    Not { lhs: Argument },
+    Not { lhs: NumericArgument },
     /// Left shift
-    Shl { lhs: Argument, rhs: Argument },
+    Shl { lhs: NumericArgument, rhs: NumericArgument },
     /// Right shift
-    Shr { lhs: Argument, rhs: Argument },
+    Shr { lhs: NumericArgument, rhs: NumericArgument },
     /// Cast into type
-    Cast { lhs: Argument, type_: NumericType },
+    Cast { lhs: NumericArgument, type_: NumericType },
     /// Bitwise AND
-    And { lhs: Argument, rhs: Argument },
+    And { lhs: NumericArgument, rhs: NumericArgument },
     /// Bitwise OR
-    Or { lhs: Argument, rhs: Argument },
+    Or { lhs: NumericArgument, rhs: NumericArgument },
     /// Bitwise XOR
-    Xor { lhs: Argument, rhs: Argument },
+    Xor { lhs: NumericArgument, rhs: NumericArgument },
 
     /// Less than comparison
-    Lt { lhs: Argument, rhs: Argument },
+    Lt { lhs: NumericArgument, rhs: NumericArgument },
 
     /// constrain(lhs == lhs + rhs - rhs), doesn't insert constraint if idempotent_morphing_enabled=false
     /// uses only fields variables
@@ -90,18 +96,19 @@ pub(crate) enum Instruction {
     LoadFromMemory { memory_addr: Argument },
     /// Store value to mutable memory
     /// Stores value to memory with insert_store
+    /// If reference to this type is not found, allocates memory for it and stores value to it
     SetToMemory { memory_addr_index: usize, value: Argument },
 
     /// Create array, only type of first argument is used
     /// Other elements will be taken from stored variables of the same type
-    CreateArray { elements_indices: Vec<usize>, element_type: NumericType, is_references: bool },
+    CreateArray { elements_indices: Vec<usize>, element_type: Type },
     /// Get element from array, index will be casted to u32, only for arrays without references
     /// If safe_index is true, index will be taken modulo the size of the array
-    ArrayGet { array_index: usize, index: Argument, safe_index: bool },
+    ArrayGet { array_index: usize, index: NumericArgument, safe_index: bool },
     /// Set element in array, index will be casted to u32, only for arrays without references
     /// Value will be cast to the type of the array
     /// If safe_index is true, index will be taken modulo the size of the array
-    ArraySet { array_index: usize, index: Argument, value_index: usize, safe_index: bool },
+    ArraySet { array_index: usize, index: NumericArgument, value_index: usize, safe_index: bool },
     /// Get element from array, index is constant
     /// If safe_index is true, index will be taken modulo the size of the array
     ArrayGetWithConstantIndex { array_index: usize, index: usize, safe_index: bool },
@@ -185,8 +192,8 @@ pub(crate) enum Instruction {
 impl Default for Instruction {
     fn default() -> Self {
         Self::Xor {
-            lhs: Argument { index: 0, numeric_type: NumericType::Boolean },
-            rhs: Argument { index: 0, numeric_type: NumericType::Boolean },
+            lhs: NumericArgument { index: 0, numeric_type: NumericType::Boolean },
+            rhs: NumericArgument { index: 0, numeric_type: NumericType::Boolean },
         }
     }
 }

@@ -3,9 +3,9 @@ use crate::fuzz_target_lib::fuzz_target;
 use crate::fuzzer::FuzzerData;
 use crate::instruction::{Instruction, InstructionBlock, Point, Scalar};
 use crate::options::FuzzerOptions;
-use crate::tests::common::default_witness;
+use crate::tests::common::{default_input_types, default_witness};
 use acvm::FieldElement;
-use noir_ssa_fuzzer::r#type::{NumericType, Type};
+use noir_ssa_fuzzer::typed_value::{NumericType, Type};
 
 /// fn main(lo: Field) -> pub Field {
 ///     let scalar_1 = std::embedded_curve_ops::EmbeddedCurveScalar::new(lo, 0);
@@ -36,6 +36,7 @@ fn smoke_test_embedded_curve_add() {
     let commands = vec![];
     let function = FunctionData {
         commands,
+        input_types: default_input_types(),
         return_instruction_block_idx: 0,
         return_type: Type::Numeric(NumericType::Field),
     };
@@ -80,6 +81,7 @@ fn smoke_test_embedded_multi_scalar_mul() {
     let commands = vec![];
     let function = FunctionData {
         commands,
+        input_types: default_input_types(),
         return_instruction_block_idx: 0,
         return_type: Type::Numeric(NumericType::Field),
     };
