@@ -9,7 +9,7 @@ fn type_contains_slice_or_reference(type_: &Type) -> bool {
     match type_ {
         Type::Slice(_) => true,
         Type::Reference(_) => true,
-        Type::Array(arr, _) => arr.iter().any(|t| type_contains_slice_or_reference(t)),
+        Type::Array(arr, _) => arr.iter().any(type_contains_slice_or_reference),
         Type::Numeric(_) => false,
     }
 }

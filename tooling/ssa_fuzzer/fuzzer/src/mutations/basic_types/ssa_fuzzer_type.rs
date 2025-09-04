@@ -9,9 +9,6 @@ use noir_ssa_fuzzer::typed_value::Type;
 use rand::{Rng, rngs::StdRng};
 use std::sync::Arc;
 
-// god save me
-// can be Reference(Array(Reference(Slice(Reference(Numeric)))))
-// hope can handle it
 fn generate_random_reference_type(rng: &mut StdRng, config: GenerateTypeConfig) -> Type {
     Type::Reference(Arc::new(generate_random_ssa_fuzzer_type(rng, config)))
 }
