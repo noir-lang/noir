@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1756996980964,
+  "lastUpdate": 1756996982761,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22303,90 +22303,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "d12ce98b613bab6a0d1cddbac681e989acbb84a0",
-          "message": "chore: remove handling for slice arguments to MSM (#9648)",
-          "timestamp": "2025-08-27T11:39:42Z",
-          "tree_id": "10114c6e43f59ec2a3ef5de8e5197e8ec9bef425",
-          "url": "https://github.com/noir-lang/noir/commit/d12ce98b613bab6a0d1cddbac681e989acbb84a0"
-        },
-        "date": 1756296740962,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 708.9,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 2032.7,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 536.5,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 4320.9,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 3334.3,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 3857,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 30756.4,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 30786.1,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 188.2,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 390.5,
-            "unit": "KB"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 631.5,
-            "unit": "KB"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 525.5,
-            "unit": "KB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -26486,6 +26402,90 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 391,
+            "unit": "KB"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 631.5,
+            "unit": "KB"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 525.5,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "334be1454f04e7e2711cfe4f5b3874362921cda4",
+          "message": "chore: do not inline acir calls in brillig (#9412)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
+          "timestamp": "2025-09-04T14:08:08Z",
+          "tree_id": "1d719ba63a3d8783399b7c68a435c399133c21ec",
+          "url": "https://github.com/noir-lang/noir/commit/334be1454f04e7e2711cfe4f5b3874362921cda4"
+        },
+        "date": 1756996962221,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 709.3,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 2032.8,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 535.2,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 4318.6,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 3328.7,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 3855,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 30753.6,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 30787.4,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 188,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 390.6,
             "unit": "KB"
           },
           {
