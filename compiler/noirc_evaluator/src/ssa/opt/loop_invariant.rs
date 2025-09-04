@@ -175,8 +175,9 @@ impl Loop {
     ///
     /// If a loop can have several exit blocks, we would need to update this function.
     ///
-    /// If a loop has no exit block, then it must be a `loop` or `while`;
-    /// even if such blocks don't have a `break`, we don't consider them fully executed.
+    /// If the loop header doesn't lead to an exit block, then it must be a `loop` or `while`,
+    /// rather than a `for` loop. Even if such blocks don't have a `break` (e.g. they are infinite),
+    /// we don't consider them fully executed.
     pub(super) fn is_fully_executed(&self, cfg: &ControlFlowGraph) -> bool {
         // A typical for-loop header has 2 successors: the loop body and the exit block.
         for block in cfg.successors(self.header) {
