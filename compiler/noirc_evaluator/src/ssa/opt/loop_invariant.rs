@@ -2121,11 +2121,10 @@ mod test {
             unreachable!("body should end in jmpif");
         };
 
-        let is_var = || ssa.main().dfg.get_numeric_constant(*condition).is_none();
-        let is_one =
-            || ssa.main().dfg.get_numeric_constant(*condition).map_or(false, |c| c.is_one());
-        let is_zero =
-            || ssa.main().dfg.get_numeric_constant(*condition).map_or(false, |c| c.is_zero());
+        let dfg = &ssa.main().dfg;
+        let is_var = || dfg.get_numeric_constant(*condition).is_none();
+        let is_one = || dfg.get_numeric_constant(*condition).is_some_and(|c| c.is_one());
+        let is_zero = || dfg.get_numeric_constant(*condition).is_some_and(|c| c.is_zero());
 
         match simplify_to {
             None => {
