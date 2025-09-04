@@ -1,4 +1,4 @@
-use crate::typed_value::{Point, Scalar, TypedValue, ValueType};
+use crate::typed_value::{NumericType, Point, Scalar, Type, TypedValue};
 use acvm::FieldElement;
 use noir_ssa_executor::compiler::compile_from_ssa;
 use noirc_driver::{CompileOptions, CompiledProgram};
@@ -8,7 +8,7 @@ use noirc_evaluator::ssa::ir::function::{Function, RuntimeType};
 use noirc_evaluator::ssa::ir::instruction::ArrayOffset;
 use noirc_evaluator::ssa::ir::instruction::BinaryOp;
 use noirc_evaluator::ssa::ir::map::Id;
-use noirc_evaluator::ssa::ir::types::{NumericType, Type};
+use noirc_evaluator::ssa::ir::types::Type as SsaType;
 use noirc_evaluator::ssa::ir::value::Value;
 use noirc_frontend::monomorphization::ast::InlineType;
 use noirc_frontend::monomorphization::ast::InlineType as FrontendInlineType;
@@ -73,9 +73,9 @@ impl FuzzerBuilder {
     }
 
     /// Inserts initial variables of the given type into the function
-    pub fn insert_variable(&mut self, variable_type: Type) -> TypedValue {
+    pub fn insert_variable(&mut self, variable_type: SsaType) -> TypedValue {
         let id = self.builder.add_parameter(variable_type.clone());
-        TypedValue::new(id, variable_type)
+        TypedValue::new(id, variable_type.into())
     }
 
     /// Terminates main function block with the given value
@@ -89,6 +89,8 @@ impl FuzzerBuilder {
         lhs: TypedValue,
         rhs: TypedValue,
     ) -> TypedValue {
+        assert!(lhs.same_types(&rhs), "must have same type");
+        assert!(lhs.is_numeric(), "must be numeric");
         let res = self.builder.insert_binary(
             lhs.value_id,
             BinaryOp::Add { unchecked: false },
@@ -103,6 +105,8 @@ impl FuzzerBuilder {
         lhs: TypedValue,
         rhs: TypedValue,
     ) -> TypedValue {
+        assert!(lhs.same_types(&rhs), "must have same type");
+        assert!(lhs.is_numeric(), "must be numeric");
         let res = self.builder.insert_binary(
             lhs.value_id,
             BinaryOp::Sub { unchecked: false },
@@ -117,70 +121,63 @@ impl FuzzerBuilder {
         lhs: TypedValue,
         rhs: TypedValue,
     ) -> TypedValue {
+        assert!(lhs.same_types(&rhs), "must have same type");
+        assert!(lhs.is_numeric(), "must be numeric");
         let res = self.builder.insert_binary(
             lhs.value_id,
             BinaryOp::Mul { unchecked: false },
             rhs.value_id,
         );
-        let init_bit_length = match lhs.type_of_variable {
-            Type::Numeric(NumericType::NativeField) => 254,
-            Type::Numeric(NumericType::Unsigned { bit_size }) => bit_size,
-            Type::Numeric(NumericType::Signed { bit_size }) => bit_size,
-            _ => unreachable!("Trying to cast not numeric type"),
-        };
+        let init_bit_length = lhs.bit_length();
 
         self.builder.insert_range_check(
             res,
             init_bit_length,
             Some("Attempt to multiply with overflow".to_string()),
         );
-        if lhs.to_value_type().bit_length() == 254 {
+        // if field, no need to truncate
+        if lhs.is_field() {
             return TypedValue::new(res, lhs.type_of_variable);
         }
-        let bit_size = lhs.to_value_type().bit_length();
+        let bit_size = lhs.bit_length();
         let res = self.builder.insert_truncate(res, bit_size, bit_size * 2);
         TypedValue::new(res, lhs.type_of_variable)
     }
 
     /// Inserts a divide instruction between two values
     pub fn insert_div_instruction(&mut self, lhs: TypedValue, rhs: TypedValue) -> TypedValue {
+        assert!(lhs.same_types(&rhs), "must have same type");
+        assert!(lhs.is_numeric(), "must be numeric");
         let res = self.builder.insert_binary(lhs.value_id, BinaryOp::Div, rhs.value_id);
         TypedValue::new(res, lhs.type_of_variable)
     }
 
     /// Inserts a modulo instruction between two values
     pub fn insert_mod_instruction(&mut self, lhs: TypedValue, rhs: TypedValue) -> TypedValue {
-        if !lhs.supports_mod() {
-            return lhs;
-        }
+        assert!(lhs.same_types(&rhs), "must have same type");
+        assert!(lhs.is_numeric(), "must be numeric");
+        assert!(!lhs.is_field(), "must not be field");
         let res = self.builder.insert_binary(lhs.value_id, BinaryOp::Mod, rhs.value_id);
         TypedValue::new(res, lhs.type_of_variable)
     }
 
     /// Inserts a not instruction for the given value
     pub fn insert_not_instruction(&mut self, lhs: TypedValue) -> TypedValue {
-        if !lhs.supports_not() {
-            return lhs;
-        }
+        assert!(lhs.is_numeric(), "must be numeric");
+        assert!(!lhs.is_field(), "must not be field");
         let res = self.builder.insert_not(lhs.value_id);
         TypedValue::new(res, lhs.type_of_variable)
     }
 
     /// Inserts a cast instruction
-    pub fn insert_cast(&mut self, value: TypedValue, cast_type: ValueType) -> TypedValue {
-        if !cast_type.can_be_used_for_casts() {
-            return value;
-        }
+    pub fn insert_cast(&mut self, value: TypedValue, cast_type: Type) -> TypedValue {
+        assert!(value.is_numeric(), "must be numeric");
+        assert!(cast_type.is_numeric(), "must be numeric, got {cast_type:?}");
 
-        let init_bit_length = match value.type_of_variable {
-            Type::Numeric(NumericType::NativeField) => 254,
-            Type::Numeric(NumericType::Unsigned { bit_size }) => bit_size,
-            Type::Numeric(NumericType::Signed { bit_size }) => bit_size,
-            _ => unreachable!("Trying to cast not to numeric type"),
-        };
+        let init_bit_length = value.bit_length();
 
         let mut value_id = value.value_id;
-        // always truncate, optimizations will eliminate if we truncate to bigger bit_len
+        // if not field, truncate
         if cast_type.bit_length() != 254 {
             value_id = self.builder.insert_truncate(
                 value.value_id,
@@ -188,46 +185,48 @@ impl FuzzerBuilder {
                 init_bit_length,
             );
         }
+        let cast_type_as_numeric_type = cast_type.unwrap_numeric();
 
-        let res = self.builder.insert_cast(value_id, cast_type.to_numeric_type());
-        TypedValue::new(res, cast_type.to_ssa_type())
+        let res = self.builder.insert_cast(value_id, cast_type_as_numeric_type.into());
+        TypedValue::new(res, cast_type)
     }
 
     /// Inserts an equals comparison instruction between two values
     pub fn insert_eq_instruction(&mut self, lhs: TypedValue, rhs: TypedValue) -> TypedValue {
+        assert!(lhs.same_types(&rhs), "must have same type");
+        assert!(lhs.is_numeric(), "must be numeric");
         let res = self.builder.insert_binary(lhs.value_id, BinaryOp::Eq, rhs.value_id);
-        TypedValue::new(res, ValueType::Boolean.to_ssa_type())
+        TypedValue::new(res, Type::Numeric(NumericType::Boolean))
     }
 
     /// Inserts a less than comparison instruction between two values
     pub fn insert_lt_instruction(&mut self, lhs: TypedValue, rhs: TypedValue) -> TypedValue {
+        assert!(lhs.same_types(&rhs), "must have same type");
+        assert!(lhs.is_numeric(), "must be numeric");
         let res = self.builder.insert_binary(lhs.value_id, BinaryOp::Lt, rhs.value_id);
-        TypedValue::new(res, ValueType::Boolean.to_ssa_type())
+        TypedValue::new(res, Type::Numeric(NumericType::Boolean))
     }
 
     /// Inserts a bitwise AND instruction between two values
     pub fn insert_and_instruction(&mut self, lhs: TypedValue, rhs: TypedValue) -> TypedValue {
-        if !lhs.supports_bitwise() {
-            return lhs;
-        }
+        assert!(lhs.same_types(&rhs), "must have same type");
+        assert!(lhs.is_numeric(), "must be numeric");
         let res = self.builder.insert_binary(lhs.value_id, BinaryOp::And, rhs.value_id);
         TypedValue::new(res, lhs.type_of_variable)
     }
 
     /// Inserts a bitwise OR instruction between two values
     pub fn insert_or_instruction(&mut self, lhs: TypedValue, rhs: TypedValue) -> TypedValue {
-        if !lhs.supports_bitwise() {
-            return lhs;
-        }
+        assert!(lhs.same_types(&rhs), "must have same type");
+        assert!(lhs.is_numeric(), "must be numeric");
         let res = self.builder.insert_binary(lhs.value_id, BinaryOp::Or, rhs.value_id);
         TypedValue::new(res, lhs.type_of_variable)
     }
 
     /// Inserts a bitwise XOR instruction between two values
     pub fn insert_xor_instruction(&mut self, lhs: TypedValue, rhs: TypedValue) -> TypedValue {
-        if !lhs.supports_bitwise() {
-            return lhs;
-        }
+        assert!(lhs.same_types(&rhs), "must have same type");
+        assert!(lhs.is_numeric(), "must be numeric");
         let res = self.builder.insert_binary(lhs.value_id, BinaryOp::Xor, rhs.value_id);
         TypedValue::new(res, lhs.type_of_variable)
     }
@@ -235,9 +234,8 @@ impl FuzzerBuilder {
     /// Inserts a left shift instruction between two values
     /// The right hand side is cast to 8 bits
     pub fn insert_shl_instruction(&mut self, lhs: TypedValue, rhs: TypedValue) -> TypedValue {
-        if !lhs.supports_shift() {
-            return lhs;
-        }
+        assert!(lhs.same_types(&rhs), "must have same type");
+        assert!(lhs.is_numeric(), "must be numeric");
         let res = self.builder.insert_binary(lhs.value_id, BinaryOp::Shl, rhs.value_id);
         TypedValue::new(res, lhs.type_of_variable)
     }
@@ -245,9 +243,8 @@ impl FuzzerBuilder {
     /// Inserts a right shift instruction between two values
     /// The right hand side is cast to 8 bits
     pub fn insert_shr_instruction(&mut self, lhs: TypedValue, rhs: TypedValue) -> TypedValue {
-        if !lhs.supports_shift() {
-            return lhs;
-        }
+        assert!(lhs.same_types(&rhs), "must have same type");
+        assert!(lhs.is_numeric(), "must be numeric");
         let res = self.builder.insert_binary(lhs.value_id, BinaryOp::Shr, rhs.value_id);
         TypedValue::new(res, lhs.type_of_variable)
     }
@@ -255,10 +252,10 @@ impl FuzzerBuilder {
     pub fn insert_constant(
         &mut self,
         value: impl Into<FieldElement>,
-        type_: ValueType,
+        type_: NumericType,
     ) -> TypedValue {
-        let id = self.builder.numeric_constant(value.into(), type_.to_numeric_type());
-        TypedValue::new(id, type_.to_ssa_type())
+        let id = self.builder.numeric_constant(value.into(), type_.into());
+        TypedValue::new(id, Type::Numeric(type_))
     }
 
     pub fn insert_constrain(&mut self, lhs: TypedValue, rhs: TypedValue) {
@@ -283,9 +280,9 @@ impl FuzzerBuilder {
     /// Inserts a new parameter to the current SSA block and returns its value
     ///
     /// b0() -> b0(new_parameter: parameter_type)
-    pub fn add_block_parameter(&mut self, block: BasicBlockId, typ: ValueType) -> TypedValue {
-        let id = self.builder.add_block_parameter(block, typ.to_ssa_type());
-        TypedValue::new(id, typ.to_ssa_type())
+    pub fn add_block_parameter(&mut self, block: BasicBlockId, typ: Type) -> TypedValue {
+        let id = self.builder.add_block_parameter(block, typ.clone().into());
+        TypedValue::new(id, typ)
     }
 
     /// Inserts a return instruction with the given value
@@ -316,18 +313,22 @@ impl FuzzerBuilder {
     }
 
     pub fn insert_add_to_memory(&mut self, lhs: TypedValue) -> TypedValue {
-        let memory_address = self.builder.insert_allocate(lhs.type_of_variable.clone());
+        let memory_address = self.builder.insert_allocate(lhs.clone().type_of_variable.into());
         self.builder.insert_store(memory_address, lhs.value_id);
-        TypedValue::new(memory_address, lhs.type_of_variable)
+        TypedValue::new(memory_address, Type::Reference(Arc::new(lhs.type_of_variable)))
     }
 
     pub fn insert_load_from_memory(&mut self, memory_addr: TypedValue) -> TypedValue {
-        let res =
-            self.builder.insert_load(memory_addr.value_id, memory_addr.clone().type_of_variable);
-        TypedValue::new(res, memory_addr.type_of_variable.clone())
+        assert!(memory_addr.type_of_variable.is_reference(), "memory address must be a reference");
+        let res = self.builder.insert_load(
+            memory_addr.value_id,
+            memory_addr.type_of_variable.unwrap_reference().into(),
+        );
+        TypedValue::new(res, memory_addr.type_of_variable.unwrap_reference())
     }
 
     pub fn insert_set_to_memory(&mut self, memory_addr: TypedValue, value: TypedValue) {
+        assert!(memory_addr.type_of_variable.is_reference(), "memory address must be a reference");
         self.builder.insert_store(memory_addr.value_id, value.value_id);
     }
 
@@ -352,41 +353,48 @@ impl FuzzerBuilder {
         &mut self,
         function: Id<Value>,
         arguments: &[TypedValue],
-        result_type: ValueType,
+        result_type: Type,
     ) -> Id<Value> {
         *self
             .builder
             .insert_call(
                 function,
                 arguments.iter().map(|i| i.value_id).collect(),
-                vec![result_type.to_ssa_type()],
+                vec![result_type.clone().into()],
             )
             .first()
             .unwrap()
     }
 
     /// Inserts a new array with the given elements and type
-    pub fn insert_array(&mut self, elements: Vec<TypedValue>, is_references: bool) -> TypedValue {
+    pub fn insert_array(&mut self, elements: Vec<TypedValue>) -> TypedValue {
         let array_length = elements.len() as u32;
         assert!(array_length > 0, "Array must have at least one element");
         let element_type = elements[0].type_of_variable.clone();
-        let array_elements_type = if is_references {
-            Type::Array(
-                Arc::new(vec![Type::Reference(Arc::new(element_type.clone()))]),
-                array_length,
-            )
-        } else {
-            Type::Array(Arc::new(vec![element_type.clone()]), array_length)
-        };
-        let typ = array_elements_type.clone();
         assert!(
             elements.iter().all(|e| e.type_of_variable == element_type),
             "All elements must have the same type"
         );
-        let res = self
-            .builder
-            .insert_make_array(elements.into_iter().map(|e| e.value_id).collect(), typ.clone());
-        TypedValue::new(res, typ)
+        let array_elements_type = Type::Array(Arc::new(vec![element_type]), array_length);
+        let res = self.builder.insert_make_array(
+            elements.into_iter().map(|e| e.value_id).collect(),
+            array_elements_type.clone().into(),
+        );
+        TypedValue::new(res, array_elements_type)
+    }
+
+    pub fn insert_slice(&mut self, elements: Vec<TypedValue>) -> TypedValue {
+        let element_type = elements[0].type_of_variable.clone();
+        assert!(
+            elements.iter().all(|e| e.type_of_variable == element_type),
+            "All elements must have the same type"
+        );
+        let array_elements_type = Type::Slice(Arc::new(vec![element_type]));
+        let res = self.builder.insert_make_array(
+            elements.into_iter().map(|e| e.value_id).collect(),
+            array_elements_type.clone().into(),
+        );
+        TypedValue::new(res, array_elements_type)
     }
 
     /// Inserts a to_le_radix intrinsic call that decomposes a field into little-endian radix representation
@@ -405,17 +413,17 @@ impl FuzzerBuilder {
         limb_count: u8,
     ) -> TypedValue {
         assert!(field_value.is_field(), "to_le_radix requires a field value as input");
-        let radix = self.builder.numeric_constant(radix, NumericType::Unsigned { bit_size: 32 });
+        let radix = self.builder.numeric_constant(radix, NumericType::U32.into());
         let intrinsic = self
             .builder
             .import_intrinsic("to_le_radix")
             .expect("to_le_radix intrinsic should be available");
-        let element_type = Type::Numeric(NumericType::Unsigned { bit_size: 8 });
+        let element_type = Type::Numeric(NumericType::U8);
         let result_type = Type::Array(Arc::new(vec![element_type.clone()]), limb_count as u32);
         let result = self.builder.insert_call(
             intrinsic,
             vec![field_value.value_id, radix],
-            vec![result_type.clone()],
+            vec![result_type.clone().into()],
         );
 
         TypedValue::new(result[0], result_type)
@@ -431,21 +439,25 @@ impl FuzzerBuilder {
     /// A field value representing the composed value
     pub fn insert_from_le_radix(&mut self, array: TypedValue, radix: u128) -> TypedValue {
         let array_size = match array.type_of_variable {
-            Type::Array(_, array_size) => array_size,
+            Type::Array(type_of_array, array_size) => {
+                assert!(array_size > 0, "Array must have at least one element");
+                assert!(matches!(type_of_array[0], Type::Numeric(NumericType::U8)));
+                array_size
+            }
             _ => unreachable!("Array type expected"),
         };
-        let mut exp = self.builder.numeric_constant(1_u32, NumericType::NativeField);
-        let mut agg = self.builder.numeric_constant(0_u32, NumericType::NativeField);
-        let radix = self.builder.numeric_constant(radix, NumericType::NativeField);
+        let mut exp = self.builder.numeric_constant(1_u32, NumericType::Field.into());
+        let mut agg = self.builder.numeric_constant(0_u32, NumericType::Field.into());
+        let radix = self.builder.numeric_constant(radix, NumericType::Field.into());
         for i in 0..array_size {
-            let index = self.builder.numeric_constant(i, NumericType::Unsigned { bit_size: 32 });
+            let index = self.builder.numeric_constant(i, NumericType::U32.into());
             let byte = self.builder.insert_array_get(
                 array.value_id,
                 index,
                 ArrayOffset::None,
-                Type::Numeric(NumericType::Unsigned { bit_size: 8 }),
+                SsaType::Numeric(NumericType::U8.into()),
             );
-            let byte_as_field = self.builder.insert_cast(byte, NumericType::NativeField);
+            let byte_as_field = self.builder.insert_cast(byte, NumericType::Field.into());
             let byte_as_field_mul_exp =
                 self.builder.insert_binary(byte_as_field, BinaryOp::Mul { unchecked: true }, exp);
             agg = self.builder.insert_binary(
@@ -455,7 +467,7 @@ impl FuzzerBuilder {
             );
             exp = self.builder.insert_binary(exp, BinaryOp::Mul { unchecked: true }, radix);
         }
-        TypedValue::new(agg, Type::Numeric(NumericType::NativeField))
+        TypedValue::new(agg, Type::Numeric(NumericType::Field))
     }
 
     /// Inserts a blake2s hash intrinsic call
@@ -469,10 +481,7 @@ impl FuzzerBuilder {
         match input.type_of_variable {
             Type::Array(type_of_array, _array_size) => {
                 assert!(
-                    matches!(
-                        type_of_array[0],
-                        Type::Numeric(NumericType::Unsigned { bit_size: 8 })
-                    ),
+                    matches!(type_of_array[0], Type::Numeric(NumericType::U8)),
                     "blake2s requires an array of u8 as input"
                 );
             }
@@ -482,10 +491,12 @@ impl FuzzerBuilder {
             .builder
             .import_intrinsic("blake2s")
             .expect("blake2s intrinsic should be available");
-        let return_type =
-            Type::Array(Arc::new(vec![Type::Numeric(NumericType::Unsigned { bit_size: 8 })]), 32);
-        let result =
-            self.builder.insert_call(intrinsic, vec![input.value_id], vec![return_type.clone()]);
+        let return_type = Type::Array(Arc::new(vec![Type::Numeric(NumericType::U8)]), 32);
+        let result = self.builder.insert_call(
+            intrinsic,
+            vec![input.value_id],
+            vec![return_type.clone().into()],
+        );
         assert_eq!(result.len(), 1);
         TypedValue::new(result[0], return_type)
     }
@@ -500,19 +511,18 @@ impl FuzzerBuilder {
     pub fn insert_blake3_hash(&mut self, input: TypedValue) -> TypedValue {
         match input.type_of_variable {
             Type::Array(type_of_array, _array_size) => {
-                assert!(matches!(
-                    type_of_array[0],
-                    Type::Numeric(NumericType::Unsigned { bit_size: 8 })
-                ));
+                assert!(matches!(type_of_array[0], Type::Numeric(NumericType::U8)));
             }
             _ => unreachable!("blake3 requires an array as input"),
         }
         let intrinsic =
             self.builder.import_intrinsic("blake3").expect("blake3 intrinsic should be available");
-        let return_type =
-            Type::Array(Arc::new(vec![Type::Numeric(NumericType::Unsigned { bit_size: 8 })]), 32);
-        let result =
-            self.builder.insert_call(intrinsic, vec![input.value_id], vec![return_type.clone()]);
+        let return_type = Type::Array(Arc::new(vec![Type::Numeric(NumericType::U8)]), 32);
+        let result = self.builder.insert_call(
+            intrinsic,
+            vec![input.value_id],
+            vec![return_type.clone().into()],
+        );
         assert_eq!(result.len(), 1);
         TypedValue::new(result[0], return_type)
     }
@@ -528,10 +538,7 @@ impl FuzzerBuilder {
         match input.type_of_variable {
             Type::Array(type_of_array, array_size) => {
                 assert!(
-                    matches!(
-                        type_of_array[0],
-                        Type::Numeric(NumericType::Unsigned { bit_size: 64 })
-                    ),
+                    matches!(type_of_array[0], Type::Numeric(NumericType::U64)),
                     "keccakf1600 requires an array of u64 as input, but received {type_of_array:?}"
                 );
                 assert!(array_size == 25);
@@ -542,10 +549,12 @@ impl FuzzerBuilder {
             .builder
             .import_intrinsic("keccakf1600")
             .expect("keccakf1600 intrinsic should be available");
-        let return_type =
-            Type::Array(Arc::new(vec![Type::Numeric(NumericType::Unsigned { bit_size: 64 })]), 25);
-        let result =
-            self.builder.insert_call(intrinsic, vec![input.value_id], vec![return_type.clone()]);
+        let return_type = Type::Array(Arc::new(vec![Type::Numeric(NumericType::U64)]), 25);
+        let result = self.builder.insert_call(
+            intrinsic,
+            vec![input.value_id],
+            vec![return_type.clone().into()],
+        );
         assert_eq!(result.len(), 1);
         TypedValue::new(result[0], return_type)
     }
@@ -567,30 +576,21 @@ impl FuzzerBuilder {
     ) -> TypedValue {
         let input_size = match input.type_of_variable {
             Type::Array(type_of_array, array_size) => {
-                assert!(matches!(
-                    type_of_array[0],
-                    Type::Numeric(NumericType::Unsigned { bit_size: 8 })
-                ));
+                assert!(matches!(type_of_array[0], Type::Numeric(NumericType::U8)));
                 array_size
             }
             _ => unreachable!("aes128_encrypt requires an array as input"),
         };
         match key.type_of_variable {
             Type::Array(type_of_array, array_size) => {
-                assert!(matches!(
-                    type_of_array[0],
-                    Type::Numeric(NumericType::Unsigned { bit_size: 8 })
-                ));
+                assert!(matches!(type_of_array[0], Type::Numeric(NumericType::U8)));
                 assert!(array_size == 16);
             }
             _ => unreachable!("aes128_encrypt requires an array as key"),
         }
         match iv.type_of_variable {
             Type::Array(type_of_array, array_size) => {
-                assert!(matches!(
-                    type_of_array[0],
-                    Type::Numeric(NumericType::Unsigned { bit_size: 8 })
-                ));
+                assert!(matches!(type_of_array[0], Type::Numeric(NumericType::U8)));
                 assert!(array_size == 16);
             }
             _ => unreachable!("aes128_encrypt requires an array as iv"),
@@ -600,13 +600,13 @@ impl FuzzerBuilder {
             .import_intrinsic("aes128_encrypt")
             .expect("aes128_encrypt intrinsic should be available");
         let return_type = Type::Array(
-            Arc::new(vec![Type::Numeric(NumericType::Unsigned { bit_size: 8 })]),
+            Arc::new(vec![Type::Numeric(NumericType::U8)]),
             input_size + 16 - (input_size % 16),
         );
         let result = self.builder.insert_call(
             intrinsic,
             vec![input.value_id, key.value_id, iv.value_id],
-            vec![return_type.clone()],
+            vec![return_type.clone().into()],
         );
         assert_eq!(result.len(), 1);
         TypedValue::new(result[0], return_type)
@@ -627,26 +627,19 @@ impl FuzzerBuilder {
     ) -> TypedValue {
         match input.type_of_variable {
             Type::Array(type_of_array, array_size) => {
-                assert!(matches!(
-                    type_of_array[0],
-                    Type::Numeric(NumericType::Unsigned { bit_size: 32 })
-                ));
+                assert!(matches!(type_of_array[0], Type::Numeric(NumericType::U32)));
                 assert!(array_size == 16);
             }
             _ => unreachable!("sha256_compression requires an array as input"),
         }
         match state.type_of_variable {
             Type::Array(type_of_array, array_size) => {
-                assert!(matches!(
-                    type_of_array[0],
-                    Type::Numeric(NumericType::Unsigned { bit_size: 32 })
-                ));
+                assert!(matches!(type_of_array[0], Type::Numeric(NumericType::U32)));
                 assert!(array_size == 8);
             }
             _ => unreachable!("sha256_compression requires an array as state"),
         }
-        let return_type =
-            Type::Array(Arc::new(vec![Type::Numeric(NumericType::Unsigned { bit_size: 32 })]), 8);
+        let return_type = Type::Array(Arc::new(vec![Type::Numeric(NumericType::U32)]), 8);
         let intrinsic = self
             .builder
             .import_intrinsic("sha256_compression")
@@ -654,7 +647,7 @@ impl FuzzerBuilder {
         let result = self.builder.insert_call(
             intrinsic,
             vec![input.value_id, state.value_id],
-            vec![return_type.clone()],
+            vec![return_type.clone().into()],
         );
         assert_eq!(result.len(), 1);
         TypedValue::new(result[0], return_type)
@@ -669,12 +662,11 @@ impl FuzzerBuilder {
     ) -> TypedValue {
         match array.type_of_variable.clone() {
             Type::Array(_, array_length) => {
-                let array_length_id = self
-                    .builder
-                    .numeric_constant(array_length, NumericType::Unsigned { bit_size: 32 });
+                let array_length_id =
+                    self.builder.numeric_constant(array_length, NumericType::U32.into());
                 let index_mod_length =
                     self.builder.insert_binary(index.value_id, BinaryOp::Mod, array_length_id);
-                TypedValue::new(index_mod_length, ValueType::U32.to_ssa_type())
+                TypedValue::new(index_mod_length, Type::Numeric(NumericType::U32))
             }
             _ => unreachable!("Array type expected"),
         }
@@ -691,7 +683,7 @@ impl FuzzerBuilder {
         element_type: Type,
         safe_index: bool,
     ) -> TypedValue {
-        assert!(index.type_of_variable == Type::Numeric(NumericType::Unsigned { bit_size: 32 }));
+        assert!(index.type_of_variable == Type::Numeric(NumericType::U32));
         let index = if safe_index {
             self.insert_index_mod_array_length(index.clone(), array.clone())
         } else {
@@ -701,7 +693,7 @@ impl FuzzerBuilder {
             array.value_id,
             index.value_id,
             ArrayOffset::None,
-            element_type.clone(),
+            element_type.clone().into(),
         );
         TypedValue::new(res, element_type)
     }
@@ -717,11 +709,12 @@ impl FuzzerBuilder {
         value: TypedValue,
         safe_index: bool,
     ) -> TypedValue {
-        let array_length = match array.type_of_variable {
-            Type::Array(_, array_length) => array_length,
+        let (array_type, array_length) = match array.type_of_variable.clone() {
+            Type::Array(array_type, array_length) => (array_type, array_length),
             _ => unreachable!("Array type expected"),
         };
-        assert!(index.type_of_variable == Type::Numeric(NumericType::Unsigned { bit_size: 32 }));
+
+        assert!(index.type_of_variable == Type::Numeric(NumericType::U32));
         let index = if safe_index {
             self.insert_index_mod_array_length(index.clone(), array.clone())
         } else {
@@ -734,10 +727,7 @@ impl FuzzerBuilder {
             false,
             ArrayOffset::None,
         );
-        TypedValue::new(
-            res,
-            Type::Array(Arc::new(vec![array.type_of_variable.clone()]), array_length),
-        )
+        TypedValue::new(res, Type::Array(array_type.clone(), array_length))
     }
 
     /// Performs a curve point multiplication with a scalar
@@ -750,39 +740,39 @@ impl FuzzerBuilder {
     /// [`Point`] corresponding to `value` * G with overwritten on_curve value
     pub fn base_scalar_mul(&mut self, scalar: Scalar, is_infinite: TypedValue) -> Point {
         assert!(scalar.validate());
-        assert!(matches!(
-            is_infinite.type_of_variable,
-            Type::Numeric(NumericType::Unsigned { bit_size: 1 })
-        ));
-        let field_type = Type::Numeric(NumericType::NativeField);
-        let boolean_type = Type::Numeric(NumericType::Unsigned { bit_size: 1 });
+        assert!(matches!(is_infinite.type_of_variable, Type::Numeric(NumericType::Boolean)));
+        let field_type = Type::Numeric(NumericType::Field);
+        let boolean_type = Type::Numeric(NumericType::Boolean);
         let intrinsic = self
             .builder
             .import_intrinsic("multi_scalar_mul")
             .expect("multi_scalar_mul intrinsic should be available");
 
         // im recreating the point G every time, could be optimized to only do it once
-        let g_x_id = self.builder.numeric_constant(1_u32, NumericType::NativeField);
+        let g_x_id = self.builder.numeric_constant(1_u32, NumericType::Field.into());
         let g_y_id = self.builder.numeric_constant(
             FieldElement::try_from_str(
                 "17631683881184975370165255887551781615748388533673675138860",
             )
             .unwrap(),
-            NumericType::NativeField,
+            NumericType::Field.into(),
         );
-        let is_infinite_g_id =
-            self.builder.numeric_constant(0_u32, NumericType::Unsigned { bit_size: 1 });
+        let is_infinite_g_id = self.builder.numeric_constant(0_u32, NumericType::Boolean.into());
         let elements = vec![g_x_id, g_y_id, is_infinite_g_id].into_iter().collect();
         let basic_point = self.builder.insert_make_array(
             elements,
-            Type::Array(
-                Arc::new(vec![field_type.clone(), field_type.clone(), boolean_type.clone()]),
+            SsaType::Array(
+                Arc::new(vec![
+                    field_type.clone().into(),
+                    field_type.clone().into(),
+                    boolean_type.clone().into(),
+                ]),
                 1,
             ),
         );
         let scalar_id = self.builder.insert_make_array(
             vec![scalar.lo.value_id, scalar.hi.value_id].into_iter().collect(),
-            Type::Array(Arc::new(vec![field_type.clone(), field_type.clone()]), 1),
+            SsaType::Array(Arc::new(vec![field_type.clone().into(), field_type.clone().into()]), 1),
         );
         let return_type = Type::Array(
             Arc::new(vec![field_type.clone(), field_type.clone(), boolean_type.clone()]),
@@ -791,14 +781,24 @@ impl FuzzerBuilder {
         let result = self.builder.insert_call(
             intrinsic,
             vec![basic_point, scalar_id],
-            vec![return_type.clone()],
+            vec![return_type.clone().into()],
         );
         assert_eq!(result.len(), 1);
         let result = result[0];
-        let x_idx = self.builder.numeric_constant(0_u32, NumericType::Unsigned { bit_size: 32 });
-        let y_idx = self.builder.numeric_constant(1_u32, NumericType::Unsigned { bit_size: 32 });
-        let x = self.builder.insert_array_get(result, x_idx, ArrayOffset::None, field_type.clone());
-        let y = self.builder.insert_array_get(result, y_idx, ArrayOffset::None, field_type.clone());
+        let x_idx = self.builder.numeric_constant(0_u32, NumericType::U32.into());
+        let y_idx = self.builder.numeric_constant(1_u32, NumericType::U32.into());
+        let x = self.builder.insert_array_get(
+            result,
+            x_idx,
+            ArrayOffset::None,
+            field_type.clone().into(),
+        );
+        let y = self.builder.insert_array_get(
+            result,
+            y_idx,
+            ArrayOffset::None,
+            field_type.clone().into(),
+        );
         Point {
             x: TypedValue::new(x, field_type.clone()),
             y: TypedValue::new(y, field_type),
@@ -815,10 +815,7 @@ impl FuzzerBuilder {
     /// Point (scalar.lo, scalar.hi, is_infinite)
     pub fn create_point_from_scalar(&mut self, scalar: Scalar, is_infinite: TypedValue) -> Point {
         assert!(scalar.validate());
-        assert!(matches!(
-            is_infinite.type_of_variable,
-            Type::Numeric(NumericType::Unsigned { bit_size: 1 })
-        ));
+        assert!(matches!(is_infinite.type_of_variable, Type::Numeric(NumericType::Boolean)));
         Point { x: scalar.lo, y: scalar.hi, is_infinite }
     }
 
@@ -831,8 +828,8 @@ impl FuzzerBuilder {
             assert!(scalar.validate());
         }
 
-        let field_type = Type::Numeric(NumericType::NativeField);
-        let boolean_type = Type::Numeric(NumericType::Unsigned { bit_size: 1 });
+        let field_type = Type::Numeric(NumericType::Field);
+        let boolean_type = Type::Numeric(NumericType::Boolean);
         let intrinsic = self
             .builder
             .import_intrinsic("multi_scalar_mul")
@@ -841,15 +838,19 @@ impl FuzzerBuilder {
         let scalar_ids = scalars.iter().flat_map(|s| s.to_id_vec()).collect::<Vec<_>>();
         let point_ids_array = self.builder.insert_make_array(
             point_ids.into_iter().collect(),
-            Type::Array(
-                Arc::new(vec![field_type.clone(), field_type.clone(), boolean_type.clone()]),
+            SsaType::Array(
+                Arc::new(vec![
+                    field_type.clone().into(),
+                    field_type.clone().into(),
+                    boolean_type.clone().into(),
+                ]),
                 points.len() as u32,
             ),
         );
         let scalar_ids_array = self.builder.insert_make_array(
             scalar_ids.into_iter().collect(),
-            Type::Array(
-                Arc::new(vec![field_type.clone(), field_type.clone()]),
+            SsaType::Array(
+                Arc::new(vec![field_type.clone().into(), field_type.clone().into()]),
                 scalars.len() as u32,
             ),
         );
@@ -860,21 +861,30 @@ impl FuzzerBuilder {
         let result = self.builder.insert_call(
             intrinsic,
             vec![point_ids_array, scalar_ids_array],
-            vec![return_type.clone()],
+            vec![return_type.clone().into()],
         );
         assert_eq!(result.len(), 1);
         let result = result[0];
-        let x_idx = self.builder.numeric_constant(0_u32, NumericType::Unsigned { bit_size: 32 });
-        let y_idx = self.builder.numeric_constant(1_u32, NumericType::Unsigned { bit_size: 32 });
-        let is_infinite_idx =
-            self.builder.numeric_constant(2_u32, NumericType::Unsigned { bit_size: 32 });
-        let x = self.builder.insert_array_get(result, x_idx, ArrayOffset::None, field_type.clone());
-        let y = self.builder.insert_array_get(result, y_idx, ArrayOffset::None, field_type.clone());
+        let x_idx = self.builder.numeric_constant(0_u32, NumericType::U32.into());
+        let y_idx = self.builder.numeric_constant(1_u32, NumericType::U32.into());
+        let is_infinite_idx = self.builder.numeric_constant(2_u32, NumericType::U32.into());
+        let x = self.builder.insert_array_get(
+            result,
+            x_idx,
+            ArrayOffset::None,
+            field_type.clone().into(),
+        );
+        let y = self.builder.insert_array_get(
+            result,
+            y_idx,
+            ArrayOffset::None,
+            field_type.clone().into(),
+        );
         let is_infinite = self.builder.insert_array_get(
             result,
             is_infinite_idx,
             ArrayOffset::None,
-            boolean_type.clone(),
+            boolean_type.clone().into(),
         );
         Point {
             x: TypedValue::new(x, field_type.clone()),
@@ -886,8 +896,8 @@ impl FuzzerBuilder {
     pub fn point_add(&mut self, p1: Point, p2: Point) -> Point {
         assert!(p1.validate());
         assert!(p2.validate());
-        let field_type = Type::Numeric(NumericType::NativeField);
-        let boolean_type = Type::Numeric(NumericType::Unsigned { bit_size: 1 });
+        let field_type = Type::Numeric(NumericType::Field);
+        let boolean_type = Type::Numeric(NumericType::Boolean);
         let intrinsic = self
             .builder
             .import_intrinsic("embedded_curve_add")
@@ -898,20 +908,29 @@ impl FuzzerBuilder {
             1,
         );
         let result =
-            self.builder.insert_call(intrinsic, points_flattened, vec![return_type.clone()]);
+            self.builder.insert_call(intrinsic, points_flattened, vec![return_type.clone().into()]);
         assert_eq!(result.len(), 1);
         let result = result[0];
-        let x_idx = self.builder.numeric_constant(0_u32, NumericType::Unsigned { bit_size: 32 });
-        let y_idx = self.builder.numeric_constant(1_u32, NumericType::Unsigned { bit_size: 32 });
-        let is_infinite_idx =
-            self.builder.numeric_constant(2_u32, NumericType::Unsigned { bit_size: 32 });
-        let x = self.builder.insert_array_get(result, x_idx, ArrayOffset::None, field_type.clone());
-        let y = self.builder.insert_array_get(result, y_idx, ArrayOffset::None, field_type.clone());
+        let x_idx = self.builder.numeric_constant(0_u32, NumericType::U32.into());
+        let y_idx = self.builder.numeric_constant(1_u32, NumericType::U32.into());
+        let is_infinite_idx = self.builder.numeric_constant(2_u32, NumericType::U32.into());
+        let x = self.builder.insert_array_get(
+            result,
+            x_idx,
+            ArrayOffset::None,
+            field_type.clone().into(),
+        );
+        let y = self.builder.insert_array_get(
+            result,
+            y_idx,
+            ArrayOffset::None,
+            field_type.clone().into(),
+        );
         let is_infinite = self.builder.insert_array_get(
             result,
             is_infinite_idx,
             ArrayOffset::None,
-            boolean_type.clone(),
+            boolean_type.clone().into(),
         );
         Point {
             x: TypedValue::new(x, field_type.clone()),
@@ -923,14 +942,12 @@ impl FuzzerBuilder {
     fn bytes_to_ssa_array(&mut self, vec: Vec<u8>) -> TypedValue {
         let elements: Vec<Id<Value>> = vec
             .into_iter()
-            .map(|x| self.builder.numeric_constant(x as u32, NumericType::Unsigned { bit_size: 8 }))
+            .map(|x| self.builder.numeric_constant(x as u32, NumericType::U8.into()))
             .collect();
-        let array_type = Type::Array(
-            Arc::new(vec![Type::Numeric(NumericType::Unsigned { bit_size: 8 })]),
-            elements.len() as u32,
-        );
+        let array_type =
+            Type::Array(Arc::new(vec![Type::Numeric(NumericType::U8)]), elements.len() as u32);
         TypedValue::new(
-            self.builder.insert_make_array(elements.into(), array_type.clone()),
+            self.builder.insert_make_array(elements.into(), array_type.clone().into()),
             array_type,
         )
     }
@@ -938,13 +955,12 @@ impl FuzzerBuilder {
     fn bytes_to_ssa_slice(&mut self, vec: Vec<u8>) -> TypedValue {
         let elements: Vec<Id<Value>> = vec
             .into_iter()
-            .map(|x| self.builder.numeric_constant(x as u32, NumericType::Unsigned { bit_size: 8 }))
+            .map(|x| self.builder.numeric_constant(x as u32, NumericType::U8.into()))
             .collect();
-        let array_type =
-            Type::Slice(Arc::new(vec![Type::Numeric(NumericType::Unsigned { bit_size: 8 })]));
+        let slice_type = Type::Slice(Arc::new(vec![Type::Numeric(NumericType::U8)]));
         TypedValue::new(
-            self.builder.insert_make_array(elements.into(), array_type.clone()),
-            array_type,
+            self.builder.insert_make_array(elements.into(), slice_type.clone().into()),
+            slice_type,
         )
     }
 
@@ -959,7 +975,7 @@ impl FuzzerBuilder {
         let pub_key_y = self.bytes_to_ssa_array(pub_key_y);
         let hash = self.bytes_to_ssa_slice(hash);
         let signature = self.bytes_to_ssa_array(signature);
-        let return_type = Type::Numeric(NumericType::Unsigned { bit_size: 1 });
+        let return_type = Type::Numeric(NumericType::Boolean);
         let intrinsic = self
             .builder
             .import_intrinsic("ecdsa_secp256r1")
@@ -967,7 +983,7 @@ impl FuzzerBuilder {
         let result = self.builder.insert_call(
             intrinsic,
             vec![pub_key_x.value_id, pub_key_y.value_id, signature.value_id, hash.value_id],
-            vec![return_type.clone()],
+            vec![return_type.clone().into()],
         );
         assert_eq!(result.len(), 1);
         let result = result[0];
@@ -985,7 +1001,7 @@ impl FuzzerBuilder {
         let pub_key_y = self.bytes_to_ssa_array(pub_key_y);
         let hash = self.bytes_to_ssa_slice(hash);
         let signature = self.bytes_to_ssa_array(signature);
-        let return_type = Type::Numeric(NumericType::Unsigned { bit_size: 1 });
+        let return_type = Type::Numeric(NumericType::Boolean);
         let intrinsic = self
             .builder
             .import_intrinsic("ecdsa_secp256k1")
@@ -993,7 +1009,7 @@ impl FuzzerBuilder {
         let result = self.builder.insert_call(
             intrinsic,
             vec![pub_key_x.value_id, pub_key_y.value_id, signature.value_id, hash.value_id],
-            vec![return_type.clone()],
+            vec![return_type.clone().into()],
         );
         assert_eq!(result.len(), 1);
         let result = result[0];

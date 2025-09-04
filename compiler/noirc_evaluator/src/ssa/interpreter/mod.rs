@@ -1583,14 +1583,14 @@ fn interpret_u1_binary_op(
         BinaryOp::Xor => lhs ^ rhs,
         BinaryOp::Shl => {
             if rhs {
-                false
+                return Err(overflow());
             } else {
                 lhs
             }
         }
         BinaryOp::Shr => {
             if rhs {
-                false
+                return Err(overflow());
             } else {
                 lhs
             }
