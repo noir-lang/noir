@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1756997433719,
+  "lastUpdate": 1756997435577,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -12112,80 +12112,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "d12ce98b613bab6a0d1cddbac681e989acbb84a0",
-          "message": "chore: remove handling for slice arguments to MSM (#9648)",
-          "timestamp": "2025-08-27T11:39:42Z",
-          "tree_id": "10114c6e43f59ec2a3ef5de8e5197e8ec9bef425",
-          "url": "https://github.com/noir-lang/noir/commit/d12ce98b613bab6a0d1cddbac681e989acbb84a0"
-        },
-        "date": 1756297207721,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 212.98,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 246.18,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 197.81,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 501.57,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 434.03,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1500,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 328.36,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 330.89,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 69.53,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 55.03,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -15795,6 +15721,80 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 333,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 72.43,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 58.23,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "334be1454f04e7e2711cfe4f5b3874362921cda4",
+          "message": "chore: do not inline acir calls in brillig (#9412)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
+          "timestamp": "2025-09-04T14:08:08Z",
+          "tree_id": "1d719ba63a3d8783399b7c68a435c399133c21ec",
+          "url": "https://github.com/noir-lang/noir/commit/334be1454f04e7e2711cfe4f5b3874362921cda4"
+        },
+        "date": 1756997414044,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 258.14,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 291.33,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 242.94,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 503.7,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 436.08,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1500,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 330.47,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 332.99,
             "unit": "MB"
           },
           {
