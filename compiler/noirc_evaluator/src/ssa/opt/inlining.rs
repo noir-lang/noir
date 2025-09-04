@@ -16,7 +16,7 @@ use crate::ssa::{
         basic_block::BasicBlockId,
         call_graph::CallGraph,
         dfg::InsertInstructionResult,
-        function::{Function, FunctionId, RuntimeType},
+        function::{Function, FunctionId},
         instruction::{Instruction, InstructionId, TerminatorInstruction},
         value::{Value, ValueId},
     },
