@@ -8,7 +8,7 @@ use crate::errors::RuntimeError;
 use acvm::acir::AcirField;
 use im::HashMap;
 use iter_extended::vecmap;
-use noirc_errors::call_stack::CallStackId;
+use noirc_errors::{Location, call_stack::CallStackId};
 
 use crate::ssa::{
     function_builder::FunctionBuilder,
@@ -126,8 +126,8 @@ impl Ssa {
             assert_eq!(inlined.id(), entry_point);
             new_functions.insert(entry_point, inlined);
         }
-        self.functions = new_functions;
 
+        self.functions = new_functions;
         Ok(self)
     }
 }
@@ -463,7 +463,8 @@ impl<'function> PerFunctionContext<'function> {
             match &self.source_function.dfg[*id] {
                 Instruction::Call { func, arguments } => match self.get_function(*func) {
                     Some(func_id) => {
-                        if let Some(callee) = self.should_inline_call(ssa, func_id) {
+                        let call_stack = self.source_function.dfg.get_instruction_call_stack(*id);
+                        if let Some(callee) = self.should_inline_call(ssa, func_id, call_stack)? {
                             if should_inline_call(callee) {
                                 self.inline_function(
                                     ssa,
@@ -507,12 +508,13 @@ impl<'function> PerFunctionContext<'function> {
         &self,
         ssa: &'a Ssa,
         called_func_id: FunctionId,
-    ) -> Option<&'a Function> {
+        call_stack: Vec<Location>,
+    ) -> Result<Option<&'a Function>, RuntimeError> {
         // Do not inline self-recursive functions on the top level.
         // Inlining a self-recursive function works when there is something to inline into
         // by importing all the recursive blocks, but for the entry function there is no wrapper.
         if self.entry_function.id() == called_func_id {
-            return None;
+            return Ok(None);
         }
 
         let callee = &ssa.functions[&called_func_id];
@@ -520,19 +522,28 @@ impl<'function> PerFunctionContext<'function> {
         match callee.runtime() {
             RuntimeType::Acir(inline_type) => {
                 // If the called function is acir, we inline if it's not an entry point
+                // If it is called from brillig, it cannot be inlined because runtimes do not share the same semantic
+                if self.entry_function.runtime().is_brillig() {
+                    return Err(RuntimeError::UnconstrainedCallingConstrained {
+                        call_stack,
+                        constrained: callee.name().to_string(),
+                        unconstrained: self.entry_function.name().to_string(),
+                    });
+                }
                 if inline_type.is_entry_point() {
-                    return None;
+                    assert!(!self.entry_function.runtime().is_brillig());
+                    return Ok(None);
                 }
             }
             RuntimeType::Brillig(_) => {
                 if self.entry_function.runtime().is_acir() {
                     // We never inline a brillig function into an ACIR function.
-                    return None;
+                    return Ok(None);
                 }
             }
         }
 
-        Some(callee)
+        Ok(Some(callee))
     }
 
     /// Inline a function call and remember the inlined return values in the values map
@@ -700,6 +711,7 @@ impl<'function> PerFunctionContext<'function> {
 mod test {
     use crate::{
         assert_ssa_snapshot,
+        errors::RuntimeError,
         ssa::{Ssa, ir::instruction::TerminatorInstruction, opt::assert_normalized_ssa_equals},
     };
 
@@ -1298,5 +1310,28 @@ mod test {
         ";
         let ssa = Ssa::from_str(src).unwrap();
         let _ = ssa.inline_functions(i64::MAX).unwrap();
+    }
+
+    #[test]
+    // We should not inline an ACIR function called from a Brillig function because ACIR and Brillig semantics are different.
+    fn inlining_acir_into_brillig_function() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32):
+            call f1(v0)
+            return
+        }
+        acir(inline) fn foo f1 {
+          b0(v0: u32):
+            v4 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+            v5 = array_get v4, index v0 -> Field
+            return
+        }
+        ";
+        let ssa = Ssa::from_str_no_validation(src).unwrap();
+        let ssa = ssa.inline_functions(i64::MAX);
+        if !matches!(ssa, Err(RuntimeError::UnconstrainedCallingConstrained { .. })) {
+            panic!("Expected inlining to fail with RuntimeError::UnconstrainedCallingConstrained");
+        }
     }
 }

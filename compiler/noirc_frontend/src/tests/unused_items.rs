@@ -130,7 +130,6 @@ fn errors_on_unused_type_alias() {
          ~~~ unused type alias
     type Bar = Field;
     pub fn bar(_: Bar) {}
-    fn main() {}
     "#;
     check_errors!(src);
 }
@@ -157,8 +156,6 @@ fn does_not_warn_on_unused_global_if_it_has_an_abi_attribute() {
         #[abi(notes)]
         global bar: u64 = 1;
     }
-
-    fn main() {}
     "#;
     assert_no_errors!(src);
 }
@@ -168,8 +165,6 @@ fn does_not_warn_on_unused_struct_if_it_has_an_abi_attribute() {
     let src = r#"
     #[abi(dummy)]
     struct Foo { bar: u8 }
-
-    fn main() {}
     "#;
     assert_no_errors!(src);
 }
@@ -179,8 +174,6 @@ fn does_not_warn_on_unused_function_if_it_has_an_export_attribute() {
     let src = r#"
     #[export]
     fn foo() {}
-
-    fn main() {}
     "#;
     assert_no_errors!(src);
 }
@@ -211,8 +204,6 @@ fn no_warning_on_struct_if_it_has_an_abi_attribute() {
     struct Foo {
         a: Field,
     }
-
-    fn main() {}
     "#;
     assert_no_errors!(src);
 }
@@ -228,8 +219,6 @@ fn no_warning_on_indirect_struct_if_it_has_an_abi_attribute() {
     struct Foo {
         bar: Bar,
     }
-
-    fn main() {}
     "#;
     assert_no_errors!(src);
 }
@@ -268,8 +257,6 @@ fn resolves_trait_where_clause_in_the_correct_module() {
     where
         T: Foo,
     {}
-
-    fn main() {}
     "#;
     assert_no_errors!(src);
 }

@@ -1,6 +1,6 @@
-ci := if env("CI") == "true" {
+ci := if env("CI", "") == "true" {
   "1"
-} else if env("CI") == "1" {
+} else if env("CI", "") == "1" {
   "1"
 } else {
   "0"
