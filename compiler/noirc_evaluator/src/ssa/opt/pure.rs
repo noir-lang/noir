@@ -183,9 +183,6 @@ impl Function {
                         }
                     }
 
-                    // Instruction::IncrementRc { .. }
-                    // | Instruction::DecrementRc { .. } => return Purity::Impure,
-
                     // The rest are always pure (including allocate, load, & store)
                     Instruction::Cast(_, _)
                     | Instruction::Not(_)
@@ -294,12 +291,7 @@ fn analyze_call_graph(
 mod test {
     use crate::{
         assert_ssa_snapshot,
-        ssa::{
-            interpreter::value::Value,
-            ir::{function::FunctionId, types::NumericType},
-            opt::pure::Purity,
-            ssa_gen::Ssa,
-        },
+        ssa::{ir::function::FunctionId, opt::pure::Purity, ssa_gen::Ssa},
     };
 
     #[test]
