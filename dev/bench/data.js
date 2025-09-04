@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1756964585873,
+  "lastUpdate": 1756980482498,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -20210,48 +20210,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "bf662eefb1cfa97be05fa9fc88d869b388b61570",
-          "message": "fix: validate binary operations which do not allow fields (#9649)",
-          "timestamp": "2025-08-27T10:13:08Z",
-          "tree_id": "f842ba7d6b06253008f81ee84d1bd4fd6907b80d",
-          "url": "https://github.com/noir-lang/noir/commit/bf662eefb1cfa97be05fa9fc88d869b388b61570"
-        },
-        "date": 1756291177361,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 249658,
-            "range": "± 518",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 218474,
-            "range": "± 2617",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2787052,
-            "range": "± 8430",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "d12ce98b613bab6a0d1cddbac681e989acbb84a0",
           "message": "chore: remove handling for slice arguments to MSM (#9648)",
@@ -22294,6 +22252,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2783632,
             "range": "± 1787",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f0783eaec0ba97f6f2147ace59f6f787dc55d322",
+          "message": "chore: remove empty main from frontend tests (#9726)",
+          "timestamp": "2025-09-04T09:41:09Z",
+          "tree_id": "c9771598b3b531d2a89c9d0e23d5e20ca6af7e5a",
+          "url": "https://github.com/noir-lang/noir/commit/f0783eaec0ba97f6f2147ace59f6f787dc55d322"
+        },
+        "date": 1756980461858,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 263706,
+            "range": "± 1428",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 231123,
+            "range": "± 7646",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2783593,
+            "range": "± 2001",
             "unit": "ns/iter"
           }
         ]
