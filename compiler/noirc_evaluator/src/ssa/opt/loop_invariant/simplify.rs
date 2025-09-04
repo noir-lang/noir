@@ -73,7 +73,7 @@ impl LoopInvariantContext<'_> {
     /// with a known upper bound, we know whether that binary operation will ever overflow.
     /// If we determine that an overflow is not possible we can convert the checked operation to unchecked.
     ///
-    /// The function returns false if the instruction must be added to the block
+    /// The function returns `false` if the instruction must be added to the block, which involves further simplification.
     pub(super) fn simplify_from_loop_bounds(
         &mut self,
         loop_context: &LoopContext,
@@ -93,7 +93,6 @@ impl LoopInvariantContext<'_> {
                 self.inserter.function.dfg[instruction_id] = instruction;
                 false
             }
-            SimplifyResult::Remove => true,
             SimplifyResult::None => false,
             _ => unreachable!(
                 "ICE - loop bounds simplification should only simplify to a value or an instruction"
