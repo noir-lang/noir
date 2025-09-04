@@ -15,6 +15,7 @@ use crate::ssa::{
         call_graph::CallGraph,
         function::{Function, RuntimeType},
     },
+    opt::brillig_entry_points::get_brillig_entry_points,
     ssa_gen::Ssa,
 };
 
@@ -33,6 +34,8 @@ impl Ssa {
     pub(crate) fn inline_simple_functions(mut self: Ssa) -> Result<Ssa, RuntimeError> {
         let call_graph = CallGraph::from_ssa(&self);
         let recursive_functions = call_graph.get_recursive_functions();
+        let brillig_entry_points =
+            get_brillig_entry_points(&self.functions, self.main_id, &call_graph);
 
         let should_inline_call = |callee: &Function| {
             if let RuntimeType::Acir(_) = callee.runtime() {
@@ -40,6 +43,11 @@ impl Ssa {
                 if callee.is_no_predicates() {
                     return false;
                 }
+            }
+
+            // Do not inline Brillig entry points
+            if brillig_entry_points.contains_key(&callee.id()) {
+                return false;
             }
 
             let entry_block_id = callee.entry_block();
@@ -372,6 +380,23 @@ mod test {
           return
       }
       ";
+        assert_does_not_inline(src);
+    }
+
+    #[test]
+    fn basic_inlining_brillig_not_inlined_into_acir() {
+        // We expect that Brillig entry points (e.g., Brillig functions called from ACIR) should never be inlined.
+        let src = "
+        acir(inline) fn foo f0 {
+          b0():
+            v1 = call f1() -> Field
+            return v1
+        }
+        brillig(inline) fn bar f1 {
+          b0():
+            return Field 72
+        }
+        ";
         assert_does_not_inline(src);
     }
 }
