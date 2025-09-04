@@ -824,20 +824,13 @@ impl BlockContext {
                     prepared_signature.signature.clone(),
                 );
                 assert_eq!(
-                    result.value_id,
-                    brillig_builder
-                        .ecdsa_secp256r1(
-                            prepared_signature.public_key_x,
-                            prepared_signature.public_key_y,
-                            prepared_signature.hash,
-                            prepared_signature.signature,
-                        )
-                        .value_id
-                );
-                append_typed_value_to_map(
-                    &mut self.stored_variables,
-                    &result.to_value_type(),
-                    result.clone(),
+                    result,
+                    brillig_builder.ecdsa_secp256r1(
+                        prepared_signature.public_key_x,
+                        prepared_signature.public_key_y,
+                        prepared_signature.hash,
+                        prepared_signature.signature,
+                    )
                 );
                 self.store_variable(&result);
             }
@@ -866,10 +859,13 @@ impl BlockContext {
                     prepared_signature.signature.clone(),
                 );
                 assert_eq!(
-                    result.value_id,
-                    &mut self.stored_variables,
-                    &result.to_value_type(),
-                    result.clone(),
+                    result,
+                    brillig_builder.ecdsa_secp256k1(
+                        prepared_signature.public_key_x,
+                        prepared_signature.public_key_y,
+                        prepared_signature.hash,
+                        prepared_signature.signature,
+                    )
                 );
                 self.store_variable(&result);
             }

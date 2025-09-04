@@ -983,7 +983,7 @@ impl FuzzerBuilder {
         let result = self.builder.insert_call(
             intrinsic,
             vec![pub_key_x.value_id, pub_key_y.value_id, signature.value_id, hash.value_id],
-            vec![return_type.clone()],
+            vec![return_type.clone().into()],
         );
         assert_eq!(result.len(), 1);
         let result = result[0];
@@ -1009,7 +1009,7 @@ impl FuzzerBuilder {
         let result = self.builder.insert_call(
             intrinsic,
             vec![pub_key_x.value_id, pub_key_y.value_id, signature.value_id, hash.value_id],
-            vec![return_type.clone()],
+            vec![return_type.clone().into()],
         );
         assert_eq!(result.len(), 1);
         let result = result[0];
