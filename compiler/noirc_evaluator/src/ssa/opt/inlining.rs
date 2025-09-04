@@ -79,8 +79,9 @@ impl Ssa {
                 inline_no_predicates_functions,
                 aggressiveness,
             );
-            self =
-                Self::inline_functions_inner(self, &inline_infos, inline_no_predicates_functions)?;
+            dbg!(&inline_infos);
+            println!("{}", self.print_with(None));
+            self = Self::inline_functions_inner(self, &inline_infos)?;
 
             let num_functions_after = self.functions.len();
             if num_functions_after == num_functions_before {
@@ -91,30 +92,15 @@ impl Ssa {
         Ok(self)
     }
 
-    fn inline_functions_inner(
-        mut self,
-        inline_infos: &InlineInfos,
-        inline_no_predicates_functions: bool,
-    ) -> Result<Ssa, RuntimeError> {
+    fn inline_functions_inner(mut self, inline_infos: &InlineInfos) -> Result<Ssa, RuntimeError> {
         let inline_targets = inline_infos.iter().filter_map(|(id, info)| {
             let dfg = &self.functions[id].dfg;
             info.is_inline_target(dfg).then_some(*id)
         });
 
         let should_inline_call = |callee: &Function| -> bool {
-            match callee.runtime() {
-                RuntimeType::Acir(_) => {
-                    // If we have not already finished the flattening pass, functions marked
-                    // to not have predicates should be preserved.
-                    let preserve_function =
-                        !inline_no_predicates_functions && callee.is_no_predicates();
-                    !preserve_function
-                }
-                RuntimeType::Brillig(_) => {
-                    // We inline inline if the function called wasn't ruled out as too costly or recursive.
-                    InlineInfo::should_inline(inline_infos, callee.id())
-                }
-            }
+            // We defer to the inline info computation to determine whether a function should be inlined
+            InlineInfo::should_inline(inline_infos, callee.id())
         };
 
         // NOTE: Functions are processed independently of each other, with the final mapping replacing the original,
@@ -464,29 +450,23 @@ impl<'function> PerFunctionContext<'function> {
                 Instruction::Call { func, arguments } => match self.get_function(*func) {
                     Some(func_id) => {
                         let call_stack = self.source_function.dfg.get_instruction_call_stack(*id);
-                        if let Some(callee) = self.should_inline_call(ssa, func_id, call_stack)? {
-                            if should_inline_call(callee) {
-                                self.inline_function(
-                                    ssa,
-                                    *id,
-                                    func_id,
-                                    arguments,
-                                    should_inline_call,
-                                )?;
 
-                                // This is only relevant during handling functions with `InlineType::NoPredicates` as these
-                                // can pollute the function they're being inlined into with `Instruction::EnabledSideEffects`,
-                                // resulting in predicates not being applied properly.
-                                //
-                                // Note that this doesn't cover the case in which there exists an `Instruction::EnableSideEffectsIf`
-                                // within the function being inlined whilst the source function has not encountered one yet.
-                                // In practice this isn't an issue as the last `Instruction::EnableSideEffectsIf` in the
-                                // function being inlined will be to turn off predicates rather than to create one.
-                                if let Some(condition) = side_effects_enabled {
-                                    self.context.builder.insert_enable_side_effects_if(condition);
-                                }
-                            } else {
-                                self.push_instruction(*id);
+                        let callee = &ssa.functions[&func_id];
+                        // Sanity check to validate runtime compatibility
+                        self.validate_callee(ssa, callee, call_stack)?;
+                        if should_inline_call(callee) {
+                            self.inline_function(ssa, *id, func_id, arguments, should_inline_call)?;
+
+                            // This is only relevant during handling functions with `InlineType::NoPredicates` as these
+                            // can pollute the function they're being inlined into with `Instruction::EnabledSideEffects`,
+                            // resulting in predicates not being applied properly.
+                            //
+                            // Note that this doesn't cover the case in which there exists an `Instruction::EnableSideEffectsIf`
+                            // within the function being inlined whilst the source function has not encountered one yet.
+                            // In practice this isn't an issue as the last `Instruction::EnableSideEffectsIf` in the
+                            // function being inlined will be to turn off predicates rather than to create one.
+                            if let Some(condition) = side_effects_enabled {
+                                self.context.builder.insert_enable_side_effects_if(condition);
                             }
                         } else {
                             self.push_instruction(*id);
@@ -504,6 +484,35 @@ impl<'function> PerFunctionContext<'function> {
         Ok(())
     }
 
+    /// Extra error check where given a caller's runtime its callee runtime is valid.
+    /// We determine validity as the following (where we have caller -> callee):
+    /// Valid:
+    /// - ACIR -> ACIR
+    /// - ACIR -> Brillig
+    /// - Brillig -> Brillig
+    /// Invalid:
+    /// - Brillig -> ACIR
+    ///
+    /// Whether a valid callee should be inlined is determined separately by the inline info computation.
+    fn validate_callee<'a>(
+        &self,
+        ssa: &'a Ssa,
+        callee: &Function,
+        call_stack: Vec<Location>,
+    ) -> Result<(), RuntimeError> {
+        if self.entry_function.runtime().is_brillig() && callee.runtime().is_acir() {
+            // If the caller is Brillig and the called function is ACIR,
+            // it cannot be inlined because runtimes do not share the same semantics
+            return Err(RuntimeError::UnconstrainedCallingConstrained {
+                call_stack,
+                constrained: callee.name().to_string(),
+                unconstrained: self.entry_function.name().to_string(),
+            });
+        }
+
+        Ok(())
+    }
+
     fn should_inline_call<'a>(
         &self,
         ssa: &'a Ssa,
@@ -513,9 +522,9 @@ impl<'function> PerFunctionContext<'function> {
         // Do not inline self-recursive functions on the top level.
         // Inlining a self-recursive function works when there is something to inline into
         // by importing all the recursive blocks, but for the entry function there is no wrapper.
-        if self.entry_function.id() == called_func_id {
-            return Ok(None);
-        }
+        // if self.entry_function.id() == called_func_id {
+        //     return Ok(None);
+        // }
 
         let callee = &ssa.functions[&called_func_id];
 
@@ -530,16 +539,16 @@ impl<'function> PerFunctionContext<'function> {
                         unconstrained: self.entry_function.name().to_string(),
                     });
                 }
-                if inline_type.is_entry_point() {
-                    assert!(!self.entry_function.runtime().is_brillig());
-                    return Ok(None);
-                }
+                // if inline_type.is_entry_point() {
+                //     assert!(!self.entry_function.runtime().is_brillig());
+                //     return Ok(None);
+                // }
             }
             RuntimeType::Brillig(_) => {
-                if self.entry_function.runtime().is_acir() {
-                    // We never inline a brillig function into an ACIR function.
-                    return Ok(None);
-                }
+                // if self.entry_function.runtime().is_acir() {
+                //     // We never inline a brillig function into an ACIR function.
+                //     return Ok(None);
+                // }
             }
         }
 
