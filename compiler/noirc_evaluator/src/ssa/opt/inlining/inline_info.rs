@@ -166,6 +166,14 @@ fn compute_function_should_be_inlined(
     }
 
     let function = &ssa.functions[&func_id];
+    let runtime = function.runtime();
+
+    if runtime.is_acir() {
+        let info = inline_infos.entry(func_id).or_default();
+        info.should_inline = true;
+        return;
+    }
+
     let assert_constant_id = function.dfg.get_intrinsic(Intrinsic::AssertConstant).copied();
     let static_assert_id = function.dfg.get_intrinsic(Intrinsic::StaticAssert).copied();
 
@@ -197,7 +205,6 @@ fn compute_function_should_be_inlined(
     let inline_cost = times.saturating_mul(total_weight);
     let retain_cost = times.saturating_mul(interface_cost) + total_weight;
     let net_cost = inline_cost.saturating_sub(retain_cost);
-    let runtime = function.runtime();
     let info = inline_infos.entry(func_id).or_default();
 
     info.contains_static_assertion = contains_static_assertion;
