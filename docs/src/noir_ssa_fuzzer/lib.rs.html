@@ -391,8 +391,7 @@
 <a href="#390" id="390">390</a>
 <a href="#391" id="391">391</a>
 <a href="#392" id="392">392</a>
-<a href="#393" id="393">393</a>
-<a href="#394" id="394">394</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#393" id="393">393</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
 </span><span class="kw">pub mod </span>builder;
@@ -403,14 +402,12 @@
 </span><span class="kw">mod </span>tests {
     <span class="kw">use </span><span class="kw">crate</span>::builder::{FuzzerBuilder, FuzzerBuilderError, InstructionWithTwoArgs};
     <span class="kw">use </span><span class="kw">crate</span>::runner::{CompareResults, run_and_compare};
-    <span class="kw">use </span><span class="kw">crate</span>::typed_value::{TypedValue, ValueType};
+    <span class="kw">use </span><span class="kw">crate</span>::typed_value::{NumericType, Type, TypedValue};
     <span class="kw">use </span>acvm::acir::native_types::{Witness, WitnessMap};
     <span class="kw">use </span>acvm::{AcirField, FieldElement};
     <span class="kw">use </span>noirc_driver::{CompileOptions, CompiledProgram};
-    <span class="kw">use </span>rand::Rng;
-
     <span class="kw">use </span>noirc_evaluator::ssa::ir::instruction::BinaryOp;
-    <span class="kw">use </span>noirc_evaluator::ssa::ir::types::NumericType;
+    <span class="kw">use </span>rand::Rng;
 
     <span class="kw">struct </span>TestHelper {
         acir_builder: FuzzerBuilder,
@@ -425,9 +422,10 @@
             <span class="self">Self </span>{ acir_builder, brillig_builder }
         }
 
-        <span class="kw">fn </span>insert_variable(<span class="kw-2">&amp;mut </span><span class="self">self</span>, variable_type: ValueType) -&gt; TypedValue {
-            <span class="kw">let </span>acir_param = <span class="self">self</span>.acir_builder.insert_variable(variable_type.to_ssa_type());
-            <span class="kw">let </span>brillig_param = <span class="self">self</span>.brillig_builder.insert_variable(variable_type.to_ssa_type());
+        <span class="kw">fn </span>insert_variable(<span class="kw-2">&amp;mut </span><span class="self">self</span>, variable_type: NumericType) -&gt; TypedValue {
+            <span class="kw">let </span>acir_param = <span class="self">self</span>.acir_builder.insert_variable(Type::Numeric(variable_type).into());
+            <span class="kw">let </span>brillig_param =
+                <span class="self">self</span>.brillig_builder.insert_variable(Type::Numeric(variable_type).into());
             <span class="macro">assert_eq!</span>(acir_param, brillig_param);
             acir_param
         }
@@ -468,8 +466,8 @@
     /// Instruction runs with first and second witness given
     </span><span class="kw">fn </span>run_instruction_double_arg(
         instruction: InstructionWithTwoArgs,
-        lhs: (FieldElement, ValueType),
-        rhs: (FieldElement, ValueType),
+        lhs: (FieldElement, NumericType),
+        rhs: (FieldElement, NumericType),
     ) -&gt; FieldElement {
         <span class="kw">let </span><span class="kw-2">mut </span>test_helper = TestHelper::new();
         <span class="kw">let </span>lhs_val = test_helper.insert_variable(lhs.<span class="number">1</span>);
@@ -530,8 +528,8 @@
         </span>lhs %= <span class="number">12341234</span>;
         <span class="kw">let </span>noir_res = run_instruction_double_arg(
             FuzzerBuilder::insert_add_instruction_checked,
-            (lhs.into(), ValueType::U64),
-            (rhs.into(), ValueType::U64),
+            (lhs.into(), NumericType::U64),
+            (rhs.into(), NumericType::U64),
         );
         compare_results(lhs + rhs, noir_res);
     }
@@ -566,8 +564,8 @@
         </span>lhs %= <span class="number">12341234</span>;
         <span class="kw">let </span>noir_res = run_instruction_double_arg(
             FuzzerBuilder::insert_add_instruction_checked,
-            (parse_integer_to_signed(lhs), ValueType::I64),
-            (parse_integer_to_signed(rhs), ValueType::I64),
+            (parse_integer_to_signed(lhs), NumericType::I64),
+            (parse_integer_to_signed(rhs), NumericType::I64),
         );
         compare_results(parse_integer_to_signed(lhs + rhs), noir_res);
     }
@@ -584,8 +582,8 @@
         }
         <span class="kw">let </span>noir_res = run_instruction_double_arg(
             FuzzerBuilder::insert_sub_instruction_checked,
-            (lhs.into(), ValueType::U64),
-            (rhs.into(), ValueType::U64),
+            (lhs.into(), NumericType::U64),
+            (rhs.into(), NumericType::U64),
         );
         compare_results(lhs - rhs, noir_res);
     }
@@ -601,8 +599,8 @@
         rhs %= <span class="number">12341234</span>;
         <span class="kw">let </span>noir_res = run_instruction_double_arg(
             FuzzerBuilder::insert_sub_instruction_checked,
-            (parse_integer_to_signed(lhs), ValueType::I64),
-            (parse_integer_to_signed(rhs), ValueType::I64),
+            (parse_integer_to_signed(lhs), NumericType::I64),
+            (parse_integer_to_signed(rhs), NumericType::I64),
         );
         compare_results(parse_integer_to_signed(lhs - rhs), noir_res);
     }
@@ -618,8 +616,8 @@
         rhs %= <span class="number">12341234</span>;
         <span class="kw">let </span>noir_res = run_instruction_double_arg(
             FuzzerBuilder::insert_mul_instruction_checked,
-            (lhs.into(), ValueType::U64),
-            (rhs.into(), ValueType::U64),
+            (lhs.into(), NumericType::U64),
+            (rhs.into(), NumericType::U64),
         );
         compare_results(lhs * rhs, noir_res);
     }
@@ -635,8 +633,8 @@
         rhs %= <span class="number">12341234</span>;
         <span class="kw">let </span>noir_res = run_instruction_double_arg(
             FuzzerBuilder::insert_mul_instruction_checked,
-            (parse_integer_to_signed(lhs), ValueType::I64),
-            (parse_integer_to_signed(rhs), ValueType::I64),
+            (parse_integer_to_signed(lhs), NumericType::I64),
+            (parse_integer_to_signed(rhs), NumericType::I64),
         );
         compare_results(parse_integer_to_signed(lhs * rhs), noir_res);
     }
@@ -652,8 +650,8 @@
         }
         <span class="kw">let </span>noir_res = run_instruction_double_arg(
             FuzzerBuilder::insert_div_instruction,
-            (lhs.into(), ValueType::U64),
-            (rhs.into(), ValueType::U64),
+            (lhs.into(), NumericType::U64),
+            (rhs.into(), NumericType::U64),
         );
         compare_results(lhs / rhs, noir_res);
     }
@@ -666,8 +664,8 @@
 
         <span class="kw">let </span>noir_res = run_instruction_double_arg(
             FuzzerBuilder::insert_mod_instruction,
-            (lhs.into(), ValueType::U64),
-            (rhs.into(), ValueType::U64),
+            (lhs.into(), NumericType::U64),
+            (rhs.into(), NumericType::U64),
         );
         compare_results(lhs % rhs, noir_res);
     }
@@ -680,8 +678,8 @@
 
         <span class="kw">let </span>noir_res = run_instruction_double_arg(
             FuzzerBuilder::insert_and_instruction,
-            (lhs.into(), ValueType::U64),
-            (rhs.into(), ValueType::U64),
+            (lhs.into(), NumericType::U64),
+            (rhs.into(), NumericType::U64),
         );
         compare_results(lhs &amp; rhs, noir_res);
     }
@@ -694,8 +692,8 @@
 
         <span class="kw">let </span>noir_res = run_instruction_double_arg(
             FuzzerBuilder::insert_or_instruction,
-            (lhs.into(), ValueType::U64),
-            (rhs.into(), ValueType::U64),
+            (lhs.into(), NumericType::U64),
+            (rhs.into(), NumericType::U64),
         );
         compare_results(lhs | rhs, noir_res);
     }
@@ -708,8 +706,8 @@
 
         <span class="kw">let </span>noir_res = run_instruction_double_arg(
             FuzzerBuilder::insert_xor_instruction,
-            (lhs.into(), ValueType::U64),
-            (rhs.into(), ValueType::U64),
+            (lhs.into(), NumericType::U64),
+            (rhs.into(), NumericType::U64),
         );
         compare_results(lhs ^ rhs, noir_res);
     }
@@ -722,8 +720,8 @@
         rhs %= <span class="number">64</span>;
         <span class="kw">let </span>noir_res = run_instruction_double_arg(
             FuzzerBuilder::insert_shr_instruction,
-            (lhs.into(), ValueType::U64),
-            (rhs.into(), ValueType::U64),
+            (lhs.into(), NumericType::U64),
+            (rhs.into(), NumericType::U64),
         );
         compare_results(lhs &gt;&gt; rhs, noir_res);
     }
@@ -735,7 +733,7 @@
         <span class="kw">match </span>compilation_result {
             <span class="prelude-val">Ok</span>(<span class="kw">_</span>) =&gt; <span class="macro">panic!</span>(<span class="string">"Expected an SSA validation failure"</span>),
             <span class="prelude-val">Err</span>(FuzzerBuilderError::RuntimeError(error)) =&gt; {
-                <span class="macro">assert!</span>(error.contains(expected_message));
+                <span class="macro">assert!</span>(error.contains(expected_message), <span class="string">"error: {error}"</span>);
             }
         }
     }
@@ -746,19 +744,18 @@
         <span class="kw">let </span><span class="kw-2">mut </span>brillig_builder = FuzzerBuilder::new_brillig(<span class="comment">/*simplifying_enabled=*/ </span><span class="bool-val">true</span>);
 
         <span class="kw">let </span>field_var_acir_id_1 =
-            acir_builder.insert_variable(ValueType::Field.to_ssa_type()).value_id;
-        <span class="kw">let </span>u64_var_acir_id_2 = acir_builder.insert_variable(ValueType::U64.to_ssa_type()).value_id;
+            acir_builder.insert_variable(Type::Numeric(NumericType::Field).into()).value_id;
+        <span class="kw">let </span>u64_var_acir_id_2 =
+            acir_builder.insert_variable(Type::Numeric(NumericType::U64).into()).value_id;
         <span class="kw">let </span>field_var_brillig_id_1 =
-            brillig_builder.insert_variable(ValueType::Field.to_ssa_type()).value_id;
+            brillig_builder.insert_variable(Type::Numeric(NumericType::Field).into()).value_id;
         <span class="kw">let </span>u64_var_brillig_id_2 =
-            brillig_builder.insert_variable(ValueType::U64.to_ssa_type()).value_id;
+            brillig_builder.insert_variable(Type::Numeric(NumericType::U64).into()).value_id;
 
-        <span class="kw">let </span>casted_acir = acir_builder
-            .builder
-            .insert_cast(field_var_acir_id_1, NumericType::Unsigned { bit_size: <span class="number">64 </span>});
-        <span class="kw">let </span>casted_brillig = brillig_builder
-            .builder
-            .insert_cast(field_var_brillig_id_1, NumericType::Unsigned { bit_size: <span class="number">64 </span>});
+        <span class="kw">let </span>casted_acir =
+            acir_builder.builder.insert_cast(field_var_acir_id_1, NumericType::U64.into());
+        <span class="kw">let </span>casted_brillig =
+            brillig_builder.builder.insert_cast(field_var_brillig_id_1, NumericType::U64.into());
 
         <span class="kw">let </span>mul_acir = acir_builder.builder.insert_binary(
             casted_acir,
@@ -774,7 +771,8 @@
         acir_builder.builder.terminate_with_return(<span class="macro">vec!</span>[mul_acir]);
         brillig_builder.builder.terminate_with_return(<span class="macro">vec!</span>[mul_brillig]);
 
-        <span class="kw">let </span>acir_result = acir_builder.compile(CompileOptions::default());
+        <span class="kw">let </span>acir_result =
+            acir_builder.compile(CompileOptions { show_ssa: <span class="bool-val">true</span>, ..CompileOptions::default() });
         check_expected_validation_error(
             acir_result,
             <span class="string">"Invalid cast from Field, not preceded by valid truncation or known safe value"</span>,

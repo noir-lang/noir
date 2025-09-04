@@ -1,1 +1,1 @@
-window.SIDEBAR_ITEMS = {"enum":["ValueType"],"struct":["Point","Scalar","TypedValue"]};
+window.SIDEBAR_ITEMS = {"enum":["NumericType","Type"],"struct":["Point","Scalar","TypedValue"]};

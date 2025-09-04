@@ -1000,7 +1000,23 @@
 <a href="#999" id="999">999</a>
 <a href="#1000" id="1000">1000</a>
 <a href="#1001" id="1001">1001</a>
-<a href="#1002" id="1002">1002</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::typed_value::{Point, Scalar, TypedValue, ValueType};
+<a href="#1002" id="1002">1002</a>
+<a href="#1003" id="1003">1003</a>
+<a href="#1004" id="1004">1004</a>
+<a href="#1005" id="1005">1005</a>
+<a href="#1006" id="1006">1006</a>
+<a href="#1007" id="1007">1007</a>
+<a href="#1008" id="1008">1008</a>
+<a href="#1009" id="1009">1009</a>
+<a href="#1010" id="1010">1010</a>
+<a href="#1011" id="1011">1011</a>
+<a href="#1012" id="1012">1012</a>
+<a href="#1013" id="1013">1013</a>
+<a href="#1014" id="1014">1014</a>
+<a href="#1015" id="1015">1015</a>
+<a href="#1016" id="1016">1016</a>
+<a href="#1017" id="1017">1017</a>
+<a href="#1018" id="1018">1018</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::typed_value::{NumericType, Point, Scalar, Type, TypedValue};
 <span class="kw">use </span>acvm::FieldElement;
 <span class="kw">use </span>noir_ssa_executor::compiler::compile_from_ssa;
 <span class="kw">use </span>noirc_driver::{CompileOptions, CompiledProgram};
@@ -1010,7 +1026,7 @@
 <span class="kw">use </span>noirc_evaluator::ssa::ir::instruction::ArrayOffset;
 <span class="kw">use </span>noirc_evaluator::ssa::ir::instruction::BinaryOp;
 <span class="kw">use </span>noirc_evaluator::ssa::ir::map::Id;
-<span class="kw">use </span>noirc_evaluator::ssa::ir::types::{NumericType, Type};
+<span class="kw">use </span>noirc_evaluator::ssa::ir::types::Type <span class="kw">as </span>SsaType;
 <span class="kw">use </span>noirc_evaluator::ssa::ir::value::Value;
 <span class="kw">use </span>noirc_frontend::monomorphization::ast::InlineType;
 <span class="kw">use </span>noirc_frontend::monomorphization::ast::InlineType <span class="kw">as </span>FrontendInlineType;
@@ -1075,9 +1091,9 @@
     }
 
     <span class="doccomment">/// Inserts initial variables of the given type into the function
-    </span><span class="kw">pub fn </span>insert_variable(<span class="kw-2">&amp;mut </span><span class="self">self</span>, variable_type: Type) -&gt; TypedValue {
+    </span><span class="kw">pub fn </span>insert_variable(<span class="kw-2">&amp;mut </span><span class="self">self</span>, variable_type: SsaType) -&gt; TypedValue {
         <span class="kw">let </span>id = <span class="self">self</span>.builder.add_parameter(variable_type.clone());
-        TypedValue::new(id, variable_type)
+        TypedValue::new(id, variable_type.into())
     }
 
     <span class="doccomment">/// Terminates main function block with the given value
@@ -1091,6 +1107,8 @@
         lhs: TypedValue,
         rhs: TypedValue,
     ) -&gt; TypedValue {
+        <span class="macro">assert!</span>(lhs.same_types(<span class="kw-2">&amp;</span>rhs), <span class="string">"must have same type"</span>);
+        <span class="macro">assert!</span>(lhs.is_numeric(), <span class="string">"must be numeric"</span>);
         <span class="kw">let </span>res = <span class="self">self</span>.builder.insert_binary(
             lhs.value_id,
             BinaryOp::Add { unchecked: <span class="bool-val">false </span>},
@@ -1105,6 +1123,8 @@
         lhs: TypedValue,
         rhs: TypedValue,
     ) -&gt; TypedValue {
+        <span class="macro">assert!</span>(lhs.same_types(<span class="kw-2">&amp;</span>rhs), <span class="string">"must have same type"</span>);
+        <span class="macro">assert!</span>(lhs.is_numeric(), <span class="string">"must be numeric"</span>);
         <span class="kw">let </span>res = <span class="self">self</span>.builder.insert_binary(
             lhs.value_id,
             BinaryOp::Sub { unchecked: <span class="bool-val">false </span>},
@@ -1119,70 +1139,63 @@
         lhs: TypedValue,
         rhs: TypedValue,
     ) -&gt; TypedValue {
+        <span class="macro">assert!</span>(lhs.same_types(<span class="kw-2">&amp;</span>rhs), <span class="string">"must have same type"</span>);
+        <span class="macro">assert!</span>(lhs.is_numeric(), <span class="string">"must be numeric"</span>);
         <span class="kw">let </span>res = <span class="self">self</span>.builder.insert_binary(
             lhs.value_id,
             BinaryOp::Mul { unchecked: <span class="bool-val">false </span>},
             rhs.value_id,
         );
-        <span class="kw">let </span>init_bit_length = <span class="kw">match </span>lhs.type_of_variable {
-            Type::Numeric(NumericType::NativeField) =&gt; <span class="number">254</span>,
-            Type::Numeric(NumericType::Unsigned { bit_size }) =&gt; bit_size,
-            Type::Numeric(NumericType::Signed { bit_size }) =&gt; bit_size,
-            <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"Trying to cast not numeric type"</span>),
-        };
+        <span class="kw">let </span>init_bit_length = lhs.bit_length();
 
         <span class="self">self</span>.builder.insert_range_check(
             res,
             init_bit_length,
             <span class="prelude-val">Some</span>(<span class="string">"Attempt to multiply with overflow"</span>.to_string()),
         );
-        <span class="kw">if </span>lhs.to_value_type().bit_length() == <span class="number">254 </span>{
+        <span class="comment">// if field, no need to truncate
+        </span><span class="kw">if </span>lhs.is_field() {
             <span class="kw">return </span>TypedValue::new(res, lhs.type_of_variable);
         }
-        <span class="kw">let </span>bit_size = lhs.to_value_type().bit_length();
+        <span class="kw">let </span>bit_size = lhs.bit_length();
         <span class="kw">let </span>res = <span class="self">self</span>.builder.insert_truncate(res, bit_size, bit_size * <span class="number">2</span>);
         TypedValue::new(res, lhs.type_of_variable)
     }
 
     <span class="doccomment">/// Inserts a divide instruction between two values
     </span><span class="kw">pub fn </span>insert_div_instruction(<span class="kw-2">&amp;mut </span><span class="self">self</span>, lhs: TypedValue, rhs: TypedValue) -&gt; TypedValue {
+        <span class="macro">assert!</span>(lhs.same_types(<span class="kw-2">&amp;</span>rhs), <span class="string">"must have same type"</span>);
+        <span class="macro">assert!</span>(lhs.is_numeric(), <span class="string">"must be numeric"</span>);
         <span class="kw">let </span>res = <span class="self">self</span>.builder.insert_binary(lhs.value_id, BinaryOp::Div, rhs.value_id);
         TypedValue::new(res, lhs.type_of_variable)
     }
 
     <span class="doccomment">/// Inserts a modulo instruction between two values
     </span><span class="kw">pub fn </span>insert_mod_instruction(<span class="kw-2">&amp;mut </span><span class="self">self</span>, lhs: TypedValue, rhs: TypedValue) -&gt; TypedValue {
-        <span class="kw">if </span>!lhs.supports_mod() {
-            <span class="kw">return </span>lhs;
-        }
+        <span class="macro">assert!</span>(lhs.same_types(<span class="kw-2">&amp;</span>rhs), <span class="string">"must have same type"</span>);
+        <span class="macro">assert!</span>(lhs.is_numeric(), <span class="string">"must be numeric"</span>);
+        <span class="macro">assert!</span>(!lhs.is_field(), <span class="string">"must not be field"</span>);
         <span class="kw">let </span>res = <span class="self">self</span>.builder.insert_binary(lhs.value_id, BinaryOp::Mod, rhs.value_id);
         TypedValue::new(res, lhs.type_of_variable)
     }
 
     <span class="doccomment">/// Inserts a not instruction for the given value
     </span><span class="kw">pub fn </span>insert_not_instruction(<span class="kw-2">&amp;mut </span><span class="self">self</span>, lhs: TypedValue) -&gt; TypedValue {
-        <span class="kw">if </span>!lhs.supports_not() {
-            <span class="kw">return </span>lhs;
-        }
+        <span class="macro">assert!</span>(lhs.is_numeric(), <span class="string">"must be numeric"</span>);
+        <span class="macro">assert!</span>(!lhs.is_field(), <span class="string">"must not be field"</span>);
         <span class="kw">let </span>res = <span class="self">self</span>.builder.insert_not(lhs.value_id);
         TypedValue::new(res, lhs.type_of_variable)
     }
 
     <span class="doccomment">/// Inserts a cast instruction
-    </span><span class="kw">pub fn </span>insert_cast(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: TypedValue, cast_type: ValueType) -&gt; TypedValue {
-        <span class="kw">if </span>!cast_type.can_be_used_for_casts() {
-            <span class="kw">return </span>value;
-        }
+    </span><span class="kw">pub fn </span>insert_cast(<span class="kw-2">&amp;mut </span><span class="self">self</span>, value: TypedValue, cast_type: Type) -&gt; TypedValue {
+        <span class="macro">assert!</span>(value.is_numeric(), <span class="string">"must be numeric"</span>);
+        <span class="macro">assert!</span>(cast_type.is_numeric(), <span class="string">"must be numeric, got {cast_type:?}"</span>);
 
-        <span class="kw">let </span>init_bit_length = <span class="kw">match </span>value.type_of_variable {
-            Type::Numeric(NumericType::NativeField) =&gt; <span class="number">254</span>,
-            Type::Numeric(NumericType::Unsigned { bit_size }) =&gt; bit_size,
-            Type::Numeric(NumericType::Signed { bit_size }) =&gt; bit_size,
-            <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"Trying to cast not to numeric type"</span>),
-        };
+        <span class="kw">let </span>init_bit_length = value.bit_length();
 
         <span class="kw">let </span><span class="kw-2">mut </span>value_id = value.value_id;
-        <span class="comment">// always truncate, optimizations will eliminate if we truncate to bigger bit_len
+        <span class="comment">// if not field, truncate
         </span><span class="kw">if </span>cast_type.bit_length() != <span class="number">254 </span>{
             value_id = <span class="self">self</span>.builder.insert_truncate(
                 value.value_id,
@@ -1190,46 +1203,48 @@
                 init_bit_length,
             );
         }
+        <span class="kw">let </span>cast_type_as_numeric_type = cast_type.unwrap_numeric();
 
-        <span class="kw">let </span>res = <span class="self">self</span>.builder.insert_cast(value_id, cast_type.to_numeric_type());
-        TypedValue::new(res, cast_type.to_ssa_type())
+        <span class="kw">let </span>res = <span class="self">self</span>.builder.insert_cast(value_id, cast_type_as_numeric_type.into());
+        TypedValue::new(res, cast_type)
     }
 
     <span class="doccomment">/// Inserts an equals comparison instruction between two values
     </span><span class="kw">pub fn </span>insert_eq_instruction(<span class="kw-2">&amp;mut </span><span class="self">self</span>, lhs: TypedValue, rhs: TypedValue) -&gt; TypedValue {
+        <span class="macro">assert!</span>(lhs.same_types(<span class="kw-2">&amp;</span>rhs), <span class="string">"must have same type"</span>);
+        <span class="macro">assert!</span>(lhs.is_numeric(), <span class="string">"must be numeric"</span>);
         <span class="kw">let </span>res = <span class="self">self</span>.builder.insert_binary(lhs.value_id, BinaryOp::Eq, rhs.value_id);
-        TypedValue::new(res, ValueType::Boolean.to_ssa_type())
+        TypedValue::new(res, Type::Numeric(NumericType::Boolean))
     }
 
     <span class="doccomment">/// Inserts a less than comparison instruction between two values
     </span><span class="kw">pub fn </span>insert_lt_instruction(<span class="kw-2">&amp;mut </span><span class="self">self</span>, lhs: TypedValue, rhs: TypedValue) -&gt; TypedValue {
+        <span class="macro">assert!</span>(lhs.same_types(<span class="kw-2">&amp;</span>rhs), <span class="string">"must have same type"</span>);
+        <span class="macro">assert!</span>(lhs.is_numeric(), <span class="string">"must be numeric"</span>);
         <span class="kw">let </span>res = <span class="self">self</span>.builder.insert_binary(lhs.value_id, BinaryOp::Lt, rhs.value_id);
-        TypedValue::new(res, ValueType::Boolean.to_ssa_type())
+        TypedValue::new(res, Type::Numeric(NumericType::Boolean))
     }
 
     <span class="doccomment">/// Inserts a bitwise AND instruction between two values
     </span><span class="kw">pub fn </span>insert_and_instruction(<span class="kw-2">&amp;mut </span><span class="self">self</span>, lhs: TypedValue, rhs: TypedValue) -&gt; TypedValue {
-        <span class="kw">if </span>!lhs.supports_bitwise() {
-            <span class="kw">return </span>lhs;
-        }
+        <span class="macro">assert!</span>(lhs.same_types(<span class="kw-2">&amp;</span>rhs), <span class="string">"must have same type"</span>);
+        <span class="macro">assert!</span>(lhs.is_numeric(), <span class="string">"must be numeric"</span>);
         <span class="kw">let </span>res = <span class="self">self</span>.builder.insert_binary(lhs.value_id, BinaryOp::And, rhs.value_id);
         TypedValue::new(res, lhs.type_of_variable)
     }
 
     <span class="doccomment">/// Inserts a bitwise OR instruction between two values
     </span><span class="kw">pub fn </span>insert_or_instruction(<span class="kw-2">&amp;mut </span><span class="self">self</span>, lhs: TypedValue, rhs: TypedValue) -&gt; TypedValue {
-        <span class="kw">if </span>!lhs.supports_bitwise() {
-            <span class="kw">return </span>lhs;
-        }
+        <span class="macro">assert!</span>(lhs.same_types(<span class="kw-2">&amp;</span>rhs), <span class="string">"must have same type"</span>);
+        <span class="macro">assert!</span>(lhs.is_numeric(), <span class="string">"must be numeric"</span>);
         <span class="kw">let </span>res = <span class="self">self</span>.builder.insert_binary(lhs.value_id, BinaryOp::Or, rhs.value_id);
         TypedValue::new(res, lhs.type_of_variable)
     }
 
     <span class="doccomment">/// Inserts a bitwise XOR instruction between two values
     </span><span class="kw">pub fn </span>insert_xor_instruction(<span class="kw-2">&amp;mut </span><span class="self">self</span>, lhs: TypedValue, rhs: TypedValue) -&gt; TypedValue {
-        <span class="kw">if </span>!lhs.supports_bitwise() {
-            <span class="kw">return </span>lhs;
-        }
+        <span class="macro">assert!</span>(lhs.same_types(<span class="kw-2">&amp;</span>rhs), <span class="string">"must have same type"</span>);
+        <span class="macro">assert!</span>(lhs.is_numeric(), <span class="string">"must be numeric"</span>);
         <span class="kw">let </span>res = <span class="self">self</span>.builder.insert_binary(lhs.value_id, BinaryOp::Xor, rhs.value_id);
         TypedValue::new(res, lhs.type_of_variable)
     }
@@ -1237,9 +1252,8 @@
     <span class="doccomment">/// Inserts a left shift instruction between two values
     /// The right hand side is cast to 8 bits
     </span><span class="kw">pub fn </span>insert_shl_instruction(<span class="kw-2">&amp;mut </span><span class="self">self</span>, lhs: TypedValue, rhs: TypedValue) -&gt; TypedValue {
-        <span class="kw">if </span>!lhs.supports_shift() {
-            <span class="kw">return </span>lhs;
-        }
+        <span class="macro">assert!</span>(lhs.same_types(<span class="kw-2">&amp;</span>rhs), <span class="string">"must have same type"</span>);
+        <span class="macro">assert!</span>(lhs.is_numeric(), <span class="string">"must be numeric"</span>);
         <span class="kw">let </span>res = <span class="self">self</span>.builder.insert_binary(lhs.value_id, BinaryOp::Shl, rhs.value_id);
         TypedValue::new(res, lhs.type_of_variable)
     }
@@ -1247,9 +1261,8 @@
     <span class="doccomment">/// Inserts a right shift instruction between two values
     /// The right hand side is cast to 8 bits
     </span><span class="kw">pub fn </span>insert_shr_instruction(<span class="kw-2">&amp;mut </span><span class="self">self</span>, lhs: TypedValue, rhs: TypedValue) -&gt; TypedValue {
-        <span class="kw">if </span>!lhs.supports_shift() {
-            <span class="kw">return </span>lhs;
-        }
+        <span class="macro">assert!</span>(lhs.same_types(<span class="kw-2">&amp;</span>rhs), <span class="string">"must have same type"</span>);
+        <span class="macro">assert!</span>(lhs.is_numeric(), <span class="string">"must be numeric"</span>);
         <span class="kw">let </span>res = <span class="self">self</span>.builder.insert_binary(lhs.value_id, BinaryOp::Shr, rhs.value_id);
         TypedValue::new(res, lhs.type_of_variable)
     }
@@ -1257,10 +1270,10 @@
     <span class="kw">pub fn </span>insert_constant(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         value: <span class="kw">impl </span>Into&lt;FieldElement&gt;,
-        type_: ValueType,
+        type_: NumericType,
     ) -&gt; TypedValue {
-        <span class="kw">let </span>id = <span class="self">self</span>.builder.numeric_constant(value.into(), type_.to_numeric_type());
-        TypedValue::new(id, type_.to_ssa_type())
+        <span class="kw">let </span>id = <span class="self">self</span>.builder.numeric_constant(value.into(), type_.into());
+        TypedValue::new(id, Type::Numeric(type_))
     }
 
     <span class="kw">pub fn </span>insert_constrain(<span class="kw-2">&amp;mut </span><span class="self">self</span>, lhs: TypedValue, rhs: TypedValue) {
@@ -1285,9 +1298,9 @@
     <span class="doccomment">/// Inserts a new parameter to the current SSA block and returns its value
     ///
     /// b0() -&gt; b0(new_parameter: parameter_type)
-    </span><span class="kw">pub fn </span>add_block_parameter(<span class="kw-2">&amp;mut </span><span class="self">self</span>, block: BasicBlockId, typ: ValueType) -&gt; TypedValue {
-        <span class="kw">let </span>id = <span class="self">self</span>.builder.add_block_parameter(block, typ.to_ssa_type());
-        TypedValue::new(id, typ.to_ssa_type())
+    </span><span class="kw">pub fn </span>add_block_parameter(<span class="kw-2">&amp;mut </span><span class="self">self</span>, block: BasicBlockId, typ: Type) -&gt; TypedValue {
+        <span class="kw">let </span>id = <span class="self">self</span>.builder.add_block_parameter(block, typ.clone().into());
+        TypedValue::new(id, typ)
     }
 
     <span class="doccomment">/// Inserts a return instruction with the given value
@@ -1318,18 +1331,22 @@
     }
 
     <span class="kw">pub fn </span>insert_add_to_memory(<span class="kw-2">&amp;mut </span><span class="self">self</span>, lhs: TypedValue) -&gt; TypedValue {
-        <span class="kw">let </span>memory_address = <span class="self">self</span>.builder.insert_allocate(lhs.type_of_variable.clone());
+        <span class="kw">let </span>memory_address = <span class="self">self</span>.builder.insert_allocate(lhs.clone().type_of_variable.into());
         <span class="self">self</span>.builder.insert_store(memory_address, lhs.value_id);
-        TypedValue::new(memory_address, lhs.type_of_variable)
+        TypedValue::new(memory_address, Type::Reference(Arc::new(lhs.type_of_variable)))
     }
 
     <span class="kw">pub fn </span>insert_load_from_memory(<span class="kw-2">&amp;mut </span><span class="self">self</span>, memory_addr: TypedValue) -&gt; TypedValue {
-        <span class="kw">let </span>res =
-            <span class="self">self</span>.builder.insert_load(memory_addr.value_id, memory_addr.clone().type_of_variable);
-        TypedValue::new(res, memory_addr.type_of_variable.clone())
+        <span class="macro">assert!</span>(memory_addr.type_of_variable.is_reference(), <span class="string">"memory address must be a reference"</span>);
+        <span class="kw">let </span>res = <span class="self">self</span>.builder.insert_load(
+            memory_addr.value_id,
+            memory_addr.type_of_variable.unwrap_reference().into(),
+        );
+        TypedValue::new(res, memory_addr.type_of_variable.unwrap_reference())
     }
 
     <span class="kw">pub fn </span>insert_set_to_memory(<span class="kw-2">&amp;mut </span><span class="self">self</span>, memory_addr: TypedValue, value: TypedValue) {
+        <span class="macro">assert!</span>(memory_addr.type_of_variable.is_reference(), <span class="string">"memory address must be a reference"</span>);
         <span class="self">self</span>.builder.insert_store(memory_addr.value_id, value.value_id);
     }
 
@@ -1354,41 +1371,48 @@
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         function: Id&lt;Value&gt;,
         arguments: <span class="kw-2">&amp;</span>[TypedValue],
-        result_type: ValueType,
+        result_type: Type,
     ) -&gt; Id&lt;Value&gt; {
         <span class="kw-2">*</span><span class="self">self
             </span>.builder
             .insert_call(
                 function,
                 arguments.iter().map(|i| i.value_id).collect(),
-                <span class="macro">vec!</span>[result_type.to_ssa_type()],
+                <span class="macro">vec!</span>[result_type.clone().into()],
             )
             .first()
             .unwrap()
     }
 
     <span class="doccomment">/// Inserts a new array with the given elements and type
-    </span><span class="kw">pub fn </span>insert_array(<span class="kw-2">&amp;mut </span><span class="self">self</span>, elements: Vec&lt;TypedValue&gt;, is_references: bool) -&gt; TypedValue {
+    </span><span class="kw">pub fn </span>insert_array(<span class="kw-2">&amp;mut </span><span class="self">self</span>, elements: Vec&lt;TypedValue&gt;) -&gt; TypedValue {
         <span class="kw">let </span>array_length = elements.len() <span class="kw">as </span>u32;
         <span class="macro">assert!</span>(array_length &gt; <span class="number">0</span>, <span class="string">"Array must have at least one element"</span>);
         <span class="kw">let </span>element_type = elements[<span class="number">0</span>].type_of_variable.clone();
-        <span class="kw">let </span>array_elements_type = <span class="kw">if </span>is_references {
-            Type::Array(
-                Arc::new(<span class="macro">vec!</span>[Type::Reference(Arc::new(element_type.clone()))]),
-                array_length,
-            )
-        } <span class="kw">else </span>{
-            Type::Array(Arc::new(<span class="macro">vec!</span>[element_type.clone()]), array_length)
-        };
-        <span class="kw">let </span>typ = array_elements_type.clone();
         <span class="macro">assert!</span>(
             elements.iter().all(|e| e.type_of_variable == element_type),
             <span class="string">"All elements must have the same type"
         </span>);
-        <span class="kw">let </span>res = <span class="self">self
-            </span>.builder
-            .insert_make_array(elements.into_iter().map(|e| e.value_id).collect(), typ.clone());
-        TypedValue::new(res, typ)
+        <span class="kw">let </span>array_elements_type = Type::Array(Arc::new(<span class="macro">vec!</span>[element_type]), array_length);
+        <span class="kw">let </span>res = <span class="self">self</span>.builder.insert_make_array(
+            elements.into_iter().map(|e| e.value_id).collect(),
+            array_elements_type.clone().into(),
+        );
+        TypedValue::new(res, array_elements_type)
+    }
+
+    <span class="kw">pub fn </span>insert_slice(<span class="kw-2">&amp;mut </span><span class="self">self</span>, elements: Vec&lt;TypedValue&gt;) -&gt; TypedValue {
+        <span class="kw">let </span>element_type = elements[<span class="number">0</span>].type_of_variable.clone();
+        <span class="macro">assert!</span>(
+            elements.iter().all(|e| e.type_of_variable == element_type),
+            <span class="string">"All elements must have the same type"
+        </span>);
+        <span class="kw">let </span>array_elements_type = Type::Slice(Arc::new(<span class="macro">vec!</span>[element_type]));
+        <span class="kw">let </span>res = <span class="self">self</span>.builder.insert_make_array(
+            elements.into_iter().map(|e| e.value_id).collect(),
+            array_elements_type.clone().into(),
+        );
+        TypedValue::new(res, array_elements_type)
     }
 
     <span class="doccomment">/// Inserts a to_le_radix intrinsic call that decomposes a field into little-endian radix representation
@@ -1407,17 +1431,17 @@
         limb_count: u8,
     ) -&gt; TypedValue {
         <span class="macro">assert!</span>(field_value.is_field(), <span class="string">"to_le_radix requires a field value as input"</span>);
-        <span class="kw">let </span>radix = <span class="self">self</span>.builder.numeric_constant(radix, NumericType::Unsigned { bit_size: <span class="number">32 </span>});
+        <span class="kw">let </span>radix = <span class="self">self</span>.builder.numeric_constant(radix, NumericType::U32.into());
         <span class="kw">let </span>intrinsic = <span class="self">self
             </span>.builder
             .import_intrinsic(<span class="string">"to_le_radix"</span>)
             .expect(<span class="string">"to_le_radix intrinsic should be available"</span>);
-        <span class="kw">let </span>element_type = Type::Numeric(NumericType::Unsigned { bit_size: <span class="number">8 </span>});
+        <span class="kw">let </span>element_type = Type::Numeric(NumericType::U8);
         <span class="kw">let </span>result_type = Type::Array(Arc::new(<span class="macro">vec!</span>[element_type.clone()]), limb_count <span class="kw">as </span>u32);
         <span class="kw">let </span>result = <span class="self">self</span>.builder.insert_call(
             intrinsic,
             <span class="macro">vec!</span>[field_value.value_id, radix],
-            <span class="macro">vec!</span>[result_type.clone()],
+            <span class="macro">vec!</span>[result_type.clone().into()],
         );
 
         TypedValue::new(result[<span class="number">0</span>], result_type)
@@ -1433,21 +1457,25 @@
     /// A field value representing the composed value
     </span><span class="kw">pub fn </span>insert_from_le_radix(<span class="kw-2">&amp;mut </span><span class="self">self</span>, array: TypedValue, radix: u128) -&gt; TypedValue {
         <span class="kw">let </span>array_size = <span class="kw">match </span>array.type_of_variable {
-            Type::Array(<span class="kw">_</span>, array_size) =&gt; array_size,
+            Type::Array(type_of_array, array_size) =&gt; {
+                <span class="macro">assert!</span>(array_size &gt; <span class="number">0</span>, <span class="string">"Array must have at least one element"</span>);
+                <span class="macro">assert!</span>(<span class="macro">matches!</span>(type_of_array[<span class="number">0</span>], Type::Numeric(NumericType::U8)));
+                array_size
+            }
             <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"Array type expected"</span>),
         };
-        <span class="kw">let </span><span class="kw-2">mut </span>exp = <span class="self">self</span>.builder.numeric_constant(<span class="number">1_u32</span>, NumericType::NativeField);
-        <span class="kw">let </span><span class="kw-2">mut </span>agg = <span class="self">self</span>.builder.numeric_constant(<span class="number">0_u32</span>, NumericType::NativeField);
-        <span class="kw">let </span>radix = <span class="self">self</span>.builder.numeric_constant(radix, NumericType::NativeField);
+        <span class="kw">let </span><span class="kw-2">mut </span>exp = <span class="self">self</span>.builder.numeric_constant(<span class="number">1_u32</span>, NumericType::Field.into());
+        <span class="kw">let </span><span class="kw-2">mut </span>agg = <span class="self">self</span>.builder.numeric_constant(<span class="number">0_u32</span>, NumericType::Field.into());
+        <span class="kw">let </span>radix = <span class="self">self</span>.builder.numeric_constant(radix, NumericType::Field.into());
         <span class="kw">for </span>i <span class="kw">in </span><span class="number">0</span>..array_size {
-            <span class="kw">let </span>index = <span class="self">self</span>.builder.numeric_constant(i, NumericType::Unsigned { bit_size: <span class="number">32 </span>});
+            <span class="kw">let </span>index = <span class="self">self</span>.builder.numeric_constant(i, NumericType::U32.into());
             <span class="kw">let </span>byte = <span class="self">self</span>.builder.insert_array_get(
                 array.value_id,
                 index,
                 ArrayOffset::None,
-                Type::Numeric(NumericType::Unsigned { bit_size: <span class="number">8 </span>}),
+                SsaType::Numeric(NumericType::U8.into()),
             );
-            <span class="kw">let </span>byte_as_field = <span class="self">self</span>.builder.insert_cast(byte, NumericType::NativeField);
+            <span class="kw">let </span>byte_as_field = <span class="self">self</span>.builder.insert_cast(byte, NumericType::Field.into());
             <span class="kw">let </span>byte_as_field_mul_exp =
                 <span class="self">self</span>.builder.insert_binary(byte_as_field, BinaryOp::Mul { unchecked: <span class="bool-val">true </span>}, exp);
             agg = <span class="self">self</span>.builder.insert_binary(
@@ -1457,7 +1485,7 @@
             );
             exp = <span class="self">self</span>.builder.insert_binary(exp, BinaryOp::Mul { unchecked: <span class="bool-val">true </span>}, radix);
         }
-        TypedValue::new(agg, Type::Numeric(NumericType::NativeField))
+        TypedValue::new(agg, Type::Numeric(NumericType::Field))
     }
 
     <span class="doccomment">/// Inserts a blake2s hash intrinsic call
@@ -1471,10 +1499,7 @@
         <span class="kw">match </span>input.type_of_variable {
             Type::Array(type_of_array, _array_size) =&gt; {
                 <span class="macro">assert!</span>(
-                    <span class="macro">matches!</span>(
-                        type_of_array[<span class="number">0</span>],
-                        Type::Numeric(NumericType::Unsigned { bit_size: <span class="number">8 </span>})
-                    ),
+                    <span class="macro">matches!</span>(type_of_array[<span class="number">0</span>], Type::Numeric(NumericType::U8)),
                     <span class="string">"blake2s requires an array of u8 as input"
                 </span>);
             }
@@ -1484,10 +1509,12 @@
             </span>.builder
             .import_intrinsic(<span class="string">"blake2s"</span>)
             .expect(<span class="string">"blake2s intrinsic should be available"</span>);
-        <span class="kw">let </span>return_type =
-            Type::Array(Arc::new(<span class="macro">vec!</span>[Type::Numeric(NumericType::Unsigned { bit_size: <span class="number">8 </span>})]), <span class="number">32</span>);
-        <span class="kw">let </span>result =
-            <span class="self">self</span>.builder.insert_call(intrinsic, <span class="macro">vec!</span>[input.value_id], <span class="macro">vec!</span>[return_type.clone()]);
+        <span class="kw">let </span>return_type = Type::Array(Arc::new(<span class="macro">vec!</span>[Type::Numeric(NumericType::U8)]), <span class="number">32</span>);
+        <span class="kw">let </span>result = <span class="self">self</span>.builder.insert_call(
+            intrinsic,
+            <span class="macro">vec!</span>[input.value_id],
+            <span class="macro">vec!</span>[return_type.clone().into()],
+        );
         <span class="macro">assert_eq!</span>(result.len(), <span class="number">1</span>);
         TypedValue::new(result[<span class="number">0</span>], return_type)
     }
@@ -1502,19 +1529,18 @@
     </span><span class="kw">pub fn </span>insert_blake3_hash(<span class="kw-2">&amp;mut </span><span class="self">self</span>, input: TypedValue) -&gt; TypedValue {
         <span class="kw">match </span>input.type_of_variable {
             Type::Array(type_of_array, _array_size) =&gt; {
-                <span class="macro">assert!</span>(<span class="macro">matches!</span>(
-                    type_of_array[<span class="number">0</span>],
-                    Type::Numeric(NumericType::Unsigned { bit_size: <span class="number">8 </span>})
-                ));
+                <span class="macro">assert!</span>(<span class="macro">matches!</span>(type_of_array[<span class="number">0</span>], Type::Numeric(NumericType::U8)));
             }
             <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"blake3 requires an array as input"</span>),
         }
         <span class="kw">let </span>intrinsic =
             <span class="self">self</span>.builder.import_intrinsic(<span class="string">"blake3"</span>).expect(<span class="string">"blake3 intrinsic should be available"</span>);
-        <span class="kw">let </span>return_type =
-            Type::Array(Arc::new(<span class="macro">vec!</span>[Type::Numeric(NumericType::Unsigned { bit_size: <span class="number">8 </span>})]), <span class="number">32</span>);
-        <span class="kw">let </span>result =
-            <span class="self">self</span>.builder.insert_call(intrinsic, <span class="macro">vec!</span>[input.value_id], <span class="macro">vec!</span>[return_type.clone()]);
+        <span class="kw">let </span>return_type = Type::Array(Arc::new(<span class="macro">vec!</span>[Type::Numeric(NumericType::U8)]), <span class="number">32</span>);
+        <span class="kw">let </span>result = <span class="self">self</span>.builder.insert_call(
+            intrinsic,
+            <span class="macro">vec!</span>[input.value_id],
+            <span class="macro">vec!</span>[return_type.clone().into()],
+        );
         <span class="macro">assert_eq!</span>(result.len(), <span class="number">1</span>);
         TypedValue::new(result[<span class="number">0</span>], return_type)
     }
@@ -1530,10 +1556,7 @@
         <span class="kw">match </span>input.type_of_variable {
             Type::Array(type_of_array, array_size) =&gt; {
                 <span class="macro">assert!</span>(
-                    <span class="macro">matches!</span>(
-                        type_of_array[<span class="number">0</span>],
-                        Type::Numeric(NumericType::Unsigned { bit_size: <span class="number">64 </span>})
-                    ),
+                    <span class="macro">matches!</span>(type_of_array[<span class="number">0</span>], Type::Numeric(NumericType::U64)),
                     <span class="string">"keccakf1600 requires an array of u64 as input, but received {type_of_array:?}"
                 </span>);
                 <span class="macro">assert!</span>(array_size == <span class="number">25</span>);
@@ -1544,10 +1567,12 @@
             </span>.builder
             .import_intrinsic(<span class="string">"keccakf1600"</span>)
             .expect(<span class="string">"keccakf1600 intrinsic should be available"</span>);
-        <span class="kw">let </span>return_type =
-            Type::Array(Arc::new(<span class="macro">vec!</span>[Type::Numeric(NumericType::Unsigned { bit_size: <span class="number">64 </span>})]), <span class="number">25</span>);
-        <span class="kw">let </span>result =
-            <span class="self">self</span>.builder.insert_call(intrinsic, <span class="macro">vec!</span>[input.value_id], <span class="macro">vec!</span>[return_type.clone()]);
+        <span class="kw">let </span>return_type = Type::Array(Arc::new(<span class="macro">vec!</span>[Type::Numeric(NumericType::U64)]), <span class="number">25</span>);
+        <span class="kw">let </span>result = <span class="self">self</span>.builder.insert_call(
+            intrinsic,
+            <span class="macro">vec!</span>[input.value_id],
+            <span class="macro">vec!</span>[return_type.clone().into()],
+        );
         <span class="macro">assert_eq!</span>(result.len(), <span class="number">1</span>);
         TypedValue::new(result[<span class="number">0</span>], return_type)
     }
@@ -1569,30 +1594,21 @@
     ) -&gt; TypedValue {
         <span class="kw">let </span>input_size = <span class="kw">match </span>input.type_of_variable {
             Type::Array(type_of_array, array_size) =&gt; {
-                <span class="macro">assert!</span>(<span class="macro">matches!</span>(
-                    type_of_array[<span class="number">0</span>],
-                    Type::Numeric(NumericType::Unsigned { bit_size: <span class="number">8 </span>})
-                ));
+                <span class="macro">assert!</span>(<span class="macro">matches!</span>(type_of_array[<span class="number">0</span>], Type::Numeric(NumericType::U8)));
                 array_size
             }
             <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"aes128_encrypt requires an array as input"</span>),
         };
         <span class="kw">match </span>key.type_of_variable {
             Type::Array(type_of_array, array_size) =&gt; {
-                <span class="macro">assert!</span>(<span class="macro">matches!</span>(
-                    type_of_array[<span class="number">0</span>],
-                    Type::Numeric(NumericType::Unsigned { bit_size: <span class="number">8 </span>})
-                ));
+                <span class="macro">assert!</span>(<span class="macro">matches!</span>(type_of_array[<span class="number">0</span>], Type::Numeric(NumericType::U8)));
                 <span class="macro">assert!</span>(array_size == <span class="number">16</span>);
             }
             <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"aes128_encrypt requires an array as key"</span>),
         }
         <span class="kw">match </span>iv.type_of_variable {
             Type::Array(type_of_array, array_size) =&gt; {
-                <span class="macro">assert!</span>(<span class="macro">matches!</span>(
-                    type_of_array[<span class="number">0</span>],
-                    Type::Numeric(NumericType::Unsigned { bit_size: <span class="number">8 </span>})
-                ));
+                <span class="macro">assert!</span>(<span class="macro">matches!</span>(type_of_array[<span class="number">0</span>], Type::Numeric(NumericType::U8)));
                 <span class="macro">assert!</span>(array_size == <span class="number">16</span>);
             }
             <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"aes128_encrypt requires an array as iv"</span>),
@@ -1602,13 +1618,13 @@
             .import_intrinsic(<span class="string">"aes128_encrypt"</span>)
             .expect(<span class="string">"aes128_encrypt intrinsic should be available"</span>);
         <span class="kw">let </span>return_type = Type::Array(
-            Arc::new(<span class="macro">vec!</span>[Type::Numeric(NumericType::Unsigned { bit_size: <span class="number">8 </span>})]),
+            Arc::new(<span class="macro">vec!</span>[Type::Numeric(NumericType::U8)]),
             input_size + <span class="number">16 </span>- (input_size % <span class="number">16</span>),
         );
         <span class="kw">let </span>result = <span class="self">self</span>.builder.insert_call(
             intrinsic,
             <span class="macro">vec!</span>[input.value_id, key.value_id, iv.value_id],
-            <span class="macro">vec!</span>[return_type.clone()],
+            <span class="macro">vec!</span>[return_type.clone().into()],
         );
         <span class="macro">assert_eq!</span>(result.len(), <span class="number">1</span>);
         TypedValue::new(result[<span class="number">0</span>], return_type)
@@ -1629,26 +1645,19 @@
     ) -&gt; TypedValue {
         <span class="kw">match </span>input.type_of_variable {
             Type::Array(type_of_array, array_size) =&gt; {
-                <span class="macro">assert!</span>(<span class="macro">matches!</span>(
-                    type_of_array[<span class="number">0</span>],
-                    Type::Numeric(NumericType::Unsigned { bit_size: <span class="number">32 </span>})
-                ));
+                <span class="macro">assert!</span>(<span class="macro">matches!</span>(type_of_array[<span class="number">0</span>], Type::Numeric(NumericType::U32)));
                 <span class="macro">assert!</span>(array_size == <span class="number">16</span>);
             }
             <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"sha256_compression requires an array as input"</span>),
         }
         <span class="kw">match </span>state.type_of_variable {
             Type::Array(type_of_array, array_size) =&gt; {
-                <span class="macro">assert!</span>(<span class="macro">matches!</span>(
-                    type_of_array[<span class="number">0</span>],
-                    Type::Numeric(NumericType::Unsigned { bit_size: <span class="number">32 </span>})
-                ));
+                <span class="macro">assert!</span>(<span class="macro">matches!</span>(type_of_array[<span class="number">0</span>], Type::Numeric(NumericType::U32)));
                 <span class="macro">assert!</span>(array_size == <span class="number">8</span>);
             }
             <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"sha256_compression requires an array as state"</span>),
         }
-        <span class="kw">let </span>return_type =
-            Type::Array(Arc::new(<span class="macro">vec!</span>[Type::Numeric(NumericType::Unsigned { bit_size: <span class="number">32 </span>})]), <span class="number">8</span>);
+        <span class="kw">let </span>return_type = Type::Array(Arc::new(<span class="macro">vec!</span>[Type::Numeric(NumericType::U32)]), <span class="number">8</span>);
         <span class="kw">let </span>intrinsic = <span class="self">self
             </span>.builder
             .import_intrinsic(<span class="string">"sha256_compression"</span>)
@@ -1656,7 +1665,7 @@
         <span class="kw">let </span>result = <span class="self">self</span>.builder.insert_call(
             intrinsic,
             <span class="macro">vec!</span>[input.value_id, state.value_id],
-            <span class="macro">vec!</span>[return_type.clone()],
+            <span class="macro">vec!</span>[return_type.clone().into()],
         );
         <span class="macro">assert_eq!</span>(result.len(), <span class="number">1</span>);
         TypedValue::new(result[<span class="number">0</span>], return_type)
@@ -1671,12 +1680,11 @@
     ) -&gt; TypedValue {
         <span class="kw">match </span>array.type_of_variable.clone() {
             Type::Array(<span class="kw">_</span>, array_length) =&gt; {
-                <span class="kw">let </span>array_length_id = <span class="self">self
-                    </span>.builder
-                    .numeric_constant(array_length, NumericType::Unsigned { bit_size: <span class="number">32 </span>});
+                <span class="kw">let </span>array_length_id =
+                    <span class="self">self</span>.builder.numeric_constant(array_length, NumericType::U32.into());
                 <span class="kw">let </span>index_mod_length =
                     <span class="self">self</span>.builder.insert_binary(index.value_id, BinaryOp::Mod, array_length_id);
-                TypedValue::new(index_mod_length, ValueType::U32.to_ssa_type())
+                TypedValue::new(index_mod_length, Type::Numeric(NumericType::U32))
             }
             <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"Array type expected"</span>),
         }
@@ -1693,7 +1701,7 @@
         element_type: Type,
         safe_index: bool,
     ) -&gt; TypedValue {
-        <span class="macro">assert!</span>(index.type_of_variable == Type::Numeric(NumericType::Unsigned { bit_size: <span class="number">32 </span>}));
+        <span class="macro">assert!</span>(index.type_of_variable == Type::Numeric(NumericType::U32));
         <span class="kw">let </span>index = <span class="kw">if </span>safe_index {
             <span class="self">self</span>.insert_index_mod_array_length(index.clone(), array.clone())
         } <span class="kw">else </span>{
@@ -1703,7 +1711,7 @@
             array.value_id,
             index.value_id,
             ArrayOffset::None,
-            element_type.clone(),
+            element_type.clone().into(),
         );
         TypedValue::new(res, element_type)
     }
@@ -1719,11 +1727,12 @@
         value: TypedValue,
         safe_index: bool,
     ) -&gt; TypedValue {
-        <span class="kw">let </span>array_length = <span class="kw">match </span>array.type_of_variable {
-            Type::Array(<span class="kw">_</span>, array_length) =&gt; array_length,
+        <span class="kw">let </span>(array_type, array_length) = <span class="kw">match </span>array.type_of_variable.clone() {
+            Type::Array(array_type, array_length) =&gt; (array_type, array_length),
             <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(<span class="string">"Array type expected"</span>),
         };
-        <span class="macro">assert!</span>(index.type_of_variable == Type::Numeric(NumericType::Unsigned { bit_size: <span class="number">32 </span>}));
+
+        <span class="macro">assert!</span>(index.type_of_variable == Type::Numeric(NumericType::U32));
         <span class="kw">let </span>index = <span class="kw">if </span>safe_index {
             <span class="self">self</span>.insert_index_mod_array_length(index.clone(), array.clone())
         } <span class="kw">else </span>{
@@ -1736,10 +1745,7 @@
             <span class="bool-val">false</span>,
             ArrayOffset::None,
         );
-        TypedValue::new(
-            res,
-            Type::Array(Arc::new(<span class="macro">vec!</span>[array.type_of_variable.clone()]), array_length),
-        )
+        TypedValue::new(res, Type::Array(array_type.clone(), array_length))
     }
 
     <span class="doccomment">/// Performs a curve point multiplication with a scalar
@@ -1752,39 +1758,39 @@
     /// [`Point`] corresponding to `value` * G with overwritten on_curve value
     </span><span class="kw">pub fn </span>base_scalar_mul(<span class="kw-2">&amp;mut </span><span class="self">self</span>, scalar: Scalar, is_infinite: TypedValue) -&gt; Point {
         <span class="macro">assert!</span>(scalar.validate());
-        <span class="macro">assert!</span>(<span class="macro">matches!</span>(
-            is_infinite.type_of_variable,
-            Type::Numeric(NumericType::Unsigned { bit_size: <span class="number">1 </span>})
-        ));
-        <span class="kw">let </span>field_type = Type::Numeric(NumericType::NativeField);
-        <span class="kw">let </span>boolean_type = Type::Numeric(NumericType::Unsigned { bit_size: <span class="number">1 </span>});
+        <span class="macro">assert!</span>(<span class="macro">matches!</span>(is_infinite.type_of_variable, Type::Numeric(NumericType::Boolean)));
+        <span class="kw">let </span>field_type = Type::Numeric(NumericType::Field);
+        <span class="kw">let </span>boolean_type = Type::Numeric(NumericType::Boolean);
         <span class="kw">let </span>intrinsic = <span class="self">self
             </span>.builder
             .import_intrinsic(<span class="string">"multi_scalar_mul"</span>)
             .expect(<span class="string">"multi_scalar_mul intrinsic should be available"</span>);
 
         <span class="comment">// im recreating the point G every time, could be optimized to only do it once
-        </span><span class="kw">let </span>g_x_id = <span class="self">self</span>.builder.numeric_constant(<span class="number">1_u32</span>, NumericType::NativeField);
+        </span><span class="kw">let </span>g_x_id = <span class="self">self</span>.builder.numeric_constant(<span class="number">1_u32</span>, NumericType::Field.into());
         <span class="kw">let </span>g_y_id = <span class="self">self</span>.builder.numeric_constant(
             FieldElement::try_from_str(
                 <span class="string">"17631683881184975370165255887551781615748388533673675138860"</span>,
             )
             .unwrap(),
-            NumericType::NativeField,
+            NumericType::Field.into(),
         );
-        <span class="kw">let </span>is_infinite_g_id =
-            <span class="self">self</span>.builder.numeric_constant(<span class="number">0_u32</span>, NumericType::Unsigned { bit_size: <span class="number">1 </span>});
+        <span class="kw">let </span>is_infinite_g_id = <span class="self">self</span>.builder.numeric_constant(<span class="number">0_u32</span>, NumericType::Boolean.into());
         <span class="kw">let </span>elements = <span class="macro">vec!</span>[g_x_id, g_y_id, is_infinite_g_id].into_iter().collect();
         <span class="kw">let </span>basic_point = <span class="self">self</span>.builder.insert_make_array(
             elements,
-            Type::Array(
-                Arc::new(<span class="macro">vec!</span>[field_type.clone(), field_type.clone(), boolean_type.clone()]),
+            SsaType::Array(
+                Arc::new(<span class="macro">vec!</span>[
+                    field_type.clone().into(),
+                    field_type.clone().into(),
+                    boolean_type.clone().into(),
+                ]),
                 <span class="number">1</span>,
             ),
         );
         <span class="kw">let </span>scalar_id = <span class="self">self</span>.builder.insert_make_array(
             <span class="macro">vec!</span>[scalar.lo.value_id, scalar.hi.value_id].into_iter().collect(),
-            Type::Array(Arc::new(<span class="macro">vec!</span>[field_type.clone(), field_type.clone()]), <span class="number">1</span>),
+            SsaType::Array(Arc::new(<span class="macro">vec!</span>[field_type.clone().into(), field_type.clone().into()]), <span class="number">1</span>),
         );
         <span class="kw">let </span>return_type = Type::Array(
             Arc::new(<span class="macro">vec!</span>[field_type.clone(), field_type.clone(), boolean_type.clone()]),
@@ -1793,14 +1799,24 @@
         <span class="kw">let </span>result = <span class="self">self</span>.builder.insert_call(
             intrinsic,
             <span class="macro">vec!</span>[basic_point, scalar_id],
-            <span class="macro">vec!</span>[return_type.clone()],
+            <span class="macro">vec!</span>[return_type.clone().into()],
         );
         <span class="macro">assert_eq!</span>(result.len(), <span class="number">1</span>);
         <span class="kw">let </span>result = result[<span class="number">0</span>];
-        <span class="kw">let </span>x_idx = <span class="self">self</span>.builder.numeric_constant(<span class="number">0_u32</span>, NumericType::Unsigned { bit_size: <span class="number">32 </span>});
-        <span class="kw">let </span>y_idx = <span class="self">self</span>.builder.numeric_constant(<span class="number">1_u32</span>, NumericType::Unsigned { bit_size: <span class="number">32 </span>});
-        <span class="kw">let </span>x = <span class="self">self</span>.builder.insert_array_get(result, x_idx, ArrayOffset::None, field_type.clone());
-        <span class="kw">let </span>y = <span class="self">self</span>.builder.insert_array_get(result, y_idx, ArrayOffset::None, field_type.clone());
+        <span class="kw">let </span>x_idx = <span class="self">self</span>.builder.numeric_constant(<span class="number">0_u32</span>, NumericType::U32.into());
+        <span class="kw">let </span>y_idx = <span class="self">self</span>.builder.numeric_constant(<span class="number">1_u32</span>, NumericType::U32.into());
+        <span class="kw">let </span>x = <span class="self">self</span>.builder.insert_array_get(
+            result,
+            x_idx,
+            ArrayOffset::None,
+            field_type.clone().into(),
+        );
+        <span class="kw">let </span>y = <span class="self">self</span>.builder.insert_array_get(
+            result,
+            y_idx,
+            ArrayOffset::None,
+            field_type.clone().into(),
+        );
         Point {
             x: TypedValue::new(x, field_type.clone()),
             y: TypedValue::new(y, field_type),
@@ -1817,10 +1833,7 @@
     /// Point (scalar.lo, scalar.hi, is_infinite)
     </span><span class="kw">pub fn </span>create_point_from_scalar(<span class="kw-2">&amp;mut </span><span class="self">self</span>, scalar: Scalar, is_infinite: TypedValue) -&gt; Point {
         <span class="macro">assert!</span>(scalar.validate());
-        <span class="macro">assert!</span>(<span class="macro">matches!</span>(
-            is_infinite.type_of_variable,
-            Type::Numeric(NumericType::Unsigned { bit_size: <span class="number">1 </span>})
-        ));
+        <span class="macro">assert!</span>(<span class="macro">matches!</span>(is_infinite.type_of_variable, Type::Numeric(NumericType::Boolean)));
         Point { x: scalar.lo, y: scalar.hi, is_infinite }
     }
 
@@ -1833,8 +1846,8 @@
             <span class="macro">assert!</span>(scalar.validate());
         }
 
-        <span class="kw">let </span>field_type = Type::Numeric(NumericType::NativeField);
-        <span class="kw">let </span>boolean_type = Type::Numeric(NumericType::Unsigned { bit_size: <span class="number">1 </span>});
+        <span class="kw">let </span>field_type = Type::Numeric(NumericType::Field);
+        <span class="kw">let </span>boolean_type = Type::Numeric(NumericType::Boolean);
         <span class="kw">let </span>intrinsic = <span class="self">self
             </span>.builder
             .import_intrinsic(<span class="string">"multi_scalar_mul"</span>)
@@ -1843,15 +1856,19 @@
         <span class="kw">let </span>scalar_ids = scalars.iter().flat_map(|s| s.to_id_vec()).collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
         <span class="kw">let </span>point_ids_array = <span class="self">self</span>.builder.insert_make_array(
             point_ids.into_iter().collect(),
-            Type::Array(
-                Arc::new(<span class="macro">vec!</span>[field_type.clone(), field_type.clone(), boolean_type.clone()]),
+            SsaType::Array(
+                Arc::new(<span class="macro">vec!</span>[
+                    field_type.clone().into(),
+                    field_type.clone().into(),
+                    boolean_type.clone().into(),
+                ]),
                 points.len() <span class="kw">as </span>u32,
             ),
         );
         <span class="kw">let </span>scalar_ids_array = <span class="self">self</span>.builder.insert_make_array(
             scalar_ids.into_iter().collect(),
-            Type::Array(
-                Arc::new(<span class="macro">vec!</span>[field_type.clone(), field_type.clone()]),
+            SsaType::Array(
+                Arc::new(<span class="macro">vec!</span>[field_type.clone().into(), field_type.clone().into()]),
                 scalars.len() <span class="kw">as </span>u32,
             ),
         );
@@ -1862,21 +1879,30 @@
         <span class="kw">let </span>result = <span class="self">self</span>.builder.insert_call(
             intrinsic,
             <span class="macro">vec!</span>[point_ids_array, scalar_ids_array],
-            <span class="macro">vec!</span>[return_type.clone()],
+            <span class="macro">vec!</span>[return_type.clone().into()],
         );
         <span class="macro">assert_eq!</span>(result.len(), <span class="number">1</span>);
         <span class="kw">let </span>result = result[<span class="number">0</span>];
-        <span class="kw">let </span>x_idx = <span class="self">self</span>.builder.numeric_constant(<span class="number">0_u32</span>, NumericType::Unsigned { bit_size: <span class="number">32 </span>});
-        <span class="kw">let </span>y_idx = <span class="self">self</span>.builder.numeric_constant(<span class="number">1_u32</span>, NumericType::Unsigned { bit_size: <span class="number">32 </span>});
-        <span class="kw">let </span>is_infinite_idx =
-            <span class="self">self</span>.builder.numeric_constant(<span class="number">2_u32</span>, NumericType::Unsigned { bit_size: <span class="number">32 </span>});
-        <span class="kw">let </span>x = <span class="self">self</span>.builder.insert_array_get(result, x_idx, ArrayOffset::None, field_type.clone());
-        <span class="kw">let </span>y = <span class="self">self</span>.builder.insert_array_get(result, y_idx, ArrayOffset::None, field_type.clone());
+        <span class="kw">let </span>x_idx = <span class="self">self</span>.builder.numeric_constant(<span class="number">0_u32</span>, NumericType::U32.into());
+        <span class="kw">let </span>y_idx = <span class="self">self</span>.builder.numeric_constant(<span class="number">1_u32</span>, NumericType::U32.into());
+        <span class="kw">let </span>is_infinite_idx = <span class="self">self</span>.builder.numeric_constant(<span class="number">2_u32</span>, NumericType::U32.into());
+        <span class="kw">let </span>x = <span class="self">self</span>.builder.insert_array_get(
+            result,
+            x_idx,
+            ArrayOffset::None,
+            field_type.clone().into(),
+        );
+        <span class="kw">let </span>y = <span class="self">self</span>.builder.insert_array_get(
+            result,
+            y_idx,
+            ArrayOffset::None,
+            field_type.clone().into(),
+        );
         <span class="kw">let </span>is_infinite = <span class="self">self</span>.builder.insert_array_get(
             result,
             is_infinite_idx,
             ArrayOffset::None,
-            boolean_type.clone(),
+            boolean_type.clone().into(),
         );
         Point {
             x: TypedValue::new(x, field_type.clone()),
@@ -1888,8 +1914,8 @@
     <span class="kw">pub fn </span>point_add(<span class="kw-2">&amp;mut </span><span class="self">self</span>, p1: Point, p2: Point) -&gt; Point {
         <span class="macro">assert!</span>(p1.validate());
         <span class="macro">assert!</span>(p2.validate());
-        <span class="kw">let </span>field_type = Type::Numeric(NumericType::NativeField);
-        <span class="kw">let </span>boolean_type = Type::Numeric(NumericType::Unsigned { bit_size: <span class="number">1 </span>});
+        <span class="kw">let </span>field_type = Type::Numeric(NumericType::Field);
+        <span class="kw">let </span>boolean_type = Type::Numeric(NumericType::Boolean);
         <span class="kw">let </span>intrinsic = <span class="self">self
             </span>.builder
             .import_intrinsic(<span class="string">"embedded_curve_add"</span>)
@@ -1900,20 +1926,29 @@
             <span class="number">1</span>,
         );
         <span class="kw">let </span>result =
-            <span class="self">self</span>.builder.insert_call(intrinsic, points_flattened, <span class="macro">vec!</span>[return_type.clone()]);
+            <span class="self">self</span>.builder.insert_call(intrinsic, points_flattened, <span class="macro">vec!</span>[return_type.clone().into()]);
         <span class="macro">assert_eq!</span>(result.len(), <span class="number">1</span>);
         <span class="kw">let </span>result = result[<span class="number">0</span>];
-        <span class="kw">let </span>x_idx = <span class="self">self</span>.builder.numeric_constant(<span class="number">0_u32</span>, NumericType::Unsigned { bit_size: <span class="number">32 </span>});
-        <span class="kw">let </span>y_idx = <span class="self">self</span>.builder.numeric_constant(<span class="number">1_u32</span>, NumericType::Unsigned { bit_size: <span class="number">32 </span>});
-        <span class="kw">let </span>is_infinite_idx =
-            <span class="self">self</span>.builder.numeric_constant(<span class="number">2_u32</span>, NumericType::Unsigned { bit_size: <span class="number">32 </span>});
-        <span class="kw">let </span>x = <span class="self">self</span>.builder.insert_array_get(result, x_idx, ArrayOffset::None, field_type.clone());
-        <span class="kw">let </span>y = <span class="self">self</span>.builder.insert_array_get(result, y_idx, ArrayOffset::None, field_type.clone());
+        <span class="kw">let </span>x_idx = <span class="self">self</span>.builder.numeric_constant(<span class="number">0_u32</span>, NumericType::U32.into());
+        <span class="kw">let </span>y_idx = <span class="self">self</span>.builder.numeric_constant(<span class="number">1_u32</span>, NumericType::U32.into());
+        <span class="kw">let </span>is_infinite_idx = <span class="self">self</span>.builder.numeric_constant(<span class="number">2_u32</span>, NumericType::U32.into());
+        <span class="kw">let </span>x = <span class="self">self</span>.builder.insert_array_get(
+            result,
+            x_idx,
+            ArrayOffset::None,
+            field_type.clone().into(),
+        );
+        <span class="kw">let </span>y = <span class="self">self</span>.builder.insert_array_get(
+            result,
+            y_idx,
+            ArrayOffset::None,
+            field_type.clone().into(),
+        );
         <span class="kw">let </span>is_infinite = <span class="self">self</span>.builder.insert_array_get(
             result,
             is_infinite_idx,
             ArrayOffset::None,
-            boolean_type.clone(),
+            boolean_type.clone().into(),
         );
         Point {
             x: TypedValue::new(x, field_type.clone()),
@@ -1925,14 +1960,12 @@
     <span class="kw">fn </span>bytes_to_ssa_array(<span class="kw-2">&amp;mut </span><span class="self">self</span>, vec: Vec&lt;u8&gt;) -&gt; TypedValue {
         <span class="kw">let </span>elements: Vec&lt;Id&lt;Value&gt;&gt; = vec
             .into_iter()
-            .map(|x| <span class="self">self</span>.builder.numeric_constant(x <span class="kw">as </span>u32, NumericType::Unsigned { bit_size: <span class="number">8 </span>}))
+            .map(|x| <span class="self">self</span>.builder.numeric_constant(x <span class="kw">as </span>u32, NumericType::U8.into()))
             .collect();
-        <span class="kw">let </span>array_type = Type::Array(
-            Arc::new(<span class="macro">vec!</span>[Type::Numeric(NumericType::Unsigned { bit_size: <span class="number">8 </span>})]),
-            elements.len() <span class="kw">as </span>u32,
-        );
+        <span class="kw">let </span>array_type =
+            Type::Array(Arc::new(<span class="macro">vec!</span>[Type::Numeric(NumericType::U8)]), elements.len() <span class="kw">as </span>u32);
         TypedValue::new(
-            <span class="self">self</span>.builder.insert_make_array(elements.into(), array_type.clone()),
+            <span class="self">self</span>.builder.insert_make_array(elements.into(), array_type.clone().into()),
             array_type,
         )
     }
@@ -1940,13 +1973,12 @@
     <span class="kw">fn </span>bytes_to_ssa_slice(<span class="kw-2">&amp;mut </span><span class="self">self</span>, vec: Vec&lt;u8&gt;) -&gt; TypedValue {
         <span class="kw">let </span>elements: Vec&lt;Id&lt;Value&gt;&gt; = vec
             .into_iter()
-            .map(|x| <span class="self">self</span>.builder.numeric_constant(x <span class="kw">as </span>u32, NumericType::Unsigned { bit_size: <span class="number">8 </span>}))
+            .map(|x| <span class="self">self</span>.builder.numeric_constant(x <span class="kw">as </span>u32, NumericType::U8.into()))
             .collect();
-        <span class="kw">let </span>array_type =
-            Type::Slice(Arc::new(<span class="macro">vec!</span>[Type::Numeric(NumericType::Unsigned { bit_size: <span class="number">8 </span>})]));
+        <span class="kw">let </span>slice_type = Type::Slice(Arc::new(<span class="macro">vec!</span>[Type::Numeric(NumericType::U8)]));
         TypedValue::new(
-            <span class="self">self</span>.builder.insert_make_array(elements.into(), array_type.clone()),
-            array_type,
+            <span class="self">self</span>.builder.insert_make_array(elements.into(), slice_type.clone().into()),
+            slice_type,
         )
     }
 
@@ -1961,7 +1993,7 @@
         <span class="kw">let </span>pub_key_y = <span class="self">self</span>.bytes_to_ssa_array(pub_key_y);
         <span class="kw">let </span>hash = <span class="self">self</span>.bytes_to_ssa_slice(hash);
         <span class="kw">let </span>signature = <span class="self">self</span>.bytes_to_ssa_array(signature);
-        <span class="kw">let </span>return_type = Type::Numeric(NumericType::Unsigned { bit_size: <span class="number">1 </span>});
+        <span class="kw">let </span>return_type = Type::Numeric(NumericType::Boolean);
         <span class="kw">let </span>intrinsic = <span class="self">self
             </span>.builder
             .import_intrinsic(<span class="string">"ecdsa_secp256r1"</span>)
@@ -1969,7 +2001,7 @@
         <span class="kw">let </span>result = <span class="self">self</span>.builder.insert_call(
             intrinsic,
             <span class="macro">vec!</span>[pub_key_x.value_id, pub_key_y.value_id, signature.value_id, hash.value_id],
-            <span class="macro">vec!</span>[return_type.clone()],
+            <span class="macro">vec!</span>[return_type.clone().into()],
         );
         <span class="macro">assert_eq!</span>(result.len(), <span class="number">1</span>);
         <span class="kw">let </span>result = result[<span class="number">0</span>];
@@ -1987,7 +2019,7 @@
         <span class="kw">let </span>pub_key_y = <span class="self">self</span>.bytes_to_ssa_array(pub_key_y);
         <span class="kw">let </span>hash = <span class="self">self</span>.bytes_to_ssa_slice(hash);
         <span class="kw">let </span>signature = <span class="self">self</span>.bytes_to_ssa_array(signature);
-        <span class="kw">let </span>return_type = Type::Numeric(NumericType::Unsigned { bit_size: <span class="number">1 </span>});
+        <span class="kw">let </span>return_type = Type::Numeric(NumericType::Boolean);
         <span class="kw">let </span>intrinsic = <span class="self">self
             </span>.builder
             .import_intrinsic(<span class="string">"ecdsa_secp256k1"</span>)
@@ -1995,7 +2027,7 @@
         <span class="kw">let </span>result = <span class="self">self</span>.builder.insert_call(
             intrinsic,
             <span class="macro">vec!</span>[pub_key_x.value_id, pub_key_y.value_id, signature.value_id, hash.value_id],
-            <span class="macro">vec!</span>[return_type.clone()],
+            <span class="macro">vec!</span>[return_type.clone().into()],
         );
         <span class="macro">assert_eq!</span>(result.len(), <span class="number">1</span>);
         <span class="kw">let </span>result = result[<span class="number">0</span>];
