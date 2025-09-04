@@ -44,7 +44,7 @@ use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
         function::{Function, FunctionId, RuntimeType, Signature},
-        instruction::{BinaryOp, ConstrainError, Instruction},
+        instruction::{BinaryOp, Instruction},
         types::{NumericType, Type},
         value::{Value, ValueId},
     },
@@ -449,7 +449,25 @@ fn create_apply_functions(
         (*ssa.functions.iter().next().unwrap().1.dfg.function_purities).clone()
     };
 
-    for ((signature, runtime), variants) in variants_map.into_iter() {
+    for ((signature, caller_runtime), variants) in variants_map.into_iter() {
+        // Calling an ACIR function from a Brillig runtime is not allowed.
+        // We expect all ACIR functions called from Brillig to be specialized
+        // as Brillig functions at compile time (e.g., before SSA generation).
+        // Closures are expected to be duplicated by their runtime.
+        // It is expected that the frontend has appropriately extracted the correct closure
+        // based on the current runtime of the caller function.
+        // However, during defunctionalization we are unable to tell that the correct target is being called so all
+        // variants with different runtimes will be included in the apply function.
+        // Including a closure variant with a different runtime in the closure variant will cause an ill-formed SSA.
+        // Thus, to avoid a broken SSA we simply do not include calls to variants which differ from their callers.
+        // It is expected that if the new ID associated with the bad variant is used, that we will still fail as the last
+        // function to dispatch constrains that we have an expected ID.
+        let pre_runtime_filter_len = variants.len();
+        let variants: Vec<(FunctionId, RuntimeType)> = variants
+            .into_iter()
+            .filter(|(_, runtime)| !(runtime.is_acir() && caller_runtime.is_brillig()))
+            .collect();
+
         let dispatches_to_multiple_functions = variants.len() > 1;
 
         // This will be the same signature but with each function type replaced with
@@ -471,18 +489,24 @@ fn create_apply_functions(
         let id = if dispatches_to_multiple_functions {
             // If we have multiple variants for this signature and runtime type group
             // we need to generate an apply function.
-            create_apply_function(ssa, defunctionalized_signature, runtime, variants)
+            create_apply_function(ssa, defunctionalized_signature, caller_runtime, variants)
         } else if !variants.is_empty() {
             // If there is only variant, we can use it directly rather than creating a new apply function.
             variants[0].0
+        } else if pre_runtime_filter_len != 0 && caller_runtime.is_brillig() {
+            // We had variants, but they were all filtered out.
+            // Frontend bug: only ACIR variants in a Brillig group.
+            panic!("ICE: invalid defunctionalization: only ACIR variants for a Brillig runtime",);
         } else {
             // If no variants exist for a dynamic call we leave removing those dead calls and parameters to DIE.
             // However, we have to construct a dummy function for these dead calls as to keep a well formed SSA
             // and to not break the semantics of other SSA passes before DIE is reached.
-            create_dummy_function(ssa, defunctionalized_signature, runtime, &mut purities)
+            create_dummy_function(ssa, defunctionalized_signature, caller_runtime, &mut purities)
         };
-        apply_functions
-            .insert((signature, runtime), ApplyFunction { id, dispatches_to_multiple_functions });
+        apply_functions.insert(
+            (signature, caller_runtime),
+            ApplyFunction { id, dispatches_to_multiple_functions },
+        );
     }
 
     (apply_functions, purities)
@@ -561,7 +585,7 @@ fn create_apply_function(
         // Switch back to the entry block to build the rest of the dispatch function
         function_builder.switch_to_block(entry_block);
 
-        for (index, (function_id, runtime)) in function_ids.iter().enumerate() {
+        for (index, (function_id, _)) in function_ids.iter().enumerate() {
             let is_last = index == function_ids.len() - 1;
             let mut next_function_block = None;
 
@@ -588,22 +612,6 @@ fn create_apply_function(
 
             // Call the function variant
             let target_function_value = function_builder.import_function(*function_id);
-            if runtime.is_acir() && caller_runtime.is_brillig() {
-                // Calling ACIR function from Brillig runtime is not allowed
-                // n.b: the ACIR/Brillig check done during inlining will also trigger an error
-                // but the error will 'panic' because this code is auto-generated
-                // and does not have proper location.
-                let zero = function_builder.field_constant(0_u128);
-                let one = function_builder.field_constant(1_u128);
-                function_builder.insert_constrain(
-                    zero,
-                    one,
-                    Some(ConstrainError::StaticString(
-                        "Error: Calling constrained function from unconstrained function"
-                            .to_string(),
-                    )),
-                );
-            }
             let call_results = function_builder
                 .insert_call(target_function_value, params_ids.clone(), signature.returns.clone())
                 .to_vec();
@@ -926,45 +934,56 @@ mod tests {
     #[test]
     fn apply_created_per_caller_runtime() {
         let src = "
-          acir(inline) fn main f0 {
-            b0(v0: u32):
-              v3 = call f1(f2, v0) -> u32
-              v5 = add v0, u32 1
-              v6 = eq v3, v5
-              constrain v3 == v5
-              v9 = call f4(f3, v0) -> u32
-              v10 = add v0, u32 1
-              v11 = eq v9, v10
-              constrain v9 == v10
-              return
-          }
-          brillig(inline) fn wrapper f1 {
-            b0(v0: function, v1: u32):
-              v2 = call v0(v1) -> u32
-              return v2
-          }
-          acir(inline) fn wrapper_acir f4 {
-            b0(v0: function, v1: u32):
-              v2 = call v0(v1) -> u32
-              return v2
-          }
-          brillig(inline) fn increment f2 {
-            b0(v0: u32):
-              v2 = add v0, u32 1
-              return v2
-          }
-          acir(inline) fn increment_acir f3 {
-            b0(v0: u32):
-              v2 = add v0, u32 1
-              return v2
-          }
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v3 = call f1(f3, v0) -> u32
+            v5 = call f1(f6, v0) -> u32
+            v7 = add v0, u32 1
+            v8 = eq v3, v7
+            constrain v3 == v7
+            v11 = call f2(f4, v0) -> u32
+            v13 = call f2(f5, v0) -> u32
+            v14 = add v0, u32 1
+            v15 = eq v11, v14
+            constrain v11 == v14
+            return
+        }
+        brillig(inline) fn wrapper f1 {
+          b0(v0: function, v1: u32):
+            v2 = call v0(v1) -> u32
+            return v2
+        }
+        acir(inline) fn wrapper_acir f2 {
+          b0(v0: function, v1: u32):
+            v2 = call v0(v1) -> u32
+            return v2
+        }
+        brillig(inline) fn increment f3 {
+          b0(v0: u32):
+            v2 = add v0, u32 1
+            return v2
+        }
+        acir(inline) fn increment_acir f4 {
+          b0(v0: u32):
+            v2 = add v0, u32 1
+            return v2
+        }
+        acir(inline) fn increment_acir1 f5 {
+          b0(v0: u32):
+            v2 = add v0, u32 1
+            return v2
+        }
+        brillig(inline) fn increment_brillig1 f6 {
+          b0(v0: u32):
+            v2 = add v0, u32 1
+            return v2
+        }
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.defunctionalize();
 
         let applies = ssa.functions.values().filter(|f| f.name() == "apply").collect::<Vec<_>>();
-        assert_eq!(applies.len(), 2);
         assert!(applies.iter().any(|f| f.runtime().is_acir()));
         assert!(applies.iter().any(|f| f.runtime().is_brillig()));
     }
@@ -1686,7 +1705,7 @@ mod tests {
     }
 
     #[test]
-    fn acir_variant_in_brillig() {
+    fn acir_variant_in_brillig_last_function_to_dispatch() {
         //The src code below correspond to this code:
         // let f = if x == 1 { foo1 } else { foo };
         // fn foo(x: Field) -> Field {
@@ -1699,65 +1718,427 @@ mod tests {
         // However, some generated code (e.g the zeroed impls generated by the frontend) may produce such code.
         // We ensure that the apply function does not allow calling acir functions from a brillig function
         let src = r#"
-      brillig(inline) fn main f0 {
-        b0(v0: Field, v1: Field, v2: Field):
-          v4 = allocate -> &mut Field
-          store v0 at v4
-          v5 = load v4 -> Field
-          v7 = eq v5, Field 1
-          jmpif v7 then: b1, else: b2
-        b1():
-          jmp b3(f1)
-        b2():
-          jmp b3(f3)
-        b3(v3: function):
-          v10 = load v4 -> Field
-          v12 = call f3(v10) -> Field
-          v13 = call v3(v12) -> Field
-          return
-      }
-      brillig(inline) fn foo1 f1 {
-        b0(v0: Field):
-          v1 = mul v0, v0
-          return v1
-      }
-      brillig(inline) fn foo2 f2 {
-        b0(v0: Field):
-          v1 = add v0, v0
-          return v1
-      }
-      acir(inline) fn foo f3 {
-        b0(v0: Field):
-          v1 = mul v0, v0
-          return v1
-      }
+        brillig(inline) fn main f0 {
+          b0(v0: Field, v1: Field, v2: Field):
+            v4 = allocate -> &mut Field
+            store v0 at v4
+            v5 = load v4 -> Field
+            v7 = eq v5, Field 1
+            jmpif v7 then: b1, else: b2
+          b1():
+            jmp b3(f1)
+          b2():
+            jmp b3(f3)
+          b3(v3: function):
+            v10 = load v4 -> Field
+            v12 = call f3(v10) -> Field
+            v13 = call v3(v12) -> Field
+            return
+        }
+        brillig(inline) fn foo1 f1 {
+          b0(v0: Field):
+            v1 = mul v0, v0
+            return v1
+        }
+        brillig(inline) fn foo2 f2 {
+          b0(v0: Field):
+            v1 = add v0, v0
+            return v1
+        }
+        acir(inline) fn foo f3 {
+          b0(v0: Field):
+            v1 = mul v0, v0
+            return v1
+        }
        "#;
 
-        let mut ssa = Ssa::from_str_no_validation(src).unwrap();
-        let variants = find_variants(&ssa);
-        let (apply_functions, _purities) = create_apply_functions(&mut ssa, variants);
-        assert_eq!(apply_functions.len(), 1);
-        let apply = apply_functions.values().next().unwrap();
-        let apply_src = ssa.functions[&apply.id].to_string();
+        let ssa = Ssa::from_str_no_validation(src).unwrap();
 
-        // The apply method forbids calling the acir function f3 by inserting a failing constraint before the call.
-        assert_eq!(
-            apply_src,
-            r#"brillig(inline_always) fn apply f4 {
-  b0(v0: Field, v1: Field):
-    v4 = eq v0, Field 1
-    jmpif v4 then: b3, else: b2
-  b2():
-    constrain v0 == Field 3
-    constrain Field 0 == Field 1, "Error: Calling constrained function from unconstrained function"
-    v11 = call f3(v1) -> Field
-    jmp b6(v11)
-  b3():
-    v6 = call f1(v1) -> Field
-    jmp b6(v6)
-  b6(v13: Field):
-    return v13
-}"#
-        );
+        let mut variants = find_variants(&ssa);
+        let ((_, caller_runtime), variants) = variants.pop_last().unwrap();
+        assert!(caller_runtime.is_brillig());
+        assert!(variants[0].1.is_brillig());
+        assert!(variants[1].1.is_acir());
+
+        let ssa = ssa.defunctionalize();
+
+        // The `apply` method skips calling the acir function f3.
+        // As there is only one other variant, we just call f1 directly.
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: Field, v1: Field, v2: Field):
+            v4 = allocate -> &mut Field
+            store v0 at v4
+            v5 = load v4 -> Field
+            v7 = eq v5, Field 1
+            jmpif v7 then: b1, else: b2
+          b1():
+            jmp b3(Field 1)
+          b2():
+            jmp b3(Field 3)
+          b3(v3: Field):
+            v9 = load v4 -> Field
+            v11 = call f3(v9) -> Field
+            v13 = call f1(v11) -> Field
+            return
+        }
+        brillig(inline) fn foo1 f1 {
+          b0(v0: Field):
+            v1 = mul v0, v0
+            return v1
+        }
+        brillig(inline) fn foo2 f2 {
+          b0(v0: Field):
+            v1 = add v0, v0
+            return v1
+        }
+        acir(inline) fn foo f3 {
+          b0(v0: Field):
+            v1 = mul v0, v0
+            return v1
+        }
+        ");
+    }
+
+    /// This test expands [acir_variant_in_brillig_last_function_to_dispatch] by having multiple
+    /// ACIR variants be at the end of the proposed variant dispatch table
+    #[test]
+    fn acir_variant_in_brillig_multiple_at_end_are_skipped() {
+        // Pseudocode of the intended semantics:
+        // let f = if x == 1 { foo1 } else if x == 2 { foo2 } else if x == 3 { foo3 } else { foo4 };
+        //
+        // - foo1, foo2 are Brillig functions
+        // - foo3, foo4 are ACIR functions
+        //
+        // At runtime, main may pass either f3 or f4 as the closure target `v2`.
+        // The apply function will skip those calls, but still constrain the target ID
+        // so that if f3/f4 are ever used, the program fails.
+        // If f3/f4 are ever used it means there is a bug upstream in the frontend.
+        let src = r#"
+        brillig(inline) fn main f0 {
+          b0(v0: Field, v1: Field):
+            v4 = eq v0, Field 1
+            jmpif v4 then: b1, else: b2
+          b1():
+            jmp b7(f1)
+          b2():
+            v6 = eq v0, Field 2
+            jmpif v6 then: b3, else: b4
+          b3():
+            jmp b7(f2)
+          b4():
+            v8 = eq v0, Field 3
+            jmpif v8 then: b5, else: b6
+          b5():
+            jmp b7(f3)
+          b6():
+            jmp b7(f4)
+          b7(v2: function):
+            v13 = call f1(v0) -> Field
+            v14 = call v2(v13) -> Field
+            return
+        }
+        brillig(inline) fn foo1 f1 {
+          b0(v0: Field):
+            v1 = mul v0, v0
+            return v1
+        }
+        brillig(inline) fn foo2 f2 {
+          b0(v0: Field):
+            v1 = add v0, v0
+            return v1
+        }
+        acir(inline) fn foo3 f3 {
+          b0(v0: Field):
+            v1 = sub v0, v0
+            return v1
+        }
+        acir(inline) fn foo4 f4 {
+          b0(v0: Field):
+            v1 = div v0, v0
+            return v1
+        }
+        "#;
+
+        let ssa = Ssa::from_str_no_validation(src).unwrap();
+
+        let mut variants = find_variants(&ssa);
+        let ((_, caller_runtime), variants) = variants.pop_last().unwrap();
+        assert!(caller_runtime.is_brillig());
+        assert!(variants[0].1.is_brillig());
+        assert!(variants[1].1.is_brillig());
+        assert!(variants[2].1.is_acir());
+        assert!(variants[3].1.is_acir());
+
+        let ssa = ssa.defunctionalize();
+
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: Field, v1: Field):
+            v4 = eq v0, Field 1
+            jmpif v4 then: b1, else: b2
+          b1():
+            jmp b7(Field 1)
+          b2():
+            v6 = eq v0, Field 2
+            jmpif v6 then: b3, else: b4
+          b3():
+            jmp b7(Field 2)
+          b4():
+            v8 = eq v0, Field 3
+            jmpif v8 then: b5, else: b6
+          b5():
+            jmp b7(Field 3)
+          b6():
+            jmp b7(Field 4)
+          b7(v2: Field):
+            v11 = call f1(v0) -> Field
+            v13 = call f5(v2, v11) -> Field
+            return
+        }
+        brillig(inline) fn foo1 f1 {
+          b0(v0: Field):
+            v1 = mul v0, v0
+            return v1
+        }
+        brillig(inline) fn foo2 f2 {
+          b0(v0: Field):
+            v1 = add v0, v0
+            return v1
+        }
+        acir(inline) fn foo3 f3 {
+          b0(v0: Field):
+            v1 = sub v0, v0
+            return v1
+        }
+        acir(inline) fn foo4 f4 {
+          b0(v0: Field):
+            v1 = div v0, v0
+            return v1
+        }
+        brillig(inline_always) fn apply f5 {
+          b0(v0: Field, v1: Field):
+            v4 = eq v0, Field 1
+            jmpif v4 then: b2, else: b1
+          b1():
+            constrain v0 == Field 2
+            v9 = call f2(v1) -> Field
+            jmp b3(v9)
+          b2():
+            v6 = call f1(v1) -> Field
+            jmp b3(v6)
+          b3(v2: Field):
+            return v2
+        }
+        ");
+    }
+
+    #[test]
+    fn acir_variant_in_brillig_not_last_to_dispatch() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32):
+            v4 = eq v0, u32 0
+            jmpif v4 then: b1, else: b2
+          b1():
+            jmp b3(f1, f2)
+          b2():
+            v6, v7 = call f3() -> (function, function)
+            jmp b3(v6, v7)
+          b3(v1: function, v2: function):
+            call v2()
+            return
+        }
+        brillig(inline) fn lambda f1 {
+          b0():
+            return
+        }
+        brillig(inline) fn lambda f2 {
+          b0():
+            return
+        }
+        brillig(inline) fn return_lambda f3 {
+          b0():
+            return f4, f5
+        }
+        acir(inline) fn zeroed_lambda f4 {
+          b0():
+            return
+        }
+        brillig(inline) fn zeroed_lambda f5 {
+          b0():
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.defunctionalize();
+
+        // If Field 4 were ever to be passed to `apply` the program would fail.
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: u32):
+            v4 = eq v0, u32 0
+            jmpif v4 then: b1, else: b2
+          b1():
+            jmp b3(Field 1, Field 2)
+          b2():
+            v6, v7 = call f3() -> (Field, Field)
+            jmp b3(v6, v7)
+          b3(v1: Field, v2: Field):
+            call f6(v2)
+            return
+        }
+        brillig(inline) fn lambda f1 {
+          b0():
+            return
+        }
+        brillig(inline) fn lambda f2 {
+          b0():
+            return
+        }
+        brillig(inline) fn return_lambda f3 {
+          b0():
+            return Field 4, Field 5
+        }
+        acir(inline) fn zeroed_lambda f4 {
+          b0():
+            return
+        }
+        brillig(inline) fn zeroed_lambda f5 {
+          b0():
+            return
+        }
+        brillig(inline_always) fn apply f6 {
+          b0(v0: Field):
+            v2 = eq v0, Field 1
+            jmpif v2 then: b3, else: b2
+          b1():
+            return
+          b2():
+            v5 = eq v0, Field 2
+            jmpif v5 then: b5, else: b4
+          b3():
+            call f1()
+            jmp b1()
+          b4():
+            constrain v0 == Field 5
+            call f5()
+            jmp b1()
+          b5():
+            call f2()
+            jmp b1()
+        }
+        ");
+    }
+
+    #[test]
+    fn brillig_variant_in_acir() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v4 = eq v0, u32 0
+            jmpif v4 then: b1, else: b2
+          b1():
+            jmp b3(f1, f2)
+          b2():
+            v6, v7 = call f3() -> (function, function)
+            jmp b3(v6, v7)
+          b3(v1: function, v2: function):
+            call v2()
+            return
+        }
+        acir(inline) fn lambda f1 {
+          b0():
+            return
+        }
+        acir(inline) fn lambda f2 {
+          b0():
+            return
+        }
+        acir(inline) fn return_lambda f3 {
+          b0():
+            return f4, f5
+        }
+        brillig(inline) fn zeroed_lambda f4 {
+          b0():
+            return
+        }
+        acir(inline) fn zeroed_lambda f5 {
+          b0():
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.defunctionalize();
+
+        // A call to f4 will be created in the `apply` function in this case.
+        // It is valid to call Brillig from ACIR as this will be treated as a new Brillig entry point.
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v4 = eq v0, u32 0
+            jmpif v4 then: b1, else: b2
+          b1():
+            jmp b3(Field 1, Field 2)
+          b2():
+            v6, v7 = call f3() -> (Field, Field)
+            jmp b3(v6, v7)
+          b3(v1: Field, v2: Field):
+            call f6(v2)
+            return
+        }
+        acir(inline) fn lambda f1 {
+          b0():
+            return
+        }
+        acir(inline) fn lambda f2 {
+          b0():
+            return
+        }
+        acir(inline) fn return_lambda f3 {
+          b0():
+            return Field 4, Field 5
+        }
+        brillig(inline) fn zeroed_lambda f4 {
+          b0():
+            return
+        }
+        acir(inline) fn zeroed_lambda f5 {
+          b0():
+            return
+        }
+        acir(inline_always) fn apply f6 {
+          b0(v0: Field):
+            v2 = eq v0, Field 1
+            jmpif v2 then: b2, else: b1
+          b1():
+            v5 = eq v0, Field 2
+            jmpif v5 then: b4, else: b3
+          b2():
+            call f1()
+            jmp b9()
+          b3():
+            v8 = eq v0, Field 4
+            jmpif v8 then: b6, else: b5
+          b4():
+            call f2()
+            jmp b8()
+          b5():
+            constrain v0 == Field 5
+            call f5()
+            jmp b7()
+          b6():
+            call f4()
+            jmp b7()
+          b7():
+            jmp b8()
+          b8():
+            jmp b9()
+          b9():
+            return
+        }
+        ");
     }
 }
