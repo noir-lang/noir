@@ -103,7 +103,7 @@ impl LoopInvariantContext<'_> {
 
     /// Simplify 'assert(lhs < rhs)' into 'assert(max(lhs) < rhs)' if lhs is an induction variable and rhs a loop invariant
     /// For this simplification to be valid, we need to ensure that the induction variable takes all the values from min(induction) up to max(induction)
-    /// This means that the assert must be executed  at each loop iteration, and that the loop processes all the iteration space
+    /// This means that the assert must be executed at each loop iteration, and that the loop processes all the iteration space
     /// This is ensured via control dependence and the check for break patterns, before calling this function.
     fn simplify_induction_in_constrain(
         &mut self,
@@ -187,7 +187,8 @@ impl LoopInvariantContext<'_> {
         ))
     }
 
-    /// Returns the binary instruction only if the input value refers to a binary instruction with invariant and induction variables as operands
+    /// Returns the binary instruction only if the input value refers to a binary instruction
+    /// with invariant and induction variables as operands.
     /// The return values are:
     /// - a boolean indicating if the induction variable is on the lhs
     /// - the minimum and maximum values of the induction variable, coming from the loop bounds
@@ -253,7 +254,8 @@ impl LoopInvariantContext<'_> {
                 block_context.is_header,
             ),
             Instruction::Constrain(x, y, err) => {
-                // Ensure the loop is fully executed
+                // Ensure the loop is fully executed, so we know that if the constraint would fail for *some* value,
+                // then it *will* definitely take up that value, and not break out early.
                 if loop_context.no_break
                     && block_context.can_simplify_control_dependent_instruction()
                 {

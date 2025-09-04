@@ -2982,6 +2982,43 @@ mod control_dependence {
     }
 
     #[test]
+    fn do_not_hoist_constrain_with_break() {
+        // There is a constraint in the loop which we know would fail on some induction values,
+        // however because of the `break` we won't necessarily reach all values, so we don't hoist.
+        // unconstrained fn main() {
+        //     for i in 0..10 {
+        //         assert(i < 5);
+        //         if i == 1 {
+        //             break;
+        //         }
+        //     }
+        // }
+        let src = r"
+        brillig(inline) predicate_pure fn main f0 {
+          b0():
+            jmp b1(u32 0)
+          b1(v0: u32):
+            v3 = lt v0, u32 10
+            jmpif v3 then: b2, else: b3
+          b2():
+            v5 = lt v0, u32 5
+            constrain v5 == u1 1
+            v8 = eq v0, u32 1
+            jmpif v8 then: b4, else: b5
+          b3():
+            return
+          b4():
+            jmp b3()
+          b5():
+            v9 = unchecked_add v0, u32 1
+            jmp b1(v9)
+        }
+        ";
+
+        assert_ssa_does_not_change(src, Ssa::loop_invariant_code_motion);
+    }
+
+    #[test]
     fn do_not_hoist_control_dependent_cast() {
         // We want to check the case that a cast under a predicate in a loop is not hoisted
         //
