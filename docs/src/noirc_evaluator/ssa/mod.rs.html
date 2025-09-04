@@ -631,7 +631,7 @@
         SsaPass::new(Ssa::expand_signed_checks, <span class="string">"expand signed checks"</span>),
         SsaPass::new(Ssa::remove_unreachable_functions, <span class="string">"Removing Unreachable Functions"</span>),
         SsaPass::new(Ssa::defunctionalize, <span class="string">"Defunctionalization"</span>),
-        SsaPass::new(Ssa::inline_simple_functions, <span class="string">"Inlining simple functions"</span>)
+        SsaPass::new_try(Ssa::inline_simple_functions, <span class="string">"Inlining simple functions"</span>)
             .and_then(Ssa::remove_unreachable_functions),
         <span class="comment">// BUG: Enabling this mem2reg causes an integration test failure in aztec-package; see:
         // https://github.com/AztecProtocol/aztec-packages/pull/11294#issuecomment-2622809518

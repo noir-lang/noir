@@ -1657,7 +1657,492 @@
 <a href="#1656" id="1656">1656</a>
 <a href="#1657" id="1657">1657</a>
 <a href="#1658" id="1658">1658</a>
-<a href="#1659" id="1659">1659</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module defines the defunctionalization pass for the SSA IR.
+<a href="#1659" id="1659">1659</a>
+<a href="#1660" id="1660">1660</a>
+<a href="#1661" id="1661">1661</a>
+<a href="#1662" id="1662">1662</a>
+<a href="#1663" id="1663">1663</a>
+<a href="#1664" id="1664">1664</a>
+<a href="#1665" id="1665">1665</a>
+<a href="#1666" id="1666">1666</a>
+<a href="#1667" id="1667">1667</a>
+<a href="#1668" id="1668">1668</a>
+<a href="#1669" id="1669">1669</a>
+<a href="#1670" id="1670">1670</a>
+<a href="#1671" id="1671">1671</a>
+<a href="#1672" id="1672">1672</a>
+<a href="#1673" id="1673">1673</a>
+<a href="#1674" id="1674">1674</a>
+<a href="#1675" id="1675">1675</a>
+<a href="#1676" id="1676">1676</a>
+<a href="#1677" id="1677">1677</a>
+<a href="#1678" id="1678">1678</a>
+<a href="#1679" id="1679">1679</a>
+<a href="#1680" id="1680">1680</a>
+<a href="#1681" id="1681">1681</a>
+<a href="#1682" id="1682">1682</a>
+<a href="#1683" id="1683">1683</a>
+<a href="#1684" id="1684">1684</a>
+<a href="#1685" id="1685">1685</a>
+<a href="#1686" id="1686">1686</a>
+<a href="#1687" id="1687">1687</a>
+<a href="#1688" id="1688">1688</a>
+<a href="#1689" id="1689">1689</a>
+<a href="#1690" id="1690">1690</a>
+<a href="#1691" id="1691">1691</a>
+<a href="#1692" id="1692">1692</a>
+<a href="#1693" id="1693">1693</a>
+<a href="#1694" id="1694">1694</a>
+<a href="#1695" id="1695">1695</a>
+<a href="#1696" id="1696">1696</a>
+<a href="#1697" id="1697">1697</a>
+<a href="#1698" id="1698">1698</a>
+<a href="#1699" id="1699">1699</a>
+<a href="#1700" id="1700">1700</a>
+<a href="#1701" id="1701">1701</a>
+<a href="#1702" id="1702">1702</a>
+<a href="#1703" id="1703">1703</a>
+<a href="#1704" id="1704">1704</a>
+<a href="#1705" id="1705">1705</a>
+<a href="#1706" id="1706">1706</a>
+<a href="#1707" id="1707">1707</a>
+<a href="#1708" id="1708">1708</a>
+<a href="#1709" id="1709">1709</a>
+<a href="#1710" id="1710">1710</a>
+<a href="#1711" id="1711">1711</a>
+<a href="#1712" id="1712">1712</a>
+<a href="#1713" id="1713">1713</a>
+<a href="#1714" id="1714">1714</a>
+<a href="#1715" id="1715">1715</a>
+<a href="#1716" id="1716">1716</a>
+<a href="#1717" id="1717">1717</a>
+<a href="#1718" id="1718">1718</a>
+<a href="#1719" id="1719">1719</a>
+<a href="#1720" id="1720">1720</a>
+<a href="#1721" id="1721">1721</a>
+<a href="#1722" id="1722">1722</a>
+<a href="#1723" id="1723">1723</a>
+<a href="#1724" id="1724">1724</a>
+<a href="#1725" id="1725">1725</a>
+<a href="#1726" id="1726">1726</a>
+<a href="#1727" id="1727">1727</a>
+<a href="#1728" id="1728">1728</a>
+<a href="#1729" id="1729">1729</a>
+<a href="#1730" id="1730">1730</a>
+<a href="#1731" id="1731">1731</a>
+<a href="#1732" id="1732">1732</a>
+<a href="#1733" id="1733">1733</a>
+<a href="#1734" id="1734">1734</a>
+<a href="#1735" id="1735">1735</a>
+<a href="#1736" id="1736">1736</a>
+<a href="#1737" id="1737">1737</a>
+<a href="#1738" id="1738">1738</a>
+<a href="#1739" id="1739">1739</a>
+<a href="#1740" id="1740">1740</a>
+<a href="#1741" id="1741">1741</a>
+<a href="#1742" id="1742">1742</a>
+<a href="#1743" id="1743">1743</a>
+<a href="#1744" id="1744">1744</a>
+<a href="#1745" id="1745">1745</a>
+<a href="#1746" id="1746">1746</a>
+<a href="#1747" id="1747">1747</a>
+<a href="#1748" id="1748">1748</a>
+<a href="#1749" id="1749">1749</a>
+<a href="#1750" id="1750">1750</a>
+<a href="#1751" id="1751">1751</a>
+<a href="#1752" id="1752">1752</a>
+<a href="#1753" id="1753">1753</a>
+<a href="#1754" id="1754">1754</a>
+<a href="#1755" id="1755">1755</a>
+<a href="#1756" id="1756">1756</a>
+<a href="#1757" id="1757">1757</a>
+<a href="#1758" id="1758">1758</a>
+<a href="#1759" id="1759">1759</a>
+<a href="#1760" id="1760">1760</a>
+<a href="#1761" id="1761">1761</a>
+<a href="#1762" id="1762">1762</a>
+<a href="#1763" id="1763">1763</a>
+<a href="#1764" id="1764">1764</a>
+<a href="#1765" id="1765">1765</a>
+<a href="#1766" id="1766">1766</a>
+<a href="#1767" id="1767">1767</a>
+<a href="#1768" id="1768">1768</a>
+<a href="#1769" id="1769">1769</a>
+<a href="#1770" id="1770">1770</a>
+<a href="#1771" id="1771">1771</a>
+<a href="#1772" id="1772">1772</a>
+<a href="#1773" id="1773">1773</a>
+<a href="#1774" id="1774">1774</a>
+<a href="#1775" id="1775">1775</a>
+<a href="#1776" id="1776">1776</a>
+<a href="#1777" id="1777">1777</a>
+<a href="#1778" id="1778">1778</a>
+<a href="#1779" id="1779">1779</a>
+<a href="#1780" id="1780">1780</a>
+<a href="#1781" id="1781">1781</a>
+<a href="#1782" id="1782">1782</a>
+<a href="#1783" id="1783">1783</a>
+<a href="#1784" id="1784">1784</a>
+<a href="#1785" id="1785">1785</a>
+<a href="#1786" id="1786">1786</a>
+<a href="#1787" id="1787">1787</a>
+<a href="#1788" id="1788">1788</a>
+<a href="#1789" id="1789">1789</a>
+<a href="#1790" id="1790">1790</a>
+<a href="#1791" id="1791">1791</a>
+<a href="#1792" id="1792">1792</a>
+<a href="#1793" id="1793">1793</a>
+<a href="#1794" id="1794">1794</a>
+<a href="#1795" id="1795">1795</a>
+<a href="#1796" id="1796">1796</a>
+<a href="#1797" id="1797">1797</a>
+<a href="#1798" id="1798">1798</a>
+<a href="#1799" id="1799">1799</a>
+<a href="#1800" id="1800">1800</a>
+<a href="#1801" id="1801">1801</a>
+<a href="#1802" id="1802">1802</a>
+<a href="#1803" id="1803">1803</a>
+<a href="#1804" id="1804">1804</a>
+<a href="#1805" id="1805">1805</a>
+<a href="#1806" id="1806">1806</a>
+<a href="#1807" id="1807">1807</a>
+<a href="#1808" id="1808">1808</a>
+<a href="#1809" id="1809">1809</a>
+<a href="#1810" id="1810">1810</a>
+<a href="#1811" id="1811">1811</a>
+<a href="#1812" id="1812">1812</a>
+<a href="#1813" id="1813">1813</a>
+<a href="#1814" id="1814">1814</a>
+<a href="#1815" id="1815">1815</a>
+<a href="#1816" id="1816">1816</a>
+<a href="#1817" id="1817">1817</a>
+<a href="#1818" id="1818">1818</a>
+<a href="#1819" id="1819">1819</a>
+<a href="#1820" id="1820">1820</a>
+<a href="#1821" id="1821">1821</a>
+<a href="#1822" id="1822">1822</a>
+<a href="#1823" id="1823">1823</a>
+<a href="#1824" id="1824">1824</a>
+<a href="#1825" id="1825">1825</a>
+<a href="#1826" id="1826">1826</a>
+<a href="#1827" id="1827">1827</a>
+<a href="#1828" id="1828">1828</a>
+<a href="#1829" id="1829">1829</a>
+<a href="#1830" id="1830">1830</a>
+<a href="#1831" id="1831">1831</a>
+<a href="#1832" id="1832">1832</a>
+<a href="#1833" id="1833">1833</a>
+<a href="#1834" id="1834">1834</a>
+<a href="#1835" id="1835">1835</a>
+<a href="#1836" id="1836">1836</a>
+<a href="#1837" id="1837">1837</a>
+<a href="#1838" id="1838">1838</a>
+<a href="#1839" id="1839">1839</a>
+<a href="#1840" id="1840">1840</a>
+<a href="#1841" id="1841">1841</a>
+<a href="#1842" id="1842">1842</a>
+<a href="#1843" id="1843">1843</a>
+<a href="#1844" id="1844">1844</a>
+<a href="#1845" id="1845">1845</a>
+<a href="#1846" id="1846">1846</a>
+<a href="#1847" id="1847">1847</a>
+<a href="#1848" id="1848">1848</a>
+<a href="#1849" id="1849">1849</a>
+<a href="#1850" id="1850">1850</a>
+<a href="#1851" id="1851">1851</a>
+<a href="#1852" id="1852">1852</a>
+<a href="#1853" id="1853">1853</a>
+<a href="#1854" id="1854">1854</a>
+<a href="#1855" id="1855">1855</a>
+<a href="#1856" id="1856">1856</a>
+<a href="#1857" id="1857">1857</a>
+<a href="#1858" id="1858">1858</a>
+<a href="#1859" id="1859">1859</a>
+<a href="#1860" id="1860">1860</a>
+<a href="#1861" id="1861">1861</a>
+<a href="#1862" id="1862">1862</a>
+<a href="#1863" id="1863">1863</a>
+<a href="#1864" id="1864">1864</a>
+<a href="#1865" id="1865">1865</a>
+<a href="#1866" id="1866">1866</a>
+<a href="#1867" id="1867">1867</a>
+<a href="#1868" id="1868">1868</a>
+<a href="#1869" id="1869">1869</a>
+<a href="#1870" id="1870">1870</a>
+<a href="#1871" id="1871">1871</a>
+<a href="#1872" id="1872">1872</a>
+<a href="#1873" id="1873">1873</a>
+<a href="#1874" id="1874">1874</a>
+<a href="#1875" id="1875">1875</a>
+<a href="#1876" id="1876">1876</a>
+<a href="#1877" id="1877">1877</a>
+<a href="#1878" id="1878">1878</a>
+<a href="#1879" id="1879">1879</a>
+<a href="#1880" id="1880">1880</a>
+<a href="#1881" id="1881">1881</a>
+<a href="#1882" id="1882">1882</a>
+<a href="#1883" id="1883">1883</a>
+<a href="#1884" id="1884">1884</a>
+<a href="#1885" id="1885">1885</a>
+<a href="#1886" id="1886">1886</a>
+<a href="#1887" id="1887">1887</a>
+<a href="#1888" id="1888">1888</a>
+<a href="#1889" id="1889">1889</a>
+<a href="#1890" id="1890">1890</a>
+<a href="#1891" id="1891">1891</a>
+<a href="#1892" id="1892">1892</a>
+<a href="#1893" id="1893">1893</a>
+<a href="#1894" id="1894">1894</a>
+<a href="#1895" id="1895">1895</a>
+<a href="#1896" id="1896">1896</a>
+<a href="#1897" id="1897">1897</a>
+<a href="#1898" id="1898">1898</a>
+<a href="#1899" id="1899">1899</a>
+<a href="#1900" id="1900">1900</a>
+<a href="#1901" id="1901">1901</a>
+<a href="#1902" id="1902">1902</a>
+<a href="#1903" id="1903">1903</a>
+<a href="#1904" id="1904">1904</a>
+<a href="#1905" id="1905">1905</a>
+<a href="#1906" id="1906">1906</a>
+<a href="#1907" id="1907">1907</a>
+<a href="#1908" id="1908">1908</a>
+<a href="#1909" id="1909">1909</a>
+<a href="#1910" id="1910">1910</a>
+<a href="#1911" id="1911">1911</a>
+<a href="#1912" id="1912">1912</a>
+<a href="#1913" id="1913">1913</a>
+<a href="#1914" id="1914">1914</a>
+<a href="#1915" id="1915">1915</a>
+<a href="#1916" id="1916">1916</a>
+<a href="#1917" id="1917">1917</a>
+<a href="#1918" id="1918">1918</a>
+<a href="#1919" id="1919">1919</a>
+<a href="#1920" id="1920">1920</a>
+<a href="#1921" id="1921">1921</a>
+<a href="#1922" id="1922">1922</a>
+<a href="#1923" id="1923">1923</a>
+<a href="#1924" id="1924">1924</a>
+<a href="#1925" id="1925">1925</a>
+<a href="#1926" id="1926">1926</a>
+<a href="#1927" id="1927">1927</a>
+<a href="#1928" id="1928">1928</a>
+<a href="#1929" id="1929">1929</a>
+<a href="#1930" id="1930">1930</a>
+<a href="#1931" id="1931">1931</a>
+<a href="#1932" id="1932">1932</a>
+<a href="#1933" id="1933">1933</a>
+<a href="#1934" id="1934">1934</a>
+<a href="#1935" id="1935">1935</a>
+<a href="#1936" id="1936">1936</a>
+<a href="#1937" id="1937">1937</a>
+<a href="#1938" id="1938">1938</a>
+<a href="#1939" id="1939">1939</a>
+<a href="#1940" id="1940">1940</a>
+<a href="#1941" id="1941">1941</a>
+<a href="#1942" id="1942">1942</a>
+<a href="#1943" id="1943">1943</a>
+<a href="#1944" id="1944">1944</a>
+<a href="#1945" id="1945">1945</a>
+<a href="#1946" id="1946">1946</a>
+<a href="#1947" id="1947">1947</a>
+<a href="#1948" id="1948">1948</a>
+<a href="#1949" id="1949">1949</a>
+<a href="#1950" id="1950">1950</a>
+<a href="#1951" id="1951">1951</a>
+<a href="#1952" id="1952">1952</a>
+<a href="#1953" id="1953">1953</a>
+<a href="#1954" id="1954">1954</a>
+<a href="#1955" id="1955">1955</a>
+<a href="#1956" id="1956">1956</a>
+<a href="#1957" id="1957">1957</a>
+<a href="#1958" id="1958">1958</a>
+<a href="#1959" id="1959">1959</a>
+<a href="#1960" id="1960">1960</a>
+<a href="#1961" id="1961">1961</a>
+<a href="#1962" id="1962">1962</a>
+<a href="#1963" id="1963">1963</a>
+<a href="#1964" id="1964">1964</a>
+<a href="#1965" id="1965">1965</a>
+<a href="#1966" id="1966">1966</a>
+<a href="#1967" id="1967">1967</a>
+<a href="#1968" id="1968">1968</a>
+<a href="#1969" id="1969">1969</a>
+<a href="#1970" id="1970">1970</a>
+<a href="#1971" id="1971">1971</a>
+<a href="#1972" id="1972">1972</a>
+<a href="#1973" id="1973">1973</a>
+<a href="#1974" id="1974">1974</a>
+<a href="#1975" id="1975">1975</a>
+<a href="#1976" id="1976">1976</a>
+<a href="#1977" id="1977">1977</a>
+<a href="#1978" id="1978">1978</a>
+<a href="#1979" id="1979">1979</a>
+<a href="#1980" id="1980">1980</a>
+<a href="#1981" id="1981">1981</a>
+<a href="#1982" id="1982">1982</a>
+<a href="#1983" id="1983">1983</a>
+<a href="#1984" id="1984">1984</a>
+<a href="#1985" id="1985">1985</a>
+<a href="#1986" id="1986">1986</a>
+<a href="#1987" id="1987">1987</a>
+<a href="#1988" id="1988">1988</a>
+<a href="#1989" id="1989">1989</a>
+<a href="#1990" id="1990">1990</a>
+<a href="#1991" id="1991">1991</a>
+<a href="#1992" id="1992">1992</a>
+<a href="#1993" id="1993">1993</a>
+<a href="#1994" id="1994">1994</a>
+<a href="#1995" id="1995">1995</a>
+<a href="#1996" id="1996">1996</a>
+<a href="#1997" id="1997">1997</a>
+<a href="#1998" id="1998">1998</a>
+<a href="#1999" id="1999">1999</a>
+<a href="#2000" id="2000">2000</a>
+<a href="#2001" id="2001">2001</a>
+<a href="#2002" id="2002">2002</a>
+<a href="#2003" id="2003">2003</a>
+<a href="#2004" id="2004">2004</a>
+<a href="#2005" id="2005">2005</a>
+<a href="#2006" id="2006">2006</a>
+<a href="#2007" id="2007">2007</a>
+<a href="#2008" id="2008">2008</a>
+<a href="#2009" id="2009">2009</a>
+<a href="#2010" id="2010">2010</a>
+<a href="#2011" id="2011">2011</a>
+<a href="#2012" id="2012">2012</a>
+<a href="#2013" id="2013">2013</a>
+<a href="#2014" id="2014">2014</a>
+<a href="#2015" id="2015">2015</a>
+<a href="#2016" id="2016">2016</a>
+<a href="#2017" id="2017">2017</a>
+<a href="#2018" id="2018">2018</a>
+<a href="#2019" id="2019">2019</a>
+<a href="#2020" id="2020">2020</a>
+<a href="#2021" id="2021">2021</a>
+<a href="#2022" id="2022">2022</a>
+<a href="#2023" id="2023">2023</a>
+<a href="#2024" id="2024">2024</a>
+<a href="#2025" id="2025">2025</a>
+<a href="#2026" id="2026">2026</a>
+<a href="#2027" id="2027">2027</a>
+<a href="#2028" id="2028">2028</a>
+<a href="#2029" id="2029">2029</a>
+<a href="#2030" id="2030">2030</a>
+<a href="#2031" id="2031">2031</a>
+<a href="#2032" id="2032">2032</a>
+<a href="#2033" id="2033">2033</a>
+<a href="#2034" id="2034">2034</a>
+<a href="#2035" id="2035">2035</a>
+<a href="#2036" id="2036">2036</a>
+<a href="#2037" id="2037">2037</a>
+<a href="#2038" id="2038">2038</a>
+<a href="#2039" id="2039">2039</a>
+<a href="#2040" id="2040">2040</a>
+<a href="#2041" id="2041">2041</a>
+<a href="#2042" id="2042">2042</a>
+<a href="#2043" id="2043">2043</a>
+<a href="#2044" id="2044">2044</a>
+<a href="#2045" id="2045">2045</a>
+<a href="#2046" id="2046">2046</a>
+<a href="#2047" id="2047">2047</a>
+<a href="#2048" id="2048">2048</a>
+<a href="#2049" id="2049">2049</a>
+<a href="#2050" id="2050">2050</a>
+<a href="#2051" id="2051">2051</a>
+<a href="#2052" id="2052">2052</a>
+<a href="#2053" id="2053">2053</a>
+<a href="#2054" id="2054">2054</a>
+<a href="#2055" id="2055">2055</a>
+<a href="#2056" id="2056">2056</a>
+<a href="#2057" id="2057">2057</a>
+<a href="#2058" id="2058">2058</a>
+<a href="#2059" id="2059">2059</a>
+<a href="#2060" id="2060">2060</a>
+<a href="#2061" id="2061">2061</a>
+<a href="#2062" id="2062">2062</a>
+<a href="#2063" id="2063">2063</a>
+<a href="#2064" id="2064">2064</a>
+<a href="#2065" id="2065">2065</a>
+<a href="#2066" id="2066">2066</a>
+<a href="#2067" id="2067">2067</a>
+<a href="#2068" id="2068">2068</a>
+<a href="#2069" id="2069">2069</a>
+<a href="#2070" id="2070">2070</a>
+<a href="#2071" id="2071">2071</a>
+<a href="#2072" id="2072">2072</a>
+<a href="#2073" id="2073">2073</a>
+<a href="#2074" id="2074">2074</a>
+<a href="#2075" id="2075">2075</a>
+<a href="#2076" id="2076">2076</a>
+<a href="#2077" id="2077">2077</a>
+<a href="#2078" id="2078">2078</a>
+<a href="#2079" id="2079">2079</a>
+<a href="#2080" id="2080">2080</a>
+<a href="#2081" id="2081">2081</a>
+<a href="#2082" id="2082">2082</a>
+<a href="#2083" id="2083">2083</a>
+<a href="#2084" id="2084">2084</a>
+<a href="#2085" id="2085">2085</a>
+<a href="#2086" id="2086">2086</a>
+<a href="#2087" id="2087">2087</a>
+<a href="#2088" id="2088">2088</a>
+<a href="#2089" id="2089">2089</a>
+<a href="#2090" id="2090">2090</a>
+<a href="#2091" id="2091">2091</a>
+<a href="#2092" id="2092">2092</a>
+<a href="#2093" id="2093">2093</a>
+<a href="#2094" id="2094">2094</a>
+<a href="#2095" id="2095">2095</a>
+<a href="#2096" id="2096">2096</a>
+<a href="#2097" id="2097">2097</a>
+<a href="#2098" id="2098">2098</a>
+<a href="#2099" id="2099">2099</a>
+<a href="#2100" id="2100">2100</a>
+<a href="#2101" id="2101">2101</a>
+<a href="#2102" id="2102">2102</a>
+<a href="#2103" id="2103">2103</a>
+<a href="#2104" id="2104">2104</a>
+<a href="#2105" id="2105">2105</a>
+<a href="#2106" id="2106">2106</a>
+<a href="#2107" id="2107">2107</a>
+<a href="#2108" id="2108">2108</a>
+<a href="#2109" id="2109">2109</a>
+<a href="#2110" id="2110">2110</a>
+<a href="#2111" id="2111">2111</a>
+<a href="#2112" id="2112">2112</a>
+<a href="#2113" id="2113">2113</a>
+<a href="#2114" id="2114">2114</a>
+<a href="#2115" id="2115">2115</a>
+<a href="#2116" id="2116">2116</a>
+<a href="#2117" id="2117">2117</a>
+<a href="#2118" id="2118">2118</a>
+<a href="#2119" id="2119">2119</a>
+<a href="#2120" id="2120">2120</a>
+<a href="#2121" id="2121">2121</a>
+<a href="#2122" id="2122">2122</a>
+<a href="#2123" id="2123">2123</a>
+<a href="#2124" id="2124">2124</a>
+<a href="#2125" id="2125">2125</a>
+<a href="#2126" id="2126">2126</a>
+<a href="#2127" id="2127">2127</a>
+<a href="#2128" id="2128">2128</a>
+<a href="#2129" id="2129">2129</a>
+<a href="#2130" id="2130">2130</a>
+<a href="#2131" id="2131">2131</a>
+<a href="#2132" id="2132">2132</a>
+<a href="#2133" id="2133">2133</a>
+<a href="#2134" id="2134">2134</a>
+<a href="#2135" id="2135">2135</a>
+<a href="#2136" id="2136">2136</a>
+<a href="#2137" id="2137">2137</a>
+<a href="#2138" id="2138">2138</a>
+<a href="#2139" id="2139">2139</a>
+<a href="#2140" id="2140">2140</a>
+<a href="#2141" id="2141">2141</a>
+<a href="#2142" id="2142">2142</a>
+<a href="#2143" id="2143">2143</a>
+<a href="#2144" id="2144">2144</a></pre></div><pre class="rust"><code><span class="doccomment">//! This module defines the defunctionalization pass for the SSA IR.
 //! Certain IR targets (e.g., Brillig and ACIR) do not support higher-order functions directly.
 //!
 //! The pass eliminates higher-order functions (a function which accepts function values as arguments or returns functions)
@@ -1735,7 +2220,7 @@
 
 <span class="doccomment">/// All functions used as a value that share the same signature and runtime type
 /// Maps ([Signature], [RuntimeType]) -&gt; Vec&lt;[FunctionId]&gt;
-</span><span class="kw">type </span>Variants = BTreeMap&lt;(Signature, RuntimeType), Vec&lt;FunctionId&gt;&gt;;
+</span><span class="kw">type </span>Variants = BTreeMap&lt;(Signature, RuntimeType), Vec&lt;(FunctionId, RuntimeType)&gt;&gt;;
 <span class="doccomment">/// All generated apply functions for each grouping of function variants.
 /// Each apply function is handles a specific ([Signature], [RuntimeType]) group.
 /// Maps ([Signature], [RuntimeType]) -&gt; [ApplyFunction]
@@ -1993,9 +2478,21 @@
     <span class="kw">let </span><span class="kw-2">mut </span>variants: Variants = BTreeMap::new();
 
     <span class="comment">// Further group function variant candidates by their caller runtime.
+    // The target functions are never tested against their runtime, which is assumed to be correct,
+    // but there is nothing which guarantees this.
+    // Filtering the functions by their runtime at this stage will not work because if the variant
+    // is empty, the apply function will create a dummy function. So instead of calling a function with a wrong runtime,
+    // we would end-up calling a dummy function.
+    // The solution is to add the runtime information to the variants map
+    // and defer to create_apply_function for handling the runtime checks.
     </span><span class="kw">for </span>(dispatch_signature, caller_runtime) <span class="kw">in </span>dynamic_dispatches {
-        <span class="kw">let </span>target_fns =
-            signature_to_functions_as_value.get(<span class="kw-2">&amp;</span>dispatch_signature).cloned().unwrap_or_default();
+        <span class="kw">let </span>target_fns = signature_to_functions_as_value
+            .get(<span class="kw-2">&amp;</span>dispatch_signature)
+            .cloned()
+            .unwrap_or_default()
+            .into_iter()
+            .map(|f| (f, ssa.functions[<span class="kw-2">&amp;</span>f].runtime()));
+        <span class="kw">let </span>target_fns: Vec&lt;(FunctionId, RuntimeType)&gt; = target_fns.collect();
         variants.insert((dispatch_signature, caller_runtime), target_fns);
     }
 
@@ -2096,7 +2593,25 @@
         (<span class="kw-2">*</span>ssa.functions.iter().next().unwrap().<span class="number">1</span>.dfg.function_purities).clone()
     };
 
-    <span class="kw">for </span>((signature, runtime), variants) <span class="kw">in </span>variants_map.into_iter() {
+    <span class="kw">for </span>((signature, caller_runtime), variants) <span class="kw">in </span>variants_map.into_iter() {
+        <span class="comment">// Calling an ACIR function from a Brillig runtime is not allowed.
+        // We expect all ACIR functions called from Brillig to be specialized
+        // as Brillig functions at compile time (e.g., before SSA generation).
+        // Closures are expected to be duplicated by their runtime.
+        // It is expected that the frontend has appropriately extracted the correct closure
+        // based on the current runtime of the caller function.
+        // However, during defunctionalization we are unable to tell that the correct target is being called so all
+        // variants with different runtimes will be included in the apply function.
+        // Including a closure variant with a different runtime in the closure variant will cause an ill-formed SSA.
+        // Thus, to avoid a broken SSA we simply do not include calls to variants which differ from their callers.
+        // It is expected that if the new ID associated with the bad variant is used, that we will still fail as the last
+        // function to dispatch constrains that we have an expected ID.
+        </span><span class="kw">let </span>pre_runtime_filter_len = variants.len();
+        <span class="kw">let </span>variants: Vec&lt;(FunctionId, RuntimeType)&gt; = variants
+            .into_iter()
+            .filter(|(<span class="kw">_</span>, runtime)| !(runtime.is_acir() &amp;&amp; caller_runtime.is_brillig()))
+            .collect();
+
         <span class="kw">let </span>dispatches_to_multiple_functions = variants.len() &gt; <span class="number">1</span>;
 
         <span class="comment">// This will be the same signature but with each function type replaced with
@@ -2118,18 +2633,24 @@
         <span class="kw">let </span>id = <span class="kw">if </span>dispatches_to_multiple_functions {
             <span class="comment">// If we have multiple variants for this signature and runtime type group
             // we need to generate an apply function.
-            </span>create_apply_function(ssa, defunctionalized_signature, runtime, variants)
+            </span>create_apply_function(ssa, defunctionalized_signature, caller_runtime, variants)
         } <span class="kw">else if </span>!variants.is_empty() {
             <span class="comment">// If there is only variant, we can use it directly rather than creating a new apply function.
-            </span>variants[<span class="number">0</span>]
+            </span>variants[<span class="number">0</span>].<span class="number">0
+        </span>} <span class="kw">else if </span>pre_runtime_filter_len != <span class="number">0 </span>&amp;&amp; caller_runtime.is_brillig() {
+            <span class="comment">// We had variants, but they were all filtered out.
+            // Frontend bug: only ACIR variants in a Brillig group.
+            </span><span class="macro">panic!</span>(<span class="string">"ICE: invalid defunctionalization: only ACIR variants for a Brillig runtime"</span>,);
         } <span class="kw">else </span>{
             <span class="comment">// If no variants exist for a dynamic call we leave removing those dead calls and parameters to DIE.
             // However, we have to construct a dummy function for these dead calls as to keep a well formed SSA
             // and to not break the semantics of other SSA passes before DIE is reached.
-            </span>create_dummy_function(ssa, defunctionalized_signature, runtime, <span class="kw-2">&amp;mut </span>purities)
+            </span>create_dummy_function(ssa, defunctionalized_signature, caller_runtime, <span class="kw-2">&amp;mut </span>purities)
         };
-        apply_functions
-            .insert((signature, runtime), ApplyFunction { id, dispatches_to_multiple_functions });
+        apply_functions.insert(
+            (signature, caller_runtime),
+            ApplyFunction { id, dispatches_to_multiple_functions },
+        );
     }
 
     (apply_functions, purities)
@@ -2167,7 +2688,7 @@
     ssa: <span class="kw-2">&amp;mut </span>Ssa,
     signature: Signature,
     caller_runtime: RuntimeType,
-    function_ids: Vec&lt;FunctionId&gt;,
+    function_ids: Vec&lt;(FunctionId, RuntimeType)&gt;,
 ) -&gt; FunctionId {
     <span class="macro">assert!</span>(!function_ids.is_empty());
     <span class="comment">// Clone the user-defined globals and the function purities mapping,
@@ -2208,7 +2729,7 @@
         <span class="comment">// Switch back to the entry block to build the rest of the dispatch function
         </span>function_builder.switch_to_block(entry_block);
 
-        <span class="kw">for </span>(index, function_id) <span class="kw">in </span>function_ids.iter().enumerate() {
+        <span class="kw">for </span>(index, (function_id, <span class="kw">_</span>)) <span class="kw">in </span>function_ids.iter().enumerate() {
             <span class="kw">let </span>is_last = index == function_ids.len() - <span class="number">1</span>;
             <span class="kw">let </span><span class="kw-2">mut </span>next_function_block = <span class="prelude-val">None</span>;
 
@@ -2557,45 +3078,56 @@
     <span class="attr">#[test]
     </span><span class="kw">fn </span>apply_created_per_caller_runtime() {
         <span class="kw">let </span>src = <span class="string">"
-          acir(inline) fn main f0 {
-            b0(v0: u32):
-              v3 = call f1(f2, v0) -&gt; u32
-              v5 = add v0, u32 1
-              v6 = eq v3, v5
-              constrain v3 == v5
-              v9 = call f4(f3, v0) -&gt; u32
-              v10 = add v0, u32 1
-              v11 = eq v9, v10
-              constrain v9 == v10
-              return
-          }
-          brillig(inline) fn wrapper f1 {
-            b0(v0: function, v1: u32):
-              v2 = call v0(v1) -&gt; u32
-              return v2
-          }
-          acir(inline) fn wrapper_acir f4 {
-            b0(v0: function, v1: u32):
-              v2 = call v0(v1) -&gt; u32
-              return v2
-          }
-          brillig(inline) fn increment f2 {
-            b0(v0: u32):
-              v2 = add v0, u32 1
-              return v2
-          }
-          acir(inline) fn increment_acir f3 {
-            b0(v0: u32):
-              v2 = add v0, u32 1
-              return v2
-          }
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v3 = call f1(f3, v0) -&gt; u32
+            v5 = call f1(f6, v0) -&gt; u32
+            v7 = add v0, u32 1
+            v8 = eq v3, v7
+            constrain v3 == v7
+            v11 = call f2(f4, v0) -&gt; u32
+            v13 = call f2(f5, v0) -&gt; u32
+            v14 = add v0, u32 1
+            v15 = eq v11, v14
+            constrain v11 == v14
+            return
+        }
+        brillig(inline) fn wrapper f1 {
+          b0(v0: function, v1: u32):
+            v2 = call v0(v1) -&gt; u32
+            return v2
+        }
+        acir(inline) fn wrapper_acir f2 {
+          b0(v0: function, v1: u32):
+            v2 = call v0(v1) -&gt; u32
+            return v2
+        }
+        brillig(inline) fn increment f3 {
+          b0(v0: u32):
+            v2 = add v0, u32 1
+            return v2
+        }
+        acir(inline) fn increment_acir f4 {
+          b0(v0: u32):
+            v2 = add v0, u32 1
+            return v2
+        }
+        acir(inline) fn increment_acir1 f5 {
+          b0(v0: u32):
+            v2 = add v0, u32 1
+            return v2
+        }
+        brillig(inline) fn increment_brillig1 f6 {
+          b0(v0: u32):
+            v2 = add v0, u32 1
+            return v2
+        }
         "</span>;
 
         <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
         <span class="kw">let </span>ssa = ssa.defunctionalize();
 
         <span class="kw">let </span>applies = ssa.functions.values().filter(|f| f.name() == <span class="string">"apply"</span>).collect::&lt;Vec&lt;<span class="kw">_</span>&gt;&gt;();
-        <span class="macro">assert_eq!</span>(applies.len(), <span class="number">2</span>);
         <span class="macro">assert!</span>(applies.iter().any(|f| f.runtime().is_acir()));
         <span class="macro">assert!</span>(applies.iter().any(|f| f.runtime().is_brillig()));
     }
@@ -3314,6 +3846,444 @@
         <span class="kw">let </span>(apply_functions, _purities) = create_apply_functions(<span class="kw-2">&amp;mut </span>ssa, variants);
         <span class="comment">// This was 1 before this bug was fixed.
         </span><span class="macro">assert_eq!</span>(apply_functions.len(), <span class="number">2</span>);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>acir_variant_in_brillig_last_function_to_dispatch() {
+        <span class="comment">//The src code below correspond to this code:
+        // let f = if x == 1 { foo1 } else { foo };
+        // fn foo(x: Field) -&gt; Field {
+        //     x * x
+        // }
+        // unconstrained fn foo1(x: Field) -&gt; Field {
+        //     x * x
+        // }
+        // This code is invalid because foo1 and foo do not have compatible signatures.
+        // However, some generated code (e.g the zeroed impls generated by the frontend) may produce such code.
+        // We ensure that the apply function does not allow calling acir functions from a brillig function
+        </span><span class="kw">let </span>src = <span class="string">r#"
+        brillig(inline) fn main f0 {
+          b0(v0: Field, v1: Field, v2: Field):
+            v4 = allocate -&gt; &amp;mut Field
+            store v0 at v4
+            v5 = load v4 -&gt; Field
+            v7 = eq v5, Field 1
+            jmpif v7 then: b1, else: b2
+          b1():
+            jmp b3(f1)
+          b2():
+            jmp b3(f3)
+          b3(v3: function):
+            v10 = load v4 -&gt; Field
+            v12 = call f3(v10) -&gt; Field
+            v13 = call v3(v12) -&gt; Field
+            return
+        }
+        brillig(inline) fn foo1 f1 {
+          b0(v0: Field):
+            v1 = mul v0, v0
+            return v1
+        }
+        brillig(inline) fn foo2 f2 {
+          b0(v0: Field):
+            v1 = add v0, v0
+            return v1
+        }
+        acir(inline) fn foo f3 {
+          b0(v0: Field):
+            v1 = mul v0, v0
+            return v1
+        }
+       "#</span>;
+
+        <span class="kw">let </span>ssa = Ssa::from_str_no_validation(src).unwrap();
+
+        <span class="kw">let </span><span class="kw-2">mut </span>variants = find_variants(<span class="kw-2">&amp;</span>ssa);
+        <span class="kw">let </span>((<span class="kw">_</span>, caller_runtime), variants) = variants.pop_last().unwrap();
+        <span class="macro">assert!</span>(caller_runtime.is_brillig());
+        <span class="macro">assert!</span>(variants[<span class="number">0</span>].<span class="number">1</span>.is_brillig());
+        <span class="macro">assert!</span>(variants[<span class="number">1</span>].<span class="number">1</span>.is_acir());
+
+        <span class="kw">let </span>ssa = ssa.defunctionalize();
+
+        <span class="comment">// The `apply` method skips calling the acir function f3.
+        // As there is only one other variant, we just call f1 directly.
+        </span><span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
+        brillig(inline) fn main f0 {
+          b0(v0: Field, v1: Field, v2: Field):
+            v4 = allocate -&gt; &amp;mut Field
+            store v0 at v4
+            v5 = load v4 -&gt; Field
+            v7 = eq v5, Field 1
+            jmpif v7 then: b1, else: b2
+          b1():
+            jmp b3(Field 1)
+          b2():
+            jmp b3(Field 3)
+          b3(v3: Field):
+            v9 = load v4 -&gt; Field
+            v11 = call f3(v9) -&gt; Field
+            v13 = call f1(v11) -&gt; Field
+            return
+        }
+        brillig(inline) fn foo1 f1 {
+          b0(v0: Field):
+            v1 = mul v0, v0
+            return v1
+        }
+        brillig(inline) fn foo2 f2 {
+          b0(v0: Field):
+            v1 = add v0, v0
+            return v1
+        }
+        acir(inline) fn foo f3 {
+          b0(v0: Field):
+            v1 = mul v0, v0
+            return v1
+        }
+        "</span>);
+    }
+
+    <span class="doccomment">/// This test expands [acir_variant_in_brillig_last_function_to_dispatch] by having multiple
+    /// ACIR variants be at the end of the proposed variant dispatch table
+    </span><span class="attr">#[test]
+    </span><span class="kw">fn </span>acir_variant_in_brillig_multiple_at_end_are_skipped() {
+        <span class="comment">// Pseudocode of the intended semantics:
+        // let f = if x == 1 { foo1 } else if x == 2 { foo2 } else if x == 3 { foo3 } else { foo4 };
+        //
+        // - foo1, foo2 are Brillig functions
+        // - foo3, foo4 are ACIR functions
+        //
+        // At runtime, main may pass either f3 or f4 as the closure target `v2`.
+        // The apply function will skip those calls, but still constrain the target ID
+        // so that if f3/f4 are ever used, the program fails.
+        // If f3/f4 are ever used it means there is a bug upstream in the frontend.
+        </span><span class="kw">let </span>src = <span class="string">r#"
+        brillig(inline) fn main f0 {
+          b0(v0: Field, v1: Field):
+            v4 = eq v0, Field 1
+            jmpif v4 then: b1, else: b2
+          b1():
+            jmp b7(f1)
+          b2():
+            v6 = eq v0, Field 2
+            jmpif v6 then: b3, else: b4
+          b3():
+            jmp b7(f2)
+          b4():
+            v8 = eq v0, Field 3
+            jmpif v8 then: b5, else: b6
+          b5():
+            jmp b7(f3)
+          b6():
+            jmp b7(f4)
+          b7(v2: function):
+            v13 = call f1(v0) -&gt; Field
+            v14 = call v2(v13) -&gt; Field
+            return
+        }
+        brillig(inline) fn foo1 f1 {
+          b0(v0: Field):
+            v1 = mul v0, v0
+            return v1
+        }
+        brillig(inline) fn foo2 f2 {
+          b0(v0: Field):
+            v1 = add v0, v0
+            return v1
+        }
+        acir(inline) fn foo3 f3 {
+          b0(v0: Field):
+            v1 = sub v0, v0
+            return v1
+        }
+        acir(inline) fn foo4 f4 {
+          b0(v0: Field):
+            v1 = div v0, v0
+            return v1
+        }
+        "#</span>;
+
+        <span class="kw">let </span>ssa = Ssa::from_str_no_validation(src).unwrap();
+
+        <span class="kw">let </span><span class="kw-2">mut </span>variants = find_variants(<span class="kw-2">&amp;</span>ssa);
+        <span class="kw">let </span>((<span class="kw">_</span>, caller_runtime), variants) = variants.pop_last().unwrap();
+        <span class="macro">assert!</span>(caller_runtime.is_brillig());
+        <span class="macro">assert!</span>(variants[<span class="number">0</span>].<span class="number">1</span>.is_brillig());
+        <span class="macro">assert!</span>(variants[<span class="number">1</span>].<span class="number">1</span>.is_brillig());
+        <span class="macro">assert!</span>(variants[<span class="number">2</span>].<span class="number">1</span>.is_acir());
+        <span class="macro">assert!</span>(variants[<span class="number">3</span>].<span class="number">1</span>.is_acir());
+
+        <span class="kw">let </span>ssa = ssa.defunctionalize();
+
+        <span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
+        brillig(inline) fn main f0 {
+          b0(v0: Field, v1: Field):
+            v4 = eq v0, Field 1
+            jmpif v4 then: b1, else: b2
+          b1():
+            jmp b7(Field 1)
+          b2():
+            v6 = eq v0, Field 2
+            jmpif v6 then: b3, else: b4
+          b3():
+            jmp b7(Field 2)
+          b4():
+            v8 = eq v0, Field 3
+            jmpif v8 then: b5, else: b6
+          b5():
+            jmp b7(Field 3)
+          b6():
+            jmp b7(Field 4)
+          b7(v2: Field):
+            v11 = call f1(v0) -&gt; Field
+            v13 = call f5(v2, v11) -&gt; Field
+            return
+        }
+        brillig(inline) fn foo1 f1 {
+          b0(v0: Field):
+            v1 = mul v0, v0
+            return v1
+        }
+        brillig(inline) fn foo2 f2 {
+          b0(v0: Field):
+            v1 = add v0, v0
+            return v1
+        }
+        acir(inline) fn foo3 f3 {
+          b0(v0: Field):
+            v1 = sub v0, v0
+            return v1
+        }
+        acir(inline) fn foo4 f4 {
+          b0(v0: Field):
+            v1 = div v0, v0
+            return v1
+        }
+        brillig(inline_always) fn apply f5 {
+          b0(v0: Field, v1: Field):
+            v4 = eq v0, Field 1
+            jmpif v4 then: b2, else: b1
+          b1():
+            constrain v0 == Field 2
+            v9 = call f2(v1) -&gt; Field
+            jmp b3(v9)
+          b2():
+            v6 = call f1(v1) -&gt; Field
+            jmp b3(v6)
+          b3(v2: Field):
+            return v2
+        }
+        "</span>);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>acir_variant_in_brillig_not_last_to_dispatch() {
+        <span class="kw">let </span>src = <span class="string">"
+        brillig(inline) fn main f0 {
+          b0(v0: u32):
+            v4 = eq v0, u32 0
+            jmpif v4 then: b1, else: b2
+          b1():
+            jmp b3(f1, f2)
+          b2():
+            v6, v7 = call f3() -&gt; (function, function)
+            jmp b3(v6, v7)
+          b3(v1: function, v2: function):
+            call v2()
+            return
+        }
+        brillig(inline) fn lambda f1 {
+          b0():
+            return
+        }
+        brillig(inline) fn lambda f2 {
+          b0():
+            return
+        }
+        brillig(inline) fn return_lambda f3 {
+          b0():
+            return f4, f5
+        }
+        acir(inline) fn zeroed_lambda f4 {
+          b0():
+            return
+        }
+        brillig(inline) fn zeroed_lambda f5 {
+          b0():
+            return
+        }
+        "</span>;
+
+        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+        <span class="kw">let </span>ssa = ssa.defunctionalize();
+
+        <span class="comment">// If Field 4 were ever to be passed to `apply` the program would fail.
+        </span><span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
+        brillig(inline) fn main f0 {
+          b0(v0: u32):
+            v4 = eq v0, u32 0
+            jmpif v4 then: b1, else: b2
+          b1():
+            jmp b3(Field 1, Field 2)
+          b2():
+            v6, v7 = call f3() -&gt; (Field, Field)
+            jmp b3(v6, v7)
+          b3(v1: Field, v2: Field):
+            call f6(v2)
+            return
+        }
+        brillig(inline) fn lambda f1 {
+          b0():
+            return
+        }
+        brillig(inline) fn lambda f2 {
+          b0():
+            return
+        }
+        brillig(inline) fn return_lambda f3 {
+          b0():
+            return Field 4, Field 5
+        }
+        acir(inline) fn zeroed_lambda f4 {
+          b0():
+            return
+        }
+        brillig(inline) fn zeroed_lambda f5 {
+          b0():
+            return
+        }
+        brillig(inline_always) fn apply f6 {
+          b0(v0: Field):
+            v2 = eq v0, Field 1
+            jmpif v2 then: b3, else: b2
+          b1():
+            return
+          b2():
+            v5 = eq v0, Field 2
+            jmpif v5 then: b5, else: b4
+          b3():
+            call f1()
+            jmp b1()
+          b4():
+            constrain v0 == Field 5
+            call f5()
+            jmp b1()
+          b5():
+            call f2()
+            jmp b1()
+        }
+        "</span>);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>brillig_variant_in_acir() {
+        <span class="kw">let </span>src = <span class="string">"
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v4 = eq v0, u32 0
+            jmpif v4 then: b1, else: b2
+          b1():
+            jmp b3(f1, f2)
+          b2():
+            v6, v7 = call f3() -&gt; (function, function)
+            jmp b3(v6, v7)
+          b3(v1: function, v2: function):
+            call v2()
+            return
+        }
+        acir(inline) fn lambda f1 {
+          b0():
+            return
+        }
+        acir(inline) fn lambda f2 {
+          b0():
+            return
+        }
+        acir(inline) fn return_lambda f3 {
+          b0():
+            return f4, f5
+        }
+        brillig(inline) fn zeroed_lambda f4 {
+          b0():
+            return
+        }
+        acir(inline) fn zeroed_lambda f5 {
+          b0():
+            return
+        }
+        "</span>;
+
+        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+        <span class="kw">let </span>ssa = ssa.defunctionalize();
+
+        <span class="comment">// A call to f4 will be created in the `apply` function in this case.
+        // It is valid to call Brillig from ACIR as this will be treated as a new Brillig entry point.
+        </span><span class="macro">assert_ssa_snapshot!</span>(ssa, @<span class="string">r"
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v4 = eq v0, u32 0
+            jmpif v4 then: b1, else: b2
+          b1():
+            jmp b3(Field 1, Field 2)
+          b2():
+            v6, v7 = call f3() -&gt; (Field, Field)
+            jmp b3(v6, v7)
+          b3(v1: Field, v2: Field):
+            call f6(v2)
+            return
+        }
+        acir(inline) fn lambda f1 {
+          b0():
+            return
+        }
+        acir(inline) fn lambda f2 {
+          b0():
+            return
+        }
+        acir(inline) fn return_lambda f3 {
+          b0():
+            return Field 4, Field 5
+        }
+        brillig(inline) fn zeroed_lambda f4 {
+          b0():
+            return
+        }
+        acir(inline) fn zeroed_lambda f5 {
+          b0():
+            return
+        }
+        acir(inline_always) fn apply f6 {
+          b0(v0: Field):
+            v2 = eq v0, Field 1
+            jmpif v2 then: b2, else: b1
+          b1():
+            v5 = eq v0, Field 2
+            jmpif v5 then: b4, else: b3
+          b2():
+            call f1()
+            jmp b9()
+          b3():
+            v8 = eq v0, Field 4
+            jmpif v8 then: b6, else: b5
+          b4():
+            call f2()
+            jmp b8()
+          b5():
+            constrain v0 == Field 5
+            call f5()
+            jmp b7()
+          b6():
+            call f4()
+            jmp b7()
+          b7():
+            jmp b8()
+          b8():
+            jmp b9()
+          b9():
+            return
+        }
+        "</span>);
     }
 }
 </code></pre></div></section></main></body></html>

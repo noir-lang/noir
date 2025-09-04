@@ -243,7 +243,16 @@
 <a href="#242" id="242">242</a>
 <a href="#243" id="243">243</a>
 <a href="#244" id="244">244</a>
-<a href="#245" id="245">245</a></pre></div><pre class="rust"><code><span class="doccomment">//! Noir Evaluator has two types of errors
+<a href="#245" id="245">245</a>
+<a href="#246" id="246">246</a>
+<a href="#247" id="247">247</a>
+<a href="#248" id="248">248</a>
+<a href="#249" id="249">249</a>
+<a href="#250" id="250">250</a>
+<a href="#251" id="251">251</a>
+<a href="#252" id="252">252</a>
+<a href="#253" id="253">253</a>
+<a href="#254" id="254">254</a></pre></div><pre class="rust"><code><span class="doccomment">//! Noir Evaluator has two types of errors
 //!
 //! [RuntimeError]s that should be displayed to the user
 //!
@@ -330,6 +339,14 @@
         <span class="string">"Only constant indices are supported when indexing an array containing reference values"
     </span>)]
     </span>DynamicIndexingWithReference { call_stack: CallStack },
+    <span class="attr">#[error(
+        <span class="string">"Calling constrained function '{constrained}' from the unconstrained function '{unconstrained}'"
+    </span>)]
+    </span>UnconstrainedCallingConstrained {
+        call_stack: CallStack,
+        constrained: String,
+        unconstrained: String,
+    },
 }
 
 <span class="attr">#[derive(Debug, Clone, Serialize, Deserialize, Hash)]
@@ -443,7 +460,8 @@
             | RuntimeError::BreakOrContinue { call_stack }
             | RuntimeError::DynamicIndexingWithReference { call_stack }
             | RuntimeError::UnknownReference { call_stack }
-            | RuntimeError::RecursionLimit { call_stack, .. } =&gt; call_stack,
+            | RuntimeError::RecursionLimit { call_stack, .. }
+            | RuntimeError::UnconstrainedCallingConstrained { call_stack, .. } =&gt; call_stack,
         }
     }
 }
