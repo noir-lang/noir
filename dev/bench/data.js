@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1756930626765,
+  "lastUpdate": 1756963786908,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -20201,48 +20201,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "adam.domurad@gmail.com",
-            "name": "ludamad",
-            "username": "ludamad"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "2b4dc88e45e54058370cd1648664df5c7c6b02eb",
-          "message": "fix: don't thread-bomb unnecessarily (#9643)",
-          "timestamp": "2025-08-27T01:54:56Z",
-          "tree_id": "59cca4582236801998be93552b5b713cc209a1e8",
-          "url": "https://github.com/noir-lang/noir/commit/2b4dc88e45e54058370cd1648664df5c7c6b02eb"
-        },
-        "date": 1756261272175,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 249120,
-            "range": "± 485",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 218157,
-            "range": "± 2800",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2789769,
-            "range": "± 3939",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -22294,6 +22252,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2782942,
             "range": "± 2237",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "26174818+jialinli98@users.noreply.github.com",
+            "name": "Jialin Li",
+            "username": "jialinli98"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "fe1ce1dbf884684da6edc6fc9d337318f54624e8",
+          "message": "chore: add tests for slice (#9650)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-09-04T05:03:27Z",
+          "tree_id": "b172b3329d7b40076e9c7a24ad710780c1901d67",
+          "url": "https://github.com/noir-lang/noir/commit/fe1ce1dbf884684da6edc6fc9d337318f54624e8"
+        },
+        "date": 1756963766771,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 261776,
+            "range": "± 954",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 227714,
+            "range": "± 1739",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2783632,
+            "range": "± 1787",
             "unit": "ns/iter"
           }
         ]
