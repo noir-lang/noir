@@ -64,9 +64,7 @@ impl<T> Vec<T> {
     }
 }
 
-mod tests {
-    use crate::collections::vec::Vec;
-
+mod vec_tests {
     mod new {
         use crate::collections::vec::Vec;
 
@@ -78,7 +76,7 @@ mod tests {
     }
 
     mod from_slice {
-        use super::*;
+        use crate::collections::vec::Vec;
 
         #[test]
         fn creates_vector_with_elements() {
@@ -90,7 +88,7 @@ mod tests {
     }
 
     mod get {
-        use super::*;
+        use crate::collections::vec::Vec;
 
         #[test]
         fn retrieves_elements_correctly() {
@@ -111,7 +109,7 @@ mod tests {
     }
 
     mod set {
-        use super::*;
+        use crate::collections::vec::Vec;
 
         #[test]
         fn updates_values_properly() {
@@ -143,7 +141,7 @@ mod tests {
     }
 
     mod push {
-        use super::*;
+        use crate::collections::vec::Vec;
 
         #[test]
         fn adds_element_to_end() {
@@ -167,7 +165,7 @@ mod tests {
     }
 
     mod pop {
-        use super::*;
+        use crate::collections::vec::Vec;
 
         #[test]
         fn removes_last_element() {
@@ -189,7 +187,7 @@ mod tests {
     }
 
     mod insert {
-        use super::*;
+        use crate::collections::vec::Vec;
 
         #[test]
         fn at_beginning() {
@@ -236,7 +234,7 @@ mod tests {
     }
 
     mod remove {
-        use super::*;
+        use crate::collections::vec::Vec;
 
         #[test]
         fn from_beginning() {
@@ -285,7 +283,7 @@ mod tests {
     }
 
     mod len {
-        use super::*;
+        use crate::collections::vec::Vec;
 
         #[test]
         fn returns_correct_length() {
@@ -300,8 +298,8 @@ mod tests {
         }
     }
 
-    mod integration {
-        use super::*;
+    mod vec_integration {
+        use crate::collections::vec::Vec;
 
         #[test]
         fn multiple_operations_chain_correctly() {
