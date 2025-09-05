@@ -34,6 +34,7 @@ impl Ssa {
 /// Normalize a `Ssa` containing only one function, returning the value map.
 /// Used for debugging. This is limited to only one function because the value
 /// map is cleared in between each function.
+#[cfg(test)]
 pub(super) fn normalize_single_function(ssa: &mut Ssa) -> IdMaps {
     assert_eq!(ssa.functions.len(), 1);
 
@@ -42,6 +43,7 @@ pub(super) fn normalize_single_function(ssa: &mut Ssa) -> IdMaps {
     for function in ssa.functions.values_mut() {
         context.normalize_ids(function);
     }
+    ssa.functions = context.functions.into_btree();
     context.new_ids
 }
 

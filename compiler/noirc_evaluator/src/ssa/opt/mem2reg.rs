@@ -515,8 +515,13 @@ impl<'f> PerFunctionContext<'f> {
 
                 // Remember that we used the value in this instruction. If this instruction
                 // isn't removed at the end, we need to keep the stores to the value as well.
-                for alias in address_aliases.iter() {
-                    self.aliased_references.entry(alias).or_default().insert(instruction);
+                let value_aliases = references.get_aliases_for_value(address);
+                if value_aliases.is_unknown() {
+                    self.aliased_references.entry(value).or_default().insert(instruction);
+                } else {
+                    for alias in value_aliases.iter() {
+                        self.aliased_references.entry(alias).or_default().insert(instruction);
+                    }
                 }
 
                 if self.inserter.function.dfg.value_is_nested_reference(address) {
@@ -1343,11 +1348,33 @@ mod tests {
             return v7
         }
         ";
-        assert_ssa_does_not_change(src, Ssa::mem2reg);
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
+        assert_ssa_snapshot!(ssa, @r"
+            brillig(inline) fn main f0 {
+              b0():
+                v1 = allocate -> &mut u1
+                store u1 0 at v1
+                v3 = make_array [v1] : [&mut u1]
+                jmpif u1 1 then: b1, else: b2
+              b1():
+                jmp b3(u32 0)
+              b2():
+                jmp b3(u32 0)
+              b3(v0: u32):
+                constrain v0 == u32 0
+                v6 = array_get v3, index v0 -> &mut u1
+                return u1 0
+            }
+            ");
     }
 
     #[test]
     fn keep_last_store_in_diff_block_from_make_array_used_in_array_get_that_returns_result() {
+        // TODO: This SSA looks invalid.
+        //  b3 uses v3 but (ignoring the jmp condition) we can get there via
+        //  b0 -> b2 -> b3 which never uses b1 where v3 is constructed.
         let src = "
         brillig(inline) fn main f0 {
           b0():

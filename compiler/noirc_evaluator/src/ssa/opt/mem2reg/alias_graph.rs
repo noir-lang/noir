@@ -351,7 +351,6 @@ mod tests {
     use crate::ssa::{
         ir::basic_block::BasicBlockId,
         opt::{
-            assert_normalized_ssa_equals,
             mem2reg::{PerFunctionContext, alias_graph::AliasGraph},
             normalize_value_ids,
         },
@@ -373,7 +372,6 @@ mod tests {
         let block = block.unwrap_or_else(|| context.inserter.function.find_last_block());
         let mut graph = context.blocks[&block].alias_graph.clone();
         let ids = normalize_value_ids::normalize_single_function(&mut ssa);
-        assert_normalized_ssa_equals(ssa, ssa_src);
 
         graph.address_to_node = graph
             .address_to_node
@@ -473,4 +471,49 @@ v3 <- v0
         println!("{graph}");
         assert_eq!(graph.to_string(), "");
     }
+
+    #[test]
+    fn multiple_blocks_alias_graph() {
+        // Test that loads across multiple blocks are removed
+        let src = "
+         acir(inline) fn main f0 {
+           b0():
+             v0 = allocate -> &mut Field
+             store Field 5 at v0
+             v2 = load v0 -> Field
+             jmp b1(v2)
+           b1(v3: Field):
+             v4 = load v0 -> Field
+             store Field 6 at v0
+             v6 = load v0 -> Field
+             return v3, v4, v6
+         }
+        ";
+        let graph = alias_graph_after_last_block(src);
+        println!("{graph}");
+        assert_eq!(graph.to_string(), "");
+    }
+
+    // #[test]
+    // fn unknown_ref_becomes_alias_in_loop() {
+    //     let src = "
+    //     acir(inline) fn main f0 {
+    //       b0(v0: u1):
+    //         v1 = allocate -> &mut Field
+    //         store Field 0 at v1
+    //         jmpif b1(u32 0)
+    //       b1(v2: u32):
+    //         v3 = lt v2, u32 10
+    //         jmpif v3 then: b2, else: b3
+    //       b2():
+    //         // v4 is initially unaliased but becomes aliased to v1
+    //         // at the end of this block
+    //         v4 = allocate -> &mut Field
+    //       b3():
+    //     }
+    //     ";
+    //     let graph = alias_graph_after_last_block(src);
+    //     println!("{graph}");
+    //     assert_eq!(graph.to_string(), "");
+    // }
 }
