@@ -448,11 +448,18 @@ impl<'function> PerFunctionContext<'function> {
                 Instruction::Call { func, arguments } => match self.get_function(*func) {
                     Some(func_id) => {
                         let call_stack = self.source_function.dfg.get_instruction_call_stack(*id);
-
                         let callee = &ssa.functions[&func_id];
+
                         // Sanity check to validate runtime compatibility
                         self.validate_callee(callee, call_stack)?;
-                        if should_inline_call(callee) {
+
+                        // Do not inline self-recursive functions on the top level.
+                        // Inlining a self-recursive function works when there is something to inline into
+                        // by importing all the recursive blocks, but for the entry function there is no wrapper.
+                        // We must do this check here as inlining can be can triggered on a non-inline target (e.g., non-entry point).
+                        let inlining_self_recursion_at_top_level =
+                            self.entry_function.id() == func_id;
+                        if !inlining_self_recursion_at_top_level && should_inline_call(callee) {
                             self.inline_function(ssa, *id, func_id, arguments, should_inline_call)?;
 
                             // This is only relevant during handling functions with `InlineType::NoPredicates` as these
@@ -677,7 +684,11 @@ mod test {
     use crate::{
         assert_ssa_snapshot,
         errors::RuntimeError,
-        ssa::{Ssa, ir::instruction::TerminatorInstruction, opt::assert_normalized_ssa_equals},
+        ssa::{
+            Ssa,
+            ir::{instruction::TerminatorInstruction, map::Id},
+            opt::assert_normalized_ssa_equals,
+        },
     };
 
     #[test]
@@ -772,7 +783,6 @@ mod test {
             v2 = call f1(u32 5) -> u32
             return v2
         }
-
         acir(inline) fn factorial f1 {
           b0(v1: u32):
             v2 = lt v1, u32 1
@@ -825,6 +835,38 @@ mod test {
             return v5
         }
         ");
+    }
+
+    /// This test is the same as [recursive_functions] we just want to test that inlining
+    /// does not fail when triggered from the self recursive non-entry point function instead
+    /// of the program entry point.
+    #[test]
+    fn recursive_functions_non_inline_target() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v2 = call f1(u32 5) -> u32
+            return v2
+        }
+        acir(inline) fn factorial f1 {
+          b0(v1: u32):
+            v2 = lt v1, u32 1
+            jmpif v2 then: b1, else: b2
+          b1():
+            jmp b3(u32 1)
+          b2():
+            v4 = sub v1, u32 1
+            v5 = call f1(v4) -> u32
+            v6 = mul v1, v5
+            jmp b3(v6)
+          b3(v7: u32):
+            return v7
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let f1 = &ssa.functions[&Id::test_new(1)];
+        let function = f1.inlined(&ssa, &|_| true).unwrap();
+        assert_eq!(function.to_string(), f1.to_string());
     }
 
     #[test]
@@ -1298,5 +1340,31 @@ mod test {
         if !matches!(ssa, Err(RuntimeError::UnconstrainedCallingConstrained { .. })) {
             panic!("Expected inlining to fail with RuntimeError::UnconstrainedCallingConstrained");
         }
+    }
+
+    #[test]
+    fn does_not_inline_acir_fold_functions() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: Field):
+            v3 = call f1(v0, v1) -> Field
+            v4 = call f1(v0, v1) -> Field
+            v5 = call f1(v0, v1) -> Field
+            v6 = eq v3, v4
+            constrain v3 == v4
+            v7 = eq v4, v5
+            constrain v4 == v5
+            return
+        }
+        acir(fold) fn foo f1 {
+          b0(v0: Field, v1: Field):
+            v2 = eq v0, v1
+            v3 = not v2
+            constrain v2 == u1 0
+            return v0
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        assert_normalized_ssa_equals(ssa, src);
     }
 }
