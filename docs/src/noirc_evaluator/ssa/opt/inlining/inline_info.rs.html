@@ -586,7 +586,15 @@
 <a href="#585" id="585">585</a>
 <a href="#586" id="586">586</a>
 <a href="#587" id="587">587</a>
-<a href="#588" id="588">588</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::{BTreeMap, VecDeque};
+<a href="#588" id="588">588</a>
+<a href="#589" id="589">589</a>
+<a href="#590" id="590">590</a>
+<a href="#591" id="591">591</a>
+<a href="#592" id="592">592</a>
+<a href="#593" id="593">593</a>
+<a href="#594" id="594">594</a>
+<a href="#595" id="595">595</a>
+<a href="#596" id="596">596</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::{BTreeMap, VecDeque};
 
 <span class="kw">use </span>fxhash::FxHashSet <span class="kw">as </span>HashSet;
 <span class="kw">use </span>im::HashMap;
@@ -754,6 +762,19 @@
     </span>}
 
     <span class="kw">let </span>function = <span class="kw-2">&amp;</span>ssa.functions[<span class="kw-2">&amp;</span>func_id];
+    <span class="kw">let </span>runtime = function.runtime();
+
+    <span class="kw">if </span>runtime.is_acir() {
+        <span class="kw">let </span>info = inline_infos.entry(func_id).or_default();
+        info.should_inline = <span class="bool-val">true</span>;
+        <span class="kw">return</span>;
+    }
+
+    <span class="kw">let </span>is_recursive = inline_infos.get(<span class="kw-2">&amp;</span>func_id).is_some_and(|info| info.is_recursive);
+    <span class="kw">if </span>runtime.is_brillig() &amp;&amp; is_recursive {
+        <span class="kw">return</span>;
+    }
+
     <span class="kw">let </span>assert_constant_id = function.dfg.get_intrinsic(Intrinsic::AssertConstant).copied();
     <span class="kw">let </span>static_assert_id = function.dfg.get_intrinsic(Intrinsic::StaticAssert).copied();
 
@@ -785,16 +806,11 @@
     <span class="kw">let </span>inline_cost = times.saturating_mul(total_weight);
     <span class="kw">let </span>retain_cost = times.saturating_mul(interface_cost) + total_weight;
     <span class="kw">let </span>net_cost = inline_cost.saturating_sub(retain_cost);
-    <span class="kw">let </span>runtime = function.runtime();
     <span class="kw">let </span>info = inline_infos.entry(func_id).or_default();
 
     info.contains_static_assertion = contains_static_assertion;
     info.weight = total_weight;
     info.cost = net_cost;
-
-    <span class="kw">if </span>runtime.is_brillig() &amp;&amp; info.is_recursive {
-        <span class="kw">return</span>;
-    }
 
     <span class="kw">let </span>should_inline = (net_cost &lt; aggressiveness)
         || runtime.is_inline_always()
