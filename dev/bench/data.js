@@ -1,92 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1757100278440,
+  "lastUpdate": 1757100289192,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "d94400f063fc58910cc2d5fbf0b50add3b29762d",
-          "message": "fix(ssa): Constant fold Brillig calls using the SSA interpreter (#9655)",
-          "timestamp": "2025-08-27T19:33:21Z",
-          "tree_id": "6cf29b6c5b0552ed59ea8cb6a5a15fbcf3fb6b50",
-          "url": "https://github.com/noir-lang/noir/commit/d94400f063fc58910cc2d5fbf0b50add3b29762d"
-        },
-        "date": 1756326978135,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 239.59,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 549.15,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 214.04,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 1350,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 1400,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 1010,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 9690,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 9690,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 330.61,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 341.38,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 104.75,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 233.05,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -4199,6 +4115,90 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512_100_bytes",
             "value": 254.11,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "61f3fb3e48986f069e6be61f637d7f63faf9e5c2",
+          "message": "chore(ssa): Consolidate should inline check into a single filter (#9738)",
+          "timestamp": "2025-09-05T18:45:23Z",
+          "tree_id": "5f239caf305704e795be5537dfc80c181e69cf85",
+          "url": "https://github.com/noir-lang/noir/commit/61f3fb3e48986f069e6be61f637d7f63faf9e5c2"
+        },
+        "date": 1757100268679,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 284.53,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 593.52,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 259.07,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 1360,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 1420,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 998.79,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 9680,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 9690,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 332.71,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 343.44,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 106.96,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 254.16,
             "unit": "MB"
           }
         ]
