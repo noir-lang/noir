@@ -406,7 +406,7 @@ mod test {
     }
 
     #[test]
-    fn does_not_inline_acir_entry_points() {
+    fn does_not_inline_acir_fold_functions() {
         let src = "
         acir(inline) fn main f0 {
           b0(v0: Field, v1: Field):
