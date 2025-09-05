@@ -17,12 +17,21 @@ fn compute_root(leaf: [u8; 32], path: [u8; 64], _index: u32, root: [u8; 32]) {
         let b: u32 = if is_right { 0_u32 } else { 32_u32 };
         for j in 0_u32..32_u32 {
             {
+<<<<<<< HEAD
                 let i_4008: u32 = j + a;
                 hash_input[i_4008] = current[j];
             };
             {
                 let i_4009: u32 = j + b;
                 hash_input[i_4009] = path[offset + j];
+=======
+                let i_4250: u32 = j + a;
+                hash_input[i_4250] = current[j];
+            };
+            {
+                let i_4251: u32 = j + b;
+                hash_input[i_4251] = path[offset + j];
+>>>>>>> 62c9543f382d306403442ad8b3277f1b3e8b7105
             }
         }
         current = std::hash::blake3(hash_input);

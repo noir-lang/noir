@@ -29,8 +29,13 @@ fn main(tx_effects_hash_input: [Field; 256]) -> pub Field {
         let input_as_bytes: [u8; 32] = tx_effects_hash_input[offset].to_be_bytes();
         for byte_index in 0_u32..32_u32 {
             {
+<<<<<<< HEAD
                 let i_4007: u32 = (offset * 32_u32) + byte_index;
                 hash_input_flattened[i_4007] = input_as_bytes[byte_index];
+=======
+                let i_4249: u32 = (offset * 32_u32) + byte_index;
+                hash_input_flattened[i_4249] = input_as_bytes[byte_index];
+>>>>>>> 62c9543f382d306403442ad8b3277f1b3e8b7105
             }
         }
     }

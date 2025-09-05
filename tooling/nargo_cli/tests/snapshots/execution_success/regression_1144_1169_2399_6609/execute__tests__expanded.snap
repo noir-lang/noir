@@ -36,12 +36,21 @@ fn compact_decode<let N: u32>(input: [u8; N], length: Field) -> ([U4; 16], Field
             if (i as u32) < (length as u32) {
                 let x: u8 = input[i];
                 {
+<<<<<<< HEAD
                     let i_4018: u32 = (2_u32 * i) - 1_u32;
                     nibble[i_4018] = U4::from_u8(x >> 4_u8);
                 };
                 {
                     let i_4019: u32 = 2_u32 * i;
                     nibble[i_4019] = U4::from_u8(x & 15_u8);
+=======
+                    let i_4260: u32 = (2_u32 * i) - 1_u32;
+                    nibble[i_4260] = U4::from_u8(x >> 4_u8);
+                };
+                {
+                    let i_4261: u32 = 2_u32 * i;
+                    nibble[i_4261] = U4::from_u8(x & 15_u8);
+>>>>>>> 62c9543f382d306403442ad8b3277f1b3e8b7105
                 }
             }
         }
@@ -50,12 +59,21 @@ fn compact_decode<let N: u32>(input: [u8; N], length: Field) -> ([U4; 16], Field
             if (i as u32) < ((length as u32) - 1_u32) {
                 let x: u8 = input[i + 1_u32];
                 {
+<<<<<<< HEAD
                     let i_4022: u32 = 2_u32 * i;
                     nibble[i_4022] = U4::from_u8(x >> 4_u8);
                 };
                 {
                     let i_4023: u32 = (2_u32 * i) + 1_u32;
                     nibble[i_4023] = U4::from_u8(x & 15_u8);
+=======
+                    let i_4264: u32 = 2_u32 * i;
+                    nibble[i_4264] = U4::from_u8(x >> 4_u8);
+                };
+                {
+                    let i_4265: u32 = (2_u32 * i) + 1_u32;
+                    nibble[i_4265] = U4::from_u8(x & 15_u8);
+>>>>>>> 62c9543f382d306403442ad8b3277f1b3e8b7105
                 }
             }
         }

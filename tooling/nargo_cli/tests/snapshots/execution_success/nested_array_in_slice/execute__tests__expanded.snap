@@ -48,6 +48,7 @@ fn main(y: u32) {
     assert(x[y].bar.inner == [109_Field, 110_Field, 111_Field]);
     if y != 2_u32 {
         {
+<<<<<<< HEAD
             let i_3996: u32 = y - 2_u32;
             x[i_3996].a = 50_Field;
         }
@@ -55,11 +56,21 @@ fn main(y: u32) {
         {
             let i_3997: u32 = y - 2_u32;
             x[i_3997].a = 100_Field;
+=======
+            let i_4238: u32 = y - 2_u32;
+            x[i_4238].a = 50_Field;
+        }
+    } else {
+        {
+            let i_4239: u32 = y - 2_u32;
+            x[i_4239].a = 100_Field;
+>>>>>>> 62c9543f382d306403442ad8b3277f1b3e8b7105
         }
     };
     assert(x[y - 2_u32].a == 50_Field);
     if y == 2_u32 {
         {
+<<<<<<< HEAD
             let i_3998: u32 = y - 1_u32;
             x[i_3998].b = [50_Field, 51_Field, 52_Field];
         }
@@ -67,6 +78,15 @@ fn main(y: u32) {
         {
             let i_3999: u32 = y - 1_u32;
             x[i_3999].b = [100_Field, 101_Field, 102_Field];
+=======
+            let i_4240: u32 = y - 1_u32;
+            x[i_4240].b = [50_Field, 51_Field, 52_Field];
+        }
+    } else {
+        {
+            let i_4241: u32 = y - 1_u32;
+            x[i_4241].b = [100_Field, 101_Field, 102_Field];
+>>>>>>> 62c9543f382d306403442ad8b3277f1b3e8b7105
         }
     };
     assert(x[2_u32].b == [100_Field, 101_Field, 102_Field]);

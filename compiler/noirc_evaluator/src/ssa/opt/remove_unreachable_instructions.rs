@@ -1219,4 +1219,38 @@ mod test {
         }
         "#);
     }
+
+    #[test]
+    fn simplifies_instructions_following_conditional_failure() {
+        // In the following SSA we have:
+        // 1. v1 is a divide-by-zero which turns into an conditional-fail constraint under v0
+        // 2. v2 is replaced by its default value (because division is considered side effecting)
+        // 3. v3 would be turned into a `truncate u64 0 to 32 bits` due to step 2, which is not expected to reach ACIR gen.
+        // We expect 3 to disappear as it can be simplified out.
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1):
+            enable_side_effects v0
+            v1 = div u64 1, u64 0
+            v2 = div u64 1, u64 1
+            v3 = truncate v2 to 32 bits, max_bit_size: 254
+            enable_side_effects u1 1
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.remove_unreachable_instructions();
+
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1):
+            enable_side_effects v0
+            v3 = div u64 1, u64 0
+            constrain u1 0 == v0, "attempt to divide by zero"
+            enable_side_effects u1 1
+            return
+        }
+        "#);
+    }
 }
