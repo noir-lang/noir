@@ -174,6 +174,11 @@ fn compute_function_should_be_inlined(
         return;
     }
 
+    let is_recursive = inline_infos.get(&func_id).is_some_and(|info| info.is_recursive);
+    if runtime.is_brillig() && is_recursive {
+        return;
+    }
+
     let assert_constant_id = function.dfg.get_intrinsic(Intrinsic::AssertConstant).copied();
     let static_assert_id = function.dfg.get_intrinsic(Intrinsic::StaticAssert).copied();
 
@@ -210,10 +215,6 @@ fn compute_function_should_be_inlined(
     info.contains_static_assertion = contains_static_assertion;
     info.weight = total_weight;
     info.cost = net_cost;
-
-    if runtime.is_brillig() && info.is_recursive {
-        return;
-    }
 
     let should_inline = (net_cost < aggressiveness)
         || runtime.is_inline_always()
