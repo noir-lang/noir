@@ -520,9 +520,7 @@
 <a href="#519" id="519">519</a>
 <a href="#520" id="520">520</a>
 <a href="#521" id="521">521</a>
-<a href="#522" id="522">522</a>
-<a href="#523" id="523">523</a>
-<a href="#524" id="524">524</a></pre></div><pre class="rust"><code><span class="doccomment">//! SSA stands for Single Static Assignment
+<a href="#522" id="522">522</a></pre></div><pre class="rust"><code><span class="doccomment">//! SSA stands for Single Static Assignment
 //! The IR presented in this module will already
 //! be in SSA form and will be used to apply
 //! conventional optimizations like Common Subexpression
@@ -633,10 +631,8 @@
         SsaPass::new(Ssa::defunctionalize, <span class="string">"Defunctionalization"</span>),
         SsaPass::new_try(Ssa::inline_simple_functions, <span class="string">"Inlining simple functions"</span>)
             .and_then(Ssa::remove_unreachable_functions),
-        <span class="comment">// BUG: Enabling this mem2reg causes an integration test failure in aztec-package; see:
-        // https://github.com/AztecProtocol/aztec-packages/pull/11294#issuecomment-2622809518
-        //SsaPass::new(Ssa::mem2reg, "Mem2Reg (1st)"),
-        </span>SsaPass::new(Ssa::remove_paired_rc, <span class="string">"Removing Paired rc_inc &amp; rc_decs"</span>),
+        SsaPass::new(Ssa::mem2reg, <span class="string">"Mem2Reg"</span>),
+        SsaPass::new(Ssa::remove_paired_rc, <span class="string">"Removing Paired rc_inc &amp; rc_decs"</span>),
         SsaPass::new_try(
             <span class="kw">move </span>|ssa| ssa.preprocess_functions(options.inliner_aggressiveness),
             <span class="string">"Preprocessing Functions"</span>,
