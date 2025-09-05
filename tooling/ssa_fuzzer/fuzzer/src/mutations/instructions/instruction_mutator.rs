@@ -4,15 +4,19 @@
 //! 2. Argument mutation
 
 use crate::fuzz_lib::instruction::Instruction;
-use crate::mutations::configuration::BOOL_MUTATION_CONFIGURATION_MOSTLY_FALSE;
+use crate::mutations::configuration::{
+    ArgumentMutationOptions, BASIC_ARGUMENT_MUTATION_CONFIGURATION,
+    BOOL_MUTATION_CONFIGURATION_MOSTLY_FALSE,
+};
 use crate::mutations::{
     basic_types::{
         bool::mutate_bool,
+        numeric_type::mutate_numeric_type,
         point::{generate_random_point, mutate_point},
         scalar::generate_random_scalar,
         scalar::mutate_scalar,
+        ssa_fuzzer_type::mutate_ssa_fuzzer_type,
         usize::mutate_usize,
-        value_type::mutate_value_type,
         vec::mutate_vec,
     },
     configuration::{
@@ -21,14 +25,14 @@ use crate::mutations::{
         BASIC_ARRAY_SET_MUTATION_CONFIGURATION, BASIC_BLAKE_HASH_MUTATION_CONFIGURATION,
         BASIC_BOOL_MUTATION_CONFIGURATION, BASIC_CREATE_ARRAY_MUTATION_CONFIGURATION,
         BASIC_INSTRUCTION_ARGUMENT_MUTATION_CONFIGURATION,
-        BASIC_INSTRUCTION_MUTATION_CONFIGURATION, BASIC_SHA256_COMPRESSION_MUTATION_CONFIGURATION,
-        BASIC_USIZE_MUTATION_CONFIGURATION, BASIC_VALUE_TYPE_MUTATION_CONFIGURATION,
+        BASIC_INSTRUCTION_MUTATION_CONFIGURATION, BASIC_NUMERIC_TYPE_MUTATION_CONFIGURATION,
+        BASIC_SHA256_COMPRESSION_MUTATION_CONFIGURATION, BASIC_USIZE_MUTATION_CONFIGURATION,
         BASIC_VEC_MUTATION_CONFIGURATION, BOOL_MUTATION_CONFIGURATION_MOSTLY_TRUE,
         BlakeHashMutationOptions, CreateArrayMutationOptions, InstructionArgumentMutationOptions,
         InstructionMutationOptions, SIZE_OF_SMALL_ARBITRARY_BUFFER,
         Sha256CompressionMutationOptions,
     },
-    instructions::argument_mutator::argument_mutator,
+    instructions::argument_mutator::numeric_argument_mutator,
 };
 use libfuzzer_sys::arbitrary::Unstructured;
 use rand::{Rng, rngs::StdRng};
@@ -63,36 +67,56 @@ impl InstructionArgumentsMutation {
             | Instruction::Lt { lhs, rhs } => {
                 match BASIC_INSTRUCTION_ARGUMENT_MUTATION_CONFIGURATION.select(rng) {
                     InstructionArgumentMutationOptions::Left => {
-                        argument_mutator(lhs, rng);
+                        numeric_argument_mutator(lhs, rng);
                     }
                     InstructionArgumentMutationOptions::Right => {
-                        argument_mutator(rhs, rng);
+                        numeric_argument_mutator(rhs, rng);
                     }
                 }
             }
 
+            Instruction::Not { lhs } => {
+                numeric_argument_mutator(lhs, rng);
+            }
+
             // Unary operations
-            Instruction::Not { lhs }
-            | Instruction::AddToMemory { lhs }
-            | Instruction::LoadFromMemory { memory_addr: lhs } => {
-                argument_mutator(lhs, rng);
+            Instruction::AddToMemory { lhs } | Instruction::LoadFromMemory { memory_addr: lhs } => {
+                match BASIC_ARGUMENT_MUTATION_CONFIGURATION.select(rng) {
+                    ArgumentMutationOptions::MutateType => {
+                        mutate_ssa_fuzzer_type(&mut lhs.value_type, rng);
+                    }
+                    ArgumentMutationOptions::MutateIndex => {
+                        mutate_usize(&mut lhs.index, rng, BASIC_USIZE_MUTATION_CONFIGURATION);
+                    }
+                }
             }
 
             // Special cases
             Instruction::Cast { lhs, type_ } => {
                 match BASIC_INSTRUCTION_ARGUMENT_MUTATION_CONFIGURATION.select(rng) {
                     InstructionArgumentMutationOptions::Left => {
-                        argument_mutator(lhs, rng);
+                        numeric_argument_mutator(lhs, rng);
                     }
                     InstructionArgumentMutationOptions::Right => {
-                        mutate_value_type(type_, rng, BASIC_VALUE_TYPE_MUTATION_CONFIGURATION);
+                        mutate_numeric_type(type_, rng, BASIC_NUMERIC_TYPE_MUTATION_CONFIGURATION);
                     }
                 }
             }
             Instruction::SetToMemory { memory_addr_index, value } => {
                 match BASIC_INSTRUCTION_ARGUMENT_MUTATION_CONFIGURATION.select(rng) {
                     InstructionArgumentMutationOptions::Left => {
-                        argument_mutator(value, rng);
+                        match BASIC_ARGUMENT_MUTATION_CONFIGURATION.select(rng) {
+                            ArgumentMutationOptions::MutateType => {
+                                mutate_ssa_fuzzer_type(&mut value.value_type, rng);
+                            }
+                            ArgumentMutationOptions::MutateIndex => {
+                                mutate_usize(
+                                    &mut value.index,
+                                    rng,
+                                    BASIC_USIZE_MUTATION_CONFIGURATION,
+                                );
+                            }
+                        }
                     }
                     InstructionArgumentMutationOptions::Right => {
                         mutate_usize(memory_addr_index, rng, BASIC_USIZE_MUTATION_CONFIGURATION);
@@ -119,7 +143,7 @@ impl InstructionArgumentsMutation {
                         mutate_usize(array_index, rng, BASIC_USIZE_MUTATION_CONFIGURATION);
                     }
                     ArrayGetMutationOptions::Index => {
-                        argument_mutator(index, rng);
+                        numeric_argument_mutator(index, rng);
                     }
                     ArrayGetMutationOptions::SafeIndex => {
                         mutate_bool(safe_index, rng, BOOL_MUTATION_CONFIGURATION_MOSTLY_TRUE);
@@ -132,7 +156,7 @@ impl InstructionArgumentsMutation {
                         mutate_usize(array_index, rng, BASIC_USIZE_MUTATION_CONFIGURATION);
                     }
                     ArraySetMutationOptions::Index => {
-                        argument_mutator(index, rng);
+                        numeric_argument_mutator(index, rng);
                     }
                     ArraySetMutationOptions::ValueIndex => {
                         mutate_usize(value_index, rng, BASIC_USIZE_MUTATION_CONFIGURATION);
@@ -142,7 +166,7 @@ impl InstructionArgumentsMutation {
                     }
                 }
             }
-            Instruction::CreateArray { elements_indices, element_type, is_references } => {
+            Instruction::CreateArray { elements_indices, element_type } => {
                 match BASIC_CREATE_ARRAY_MUTATION_CONFIGURATION.select(rng) {
                     CreateArrayMutationOptions::ElementsIndices => {
                         mutate_vec(
@@ -156,14 +180,7 @@ impl InstructionArgumentsMutation {
                         );
                     }
                     CreateArrayMutationOptions::ElementType => {
-                        mutate_value_type(
-                            element_type,
-                            rng,
-                            BASIC_VALUE_TYPE_MUTATION_CONFIGURATION,
-                        );
-                    }
-                    CreateArrayMutationOptions::IsReferences => {
-                        mutate_bool(is_references, rng, BASIC_BOOL_MUTATION_CONFIGURATION);
+                        mutate_ssa_fuzzer_type(element_type, rng);
                     }
                 }
             }

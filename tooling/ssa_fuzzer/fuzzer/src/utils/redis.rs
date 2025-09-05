@@ -82,7 +82,7 @@ impl RedisManager {
     }
 
     pub(crate) fn push_to_queue(&mut self, queue_name: &str, value: &str) -> RedisResult<()> {
-        self.execute_command(|conn| conn.rpush(queue_name, value))
+        self.execute_command(|conn| conn.rpush(queue_name, value)) //cSpell:disable-line
     }
 }
 

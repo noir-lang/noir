@@ -26,7 +26,6 @@ fn errors_if_type_alias_aliases_more_private_type() {
     pub fn no_unused_warnings() {
         let _: Bar = Foo {};
     }
-    fn main() {}
     "#;
     check_errors!(src);
 }
@@ -42,7 +41,6 @@ fn errors_if_type_alias_aliases_more_private_type_in_generic() {
         let _ = Foo {};
         let _: Bar = Generic { value: Foo {} };
     }
-    fn main() {}
     "#;
     check_errors!(src);
 }
@@ -60,7 +58,6 @@ fn errors_if_pub_type_alias_leaks_private_type_in_generic() {
             let _: FooBar = Foo { value: Bar {} };
         }
     }
-    fn main() {}
     "#;
     check_errors!(src);
 }
@@ -78,7 +75,6 @@ fn errors_if_pub_struct_field_leaks_private_type_in_generic() {
             let _ = FooBar { value: Foo { value: Bar {} } };
         }
     }
-    fn main() {}
     "#;
     check_errors!(src);
 }
@@ -94,7 +90,6 @@ fn errors_if_pub_function_leaks_private_type_in_return() {
             Bar {}
         }
     }
-    fn main() {}
     "#;
     check_errors!(src);
 }
@@ -111,7 +106,6 @@ fn errors_if_pub_function_leaks_private_type_in_arg() {
             let _ = Bar {};
         }
     }
-    fn main() {}
     "#;
     check_errors!(src);
 }
@@ -132,7 +126,6 @@ fn does_not_error_if_pub_function_is_on_private_struct() {
             let _ = Bar {};
         }
     }
-    fn main() {}
     "#;
     assert_no_errors!(src);
 }
@@ -155,7 +148,6 @@ fn errors_if_pub_function_on_pub_struct_returns_private() {
             let _ = Foo {};            
         }
     }
-    fn main() {}
     "#;
     check_errors!(src);
 }
@@ -180,7 +172,6 @@ fn does_not_error_if_pub_trait_is_defined_on_private_struct() {
             let _ = Bar {};
         }
     }
-    fn main() {}
     "#;
     assert_no_errors!(src);
 }
@@ -200,7 +191,6 @@ fn errors_if_pub_trait_returns_private_struct() {
             let _ = Bar {};
         }
     }
-    fn main() {}
     "#;
     check_errors!(src);
 }
@@ -263,8 +253,6 @@ fn errors_if_calling_private_struct_method() {
             ^^^ bar is private and not visible from the current module
             ~~~ bar is private
     }
-
-    fn main() {}
     "#;
     check_errors!(src);
 }
@@ -285,8 +273,6 @@ fn does_not_warn_if_calling_pub_crate_struct_method_from_same_crate() {
     pub fn method(foo: moo::Foo) {
         foo.bar()
     }
-
-    fn main() {}
     "#;
     assert_no_errors!(src);
 }
@@ -346,8 +332,6 @@ fn error_when_accessing_private_struct_field() {
             ^ x is private and not visible from the current module
             ~ x is private
     }
-
-    fn main() {}
     "#;
     check_errors!(src);
 }
@@ -576,8 +560,6 @@ fn private_impl_method_on_another_module_1() {
             self.foo();
         }
     }
-
-    fn main() {}
     "#;
     assert_no_errors!(src);
 }
@@ -602,8 +584,6 @@ fn private_impl_method_on_another_module_2() {
             foo.foo();
         }
     }
-
-    fn main() {}
     "#;
     assert_no_errors!(src);
 }
