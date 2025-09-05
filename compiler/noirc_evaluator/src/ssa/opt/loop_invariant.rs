@@ -2001,6 +2001,106 @@ mod test {
         }
     }
 
+    /// Test cases where +,-,*,/,% should or shouldn't be hoisted from an inner loop
+    /// when its using by the outer loop induction variable.
+    #[test_case("u32", 0, 10, 10, true, "add", 10, true, "loop executes, add cannot overflow")]
+    #[test_case(
+        "u32",
+        0,
+        10,
+        0,
+        true,
+        "add",
+        10,
+        true,
+        "nested loop empty, but add cannot overflow"
+    )]
+    #[test_case("u32", 0, 10, 10, true, "add", (u32::MAX-5) as i64, true, "add overflows, and loop executes")]
+    #[test_case("u32", 0, 10, 0, true, "add", (u32::MAX-5) as i64, false, "add overflows, but loop empty")]
+    #[test_case("u32", 0, 10, 0, true, "unchecked_add", (u32::MAX-5) as i64, true, "loop empty, but add unchecked")]
+    #[test_case("u32", 5, 10, 10, true, "sub", 5, true, "loop executes, sub cannot overflow")]
+    #[test_case("u32", 0, 10, 10, true, "sub", 5, true, "sub overflows, and loop executes")]
+    #[test_case("u32", 0, 10, 0, true, "sub", 5, false, "sub overflows, but loop empty")]
+    #[test_case("u32", 0, 10, 0, true, "unchecked_sub", 5, true, "loop empty, but sub unchecked")]
+    #[test_case("u32", 0, 10, 10, true, "mul", 10, true, "loop executes, mul cannot overflow")]
+    #[test_case("u32", 0, 10, 10, true, "mul", u32::MAX as i64, true, "mul overflows, and loop executes")]
+    #[test_case("u32", 0, 10, 0, true, "mul", u32::MAX as i64, false, "mul overflows, but loop empty")]
+    #[test_case("u32", 0, 10, 0, true, "unchecked_mul", u32::MAX as i64, true, "loop empty, but mul unchecked")]
+    #[test_case("u32", 0, 10, 10, true, "div", 2, true, "loop executes, div ok")]
+    #[test_case("u32", 0, 10, 0, true, "div", 2, true, "loop empty, div ok")]
+    #[test_case("u32", 0, 10, 10, true, "div", 0, true, "div by zero, and loop executes")]
+    #[test_case("u32", 0, 10, 0, true, "div", 0, false, "div by zero, but loop empty")]
+    #[test_case("u32", 0, 10, 10, true, "mod", 2, true, "loop executes, mod ok")]
+    #[test_case("u32", 0, 10, 0, true, "mod", 2, true, "loop empty, mod ok")]
+    #[test_case("u32", 0, 10, 10, true, "mod", 0, true, "mod by zero, and loop executes")]
+    #[test_case("u32", 0, 10, 0, true, "mod", 0, false, "mod by zero, but loop empty")]
+    #[test_case("u32", 0, 10, 10, true, "eq", 5, true, "eq is safe")]
+    #[test_case("u32", 0, 10, 0, true, "eq", 5, true, "loop empty, but eq is safe")]
+    #[test_case("u32", 5, 10, 10, true, "shr", 1, true, "loop executes, shr ok")]
+    #[test_case("u32", 5, 10, 0, true, "shr", 1, false, "loop empty, shr ok")]
+    #[test_case("u32", 5, 10, 10, true, "shr", 10, true, "shr overflow, and loop executes")]
+    #[test_case("u32", 5, 10, 0, true, "shr", 10, false, "shr overflow, but loop empty")]
+    #[test_case("u32", 5, 10, 10, true, "shl", 1, true, "loop executes, shl ok")]
+    #[test_case("u32", 5, 10, 0, true, "shl", 1, false, "loop empty, shl ok")]
+    #[test_case("u32", 5, 10, 10, true, "shl", 32, true, "shl overflow, and loop executes")]
+    #[test_case("u32", 5, 10, 0, true, "shl", 32, false, "shl overflow, but loop empty")]
+    #[test_case("i32", -10, 10, 10, false, "div", 100, true, "div by zero (mid), and loop executes")]
+    #[test_case("i32", 0, 10, 0, false, "div", 100, false, "div by zero (low), but loop empty")]
+    #[test_case("i32", -10, 0, -10, false, "div", 100, false, "div by zero (up), but loop empty")]
+    #[test_case("i32", -10, -5, -10, false, "div", 100, true, "loop empty, but div ok")]
+    fn hoist_from_loop_bounds_binary(
+        typ: &str,
+        lower: i64,
+        outer_upper: i64,
+        inner_upper: i64,
+        is_induction_left: bool,
+        op: &str,
+        constant: i64,
+        should_hoist: bool,
+        msg: &str,
+    ) {
+        let i = "v1".to_string();
+        let c = format!("{typ} {constant}");
+        let (lhs, rhs) = if is_induction_left { (i, c) } else { (c, i) };
+
+        let src = format!(
+            r#"
+        acir(inline) predicate_pure fn main f0 {{
+          b0(v0: {typ}):
+            jmp b1({typ} {lower})
+          b1(v1: {typ}):
+            v2 = lt v1, {typ} {outer_upper}
+            jmpif v2 then: b2, else: b3
+          b2():
+            jmp b4({typ} {lower})
+          b3():
+            return
+          b4(v3: {typ}):
+            v4 = lt v3, {typ} {inner_upper}
+            jmpif v4 then: b5, else: b6
+          b5():
+            v7 = {op} {lhs}, {rhs}
+            v5 = unchecked_add v3, {typ} 1
+            jmp b4(v5)
+          b6():
+            v6 = unchecked_add v1, {typ} 1
+            jmp b1(v6)
+        }}
+        "#
+        );
+
+        let ssa = Ssa::from_str(&src).unwrap();
+        let ssa = ssa.loop_invariant_code_motion();
+        // The pre-header of the loop b4 is b2
+        let pre_header = &ssa.main().dfg[BasicBlockId::new(2)];
+        let instruction_count = pre_header.instructions().len();
+        if !should_hoist {
+            assert_eq!(instruction_count, 0, "should not hoist: {msg}");
+        } else {
+            assert_eq!(instruction_count, 1, "should hoist into nested pre-header: {msg}");
+        }
+    }
+
     enum TestCall {
         Function(Option<Purity>),
         ForeignFunction,
@@ -2080,7 +2180,7 @@ mod test {
     #[test_case(10, 20, false, 20, Some(false))]
     #[test_case(10, 20, false, 19, Some(false))]
     #[test_case(10, 20, false, 18, None)]
-    fn hoist_from_loop_bounds_binary(
+    fn hoist_from_loop_bounds_binary_lt(
         lower: u32,
         upper: u32,
         induction_is_left: bool,
