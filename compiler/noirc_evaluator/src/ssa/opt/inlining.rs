@@ -66,7 +66,7 @@ impl Ssa {
     /// Only inline calls to simple functions.
     ///
     /// A simple function is defined as the following:
-    /// - Contains no more instructions than specified in [inline_info] 
+    /// - Contains no more instructions than specified in [inline_info]
     /// - The function only has a single block (e.g. no control flow or conditional branches)
     /// - It is not marked with the [no predicates inline type][noirc_frontend::monomorphization::ast::InlineType::NoPredicates]
     /// - It is not recursive
