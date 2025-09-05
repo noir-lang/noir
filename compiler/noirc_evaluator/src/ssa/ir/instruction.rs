@@ -309,7 +309,12 @@ pub enum Instruction {
     /// Computes a bit wise not
     Not(ValueId),
 
-    /// Truncates `value` to `bit_size`
+    /// Truncates `value` to `bit_size`.
+    /// Note that given a value of bit size N, truncating it to N bits is valid and sometimes
+    /// necessary, particularly in ACIR.
+    /// For example `i8` is represented as the values in the range `Field 0`..=`Field 255`.
+    /// It's valid to perform an unchecked add on `i8 -1` (`Field 255`), which results in
+    /// `Field 256`, to later truncate that value (still typed as `i8`) to 8 bits to get `i8 0`.
     Truncate { value: ValueId, bit_size: u32, max_bit_size: u32 },
 
     /// Constrains two values to be equal to one another.
