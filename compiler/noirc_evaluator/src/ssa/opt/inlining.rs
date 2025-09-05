@@ -695,9 +695,12 @@ mod test {
         ssa::{
             Ssa,
             ir::{instruction::TerminatorInstruction, map::Id},
-            opt::{assert_normalized_ssa_equals, inlining::MAX_INSTRUCTIONS},
+            opt::assert_normalized_ssa_equals,
         },
     };
+
+    // We set zero for `small_function_max_instructions` as to avoid the maximum weight threshold at which we always inline a function.
+    const MAX_INSTRUCTIONS: usize = 0;
 
     #[test]
     fn basic_inlining() {
@@ -971,8 +974,7 @@ mod test {
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
-        // We set zero for `small_function_max_instructions` as to avoid the maximum weight threshold at which we always inline a function.
-        let ssa = ssa.inline_functions(i64::MIN, 0).unwrap();
+        let ssa = ssa.inline_functions(i64::MIN, MAX_INSTRUCTIONS).unwrap();
         // No inlining has happened
         assert_normalized_ssa_equals(ssa, src);
     }
@@ -1001,8 +1003,7 @@ mod test {
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
-        // We set zero for `small_function_max_instructions` here as to avoid the maximum weight threshold at which we always inline a function.
-        let ssa = ssa.inline_functions(0, 0).unwrap();
+        let ssa = ssa.inline_functions(0, MAX_INSTRUCTIONS).unwrap();
         // No inlining has happened in f0
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn foo f0 {
@@ -1163,8 +1164,7 @@ mod test {
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
-        // We set zero for `small_function_max_instructions` as to avoid the maximum weight threshold at which we always inline a function.
-        let ssa = ssa.inline_functions(i64::MIN, 0).unwrap();
+        let ssa = ssa.inline_functions(i64::MIN, MAX_INSTRUCTIONS).unwrap();
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
           b0():
