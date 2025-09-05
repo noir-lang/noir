@@ -9,14 +9,23 @@ use super::inlining::{self, InlineInfo};
 
 impl Ssa {
     /// Run pre-processing steps on functions in isolation.
-    pub(crate) fn preprocess_functions(mut self, aggressiveness: i64) -> Result<Ssa, RuntimeError> {
+    pub(crate) fn preprocess_functions(
+        mut self,
+        aggressiveness: i64,
+        small_function_max_instructions: usize,
+    ) -> Result<Ssa, RuntimeError> {
         let call_graph = CallGraph::from_ssa_weighted(&self);
         // Bottom-up order, starting with the "leaf" functions, so we inline already optimized code into the ones that call them.
         let bottom_up = inlining::inline_info::compute_bottom_up_order(&self, &call_graph);
 
         // Preliminary inlining decisions.
-        let inline_infos =
-            inlining::inline_info::compute_inline_infos(&self, &call_graph, false, aggressiveness);
+        let inline_infos = inlining::inline_info::compute_inline_infos(
+            &self,
+            &call_graph,
+            false,
+            small_function_max_instructions,
+            aggressiveness,
+        );
 
         let should_inline_call =
             |callee: &Function| -> bool { InlineInfo::should_inline(&inline_infos, callee.id()) };
@@ -66,7 +75,10 @@ impl Ssa {
 
 #[cfg(test)]
 mod tests {
-    use crate::{assert_ssa_snapshot, ssa::ssa_gen::Ssa};
+    use crate::{
+        assert_ssa_snapshot,
+        ssa::{opt::inlining::MAX_INSTRUCTIONS, ssa_gen::Ssa},
+    };
 
     #[test]
     fn dead_block_params() {
@@ -98,7 +110,7 @@ mod tests {
         "#;
 
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.preprocess_functions(i64::MAX).unwrap();
+        let ssa = ssa.preprocess_functions(i64::MAX, MAX_INSTRUCTIONS).unwrap();
 
         assert_ssa_snapshot!(ssa, @r#"
         acir(inline) fn main f0 {

@@ -12,6 +12,7 @@ use noirc_errors::{CustomDiagnostic, DiagnosticKind};
 use noirc_evaluator::brillig::BrilligOptions;
 use noirc_evaluator::create_program;
 use noirc_evaluator::errors::RuntimeError;
+use noirc_evaluator::ssa::opt::inlining::MAX_INSTRUCTIONS;
 use noirc_evaluator::ssa::{
     SsaEvaluatorOptions, SsaLogging, SsaProgramArtifact, create_program_with_minimal_passes,
 };
@@ -178,6 +179,11 @@ pub struct CompileOptions {
     #[arg(long, hide = true, allow_hyphen_values = true, default_value_t = i64::MAX)]
     pub inliner_aggressiveness: i64,
 
+    /// Setting to decide the maximum weight threshold at which we designate a function
+    /// as "small" and thus to always be inlined.
+    #[arg(long, hide = true, allow_hyphen_values = true, default_value_t = MAX_INSTRUCTIONS)]
+    pub small_function_max_instructions: usize,
+
     /// Setting the maximum acceptable increase in Brillig bytecode size due to
     /// unrolling small loops. When left empty, any change is accepted as long
     /// as it required fewer SSA instructions.
@@ -247,6 +253,7 @@ impl CompileOptions {
             skip_brillig_constraints_check: !self.silence_warnings
                 && self.skip_brillig_constraints_check,
             inliner_aggressiveness: self.inliner_aggressiveness,
+            small_function_max_instruction: self.small_function_max_instructions,
             max_bytecode_increase_percent: self.max_bytecode_increase_percent,
             skip_passes: self.skip_ssa_pass.clone(),
         }
