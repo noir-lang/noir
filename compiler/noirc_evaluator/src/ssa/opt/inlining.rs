@@ -866,7 +866,24 @@ mod test {
         let ssa = Ssa::from_str(src).unwrap();
         let f1 = &ssa.functions[&Id::test_new(1)];
         let function = f1.inlined(&ssa, &|_| true).unwrap();
-        assert_eq!(function.to_string(), f1.to_string());
+        // The expected string must be formatted this way as to account for newlines and whitespace
+        assert_eq!(
+            function.to_string(),
+            "acir(inline) fn factorial f1 {
+  b0(v0: u32):
+    v3 = eq v0, u32 0
+    jmpif v3 then: b1, else: b2
+  b1():
+    jmp b3(u32 1)
+  b2():
+    v5 = sub v0, u32 1
+    v7 = call f1(v5) -> u32
+    v8 = mul v0, v7
+    jmp b3(v8)
+  b3(v4: u32):
+    return v4
+}"
+        );
     }
 
     #[test]
