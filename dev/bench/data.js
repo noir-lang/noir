@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1757096827039,
+  "lastUpdate": 1757099517560,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -20201,48 +20201,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "d94400f063fc58910cc2d5fbf0b50add3b29762d",
-          "message": "fix(ssa): Constant fold Brillig calls using the SSA interpreter (#9655)",
-          "timestamp": "2025-08-27T19:33:21Z",
-          "tree_id": "6cf29b6c5b0552ed59ea8cb6a5a15fbcf3fb6b50",
-          "url": "https://github.com/noir-lang/noir/commit/d94400f063fc58910cc2d5fbf0b50add3b29762d"
-        },
-        "date": 1756325739862,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 249887,
-            "range": "± 781",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 219396,
-            "range": "± 7002",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2781393,
-            "range": "± 11051",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "133841094+YadlaMani@users.noreply.github.com",
             "name": "Mani Yadla",
             "username": "YadlaMani"
@@ -22294,6 +22252,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2783992,
             "range": "± 1976",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "61f3fb3e48986f069e6be61f637d7f63faf9e5c2",
+          "message": "chore(ssa): Consolidate should inline check into a single filter (#9738)",
+          "timestamp": "2025-09-05T18:45:23Z",
+          "tree_id": "5f239caf305704e795be5537dfc80c181e69cf85",
+          "url": "https://github.com/noir-lang/noir/commit/61f3fb3e48986f069e6be61f637d7f63faf9e5c2"
+        },
+        "date": 1757099497749,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 265846,
+            "range": "± 1387",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 229695,
+            "range": "± 3077",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2800817,
+            "range": "± 1904",
             "unit": "ns/iter"
           }
         ]
