@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1757092620743,
+  "lastUpdate": 1757092746944,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -12121,80 +12121,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": true,
-          "id": "b544e60a27e467d9eea6bd0e172b8f2b0d33c0d3",
-          "message": "chore: add test for trait bound on implementing type (#9652)",
-          "timestamp": "2025-08-27T18:01:31Z",
-          "tree_id": "ef939431fde72f2f1312aad3a51a425110ce4555",
-          "url": "https://github.com/noir-lang/noir/commit/b544e60a27e467d9eea6bd0e172b8f2b0d33c0d3"
-        },
-        "date": 1756320104218,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 212.98,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 246.18,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 197.81,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 501.57,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 434.03,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1500,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 328.36,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 330.89,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 69.53,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 55.03,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": false,
           "id": "70bc8931e1b42623b6c32bfe03607dd2e35be765",
           "message": "chore: LICM refactors (#9642)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
@@ -15755,6 +15681,80 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/14659f3beac2784b834b62e0fdfda05e6440d5d2"
         },
         "date": 1757077495345,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 258.14,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 291.33,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 242.94,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 503.7,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 436.08,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1500,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 330.47,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 332.99,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 72.43,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 58.23,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5e276642b138346845d42323992a9445eb2255f9",
+          "message": "fix(ssa): Mark whether an ArrayGet requires a predicate based upon the runtime (#9712)",
+          "timestamp": "2025-09-05T16:36:56Z",
+          "tree_id": "b489f21982d1a3117b11f5b3d87931ba2c760194",
+          "url": "https://github.com/noir-lang/noir/commit/5e276642b138346845d42323992a9445eb2255f9"
+        },
+        "date": 1757092726747,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
