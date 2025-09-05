@@ -162,7 +162,7 @@ impl Function {
                         if self.parameters().contains(array) {
                           return Purity::Impure;
                         } else {
-                          result = Purity::PureWithPredicate;
+                          result = Purity::Pure;
                         }
                       } else if ins.requires_acir_gen_predicate(&self.dfg) {
                             result = Purity::PureWithPredicate;
