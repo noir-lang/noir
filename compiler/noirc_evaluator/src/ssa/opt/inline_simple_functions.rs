@@ -38,9 +38,14 @@ impl Ssa {
             get_brillig_entry_points(&self.functions, self.main_id, &call_graph);
 
         let should_inline_call = |callee: &Function| {
+            let runtime = callee.runtime();
             if let RuntimeType::Acir(_) = callee.runtime() {
                 // Functions marked to not have predicates should be preserved.
                 if callee.is_no_predicates() {
+                    return false;
+                }
+                // ACIR entry points (e.g., foldable functions) should be preserved.
+                if runtime.is_entry_point() {
                     return false;
                 }
             }
@@ -395,6 +400,31 @@ mod test {
         brillig(inline) fn bar f1 {
           b0():
             return Field 72
+        }
+        ";
+        assert_does_not_inline(src);
+    }
+
+    #[test]
+    fn does_not_inline_acir_entry_points() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: Field):
+            v3 = call f1(v0, v1) -> Field
+            v4 = call f1(v0, v1) -> Field
+            v5 = call f1(v0, v1) -> Field
+            v6 = eq v3, v4
+            constrain v3 == v4
+            v7 = eq v4, v5
+            constrain v4 == v5
+            return
+        }
+        acir(fold) fn foo f1 {
+          b0(v0: Field, v1: Field):
+            v2 = eq v0, v1
+            v3 = not v2
+            constrain v2 == u1 0
+            return v0
         }
         ";
         assert_does_not_inline(src);

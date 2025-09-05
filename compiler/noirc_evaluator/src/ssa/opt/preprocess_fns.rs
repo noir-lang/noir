@@ -2,10 +2,7 @@
 
 use crate::ssa::{
     RuntimeError, Ssa,
-    ir::{
-        call_graph::CallGraph,
-        function::Function,
-    },
+    ir::{call_graph::CallGraph, function::Function},
 };
 
 use super::inlining::{self, InlineInfo};
