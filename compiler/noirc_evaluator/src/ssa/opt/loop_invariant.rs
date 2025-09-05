@@ -687,12 +687,17 @@ impl<'f> LoopInvariantContext<'f> {
             return true;
         }
 
-        self.can_be_hoisted_from_loop_bounds(loop_context, &instruction)
-            || match can_be_hoisted(&instruction, self.inserter.function) {
-                Yes => true,
-                No => false,
-                WithPredicate => block_context.can_hoist_control_dependent_instruction(),
-            }
+        // Check if the operation depends only on the outer loop variable, in which case it can be hoisted
+        // into the pre-header of a nested loop even if the nested loop does not execute.
+        if self.can_be_hoisted_from_loop_bounds(loop_context, &instruction) {
+            return true;
+        }
+
+        match can_be_hoisted(&instruction, self.inserter.function) {
+            Yes => true,
+            No => false,
+            WithPredicate => block_context.can_hoist_control_dependent_instruction(),
+        }
     }
 
     /// Certain instructions can take advantage of that our induction variable has a fixed minimum/maximum.
@@ -719,6 +724,7 @@ impl<'f> LoopInvariantContext<'f> {
                 if let (Type::Array(_, len), Some(upper_bound)) = (array_typ, upper_bound) {
                     upper_bound.apply(|i| i <= len.into(), |i| i <= len.into())
                 } else {
+                    // We're dealing with a loop that doesn't have a fixed upper bound.
                     false
                 }
             }
@@ -781,6 +787,7 @@ fn get_induction_var_bounds(
 }
 
 /// Indicate whether an instruction can be hoisted.
+#[derive(Debug, PartialEq, Eq)]
 enum CanBeHoistedResult {
     Yes,
     No,
@@ -876,12 +883,23 @@ fn can_be_hoisted(instruction: &Instruction, function: &Function) -> CanBeHoiste
 
 #[cfg(test)]
 mod test {
+    use std::sync::Arc;
+
     use crate::assert_ssa_snapshot;
     use crate::ssa::Ssa;
     use crate::ssa::ir::basic_block::BasicBlockId;
-    use crate::ssa::opt::loop_invariant::LoopInvariantContext;
+    use crate::ssa::ir::function::RuntimeType;
+    use crate::ssa::ir::instruction::{Instruction, Intrinsic, TerminatorInstruction};
+    use crate::ssa::ir::types::Type;
+    use crate::ssa::opt::loop_invariant::{
+        CanBeHoistedResult, LoopInvariantContext, can_be_hoisted,
+    };
+    use crate::ssa::opt::pure::Purity;
     use crate::ssa::opt::unrolling::Loops;
     use crate::ssa::opt::{assert_normalized_ssa_equals, assert_ssa_does_not_change};
+    use acvm::AcirField;
+    use noirc_frontend::monomorphization::ast::InlineType;
+    use test_case::test_case;
 
     #[test]
     fn hoists_casts() {
@@ -1935,6 +1953,371 @@ mod test {
         assert!(!b2_ctx.does_execute, "while loop execution treated as unknown");
         assert!(b2_ctx.is_impure, "header was impure");
     }
+
+    /// Test cases where array_get should or shouldn't be hoisted from an inner loop
+    /// when its indexed by the outer loop induction variable.
+    #[test_case(4, 1, true; "upper less than size and both execute")]
+    #[test_case(5, 1, true; "upper equal size and both execute")]
+    #[test_case(6, 1, true; "upper greater than size and both execute")]
+    #[test_case(0, 1, true; "upper less than size but outer does not execute")]
+    #[test_case(4, 0, true; "upper less than size but inner does not execute")]
+    #[test_case(6, 0, false; "upper greater than size but inner does not execute")]
+    fn hoist_from_loop_bounds_array(outer_upper: u32, inner_upper: u32, should_hoist: bool) {
+        let src = format!(
+            r#"
+        acir(inline) predicate_pure fn main f0 {{
+          b0(v0: u32):
+            v10 = make_array [u32 0, u32 0, u32 0, u32 0, u32 0] : [u32; 5]
+            jmp b1(u32 0)
+          b1(v1: u32):
+            v2 = lt v1, u32 {outer_upper}
+            jmpif v2 then: b2, else: b3
+          b2():
+            jmp b4(u32 0)
+          b3():
+            return
+          b4(v3: u32):
+            v4 = lt v3, u32 {inner_upper}
+            jmpif v4 then: b5, else: b6
+          b5():
+            v11 = array_get v10, index v1 -> u32
+            v5 = unchecked_add v3, u32 1
+            jmp b4(v5)
+          b6():
+            v6 = unchecked_add v1, u32 1
+            jmp b1(v6)
+        }}
+        "#
+        );
+
+        let ssa = Ssa::from_str(&src).unwrap();
+        let ssa = ssa.loop_invariant_code_motion();
+        // The pre-header of the loop b4 is b2
+        let pre_header = &ssa.main().dfg[BasicBlockId::new(2)];
+        if !should_hoist {
+            assert!(pre_header.instructions().is_empty(), "should not hoist");
+        } else {
+            assert_eq!(pre_header.instructions().len(), 1, "should hoist into nested pre-header");
+        }
+    }
+
+    /// Test cases where +,-,*,/,% should or shouldn't be hoisted from an inner loop
+    /// when its using by the outer loop induction variable.
+    #[test_case("u32", 0, 10, 10, true, "add", 10, true, "loop executes, add cannot overflow")]
+    #[test_case(
+        "u32",
+        0,
+        10,
+        0,
+        true,
+        "add",
+        10,
+        true,
+        "nested loop empty, but add cannot overflow"
+    )]
+    #[test_case("u32", 0, 10, 10, true, "add", (u32::MAX-5) as i64, true, "add overflows, and loop executes")]
+    #[test_case("u32", 0, 10, 0, true, "add", (u32::MAX-5) as i64, false, "add overflows, but loop empty")]
+    #[test_case("u32", 0, 10, 0, true, "unchecked_add", (u32::MAX-5) as i64, true, "loop empty, but add unchecked")]
+    #[test_case("u32", 5, 10, 10, true, "sub", 5, true, "loop executes, sub cannot overflow")]
+    #[test_case("u32", 0, 10, 10, true, "sub", 5, true, "sub overflows, and loop executes")]
+    #[test_case("u32", 0, 10, 0, true, "sub", 5, false, "sub overflows, but loop empty")]
+    #[test_case("u32", 0, 10, 0, true, "unchecked_sub", 5, true, "loop empty, but sub unchecked")]
+    #[test_case("u32", 0, 10, 10, true, "mul", 10, true, "loop executes, mul cannot overflow")]
+    #[test_case("u32", 0, 10, 10, true, "mul", u32::MAX as i64, true, "mul overflows, and loop executes")]
+    #[test_case("u32", 0, 10, 0, true, "mul", u32::MAX as i64, false, "mul overflows, but loop empty")]
+    #[test_case("u32", 0, 10, 0, true, "unchecked_mul", u32::MAX as i64, true, "loop empty, but mul unchecked")]
+    #[test_case("u32", 0, 10, 10, true, "div", 2, true, "loop executes, div ok")]
+    #[test_case("u32", 0, 10, 0, true, "div", 2, true, "loop empty, div ok")]
+    #[test_case("u32", 0, 10, 10, true, "div", 0, true, "div by zero, and loop executes")]
+    #[test_case("u32", 0, 10, 0, true, "div", 0, false, "div by zero, but loop empty")]
+    #[test_case("u32", 0, 10, 10, true, "mod", 2, true, "loop executes, mod ok")]
+    #[test_case("u32", 0, 10, 0, true, "mod", 2, true, "loop empty, mod ok")]
+    #[test_case("u32", 0, 10, 10, true, "mod", 0, true, "mod by zero, and loop executes")]
+    #[test_case("u32", 0, 10, 0, true, "mod", 0, false, "mod by zero, but loop empty")]
+    #[test_case("u32", 0, 10, 10, true, "eq", 5, true, "eq is safe")]
+    #[test_case("u32", 0, 10, 0, true, "eq", 5, true, "loop empty, but eq is safe")]
+    #[test_case("u32", 5, 10, 10, true, "shr", 1, true, "loop executes, shr ok")]
+    #[test_case("u32", 5, 10, 0, true, "shr", 1, false, "loop empty, shr ok")]
+    #[test_case("u32", 5, 10, 10, true, "shr", 10, true, "shr overflow, and loop executes")]
+    #[test_case("u32", 5, 10, 0, true, "shr", 10, false, "shr overflow, but loop empty")]
+    #[test_case("u32", 5, 10, 10, true, "shl", 1, true, "loop executes, shl ok")]
+    #[test_case("u32", 5, 10, 0, true, "shl", 1, false, "loop empty, shl ok")]
+    #[test_case("u32", 5, 10, 10, true, "shl", 32, true, "shl overflow, and loop executes")]
+    #[test_case("u32", 5, 10, 0, true, "shl", 32, false, "shl overflow, but loop empty")]
+    #[test_case("i32", -10, 10, 10, false, "div", 100, true, "div by zero (mid), and loop executes")]
+    #[test_case("i32", 0, 10, 0, false, "div", 100, false, "div by zero (low), but loop empty")]
+    #[test_case("i32", -10, 0, -10, false, "div", 100, false, "div by zero (up), but loop empty")]
+    #[test_case("i32", -10, -5, -10, false, "div", 100, true, "loop empty, but div ok")]
+    #[allow(clippy::too_many_arguments)]
+    fn hoist_from_loop_bounds_binary(
+        typ: &str,
+        lower: i64,
+        outer_upper: i64,
+        inner_upper: i64,
+        is_induction_left: bool,
+        op: &str,
+        constant: i64,
+        should_hoist: bool,
+        msg: &str,
+    ) {
+        let i = "v1".to_string();
+        let c = format!("{typ} {constant}");
+        let (lhs, rhs) = if is_induction_left { (i, c) } else { (c, i) };
+
+        let src = format!(
+            r#"
+        acir(inline) predicate_pure fn main f0 {{
+          b0(v0: {typ}):
+            jmp b1({typ} {lower})
+          b1(v1: {typ}):
+            v2 = lt v1, {typ} {outer_upper}
+            jmpif v2 then: b2, else: b3
+          b2():
+            jmp b4({typ} {lower})
+          b3():
+            return
+          b4(v3: {typ}):
+            v4 = lt v3, {typ} {inner_upper}
+            jmpif v4 then: b5, else: b6
+          b5():
+            v7 = {op} {lhs}, {rhs}
+            v5 = unchecked_add v3, {typ} 1
+            jmp b4(v5)
+          b6():
+            v6 = unchecked_add v1, {typ} 1
+            jmp b1(v6)
+        }}
+        "#
+        );
+
+        let ssa = Ssa::from_str(&src).unwrap();
+        let ssa = ssa.loop_invariant_code_motion();
+        // The pre-header of the loop b4 is b2
+        let pre_header = &ssa.main().dfg[BasicBlockId::new(2)];
+        let instruction_count = pre_header.instructions().len();
+        if !should_hoist {
+            assert_eq!(instruction_count, 0, "should not hoist: {msg}");
+        } else {
+            assert_eq!(instruction_count, 1, "should hoist into nested pre-header: {msg}");
+        }
+    }
+
+    enum TestCall {
+        Function(Option<Purity>),
+        ForeignFunction,
+        Intrinsic(Intrinsic),
+    }
+
+    /// Test that calls to functions is hoisted into the pre-header based on their purity.
+    #[test_case(1, TestCall::Function(Some(Purity::Pure)), true; "non-empty loop, pure function")]
+    #[test_case(0, TestCall::Function(Some(Purity::Pure)), true; "empty loop, pure function")]
+    #[test_case(1, TestCall::Function(Some(Purity::PureWithPredicate)), true; "non-empty loop, predicate pure function")]
+    #[test_case(0, TestCall::Function(Some(Purity::PureWithPredicate)), false; "empty loop, predicate pure function")]
+    #[test_case(1, TestCall::Function(Some(Purity::Impure)), false; "impure function")]
+    #[test_case(1, TestCall::Function(None), false; "purity unknown")]
+    #[test_case(1, TestCall::ForeignFunction, false; "foreign functions always impure")]
+    #[test_case(0, TestCall::Intrinsic(Intrinsic::AsWitness), false; "empty loop; predicate pure intrinsic")]
+    #[test_case(1, TestCall::Intrinsic(Intrinsic::AsWitness), true; "non-empty loop; predicate pure intrinsic")]
+    #[test_case(1, TestCall::Intrinsic(Intrinsic::ArrayRefCount), false; "non-empty loop, impure intrinsic")]
+    #[test_case(0, TestCall::Intrinsic(Intrinsic::BlackBox(acvm::acir::BlackBoxFunc::Keccakf1600)), true; "empty loop, pure intrinsic")]
+    #[test_case(1, TestCall::Intrinsic(Intrinsic::BlackBox(acvm::acir::BlackBoxFunc::Keccakf1600)), true; "non-empty loop, pure intrinsic")]
+    fn hoist_from_loop_call_with_purity(upper: u32, test_call: TestCall, should_hoist: bool) {
+        let dummy_purity = if let TestCall::Function(purity) = &test_call { *purity } else { None };
+        let dummy_purity = dummy_purity.map_or("".to_string(), |p| format!("{p}"));
+
+        // The arguments are not meant to make sense, just pass SSA validation and not be simplified out.
+        let call_target = match test_call {
+            TestCall::Function(_) => "f1".to_string(),
+            TestCall::ForeignFunction => "print".to_string(), // The ony foreign function the SSA parser allows.
+            TestCall::Intrinsic(intrinsic) => format!("{intrinsic}"),
+        };
+
+        let src = format!(
+            r#"
+        acir(inline) fn main f0 {{
+          b0(v0: [u64; 25]):
+            jmp b1(u32 0)
+          b1(v1: u32):
+            v2 = lt v1, u32 {upper}
+            jmpif v2 then: b2, else: b3
+          b2():
+            v3 = call {call_target}(v0) -> [u64; 25]
+            v4 = unchecked_add v1, u32 1
+            jmp b1(v4)
+          b3():
+            return
+        }}
+
+        acir(inline) {dummy_purity} fn dummy f1 {{
+          b0(v0: [u64; 25]):
+            return v0
+        }}
+        "#,
+        );
+
+        let ssa = Ssa::from_str(&src).unwrap();
+        let ssa = ssa.loop_invariant_code_motion();
+
+        // The pre-header of the loop b1 is b0
+        let pre_header = &ssa.main().dfg[BasicBlockId::new(0)];
+        if !should_hoist {
+            assert!(pre_header.instructions().is_empty(), "should not hoist");
+        } else {
+            assert_eq!(pre_header.instructions().len(), 1, "should hoist");
+        }
+    }
+
+    /// Test cases where `i < const` or `const < i` should or shouldn't be simplified.
+    #[test_case(10, 20, true, 25, Some(true))]
+    #[test_case(10, 20, true, 20, Some(true))]
+    #[test_case(10, 10, true, 25, Some(true))]
+    #[test_case(10, 20, true, 15, None)]
+    #[test_case(10, 20, true, 10, Some(false))]
+    #[test_case(10, 20, true, 5, Some(false))]
+    #[test_case(10, 10, true, 5, Some(false))]
+    #[test_case(10, 20, false, 25, Some(false))]
+    #[test_case(10, 20, false, 15, None)]
+    #[test_case(10, 20, false, 5, Some(true))]
+    #[test_case(10, 20, false, 20, Some(false))]
+    #[test_case(10, 20, false, 19, Some(false))]
+    #[test_case(10, 20, false, 18, None)]
+    fn hoist_from_loop_bounds_binary_lt(
+        lower: u32,
+        upper: u32,
+        induction_is_left: bool,
+        constant: u32,
+        simplify_to: Option<bool>,
+    ) {
+        let i = "v0".to_string();
+        let c = format!("u32 {constant}");
+        let (lhs, rhs) = if induction_is_left { (i, c) } else { (c, i) };
+        let src = format!(
+            r#"
+            brillig(inline) impure fn main f0 {{
+              b0():
+                jmp b1(u32 {lower})
+              b1(v0: u32):
+                v3 = lt v0, u32 {upper}
+                jmpif v3 then: b2, else: b3
+              b2():
+                v5 = lt {lhs}, {rhs}
+                jmpif v5 then: b4, else: b5
+              b3():
+                return
+              b4():
+                jmp b5()
+              b5():
+                v30 = unchecked_add v0, u32 1
+                jmp b1(v30)
+            }}
+        "#
+        );
+        // If the condition simplifies, then the `jmpif v5` either becomes `jmpif u1 1` or `jmpif u1 0`
+
+        let ssa = Ssa::from_str(&src).unwrap();
+        let ssa = ssa.loop_invariant_code_motion();
+        let body = &ssa.main().dfg[BasicBlockId::new(2)];
+
+        let TerminatorInstruction::JmpIf { condition, .. } = body.unwrap_terminator() else {
+            unreachable!("body should end in jmpif");
+        };
+
+        let dfg = &ssa.main().dfg;
+        let is_var = || dfg.get_numeric_constant(*condition).is_none();
+        let is_one = || dfg.get_numeric_constant(*condition).is_some_and(|c| c.is_one());
+        let is_zero = || dfg.get_numeric_constant(*condition).is_some_and(|c| c.is_zero());
+
+        match simplify_to {
+            None => {
+                assert!(is_var(), "shouldn't simplify");
+            }
+            Some(true) => {
+                assert!(is_one(), "should simplify to constant true");
+            }
+            Some(false) => {
+                assert!(is_zero(), "should simplify to constant false");
+            }
+        }
+    }
+
+    #[test]
+    fn do_not_hoist_array_get_from_loop_without_induction() {
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32, v11: u32):
+            v10 = make_array [u32 0, u32 0, u32 0, u32 0, u32 0] : [u32; 5]
+            v1 = allocate -> &mut u32
+            store u32 0 at v1
+            jmp b1()
+          b1():
+            v2 = load v1 -> u32
+            v3 = lt v2, u32 5
+            jmpif v3 then: b2, else: b3
+          b2():
+            v12 = array_get v10, index v11 -> u32
+            v4 = unchecked_add v2, u32 1
+            store v4 at v1
+            jmp b1()
+          b3():
+            return
+        }
+        "#;
+
+        assert_ssa_does_not_change(src, Ssa::loop_invariant_code_motion);
+    }
+
+    #[test]
+    fn do_not_hoist_div_by_zero_from_non_executed_nested_loop() {
+        let src = r#"
+          brillig(inline) predicate_pure fn main f0 {
+            b0():
+              jmp b1(u32 0)
+            b1(v0: u32):
+              v4 = lt v0, u32 10
+              jmpif v4 then: b2, else: b3
+            b2():
+              jmp b4(u32 10)
+            b3():
+              return
+            b4(v1: u32):
+              v6 = lt v1, u32 10
+              jmpif v6 then: b5, else: b6
+            b5():
+              v9 = div v0, u32 0
+              v10 = unchecked_add v1, u32 1
+              jmp b4(v10)
+            b6():
+              v8 = unchecked_add v0, u32 1
+              jmp b1(v8)
+          }
+        "#;
+
+        assert_ssa_does_not_change(src, Ssa::loop_invariant_code_motion);
+    }
+
+    /// Test that in itself `MakeArray` is only safe to be hoisted in ACIR.
+    #[test_case(RuntimeType::Brillig(InlineType::default()), CanBeHoistedResult::No)]
+    #[test_case(RuntimeType::Acir(InlineType::default()), CanBeHoistedResult::Yes)]
+    fn make_array_can_be_hoisted(runtime: RuntimeType, result: CanBeHoistedResult) {
+        // This is just a stub to create a function with the expected runtime.
+        let src = format!(
+            r#"
+        {runtime} predicate_pure fn main f0 {{
+          b0():
+            return
+        }}
+        "#
+        );
+        let ssa = Ssa::from_str(&src).unwrap();
+        let function = ssa.main();
+
+        let instruction = Instruction::MakeArray {
+            elements: Default::default(),
+            typ: Type::Array(Arc::new(vec![]), 0),
+        };
+
+        assert_eq!(can_be_hoisted(&instruction, function), result);
+    }
 }
 
 #[cfg(test)]
@@ -2479,6 +2862,48 @@ mod control_dependence {
         assert_ssa_does_not_change(src, Ssa::loop_invariant_code_motion);
     }
 
+    /// Change `constrain v0 != i` into `constrain v0 < 10 or v0 > 19`
+    #[test]
+    fn simplify_constrain_not_equal() {
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32):
+            jmp b1(u32 10)
+          b1(v1: u32):
+            v2 = lt v1, u32 20
+            jmpif v2 then: b2, else: b3
+          b2():
+            constrain v0 != v1
+            v3 = unchecked_add v1, u32 1
+            jmp b1(v3)
+          b3():
+            return
+        }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.loop_invariant_code_motion();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32):
+            v3 = lt v0, u32 10
+            v5 = lt u32 19, v0
+            v6 = or v3, v5
+            constrain v6 == u1 1
+            jmp b1(u32 10)
+          b1(v1: u32):
+            v9 = lt v1, u32 20
+            jmpif v9 then: b2, else: b3
+          b2():
+            v11 = unchecked_add v1, u32 1
+            jmp b1(v11)
+          b3():
+            return
+        }
+        ");
+    }
+
     #[test]
     fn simplify_comparison() {
         // This tests shows that the comparison v12 = lt v3, u32 8 is simplified because v3 is bounded by 5
@@ -2800,6 +3225,43 @@ mod control_dependence {
         assert_eq!(lhs_id.to_u32(), 8);
 
         assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn do_not_hoist_constrain_with_break() {
+        // There is a constraint in the loop which we know would fail on some induction values,
+        // however because of the `break` we won't necessarily reach all values, so we don't hoist.
+        // unconstrained fn main() {
+        //     for i in 0..10 {
+        //         assert(i < 5);
+        //         if i == 1 {
+        //             break;
+        //         }
+        //     }
+        // }
+        let src = r"
+        brillig(inline) predicate_pure fn main f0 {
+          b0():
+            jmp b1(u32 0)
+          b1(v0: u32):
+            v3 = lt v0, u32 10
+            jmpif v3 then: b2, else: b3
+          b2():
+            v5 = lt v0, u32 5
+            constrain v5 == u1 1
+            v8 = eq v0, u32 1
+            jmpif v8 then: b4, else: b5
+          b3():
+            return
+          b4():
+            jmp b3()
+          b5():
+            v9 = unchecked_add v0, u32 1
+            jmp b1(v9)
+        }
+        ";
+
+        assert_ssa_does_not_change(src, Ssa::loop_invariant_code_motion);
     }
 
     #[test]
