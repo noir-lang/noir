@@ -288,7 +288,7 @@ mod reflection {
         fn replace_array_with_shared_ptr(source: &mut String) {
             // Capture `std::array<$TYPE, $LEN>`
             let re = Regex::new(r#"std::array<\s*([^,<>]+?)\s*,\s*([0-9]+)\s*>"#)
-                .expect("failed to create regex");
+                .expect("Static regex for std::array pattern should always compile");
 
             let fixed =
                 re.replace_all(source, "std::shared_ptr<std::array<${1}, ${2}>>").into_owned();
