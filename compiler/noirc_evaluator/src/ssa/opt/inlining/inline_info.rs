@@ -22,7 +22,7 @@ use crate::ssa::{
 /// When that function has no control flow, it generally means we can expect all loads and stores within the
 /// function to be resolved upon inlining. Inlining this type of basic function both reduces the number of
 /// loads/stores to be executed and enables the compiler to continue optimizing at the inline site.
-const MAX_INSTRUCTIONS: usize = 10;
+pub const MAX_INSTRUCTIONS: usize = 10;
 
 /// Information about a function to aid the decision about whether to inline it or not.
 /// The final decision depends on what we're inlining it into.
@@ -68,7 +68,7 @@ pub(crate) fn compute_inline_infos(
     ssa: &Ssa,
     call_graph: &CallGraph,
     inline_no_predicates_functions: bool,
-    only_inline_simple_functions: bool,
+    small_function_max_instructions: usize,
     aggressiveness: i64,
 ) -> InlineInfos {
     let mut inline_infos = InlineInfos::default();
@@ -106,12 +106,13 @@ pub(crate) fn compute_inline_infos(
     let times_called = call_graph.times_called();
     // Find mutual recursion in our call graph
     let recursive_functions = call_graph.get_recursive_functions();
+    let small_function_max_instructions = small_function_max_instructions as i64;
     for recursive_func in recursive_functions.iter() {
         inline_infos.entry(*recursive_func).or_default().is_recursive = true;
         compute_function_should_be_inlined(
             ssa,
             inline_no_predicates_functions,
-            only_inline_simple_functions,
+            small_function_max_instructions,
             aggressiveness,
             &times_called,
             &mut inline_infos,
@@ -129,7 +130,7 @@ pub(crate) fn compute_inline_infos(
         compute_function_should_be_inlined(
             ssa,
             inline_no_predicates_functions,
-            only_inline_simple_functions,
+            small_function_max_instructions,
             aggressiveness,
             &times_called,
             &mut inline_infos,
@@ -163,7 +164,7 @@ pub(crate) fn compute_inline_infos(
 fn compute_function_should_be_inlined(
     ssa: &Ssa,
     inline_no_predicates_functions: bool,
-    only_inline_simple_functions: bool,
+    small_function_max_instructions: i64,
     aggressiveness: i64,
     times_called: &HashMap<FunctionId, usize>,
     inline_infos: &mut InlineInfos,
@@ -223,20 +224,14 @@ fn compute_function_should_be_inlined(
     let entry_block = &function.dfg[entry_block_id];
     let should_inline_no_pred_function =
         runtime.is_no_predicates() && inline_no_predicates_functions;
-    let is_simple_function =
-        instruction_weight < MAX_INSTRUCTIONS as i64 && entry_block.successors().next().is_none();
+    let is_simple_function = entry_block.successors().next().is_none()
+        && instruction_weight < small_function_max_instructions;
 
-    let should_inline = if only_inline_simple_functions {
-        // When the flag is active we only want to inline simple functions
-        is_simple_function
-    } else {
-        // When the flag is inactive we use our normal heuristics, but also allow simple functions
-        is_simple_function
-            || net_cost < aggressiveness
-            || runtime.is_inline_always()
-            || should_inline_no_pred_function
-            || contains_static_assertion
-    };
+    let should_inline = is_simple_function
+        || net_cost < aggressiveness
+        || runtime.is_inline_always()
+        || should_inline_no_pred_function
+        || contains_static_assertion;
 
     info.should_inline = should_inline;
 }
@@ -349,7 +344,7 @@ fn compute_function_interface_cost(func: &Function) -> usize {
 mod tests {
     use crate::ssa::{
         ir::{call_graph::CallGraph, map::Id},
-        opt::inlining::inline_info::compute_bottom_up_order,
+        opt::inlining::{MAX_INSTRUCTIONS, inline_info::compute_bottom_up_order},
         ssa_gen::Ssa,
     };
 
@@ -382,7 +377,8 @@ mod tests {
 
         let ssa = Ssa::from_str(src).unwrap();
         let call_graph = CallGraph::from_ssa_weighted(&ssa);
-        let inline_infos = compute_inline_infos(&ssa, &call_graph, false, false, i64::MAX);
+        let inline_infos =
+            compute_inline_infos(&ssa, &call_graph, false, MAX_INSTRUCTIONS, i64::MAX);
 
         let func_0 = inline_infos.get(&Id::test_new(0)).expect("Should have computed inline info");
         assert!(!func_0.is_recursive);
@@ -506,7 +502,7 @@ mod tests {
 
         let ssa = Ssa::from_str(src).unwrap();
         let call_graph = CallGraph::from_ssa_weighted(&ssa);
-        let infos = compute_inline_infos(&ssa, &call_graph, false, false, 0);
+        let infos = compute_inline_infos(&ssa, &call_graph, false, MAX_INSTRUCTIONS, 0);
 
         let f1 = infos.get(&Id::test_new(1)).expect("f1 should be analyzed");
         assert!(
@@ -532,7 +528,7 @@ mod tests {
 
         let ssa = Ssa::from_str(src).unwrap();
         let call_graph = CallGraph::from_ssa_weighted(&ssa);
-        let infos = compute_inline_infos(&ssa, &call_graph, false, false, 0);
+        let infos = compute_inline_infos(&ssa, &call_graph, false, MAX_INSTRUCTIONS, 0);
 
         let f1 = infos.get(&Id::test_new(1)).expect("Should analyze f1");
         assert!(
@@ -540,7 +536,7 @@ mod tests {
             "no_predicates functions should NOT be inlined if the flag is false"
         );
 
-        let infos = compute_inline_infos(&ssa, &call_graph, true, false, 0);
+        let infos = compute_inline_infos(&ssa, &call_graph, true, MAX_INSTRUCTIONS, 0);
 
         let f1 = infos.get(&Id::test_new(1)).expect("Should analyze f1");
         assert!(f1.should_inline, "no_predicates functions should be inlined if the flag is true");
@@ -563,7 +559,7 @@ mod tests {
 
         let ssa = Ssa::from_str(src).unwrap();
         let call_graph = CallGraph::from_ssa_weighted(&ssa);
-        let infos = compute_inline_infos(&ssa, &call_graph, false, false, 0);
+        let infos = compute_inline_infos(&ssa, &call_graph, false, MAX_INSTRUCTIONS, 0);
 
         let f1 = infos.get(&Id::test_new(1)).expect("Should analyze f1");
         assert!(f1.should_inline, "inline_always functions should be inlined");
