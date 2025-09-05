@@ -290,12 +290,7 @@ mod test {
     use crate::{
         brillig::BrilligOptions,
         ssa::{
-            SsaEvaluatorOptions,
-            function_builder::FunctionBuilder,
-            ir::{basic_block::BasicBlockId, cfg::ControlFlowGraph, map::Id, types::Type},
-            opt::flatten_cfg::branch_analysis::find_branch_ends,
-            primary_passes,
-            ssa_gen::Ssa,
+            function_builder::FunctionBuilder, ir::{basic_block::BasicBlockId, cfg::ControlFlowGraph, map::Id, types::Type}, opt::{flatten_cfg::branch_analysis::find_branch_ends, inlining::MAX_INSTRUCTIONS}, primary_passes, ssa_gen::Ssa, SsaEvaluatorOptions
         },
     };
 
@@ -649,6 +644,7 @@ mod test {
             skip_brillig_constraints_check: true,
             enable_brillig_constraints_check_lookback: false,
             inliner_aggressiveness: 0,
+            small_function_max_instruction: MAX_INSTRUCTIONS,
             max_bytecode_increase_percent: None,
             skip_passes: Vec::new(),
         };
