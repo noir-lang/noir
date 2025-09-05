@@ -172,7 +172,12 @@ fn compute_function_should_be_inlined(
     index: PetGraphIndex,
 ) {
     let func_id = call_graph.indices_to_ids()[&index];
-    if inline_infos.get(&func_id).is_some_and(|info| info.should_inline || info.weight != 0) {
+    if inline_infos.get(&func_id).is_some_and(|info| {
+        info.should_inline
+            || info.weight != 0
+            || info.is_brillig_entry_point
+            || info.is_acir_entry_point
+    }) {
         return; // Already processed
     }
 
@@ -216,7 +221,7 @@ fn compute_function_should_be_inlined(
     info.weight = total_weight;
     info.cost = net_cost;
 
-    if info.is_recursive {
+    if runtime.is_brillig() && info.is_recursive {
         return;
     }
 
@@ -231,7 +236,8 @@ fn compute_function_should_be_inlined(
         || net_cost < aggressiveness
         || runtime.is_inline_always()
         || should_inline_no_pred_function
-        || contains_static_assertion;
+        || contains_static_assertion
+        || runtime.is_acir();;
 
     info.should_inline = should_inline;
 }
@@ -528,16 +534,36 @@ mod tests {
 
         let ssa = Ssa::from_str(src).unwrap();
         let call_graph = CallGraph::from_ssa_weighted(&ssa);
-        let infos = compute_inline_infos(&ssa, &call_graph, false, MAX_INSTRUCTIONS, 0);
-
+        let infos = compute_inline_infos(&ssa, &call_graph, false, MAX_INSTRUCTIONS, i64::MIN);
         let f1 = infos.get(&Id::test_new(1)).expect("Should analyze f1");
         assert!(
             !f1.should_inline,
             "no_predicates functions should NOT be inlined if the flag is false"
         );
 
-        let infos = compute_inline_infos(&ssa, &call_graph, true, MAX_INSTRUCTIONS, 0);
+        let infos = compute_inline_infos(&ssa, &call_graph, false, MAX_INSTRUCTIONS, 0);
+        let f1 = infos.get(&Id::test_new(1)).expect("Should analyze f1");
+        assert!(
+            !f1.should_inline,
+            "no_predicates functions should NOT be inlined if the flag is false"
+        );
 
+        let infos = compute_inline_infos(&ssa, &call_graph, false, MAX_INSTRUCTIONS, i64::MAX);
+        let f1 = infos.get(&Id::test_new(1)).expect("Should analyze f1");
+        assert!(
+            !f1.should_inline,
+            "no_predicates functions should NOT be inlined if the flag is false"
+        );
+
+        let infos = compute_inline_infos(&ssa, &call_graph, true, MAX_INSTRUCTIONS, i64::MIN);
+        let f1 = infos.get(&Id::test_new(1)).expect("Should analyze f1");
+        assert!(f1.should_inline, "no_predicates functions should be inlined if the flag is true");
+
+        let infos = compute_inline_infos(&ssa, &call_graph, true, MAX_INSTRUCTIONS, 0);
+        let f1 = infos.get(&Id::test_new(1)).expect("Should analyze f1");
+        assert!(f1.should_inline, "no_predicates functions should be inlined if the flag is true");
+
+        let infos = compute_inline_infos(&ssa, &call_graph, true, MAX_INSTRUCTIONS, i64::MAX);
         let f1 = infos.get(&Id::test_new(1)).expect("Should analyze f1");
         assert!(f1.should_inline, "no_predicates functions should be inlined if the flag is true");
     }
@@ -563,5 +589,26 @@ mod tests {
 
         let f1 = infos.get(&Id::test_new(1)).expect("Should analyze f1");
         assert!(f1.should_inline, "inline_always functions should be inlined");
+    }
+
+    #[test]
+    fn basic_inlining_brillig_not_inlined_into_acir() {
+        let src = "
+        acir(inline) fn foo f0 {
+          b0():
+            v1 = call f1() -> Field
+            return v1
+        }
+        brillig(inline) fn bar f1 {
+          b0():
+            return Field 72
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let call_graph = CallGraph::from_ssa_weighted(&ssa);
+        let infos = compute_inline_infos(&ssa, &call_graph, false, MAX_INSTRUCTIONS, 0);
+
+        let f1 = infos.get(&Id::test_new(1)).expect("Should analyze f1");
+        assert!(!f1.should_inline, "Brillig entry points should never be inlined");
     }
 }
