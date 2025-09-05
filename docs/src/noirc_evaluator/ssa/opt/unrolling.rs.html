@@ -1765,7 +1765,45 @@
 <a href="#1764" id="1764">1764</a>
 <a href="#1765" id="1765">1765</a>
 <a href="#1766" id="1766">1766</a>
-<a href="#1767" id="1767">1767</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file contains the loop unrolling pass for the new SSA IR.
+<a href="#1767" id="1767">1767</a>
+<a href="#1768" id="1768">1768</a>
+<a href="#1769" id="1769">1769</a>
+<a href="#1770" id="1770">1770</a>
+<a href="#1771" id="1771">1771</a>
+<a href="#1772" id="1772">1772</a>
+<a href="#1773" id="1773">1773</a>
+<a href="#1774" id="1774">1774</a>
+<a href="#1775" id="1775">1775</a>
+<a href="#1776" id="1776">1776</a>
+<a href="#1777" id="1777">1777</a>
+<a href="#1778" id="1778">1778</a>
+<a href="#1779" id="1779">1779</a>
+<a href="#1780" id="1780">1780</a>
+<a href="#1781" id="1781">1781</a>
+<a href="#1782" id="1782">1782</a>
+<a href="#1783" id="1783">1783</a>
+<a href="#1784" id="1784">1784</a>
+<a href="#1785" id="1785">1785</a>
+<a href="#1786" id="1786">1786</a>
+<a href="#1787" id="1787">1787</a>
+<a href="#1788" id="1788">1788</a>
+<a href="#1789" id="1789">1789</a>
+<a href="#1790" id="1790">1790</a>
+<a href="#1791" id="1791">1791</a>
+<a href="#1792" id="1792">1792</a>
+<a href="#1793" id="1793">1793</a>
+<a href="#1794" id="1794">1794</a>
+<a href="#1795" id="1795">1795</a>
+<a href="#1796" id="1796">1796</a>
+<a href="#1797" id="1797">1797</a>
+<a href="#1798" id="1798">1798</a>
+<a href="#1799" id="1799">1799</a>
+<a href="#1800" id="1800">1800</a>
+<a href="#1801" id="1801">1801</a>
+<a href="#1802" id="1802">1802</a>
+<a href="#1803" id="1803">1803</a>
+<a href="#1804" id="1804">1804</a>
+<a href="#1805" id="1805">1805</a></pre></div><pre class="rust"><code><span class="doccomment">//! This file contains the loop unrolling pass for the new SSA IR.
 //!
 //! This pass is divided into a few steps:
 //! 1. Find all loops in the program (`find_all_loops`)
@@ -2204,8 +2242,14 @@
         dfg: <span class="kw-2">&amp;</span>DataFlowGraph,
         pre_header: BasicBlockId,
     ) -&gt; <span class="prelude-ty">Option</span>&lt;IntegerConstant&gt; {
-        <span class="kw">let </span>block = <span class="kw-2">&amp;</span>dfg[<span class="self">self</span>.header];
-        <span class="kw">let </span>instructions = block.instructions();
+        <span class="kw">let </span>header = <span class="kw-2">&amp;</span>dfg[<span class="self">self</span>.header];
+
+        <span class="comment">// If the header has no parameters then this must be a `loop` or `while`.
+        </span><span class="kw">if </span>header.parameters().is_empty() {
+            <span class="kw">return </span><span class="prelude-val">None</span>;
+        }
+
+        <span class="kw">let </span>instructions = header.instructions();
         <span class="kw">if </span>instructions.is_empty() {
             <span class="comment">// If the loop condition is constant, the loop header will be
             // simplified to a simple jump.
@@ -3530,6 +3574,38 @@
         <span class="kw">let </span>(ssa, errors) = try_unroll_loops(ssa);
         <span class="macro">assert_eq!</span>(errors.len(), <span class="number">0</span>, <span class="string">"Unroll should have no errors"</span>);
         assert_normalized_ssa_equals(ssa, src);
+    }
+
+    <span class="attr">#[test]
+    </span><span class="kw">fn </span>while_loop_has_empty_bounds() {
+        <span class="comment">// SSA of a program such as:
+        // unconstrained fn main() {
+        //     let mut run = true;
+        //     while run { }
+        // }
+        </span><span class="kw">let </span>src = <span class="string">r#"
+        brillig(inline) impure fn main f0 {
+          b0():
+            v0 = allocate -&gt; &amp;mut u1
+            store u1 1 at v0
+            jmp b1()
+          b1():
+            v2 = load v0 -&gt; u1
+            jmpif v2 then: b2, else: b3
+          b2():
+            jmp b1()
+          b3():
+            return
+        }
+        "#</span>;
+
+        <span class="kw">let </span>ssa = Ssa::from_str(src).unwrap();
+        <span class="kw">let </span>function = ssa.main();
+        <span class="kw">let </span><span class="kw-2">mut </span>loops = Loops::find_all(function);
+        <span class="kw">let </span>loop0 = loops.yet_to_unroll.pop().expect(<span class="string">"there should be a loop"</span>);
+        <span class="kw">let </span>pre_header = loop0.get_pre_header(function, <span class="kw-2">&amp;</span>loops.cfg).unwrap();
+        <span class="macro">assert!</span>(loop0.get_const_lower_bound(<span class="kw-2">&amp;</span>function.dfg, pre_header).is_none());
+        <span class="macro">assert!</span>(loop0.get_const_upper_bound(<span class="kw-2">&amp;</span>function.dfg, pre_header).is_none());
     }
 }
 </code></pre></div></section></main></body></html>

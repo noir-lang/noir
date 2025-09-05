@@ -401,7 +401,16 @@
 <a href="#400" id="400">400</a>
 <a href="#401" id="401">401</a>
 <a href="#402" id="402">402</a>
-<a href="#403" id="403">403</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ssa::{
+<a href="#403" id="403">403</a>
+<a href="#404" id="404">404</a>
+<a href="#405" id="405">405</a>
+<a href="#406" id="406">406</a>
+<a href="#407" id="407">407</a>
+<a href="#408" id="408">408</a>
+<a href="#409" id="409">409</a>
+<a href="#410" id="410">410</a>
+<a href="#411" id="411">411</a>
+<a href="#412" id="412">412</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::ssa::{
     ir::{
         dfg::simplify::SimplifyResult,
         instruction::{
@@ -429,10 +438,6 @@
         binary: <span class="kw-2">&amp;</span>Binary,
     ) -&gt; bool {
         <span class="kw">match </span>binary.operator {
-            <span class="comment">// An unchecked operation cannot overflow, so it can be safely evaluated
-            </span>BinaryOp::Add { unchecked: <span class="bool-val">true </span>}
-            | BinaryOp::Mul { unchecked: <span class="bool-val">true </span>}
-            | BinaryOp::Sub { unchecked: <span class="bool-val">true </span>} =&gt; <span class="bool-val">true</span>,
             BinaryOp::Div | BinaryOp::Mod =&gt; {
                 <span class="comment">// Division can be evaluated if we ensure that the divisor cannot be zero
                 </span><span class="kw">let </span><span class="prelude-val">Some</span>((left, value, lower, upper)) =
@@ -461,9 +466,11 @@
 
                 <span class="bool-val">false
             </span>}
-            <span class="comment">// Some checked operations can be safely evaluated, depending on the loop bounds, but in that case,
-            // they would have been already converted to unchecked operation in `simplify_induction_variable_in_binary()`
-            </span><span class="kw">_ </span>=&gt; <span class="bool-val">false</span>,
+            <span class="comment">// An unchecked operation cannot overflow, so it can be safely evaluated.
+            // Some checked operations can be safely evaluated, depending on the loop bounds, but in that case,
+            // they would have been already converted to unchecked operation in `simplify_induction_variable_in_binary()`.
+            // These are all handled by `requires_acir_gen_predicate`, and are redundant with `can_be_hoisted`.
+            </span><span class="kw">_ </span>=&gt; !binary.requires_acir_gen_predicate(<span class="kw-2">&amp;</span><span class="self">self</span>.inserter.function.dfg),
         }
     }
 
@@ -476,7 +483,7 @@
     /// with a known upper bound, we know whether that binary operation will ever overflow.
     /// If we determine that an overflow is not possible we can convert the checked operation to unchecked.
     ///
-    /// The function returns false if the instruction must be added to the block
+    /// The function returns `false` if the instruction must be added to the block, which involves further simplification.
     </span><span class="kw">pub</span>(<span class="kw">super</span>) <span class="kw">fn </span>simplify_from_loop_bounds(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
         loop_context: <span class="kw-2">&amp;</span>LoopContext,
@@ -496,7 +503,6 @@
                 <span class="self">self</span>.inserter.function.dfg[instruction_id] = instruction;
                 <span class="bool-val">false
             </span>}
-            SimplifyResult::Remove =&gt; <span class="bool-val">true</span>,
             SimplifyResult::None =&gt; <span class="bool-val">false</span>,
             <span class="kw">_ </span>=&gt; <span class="macro">unreachable!</span>(
                 <span class="string">"ICE - loop bounds simplification should only simplify to a value or an instruction"
@@ -506,7 +512,7 @@
 
     <span class="doccomment">/// Simplify 'assert(lhs &lt; rhs)' into 'assert(max(lhs) &lt; rhs)' if lhs is an induction variable and rhs a loop invariant
     /// For this simplification to be valid, we need to ensure that the induction variable takes all the values from min(induction) up to max(induction)
-    /// This means that the assert must be executed  at each loop iteration, and that the loop processes all the iteration space
+    /// This means that the assert must be executed at each loop iteration, and that the loop processes all the iteration space
     /// This is ensured via control dependence and the check for break patterns, before calling this function.
     </span><span class="kw">fn </span>simplify_induction_in_constrain(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
@@ -549,7 +555,7 @@
 
     <span class="doccomment">/// Replace 'assert(invariant != induction)' with assert((invariant &lt; min(induction) || (invariant &gt; max(induction)))
     /// For this simplification to be valid, we need to ensure that the induction variable takes all the values from min(induction) up to max(induction)
-    /// This means that the assert must be executed  at each loop iteration, and that the loop processes all the iteration space
+    /// This means that the assert must be executed at each loop iteration, and that the loop processes all the iteration space.
     /// This is ensured via control dependence and the check for break patterns, before calling this function.
     </span><span class="kw">fn </span>simplify_not_equal_constraint(
         <span class="kw-2">&amp;mut </span><span class="self">self</span>,
@@ -559,12 +565,12 @@
         err: <span class="kw-2">&amp;</span><span class="prelude-ty">Option</span>&lt;ConstrainError&gt;,
         call_stack: CallStackId,
     ) -&gt; SimplifyResult {
-        <span class="kw">let </span>(invariant, upper, lower) =
-            <span class="kw">match </span><span class="self">self</span>.match_induction_and_invariant(loop_context, lhs, rhs) {
-                <span class="prelude-val">Some</span>((<span class="bool-val">true</span>, upper, lower)) =&gt; (rhs, upper, lower),
-                <span class="prelude-val">Some</span>((<span class="bool-val">false</span>, upper, lower)) =&gt; (lhs, upper, lower),
-                <span class="kw">_ </span>=&gt; <span class="kw">return </span>SimplifyResult::None,
-            };
+        <span class="kw">let </span>(invariant, min, max) = <span class="kw">match </span><span class="self">self</span>.match_induction_and_invariant(loop_context, lhs, rhs)
+        {
+            <span class="prelude-val">Some</span>((<span class="bool-val">true</span>, min, max)) =&gt; (rhs, min, max),
+            <span class="prelude-val">Some</span>((<span class="bool-val">false</span>, min, max)) =&gt; (lhs, min, max),
+            <span class="kw">_ </span>=&gt; <span class="kw">return </span>SimplifyResult::None,
+        };
 
         <span class="kw">let </span><span class="kw-2">mut </span>insert_binary_to_preheader = |lhs, rhs, operator| {
             <span class="kw">let </span>binary = Instruction::Binary(Binary { lhs, rhs, operator });
@@ -578,10 +584,9 @@
             results[<span class="number">0</span>]
         };
         <span class="comment">// The comparisons can be safely hoisted to the pre-header because they are loop invariant and control independent
-        </span><span class="kw">let </span>check_lower_bound = insert_binary_to_preheader(<span class="kw-2">*</span>invariant, lower, BinaryOp::Lt);
-        <span class="kw">let </span>check_upper_bound = insert_binary_to_preheader(upper, <span class="kw-2">*</span>invariant, BinaryOp::Lt);
-        <span class="kw">let </span>check_bounds =
-            insert_binary_to_preheader(check_lower_bound, check_upper_bound, BinaryOp::Or);
+        </span><span class="kw">let </span>check_min = insert_binary_to_preheader(<span class="kw-2">*</span>invariant, min, BinaryOp::Lt);
+        <span class="kw">let </span>check_max = insert_binary_to_preheader(max, <span class="kw-2">*</span>invariant, BinaryOp::Lt);
+        <span class="kw">let </span>check_bounds = insert_binary_to_preheader(check_min, check_max, BinaryOp::Or);
 
         SimplifyResult::SimplifiedToInstruction(Instruction::Constrain(
             check_bounds,
@@ -590,7 +595,8 @@
         ))
     }
 
-    <span class="doccomment">/// Returns the binary instruction only if the input value refers to a binary instruction with invariant and induction variables as operands
+    <span class="doccomment">/// Returns the binary instruction only if the input value refers to a binary instruction
+    /// with invariant and induction variables as operands.
     /// The return values are:
     /// - a boolean indicating if the induction variable is on the lhs
     /// - the minimum and maximum values of the induction variable, coming from the loop bounds
@@ -656,7 +662,8 @@
                 block_context.is_header,
             ),
             Instruction::Constrain(x, y, err) =&gt; {
-                <span class="comment">// Ensure the loop is fully executed
+                <span class="comment">// Ensure the loop is fully executed, so we know that if the constraint would fail for *some* value,
+                // then it *will* definitely take up that value, and not break out early.
                 </span><span class="kw">if </span>loop_context.no_break
                     &amp;&amp; block_context.can_simplify_control_dependent_instruction()
                 {
@@ -699,11 +706,11 @@
             rhs_const,
             loop_context
                 .get_current_induction_variable_bounds(<span class="kw-2">*</span>lhs)
-                .and_then(|v| <span class="kw">if </span>only_outer_induction { <span class="prelude-val">None </span>} <span class="kw">else </span>{ <span class="prelude-val">Some</span>(v) })
+                .filter(|<span class="kw">_</span>| !only_outer_induction)
                 .or(<span class="self">self</span>.outer_induction_variables.get(lhs).copied()),
             loop_context
                 .get_current_induction_variable_bounds(<span class="kw-2">*</span>rhs)
-                .and_then(|v| <span class="kw">if </span>only_outer_induction { <span class="prelude-val">None </span>} <span class="kw">else </span>{ <span class="prelude-val">Some</span>(v) })
+                .filter(|<span class="kw">_</span>| !only_outer_induction)
                 .or(<span class="self">self</span>.outer_induction_variables.get(rhs).copied()),
         ) {
             <span class="comment">// LHS is a constant, RHS is the induction variable with a known lower and upper bound.
@@ -735,29 +742,36 @@
         // Note that here we allow all_induction_variables
         </span><span class="kw">let </span>operand_type = <span class="self">self</span>.inserter.function.dfg.type_of_value(binary.lhs).unwrap_numeric();
 
-        <span class="kw">let </span><span class="prelude-val">Some</span>((is_induction_var_lhs, value, lower_bound, upper_bound)) =
+        <span class="kw">let </span><span class="prelude-val">Some</span>((is_induction_var_lhs, constant, lower_bound, upper_bound)) =
             <span class="self">self</span>.match_induction_and_constant(loop_context, <span class="kw-2">&amp;</span>binary.lhs, <span class="kw-2">&amp;</span>binary.rhs, is_header)
         <span class="kw">else </span>{
             <span class="kw">return </span>SimplifyResult::None;
         };
 
-        <span class="comment">// Handle arithmetic operations
+        <span class="comment">// Handle arithmetic operations:
+        // Check if we can simplify either `lower op const` or `const op upper` into an unchecked version of the operation.
         </span><span class="kw">if let </span><span class="prelude-val">Some</span>((lhs, rhs)) = <span class="kw">match </span>binary.operator {
             BinaryOp::Add { unchecked }
             | BinaryOp::Sub { unchecked }
             | BinaryOp::Mul { unchecked }
                 <span class="kw">if </span>unchecked =&gt;
             {
-                <span class="kw">return </span>SimplifyResult::None;
+                <span class="comment">// Already unchecked, no need to simplify.
+                </span><span class="kw">return </span>SimplifyResult::None;
             }
             BinaryOp::Sub { .. } =&gt; {
                 <span class="kw">if </span>is_induction_var_lhs {
-                    <span class="prelude-val">Some</span>((lower_bound, value))
+                    <span class="comment">// `i - const` won't overflow if the lowest `i` doesn't.
+                    </span><span class="prelude-val">Some</span>((lower_bound, constant))
                 } <span class="kw">else </span>{
-                    <span class="prelude-val">Some</span>((value, upper_bound))
+                    <span class="comment">// `const - i` won't overflow if the highest `i` doesn't.
+                    </span><span class="prelude-val">Some</span>((constant, upper_bound))
                 }
             }
-            BinaryOp::Add { .. } | BinaryOp::Mul { .. } =&gt; <span class="prelude-val">Some</span>((value, upper_bound)),
+            BinaryOp::Add { .. } | BinaryOp::Mul { .. } =&gt; {
+                <span class="comment">// `i + const` won't overflow if the highest `i` value doesn't.
+                </span><span class="prelude-val">Some</span>((constant, upper_bound))
+            }
             BinaryOp::Div | BinaryOp::Mod =&gt; <span class="kw">return </span>SimplifyResult::None,
             <span class="kw">_ </span>=&gt; <span class="prelude-val">None</span>,
         } {
@@ -782,21 +796,25 @@
             }
         }
 
-        <span class="comment">// Handle comparisons
+        <span class="comment">// Handle comparisons. (The upper_bound is exclusive).
         </span><span class="kw">match </span>binary.operator {
             BinaryOp::Eq =&gt; {
-                <span class="kw">if </span>value &gt;= upper_bound || value &lt; lower_bound {
-                    SimplifyResult::SimplifiedTo(<span class="self">self</span>.false_value)
+                <span class="kw">if </span>constant &gt;= upper_bound || constant &lt; lower_bound {
+                    <span class="comment">// `i == const` cannot be true if the constant is out of range.
+                    </span>SimplifyResult::SimplifiedTo(<span class="self">self</span>.false_value)
                 } <span class="kw">else </span>{
                     SimplifyResult::None
                 }
             }
             BinaryOp::Lt =&gt; <span class="kw">match </span>is_induction_var_lhs {
-                <span class="bool-val">true </span><span class="kw">if </span>upper_bound &lt;= value =&gt; SimplifyResult::SimplifiedTo(<span class="self">self</span>.true_value),
-                <span class="bool-val">true </span><span class="kw">if </span>lower_bound &gt;= value =&gt; SimplifyResult::SimplifiedTo(<span class="self">self</span>.false_value),
-                <span class="bool-val">false </span><span class="kw">if </span>lower_bound &gt; value =&gt; SimplifyResult::SimplifiedTo(<span class="self">self</span>.true_value),
-                <span class="bool-val">false </span><span class="kw">if </span>upper_bound &lt;= value.inc() =&gt; {
-                    SimplifyResult::SimplifiedTo(<span class="self">self</span>.false_value)
+                <span class="comment">// `i &lt; const`
+                </span><span class="bool-val">true </span><span class="kw">if </span>upper_bound &lt;= constant =&gt; SimplifyResult::SimplifiedTo(<span class="self">self</span>.true_value),
+                <span class="bool-val">true </span><span class="kw">if </span>lower_bound &gt;= constant =&gt; SimplifyResult::SimplifiedTo(<span class="self">self</span>.false_value),
+                <span class="comment">// `const &lt; i`
+                </span><span class="bool-val">false </span><span class="kw">if </span>lower_bound &gt; constant =&gt; SimplifyResult::SimplifiedTo(<span class="self">self</span>.true_value),
+                <span class="bool-val">false </span><span class="kw">if </span>upper_bound &lt;= constant.inc() =&gt; {
+                    <span class="comment">// If `const &gt;= upper_bound - 1` then it will never be less than `i`.
+                    </span>SimplifyResult::SimplifiedTo(<span class="self">self</span>.false_value)
                 }
                 <span class="kw">_ </span>=&gt; SimplifyResult::None,
             },
