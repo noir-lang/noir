@@ -962,28 +962,17 @@ mod test {
         let src = "
         brillig(inline) fn foo f0 {
           b0():
-            v1 = call f1(Field 10, Field 10) -> Field
+            v1 = call f1() -> Field
             return v1
         }
-
-        // We add a bunch of nonsense instructions here as to go over the weight threshold at which
-        // functions are always inlined. 
         brillig(inline) fn bar f1 {
-          b0(v0: Field, v1: Field):
-            v2  = add v0, v1
-            v3  = add v0, v1
-            v4  = add v0, v1
-            v5  = add v0, v1
-            v6  = add v0, v1
-            v7  = add v0, v1
-            v8  = add v0, v1
-            v9  = add v0, v1
-            v10 = add v0, v1
+          b0():
             return Field 72
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.inline_functions(i64::MIN, MAX_INSTRUCTIONS).unwrap();
+        // We set zero for `small_function_max_instructions` as to avoid the maximum weight threshold at which we always inline a function.
+        let ssa = ssa.inline_functions(i64::MIN, 0).unwrap();
         // No inlining has happened
         assert_normalized_ssa_equals(ssa, src);
     }
@@ -1008,20 +997,12 @@ mod test {
           b2():
             jmp b3(Field 2)
           b3(v3: Field):
-            // We add a bunch of nonsense instructions here as to go over the weight threshold at which
-            // functions are always inlined. 
-            v4 = add v3, v3
-            v5 = add v3, v3
-            v6 = add v3, v3
-            v7 = add v3, v3
-            v8 = add v3, v3
-            v9 = add v3, v3
             return v3
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
-
-        let ssa = ssa.inline_functions(0, MAX_INSTRUCTIONS).unwrap();
+        // We set zero for `small_function_max_instructions` here as to avoid the maximum weight threshold at which we always inline a function.
+        let ssa = ssa.inline_functions(0, 0).unwrap();
         // No inlining has happened in f0
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn foo f0 {
@@ -1037,12 +1018,6 @@ mod test {
           b1():
             jmp b2(Field 1)
           b2(v0: Field):
-            v2 = add v0, v0
-            v3 = add v0, v0
-            v4 = add v0, v0
-            v5 = add v0, v0
-            v6 = add v0, v0
-            v7 = add v0, v0
             return v0
         }
         ");
