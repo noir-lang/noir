@@ -1046,7 +1046,15 @@
 <a href="#1045" id="1045">1045</a>
 <a href="#1046" id="1046">1046</a>
 <a href="#1047" id="1047">1047</a>
-<a href="#1048" id="1048">1048</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::call_stack::CallStackId;
+<a href="#1048" id="1048">1048</a>
+<a href="#1049" id="1049">1049</a>
+<a href="#1050" id="1050">1050</a>
+<a href="#1051" id="1051">1051</a>
+<a href="#1052" id="1052">1052</a>
+<a href="#1053" id="1053">1053</a>
+<a href="#1054" id="1054">1054</a>
+<a href="#1055" id="1055">1055</a>
+<a href="#1056" id="1056">1056</a></pre></div><pre class="rust"><code><span class="kw">use </span>noirc_errors::call_stack::CallStackId;
 <span class="kw">use </span>serde::{Deserialize, Serialize};
 <span class="kw">use </span>std::hash::{Hash, Hasher};
 
@@ -1503,7 +1511,10 @@
 
             Instruction::ArrayGet { array, index, offset: <span class="kw">_ </span>} =&gt; {
                 <span class="comment">// `ArrayGet`s which read from "known good" indices from an array should not need a predicate.
-                </span>!dfg.is_safe_index(<span class="kw-2">*</span>index, <span class="kw-2">*</span>array)
+                // This extra out of bounds (OOB) check is only inserted in the ACIR runtime.
+                // Thus, in Brillig an `ArrayGet` is always a pure operation in isolation and
+                // it is expected that OOB checks are inserted separately.
+                </span>dfg.runtime().is_acir() &amp;&amp; !dfg.is_safe_index(<span class="kw-2">*</span>index, <span class="kw-2">*</span>array)
             }
 
             Instruction::EnableSideEffectsIf { .. } | Instruction::ArraySet { .. } =&gt; <span class="bool-val">true</span>,
@@ -1601,7 +1612,12 @@
             </span>Cast(<span class="kw">_</span>, <span class="kw">_</span>) | Not(<span class="kw">_</span>) | Truncate { .. } | IfElse { .. } =&gt; <span class="bool-val">false</span>,
 
             <span class="comment">// `ArrayGet`s which read from "known good" indices from an array have no side effects
-            </span>ArrayGet { array, index, offset: <span class="kw">_ </span>} =&gt; !dfg.is_safe_index(<span class="kw-2">*</span>index, <span class="kw-2">*</span>array),
+            // This extra out of bounds (OOB) check is only inserted in the ACIR runtime.
+            // Thus, in Brillig an `ArrayGet` is always a pure operation in isolation and
+            // it is expected that OOB checks are inserted separately.
+            </span>ArrayGet { array, index, offset: <span class="kw">_ </span>} =&gt; {
+                dfg.runtime().is_acir() &amp;&amp; !dfg.is_safe_index(<span class="kw-2">*</span>index, <span class="kw-2">*</span>array)
+            }
 
             <span class="comment">// ArraySet has side effects
             </span>ArraySet { .. } =&gt; <span class="bool-val">true</span>,
