@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1757077388965,
+  "lastUpdate": 1757077514911,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -12121,80 +12121,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "176a0fc67f43e60da8a92c4e72f0882ec4e70958",
-          "message": "chore: pass `DataFlowGraph` instead of `Function` as arg (#9656)",
-          "timestamp": "2025-08-27T17:57:55Z",
-          "tree_id": "dbafac8ba55e57cba70a4300a85342418a17123f",
-          "url": "https://github.com/noir-lang/noir/commit/176a0fc67f43e60da8a92c4e72f0882ec4e70958"
-        },
-        "date": 1756319839774,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 212.98,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 246.18,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 197.81,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 501.57,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 434.03,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1500,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 328.36,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 330.89,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 69.53,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 55.03,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "b544e60a27e467d9eea6bd0e172b8f2b0d33c0d3",
           "message": "chore: add test for trait bound on implementing type (#9652)",
@@ -15755,6 +15681,80 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/62c9543f382d306403442ad8b3277f1b3e8b7105"
         },
         "date": 1757020293298,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 258.14,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 291.33,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 242.94,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 503.7,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 436.08,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1500,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 330.47,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 332.99,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 72.43,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 58.23,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "14659f3beac2784b834b62e0fdfda05e6440d5d2",
+          "message": "chore(licm): Identify untested code; refactoring; minor fixes (#9718)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-09-05T12:16:49Z",
+          "tree_id": "852442ba06125048865485e741b8781ffeded761",
+          "url": "https://github.com/noir-lang/noir/commit/14659f3beac2784b834b62e0fdfda05e6440d5d2"
+        },
+        "date": 1757077495345,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
