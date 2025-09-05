@@ -158,12 +158,8 @@ impl Function {
                         }
                     }
                     ins @ Instruction::ArraySet { array, .. } => {
-                      if self.runtime().is_brillig() {
-                        if self.parameters().contains(array) {
+                      if self.runtime().is_brillig() && (self.parameters().contains(array) || self.dfg.is_global(*array)) {
                           return Purity::Impure;
-                        } else {
-                          result = Purity::Pure;
-                        }
                       } else if ins.requires_acir_gen_predicate(&self.dfg) {
                             result = Purity::PureWithPredicate;
                       }
@@ -210,7 +206,7 @@ impl Function {
 
                     Instruction::IncrementRc { value }
                     | Instruction::DecrementRc { value } => {
-                      if self.parameters().contains(value) {
+                      if self.parameters().contains(value) || self.dfg.is_global(*value) {
                         return Purity::Impure
                       }
                     }
@@ -569,7 +565,7 @@ mod test {
     }
 
     #[test]
-    fn brillig_array_set_on_local_array_pure_with_predicate() {
+    fn brillig_array_set_on_local_array_pure() {
         let src = r#"
         brillig(inline) fn mutator f0 {
           b0(v0: [Field; 2]):
@@ -589,7 +585,7 @@ mod test {
 
         let purities = &ssa.main().dfg.function_purities;
         assert_eq!(purities[&FunctionId::test_new(0)], Purity::Impure);
-        assert_eq!(purities[&FunctionId::test_new(1)], Purity::PureWithPredicate);
+        assert_eq!(purities[&FunctionId::test_new(1)], Purity::Pure);
     }
 
     #[test]
