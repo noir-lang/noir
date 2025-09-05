@@ -160,6 +160,8 @@ impl Function {
                     ins @ Instruction::ArraySet { array, .. } => {
                       if self.runtime().is_brillig() {
                         if self.parameters().contains(array) {
+                          return Purity::Impure;
+                        } else {
                           result = Purity::PureWithPredicate;
                         }
                       } else if ins.requires_acir_gen_predicate(&self.dfg) {
@@ -539,6 +541,55 @@ mod test {
         let purities = &ssa.main().dfg.function_purities;
         assert_eq!(purities[&FunctionId::test_new(0)], Purity::Impure);
         assert_eq!(purities[&FunctionId::test_new(1)], Purity::Impure);
+    }
+
+    #[test]
+    fn brillig_array_set_is_impure() {
+        let src = r#"
+        brillig(inline) fn mutator f0 {
+          b0(v0: [Field; 2]):
+            inc_rc v0
+            v3 = array_set v0, index u32 0, value Field 5
+            return v3
+        }
+        // We wouldn't produce this code. This is to ensure `array_set` on a function parameter is marked impure.
+        brillig(inline) fn mutator f1 {
+          b0(v0: [Field; 2]):
+            v3 = array_set v0, index u32 0, value Field 5
+            return v3
+        }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.purity_analysis();
+
+        let purities = &ssa.main().dfg.function_purities;
+        assert_eq!(purities[&FunctionId::test_new(0)], Purity::Impure);
+        assert_eq!(purities[&FunctionId::test_new(1)], Purity::Impure);
+    }
+
+    #[test]
+    fn brillig_array_set_on_local_array_pure_with_predicate() {
+        let src = r#"
+        brillig(inline) fn mutator f0 {
+          b0(v0: [Field; 2]):
+            v3 = array_set v0, index u32 0, value Field 5
+            return v3
+        }
+        brillig(inline) fn mutator f1 {
+          b0():
+            v2 = make_array [Field 1, Field 2] : [Field; 2]
+            v5 = array_set v2, index u32 0, value Field 5
+            return v5
+        }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.purity_analysis();
+
+        let purities = &ssa.main().dfg.function_purities;
+        assert_eq!(purities[&FunctionId::test_new(0)], Purity::Impure);
+        assert_eq!(purities[&FunctionId::test_new(1)], Purity::PureWithPredicate);
     }
 
     #[test]
