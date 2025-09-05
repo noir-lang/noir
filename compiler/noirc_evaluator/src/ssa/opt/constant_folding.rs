@@ -1859,6 +1859,25 @@ mod test {
     }
 
     #[test]
+    fn do_not_inline_brillig_overflow() {
+        // Regression test for https://github.com/noir-lang/noir/issues/9694
+        // The call can be constant
+        let src = "
+            acir(inline) predicate_pure fn main f0 {
+            b0():
+                v2 = call f1(u1 0) -> u1
+                return v2
+            }
+            brillig(inline) predicate_pure fn func_5 f1 {
+            b0(v0: u1):
+                v2 = shl v0, u1 1
+                return v2
+            }
+        ";
+        assert_ssa_does_not_change(src, Ssa::fold_constants_with_brillig);
+    }
+
+    #[test]
     fn does_not_deduplicate_calls_to_functions_which_differ_in_return_value_types() {
         // We have a few intrinsics which have a generic return value (generally for array lengths), we want
         // to avoid deduplicating these.
