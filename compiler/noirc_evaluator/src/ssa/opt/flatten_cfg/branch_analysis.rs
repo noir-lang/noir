@@ -290,7 +290,12 @@ mod test {
     use crate::{
         brillig::BrilligOptions,
         ssa::{
-            function_builder::FunctionBuilder, ir::{basic_block::BasicBlockId, cfg::ControlFlowGraph, map::Id, types::Type}, opt::{flatten_cfg::branch_analysis::find_branch_ends, inlining::MAX_INSTRUCTIONS}, primary_passes, ssa_gen::Ssa, SsaEvaluatorOptions
+            SsaEvaluatorOptions,
+            function_builder::FunctionBuilder,
+            ir::{basic_block::BasicBlockId, cfg::ControlFlowGraph, map::Id, types::Type},
+            opt::{flatten_cfg::branch_analysis::find_branch_ends, inlining::MAX_INSTRUCTIONS},
+            primary_passes,
+            ssa_gen::Ssa,
         },
     };
 

@@ -7,11 +7,11 @@ use acvm::{
 };
 use std::collections::BTreeSet;
 
-use noirc_evaluator::ssa::{opt::inlining::MAX_INSTRUCTIONS, ssa_gen::Ssa};
 use noirc_evaluator::ssa::{
     SsaEvaluatorOptions, ir::map::Id, optimize_ssa_builder_into_acir, primary_passes,
 };
 use noirc_evaluator::ssa::{SsaLogging, ir::function::Function};
+use noirc_evaluator::ssa::{opt::inlining::MAX_INSTRUCTIONS, ssa_gen::Ssa};
 
 use noirc_evaluator::brillig::BrilligOptions;
 use noirc_evaluator::ssa::{
