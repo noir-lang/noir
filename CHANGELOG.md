@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.0.0-beta.13](https://github.com/noir-lang/noir/compare/v1.0.0-beta.12...v1.0.0-beta.13) (2025-09-05)
+
+
+### Features
+
+* Re-enable early mem2reg pass ([#9744](https://github.com/noir-lang/noir/issues/9744)) ([b245272](https://github.com/noir-lang/noir/commit/b2452725d8a6778bd9e9617c7e80d1c502ec397a))
+
+
+### Bug Fixes
+
+* Error on boolean shift overflow in interpreter ([#9724](https://github.com/noir-lang/noir/issues/9724)) ([387b9b2](https://github.com/noir-lang/noir/commit/387b9b20fed02cd4f06921e4315f0e7d056d92ff))
+* **ssa:** Mark whether an ArrayGet requires a predicate based upon the runtime ([#9712](https://github.com/noir-lang/noir/issues/9712)) ([5e27664](https://github.com/noir-lang/noir/commit/5e276642b138346845d42323992a9445eb2255f9))
+
 ## [1.0.0-beta.12](https://github.com/noir-lang/noir/compare/v1.0.0-beta.11...v1.0.0-beta.12) (2025-08-29)
 
 
