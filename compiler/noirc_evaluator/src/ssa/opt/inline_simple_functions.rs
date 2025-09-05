@@ -15,8 +15,8 @@ use crate::ssa::{
         call_graph::CallGraph,
         function::{Function, RuntimeType},
     },
-    opt::inlining::inline_info::MAX_INSTRUCTIONS,
     opt::brillig_entry_points::get_brillig_entry_points,
+    opt::inlining::inline_info::MAX_INSTRUCTIONS,
     ssa_gen::Ssa,
 };
 

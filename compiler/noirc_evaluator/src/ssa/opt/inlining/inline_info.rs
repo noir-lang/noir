@@ -237,7 +237,7 @@ fn compute_function_should_be_inlined(
         || runtime.is_inline_always()
         || should_inline_no_pred_function
         || contains_static_assertion
-        || runtime.is_acir();;
+        || runtime.is_acir();
 
     info.should_inline = should_inline;
 }

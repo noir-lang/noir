@@ -693,7 +693,9 @@ mod test {
         assert_ssa_snapshot,
         errors::RuntimeError,
         ssa::{
-            ir::{instruction::TerminatorInstruction, map::Id}, opt::{assert_normalized_ssa_equals, inlining::MAX_INSTRUCTIONS}, Ssa
+            Ssa,
+            ir::{instruction::TerminatorInstruction, map::Id},
+            opt::{assert_normalized_ssa_equals, inlining::MAX_INSTRUCTIONS},
         },
     };
 
