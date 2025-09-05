@@ -2048,6 +2048,7 @@ mod test {
     #[test_case("i32", 0, 10, 0, false, "div", 100, false, "div by zero (low), but loop empty")]
     #[test_case("i32", -10, 0, -10, false, "div", 100, false, "div by zero (up), but loop empty")]
     #[test_case("i32", -10, -5, -10, false, "div", 100, true, "loop empty, but div ok")]
+    #[allow(clippy::too_many_arguments)]
     fn hoist_from_loop_bounds_binary(
         typ: &str,
         lower: i64,
@@ -2859,6 +2860,48 @@ mod control_dependence {
         }
         ";
         assert_ssa_does_not_change(src, Ssa::loop_invariant_code_motion);
+    }
+
+    /// Change `constrain v0 != i` into `constrain v0 < 10 or v0 > 19`
+    #[test]
+    fn simplify_constrain_not_equal() {
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32):
+            jmp b1(u32 10)
+          b1(v1: u32):
+            v2 = lt v1, u32 20
+            jmpif v2 then: b2, else: b3
+          b2():
+            constrain v0 != v1
+            v3 = unchecked_add v1, u32 1
+            jmp b1(v3)
+          b3():
+            return
+        }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.loop_invariant_code_motion();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u32):
+            v3 = lt v0, u32 10
+            v5 = lt u32 19, v0
+            v6 = or v3, v5
+            constrain v6 == u1 1
+            jmp b1(u32 10)
+          b1(v1: u32):
+            v9 = lt v1, u32 20
+            jmpif v9 then: b2, else: b3
+          b2():
+            v11 = unchecked_add v1, u32 1
+            jmp b1(v11)
+          b3():
+            return
+        }
+        ");
     }
 
     #[test]

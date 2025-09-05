@@ -143,7 +143,7 @@ impl LoopInvariantContext<'_> {
 
     /// Replace 'assert(invariant != induction)' with assert((invariant < min(induction) || (invariant > max(induction)))
     /// For this simplification to be valid, we need to ensure that the induction variable takes all the values from min(induction) up to max(induction)
-    /// This means that the assert must be executed  at each loop iteration, and that the loop processes all the iteration space
+    /// This means that the assert must be executed at each loop iteration, and that the loop processes all the iteration space.
     /// This is ensured via control dependence and the check for break patterns, before calling this function.
     fn simplify_not_equal_constraint(
         &mut self,
@@ -153,12 +153,12 @@ impl LoopInvariantContext<'_> {
         err: &Option<ConstrainError>,
         call_stack: CallStackId,
     ) -> SimplifyResult {
-        let (invariant, upper, lower) =
-            match self.match_induction_and_invariant(loop_context, lhs, rhs) {
-                Some((true, upper, lower)) => (rhs, upper, lower),
-                Some((false, upper, lower)) => (lhs, upper, lower),
-                _ => return SimplifyResult::None,
-            };
+        let (invariant, min, max) = match self.match_induction_and_invariant(loop_context, lhs, rhs)
+        {
+            Some((true, min, max)) => (rhs, min, max),
+            Some((false, min, max)) => (lhs, min, max),
+            _ => return SimplifyResult::None,
+        };
 
         let mut insert_binary_to_preheader = |lhs, rhs, operator| {
             let binary = Instruction::Binary(Binary { lhs, rhs, operator });
@@ -172,10 +172,9 @@ impl LoopInvariantContext<'_> {
             results[0]
         };
         // The comparisons can be safely hoisted to the pre-header because they are loop invariant and control independent
-        let check_lower_bound = insert_binary_to_preheader(*invariant, lower, BinaryOp::Lt);
-        let check_upper_bound = insert_binary_to_preheader(upper, *invariant, BinaryOp::Lt);
-        let check_bounds =
-            insert_binary_to_preheader(check_lower_bound, check_upper_bound, BinaryOp::Or);
+        let check_min = insert_binary_to_preheader(*invariant, min, BinaryOp::Lt);
+        let check_max = insert_binary_to_preheader(max, *invariant, BinaryOp::Lt);
+        let check_bounds = insert_binary_to_preheader(check_min, check_max, BinaryOp::Or);
 
         SimplifyResult::SimplifiedToInstruction(Instruction::Constrain(
             check_bounds,
