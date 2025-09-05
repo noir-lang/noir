@@ -1154,28 +1154,17 @@ mod test {
         let src = "
         brillig(inline) fn main f0 {
             b0():
-              call f1(Field 10, Field 10)
+              call f1()
               return
         }
-
-        // We add a bunch of nonsense instructions here as to go over the weight threshold at which
-        // functions are always inlined. 
         brillig(inline_always) fn always_inline f1 {
-            b0(v0: Field, v1: Field):
-                v2  = add v0, v1
-                v3  = add v0, v1
-                v4  = add v0, v1
-                v5  = add v0, v1
-                v6  = add v0, v1
-                v7  = add v0, v1
-                v8  = add v0, v1
-                v9  = add v0, v1
-                v10 = add v0, v1
+            b0():
                 return
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.inline_functions(i64::MIN, MAX_INSTRUCTIONS).unwrap();
+        // We set zero for `small_function_max_instructions` as to avoid the maximum weight threshold at which we always inline a function.
+        let ssa = ssa.inline_functions(i64::MIN, 0).unwrap();
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
           b0():
@@ -1187,7 +1176,7 @@ mod test {
         // not marked with `inline_always`
         let no_inline_always_src = &src.replace("inline_always", "inline");
         let ssa = Ssa::from_str(no_inline_always_src).unwrap();
-        let ssa = ssa.inline_functions(i64::MIN, MAX_INSTRUCTIONS).unwrap();
+        let ssa = ssa.inline_functions(i64::MIN, 0).unwrap();
         assert_normalized_ssa_equals(ssa, no_inline_always_src);
     }
 
