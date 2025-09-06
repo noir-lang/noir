@@ -1,0 +1,11 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+unconstrained fn main(x: u32) -> pub bool {
+    if x == 0_u32 {
+        true
+    } else {
+        main(x - 1_u32)
+    }
+}
