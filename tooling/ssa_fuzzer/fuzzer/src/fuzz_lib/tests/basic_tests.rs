@@ -49,12 +49,12 @@ fn test_field_addition_zero_plus_one() {
     // Verify the result
     match result {
         Some(result) => {
-            assert_eq!(result.get_return_values()[0], FieldElement::from(1_u32));
+            assert_eq!(result.get_return_values_acir()[0], FieldElement::from(1_u32));
             println!(
                 "✓ Test passed: field_0 + field_1 = {} + {} = {}",
                 0,
                 1,
-                result.get_return_values()[0]
+                result.get_return_values_acir()[0]
             );
         }
         None => panic!("Program failed to execute"),
@@ -96,7 +96,7 @@ fn test_jmp_if() {
     let result = fuzz_target(data, FuzzerOptions::default());
     // we expect that this program executed successfully
     match result {
-        Some(result) => assert_eq!(result.get_return_values()[0], FieldElement::from(1_u32)),
+        Some(result) => assert_eq!(result.get_return_values_acir()[0], FieldElement::from(1_u32)),
         None => panic!("Program failed to execute"),
     }
 
@@ -122,7 +122,7 @@ fn test_jmp_if() {
     let result = fuzz_target(data, FuzzerOptions::default());
     // we expect that this program failed to execute
     if let Some(result) = result {
-        panic!("Program executed successfully with result: {:?}", result.get_return_values());
+        panic!("Program executed successfully with result: {:?}", result.get_return_values_acir());
     }
 }
 
@@ -189,7 +189,7 @@ fn test_mutable_variable() {
     };
     let result = fuzz_target(data, FuzzerOptions::default());
     match result {
-        Some(result) => assert_eq!(result.get_return_values()[0], FieldElement::from(4_u32)),
+        Some(result) => assert_eq!(result.get_return_values_acir()[0], FieldElement::from(4_u32)),
         None => panic!("Program failed to execute"),
     }
 }
@@ -216,7 +216,7 @@ fn smoke_test_field_to_bytes_to_field() {
     };
     let result = fuzz_target(fuzzer_data, FuzzerOptions::default());
     match result {
-        Some(result) => assert_eq!(result.get_return_values()[0], FieldElement::from(1_u32)),
+        Some(result) => assert_eq!(result.get_return_values_acir()[0], FieldElement::from(1_u32)),
         None => panic!("Program failed to execute"),
     }
 }
@@ -251,7 +251,7 @@ fn test_function_can_return_array() {
         Some(result) => {
             assert!(
                 result
-                    .get_return_values()
+                    .get_return_values_acir()
                     .iter()
                     .enumerate()
                     .all(|(i, v)| v == &FieldElement::from(i as u32))

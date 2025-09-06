@@ -44,7 +44,7 @@ fn smoke_test_blake2s_hash() {
     let result = fuzz_target(fuzzer_data, FuzzerOptions::default());
     match result {
         Some(result) => assert_eq!(
-            result.get_return_values()[0],
+            result.get_return_values_acir()[0],
             FieldElement::try_from_str(
                 "-9211429028062209127175291049466917975585300944217240748738694765619842249938"
             )
@@ -84,7 +84,7 @@ fn smoke_test_blake3_hash() {
     let result = fuzz_target(fuzzer_data, FuzzerOptions::default());
     match result {
         Some(result) => assert_eq!(
-            result.get_return_values()[0],
+            result.get_return_values_acir()[0],
             FieldElement::try_from_str(
                 "11496696481601359239189947342432058980836600577383371976100559912527609453094"
             )
@@ -129,7 +129,7 @@ fn smoke_test_aes128_encrypt() {
     let result = fuzz_target(fuzzer_data, FuzzerOptions::default());
     match result {
         Some(result) => assert_eq!(
-            result.get_return_values()[0],
+            result.get_return_values_acir()[0],
             FieldElement::try_from_str(
                 "7228449286344697221705732525592563926191809635549234005020486075743434697058"
             )
@@ -179,7 +179,10 @@ fn smoke_test_keccakf1600() {
     let result = fuzz_target(fuzzer_data, FuzzerOptions::default());
     match result {
         Some(result) => {
-            assert_eq!(result.get_return_values()[0], FieldElement::from(16929593379567477321_u64));
+            assert_eq!(
+                result.get_return_values_acir()[0],
+                FieldElement::from(16929593379567477321_u64)
+            );
         }
         None => panic!("Program failed to execute"),
     }
@@ -223,7 +226,7 @@ fn smoke_test_sha256_compression() {
     let result = fuzz_target(fuzzer_data, FuzzerOptions::default());
     match result {
         Some(result) => {
-            assert_eq!(result.get_return_values()[0], FieldElement::from(3205228454_u32));
+            assert_eq!(result.get_return_values_acir()[0], FieldElement::from(3205228454_u32));
         }
         None => panic!("Program failed to execute"),
     }

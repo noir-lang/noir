@@ -54,15 +54,40 @@ pub(crate) struct Fuzzer {
 
 #[derive(Clone, Debug)]
 pub(crate) struct FuzzerOutput {
-    pub(crate) witness_stack: WitnessStack<FieldElement>,
-    pub(crate) program: CompiledProgram,
+    pub(crate) witness_stack_acir: WitnessStack<FieldElement>,
+    pub(crate) witness_stack_brillig: WitnessStack<FieldElement>,
+    pub(crate) acir_program: CompiledProgram,
+    pub(crate) brillig_program: CompiledProgram,
 }
 
+// TODO(sn): https://github.com/noir-lang/noir/issues/9743
 impl FuzzerOutput {
-    pub(crate) fn get_return_values(&self) -> Vec<FieldElement> {
-        let return_witnesses = &self.program.program.functions[0].return_values.0;
-        let witness_vec = &self.witness_stack.peek().unwrap().witness;
+    fn get_return_witnesses(
+        &self,
+        program: &CompiledProgram,
+        witness_stack: &WitnessStack<FieldElement>,
+    ) -> Vec<FieldElement> {
+        let return_witnesses = &program.program.functions[0].return_values.0;
+        let witness_vec = &witness_stack.peek().unwrap().witness;
         return_witnesses.iter().map(|witness| witness_vec[witness]).collect()
+    }
+
+    pub(crate) fn get_return_values_acir(&self) -> Vec<FieldElement> {
+        self.get_return_witnesses(&self.acir_program, &self.witness_stack_acir)
+    }
+
+    // TODO(sn): https://github.com/noir-lang/noir/issues/9743
+    #[allow(dead_code)]
+    pub(crate) fn get_return_values_brillig(&self) -> Vec<FieldElement> {
+        self.get_return_witnesses(&self.brillig_program, &self.witness_stack_brillig)
+    }
+
+    // TODO(sn): https://github.com/noir-lang/noir/issues/9743
+    #[allow(dead_code)]
+    pub(crate) fn get_input_values_brillig(&self) -> Vec<FieldElement> {
+        let input_witnesses = &self.acir_program.program.functions[0].private_parameters;
+        let witness_vec = &self.witness_stack_brillig.peek().unwrap().witness;
+        input_witnesses.iter().map(|witness| witness_vec[witness]).collect()
     }
 }
 
@@ -106,7 +131,7 @@ impl Fuzzer {
         let results_set = execution_results
             .values()
             .map(|result| -> Option<Vec<FieldElement>> {
-                result.as_ref().map(|r| r.get_return_values())
+                result.as_ref().map(|r| r.get_return_values_acir())
             })
             .collect::<HashSet<_>>();
 
@@ -114,8 +139,10 @@ impl Fuzzer {
             let mut panic_string = String::new();
             for (mode, result) in execution_results {
                 if let Some(result) = result {
-                    panic_string
-                        .push_str(&format!("Mode {mode:?}: {:?}\n", result.get_return_values()));
+                    panic_string.push_str(&format!(
+                        "Mode {mode:?}: {:?}\n",
+                        result.get_return_values_acir()
+                    ));
                 } else {
                     panic_string.push_str(&format!("Mode {mode:?} failed\n"));
                 }
@@ -185,19 +212,27 @@ impl Fuzzer {
             run_and_compare(&acir_program.program, &brillig_program.program, initial_witness);
         log::debug!("Comparison result: {comparison_result:?}");
         match comparison_result {
-            CompareResults::Agree(result) => {
-                Some(FuzzerOutput { witness_stack: result, program: acir_program })
-            }
+            CompareResults::Agree(acir_result, brillig_result) => Some(FuzzerOutput {
+                witness_stack_acir: acir_result,
+                witness_stack_brillig: brillig_result,
+                acir_program,
+                brillig_program,
+            }),
             CompareResults::Disagree(acir_return_value, brillig_return_value) => {
-                let acir_fuzzer_output =
-                    FuzzerOutput { witness_stack: acir_return_value, program: acir_program };
-                let brillig_fuzzer_output =
-                    FuzzerOutput { witness_stack: brillig_return_value, program: brillig_program };
-                let acir_return_value = acir_fuzzer_output.get_return_values();
-                let brillig_return_value = brillig_fuzzer_output.get_return_values();
+                let acir_return_values = acir_program.program.functions[0].return_values.0.clone();
+                let brillig_return_values =
+                    brillig_program.program.functions[0].return_values.0.clone();
+                let acir_return_values: Vec<FieldElement> = acir_return_values
+                    .iter()
+                    .map(|witness| acir_return_value.peek().unwrap().witness[witness])
+                    .collect();
+                let brillig_return_values: Vec<FieldElement> = brillig_return_values
+                    .iter()
+                    .map(|witness| brillig_return_value.peek().unwrap().witness[witness])
+                    .collect();
                 panic!(
                     "ACIR and Brillig programs returned different results: \
-                    ACIR returned {acir_return_value:?}, Brillig returned {brillig_return_value:?}"
+                    ACIR returned {acir_return_values:?}, Brillig returned {brillig_return_values:?}"
                 );
             }
             CompareResults::AcirFailed(acir_error, brillig_return_value) => {

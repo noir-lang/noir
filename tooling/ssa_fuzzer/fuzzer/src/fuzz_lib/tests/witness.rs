@@ -54,7 +54,7 @@ fn test_array_as_initial_witness() {
     };
     let result = fuzz_target(data, FuzzerOptions::default());
     match result {
-        Some(result) => assert_eq!(result.get_return_values()[0], FieldElement::from(1_u32)),
+        Some(result) => assert_eq!(result.get_return_values_acir()[0], FieldElement::from(1_u32)),
         None => panic!("Program failed to execute"),
     }
 
@@ -65,7 +65,7 @@ fn test_array_as_initial_witness() {
     };
     let result = fuzz_target(data, FuzzerOptions::default());
     match result {
-        Some(result) => assert_eq!(result.get_return_values()[0], FieldElement::from(2_u32)),
+        Some(result) => assert_eq!(result.get_return_values_acir()[0], FieldElement::from(2_u32)),
         None => panic!("Program failed to execute"),
     }
 }
@@ -113,8 +113,8 @@ fn test_array_of_arrays_as_initial_witness() {
     let result = fuzz_target(data, FuzzerOptions::default());
     match result {
         Some(result) => {
-            assert_eq!(result.get_return_values()[0], FieldElement::from(1_u32));
-            assert_eq!(result.get_return_values()[1], FieldElement::from(2_u32));
+            assert_eq!(result.get_return_values_acir()[0], FieldElement::from(1_u32));
+            assert_eq!(result.get_return_values_acir()[1], FieldElement::from(2_u32));
         }
         None => panic!("Program failed to execute"),
     }
@@ -127,8 +127,8 @@ fn test_array_of_arrays_as_initial_witness() {
     let result = fuzz_target(data, FuzzerOptions::default());
     match result {
         Some(result) => {
-            assert_eq!(result.get_return_values()[0], FieldElement::from(3_u32));
-            assert_eq!(result.get_return_values()[1], FieldElement::from(4_u32));
+            assert_eq!(result.get_return_values_acir()[0], FieldElement::from(3_u32));
+            assert_eq!(result.get_return_values_acir()[1], FieldElement::from(4_u32));
         }
         None => panic!("Program failed to execute"),
     }

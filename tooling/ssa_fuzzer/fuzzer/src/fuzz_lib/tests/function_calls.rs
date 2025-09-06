@@ -57,7 +57,7 @@ fn simple_function_call() {
     };
     let result = fuzz_target(fuzzer_data, FuzzerOptions::default());
     match result {
-        Some(result) => assert_eq!(result.get_return_values()[0], FieldElement::from(4_u32)),
+        Some(result) => assert_eq!(result.get_return_values_acir()[0], FieldElement::from(4_u32)),
         None => panic!("Program failed to execute"),
     }
 }
@@ -137,7 +137,7 @@ fn several_functions_several_calls() {
     };
     let result = fuzz_target(fuzzer_data, FuzzerOptions::default());
     match result {
-        Some(result) => assert_eq!(result.get_return_values()[0], FieldElement::from(12_u32)),
+        Some(result) => assert_eq!(result.get_return_values_acir()[0], FieldElement::from(12_u32)),
         None => panic!("Program failed to execute"),
     }
 }
@@ -242,7 +242,7 @@ fn call_in_if_else() {
         FuzzerOptions::default(),
     );
     match result {
-        Some(result) => assert_eq!(result.get_return_values()[0], FieldElement::from(4_u32)),
+        Some(result) => assert_eq!(result.get_return_values_acir()[0], FieldElement::from(4_u32)),
         None => panic!("Program failed to execute"),
     }
 
@@ -274,7 +274,7 @@ fn call_in_if_else() {
     };
     let result = fuzz_target(fuzzer_data, FuzzerOptions::default());
     match result {
-        Some(result) => assert_eq!(result.get_return_values()[0], FieldElement::from(6_u32)),
+        Some(result) => assert_eq!(result.get_return_values_acir()[0], FieldElement::from(6_u32)),
         None => panic!("Program failed to execute"),
     }
 }
@@ -362,7 +362,9 @@ fn test_does_not_insert_too_many_instructions_with_function_calls() {
     let options = FuzzerOptions { max_instructions_num: 100, ..FuzzerOptions::default() };
     let result = fuzz_target(data.clone(), options);
     match result {
-        Some(result) => assert_eq!(result.get_return_values()[0], FieldElement::from(1024_u32)),
+        Some(result) => {
+            assert_eq!(result.get_return_values_acir()[0], FieldElement::from(1024_u32));
+        }
         None => panic!("Program failed to execute"),
     }
     // with max 1000 instructions both functions should be executed
@@ -372,7 +374,7 @@ fn test_does_not_insert_too_many_instructions_with_function_calls() {
     match result {
         Some(result) => {
             assert_eq!(
-                result.get_return_values()[0],
+                result.get_return_values_acir()[0],
                 FieldElement::from(2_u32).pow(&FieldElement::from(200_u32)) // 2^200
             );
         }

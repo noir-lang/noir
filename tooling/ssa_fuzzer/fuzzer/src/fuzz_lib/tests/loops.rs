@@ -60,7 +60,9 @@ fn test_simple_loop() {
     };
     let result = fuzz_target(data, FuzzerOptions::default());
     match result {
-        Some(result) => assert_eq!(result.get_return_values()[0], FieldElement::from(1024_u32)),
+        Some(result) => {
+            assert_eq!(result.get_return_values_acir()[0], FieldElement::from(1024_u32));
+        }
         None => panic!("Program failed to execute"),
     }
 }
@@ -131,7 +133,9 @@ fn test_nested_loop() {
     };
     let result = fuzz_target(data, FuzzerOptions::default());
     match result {
-        Some(result) => assert_eq!(result.get_return_values()[0], FieldElement::from(131072_u32)),
+        Some(result) => {
+            assert_eq!(result.get_return_values_acir()[0], FieldElement::from(131072_u32));
+        }
         None => panic!("Program failed to execute"),
     }
 }
@@ -204,7 +208,9 @@ fn test_loop_broken_with_jmp() {
     };
     let result = fuzz_target(data, FuzzerOptions::default());
     match result {
-        Some(result) => assert_eq!(result.get_return_values()[0], FieldElement::from(4096_u32)),
+        Some(result) => {
+            assert_eq!(result.get_return_values_acir()[0], FieldElement::from(4096_u32));
+        }
         None => panic!("Program failed to execute"),
     }
 }
@@ -277,7 +283,7 @@ fn test_jmp_if_in_cycle() {
     };
     let result = fuzz_target(data, FuzzerOptions::default());
     match result {
-        Some(result) => assert_eq!(result.get_return_values()[0], FieldElement::from(22_u32)),
+        Some(result) => assert_eq!(result.get_return_values_acir()[0], FieldElement::from(22_u32)),
         None => panic!("Program failed to execute"),
     }
 
@@ -313,7 +319,9 @@ fn test_jmp_if_in_cycle() {
     };
     let result = fuzz_target(data, FuzzerOptions::default());
     match result {
-        Some(result) => assert_eq!(result.get_return_values()[0], FieldElement::from(2048_u32)),
+        Some(result) => {
+            assert_eq!(result.get_return_values_acir()[0], FieldElement::from(2048_u32));
+        }
         None => panic!("Program failed to execute"),
     }
 }

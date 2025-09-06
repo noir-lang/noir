@@ -71,7 +71,7 @@ fn array_get_and_set() {
     };
     let result = fuzz_target(fuzzer_data, FuzzerOptions::default());
     match result {
-        Some(result) => assert_eq!(result.get_return_values()[0], FieldElement::from(4_u32)),
+        Some(result) => assert_eq!(result.get_return_values_acir()[0], FieldElement::from(4_u32)),
         None => panic!("Program failed to execute"),
     }
 }
@@ -161,7 +161,7 @@ fn test_reference_in_array() {
     };
     let result = fuzz_target(fuzzer_data, FuzzerOptions::default());
     match result {
-        Some(result) => assert_eq!(result.get_return_values()[0], FieldElement::from(1_u32)),
+        Some(result) => assert_eq!(result.get_return_values_acir()[0], FieldElement::from(1_u32)),
         None => panic!("Program failed to execute"),
     }
 }
@@ -239,7 +239,7 @@ fn regression_fuzzer_generated_wrong_arrays() {
     };
     let result = fuzz_target(fuzzer_data, FuzzerOptions::default());
     match result {
-        Some(result) => assert_eq!(result.get_return_values()[0], FieldElement::from(0_u32)),
+        Some(result) => assert_eq!(result.get_return_values_acir()[0], FieldElement::from(0_u32)),
         None => panic!("Program failed to execute"),
     }
 }
@@ -284,7 +284,7 @@ fn test_create_array_of_arrays() {
         (0..3).map(|i| FieldElement::from(i as u32)).collect::<Vec<_>>().repeat(2);
     let result = fuzz_target(fuzzer_data, FuzzerOptions::default());
     match result {
-        Some(result) => assert_eq!(result.get_return_values(), expected_return_value),
+        Some(result) => assert_eq!(result.get_return_values_acir(), expected_return_value),
         None => panic!("Program failed to execute"),
     }
 }

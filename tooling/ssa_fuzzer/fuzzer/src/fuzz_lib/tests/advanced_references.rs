@@ -77,7 +77,7 @@ fn test_other_function_mutates_reference() {
     let result = fuzz_target(data, FuzzerOptions::default());
     match result {
         Some(result) => {
-            assert_eq!(result.get_return_values()[0], FieldElement::from(1_u32));
+            assert_eq!(result.get_return_values_acir()[0], FieldElement::from(1_u32));
         }
         None => {
             panic!("Program failed to execute");
@@ -163,7 +163,7 @@ fn test_reference_to_reference() {
     let result = fuzz_target(data, FuzzerOptions::default());
     match result {
         Some(result) => {
-            assert_eq!(result.get_return_values()[0], FieldElement::from(1_u32));
+            assert_eq!(result.get_return_values_acir()[0], FieldElement::from(1_u32));
         }
         None => {
             panic!("Program failed to execute");

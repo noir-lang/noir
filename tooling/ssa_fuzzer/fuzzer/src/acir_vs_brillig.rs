@@ -15,6 +15,7 @@ use mutations::mutate;
 use noirc_driver::CompileOptions;
 use rand::{SeedableRng, rngs::StdRng};
 use sha1::{Digest, Sha1};
+#[cfg(feature = "redis-support")]
 use utils::{push_fuzzer_output_to_redis_queue, redis};
 
 const MAX_EXECUTION_TIME_TO_KEEP_IN_CORPUS: u64 = 3;
@@ -73,6 +74,7 @@ libfuzzer_sys::fuzz_target!(|data: &[u8]| -> Corpus {
     let fuzzer_output = fuzz_target(fuzzer_data, options);
 
     // If REDIS_URL is set and generated program is executed
+    #[cfg(feature = "redis-support")]
     if redis::ensure_redis_connection() && fuzzer_output.is_some() {
         // cargo-fuzz saves tests with name equal to sha1 of content
         let fuzzer_output = fuzzer_output.unwrap();

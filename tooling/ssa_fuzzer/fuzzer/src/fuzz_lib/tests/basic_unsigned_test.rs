@@ -77,7 +77,7 @@ fn test_op_u64(op: UnsignedOp) -> FieldElement {
         }],
         initial_witness: default_unsigned_witness(),
     };
-    fuzz_target(data, FuzzerOptions::default()).unwrap().get_return_values()[0]
+    fuzz_target(data, FuzzerOptions::default()).unwrap().get_return_values_acir()[0]
 }
 
 #[test]

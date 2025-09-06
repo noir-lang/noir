@@ -10,7 +10,7 @@ use std::collections::BTreeSet;
 
 #[derive(Debug)]
 pub enum CompareResults {
-    Agree(WitnessStack<FieldElement>),
+    Agree(WitnessStack<FieldElement>, WitnessStack<FieldElement>),
     Disagree(WitnessStack<FieldElement>, WitnessStack<FieldElement>),
     BothFailed(String, String),
     AcirFailed(String, WitnessStack<FieldElement>),
@@ -46,7 +46,7 @@ pub fn run_and_compare(
             let brillig_results = return_witness_brillig.iter().map(|w| brillig_witness_map[w]);
             let results_equal = acir_results.eq(brillig_results);
             if results_equal {
-                CompareResults::Agree(acir_witness)
+                CompareResults::Agree(acir_witness, brillig_witness)
             } else {
                 CompareResults::Disagree(acir_witness, brillig_witness)
             }

@@ -33,7 +33,7 @@ fn test_valid_ecdsa_signature_secp256r1() {
         initial_witness: default_witness(),
     };
     let result = fuzz_target(data, FuzzerOptions::default()).unwrap();
-    assert_eq!(result.get_return_values()[0], FieldElement::one());
+    assert_eq!(result.get_return_values_acir()[0], FieldElement::one());
 }
 
 #[test]
@@ -61,7 +61,7 @@ fn test_valid_ecdsa_signature_secp256k1() {
         initial_witness: default_witness(),
     };
     let result = fuzz_target(data, FuzzerOptions::default()).unwrap();
-    assert_eq!(result.get_return_values()[0], FieldElement::one());
+    assert_eq!(result.get_return_values_acir()[0], FieldElement::one());
 }
 
 #[test]
@@ -91,7 +91,9 @@ fn test_corrupted_ecdsa_signature_secp256r1() {
     };
     let result = fuzz_target(data, FuzzerOptions::default());
     match result {
-        Some(res) => panic!("Programs executed with the Result: {:?}", res.get_return_values()),
+        Some(res) => {
+            panic!("Programs executed with the Result: {:?}", res.get_return_values_acir())
+        }
         None => println!("Error. As expected"),
     }
 }
@@ -123,7 +125,9 @@ fn test_corrupted_ecdsa_signature_secp256k1() {
     };
     let result = fuzz_target(data, FuzzerOptions::default());
     match result {
-        Some(res) => panic!("Programs executed with the Result: {:?}", res.get_return_values()),
+        Some(res) => {
+            panic!("Programs executed with the Result: {:?}", res.get_return_values_acir())
+        }
         None => println!("Error. As expected"),
     }
 }

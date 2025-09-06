@@ -47,7 +47,7 @@ fn smoke_test_embedded_curve_add() {
     };
     let result = fuzz_target(data, FuzzerOptions::default()).unwrap();
     assert_eq!(
-        result.get_return_values()[0],
+        result.get_return_values_acir()[0],
         FieldElement::try_from_str(
             "8902249110305491597038405103722863701255802573786510474664632793109847672620"
         )
@@ -92,7 +92,7 @@ fn smoke_test_embedded_multi_scalar_mul() {
     };
     let result = fuzz_target(data, FuzzerOptions::default()).unwrap();
     assert_eq!(
-        result.get_return_values()[0],
+        result.get_return_values_acir()[0],
         FieldElement::try_from_str(
             "-3851299760922698091325321774664553326049887197487063802849283717866939395465"
         )
