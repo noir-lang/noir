@@ -1,3 +1,12 @@
+//! An SSA pass that operates on ACIR functions that checks that multiplying two u128 doesn't
+//! overflow because both operands are greater or equal than 2^64.
+//! If both are, then the result is surely greater or equal than 2^128 so it would overflow.
+//! The operands can still overflow if just one of them is less than 2^64, but in that case
+//! the result will be less than 2^192 so it fits in a Field value, and acir will check that
+//! it fits in a u128.
+//!
+//! In Brillig an overflow check is automatically performed on unsigned binary operations
+//! so this SSA pass has no effect for Brillig functions.
 use acvm::{AcirField, FieldElement};
 use noirc_errors::call_stack::CallStackId;
 
@@ -15,11 +24,7 @@ use crate::ssa::{
 use super::simple_optimization::SimpleOptimizationContext;
 
 impl Ssa {
-    /// An SSA pass that checks that multiplying two u128 doesn't overflow because
-    /// both operands are greater or equal than 2^64.
-    /// If both are, then the result is surely greater or equal than 2^128 so it would overflow.
-    /// The operands can still overflow if just one of them is less than 2^64, but in that case the result
-    /// will be less than 2^192 so it fits in a Field value, and acir will check that it fits in a u128.
+    /// See [`check_u128_mul_overflow`][self] module for more information.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn check_u128_mul_overflow(mut self) -> Ssa {
         for function in self.functions.values_mut() {
