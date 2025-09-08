@@ -33,7 +33,7 @@ impl Ssa {
 }
 
 impl Function {
-    pub(crate) fn check_u128_mul_overflow(&mut self) {
+    fn check_u128_mul_overflow(&mut self) {
         if !self.runtime().is_acir() {
             return;
         }
