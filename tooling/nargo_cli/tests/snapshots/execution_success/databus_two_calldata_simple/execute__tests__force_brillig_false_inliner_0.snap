@@ -52,7 +52,7 @@ expression: artifact
       "visibility": "databus"
     },
     "error_types": {
-      "5019202896831570965": {
+      "14990209321349310352": {
         "error_kind": "string",
         "string": "attempt to add with overflow"
       }

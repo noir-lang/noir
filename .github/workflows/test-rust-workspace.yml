@@ -85,6 +85,21 @@ jobs:
         env:
           NEXTEST_PROFILE: ${{ (github.event_name == 'merge_group' && 'merge-queue') || (github.ref == 'refs/heads/master' && 'ci-master') || 'ci' }}
 
+  check-pending-snapshots:
+    name: Check for pending snapshots
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Install just
+        uses: taiki-e/install-action@just
+
+      - name: Check for pending snapshots
+        run: just check-pending-snapshots
+
   # This is a job which depends on all test jobs and reports the overall status.
   # This allows us to add/remove test jobs without having to update the required workflows.
   tests-end:
@@ -94,6 +109,7 @@ jobs:
     if: ${{ always() }}
     needs:
       - run-tests
+      - check-pending-snapshots
 
     steps:
       - name: Report overall success

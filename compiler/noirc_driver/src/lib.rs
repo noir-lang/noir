@@ -1,6 +1,8 @@
 #![forbid(unsafe_code)]
 #![warn(unused_crate_dependencies, unused_extern_crates)]
 
+use std::hash::BuildHasher;
+
 use abi_gen::{abi_type_from_hir_type, value_from_hir_expression};
 use acvm::acir::circuit::ExpressionWidth;
 use acvm::compiler::MIN_EXPRESSION_WIDTH;
@@ -798,7 +800,7 @@ pub fn compile_no_check(
         || options.minimal_ssa;
 
     // Hash the AST program, which is going to be used to fingerprint the compilation artifact.
-    let hash = fxhash::hash64(&program);
+    let hash = rustc_hash::FxBuildHasher.hash_one(&program);
 
     if let Some(cached_program) = cached_program {
         if !force_compile && cached_program.hash == hash {
