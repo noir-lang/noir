@@ -1414,7 +1414,7 @@ mod test {
             ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.fold_constants_with_brillig();
+        let ssa = ssa.fold_constants();
         let ssa = ssa.remove_unreachable_functions();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
@@ -1441,7 +1441,7 @@ mod test {
             ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.fold_constants_with_brillig();
+        let ssa = ssa.fold_constants();
         let ssa = ssa.remove_unreachable_functions();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
@@ -1469,7 +1469,7 @@ mod test {
             ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.fold_constants_with_brillig();
+        let ssa = ssa.fold_constants();
         let ssa = ssa.remove_unreachable_functions();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
@@ -1496,7 +1496,7 @@ mod test {
             ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.fold_constants_with_brillig();
+        let ssa = ssa.fold_constants();
         let ssa = ssa.remove_unreachable_functions();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
@@ -1524,7 +1524,7 @@ mod test {
             ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.fold_constants_with_brillig();
+        let ssa = ssa.fold_constants();
         let ssa = ssa.remove_unreachable_functions();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
@@ -1559,7 +1559,7 @@ mod test {
         // Need to run SSA pass that sets up Brillig array gets
         let ssa = ssa.brillig_array_get_and_set();
 
-        let ssa = ssa.fold_constants_with_brillig();
+        let ssa = ssa.fold_constants();
         let ssa = ssa.remove_unreachable_functions();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
@@ -1589,7 +1589,7 @@ mod test {
         ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.fold_constants_with_brillig();
+        let ssa = ssa.fold_constants();
         let ssa = ssa.remove_unreachable_functions();
         assert_ssa_snapshot!(ssa, @r"
         g0 = Field 2
@@ -1626,7 +1626,7 @@ mod test {
         ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.fold_constants_with_brillig();
+        let ssa = ssa.fold_constants();
         let ssa = ssa.remove_unreachable_functions();
         assert_ssa_snapshot!(ssa, @r"
         g0 = Field 2
@@ -1914,7 +1914,7 @@ mod test {
                 return v2
             }
         ";
-        assert_ssa_does_not_change(src, Ssa::fold_constants_with_brillig);
+        assert_ssa_does_not_change(src, Ssa::fold_constants);
     }
 
     #[test]
