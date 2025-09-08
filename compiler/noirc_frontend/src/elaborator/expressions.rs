@@ -1,6 +1,6 @@
 use iter_extended::vecmap;
 use noirc_errors::{Located, Location};
-use rustc_hash::rustc_hashSet as HashSet;
+use rustc_hash::FxHashSet as HashSet;
 
 use crate::{
     DataType, Kind, QuotedType, Shared, Type, TypeBindings, TypeVariable,
