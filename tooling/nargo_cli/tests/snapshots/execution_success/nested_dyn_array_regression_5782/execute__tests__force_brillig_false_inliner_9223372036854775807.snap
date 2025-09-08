@@ -30,11 +30,11 @@ expression: artifact
     ],
     "return_type": null,
     "error_types": {
-      "2920182694213909827": {
+      "1998584279744703196": {
         "error_kind": "string",
         "string": "attempt to subtract with overflow"
       },
-      "14225679739041873922": {
+      "16431471497789672479": {
         "error_kind": "string",
         "string": "Index out of bounds"
       }
@@ -73,13 +73,8 @@ expression: artifact
     "MEM (id: 2, read at: EXPR [ (1, _2) 0 ], value: EXPR [ (1, _19) 0 ]) ",
     "EXPR [ (1, _19) -2 ]"
   ],
-  "debug_symbols": "pZTBboQgEED/Zc4cBBXQX2kag4obEoKG1SaN8d872HG7e2iy0YtPGN44ILBCb9vl1rgwjHeoP1Zoo/Pe3Ro/dmZ2Y8DedWNwNJs5Wotd8BRHazLRhhnqsHjP4Mv4ZR90n0zYOZuI0YyBDT0SEw7O2/S2sT87+1+VnFwpH3L5tl2Wh62u2Co7YWtFdlVesqsTNueadM5P+Zl6+Geq5+r45VyLi/6Z74u8IF8U+UVfXvTPrL+Q8vCVvuZr/uJ/Yst0Lr6cc+C40AwEDmeQQ50zKKDGKZQoMZB4Ahio/alxazKo9ifPcHsiko3FcEHMiQWxJEqiImpi9UuREVM+LESkfFiKyIkFMeUrtjT76EzrLV1VwxK6p5tr/p6OyHG3TXHsbL9Em2a/x3A9fgA=",
-  "file_map": {
-    "50": {
-      "source": "fn main(mut array: [Field; 2], i: u32) {\n    assert_eq(array[i - 1], 5);\n    assert_eq(array[i], 10);\n\n    array[i] = 2;\n\n    let array2 = [array, array];\n\n    assert_eq(array2[0][0], 5);\n    assert_eq(array2[0][i], 2);\n    assert_eq(array2[i][0], 5);\n    assert_eq(array2[i][i], 2);\n}\n",
-      "path": ""
-    }
-  },
+  "debug_symbols": "[debug_symbols]",
+  "file_map": "[file_map]",
   "names": [
     "main"
   ],

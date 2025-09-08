@@ -1,9 +1,8 @@
 use crate::{
     assert_no_errors, check_errors, check_monomorphization_error, elaborator::FrontendOptions,
-    get_program_with_options, tests::Expect,
+    get_program_with_options,
 };
 
-#[named]
 #[test]
 fn trait_inheritance() {
     let src = r#"
@@ -22,13 +21,10 @@ fn trait_inheritance() {
         pub fn foo<T>(baz: T) -> (Field, Field, Field) where T: Baz {
             (baz.foo(), baz.bar(), baz.baz())
         }
-
-        fn main() {}
     "#;
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn trait_inheritance_with_generics() {
     let src = r#"
@@ -43,13 +39,10 @@ fn trait_inheritance_with_generics() {
         pub fn foo<T>(x: T) -> i32 where T: Bar<i32> {
             x.foo()
         }
-
-        fn main() {}
     "#;
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn trait_inheritance_with_generics_2() {
     let src = r#"
@@ -64,13 +57,10 @@ fn trait_inheritance_with_generics_2() {
         pub fn foo<T>(x: T) -> i32 where T: Bar<i32, i32> {
             x.foo()
         }
-
-        fn main() {}
     "#;
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn trait_inheritance_with_generics_3() {
     let src = r#"
@@ -81,13 +71,10 @@ fn trait_inheritance_with_generics_3() {
         impl Foo<i32> for () {}
 
         impl Bar<i32> for () {}
-
-        fn main() {}
     "#;
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn trait_inheritance_with_generics_4() {
     let src = r#"
@@ -98,13 +85,10 @@ fn trait_inheritance_with_generics_4() {
         impl Foo for () { type A = i32; }
 
         impl Bar<i32> for () {}
-
-        fn main() {}
     "#;
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn trait_inheritance_dependency_cycle() {
     let src = r#"
@@ -112,12 +96,10 @@ fn trait_inheritance_dependency_cycle() {
               ^^^ Dependency cycle found
               ~~~ 'Foo' recursively depends on itself: Foo -> Bar -> Foo
         trait Bar: Foo {}
-        fn main() {}
     "#;
     check_errors!(src);
 }
 
-#[named]
 #[test]
 fn trait_inheritance_missing_parent_implementation() {
     let src = r#"
@@ -138,7 +120,6 @@ fn trait_inheritance_missing_parent_implementation() {
     check_errors!(src);
 }
 
-#[named]
 #[test]
 fn errors_on_unknown_type_in_trait_where_clause() {
     let src = r#"
@@ -151,7 +132,6 @@ fn errors_on_unknown_type_in_trait_where_clause() {
     check_errors!(src);
 }
 
-#[named]
 #[test]
 fn does_not_error_if_impl_trait_constraint_is_satisfied_for_concrete_type() {
     let src = r#"
@@ -179,13 +159,10 @@ fn does_not_error_if_impl_trait_constraint_is_satisfied_for_concrete_type() {
         pub struct Bar;
 
         impl Foo<SomeGreeter> for Bar {}
-
-        fn main() {}
     "#;
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn does_not_error_if_impl_trait_constraint_is_satisfied_for_type_variable() {
     let src = r#"
@@ -210,7 +187,6 @@ fn does_not_error_if_impl_trait_constraint_is_satisfied_for_type_variable() {
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn errors_if_impl_trait_constraint_is_not_satisfied() {
     let src = r#"
@@ -238,13 +214,10 @@ fn errors_if_impl_trait_constraint_is_not_satisfied() {
         impl Foo<SomeGreeter> for Bar {}
                                   ^^^ The trait bound `SomeGreeter: Greeter` is not satisfied
                                   ~~~ The trait `Greeter` is not implemented for `SomeGreeter`
-
-        fn main() {}
     "#;
     check_errors!(src);
 }
 
-#[named]
 #[test]
 // Regression test for https://github.com/noir-lang/noir/issues/6314
 // Baz inherits from a single trait: Foo
@@ -263,7 +236,6 @@ fn regression_6314_single_inheritance() {
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 // Regression test for https://github.com/noir-lang/noir/issues/6314
 // Baz inherits from two traits: Foo and Bar
@@ -304,7 +276,6 @@ fn regression_6314_double_inheritance() {
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn trait_alias_single_member() {
     let src = r#"
@@ -330,7 +301,6 @@ fn trait_alias_single_member() {
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn trait_alias_two_members() {
     let src = r#"
@@ -367,7 +337,6 @@ fn trait_alias_two_members() {
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn trait_alias_polymorphic_inheritance() {
     let src = r#"
@@ -407,7 +376,6 @@ fn trait_alias_polymorphic_inheritance() {
 // TODO(https://github.com/noir-lang/noir/issues/6467): currently failing, so
 // this just tests that the trait alias has an equivalent error to the expected
 // desugared version
-#[named]
 #[test]
 fn trait_alias_with_where_clause_has_equivalent_errors() {
     let src = r#"
@@ -430,8 +398,6 @@ fn trait_alias_with_where_clause_has_equivalent_errors() {
             x.baz()
             ^^^^^^^ No method named 'baz' found for type 'T'
         }
-
-        fn main() {}
     "#;
     check_errors!(src);
 }
@@ -439,7 +405,6 @@ fn trait_alias_with_where_clause_has_equivalent_errors() {
 // TODO(https://github.com/noir-lang/noir/issues/6467): currently failing, so
 // this just tests that the trait alias has an equivalent error to the expected
 // desugared version
-#[named]
 #[test]
 fn trait_alias_with_where_clause_has_equivalent_errors_2() {
     let alias_src = r#"
@@ -457,13 +422,10 @@ fn trait_alias_with_where_clause_has_equivalent_errors_2() {
             x.baz()
             ^^^^^^^ No method named 'baz' found for type 'T'
         }
-
-        fn main() {}
     "#;
     check_errors!(alias_src);
 }
 
-#[named]
 #[test]
 fn removes_assumed_parent_traits_after_function_ends() {
     let src = r#"
@@ -479,13 +441,10 @@ fn removes_assumed_parent_traits_after_function_ends() {
     where
         T: Foo,
     {}
-
-    fn main() {}
     "#;
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn trait_bounds_which_are_dependent_on_generic_types_are_resolved_correctly() {
     // Regression test for https://github.com/noir-lang/noir/issues/6420
@@ -537,15 +496,12 @@ fn trait_bounds_which_are_dependent_on_generic_types_are_resolved_correctly() {
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn does_not_crash_on_as_trait_path_with_empty_path() {
     let src = r#"
         struct Foo {
             x: <N>,
         }
-
-        fn main() {}
     "#;
 
     let allow_parser_errors = true;
@@ -555,7 +511,6 @@ fn does_not_crash_on_as_trait_path_with_empty_path() {
     assert!(!errors.is_empty());
 }
 
-#[named]
 #[test]
 fn warns_if_trait_is_not_in_scope_for_function_call_and_there_is_only_one_trait_method() {
     let src = r#"
@@ -582,7 +537,6 @@ fn warns_if_trait_is_not_in_scope_for_function_call_and_there_is_only_one_trait_
     check_errors!(src);
 }
 
-#[named]
 #[test]
 fn calls_trait_function_if_it_is_in_scope() {
     let src = r#"
@@ -610,7 +564,6 @@ fn calls_trait_function_if_it_is_in_scope() {
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn calls_trait_function_if_it_is_only_candidate_in_scope() {
     let src = r#"
@@ -648,7 +601,6 @@ fn calls_trait_function_if_it_is_only_candidate_in_scope() {
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn calls_trait_function_if_it_is_only_candidate_in_scope_in_nested_module_using_super() {
     let src = r#"
@@ -659,8 +611,6 @@ fn calls_trait_function_if_it_is_only_candidate_in_scope_in_nested_module_using_
             let _ = super::Bar::foo();
         }
     }
-
-    fn main() {}
 
     pub struct Bar {}
 
@@ -679,7 +629,6 @@ fn calls_trait_function_if_it_is_only_candidate_in_scope_in_nested_module_using_
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn errors_if_trait_is_not_in_scope_for_function_call_and_there_are_multiple_candidates() {
     let src = r#"
@@ -717,7 +666,6 @@ fn errors_if_trait_is_not_in_scope_for_function_call_and_there_are_multiple_cand
     check_errors!(src);
 }
 
-#[named]
 #[test]
 fn errors_if_multiple_trait_methods_are_in_scope_for_function_call() {
     let src = r#"
@@ -758,7 +706,6 @@ fn errors_if_multiple_trait_methods_are_in_scope_for_function_call() {
     check_errors!(src);
 }
 
-#[named]
 #[test]
 fn warns_if_trait_is_not_in_scope_for_method_call_and_there_is_only_one_trait_method() {
     let src = r#"
@@ -787,7 +734,6 @@ fn warns_if_trait_is_not_in_scope_for_method_call_and_there_is_only_one_trait_me
     check_errors!(src);
 }
 
-#[named]
 #[test]
 fn calls_trait_method_if_it_is_in_scope() {
     let src = r#"
@@ -817,7 +763,6 @@ fn calls_trait_method_if_it_is_in_scope() {
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn errors_if_trait_is_not_in_scope_for_method_call_and_there_are_multiple_candidates() {
     let src = r#"
@@ -857,7 +802,6 @@ fn errors_if_trait_is_not_in_scope_for_method_call_and_there_are_multiple_candid
     check_errors!(src);
 }
 
-#[named]
 #[test]
 fn errors_if_multiple_trait_methods_are_in_scope_for_method_call() {
     let src = r#"
@@ -900,7 +844,6 @@ fn errors_if_multiple_trait_methods_are_in_scope_for_method_call() {
     check_errors!(src);
 }
 
-#[named]
 #[test]
 fn calls_trait_method_if_it_is_in_scope_with_multiple_candidates_but_only_one_decided_by_generics()
 {
@@ -933,7 +876,6 @@ fn calls_trait_method_if_it_is_in_scope_with_multiple_candidates_but_only_one_de
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn type_checks_trait_default_method_and_errors() {
     let src = r#"
@@ -946,13 +888,10 @@ fn type_checks_trait_default_method_and_errors() {
                 ~~~~ bool returned here
             }
         }
-
-        fn main() {}
     "#;
     check_errors!(src);
 }
 
-#[named]
 #[test]
 fn type_checks_trait_default_method_and_does_not_error() {
     let src = r#"
@@ -962,13 +901,10 @@ fn type_checks_trait_default_method_and_does_not_error() {
                 1
             }
         }
-
-        fn main() {}
     "#;
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn type_checks_trait_default_method_and_does_not_error_using_self() {
     let src = r#"
@@ -982,13 +918,10 @@ fn type_checks_trait_default_method_and_does_not_error_using_self() {
                 1
             }
         }
-
-        fn main() {}
     "#;
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn warns_if_trait_is_not_in_scope_for_primitive_function_call_and_there_is_only_one_trait_method() {
     let src = r#"
@@ -1012,7 +945,6 @@ fn warns_if_trait_is_not_in_scope_for_primitive_function_call_and_there_is_only_
     check_errors!(src);
 }
 
-#[named]
 #[test]
 fn warns_if_trait_is_not_in_scope_for_primitive_method_call_and_there_is_only_one_trait_method() {
     let src = r#"
@@ -1037,7 +969,6 @@ fn warns_if_trait_is_not_in_scope_for_primitive_method_call_and_there_is_only_on
     check_errors!(src);
 }
 
-#[named]
 #[test]
 fn warns_if_trait_is_not_in_scope_for_generic_function_call_and_there_is_only_one_trait_method() {
     let src = r#"
@@ -1062,7 +993,6 @@ fn warns_if_trait_is_not_in_scope_for_generic_function_call_and_there_is_only_on
     check_errors!(src);
 }
 
-#[named]
 #[test]
 fn error_on_duplicate_impl_with_associated_type() {
     let src = r#"
@@ -1080,13 +1010,10 @@ fn error_on_duplicate_impl_with_associated_type() {
                      ~~~ Overlapping impl
             type Bar = u8;
         }
-
-        fn main() {}
     "#;
     check_errors!(src);
 }
 
-#[named]
 #[test]
 fn error_on_duplicate_impl_with_associated_constant() {
     let src = r#"
@@ -1104,14 +1031,11 @@ fn error_on_duplicate_impl_with_associated_constant() {
                      ~~~ Overlapping impl
             let Bar: u32 = 6;
         }
-
-        fn main() {}
     "#;
     check_errors!(src);
 }
 
 // See https://github.com/noir-lang/noir/issues/6530
-#[named]
 #[test]
 fn regression_6530() {
     let src = r#"
@@ -1155,7 +1079,6 @@ fn regression_6530() {
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn calls_trait_method_using_struct_name_when_multiple_impls_exist() {
     let src = r#"
@@ -1181,7 +1104,6 @@ fn calls_trait_method_using_struct_name_when_multiple_impls_exist() {
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn as_trait_path_in_expression() {
     let src = r#"
@@ -1215,7 +1137,6 @@ fn as_trait_path_in_expression() {
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn allows_renaming_trait_during_import() {
     // Regression test for https://github.com/noir-lang/noir/issues/7632
@@ -1237,7 +1158,6 @@ fn allows_renaming_trait_during_import() {
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn renaming_trait_avoids_name_collisions() {
     // Regression test for https://github.com/noir-lang/noir/issues/7632
@@ -1261,7 +1181,6 @@ fn renaming_trait_avoids_name_collisions() {
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn passes_trait_with_associated_number_to_generic_function() {
     let src = "
@@ -1287,7 +1206,6 @@ fn passes_trait_with_associated_number_to_generic_function() {
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn passes_trait_with_associated_number_to_generic_function_inside_struct_impl() {
     let src = "
@@ -1317,7 +1235,6 @@ fn passes_trait_with_associated_number_to_generic_function_inside_struct_impl() 
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn returns_self_in_trait_method_1() {
     let src = "
@@ -1347,13 +1264,10 @@ fn returns_self_in_trait_method_1() {
             Self {}
         }
     }
-
-    fn main() {}
     ";
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn returns_self_in_trait_method_2() {
     let src = "
@@ -1379,13 +1293,10 @@ fn returns_self_in_trait_method_2() {
             Self {}
         }
     }
-
-    fn main() {}
     ";
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn returns_self_in_trait_method_3() {
     let src = "
@@ -1407,13 +1318,10 @@ fn returns_self_in_trait_method_3() {
             0
         }
     }
-
-    fn main() {}
     ";
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn trait_impl_with_where_clause_with_trait_with_associated_numeric() {
     let src = "
@@ -1432,13 +1340,10 @@ fn trait_impl_with_where_clause_with_trait_with_associated_numeric() {
     impl Foo for Field{
         fn foo<B>(_: B) where B: Bar {} 
     }
-
-    fn main() {}
     ";
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn trait_impl_with_where_clause_with_trait_with_associated_type() {
     let src = "
@@ -1457,13 +1362,10 @@ fn trait_impl_with_where_clause_with_trait_with_associated_type() {
     impl Foo for Field{
         fn foo<B>(_: B) where B: Bar {} 
     }
-
-    fn main() {}
     ";
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn errors_if_constrained_trait_definition_has_unconstrained_impl() {
     let src = r#"
@@ -1481,7 +1383,6 @@ fn errors_if_constrained_trait_definition_has_unconstrained_impl() {
     check_errors!(src);
 }
 
-#[named]
 #[test]
 fn errors_if_unconstrained_trait_definition_has_constrained_impl() {
     let src = r#"
@@ -1499,7 +1400,6 @@ fn errors_if_unconstrained_trait_definition_has_constrained_impl() {
     check_errors!(src);
 }
 
-#[named]
 #[test]
 fn accesses_associated_type_inside_trait_impl_using_self() {
     let src = r#"
@@ -1524,7 +1424,6 @@ fn accesses_associated_type_inside_trait_impl_using_self() {
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn accesses_associated_type_inside_trait_using_self() {
     let src = r#"
@@ -1547,7 +1446,6 @@ fn accesses_associated_type_inside_trait_using_self() {
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn serialize_test_with_a_previous_unrelated_definition() {
     let src = r#"
@@ -1587,7 +1485,6 @@ fn serialize_test_with_a_previous_unrelated_definition() {
     check_monomorphization_error!(&src);
 }
 
-#[named]
 #[test]
 fn errors_on_incorrect_generics_in_type_trait_call() {
     let src = r#"
@@ -1614,7 +1511,6 @@ fn errors_on_incorrect_generics_in_type_trait_call() {
     check_errors!(src);
 }
 
-#[named]
 #[test]
 fn trait_impl_with_child_constraint() {
     let src = r#"
@@ -1628,13 +1524,10 @@ fn trait_impl_with_child_constraint() {
 
     impl<T: Parent> Parent for Struct<T> {}
     impl<T: Child> Child for Struct<T> {}
-
-    fn main() {}
     "#;
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn trait_with_same_generic_in_different_default_methods() {
     let src = r#"
@@ -1659,7 +1552,6 @@ fn trait_with_same_generic_in_different_default_methods() {
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn associated_constant_of_generic_type_used_in_another_associated_constant() {
     let src = r#"
@@ -1694,7 +1586,6 @@ fn associated_constant_of_generic_type_used_in_another_associated_constant() {
     check_monomorphization_error!(src);
 }
 
-#[named]
 #[test]
 fn associated_constant_of_generic_type_used_in_expression() {
     let src = r#"
@@ -1713,7 +1604,6 @@ fn associated_constant_of_generic_type_used_in_expression() {
     check_monomorphization_error!(src);
 }
 
-#[named]
 #[test]
 fn as_trait_path_called_multiple_times_for_different_t_1() {
     let src = r#"
@@ -1740,7 +1630,6 @@ fn as_trait_path_called_multiple_times_for_different_t_1() {
     check_monomorphization_error!(src);
 }
 
-#[named]
 #[test]
 fn as_trait_path_called_multiple_times_for_different_t_2() {
     let src = r#"
@@ -1767,7 +1656,6 @@ fn as_trait_path_called_multiple_times_for_different_t_2() {
     check_monomorphization_error!(src);
 }
 
-#[named]
 #[test]
 fn short_syntax_for_trait_constraint_on_trait_generic() {
     let src = r#"
@@ -1788,7 +1676,6 @@ fn short_syntax_for_trait_constraint_on_trait_generic() {
     check_monomorphization_error!(src);
 }
 
-#[named]
 #[test]
 fn ambiguous_associated_type() {
     let src = r#"
@@ -1805,7 +1692,6 @@ fn ambiguous_associated_type() {
     check_errors!(src);
 }
 
-#[named]
 #[test]
 fn as_trait_path_self_type() {
     let src = r#"
@@ -1826,7 +1712,6 @@ fn as_trait_path_self_type() {
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn suggests_importing_trait_via_reexport() {
     let src = r#"
@@ -1852,7 +1737,6 @@ fn suggests_importing_trait_via_reexport() {
     check_errors!(src);
 }
 
-#[named]
 #[test]
 fn suggests_importing_trait_via_module_reexport() {
     let src = r#"
@@ -1880,7 +1764,6 @@ fn suggests_importing_trait_via_module_reexport() {
     check_errors!(src);
 }
 
-#[named]
 #[test]
 fn associated_constant_sum_of_other_constants() {
     let src = r#"
@@ -1915,7 +1798,6 @@ fn associated_constant_sum_of_other_constants() {
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn regression_9245_small_code() {
     let src = r#"
@@ -1938,7 +1820,6 @@ fn regression_9245_small_code() {
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn associated_constant_sum_of_other_constants_2() {
     let src = r#"
@@ -1967,13 +1848,10 @@ fn associated_constant_sum_of_other_constants_2() {
         let f = <[Field; X] as Deserialize>::deserialize;
         let _ = f([0; X + 1]);
     }
-
-    fn main() {}
     "#;
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn associated_constant_sum_of_other_constants_3() {
     let src = r#"
@@ -2002,13 +1880,10 @@ fn associated_constant_sum_of_other_constants_3() {
         let f = <[Field; X] as Deserialize>::deserialize;
         let _ = f([0; X]);
     }
-
-    fn main() {}
     "#;
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn associated_constant_mul_of_other_constants() {
     let src = r#"
@@ -2037,13 +1912,10 @@ fn associated_constant_mul_of_other_constants() {
         let f = <[Field; X] as Deserialize>::deserialize;
         let _ = f([0; X]);
     }
-
-    fn main() {}
     "#;
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn trait_bound_with_associated_constant() {
     let src = r#"
@@ -2061,13 +1933,10 @@ fn trait_bound_with_associated_constant() {
     }
 
     impl Trait<Field> for i32 {}
-
-    fn main() {}
     "#;
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn trait_method_call_when_it_has_bounds_on_generic() {
     let src = r#"
@@ -2083,13 +1952,10 @@ fn trait_method_call_when_it_has_bounds_on_generic() {
     pub fn foo<B: BigNum, Curve: BigCurve<B>>() {
         let _: Curve = BigCurve::new();
     }
-
-    fn main() {}
     "#;
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn trait_bound_constraining_two_generics() {
     let src = r#"
@@ -2105,13 +1971,10 @@ fn trait_bound_constraining_two_generics() {
 
     pub struct HasBaz1 {}
     impl Baz<HasFoo1, ()> for HasBaz1 {}
-
-    fn main() {}
     "#;
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn trait_where_clause_associated_type_constraint_expected_order() {
     let src = r#"
@@ -2137,13 +2000,10 @@ fn trait_where_clause_associated_type_constraint_expected_order() {
 
     pub struct HasBaz1 {}
     impl Baz<HasFoo1> for HasBaz1 {}
-
-    fn main() {}
     "#;
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn trait_where_clause_associated_type_constraint_unexpected_order() {
     let src = r#"
@@ -2169,13 +2029,10 @@ fn trait_where_clause_associated_type_constraint_unexpected_order() {
 
     pub struct HasBaz1 {}
     impl Baz<HasFoo1> for HasBaz1 {}
-
-    fn main() {}
     "#;
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn trait_method_numeric_generic_on_function() {
     let src = r#"
@@ -2200,7 +2057,41 @@ fn trait_method_numeric_generic_on_function() {
     check_monomorphization_error!(src);
 }
 
-#[named]
+#[test]
+fn trait_bound_on_implementing_type() {
+    let src = r#"
+    struct GenericStruct<T> {
+        inner: T,
+    }
+
+    trait Foo {
+        fn foo() {}
+    }
+
+    impl Foo for Field {}
+
+    impl<T: Foo> Foo for GenericStruct<T> {}
+
+    trait Bar {
+        fn bar();
+    }
+
+    impl<T> Bar for GenericStruct<T>
+    where
+        GenericStruct<T>: Foo,
+    {
+        fn bar() {
+            <Self as Foo>::foo()
+        }
+    }
+    
+    fn main() {
+        GenericStruct::<Field>::bar();
+    }
+    "#;
+    assert_no_errors!(src);
+}
+
 #[test]
 fn unify_n_against_n_multiplied_by_var() {
     let src = r#"
@@ -2240,8 +2131,6 @@ fn unify_n_against_n_multiplied_by_var() {
             [0; Self::N]
         }
     }
-
-    fn main() {}
     "#;
     assert_no_errors!(src);
 }

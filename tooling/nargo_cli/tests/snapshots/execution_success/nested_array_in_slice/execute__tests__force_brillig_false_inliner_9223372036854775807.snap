@@ -19,11 +19,11 @@ expression: artifact
     ],
     "return_type": null,
     "error_types": {
-      "2920182694213909827": {
+      "1998584279744703196": {
         "error_kind": "string",
         "string": "attempt to subtract with overflow"
       },
-      "14225679739041873922": {
+      "16431471497789672479": {
         "error_kind": "string",
         "string": "Index out of bounds"
       }
@@ -997,13 +997,8 @@ expression: artifact
     "unconstrained func 1",
     "[Const { destination: Direct(21), bit_size: Integer(U32), value: 1 }, Const { destination: Direct(20), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(21), offset_address: Direct(20) }, Const { destination: Direct(2), bit_size: Field, value: 0 }, BinaryFieldOp { destination: Direct(3), op: Equals, lhs: Direct(0), rhs: Direct(2) }, JumpIf { condition: Direct(3), location: 8 }, Const { destination: Direct(1), bit_size: Field, value: 1 }, BinaryFieldOp { destination: Direct(0), op: Div, lhs: Direct(1), rhs: Direct(0) }, Stop { return_data: HeapVector { pointer: Direct(20), size: Direct(21) } }]"
   ],
-  "debug_symbols": "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",
-  "file_map": {
-    "50": {
-      "source": "struct Bar {\n    inner: [Field; 3],\n}\n\nstruct Foo {\n    a: Field,\n    b: [Field; 3],\n    bar: Bar,\n}\n\nfn main(y: u32) {\n    let foo_one = Foo { a: 1, b: [2, 3, 20], bar: Bar { inner: [100, 101, 102] } };\n    let foo_two = Foo { a: 4, b: [5, 6, 21], bar: Bar { inner: [103, 104, 105] } };\n    let foo_three = Foo { a: 7, b: [8, 9, 22], bar: Bar { inner: [106, 107, 108] } };\n    let foo_four = Foo { a: 10, b: [11, 12, 23], bar: Bar { inner: [109, 110, 111] } };\n    let mut x = &[foo_one];\n    x = x.push_back(foo_two);\n    x = x.push_back(foo_three);\n    x = x.push_back(foo_four);\n\n    assert(x[y - 3].a == 1);\n    assert(x[y - 3].b == [2, 3, 20]);\n    assert(x[y - 2].a == 4);\n    assert(x[y - 2].b == [5, 6, 21]);\n    assert(x[y - 1].a == 7);\n    assert(x[y - 1].b == [8, 9, 22]);\n    assert(x[y].a == 10);\n    assert(x[y].b == [11, 12, 23]);\n    assert(x[y].bar.inner == [109, 110, 111]);\n\n    if y != 2 {\n        x[y - 2].a = 50;\n    } else {\n        x[y - 2].a = 100;\n    }\n    assert(x[y - 2].a == 50);\n\n    if y == 2 {\n        x[y - 1].b = [50, 51, 52];\n    } else {\n        x[y - 1].b = [100, 101, 102];\n    }\n    assert(x[2].b == [100, 101, 102]);\n\n    assert(x[y - 3].bar.inner == [100, 101, 102]);\n    assert(x[y - 2].bar.inner == [103, 104, 105]);\n    assert(x[y - 1].bar.inner == [106, 107, 108]);\n    assert(x[y].bar.inner == [109, 110, 111]);\n}\n",
-      "path": ""
-    }
-  },
+  "debug_symbols": "[debug_symbols]",
+  "file_map": "[file_map]",
   "names": [
     "main"
   ],

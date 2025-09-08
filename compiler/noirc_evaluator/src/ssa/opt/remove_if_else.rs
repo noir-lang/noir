@@ -22,7 +22,7 @@
 //! Implementation details & examples:
 //! `IfElse` instructions choose between its two operand values,
 //! `then_value` and `else_value`, based on the `then_condition`:
-//! ```
+//! ```ssa
 //!  if then_condition {
 //!      then_value
 //!  } else {
@@ -53,7 +53,7 @@
 //!
 //! will be translated into this code, where the `IfElse` instruction: `v9 = if v0 then v5 else (if v6) v8`
 //! is using array v5 from then branch, and array v8 from the else branch:
-//! ```
+//! ```ssa
 //! acir(inline) predicate_pure fn main f0 {
 //!   b0(v0: u1, v1: [u32; 2]):
 //!     v2 = allocate -> &mut [u32; 2]
@@ -71,7 +71,7 @@
 //! ```
 //!
 //! The IfElse instruction is then replaced by these instruction during the remove if-else pass:
-//! ```
+//! ```ssa
 //! v13 = cast v0 as u32
 //! v14 = cast v6 as u32
 //! v15 = unchecked_mul v14, u32 2  
@@ -92,7 +92,7 @@
 
 use std::collections::hash_map::Entry;
 
-use fxhash::FxHashMap as HashMap;
+use rustc_hash::FxHashMap as HashMap;
 
 use crate::errors::RtResult;
 
@@ -441,11 +441,9 @@ mod tests {
             v19 = unchecked_add v17, v18
             v20 = make_array [v13, v19] : [u32; 2]
             enable_side_effects u1 1
-            v22 = array_get v20, index u32 0 -> u32
-            v23 = array_get v20, index u32 1 -> u32
-            v24 = add v22, v23
-            v26 = eq v24, u32 3
-            constrain v24 == u32 3
+            v22 = add v13, v19
+            v24 = eq v22, u32 3
+            constrain v22 == u32 3
             return
         }
         ");
@@ -510,11 +508,9 @@ mod tests {
             v18 = unchecked_add v16, v17
             v19 = make_array [v11, v18] : [u32; 2]
             enable_side_effects u1 1
-            v21 = array_get v19, index u32 0 -> u32
-            v22 = array_get v19, index u32 1 -> u32
-            v23 = add v21, v22
-            v24 = eq v23, u32 1
-            constrain v23 == u32 1
+            v21 = add v11, v18
+            v22 = eq v21, u32 1
+            constrain v21 == u32 1
             return
         }
         ");
@@ -547,27 +543,43 @@ acir(inline) impure fn main f0 {
 
         // Merge slices v3 (empty) and v8 ([v2]) into v12, using a dummy value for the element at index 0 of v3, which does not exist.
         assert_ssa_snapshot!(ssa, @r"
-acir(inline) impure fn main f0 {
-  b0(v0: u1, v1: Field, v2: Field):
-    v3 = make_array [] : [Field]
-    v4 = allocate -> &mut u32
-    v5 = allocate -> &mut [Field]
-    enable_side_effects v0
-    v6 = cast v0 as u32
-    v8, v9 = call slice_push_back(v6, v3, v2) -> (u32, [Field])
-    v10 = not v0
-    v11 = cast v0 as u32
-    v13 = array_get v9, index u32 0 -> Field
-    v14 = cast v0 as Field
-    v15 = cast v10 as Field
-    v16 = mul v14, v13
-    v17 = make_array [v16] : [Field]
-    enable_side_effects u1 1
-    v19, v20 = call slice_push_back(v11, v17, v2) -> (u32, [Field])
-    v21 = array_get v20, index u32 0 -> Field
-    constrain v21 == Field 1
-    return
-}
-      ");
+        acir(inline) impure fn main f0 {
+          b0(v0: u1, v1: Field, v2: Field):
+            v3 = make_array [] : [Field]
+            v4 = allocate -> &mut u32
+            v5 = allocate -> &mut [Field]
+            enable_side_effects v0
+            v6 = cast v0 as u32
+            v8, v9 = call slice_push_back(v6, v3, v2) -> (u32, [Field])
+            v10 = not v0
+            v11 = cast v0 as u32
+            v13 = array_get v9, index u32 0 -> Field
+            v14 = cast v0 as Field
+            v15 = cast v10 as Field
+            v16 = mul v14, v13
+            v17 = make_array [v16] : [Field]
+            enable_side_effects u1 1
+            v20 = eq v11, u32 1
+            v21 = not v20
+            v22 = add v11, u32 1
+            v23 = make_array [v16, v2] : [Field]
+            v24 = array_set v23, index v11, value v2
+            v25 = array_get v24, index u32 0 -> Field
+            v26 = cast v21 as Field
+            v27 = cast v20 as Field
+            v28 = mul v26, v25
+            v29 = mul v27, v16
+            v30 = add v28, v29
+            v31 = array_get v24, index u32 1 -> Field
+            v32 = cast v21 as Field
+            v33 = cast v20 as Field
+            v34 = mul v32, v31
+            v35 = mul v33, v2
+            v36 = add v34, v35
+            v37 = make_array [v30, v36] : [Field]
+            constrain v30 == Field 1
+            return
+        }
+        ");
     }
 }

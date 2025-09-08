@@ -9,7 +9,7 @@ expression: artifact
     "parameters": [],
     "return_type": null,
     "error_types": {
-      "5729188883020992044": {
+      "17173686737385481275": {
         "error_kind": "fmtstring",
         "length": 19,
         "item_types": []
@@ -23,8 +23,8 @@ expression: artifact
     "public parameters indices : []",
     "return value indices : []"
   ],
-  "debug_symbols": "XY5BCsQwCEXv4rqLWfcqw1BsaosgJtikMITefWyYQOlK/3/6tcJCc9km1jXuML4rzMYivE0SA2aO6m49B+hyykbkFty4byU00gyjFpEBDpTShvaE2mpGc/oagHTx6oErC13d+XGBge158UBjnIX+ci0abjR/Uyf942Qx0FKMrqTGPPsH",
-  "file_map": {},
+  "debug_symbols": "[debug_symbols]",
+  "file_map": "[file_map]",
   "names": [
     "main"
   ],

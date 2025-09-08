@@ -60,11 +60,11 @@ expression: artifact
       "visibility": "databus"
     },
     "error_types": {
-      "5019202896831570965": {
+      "14990209321349310352": {
         "error_kind": "string",
         "string": "attempt to add with overflow"
       },
-      "14225679739041873922": {
+      "16431471497789672479": {
         "error_kind": "string",
         "string": "Index out of bounds"
       }
@@ -117,13 +117,8 @@ expression: artifact
     "EXPR [ (1, _14) (-1, _32) 0 ]",
     "INIT RETURNDATA (id: 4, len: 4, witnesses: [_11, _12, _13, _14])"
   ],
-  "debug_symbols": "pZPNboQgEIDfhTMH/lzRV2kag4obEoKG1U0as+/ekVns7qFJQy9+wsw3oxPYyWj77dq5MM030n7spI/Oe3ft/DyY1c0BdvcHJXnZrdFa2CIvcbAWE21YSRs27ym5G7+lpNtiQuJqIkQZJTaMQCg4OW+Ptwf9sdnvqpRZlpKfevV3v66yXzcFvmLy6StW5HORfa7/17/Il7o5v5+V9Jd19lXJ/JXK81eVKOrPzv7v/ieszODi24klNfwyJTo9G5Ao4QzBQQMIhCTtBaAQFeKSNF6joDGzSRAspQieUoRIKUJiTCGwioAqGgBVYPRCI5oEyRAcIRASAVWOE3Y30Zne2+cFnLYwvNzH9WvJkXxjlzgPdtyiPSaRYjCbbw==",
-  "file_map": {
-    "50": {
-      "source": "// An simple program demonstrating two calldata array inputs and a single return data array. As an arbitrary example,\n// the return data is computed as a linear combination of the calldata.\nfn main(\n    mut x: [u32; 4],\n    y: call_data(0) [u32; 3],\n    z: call_data(1) [u32; 4],\n) -> return_data [u32; 4] {\n    let mut result = [0; 4];\n    for i in 0..3 {\n        let idx = x[i];\n        result[idx] = y[idx] + z[idx];\n    }\n    result[x[3]] = z[x[3]];\n    result\n}\n",
-      "path": ""
-    }
-  },
+  "debug_symbols": "[debug_symbols]",
+  "file_map": "[file_map]",
   "names": [
     "main"
   ],

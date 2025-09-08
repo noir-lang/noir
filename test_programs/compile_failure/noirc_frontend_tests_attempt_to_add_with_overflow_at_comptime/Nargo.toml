@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_attempt_to_add_with_overflow_at_comptime"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

@@ -19,11 +19,11 @@ expression: artifact
     ],
     "return_type": null,
     "error_types": {
-      "2920182694213909827": {
+      "1998584279744703196": {
         "error_kind": "string",
         "string": "attempt to subtract with overflow"
       },
-      "5019202896831570965": {
+      "14990209321349310352": {
         "error_kind": "string",
         "string": "attempt to add with overflow"
       }
@@ -63,13 +63,8 @@ expression: artifact
     "unconstrained func 0",
     "[Const { destination: Direct(10), bit_size: Integer(U32), value: 2 }, Const { destination: Direct(11), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(10), offset_address: Direct(11) }, BinaryFieldOp { destination: Direct(2), op: IntegerDiv, lhs: Direct(0), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Mul, lhs: Direct(2), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Sub, lhs: Direct(0), rhs: Direct(1) }, Mov { destination: Direct(0), source: Direct(2) }, Stop { return_data: HeapVector { pointer: Direct(11), size: Direct(10) } }]"
   ],
-  "debug_symbols": "zZLNqoMwEIXfZdZZGH+rr3IpEnUsgRAlTS4U8d07Bq1toRTSLro5k2TyTSaHmaDDxp1qqfvhDNXfBI2RSslTrYZWWDloOp1mBtu2tgaRjuAuT9QoDGoLlXZKMfgXyvlL51FoH60wlI0YoO4oUsFeKlxWM9vp6DUalyub8hucBdDFA32knWilefgtcKg4g5iweSlppGgUrj70Trd3ttjLuGU240YztNg5g0tRn1ua/FFby8PK8igN8JWnNz5LQvhk54Pez4uNL+IQPtv5D/t/4t9MFmniNfWa0awxyL0WUCUMDjSrDEqvPKKaFIjOKRCef2kwj/MV",
-  "file_map": {
-    "50": {
-      "source": "fn main(x: u32) {\n    assert(fibonacci(x) == 55);\n}\n\n#[fold]\nfn fibonacci(x: u32) -> u32 {\n    if x <= 1 {\n        x\n    } else {\n        fibonacci(x - 1) + fibonacci(x - 2)\n    }\n}\n",
-      "path": ""
-    }
-  },
+  "debug_symbols": "[debug_symbols]",
+  "file_map": "[file_map]",
   "names": [
     "main",
     "fibonacci"
