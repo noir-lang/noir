@@ -1,12 +1,12 @@
 use noirc_errors::call_stack::CallStackId;
+use rustc_stable_hash::{FromStableHash, SipHasher128Hash};
 use serde::{Deserialize, Serialize};
-use std::hash::{Hash, Hasher};
+use std::hash::Hash;
 
 use acvm::{
     AcirField,
     acir::{BlackBoxFunc, circuit::ErrorSelector},
 };
-use fxhash::FxHasher64;
 use iter_extended::vecmap;
 use noirc_frontend::hir_def::types::Type as HirType;
 
@@ -871,10 +871,22 @@ pub enum ErrorType {
 
 impl ErrorType {
     pub fn selector(&self) -> ErrorSelector {
-        let mut hasher = FxHasher64::default();
+        struct U64(pub u64);
+
+        impl FromStableHash for U64 {
+            type Hash = SipHasher128Hash;
+
+            fn from(hash: Self::Hash) -> Self {
+                Self(hash.0[0])
+            }
+        }
+
+        // We explicitly do not use `rustc-hash` here as we require hashes to be stable across 32- and 64-bit architectures.
+        let mut hasher =
+            rustc_stable_hash::StableHasher::<rustc_stable_hash::hashers::SipHasher128>::new();
         self.hash(&mut hasher);
-        let hash = hasher.finish();
-        ErrorSelector::new(hash)
+        let hash = hasher.finish::<U64>();
+        ErrorSelector::new(hash.0)
     }
 }
 

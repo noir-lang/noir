@@ -1,5 +1,5 @@
 use acvm::{AcirField, acir::brillig::MemoryAddress};
-use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use super::{BrilligContext, debug_show::DebugToString, registers::RegisterAllocator};
 
@@ -129,7 +129,7 @@ mod tests {
         FieldElement,
         acir::brillig::{MemoryAddress, Opcode},
     };
-    use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
+    use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
     use crate::{
         brillig::{

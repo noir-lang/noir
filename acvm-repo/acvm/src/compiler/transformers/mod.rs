@@ -15,6 +15,7 @@ mod csat;
 
 pub(crate) use csat::CSatTransformer;
 pub use csat::MIN_EXPRESSION_WIDTH;
+use std::hash::BuildHasher;
 use tracing::info;
 
 use super::{
@@ -65,7 +66,7 @@ pub(super) fn transform_internal<F: AcirField>(
     }
 
     // Allow multiple passes until we have stable output.
-    let mut prev_opcodes_hash = fxhash::hash64(&acir.opcodes);
+    let mut prev_opcodes_hash = rustc_hash::FxBuildHasher.hash_one(&acir.opcodes);
 
     // For most test programs it would be enough to loop here, but some of them
     // don't stabilize unless we also repeat the backend agnostic optimizations.
@@ -81,7 +82,7 @@ pub(super) fn transform_internal<F: AcirField>(
         acir = new_acir;
         acir_opcode_positions = new_acir_opcode_positions;
 
-        let new_opcodes_hash = fxhash::hash64(&acir.opcodes);
+        let new_opcodes_hash = rustc_hash::FxBuildHasher.hash_one(&acir.opcodes);
 
         if new_opcodes_hash == prev_opcodes_hash {
             break;
