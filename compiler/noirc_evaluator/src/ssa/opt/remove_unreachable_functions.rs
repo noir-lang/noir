@@ -21,7 +21,7 @@
 
 use std::collections::BTreeSet;
 
-use rustc_hash::FxHashSet as HashSet;
+use fxhash::FxHashSet as HashSet;
 
 use crate::ssa::{
     ir::{

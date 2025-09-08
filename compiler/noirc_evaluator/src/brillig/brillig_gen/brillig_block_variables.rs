@@ -11,7 +11,7 @@
 //! - Cached for reuse to avoid redundant register allocation.
 //! - Deallocated explicitly when no longer needed (as determined by SSA liveness).
 use acvm::FieldElement;
-use rustc_hash::FxHashSet as HashSet;
+use fxhash::FxHashSet as HashSet;
 
 use crate::{
     brillig::brillig_ir::{

@@ -41,7 +41,7 @@
 use std::collections::HashSet;
 
 use crate::ssa::ir::{basic_block::BasicBlockId, cfg::ControlFlowGraph, function::Function};
-use rustc_hash::FxHashMap as HashMap;
+use fxhash::FxHashMap as HashMap;
 
 /// Returns a `HashMap` mapping blocks that start a branch (i.e. blocks terminated with jmpif) to
 /// their corresponding blocks that end the branch.

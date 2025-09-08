@@ -30,7 +30,7 @@ toml.workspace = true
 [dependencies]
 clap.workspace = true
 fm.workspace = true
-rustc-hash.workspace = true
+fxhash.workspace = true
 iter-extended.workspace = true
 # This is the only crate that really needs the RPC feature,
 # but enabling it here implicitly enables it for the whole

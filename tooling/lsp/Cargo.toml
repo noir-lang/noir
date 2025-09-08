@@ -30,7 +30,7 @@ async-lsp = { workspace = true, features = ["omni-trait"] }
 thiserror.workspace = true
 fm.workspace = true
 rayon.workspace = true
-rustc-hash.workspace = true
+fxhash.workspace = true
 iter-extended.workspace = true
 convert_case = "0.6.0"
 num-bigint.workspace = true

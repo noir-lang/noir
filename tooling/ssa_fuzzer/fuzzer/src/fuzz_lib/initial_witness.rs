@@ -127,8 +127,7 @@ fn initialize_witness_map_internal(witness: &[WitnessValue]) -> (Vec<FieldElemen
                 types.push(type_);
                 for val in arr {
                     // types of inner arrays are ignored, because they are already added to the types vector
-                    let (values, _types) =
-                        initialize_witness_map_internal(std::slice::from_ref(val));
+                    let (values, _types) = initialize_witness_map_internal(&[val.clone()]);
                     witness_vec.extend(values);
                 }
             }

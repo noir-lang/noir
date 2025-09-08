@@ -141,7 +141,7 @@
 //! ```
 use std::sync::Arc;
 
-use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
+use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use acvm::{FieldElement, acir::AcirField, acir::BlackBoxFunc};
 use indexmap::set::IndexSet;

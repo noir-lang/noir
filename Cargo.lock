@@ -14,6 +14,7 @@ dependencies = [
  "color-eyre",
  "criterion",
  "flate2",
+ "fxhash",
  "insta",
  "noir_protobuf",
  "noirc_errors",
@@ -29,7 +30,6 @@ dependencies = [
  "regex",
  "rmp-serde",
  "rmpv",
- "rustc-hash",
  "serde",
  "serde-big-array",
  "serde-generate",
@@ -71,11 +71,11 @@ dependencies = [
  "bn254_blackbox_solver",
  "brillig_vm",
  "criterion",
+ "fxhash",
  "indexmap 2.11.0",
  "num-bigint",
  "pprof",
  "proptest",
- "rustc-hash",
  "serde",
  "thiserror 1.0.69",
  "tracing",
@@ -1991,6 +1991,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "fxhash"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c31b6d751ae2c7f11320402d34e41349dd1016f8d5d45e48c4312bc8625af50c"
+dependencies = [
+ "byteorder",
+]
+
+[[package]]
 name = "generic-array"
 version = "0.14.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3215,6 +3224,7 @@ dependencies = [
  "dirs",
  "fm",
  "fs2",
+ "fxhash",
  "iai",
  "insta",
  "iter-extended",
@@ -3244,7 +3254,6 @@ dependencies = [
  "proptest",
  "rayon",
  "regex",
- "rustc-hash",
  "serde",
  "serde_json",
  "sha2",
@@ -3507,6 +3516,7 @@ dependencies = [
  "convert_case",
  "fm",
  "fuzzy-matcher",
+ "fxhash",
  "iter-extended",
  "nargo",
  "nargo_expand",
@@ -3517,7 +3527,6 @@ dependencies = [
  "noirc_frontend",
  "num-bigint",
  "rayon",
- "rustc-hash",
  "serde",
  "serde_json",
  "strum",
@@ -3537,6 +3546,7 @@ dependencies = [
  "color-eyre",
  "const_format",
  "fm",
+ "fxhash",
  "im",
  "inferno",
  "nargo",
@@ -3546,7 +3556,6 @@ dependencies = [
  "noirc_driver",
  "noirc_errors",
  "noirc_evaluator",
- "rustc-hash",
  "serde",
  "serde_json",
  "tempfile",
@@ -3698,13 +3707,13 @@ dependencies = [
  "build-data",
  "clap",
  "fm",
+ "fxhash",
  "iter-extended",
  "noirc_abi",
  "noirc_errors",
  "noirc_evaluator",
  "noirc_frontend",
  "rust-embed",
- "rustc-hash",
  "serde",
  "tracing",
 ]
@@ -3719,8 +3728,8 @@ dependencies = [
  "codespan-reporting",
  "flate2",
  "fm",
+ "fxhash",
  "noirc_printable_type",
- "rustc-hash",
  "serde",
  "serde_json",
  "tracing",
@@ -3735,6 +3744,7 @@ dependencies = [
  "cfg-if",
  "chrono",
  "fm",
+ "fxhash",
  "im",
  "indexmap 2.11.0",
  "insta",
@@ -3748,7 +3758,6 @@ dependencies = [
  "petgraph 0.8.2",
  "proptest",
  "rayon",
- "rustc-hash",
  "serde",
  "serde_json",
  "serde_with",
@@ -3770,6 +3779,7 @@ dependencies = [
  "bn254_blackbox_solver",
  "cfg-if",
  "fm",
+ "fxhash",
  "im",
  "insta",
  "iter-extended",

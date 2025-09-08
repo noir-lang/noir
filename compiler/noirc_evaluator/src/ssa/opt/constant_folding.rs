@@ -37,7 +37,7 @@ use crate::ssa::{
     opt::pure::Purity,
     ssa_gen::Ssa,
 };
-use rustc_hash::FxHashMap as HashMap;
+use fxhash::FxHashMap as HashMap;
 
 impl Ssa {
     /// Performs constant folding on each instruction.

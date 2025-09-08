@@ -4,9 +4,9 @@
 //! DIE also tracks which block parameters are unused.
 //! Unused parameters are then pruned by the [prune_dead_parameters] pass.
 use acvm::{AcirField, FieldElement, acir::BlackBoxFunc};
+use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use noirc_errors::call_stack::CallStackId;
 use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
-use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::ssa::{
     ir::{

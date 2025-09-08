@@ -12,7 +12,7 @@ use crate::ssa::ir::{
     value::{Value, ValueId},
 };
 
-use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
+use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use super::constant_allocation::ConstantAllocation;
 
@@ -330,8 +330,8 @@ impl VariableLiveness {
 
 #[cfg(test)]
 mod test {
+    use fxhash::FxHashSet;
     use noirc_frontend::monomorphization::ast::InlineType;
-    use rustc_hash::FxHashSet;
 
     use crate::brillig::brillig_gen::constant_allocation::ConstantAllocation;
     use crate::brillig::brillig_gen::variable_liveness::VariableLiveness;

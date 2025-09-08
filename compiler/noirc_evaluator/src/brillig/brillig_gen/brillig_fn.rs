@@ -14,7 +14,7 @@ use crate::{
         value::ValueId,
     },
 };
-use rustc_hash::FxHashMap as HashMap;
+use fxhash::FxHashMap as HashMap;
 
 use super::{constant_allocation::ConstantAllocation, variable_liveness::VariableLiveness};
 
