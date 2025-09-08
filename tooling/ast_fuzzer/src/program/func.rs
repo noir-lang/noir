@@ -697,6 +697,7 @@ impl<'a> FunctionContext<'a> {
 
         // See how we can produce tgt from src.
         match (src_type, tgt_type) {
+            // Simple numeric conversions.
             (
                 Type::Field,
                 Type::Integer(Signedness::Unsigned, IntegerBitSize::HundredTwentyEight),
@@ -708,10 +709,12 @@ impl<'a> FunctionContext<'a> {
             {
                 src_as_tgt()
             }
+            // Dereference right into the target type.
             (Type::Reference(typ, _), _) if typ.as_ref() == tgt_type => {
                 let expr = expr::deref(src_expr, tgt_type.clone());
                 Ok(Some((expr, src_dyn)))
             }
+            // Mutable reference over the source type.
             (_, Type::Reference(typ, true)) if typ.as_ref() == src_type => {
                 let expr = if src_mutable {
                     expr::ref_mut(src_expr, typ.as_ref().clone())
@@ -720,6 +723,7 @@ impl<'a> FunctionContext<'a> {
                 };
                 Ok(Some((expr, src_dyn)))
             }
+            // Index a non-empty array.
             (Type::Array(len, item_type), _) if *len > 0 => {
                 // Indexing arrays that contains references with dynamic indexes was banned in #8888
                 // If we are already looking for an index where we can't use dynamic inputs,
@@ -761,6 +765,7 @@ impl<'a> FunctionContext<'a> {
                     max_depth,
                 )
             }
+            // Pop from the front of a slice.
             (Type::Slice(item_type), Type::Tuple(fields))
                 if fields.len() == 2
                     && &fields[0] == item_type.as_ref()
@@ -769,6 +774,7 @@ impl<'a> FunctionContext<'a> {
                 let pop_front = self.call_slice_pop(src_expr, src_type.clone(), true);
                 Ok(Some((pop_front, src_dyn)))
             }
+            // Pop from the back of a slice.
             (Type::Slice(item_type), Type::Tuple(fields))
                 if fields.len() == 2
                     && &fields[0] == src_type
@@ -777,6 +783,7 @@ impl<'a> FunctionContext<'a> {
                 let pop_back = self.call_slice_pop(src_expr, src_type.clone(), false);
                 Ok(Some((pop_back, src_dyn)))
             }
+            // Index a slice (might fail at runtime if empty).
             (Type::Slice(item_type), _) => {
                 // We don't know the length of the slice at compile time,
                 // so we need to call the builtin function to get it,
@@ -862,6 +869,7 @@ impl<'a> FunctionContext<'a> {
                 };
                 Ok(Some((expr, is_dyn)))
             }
+            // Extract a tuple field.
             (Type::Tuple(items), _) => {
                 // Any of the items might be able to produce the target type.
                 let mut opts = Vec::new();
