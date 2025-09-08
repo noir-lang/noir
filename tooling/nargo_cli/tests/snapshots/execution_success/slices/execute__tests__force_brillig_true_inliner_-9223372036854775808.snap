@@ -24,21 +24,21 @@ expression: artifact
     ],
     "return_type": null,
     "error_types": {
-      "5019202896831570965": {
-        "error_kind": "string",
-        "string": "attempt to add with overflow"
-      },
-      "12049594436772143978": {
+      "986260048197077973": {
         "error_kind": "string",
         "string": "array ref-count underflow detected"
       },
-      "14225679739041873922": {
+      "14990209321349310352": {
         "error_kind": "string",
-        "string": "Index out of bounds"
+        "string": "attempt to add with overflow"
       },
-      "17843811134343075018": {
+      "15764276373176857197": {
         "error_kind": "string",
         "string": "Stack too deep"
+      },
+      "16431471497789672479": {
+        "error_kind": "string",
+        "string": "Index out of bounds"
       }
     }
   },

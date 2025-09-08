@@ -20,7 +20,8 @@ pub(super) fn evaluate_infix(
         let rhs = rhs_type.clone();
         InterpreterError::InvalidValuesForBinary { lhs, rhs, location, operator }
     };
-
+    let lhs_overflow = InterpreterError::BinaryOperationOverflow { operator: "<<", location };
+    let rhs_overflow = InterpreterError::BinaryOperationOverflow { operator: ">>", location };
     let math_error = |operator| InterpreterError::BinaryOperationOverflow { location, operator };
 
     /// Generate matches that can promote the type of one side to the other if they are compatible.
@@ -184,11 +185,20 @@ pub(super) fn evaluate_infix(
         },
         #[allow(trivial_numeric_casts)]
         BinaryOpKind::ShiftRight => match_integer! {
-            (lhs_value as lhs ">>" rhs_value as rhs) => lhs.checked_shr(rhs as u32)
+            (lhs_value as lhs ">>" rhs_value as rhs) => {
+                #[allow(unused_comparisons, clippy::absurd_extreme_comparisons)]
+                if rhs > 127 {return Err(rhs_overflow);}
+                lhs.checked_shr(rhs as u32)
+            }
         },
         #[allow(trivial_numeric_casts)]
         BinaryOpKind::ShiftLeft => match_integer! {
-            (lhs_value as lhs "<<" rhs_value as rhs) => lhs.checked_shl(rhs as u32)
+            (lhs_value as lhs "<<" rhs_value as rhs) => {
+                #[allow(unused_comparisons, clippy::absurd_extreme_comparisons)]
+                if rhs > 127 {return Err(lhs_overflow);}
+                lhs.checked_shl(
+                rhs as u32
+            )}
         },
         BinaryOpKind::Modulo => match (&lhs_value, &rhs_value) {
             (Value::I8(i8::MIN), Value::I8(-1)) => Ok(Value::I8(0)),
