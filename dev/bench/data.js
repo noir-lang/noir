@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1757353051333,
+  "lastUpdate": 1757353054381,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -12112,80 +12112,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "515fb4208408720454751f6fbeefe9acfe5c4ec2",
-          "message": "chore: add two mem2reg regression tests where references are returned (#9670)",
-          "timestamp": "2025-08-28T21:08:04Z",
-          "tree_id": "517e97aab6cfb28561d6c7fc2edda6703ca29115",
-          "url": "https://github.com/noir-lang/noir/commit/515fb4208408720454751f6fbeefe9acfe5c4ec2"
-        },
-        "date": 1756418054656,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 213.88,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 247.08,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 198.71,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 502.47,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 434.93,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1500,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 329.26,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 331.79,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 70.43,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 57.32,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -15755,6 +15681,80 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/8a6ef48f8fa2fb35a584a396f0a0f1691de9da66"
         },
         "date": 1757349860804,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 258.16,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 291.32,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 242.9,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 506.04,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 438.42,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1500,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 330.5,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 333.02,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 72.45,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 58.23,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "d664016a1d52b6262f0ad378b9bf98d380ff650f",
+          "message": "chore: add test for when pending snapshots are committed (#9757)",
+          "timestamp": "2025-09-08T16:51:07Z",
+          "tree_id": "a68d25f3bfc396733f048daa3e1e656ba2ebea0e",
+          "url": "https://github.com/noir-lang/noir/commit/d664016a1d52b6262f0ad378b9bf98d380ff650f"
+        },
+        "date": 1757353031762,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
