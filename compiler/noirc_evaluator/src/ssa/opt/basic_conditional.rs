@@ -309,6 +309,12 @@ impl Context<'_> {
         self.no_predicate = true;
         //1. process 'then' branch
         self.inline_block(conditional.block_entry, no_predicates);
+        if self.simplify_jmpif(conditional.block_entry) {
+            // If we've successfully resolved the jmpif condition to a constant then there's no need to
+            // process the conditional, it will be removed on the next time we call `simplify_cfg`.
+            return;
+        }
+
         let mut work_list = WorkList::new();
         let to_process = self.handle_terminator(conditional.block_entry, &work_list);
         work_list.extend(to_process);
@@ -418,7 +424,11 @@ mod test {
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) predicate_pure fn main f0 {
           b0():
-            return Field 0
+            jmp b1()
+          b1():
+            jmp b2(Field 0)
+          b2(v0: Field):
+            return v0
         }
         ");
     }

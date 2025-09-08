@@ -579,7 +579,7 @@ impl<'f> Context<'f> {
         }
     }
 
-    fn simplify_jmpif(&mut self, block: BasicBlockId) {
+    pub(crate) fn simplify_jmpif(&mut self, block: BasicBlockId) -> bool {
         self.inserter.map_terminator_in_place(block);
 
         if let Some(TerminatorInstruction::JmpIf {
@@ -597,8 +597,10 @@ impl<'f> Context<'f> {
                 let call_stack = *call_stack;
                 let jmp = TerminatorInstruction::Jmp { destination, arguments, call_stack };
                 self.inserter.function.dfg[block].set_terminator(jmp);
+                return true;
             }
         }
+        false
     }
 
     /// Process a conditional statement by creating a `ConditionalContext`
