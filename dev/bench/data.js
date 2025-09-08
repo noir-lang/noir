@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1757340321695,
+  "lastUpdate": 1757346237912,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -20206,48 +20206,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "15a18e6051177bd4f57de9cb4c5c68019045094c",
-          "message": "chore: redact debug info and file maps from snapshots (#9666)",
-          "timestamp": "2025-08-28T15:27:58+01:00",
-          "tree_id": "2bd746d8e27958b42be1a9a7379d8b21dd92b928",
-          "url": "https://github.com/noir-lang/noir/commit/15a18e6051177bd4f57de9cb4c5c68019045094c"
-        },
-        "date": 1756391428471,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 249092,
-            "range": "± 984",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 218235,
-            "range": "± 2616",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2781167,
-            "range": "± 10543",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "26174818+jialinli98@users.noreply.github.com",
             "name": "Jialin Li",
             "username": "jialinli98"
@@ -22299,6 +22257,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2784262,
             "range": "± 2818",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "2ce164ea961d627e6ad821d7722006527a707d32",
+          "message": "fix(fuzz): Install `just` in nightly fuzz workflow (#9756)",
+          "timestamp": "2025-09-08T15:08:24Z",
+          "tree_id": "d4a6e50084f84e72171af251dbbc421d7bf1f5e4",
+          "url": "https://github.com/noir-lang/noir/commit/2ce164ea961d627e6ad821d7722006527a707d32"
+        },
+        "date": 1757346217660,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 245047,
+            "range": "± 1044",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 216291,
+            "range": "± 807",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2782027,
+            "range": "± 2701",
             "unit": "ns/iter"
           }
         ]
