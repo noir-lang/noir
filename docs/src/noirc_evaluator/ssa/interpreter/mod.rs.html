@@ -1721,9 +1721,9 @@
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{instruction::binary::truncate_field, printer::display_binary};
 <span class="kw">use </span>acvm::{AcirField, FieldElement};
 <span class="kw">use </span>errors::{InternalError, InterpreterError, MAX_UNSIGNED_BIT_SIZE};
-<span class="kw">use </span>fxhash::FxHashMap <span class="kw">as </span>HashMap;
 <span class="kw">use </span>iter_extended::{try_vecmap, vecmap};
 <span class="kw">use </span>noirc_frontend::Shared;
+<span class="kw">use </span>rustc_hash::FxHashMap <span class="kw">as </span>HashMap;
 <span class="kw">use </span>value::{ArrayValue, NumericValue, ReferenceValue};
 
 <span class="kw">pub mod </span>errors;

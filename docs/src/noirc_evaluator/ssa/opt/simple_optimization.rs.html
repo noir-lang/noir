@@ -193,7 +193,11 @@
 <a href="#192" id="192">192</a>
 <a href="#193" id="193">193</a>
 <a href="#194" id="194">194</a>
-<a href="#195" id="195">195</a></pre></div><pre class="rust"><code><span class="kw">use </span>iter_extended::vecmap;
+<a href="#195" id="195">195</a>
+<a href="#196" id="196">196</a>
+<a href="#197" id="197">197</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::hash::BuildHasher;
+
+<span class="kw">use </span>iter_extended::vecmap;
 <span class="kw">use </span>noirc_errors::call_stack::CallStackId;
 
 <span class="kw">use </span>acvm::FieldElement;
@@ -264,7 +268,7 @@
             <span class="kw">for </span>instruction_id <span class="kw">in </span><span class="kw-2">&amp;</span>instruction_ids {
                 <span class="kw">let </span>instruction_id = <span class="kw-2">*</span>instruction_id;
                 <span class="kw">let </span>instruction = <span class="kw-2">&amp;mut </span><span class="self">self</span>.dfg[instruction_id];
-                <span class="kw">let </span>orig_instruction_hash = fxhash::hash64(instruction);
+                <span class="kw">let </span>orig_instruction_hash = rustc_hash::FxBuildHasher.hash_one(<span class="kw-2">&amp;</span>instruction);
                 <span class="kw">if </span>!values_to_replace.is_empty() {
                     instruction.replace_values(<span class="kw-2">&amp;</span>values_to_replace);
                 }
@@ -331,7 +335,7 @@
     </span><span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">fn </span>insert_current_instruction(<span class="kw-2">&amp;mut </span><span class="self">self</span>) {
         <span class="comment">// If the instruction changed, then there is a chance that we can (or have to)
         // simplify it before we insert it back into the block.
-        </span><span class="kw">let </span>instruction_hash = fxhash::hash64(<span class="self">self</span>.instruction());
+        </span><span class="kw">let </span>instruction_hash = rustc_hash::FxBuildHasher.hash_one(<span class="self">self</span>.instruction());
         <span class="kw">let </span>simplify = <span class="self">self</span>.orig_instruction_hash != instruction_hash;
 
         <span class="kw">if </span>simplify {
