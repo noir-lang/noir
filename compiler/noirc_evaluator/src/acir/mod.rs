@@ -7,7 +7,7 @@
 //! The compiled program will be returned as an [`Artifacts`] type.
 
 use noirc_errors::call_stack::CallStack;
-use rustc_hash::{FxHashSet as HashSet, FxHashMap as HashMap};
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use std::collections::BTreeMap;
 use types::{AcirDynamicArray, AcirValue};
 
