@@ -3,7 +3,7 @@ use std::{borrow::Cow, rc::Rc};
 use im::HashSet;
 use iter_extended::vecmap;
 use noirc_errors::Location;
-use rustc_hash::FxhashMap as HashMap;
+use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
     Generics, Kind, NamedGeneric, ResolvedGeneric, Type, TypeBinding, TypeBindings,

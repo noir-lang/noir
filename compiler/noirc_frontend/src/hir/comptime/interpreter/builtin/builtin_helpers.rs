@@ -38,7 +38,7 @@ use crate::{
     shared::Signedness,
     token::{SecondaryAttribute, Token, Tokens},
 };
-use rustc_hash::FxhashMap as HashMap;
+use rustc_hash::FxHashMap as HashMap;
 
 pub(crate) fn check_argument_count(
     expected: usize,

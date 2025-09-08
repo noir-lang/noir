@@ -15,7 +15,7 @@ use im::Vector;
 use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
 use num_bigint::BigUint;
-use rustc_hash::FxhashMap as HashMap;
+use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
     Kind, NamedGeneric, QuotedType, ResolvedGeneric, Shared, Type, TypeBindings, TypeVariable,

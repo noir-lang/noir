@@ -27,7 +27,7 @@ use crate::{
     signed_field::SignedField,
     token::{IntegerTypeSuffix, LocatedToken, Token, Tokens},
 };
-use rustc_hash::FxhashMap as HashMap;
+use rustc_hash::FxHashMap as HashMap;
 
 use super::{
     display::tokens_to_string,

@@ -6,7 +6,7 @@ use noirc_arena::{Arena, Index};
 use noirc_errors::{Location, Span};
 use petgraph::prelude::DiGraph;
 use petgraph::prelude::NodeIndex as PetGraphIndex;
-use rustc_hash::FxhashMap as HashMap;
+use rustc_hash::FxHashMap as HashMap;
 
 use crate::QuotedType;
 use crate::ast::{

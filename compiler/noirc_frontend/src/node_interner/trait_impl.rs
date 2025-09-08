@@ -1,6 +1,6 @@
 use iter_extended::vecmap;
 use noirc_errors::Location;
-use rustc_hash::FxhashMap as HashMap;
+use rustc_hash::FxHashMap as HashMap;
 use std::collections::HashSet;
 
 use crate::{

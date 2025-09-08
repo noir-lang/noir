@@ -32,7 +32,7 @@ use noirc_errors::{CustomDiagnostic, Location, Span};
 
 use fm::FileId;
 use iter_extended::vecmap;
-use rustc_hash::FxhashMap as HashMap;
+use rustc_hash::FxHashMap as HashMap;
 use std::collections::BTreeMap;
 use std::fmt::Write;
 use std::ops::IndexMut;
