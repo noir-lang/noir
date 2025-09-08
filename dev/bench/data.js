@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1757328910834,
+  "lastUpdate": 1757328912822,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22303,90 +22303,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "3906847dbcb7d33a0b9e6d340c60c9785c5df978",
-          "message": "feat: brillig functions can be pure if they are not entry points (#9659)",
-          "timestamp": "2025-08-28T12:02:33Z",
-          "tree_id": "aa58d8f364cb2e8d8803d06fe0a21894874a7aff",
-          "url": "https://github.com/noir-lang/noir/commit/3906847dbcb7d33a0b9e6d340c60c9785c5df978"
-        },
-        "date": 1756384493211,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 709.4,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 2033.2,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 537,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 4320,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 3334.7,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 3855.1,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 30753.8,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 30786.8,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 188.2,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 391,
-            "unit": "KB"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 631.5,
-            "unit": "KB"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 525.5,
-            "unit": "KB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -26481,6 +26397,90 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-merge",
             "value": 188.1,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 390.6,
+            "unit": "KB"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 631.9,
+            "unit": "KB"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 525.5,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "distinct": true,
+          "id": "da7ea9a55c915d51de1667a841ceeab8a990ad6d",
+          "message": "Revert \"chore: migrate away from fxhash to address advisory (#9750)\"\n\nThis reverts commit 20c77406b405999043aa60768cba8a6ad9c79ec4.",
+          "timestamp": "2025-09-08T10:46:36Z",
+          "tree_id": "224f37abd3f7c2091c8ea2979885c5c72097aa8c",
+          "url": "https://github.com/noir-lang/noir/commit/da7ea9a55c915d51de1667a841ceeab8a990ad6d"
+        },
+        "date": 1757328889966,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 709.5,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 2025,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 531.6,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 4349,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 3353.3,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 3813.5,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 30682.2,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 30720.3,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 188,
             "unit": "KB"
           },
           {
