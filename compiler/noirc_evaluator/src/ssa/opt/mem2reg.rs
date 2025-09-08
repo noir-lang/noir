@@ -2125,4 +2125,132 @@ mod tests {
         ";
         assert_ssa_does_not_change(src, Ssa::mem2reg);
     }
+
+    // This test is currently asserting undesirable behavior!
+    // See https://github.com/noir-lang/noir/issues/9745 for more info.
+    #[test]
+    fn prefers_preserving_load_in_same_block_as_store() {
+        // Here we have the mutable references `v2`, `v3`, `v4` and `v5` loaded in `b2` and then again in
+        // `b4`. The values loaded in `b2` are never used however `b2` dominates `b4` (so b4 can use the values loaded
+        // in `b2`).
+        //
+        // The compiler can then choose to discard either the loads in `b2` or in `b4`. In some situations it may be
+        // preferable for the compiler to keep the loads in `b2` (e.g. we want to keep the load of `v4` as it's used in
+        // `b2` itself), but here it's preferable for us to load most of these values only once we enter `b4`.
+        let src = r#"
+        brillig(inline) fn perform_duplex f5 {
+          b0(v2: &mut [Field; 3], v3: &mut [Field; 4], v4: &mut u32, v5: &mut u1):
+            jmp b1(u32 0)
+          b1(v6: u32):
+            v8 = lt v6, u32 3
+            jmpif v8 then: b2, else: b3
+          b2():
+            v20 = load v2 -> [Field; 3]
+            v21 = load v3 -> [Field; 4]
+            v22 = load v4 -> u32
+            v23 = load v5 -> u1
+            v24 = lt v6, v22
+            jmpif v24 then: b4, else: b5
+          b3():
+            v9 = load v2 -> [Field; 3]
+            v10 = load v3 -> [Field; 4]
+            v11 = load v4 -> u32
+            v12 = load v5 -> u1
+            inc_rc v10
+            v15 = call poseidon2_permutation(v10, u32 4) -> [Field; 4]
+            v16 = load v2 -> [Field; 3]
+            v17 = load v3 -> [Field; 4]
+            v18 = load v4 -> u32
+            v19 = load v5 -> u1
+            store v16 at v2
+            store v15 at v3
+            store v18 at v4
+            store v19 at v5
+            return
+          b4():
+            v25 = load v2 -> [Field; 3]
+            v26 = load v3 -> [Field; 4]
+            v27 = load v4 -> u32
+            v28 = load v5 -> u1
+            v29 = lt v6, u32 4
+            constrain v29 == u1 1, "Index out of bounds"
+            v31 = array_get v26, index v6 -> Field
+            v32 = load v2 -> [Field; 3]
+            v33 = load v3 -> [Field; 4]
+            v34 = load v4 -> u32
+            v35 = load v5 -> u1
+            v36 = lt v6, u32 3
+            constrain v36 == u1 1, "Index out of bounds"
+            v37 = array_get v32, index v6 -> Field
+            v38 = add v31, v37
+            v39 = load v2 -> [Field; 3]
+            v40 = load v3 -> [Field; 4]
+            v41 = load v4 -> u32
+            v42 = load v5 -> u1
+            v43 = lt v6, u32 4
+            constrain v43 == u1 1, "Index out of bounds"
+            v44 = array_set v40, index v6, value v38
+            v46 = unchecked_add v6, u32 1
+            store v39 at v2
+            store v44 at v3
+            store v41 at v4
+            store v42 at v5
+            jmp b5()
+          b5():
+            v47 = unchecked_add v6, u32 1
+            jmp b1(v47)
+        }"#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
+
+        assert_ssa_snapshot!(ssa, @r#"
+        brillig(inline) fn perform_duplex f0 {
+          b0(v0: &mut [Field; 3], v1: &mut [Field; 4], v2: &mut u32, v3: &mut u1):
+            jmp b1(u32 0)
+          b1(v4: u32):
+            v7 = lt v4, u32 3
+            jmpif v7 then: b2, else: b3
+          b2():
+            v15 = load v0 -> [Field; 3]
+            v16 = load v1 -> [Field; 4]
+            v17 = load v2 -> u32
+            v18 = load v3 -> u1
+            v19 = lt v4, v17
+            jmpif v19 then: b4, else: b5
+          b3():
+            v8 = load v0 -> [Field; 3]
+            v9 = load v1 -> [Field; 4]
+            v10 = load v2 -> u32
+            v11 = load v3 -> u1
+            inc_rc v9
+            v14 = call poseidon2_permutation(v9, u32 4) -> [Field; 4]
+            store v8 at v0
+            store v14 at v1
+            store v10 at v2
+            store v11 at v3
+            return
+          b4():
+            v20 = lt v4, u32 4
+            constrain v20 == u1 1, "Index out of bounds"
+            v22 = array_get v16, index v4 -> Field
+            v23 = lt v4, u32 3
+            constrain v23 == u1 1, "Index out of bounds"
+            v24 = array_get v15, index v4 -> Field
+            v25 = add v22, v24
+            v26 = lt v4, u32 4
+            constrain v26 == u1 1, "Index out of bounds"
+            v27 = array_set v16, index v4, value v25
+            v29 = unchecked_add v4, u32 1
+            store v15 at v0
+            store v27 at v1
+            store v17 at v2
+            store v18 at v3
+            jmp b5()
+          b5():
+            v30 = unchecked_add v4, u32 1
+            jmp b1(v30)
+        }
+        "#);
+    }
 }
