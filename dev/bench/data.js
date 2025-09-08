@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1757103973591,
+  "lastUpdate": 1757323031765,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -20201,48 +20201,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "3e195c6b421079b23f71ec141e866a8a313d40a8",
-          "message": "chore(ssa): Refactor `unrolling` (#9653)",
-          "timestamp": "2025-08-27T20:40:43Z",
-          "tree_id": "11a7c677e09d824fbe47a62d2948fe470ca80d46",
-          "url": "https://github.com/noir-lang/noir/commit/3e195c6b421079b23f71ec141e866a8a313d40a8"
-        },
-        "date": 1756328860494,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 249352,
-            "range": "± 568",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 217829,
-            "range": "± 1805",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2779394,
-            "range": "± 1983",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "radikpadik76@gmail.com",
             "name": "radik878",
             "username": "radik878"
@@ -22294,6 +22252,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2786483,
             "range": "± 2496",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "163862677+noirwhal@users.noreply.github.com",
+            "name": "noirwhal",
+            "username": "noirwhal"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "55afd6f787eb29daaec0236db80a8279b4df3e89",
+          "message": "chore: bump external pinned commits (#9748)\n\nCo-authored-by: noirwhal <tomfrench@aztecprotocol.com>",
+          "timestamp": "2025-09-08T10:14:21+01:00",
+          "tree_id": "224f37abd3f7c2091c8ea2979885c5c72097aa8c",
+          "url": "https://github.com/noir-lang/noir/commit/55afd6f787eb29daaec0236db80a8279b4df3e89"
+        },
+        "date": 1757323012020,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 261014,
+            "range": "± 691",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 227703,
+            "range": "± 1143",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2782201,
+            "range": "± 883",
             "unit": "ns/iter"
           }
         ]
