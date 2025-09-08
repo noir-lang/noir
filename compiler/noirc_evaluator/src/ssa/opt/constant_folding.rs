@@ -1116,6 +1116,7 @@ mod test {
         assert_normalized_ssa_equals(ssa, expected);
     }
 
+    // TODO: https://github.com/noir-lang/noir/issues/9767
     #[test]
     fn constant_fold_duplicated_field_divisions() {
         // We should remove the duplicated field inversions here.
