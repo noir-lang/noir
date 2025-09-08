@@ -37,25 +37,25 @@ expression: artifact
     ],
     "return_type": null,
     "error_types": {
-      "2920182694213909827": {
-        "error_kind": "string",
-        "string": "attempt to subtract with overflow"
-      },
-      "5019202896831570965": {
-        "error_kind": "string",
-        "string": "attempt to add with overflow"
-      },
-      "7233212735005103307": {
+      "361444214588792908": {
         "error_kind": "string",
         "string": "attempt to multiply with overflow"
       },
-      "13958753312450585022": {
+      "1998584279744703196": {
+        "error_kind": "string",
+        "string": "attempt to subtract with overflow"
+      },
+      "5421095327929394772": {
+        "error_kind": "string",
+        "string": "attempt to bit-shift with overflow"
+      },
+      "7132025627426189893": {
         "error_kind": "string",
         "string": "Field failed to decompose into specified 7 limbs"
       },
-      "14514982005979867414": {
+      "14990209321349310352": {
         "error_kind": "string",
-        "string": "attempt to bit-shift with overflow"
+        "string": "attempt to add with overflow"
       }
     }
   },
