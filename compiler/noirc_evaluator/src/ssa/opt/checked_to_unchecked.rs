@@ -4,7 +4,7 @@
 //! Signed checked binary operations should have already been converted to unchecked ones with
 //! an explicit overflow check during [`super::expand_signed_checks`].
 use acvm::AcirField as _;
-use fxhash::FxHashMap as HashMap;
+use rustc_hash::FxHashMap as HashMap;
 
 use crate::ssa::{
     ir::{
