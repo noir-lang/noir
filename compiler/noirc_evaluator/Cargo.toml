@@ -17,6 +17,7 @@ noirc_errors.workspace = true
 acvm.workspace = true
 bn254_blackbox_solver.workspace = true
 rustc-hash.workspace = true
+rustc-stable-hash = "^0.1.2"
 iter-extended.workspace = true
 thiserror.workspace = true
 noirc_printable_type.workspace = true

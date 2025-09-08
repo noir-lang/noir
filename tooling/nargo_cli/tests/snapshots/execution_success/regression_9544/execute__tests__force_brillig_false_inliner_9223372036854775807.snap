@@ -26,13 +26,13 @@ expression: artifact
       "visibility": "public"
     },
     "error_types": {
-      "360331956598878543": {
-        "error_kind": "string",
-        "string": "attempt to bit-shift with overflow"
-      },
-      "6633451728158479105": {
+      "2561832918745063247": {
         "error_kind": "string",
         "string": "Field failed to decompose into specified 6 limbs"
+      },
+      "5421095327929394772": {
+        "error_kind": "string",
+        "string": "attempt to bit-shift with overflow"
       }
     }
   },

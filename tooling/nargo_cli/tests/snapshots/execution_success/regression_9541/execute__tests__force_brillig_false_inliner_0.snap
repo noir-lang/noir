@@ -35,11 +35,11 @@ expression: artifact
       "visibility": "public"
     },
     "error_types": {
-      "360331956598878543": {
+      "5421095327929394772": {
         "error_kind": "string",
         "string": "attempt to bit-shift with overflow"
       },
-      "17655202340205198738": {
+      "5476849662351484621": {
         "error_kind": "string",
         "string": "Field failed to decompose into specified 5 limbs"
       }

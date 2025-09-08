@@ -9,7 +9,7 @@ expression: artifact
     "parameters": [],
     "return_type": null,
     "error_types": {
-      "13933120620573868840": {
+      "8349201895833204876": {
         "error_kind": "string",
         "string": ""
       }

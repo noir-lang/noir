@@ -22,7 +22,7 @@ expression: artifact
       "visibility": "public"
     },
     "error_types": {
-      "12563204955368740356": {
+      "3294911965240198865": {
         "error_kind": "string",
         "string": "attempt to divide by zero"
       }

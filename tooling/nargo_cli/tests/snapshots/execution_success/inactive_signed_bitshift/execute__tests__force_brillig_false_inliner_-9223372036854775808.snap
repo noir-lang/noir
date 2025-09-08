@@ -33,11 +33,11 @@ expression: artifact
       "visibility": "public"
     },
     "error_types": {
-      "360331956598878543": {
+      "5421095327929394772": {
         "error_kind": "string",
         "string": "attempt to bit-shift with overflow"
       },
-      "2579018993939824888": {
+      "11019205087382408538": {
         "error_kind": "string",
         "string": "Field failed to decompose into specified 4 limbs"
       }
