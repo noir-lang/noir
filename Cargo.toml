@@ -184,7 +184,7 @@ thiserror = "1.0.21"
 toml = "0.7.2"
 url = "2.5.4"
 base64 = "^0.22.1"
-rustc-hash = "2.1.1"
+fxhash = "0.2.1"
 build-data = "^0.3.3"
 bincode = { version = "^2.0.1", features = ["serde"] }
 hex = "0.4.2"

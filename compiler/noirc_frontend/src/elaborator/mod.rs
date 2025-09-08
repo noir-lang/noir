@@ -71,6 +71,7 @@ pub mod types;
 mod unquote;
 
 use function_context::FunctionContext;
+use fxhash::FxHashMap as HashMap;
 use im::HashSet;
 use iter_extended::vecmap;
 use noirc_errors::{Located, Location};
@@ -80,7 +81,6 @@ pub use path_resolution::Turbofish;
 use path_resolution::{
     PathResolution, PathResolutionItem, PathResolutionMode, PathResolutionTarget,
 };
-use rustc_hash::FxHashMap as HashMap;
 use types::bind_ordered_generics;
 
 use self::traits::check_trait_impl_method_matches_declaration;

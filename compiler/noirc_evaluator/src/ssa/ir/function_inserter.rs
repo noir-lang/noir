@@ -8,7 +8,7 @@ use super::{
     instruction::{Instruction, InstructionId},
     value::ValueId,
 };
-use rustc_hash::FxHashMap as HashMap;
+use fxhash::FxHashMap as HashMap;
 
 /// The FunctionInserter can be used to help modify existing Functions
 /// and map old values to new values after re-inserting optimized versions

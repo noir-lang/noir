@@ -92,7 +92,7 @@
 
 use std::collections::hash_map::Entry;
 
-use rustc_hash::FxHashMap as HashMap;
+use fxhash::FxHashMap as HashMap;
 
 use crate::errors::RtResult;
 

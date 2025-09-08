@@ -16,7 +16,7 @@ use core::panic;
 use std::sync::Arc;
 
 use acvm::{AcirField, FieldElement, acir::BlackBoxFunc};
-use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
+use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 pub(crate) mod dynamic_array_indices;
 

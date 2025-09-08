@@ -64,7 +64,7 @@ use crate::{
         ssa_gen::Ssa,
     },
 };
-use rustc_hash::FxHashMap as HashMap;
+use fxhash::FxHashMap as HashMap;
 
 impl Ssa {
     /// Loop unrolling can return errors, since ACIR functions need to be fully unrolled.

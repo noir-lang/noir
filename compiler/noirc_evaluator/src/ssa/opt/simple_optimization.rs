@@ -1,5 +1,3 @@
-use std::hash::BuildHasher;
-
 use iter_extended::vecmap;
 use noirc_errors::call_stack::CallStackId;
 
@@ -71,7 +69,7 @@ impl Function {
             for instruction_id in &instruction_ids {
                 let instruction_id = *instruction_id;
                 let instruction = &mut self.dfg[instruction_id];
-                let orig_instruction_hash = rustc_hash::FxBuildHasher.hash_one(&instruction);
+                let orig_instruction_hash = fxhash::hash64(instruction);
                 if !values_to_replace.is_empty() {
                     instruction.replace_values(&values_to_replace);
                 }
@@ -138,7 +136,7 @@ impl SimpleOptimizationContext<'_, '_> {
     pub(crate) fn insert_current_instruction(&mut self) {
         // If the instruction changed, then there is a chance that we can (or have to)
         // simplify it before we insert it back into the block.
-        let instruction_hash = rustc_hash::FxBuildHasher.hash_one(self.instruction());
+        let instruction_hash = fxhash::hash64(self.instruction());
         let simplify = self.orig_instruction_hash != instruction_hash;
 
         if simplify {
