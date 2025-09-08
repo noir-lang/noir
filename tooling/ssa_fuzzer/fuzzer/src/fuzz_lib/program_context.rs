@@ -6,7 +6,7 @@ use super::{
 use acvm::FieldElement;
 use noir_ssa_fuzzer::{
     builder::{FuzzerBuilder, FuzzerBuilderError},
-    typed_value::ValueType,
+    typed_value::Type,
 };
 use noirc_driver::CompiledProgram;
 use noirc_evaluator::ssa::ir::{function::Function, map::Id};
@@ -15,7 +15,7 @@ use std::collections::BTreeMap;
 struct StoredFunction {
     id: Id<Function>,
     function: FunctionData,
-    types: Vec<ValueType>,
+    types: Vec<Type>,
 }
 
 /// FuzzerProgramContext is a context for storing and processing SSA functions
@@ -98,12 +98,12 @@ impl FuzzerProgramContext {
     }
 
     /// Stores function and its signature
-    pub(crate) fn process_function(&mut self, function: FunctionData, types: Vec<ValueType>) {
+    pub(crate) fn process_function(&mut self, function: FunctionData, types: Vec<Type>) {
         // leaving max_unrolled_size = 0 for now
         //
         let signature = FunctionInfo {
             input_types: types.clone(),
-            return_type: function.return_type,
+            return_type: function.return_type.clone(),
             max_unrolled_size: 0,
         };
         self.function_information.insert(self.current_function_id, signature);
@@ -235,11 +235,11 @@ impl FuzzerProgramContext {
                     self.values
                         .iter()
                         .zip(stored_function.types.iter())
-                        .map(|(value, type_)| (*value, *type_))
+                        .map(|(value, type_)| (*value, type_.unwrap_numeric()))
                         .collect(),
                     &self.instruction_blocks,
                     self.program_context_options.clone(),
-                    stored_function.function.return_type,
+                    stored_function.function.return_type.clone(),
                     defined_functions,
                     &mut self.acir_builder,
                     &mut self.brillig_builder,
@@ -249,7 +249,7 @@ impl FuzzerProgramContext {
                     stored_function.types.to_vec(),
                     &self.instruction_blocks,
                     self.program_context_options.clone(),
-                    stored_function.function.return_type,
+                    stored_function.function.return_type.clone(),
                     defined_functions,
                     &mut self.acir_builder,
                     &mut self.brillig_builder,

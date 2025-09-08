@@ -16,7 +16,7 @@ use core::panic;
 use std::sync::Arc;
 
 use acvm::{AcirField, FieldElement, acir::BlackBoxFunc};
-use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 pub(crate) mod dynamic_array_indices;
 
@@ -657,6 +657,20 @@ impl<'f> Validator<'f> {
         }
     }
 
+    /// Validates that acir functions are not called from unconstrained code.
+    fn check_calls_in_unconstrained(&self, instruction: InstructionId) {
+        if self.function.runtime().is_brillig() {
+            if let Instruction::Call { func, .. } = &self.function.dfg[instruction] {
+                if let Value::Function(func_id) = &self.function.dfg[*func] {
+                    let called_function = &self.ssa.functions[func_id];
+                    if called_function.runtime().is_acir() {
+                        panic!("Call to acir function {} from unconstrained code", func_id);
+                    }
+                }
+            }
+        }
+    }
+
     fn type_check_globals(&self) {
         let globals = (*self.function.dfg.globals).clone();
         for (_, global) in globals.values_iter() {
@@ -675,6 +689,7 @@ impl<'f> Validator<'f> {
             for instruction in self.function.dfg[block].instructions() {
                 self.validate_field_to_integer_cast_invariant(*instruction);
                 self.type_check_instruction(*instruction);
+                self.check_calls_in_unconstrained(*instruction);
             }
         }
     }
@@ -1263,6 +1278,25 @@ mod tests {
           b0(v0: [(Field, Field, Field); 3], v1: [(Field, Field); 3], v2: u1):
             v3 = call multi_scalar_mul(v0, v1, v2) -> [(Field, Field, u1); 1]
             return v3
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "Call to acir function f1 from unconstrained code")]
+    fn disallows_calling_acir_from_brillig() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32):
+            call f1(v0)
+            return
+        }
+        acir(inline) fn foo f1 {
+          b0(v0: u32):
+            v4 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+            v5 = array_get v4, index v0 -> Field
+            return
         }
         ";
         let _ = Ssa::from_str(src).unwrap();

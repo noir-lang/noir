@@ -83,8 +83,6 @@ fn unquoted_integer_as_integer_token() {
             }
         }
     }
-
-    fn main() {}
     "#;
 
     assert_no_errors!(src);
@@ -168,8 +166,6 @@ fn uses_correct_type_for_attribute_arguments() {
         let y: u32 = 1;
         let _ = y == i[0];
     }
-
-    fn main() {}
     "#;
     assert_no_errors!(src);
 }

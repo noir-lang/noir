@@ -2,82 +2,65 @@ use super::instruction::Point as InstructionPoint;
 use super::instruction::Scalar as InstructionScalar;
 use super::{
     ecdsa::{Curve, generate_ecdsa_signature_and_corrupt_it},
-    instruction::{Argument, FunctionInfo, Instruction},
+    instruction::{FunctionInfo, Instruction, NumericArgument},
     options::SsaBlockOptions,
 };
-use noir_ssa_fuzzer::typed_value::{Point, Scalar};
-use noir_ssa_fuzzer::{
-    builder::{FuzzerBuilder, InstructionWithOneArg, InstructionWithTwoArgs},
-    typed_value::{TypedValue, ValueType},
-};
+use noir_ssa_fuzzer::builder::{FuzzerBuilder, InstructionWithOneArg, InstructionWithTwoArgs};
+use noir_ssa_fuzzer::typed_value::{NumericType, Point, Scalar, Type, TypedValue};
 use noirc_evaluator::ssa::ir::{basic_block::BasicBlockId, function::Function, map::Id};
 use std::collections::{HashMap, VecDeque};
 use std::iter::zip;
-
-#[derive(Debug, Clone)]
-pub(crate) struct StoredArray {
-    array_id: TypedValue,
-    element_type: ValueType,
-    is_references: bool,
-}
 
 /// Main context for the ssa block containing both ACIR and Brillig builders and their state
 /// It works with indices of variables Ids, because it cannot handle Ids logic for ACIR and Brillig
 #[derive(Debug, Clone)]
 pub(crate) struct BlockContext {
     /// Ids of the Program variables stored as TypedValue separated by type
-    pub(crate) stored_variables: HashMap<ValueType, Vec<TypedValue>>,
-    /// Ids of typed addresses of memory (mutable variables)
-    pub(crate) memory_addresses: HashMap<ValueType, Vec<TypedValue>>,
+    pub(crate) stored_variables: HashMap<Type, Vec<TypedValue>>,
     /// Parent blocks history
     pub(crate) parent_blocks_history: VecDeque<BasicBlockId>,
     /// Children blocks
     pub(crate) children_blocks: Vec<BasicBlockId>,
-    /// Arrays stored in the block
-    pub(crate) stored_arrays: Vec<StoredArray>,
     /// Options for the block
     pub(crate) options: SsaBlockOptions,
 }
 
-/// Returns a typed value from the map
-/// Variables are stored in a map with type as key and vector of typed values as value
-/// We use modulo to wrap index around the length of the vector, because fuzzer can produce index that is greater than the length of the vector
-fn get_typed_value_from_map(
-    map: &HashMap<ValueType, Vec<TypedValue>>,
-    type_: &ValueType,
-    idx: usize,
-) -> Option<TypedValue> {
-    let arr = map.get(type_);
-    arr?;
-    let arr = arr.unwrap();
-    let value = arr.get(idx % arr.len());
-    value?;
-    Some(value.unwrap().clone())
-}
-
-fn append_typed_value_to_map(
-    map: &mut HashMap<ValueType, Vec<TypedValue>>,
-    type_: &ValueType,
-    value: TypedValue,
-) {
-    map.entry(*type_).or_default().push(value);
-}
-
 impl BlockContext {
     pub(crate) fn new(
-        stored_variables: HashMap<ValueType, Vec<TypedValue>>,
-        memory_addresses: HashMap<ValueType, Vec<TypedValue>>,
+        stored_variables: HashMap<Type, Vec<TypedValue>>,
         parent_blocks_history: VecDeque<BasicBlockId>,
         options: SsaBlockOptions,
     ) -> Self {
-        Self {
-            stored_variables,
-            memory_addresses,
-            parent_blocks_history,
-            children_blocks: Vec::new(),
-            stored_arrays: Vec::new(),
-            options,
-        }
+        Self { stored_variables, parent_blocks_history, children_blocks: Vec::new(), options }
+    }
+
+    fn store_variable(&mut self, value: &TypedValue) {
+        self.stored_variables
+            .entry(value.type_of_variable.clone())
+            .or_default()
+            .push(value.clone());
+    }
+
+    fn get_stored_variable(&self, type_: &Type, index: usize) -> Option<TypedValue> {
+        let arr = self.stored_variables.get(type_)?;
+        let value = arr.get(index % arr.len())?;
+        Some(value.clone())
+    }
+
+    fn get_stored_arrays(&self) -> Vec<TypedValue> {
+        self.stored_variables
+            .iter()
+            .filter(|(key, _)| key.is_array())
+            .flat_map(|(_, arr)| arr.clone())
+            .collect()
+    }
+
+    fn get_stored_references_to_type(&self, type_: &Type) -> Vec<TypedValue> {
+        self.stored_variables
+            .iter()
+            .filter(|(key, _)| key.is_reference() && key.unwrap_reference() == *type_)
+            .flat_map(|(_, arr)| arr.clone())
+            .collect()
     }
 
     /// Inserts an instruction that takes a single argument
@@ -85,22 +68,18 @@ impl BlockContext {
         &mut self,
         acir_builder: &mut FuzzerBuilder,
         brillig_builder: &mut FuzzerBuilder,
-        arg: Argument,
+        arg: NumericArgument,
         instruction: InstructionWithOneArg,
     ) {
-        let value = get_typed_value_from_map(&self.stored_variables, &arg.value_type, arg.index);
+        let value = self.get_stored_variable(&Type::Numeric(arg.numeric_type), arg.index);
         let value = match value {
             Some(value) => value,
             _ => return,
         };
         let acir_result = instruction(acir_builder, value.clone());
         // insert to brillig, assert id is the same
-        assert_eq!(acir_result.value_id, instruction(brillig_builder, value).value_id);
-        append_typed_value_to_map(
-            &mut self.stored_variables,
-            &acir_result.to_value_type(),
-            acir_result,
-        );
+        assert_eq!(acir_result, instruction(brillig_builder, value));
+        self.store_variable(&acir_result);
     }
 
     /// Inserts an instruction that takes two arguments
@@ -108,23 +87,21 @@ impl BlockContext {
         &mut self,
         acir_builder: &mut FuzzerBuilder,
         brillig_builder: &mut FuzzerBuilder,
-        lhs: Argument,
-        rhs: Argument,
+        lhs: NumericArgument,
+        rhs: NumericArgument,
         instruction: InstructionWithTwoArgs,
     ) {
-        let instr_lhs =
-            get_typed_value_from_map(&self.stored_variables, &lhs.value_type, lhs.index);
+        let instr_lhs = self.get_stored_variable(&Type::Numeric(lhs.numeric_type), lhs.index);
         // We ignore type of the second argument, because all binary instructions must use the same type
-        let instr_rhs =
-            get_typed_value_from_map(&self.stored_variables, &lhs.value_type, rhs.index);
+        let instr_rhs = self.get_stored_variable(&Type::Numeric(lhs.numeric_type), rhs.index);
         let (instr_lhs, instr_rhs) = match (instr_lhs, instr_rhs) {
             (Some(acir_lhs), Some(acir_rhs)) => (acir_lhs, acir_rhs),
             _ => return,
         };
         let result = instruction(acir_builder, instr_lhs.clone(), instr_rhs.clone());
         // insert to brillig, assert id of return is the same
-        assert_eq!(result.value_id, instruction(brillig_builder, instr_lhs, instr_rhs).value_id);
-        append_typed_value_to_map(&mut self.stored_variables, &result.to_value_type(), result);
+        assert_eq!(result, instruction(brillig_builder, instr_lhs, instr_rhs));
+        self.store_variable(&result);
     }
 
     /// Inserts an instruction into both ACIR and Brillig programs
@@ -199,25 +176,24 @@ impl BlockContext {
                 if !self.options.instruction_options.cast_enabled {
                     return;
                 }
-                let value =
-                    get_typed_value_from_map(&self.stored_variables, &lhs.value_type, lhs.index);
+                let value = self.get_stored_variable(&Type::Numeric(lhs.numeric_type), lhs.index);
                 let value = match value {
                     Some(value) => value,
                     _ => return,
                 };
-                let acir_result = acir_builder.insert_cast(value.clone(), type_);
+                let acir_result = acir_builder.insert_cast(value.clone(), Type::Numeric(type_));
                 assert_eq!(
-                    acir_result.value_id,
-                    brillig_builder.insert_cast(value.clone(), type_).value_id
-                );
-                append_typed_value_to_map(
-                    &mut self.stored_variables,
-                    &acir_result.to_value_type(),
                     acir_result,
+                    brillig_builder.insert_cast(value.clone(), Type::Numeric(type_))
                 );
+                self.store_variable(&acir_result);
             }
             Instruction::Mod { lhs, rhs } => {
                 if !self.options.instruction_options.mod_enabled {
+                    return;
+                }
+                // optimization: mod is not supported for field type (see ssa_validation)
+                if lhs.numeric_type == NumericType::Field {
                     return;
                 }
                 self.insert_instruction_with_double_args(
@@ -232,6 +208,9 @@ impl BlockContext {
                 if !self.options.instruction_options.not_enabled {
                     return;
                 }
+                if lhs.numeric_type == NumericType::Field {
+                    return;
+                }
                 self.insert_instruction_with_single_arg(
                     acir_builder,
                     brillig_builder,
@@ -241,6 +220,10 @@ impl BlockContext {
             }
             Instruction::Shl { lhs, rhs } => {
                 if !self.options.instruction_options.shl_enabled {
+                    return;
+                }
+                // optimization: not is not supported for field type (see ssa_validation)
+                if lhs.numeric_type == NumericType::Field {
                     return;
                 }
                 self.insert_instruction_with_double_args(
@@ -255,6 +238,10 @@ impl BlockContext {
                 if !self.options.instruction_options.shr_enabled {
                     return;
                 }
+                // optimization: shl is not supported for field type (see ssa_validation)
+                if lhs.numeric_type == NumericType::Field {
+                    return;
+                }
                 self.insert_instruction_with_double_args(
                     acir_builder,
                     brillig_builder,
@@ -265,6 +252,10 @@ impl BlockContext {
             }
             Instruction::And { lhs, rhs } => {
                 if !self.options.instruction_options.and_enabled {
+                    return;
+                }
+                // optimization: and is not supported for field type (see ssa_validation)
+                if lhs.numeric_type == NumericType::Field {
                     return;
                 }
                 self.insert_instruction_with_double_args(
@@ -279,6 +270,10 @@ impl BlockContext {
                 if !self.options.instruction_options.or_enabled {
                     return;
                 }
+                // optimization: or is not supported for field type (see ssa_validation)
+                if lhs.numeric_type == NumericType::Field {
+                    return;
+                }
                 self.insert_instruction_with_double_args(
                     acir_builder,
                     brillig_builder,
@@ -289,6 +284,10 @@ impl BlockContext {
             }
             Instruction::Xor { lhs, rhs } => {
                 if !self.options.instruction_options.xor_enabled {
+                    return;
+                }
+                // optimization: xor is not supported for field type (see ssa_validation)
+                if lhs.numeric_type == NumericType::Field {
                     return;
                 }
                 self.insert_instruction_with_double_args(
@@ -303,8 +302,8 @@ impl BlockContext {
                 if !self.options.instruction_options.lt_enabled {
                     return;
                 }
-                // TODO: prevent in builder
-                if lhs.value_type == ValueType::Field {
+                // optimization: lt is not supported for field type (see ssa_validation)
+                if lhs.numeric_type == NumericType::Field {
                     return;
                 }
                 self.insert_instruction_with_double_args(
@@ -318,9 +317,8 @@ impl BlockContext {
 
             Instruction::AddSubConstrain { lhs, rhs } => {
                 // inserts lhs' = lhs + rhs
-                let lhs_orig =
-                    get_typed_value_from_map(&self.stored_variables, &ValueType::Field, lhs);
-                let rhs = get_typed_value_from_map(&self.stored_variables, &ValueType::Field, rhs);
+                let lhs_orig = self.get_stored_variable(&Type::Numeric(NumericType::Field), lhs);
+                let rhs = self.get_stored_variable(&Type::Numeric(NumericType::Field), rhs);
                 let (lhs_orig, rhs) = match (lhs_orig, rhs) {
                     (Some(lhs_orig), Some(rhs)) => (lhs_orig, rhs),
                     _ => return,
@@ -329,10 +327,8 @@ impl BlockContext {
                 let lhs_add_rhs =
                     acir_builder.insert_add_instruction_checked(lhs_orig.clone(), rhs.clone());
                 assert_eq!(
-                    lhs_add_rhs.value_id,
-                    brillig_builder
-                        .insert_add_instruction_checked(lhs_orig.clone(), rhs.clone())
-                        .value_id,
+                    lhs_add_rhs,
+                    brillig_builder.insert_add_instruction_checked(lhs_orig.clone(), rhs.clone())
                 );
                 // inserts lhs'' = lhs' - rhs
                 let lhs = lhs_add_rhs;
@@ -340,10 +336,8 @@ impl BlockContext {
 
                 // assert ids of sub are the same for both builders
                 assert_eq!(
-                    morphed.value_id,
-                    brillig_builder
-                        .insert_sub_instruction_checked(lhs.clone(), rhs.clone())
-                        .value_id,
+                    morphed,
+                    brillig_builder.insert_sub_instruction_checked(lhs.clone(), rhs.clone())
                 );
 
                 if !self.options.constrain_idempotent_enabled {
@@ -354,9 +348,8 @@ impl BlockContext {
                 brillig_builder.insert_constrain(lhs_orig.clone(), morphed.clone());
             }
             Instruction::MulDivConstrain { lhs, rhs } => {
-                let lhs_orig =
-                    get_typed_value_from_map(&self.stored_variables, &ValueType::Field, lhs);
-                let rhs = get_typed_value_from_map(&self.stored_variables, &ValueType::Field, rhs);
+                let lhs_orig = self.get_stored_variable(&Type::Numeric(NumericType::Field), lhs);
+                let rhs = self.get_stored_variable(&Type::Numeric(NumericType::Field), rhs);
                 let (lhs_orig, rhs) = match (lhs_orig, rhs) {
                     (Some(lhs_orig), Some(rhs)) => (lhs_orig, rhs),
                     _ => return,
@@ -366,18 +359,16 @@ impl BlockContext {
                 let lhs_mul_rhs =
                     acir_builder.insert_mul_instruction_checked(lhs_orig.clone(), rhs.clone());
                 assert_eq!(
-                    lhs_mul_rhs.value_id,
-                    brillig_builder
-                        .insert_mul_instruction_checked(lhs_orig.clone(), rhs.clone())
-                        .value_id,
+                    lhs_mul_rhs,
+                    brillig_builder.insert_mul_instruction_checked(lhs_orig.clone(), rhs.clone())
                 );
                 // lhs'' = lhs' / rhs
                 let lhs = lhs_mul_rhs;
                 // insert to both builders, assert ids of div are the same
                 let morphed = acir_builder.insert_div_instruction(lhs.clone(), rhs.clone());
                 assert_eq!(
-                    morphed.value_id,
-                    brillig_builder.insert_div_instruction(lhs.clone(), rhs.clone()).value_id,
+                    morphed,
+                    brillig_builder.insert_div_instruction(lhs.clone(), rhs.clone())
                 );
 
                 if !self.options.constrain_idempotent_enabled {
@@ -391,100 +382,67 @@ impl BlockContext {
                     return;
                 }
 
-                let value = match get_typed_value_from_map(
-                    &self.stored_variables,
-                    &lhs.value_type,
-                    lhs.index,
-                ) {
+                let value = match self.get_stored_variable(&lhs.value_type, lhs.index) {
                     Some(value) => value,
                     _ => return,
                 };
 
                 let addr = acir_builder.insert_add_to_memory(value.clone());
-                assert_eq!(
-                    addr.clone().value_id,
-                    brillig_builder.insert_add_to_memory(value.clone()).value_id,
-                    "add to memory differs in ACIR and Brillig"
-                );
-                // Append the memory address to stored_values with the type of the result
-                append_typed_value_to_map(&mut self.memory_addresses, &addr.to_value_type(), addr);
+                assert_eq!(addr, brillig_builder.insert_add_to_memory(value.clone()));
+                self.store_variable(&addr);
             }
             Instruction::LoadFromMemory { memory_addr } => {
                 if !self.options.instruction_options.load_enabled {
                     return;
                 }
-                let addr = get_typed_value_from_map(
-                    &self.memory_addresses,
-                    &memory_addr.value_type,
-                    memory_addr.index,
-                );
-                let addr = match addr {
-                    Some(addr) => addr,
-                    _ => return,
-                };
-                let value = acir_builder.insert_load_from_memory(addr.clone());
-                assert_eq!(
-                    value.value_id,
-                    brillig_builder.insert_load_from_memory(addr.clone()).value_id,
-                    "load from memory differs in ACIR and Brillig"
-                );
-                append_typed_value_to_map(
-                    &mut self.stored_variables,
-                    &value.to_value_type(),
-                    value.clone(),
-                );
+                let addresses = self.get_stored_references_to_type(&memory_addr.value_type);
+                if addresses.is_empty() {
+                    return;
+                }
+                let address = addresses[memory_addr.index % addresses.len()].clone();
+                let value = acir_builder.insert_load_from_memory(address.clone());
+                assert_eq!(value, brillig_builder.insert_load_from_memory(address.clone()));
+                self.store_variable(&value);
             }
             Instruction::SetToMemory { memory_addr_index, value } => {
                 if !self.options.instruction_options.store_enabled {
                     return;
                 }
-                let addr = get_typed_value_from_map(
-                    &self.memory_addresses,
-                    &value.value_type,
-                    memory_addr_index,
-                );
-                let addr = match addr {
-                    Some(addr) => addr,
-                    _ => return,
-                };
-                let value = get_typed_value_from_map(
-                    &self.stored_variables,
-                    &value.value_type,
-                    value.index,
-                );
-                let value = match value {
+                let addresses = self.get_stored_references_to_type(&value.value_type);
+                let value = match self.get_stored_variable(&value.value_type, value.index) {
                     Some(value) => value,
                     _ => return,
                 };
-                acir_builder.insert_set_to_memory(addr.clone(), value.clone());
-                brillig_builder.insert_set_to_memory(addr.clone(), value);
+                let address = if addresses.is_empty() {
+                    let addr = acir_builder.insert_add_to_memory(value.clone());
+                    assert_eq!(addr, brillig_builder.insert_add_to_memory(value.clone()));
+                    self.store_variable(&addr);
+                    addr
+                } else {
+                    addresses[memory_addr_index % addresses.len()].clone()
+                };
+                acir_builder.insert_set_to_memory(address.clone(), value.clone());
+                brillig_builder.insert_set_to_memory(address, value);
             }
 
-            Instruction::CreateArray { elements_indices, element_type, is_references } => {
+            Instruction::CreateArray { elements_indices, element_type } => {
                 // insert to both acir and brillig builders
                 let array = match self.insert_array(
                     acir_builder,
                     brillig_builder,
                     elements_indices,
                     element_type,
-                    is_references,
                 ) {
                     Some(array) => array,
                     _ => return,
                 };
-                self.stored_arrays.push(StoredArray {
-                    array_id: array,
-                    element_type,
-                    is_references,
-                });
+                self.store_variable(&array);
             }
             Instruction::ArrayGet { array_index, index, safe_index } => {
                 // insert array get to both acir and brillig builders
-                let index = match get_typed_value_from_map(
-                    &self.stored_variables,
-                    &index.value_type,
-                    index.index,
-                ) {
+                let index = match self
+                    .get_stored_variable(&Type::Numeric(index.numeric_type), index.index)
+                {
                     Some(index) => index,
                     _ => return,
                 };
@@ -498,11 +456,7 @@ impl BlockContext {
                 );
                 if let Some((value, is_references)) = value {
                     if !is_references {
-                        append_typed_value_to_map(
-                            &mut self.stored_variables,
-                            &value.to_value_type(),
-                            value.clone(),
-                        );
+                        self.store_variable(&value);
                     } else {
                         panic!("References are not supported for array get with dynamic index");
                     }
@@ -510,23 +464,19 @@ impl BlockContext {
             }
             Instruction::ArraySet { array_index, index, value_index, safe_index } => {
                 // get the index from the stored variables
-                let index = get_typed_value_from_map(
-                    &self.stored_variables,
-                    &index.value_type,
-                    index.index,
-                );
+                let index =
+                    self.get_stored_variable(&Type::Numeric(index.numeric_type), index.index);
                 let index = match index {
                     Some(index) => index,
                     _ => return,
                 };
                 // cast the index to u32
-                let index_casted = acir_builder.insert_cast(index.clone(), ValueType::U32);
+                let index_casted =
+                    acir_builder.insert_cast(index.clone(), Type::Numeric(NumericType::U32));
                 assert_eq!(
-                    index_casted.value_id,
-                    brillig_builder.insert_cast(index.clone(), ValueType::U32).value_id
+                    index_casted,
+                    brillig_builder.insert_cast(index.clone(), Type::Numeric(NumericType::U32))
                 );
-
-                // get the value from the stored variables
 
                 // insert array set to both acir and brillig builders
                 let new_array = self.insert_array_set(
@@ -542,20 +492,19 @@ impl BlockContext {
                     if is_references {
                         panic!("References are not supported for array set with dynamic index");
                     }
-                    self.stored_arrays.push(StoredArray {
-                        array_id: new_array.clone(),
-                        element_type: new_array.to_value_type(),
-                        is_references,
-                    });
+                    let element_type = new_array.type_of_variable.unwrap_array_element_type();
+                    match element_type {
+                        Type::Numeric(_element_type) => {
+                            self.store_variable(&new_array);
+                        }
+                        _ => panic!("Expected NumericType, found {element_type:?}"),
+                    }
                 }
             }
             Instruction::ArrayGetWithConstantIndex { array_index, index, safe_index } => {
                 // insert constant index
-                let index_id = acir_builder.insert_constant(index, ValueType::U32);
-                assert_eq!(
-                    index_id.value_id,
-                    brillig_builder.insert_constant(index, ValueType::U32).value_id
-                );
+                let index_id = acir_builder.insert_constant(index, NumericType::U32);
+                assert_eq!(index_id, brillig_builder.insert_constant(index, NumericType::U32));
                 let value = self.insert_array_get(
                     acir_builder,
                     brillig_builder,
@@ -564,20 +513,8 @@ impl BlockContext {
                     /*is constant =*/ true,
                     safe_index,
                 );
-                if let Some((value, is_references)) = value {
-                    if !is_references {
-                        append_typed_value_to_map(
-                            &mut self.stored_variables,
-                            &value.to_value_type(),
-                            value.clone(),
-                        );
-                    } else {
-                        append_typed_value_to_map(
-                            &mut self.memory_addresses,
-                            &value.to_value_type(),
-                            value.clone(),
-                        );
-                    }
+                if let Some((value, _is_references)) = value {
+                    self.store_variable(&value);
                 }
             }
             Instruction::ArraySetWithConstantIndex {
@@ -587,11 +524,8 @@ impl BlockContext {
                 safe_index,
             } => {
                 // insert constant index
-                let index_id = acir_builder.insert_constant(index, ValueType::U32);
-                assert_eq!(
-                    index_id.value_id,
-                    brillig_builder.insert_constant(index, ValueType::U32).value_id
-                );
+                let index_id = acir_builder.insert_constant(index, NumericType::U32);
+                assert_eq!(index_id, brillig_builder.insert_constant(index, NumericType::U32));
                 let new_array = self.insert_array_set(
                     acir_builder,
                     brillig_builder,
@@ -602,39 +536,49 @@ impl BlockContext {
                     safe_index,
                 );
                 if let Some((new_array, is_references)) = new_array {
-                    self.stored_arrays.push(StoredArray {
-                        array_id: new_array.clone(),
-                        element_type: new_array.to_value_type(),
-                        is_references,
-                    });
+                    let element_type = match new_array.type_of_variable.clone() {
+                        Type::Array(elements_type, _) => elements_type[0].clone(),
+                        _ => panic!("Expected ArrayType, found {:?}", new_array.type_of_variable),
+                    };
+                    match element_type {
+                        Type::Numeric(_element_type) => {
+                            assert!(
+                                !is_references,
+                                "Encountered numeric element in an array with references"
+                            );
+                            self.store_variable(&new_array);
+                        }
+                        Type::Reference(type_ref) => {
+                            assert!(
+                                is_references,
+                                "Encountered reference element in an array without references"
+                            );
+                            assert!(
+                                type_ref.is_numeric(),
+                                "Expected reference to a numeric type, found {type_ref:?}"
+                            );
+                            self.store_variable(&new_array);
+                        }
+                        _ => {
+                            panic!("Expected NumericType or ReferenceType, found {element_type:?}")
+                        }
+                    }
                 }
             }
             Instruction::FieldToBytesToField { field_idx } => {
-                let field =
-                    get_typed_value_from_map(&self.stored_variables, &ValueType::Field, field_idx);
+                let field = self.get_stored_variable(&Type::Numeric(NumericType::Field), field_idx);
                 let field = match field {
                     Some(field) => field,
                     _ => return,
                 };
                 let bytes = acir_builder.insert_to_le_radix(field.clone(), 256, 32);
-                assert_eq!(
-                    bytes.value_id,
-                    brillig_builder.insert_to_le_radix(field.clone(), 256, 32).value_id
-                );
+                assert_eq!(bytes, brillig_builder.insert_to_le_radix(field.clone(), 256, 32));
                 let field = acir_builder.insert_from_le_radix(bytes.clone(), 256);
-                assert_eq!(
-                    field.value_id,
-                    brillig_builder.insert_from_le_radix(bytes.clone(), 256).value_id
-                );
-                append_typed_value_to_map(
-                    &mut self.stored_variables,
-                    &field.to_value_type(),
-                    field.clone(),
-                );
+                assert_eq!(field, brillig_builder.insert_from_le_radix(bytes.clone(), 256));
+                self.store_variable(&field);
             }
             Instruction::Blake2sHash { field_idx, limbs_count } => {
-                let input =
-                    get_typed_value_from_map(&self.stored_variables, &ValueType::Field, field_idx);
+                let input = self.get_stored_variable(&Type::Numeric(NumericType::Field), field_idx);
                 let input = match input {
                     Some(input) => input,
                     _ => return,
@@ -644,28 +588,17 @@ impl BlockContext {
                 }
                 let bytes = acir_builder.insert_to_le_radix(input.clone(), 256, limbs_count);
                 assert_eq!(
-                    bytes.value_id,
-                    brillig_builder.insert_to_le_radix(input.clone(), 256, limbs_count).value_id
+                    bytes,
+                    brillig_builder.insert_to_le_radix(input.clone(), 256, limbs_count)
                 );
                 let hash = acir_builder.insert_blake2s_hash(bytes.clone());
-                assert_eq!(
-                    hash.value_id,
-                    brillig_builder.insert_blake2s_hash(bytes.clone()).value_id
-                );
+                assert_eq!(hash, brillig_builder.insert_blake2s_hash(bytes.clone()));
                 let hash_as_field = acir_builder.insert_from_le_radix(hash.clone(), 256);
-                assert_eq!(
-                    hash_as_field.value_id,
-                    brillig_builder.insert_from_le_radix(hash.clone(), 256).value_id
-                );
-                append_typed_value_to_map(
-                    &mut self.stored_variables,
-                    &hash_as_field.to_value_type(),
-                    hash_as_field.clone(),
-                );
+                assert_eq!(hash_as_field, brillig_builder.insert_from_le_radix(hash.clone(), 256));
+                self.store_variable(&hash_as_field);
             }
             Instruction::Blake3Hash { field_idx, limbs_count } => {
-                let input =
-                    get_typed_value_from_map(&self.stored_variables, &ValueType::Field, field_idx);
+                let input = self.get_stored_variable(&Type::Numeric(NumericType::Field), field_idx);
                 let input = match input {
                     Some(input) => input,
                     _ => return,
@@ -675,75 +608,51 @@ impl BlockContext {
                 }
                 let bytes = acir_builder.insert_to_le_radix(input.clone(), 256, limbs_count);
                 assert_eq!(
-                    bytes.value_id,
-                    brillig_builder.insert_to_le_radix(input.clone(), 256, limbs_count).value_id
+                    bytes,
+                    brillig_builder.insert_to_le_radix(input.clone(), 256, limbs_count)
                 );
                 let hash = acir_builder.insert_blake3_hash(bytes.clone());
-                assert_eq!(
-                    hash.value_id,
-                    brillig_builder.insert_blake3_hash(bytes.clone()).value_id
-                );
+                assert_eq!(hash, brillig_builder.insert_blake3_hash(bytes.clone()));
                 let hash_as_field = acir_builder.insert_from_le_radix(hash.clone(), 256);
-                assert_eq!(
-                    hash_as_field.value_id,
-                    brillig_builder.insert_from_le_radix(hash.clone(), 256).value_id
-                );
-                append_typed_value_to_map(
-                    &mut self.stored_variables,
-                    &hash_as_field.to_value_type(),
-                    hash_as_field.clone(),
-                );
+                assert_eq!(hash_as_field, brillig_builder.insert_from_le_radix(hash.clone(), 256));
+                self.store_variable(&hash_as_field);
             }
             Instruction::Keccakf1600Hash { u64_indices, load_elements_of_array } => {
                 let input = match self.insert_array(
                     acir_builder,
                     brillig_builder,
                     u64_indices.to_vec(),
-                    ValueType::U64,
-                    false,
+                    Type::Numeric(NumericType::U64),
                 ) {
                     Some(input) => input,
                     _ => return,
                 };
                 let hash_array_u64 = acir_builder.insert_keccakf1600_permutation(input.clone());
                 assert_eq!(
-                    hash_array_u64.value_id,
-                    brillig_builder.insert_keccakf1600_permutation(input.clone()).value_id
+                    hash_array_u64,
+                    brillig_builder.insert_keccakf1600_permutation(input.clone())
                 );
-                self.stored_arrays.push(StoredArray {
-                    array_id: hash_array_u64.clone(),
-                    element_type: ValueType::U64,
-                    is_references: false,
-                });
+                self.store_variable(&hash_array_u64);
                 if load_elements_of_array {
                     for i in 0..25_u32 {
-                        let index = acir_builder.insert_constant(i, ValueType::U32);
-                        assert_eq!(
-                            index.value_id,
-                            brillig_builder.insert_constant(i, ValueType::U32).value_id
-                        );
+                        let index = acir_builder.insert_constant(i, NumericType::U32);
+                        assert_eq!(index, brillig_builder.insert_constant(i, NumericType::U32));
                         let value = acir_builder.insert_array_get(
                             hash_array_u64.clone(),
                             index.clone(),
-                            ValueType::U64.to_ssa_type(),
-                            false,
+                            Type::Numeric(NumericType::U64),
+                            /*safe_index =*/ false,
                         );
                         assert_eq!(
-                            value.value_id,
-                            brillig_builder
-                                .insert_array_get(
-                                    hash_array_u64.clone(),
-                                    index.clone(),
-                                    ValueType::U64.to_ssa_type(),
-                                    false,
-                                )
-                                .value_id
+                            value,
+                            brillig_builder.insert_array_get(
+                                hash_array_u64.clone(),
+                                index.clone(),
+                                Type::Numeric(NumericType::U64),
+                                /*safe_index =*/ false
+                            )
                         );
-                        append_typed_value_to_map(
-                            &mut self.stored_variables,
-                            &value.to_value_type(),
-                            value.clone(),
-                        );
+                        self.store_variable(&value);
                     }
                 }
             }
@@ -751,69 +660,46 @@ impl BlockContext {
                 if input_limbs_count == 0 {
                     return;
                 }
-                let input = match get_typed_value_from_map(
-                    &self.stored_variables,
-                    &ValueType::Field,
-                    input_idx,
-                ) {
-                    Some(input) => input,
-                    _ => return,
-                };
-                let key = match get_typed_value_from_map(
-                    &self.stored_variables,
-                    &ValueType::Field,
-                    key_idx,
-                ) {
-                    Some(key) => key,
-                    _ => return,
-                };
-                let iv = match get_typed_value_from_map(
-                    &self.stored_variables,
-                    &ValueType::Field,
-                    iv_idx,
-                ) {
+                let input =
+                    match self.get_stored_variable(&Type::Numeric(NumericType::Field), input_idx) {
+                        Some(input) => input,
+                        _ => return,
+                    };
+                let key =
+                    match self.get_stored_variable(&Type::Numeric(NumericType::Field), key_idx) {
+                        Some(key) => key,
+                        _ => return,
+                    };
+                let iv = match self.get_stored_variable(&Type::Numeric(NumericType::Field), iv_idx)
+                {
                     Some(iv) => iv,
                     _ => return,
                 };
                 let input_bytes =
                     acir_builder.insert_to_le_radix(input.clone(), 256, input_limbs_count);
                 assert_eq!(
-                    input_bytes.value_id,
-                    brillig_builder
-                        .insert_to_le_radix(input.clone(), 256, input_limbs_count)
-                        .value_id
+                    input_bytes,
+                    brillig_builder.insert_to_le_radix(input.clone(), 256, input_limbs_count)
                 );
                 let key_bytes = acir_builder.insert_to_le_radix(key.clone(), 256, 16);
-                assert_eq!(
-                    key_bytes.value_id,
-                    brillig_builder.insert_to_le_radix(key.clone(), 256, 16).value_id
-                );
+                assert_eq!(key_bytes, brillig_builder.insert_to_le_radix(key.clone(), 256, 16));
                 let iv_bytes = acir_builder.insert_to_le_radix(iv.clone(), 256, 16);
-                assert_eq!(
-                    iv_bytes.value_id,
-                    brillig_builder.insert_to_le_radix(iv.clone(), 256, 16).value_id
-                );
+                assert_eq!(iv_bytes, brillig_builder.insert_to_le_radix(iv.clone(), 256, 16));
                 let encrypted = acir_builder.insert_aes128_encrypt(
                     input_bytes.clone(),
                     key_bytes.clone(),
                     iv_bytes.clone(),
                 );
                 assert_eq!(
-                    encrypted.value_id,
-                    brillig_builder
-                        .insert_aes128_encrypt(input_bytes, key_bytes, iv_bytes)
-                        .value_id
+                    encrypted,
+                    brillig_builder.insert_aes128_encrypt(input_bytes, key_bytes, iv_bytes)
                 );
                 let encrypted_as_field = acir_builder.insert_from_le_radix(encrypted.clone(), 256);
                 assert_eq!(
-                    encrypted_as_field.value_id,
-                    brillig_builder.insert_from_le_radix(encrypted.clone(), 256).value_id
+                    encrypted_as_field,
+                    brillig_builder.insert_from_le_radix(encrypted.clone(), 256)
                 );
-                append_typed_value_to_map(
-                    &mut self.stored_variables,
-                    &encrypted_as_field.to_value_type(),
-                    encrypted_as_field.clone(),
-                );
+                self.store_variable(&encrypted_as_field);
             }
             Instruction::Sha256Compression {
                 input_indices,
@@ -824,8 +710,7 @@ impl BlockContext {
                     acir_builder,
                     brillig_builder,
                     input_indices.to_vec(),
-                    ValueType::U32,
-                    false,
+                    Type::Numeric(NumericType::U32),
                 ) {
                     Some(input) => input,
                     _ => return,
@@ -834,52 +719,35 @@ impl BlockContext {
                     acir_builder,
                     brillig_builder,
                     state_indices.to_vec(),
-                    ValueType::U32,
-                    false,
+                    Type::Numeric(NumericType::U32),
                 ) {
                     Some(state) => state,
                     _ => return,
                 };
                 let compressed =
                     acir_builder.insert_sha256_compression(input.clone(), state.clone());
-                assert_eq!(
-                    compressed.value_id,
-                    brillig_builder.insert_sha256_compression(input, state).value_id
-                );
-                self.stored_arrays.push(StoredArray {
-                    array_id: compressed.clone(),
-                    element_type: ValueType::U32,
-                    is_references: false,
-                });
+                assert_eq!(compressed, brillig_builder.insert_sha256_compression(input, state));
+                self.store_variable(&compressed);
                 if load_elements_of_array {
                     for i in 0..8_u32 {
-                        let index = acir_builder.insert_constant(i, ValueType::U32);
-                        assert_eq!(
-                            index.value_id,
-                            brillig_builder.insert_constant(i, ValueType::U32).value_id
-                        );
+                        let index = acir_builder.insert_constant(i, NumericType::U32);
+                        assert_eq!(index, brillig_builder.insert_constant(i, NumericType::U32));
                         let value = acir_builder.insert_array_get(
                             compressed.clone(),
                             index.clone(),
-                            ValueType::U32.to_ssa_type(),
-                            false,
+                            Type::Numeric(NumericType::U32),
+                            /*safe_index =*/ false,
                         );
                         assert_eq!(
-                            value.value_id,
-                            brillig_builder
-                                .insert_array_get(
-                                    compressed.clone(),
-                                    index,
-                                    ValueType::U32.to_ssa_type(),
-                                    false
-                                )
-                                .value_id
+                            value,
+                            brillig_builder.insert_array_get(
+                                compressed.clone(),
+                                index,
+                                Type::Numeric(NumericType::U32),
+                                /*safe_index =*/ false
+                            )
                         );
-                        append_typed_value_to_map(
-                            &mut self.stored_variables,
-                            &value.to_value_type(),
-                            value.clone(),
-                        );
+                        self.store_variable(&value);
                     }
                 }
             }
@@ -898,11 +766,7 @@ impl BlockContext {
                 let brillig_point = brillig_builder.point_add(p1, p2, true);
                 assert_eq!(acir_point, brillig_point);
                 for typed_value in [&acir_point.x, &acir_point.y, &acir_point.is_infinite] {
-                    append_typed_value_to_map(
-                        &mut self.stored_variables,
-                        &typed_value.to_value_type(),
-                        typed_value.clone(),
-                    );
+                    self.store_variable(typed_value);
                 }
             }
             Instruction::MultiScalarMul { points_and_scalars, predicate } => {
@@ -935,11 +799,7 @@ impl BlockContext {
                 let brillig_point = brillig_builder.multi_scalar_mul(points_vec, scalars_vec, true);
                 assert_eq!(acir_point, brillig_point);
                 for typed_value in [&acir_point.x, &acir_point.y, &acir_point.is_infinite] {
-                    append_typed_value_to_map(
-                        &mut self.stored_variables,
-                        &typed_value.to_value_type(),
-                        typed_value.clone(),
-                    );
+                    self.store_variable(typed_value);
                 }
             }
             Instruction::EcdsaSecp256r1 {
@@ -969,6 +829,7 @@ impl BlockContext {
                     predicate,
                 );
                 assert_eq!(
+<<<<<<< HEAD
                     result.value_id,
                     brillig_builder
                         .ecdsa_secp256r1(
@@ -984,7 +845,17 @@ impl BlockContext {
                     &mut self.stored_variables,
                     &result.to_value_type(),
                     result.clone(),
+=======
+                    result,
+                    brillig_builder.ecdsa_secp256r1(
+                        prepared_signature.public_key_x,
+                        prepared_signature.public_key_y,
+                        prepared_signature.hash,
+                        prepared_signature.signature,
+                    )
+>>>>>>> master
                 );
+                self.store_variable(&result);
             }
             Instruction::EcdsaSecp256k1 {
                 msg,
@@ -1013,6 +884,7 @@ impl BlockContext {
                     predicate,
                 );
                 assert_eq!(
+<<<<<<< HEAD
                     result.value_id,
                     brillig_builder
                         .ecdsa_secp256k1(
@@ -1028,23 +900,25 @@ impl BlockContext {
                     &mut self.stored_variables,
                     &result.to_value_type(),
                     result.clone(),
+=======
+                    result,
+                    brillig_builder.ecdsa_secp256k1(
+                        prepared_signature.public_key_x,
+                        prepared_signature.public_key_y,
+                        prepared_signature.hash,
+                        prepared_signature.signature,
+                    )
+>>>>>>> master
                 );
+                self.store_variable(&result);
             }
         }
     }
 
     /// Takes scalar from [`super::instruction::Scalar`] and converts it to [`noir_ssa_fuzzer::typed_value::Scalar`]
     fn ssa_scalar_from_instruction_scalar(&mut self, scalar: InstructionScalar) -> Option<Scalar> {
-        let lo = get_typed_value_from_map(
-            &self.stored_variables,
-            &ValueType::Field,
-            scalar.field_lo_idx,
-        );
-        let hi = get_typed_value_from_map(
-            &self.stored_variables,
-            &ValueType::Field,
-            scalar.field_hi_idx,
-        );
+        let lo = self.get_stored_variable(&Type::Numeric(NumericType::Field), scalar.field_lo_idx);
+        let hi = self.get_stored_variable(&Type::Numeric(NumericType::Field), scalar.field_hi_idx);
         match (lo, hi) {
             (Some(lo), Some(hi)) => Some(Scalar { lo, hi }),
             _ => None,
@@ -1061,10 +935,10 @@ impl BlockContext {
         let scalar = self.ssa_scalar_from_instruction_scalar(point.scalar);
         scalar.as_ref()?; // wtf clippy forbid me to write if scalar.is_none() {return None}
         let scalar = scalar.unwrap();
-        let is_infinite = acir_builder.insert_constant(point.is_infinite, ValueType::Boolean);
+        let is_infinite = acir_builder.insert_constant(point.is_infinite, NumericType::Boolean);
         assert_eq!(
-            is_infinite.value_id,
-            brillig_builder.insert_constant(point.is_infinite, ValueType::Boolean).value_id
+            is_infinite,
+            brillig_builder.insert_constant(point.is_infinite, NumericType::Boolean)
         );
 
         let point = if point.derive_from_scalar_mul {
@@ -1087,29 +961,16 @@ impl BlockContext {
         acir_builder: &mut FuzzerBuilder,
         brillig_builder: &mut FuzzerBuilder,
         elements_indices: Vec<usize>,
-        element_type: ValueType,
-        is_references: bool,
+        element_type: Type,
     ) -> Option<TypedValue> {
         if !self.options.instruction_options.create_array_enabled {
             return None;
         }
         // if we storing references, take values from memory addresses, otherwise from stored variables
-        let elements = if !is_references {
-            elements_indices
-                .iter()
-                .map(|index| {
-                    get_typed_value_from_map(&self.stored_variables, &element_type, *index)
-                })
-                .collect::<Option<Vec<TypedValue>>>()
-        } else {
-            elements_indices
-                .iter()
-                .map(|index| {
-                    get_typed_value_from_map(&self.memory_addresses, &element_type, *index)
-                })
-                .collect::<Option<Vec<TypedValue>>>()
-        };
-
+        let elements = elements_indices
+            .iter()
+            .map(|index| self.get_stored_variable(&element_type, *index))
+            .collect::<Option<Vec<TypedValue>>>();
         let elements = match elements {
             Some(elements) => elements,
             _ => return None,
@@ -1117,8 +978,8 @@ impl BlockContext {
         if elements.is_empty() {
             return None;
         }
-        let array = acir_builder.insert_array(elements.clone(), is_references);
-        assert_eq!(array.value_id, brillig_builder.insert_array(elements, is_references).value_id);
+        let array = acir_builder.insert_array(elements.clone());
+        assert_eq!(array, brillig_builder.insert_array(elements));
         Some(array)
     }
 
@@ -1151,44 +1012,41 @@ impl BlockContext {
         if !safe_index && !self.options.instruction_options.unsafe_get_set_enabled {
             return None;
         }
-        if self.stored_arrays.is_empty() {
+        let arrays = self.get_stored_arrays();
+        if arrays.is_empty() {
             return None;
         }
-        // get the array from the stored arrays
-        let stored_array = self.stored_arrays.get(array_index % self.stored_arrays.len());
-        let stored_array = match stored_array {
-            Some(stored_array) => stored_array,
+        let array = arrays.get(array_index % arrays.len());
+        let array = match array {
+            Some(array) => array,
             _ => return None,
         };
         // references are not supported for array get with dynamic index
-        if stored_array.is_references && !index_is_constant {
+        if array.type_of_variable.is_reference() && !index_is_constant {
             return None;
         }
-        let array_id = stored_array.array_id.clone();
         // cast the index to u32
-        let index_casted = acir_builder.insert_cast(index.clone(), ValueType::U32);
+        let index_casted = acir_builder.insert_cast(index.clone(), Type::Numeric(NumericType::U32));
         assert_eq!(
-            index_casted.value_id,
-            brillig_builder.insert_cast(index.clone(), ValueType::U32).value_id
+            index_casted,
+            brillig_builder.insert_cast(index.clone(), Type::Numeric(NumericType::U32))
         );
         let value = acir_builder.insert_array_get(
-            array_id.clone(),
+            array.clone(),
             index_casted.clone(),
-            stored_array.element_type.to_ssa_type(),
+            array.type_of_variable.unwrap_array_element_type(),
             safe_index,
         );
         assert_eq!(
-            value.value_id,
-            brillig_builder
-                .insert_array_get(
-                    array_id,
-                    index_casted,
-                    stored_array.element_type.to_ssa_type(),
-                    safe_index
-                )
-                .value_id
+            value,
+            brillig_builder.insert_array_get(
+                array.clone(),
+                index_casted,
+                array.type_of_variable.unwrap_array_element_type(),
+                safe_index
+            )
         );
-        Some((value, stored_array.is_references))
+        Some((value, array.type_of_variable.is_reference()))
     }
 
     /// Inserts an array set instruction
@@ -1220,49 +1078,36 @@ impl BlockContext {
         if !safe_index && !self.options.instruction_options.unsafe_get_set_enabled {
             return None;
         }
-        if self.stored_arrays.is_empty() {
+        let arrays = self.get_stored_arrays();
+        if arrays.is_empty() {
             return None;
         }
-        // get the array from the stored arrays
-        let stored_array = self.stored_arrays.get(array_index % self.stored_arrays.len());
-        let stored_array = match stored_array {
-            Some(stored_array) => stored_array,
+        let array = arrays.get(array_index % arrays.len());
+        let array = match array {
+            Some(array) => array,
             _ => return None,
         };
+
+        let is_array_of_references =
+            array.type_of_variable.unwrap_array_element_type().is_reference();
+        // get the array from the stored arrays
         // references are not supported for array set with dynamic index
-        if stored_array.is_references && !index_is_constant {
+        if is_array_of_references && !index_is_constant {
             return None;
         }
-        let array_id = stored_array.array_id.clone();
-        // get the value from the stored variables if not references, otherwise from memory addresses
-        let value = if !stored_array.is_references {
-            get_typed_value_from_map(
-                &self.stored_variables,
-                &stored_array.element_type,
-                value_index,
-            )
-        } else {
-            get_typed_value_from_map(
-                &self.memory_addresses,
-                &stored_array.element_type,
-                value_index,
-            )
-        };
+        let value = self
+            .get_stored_variable(&array.type_of_variable.unwrap_array_element_type(), value_index);
         let value = match value {
             Some(value) => value,
             _ => return None,
         };
-        let new_array = acir_builder.insert_array_set(
-            array_id.clone(),
-            index.clone(),
-            value.clone(),
-            safe_index,
-        );
+        let new_array =
+            acir_builder.insert_array_set(array.clone(), index.clone(), value.clone(), safe_index);
         assert_eq!(
-            new_array.value_id,
-            brillig_builder.insert_array_set(array_id, index, value, safe_index).value_id
+            new_array,
+            brillig_builder.insert_array_set(array.clone(), index, value, safe_index)
         );
-        Some((new_array, stored_array.is_references))
+        Some((new_array, is_array_of_references))
     }
 
     pub(crate) fn insert_instructions(
@@ -1276,34 +1121,117 @@ impl BlockContext {
         }
     }
 
-    /// Finalizes the function by setting the return value
-    pub(crate) fn finalize_block_with_return(
-        self,
+    /// Finds values with the given type and index
+    ///
+    /// # Arguments
+    ///
+    /// * `type_` - Type of the value to find
+    /// * `index` - Index of the value to find
+    ///
+    /// # Returns
+    /// * TypedValue with the given type and index, if index is provided, otherwise the last value
+    /// * If no value is found, we create it from predefined boolean
+    ///
+    /// # Examples
+    ///
+    /// If we want to proceed function call, e.g. f1(&mut a: Field, b: [Field; 3])
+    /// We have to find values with type &mut Field and [Field; 3]
+    /// If variables of such type are not defined, uh ohh.. we need to create it
+    /// The only thing we know is that one boolean is defined
+    fn find_values_with_type(
+        &mut self,
         acir_builder: &mut FuzzerBuilder,
         brillig_builder: &mut FuzzerBuilder,
-        return_type: ValueType,
-    ) {
-        let array_of_values_with_return_type = self.stored_variables.get(&return_type);
-        let return_value = match array_of_values_with_return_type {
-            Some(arr) => arr.iter().last(),
-            _ => None,
-        };
-        match return_value {
-            Some(return_value) => {
-                acir_builder.finalize_function(return_value);
-                brillig_builder.finalize_function(return_value);
-            }
-            _ => {
-                // If no last value was set, we take a boolean that is definitely set and cast it to the return type
-                let boolean_value =
-                    get_typed_value_from_map(&self.stored_variables, &ValueType::Boolean, 0)
-                        .unwrap();
-                let return_value = acir_builder.insert_cast(boolean_value.clone(), return_type);
-                assert_eq!(brillig_builder.insert_cast(boolean_value, return_type), return_value);
-                acir_builder.finalize_function(&return_value);
-                brillig_builder.finalize_function(&return_value);
+        type_: &Type,
+        index: Option<usize>,
+    ) -> TypedValue {
+        log::debug!("Finding values with type: {type_:?}");
+        if let Some(values_of_such_type) = self.stored_variables.get(type_) {
+            if let Some(index) = index {
+                let length = values_of_such_type.len();
+                return values_of_such_type.get(index % length).cloned().unwrap();
+            } else {
+                return values_of_such_type.last().cloned().unwrap();
             }
         }
+
+        match type_ {
+            // On numeric simple cast from boolean
+            Type::Numeric(_) => {
+                let boolean_value =
+                    self.get_stored_variable(&Type::Numeric(NumericType::Boolean), 0).unwrap();
+                let acir_value = acir_builder.insert_cast(boolean_value.clone(), type_.clone());
+                let brillig_value = brillig_builder.insert_cast(boolean_value, type_.clone());
+                assert_eq!(acir_value, brillig_value);
+                self.store_variable(&acir_value);
+                acir_value
+            }
+            // On reference, try to find value with reference type,
+            // allocate and store it in memory
+            Type::Reference(reference_type) => {
+                let value = self.find_values_with_type(
+                    acir_builder,
+                    brillig_builder,
+                    reference_type.as_ref(),
+                    None,
+                );
+                let acir_value = acir_builder.insert_add_to_memory(value.clone());
+                let brillig_value = brillig_builder.insert_add_to_memory(value);
+                assert_eq!(acir_value, brillig_value);
+                self.store_variable(&acir_value);
+                acir_value
+            }
+            Type::Array(array_type, array_size) => {
+                let mut values = Vec::with_capacity((*array_size as usize) * array_type.len());
+                for _ in 0..*array_size {
+                    let value = array_type.iter().map(|element_type| {
+                        self.find_values_with_type(
+                            acir_builder,
+                            brillig_builder,
+                            element_type,
+                            None,
+                        )
+                    });
+                    values.extend(value);
+                }
+                let acir_value = acir_builder.insert_array(values.clone());
+                let brillig_value = brillig_builder.insert_array(values);
+                assert_eq!(acir_value, brillig_value);
+                self.store_variable(&acir_value);
+                acir_value
+            }
+            Type::Slice(slice_type) => {
+                let values = slice_type
+                    .iter()
+                    .map(|element_type| {
+                        self.find_values_with_type(
+                            acir_builder,
+                            brillig_builder,
+                            element_type,
+                            None,
+                        )
+                    })
+                    .collect::<Vec<TypedValue>>();
+                let acir_value = acir_builder.insert_slice(values.clone());
+                let brillig_value = brillig_builder.insert_slice(values);
+                assert_eq!(acir_value, brillig_value);
+                self.store_variable(&acir_value);
+                acir_value
+            }
+        }
+    }
+
+    /// Finalizes the function by setting the return value
+    pub(crate) fn finalize_block_with_return(
+        &mut self,
+        acir_builder: &mut FuzzerBuilder,
+        brillig_builder: &mut FuzzerBuilder,
+        return_type: Type,
+    ) {
+        let return_value =
+            self.find_values_with_type(acir_builder, brillig_builder, &return_type, None);
+        acir_builder.finalize_function(&return_value);
+        brillig_builder.finalize_function(&return_value);
     }
 
     pub(crate) fn finalize_block_with_jmp(
@@ -1328,7 +1256,7 @@ impl BlockContext {
         // takes last boolean variable as condition
         let condition = self
             .stored_variables
-            .get(&ValueType::Boolean)
+            .get(&Type::Numeric(NumericType::Boolean))
             .and_then(|values| values.last().cloned())
             .expect("Should have at least one boolean")
             .value_id;
@@ -1353,34 +1281,39 @@ impl BlockContext {
         assert_eq!(func_as_value_id, brillig_builder.insert_import(function_id));
 
         // Get values from stored_values map by indices
-        // If we don't have some value of type of the argument, we skip the function call
         let mut values = vec![];
-        for (value_type, index) in zip(function_signature.input_types, args) {
-            let value = match get_typed_value_from_map(&self.stored_variables, &value_type, *index)
-            {
-                Some(value) => value,
-                None => return,
-            };
 
+        // if the length of args is less than the number of input types, we fill it with random values
+        // don't really like this, but there is no other way to predict it on mutation level
+        let mut args_to_use = args.to_vec();
+        if args.len() < function_signature.input_types.len() {
+            args_to_use.extend(vec![0; function_signature.input_types.len() - args.len()]);
+        }
+        for (value_type, index) in zip(function_signature.input_types, args_to_use) {
+            let value =
+                self.find_values_with_type(acir_builder, brillig_builder, &value_type, Some(index));
             values.push(value);
         }
 
         // Insert a call to the function with the given arguments and result type
-        let ret_val =
-            acir_builder.insert_call(func_as_value_id, &values, function_signature.return_type);
+        let ret_val = acir_builder.insert_call(
+            func_as_value_id,
+            &values,
+            function_signature.return_type.clone(),
+        );
         assert_eq!(
             ret_val,
-            brillig_builder.insert_call(func_as_value_id, &values, function_signature.return_type)
+            brillig_builder.insert_call(
+                func_as_value_id,
+                &values,
+                function_signature.return_type.clone()
+            )
         );
         let typed_ret_val = TypedValue {
             value_id: ret_val,
-            type_of_variable: function_signature.return_type.to_ssa_type(),
+            type_of_variable: function_signature.return_type.clone(),
         };
         // Append the return value to stored_values map
-        append_typed_value_to_map(
-            &mut self.stored_variables,
-            &function_signature.return_type,
-            typed_ret_val,
-        );
+        self.store_variable(&typed_ret_val);
     }
 }

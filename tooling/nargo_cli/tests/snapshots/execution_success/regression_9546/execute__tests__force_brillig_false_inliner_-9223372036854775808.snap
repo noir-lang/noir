@@ -35,7 +35,7 @@ expression: artifact
       "visibility": "public"
     },
     "error_types": {
-      "14514982005979867414": {
+      "5421095327929394772": {
         "error_kind": "string",
         "string": "attempt to bit-shift with overflow"
       }
