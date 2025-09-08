@@ -11,9 +11,9 @@
 //! since we must go through every instruction to find all references to `assert_constant`
 //! while loop unrolling only touches blocks with loops in them.
 use acvm::{FieldElement, acir::brillig::ForeignCallParam};
-use fxhash::FxHashSet as HashSet;
 use iter_extended::vecmap;
 use noirc_printable_type::{PrintableValueDisplay, TryFromParamsError};
+use rustc_hash::FxHashSet as HashSet;
 
 use crate::{
     errors::RuntimeError,

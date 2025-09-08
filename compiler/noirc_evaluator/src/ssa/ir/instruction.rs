@@ -1,12 +1,11 @@
 use noirc_errors::call_stack::CallStackId;
 use serde::{Deserialize, Serialize};
-use std::hash::{Hash, Hasher};
+use std::hash::{BuildHasher, Hash};
 
 use acvm::{
     AcirField,
     acir::{BlackBoxFunc, circuit::ErrorSelector},
 };
-use fxhash::FxHasher64;
 use iter_extended::vecmap;
 use noirc_frontend::hir_def::types::Type as HirType;
 
@@ -871,9 +870,7 @@ pub enum ErrorType {
 
 impl ErrorType {
     pub fn selector(&self) -> ErrorSelector {
-        let mut hasher = FxHasher64::default();
-        self.hash(&mut hasher);
-        let hash = hasher.finish();
+        let hash = rustc_hash::FxBuildHasher.hash_one(self);
         ErrorSelector::new(hash)
     }
 }

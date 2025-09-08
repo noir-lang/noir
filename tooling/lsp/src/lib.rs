@@ -4,6 +4,7 @@
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
     future::Future,
+    hash::BuildHasher,
     ops::{self, ControlFlow},
     path::{Path, PathBuf},
     pin::Pin,
@@ -21,7 +22,6 @@ use async_lsp::{
     router::Router,
 };
 use fm::{FileManager, codespan_files as files};
-use fxhash::FxHashSet;
 use nargo::{
     package::{Package, PackageType},
     parse_all,
@@ -42,6 +42,7 @@ use noirc_frontend::{
     usage_tracker::UsageTracker,
 };
 use rayon::prelude::*;
+use rustc_hash::FxHashSet;
 
 use notifications::{
     on_did_change_configuration, on_did_change_text_document, on_did_close_text_document,
@@ -364,7 +365,9 @@ fn parse_diff(file_manager: &FileManager, state: &mut LspState) -> ParsedFiles {
                     Some((
                         file_id,
                         file_path.to_path_buf(),
-                        fxhash::hash(file_manager.fetch_file(file_id).expect("file must exist")),
+                        rustc_hash::FxBuildHasher
+                            .hash_one(file_manager.fetch_file(file_id).expect("file must exist"))
+                            as usize,
                     ))
                 } else {
                     None
