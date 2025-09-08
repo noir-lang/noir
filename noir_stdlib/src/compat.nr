@@ -31,17 +31,6 @@ mod test {
     }
 
     #[test]
-    fn bn254_modulus_bytes_are_consistent() {
-        // Test that all bytes in the modulus are within valid range (0-255)
-        for i in 0..32 {
-            assert(BN254_MODULUS_BE_BYTES[i] <= 255, "All bytes should be <= 255");
-            assert(BN254_MODULUS_BE_BYTES[i] >= 0, "All bytes should be >= 0");
-        }
-
-        assert(BN254_MODULUS_BE_BYTES[0] > 0, "First byte should not be 0 for non-zero modulus");
-    }
-
-    #[test]
     fn BN254_MODULUS_BE_BYTES_are_correct() {
         let expected: [u8] = [
             48, 100, 78, 114, 225, 49, 160, 41, 184, 80, 69, 182, 129, 129, 88, 93, 40, 51, 232, 72,
