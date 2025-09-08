@@ -238,7 +238,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@aztec/bb.js@npm:v1.2.0":
+"@aztec/bb.js@npm:1.2.0":
   version: 1.2.0
   resolution: "@aztec/bb.js@npm:1.2.0"
   dependencies:
@@ -15906,7 +15906,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "docs_tutorials_browser@workspace:examples/browser"
   dependencies:
-    "@aztec/bb.js": "npm:v1.2.0"
+    "@aztec/bb.js": "npm:1.2.0"
     "@noir-lang/noir_js": "workspace:*"
     "@playwright/test": "npm:^1.49.0"
     "@types/node": "npm:^20.0.0"
@@ -19352,7 +19352,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "integration-tests@workspace:compiler/integration-tests"
   dependencies:
-    "@aztec/bb.js": "npm:v1.2.0"
+    "@aztec/bb.js": "npm:1.2.0"
     "@noir-lang/noir_js": "workspace:*"
     "@noir-lang/noir_wasm": "workspace:*"
     "@nomicfoundation/hardhat-chai-matchers": "npm:^2.0.8"
