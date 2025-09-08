@@ -1089,7 +1089,7 @@ mod tests {
             v5 = add Field 1, v3
             v6 = add v5, v4
             constrain v6 == Field 2
-            call f3(v3, v4)
+            call f4(v3, v4)
             return
         }
         brillig(inline) fn entry_point_two f2 {
@@ -1097,7 +1097,7 @@ mod tests {
             v5 = add Field 2, v3
             v6 = add v5, v4
             constrain v6 == Field 3
-            call f4(v3, v4)
+            call f3(v3, v4)
             return
         }
         brillig(inline) fn inner_func f3 {
