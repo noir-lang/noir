@@ -30,11 +30,15 @@ expression: artifact
       },
       "14225679739041873922": {
         "error_kind": "string",
-        "string": "Index out of bounds"
+        "string": "attempt to subtract with overflow"
       },
-      "17843811134343075018": {
+      "15764276373176857197": {
         "error_kind": "string",
         "string": "Stack too deep"
+      },
+      "16431471497789672479": {
+        "error_kind": "string",
+        "string": "Index out of bounds"
       }
     }
   },

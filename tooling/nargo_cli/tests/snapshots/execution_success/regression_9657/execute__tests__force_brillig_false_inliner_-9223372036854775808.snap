@@ -19,13 +19,13 @@ expression: artifact
     ],
     "return_type": null,
     "error_types": {
-      "14225679739041873922": {
-        "error_kind": "string",
-        "string": "Index out of bounds"
-      },
-      "17843811134343075018": {
+      "15764276373176857197": {
         "error_kind": "string",
         "string": "Stack too deep"
+      },
+      "16431471497789672479": {
+        "error_kind": "string",
+        "string": "Index out of bounds"
       }
     }
   },

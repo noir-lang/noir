@@ -36,9 +36,9 @@ expression: artifact
     ],
     "return_type": null,
     "error_types": {
-      "1004672304334401604": {
+      "215386728691855601": {
         "error_kind": "fmtstring",
-        "length": 48,
+        "length": 36,
         "item_types": [
           {
             "kind": "field"
@@ -48,48 +48,19 @@ expression: artifact
           }
         ]
       },
-      "1359149291226868540": {
+      "361444214588792908": {
         "error_kind": "string",
-        "string": "hashmap.len() does not match input length."
+        "string": "attempt to multiply with overflow"
       },
-      "2572122181750573608": {
-        "error_kind": "fmtstring",
-        "length": 35,
-        "item_types": [
-          {
-            "kind": "field"
-          }
-        ]
-      },
-      "2658413227894878119": {
-        "error_kind": "fmtstring",
-        "length": 82,
-        "item_types": [
-          {
-            "kind": "integer",
-            "sign": "unsigned",
-            "width": 32
-          },
-          {
-            "kind": "integer",
-            "sign": "unsigned",
-            "width": 32
-          }
-        ]
-      },
-      "2920182694213909827": {
-        "error_kind": "string",
-        "string": "attempt to subtract with overflow"
-      },
-      "3078107792722303059": {
-        "error_kind": "string",
-        "string": "Got incorrect iteration of values."
-      },
-      "4105629585450304037": {
+      "524412777182247121": {
         "error_kind": "string",
         "string": "UHashMap after one insert should have a length of 1 element."
       },
-      "4115449374354845873": {
+      "986260048197077973": {
+        "error_kind": "string",
+        "string": "array ref-count underflow detected"
+      },
+      "1386012099583660250": {
         "error_kind": "fmtstring",
         "length": 39,
         "item_types": [
@@ -102,9 +73,9 @@ expression: artifact
           }
         ]
       },
-      "5019202896831570965": {
+      "1998584279744703196": {
         "error_kind": "string",
-        "string": "attempt to add with overflow"
+        "string": "attempt to subtract with overflow"
       },
       "6665645948190457319": {
         "error_kind": "string",
@@ -150,11 +121,11 @@ expression: artifact
         "error_kind": "string",
         "string": "Got incorrect iteration of entries."
       },
-      "11665340019033496436": {
+      "2985282867750658941": {
         "error_kind": "string",
-        "string": "Value has been removed, but is still available (not none)."
+        "string": "Got incorrect iteration of keys."
       },
-      "11671323210994517436": {
+      "3245725747439035980": {
         "error_kind": "fmtstring",
         "length": 81,
         "item_types": [
@@ -170,27 +141,47 @@ expression: artifact
           }
         ]
       },
-      "12049594436772143978": {
+      "3512663693275076189": {
         "error_kind": "string",
-        "string": "array ref-count underflow detected"
+        "string": "CtHashMaps should be equal."
       },
-      "12632160011611521689": {
-        "error_kind": "string",
-        "string": "Got none value."
+      "3521486278286881109": {
+        "error_kind": "fmtstring",
+        "length": 79,
+        "item_types": [
+          {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 32
+          },
+          {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 32
+          }
+        ]
       },
-      "13674703438729013973": {
+      "3614651079114874263": {
         "error_kind": "string",
         "string": "UHashMap length is invalid."
       },
-      "14225679739041873922": {
-        "error_kind": "string",
-        "string": "Index out of bounds"
+      "5133079293181036751": {
+        "error_kind": "fmtstring",
+        "length": 82,
+        "item_types": [
+          {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 32
+          },
+          {
+            "kind": "integer",
+            "sign": "unsigned",
+            "width": 32
+          }
+        ]
       },
-      "14241324264716156348": {
-        "error_kind": "string",
-        "string": "CtHashMaps should not be equal."
-      },
-      "15520563748478330655": {
+      "6616204256016455130": {
         "error_kind": "fmtstring",
         "length": 37,
         "item_types": [
@@ -201,21 +192,74 @@ expression: artifact
           }
         ]
       },
-      "15583592523844085222": {
+      "7564993426627941149": {
+        "error_kind": "fmtstring",
+        "length": 48,
+        "item_types": [
+          {
+            "kind": "field"
+          },
+          {
+            "kind": "field"
+          }
+        ]
+      },
+      "8793066906920933315": {
+        "error_kind": "fmtstring",
+        "length": 35,
+        "item_types": [
+          {
+            "kind": "field"
+          }
+        ]
+      },
+      "8806544701033301192": {
+        "error_kind": "string",
+        "string": "UHashMap after one insert and corresponding removal should be empty."
+      },
+      "8910999098988531960": {
+        "error_kind": "string",
+        "string": "Value has been removed, but is still available (not none)."
+      },
+      "11020811752260338334": {
+        "error_kind": "string",
+        "string": "Got none value."
+      },
+      "12070184068789501453": {
         "error_kind": "string",
         "string": "Pair should have been removed, since it does not match predicate."
       },
-      "16291778408346427203": {
+      "12234391306002075339": {
         "error_kind": "string",
-        "string": "Got incorrect iteration of keys."
+        "string": "UHashMap after clear() should be empty."
       },
-      "16986922238178214607": {
+      "14990209321349310352": {
+        "error_kind": "string",
+        "string": "attempt to add with overflow"
+      },
+      "15271981384914399430": {
         "error_kind": "string",
         "string": "UHashMap should have retained 2 elements."
       },
-      "17843811134343075018": {
+      "15450768183548231969": {
+        "error_kind": "string",
+        "string": "Got incorrect iteration of values."
+      },
+      "15764276373176857197": {
         "error_kind": "string",
         "string": "Stack too deep"
+      },
+      "16431471497789672479": {
+        "error_kind": "string",
+        "string": "Index out of bounds"
+      },
+      "17472443515335647117": {
+        "error_kind": "string",
+        "string": "hashmap.len() does not match input length."
+      },
+      "18374723995511905635": {
+        "error_kind": "string",
+        "string": "CtHashMaps should not be equal."
       }
     }
   },

@@ -9,23 +9,7 @@ expression: artifact
     "parameters": [],
     "return_type": null,
     "error_types": {
-      "2364549065372372629": {
-        "error_kind": "string",
-        "string": "after refcount_1 we clone once in passing array to copy_mut, once to array_refcount after, and once within copy_mut"
-      },
-      "4717959987348973079": {
-        "error_kind": "string",
-        "string": "the original should not be mutated by copy_mut, only borrow_mut_two"
-      },
-      "5019202896831570965": {
-        "error_kind": "string",
-        "string": "attempt to add with overflow"
-      },
-      "8222435832483736686": {
-        "error_kind": "string",
-        "string": "There is 1 clone after `borrow_mut_two` and before `refcount_1` is defined (cloned before array_refcount call)"
-      },
-      "12049594436772143978": {
+      "986260048197077973": {
         "error_kind": "string",
         "string": "array ref-count underflow detected"
       },

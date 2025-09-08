@@ -22,11 +22,11 @@ expression: artifact
       "visibility": "public"
     },
     "error_types": {
-      "12161114527103510886": {
+      "14661248954735794012": {
         "error_kind": "string",
         "string": "completeness violation"
       },
-      "17843811134343075018": {
+      "15764276373176857197": {
         "error_kind": "string",
         "string": "Stack too deep"
       }

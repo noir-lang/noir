@@ -17,7 +17,7 @@ expression: artifact
     ],
     "return_type": null,
     "error_types": {
-      "17843811134343075018": {
+      "15764276373176857197": {
         "error_kind": "string",
         "string": "Stack too deep"
       }

@@ -9,11 +9,11 @@ expression: artifact
     "parameters": [],
     "return_type": null,
     "error_types": {
-      "12049594436772143978": {
+      "986260048197077973": {
         "error_kind": "string",
         "string": "array ref-count underflow detected"
       },
-      "17843811134343075018": {
+      "15764276373176857197": {
         "error_kind": "string",
         "string": "Stack too deep"
       }

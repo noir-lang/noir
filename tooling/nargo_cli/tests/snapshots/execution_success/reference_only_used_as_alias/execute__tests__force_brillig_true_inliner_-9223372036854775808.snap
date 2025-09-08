@@ -37,15 +37,15 @@ expression: artifact
     ],
     "return_type": null,
     "error_types": {
-      "5019202896831570965": {
-        "error_kind": "string",
-        "string": "attempt to add with overflow"
-      },
-      "5727012404371710682": {
+      "12913276134398371456": {
         "error_kind": "string",
         "string": "push out of bounds"
       },
-      "17843811134343075018": {
+      "14990209321349310352": {
+        "error_kind": "string",
+        "string": "attempt to add with overflow"
+      },
+      "15764276373176857197": {
         "error_kind": "string",
         "string": "Stack too deep"
       }

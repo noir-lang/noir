@@ -128,29 +128,29 @@ expression: artifact
       "visibility": "public"
     },
     "error_types": {
-      "2920182694213909827": {
-        "error_kind": "string",
-        "string": "attempt to subtract with overflow"
-      },
-      "4455338056872237888": {
-        "error_kind": "string",
-        "string": "not empty after"
-      },
-      "12049594436772143978": {
+      "986260048197077973": {
         "error_kind": "string",
         "string": "array ref-count underflow detected"
       },
-      "14225679739041873922": {
+      "1998584279744703196": {
         "error_kind": "string",
-        "string": "Index out of bounds"
+        "string": "attempt to subtract with overflow"
       },
-      "17838006522060322362": {
+      "13531573797884533515": {
+        "error_kind": "string",
+        "string": "not empty after"
+      },
+      "15202565799453723620": {
         "error_kind": "string",
         "string": "cannot pop from an empty vector"
       },
-      "17843811134343075018": {
+      "15764276373176857197": {
         "error_kind": "string",
         "string": "Stack too deep"
+      },
+      "16431471497789672479": {
+        "error_kind": "string",
+        "string": "Index out of bounds"
       }
     }
   },
