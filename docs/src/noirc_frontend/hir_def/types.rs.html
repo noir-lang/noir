@@ -3028,8 +3028,8 @@
 <a href="#3027" id="3027">3027</a>
 <a href="#3028" id="3028">3028</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::{borrow::Cow, cell::RefCell, collections::BTreeSet, rc::Rc};
 
+<span class="kw">use </span>fxhash::FxHashMap <span class="kw">as </span>HashMap;
 <span class="kw">use </span>im::HashSet;
-<span class="kw">use </span>rustc_hash::FxHashMap <span class="kw">as </span>HashMap;
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">use </span>proptest_derive::Arbitrary;

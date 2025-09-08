@@ -157,10 +157,8 @@
 <a href="#156" id="156">156</a>
 <a href="#157" id="157">157</a>
 <a href="#158" id="158">158</a>
-<a href="#159" id="159">159</a>
-<a href="#160" id="160">160</a></pre></div><pre class="rust"><code><span class="kw">use </span>rustc_hash::FxHashMap;
+<a href="#159" id="159">159</a></pre></div><pre class="rust"><code><span class="kw">use </span>fxhash::FxHashMap;
 <span class="kw">use </span>serde::{Deserialize, Serialize};
-<span class="kw">use </span>std::hash::BuildHasher;
 
 <span class="kw">use </span><span class="kw">crate</span>::Location;
 
@@ -264,14 +262,14 @@
 
     <span class="doccomment">/// Adds a location to the call stack
     </span><span class="kw">pub fn </span>add_child(<span class="kw-2">&amp;mut </span><span class="self">self</span>, call_stack: CallStackId, location: Location) -&gt; CallStackId {
-        <span class="kw">let </span>key = rustc_hash::FxBuildHasher.hash_one(location);
+        <span class="kw">let </span>key = fxhash::hash64(<span class="kw-2">&amp;</span>location);
         <span class="kw">if let </span><span class="prelude-val">Some</span>(result) = <span class="self">self</span>.locations[call_stack.index()].children_hash.get(<span class="kw-2">&amp;</span>key) {
             <span class="kw">if </span><span class="self">self</span>.locations[result.index()].value == location {
                 <span class="kw">return </span><span class="kw-2">*</span>result;
             }
         }
         <span class="kw">let </span>new_location = LocationNode::new(<span class="prelude-val">Some</span>(call_stack), location);
-        <span class="kw">let </span>key = rustc_hash::FxBuildHasher.hash_one(new_location.value);
+        <span class="kw">let </span>key = fxhash::hash64(<span class="kw-2">&amp;</span>new_location.value);
         <span class="self">self</span>.locations.push(new_location);
         <span class="kw">let </span>new_location_id = CallStackId::new(<span class="self">self</span>.locations.len() - <span class="number">1</span>);
 

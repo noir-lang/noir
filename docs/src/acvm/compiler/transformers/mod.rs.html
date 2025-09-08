@@ -507,8 +507,7 @@
 <a href="#506" id="506">506</a>
 <a href="#507" id="507">507</a>
 <a href="#508" id="508">508</a>
-<a href="#509" id="509">509</a>
-<a href="#510" id="510">510</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
+<a href="#509" id="509">509</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::collections::BTreeMap;
 
 <span class="kw">use </span>acir::{
     AcirField,
@@ -525,7 +524,6 @@
 
 <span class="kw">pub</span>(<span class="kw">crate</span>) <span class="kw">use </span>csat::CSatTransformer;
 <span class="kw">pub use </span>csat::MIN_EXPRESSION_WIDTH;
-<span class="kw">use </span>std::hash::BuildHasher;
 <span class="kw">use </span>tracing::info;
 
 <span class="kw">use super</span>::{
@@ -576,7 +574,7 @@
     }
 
     <span class="comment">// Allow multiple passes until we have stable output.
-    </span><span class="kw">let </span><span class="kw-2">mut </span>prev_opcodes_hash = rustc_hash::FxBuildHasher.hash_one(<span class="kw-2">&amp;</span>acir.opcodes);
+    </span><span class="kw">let </span><span class="kw-2">mut </span>prev_opcodes_hash = fxhash::hash64(<span class="kw-2">&amp;</span>acir.opcodes);
 
     <span class="comment">// For most test programs it would be enough to loop here, but some of them
     // don't stabilize unless we also repeat the backend agnostic optimizations.
@@ -592,7 +590,7 @@
         acir = new_acir;
         acir_opcode_positions = new_acir_opcode_positions;
 
-        <span class="kw">let </span>new_opcodes_hash = rustc_hash::FxBuildHasher.hash_one(<span class="kw-2">&amp;</span>acir.opcodes);
+        <span class="kw">let </span>new_opcodes_hash = fxhash::hash64(<span class="kw-2">&amp;</span>acir.opcodes);
 
         <span class="kw">if </span>new_opcodes_hash == prev_opcodes_hash {
             <span class="kw">break</span>;

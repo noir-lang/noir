@@ -1867,8 +1867,8 @@
 //! ACIR generation is performed by calling the [Ssa::into_acir] method, providing any necessary brillig bytecode.
 //! The compiled program will be returned as an [`Artifacts`] type.
 
-</span><span class="kw">use </span>noirc_errors::call_stack::CallStack;
-<span class="kw">use </span>rustc_hash::{FxHashMap <span class="kw">as </span>HashMap, FxHashSet <span class="kw">as </span>HashSet};
+</span><span class="kw">use </span>fxhash::{FxHashMap <span class="kw">as </span>HashMap, FxHashSet <span class="kw">as </span>HashSet};
+<span class="kw">use </span>noirc_errors::call_stack::CallStack;
 <span class="kw">use </span>std::collections::BTreeMap;
 <span class="kw">use </span>types::{AcirDynamicArray, AcirValue};
 

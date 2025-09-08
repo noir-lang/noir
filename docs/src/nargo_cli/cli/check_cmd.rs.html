@@ -195,11 +195,7 @@
 <a href="#194" id="194">194</a>
 <a href="#195" id="195">195</a>
 <a href="#196" id="196">196</a>
-<a href="#197" id="197">197</a>
-<a href="#198" id="198">198</a>
-<a href="#199" id="199">199</a></pre></div><pre class="rust"><code><span class="kw">use </span>std::hash::BuildHasher;
-
-<span class="kw">use </span><span class="kw">crate</span>::errors::CliError;
+<a href="#197" id="197">197</a></pre></div><pre class="rust"><code><span class="kw">use </span><span class="kw">crate</span>::errors::CliError;
 
 <span class="kw">use </span>clap::Args;
 <span class="kw">use </span>fm::FileManager;
@@ -261,7 +257,7 @@
                 <span class="kw">continue</span>;
             };
             <span class="kw">let </span>program = monomorphize(main, <span class="kw-2">&amp;mut </span>context.def_interner, <span class="bool-val">false</span>).unwrap();
-            <span class="kw">let </span>hash = rustc_hash::FxBuildHasher.hash_one(<span class="kw-2">&amp;</span>program);
+            <span class="kw">let </span>hash = fxhash::hash64(<span class="kw-2">&amp;</span>program);
             <span class="macro">println!</span>(<span class="string">"{}: {:x}"</span>, package.name, hash);
             <span class="kw">continue</span>;
         }

@@ -1697,9 +1697,9 @@
 //! DIE also tracks which block parameters are unused.
 //! Unused parameters are then pruned by the [prune_dead_parameters] pass.
 </span><span class="kw">use </span>acvm::{AcirField, FieldElement, acir::BlackBoxFunc};
+<span class="kw">use </span>fxhash::{FxHashMap <span class="kw">as </span>HashMap, FxHashSet <span class="kw">as </span>HashSet};
 <span class="kw">use </span>noirc_errors::call_stack::CallStackId;
 <span class="kw">use </span>rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
-<span class="kw">use </span>rustc_hash::{FxHashMap <span class="kw">as </span>HashMap, FxHashSet <span class="kw">as </span>HashSet};
 
 <span class="kw">use </span><span class="kw">crate</span>::ssa::{
     ir::{
