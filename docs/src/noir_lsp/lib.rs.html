@@ -434,12 +434,16 @@
 <a href="#433" id="433">433</a>
 <a href="#434" id="434">434</a>
 <a href="#435" id="435">435</a>
-<a href="#436" id="436">436</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#436" id="436">436</a>
+<a href="#437" id="437">437</a>
+<a href="#438" id="438">438</a>
+<a href="#439" id="439">439</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
 </span><span class="kw">use </span>std::{
     collections::{BTreeMap, HashMap, HashSet},
     future::Future,
+    hash::BuildHasher,
     ops::{<span class="self">self</span>, ControlFlow},
     path::{Path, PathBuf},
     pin::Pin,
@@ -457,7 +461,6 @@
     router::Router,
 };
 <span class="kw">use </span>fm::{FileManager, codespan_files <span class="kw">as </span>files};
-<span class="kw">use </span>fxhash::FxHashSet;
 <span class="kw">use </span>nargo::{
     package::{Package, PackageType},
     parse_all,
@@ -478,6 +481,7 @@
     usage_tracker::UsageTracker,
 };
 <span class="kw">use </span>rayon::prelude::<span class="kw-2">*</span>;
+<span class="kw">use </span>rustc_hash::FxHashSet;
 
 <span class="kw">use </span>notifications::{
     on_did_change_configuration, on_did_change_text_document, on_did_close_text_document,
@@ -800,7 +804,9 @@
                     <span class="prelude-val">Some</span>((
                         file_id,
                         file_path.to_path_buf(),
-                        fxhash::hash(file_manager.fetch_file(file_id).expect(<span class="string">"file must exist"</span>)),
+                        rustc_hash::FxBuildHasher
+                            .hash_one(file_manager.fetch_file(file_id).expect(<span class="string">"file must exist"</span>))
+                            <span class="kw">as </span>usize,
                     ))
                 } <span class="kw">else </span>{
                     <span class="prelude-val">None

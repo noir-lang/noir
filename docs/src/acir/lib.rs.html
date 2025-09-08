@@ -634,7 +634,8 @@
 <a href="#633" id="633">633</a>
 <a href="#634" id="634">634</a>
 <a href="#635" id="635">635</a>
-<a href="#636" id="636">636</a></pre></div><pre class="rust"><code><span class="doccomment">//! C++ code generation for ACIR format, to be used by Barretenberg.
+<a href="#636" id="636">636</a>
+<a href="#637" id="637">637</a></pre></div><pre class="rust"><code><span class="doccomment">//! C++ code generation for ACIR format, to be used by Barretenberg.
 //!
 //! To regenerate code run the following command:
 //! ```text
@@ -672,6 +673,7 @@
     </span><span class="kw">use </span>std::{
         collections::BTreeMap,
         fs::File,
+        hash::BuildHasher,
         io::Write,
         path::{Path, PathBuf},
     };
@@ -781,7 +783,7 @@
         <span class="kw">let </span>old_hash = <span class="kw">if </span>path.is_file() {
             <span class="kw">let </span>old_source = std::fs::read(path).expect(<span class="string">"failed to read existing code"</span>);
             <span class="kw">let </span>old_source = String::from_utf8(old_source).expect(<span class="string">"old source not UTF-8"</span>);
-            <span class="prelude-val">Some</span>(fxhash::hash64(<span class="kw-2">&amp;</span>old_source))
+            <span class="prelude-val">Some</span>(rustc_hash::FxBuildHasher.hash_one(<span class="kw-2">&amp;</span>old_source))
         } <span class="kw">else </span>{
             <span class="prelude-val">None
         </span>};
@@ -804,7 +806,7 @@
 
         <span class="kw">if </span>!should_overwrite() {
             <span class="kw">if let </span><span class="prelude-val">Some</span>(old_hash) = old_hash {
-                <span class="kw">let </span>new_hash = fxhash::hash64(<span class="kw-2">&amp;</span>source);
+                <span class="kw">let </span>new_hash = rustc_hash::FxBuildHasher.hash_one(<span class="kw-2">&amp;</span>source);
                 <span class="macro">assert_eq!</span>(new_hash, old_hash, <span class="string">"Serialization format has changed"</span>,);
             }
         }

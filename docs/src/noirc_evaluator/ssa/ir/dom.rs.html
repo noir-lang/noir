@@ -881,7 +881,7 @@
 <span class="kw">use super</span>::{
     basic_block::BasicBlockId, cfg::ControlFlowGraph, function::Function, post_order::PostOrder,
 };
-<span class="kw">use </span>fxhash::{FxHashMap <span class="kw">as </span>HashMap, FxHashSet <span class="kw">as </span>HashSet};
+<span class="kw">use </span>rustc_hash::{FxHashMap <span class="kw">as </span>HashMap, FxHashSet <span class="kw">as </span>HashSet};
 
 <span class="doccomment">/// Dominator tree node. We keep one of these per reachable block.
 </span><span class="attr">#[derive(Clone, Default)]

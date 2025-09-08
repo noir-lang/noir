@@ -668,7 +668,7 @@
     value::{Value, ValueId},
 };
 
-<span class="kw">use </span>fxhash::{FxHashMap <span class="kw">as </span>HashMap, FxHashSet <span class="kw">as </span>HashSet};
+<span class="kw">use </span>rustc_hash::{FxHashMap <span class="kw">as </span>HashMap, FxHashSet <span class="kw">as </span>HashSet};
 
 <span class="kw">use </span><span class="kw">super</span>::constant_allocation::ConstantAllocation;
 
@@ -986,8 +986,8 @@
 
 <span class="attr">#[cfg(test)]
 </span><span class="kw">mod </span>test {
-    <span class="kw">use </span>fxhash::FxHashSet;
     <span class="kw">use </span>noirc_frontend::monomorphization::ast::InlineType;
+    <span class="kw">use </span>rustc_hash::FxHashSet;
 
     <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_gen::constant_allocation::ConstantAllocation;
     <span class="kw">use </span><span class="kw">crate</span>::brillig::brillig_gen::variable_liveness::VariableLiveness;

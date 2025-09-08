@@ -2,7 +2,7 @@
     program: <a class="struct" href="../../noirc_frontend/monomorphization/ast/struct.Program.html" title="struct noirc_frontend::monomorphization::ast::Program">Program</a>,
     options: &amp;<a class="struct" href="struct.SsaEvaluatorOptions.html" title="struct noirc_evaluator::ssa::SsaEvaluatorOptions">SsaEvaluatorOptions</a>,
     passes: &amp;[<a class="struct" href="struct.SsaPass.html" title="struct noirc_evaluator::ssa::SsaPass">SsaPass</a>&lt;'_&gt;],
-    files: <a class="enum" href="https://doc.rust-lang.org/1.85.0/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;&amp;FileManager&gt;,
+    files: <a class="enum" href="https://doc.rust-lang.org/1.85.0/core/option/enum.Option.html" title="enum core::option::Option">Option</a>&lt;&amp;<a class="struct" href="../../fm/struct.FileManager.html" title="struct fm::FileManager">FileManager</a>&gt;,
 ) -&gt; <a class="enum" href="https://doc.rust-lang.org/1.85.0/core/result/enum.Result.html" title="enum core::result::Result">Result</a>&lt;<a class="struct" href="struct.ArtifactsAndWarnings.html" title="struct noirc_evaluator::ssa::ArtifactsAndWarnings">ArtifactsAndWarnings</a>, <a class="enum" href="../errors/enum.RuntimeError.html" title="enum noirc_evaluator::errors::RuntimeError">RuntimeError</a>&gt;</code></pre><details class="toggle top-doc" open><summary class="hideme"><span>Expand description</span></summary><div class="docblock"><p>Optimize the given program by converting it into SSA
 form and performing optimizations there. When finished,
 convert the final SSA into an ACIR program and return it.

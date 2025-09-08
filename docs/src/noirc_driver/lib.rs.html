@@ -866,10 +866,14 @@
 <a href="#865" id="865">865</a>
 <a href="#866" id="866">866</a>
 <a href="#867" id="867">867</a>
-<a href="#868" id="868">868</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
+<a href="#868" id="868">868</a>
+<a href="#869" id="869">869</a>
+<a href="#870" id="870">870</a></pre></div><pre class="rust"><code><span class="attr">#![forbid(unsafe_code)]
 #![warn(unused_crate_dependencies, unused_extern_crates)]
 
-</span><span class="kw">use </span>abi_gen::{abi_type_from_hir_type, value_from_hir_expression};
+</span><span class="kw">use </span>std::hash::BuildHasher;
+
+<span class="kw">use </span>abi_gen::{abi_type_from_hir_type, value_from_hir_expression};
 <span class="kw">use </span>acvm::acir::circuit::ExpressionWidth;
 <span class="kw">use </span>acvm::compiler::MIN_EXPRESSION_WIDTH;
 <span class="kw">use </span>clap::Args;
@@ -1666,7 +1670,7 @@
         || options.minimal_ssa;
 
     <span class="comment">// Hash the AST program, which is going to be used to fingerprint the compilation artifact.
-    </span><span class="kw">let </span>hash = fxhash::hash64(<span class="kw-2">&amp;</span>program);
+    </span><span class="kw">let </span>hash = rustc_hash::FxBuildHasher.hash_one(<span class="kw-2">&amp;</span>program);
 
     <span class="kw">if let </span><span class="prelude-val">Some</span>(cached_program) = cached_program {
         <span class="kw">if </span>!force_compile &amp;&amp; cached_program.hash == hash {

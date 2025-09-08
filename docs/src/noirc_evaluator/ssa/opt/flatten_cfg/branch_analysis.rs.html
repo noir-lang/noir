@@ -707,7 +707,7 @@
 </span><span class="kw">use </span>std::collections::HashSet;
 
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ir::{basic_block::BasicBlockId, cfg::ControlFlowGraph, function::Function};
-<span class="kw">use </span>fxhash::FxHashMap <span class="kw">as </span>HashMap;
+<span class="kw">use </span>rustc_hash::FxHashMap <span class="kw">as </span>HashMap;
 
 <span class="doccomment">/// Returns a `HashMap` mapping blocks that start a branch (i.e. blocks terminated with jmpif) to
 /// their corresponding blocks that end the branch.

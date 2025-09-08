@@ -696,12 +696,12 @@
 //! and purity analysis which needs to unify the purities of all functions called within another function.
 </span><span class="kw">use </span>std::collections::{BTreeMap, BTreeSet};
 
-<span class="kw">use </span>fxhash::{FxHashMap <span class="kw">as </span>HashMap, FxHashSet <span class="kw">as </span>HashSet};
 <span class="kw">use </span>petgraph::{
     algo::kosaraju_scc,
     graph::{DiGraph, NodeIndex <span class="kw">as </span>PetGraphIndex},
     visit::{Dfs, EdgeRef, Walker},
 };
+<span class="kw">use </span>rustc_hash::{FxHashMap <span class="kw">as </span>HashMap, FxHashSet <span class="kw">as </span>HashSet};
 
 <span class="kw">use </span><span class="kw">crate</span>::ssa::ssa_gen::Ssa;
 
