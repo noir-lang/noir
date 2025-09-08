@@ -40,11 +40,11 @@ expression: artifact
       "visibility": "public"
     },
     "error_types": {
-      "14225679739041873922": {
+      "1534749929587795882": {
         "error_kind": "string",
         "string": "Index out of bounds"
       },
-      "15839565830707987292": {
+      "2642588843551438474": {
         "error_kind": "string",
         "string": "attempt to calculate the remainder with a divisor of zero"
       }

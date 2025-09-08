@@ -37,7 +37,7 @@ expression: artifact
     ],
     "return_type": null,
     "error_types": {
-      "7233212735005103307": {
+      "9029823910880483185": {
         "error_kind": "string",
         "string": "attempt to multiply with overflow"
       }

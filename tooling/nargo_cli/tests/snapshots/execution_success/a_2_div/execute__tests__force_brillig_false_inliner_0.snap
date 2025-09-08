@@ -37,13 +37,13 @@ expression: artifact
     ],
     "return_type": null,
     "error_types": {
-      "2920182694213909827": {
-        "error_kind": "string",
-        "string": "attempt to subtract with overflow"
-      },
-      "7233212735005103307": {
+      "9029823910880483185": {
         "error_kind": "string",
         "string": "attempt to multiply with overflow"
+      },
+      "10419109383335261722": {
+        "error_kind": "string",
+        "string": "attempt to subtract with overflow"
       }
     }
   },
