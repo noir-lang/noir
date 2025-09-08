@@ -274,6 +274,13 @@ mod test {
     };
     use crate::ops::arith::Neg;
 
+    // doubling the generator point twice
+    global sample_point: EmbeddedCurvePoint = EmbeddedCurvePoint {
+        x: 0x01b06105d7dc31e315550bc6bf0e4e5e7148034f7b957a514537d8c21b2db26a,
+        y: 0x02c095b9dcadf22a6f64bbcb78a223b6e04014a8c8697eccbcf6b35d44452003,
+        is_infinite: false,
+    };
+
     #[test]
     fn test_point_at_infinity() {
         let infinity = EmbeddedCurvePoint::point_at_infinity();
@@ -298,21 +305,37 @@ mod test {
 
     #[test]
     fn test_embedded_curve_point_creation() {
-        let point = EmbeddedCurvePoint { x: 42, y: 123, is_infinite: false };
+        let point = sample_point;
 
-        assert_eq(point.x, 42, "Point should have correct x coordinate");
-        assert_eq(point.y, 123, "Point should have correct y coordinate");
+        assert_eq(
+            point.x,
+            0x01b06105d7dc31e315550bc6bf0e4e5e7148034f7b957a514537d8c21b2db26a,
+            "Point should have correct x coordinate",
+        );
+        assert_eq(
+            point.y,
+            0x02c095b9dcadf22a6f64bbcb78a223b6e04014a8c8697eccbcf6b35d44452003,
+            "Point should have correct y coordinate",
+        );
         assert(!point.is_infinite, "Point should not be at infinity");
     }
 
     #[test]
     fn test_point_negation() {
-        let point = EmbeddedCurvePoint { x: 42, y: 123, is_infinite: false };
+        let point = sample_point;
 
         let neg_point = point.neg();
 
-        assert_eq(neg_point.x, 42, "Negated point should have same x coordinate");
-        assert_eq(neg_point.y, -123, "Negated point should have negated y coordinate");
+        assert_eq(
+            neg_point.x,
+            0x01b06105d7dc31e315550bc6bf0e4e5e7148034f7b957a514537d8c21b2db26a,
+            "Negated point should have same x coordinate",
+        );
+        assert_eq(
+            neg_point.y,
+            -0x02c095b9dcadf22a6f64bbcb78a223b6e04014a8c8697eccbcf6b35d44452003,
+            "Negated point should have negated y coordinate",
+        );
         assert(!neg_point.is_infinite, "Negated point should not be at infinity");
     }
 
@@ -350,11 +373,15 @@ mod test {
 
     #[test]
     fn test_point_equality() {
-        let point1 = EmbeddedCurvePoint { x: 42, y: 123, is_infinite: false };
+        let point1 = sample_point;
 
-        let point2 = EmbeddedCurvePoint { x: 42, y: 123, is_infinite: false };
+        let point2 = EmbeddedCurvePoint {
+            x: 0x01b06105d7dc31e315550bc6bf0e4e5e7148034f7b957a514537d8c21b2db26a,
+            y: 0x02c095b9dcadf22a6f64bbcb78a223b6e04014a8c8697eccbcf6b35d44452003,
+            is_infinite: false,
+        };
 
-        let point3 = EmbeddedCurvePoint { x: 42, y: 124, is_infinite: false };
+        let point3 = EmbeddedCurvePoint::generator();
 
         assert_eq(point1, point2, "Identical points should be equal");
         assert(point1 != point3, "Different points should not be equal");
@@ -371,9 +398,8 @@ mod test {
     #[test]
     fn test_point_equality_mixed_infinity() {
         let infinity = EmbeddedCurvePoint::point_at_infinity();
-        let regular_point = EmbeddedCurvePoint { x: 42, y: 123, is_infinite: false };
 
-        assert(infinity != regular_point, "Infinity point should not equal regular point");
+        assert(infinity != sample_point, "Infinity point should not equal regular point");
     }
 
     #[test]
@@ -409,7 +435,7 @@ mod test {
     #[test]
     fn test_embedded_curve_add_with_infinity() {
         let infinity = EmbeddedCurvePoint::point_at_infinity();
-        let regular_point = EmbeddedCurvePoint { x: 42, y: 123, is_infinite: false };
+        let regular_point = sample_point;
 
         // Adding infinity to a regular point should return the regular point
         let result1 = embedded_curve_add(infinity, regular_point);
@@ -441,9 +467,13 @@ mod test {
 
     #[test]
     fn test_embedded_curve_add_opposite_points() {
-        let point = EmbeddedCurvePoint { x: 1, y: 2, is_infinite: false };
+        let point = sample_point;
 
-        let opposite_point = EmbeddedCurvePoint { x: 1, y: -2, is_infinite: false };
+        let opposite_point = EmbeddedCurvePoint {
+            x: 0x01b06105d7dc31e315550bc6bf0e4e5e7148034f7b957a514537d8c21b2db26a,
+            y: -0x02c095b9dcadf22a6f64bbcb78a223b6e04014a8c8697eccbcf6b35d44452003,
+            is_infinite: false,
+        };
 
         // Adding opposite points should result in infinity
         let result = embedded_curve_add(point, opposite_point);
@@ -452,9 +482,9 @@ mod test {
 
     #[test]
     fn test_embedded_curve_add_not_nul_assertions() {
-        let point1 = EmbeddedCurvePoint { x: 42, y: 123, is_infinite: false };
+        let point1 = sample_point;
 
-        let point2 = EmbeddedCurvePoint { x: 43, y: 124, is_infinite: false };
+        let point2 = EmbeddedCurvePoint::generator();
 
         // This should not panic since points have different x coordinates and are not at infinity
         let _ = embedded_curve_add_not_nul(point1, point2);
@@ -462,11 +492,11 @@ mod test {
 
     #[test(should_fail)]
     fn test_embedded_curve_add_not_nul_same_x_coordinate() {
-        let point1 = EmbeddedCurvePoint { x: 42, y: 123, is_infinite: false };
+        let point1 = sample_point;
 
         let point2 = EmbeddedCurvePoint {
-            x: 42, // Same x coordinate, should fail
-            y: 124,
+            x: 0x01b06105d7dc31e315550bc6bf0e4e5e7148034f7b957a514537d8c21b2db26a,
+            y: -0x02c095b9dcadf22a6f64bbcb78a223b6e04014a8c8697eccbcf6b35d44452003,
             is_infinite: false,
         };
 
@@ -476,17 +506,14 @@ mod test {
     #[test(should_fail)]
     fn test_embedded_curve_add_not_nul_first_point_infinity() {
         let infinity = EmbeddedCurvePoint::point_at_infinity();
-        let regular_point = EmbeddedCurvePoint { x: 42, y: 123, is_infinite: false };
-
-        let _ = embedded_curve_add_not_nul(infinity, regular_point);
+        let _ = embedded_curve_add_not_nul(infinity, sample_point);
     }
 
     #[test(should_fail)]
     fn test_embedded_curve_add_not_nul_second_point_infinity() {
-        let regular_point = EmbeddedCurvePoint { x: 42, y: 123, is_infinite: false };
         let infinity = EmbeddedCurvePoint::point_at_infinity();
 
-        let _ = embedded_curve_add_not_nul(regular_point, infinity);
+        let _ = embedded_curve_add_not_nul(sample_point, infinity);
     }
 
     #[test]
@@ -536,11 +563,12 @@ mod test {
     #[test]
     fn test_multi_scalar_mul_two_points() {
         let point1 = EmbeddedCurvePoint::generator();
+        let point2 = sample_point;
 
         let scalar1 = EmbeddedCurveScalar::new(1, 0);
         let scalar2 = EmbeddedCurveScalar::new(2, 0);
 
-        let points = [point1, point1];
+        let points = [point1, point2];
         let scalars = [scalar1, scalar2];
 
         let result = multi_scalar_mul(points, scalars);
@@ -548,16 +576,16 @@ mod test {
         // The result should not be infinity
         assert(!result.is_infinite, "Result should not be at infinity");
         assert(result != point1, "Result should be different from first point");
+        assert(result != point2, "Result should be different from second point");
     }
 
     #[test]
     fn test_curve_addition_properties() {
         // Test that addition is commutative: P + Q = Q + P
 
-        let point2 = EmbeddedCurvePoint { x: 1, y: -2, is_infinite: false };
+        let point2 = EmbeddedCurvePoint::generator();
 
-        let point1 = EmbeddedCurvePoint { x: 1, y: 2, is_infinite: false };
-
+        let point1 = sample_point;
         let result1 = embedded_curve_add(point1, point2);
         let result2 = embedded_curve_add(point2, point1);
 
@@ -567,7 +595,7 @@ mod test {
     #[test]
     fn test_curve_addition_identity() {
         // Test that P + infinity = P (infinity is the identity element)
-        let point = EmbeddedCurvePoint { x: 42, y: 123, is_infinite: false };
+        let point = sample_point;
 
         let infinity = EmbeddedCurvePoint::point_at_infinity();
 
@@ -578,7 +606,7 @@ mod test {
     #[test]
     fn test_curve_negation_properties() {
         // Test that P + (-P) = infinity
-        let point = EmbeddedCurvePoint { x: 1, y: 2, is_infinite: false };
+        let point = sample_point;
 
         let neg_point = point.neg();
         let result = embedded_curve_add(point, neg_point);
