@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VERSION="1.0.0-staging.6"
+VERSION="v1.2.0"
 
 BBUP_PATH=~/.bb/bbup
 
