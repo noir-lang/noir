@@ -216,13 +216,12 @@ impl Context {
         let mut terminator = function.dfg[block_id].take_terminator();
         let constraint_simplification_cache =
             &*self.constraint_simplification_mappings.get(side_effects_enabled_var);
-        terminator.map_values_mut(|value| {
-            Self::resolve_cache(block_id, dom, constraint_simplification_cache, value)
-        });
+        let mut resolve_cache =
+            |value| resolve_cache(block_id, dom, constraint_simplification_cache, value);
+
+        terminator.map_values_mut(&mut resolve_cache);
         function.dfg[block_id].set_terminator(terminator);
-        function.dfg.data_bus.map_values_mut(|value| {
-            Self::resolve_cache(block_id, dom, constraint_simplification_cache, value)
-        });
+        function.dfg.data_bus.map_values_mut(resolve_cache);
 
         self.block_queue.extend(function.dfg[block_id].successors());
     }
@@ -275,7 +274,7 @@ impl Context {
                     }
 
                     let cached = cached.to_vec();
-                    self.replace_result_ids(&old_results, &cached);
+                    self.values_to_replace.batch_insert(&old_results, &cached);
                     return;
                 }
                 CacheResult::NeedToHoistToCommonBlock(dominator) => {
@@ -300,7 +299,7 @@ impl Context {
                 })
         };
 
-        self.replace_result_ids(&old_results, &new_results);
+        self.values_to_replace.batch_insert(&old_results, &new_results);
 
         self.cache_instruction(
             instruction.clone(),
@@ -317,29 +316,6 @@ impl Context {
         };
     }
 
-    // Alternate between resolving `value_id` in the `dfg` and checking to see if the resolved value
-    // has been constrained to be equal to some simpler value in the current block.
-    //
-    // This allows us to reach a stable final `ValueId` for each instruction input as we add more
-    // constraints to the cache.
-    fn resolve_cache(
-        block: BasicBlockId,
-        dom: &mut DominatorTree,
-        cache: &HashMap<ValueId, SimplificationCache>,
-        value_id: ValueId,
-    ) -> ValueId {
-        match cache.get(&value_id) {
-            Some(simplification_cache) => {
-                if let Some(simplified) = simplification_cache.get(block, dom) {
-                    Self::resolve_cache(block, dom, cache, simplified)
-                } else {
-                    value_id
-                }
-            }
-            None => value_id,
-        }
-    }
-
     /// Fetches an [`Instruction`] by its [`InstructionId`] and fully resolves its inputs.
     fn resolve_instruction(
         instruction_id: InstructionId,
@@ -352,7 +328,7 @@ impl Context {
 
         // Resolve any inputs to ensure that we're comparing like-for-like instructions.
         instruction.map_values_mut(|value_id| {
-            Self::resolve_cache(block, dom, constraint_simplification_mapping, value_id)
+            resolve_cache(block, dom, constraint_simplification_mapping, value_id)
         });
         instruction
     }
@@ -460,17 +436,28 @@ impl Context {
             );
         }
     }
+}
 
-    /// Replaces a set of [`ValueId`]s inside the [`DataFlowGraph`] with another.
-    fn replace_result_ids(&mut self, old_results: &[ValueId], new_results: &[ValueId]) {
-        debug_assert_eq!(
-            old_results.len(),
-            new_results.len(),
-            "Constant folding should never mutate instruction return type"
-        );
-        for (old_result, new_result) in old_results.iter().zip(new_results) {
-            self.values_to_replace.insert(*old_result, *new_result);
+// Alternate between resolving `value_id` in the `dfg` and checking to see if the resolved value
+// has been constrained to be equal to some simpler value in the current block.
+//
+// This allows us to reach a stable final `ValueId` for each instruction input as we add more
+// constraints to the cache.
+fn resolve_cache(
+    block: BasicBlockId,
+    dom: &mut DominatorTree,
+    cache: &HashMap<ValueId, SimplificationCache>,
+    value_id: ValueId,
+) -> ValueId {
+    match cache.get(&value_id) {
+        Some(simplification_cache) => {
+            if let Some(simplified) = simplification_cache.get(block, dom) {
+                resolve_cache(block, dom, cache, simplified)
+            } else {
+                value_id
+            }
         }
+        None => value_id,
     }
 }
 

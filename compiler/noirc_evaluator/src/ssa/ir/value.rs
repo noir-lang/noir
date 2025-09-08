@@ -92,6 +92,17 @@ impl ValueMapping {
         self.map.insert(from, to);
     }
 
+    pub(crate) fn batch_insert(&mut self, old_results: &[ValueId], new_results: &[ValueId]) {
+        debug_assert_eq!(
+            old_results.len(),
+            new_results.len(),
+            "Constant folding should never mutate instruction return type"
+        );
+        for (old_result, new_result) in old_results.iter().zip(new_results) {
+            self.insert(*old_result, *new_result);
+        }
+    }
+
     pub(crate) fn get(&self, value: ValueId) -> ValueId {
         if let Some(replacement) = self.map.get(&value) { self.get(*replacement) } else { value }
     }
