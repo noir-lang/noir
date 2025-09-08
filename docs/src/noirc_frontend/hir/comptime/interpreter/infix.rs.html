@@ -433,7 +433,17 @@
 <a href="#432" id="432">432</a>
 <a href="#433" id="433">433</a>
 <a href="#434" id="434">434</a>
-<a href="#435" id="435">435</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::AcirField;
+<a href="#435" id="435">435</a>
+<a href="#436" id="436">436</a>
+<a href="#437" id="437">437</a>
+<a href="#438" id="438">438</a>
+<a href="#439" id="439">439</a>
+<a href="#440" id="440">440</a>
+<a href="#441" id="441">441</a>
+<a href="#442" id="442">442</a>
+<a href="#443" id="443">443</a>
+<a href="#444" id="444">444</a>
+<a href="#445" id="445">445</a></pre></div><pre class="rust"><code><span class="kw">use </span>acvm::AcirField;
 
 <span class="kw">use </span><span class="kw">crate</span>::ast::BinaryOpKind;
 <span class="kw">use </span><span class="kw">crate</span>::hir::Location;
@@ -455,7 +465,8 @@
         <span class="kw">let </span>rhs = rhs_type.clone();
         InterpreterError::InvalidValuesForBinary { lhs, rhs, location, operator }
     };
-
+    <span class="kw">let </span>lhs_overflow = InterpreterError::BinaryOperationOverflow { operator: <span class="string">"&lt;&lt;"</span>, location };
+    <span class="kw">let </span>rhs_overflow = InterpreterError::BinaryOperationOverflow { operator: <span class="string">"&gt;&gt;"</span>, location };
     <span class="kw">let </span>math_error = |operator| InterpreterError::BinaryOperationOverflow { location, operator };
 
     <span class="doccomment">/// Generate matches that can promote the type of one side to the other if they are compatible.
@@ -619,11 +630,20 @@
         },
         <span class="attr">#[allow(trivial_numeric_casts)]
         </span>BinaryOpKind::ShiftRight =&gt; <span class="macro">match_integer!</span> {
-            (lhs_value <span class="kw">as </span>lhs <span class="string">"&gt;&gt;" </span>rhs_value <span class="kw">as </span>rhs) =&gt; lhs.checked_shr(rhs <span class="kw">as </span>u32)
+            (lhs_value <span class="kw">as </span>lhs <span class="string">"&gt;&gt;" </span>rhs_value <span class="kw">as </span>rhs) =&gt; {
+                <span class="attr">#[allow(unused_comparisons, clippy::absurd_extreme_comparisons)]
+                </span><span class="kw">if </span>rhs &gt; <span class="number">127 </span>{<span class="kw">return </span><span class="prelude-val">Err</span>(rhs_overflow);}
+                lhs.checked_shr(rhs <span class="kw">as </span>u32)
+            }
         },
         <span class="attr">#[allow(trivial_numeric_casts)]
         </span>BinaryOpKind::ShiftLeft =&gt; <span class="macro">match_integer!</span> {
-            (lhs_value <span class="kw">as </span>lhs <span class="string">"&lt;&lt;" </span>rhs_value <span class="kw">as </span>rhs) =&gt; lhs.checked_shl(rhs <span class="kw">as </span>u32)
+            (lhs_value <span class="kw">as </span>lhs <span class="string">"&lt;&lt;" </span>rhs_value <span class="kw">as </span>rhs) =&gt; {
+                <span class="attr">#[allow(unused_comparisons, clippy::absurd_extreme_comparisons)]
+                </span><span class="kw">if </span>rhs &gt; <span class="number">127 </span>{<span class="kw">return </span><span class="prelude-val">Err</span>(lhs_overflow);}
+                lhs.checked_shl(
+                rhs <span class="kw">as </span>u32
+            )}
         },
         BinaryOpKind::Modulo =&gt; <span class="kw">match </span>(<span class="kw-2">&amp;</span>lhs_value, <span class="kw-2">&amp;</span>rhs_value) {
             (Value::I8(i8::MIN), Value::I8(-<span class="number">1</span>)) =&gt; <span class="prelude-val">Ok</span>(Value::I8(<span class="number">0</span>)),
