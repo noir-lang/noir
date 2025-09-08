@@ -53,7 +53,7 @@ impl Default for InstructionOptions {
             create_array_enabled: true,
             array_get_enabled: true,
             array_set_enabled: true,
-            unsafe_get_set_enabled: false,
+            unsafe_get_set_enabled: true,
             point_add_enabled: true,
             multi_scalar_mul_enabled: true,
             ecdsa_secp256r1_enabled: true,
@@ -159,7 +159,7 @@ impl Default for FuzzerOptions {
     fn default() -> Self {
         Self {
             compile_options: CompileOptions {
-                show_ssa: false,
+                show_ssa: true,
                 show_ssa_pass: vec![],
                 ..Default::default()
             },

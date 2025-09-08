@@ -9,7 +9,7 @@ use libfuzzer_sys::arbitrary;
 use libfuzzer_sys::arbitrary::Arbitrary;
 use noir_ssa_fuzzer::{
     builder::FuzzerBuilder,
-    typed_value::{TypedValue, ValueType},
+    typed_value::{NumericType, Type, TypedValue},
 };
 use noirc_evaluator::ssa::ir::{basic_block::BasicBlockId, function::Function, map::Id};
 use serde::{Deserialize, Serialize};
@@ -23,54 +23,27 @@ const NUMBER_OF_BLOCKS_INSERTING_IN_JMP: usize = 1;
 const NUMBER_OF_BLOCKS_INSERTING_IN_JMP_IF: usize = 2;
 const NUMBER_OF_BLOCKS_INSERTING_IN_LOOP: usize = 4;
 
-pub(crate) type ValueWithType = (FieldElement, ValueType);
+pub(crate) type ValueWithType = (FieldElement, NumericType);
 
-/// Field modulus has 254 bits, and FieldElement::from supports u128, so we use two unsigned integers to represent a field element
-/// field = low + high * 2^128
-#[derive(Debug, Clone, Copy, Hash, Arbitrary, Serialize, Deserialize)]
-pub(crate) struct FieldRepresentation {
-    pub(crate) high: u128,
-    pub(crate) low: u128,
-}
-
-impl From<&FieldRepresentation> for FieldElement {
-    fn from(field: &FieldRepresentation) -> FieldElement {
-        let lower = FieldElement::from(field.low);
-        let upper = FieldElement::from(field.high);
-        lower + upper * (FieldElement::from(u128::MAX) + FieldElement::from(1_u128))
-    }
-}
-
-#[derive(Debug, Clone, Copy, Hash, Arbitrary, Serialize, Deserialize)]
-pub(crate) enum WitnessValue {
-    Field(FieldRepresentation),
-    U64(u64),
-    Boolean(bool),
-    I64(u64),
-    I32(u32),
-}
-
-impl Default for WitnessValue {
-    fn default() -> Self {
-        WitnessValue::Field(FieldRepresentation { high: 0, low: 0 })
-    }
-}
-
-/// TODO(sn): initial_witness should be in ProgramData
 /// Represents the data describing a function
-#[derive(Arbitrary, Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct FunctionData {
     pub(crate) commands: Vec<FuzzerFunctionCommand>,
+    /// Input types of the function
+    ///
+    /// Overwritten for main function by the types of the initial witness
+    pub(crate) input_types: Vec<Type>,
     pub(crate) return_instruction_block_idx: usize,
-    pub(crate) return_type: ValueType,
+    pub(crate) return_type: Type,
 }
 
 impl Default for FunctionData {
     fn default() -> Self {
         FunctionData {
             commands: vec![],
+            input_types: vec![Type::Numeric(NumericType::Field)],
             return_instruction_block_idx: 0,
-            return_type: ValueType::Field,
+            return_type: Type::Numeric(NumericType::Field),
         }
     }
 }
@@ -137,7 +110,7 @@ pub(crate) struct FuzzerFunctionContext<'a> {
     /// Instruction blocks
     instruction_blocks: &'a Vec<InstructionBlock>,
     /// Hashmap of stored variables in blocks
-    stored_variables_for_block: HashMap<BasicBlockId, HashMap<ValueType, Vec<TypedValue>>>,
+    stored_variables_for_block: HashMap<BasicBlockId, HashMap<Type, Vec<TypedValue>>>,
     /// Hashmap of stored blocks
     stored_blocks: HashMap<BasicBlockId, StoredBlock>,
     /// Options of the program context
@@ -152,7 +125,7 @@ pub(crate) struct FuzzerFunctionContext<'a> {
     /// Number of iterations of loops in the program
     parent_iterations_count: usize,
 
-    return_type: ValueType,
+    return_type: Type,
     defined_functions: BTreeMap<Id<Function>, FunctionInfo>,
 }
 
@@ -160,27 +133,26 @@ impl<'a> FuzzerFunctionContext<'a> {
     /// Creates a new fuzzer context with the given types
     /// It creates a new variable for each type and stores it in the map
     pub(crate) fn new(
-        types: Vec<ValueType>,
+        types: Vec<Type>,
         instruction_blocks: &'a Vec<InstructionBlock>,
         context_options: FunctionContextOptions,
-        return_type: ValueType,
+        return_type: Type,
         defined_functions: BTreeMap<Id<Function>, FunctionInfo>,
         acir_builder: &'a mut FuzzerBuilder,
         brillig_builder: &'a mut FuzzerBuilder,
     ) -> Self {
         let mut acir_ids = HashMap::new();
         for type_ in types {
-            let acir_id = acir_builder.insert_variable(type_.to_ssa_type());
-            let brillig_id = brillig_builder.insert_variable(type_.to_ssa_type());
+            let acir_id = acir_builder.insert_variable(type_.clone().into());
+            let brillig_id = brillig_builder.insert_variable(type_.clone().into());
             assert_eq!(acir_id, brillig_id);
-            acir_ids.entry(type_).or_insert(Vec::new()).push(acir_id);
+            acir_ids.entry(type_.clone()).or_insert(Vec::new()).push(acir_id);
         }
 
         let main_block = acir_builder.get_current_block();
         let current_block = StoredBlock {
             context: BlockContext::new(
                 acir_ids.clone(),
-                HashMap::new(),
                 VecDeque::new(),
                 SsaBlockOptions::from(context_options.clone()),
             ),
@@ -212,7 +184,7 @@ impl<'a> FuzzerFunctionContext<'a> {
         values_types: Vec<ValueWithType>,
         instruction_blocks: &'a Vec<InstructionBlock>,
         context_options: FunctionContextOptions,
-        return_type: ValueType,
+        return_type: Type,
         defined_functions: BTreeMap<Id<Function>, FunctionInfo>,
         acir_builder: &'a mut FuzzerBuilder,
         brillig_builder: &'a mut FuzzerBuilder,
@@ -223,11 +195,11 @@ impl<'a> FuzzerFunctionContext<'a> {
         for (value, type_) in values_types.into_iter() {
             let field_element = value;
             acir_ids
-                .entry(type_)
+                .entry(Type::Numeric(type_))
                 .or_insert(Vec::new())
                 .push(acir_builder.insert_constant(field_element, type_));
             brillig_ids
-                .entry(type_)
+                .entry(Type::Numeric(type_))
                 .or_insert(Vec::new())
                 .push(brillig_builder.insert_constant(field_element, type_));
             assert_eq!(brillig_ids, acir_ids);
@@ -237,7 +209,6 @@ impl<'a> FuzzerFunctionContext<'a> {
         let current_block = StoredBlock {
             context: BlockContext::new(
                 acir_ids.clone(),
-                HashMap::new(),
                 VecDeque::new(),
                 SsaBlockOptions::from(context_options.clone()),
             ),
@@ -272,7 +243,7 @@ impl<'a> FuzzerFunctionContext<'a> {
     fn insert_constant(
         &mut self,
         value: impl Into<FieldElement> + Clone,
-        type_: ValueType,
+        type_: NumericType,
     ) -> TypedValue {
         let typed_value = self.acir_builder.insert_constant(value.clone(), type_);
         assert_eq!(typed_value, self.brillig_builder.insert_constant(value, type_));
@@ -545,20 +516,21 @@ impl<'a> FuzzerFunctionContext<'a> {
                 self.insert_ssa_block()
             };
         // create constant for start
-        let start_id = self.insert_constant(start_iter, ValueType::U32);
+        let start_id = self.insert_constant(start_iter, NumericType::U32);
         // create constant for end
-        let end_id = self.insert_constant(end_iter, ValueType::U32);
+        let end_id = self.insert_constant(end_iter, NumericType::U32);
         // create constant for 1 (to increment iter)
-        let one_id = self.insert_constant(1_u32, ValueType::U32);
+        let one_id = self.insert_constant(1_u32, NumericType::U32);
 
         // create if block
         let block_if_id = self.insert_ssa_block();
         self.switch_to_block(block_if_id);
         // create iter
-        let real_iter_id = self.acir_builder.add_block_parameter(block_if_id, ValueType::U32);
+        let real_iter_id =
+            self.acir_builder.add_block_parameter(block_if_id, Type::Numeric(NumericType::U32));
         assert_eq!(
             real_iter_id,
-            self.brillig_builder.add_block_parameter(block_if_id, ValueType::U32)
+            self.brillig_builder.add_block_parameter(block_if_id, Type::Numeric(NumericType::U32))
         );
         // condition = iter < end
         let condition =
@@ -944,7 +916,7 @@ impl<'a> FuzzerFunctionContext<'a> {
         return_block_context.finalize_block_with_return(
             self.acir_builder,
             self.brillig_builder,
-            self.return_type,
+            self.return_type.clone(),
         );
     }
 }

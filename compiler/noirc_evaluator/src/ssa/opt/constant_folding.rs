@@ -37,7 +37,7 @@ use crate::ssa::{
     opt::pure::Purity,
     ssa_gen::Ssa,
 };
-use fxhash::FxHashMap as HashMap;
+use rustc_hash::FxHashMap as HashMap;
 
 impl Ssa {
     /// Performs constant folding on each instruction.
@@ -1856,6 +1856,25 @@ mod test {
         }
         ";
         assert_ssa_does_not_change(src, Ssa::fold_constants);
+    }
+
+    #[test]
+    fn do_not_inline_brillig_overflow() {
+        // Regression test for https://github.com/noir-lang/noir/issues/9694
+        // The call can be constant
+        let src = "
+            acir(inline) predicate_pure fn main f0 {
+            b0():
+                v2 = call f1(u1 0) -> u1
+                return v2
+            }
+            brillig(inline) predicate_pure fn func_5 f1 {
+            b0(v0: u1):
+                v2 = shl v0, u1 1
+                return v2
+            }
+        ";
+        assert_ssa_does_not_change(src, Ssa::fold_constants_with_brillig);
     }
 
     #[test]
