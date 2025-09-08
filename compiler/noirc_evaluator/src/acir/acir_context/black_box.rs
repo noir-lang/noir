@@ -95,11 +95,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
                 for i in const_inputs {
                     field_inputs.push(i?);
                 }
-                let bigint = self.big_int_ctx.get(field_inputs[0]);
-                let modulus = self.big_int_ctx.modulus(bigint.modulus_id::<F>());
-                let bytes_len = ((modulus - BigUint::from(1_u32)).bits() - 1) / 8 + 1;
-                output_count = bytes_len as usize;
-                assert!(bytes_len == 32);
+                output_count = 32;
                 (field_inputs, vec![])
             }
             BlackBoxFunc::BigIntFromLeBytes => {
