@@ -7,7 +7,6 @@ sidebar_position: 0
 
 ## Installation
 
-### Noir
 
 The easiest way to develop with Noir is using Nargo the CLI tool. It provides you the ability to start new projects, compile, execute and test Noir programs from the terminal.
 
@@ -18,26 +17,7 @@ curl -L https://raw.githubusercontent.com/noir-lang/noirup/refs/heads/main/insta
 noirup
 ```
 
-Once installed, you can [set up shell completions for the `nargo` command](setting_up_shell_completions).
-
-### Proving backend
-
-After installing Noir, we install a proving backend to work with our Noir programs.
-
-Proving backends provide you the abilities to generate proofs, verify proofs, generate smart contracts and more for your Noir programs.
-
-Different proving backends provide different tools for working with Noir programs, here we will use the [Barretenberg proving backend](https://github.com/AztecProtocol/aztec-packages/tree/master/barretenberg) developed by Aztec Labs as an example.
-
-You can use the `bbup` installation script to quickly install and update BB, Barretenberg's CLI tool:
-
-You can find the full list of proving backends compatible with Noir in Awesome Noir.
-
-```bash
-curl -L https://raw.githubusercontent.com/AztecProtocol/aztec-packages/refs/heads/master/barretenberg/bbup/install | bash
-bbup
-```
-
-For the full list of proving backends compatible with Noir, visit [Awesome Noir](https://github.com/noir-lang/awesome-noir/?tab=readme-ov-file#proving-backends).
+Once installed, you can [set up shell completions for the `nargo` command](../tooling/shell_completions.md).
 
 ## Nargo
 
@@ -90,31 +70,17 @@ The command also automatically compiles your Noir program if it was not already 
 
 With circuit compiled and witness generated, we're ready to prove.
 
-## Proving backend
+## Next Steps - Proving backend
 
-Different proving backends may provide different tools and commands to work with Noir programs. Here Barretenberg's `bb` CLI tool is used as an example:
+Noir is a high-level programming language for zero-knowledge proofs, which compiles your code into [ACIR](https://noir-lang.github.io/noir/docs/acir/circuit/index.html) and generates witnesses for further proof generations and verifications. In order to prove and verify your Noir programs, you'll need a proving backend.
 
-```sh
-# Generate proof and save proof and public_inputs to ./target
-bb prove -b ./target/hello_world.json -w ./target/hello_world.gz -o ./target
-```
+Proving backends provide you multiple tools. The most common backend for Noir is [Barretenberg](https://barretenberg.aztec.network). It allows you to:
 
-:::tip
+- Generate proofs and verify them
+- Prove the verification of another proof (recursive aggregation)
+- Generate a solidity contract that verifies your proof non-interactively
+- Check and compare circuit size
 
-Naming can be confusing, specially as you pass them to the `bb` commands. If unsure, it won't hurt to delete the target folder and start fresh to make sure you're using the most recent versions of the compiled circuit and witness.
+Read [Barretenberg's Getting Started guide](https://barretenberg.aztec.network/docs/getting_started) to install and start using Noir with Barretenberg.
 
-:::
-
-The proof is now generated in the `target` folder. To verify it we first need to compute the verification key from the compiled circuit, and use it to verify:
-
-```sh
-# Generate the verification key and save to ./target/vk
-bb write_vk -b ./target/hello_world.json -o ./target
-
-# Verify the proof
-bb verify -k ./target/vk -p ./target/proof -i ./target/public_inputs
-```
-
-Congratulations, you have now created and verified a proof for your very first Noir program!
-
-In the [next section](./project_breakdown.md), we will go into more detail on each step performed.
+Visit [Awesome Noir](https://github.com/noir-lang/awesome-noir/?tab=readme-ov-file#proving-backends) for a comprehensive list of proving backends that work with Noir.
