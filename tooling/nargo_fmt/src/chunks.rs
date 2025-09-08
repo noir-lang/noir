@@ -1033,6 +1033,10 @@ impl<'a> Formatter<'a> {
                 }
                 Chunk::PopIndentation => {
                     self.pop_indentation();
+
+                    // Any increased indentation that we were planning to undo must not be undone
+                    // if we change the current indentation to something completely different.
+                    increased_indentation = 0;
                 }
                 Chunk::TrailingComma => {
                     unreachable!(

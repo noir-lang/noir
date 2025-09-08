@@ -2,10 +2,7 @@
 
 use crate::ssa::{
     RuntimeError, Ssa,
-    ir::{
-        call_graph::CallGraph,
-        function::{Function, RuntimeType},
-    },
+    ir::{call_graph::CallGraph, function::Function},
 };
 
 use super::inlining::{self, InlineInfo};
@@ -21,18 +18,8 @@ impl Ssa {
         let inline_infos =
             inlining::inline_info::compute_inline_infos(&self, &call_graph, false, aggressiveness);
 
-        let should_inline_call = |callee: &Function| -> bool {
-            match callee.runtime() {
-                RuntimeType::Acir(_) => {
-                    // Functions marked to not have predicates should be preserved.
-                    !callee.is_no_predicates()
-                }
-                RuntimeType::Brillig(_) => {
-                    // We inline inline if the function called wasn't ruled out as too costly or recursive.
-                    InlineInfo::should_inline(&inline_infos, callee.id())
-                }
-            }
-        };
+        let should_inline_call =
+            |callee: &Function| -> bool { InlineInfo::should_inline(&inline_infos, callee.id()) };
 
         for (id, (own_weight, transitive_weight)) in bottom_up {
             let function = &self.functions[&id];

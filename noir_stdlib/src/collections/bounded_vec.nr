@@ -373,7 +373,7 @@ impl<T, let MaxLen: u32> BoundedVec<T, MaxLen> {
     /// let _ = v.pop();
     /// ```
     pub fn pop(&mut self) -> T {
-        assert(self.len > 0);
+        assert(self.len > 0, "cannot pop from an empty vector");
         self.len -= 1;
 
         let elem = self.storage[self.len];
@@ -619,6 +619,33 @@ mod bounded_vec_tests {
 
             let _ = vec.get(0);
         }
+
+        #[test(should_fail_with = "Attempted to read past end of BoundedVec")]
+        fn panics_when_reading_beyond_length() {
+            let vec: BoundedVec<u32, 5> = BoundedVec::from_array([1, 2, 3]);
+            let _ = vec.get(3);
+        }
+
+        #[test]
+        fn get_works_within_bounds() {
+            let vec: BoundedVec<u32, 5> = BoundedVec::from_array([1, 2, 3, 4, 5]);
+            assert_eq(vec.get(0), 1);
+            assert_eq(vec.get(2), 3);
+            assert_eq(vec.get(4), 5);
+        }
+
+        #[test]
+        fn get_unchecked_works() {
+            let vec: BoundedVec<u32, 5> = BoundedVec::from_array([1, 2, 3]);
+            assert_eq(vec.get_unchecked(0), 1);
+            assert_eq(vec.get_unchecked(2), 3);
+        }
+
+        #[test]
+        fn get_unchecked_works_past_len() {
+            let vec: BoundedVec<u32, 5> = BoundedVec::from_array([1, 2, 3]);
+            assert_eq(vec.get_unchecked(4), 0);
+        }
     }
 
     mod set {
@@ -649,6 +676,44 @@ mod bounded_vec_tests {
             let mut vec: BoundedVec<Field, 5> = BoundedVec::new();
             vec.set(0, 42);
         }
+
+        #[test(should_fail_with = "Attempted to write past end of BoundedVec")]
+        fn panics_when_setting_beyond_length() {
+            let mut vec: BoundedVec<u32, 5> = BoundedVec::from_array([1, 2, 3]);
+            vec.set(3, 4);
+        }
+
+        #[test]
+        fn set_unchecked_operations() {
+            let mut vec: BoundedVec<u32, 5> = BoundedVec::new();
+            vec.push(1);
+            vec.push(2);
+
+            vec.set_unchecked(0, 10);
+            assert_eq(vec.get(0), 10);
+        }
+
+        #[test(should_fail_with = "Attempted to read past end of BoundedVec")]
+        fn set_unchecked_operations_past_len() {
+            let mut vec: BoundedVec<u32, 5> = BoundedVec::new();
+            vec.push(1);
+            vec.push(2);
+
+            vec.set_unchecked(3, 40);
+            assert_eq(vec.get(3), 40);
+        }
+
+        #[test]
+        fn set_preserves_other_elements() {
+            let mut vec: BoundedVec<u32, 5> = BoundedVec::from_array([1, 2, 3, 4, 5]);
+
+            vec.set(2, 30);
+            assert_eq(vec.get(0), 1);
+            assert_eq(vec.get(1), 2);
+            assert_eq(vec.get(2), 30);
+            assert_eq(vec.get(3), 4);
+            assert_eq(vec.get(4), 5);
+        }
     }
 
     mod any {
@@ -676,6 +741,27 @@ mod bounded_vec_tests {
             let result = vec.any(|value| value);
 
             assert(!result);
+        }
+
+        #[test]
+        fn any_with_complex_predicates() {
+            let vec: BoundedVec<u32, 5> = BoundedVec::from_array([1, 2, 3, 4, 5]);
+
+            assert(vec.any(|x| x > 3));
+            assert(!vec.any(|x| x > 10));
+            assert(vec.any(|x| x % 2 == 0)); // has a even number
+            assert(vec.any(|x| x == 3)); // has a specific value
+        }
+
+        #[test]
+        fn any_with_partial_vector() {
+            let mut vec: BoundedVec<u32, 5> = BoundedVec::new();
+            vec.push(1);
+            vec.push(2);
+
+            assert(vec.any(|x| x == 1));
+            assert(vec.any(|x| x == 2));
+            assert(!vec.any(|x| x == 3));
         }
     }
 
@@ -711,6 +797,33 @@ mod bounded_vec_tests {
             assert_eq(result, expected);
             assert_eq(result.get_unchecked(2), 0);
         }
+
+        #[test]
+        fn map_with_conditional_logic() {
+            let vec: BoundedVec<u32, 4> = BoundedVec::from_array([1, 2, 3, 4]);
+
+            let result = vec.map(|x| if x % 2 == 0 { x * 2 } else { x });
+            let expected = BoundedVec::from_array([1, 4, 3, 8]);
+            assert_eq(result, expected);
+        }
+
+        #[test]
+        fn map_preserves_length() {
+            let vec: BoundedVec<u32, 4> = BoundedVec::from_array([1, 2, 3, 4]);
+            let result = vec.map(|x| x * 2);
+
+            assert_eq(result.len(), vec.len());
+            assert_eq(result.max_len(), vec.max_len());
+        }
+
+        #[test]
+        fn map_on_empty_vector() {
+            let vec: BoundedVec<u32, 5> = BoundedVec::new();
+            let result = vec.map(|x| x * 2);
+            assert_eq(result, vec);
+            assert_eq(result.len(), 0);
+            assert_eq(result.max_len(), 5);
+        }
     }
 
     mod mapi {
@@ -744,6 +857,15 @@ mod bounded_vec_tests {
 
             assert_eq(result, expected);
             assert_eq(result.get_unchecked(2), 0);
+        }
+
+        #[test]
+        fn mapi_with_index_branching_logic() {
+            let vec: BoundedVec<u32, 4> = BoundedVec::from_array([1, 2, 3, 4]);
+
+            let result = vec.mapi(|i, x| if i % 2 == 0 { x * 2 } else { x });
+            let expected = BoundedVec::from_array([2, 2, 6, 4]);
+            assert_eq(result, expected);
         }
     }
 
@@ -798,6 +920,24 @@ mod bounded_vec_tests {
 
             assert_eq(result, expected);
             assert_eq(result.get_unchecked(2), 0);
+        }
+
+        #[test]
+        fn for_each_on_empty_vector() {
+            let vec: BoundedVec<u32, 5> = BoundedVec::new();
+            let mut count = 0;
+            let count_ref = &mut count;
+            vec.for_each(|_| { *count_ref += 1; });
+            assert_eq(count, 0);
+        }
+
+        #[test]
+        fn for_each_with_side_effects() {
+            let vec: BoundedVec<u32, 3> = BoundedVec::from_array([1, 2, 3]);
+            let mut seen = BoundedVec::<u32, 3>::new();
+            let seen_ref = &mut seen;
+            vec.for_each(|x| seen_ref.push(x));
+            assert_eq(seen, vec);
         }
     }
 
@@ -855,6 +995,27 @@ mod bounded_vec_tests {
             assert_eq(result, expected);
             assert_eq(result.get_unchecked(2), 0);
         }
+
+        #[test]
+        fn for_eachi_on_empty_vector() {
+            let vec: BoundedVec<u32, 5> = BoundedVec::new();
+            let mut count = 0;
+            let count_ref = &mut count;
+            vec.for_eachi(|_, _| { *count_ref += 1; });
+            assert_eq(count, 0);
+        }
+
+        #[test]
+        fn for_eachi_with_index_tracking() {
+            let vec: BoundedVec<u32, 3> = BoundedVec::from_array([10, 20, 30]);
+            let mut indices = BoundedVec::<u32, 3>::new();
+            let indices_ref = &mut indices;
+            vec.for_eachi(|i, _| indices_ref.push(i));
+
+            let expected = BoundedVec::from_array([0, 1, 2]);
+            assert_eq(indices, expected);
+        }
+
     }
 
     mod from_array {
@@ -895,6 +1056,24 @@ mod bounded_vec_tests {
         #[test(should_fail_with = "from array out of bounds")]
         fn max_len_lower_then_array_len() {
             let _: BoundedVec<Field, 2> = BoundedVec::from_array([0; 3]);
+        }
+
+        #[test]
+        fn from_array_preserves_order() {
+            let array = [5, 3, 1, 4, 2];
+            let vec: BoundedVec<u32, 5> = BoundedVec::from_array(array);
+            for i in 0..array.len() {
+                assert_eq(vec.get(i), array[i]);
+            }
+        }
+
+        #[test]
+        fn from_array_with_different_types() {
+            let bool_array = [true, false, true];
+            let bool_vec: BoundedVec<bool, 3> = BoundedVec::from_array(bool_array);
+            assert_eq(bool_vec.len(), 3);
+            assert_eq(bool_vec.get(0), true);
+            assert_eq(bool_vec.get(1), false);
         }
     }
 
@@ -967,6 +1146,197 @@ mod bounded_vec_tests {
             // fails because elements past the length are still checked in eq
             assert(vec1 != vec2);
             // docs:end:from-parts-unchecked
+        }
+    }
+
+    mod push_pop {
+        use crate::collections::bounded_vec::BoundedVec;
+
+        #[test]
+        fn push_and_pop_operations() {
+            let mut vec: BoundedVec<u32, 5> = BoundedVec::new();
+
+            assert_eq(vec.len(), 0);
+
+            vec.push(1);
+            assert_eq(vec.len(), 1);
+            assert_eq(vec.get(0), 1);
+
+            vec.push(2);
+            assert_eq(vec.len(), 2);
+            assert_eq(vec.get(1), 2);
+
+            let popped = vec.pop();
+            assert_eq(popped, 2);
+            assert_eq(vec.len(), 1);
+
+            let popped2 = vec.pop();
+            assert_eq(popped2, 1);
+            assert_eq(vec.len(), 0);
+        }
+
+        #[test(should_fail_with = "push out of bounds")]
+        fn push_to_full_vector() {
+            let mut vec: BoundedVec<u32, 2> = BoundedVec::new();
+            vec.push(1);
+            vec.push(2);
+            vec.push(3); // should panic
+        }
+
+        #[test(should_fail_with = "cannot pop from an empty vector")]
+        fn pop_from_empty_vector() {
+            let mut vec: BoundedVec<u32, 5> = BoundedVec::new();
+            let _ = vec.pop(); // should panic
+        }
+
+        #[test]
+        fn push_pop_cycle() {
+            let mut vec: BoundedVec<u32, 3> = BoundedVec::new();
+
+            // push to full
+            vec.push(1);
+            vec.push(2);
+            vec.push(3);
+            assert_eq(vec.len(), 3);
+
+            // pop all
+            assert_eq(vec.pop(), 3);
+            assert_eq(vec.pop(), 2);
+            assert_eq(vec.pop(), 1);
+            assert_eq(vec.len(), 0);
+
+            // push again
+            vec.push(4);
+            assert_eq(vec.len(), 1);
+            assert_eq(vec.get(0), 4);
+        }
+    }
+
+    mod extend {
+        use crate::collections::bounded_vec::BoundedVec;
+
+        #[test]
+        fn extend_from_array() {
+            let mut vec: BoundedVec<u32, 5> = BoundedVec::new();
+            vec.push(1);
+            vec.extend_from_array([2, 3]);
+
+            assert_eq(vec.len(), 3);
+            assert_eq(vec.get(0), 1);
+            assert_eq(vec.get(1), 2);
+            assert_eq(vec.get(2), 3);
+        }
+
+        #[test]
+        fn extend_from_slice() {
+            let mut vec: BoundedVec<u32, 5> = BoundedVec::new();
+            vec.push(1);
+            vec.extend_from_slice(&[2, 3]);
+
+            assert_eq(vec.len(), 3);
+            assert_eq(vec.get(0), 1);
+            assert_eq(vec.get(1), 2);
+            assert_eq(vec.get(2), 3);
+        }
+
+        #[test]
+        fn extend_from_bounded_vec() {
+            let mut vec1: BoundedVec<u32, 5> = BoundedVec::new();
+            let mut vec2: BoundedVec<u32, 3> = BoundedVec::new();
+
+            vec1.push(1);
+            vec2.push(2);
+            vec2.push(3);
+
+            vec1.extend_from_bounded_vec(vec2);
+
+            assert_eq(vec1.len(), 3);
+            assert_eq(vec1.get(0), 1);
+            assert_eq(vec1.get(1), 2);
+            assert_eq(vec1.get(2), 3);
+        }
+
+        #[test(should_fail_with = "extend_from_array out of bounds")]
+        fn extend_array_beyond_max_len() {
+            let mut vec: BoundedVec<u32, 3> = BoundedVec::new();
+            vec.push(1);
+            vec.extend_from_array([2, 3, 4]); // should panic
+        }
+
+        #[test(should_fail_with = "extend_from_slice out of bounds")]
+        fn extend_slice_beyond_max_len() {
+            let mut vec: BoundedVec<u32, 3> = BoundedVec::new();
+            vec.push(1);
+            vec.extend_from_slice(&[2, 3, 4]); // S]should panic
+        }
+
+        #[test(should_fail_with = "extend_from_bounded_vec out of bounds")]
+        fn extend_bounded_vec_beyond_max_len() {
+            let mut vec: BoundedVec<u32, 3> = BoundedVec::new();
+            let other: BoundedVec<u32, 5> = BoundedVec::from_array([1, 2, 3, 4, 5]);
+            vec.extend_from_bounded_vec(other); // should panic
+        }
+
+        #[test]
+        fn extend_with_empty_collections() {
+            let mut vec: BoundedVec<u32, 5> = BoundedVec::new();
+            let original_len = vec.len();
+
+            vec.extend_from_array([]);
+            assert_eq(vec.len(), original_len);
+
+            vec.extend_from_slice(&[]);
+            assert_eq(vec.len(), original_len);
+
+            let empty: BoundedVec<u32, 3> = BoundedVec::new();
+            vec.extend_from_bounded_vec(empty);
+            assert_eq(vec.len(), original_len);
+        }
+    }
+
+    mod storage {
+        use crate::collections::bounded_vec::BoundedVec;
+
+        #[test]
+        fn storage_consistency() {
+            let mut vec: BoundedVec<u32, 5> = BoundedVec::new();
+
+            // test initial storage state
+            assert_eq(vec.storage(), [0, 0, 0, 0, 0]);
+
+            vec.push(1);
+            vec.push(2);
+
+            // test storage after modifications
+            assert_eq(vec.storage(), [1, 2, 0, 0, 0]);
+
+            // storage doesn't change length
+            assert_eq(vec.len(), 2);
+            assert_eq(vec.max_len(), 5);
+        }
+
+        #[test]
+        fn storage_after_pop() {
+            let mut vec: BoundedVec<u32, 3> = BoundedVec::from_array([1, 2, 3]);
+
+            let _ = vec.pop();
+            // after pop, the last element should be zeroed
+            assert_eq(vec.storage(), [1, 2, 0]);
+            assert_eq(vec.len(), 2);
+        }
+
+        #[test]
+        fn vector_immutable() {
+            let vec: BoundedVec<u32, 3> = BoundedVec::from_array([1, 2, 3]);
+            let storage = vec.storage();
+
+            assert_eq(storage, [1, 2, 3]);
+
+            // Verify that the original vector is unchanged
+            assert_eq(vec.len(), 3);
+            assert_eq(vec.get(0), 1);
+            assert_eq(vec.get(1), 2);
+            assert_eq(vec.get(2), 3);
         }
     }
 }

@@ -6,7 +6,7 @@ use acvm::blackbox_solver::BigIntSolverWithId;
 use im::Vector;
 use iter_extended::try_vecmap;
 use noirc_errors::Location;
-use rustc_hash::FxHashMap as HashMap;
+use rustc_hash::FxhashMap as HashMap;
 
 use crate::TypeVariable;
 use crate::ast::{BinaryOpKind, FunctionKind, IntegerBitSize, UnaryOp};
@@ -1569,7 +1569,7 @@ fn evaluate_integer(typ: Type, value: SignedField, location: Location) -> IResul
                 Ok(Value::U128(value))
             }
             (Signedness::Signed, IntegerBitSize::One) => {
-                return Err(InterpreterError::TypeUnsupported { typ, location });
+                Err(InterpreterError::TypeUnsupported { typ, location })
             }
             (Signedness::Signed, IntegerBitSize::Eight) => {
                 let value = value
@@ -1596,7 +1596,7 @@ fn evaluate_integer(typ: Type, value: SignedField, location: Location) -> IResul
                 Ok(Value::I64(value))
             }
             (Signedness::Signed, IntegerBitSize::HundredTwentyEight) => {
-                return Err(InterpreterError::TypeUnsupported { typ, location });
+                Err(InterpreterError::TypeUnsupported { typ, location })
             }
         }
     } else if let Type::TypeVariable(variable) = &typ {

@@ -32,7 +32,7 @@ use noirc_errors::{CustomDiagnostic, Location, Span};
 
 use fm::FileId;
 use iter_extended::vecmap;
-use rustc_hash::FxHashMap as HashMap;
+use rustc_hash::FxhashMap as HashMap;
 use std::collections::BTreeMap;
 use std::fmt::Write;
 use std::ops::IndexMut;
@@ -559,12 +559,7 @@ fn inject_prelude(
     if !crate_id.is_stdlib() {
         let segments: Vec<_> = "std::prelude"
             .split("::")
-            .map(|segment| {
-                crate::ast::PathSegment::from(crate::ast::Ident::new(
-                    segment.into(),
-                    Location::dummy(),
-                ))
-            })
+            .map(|segment| PathSegment::from(Ident::new(segment.into(), Location::dummy())))
             .collect();
 
         let path = Path::plain(segments.clone(), Location::dummy());

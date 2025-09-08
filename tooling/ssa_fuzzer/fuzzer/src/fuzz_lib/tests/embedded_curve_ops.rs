@@ -3,9 +3,9 @@ use crate::fuzz_target_lib::fuzz_target;
 use crate::fuzzer::FuzzerData;
 use crate::instruction::{Instruction, InstructionBlock, Point, Scalar};
 use crate::options::FuzzerOptions;
-use crate::tests::common::default_witness;
+use crate::tests::common::{default_input_types, default_witness};
 use acvm::FieldElement;
-use noir_ssa_fuzzer::typed_value::ValueType;
+use noir_ssa_fuzzer::typed_value::{NumericType, Type};
 
 /// fn main(lo: Field) -> pub Field {
 ///     let scalar_1 = std::embedded_curve_ops::EmbeddedCurveScalar::new(lo, 0);
@@ -34,8 +34,12 @@ fn smoke_test_embedded_curve_add() {
     };
     let block = InstructionBlock { instructions: vec![add_instruction] };
     let commands = vec![];
-    let function =
-        FunctionData { commands, return_instruction_block_idx: 0, return_type: ValueType::Field };
+    let function = FunctionData {
+        commands,
+        input_types: default_input_types(),
+        return_instruction_block_idx: 0,
+        return_type: Type::Numeric(NumericType::Field),
+    };
     let data = FuzzerData {
         instruction_blocks: vec![block],
         functions: vec![function],
@@ -43,7 +47,7 @@ fn smoke_test_embedded_curve_add() {
     };
     let result = fuzz_target(data, FuzzerOptions::default()).unwrap();
     assert_eq!(
-        result.get_return_value(),
+        result.get_return_values()[0],
         FieldElement::try_from_str(
             "8902249110305491597038405103722863701255802573786510474664632793109847672620"
         )
@@ -75,8 +79,12 @@ fn smoke_test_embedded_multi_scalar_mul() {
     };
     let block = InstructionBlock { instructions: vec![instruction] };
     let commands = vec![];
-    let function =
-        FunctionData { commands, return_instruction_block_idx: 0, return_type: ValueType::Field };
+    let function = FunctionData {
+        commands,
+        input_types: default_input_types(),
+        return_instruction_block_idx: 0,
+        return_type: Type::Numeric(NumericType::Field),
+    };
     let data = FuzzerData {
         instruction_blocks: vec![block],
         functions: vec![function],
@@ -84,7 +92,7 @@ fn smoke_test_embedded_multi_scalar_mul() {
     };
     let result = fuzz_target(data, FuzzerOptions::default()).unwrap();
     assert_eq!(
-        result.get_return_value(),
+        result.get_return_values()[0],
         FieldElement::try_from_str(
             "-3851299760922698091325321774664553326049887197487063802849283717866939395465"
         )

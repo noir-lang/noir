@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_check_trait_not_in_scope"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

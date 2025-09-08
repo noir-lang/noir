@@ -45,10 +45,7 @@ impl FunctionContext {
     pub(crate) fn new(function: &Function, is_entry_point: bool) -> Self {
         let id = function.id();
 
-        let mut reverse_post_order = Vec::new();
-        reverse_post_order.extend_from_slice(PostOrder::with_function(function).as_slice());
-        reverse_post_order.reverse();
-
+        let reverse_post_order = PostOrder::with_function(function).into_vec_reverse();
         let constants = ConstantAllocation::from_function(function);
         let liveness = VariableLiveness::from_function(function, &constants);
 

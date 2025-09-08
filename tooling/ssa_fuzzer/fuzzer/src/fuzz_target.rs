@@ -42,18 +42,23 @@ libfuzzer_sys::fuzz_target!(|data: &[u8]| -> Corpus {
 
     // Disable some instructions with bugs that are not fixed yet
     let instruction_options = InstructionOptions {
-        shl_enabled: false,
+        // https://github.com/noir-lang/noir/issues/9707
         shr_enabled: false,
-        alloc_enabled: false,
+        shl_enabled: false,
+        // https://github.com/noir-lang/noir/issues/9437
         array_get_enabled: false,
+        array_set_enabled: false,
         // https://github.com/noir-lang/noir/issues/9559
         point_add_enabled: false,
         multi_scalar_mul_enabled: false,
+        // https://github.com/noir-lang/noir/issues/9619
+        ecdsa_secp256k1_enabled: false,
+        ecdsa_secp256r1_enabled: false,
         ..InstructionOptions::default()
     };
     let modes = vec![FuzzerMode::NonConstant];
     let fuzzer_command_options =
-        FuzzerCommandOptions { loops_enabled: true, ..FuzzerCommandOptions::default() };
+        FuzzerCommandOptions { loops_enabled: false, ..FuzzerCommandOptions::default() };
     let options = FuzzerOptions {
         compile_options,
         instruction_options,

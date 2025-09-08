@@ -27,7 +27,7 @@ use crate::{
     signed_field::SignedField,
     token::{IntegerTypeSuffix, LocatedToken, Token, Tokens},
 };
-use rustc_hash::FxHashMap as HashMap;
+use rustc_hash::FxhashMap as HashMap;
 
 use super::{
     display::tokens_to_string,
@@ -84,7 +84,7 @@ pub enum Value {
     UnresolvedType(UnresolvedTypeData),
 }
 
-pub type StructFields = HashMap<Rc<String>, Shared<Value>>;
+pub(super) type StructFields = HashMap<Rc<String>, Shared<Value>>;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Closure {

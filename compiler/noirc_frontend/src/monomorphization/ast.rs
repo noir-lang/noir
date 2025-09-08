@@ -464,7 +464,7 @@ impl InlineType {
     }
 }
 
-impl std::fmt::Display for InlineType {
+impl Display for InlineType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             InlineType::Inline => write!(f, "inline"),
@@ -614,13 +614,13 @@ impl std::ops::IndexMut<FuncId> for Program {
     }
 }
 
-impl std::fmt::Display for Program {
+impl Display for Program {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         super::printer::AstPrinter::default().print_program(self, f)
     }
 }
 
-impl std::fmt::Display for Function {
+impl Display for Function {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         super::printer::AstPrinter::default().print_function(
             self,
@@ -630,13 +630,13 @@ impl std::fmt::Display for Function {
     }
 }
 
-impl std::fmt::Display for Expression {
+impl Display for Expression {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         super::printer::AstPrinter::default().print_expr(self, f)
     }
 }
 
-impl std::fmt::Display for Type {
+impl Display for Type {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Type::Field => write!(f, "Field"),

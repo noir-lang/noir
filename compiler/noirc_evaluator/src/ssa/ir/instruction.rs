@@ -40,28 +40,100 @@ pub(crate) type InstructionId = Id<Instruction>;
 ///   source code and must be processed by the IR.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Intrinsic {
+    /// ArrayLen - returns the length of the input array
+    /// argument: array (value id)
+    /// result: length of the array, panic if the input is not an array
     ArrayLen,
+    /// ArrayAsStrUnchecked - Converts a byte array of type `[u8; N]` to a string
+    /// argument: array (value id)
+    /// result: str
     ArrayAsStrUnchecked,
+    /// AsSlice
+    /// argument: value id
+    /// result: a slice containing the elements of the argument. Panic if the value id does not correspond to an `array` type
     AsSlice,
+    /// AssertConstant - Enforce the argument to be a constant value, at compile time.
+    /// argument: value id
+    /// result: (), panic if the argument does not resolve to a constant value
     AssertConstant,
+    /// StaticAssert - Enforce the first argument to be true, at compile time
+    /// arguments: boolean (value id), ...message. The message can be a `format string` of several arguments
+    /// result: (), panic if the arguments do not resolve to constant values or if the first one is false.
     StaticAssert,
+    /// SlicePushBack - Add elements at the end of a slice
+    /// arguments:  slice length, slice contents, ...elements_to_push
+    /// result: a slice containing `slice contents,..elements_to_push`
     SlicePushBack,
+    /// SlicePushFront - Add elements at the start of a slice
+    /// arguments:  slice length, slice contents, ...elements_to_push
+    /// result: a slice containing `..elements_to_push, slice contents`
     SlicePushFront,
+    /// SlicePopBack - Removes the last element of a slice
+    /// arguments: slice length, slice contents
+    /// result: a slice without the last element of `slice contents`
     SlicePopBack,
+    /// SlicePopFront - Removes the first element of a slice
+    /// arguments: slice length, slice contents
+    /// result: a slice without the first element of `slice contents`
     SlicePopFront,
+    /// SliceInsert - Insert elements inside a slice.
+    /// arguments: slice length, slice contents, insert index, ...elements_to_insert
+    /// result: a slice with ...elements_to_insert inserted at the `insert index`
     SliceInsert,
+    /// SliceRemove - Removes an element from a slice
+    /// arguments: slice length, slice contents, remove index
+    /// result: a slice with without the element at `remove index`
     SliceRemove,
+    /// ApplyRangeConstraint - Enforces the `bit size` of the first argument via a range check.
+    /// arguments: value id, bit size (constant)
+    /// result: applies a range check constraint to the input. It is replaced by a RangeCheck instruction during simplification.
     ApplyRangeConstraint,
+    /// StrAsBytes - Convert a `str` into a byte array of type `[u8; N]`
+    /// arguments: value id
+    /// result: the argument. Internally a `str` is a byte array.
     StrAsBytes,
+    /// ToBits(Endian) - Computes the bit decomposition of the argument.
+    /// argument: a field element (value id)
+    /// result: an array whose elements are the bit decomposition of the argument, in the endian order depending on the chosen variant.
+    /// The type of the result gives the number of limbs to use for the decomposition.
     ToBits(Endian),
+    /// ToRadix(Endian) - Decompose the first argument over the `radix` base
+    /// arguments: a field element (value id), the radix to use (constant, a power of 2 between 2 and 256)
+    /// result: an array whose elements are the decomposition of the argument into the `radix` base, in the endian order depending on the chosen variant.
+    /// The type of the result gives the number of limbs to use for the decomposition.
     ToRadix(Endian),
+    /// BlackBox(BlackBoxFunc) - Calls a blackbox function. More details can be found here: [acvm-repo::acir::::circuit::opcodes::BlackBoxFuncCall]
     BlackBox(BlackBoxFunc),
+    /// Hint(Hint) - Avoid its arguments to be removed by DIE.
+    /// arguments: ... value id
+    /// result: the arguments. Hint does not layout any constraint but avoid its arguments to be simplified out during SSA transformations
     Hint(Hint),
+    /// AsWitness - Adds a new witness constrained to be equal to the argument
+    /// arguments: value id
+    /// result: the argument
     AsWitness,
+    /// IsUnconstrained - Indicates if the execution context is constrained or unconstrained
+    /// argument: ()
+    /// result: true if execution is under unconstrained context, false else.
     IsUnconstrained,
+    /// DerivePedersenGenerators - Computes the Pedersen generators
+    /// arguments: domain_separator_string (constant string), starting_index (constant)
+    /// result: array of elliptic curve points (Grumpkin) containing the generators.
+    /// The type of the result gives the number of generators to compute.
     DerivePedersenGenerators,
+    /// FieldLessThan - Compare the arguments: `lhs` < `rhs`
+    /// arguments: lhs, rhs. Field elements
+    /// result: true if `lhs` mod p < `rhs` mod p (p being the field characteristic), false else
     FieldLessThan,
+    /// ArrayRefCount - Gives the reference count of the array
+    /// argument: array (value id)
+    /// result: reference count of `array`. In unconstrained context, the reference count is stored alongside the array.
+    /// in constrained context, it will be 0.
     ArrayRefCount,
+    /// SliceRefCount - Gives the reference count of the slice
+    /// argument: slice (value id)
+    /// result: reference count of `slice`. In unconstrained context, the reference count is stored alongside the slice.
+    /// in constrained context, it will be 0.
     SliceRefCount,
 }
 
@@ -383,7 +455,10 @@ impl Instruction {
 
             Instruction::ArrayGet { array, index, offset: _ } => {
                 // `ArrayGet`s which read from "known good" indices from an array should not need a predicate.
-                !dfg.is_safe_index(*index, *array)
+                // This extra out of bounds (OOB) check is only inserted in the ACIR runtime.
+                // Thus, in Brillig an `ArrayGet` is always a pure operation in isolation and
+                // it is expected that OOB checks are inserted separately.
+                dfg.runtime().is_acir() && !dfg.is_safe_index(*index, *array)
             }
 
             Instruction::EnableSideEffectsIf { .. } | Instruction::ArraySet { .. } => true,
@@ -481,7 +556,12 @@ impl Instruction {
             Cast(_, _) | Not(_) | Truncate { .. } | IfElse { .. } => false,
 
             // `ArrayGet`s which read from "known good" indices from an array have no side effects
-            ArrayGet { array, index, offset: _ } => !dfg.is_safe_index(*index, *array),
+            // This extra out of bounds (OOB) check is only inserted in the ACIR runtime.
+            // Thus, in Brillig an `ArrayGet` is always a pure operation in isolation and
+            // it is expected that OOB checks are inserted separately.
+            ArrayGet { array, index, offset: _ } => {
+                dfg.runtime().is_acir() && !dfg.is_safe_index(*index, *array)
+            }
 
             // ArraySet has side effects
             ArraySet { .. } => true,

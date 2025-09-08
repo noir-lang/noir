@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_aliases_self_referring_type_alias_with_generics_is_not_allowed"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_traits_trait_impl_with_child_constraint"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

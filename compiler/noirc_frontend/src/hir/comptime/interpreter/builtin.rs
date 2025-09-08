@@ -15,7 +15,7 @@ use im::Vector;
 use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
 use num_bigint::BigUint;
-use rustc_hash::FxHashMap as HashMap;
+use rustc_hash::FxhashMap as HashMap;
 
 use crate::{
     Kind, NamedGeneric, QuotedType, ResolvedGeneric, Shared, Type, TypeBindings, TypeVariable,
@@ -263,7 +263,7 @@ impl Interpreter<'_, '_> {
 fn failing_constraint<T>(
     message: impl Into<String>,
     location: Location,
-    call_stack: &im::Vector<Location>,
+    call_stack: &Vector<Location>,
 ) -> IResult<T> {
     Err(InterpreterError::FailingConstraint {
         message: Some(message.into()),
@@ -338,7 +338,7 @@ fn static_assert(
     interner: &NodeInterner,
     arguments: Vec<(Value, Location)>,
     location: Location,
-    call_stack: &im::Vector<Location>,
+    call_stack: &Vector<Location>,
 ) -> IResult<Value> {
     let (predicate, message) = check_two_arguments(arguments, location)?;
     let predicate = get_bool(predicate)?;
@@ -359,7 +359,7 @@ fn str_as_bytes(
     let string = check_one_argument(arguments, location)?;
     let string = get_str(interner, string)?;
 
-    let bytes: im::Vector<Value> = string.bytes().map(Value::U8).collect();
+    let bytes: Vector<Value> = string.bytes().map(Value::U8).collect();
     let byte_array_type = byte_array_type(bytes.len());
     Ok(Value::Array(bytes, byte_array_type))
 }
@@ -547,7 +547,7 @@ fn type_def_fields(
     interner: &mut NodeInterner,
     arguments: Vec<(Value, Location)>,
     location: Location,
-    call_stack: &im::Vector<Location>,
+    call_stack: &Vector<Location>,
 ) -> IResult<Value> {
     let (typ, generic_args) = check_two_arguments(arguments, location)?;
     let struct_id = get_type_id(typ)?;
@@ -572,7 +572,7 @@ fn type_def_fields(
         return Err(InterpreterError::FailingConstraint { message, location, call_stack });
     }
 
-    let mut fields = im::Vector::new();
+    let mut fields = Vector::new();
 
     if let Some(struct_fields) = struct_def.get_fields(&generic_args) {
         for (field_name, field_type, visibility) in struct_fields {
@@ -606,7 +606,7 @@ fn type_def_fields_as_written(
     let struct_def = interner.get_type(struct_id);
     let struct_def = struct_def.borrow();
 
-    let mut fields = im::Vector::new();
+    let mut fields = Vector::new();
 
     if let Some(struct_fields) = struct_def.get_fields_as_written() {
         for field in struct_fields {
@@ -727,7 +727,7 @@ fn slice_remove(
     interner: &mut NodeInterner,
     arguments: Vec<(Value, Location)>,
     location: Location,
-    call_stack: &im::Vector<Location>,
+    call_stack: &Vector<Location>,
 ) -> IResult<Value> {
     let (slice, index) = check_two_arguments(arguments, location)?;
 
@@ -766,7 +766,7 @@ fn slice_pop_front(
     interner: &mut NodeInterner,
     arguments: Vec<(Value, Location)>,
     location: Location,
-    call_stack: &im::Vector<Location>,
+    call_stack: &Vector<Location>,
 ) -> IResult<Value> {
     let argument = check_one_argument(arguments, location)?;
 
@@ -783,7 +783,7 @@ fn slice_pop_back(
     interner: &mut NodeInterner,
     arguments: Vec<(Value, Location)>,
     location: Location,
-    call_stack: &im::Vector<Location>,
+    call_stack: &Vector<Location>,
 ) -> IResult<Value> {
     let argument = check_one_argument(arguments, location)?;
 
@@ -1471,7 +1471,7 @@ fn zeroed(return_type: Type, location: Location) -> Value {
                 Value::Zeroed(Type::Array(length_type, elem))
             }
         }
-        Type::Slice(_) => Value::Slice(im::Vector::new(), return_type),
+        Type::Slice(_) => Value::Slice(Vector::new(), return_type),
         Type::Integer(sign, bits) => match (sign, bits) {
             (Signedness::Unsigned, IntegerBitSize::One) => Value::U8(0),
             (Signedness::Unsigned, IntegerBitSize::Eight) => Value::U8(0),
@@ -2098,7 +2098,7 @@ fn expr_as_member_access(
                 Shared::new(quote_ident(&member_access.rhs, location)),
             ]))
         }
-        ExprValue::LValue(crate::ast::LValue::MemberAccess { object, field_name, location: _ }) => {
+        ExprValue::LValue(LValue::MemberAccess { object, field_name, location: _ }) => {
             Some(Value::Tuple(vec![
                 Shared::new(Value::lvalue(*object)),
                 Shared::new(quote_ident(&field_name, location)),

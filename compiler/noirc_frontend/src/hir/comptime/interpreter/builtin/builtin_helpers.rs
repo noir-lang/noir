@@ -38,7 +38,7 @@ use crate::{
     shared::Signedness,
     token::{SecondaryAttribute, Token, Tokens},
 };
-use rustc_hash::FxHashMap as HashMap;
+use rustc_hash::FxhashMap as HashMap;
 
 pub(crate) fn check_argument_count(
     expected: usize,
@@ -425,7 +425,7 @@ fn gather_hir_pattern_tokens(
             tokens.push(Token::Ident(name));
         }
         HirPattern::Mutable(pattern, _) => {
-            tokens.push(Token::Keyword(crate::token::Keyword::Mut));
+            tokens.push(Token::Keyword(Keyword::Mut));
             gather_hir_pattern_tokens(interner, pattern, tokens);
         }
         HirPattern::Tuple(patterns, _) => {
