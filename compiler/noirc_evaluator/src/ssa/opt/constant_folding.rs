@@ -58,18 +58,13 @@ impl Ssa {
                 brillig_functions.insert(*func_id, cloned_function);
             };
         }
-        let mut interpreter = if brillig_functions.is_empty() {
-            None
-        } else {
-            let mut interpreter = Interpreter::new_from_functions(
-                &brillig_functions,
-                InterpreterOptions { no_foreign_calls: true, ..Default::default() },
-                std::io::empty(),
-            );
-            // Interpret globals once so that we do not have to repeat this computation on every Brillig call.
-            interpreter.interpret_globals().expect("ICE: Interpreter failed to interpret globals");
-            Some(interpreter)
-        };
+        let mut interpreter = Interpreter::new_from_functions(
+            &brillig_functions,
+            InterpreterOptions { no_foreign_calls: true, ..Default::default() },
+            std::io::empty(),
+        );
+        // Interpret globals once so that we do not have to repeat this computation on every Brillig call.
+        interpreter.interpret_globals().expect("ICE: Interpreter failed to interpret globals");
 
         for function in self.functions.values_mut() {
             function.constant_fold(false, &mut interpreter);
@@ -94,18 +89,14 @@ impl Ssa {
                 brillig_functions.insert(*func_id, cloned_function);
             };
         }
-        let mut interpreter = if brillig_functions.is_empty() {
-            None
-        } else {
-            let mut interpreter = Interpreter::new_from_functions(
-                &brillig_functions,
-                InterpreterOptions { no_foreign_calls: true, ..Default::default() },
-                std::io::empty(),
-            );
-            // Interpret globals once so that we do not have to repeat this computation on every Brillig call.
-            interpreter.interpret_globals().expect("ICE: Interpreter failed to interpret globals");
-            Some(interpreter)
-        };
+
+        let mut interpreter = Interpreter::new_from_functions(
+            &brillig_functions,
+            InterpreterOptions { no_foreign_calls: true, ..Default::default() },
+            std::io::empty(),
+        );
+        // Interpret globals once so that we do not have to repeat this computation on every Brillig call.
+        interpreter.interpret_globals().expect("ICE: Interpreter failed to interpret globals");
 
         for function in self.functions.values_mut() {
             function.constant_fold(true, &mut interpreter);
@@ -120,7 +111,7 @@ impl Function {
     pub(crate) fn constant_fold(
         &mut self,
         use_constraint_info: bool,
-        interpreter: &mut Option<Interpreter<Empty>>,
+        interpreter: &mut Interpreter<Empty>,
     ) {
         let mut context = Context::new(use_constraint_info);
         let mut dom = DominatorTree::with_function(self);
@@ -248,7 +239,7 @@ impl Context {
         function: &mut Function,
         dom: &mut DominatorTree,
         block_id: BasicBlockId,
-        interpreter: &mut Option<Interpreter<Empty>>,
+        interpreter: &mut Interpreter<Empty>,
     ) {
         let instructions = function.dfg[block_id].take_instructions();
 
@@ -311,7 +302,7 @@ impl Context {
         mut block: BasicBlockId,
         id: InstructionId,
         side_effects_enabled_var: &mut ValueId,
-        interpreter: &mut Option<Interpreter<Empty>>,
+        interpreter: &mut Interpreter<Empty>,
     ) {
         let constraint_simplification_mapping = self.get_constraint_map(*side_effects_enabled_var);
         let dfg = &mut function.dfg;
@@ -367,16 +358,11 @@ impl Context {
             Self::push_instruction(id, instruction.clone(), &old_results, block, dfg)
         } else {
             // We only want to try to inline Brillig calls for Brillig entry points (functions called from an ACIR runtime).
-            Self::try_inline_brillig_call_with_all_constants(
-                &instruction,
-                block,
-                dfg,
-                interpreter.as_mut(),
-            )
-            // Otherwise, try inserting the instruction again to apply any optimizations using the newly resolved inputs.
-            .unwrap_or_else(|| {
-                Self::push_instruction(id, instruction.clone(), &old_results, block, dfg)
-            })
+            Self::try_inline_brillig_call_with_all_constants(&instruction, block, dfg, interpreter)
+                // Otherwise, try inserting the instruction again to apply any optimizations using the newly resolved inputs.
+                .unwrap_or_else(|| {
+                    Self::push_instruction(id, instruction.clone(), &old_results, block, dfg)
+                })
         };
 
         self.replace_result_ids(&old_results, &new_results);
