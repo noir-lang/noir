@@ -92,14 +92,14 @@ impl ValueMapping {
         self.map.insert(from, to);
     }
 
-    pub(crate) fn batch_insert(&mut self, old_results: &[ValueId], new_results: &[ValueId]) {
+    pub(crate) fn batch_insert(&mut self, from: &[ValueId], to: &[ValueId]) {
         debug_assert_eq!(
-            old_results.len(),
-            new_results.len(),
-            "Constant folding should never mutate instruction return type"
+            from.len(),
+            to.len(),
+            "Lengths of arrays of values being mapped must match"
         );
-        for (old_result, new_result) in old_results.iter().zip(new_results) {
-            self.insert(*old_result, *new_result);
+        for (from_value, to_value) in from.iter().zip(to) {
+            self.insert(*from_value, *to_value);
         }
     }
 
