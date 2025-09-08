@@ -71,18 +71,11 @@ fn check_u128_mul_overflow(
 
     let two_pow_64 = 1_u128 << 64;
 
-    // If lhs is less than 2^64 then the condition trivially holds.
-    if let Some(value) = lhs_value {
-        if value.to_u128() < two_pow_64 {
-            return;
-        }
-    }
-
-    // Same goes for rhs
-    if let Some(value) = rhs_value {
-        if value.to_u128() < two_pow_64 {
-            return;
-        }
+    // If lhs or rhs are less than 2^64 then the condition trivially holds.
+    if lhs_value.is_some_and(|value| value.to_u128() < two_pow_64)
+        || rhs_value.is_some_and(|value| value.to_u128() < two_pow_64)
+    {
+        return;
     }
 
     let block = context.block_id;
