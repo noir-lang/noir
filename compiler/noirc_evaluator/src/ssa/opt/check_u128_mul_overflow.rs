@@ -8,11 +8,9 @@
 //! In Brillig an overflow check is automatically performed on unsigned binary operations
 //! so this SSA pass has no effect for Brillig functions.
 use acvm::{AcirField, FieldElement};
-use noirc_errors::call_stack::CallStackId;
 
 use crate::ssa::{
     ir::{
-        basic_block::BasicBlockId,
         function::Function,
         instruction::{Binary, BinaryOp, ConstrainError, Instruction},
         types::NumericType,
@@ -43,14 +41,11 @@ impl Function {
         self.simple_optimization(|context| {
             context.insert_current_instruction();
 
-            let block_id = context.block_id;
-            let instruction_id = context.instruction_id;
-            let instruction = context.instruction();
             let Instruction::Binary(Binary {
                 lhs,
                 rhs,
                 operator: BinaryOp::Mul { unchecked: false },
-            }) = instruction
+            }) = context.instruction()
             else {
                 return;
             };
@@ -60,8 +55,7 @@ impl Function {
                 return;
             };
 
-            let call_stack = context.dfg.get_instruction_call_stack_id(instruction_id);
-            check_u128_mul_overflow(*lhs, *rhs, block_id, context, call_stack);
+            check_u128_mul_overflow(*lhs, *rhs, context);
         });
     }
 }
@@ -69,9 +63,7 @@ impl Function {
 fn check_u128_mul_overflow(
     lhs: ValueId,
     rhs: ValueId,
-    block: BasicBlockId,
     context: &mut SimpleOptimizationContext<'_, '_>,
-    call_stack: CallStackId,
 ) {
     let dfg = &mut context.dfg;
     let lhs_value = dfg.get_numeric_constant(lhs);
@@ -93,48 +85,58 @@ fn check_u128_mul_overflow(
         }
     }
 
+    let block = context.block_id;
+    let call_stack = dfg.get_instruction_call_stack_id(context.instruction_id);
+
     let u128 = NumericType::unsigned(128);
     let two_pow_64 = dfg.make_constant(two_pow_64.into(), u128);
     let mul = BinaryOp::Mul { unchecked: true };
 
-    let res = if lhs_value.is_some() && rhs_value.is_some() {
-        // If both values are known at compile time, at this point we know it overflows
-        dfg.make_constant(FieldElement::one(), u128)
-    } else if lhs_value.is_some() {
-        // If only the left-hand side is known we just need to check that the right-hand side
-        // isn't greater than 2^64
-        let instruction =
-            Instruction::Binary(Binary { lhs: rhs, rhs: two_pow_64, operator: BinaryOp::Div });
-        dfg.insert_instruction_and_results(instruction, block, None, call_stack).first()
-    } else if rhs_value.is_some() {
-        // Same goes for the other side
-        let instruction =
-            Instruction::Binary(Binary { lhs, rhs: two_pow_64, operator: BinaryOp::Div });
-        dfg.insert_instruction_and_results(instruction, block, None, call_stack).first()
-    } else {
-        // Check both sides
-        let instruction =
-            Instruction::Binary(Binary { lhs, rhs: two_pow_64, operator: BinaryOp::Div });
-        let divided_lhs =
-            dfg.insert_instruction_and_results(instruction, block, None, call_stack).first();
+    // To check if a value is less than 2^64 we divide it by 2^64 and expect the result to be zero.
+    let res = match (lhs_value, rhs_value) {
+        (Some(_), Some(_)) => {
+            // If both values are known at compile time, at this point we know it overflows
+            dfg.make_constant(FieldElement::one(), u128)
+        }
+        (Some(_), None) => {
+            // If only the left-hand side is known we just need to check that the right-hand side
+            // isn't greater than 2^64
+            let instruction =
+                Instruction::Binary(Binary { lhs: rhs, rhs: two_pow_64, operator: BinaryOp::Div });
+            dfg.insert_instruction_and_results(instruction, block, None, call_stack).first()
+        }
+        (None, Some(_)) => {
+            // Same goes for the other side
+            let instruction =
+                Instruction::Binary(Binary { lhs, rhs: two_pow_64, operator: BinaryOp::Div });
+            dfg.insert_instruction_and_results(instruction, block, None, call_stack).first()
+        }
+        (None, None) => {
+            // Check both sides
+            let instruction =
+                Instruction::Binary(Binary { lhs, rhs: two_pow_64, operator: BinaryOp::Div });
+            let divided_lhs =
+                dfg.insert_instruction_and_results(instruction, block, None, call_stack).first();
 
-        let instruction =
-            Instruction::Binary(Binary { lhs: rhs, rhs: two_pow_64, operator: BinaryOp::Div });
-        let divided_rhs =
-            dfg.insert_instruction_and_results(instruction, block, None, call_stack).first();
+            let instruction =
+                Instruction::Binary(Binary { lhs: rhs, rhs: two_pow_64, operator: BinaryOp::Div });
+            let divided_rhs =
+                dfg.insert_instruction_and_results(instruction, block, None, call_stack).first();
 
-        // Unchecked as operands are restricted to be less than 2^64 so multiplying them cannot overflow.
-        let instruction =
-            Instruction::Binary(Binary { lhs: divided_lhs, rhs: divided_rhs, operator: mul });
-        dfg.insert_instruction_and_results(instruction, block, None, call_stack).first()
+            // Unchecked as operands are restricted to be less than 2^64 so multiplying them cannot overflow.
+            let instruction =
+                Instruction::Binary(Binary { lhs: divided_lhs, rhs: divided_rhs, operator: mul });
+            dfg.insert_instruction_and_results(instruction, block, None, call_stack).first()
+        }
     };
 
+    // We must only check for overflow if the side effects var is active
+    let predicate = Instruction::Cast(context.enable_side_effects, u128);
+    let predicate = dfg.insert_instruction_and_results(predicate, block, None, call_stack).first();
+    let res = Instruction::Binary(Binary { lhs: res, rhs: predicate, operator: mul });
+    let res = dfg.insert_instruction_and_results(res, block, None, call_stack).first();
+
     let zero = dfg.make_constant(FieldElement::zero(), u128);
-    let instruction = Instruction::Cast(context.enable_side_effects, u128);
-    let predicate =
-        dfg.insert_instruction_and_results(instruction, block, None, call_stack).first();
-    let instruction = Instruction::Binary(Binary { lhs: res, rhs: predicate, operator: mul });
-    let res = dfg.insert_instruction_and_results(instruction, block, None, call_stack).first();
     let instruction = Instruction::Constrain(
         res,
         zero,
