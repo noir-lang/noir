@@ -42,35 +42,14 @@ use rustc_hash::FxHashMap as HashMap;
 impl Ssa {
     /// Performs constant folding on each instruction.
     ///
+    /// It will attempt to replace any calls to brillig functions with constant arguments with their results.
+    ///
     /// It will not look at constraints to inform simplifications
     /// based on the stated equivalence of two instructions.
     ///
     /// See [`constant_folding`][self] module for more information.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn fold_constants(mut self) -> Ssa {
-        for function in self.functions.values_mut() {
-            function.constant_fold(false, &mut None);
-        }
-        self
-    }
-
-    /// Performs constant folding on each instruction.
-    ///
-    /// Also uses constraint information to inform more optimizations.
-    ///
-    /// See [`constant_folding`][self] module for more information.
-    #[tracing::instrument(level = "trace", skip(self))]
-    pub(crate) fn fold_constants_using_constraints(mut self) -> Ssa {
-        for function in self.functions.values_mut() {
-            function.constant_fold(true, &mut None);
-        }
-        self
-    }
-
-    /// Performs constant folding on each instruction while also replacing calls to brillig functions
-    /// with all constant arguments by trying to evaluate those calls.
-    #[tracing::instrument(level = "trace", skip(self))]
-    pub fn fold_constants_with_brillig(mut self) -> Ssa {
         // Collect all brillig functions so that later we can find them when processing a call instruction
         let mut brillig_functions: BTreeMap<FunctionId, Function> = BTreeMap::new();
         for (func_id, func) in &self.functions {
@@ -95,7 +74,42 @@ impl Ssa {
         for function in self.functions.values_mut() {
             function.constant_fold(false, &mut interpreter);
         }
+        self
+    }
 
+    /// Performs constant folding on each instruction.
+    ///
+    /// It will attempt to replace any calls to brillig functions with constant arguments with their results.
+    ///
+    /// Also uses constraint information to inform more optimizations.
+    ///
+    /// See [`constant_folding`][self] module for more information.
+    #[tracing::instrument(level = "trace", skip(self))]
+    pub(crate) fn fold_constants_using_constraints(mut self) -> Ssa {
+        // Collect all brillig functions so that later we can find them when processing a call instruction
+        let mut brillig_functions: BTreeMap<FunctionId, Function> = BTreeMap::new();
+        for (func_id, func) in &self.functions {
+            if let RuntimeType::Brillig(..) = func.runtime() {
+                let cloned_function = Function::clone_with_id(*func_id, func);
+                brillig_functions.insert(*func_id, cloned_function);
+            };
+        }
+        let mut interpreter = if brillig_functions.is_empty() {
+            None
+        } else {
+            let mut interpreter = Interpreter::new_from_functions(
+                &brillig_functions,
+                InterpreterOptions { no_foreign_calls: true, ..Default::default() },
+                std::io::empty(),
+            );
+            // Interpret globals once so that we do not have to repeat this computation on every Brillig call.
+            interpreter.interpret_globals().expect("ICE: Interpreter failed to interpret globals");
+            Some(interpreter)
+        };
+
+        for function in self.functions.values_mut() {
+            function.constant_fold(true, &mut interpreter);
+        }
         self
     }
 }
