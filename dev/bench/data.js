@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1757353106272,
+  "lastUpdate": 1757353629455,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -20196,48 +20196,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "585175e56f2c34f225fe6ac87a91f4962c61553d",
-          "message": "chore(ssa): Greenlight `brillig_entry_points` and switch to centralized CallGraph (#9668)",
-          "timestamp": "2025-08-28T22:53:30Z",
-          "tree_id": "e3426df4dacd6368512ce28681f0e2e2e1e58aea",
-          "url": "https://github.com/noir-lang/noir/commit/585175e56f2c34f225fe6ac87a91f4962c61553d"
-        },
-        "date": 1756423209459,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 248766,
-            "range": "± 413",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 218421,
-            "range": "± 3412",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2788293,
-            "range": "± 10286",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -22289,6 +22247,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2803001,
             "range": "± 1089",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a010e93594349e9d96a2025c8582a86aea560e6a",
+          "message": "fix(ssa): Accurate purities of ArraySet and RC instructions in Brillig (#9736)",
+          "timestamp": "2025-09-08T17:18:17Z",
+          "tree_id": "00a040ff79545674fff62e28403110b87ad9473c",
+          "url": "https://github.com/noir-lang/noir/commit/a010e93594349e9d96a2025c8582a86aea560e6a"
+        },
+        "date": 1757353609553,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 247883,
+            "range": "± 985",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 219348,
+            "range": "± 1094",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2794539,
+            "range": "± 9218",
             "unit": "ns/iter"
           }
         ]
