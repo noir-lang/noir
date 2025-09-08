@@ -34,6 +34,7 @@ pub type InstructionWithOneArg = fn(&mut FuzzerBuilder, TypedValue) -> TypedValu
 /// Contains a FunctionBuilder and tracks the current numeric type being used
 pub struct FuzzerBuilder {
     pub(crate) builder: FunctionBuilder,
+    pub(crate) runtime: RuntimeType,
 }
 
 impl FuzzerBuilder {
@@ -43,7 +44,7 @@ impl FuzzerBuilder {
         let mut builder = FunctionBuilder::new("main".into(), main_id);
         builder.set_runtime(RuntimeType::Acir(FrontendInlineType::default()));
         builder.simplify = simplifying_enabled;
-        Self { builder }
+        Self { builder, runtime: RuntimeType::Acir(FrontendInlineType::default()) }
     }
 
     /// Creates a new FuzzerBuilder in Brillig context
@@ -52,7 +53,15 @@ impl FuzzerBuilder {
         let mut builder = FunctionBuilder::new("main".into(), main_id);
         builder.set_runtime(RuntimeType::Brillig(FrontendInlineType::default()));
         builder.simplify = simplifying_enabled;
-        Self { builder }
+        Self { builder, runtime: RuntimeType::Brillig(FrontendInlineType::default()) }
+    }
+
+    pub fn new_by_runtime(runtime: RuntimeType, simplifying_enabled: bool) -> Self {
+        let main_id: Id<Function> = Id::new(0);
+        let mut builder = FunctionBuilder::new("main".into(), main_id);
+        builder.set_runtime(runtime);
+        builder.simplify = simplifying_enabled;
+        Self { builder, runtime }
     }
 
     /// Compiles the built function into a CompiledProgram, to run it with nargo execute
@@ -332,15 +341,18 @@ impl FuzzerBuilder {
         self.builder.insert_store(memory_addr.value_id, value.value_id);
     }
 
-    /// Creates a new ACIR function with the given name and id with inline type InlineType::Inline
-    pub fn new_acir_function(&mut self, name: String, function_id: Id<Function>) {
+    /// Creates a new function with the given name and id with inline type InlineType::Inline
+    /// Sets the same runtime as the builder
+    pub fn new_function(&mut self, name: String, function_id: Id<Function>) {
         // maybe use different inline type
-        self.builder.new_function(name, function_id, InlineType::Inline);
-    }
-
-    /// Creates a new Brillig function with the given name and id with inline type InlineType::Inline
-    pub fn new_brillig_function(&mut self, name: String, function_id: Id<Function>) {
-        self.builder.new_brillig_function(name, function_id, InlineType::Inline);
+        match self.runtime {
+            RuntimeType::Acir(inline_type) => {
+                self.builder.new_function(name, function_id, inline_type);
+            }
+            RuntimeType::Brillig(inline_type) => {
+                self.builder.new_brillig_function(name, function_id, inline_type);
+            }
+        }
     }
 
     /// Inserts an import function with the given function id

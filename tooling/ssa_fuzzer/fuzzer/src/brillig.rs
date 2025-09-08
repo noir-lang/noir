@@ -21,9 +21,8 @@ use utils::{push_fuzzer_output_to_redis_queue, redis};
 
 const MAX_EXECUTION_TIME_TO_KEEP_IN_CORPUS: u64 = 3;
 const INLINE_TYPE: FrontendInlineType = FrontendInlineType::Inline;
-const ACIR_RUNTIME: RuntimeType = RuntimeType::Acir(INLINE_TYPE);
 const BRILLIG_RUNTIME: RuntimeType = RuntimeType::Brillig(INLINE_TYPE);
-const TARGET_RUNTIMES: [RuntimeType; 2] = [ACIR_RUNTIME, BRILLIG_RUNTIME];
+const TARGET_RUNTIMES: [RuntimeType; 1] = [BRILLIG_RUNTIME];
 
 libfuzzer_sys::fuzz_target!(|data: &[u8]| -> Corpus {
     let _ = env_logger::try_init();
@@ -46,22 +45,8 @@ libfuzzer_sys::fuzz_target!(|data: &[u8]| -> Corpus {
         }
     }
 
-    // Disable some instructions with bugs that are not fixed yet
-    let instruction_options = InstructionOptions {
-        // https://github.com/noir-lang/noir/issues/9707
-        shr_enabled: false,
-        shl_enabled: false,
-        // https://github.com/noir-lang/noir/issues/9437
-        array_get_enabled: false,
-        array_set_enabled: false,
-        // https://github.com/noir-lang/noir/issues/9559
-        point_add_enabled: false,
-        multi_scalar_mul_enabled: false,
-        // https://github.com/noir-lang/noir/issues/9619
-        ecdsa_secp256k1_enabled: false,
-        ecdsa_secp256r1_enabled: false,
-        ..InstructionOptions::default()
-    };
+    // You can disable some instructions with bugs that are not fixed yet
+    let instruction_options = InstructionOptions { ..InstructionOptions::default() };
     let modes = vec![FuzzerMode::NonConstant];
     let fuzzer_command_options =
         FuzzerCommandOptions { loops_enabled: false, ..FuzzerCommandOptions::default() };

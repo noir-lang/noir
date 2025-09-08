@@ -5,7 +5,7 @@ use acvm::{
         native_types::{Witness, WitnessMap, WitnessStack},
     },
 };
-use noir_ssa_executor::runner::execute_single;
+use noir_ssa_executor::{runner::SsaExecutionError, runner::execute_single};
 use std::collections::BTreeSet;
 
 #[derive(Debug)]
@@ -15,6 +15,13 @@ pub enum CompareResults {
     BothFailed(String, String),
     AcirFailed(String, WitnessStack<FieldElement>),
     BrilligFailed(String, WitnessStack<FieldElement>),
+}
+
+pub fn execute(
+    program: &Program<FieldElement>,
+    initial_witness: WitnessMap<FieldElement>,
+) -> Result<WitnessStack<FieldElement>, SsaExecutionError> {
+    execute_single(program, initial_witness)
 }
 
 /// High level function to execute the given ACIR and Brillig programs with the given initial witness
