@@ -219,8 +219,7 @@ impl<'a> FuzzerFunctionContext<'a> {
     }
     /// Inserts a new SSA block into builder and returns its id
     fn insert_ssa_block(&mut self) -> BasicBlockId {
-        let block_id = self.builder.insert_block();
-        block_id
+        self.builder.insert_block()
     }
 
     /// Inserts a new constant into builder and returns its value
@@ -229,8 +228,7 @@ impl<'a> FuzzerFunctionContext<'a> {
         value: impl Into<FieldElement> + Clone,
         type_: NumericType,
     ) -> TypedValue {
-        let typed_value = self.builder.insert_constant(value.clone(), type_);
-        typed_value
+        self.builder.insert_constant(value.clone(), type_)
     }
 
     /// Inserts a new jmp instruction into builder

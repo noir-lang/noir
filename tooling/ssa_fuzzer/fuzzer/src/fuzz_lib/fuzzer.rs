@@ -22,7 +22,6 @@ use super::{
 };
 use acvm::FieldElement;
 use acvm::acir::native_types::{WitnessMap, WitnessStack};
-use noir_ssa_executor::runner::execute_single;
 use noir_ssa_fuzzer::{runner::execute, typed_value::Type};
 use noirc_driver::CompiledProgram;
 use noirc_evaluator::ssa::ir::function::RuntimeType;
@@ -75,6 +74,9 @@ impl FuzzerOutput {
             return vec![];
         }
         let return_witnesses = &self.program.as_ref().unwrap().program.functions[0].return_values.0;
+        if return_witnesses.is_empty() {
+            return vec![];
+        }
         let max_return_witness_index = return_witnesses.iter().max().unwrap();
         let witness_vec = &self.witness_stack.peek().unwrap().witness;
 
@@ -85,6 +87,7 @@ impl FuzzerOutput {
         return_witnesses.iter().map(|witness| witness_vec[witness]).collect()
     }
 
+    #[allow(dead_code)] // TODO(sn): used in fuzzer_output_to_json
     pub(crate) fn get_input_witnesses(&self) -> Vec<FieldElement> {
         // program failed to compile
         if self.program.is_none() {
@@ -98,22 +101,22 @@ impl FuzzerOutput {
 
     pub(crate) fn compare_results(&self, other: &Self) -> CompareResults {
         match (self.is_program_compiled(), other.is_program_compiled()) {
-            (true, true) => return CompareResults::BothFailed,
-            (true, false) => return CompareResults::LeftCompilationFailed,
-            (false, true) => return CompareResults::RightCompilationFailed,
+            (true, true) => CompareResults::BothFailed,
+            (true, false) => CompareResults::LeftCompilationFailed,
+            (false, true) => CompareResults::RightCompilationFailed,
             (false, false) => {
                 // both programs compiled successfully
                 let left_return_witnesses = self.get_return_witnesses();
                 let right_return_witnesses = other.get_return_witnesses();
                 match (left_return_witnesses.is_empty(), right_return_witnesses.is_empty()) {
-                    (true, true) => return CompareResults::BothFailed,
-                    (true, false) => return CompareResults::LeftExecutionFailed,
-                    (false, true) => return CompareResults::RightExecutionFailed,
+                    (true, true) => CompareResults::BothFailed,
+                    (true, false) => CompareResults::LeftExecutionFailed,
+                    (false, true) => CompareResults::RightExecutionFailed,
                     (false, false) => {
                         if left_return_witnesses != right_return_witnesses {
                             return CompareResults::Disagree(
-                                left_return_witnesses,
-                                right_return_witnesses,
+                                left_return_witnesses.clone(),
+                                right_return_witnesses.clone(),
                             );
                         }
                         CompareResults::Agree(left_return_witnesses)

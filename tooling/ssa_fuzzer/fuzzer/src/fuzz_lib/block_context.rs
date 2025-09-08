@@ -704,11 +704,9 @@ impl BlockContext {
         let is_infinite = builder.insert_constant(point.is_infinite, NumericType::Boolean);
 
         let point = if point.derive_from_scalar_mul {
-            let point = builder.base_scalar_mul(scalar.clone(), is_infinite.clone());
-            point
+            builder.base_scalar_mul(scalar.clone(), is_infinite.clone())
         } else {
-            let point = builder.create_point_from_scalar(scalar.clone(), is_infinite.clone());
-            point
+            builder.create_point_from_scalar(scalar.clone(), is_infinite.clone())
         };
         Some(point)
     }
