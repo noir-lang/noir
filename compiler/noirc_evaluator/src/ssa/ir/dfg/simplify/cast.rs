@@ -101,7 +101,7 @@ mod tests {
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) predicate_pure fn main f0 {
           b0():
-            return i8 135
+            return i8 -121
         }
         ");
     }

@@ -6,6 +6,7 @@ use crate::{
         AssignStatement, Expression, ForLoopStatement, ForRange, Ident, IntegerBitSize,
         ItemVisibility, LValue, LetStatement, Statement, StatementKind, WhileStatement,
     },
+    elaborator::PathResolutionTarget,
     hir::{
         def_collector::dc_crate::CompilationError,
         resolution::{
@@ -25,7 +26,7 @@ use crate::{
     shared::Signedness,
 };
 
-use super::{Elaborator, Loop, TypedPath};
+use super::{Elaborator, Loop};
 
 impl Elaborator<'_> {
     fn elaborate_statement_value(&mut self, statement: Statement) -> (HirStatement, Type) {
@@ -81,7 +82,8 @@ impl Elaborator<'_> {
     }
 
     pub(super) fn elaborate_local_let(&mut self, let_stmt: LetStatement) -> (HirStatement, Type) {
-        self.elaborate_let(let_stmt, None)
+        let (let_statement, typ) = self.elaborate_let(let_stmt, None);
+        (HirStatement::Let(let_statement), typ)
     }
 
     /// Elaborate a local or global let statement.
@@ -92,7 +94,7 @@ impl Elaborator<'_> {
         &mut self,
         let_stmt: LetStatement,
         global_id: Option<GlobalId>,
-    ) -> (HirStatement, Type) {
+    ) -> (HirLetStatement, Type) {
         let type_contains_unspecified = let_stmt.r#type.contains_unspecified();
         let annotated_type = self.resolve_inferred_type(let_stmt.r#type);
 
@@ -144,7 +146,7 @@ impl Elaborator<'_> {
         let is_global_let = let_stmt.is_global_let;
         let let_ =
             HirLetStatement::new(pattern, r#type, expression, attributes, comptime, is_global_let);
-        (HirStatement::Let(let_), Type::Unit)
+        (let_, Type::Unit)
     }
 
     pub(super) fn elaborate_assign(&mut self, assign: AssignStatement) -> (HirStatement, Type) {
@@ -373,35 +375,62 @@ impl Elaborator<'_> {
     ///   This hoists out any sub-expressions to simplify sequencing of side-effects.
     fn elaborate_lvalue(&mut self, lvalue: LValue) -> (HirLValue, Type, bool, Vec<StmtId>) {
         match lvalue {
-            LValue::Ident(ident) => {
+            LValue::Path(path) => {
                 let mut mutable = true;
-                let location = ident.location();
-                let path = TypedPath::from_single(ident.to_string(), location);
-                let ((ident, scope_index), _) = self.get_ident_from_path(path);
+                let location = path.location;
+                let path = self.validate_path(path);
+                match self.get_ident_from_path_or_error(path.clone()) {
+                    Ok(((ident, scope_index), _)) => {
+                        self.resolve_local_variable(ident.clone(), scope_index);
 
-                self.resolve_local_variable(ident.clone(), scope_index);
+                        if let Some(definition) = self.interner.try_definition(ident.id) {
+                            mutable = definition.mutable;
 
-                let typ = if ident.id == DefinitionId::dummy_id() {
-                    Type::Error
-                } else {
-                    if let Some(definition) = self.interner.try_definition(ident.id) {
-                        mutable = definition.mutable;
-
-                        if definition.comptime && !self.in_comptime_context() {
-                            self.push_err(ResolverError::MutatingComptimeInNonComptimeContext {
-                                name: definition.name.clone(),
-                                location: ident.location,
-                            });
+                            if definition.comptime && !self.in_comptime_context() {
+                                self.push_err(
+                                    ResolverError::MutatingComptimeInNonComptimeContext {
+                                        name: definition.name.clone(),
+                                        location: ident.location,
+                                    },
+                                );
+                            }
                         }
+
+                        let typ =
+                            self.interner.definition_type(ident.id).instantiate(self.interner).0;
+                        let typ = typ.follow_bindings();
+
+                        self.interner.add_local_reference(ident.id, location);
+
+                        (HirLValue::Ident(ident.clone(), typ.clone()), typ, mutable, Vec::new())
                     }
+                    Err(error) => {
+                        // We couldn't find a variable or global. Let's see if the identifier refers to something
+                        // else, like a module or type.
+                        let result = self.resolve_path_inner(
+                            path,
+                            PathResolutionTarget::Value,
+                            super::PathResolutionMode::MarkAsUsed,
+                        );
+                        if let Ok(result) = result {
+                            for error in result.errors {
+                                self.push_err(error);
+                            }
+                            self.push_err(ResolverError::Expected {
+                                location,
+                                expected: "value",
+                                got: result.item.description(),
+                            });
+                        } else {
+                            self.push_err(error);
+                        }
 
-                    let typ = self.interner.definition_type(ident.id).instantiate(self.interner).0;
-                    typ.follow_bindings()
-                };
-
-                self.interner.add_local_reference(ident.id, location);
-
-                (HirLValue::Ident(ident.clone(), typ.clone()), typ, mutable, Vec::new())
+                        let id = DefinitionId::dummy_id();
+                        let ident = HirIdent::non_trait_method(id, location);
+                        let typ = Type::Error;
+                        (HirLValue::Ident(ident.clone(), typ.clone()), typ, mutable, Vec::new())
+                    }
+                }
             }
             LValue::MemberAccess { object, field_name, location } => {
                 let (object, lhs_type, mut mutable, statements) = self.elaborate_lvalue(*object);

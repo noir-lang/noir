@@ -1,9 +1,9 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use fxhash::FxHashMap as HashMap;
 use iter_extended::{btree_map, try_vecmap, vecmap};
 use noirc_errors::Location;
 use rangemap::StepLite;
+use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
     DataType, Kind, Shared, Type,
@@ -183,14 +183,13 @@ impl Elaborator<'_> {
         let no_parameters = Parameters(Vec::new());
         let global_body =
             self.make_enum_variant_constructor(datatype, variant_index, &no_parameters, location);
-        let let_statement = crate::hir_def::stmt::HirStatement::Expression(global_body);
+        let let_statement = HirStatement::Expression(global_body);
 
         let statement_id = self.interner.get_global(global_id).let_statement;
         self.interner.replace_statement(statement_id, let_statement);
 
-        self.interner.get_global_mut(global_id).value = GlobalValue::Resolved(
-            crate::hir::comptime::Value::Enum(variant_index, Vec::new(), typ),
-        );
+        self.interner.get_global_mut(global_id).value =
+            GlobalValue::Resolved(Value::Enum(variant_index, Vec::new(), typ));
 
         Self::get_module_mut(self.def_maps, type_id.module_id())
             .declare_global(name.clone(), enum_.visibility, global_id)
@@ -553,7 +552,8 @@ impl Elaborator<'_> {
         variables_defined: &mut Vec<Ident>,
     ) -> Pattern {
         let location = constructor.typ.location;
-        let typ = self.resolve_type(constructor.typ);
+        let wildcard_allowed = true;
+        let typ = self.resolve_type(constructor.typ, wildcard_allowed);
 
         let Some((struct_name, mut expected_field_types)) =
             self.struct_name_and_field_types(&typ, location)
@@ -794,7 +794,7 @@ impl Elaborator<'_> {
 
         let value = match constant {
             Value::Bool(value) => SignedField::positive(value),
-            Value::Field(value) => SignedField::positive(value),
+            Value::Field(value) => value,
             Value::I8(value) => signed_to_signed_field!(value),
             Value::I16(value) => signed_to_signed_field!(value),
             Value::I32(value) => signed_to_signed_field!(value),

@@ -1,8 +1,5 @@
 use crate::Type;
-use crate::graph::CrateId;
 use crate::node_interner::{FuncId, NodeInterner, TraitId, TypeId};
-
-use std::collections::BTreeMap;
 
 use crate::ast::ItemVisibility;
 use crate::hir::def_map::{CrateDefMap, DefMaps, LocalModuleId, ModuleId};
@@ -17,7 +14,7 @@ use crate::hir::def_map::{CrateDefMap, DefMaps, LocalModuleId, ModuleId};
 /// }
 /// ```
 pub fn item_in_module_is_visible(
-    def_maps: &BTreeMap<CrateId, CrateDefMap>,
+    def_maps: &DefMaps,
     current_module: ModuleId,
     target_module: ModuleId,
     visibility: ItemVisibility,
@@ -78,7 +75,7 @@ pub fn struct_member_is_visible(
     struct_id: TypeId,
     visibility: ItemVisibility,
     current_module_id: ModuleId,
-    def_maps: &BTreeMap<CrateId, CrateDefMap>,
+    def_maps: &DefMaps,
 ) -> bool {
     type_member_is_visible(struct_id.module_id(), visibility, current_module_id, def_maps)
 }
@@ -87,7 +84,7 @@ pub fn trait_member_is_visible(
     trait_id: TraitId,
     visibility: ItemVisibility,
     current_module_id: ModuleId,
-    def_maps: &BTreeMap<CrateId, CrateDefMap>,
+    def_maps: &DefMaps,
 ) -> bool {
     type_member_is_visible(trait_id.0, visibility, current_module_id, def_maps)
 }
@@ -96,7 +93,7 @@ fn type_member_is_visible(
     type_module_id: ModuleId,
     visibility: ItemVisibility,
     current_module_id: ModuleId,
-    def_maps: &BTreeMap<CrateId, CrateDefMap>,
+    def_maps: &DefMaps,
 ) -> bool {
     match visibility {
         ItemVisibility::Public => true,
@@ -127,6 +124,7 @@ fn type_member_is_visible(
 }
 
 pub fn method_call_is_visible(
+    self_type: Option<&Type>,
     object_type: &Type,
     func_id: FuncId,
     current_module: ModuleId,
@@ -158,6 +156,14 @@ pub fn method_call_is_visible(
                 );
             }
 
+            // A private method defined on `Foo<i32>` should be visible when calling
+            // it from an impl on `Foo<i64>`, even though the generics are different.
+            if self_type
+                .is_some_and(|self_type| is_same_type_regardless_generics(self_type, object_type))
+            {
+                return true;
+            }
+
             if let Some(struct_id) = func_meta.type_id {
                 return struct_member_is_visible(
                     struct_id,
@@ -179,5 +185,26 @@ pub fn method_call_is_visible(
 
             true
         }
+    }
+}
+
+fn is_same_type_regardless_generics(type1: &Type, type2: &Type) -> bool {
+    if type1 == type2 {
+        return true;
+    }
+
+    match (type1.follow_bindings(), type2.follow_bindings()) {
+        (Type::Array(..), Type::Array(..)) => true,
+        (Type::Slice(..), Type::Slice(..)) => true,
+        (Type::String(..), Type::String(..)) => true,
+        (Type::FmtString(..), Type::FmtString(..)) => true,
+        (Type::Tuple(..), Type::Tuple(..)) => true,
+        (Type::Function(..), Type::Function(..)) => true,
+        (Type::DataType(data_type1, ..), Type::DataType(data_type2, ..)) => {
+            data_type1.borrow().id == data_type2.borrow().id
+        }
+        (Type::Reference(type1, _), _) => is_same_type_regardless_generics(&type1, type2),
+        (_, Type::Reference(type2, _)) => is_same_type_regardless_generics(type1, &type2),
+        _ => false,
     }
 }

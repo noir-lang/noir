@@ -24,7 +24,7 @@ expression: artifact
     ],
     "return_type": null,
     "error_types": {
-      "11885038074309157496": {
+      "1394393050086238995": {
         "error_kind": "string",
         "string": "x and y are not equal"
       }
@@ -38,13 +38,8 @@ expression: artifact
     "return value indices : []",
     "EXPR [ (1, _0) (-1, _1) 0 ]"
   ],
-  "debug_symbols": "dY/RCoMwDEX/Jc99cMJg+CtjSK1RAiEtsR0M8d8XRTf3sKc0uTm3uTP02JWxJRniBM19hk6JmcaWY/CZoth0XhwcbZsV0UZw0o1KXlEyNFKYHTw9l21pSl62mr2aWjlA6a2a4UCM62txX7r6j17qeocv9e2DX41/WOcD6c/FUNnistop+Y5xTzEUCadQ+ZUO5YidNAbsi+Jqt2n2wRs=",
-  "file_map": {
-    "50": {
-      "source": "// Tests a very simple program.\n//\n// The features being tested is assertion\nfn main(x: Field, y: pub Field) {\n    assert(x == y, \"x and y are not equal\");\n    assert_eq(x, y, \"x and y are not equal\");\n}\n",
-      "path": ""
-    }
-  },
+  "debug_symbols": "[debug_symbols]",
+  "file_map": "[file_map]",
   "names": [
     "main"
   ],

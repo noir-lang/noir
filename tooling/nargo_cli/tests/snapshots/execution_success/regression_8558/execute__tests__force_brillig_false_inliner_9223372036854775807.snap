@@ -33,7 +33,7 @@ expression: artifact
       "visibility": "public"
     },
     "error_types": {
-      "2920182694213909827": {
+      "1998584279744703196": {
         "error_kind": "string",
         "string": "attempt to subtract with overflow"
       }
@@ -49,7 +49,7 @@ expression: artifact
     "BLACKBOX::RANGE [(_1, 1)] []",
     "EXPR [ (1, _0, _1) (-257, _1) (-1, _3) 0 ]",
     "BLACKBOX::RANGE [(_3, 16)] []",
-    "BRILLIG CALL func 0: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(3))], q_c: 65536 }), Single(Expression { mul_terms: [], linear_combinations: [], q_c: 256 })], outputs: [Simple(Witness(4)), Simple(Witness(5))]",
+    "BRILLIG CALL func 0: inputs: [EXPR [ (1, _3) 65536 ], EXPR [ 256 ]], outputs: [_4, _5]",
     "BLACKBOX::RANGE [(_4, 9)] []",
     "BLACKBOX::RANGE [(_5, 8)] []",
     "EXPR [ (1, _3) (-256, _4) (-1, _5) 65536 ]",
@@ -57,13 +57,8 @@ expression: artifact
     "unconstrained func 0",
     "[Const { destination: Direct(10), bit_size: Integer(U32), value: 2 }, Const { destination: Direct(11), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(10), offset_address: Direct(11) }, BinaryFieldOp { destination: Direct(2), op: IntegerDiv, lhs: Direct(0), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Mul, lhs: Direct(2), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Sub, lhs: Direct(0), rhs: Direct(1) }, Mov { destination: Direct(0), source: Direct(2) }, Stop { return_data: HeapVector { pointer: Direct(11), size: Direct(10) } }]"
   ],
-  "debug_symbols": "jZBBDoMgEEXvMmsW1lZtuUrTGMTRkBAgCE0a4907Eml10aSbP8x8HhP+DD12cWyVGewE/D5D55XWamy1lSIoa2g6Lwxy2waPSCPY+UQ54dEE4CZqzeApdEyXJidMqkF4cgsGaHqq9OCgNK6nhX3p4jdaZ7a+fuDqb7q6bXRTHegHdUIqf/gtlMBPDM5JL8BLBlXSOmlDuqyrvBKdxi2fIRq5iyu8XHZyoM5biX30uC5LHq1/Aw==",
-  "file_map": {
-    "50": {
-      "source": "fn main(v1: u16, v2: bool) -> pub u8 {\n    if v2 {\n        (v1 - 257) as u8\n    } else {\n        0\n    }\n}\n",
-      "path": ""
-    }
-  },
+  "debug_symbols": "[debug_symbols]",
+  "file_map": "[file_map]",
   "names": [
     "main"
   ],

@@ -32,7 +32,7 @@ impl Function {
     pub(crate) fn expand_signed_checks(&mut self) {
         // TODO: consider whether we can implement this more efficiently in brillig.
 
-        self.simple_reachable_blocks_optimization(|context| {
+        self.simple_optimization(|context| {
             let instruction_id = context.instruction_id;
             let instruction = context.instruction();
 
@@ -470,7 +470,7 @@ fn expand_signed_checks_post_check(func: &Function) {
 mod tests {
     use crate::{
         assert_ssa_snapshot,
-        ssa::{opt::assert_normalized_ssa_equals, ssa_gen::Ssa},
+        ssa::{opt::assert_ssa_does_not_change, ssa_gen::Ssa},
     };
 
     #[test]
@@ -600,9 +600,7 @@ mod tests {
             return v2
         }
         ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.expand_signed_checks();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::expand_signed_checks);
     }
 
     #[test]
@@ -614,9 +612,7 @@ mod tests {
             return v2
         }
         ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.expand_signed_checks();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::expand_signed_checks);
     }
 
     #[test]
@@ -628,8 +624,6 @@ mod tests {
             return v2
         }
         ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.expand_signed_checks();
-        assert_normalized_ssa_equals(ssa, src);
+        assert_ssa_does_not_change(src, Ssa::expand_signed_checks);
     }
 }

@@ -1,12 +1,12 @@
 use std::collections::HashSet;
 
-use acir::FieldElement;
 use iter_extended::vecmap;
 use noirc_frontend::{
     ast::{BinaryOpKind, IntegerBitSize},
     hir_def,
     monomorphization::ast::{BinaryOp, Type},
     shared::Signedness,
+    signed_field::SignedField,
 };
 use strum::IntoEnumIterator as _;
 
@@ -71,9 +71,9 @@ pub fn types_produced(typ: &Type) -> HashSet<Type> {
         acc.insert(typ.clone());
 
         match typ {
-            Type::Array(len, typ) => {
+            Type::Array(len, item_type) => {
                 if *len > 0 {
-                    visit(acc, typ);
+                    visit(acc, item_type);
                 }
                 // Technically we could produce `[T; N]` from `[S; N]` if
                 // we can produce `T` from `S`, but let's ignore that;
@@ -83,9 +83,9 @@ pub fn types_produced(typ: &Type) -> HashSet<Type> {
                 // we might generate `[foo[1] as u64, 3u64]` instead of "mapping"
                 // over the entire foo. Same goes for tuples.
             }
-            Type::Tuple(types) => {
-                for typ in types {
-                    visit(acc, typ);
+            Type::Tuple(item_types) => {
+                for item_type in item_types {
+                    visit(acc, item_type);
                 }
             }
             Type::String(_) => {
@@ -119,8 +119,12 @@ pub fn types_produced(typ: &Type) -> HashSet<Type> {
                 // Maybe we can also cast to u1 or u8 etc?
                 acc.insert(Type::Field);
             }
-            Type::Slice(typ) => {
-                visit(acc, typ);
+            Type::Slice(item_type) => {
+                // pop_front -> (T, [T])
+                acc.insert(Type::Tuple(vec![item_type.as_ref().clone(), typ.clone()]));
+                // pop_back -> ([T], T)
+                acc.insert(Type::Tuple(vec![typ.clone(), item_type.as_ref().clone()]));
+                visit(acc, item_type);
             }
             Type::Reference(typ, _) => {
                 visit(acc, typ);
@@ -143,7 +147,7 @@ pub fn to_hir_type(typ: &Type) -> hir_def::types::Type {
     // Meet the expectations of `Type::evaluate_to_u32`.
     let size_const = |size: u32| {
         Box::new(HirType::Constant(
-            FieldElement::from(size),
+            SignedField::from(size),
             HirKind::Numeric(Box::new(HirType::Integer(
                 Signedness::Unsigned,
                 IntegerBitSize::ThirtyTwo,
@@ -303,7 +307,7 @@ pub fn can_binary_op_return(op: &BinaryOp, typ: &Type) -> bool {
 /// These are operations that commonly fail with random constants.
 pub fn can_binary_op_overflow(op: &BinaryOp) -> bool {
     use BinaryOpKind::*;
-    matches!(op, Add | Subtract | Multiply | ShiftLeft)
+    matches!(op, Add | Subtract | Multiply | ShiftLeft | ShiftRight)
 }
 
 /// Can the binary operation fail because the RHS is zero.

@@ -35,7 +35,7 @@ expression: artifact
       "visibility": "public"
     },
     "error_types": {
-      "14225679739041873922": {
+      "16431471497789672479": {
         "error_kind": "string",
         "string": "Index out of bounds"
       }
@@ -52,8 +52,8 @@ expression: artifact
     "EXPR [ (1, _1) (1, _2) -1 ]",
     "INIT CALLDATA 0 (id: 1, len: 1, witnesses: [_1])"
   ],
-  "debug_symbols": "dY/RCoMwDEX/Jc992MPmwF8ZQ2KNUghpia0wxH9fFN1ksKf05vRc2hk6asvQBOnjCPVjhlYDcxgajh5ziGLbeXFwxCYrka3gxM1KqCQZainMDibksl0aE8o2M6rRiwOSzqYV9oFpPS3ua1/+q1W1u/frR76Z/bSEPujveyfUgC3THvsi/kTzKx3k+G/S6KkrSmvTxqz7DQ==",
-  "file_map": {},
+  "debug_symbols": "[debug_symbols]",
+  "file_map": "[file_map]",
   "names": [
     "main"
   ],

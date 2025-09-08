@@ -187,7 +187,7 @@ impl DebugInstrumenter {
         let last_stmt = if has_ret_expr {
             ast::Statement {
                 kind: ast::StatementKind::Expression(ast::Expression {
-                    kind: ast::ExpressionKind::Variable(ast::Path::plain(
+                    kind: ast::ExpressionKind::Variable(Path::plain(
                         vec![PathSegment::from(ident("__debug_expr", location))],
                         location,
                     )),
@@ -314,10 +314,13 @@ impl DebugInstrumenter {
         );
         let expression_location = assign_stmt.expression.location;
         let new_assign_stmt = match &assign_stmt.lvalue {
-            ast::LValue::Ident(id) => {
+            ast::LValue::Path(id) => {
+                let Some(id) = id.as_ident() else {
+                    panic!("var lookup failed for var_name={id}");
+                };
                 let var_id = self
                     .lookup_var(id.as_str())
-                    .unwrap_or_else(|| panic!("var lookup failed for var_name={}", id.as_str()));
+                    .unwrap_or_else(|| panic!("var lookup failed for var_name={id}"));
                 build_assign_var_stmt(var_id, id_expr(&ident("__debug_expr", id.location())))
             }
             ast::LValue::Dereference(_lv, location) => {
@@ -335,10 +338,14 @@ impl DebugInstrumenter {
                 let var_id;
                 loop {
                     match cursor {
-                        ast::LValue::Ident(id) => {
-                            var_id = self.lookup_var(id.as_str()).unwrap_or_else(|| {
-                                panic!("var lookup failed for var_name={}", id.as_str())
-                            });
+                        ast::LValue::Path(id) => {
+                            let Some(id) = id.as_ident() else {
+                                panic!("var lookup failed for var_name={id}");
+                            };
+
+                            var_id = self
+                                .lookup_var(id.as_str())
+                                .unwrap_or_else(|| panic!("var lookup failed for var_name={id}"));
                             break;
                         }
                         ast::LValue::MemberAccess { object, field_name, location } => {
@@ -642,7 +649,7 @@ fn build_assign_var_stmt(var_id: SourceVarId, expr: ast::Expression) -> ast::Sta
     let location = expr.location;
     let kind = ast::ExpressionKind::Call(Box::new(ast::CallExpression {
         func: Box::new(ast::Expression {
-            kind: ast::ExpressionKind::Variable(ast::Path::plain(
+            kind: ast::ExpressionKind::Variable(Path::plain(
                 vec![PathSegment::from(ident("__debug_var_assign", location))],
                 location,
             )),
@@ -657,7 +664,7 @@ fn build_assign_var_stmt(var_id: SourceVarId, expr: ast::Expression) -> ast::Sta
 fn build_drop_var_stmt(var_id: SourceVarId, location: Location) -> ast::Statement {
     let kind = ast::ExpressionKind::Call(Box::new(ast::CallExpression {
         func: Box::new(ast::Expression {
-            kind: ast::ExpressionKind::Variable(ast::Path::plain(
+            kind: ast::ExpressionKind::Variable(Path::plain(
                 vec![PathSegment::from(ident("__debug_var_drop", location))],
                 location,
             )),
@@ -681,7 +688,7 @@ fn build_assign_member_stmt(
     let location = expr.location;
     let kind = ast::ExpressionKind::Call(Box::new(ast::CallExpression {
         func: Box::new(ast::Expression {
-            kind: ast::ExpressionKind::Variable(ast::Path::plain(
+            kind: ast::ExpressionKind::Variable(Path::plain(
                 vec![PathSegment::from(ident(&format!["__debug_member_assign_{arity}"], location))],
                 location,
             )),
@@ -701,7 +708,7 @@ fn build_assign_member_stmt(
 fn build_debug_call_stmt(fname: &str, fn_id: DebugFnId, location: Location) -> ast::Statement {
     let kind = ast::ExpressionKind::Call(Box::new(ast::CallExpression {
         func: Box::new(ast::Expression {
-            kind: ast::ExpressionKind::Variable(ast::Path::plain(
+            kind: ast::ExpressionKind::Variable(Path::plain(
                 vec![PathSegment::from(ident(&format!["__debug_fn_{fname}"], location))],
                 location,
             )),

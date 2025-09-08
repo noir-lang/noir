@@ -7,7 +7,7 @@ use noirc_frontend::Shared;
 use crate::ssa::ir::{
     function::FunctionId,
     instruction::Intrinsic,
-    integer::IntegerConstant,
+    is_printable_byte,
     types::{CompositeType, NumericType, Type},
     value::ValueId,
 };
@@ -88,6 +88,7 @@ impl Value {
         }
     }
 
+    /// Create an empty reference value.
     pub(crate) fn reference(original_id: ValueId, element_type: Arc<Type>) -> Self {
         Value::Reference(ReferenceValue { original_id, element_type, element: Shared::new(None) })
     }
@@ -184,7 +185,16 @@ impl Value {
     pub(crate) fn uninitialized(typ: &Type, id: ValueId) -> Value {
         match typ {
             Type::Numeric(typ) => Value::Numeric(NumericValue::zero(*typ)),
-            Type::Reference(element_type) => Self::reference(id, element_type.clone()),
+            Type::Reference(element_type) => {
+                // Initialize the reference to a default value, so that if we execute a
+                // Load instruction when side effects are disabled, we don't get an error.
+                let value = Self::uninitialized(element_type, id);
+                Self::Reference(ReferenceValue {
+                    original_id: id,
+                    element_type: element_type.clone(),
+                    element: Shared::new(Some(value)),
+                })
+            }
             Type::Array(element_types, length) => {
                 let first_elements =
                     vecmap(element_types.iter(), |typ| Self::uninitialized(typ, id));
@@ -265,13 +275,6 @@ impl NumericValue {
         Self::from_constant(FieldElement::zero(), typ).expect("zero should fit in every type")
     }
 
-    pub(crate) fn neg_one(typ: NumericType) -> Self {
-        let neg_one = IntegerConstant::Signed { value: -1, bit_size: typ.bit_size() };
-        let (neg_one_constant, typ) = neg_one.into_numeric_constant();
-        Self::from_constant(neg_one_constant, typ)
-            .unwrap_or_else(|_| panic!("Negative one cannot fit in {typ}"))
-    }
-
     pub(crate) fn as_field(&self) -> Option<FieldElement> {
         match self {
             NumericValue::Field(value) => Some(*value),
@@ -282,13 +285,6 @@ impl NumericValue {
     pub(crate) fn as_bool(&self) -> Option<bool> {
         match self {
             NumericValue::U1(value) => Some(*value),
-            _ => None,
-        }
-    }
-
-    pub(crate) fn as_u8(&self) -> Option<u8> {
-        match self {
-            NumericValue::U8(value) => Some(*value),
             _ => None,
         }
     }
@@ -434,7 +430,34 @@ impl std::fmt::Display for ArrayValue {
         let rc = self.rc.borrow();
 
         let is_slice = if self.is_slice { "&" } else { "" };
-        write!(f, "rc{rc} {is_slice}[")?;
+        write!(f, "rc{rc} {is_slice}")?;
+
+        // Check if the array could be shown as a string literal
+        if self.element_types.len() == 1
+            && matches!(self.element_types[0], Type::Numeric(NumericType::Unsigned { bit_size: 8 }))
+        {
+            let printable = self.elements.borrow().iter().all(|value| {
+                matches!(value, Value::Numeric(NumericValue::U8(byte)) if is_printable_byte(*byte))
+            });
+            if printable {
+                let bytes = self
+                    .elements
+                    .borrow()
+                    .iter()
+                    .map(|value| {
+                        let Value::Numeric(NumericValue::U8(byte)) = value else {
+                            panic!("Expected U8 value in array, found {value}");
+                        };
+                        *byte
+                    })
+                    .collect::<Vec<_>>();
+                let string = String::from_utf8(bytes).unwrap();
+                write!(f, "b{string:?}")?;
+                return Ok(());
+            }
+        }
+
+        write!(f, "[")?;
 
         let length = self.elements.borrow().len() / self.element_types.len();
         if length == 0 {

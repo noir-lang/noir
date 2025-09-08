@@ -14,7 +14,7 @@ use crate::{Generics, Type};
 use crate::hir::Context;
 use crate::hir::resolution::import::{ImportDirective, resolve_import};
 
-use crate::ast::{Expression, NoirEnumeration};
+use crate::ast::{Expression, NoirEnumeration, TypeAlias};
 use crate::node_interner::{
     FuncId, GlobalId, ModuleAttributes, NodeInterner, ReferenceId, TraitId, TraitImplId,
     TypeAliasId, TypeId,
@@ -22,8 +22,8 @@ use crate::node_interner::{
 
 use crate::ast::{
     ExpressionKind, Ident, ItemVisibility, LetStatement, Literal, NoirFunction, NoirStruct,
-    NoirTrait, NoirTypeAlias, Path, PathSegment, UnresolvedGenerics, UnresolvedTraitConstraint,
-    UnresolvedType, UnsupportedNumericGenericType,
+    NoirTrait, Path, PathSegment, UnresolvedGenerics, UnresolvedTraitConstraint, UnresolvedType,
+    UnsupportedNumericGenericType,
 };
 
 use crate::elaborator::FrontendOptions;
@@ -111,7 +111,7 @@ pub struct UnresolvedTypeAlias {
     pub file_id: FileId,
     pub crate_id: CrateId,
     pub module_id: LocalModuleId,
-    pub type_alias_def: NoirTypeAlias,
+    pub type_alias_def: TypeAlias,
 }
 
 #[derive(Debug, Clone)]
@@ -559,12 +559,7 @@ fn inject_prelude(
     if !crate_id.is_stdlib() {
         let segments: Vec<_> = "std::prelude"
             .split("::")
-            .map(|segment| {
-                crate::ast::PathSegment::from(crate::ast::Ident::new(
-                    segment.into(),
-                    Location::dummy(),
-                ))
-            })
+            .map(|segment| PathSegment::from(Ident::new(segment.into(), Location::dummy())))
             .collect();
 
         let path = Path::plain(segments.clone(), Location::dummy());

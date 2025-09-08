@@ -28,7 +28,7 @@ expression: artifact
     ],
     "return_type": null,
     "error_types": {
-      "5019202896831570965": {
+      "14990209321349310352": {
         "error_kind": "string",
         "string": "attempt to add with overflow"
       }
@@ -43,8 +43,8 @@ expression: artifact
     "BLACKBOX::RANGE [(_0, 32)] []",
     "BLACKBOX::RANGE [(_1, 32)] []",
     "EXPR [ (-1, _2) 3 ]",
-    "CALL func 1: PREDICATE = EXPR [ 1 ]",
-    "inputs: [Witness(0), Witness(1), Witness(2)], outputs: [Witness(3), Witness(4), Witness(5)]",
+    "CALL func 1: PREDICATE: EXPR [ 1 ]",
+    "inputs: [_0, _1, _2], outputs: [_3, _4, _5]",
     "EXPR [ (1, _3) -25 ]",
     "func 1",
     "current witness index : _6",
@@ -60,13 +60,8 @@ expression: artifact
     "EXPR [ (-1, _1) (1, _4) 0 ]",
     "EXPR [ (-1, _2) (1, _5) 0 ]"
   ],
-  "debug_symbols": "zZFLCoMwEEDvMmsXfmv1KkUk6iiBECUmQhHv3iQYq4uC2C66yWcmbybMm6HBSnUl5W0/Qv6YoRKUMdqVrK+JpD3X0XnxwF1LKRB1CHZ5TQ1EIJeQc8WYBxNhyj4aB8LtLonQWd8D5I3edcGWMjSnxXvT/mc0va1smm5wcppOXOc0u0Bn4UoHfvwVHvgHvNA3UlNxmDWEkGsgsmsMuek4EUFJxXB10Spe79TI5+AyTt4g+hobJdCUtjnz1z9VG2TObXhpvnv+it7gnjhBWXRC0KYm/JGaYnkB",
-  "file_map": {
-    "50": {
-      "source": "fn main(x: u32, y: pub u32) {\n    let new_field = new_field_in_array([x, y, 3]);\n    assert(new_field[0] == 25);\n}\n\n#[fold]\nfn new_field_in_array(mut input: [u32; 3]) -> [u32; 3] {\n    input[0] = input[0] + 20;\n    input\n}\n",
-      "path": ""
-    }
-  },
+  "debug_symbols": "[debug_symbols]",
+  "file_map": "[file_map]",
   "names": [
     "main",
     "new_field_in_array"

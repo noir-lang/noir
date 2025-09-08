@@ -372,7 +372,12 @@ impl FunctionContext<'_> {
                 ))
             }
             UnaryOp::Reference { mutable: _ } => {
-                Ok(self.codegen_reference(&unary.rhs)?.map(|rhs| {
+                let rhs = self.codegen_reference(&unary.rhs)?;
+                // If skip is set then `rhs` is a member access expression which is already a reference
+                if unary.skip {
+                    return Ok(rhs);
+                }
+                Ok(rhs.map(|rhs| {
                     match rhs {
                         value::Value::Normal(value) => {
                             let rhs_type = self.builder.current_function.dfg.type_of_value(value);
@@ -419,8 +424,10 @@ impl FunctionContext<'_> {
     }
 
     fn codegen_index(&mut self, index: &ast::Index) -> Result<Values, RuntimeError> {
-        let array_or_slice = self.codegen_expression(&index.collection)?.into_value_list(self);
+        // Generate the index value first, it might modify the collection itself.
         let index_value = self.codegen_non_tuple_expression(&index.index)?;
+        // The code for the collection will load it if it's mutable. It must be after the index to see any modifications.
+        let array_or_slice = self.codegen_expression(&index.collection)?.into_value_list(self);
         // Slices are represented as a tuple in the form: (length, slice contents).
         // Thus, slices require two value ids for their representation.
         let (array, slice_length) = if array_or_slice.len() > 1 {
@@ -462,16 +469,25 @@ impl FunctionContext<'_> {
 
         // Checks for index Out-of-bounds
         match array_type {
+            Type::Array(_, len) => {
+                // Out of bounds array accesses are guaranteed to fail in ACIR so this check is performed implicitly.
+                // We then only need to inject it for brillig functions.
+                let runtime = self.builder.current_function.runtime();
+                if runtime.is_brillig() {
+                    let len =
+                        self.builder.numeric_constant(*len as u128, NumericType::length_type());
+                    self.codegen_access_check(index, len);
+                }
+            }
             Type::Slice(_) => {
+                // The slice length is dynamic however so we can't rely on it being equal to the underlying memory
+                // block as we can do for array types. We then inject a access check for both ACIR and brillig.
                 self.codegen_access_check(
                     index,
                     length.expect("ICE: a length must be supplied for checking index"),
                 );
             }
-            Type::Array(_, len) => {
-                let len = self.builder.numeric_constant(*len as u128, NumericType::length_type());
-                self.codegen_access_check(index, len);
-            }
+
             _ => unreachable!("must have array or slice but got {array_type}"),
         }
 
@@ -1064,6 +1080,20 @@ impl FunctionContext<'_> {
                 }
                 Intrinsic::SliceRemove => {
                     self.codegen_access_check(arguments[2], arguments[0]);
+                }
+                Intrinsic::SlicePopFront | Intrinsic::SlicePopBack
+                    if self.builder.current_function.runtime().is_brillig() =>
+                {
+                    // We need to put in a constraint to protect against accessing empty slices:
+                    // * In Brillig this is essential, otherwise it would read an unrelated piece of memory.
+                    // * In ACIR we do have protection against reading empty slices (it returns "Index Out of Bounds"), so we don't get invalid reads.
+                    //   The memory operations in ACIR ignore the side effect variables, so even if we added a constraint here, it could still fail
+                    //   when it inevitably tries to read from an empty slice anyway. We have to handle that by removing operations which are known
+                    //   to fail and replace them with conditional constraints that do take the side effect into account.
+                    // By doing this in the SSA we might be able to optimize this away later.
+                    let zero =
+                        self.builder.numeric_constant(0u32, NumericType::Unsigned { bit_size: 32 });
+                    self.codegen_access_check(zero, arguments[0]);
                 }
                 _ => {
                     // Do nothing as the other intrinsics do not require checks

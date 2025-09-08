@@ -61,6 +61,11 @@ impl WorkspaceCommand for InfoCommand {
 }
 
 pub(crate) fn run(mut args: InfoCommand, workspace: Workspace) -> Result<(), CliError> {
+    if args.json {
+        // In order to have a machine readable output, we cannot allow the program to print arbitrary data to stdout.
+        args.compile_options.disable_comptime_printing = true;
+    }
+
     if args.profile_execution {
         // Execution profiling is only relevant with the Brillig VM
         // as a constrained circuit should have totally flattened control flow (e.g. loops and if statements).

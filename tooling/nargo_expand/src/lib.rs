@@ -1,10 +1,8 @@
-use std::collections::BTreeMap;
-
 use nargo_fmt::ImportsGranularity;
 use noirc_driver::CrateId;
 use noirc_frontend::{
     graph::CrateGraph,
-    hir::def_map::{CrateDefMap, ModuleId},
+    hir::def_map::{DefMaps, ModuleId},
     node_interner::NodeInterner,
     parse_program_with_dummy_file,
 };
@@ -18,7 +16,7 @@ mod printer;
 pub fn get_expanded_crate(
     crate_id: CrateId,
     crate_graph: &CrateGraph,
-    def_maps: &BTreeMap<CrateId, CrateDefMap>,
+    def_maps: &DefMaps,
     interner: &NodeInterner,
 ) -> String {
     let root_module_id = def_maps[&crate_id].root();

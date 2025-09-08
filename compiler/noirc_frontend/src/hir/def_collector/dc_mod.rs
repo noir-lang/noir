@@ -8,13 +8,13 @@ use fm::{FILE_EXTENSION, FileId, FileManager};
 use noirc_errors::{Location, Span};
 use num_bigint::BigUint;
 use num_traits::Num;
-use rustc_hash::FxHashMap as HashMap;
+use rustc_hash::rustc_hashMap as HashMap;
 
 use crate::ast::{
     Documented, Expression, FunctionDefinition, Ident, ItemVisibility, LetStatement,
     ModuleDeclaration, NoirEnumeration, NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl,
-    NoirTypeAlias, Pattern, TraitImplItemKind, TraitItem, TypeImpl, UnresolvedType,
-    UnresolvedTypeData, desugar_generic_trait_bounds,
+    Pattern, TraitImplItemKind, TraitItem, TypeAlias, TypeImpl, UnresolvedType, UnresolvedTypeData,
+    desugar_generic_trait_bounds_and_reorder_where_clause,
 };
 use crate::elaborator::PrimitiveType;
 use crate::hir::resolution::errors::ResolverError;
@@ -177,7 +177,10 @@ impl ModCollector<'_> {
         let module_id = ModuleId { krate, local_id: self.module_id };
 
         for mut r#impl in impls {
-            desugar_generic_trait_bounds(&mut r#impl.generics, &mut r#impl.where_clause);
+            desugar_generic_trait_bounds_and_reorder_where_clause(
+                &mut r#impl.generics,
+                &mut r#impl.where_clause,
+            );
 
             collect_impl(
                 &mut context.def_interner,
@@ -201,7 +204,7 @@ impl ModCollector<'_> {
         let mut errors = Vec::new();
 
         for mut trait_impl in impls {
-            desugar_generic_trait_bounds(
+            desugar_generic_trait_bounds_and_reorder_where_clause(
                 &mut trait_impl.impl_generics,
                 &mut trait_impl.where_clause,
             );
@@ -298,7 +301,7 @@ impl ModCollector<'_> {
             // With this method we iterate each function in the Crate and not each module
             // This may not be great because we have to pull the module_data for each function
             let mut noir_function = function.item;
-            desugar_generic_trait_bounds(
+            desugar_generic_trait_bounds_and_reorder_where_clause(
                 &mut noir_function.def.generics,
                 &mut noir_function.def.where_clause,
             );
@@ -368,7 +371,7 @@ impl ModCollector<'_> {
     fn collect_type_aliases(
         &mut self,
         context: &mut Context,
-        type_aliases: Vec<Documented<NoirTypeAlias>>,
+        type_aliases: Vec<Documented<TypeAlias>>,
         krate: CrateId,
     ) -> Vec<CompilationError> {
         let mut errors: Vec<CompilationError> = vec![];
@@ -449,6 +452,11 @@ impl ModCollector<'_> {
             let has_allow_dead_code =
                 trait_definition.attributes.iter().any(|attr| attr.kind.is_allow("dead_code"));
 
+            desugar_generic_trait_bounds_and_reorder_where_clause(
+                &mut trait_definition.generics,
+                &mut trait_definition.where_clause,
+            );
+
             // Create the corresponding module for the trait namespace
             let trait_id = match self.push_child_module(
                 context,
@@ -511,7 +519,7 @@ impl ModCollector<'_> {
 
             for item in &mut trait_definition.items {
                 if let TraitItem::Function { generics, where_clause, .. } = &mut item.item {
-                    desugar_generic_trait_bounds(generics, where_clause);
+                    desugar_generic_trait_bounds_and_reorder_where_clause(generics, where_clause);
                 }
             }
 
@@ -1324,7 +1332,11 @@ pub fn collect_impl(
 
         let func_id = interner.push_empty_fn();
         method.def.where_clause.extend(r#impl.where_clause.clone());
-        desugar_generic_trait_bounds(&mut method.def.generics, &mut method.def.where_clause);
+        desugar_generic_trait_bounds_and_reorder_where_clause(
+            &mut method.def.generics,
+            &mut method.def.where_clause,
+        );
+
         let location = method.location();
         interner.push_function(func_id, &method.def, module_id, location);
         unresolved_functions.push_fn(module_id.local_id, func_id, method);
@@ -1449,7 +1461,7 @@ pub(crate) fn collect_trait_impl_items(
                 let location = impl_method.location();
                 interner.push_function(func_id, &impl_method.def, module, location);
                 interner.set_doc_comments(ReferenceId::Function(func_id), item.doc_comments);
-                desugar_generic_trait_bounds(
+                desugar_generic_trait_bounds_and_reorder_where_clause(
                     &mut impl_method.def.generics,
                     &mut impl_method.def.where_clause,
                 );

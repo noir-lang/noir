@@ -54,6 +54,17 @@ fn test_return_integer() {
 }
 
 #[test]
+fn test_return_negative_integer() {
+    let src = "
+        acir(inline) fn main f0 {
+          b0():
+            return i8 -53
+        }
+        ";
+    assert_ssa_roundtrip(src);
+}
+
+#[test]
 fn test_make_array() {
     let src = "
         acir(inline) fn main f0 {
@@ -498,7 +509,7 @@ fn test_binary() {
         let src = format!(
             "
             acir(inline) fn main f0 {{
-              b0(v0: u32, v1: u8):
+              b0(v0: u32, v1: u32):
                 v2 = {op} v0, v1
                 return
             }}
@@ -584,7 +595,7 @@ fn test_load() {
 fn test_store() {
     let src = "
         acir(inline) fn main f0 {
-          b0(v0: Field):
+          b0(v0: &mut Field):
             store Field 1 at v0
             return
         }

@@ -3,7 +3,7 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 comptime fn my_macro(x: Field, y: Field) -> Quoted {
-    quote { x + y + a + b }
+    quote { $x + $y + a + b }
 }
 
 fn main() {

@@ -10,6 +10,7 @@ reference_counts_slices_inliner_0
 references
 regression_4709
 regression_7323
+regression_9538
 reference_only_used_as_alias
 brillig_rc_regression_6123
 array_rc_regression_7842
@@ -17,3 +18,5 @@ mutate_array_copy
 regression_8229
 regression_8926
 to_radix_error
+reference_cancelling
+brillig_cow_regression

@@ -337,6 +337,21 @@ fn mod_zero() {
 }
 
 #[test]
+fn regression_9336() {
+    let result = expect_value_with_args(
+        "
+        acir(inline) fn main f0 {
+          b0(v0: i8):
+            v1 = mod i8 -128, v0
+            return v1
+        }
+    ",
+        vec![Value::Numeric(NumericValue::I8(-1))],
+    );
+    assert_eq!(result, Value::Numeric(NumericValue::I8(0)));
+}
+
+#[test]
 fn eq() {
     let value = expect_value(
         "
@@ -429,7 +444,7 @@ fn shl() {
         "
         acir(inline) fn main f0 {
           b0():
-            v0 = shl i8 3, u8 2
+            v0 = shl i8 3, i8 2
             return v0
         }
     ",
@@ -437,10 +452,9 @@ fn shl() {
     assert_eq!(value, from_constant(12_u128.into(), NumericType::signed(8)));
 }
 
-/// shl does not error on overflow. It just returns zero.
 #[test]
 fn shl_overflow() {
-    let value = expect_value(
+    let error = expect_error(
         "
         acir(inline) fn main f0 {
           b0():
@@ -449,7 +463,7 @@ fn shl_overflow() {
         }
     ",
     );
-    assert_eq!(value, from_constant(0_u128.into(), NumericType::unsigned(8)));
+    assert!(matches!(error, InterpreterError::Overflow { .. }));
 }
 
 #[test]
@@ -458,9 +472,9 @@ fn shr_unsigned() {
         "
         acir(inline) fn main f0 {
           b0():
-            v0 = shr u16 12, u8 2
-            v1 = shr u16 5, u8 1
-            v2 = shr u16 5, u8 4
+            v0 = shr u16 12, u16 2
+            v1 = shr u16 5, u16 1
+            v2 = shr u16 5, u16 4
             return v0, v1, v2
         }
     ",
@@ -476,9 +490,9 @@ fn shr_signed() {
         "
         acir(inline) fn main f0 {
           b0():
-            v0 = shr i16 65520, u8 2      
-            v1 = shr i16 65533, u8 1      
-            v2 = shr i16 65528, u8 3 
+            v0 = shr i16 65520, i16 2      
+            v1 = shr i16 65533, i16 1      
+            v2 = shr i16 65528, i16 3 
             return v0, v1, v2
         }
     ",
@@ -496,9 +510,8 @@ fn shr_signed() {
 }
 
 #[test]
-/// shr on unsigned integer does not error on overflow. It just returns 0. See https://github.com/noir-lang/noir/pull/7509.
 fn shr_overflow_unsigned() {
-    let value = expect_value(
+    let error = expect_error(
         "
         acir(inline) fn main f0 {
           b0():
@@ -507,45 +520,34 @@ fn shr_overflow_unsigned() {
         }
     ",
     );
-    assert_eq!(value, from_constant(0_u128.into(), NumericType::unsigned(8)));
+    assert!(matches!(error, InterpreterError::Overflow { .. }));
 }
 
 #[test]
-/// shr on signed integers does not error on overflow.
-/// If the value being shifted is positive we return 0, and -1 if it is negative.
-/// See https://github.com/noir-lang/noir/pull/8805.
 fn shr_overflow_signed_negative_lhs() {
-    let value = expect_value(
+    let error = expect_error(
         "
         acir(inline) fn main f0 {
           b0():
-            v0 = shr i8 192, u8 9
+            v0 = shr i8 192, i8 9
             return v0
         }
     ",
     );
-
-    let neg_one = IntegerConstant::Signed { value: -1, bit_size: 8 };
-    let (neg_one_constant, typ) = neg_one.into_numeric_constant();
-    assert_eq!(value, from_constant(neg_one_constant, typ));
+    assert!(matches!(error, InterpreterError::Overflow { .. }));
 }
 
 #[test]
-/// shr on signed integers does not error on overflow.
-/// If the value being shifted is positive we return 0, and -1 if it is negative.
-/// See https://github.com/noir-lang/noir/pull/8805.
-fn shr_overflow_signed_positive_lhs() {
-    let value = expect_value(
+fn shr_overflow_signed_negative_rhs() {
+    expect_error(
         "
         acir(inline) fn main f0 {
           b0():
-            v0 = shr i8 1, u8 255
+            v0 = shr i8 1, i8 -3
             return v0
         }
     ",
     );
-
-    assert_eq!(value, Value::Numeric(NumericValue::I8(0)));
 }
 
 #[test]

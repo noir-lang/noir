@@ -27,7 +27,7 @@
 //!   ownership pass such that only `.c` is cloned but it is still an area for improvement.
 use crate::monomorphization::ast::{self, IdentId, LocalId};
 use crate::monomorphization::ast::{Expression, Function, Literal};
-use fxhash::FxHashMap as HashMap;
+use rustc_hash::FxHashMap as HashMap;
 
 use super::Context;
 
@@ -455,6 +455,7 @@ impl LastUseContext {
             ast::LValue::Dereference { reference, element_type: _ } => {
                 self.track_variables_in_lvalue(reference);
             }
+            ast::LValue::Clone(_) => todo!(),
         }
     }
 }

@@ -1,12 +1,12 @@
 use iter_extended::vecmap;
 use noirc_errors::{Located, Location};
-use rustc_hash::FxHashSet as HashSet;
+use rustc_hash::rustc_hashSet as HashSet;
 
 use crate::{
     DataType, Kind, Shared, Type, TypeAlias, TypeBindings,
     ast::{
         ERROR_IDENT, Expression, ExpressionKind, GenericTypeArgs, Ident, ItemVisibility, Path,
-        PathSegment, Pattern, TypePath,
+        PathSegment, Pattern, TypePath, UnresolvedTypeExpression,
     },
     elaborator::{
         Turbofish,
@@ -581,6 +581,18 @@ impl Elaborator<'_> {
         let (expr, item) = self.resolve_variable(variable);
         let definition_id = expr.id;
 
+        if let Some(PathResolutionItem::TypeAlias(alias)) = item {
+            // A type alias to a numeric generics is considered like a variable
+            // but it is not a real variable so it does not resolve to a valid Identifier
+            // In order to handle this, we retrieve the numeric generics expression that the type aliases to
+            let type_alias = self.interner.get_type_alias(alias);
+            if let Some(expr) = &type_alias.borrow().numeric_expr {
+                let expr = UnresolvedTypeExpression::to_expression_kind(expr);
+                let expr = Expression::new(expr, type_alias.borrow().location);
+                return self.elaborate_expression(expr);
+            }
+        }
+
         let (type_generics, self_generic) = if let Some(item) = item {
             self.resolve_item_turbofish_and_self_type(item)
         } else {
@@ -725,7 +737,8 @@ impl Elaborator<'_> {
         let generics = segment.generics.map(|generics| {
             vecmap(generics, |generic| {
                 let location = generic.location;
-                let typ = self.use_type_with_kind(generic, &Kind::Any);
+                let wildcard_allowed = true;
+                let typ = self.use_type_with_kind(generic, &Kind::Any, wildcard_allowed);
                 Located::from(location, typ)
             })
         });
@@ -1003,8 +1016,52 @@ impl Elaborator<'_> {
         let (typ, bindings) =
             self.instantiate(t, bindings, generics, function_generic_count, location);
 
+        if let ImplKind::TraitItem(mut method) = ident.impl_kind {
+            method.constraint.apply_bindings(&bindings);
+            if method.assumed {
+                let trait_generics = method.constraint.trait_bound.trait_generics.clone();
+                let object_type = method.constraint.typ;
+                let trait_impl = TraitImplKind::Assumed { object_type, trait_generics };
+                self.interner.select_impl_for_expression(expr_id, trait_impl);
+            } else {
+                self.push_trait_constraint(
+                    method.constraint,
+                    expr_id,
+                    true, // this constraint should lead to choosing a trait impl method
+                );
+            }
+        }
+
         // Push any trait constraints required by this definition to the context
         // to be checked later when the type of this variable is further constrained.
+        //
+        // This must be done before the above trait constraint in case the above one further
+        // restricts types.
+        //
+        // For example, in this code:
+        //
+        // ```noir
+        // trait One {}
+        //
+        // trait Two<O: One> {
+        //     fn new() -> Self;
+        // }
+        //
+        // fn foo<X: One, T: Two<X>>() {
+        //     let _: T = Two::new();
+        // }
+        // ```
+        //
+        // when type-checking `Two::new` we'll have a return type `'2` which is constrained by `'2: Two<'1>`.
+        // Then the definition for `new` has a constraint on it, `O: One`, which translates to `'1: One`.
+        //
+        // Because of the explicit type in the `let`, `'2` will be unified with `T`.
+        // Then we must first verify the constraint `'2: Two<'1>`, which is now `T: Two<'1>`, to find
+        // that the implementation is the assumed one `T: Two<X>` so that `'1` is bound to `X`.
+        // Then we can successfully verify the constraint `'1: One` which now became `X: One` which holds
+        // because of the assumed constraint.
+        //
+        // If we try to find a trait implementation for `'1` before finding one for `'2` we'll never find it.
         if let Some(definition) = self.interner.try_definition(ident.id) {
             if let DefinitionKind::Function(function) = definition.kind {
                 let function = self.interner.function_meta(&function);
@@ -1017,25 +1074,6 @@ impl Elaborator<'_> {
                         false, // This constraint shouldn't lead to choosing a trait impl method
                     );
                 }
-            }
-        }
-
-        if let ImplKind::TraitItem(mut method) = ident.impl_kind {
-            method.constraint.apply_bindings(&bindings);
-            if method.assumed {
-                let trait_generics = method.constraint.trait_bound.trait_generics.clone();
-                let object_type = method.constraint.typ;
-                let trait_impl = TraitImplKind::Assumed { object_type, trait_generics };
-                self.interner.select_impl_for_expression(expr_id, trait_impl);
-            } else {
-                // Currently only one impl can be selected per expr_id, so this
-                // constraint needs to be pushed after any other constraints so
-                // that monomorphization can resolve this trait method to the correct impl.
-                self.push_trait_constraint(
-                    method.constraint,
-                    expr_id,
-                    true, // this constraint should lead to choosing a trait impl method
-                );
             }
         }
 
@@ -1096,6 +1134,19 @@ impl Elaborator<'_> {
         path: TypedPath,
     ) -> ((HirIdent, usize), Option<PathResolutionItem>) {
         let location = Location::new(path.last_ident().span(), path.location.file);
+
+        self.get_ident_from_path_or_error(path).unwrap_or_else(|error| {
+            self.push_err(error);
+            let id = DefinitionId::dummy_id();
+            ((HirIdent::non_trait_method(id, location), 0), None)
+        })
+    }
+
+    pub(crate) fn get_ident_from_path_or_error(
+        &mut self,
+        path: TypedPath,
+    ) -> Result<((HirIdent, usize), Option<PathResolutionItem>), ResolverError> {
+        let location = Location::new(path.last_ident().span(), path.location.file);
         let use_variable_result = path.as_single_segment().map(|segment| {
             let result = self.use_variable(&segment.ident);
             if result.is_ok() && segment.generics.is_some() {
@@ -1107,30 +1158,39 @@ impl Elaborator<'_> {
         });
 
         let error = match use_variable_result {
-            Some(Ok(found)) => return (found, None),
+            Some(Ok(found)) => return Ok((found, None)),
             // Try to look it up as a global, but still issue the first error if we fail
             Some(Err(error)) => match self.lookup_global(path) {
                 Ok((id, item)) => {
-                    return ((HirIdent::non_trait_method(id, location), 0), Some(item));
+                    return Ok(((HirIdent::non_trait_method(id, location), 0), Some(item)));
                 }
                 Err(_) => error,
             },
             None => match self.lookup_global(path) {
+                Ok((dummy_id, PathResolutionItem::TypeAlias(type_alias_id)))
+                    if dummy_id == DefinitionId::dummy_id() =>
+                {
+                    // Allow path which resolves to a type alias
+                    return Ok((
+                        (HirIdent::non_trait_method(dummy_id, location), 4),
+                        Some(PathResolutionItem::TypeAlias(type_alias_id)),
+                    ));
+                }
                 Ok((id, item)) => {
-                    return ((HirIdent::non_trait_method(id, location), 0), Some(item));
+                    return Ok(((HirIdent::non_trait_method(id, location), 0), Some(item)));
                 }
                 Err(error) => error,
             },
         };
-        self.push_err(error);
-        let id = DefinitionId::dummy_id();
-        ((HirIdent::non_trait_method(id, location), 0), None)
+
+        Err(error)
     }
 
     pub(super) fn elaborate_type_path(&mut self, path: TypePath) -> (ExprId, Type) {
         let typ_location = path.typ.location;
         let turbofish = path.turbofish;
-        let typ = self.use_type(path.typ);
+        let wildcard_allowed = true;
+        let typ = self.use_type(path.typ, wildcard_allowed);
         self.elaborate_type_path_impl(typ, path.item, turbofish, typ_location)
     }
 

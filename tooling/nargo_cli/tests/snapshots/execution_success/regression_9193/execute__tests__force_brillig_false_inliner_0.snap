@@ -17,11 +17,7 @@ expression: artifact
     ],
     "return_type": null,
     "error_types": {
-      "12639702852095440652": {
-        "error_kind": "string",
-        "string": "Index out of bounds, array has size 0"
-      },
-      "14225679739041873922": {
+      "16431471497789672479": {
         "error_kind": "string",
         "string": "Index out of bounds"
       }
@@ -35,13 +31,8 @@ expression: artifact
     "return value indices : []",
     "EXPR [ (-1, _0) 0 ]"
   ],
-  "debug_symbols": "nZHbCsIwDIbfJde7qCfUvYrI6LpsFEJbslaQsXc3G1YnKMiucvjz/YFkgAbr1FXWtb6H8jJAzZbIdhV5o6P1TrrDWEAuq8iI0oKFLlTQjC5C6RJRATdNaR7qg3ZzjJpFVQWgaySKYWsJp2ws3rT6je4yu9u84MP/9DHTpzX0PtPnNbT6Tl+l0sbyx6VBQbkdJzO2uiZ8Xr9NziyeEe8hK/ldgb3BJjFOdrMmCx4=",
-  "file_map": {
-    "50": {
-      "source": "fn main(a: bool) {\n    if a { 1 / [][0]; };\n}\n",
-      "path": ""
-    }
-  },
+  "debug_symbols": "[debug_symbols]",
+  "file_map": "[file_map]",
   "names": [
     "main"
   ],

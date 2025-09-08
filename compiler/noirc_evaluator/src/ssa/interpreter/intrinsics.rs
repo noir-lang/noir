@@ -510,6 +510,9 @@ impl<W: Write> Interpreter<'_, W> {
         let mut new_elements = slice.elements.borrow().to_vec();
         let element_types = slice.element_types.clone();
 
+        // The slice might contain more elements than its length.
+        // We need to either insert before the extras, overwrite, or remove them.
+        new_elements.truncate(element_types.len() * length as usize);
         for arg in args.iter().skip(2) {
             new_elements.push(self.lookup(*arg)?);
         }
@@ -542,12 +545,16 @@ impl<W: Write> Interpreter<'_, W> {
         let mut slice_elements = slice.elements.borrow().to_vec();
         let element_types = slice.element_types.clone();
 
-        if slice_elements.is_empty() {
+        if slice_elements.is_empty() || length == 0 {
             let instruction = "slice_pop_back";
             return Err(InterpreterError::PoppedFromEmptySlice { slice: args[1], instruction });
         }
         check_slice_can_pop_all_element_types(args[1], &slice)?;
 
+        // The slice might contain more elements than its length.
+        // We want the last valid element, ignoring any extras following it.
+        // We don't ever access the extras, so we might as well remove any.
+        slice_elements.truncate(element_types.len() * length as usize);
         let mut popped_elements = vecmap(0..element_types.len(), |_| slice_elements.pop().unwrap());
         popped_elements.reverse();
 
@@ -566,7 +573,7 @@ impl<W: Write> Interpreter<'_, W> {
         let mut slice_elements = slice.elements.borrow().to_vec();
         let element_types = slice.element_types.clone();
 
-        if slice_elements.is_empty() {
+        if slice_elements.is_empty() || length == 0 {
             let instruction = "slice_pop_front";
             return Err(InterpreterError::PoppedFromEmptySlice { slice: args[1], instruction });
         }
@@ -681,8 +688,7 @@ impl<W: Write> Interpreter<'_, W> {
             // Everything up to the first meta is part of _some_ value.
             // We'll let each parser take as many fields as they need.
             let meta_idx = args.len() - 1 - num_values;
-            let input_as_fields =
-                (3..meta_idx).flat_map(|i| value_to_fields(&args[i])).collect::<Vec<_>>();
+            let input_as_fields = values_to_fields(&args[3..meta_idx]);
             let field_iterator = &mut input_as_fields.into_iter();
 
             let mut fragments = Vec::new();
@@ -694,8 +700,7 @@ impl<W: Write> Interpreter<'_, W> {
             PrintableValueDisplay::FmtString(message, fragments)
         } else {
             let meta_idx = args.len() - 2;
-            let input_as_fields =
-                (1..meta_idx).flat_map(|i| value_to_fields(&args[i])).collect::<Vec<_>>();
+            let input_as_fields = values_to_fields(&args[1..meta_idx]);
             let printable_type = value_to_printable_type(&args[meta_idx])?;
             let printable_value =
                 decode_printable_value(&mut input_as_fields.into_iter(), &printable_type);
@@ -776,37 +781,56 @@ fn new_embedded_curve_point(
     ))
 }
 
-/// Convert a [Value] to a vector of [FieldElement] for printing.
-fn value_to_fields(value: &Value) -> Vec<FieldElement> {
-    fn go(value: &Value, fields: &mut Vec<FieldElement>) {
-        match value {
-            Value::Numeric(numeric_value) => fields.push(numeric_value.convert_to_field()),
-            Value::Reference(reference_value) => {
-                if let Some(value) = reference_value.element.borrow().as_ref() {
-                    go(value, fields);
+/// Convert a slice of [Value] to a flattened vector of [FieldElement] for printing.
+///
+/// It takes a slice, rather than individual values, so that it can try to
+/// pair up `u32` fields indicating the size of a `Slice` with its elements
+/// following in the next value, and truncate the data to the semantic length.
+fn values_to_fields(values: &[Value]) -> Vec<FieldElement> {
+    fn go<'a, I>(values: I, fields: &mut Vec<FieldElement>)
+    where
+        I: Iterator<Item = &'a Value>,
+    {
+        let mut vector_length: Option<usize> = None;
+        for value in values {
+            match value {
+                Value::Numeric(numeric_value) => fields.push(numeric_value.convert_to_field()),
+                Value::Reference(reference_value) => {
+                    if let Some(value) = reference_value.element.borrow().as_ref() {
+                        go(std::iter::once(value), fields);
+                    }
+                }
+                Value::ArrayOrSlice(array_value) => {
+                    let length = match vector_length {
+                        Some(length) if array_value.is_slice => {
+                            length * array_value.element_types.len()
+                        }
+                        _ => array_value.elements.borrow().len(),
+                    };
+                    go(array_value.elements.borrow().iter().take(length), fields);
+                }
+                Value::Function(id) => {
+                    // Based on `decode_printable_value` it will expect consume the environment as well,
+                    // but that's catered for the by the SSA generation: the env is passed as separate values.
+                    fields.push(FieldElement::from(id.to_u32()));
+                }
+                Value::Intrinsic(x) => {
+                    panic!("didn't expect to print intrinsics: {x}")
+                }
+                Value::ForeignFunction(x) => {
+                    panic!("didn't expect to print foreign functions: {x}")
                 }
             }
-            Value::ArrayOrSlice(array_value) => {
-                for value in array_value.elements.borrow().iter() {
-                    go(value, fields);
-                }
-            }
-            Value::Function(id) => {
-                // Based on `decode_printable_value` it will expect consume the environment as well,
-                // but that's catered for the by the SSA generation: the env is passed as separate values.
-                fields.push(FieldElement::from(id.to_u32()));
-            }
-            Value::Intrinsic(x) => {
-                panic!("didn't expect to print intrinsics: {x}")
-            }
-            Value::ForeignFunction(x) => {
-                panic!("didn't expect to print foreign functions: {x}")
+            // Chamber the length for a potential vector following it.
+            if let Value::Numeric(NumericValue::U32(length)) = value {
+                vector_length = Some(*length as usize);
+            } else {
+                vector_length = None;
             }
         }
     }
-
     let mut fields = Vec::new();
-    go(value, &mut fields);
+    go(values.iter(), &mut fields);
     fields
 }
 

@@ -1,5 +1,5 @@
 import type { Config } from '@docusaurus/types';
-
+const versions = require("./versions.json");
 const { themes } = require('prism-react-renderer');
 const lightTheme = themes.github;
 const darkTheme = themes.dracula;
@@ -65,6 +65,11 @@ export default {
         {
           href: 'https://github.com/noir-lang/noir/tree/master/docs',
           label: 'GitHub',
+          position: 'right',
+        },
+        {
+          href: 'https://noir-lang.github.io/noir/docs/acir/circuit/index.html',
+          label: 'ACIR reference',
           position: 'right',
         },
         {
@@ -206,6 +211,18 @@ export default {
         indexFormat: 'table',
         outputFileStrategy: 'members',
         membersWithOwnFile: ['Function', 'TypeAlias'],
+      },
+    ],
+    [
+      'docusaurus-plugin-llms',
+      {
+        generateLLMsTxt: true,
+        generateLLMsFullTxt: true,
+        docsDir: `versioned_docs/version-${versions[0]}/`,
+        title: 'Noir Language Documentation',
+        excludeImports: true,
+        ignoreFiles: [],
+        version: versions[0],
       },
     ],
   ],

@@ -1,8 +1,8 @@
 use std::collections::HashSet;
 
 use acvm::AcirField;
-use fxhash::FxHashMap as HashMap;
 use iter_extended::vecmap;
+use rustc_hash::FxHashMap as HashMap;
 
 use crate::ssa::{
     Ssa,
@@ -16,6 +16,7 @@ use crate::ssa::{
         post_order::PostOrder,
         value::ValueId,
     },
+    opt::flatten_cfg::WorkList,
 };
 
 use super::flatten_cfg::Context;
@@ -304,31 +305,27 @@ impl Context<'_> {
         //0. initialize the context for flattening a 'single conditional'
         let old_target = self.target_block;
         let old_no_predicate = self.no_predicate;
-        let mut queue = vec![];
         self.target_block = conditional.block_entry;
         self.no_predicate = true;
         //1. process 'then' branch
         self.inline_block(conditional.block_entry, no_predicates);
-        let to_process = self.handle_terminator(conditional.block_entry, &queue);
-        queue.extend(to_process);
-        if let Some(then) = conditional.block_then {
-            assert_eq!(queue.pop(), conditional.block_then);
-            self.inline_block(then, no_predicates);
-            let to_process = self.handle_terminator(then, &queue);
+        let mut work_list = WorkList::new();
+        let to_process = self.handle_terminator(conditional.block_entry, &work_list);
+        work_list.extend(to_process);
 
-            for incoming_block in to_process {
-                if !queue.contains(&incoming_block) {
-                    queue.push(incoming_block);
-                }
-            }
+        if let Some(then) = conditional.block_then {
+            assert_eq!(work_list.pop(), conditional.block_then);
+            self.inline_block(then, no_predicates);
+            let to_process = self.handle_terminator(then, &work_list);
+            work_list.extend(to_process);
         }
 
         //2. process 'else' branch, in case there is no 'then'
-        let next = queue.pop();
+        let next = work_list.pop();
         if next == conditional.block_else {
             let next = next.unwrap();
             self.inline_block(next, no_predicates);
-            let _ = self.handle_terminator(next, &queue);
+            let _ = self.handle_terminator(next, &work_list);
         } else {
             assert_eq!(next, Some(conditional.block_exit));
         }

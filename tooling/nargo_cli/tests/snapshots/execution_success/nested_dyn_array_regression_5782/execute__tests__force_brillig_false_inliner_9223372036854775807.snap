@@ -30,11 +30,11 @@ expression: artifact
     ],
     "return_type": null,
     "error_types": {
-      "2920182694213909827": {
+      "1998584279744703196": {
         "error_kind": "string",
         "string": "attempt to subtract with overflow"
       },
-      "14225679739041873922": {
+      "16431471497789672479": {
         "error_kind": "string",
         "string": "Index out of bounds"
       }
@@ -48,10 +48,8 @@ expression: artifact
     "return value indices : []",
     "INIT (id: 0, len: 2, witnesses: [_0, _1])",
     "EXPR [ (1, _2) (-1, _3) -1 ]",
-    "BLACKBOX::RANGE [(_3, 1)] []",
     "MEM (id: 0, read at: EXPR [ (1, _3) 0 ], value: EXPR [ (1, _4) 0 ]) ",
     "EXPR [ (1, _4) -5 ]",
-    "BLACKBOX::RANGE [(_2, 1)] []",
     "MEM (id: 0, read at: EXPR [ (1, _2) 0 ], value: EXPR [ (1, _5) 0 ]) ",
     "EXPR [ (1, _5) -10 ]",
     "EXPR [ (-1, _6) 2 ]",
@@ -75,13 +73,8 @@ expression: artifact
     "MEM (id: 2, read at: EXPR [ (1, _2) 0 ], value: EXPR [ (1, _19) 0 ]) ",
     "EXPR [ (1, _19) -2 ]"
   ],
-  "debug_symbols": "pZTbjoMgEED/ZZ55cFAu+iubTUMtbUgIGqpNNqb/viPIbvuwyUZfOMJ4Bh0uC1zseb6dXLgOd+g+FjhH5727nfzQm8kNgUaXJ4PSPU3RWhqClzhZo4k2TNCF2XsGD+Pn9NJ9NCFxMpGiFQMbLkRKeHXerk9P9mtXf6sSN1fKH1n82xai2OqIraodtlab3YpDdrvDxqroiHtmR1WWDDU/6O+Zn9fN5vOmPujLg/6e+nMpi6/0MV/jm/9JPdO7+HZOAanQDHhqa5IYNNDVDERqJXT0O4oSMNB0Fhi0qcWKtjYBM0jXBPJbQpMhMmSGytAZbQKvMjCDZ9Tr1iNSGqTP4WKj3EiZcF3Zh4nOnL3drpvrHPqX22f6Gkuk3E9jHHp7maNdK5BiVJNv",
-  "file_map": {
-    "50": {
-      "source": "fn main(mut array: [Field; 2], i: u32) {\n    assert_eq(array[i - 1], 5);\n    assert_eq(array[i], 10);\n\n    array[i] = 2;\n\n    let array2 = [array, array];\n\n    assert_eq(array2[0][0], 5);\n    assert_eq(array2[0][i], 2);\n    assert_eq(array2[i][0], 5);\n    assert_eq(array2[i][i], 2);\n}\n",
-      "path": ""
-    }
-  },
+  "debug_symbols": "[debug_symbols]",
+  "file_map": "[file_map]",
   "names": [
     "main"
   ],

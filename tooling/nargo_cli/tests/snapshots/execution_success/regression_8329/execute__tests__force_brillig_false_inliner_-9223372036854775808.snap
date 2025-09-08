@@ -44,7 +44,7 @@ expression: artifact
       "visibility": "public"
     },
     "error_types": {
-      "2920182694213909827": {
+      "1998584279744703196": {
         "error_kind": "string",
         "string": "attempt to subtract with overflow"
       }
@@ -61,12 +61,12 @@ expression: artifact
     "BLACKBOX::RANGE [(_2, 1)] []",
     "EXPR [ (1, _1) (-1, _2) (-1, _4) 0 ]",
     "BLACKBOX::RANGE [(_4, 1)] []",
-    "BRILLIG CALL func 0: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(2))], q_c: 0 })], outputs: [Simple(Witness(5))]",
+    "BRILLIG CALL func 0: inputs: [EXPR [ (1, _2) 0 ]], outputs: [_5]",
     "EXPR [ (1, _2, _5) (1, _6) -1 ]",
     "EXPR [ (1, _2, _6) 0 ]",
     "EXPR [ (1, _4, _6) 0 ]",
-    "BRILLIG CALL func 1: PREDICATE = EXPR [ (1, _4) 0 ]",
-    "inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(0))], q_c: 0 }), Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(2))], q_c: 0 })], outputs: [Simple(Witness(7)), Simple(Witness(8))]",
+    "BRILLIG CALL func 1: PREDICATE: EXPR [ (1, _4) 0 ]",
+    "inputs: [EXPR [ (1, _0) 0 ], EXPR [ (1, _2) 0 ]], outputs: [_7, _8]",
     "BLACKBOX::RANGE [(_7, 1)] []",
     "BLACKBOX::RANGE [(_8, 1)] []",
     "EXPR [ (1, _2) (-1, _4) (-1, _8) (-1, _9) 0 ]",
@@ -75,13 +75,13 @@ expression: artifact
     "EXPR [ (1, _0, _4) (-1, _4, _10) 0 ]",
     "EXPR [ (-1, _2, _4) (1, _4, _7) (-1, _11) 0 ]",
     "BLACKBOX::RANGE [(_11, 1)] []",
-    "BRILLIG CALL func 0: inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(11))], q_c: 0 })], outputs: [Simple(Witness(12))]",
+    "BRILLIG CALL func 0: inputs: [EXPR [ (1, _11) 0 ]], outputs: [_12]",
     "EXPR [ (1, _11, _12) (1, _13) -1 ]",
     "EXPR [ (1, _11, _13) 0 ]",
     "EXPR [ (1, _4, _11) (-1, _14) 0 ]",
     "EXPR [ (1, _13, _14) 0 ]",
-    "BRILLIG CALL func 1: PREDICATE = EXPR [ (1, _14) 0 ]",
-    "inputs: [Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(7))], q_c: 0 }), Single(Expression { mul_terms: [], linear_combinations: [(1, Witness(11))], q_c: 0 })], outputs: [Simple(Witness(15)), Simple(Witness(16))]",
+    "BRILLIG CALL func 1: PREDICATE: EXPR [ (1, _14) 0 ]",
+    "inputs: [EXPR [ (1, _7) 0 ], EXPR [ (1, _11) 0 ]], outputs: [_15, _16]",
     "BLACKBOX::RANGE [(_15, 1)] []",
     "BLACKBOX::RANGE [(_16, 1)] []",
     "EXPR [ (1, _11) (-1, _14) (-1, _16) (-1, _17) 0 ]",
@@ -98,13 +98,8 @@ expression: artifact
     "unconstrained func 1",
     "[Const { destination: Direct(10), bit_size: Integer(U32), value: 2 }, Const { destination: Direct(11), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(10), offset_address: Direct(11) }, BinaryFieldOp { destination: Direct(2), op: IntegerDiv, lhs: Direct(0), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Mul, lhs: Direct(2), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Sub, lhs: Direct(0), rhs: Direct(1) }, Mov { destination: Direct(0), source: Direct(2) }, Stop { return_data: HeapVector { pointer: Direct(11), size: Direct(10) } }]"
   ],
-  "debug_symbols": "nZLBboQgEIbfhTMHBgR1X6VpDCpuSAgaVps0xnfvyGi7e2iy8TKfMH4/CczKetcu98bHYXyw28fK2uRD8PcmjJ2d/Rhxd904O5fNnJzDLfbUR2uyycWZ3eISAmdfNiz5p8dkY+ZsE3YFZy72SAwcfHD718b/bPG/qtXh6upX1m/btTzsurxgA+hDBymu+OY8Hsyl8+vq8KVQF3wJ5elL+eJ/4sp2Pr28NlN4JGdFrholzkyuZa5VrnWuIAhAkARFKAiUABiBTwglAUMKRJ0hBQEIkqAIBUETDKEkUIqkFIUp+E4KCJhiEJhitv1qkrdtcMc0D0vsnoZ7/p7Ozjn+Uxo71y/J7VeTe3hZPw==",
-  "file_map": {
-    "50": {
-      "source": "fn main(x: u1, y: u1, z: u1) -> pub u1 {\n    let p = y - z;\n    if p != 0 {\n        let a = x / z;\n        let b = a - z;\n        if b != 0 {\n            let _ = a / b;\n        }\n    }\n\n    let u = x - z;\n    let v = y - u;\n    v\n}\n",
-      "path": ""
-    }
-  },
+  "debug_symbols": "[debug_symbols]",
+  "file_map": "[file_map]",
   "names": [
     "main"
   ],

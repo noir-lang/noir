@@ -1,4 +1,3 @@
-use acvm::{AcirField, FieldElement};
 use iter_extended::vecmap;
 use noirc_errors::{Located, Location};
 use rustc_hash::FxHashSet as HashSet;
@@ -36,6 +35,7 @@ use crate::{
         DefinitionId, DefinitionKind, ExprId, FuncId, InternedStatementKind, StmtId, TraitItemId,
     },
     shared::Signedness,
+    signed_field::SignedField,
     token::{FmtStrFragment, IntegerTypeSuffix, Tokens},
 };
 
@@ -67,7 +67,8 @@ impl Elaborator<'_> {
             ExpressionKind::Constrain(constrain) => self.elaborate_constrain(constrain),
             ExpressionKind::Constructor(constructor) => self.elaborate_constructor(*constructor),
             ExpressionKind::MemberAccess(access) => {
-                return self.elaborate_member_access(*access, expr.location);
+                let (expr_id, typ, _) = self.elaborate_member_access(*access, expr.location, false);
+                return (expr_id, typ);
             }
             ExpressionKind::Cast(cast) => self.elaborate_cast(*cast, expr.location),
             ExpressionKind::Infix(infix) => return self.elaborate_infix(*infix, expr.location),
@@ -116,6 +117,23 @@ impl Elaborator<'_> {
         }
 
         (id, typ)
+    }
+
+    /// Elaborate a member access expression without adding the automatic dereferencing operations
+    /// to it, treating it as an offset instead. This also returns a boolean indicating whether the
+    /// result skipped any required auto-dereferences (and thus needs dereferencing to be used as a value
+    /// instead of a reference). This flag is used when `&mut foo.bar.baz` is used to cancel out
+    /// the `&mut`.
+    fn elaborate_reference_expression(&mut self, expr: Expression) -> (ExprId, Type, bool) {
+        match expr.kind {
+            ExpressionKind::MemberAccess(access) => {
+                self.elaborate_member_access(*access, expr.location, true)
+            }
+            _ => {
+                let (expr_id, typ) = self.elaborate_expression(expr);
+                (expr_id, typ, false)
+            }
+        }
     }
 
     fn elaborate_interned_statement_as_expr(
@@ -335,11 +353,13 @@ impl Elaborator<'_> {
                 let length = UnresolvedTypeExpression::from_expr(*length, location).unwrap_or_else(
                     |error| {
                         self.push_err(ResolverError::ParserError(Box::new(error)));
-                        UnresolvedTypeExpression::Constant(FieldElement::zero(), None, location)
+                        UnresolvedTypeExpression::Constant(SignedField::zero(), None, location)
                     },
                 );
 
-                let length = self.convert_expression_type(length, &Kind::u32(), location);
+                let wildcard_allowed = true;
+                let length =
+                    self.convert_expression_type(length, &Kind::u32(), location, wildcard_allowed);
                 let (repeated_element, elem_type) = self.elaborate_expression(*repeated_element);
 
                 let length_clone = length.clone();
@@ -403,40 +423,60 @@ impl Elaborator<'_> {
 
     fn elaborate_prefix(&mut self, prefix: PrefixExpression, location: Location) -> (ExprId, Type) {
         let rhs_location = prefix.rhs.location;
-
-        let (rhs, rhs_type) = self.elaborate_expression(prefix.rhs);
-        let trait_method_id = self.interner.get_prefix_operator_trait_method(&prefix.operator);
-
         let operator = prefix.operator;
+
+        let (rhs, rhs_type, skip_op) = if matches!(operator, UnaryOp::Reference { .. }) {
+            let (rhs, rhs_type, needs_deref) = self.elaborate_reference_expression(prefix.rhs);
+
+            // If the reference expression delayed a needed deref, we can skip the `&mut _`
+            // operation since the expression is already a reference.
+            (rhs, rhs_type, needs_deref)
+        } else {
+            let (rhs, rhs_type) = self.elaborate_expression(prefix.rhs);
+            (rhs, rhs_type, false)
+        };
+
+        let trait_method_id = self.interner.get_prefix_operator_trait_method(&operator);
 
         if let UnaryOp::Reference { mutable } = operator {
             if mutable {
-                self.check_can_mutate(rhs, rhs_location);
+                // If skip_op is set we already know we have a mutable reference
+                if !skip_op {
+                    self.check_can_mutate(rhs, rhs_location);
+                }
             } else {
                 self.use_unstable_feature(UnstableFeature::Ownership, location);
             }
         }
 
-        let expr = HirExpression::Prefix(HirPrefixExpression { operator, rhs, trait_method_id });
+        let expr = HirExpression::Prefix(HirPrefixExpression {
+            operator,
+            rhs,
+            trait_method_id,
+            skip: skip_op,
+        });
         let expr_id = self.interner.push_expr(expr);
         self.interner.push_expr_location(expr_id, location);
 
-        let result = self.prefix_operand_type_rules(&operator, &rhs_type, location);
-        let typ = self.handle_operand_type_rules_result(
-            result,
-            &rhs_type,
-            trait_method_id,
-            expr_id,
-            location,
-        );
+        let typ = if skip_op {
+            rhs_type
+        } else {
+            let result = self.prefix_operand_type_rules(&operator, &rhs_type, location);
+            self.handle_operand_type_rules_result(
+                result,
+                &rhs_type,
+                trait_method_id,
+                expr_id,
+                location,
+            )
+        };
 
         self.interner.push_expr_type(expr_id, typ.clone());
         (expr_id, typ)
     }
 
     pub(super) fn check_can_mutate(&mut self, expr_id: ExprId, location: Location) {
-        let expr = self.interner.expression(&expr_id);
-        match expr {
+        match self.interner.expression(&expr_id) {
             HirExpression::Ident(hir_ident, _) => {
                 if let Some(definition) = self.interner.try_definition(hir_ident.id) {
                     let name = definition.name.clone();
@@ -616,7 +656,9 @@ impl Elaborator<'_> {
                     let generics = generics.map(|generics| {
                         vecmap(generics, |generic| {
                             let location = generic.location;
-                            let typ = self.use_type_with_kind(generic, &Kind::Any);
+                            let wildcard_allowed = true;
+                            let typ =
+                                self.use_type_with_kind(generic, &Kind::Any, wildcard_allowed);
                             Located::from(location, typ)
                         })
                     });
@@ -727,7 +769,7 @@ impl Elaborator<'_> {
             // Given that we already produced an error, let's make this an `assert(true)` so
             // we don't get further errors.
             let message = None;
-            let kind = ExpressionKind::Literal(crate::ast::Literal::Bool(true));
+            let kind = ExpressionKind::Literal(Literal::Bool(true));
             let expr = Expression { kind, location };
             (message, expr)
         } else {
@@ -785,6 +827,7 @@ impl Elaborator<'_> {
 
     fn check_method_call_visibility(&mut self, func_id: FuncId, object_type: &Type, name: &Ident) {
         if !method_call_is_visible(
+            self.self_type.as_ref(),
             object_type,
             func_id,
             self.module_id(),
@@ -1014,20 +1057,33 @@ impl Elaborator<'_> {
         ret
     }
 
+    /// This method also returns whether or not its lhs still needs to be dereferenced depending on
+    /// `is_offset`:
+    /// - `is_offset = false`: Auto-dereferencing will occur, and this will always return false
+    /// - `is_offset = true`: Auto-dereferencing is disabled, and this will return true if the lhs
+    ///   is a reference.
     fn elaborate_member_access(
         &mut self,
         access: MemberAccessExpression,
         location: Location,
-    ) -> (ExprId, Type) {
-        let (lhs, lhs_type) = self.elaborate_expression(access.lhs);
+        is_offset: bool,
+    ) -> (ExprId, Type, bool) {
+        // We don't need the boolean 'skipped auto-dereferences' from elaborate_reference_expression
+        // since if we have skipped any then `lhs_type` will be a reference and we will need to
+        // skip the deref (if is_offset is true) here anyway to extract the field out of the reference.
+        // This is more reliable than using the boolean return value here since the return value
+        // doesn't account for reference variables which we need to account for.
+        let (lhs, lhs_type, _) = self.elaborate_reference_expression(access.lhs);
+        let is_reference = lhs_type.is_ref();
+
         let rhs = access.rhs;
         let rhs_location = rhs.location();
         // `is_offset` is only used when lhs is a reference and we want to return a reference to rhs
-        let access = HirMemberAccess { lhs, rhs, is_offset: false };
+        let access = HirMemberAccess { lhs, rhs, is_offset };
         let expr_id = self.intern_expr(HirExpression::MemberAccess(access.clone()), location);
         let typ = self.type_check_member_access(access, expr_id, lhs_type, rhs_location);
         self.interner.push_expr_type(expr_id, typ.clone());
-        (expr_id, typ)
+        (expr_id, typ, is_offset && is_reference)
     }
 
     pub fn intern_expr(&mut self, expr: HirExpression, location: Location) -> ExprId {
@@ -1042,7 +1098,8 @@ impl Elaborator<'_> {
         location: Location,
     ) -> (HirExpression, Type) {
         let (lhs, lhs_type) = self.elaborate_expression(cast.lhs);
-        let r#type = self.resolve_type(cast.r#type);
+        let wildcard_allowed = false;
+        let r#type = self.resolve_type(cast.r#type, wildcard_allowed);
         let result = self.check_cast(&lhs, &lhs_type, &r#type, location);
         let expr = HirExpression::Cast(HirCastExpression { lhs, r#type });
         (expr, result)
@@ -1175,7 +1232,7 @@ impl Elaborator<'_> {
         match_expr: MatchExpression,
         location: Location,
     ) -> (HirExpression, Type) {
-        self.use_unstable_feature(super::UnstableFeature::Enums, location);
+        self.use_unstable_feature(UnstableFeature::Enums, location);
 
         let expr_location = match_expr.expression.location;
         let (expression, typ) = self.elaborate_expression(match_expr.expression);
@@ -1278,7 +1335,8 @@ impl Elaborator<'_> {
                         self.interner.next_type_variable_with_kind(Kind::Any)
                     }
                 } else {
-                    self.resolve_type(typ)
+                    let wildcard_allowed = true;
+                    self.resolve_type(typ, wildcard_allowed)
                 };
 
                 arg_types.push(typ.clone());
@@ -1463,7 +1521,8 @@ impl Elaborator<'_> {
             },
         };
 
-        let typ = self.use_type(constraint.typ.clone());
+        let wildcard_allowed = true;
+        let typ = self.use_type(constraint.typ.clone(), wildcard_allowed);
         let Some(trait_bound) = self.use_trait_bound(&constraint.trait_bound) else {
             // resolve_trait_bound only returns None if it has already issued an error, so don't
             // issue another here.

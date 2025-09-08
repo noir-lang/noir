@@ -354,4 +354,11 @@ mod tests {
         let expected = "<Field as foo::Bar>::baz";
         assert_format_type(src, expected);
     }
+
+    #[test]
+    fn format_as_trait_path_type_expression() {
+        let src = "[ Field ; < Field as foo :: Bar> :: baz ]";
+        let expected = "[Field; <Field as foo::Bar>::baz]";
+        assert_format_type(src, expected);
+    }
 }

@@ -1,6 +1,8 @@
 #![forbid(unsafe_code)]
 #![warn(unused_crate_dependencies, unused_extern_crates)]
 
+use std::hash::BuildHasher;
+
 use abi_gen::{abi_type_from_hir_type, value_from_hir_expression};
 use acvm::acir::circuit::ExpressionWidth;
 use acvm::compiler::MIN_EXPRESSION_WIDTH;
@@ -41,6 +43,7 @@ pub use contract::{CompiledContract, CompiledContractOutputs, ContractFunction};
 pub use debug::DebugFile;
 pub use noirc_frontend::graph::{CrateId, CrateName};
 pub use program::CompiledProgram;
+pub use stdlib::stdlib_paths_with_source;
 
 const STD_CRATE_NAME: &str = "std";
 const DEBUG_CRATE_NAME: &str = "__debug";
@@ -79,10 +82,10 @@ pub struct CompileOptions {
     #[arg(long, hide = true)]
     pub show_ssa_pass: Vec<String>,
 
-    /// Do not emit source file locations when emitting debug information for the SSA IR to stdout.
-    /// By default, source file locations will be shown.
+    /// Emit source file locations when emitting debug information for the SSA IR to stdout.
+    /// By default, source file locations won't be shown.
     #[arg(long, hide = true)]
-    pub no_ssa_locations: bool,
+    pub with_ssa_locations: bool,
 
     /// Only show the SSA and ACIR for the contract function with a given name.
     #[arg(long, hide = true)]
@@ -336,7 +339,7 @@ fn add_stdlib_source_to_file_manager(file_manager: &mut FileManager) {
     // on the stdlib. For other dependencies, we read the package.Dependencies file to add their file
     // contents to the file manager. However since the dependency on the stdlib is implicit, we need
     // to manually add it here.
-    let stdlib_paths_with_source = stdlib::stdlib_paths_with_source();
+    let stdlib_paths_with_source = stdlib_paths_with_source();
     for (path, source) in stdlib_paths_with_source {
         file_manager.add_file_with_source_canonical_path(Path::new(&path), source);
     }
@@ -490,8 +493,8 @@ pub fn compile_main(
     }
 
     if options.print_acir {
-        println!("Compiled ACIR for main (unoptimized):");
-        println!("{}", compiled_program.program);
+        noirc_errors::println_to_stdout!("Compiled ACIR for main (non-transformed):");
+        noirc_errors::println_to_stdout!("{}", compiled_program.program);
     }
 
     Ok((compiled_program, warnings))
@@ -549,7 +552,7 @@ pub fn compile_contract(
                     }
                 }
                 println!(
-                    "Compiled ACIR for {}::{} (unoptimized):",
+                    "Compiled ACIR for {}::{} (non-transformed):",
                     compiled_contract.name, contract_function.name
                 );
                 println!("{}", contract_function.bytecode);
@@ -797,7 +800,7 @@ pub fn compile_no_check(
         || options.minimal_ssa;
 
     // Hash the AST program, which is going to be used to fingerprint the compilation artifact.
-    let hash = fxhash::hash64(&program);
+    let hash = rustc_hash::FxBuildHasher.hash_one(&program);
 
     if let Some(cached_program) = cached_program {
         if !force_compile && cached_program.hash == hash {
@@ -820,7 +823,7 @@ pub fn compile_no_check(
             create_program(
                 program,
                 &ssa_evaluator_options,
-                if options.no_ssa_locations { None } else { Some(&context.file_manager) },
+                if options.with_ssa_locations { Some(&context.file_manager) } else { None },
             )?
         };
 

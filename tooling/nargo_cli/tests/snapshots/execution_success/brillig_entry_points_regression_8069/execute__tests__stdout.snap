@@ -2,4 +2,4 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: stdout
 ---
-[brillig_entry_points_regression_8069] Circuit output: Field(0)
+[brillig_entry_points_regression_8069] Circuit output: false

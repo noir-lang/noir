@@ -2,7 +2,6 @@ use crate::check_errors;
 
 use crate::assert_no_errors;
 
-#[named]
 #[test]
 fn use_super() {
     let src = r#"
@@ -21,7 +20,6 @@ fn use_super() {
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn no_super() {
     let src = "
@@ -31,7 +29,6 @@ fn no_super() {
     check_errors!(src);
 }
 
-#[named]
 #[test]
 fn use_super_in_path() {
     let src = r#"
@@ -48,32 +45,6 @@ fn use_super_in_path() {
     assert_no_errors!(src);
 }
 
-#[named]
-#[test]
-fn warns_on_use_of_private_exported_item() {
-    let src = r#"
-    mod foo {
-        mod bar {
-            pub fn baz() {}
-        }
-
-        use bar::baz;
-
-        pub fn qux() {
-            baz();
-        }
-    }
-
-    fn main() {
-        foo::baz();
-             ^^^ baz is private and not visible from the current module
-             ~~~ baz is private
-    }
-    "#;
-    check_errors!(src);
-}
-
-#[named]
 #[test]
 fn can_use_pub_use_item() {
     let src = r#"
@@ -92,7 +63,6 @@ fn can_use_pub_use_item() {
     assert_no_errors!(src);
 }
 
-#[named]
 #[test]
 fn warns_on_re_export_of_item_with_less_visibility() {
     let src = r#"
@@ -113,7 +83,6 @@ fn warns_on_re_export_of_item_with_less_visibility() {
     check_errors!(src);
 }
 
-#[named]
 #[test]
 fn errors_if_using_alias_in_import() {
     let src = r#"

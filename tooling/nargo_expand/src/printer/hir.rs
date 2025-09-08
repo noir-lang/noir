@@ -5,11 +5,11 @@ use noirc_frontend::{
     hir_def::{
         expr::{
             Constructor, HirArrayLiteral, HirBlockExpression, HirCallExpression, HirExpression,
-            HirIdent, HirLambda, HirLiteral, HirMatch, ImplKind,
+            HirIdent, HirLambda, HirLiteral, HirMatch, HirPrefixExpression, ImplKind, TraitItem,
         },
         stmt::{HirLValue, HirPattern, HirStatement},
     },
-    node_interner::{DefinitionId, DefinitionKind, ExprId, StmtId},
+    node_interner::{DefinitionId, DefinitionKind, ExprId, FuncId, StmtId},
     token::FmtStrFragment,
 };
 
@@ -170,7 +170,20 @@ impl ItemPrinter<'_, '_> {
                 }
             }
             HirExpression::MemberAccess(hir_member_access) => {
-                self.show_hir_expression_id_maybe_inside_parens(hir_member_access.lhs);
+                let lhs_exp = self.interner.expression(&hir_member_access.lhs);
+
+                if let HirExpression::Prefix(HirPrefixExpression {
+                    operator: UnaryOp::Dereference { implicitly_added: false },
+                    ..
+                }) = lhs_exp
+                {
+                    // In general we don't need parentheses around dereferences, but here we do
+                    self.push('(');
+                    self.show_hir_expression(lhs_exp, hir_member_access.lhs);
+                    self.push(')');
+                } else {
+                    self.show_hir_expression_id_maybe_inside_parens(hir_member_access.lhs);
+                }
                 self.push('.');
                 self.push_str(&hir_member_access.rhs.to_string());
             }
@@ -387,8 +400,8 @@ impl ItemPrinter<'_, '_> {
         };
 
         // Special case: assumed trait method
-        if let ImplKind::TraitItem(trait_method) = hir_ident.impl_kind {
-            if trait_method.assumed {
+        if let ImplKind::TraitItem(trait_method) = &hir_ident.impl_kind {
+            let show_as_trait_as_path = if trait_method.assumed {
                 // Is this `self.foo()` where `self` is currently a trait?
                 // If so, show it as `self.foo()` instead of `Self::foo(self)`.
                 let method_on_trait_self =
@@ -399,20 +412,21 @@ impl ItemPrinter<'_, '_> {
                     } else {
                         false
                     };
-
-                if !method_on_trait_self {
-                    self.show_type(&trait_method.constraint.typ);
-                    self.push_str("::");
-                    self.push_str(self.interner.function_name(&func_id));
-                    if let Some(generics) = generics {
-                        let use_colons = true;
-                        self.show_generic_types(&generics, use_colons);
-                    }
-                    self.push('(');
-                    self.show_hir_expression_ids_separated_by_comma(arguments);
-                    self.push(')');
-                    return true;
-                }
+                !method_on_trait_self
+            } else {
+                let trait_id = trait_method.constraint.trait_bound.trait_id;
+                let module_data = &self.def_maps[&self.module_id.krate][self.module_id.local_id];
+                module_data.find_trait_in_scope(trait_id).is_none()
+            };
+            if show_as_trait_as_path {
+                self.show_hir_call_as_trait_as_path(
+                    hir_call_expression,
+                    arguments,
+                    generics,
+                    func_id,
+                    trait_method,
+                );
+                return true;
             }
         }
 
@@ -458,6 +472,43 @@ impl ItemPrinter<'_, '_> {
         self.push(')');
 
         true
+    }
+
+    fn show_hir_call_as_trait_as_path(
+        &mut self,
+        hir_call_expression: &HirCallExpression,
+        arguments: &[ExprId],
+        generics: Option<Vec<Type>>,
+        func_id: FuncId,
+        trait_method: &TraitItem,
+    ) {
+        let instantiation_bindings =
+            self.interner.get_instantiation_bindings(hir_call_expression.func);
+        let mut constraint = trait_method.constraint.clone();
+        constraint.apply_bindings(instantiation_bindings);
+
+        let trait_id = trait_method.constraint.trait_bound.trait_id;
+        let module_data = &self.def_maps[&self.module_id.krate][self.module_id.local_id];
+        if module_data.find_trait_in_scope(trait_id).is_none() {
+            // It can happen that the trait is not in scope, for example if this call
+            // was generated via macros using `get_trait_impl -> methods`.
+            self.push('<');
+            self.show_type(&constraint.typ);
+            self.push_str(" as ");
+            self.show_trait_bound(&constraint.trait_bound);
+            self.push('>');
+        } else {
+            self.show_type(&constraint.typ);
+        }
+        self.push_str("::");
+        self.push_str(self.interner.function_name(&func_id));
+        if let Some(generics) = generics {
+            let use_colons = true;
+            self.show_generic_types(&generics, use_colons);
+        }
+        self.push('(');
+        self.show_hir_expression_ids_separated_by_comma(arguments);
+        self.push(')');
     }
 
     fn show_hir_block_expression(&mut self, block: HirBlockExpression) {
@@ -623,31 +674,39 @@ impl ItemPrinter<'_, '_> {
     }
 
     fn show_hir_lvalue(&mut self, lvalue: HirLValue) {
+        let lvalue = simplify_hir_lvalue(lvalue);
         match lvalue {
             HirLValue::Ident(hir_ident, _) => {
                 self.show_hir_ident(hir_ident, None);
             }
             HirLValue::MemberAccess { object, field_name, field_index: _, typ: _, location: _ } => {
-                self.show_hir_lvalue(*object);
+                let object = simplify_hir_lvalue(*object);
+                let object_is_dereference = matches!(object, HirLValue::Dereference { .. });
+                if object_is_dereference {
+                    self.push('(');
+                }
+                self.show_hir_lvalue(object);
+                if object_is_dereference {
+                    self.push(')');
+                }
                 self.push('.');
                 self.push_str(&field_name.to_string());
             }
             HirLValue::Index { array, index, typ: _, location: _ } => {
-                self.show_hir_lvalue(*array);
+                let array = simplify_hir_lvalue(*array);
+                self.show_hir_lvalue(array);
                 self.push('[');
                 self.show_hir_expression_id(index);
                 self.push(']');
             }
-            HirLValue::Dereference { lvalue, implicitly_added, element_type: _, location: _ } => {
-                if implicitly_added {
-                    self.show_hir_lvalue(*lvalue);
-                } else {
-                    // Even though parentheses aren't always required, it's tricky to
-                    // figure out exactly when so we always include them.
-                    self.push_str("*(");
-                    self.show_hir_lvalue(*lvalue);
-                    self.push(')');
-                }
+            HirLValue::Dereference {
+                lvalue,
+                implicitly_added: _,
+                element_type: _,
+                location: _,
+            } => {
+                self.push_str("*");
+                self.show_hir_lvalue(*lvalue);
             }
         }
     }
@@ -996,5 +1055,14 @@ fn get_type_fields(typ: &Type) -> Option<Vec<(String, Type, ItemVisibility)>> {
             data_type.get_fields(&generics)
         }
         _ => None,
+    }
+}
+
+// Remove any implicit dereferences from `lvalue`
+fn simplify_hir_lvalue(lvalue: HirLValue) -> HirLValue {
+    if let HirLValue::Dereference { lvalue, implicitly_added: true, .. } = lvalue {
+        simplify_hir_lvalue(*lvalue)
+    } else {
+        lvalue
     }
 }
