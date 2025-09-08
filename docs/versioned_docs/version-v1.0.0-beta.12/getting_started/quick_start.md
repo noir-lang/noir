@@ -17,8 +17,6 @@ curl -L https://raw.githubusercontent.com/noir-lang/noirup/refs/heads/main/insta
 noirup
 ```
 
-Once installed, you can [set up shell completions for the `nargo` command](../tooling/shell_completions.md).
-
 ## Nargo
 
 Nargo provides the ability to initiate and execute Noir projects. Let's initialize the traditional `hello_world`:
