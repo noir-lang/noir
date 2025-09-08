@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1757349411253,
+  "lastUpdate": 1757349413076,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -4218,90 +4218,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "48327c0df00ec3b355bf413974ced42367d1dafe",
-          "message": "fix(mem2reg): reuse existing expression and add missing alias (#9664)",
-          "timestamp": "2025-08-28T16:17:33Z",
-          "tree_id": "eadaab1922726ec3408dbf8deb6592757e4ed92f",
-          "url": "https://github.com/noir-lang/noir/commit/48327c0df00ec3b355bf413974ced42367d1dafe"
-        },
-        "date": 1756400398751,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 1.768,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 8.396,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.332,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 16.26,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 14.08,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 21.8,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 192,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 207,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.356,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.604,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.768,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 1.591,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "515fb4208408720454751f6fbeefe9acfe5c4ec2",
           "message": "chore: add two mem2reg regression tests where references are returned (#9670)",
           "timestamp": "2025-08-28T21:08:04Z",
@@ -8401,6 +8317,90 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 1.734,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "72797635+Savio-Sou@users.noreply.github.com",
+            "name": "Savio",
+            "username": "Savio-Sou"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8a6ef48f8fa2fb35a584a396f0a0f1691de9da66",
+          "message": "chore(docs): Copy latest getting started guide into versioned docs (#9755)",
+          "timestamp": "2025-09-08T16:05:06Z",
+          "tree_id": "085b8d63806e755c25bc6b39e49c2386bd485341",
+          "url": "https://github.com/noir-lang/noir/commit/8a6ef48f8fa2fb35a584a396f0a0f1691de9da66"
+        },
+        "date": 1757349391507,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1.888,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 8.198,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.394,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 18.3,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 16,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 17.42,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 211,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 196,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.406,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.482,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.819,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 1.689,
             "unit": "s"
           }
         ]
