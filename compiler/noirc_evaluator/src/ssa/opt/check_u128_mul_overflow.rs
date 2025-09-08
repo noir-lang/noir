@@ -71,7 +71,7 @@ fn check_u128_mul_overflow(
 
     let two_pow_64 = 1_u128 << 64;
 
-    // If lhs or rhs are less than 2^64 then the condition trivially holds.
+    // If lhs or rhs are less than 2^64 then there's no Field overflow.
     if lhs_value.is_some_and(|value| value.to_u128() < two_pow_64)
         || rhs_value.is_some_and(|value| value.to_u128() < two_pow_64)
     {
