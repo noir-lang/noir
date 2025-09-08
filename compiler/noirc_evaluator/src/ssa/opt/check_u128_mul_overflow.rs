@@ -279,17 +279,46 @@ mod tests {
         ";
         assert_ssa_does_not_change(src, Ssa::check_u128_mul_overflow);
     }
+
     #[test]
-    fn predicate_overflow() {
+    fn predicate_overflow_on_lhs_potentially_overflowing() {
         // This code performs a u128 multiplication that overflows, under a condition.
         let src = "
         acir(inline) fn main f0 {
-        b0(v0: u1):
+          b0(v0: u128, v1: u1):
+            enable_side_effects v1
+            v2 = mul v0, u128 18446744073709551617
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.flatten_cfg().check_u128_mul_overflow();
+        // Below, the overflow check takes the 'enable_side_effects' value into account
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) fn main f0 {
+          b0(v0: u128, v1: u1):
+            enable_side_effects v1
+            v3 = mul v0, u128 18446744073709551617
+            v5 = div v0, u128 18446744073709551616
+            v6 = cast v1 as u128
+            v7 = unchecked_mul v5, v6
+            constrain v7 == u128 0, "attempt to multiply with overflow"
+            return v3
+        }
+        "#);
+    }
+
+    #[test]
+    fn predicate_overflow_on_guaranteed_overflow() {
+        // This code performs a u128 multiplication that overflows, under a condition.
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1):
             jmpif v0 then: b1, else: b2
-        b1():
-            v2 = mul u128 340282366920938463463374607431768211455, u128 340282366920938463463374607431768211455	// src/main.nr:17:13
+          b1():
+            v2 = mul u128 340282366920938463463374607431768211455, u128 340282366920938463463374607431768211455
             jmp b2()
-        b2():
+          b2():
             return v0
         }
         ";
