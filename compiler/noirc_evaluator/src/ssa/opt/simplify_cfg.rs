@@ -66,7 +66,18 @@ impl Function {
                 stack.extend(self.dfg[block].successors().filter(|block| !visited.contains(block)));
             }
 
-            check_for_double_jmp(self, block, &mut cfg);
+            let mut predecessors = cfg.predecessors(block);
+            if predecessors.len() == 1 {
+                let predecessor =
+                    predecessors.next().expect("Already checked length of predecessors");
+                drop(predecessors);
+
+                try_inline_successor(self, &mut cfg, predecessor, &mut values_to_replace);
+            } else {
+                drop(predecessors);
+
+                check_for_double_jmp(self, block, &mut cfg);
+            }
 
             if !values_to_replace.is_empty() {
                 self.dfg.replace_values_in_block_terminator(block, &values_to_replace);
