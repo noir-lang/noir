@@ -1,4 +1,10 @@
-ci := env("CI", "")
+ci := if env("CI", "") == "true" {
+  "1"
+} else if env("CI", "") == "1" {
+  "1"
+} else {
+  "0"
+} 
 use-cross := env("JUST_USE_CROSS", "")
 
 # target information
@@ -16,16 +22,18 @@ install-binstall:
     curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
   fi
 
+cargo-binstall-args := if ci == "1" { "--force" } else { "" }
+
 # Installs tools necessary for working with Rust code
 install-rust-tools: install-binstall
-  cargo binstall cargo-nextest@0.9.103 -y
-  cargo binstall cargo-insta@1.42.2 -y
+  cargo binstall cargo-nextest@0.9.103 -y {{cargo-binstall-args}}
+  cargo binstall cargo-insta@1.42.2 -y {{cargo-binstall-args}}
 
 # Installs tools necessary for working with Javascript code
 install-js-tools: install-binstall
-  cargo binstall wasm-pack@0.13.1 -y
-  cargo binstall wasm-bindgen-cli@0.2.100 -y
-  cargo binstall wasm-opt@0.116.1 -y
+  cargo binstall wasm-pack@0.13.1 -y {{cargo-binstall-args}}
+  cargo binstall wasm-bindgen-cli@0.2.100 -y {{cargo-binstall-args}}
+  cargo binstall wasm-opt@0.116.1 -y {{cargo-binstall-args}}
 
 # Installs Playwright (necessary for Javascript browser tests but slow to install)
 install-playwright:
