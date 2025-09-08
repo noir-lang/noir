@@ -1,6 +1,6 @@
 use noirc_errors::call_stack::CallStackId;
 use serde::{Deserialize, Serialize};
-use std::hash::{BuildHasher, Hash};
+use std::hash::{Hash, Hasher};
 
 use acvm::{
     AcirField,
@@ -870,7 +870,10 @@ pub enum ErrorType {
 
 impl ErrorType {
     pub fn selector(&self) -> ErrorSelector {
-        let hash = rustc_hash::FxBuildHasher.hash_one(self);
+        // We explicitly do not use `rustc-hash` here as we require hashes to be stable across 32- and 64-bit architectures.
+        let mut hasher = std::hash::DefaultHasher::new();
+        self.hash(&mut hasher);
+        let hash = hasher.finish();
         ErrorSelector::new(hash)
     }
 }
