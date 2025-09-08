@@ -15,7 +15,7 @@ use crate::{
     node_interner::{FuncId, TraitId},
 };
 
-use rustc_hash::rustc_hashSet as HashSet;
+use rustc_hash::FxHashSet as HashSet;
 
 use super::Elaborator;
 

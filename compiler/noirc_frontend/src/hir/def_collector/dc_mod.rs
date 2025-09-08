@@ -8,7 +8,7 @@ use fm::{FILE_EXTENSION, FileId, FileManager};
 use noirc_errors::{Location, Span};
 use num_bigint::BigUint;
 use num_traits::Num;
-use rustc_hash::rustc_hashMap as HashMap;
+use rustc_hash::FxHashMap as HashMap;
 
 use crate::ast::{
     Documented, Expression, FunctionDefinition, Ident, ItemVisibility, LetStatement,
