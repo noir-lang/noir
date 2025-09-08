@@ -1117,6 +1117,31 @@ mod test {
     }
 
     #[test]
+    fn constant_fold_duplicated_field_divisions() {
+        // We should remove the duplicated field inversions here.
+        let src = "
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v0: Field):
+            v1 = div Field 1, v0
+            v2 = div Field 1, v0
+            return
+        }";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.fold_constants();
+
+        // The terminators of b1 and b2 should now have constant arguments
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) predicate_pure fn main f0 {
+          b0(v0: Field):
+            v2 = div Field 1, v0
+            v3 = div Field 1, v0
+            return
+        }
+        ");
+    }
+
+    #[test]
     fn constant_index_array_access_deduplication() {
         // After constructing this IR, we run constant folding which should replace the second constant-index array get
         // with a reference to the results to the first. This then allows us to optimize away
