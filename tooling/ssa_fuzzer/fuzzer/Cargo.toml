@@ -11,14 +11,11 @@ cargo-fuzz = true
 [lints]
 workspace = true
 
-[features]
-default = []
-redis-support = ["dep:redis", "dep:lazy_static"]
-
 [dependencies]
 libfuzzer-sys = { version = "0.4.0", features = ["arbitrary-derive"] }
 noirc_evaluator.workspace = true
 noirc_driver.workspace = true
+noirc_frontend.workspace = true
 acvm.workspace = true
 noir_ssa_executor.workspace = true
 log.workspace = true
@@ -29,8 +26,8 @@ serde.workspace = true
 serde_json.workspace = true
 base64.workspace = true
 sha1 = "0.10.6"
-redis = { version = "0.26", optional = true }
-lazy_static = { version = "1.4", optional = true }
+redis = { version = "0.26"}
+lazy_static = { version = "1.4" }
 strum_macros = "0.24"
 strum = "0.24"
 sha2.workspace = true
@@ -46,11 +43,10 @@ path = "src/acir_vs_brillig.rs"
 test = false
 doc = false
 bench = false
-required-features = ["redis-support"]
 
 [[bin]]
-name = "ssa_fuzzer"
-path = "src/fuzzer.rs"
+name = "brillig"
+path = "src/brillig.rs"
 test = false
 doc  = false 
 bench = false
