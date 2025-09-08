@@ -153,7 +153,7 @@ impl Context {
                 self.handle_reference_expression(&mut index.collection);
                 self.handle_expression(&mut index.index);
             }
-            
+
             // If we have something like `f(arg)` then we want to treat those variables normally
             // rather than avoid cloning them. So we shouldn't recur in `handle_reference_expression`.
             other => self.handle_expression(other),
