@@ -55,13 +55,15 @@ pub(crate) enum FunctionMutationOptions {
     ReturnBlockIdx,
     FunctionFuzzerCommands,
     ReturnType,
+    InputTypes,
 }
 
-pub(crate) type MutationConfig = WeightedSelectionConfig<FunctionMutationOptions, 3>;
+pub(crate) type MutationConfig = WeightedSelectionConfig<FunctionMutationOptions, 4>;
 pub(crate) const BASIC_FUNCTION_MUTATION_CONFIGURATION: MutationConfig = MutationConfig::new([
     (FunctionMutationOptions::ReturnBlockIdx, 1),
     (FunctionMutationOptions::FunctionFuzzerCommands, 1),
     (FunctionMutationOptions::ReturnType, 1),
+    (FunctionMutationOptions::InputTypes, 1),
 ]);
 
 /// Mutations of witness values
@@ -74,15 +76,23 @@ pub(crate) enum WitnessMutationOptions {
     PowerOfTwoAddSub,
 }
 
-pub(crate) type WitnessMutationConfig = WeightedSelectionConfig<WitnessMutationOptions, 5>;
-pub(crate) const BASIC_WITNESS_MUTATION_CONFIGURATION: WitnessMutationConfig =
-    WitnessMutationConfig::new([
+pub(crate) type NumericWitnessMutationConfig = WeightedSelectionConfig<WitnessMutationOptions, 5>;
+pub(crate) const BASIC_NUMERIC_WITNESS_MUTATION_CONFIGURATION: NumericWitnessMutationConfig =
+    NumericWitnessMutationConfig::new([
         (WitnessMutationOptions::Random, 1),
         (WitnessMutationOptions::MaxValue, 2),
         (WitnessMutationOptions::MinValue, 2),
         (WitnessMutationOptions::SmallAddSub, 4),
         (WitnessMutationOptions::PowerOfTwoAddSub, 3),
     ]);
+pub(crate) const DETERMINISTIC_NUMERIC_WITNESS_MUTATION_CONFIGURATION:
+    NumericWitnessMutationConfig = NumericWitnessMutationConfig::new([
+    (WitnessMutationOptions::Random, 0),
+    (WitnessMutationOptions::MaxValue, 2),
+    (WitnessMutationOptions::MinValue, 2),
+    (WitnessMutationOptions::SmallAddSub, 4),
+    (WitnessMutationOptions::PowerOfTwoAddSub, 3),
+]);
 
 /// Mutations of instructions
 #[derive(Copy, Clone, Debug)]
@@ -117,40 +127,70 @@ pub(crate) const BASIC_INSTRUCTION_ARGUMENT_MUTATION_CONFIGURATION:
 
 /// Mutations of arguments of instructions
 #[derive(Copy, Clone, Debug)]
-pub(crate) enum ArgumentMutationOptions {
+pub(crate) enum NumericArgumentMutationOptions {
     MutateIndex,
     ChangeType,
+}
+
+pub(crate) type NumericArgumentMutationConfig =
+    WeightedSelectionConfig<NumericArgumentMutationOptions, 2>;
+pub(crate) const BASIC_NUMERIC_ARGUMENT_MUTATION_CONFIGURATION: NumericArgumentMutationConfig =
+    NumericArgumentMutationConfig::new([
+        (NumericArgumentMutationOptions::MutateIndex, 7),
+        (NumericArgumentMutationOptions::ChangeType, 2),
+    ]);
+
+#[derive(Copy, Clone, Debug)]
+pub(crate) enum ArgumentMutationOptions {
+    MutateType,
+    MutateIndex,
 }
 
 pub(crate) type ArgumentMutationConfig = WeightedSelectionConfig<ArgumentMutationOptions, 2>;
 pub(crate) const BASIC_ARGUMENT_MUTATION_CONFIGURATION: ArgumentMutationConfig =
     ArgumentMutationConfig::new([
-        (ArgumentMutationOptions::MutateIndex, 7),
-        (ArgumentMutationOptions::ChangeType, 2),
+        (ArgumentMutationOptions::MutateType, 1),
+        (ArgumentMutationOptions::MutateIndex, 3),
     ]);
 
 #[derive(Copy, Clone, Debug)]
 pub(crate) enum VecMutationOptions {
-    Random,
     Insertion,
     Deletion,
     Swap,
     ElementMutation,
     PushDefault,
 }
-pub(crate) type VecMutationConfig = WeightedSelectionConfig<VecMutationOptions, 6>;
+pub(crate) type VecMutationConfig = WeightedSelectionConfig<VecMutationOptions, 5>;
 
 pub(crate) const BASIC_VEC_MUTATION_CONFIGURATION: VecMutationConfig = VecMutationConfig::new([
-    (VecMutationOptions::Random, 1),
     (VecMutationOptions::Insertion, 7),
     (VecMutationOptions::Deletion, 22),
     (VecMutationOptions::Swap, 20),
     (VecMutationOptions::ElementMutation, 100),
     (VecMutationOptions::PushDefault, 15),
 ]);
+pub(crate) const ARRAY_WITNESS_MUTATION_CONFIGURATION: VecMutationConfig =
+    VecMutationConfig::new([
+        (VecMutationOptions::Insertion, 10),
+        (VecMutationOptions::Deletion, 20),
+        (VecMutationOptions::Swap, 10),
+        (VecMutationOptions::ElementMutation, 30),
+        (VecMutationOptions::PushDefault, 0), // default is Field(0)
+    ]);
+
+// used for arrays inside arrays in initial witness
+pub(crate) const ARRAY_WITNESS_MUTATION_CONFIGURATION_INNER: VecMutationConfig =
+    VecMutationConfig::new([
+        (VecMutationOptions::Insertion, 0), // random insertion is not allowed (arrays must be of the same type)
+        (VecMutationOptions::Deletion, 0),
+        (VecMutationOptions::Swap, 10),
+        (VecMutationOptions::ElementMutation, 30),
+        (VecMutationOptions::PushDefault, 0), // default is Field(0)
+    ]);
 
 #[derive(Copy, Clone, Debug)]
-pub(crate) enum ValueTypeMutationOptions {
+pub(crate) enum NumericTypeMutationOptions {
     Field,
     Boolean,
     U8,
@@ -163,20 +203,20 @@ pub(crate) enum ValueTypeMutationOptions {
     I32,
     I64,
 }
-pub(crate) type ValueTypeMutationConfig = WeightedSelectionConfig<ValueTypeMutationOptions, 11>;
-pub(crate) const BASIC_VALUE_TYPE_MUTATION_CONFIGURATION: ValueTypeMutationConfig =
-    ValueTypeMutationConfig::new([
-        (ValueTypeMutationOptions::Field, 1),
-        (ValueTypeMutationOptions::Boolean, 1),
-        (ValueTypeMutationOptions::U8, 1),
-        (ValueTypeMutationOptions::U16, 1),
-        (ValueTypeMutationOptions::U32, 1),
-        (ValueTypeMutationOptions::U64, 1),
-        (ValueTypeMutationOptions::U128, 1),
-        (ValueTypeMutationOptions::I8, 1),
-        (ValueTypeMutationOptions::I16, 1),
-        (ValueTypeMutationOptions::I32, 1),
-        (ValueTypeMutationOptions::I64, 1),
+pub(crate) type NumericTypeMutationConfig = WeightedSelectionConfig<NumericTypeMutationOptions, 11>;
+pub(crate) const BASIC_NUMERIC_TYPE_MUTATION_CONFIGURATION: NumericTypeMutationConfig =
+    NumericTypeMutationConfig::new([
+        (NumericTypeMutationOptions::Field, 1),
+        (NumericTypeMutationOptions::Boolean, 1),
+        (NumericTypeMutationOptions::U8, 1),
+        (NumericTypeMutationOptions::U16, 1),
+        (NumericTypeMutationOptions::U32, 1),
+        (NumericTypeMutationOptions::U64, 1),
+        (NumericTypeMutationOptions::U128, 1),
+        (NumericTypeMutationOptions::I8, 1),
+        (NumericTypeMutationOptions::I16, 1),
+        (NumericTypeMutationOptions::I32, 1),
+        (NumericTypeMutationOptions::I64, 1),
     ]);
 
 #[derive(Copy, Clone, Debug)]
@@ -245,14 +285,12 @@ pub(crate) const BASIC_ARRAY_SET_MUTATION_CONFIGURATION: ArraySetMutationConfig 
 pub(crate) enum CreateArrayMutationOptions {
     ElementsIndices,
     ElementType,
-    IsReferences,
 }
-pub(crate) type CreateArrayMutationConfig = WeightedSelectionConfig<CreateArrayMutationOptions, 3>;
+pub(crate) type CreateArrayMutationConfig = WeightedSelectionConfig<CreateArrayMutationOptions, 2>;
 pub(crate) const BASIC_CREATE_ARRAY_MUTATION_CONFIGURATION: CreateArrayMutationConfig =
     CreateArrayMutationConfig::new([
         (CreateArrayMutationOptions::ElementsIndices, 2),
         (CreateArrayMutationOptions::ElementType, 2),
-        (CreateArrayMutationOptions::IsReferences, 1),
     ]);
 
 #[derive(Copy, Clone, Debug)]
@@ -372,15 +410,14 @@ pub(crate) enum GenerateBool {
     False,
 }
 pub(crate) type GenerateBoolConfig = WeightedSelectionConfig<GenerateBool, 2>;
-pub(crate) const BASIC_GENERATE_BOOL_CONFIGURATION: GenerateBoolConfig =
-    GenerateBoolConfig::new([(GenerateBool::True, 1), (GenerateBool::False, 1)]);
+
 pub(crate) const GENERATE_BOOL_CONFIGURATION_MOST_TRUE: GenerateBoolConfig =
     GenerateBoolConfig::new([(GenerateBool::True, 999), (GenerateBool::False, 1)]);
 pub(crate) const GENERATE_BOOL_CONFIGURATION_MOST_FALSE: GenerateBoolConfig =
     GenerateBoolConfig::new([(GenerateBool::True, 1), (GenerateBool::False, 999)]);
 
 #[derive(Copy, Clone, Debug)]
-pub(crate) enum GenerateValueType {
+pub(crate) enum GenerateNumericType {
     Field,
     Boolean,
     U8,
@@ -393,29 +430,67 @@ pub(crate) enum GenerateValueType {
     I32,
     I64,
 }
-pub(crate) type GenerateValueTypeConfig = WeightedSelectionConfig<GenerateValueType, 11>;
-pub(crate) const BASIC_GENERATE_VALUE_TYPE_CONFIGURATION: GenerateValueTypeConfig =
-    GenerateValueTypeConfig::new([
-        (GenerateValueType::Field, 1),
-        (GenerateValueType::Boolean, 1),
-        (GenerateValueType::U8, 1),
-        (GenerateValueType::U16, 1),
-        (GenerateValueType::U32, 1),
-        (GenerateValueType::U64, 1),
-        (GenerateValueType::U128, 1),
-        (GenerateValueType::I8, 1),
-        (GenerateValueType::I16, 1),
-        (GenerateValueType::I32, 1),
-        (GenerateValueType::I64, 1),
+pub(crate) type GenerateNumericTypeConfig = WeightedSelectionConfig<GenerateNumericType, 11>;
+pub(crate) const BASIC_GENERATE_NUMERIC_TYPE_CONFIGURATION: GenerateNumericTypeConfig =
+    GenerateNumericTypeConfig::new([
+        (GenerateNumericType::Field, 1),
+        (GenerateNumericType::Boolean, 1),
+        (GenerateNumericType::U8, 1),
+        (GenerateNumericType::U16, 1),
+        (GenerateNumericType::U32, 1),
+        (GenerateNumericType::U64, 1),
+        (GenerateNumericType::U128, 1),
+        (GenerateNumericType::I8, 1),
+        (GenerateNumericType::I16, 1),
+        (GenerateNumericType::I32, 1),
+        (GenerateNumericType::I64, 1),
     ]);
 
 // Compile-time check that configuration has correct number of entries
 const _: () = {
-    use noir_ssa_fuzzer::typed_value::ValueType;
+    use noir_ssa_fuzzer::typed_value::NumericType;
     use strum::EnumCount;
     assert!(
-        BASIC_GENERATE_VALUE_TYPE_CONFIGURATION.options_with_weights.len() == ValueType::COUNT,
-        "BASIC_GENERATE_VALUE_TYPE_CONFIGURATION must have an entry for every GenerateValueType variant"
+        BASIC_GENERATE_NUMERIC_TYPE_CONFIGURATION.options_with_weights.len() == NumericType::COUNT,
+        "BASIC_GENERATE_NUMERIC_TYPE_CONFIGURATION must have an entry for every GenerateNumericType variant"
+    );
+};
+
+#[derive(Copy, Clone, Debug)]
+pub(crate) enum GenerateInitialWitness {
+    Numeric,
+    Array,
+}
+pub(crate) type GenerateInitialWitnessConfig = WeightedSelectionConfig<GenerateInitialWitness, 2>;
+pub(crate) const BASIC_GENERATE_INITIAL_WITNESS_CONFIGURATION: GenerateInitialWitnessConfig =
+    GenerateInitialWitnessConfig::new([
+        (GenerateInitialWitness::Numeric, 10),
+        (GenerateInitialWitness::Array, 1),
+    ]);
+
+#[derive(Copy, Clone, Debug)]
+pub(crate) enum GenerateType {
+    Numeric,
+    Reference,
+    Array,
+    Slice,
+}
+
+pub(crate) type GenerateTypeConfig = WeightedSelectionConfig<GenerateType, 4>;
+pub(crate) const BASIC_GENERATE_TYPE_CONFIGURATION: GenerateTypeConfig = GenerateTypeConfig::new([
+    (GenerateType::Numeric, 10),
+    (GenerateType::Reference, 6),
+    (GenerateType::Array, 5),
+    (GenerateType::Slice, 6),
+]);
+pub(crate) const MAX_ARRAY_SIZE: usize = 10;
+
+const _: () = {
+    use noir_ssa_fuzzer::typed_value::Type;
+    use strum::EnumCount;
+    assert!(
+        BASIC_GENERATE_TYPE_CONFIGURATION.options_with_weights.len() == Type::COUNT,
+        "BASIC_GENERATE_TYPE_CONFIGURATION must have an entry for every Type variant"
     );
 };
 

@@ -64,7 +64,7 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::ssa::{
     Ssa,
@@ -463,7 +463,7 @@ mod tests {
             v5 = add Field 1, v3
             v6 = add v5, v4
             constrain v6 == Field 2
-            call f3(v3, v4)
+            call f4(v3, v4)
             return
         }
         brillig(inline) fn entry_point_two f2 {
@@ -471,7 +471,7 @@ mod tests {
             v5 = add Field 2, v3
             v6 = add v5, v4
             constrain v6 == Field 3
-            call f4(v3, v4)
+            call f3(v3, v4)
             return
         }
         brillig(inline) fn inner_func f3 {
@@ -556,7 +556,7 @@ mod tests {
             v4 = add Field 2, v2
             v5 = add v4, v3
             constrain v5 == Field 3
-            call f4(v2, v3)
+            call f5(v2, v3)
             return
         }
         brillig(inline) fn entry_point_two f2 {
@@ -564,37 +564,37 @@ mod tests {
             v4 = add Field 2, v2
             v5 = add v4, v3
             constrain v5 == Field 3
-            call f6(v2, v3)
-            return
-        }
-        brillig(inline) fn nested_inner_func f3 {
-          b0(v2: Field, v3: Field):
-            v4 = add Field 3, v2
-            v5 = add v4, v3
-            constrain v5 == Field 4
-            return
-        }
-        brillig(inline) fn inner_func f4 {
-          b0(v2: Field, v3: Field):
-            v4 = add Field 2, v2
-            v5 = add v4, v3
-            constrain v5 == Field 3
             call f3(v2, v3)
             return
         }
-        brillig(inline) fn nested_inner_func f5 {
+        brillig(inline) fn inner_func f3 {
+          b0(v2: Field, v3: Field):
+            v4 = add Field 2, v2
+            v5 = add v4, v3
+            constrain v5 == Field 3
+            call f4(v2, v3)
+            return
+        }
+        brillig(inline) fn nested_inner_func f4 {
           b0(v2: Field, v3: Field):
             v4 = add Field 3, v2
             v5 = add v4, v3
             constrain v5 == Field 4
             return
         }
-        brillig(inline) fn inner_func f6 {
+        brillig(inline) fn inner_func f5 {
           b0(v2: Field, v3: Field):
             v4 = add Field 2, v2
             v5 = add v4, v3
             constrain v5 == Field 3
-            call f5(v2, v3)
+            call f6(v2, v3)
+            return
+        }
+        brillig(inline) fn nested_inner_func f6 {
+          b0(v2: Field, v3: Field):
+            v4 = add Field 3, v2
+            v5 = add v4, v3
+            constrain v5 == Field 4
             return
         }
         ");
@@ -688,22 +688,22 @@ mod tests {
             v5 = add Field 1, v3
             v6 = add v5, v4
             constrain v6 == Field 2
-            call f5(v3, v4)
-            call f6(v4, v3)
+            call f6(v3, v4)
+            call f5(v4, v3)
             return
         }
-        brillig(inline) fn entry_point_one_global f5 {
-          b0(v3: Field, v4: Field):
-            v5 = add Field 2, v3
-            v6 = add v5, v4
-            constrain v6 == Field 3
-            return
-        }
-        brillig(inline) fn entry_point_one_diff_global f6 {
+        brillig(inline) fn entry_point_one_diff_global f5 {
           b0(v3: Field, v4: Field):
             v5 = add Field 3, v3
             v6 = add v5, v4
             constrain v6 == Field 4
+            return
+        }
+        brillig(inline) fn entry_point_one_global f6 {
+          b0(v3: Field, v4: Field):
+            v5 = add Field 2, v3
+            v6 = add v5, v4
+            constrain v6 == Field 3
             return
         }
         ");
@@ -758,7 +758,7 @@ mod tests {
         // We want no shared callees between entry points.
         // Each Brillig entry point (f1 and f2 called from f0) should have its own
         // specialized function call graph.
-        assert_ssa_snapshot!(ssa, @r#"
+        assert_ssa_snapshot!(ssa, @r"
         acir(inline) impure fn main f0 {
           b0():
             v3 = call f1(u1 1, u32 5) -> u1
@@ -775,8 +775,8 @@ mod tests {
             jmp b3(u1 0)
           b2():
             v6 = sub v1, u32 1
-            v8 = call f4(v0, v6) -> u1
-            v10 = call f3(v8, v6) -> u1
+            v8 = call f5(v0, v6) -> u1
+            v10 = call f6(v8, v6) -> u1
             jmp b3(v10)
           b3(v2: u1):
             return v2
@@ -789,13 +789,13 @@ mod tests {
             jmp b3(u1 0)
           b2():
             v6 = sub v1, u32 1
-            v8 = call f6(v0, v6) -> u1
-            v10 = call f5(v8, v6) -> u1
+            v8 = call f3(v0, v6) -> u1
+            v10 = call f4(v8, v6) -> u1
             jmp b3(v10)
           b3(v2: u1):
             return v2
         }
-        brillig(inline) fn func_1 f3 {
+        brillig(inline) fn func_2 f3 {
           b0(v0: u1, v1: u32):
             v4 = eq v1, u32 0
             jmpif v4 then: b1, else: b2
@@ -803,13 +803,13 @@ mod tests {
             jmp b3(u1 0)
           b2():
             v6 = sub v1, u32 1
-            v8 = call f4(v0, v6) -> u1
-            v10 = call f3(v8, v6) -> u1
+            v8 = call f3(v0, v6) -> u1
+            v10 = call f4(v8, v6) -> u1
             jmp b3(v10)
           b3(v2: u1):
             return v2
         }
-        brillig(inline) fn func_2 f4 {
+        brillig(inline) fn func_1 f4 {
           b0(v0: u1, v1: u32):
             v4 = eq v1, u32 0
             jmpif v4 then: b1, else: b2
@@ -817,13 +817,13 @@ mod tests {
             jmp b3(u1 0)
           b2():
             v6 = sub v1, u32 1
-            v8 = call f4(v0, v6) -> u1
-            v10 = call f3(v8, v6) -> u1
+            v8 = call f3(v0, v6) -> u1
+            v10 = call f4(v8, v6) -> u1
             jmp b3(v10)
           b3(v2: u1):
             return v2
         }
-        brillig(inline) fn func_1 f5 {
+        brillig(inline) fn func_2 f5 {
           b0(v0: u1, v1: u32):
             v4 = eq v1, u32 0
             jmpif v4 then: b1, else: b2
@@ -831,13 +831,13 @@ mod tests {
             jmp b3(u1 0)
           b2():
             v6 = sub v1, u32 1
-            v8 = call f6(v0, v6) -> u1
-            v10 = call f5(v8, v6) -> u1
+            v8 = call f5(v0, v6) -> u1
+            v10 = call f6(v8, v6) -> u1
             jmp b3(v10)
           b3(v2: u1):
             return v2
         }
-        brillig(inline) fn func_2 f6 {
+        brillig(inline) fn func_1 f6 {
           b0(v0: u1, v1: u32):
             v4 = eq v1, u32 0
             jmpif v4 then: b1, else: b2
@@ -845,13 +845,13 @@ mod tests {
             jmp b3(u1 0)
           b2():
             v6 = sub v1, u32 1
-            v8 = call f6(v0, v6) -> u1
-            v10 = call f5(v8, v6) -> u1
+            v8 = call f5(v0, v6) -> u1
+            v10 = call f6(v8, v6) -> u1
             jmp b3(v10)
           b3(v2: u1):
             return v2
         }
-        "#);
+        ");
     }
 
     #[test]
@@ -884,7 +884,7 @@ mod tests {
         // We want no shared callees between entry points.
         // Each Brillig entry point (f1 and f2 called from f0) should have its own
         // specialized function call graph.
-        assert_ssa_snapshot!(ssa, @r#"
+        assert_ssa_snapshot!(ssa, @r"
         acir(inline) impure fn main f0 {
           b0():
             call f1(Field 1)
@@ -893,38 +893,38 @@ mod tests {
         }
         brillig(inline) impure fn foo f1 {
           b0(v0: Field):
-            call f4(v0)
+            call f5(v0)
             return
         }
         brillig(inline) impure fn bar f2 {
           b0(v0: Field):
-            call f5(Field 1)
-            call f6(Field 1)
-            return
-        }
-        brillig(inline) fn foo f3 {
-          b0(v0: Field):
-            call f4(v0)
-            return
-        }
-        brillig(inline) fn bar f4 {
-          b0(v0: Field):
-            call f3(Field 1)
             call f4(Field 1)
+            call f3(Field 1)
             return
         }
-        brillig(inline) fn foo f5 {
+        brillig(inline) fn bar f3 {
           b0(v0: Field):
-            call f6(v0)
+            call f4(Field 1)
+            call f3(Field 1)
             return
         }
-        brillig(inline) fn bar f6 {
+        brillig(inline) fn foo f4 {
           b0(v0: Field):
-            call f5(Field 1)
+            call f3(v0)
+            return
+        }
+        brillig(inline) fn bar f5 {
+          b0(v0: Field):
             call f6(Field 1)
+            call f5(Field 1)
             return
         }
-        "#);
+        brillig(inline) fn foo f6 {
+          b0(v0: Field):
+            call f5(v0)
+            return
+        }
+        ");
     }
 
     #[test]
@@ -1042,7 +1042,7 @@ mod tests {
             v5 = add Field 1, v3
             v6 = add v5, v4
             constrain v6 == Field 2
-            call f3(v3, v4)
+            call f4(v3, v4)
             return
         }
         brillig(inline) fn entry_point_two f2 {
@@ -1050,7 +1050,7 @@ mod tests {
             v5 = add Field 2, v3
             v6 = add v5, v4
             constrain v6 == Field 3
-            call f4(v3, v4)
+            call f3(v3, v4)
             return
         }
         brillig(inline) fn inner_func f3 {
@@ -1089,7 +1089,7 @@ mod tests {
             v5 = add Field 1, v3
             v6 = add v5, v4
             constrain v6 == Field 2
-            call f3(v3, v4)
+            call f4(v3, v4)
             return
         }
         brillig(inline) fn entry_point_two f2 {
@@ -1097,7 +1097,7 @@ mod tests {
             v5 = add Field 2, v3
             v6 = add v5, v4
             constrain v6 == Field 3
-            call f4(v3, v4)
+            call f3(v3, v4)
             return
         }
         brillig(inline) fn inner_func f3 {
