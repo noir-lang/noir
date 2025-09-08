@@ -16,6 +16,8 @@ jobs:
   critical-library-list:
     name: Load critical library list
     runs-on: ubuntu-22.04
+    permissions:
+      contents: read
     outputs:
       libraries: ${{ steps.get_critical_libraries.outputs.libraries }}
 
@@ -35,6 +37,8 @@ jobs:
   yarn-lock:
     runs-on: ubuntu-22.04
     timeout-minutes: 30
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout
@@ -48,6 +52,8 @@ jobs:
   build-nargo:
     runs-on: ubuntu-22.04
     timeout-minutes: 30
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout Noir repo
@@ -77,6 +83,8 @@ jobs:
   build-noir-execute:
     runs-on: ubuntu-22.04
     timeout-minutes: 30
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout Noir repo
@@ -106,6 +114,8 @@ jobs:
   build-noirc-abi:
     runs-on: ubuntu-22.04
     timeout-minutes: 30
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout Noir repo
@@ -140,6 +150,8 @@ jobs:
   build-noir-wasm:
     runs-on: ubuntu-22.04
     timeout-minutes: 30
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout sources
@@ -177,6 +189,8 @@ jobs:
   build-acvm-js:
     runs-on: ubuntu-22.04
     timeout-minutes: 30
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout sources
@@ -215,6 +229,8 @@ jobs:
     name: ACVM JS (Node.js)
     runs-on: ubuntu-22.04
     timeout-minutes: 30
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout sources
@@ -237,6 +253,8 @@ jobs:
     name: ACVM JS (Browser)
     runs-on: ubuntu-22.04
     timeout-minutes: 30
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout sources
@@ -264,6 +282,8 @@ jobs:
     name: noirc_abi
     runs-on: ubuntu-22.04
     timeout-minutes: 30
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout sources
@@ -294,6 +314,8 @@ jobs:
     name: Noir JS
     runs-on: ubuntu-22.04
     timeout-minutes: 30
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout
@@ -332,6 +354,8 @@ jobs:
     name: noir_wasm
     runs-on: ubuntu-22.04
     timeout-minutes: 30
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout sources
@@ -368,6 +392,8 @@ jobs:
     name: noir_codegen
     runs-on: ubuntu-22.04
     timeout-minutes: 30
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout
@@ -407,6 +433,8 @@ jobs:
     runs-on: ubuntu-24.04
     needs: [build-acvm-js, build-noir-wasm, build-nargo, build-noirc-abi]
     timeout-minutes: 30
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout
@@ -458,6 +486,8 @@ jobs:
     runs-on: ubuntu-22.04
     needs: [build-acvm-js, build-noir-wasm, build-noirc-abi]
     timeout-minutes: 30
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout
@@ -505,6 +535,8 @@ jobs:
     runs-on: ubuntu-24.04
     needs: [build-nargo, build-noir-execute, build-acvm-js, build-noirc-abi]
     timeout-minutes: 30
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout
@@ -559,6 +591,8 @@ jobs:
     needs: [build-nargo, critical-library-list]
     runs-on: ubuntu-22.04
     timeout-minutes: 30
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
@@ -637,10 +671,12 @@ jobs:
           fi
 
   compile-noir-contracts:
+    name: Compile `noir-contracts` zero inliner aggressiveness
     needs: [build-nargo]
     runs-on: ubuntu-22.04
     timeout-minutes: 30
-    name: Compile `noir-contracts` zero inliner aggressiveness
+    permissions:
+      contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -734,6 +770,8 @@ jobs:
       - test-integration-browser
       - test-examples
       - compile-noir-contracts
+    permissions:
+      contents: read
 
     steps:
         - name: Report overall success

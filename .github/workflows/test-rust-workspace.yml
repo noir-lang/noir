@@ -17,6 +17,8 @@ jobs:
     name: Build test artifacts
     runs-on: ubuntu-22.04
     timeout-minutes: 30
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout
@@ -54,6 +56,8 @@ jobs:
     runs-on: ubuntu-22.04
     needs: [build-test-artifacts]
     timeout-minutes: 15
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
@@ -89,6 +93,9 @@ jobs:
     name: Check for pending snapshots
     runs-on: ubuntu-22.04
     timeout-minutes: 30
+    permissions:
+      contents: read
+
 
     steps:
       - name: Checkout
@@ -110,6 +117,8 @@ jobs:
     needs:
       - run-tests
       - check-pending-snapshots
+    permissions:
+      contents: read
 
     steps:
       - name: Report overall success
