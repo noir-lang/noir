@@ -1,0 +1,32 @@
+{"run_id":"1757097661-865850692","line":939,"new":{"module_name":"noirc_evaluator__ssa__opt__mem2reg__tests","snapshot_name":"multiple_blocks","metadata":{"source":"compiler/noirc_evaluator/src/ssa/opt/mem2reg.rs","assertion_line":939,"expression":"ssa_string"},"snapshot":"acir(inline) fn main f0 {\n  b0():\n    v1 = allocate -> &mut Field\n    store Field 5 at v1\n    jmp b1(Field 5)\n  b1(v0: Field):\n    store Field 6 at v1\n    return v0, Field 5, Field 6\n}"},"old":{"module_name":"noirc_evaluator__ssa__opt__mem2reg__tests","metadata":{},"snapshot":"acir(inline) fn main f0 {\n  b0():\n    v1 = allocate -> &mut Field\n    jmp b1(Field 5)\n  b1(v0: Field):\n    return v0, Field 5, Field 6\n}"}}
+{"run_id":"1757097771-354739779","line":939,"new":null,"old":null}
+{"run_id":"1757097792-531922053","line":1831,"new":null,"old":null}
+{"run_id":"1757097792-531922053","line":1360,"new":null,"old":null}
+{"run_id":"1757097792-531922053","line":939,"new":null,"old":null}
+{"run_id":"1757097792-531922053","line":1664,"new":null,"old":null}
+{"run_id":"1757097792-531922053","line":1748,"new":null,"old":null}
+{"run_id":"1757097792-531922053","line":1717,"new":null,"old":null}
+{"run_id":"1757097792-531922053","line":1788,"new":null,"old":null}
+{"run_id":"1757097792-531922053","line":860,"new":null,"old":null}
+{"run_id":"1757097792-531922053","line":2100,"new":null,"old":null}
+{"run_id":"1757097792-531922053","line":910,"new":null,"old":null}
+{"run_id":"1757097792-531922053","line":885,"new":null,"old":null}
+{"run_id":"1757097792-531922053","line":982,"new":{"module_name":"noirc_evaluator__ssa__opt__mem2reg__tests","snapshot_name":"load_aliases_in_predecessor_block","metadata":{"source":"compiler/noirc_evaluator/src/ssa/opt/mem2reg.rs","assertion_line":982,"expression":"ssa_string"},"snapshot":"acir(inline) fn main f0 {\n  b0():\n    v0 = allocate -> &mut Field\n    v1 = allocate -> &mut &mut Field\n    jmp b1()\n  b1():\n    store Field 1 at v0\n    return\n}"},"old":{"module_name":"noirc_evaluator__ssa__opt__mem2reg__tests","metadata":{},"snapshot":"acir(inline) fn main f0 {\n  b0():\n    v0 = allocate -> &mut Field\n    store Field 0 at v0\n    v2 = allocate -> &mut &mut Field\n    jmp b1()\n  b1():\n    store Field 1 at v0\n    return\n}"}}
+{"run_id":"1757101631-864624457","line":1635,"new":null,"old":null}
+{"run_id":"1757101631-864624457","line":743,"new":null,"old":null}
+{"run_id":"1757101631-864624457","line":1468,"new":null,"old":null}
+{"run_id":"1757101631-864624457","line":1552,"new":null,"old":null}
+{"run_id":"1757101631-864624457","line":1521,"new":null,"old":null}
+{"run_id":"1757101631-864624457","line":664,"new":null,"old":null}
+{"run_id":"1757101631-864624457","line":714,"new":null,"old":null}
+{"run_id":"1757101631-864624457","line":689,"new":null,"old":null}
+{"run_id":"1757101631-864624457","line":786,"new":{"module_name":"noirc_evaluator__ssa__opt__mem2reg__tests","snapshot_name":"load_aliases_in_predecessor_block","metadata":{"source":"compiler/noirc_evaluator/src/ssa/opt/mem2reg.rs","assertion_line":786,"expression":"ssa_string"},"snapshot":"acir(inline) fn main f0 {\n  b0():\n    v0 = allocate -> &mut Field\n    store Field 0 at v0\n    v2 = allocate -> &mut &mut Field\n    jmp b1()\n  b1():\n    return\n}"},"old":{"module_name":"noirc_evaluator__ssa__opt__mem2reg__tests","metadata":{},"snapshot":"acir(inline) fn main f0 {\n  b0():\n    v0 = allocate -> &mut Field\n    store Field 0 at v0\n    v2 = allocate -> &mut &mut Field\n    jmp b1()\n  b1():\n    store Field 1 at v0\n    return\n}"}}
+{"run_id":"1757101991-430492244","line":1641,"new":null,"old":null}
+{"run_id":"1757101991-430492244","line":793,"new":null,"old":null}
+{"run_id":"1757101991-430492244","line":1558,"new":null,"old":null}
+{"run_id":"1757101991-430492244","line":750,"new":null,"old":null}
+{"run_id":"1757101991-430492244","line":1527,"new":null,"old":null}
+{"run_id":"1757101991-430492244","line":1474,"new":null,"old":null}
+{"run_id":"1757101991-430492244","line":671,"new":null,"old":null}
+{"run_id":"1757101991-430492244","line":696,"new":null,"old":null}
+{"run_id":"1757101991-430492244","line":721,"new":null,"old":null}

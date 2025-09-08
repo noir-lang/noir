@@ -1,5 +1,7 @@
 use std::borrow::Cow;
 
+use fxhash::FxHashSet;
+use noirc_frontend::hir_def::function;
 use petgraph::graph::NodeIndex;
 
 use crate::ssa::ir::{
@@ -27,7 +29,8 @@ pub(super) struct Block {
     pub(super) alias_graph: AliasGraph,
 
     /// The last instance of a `Store` instruction to each address in this block
-    pub(super) last_stores: im::OrdMap<ValueId, InstructionId>,
+    /// This is a set to keep track of stores from previous blocks.
+    pub(super) last_stores: im::OrdMap<ValueId, FxHashSet<InstructionId>>,
 }
 
 /// A `Container` is stored for any ValueId whose type may contain references.
@@ -94,6 +97,9 @@ impl Block {
     pub(super) fn unify(mut self, other: &Self, dfg: &DataFlowGraph) -> Self {
         self.containers = Self::unify_alias_sets(&self.containers, &other.containers);
         self.alias_graph = self.alias_graph.unify(&other.alias_graph, dfg);
+        for (address, last_stores) in &other.last_stores {
+            self.last_stores.entry(*address).or_default().extend(last_stores.iter().copied());
+        }
         self
     }
 
@@ -122,30 +128,31 @@ impl Block {
     /// last stores anyway, we don't inherit them from predecessors, so if one
     /// block stores to an address and a descendant block loads it, this mechanism
     /// does not affect the candidacy of the last store in the predecessor block.
-    fn keep_last_stores_for(&mut self, address: ValueId, function: &Function) {
-        self.keep_last_store(address, function);
+    fn keep_last_stores_for(&mut self, address: ValueId, function: &Function, instructions_to_keep: &mut FxHashSet<InstructionId>) {
+        self.keep_last_stores(address, function, instructions_to_keep);
 
         let aliases = self.get_aliases_for_value(address);
-        if aliases.is_unknown() {
-            self.last_stores.clear();
-        } else {
-            for alias in self.get_aliases_for_value(address).iter() {
-                self.keep_last_store(alias, function);
-            }
+        assert!(!aliases.is_unknown());
+        for alias in self.get_aliases_for_value(address).iter() {
+            self.keep_last_stores(alias, function, instructions_to_keep);
         }
     }
 
     /// Forget the last store to an address, to remove it from the set of instructions
     /// which are candidates for removal at the end. Also marks the values in the last
     /// store as used, now that we know we want to keep them.
-    fn keep_last_store(&mut self, address: ValueId, function: &Function) {
-        if let Some(instruction) = self.last_stores.remove(&address) {
-            // Whenever we decide we want to keep a store instruction, we also need
-            // to go through its stored value and mark that used as well.
-            match &function.dfg[instruction] {
-                Instruction::Store { value, .. } => self.mark_value_used(*value, function),
-                other => {
-                    unreachable!("last_store held an id of a non-store instruction: {other:?}")
+    fn keep_last_stores(&mut self, address: ValueId, function: &Function, instructions_to_keep: &mut FxHashSet<InstructionId>) {
+        if let Some(instructions) = self.last_stores.remove(&address) {
+            for instruction in instructions {
+                instructions_to_keep.insert(instruction);
+
+                // Whenever we decide we want to keep a store instruction, we also need
+                // to go through its stored value and mark that used as well.
+                match &function.dfg[instruction] {
+                    Instruction::Store { value, .. } => self.mark_value_used(*value, function, instructions_to_keep),
+                    other => {
+                        unreachable!("last_store held an id of a non-store instruction: {other:?}")
+                    }
                 }
             }
         }
@@ -153,14 +160,17 @@ impl Block {
 
     /// Mark a value (for example an address we loaded) as used by forgetting the last store instruction,
     /// which removes it from the candidates for removal.
-    pub(super) fn mark_value_used(&mut self, value: ValueId, function: &Function) {
-        self.keep_last_stores_for(value, function);
+    pub(super) fn mark_value_used(&mut self, value: ValueId, function: &Function, instructions_to_keep: &mut FxHashSet<InstructionId>) {
+        if function.dfg.type_of_value(value).contains_reference() {
+            self.keep_last_stores_for(value, function, instructions_to_keep);
 
-        // We must do a recursive check for arrays since they're the only Values which may contain
-        // other ValueIds.
-        if let Some((array, _)) = function.dfg.get_array_constant(value) {
-            for value in array {
-                self.mark_value_used(value, function);
+            // We must do a recursive check for arrays since they're the only Values which may contain
+            // other ValueIds.
+            if let Some(contained) = self.containers.get(&value) {
+                assert!(!contained.is_unknown());
+                for value in contained.clone().iter() {
+                    self.mark_value_used(value, function, instructions_to_keep);
+                }
             }
         }
     }
