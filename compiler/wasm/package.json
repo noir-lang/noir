@@ -3,7 +3,7 @@
   "contributors": [
     "The Noir Team <team@noir-lang.org>"
   ],
-  "version": "1.0.0-beta.11",
+  "version": "1.0.0-beta.12",
   "license": "(MIT OR Apache-2.0)",
   "main": "dist/main.js",
   "types": "./dist/types/src/index.d.cts",
@@ -29,8 +29,7 @@
     "url": "https://github.com/noir-lang/noir/issues"
   },
   "scripts": {
-    "install:wasm_pack": "./scripts/install_wasm-pack.sh",
-    "build": "yarn install:wasm_pack && WASM_OPT=$(./scripts/command-check.sh wasm-opt) webpack",
+    "build": "WASM_OPT='true' webpack",
     "test": "yarn test:build_fixtures && yarn test:node && yarn test:browser",
     "test:build_fixtures": "./scripts/build-fixtures.sh",
     "test:browser": "web-test-runner",
