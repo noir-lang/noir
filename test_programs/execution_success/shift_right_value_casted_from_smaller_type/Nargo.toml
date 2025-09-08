@@ -1,0 +1,6 @@
+[package]
+name = "shift_right_value_casted_from_smaller_type"
+type = "bin"
+authors = [""]
+
+[dependencies]
