@@ -585,7 +585,8 @@ mod test {
 
         let purities = &ssa.main().dfg.function_purities;
         assert_eq!(purities[&FunctionId::test_new(0)], Purity::Impure);
-        assert_eq!(purities[&FunctionId::test_new(1)], Purity::Pure);
+        // Brillig functions have a starting purity of PureWithPredicate
+        assert_eq!(purities[&FunctionId::test_new(1)], Purity::PureWithPredicate);
     }
 
     #[test]
