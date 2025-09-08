@@ -24,13 +24,13 @@ expression: artifact
     ],
     "return_type": null,
     "error_types": {
-      "8403890105346170400": {
-        "error_kind": "string",
-        "string": "Field failed to decompose into specified 31 limbs"
-      },
-      "12161378539035059347": {
+      "4703047920556725948": {
         "error_kind": "string",
         "string": "Field failed to decompose into specified 254 limbs"
+      },
+      "5899151545213940874": {
+        "error_kind": "string",
+        "string": "Field failed to decompose into specified 31 limbs"
       }
     }
   },

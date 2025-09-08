@@ -64,7 +64,7 @@ use crate::{
         ssa_gen::Ssa,
     },
 };
-use fxhash::FxHashMap as HashMap;
+use rustc_hash::FxHashMap as HashMap;
 
 impl Ssa {
     /// Loop unrolling can return errors, since ACIR functions need to be fully unrolled.
@@ -437,8 +437,14 @@ impl Loop {
         dfg: &DataFlowGraph,
         pre_header: BasicBlockId,
     ) -> Option<IntegerConstant> {
-        let block = &dfg[self.header];
-        let instructions = block.instructions();
+        let header = &dfg[self.header];
+
+        // If the header has no parameters then this must be a `loop` or `while`.
+        if header.parameters().is_empty() {
+            return None;
+        }
+
+        let instructions = header.instructions();
         if instructions.is_empty() {
             // If the loop condition is constant, the loop header will be
             // simplified to a simple jump.
@@ -1763,5 +1769,37 @@ mod tests {
         let (ssa, errors) = try_unroll_loops(ssa);
         assert_eq!(errors.len(), 0, "Unroll should have no errors");
         assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn while_loop_has_empty_bounds() {
+        // SSA of a program such as:
+        // unconstrained fn main() {
+        //     let mut run = true;
+        //     while run { }
+        // }
+        let src = r#"
+        brillig(inline) impure fn main f0 {
+          b0():
+            v0 = allocate -> &mut u1
+            store u1 1 at v0
+            jmp b1()
+          b1():
+            v2 = load v0 -> u1
+            jmpif v2 then: b2, else: b3
+          b2():
+            jmp b1()
+          b3():
+            return
+        }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let function = ssa.main();
+        let mut loops = Loops::find_all(function);
+        let loop0 = loops.yet_to_unroll.pop().expect("there should be a loop");
+        let pre_header = loop0.get_pre_header(function, &loops.cfg).unwrap();
+        assert!(loop0.get_const_lower_bound(&function.dfg, pre_header).is_none());
+        assert!(loop0.get_const_upper_bound(&function.dfg, pre_header).is_none());
     }
 }
