@@ -6,7 +6,7 @@
 //!
 //! ## Design
 //! - Instructions are scanned in reverse (within each block), keeping track of
-//!   of used values. If the current instruction is safe for removal (no side effects)
+//!   used values. If the current instruction is safe for removal (no side effects)
 //!   and its results are all unused the instruction will be marked for removal.
 //!   Traversing in reverse enables removing entire unused chains of computation.
 //! - The pass also tracks unused [IncrementRc][Instruction::IncrementRc] and [DecrementRc][Instruction::DecrementRc] instructions.
