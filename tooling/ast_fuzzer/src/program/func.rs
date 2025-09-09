@@ -673,15 +673,32 @@ impl<'a> FunctionContext<'a> {
                     // We can use push_back, push_front, or insert.
                     if bool::arbitrary(u)? {
                         let push_expr = self.call_slice_push(
-                            src_expr,
                             src_type.clone(),
                             item_type.as_ref().clone(),
+                            src_expr,
                             bool::arbitrary(u)?,
                             item,
                         );
                         return Ok(Some((push_expr, src_dyn || item_dyn)));
                     } else {
-                        return todo!("slice_insert");
+                        // Generate a random index and insert the item at it.
+                        return self.gen_slice_access(
+                            u,
+                            (src_expr, src_dyn || item_dyn),
+                            src_type,
+                            src_mutable,
+                            tgt_type,
+                            max_depth,
+                            |this, ident, idx| {
+                                this.call_slice_insert(
+                                    src_type.clone(),
+                                    item_type.as_ref().clone(),
+                                    Expression::Ident(ident),
+                                    idx,
+                                    item,
+                                )
+                            },
+                        );
                     }
                 }
             }
@@ -782,9 +799,9 @@ impl<'a> FunctionContext<'a> {
                     && &fields[1] == src_type =>
             {
                 let pop_front = self.call_slice_pop(
-                    src_expr,
                     src_type.clone(),
                     item_type.as_ref().clone(),
+                    src_expr,
                     true,
                 );
                 Ok(Some((pop_front, src_dyn)))
@@ -797,9 +814,9 @@ impl<'a> FunctionContext<'a> {
             {
                 if bool::arbitrary(u)? {
                     let pop_back = self.call_slice_pop(
-                        src_expr,
                         src_type.clone(),
                         item_type.as_ref().clone(),
+                        src_expr,
                         false,
                     );
                     Ok(Some((pop_back, src_dyn)))
@@ -813,9 +830,9 @@ impl<'a> FunctionContext<'a> {
                         max_depth,
                         |this, ident, idx| {
                             this.call_slice_remove(
-                                Expression::Ident(ident),
                                 src_type.clone(),
                                 item_type.as_ref().clone(),
+                                Expression::Ident(ident),
                                 idx,
                             )
                         },
@@ -888,7 +905,7 @@ impl<'a> FunctionContext<'a> {
         access_item: F,
     ) -> arbitrary::Result<Option<TrackedExpression>>
     where
-        F: Fn(&mut Self, Ident, Expression) -> Expression,
+        F: FnOnce(&mut Self, Ident, Expression) -> Expression,
     {
         let Type::Slice(item_type) = src_type else {
             unreachable!("only expected to be called with Slice");
@@ -2194,9 +2211,9 @@ impl<'a> FunctionContext<'a> {
     /// Construct a `Call` to the `slice_push_front` or `slice_push_back` builtin function.
     fn call_slice_push(
         &mut self,
-        slice: Expression,
         slice_type: Type,
         item_type: Type,
+        slice: Expression,
         is_front: bool,
         item: Expression,
     ) -> Expression {
@@ -2211,9 +2228,9 @@ impl<'a> FunctionContext<'a> {
     /// Construct a `Call` to the `slice_pop_front` or `slice_pop_back` builtin function.
     fn call_slice_pop(
         &mut self,
-        slice: Expression,
         slice_type: Type,
         item_type: Type,
+        slice: Expression,
         is_front: bool,
     ) -> Expression {
         let return_fields = if is_front {
@@ -2232,9 +2249,9 @@ impl<'a> FunctionContext<'a> {
     /// Construct a `Call` to the `slice_remove` builtin function.
     fn call_slice_remove(
         &mut self,
-        slice: Expression,
         slice_type: Type,
         item_type: Type,
+        slice: Expression,
         idx: Expression,
     ) -> Expression {
         self.call_slice_builtin(
@@ -2242,6 +2259,23 @@ impl<'a> FunctionContext<'a> {
             Type::Tuple(vec![slice_type.clone(), item_type]),
             vec![slice_type, types::U32],
             vec![slice, idx],
+        )
+    }
+
+    /// Construct a `Call` to the `slice_insert` builtin function.
+    fn call_slice_insert(
+        &mut self,
+        slice_type: Type,
+        item_type: Type,
+        slice: Expression,
+        idx: Expression,
+        item: Expression,
+    ) -> Expression {
+        self.call_slice_builtin(
+            "insert",
+            Type::Tuple(vec![slice_type.clone()]),
+            vec![slice_type, types::U32, item_type],
+            vec![slice, idx, item],
         )
     }
 }
