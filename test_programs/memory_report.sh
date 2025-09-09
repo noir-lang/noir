@@ -8,10 +8,10 @@ PARSE_MEMORY=$(realpath "$(dirname "$0")/parse_memory.sh")
 
 
 # Tests to be profiled for memory report
-tests_to_profile=("workspace" "regression_4709" "ram_blowup_regression" "global_var_regression_entry_points")
+tests_to_profile=("execution_success/workspace" "execution_success/regression_4709" "compile_success_no_bug/ram_blowup_regression" "execution_success/global_var_regression_entry_points")
 
 current_dir=$(pwd)
-base_path="$current_dir/execution_success"
+base_path="$current_dir"
 
 # If there is an argument that means we want to generate a report for only the current directory
 if [ "$1" == "1" ]; then
@@ -24,8 +24,8 @@ FIRST="1"
 FLAGS=${FLAGS:- ""}
 echo "[" > memory_report.json
 
-for test_name in ${tests_to_profile[@]}; do    
-        cd $base_path/$test_name
+for test_path in ${tests_to_profile[@]}; do    
+        cd $base_path/$test_path
 
         if [ $FIRST = "1" ]
         then
@@ -34,9 +34,7 @@ for test_name in ${tests_to_profile[@]}; do
             echo " ," >> $current_dir"/memory_report.json"
         fi
 
-        if [ "$1" == "1" ]; then
-            test_name=$(basename $current_dir)
-        fi
+        test_name=$(basename $test_path)
 
         COMMAND="compile --force --silence-warnings $FLAGS"
         if [ "$2" == "1" ]; then
