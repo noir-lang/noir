@@ -397,7 +397,6 @@ fn generate_execution_success_tests(test_file: &mut File, test_data_dir: &Path) 
         let test_dir = test_dir.display();
 
         let check_stdout = !TESTS_WITHOUT_STDOUT_CHECK.contains(&test_name.as_str());
-        let check_artifact = true;
 
         generate_test_cases(
             test_file,
@@ -405,7 +404,7 @@ fn generate_execution_success_tests(test_file: &mut File, test_data_dir: &Path) 
             &test_dir,
             "execute",
             &format!(
-                "execution_success(nargo, test_program_dir, {check_stdout}, {check_artifact}, force_brillig, inliner_aggressiveness);",
+                "execution_success(nargo, test_program_dir, {check_stdout}, false, force_brillig, inliner_aggressiveness);",
             ),
             &MatrixConfig {
                 vary_brillig: !IGNORED_BRILLIG_TESTS.contains(&test_name.as_str()),
