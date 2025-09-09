@@ -1,0 +1,5 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stdout
+---
+[shift_left_rhs_value_casted_from_smaller_type] Circuit output: 7435510297333629952
