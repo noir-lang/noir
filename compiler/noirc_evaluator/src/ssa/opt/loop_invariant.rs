@@ -275,6 +275,42 @@ impl BlockContext {
 }
 
 impl LoopContext {
+    /// Create a `LoopContext`:
+    /// * Gather the variables declared within the loop
+    /// * Determine the induction variable bounds
+    fn new(
+        inserter: &FunctionInserter,
+        cfg: &ControlFlowGraph,
+        loop_: &Loop,
+        pre_header: BasicBlockId,
+    ) -> Self {
+        let mut defined_in_loop = HashSet::default();
+        for block in loop_.blocks.iter() {
+            let params = inserter.function.dfg.block_parameters(*block);
+            defined_in_loop.extend(params);
+            for instruction_id in inserter.function.dfg[*block].instructions() {
+                let results = inserter.function.dfg.instruction_results(*instruction_id);
+                defined_in_loop.extend(results);
+            }
+        }
+        let induction_variable = get_induction_var_bounds(inserter, loop_, pre_header);
+
+        Self {
+            // There is only ever one current induction variable for a loop.
+            induction_variable,
+            does_loop_execute: does_loop_execute(induction_variable.map(|(_, bounds)| bounds)),
+            pre_header,
+            defined_in_loop,
+            loop_invariants: HashSet::default(),
+            // Clear any cached control dependent nested loop blocks from the previous loop.
+            // This set is only relevant within the scope of a single loop.
+            // Keeping previous data would incorrectly classify blocks as control dependent,
+            // leading to missed hoisting opportunities.
+            nested_loop_control_dependent_blocks: HashSet::default(),
+            no_break: loop_.is_fully_executed(cfg),
+        }
+    }
+
     fn pre_header(&self) -> BasicBlockId {
         self.pre_header
     }
@@ -376,7 +412,7 @@ impl<'f> LoopInvariantContext<'f> {
         all_loops: &[Loop],
         pre_header: BasicBlockId,
     ) {
-        let mut loop_context = self.init_loop_context(loop_, pre_header);
+        let mut loop_context = LoopContext::new(&self.inserter, &self.cfg, loop_, pre_header);
 
         for block in loop_.blocks.iter() {
             let mut block_context =
@@ -564,37 +600,6 @@ impl<'f> LoopInvariantContext<'f> {
             }
         }
         true
-    }
-
-    /// Create a `LoopContext`:
-    /// * Gather the variables declared within the loop
-    /// * Determine the induction variable bounds
-    fn init_loop_context(&mut self, loop_: &Loop, pre_header: BasicBlockId) -> LoopContext {
-        let mut defined_in_loop = HashSet::default();
-        for block in loop_.blocks.iter() {
-            let params = self.inserter.function.dfg.block_parameters(*block);
-            defined_in_loop.extend(params);
-            for instruction_id in self.inserter.function.dfg[*block].instructions() {
-                let results = self.inserter.function.dfg.instruction_results(*instruction_id);
-                defined_in_loop.extend(results);
-            }
-        }
-        let induction_variable = get_induction_var_bounds(&self.inserter, loop_, pre_header);
-
-        LoopContext {
-            // There is only ever one current induction variable for a loop.
-            induction_variable,
-            does_loop_execute: does_loop_execute(induction_variable.map(|(_, bounds)| bounds)),
-            pre_header,
-            defined_in_loop,
-            loop_invariants: HashSet::default(),
-            // Clear any cached control dependent nested loop blocks from the previous loop.
-            // This set is only relevant within the scope of a single loop.
-            // Keeping previous data would incorrectly classify blocks as control dependent,
-            // leading to missed hoisting opportunities.
-            nested_loop_control_dependent_blocks: HashSet::default(),
-            no_break: loop_.is_fully_executed(&self.cfg),
-        }
     }
 
     /// Create a `BlockContext`.
@@ -892,7 +897,7 @@ mod test {
     use crate::ssa::ir::instruction::{Instruction, Intrinsic, TerminatorInstruction};
     use crate::ssa::ir::types::Type;
     use crate::ssa::opt::loop_invariant::{
-        CanBeHoistedResult, LoopInvariantContext, can_be_hoisted,
+        CanBeHoistedResult, LoopContext, LoopInvariantContext, can_be_hoisted,
     };
     use crate::ssa::opt::pure::Purity;
     use crate::ssa::opt::unrolling::Loops;
@@ -1932,10 +1937,10 @@ mod test {
         let mut ssa = Ssa::from_str(src).unwrap();
         let function = ssa.functions.get_mut(&ssa.main_id).unwrap();
         let mut loops = Loops::find_all(function);
-        let mut ctx = LoopInvariantContext::new(function, &loops.yet_to_unroll);
+        let ctx = LoopInvariantContext::new(function, &loops.yet_to_unroll);
         let pre_header = BasicBlockId::new(0);
         let loop_ = loops.yet_to_unroll.pop().unwrap();
-        let mut loop_ctx = ctx.init_loop_context(&loop_, pre_header);
+        let mut loop_ctx = LoopContext::new(&ctx.inserter, &ctx.cfg, &loop_, pre_header);
 
         let mut get_block_ctx = |id| {
             ctx.init_block_context(
