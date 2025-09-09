@@ -143,7 +143,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
 
         self.enter_section(then_section);
         f(self, true);
-        self.jump_instruction(end_label.clone());
+        self.jump_instruction(end_label);
 
         self.enter_section(otherwise_section);
         f(self, false);
