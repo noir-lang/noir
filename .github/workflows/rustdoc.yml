@@ -14,6 +14,8 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-22.04
+    permissions:
+      contents: read
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
@@ -54,6 +56,8 @@ jobs:
     name: Deploy
     runs-on: ubuntu-22.04
     needs: build
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v5
         with:

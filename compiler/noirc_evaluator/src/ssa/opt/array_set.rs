@@ -25,7 +25,7 @@ use crate::ssa::{
     },
     ssa_gen::Ssa,
 };
-use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 impl Ssa {
     /// Finds the last instruction that writes to an array and modifies it
