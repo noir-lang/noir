@@ -74,24 +74,29 @@
 //! If an array operation in ACIR is guaranteed to produce an index-out-of-bounds:
 //!
 //! ```ssa
-//! v0 = allocate -> &mut Field
-//! v1 = make_array [v0] -> [&mut Field; 0]
-//! v2 = array_get v1, index u32 0 -> Field
-//! v3 = add v2, Field 2
-//! return v3
+//! enable_side_effects v0
+//! v1 = make_array [] -> [&mut Field; 0]
+//! v2 = array_get v1, index u32 0 -> &mut Field
+//! v3 = load v2
+//! v4 = add v3, Field 2
 //! ```
 //!
-//! the array operation is replaced with a similar operation but on an `u1` array.
-//! The reason is that the original array might contain references and by doing this
-//! there's no longer a need to keep track of those references:
+//! the array operation is replaced with a constrain failure and its results with
+//! default values:
 //!
 //! ```ssa
-//! v0 = allocate -> &mut Field
-//! v1 = make_array [v0] -> [&mut Field; 0]
-//! v2 = make_array [u1 0] -> [u1; 0]
-//! v3 = array_get v2, index u32 2 -> u1
-//! unreachable
+//! enable_side_effects v0
+//! v1 = make_array [] -> [&mut Field; 0]
+//! constrain v0 == u1 0, "Index out of bounds"
+//! v2 = allocate -> &mut Field
+//! store Field 0 at v2
+//! v3 <- load v2 -> Field
+//! v4 = add v3, Field 2
 //! ```
+//!
+//! For the `store` and the `load` to be resolved, this pass has to be followed up
+//! with a `mem2reg` pass before any subsequent DIE pass would remove the `store`,
+//! leaving the `load` with a reference that never gets stored at.
 //!
 //! ## Handling of slice operations
 //!
