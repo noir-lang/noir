@@ -44,9 +44,9 @@ pub fn gen_literal(
                     match integer_bit_size {
                         One => bool::arbitrary(u).map(|n| (Field::from(n), n))?,
                         Eight => i8::arbitrary(u)
-                            .map(|n| (Field::from(n.unsigned_abs() as u32), n < 0))?,
+                            .map(|n| (Field::from(u32::from(n.unsigned_abs())), n < 0))?,
                         Sixteen => i16::arbitrary(u)
-                            .map(|n| (Field::from(n.unsigned_abs() as u32), n < 0))?,
+                            .map(|n| (Field::from(u32::from(n.unsigned_abs())), n < 0))?,
                         ThirtyTwo => {
                             i32::arbitrary(u).map(|n| (Field::from(n.unsigned_abs()), n < 0))?
                         }
@@ -62,8 +62,8 @@ pub fn gen_literal(
                 } else {
                     let f = match integer_bit_size {
                         One => Field::from(bool::arbitrary(u)?),
-                        Eight => Field::from(u8::arbitrary(u)? as u32),
-                        Sixteen => Field::from(u16::arbitrary(u)? as u32),
+                        Eight => Field::from(u32::from(u8::arbitrary(u)?)),
+                        Sixteen => Field::from(u32::from(u16::arbitrary(u)?)),
                         ThirtyTwo => Field::from(u32::arbitrary(u)?),
                         SixtyFour => Field::from(u64::arbitrary(u)?),
                         HundredTwentyEight => Field::from(u128::arbitrary(u)?),
@@ -139,15 +139,15 @@ pub fn gen_range(
                 Eight => {
                     let s = i8::arbitrary(u)?;
                     let e = s.saturating_add_unsigned(u.choose_index(max_size)? as u8);
-                    let s = (Field::from(s.unsigned_abs() as u32), s < 0);
-                    let e = (Field::from(e.unsigned_abs() as u32), e < 0);
+                    let s = (Field::from(u32::from(s.unsigned_abs())), s < 0);
+                    let e = (Field::from(u32::from(e.unsigned_abs())), e < 0);
                     (s, e)
                 }
                 Sixteen => {
                     let s = i16::arbitrary(u)?;
                     let e = s.saturating_add_unsigned(u.choose_index(max_size)? as u16);
-                    let s = (Field::from(s.unsigned_abs() as u32), s < 0);
-                    let e = (Field::from(e.unsigned_abs() as u32), e < 0);
+                    let s = (Field::from(u32::from(s.unsigned_abs())), s < 0);
+                    let e = (Field::from(u32::from(e.unsigned_abs())), e < 0);
                     (s, e)
                 }
                 ThirtyTwo => {
@@ -171,15 +171,15 @@ pub fn gen_range(
                 Eight => {
                     let s = u8::arbitrary(u)?;
                     let e = s.saturating_add(u.choose_index(max_size)? as u8);
-                    let s = Field::from(s as u32);
-                    let e = Field::from(e as u32);
+                    let s = Field::from(u32::from(s));
+                    let e = Field::from(u32::from(e));
                     (s, e)
                 }
                 Sixteen => {
                     let s = u16::arbitrary(u)?;
                     let e = s.saturating_add(u.choose_index(max_size)? as u16);
-                    let s = Field::from(s as u32);
-                    let e = Field::from(e as u32);
+                    let s = Field::from(u32::from(s));
+                    let e = Field::from(u32::from(e));
                     (s, e)
                 }
                 ThirtyTwo => {
@@ -266,7 +266,7 @@ where
 
 /// 8-bit unsigned int literal, used in bit shifts.
 pub fn u8_literal(value: u8) -> Expression {
-    int_literal(value as u32, false, types::U8)
+    int_literal(u32::from(value), false, types::U8)
 }
 
 /// 32-bit unsigned int literal, used in indexing arrays.

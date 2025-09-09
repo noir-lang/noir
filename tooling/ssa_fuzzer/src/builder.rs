@@ -419,7 +419,7 @@ impl FuzzerBuilder {
             .import_intrinsic("to_le_radix")
             .expect("to_le_radix intrinsic should be available");
         let element_type = Type::Numeric(NumericType::U8);
-        let result_type = Type::Array(Arc::new(vec![element_type.clone()]), limb_count as u32);
+        let result_type = Type::Array(Arc::new(vec![element_type.clone()]), u32::from(limb_count));
         let result = self.builder.insert_call(
             intrinsic,
             vec![field_value.value_id, radix],
@@ -942,7 +942,7 @@ impl FuzzerBuilder {
     fn bytes_to_ssa_array(&mut self, vec: Vec<u8>) -> TypedValue {
         let elements: Vec<Id<Value>> = vec
             .into_iter()
-            .map(|x| self.builder.numeric_constant(x as u32, NumericType::U8.into()))
+            .map(|x| self.builder.numeric_constant(u32::from(x), NumericType::U8.into()))
             .collect();
         let array_type =
             Type::Array(Arc::new(vec![Type::Numeric(NumericType::U8)]), elements.len() as u32);
@@ -955,7 +955,7 @@ impl FuzzerBuilder {
     fn bytes_to_ssa_slice(&mut self, vec: Vec<u8>) -> TypedValue {
         let elements: Vec<Id<Value>> = vec
             .into_iter()
-            .map(|x| self.builder.numeric_constant(x as u32, NumericType::U8.into()))
+            .map(|x| self.builder.numeric_constant(u32::from(x), NumericType::U8.into()))
             .collect();
         let slice_type = Type::Slice(Arc::new(vec![Type::Numeric(NumericType::U8)]));
         TypedValue::new(

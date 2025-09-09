@@ -78,6 +78,7 @@ unused_must_use = "warn"
 mismatched_lifetime_syntaxes = "allow"
 
 [workspace.lints.clippy]
+cast_lossless = "warn"
 semicolon_if_nothing_returned = "warn"
 result_large_err = "allow"
 uninlined_format_args = "warn"
