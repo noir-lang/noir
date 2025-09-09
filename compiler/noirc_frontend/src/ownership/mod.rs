@@ -99,7 +99,6 @@ impl Context {
             Expression::Ident(_) => self.handle_ident(expr),
             Expression::Literal(literal) => self.handle_literal(literal),
             Expression::Block(exprs) => {
-                dbg!(exprs.len());
                 exprs.iter_mut().for_each(|expr| self.handle_expression(expr));
             }
             Expression::Unary(_) => self.handle_unary(expr),
@@ -158,12 +157,28 @@ impl Context {
             Expression::Call(call) => {
                 self.handle_expression(&mut call.func);
                 for arg in &mut call.arguments {
-                    self.handle_reference_expression(arg);
+                    // We need to match again as to distinguish whether we are borrowing a value
+                    // or passing the root value itself.
+                    // If we were to simply call `handle_reference_expression` for all cases here,
+                    // we would potentially not clone expressions requiring a clone (e.g., an array identifier)
+                    // that are passed by value.
+                    match arg {
+                        Expression::Index(_)
+                        | Expression::ExtractTupleField(_, _)
+                        | Expression::Unary(Unary {
+                            operator: UnaryOp::Dereference { .. }, ..
+                        })
+                        | Expression::Block(_) => {
+                            self.handle_reference_expression(arg);
+                        }
+                        // All other expressions do not borrow the value and they should be treated normally.
+                        _ => self.handle_expression(arg),
+                    }
                 }
             }
 
-            // If we have something like `f(arg)` then we want to treat those variables normally
-            // rather than avoid cloning them. So we shouldn't recur in `handle_reference_expression`.
+            // If we have an expression that is not borrowing the variable then we want to treat those variables normally
+            // rather than avoiding cloning them. So we shouldn't recur in `handle_reference_expression`.
             other => self.handle_expression(other),
         }
     }
@@ -288,7 +303,6 @@ impl Context {
         self.handle_reference_expression(&mut index.collection);
         self.handle_expression(&mut index.index);
 
-        dbg!(index.element_type.clone());
         if contains_array_or_str_type(&index.element_type) {
             clone_expr(index_expr);
         }
