@@ -187,14 +187,15 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         // Simplifying the CFG can have a positive effect on mem2reg: every time we unify with a
         // yet-to-be-visited predecessor we forget known values; less blocks mean less unification.
         SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
-        // We cannot run mem2reg after DIE, because it removes Store instructions.
-        // We have to run it before, to give it a chance to turn Store+Load into known values.
-        SsaPass::new(Ssa::mem2reg, "Mem2Reg"),
-        // Removing unreachable instructions before DIE, so it gets rid of loads that mem2reg couldn't,
-        // if they are unreachable and would cause the DIE post-checks to fail.
+        // Removing unreachable instructions before mem2reg, which may result in some default Store
+        // instructions being added, which it can pair up with Loads. If we ran it after it,
+        // then DIE would just remove the Stores, leaving the Loads dangling.
         // This has to be done after flattening, as it destroys the CFG by removing terminators.
         SsaPass::new(Ssa::remove_unreachable_instructions, "Remove Unreachable Instructions")
             .and_then(Ssa::remove_unreachable_functions),
+        // We cannot run mem2reg after DIE, because it removes Store instructions.
+        // We have to run it before, to give it a chance to turn Store+Load into known values.
+        SsaPass::new(Ssa::mem2reg, "Mem2Reg"),
         SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination"),
         SsaPass::new(Ssa::array_set_optimization, "Array Set Optimizations"),
         SsaPass::new(Ssa::brillig_entry_point_analysis, "Brillig Entry Point Analysis")
