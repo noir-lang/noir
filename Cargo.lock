@@ -87,7 +87,7 @@ name = "acvm_blackbox_solver"
 version = "1.0.0-beta.12"
 dependencies = [
  "acir",
- "blake2",
+ "blake2 0.11.0-rc.2",
  "blake3",
  "k256",
  "keccak 0.1.5",
@@ -766,6 +766,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "46502ad458c9a52b69d4d4d32775c788b7a1b85e8bc9d482d92250fc0e3f8efe"
 dependencies = [
  "digest 0.10.7",
+]
+
+[[package]]
+name = "blake2"
+version = "0.11.0-rc.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1edac47499deef695d9431bf241c75ea29f4cf3dcb78d39e19b31515e4ad3b08"
+dependencies = [
+ "digest 0.11.0-rc.1",
 ]
 
 [[package]]
@@ -1554,7 +1563,7 @@ dependencies = [
  "libc",
  "option-ext",
  "redox_users 0.5.2",
- "windows-sys 0.59.0",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -6711,7 +6720,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.59.0",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -7245,7 +7254,7 @@ dependencies = [
  "ark-ff 0.4.2",
  "ark-std 0.4.0",
  "bitvec",
- "blake2",
+ "blake2 0.10.6",
  "bls12_381",
  "byteorder",
  "cfg-if",
