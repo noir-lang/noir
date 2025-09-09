@@ -37,7 +37,7 @@ use crate::ssa::{
     opt::pure::Purity,
     ssa_gen::Ssa,
 };
-use fxhash::FxHashMap as HashMap;
+use rustc_hash::FxHashMap as HashMap;
 
 impl Ssa {
     /// Performs constant folding on each instruction.
@@ -2088,6 +2088,38 @@ mod test {
 
         let ssa = ssa.fold_constants_using_constraints();
         ssa.interpret(vec![Value::from_constant(1_u32.into(), NumericType::unsigned(32)).unwrap()])
+            .unwrap();
+    }
+
+    #[test]
+    fn do_not_deduplicate_call_with_array_set_brillig() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32):
+            v2 = make_array [Field 1, Field 2] : [Field; 2]
+            call f1(v2, Field 9)
+            v7 = array_set v2, index v0, value Field 7
+            call f1(v2, Field 9)
+            v9 = array_get v2, index v0 -> Field
+            constrain v9 == Field 9
+            return
+        }
+        brillig(inline) fn mutator f1 {
+          b0(v0: [Field; 2], v1: Field):
+            v3 = array_set v0, index u32 0, value v1
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        ssa.interpret(vec![Value::from_constant(0_u32.into(), NumericType::unsigned(32)).unwrap()])
+            .unwrap();
+
+        let ssa = ssa.purity_analysis();
+        ssa.interpret(vec![Value::from_constant(0_u32.into(), NumericType::unsigned(32)).unwrap()])
+            .unwrap();
+
+        let ssa = ssa.fold_constants_using_constraints();
+        ssa.interpret(vec![Value::from_constant(0_u32.into(), NumericType::unsigned(32)).unwrap()])
             .unwrap();
     }
 }
