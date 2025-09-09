@@ -12,7 +12,7 @@ use crate::ssa::ir::{
     value::{Value, ValueId},
 };
 
-use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use super::constant_allocation::ConstantAllocation;
 
@@ -179,9 +179,7 @@ impl VariableLiveness {
 
     fn compute_block_param_definitions(&mut self, func: &Function) {
         // Going in reverse post order to process the entry block first
-        let mut reverse_post_order = Vec::new();
-        reverse_post_order.extend_from_slice(self.post_order.as_slice());
-        reverse_post_order.reverse();
+        let reverse_post_order = self.post_order.clone().into_vec_reverse();
         for block in reverse_post_order {
             let params = func.dfg[block].parameters();
             // If it has no dominator, it's the entry block
@@ -332,8 +330,8 @@ impl VariableLiveness {
 
 #[cfg(test)]
 mod test {
-    use fxhash::FxHashSet;
     use noirc_frontend::monomorphization::ast::InlineType;
+    use rustc_hash::FxHashSet;
 
     use crate::brillig::brillig_gen::constant_allocation::ConstantAllocation;
     use crate::brillig::brillig_gen::variable_liveness::VariableLiveness;

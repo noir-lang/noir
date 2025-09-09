@@ -15,9 +15,9 @@ use super::{
 use crate::ssa::ir::{instruction::binary::truncate_field, printer::display_binary};
 use acvm::{AcirField, FieldElement};
 use errors::{InternalError, InterpreterError, MAX_UNSIGNED_BIT_SIZE};
-use fxhash::FxHashMap as HashMap;
 use iter_extended::{try_vecmap, vecmap};
 use noirc_frontend::Shared;
+use rustc_hash::FxHashMap as HashMap;
 use value::{ArrayValue, NumericValue, ReferenceValue};
 
 pub mod errors;
@@ -1583,14 +1583,14 @@ fn interpret_u1_binary_op(
         BinaryOp::Xor => lhs ^ rhs,
         BinaryOp::Shl => {
             if rhs {
-                false
+                return Err(overflow());
             } else {
                 lhs
             }
         }
         BinaryOp::Shr => {
             if rhs {
-                false
+                return Err(overflow());
             } else {
                 lhs
             }

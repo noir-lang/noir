@@ -1,6 +1,8 @@
 #![forbid(unsafe_code)]
 #![warn(unused_crate_dependencies, unused_extern_crates)]
 
+use std::hash::BuildHasher;
+
 use abi_gen::{abi_type_from_hir_type, value_from_hir_expression};
 use acvm::acir::circuit::ExpressionWidth;
 use acvm::compiler::MIN_EXPRESSION_WIDTH;
@@ -80,10 +82,10 @@ pub struct CompileOptions {
     #[arg(long, hide = true)]
     pub show_ssa_pass: Vec<String>,
 
-    /// Do not emit source file locations when emitting debug information for the SSA IR to stdout.
-    /// By default, source file locations will be shown.
+    /// Emit source file locations when emitting debug information for the SSA IR to stdout.
+    /// By default, source file locations won't be shown.
     #[arg(long, hide = true)]
-    pub no_ssa_locations: bool,
+    pub with_ssa_locations: bool,
 
     /// Only show the SSA and ACIR for the contract function with a given name.
     #[arg(long, hide = true)]
@@ -798,7 +800,7 @@ pub fn compile_no_check(
         || options.minimal_ssa;
 
     // Hash the AST program, which is going to be used to fingerprint the compilation artifact.
-    let hash = fxhash::hash64(&program);
+    let hash = rustc_hash::FxBuildHasher.hash_one(&program);
 
     if let Some(cached_program) = cached_program {
         if !force_compile && cached_program.hash == hash {
@@ -821,7 +823,7 @@ pub fn compile_no_check(
             create_program(
                 program,
                 &ssa_evaluator_options,
-                if options.no_ssa_locations { None } else { Some(&context.file_manager) },
+                if options.with_ssa_locations { Some(&context.file_manager) } else { None },
             )?
         };
 

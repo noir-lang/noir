@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_traits_error_on_duplicate_impl_with_associated_type"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

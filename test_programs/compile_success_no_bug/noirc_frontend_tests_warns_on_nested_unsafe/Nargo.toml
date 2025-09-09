@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_warns_on_nested_unsafe"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]
