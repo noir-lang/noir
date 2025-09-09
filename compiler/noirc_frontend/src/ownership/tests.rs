@@ -139,3 +139,33 @@ fn considers_lvalue_index_identifier_in_last_use() {
     }
     ");
 }
+
+#[test]
+fn analyzes_expression_before_lvalue_in_assignment() {
+    let src = "
+    unconstrained fn main() {
+        let mut b = [true];
+        let mut c = [false];
+        b[0] = {
+          c = b;
+          !c[0]
+        };
+        assert_eq(c[0], true);
+    }
+
+    fn use_var<T>(_x: T) {}
+    ";
+
+    let program = get_monomorphized_no_emit_test(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0() -> () {
+        let mut b$l0 = [true];
+        let mut c$l1 = [false];
+        b$l0[0] = {
+            c$l1 = b$l0.clone();
+            (!c$l1[0])
+        };
+        assert((c$l1[0] == true));
+    }
+    ");
+}

@@ -428,8 +428,8 @@ impl LastUseContext {
     }
 
     fn track_variables_in_assign(&mut self, assign: &ast::Assign) {
-        self.track_variables_in_lvalue(&assign.lvalue, false /* nested */);
         self.track_variables_in_expression(&assign.expression);
+        self.track_variables_in_lvalue(&assign.lvalue, false /* nested */);
     }
 
     /// A variable in an lvalue position is never moved (otherwise you wouldn't

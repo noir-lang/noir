@@ -362,8 +362,8 @@ impl Context {
     }
 
     fn handle_assign(&mut self, assign: &mut crate::monomorphization::ast::Assign) {
-        self.handle_lvalue(&mut assign.lvalue);
         self.handle_expression(&mut assign.expression);
+        self.handle_lvalue(&mut assign.lvalue);
     }
 
     fn handle_lvalue(&mut self, lvalue: &mut LValue) {
