@@ -113,3 +113,39 @@ fn can_move_within_loop() {
     }
     ");
 }
+
+#[test]
+fn clone_nested_array_used_as_call_arg() {
+    let src = "
+    unconstrained fn main(i: u32) -> pub bool {
+        let G_A: [[bool; 3]; 2] = [[false, false, false], [false, false, false]];
+        let result = mutate_array(G_A[i])[1];
+        if i != 0 {
+            G_A[0][1]
+        } else {
+            result
+        }
+    }
+    unconstrained fn mutate_array(mut a: [bool; 3]) -> [bool; 3] {
+        a[1] = true;
+        a
+    }
+    ";
+
+    let program = get_monomorphized_no_emit_test(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0(i$l0: u32) -> pub bool {
+        let G_A$l1 = [[false, false, false], [false, false, false]];
+        let result$l2 = mutate_array$f1(G_A$l1[i$l0].clone()[1];
+        if (i$l0 != 0) {
+            G_A$l1[0][1]
+        } else {
+            result$l2
+        }
+    }
+    unconstrained fn mutate_array$f1(mut a$l3: [bool; 3]) -> [bool; 3] {
+        a$l3[1] = true;
+        a$l3
+    }
+    ");
+}
