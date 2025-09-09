@@ -897,7 +897,7 @@ mod test {
     use crate::ssa::ir::instruction::{Instruction, Intrinsic, TerminatorInstruction};
     use crate::ssa::ir::types::Type;
     use crate::ssa::opt::loop_invariant::{
-        CanBeHoistedResult, LoopInvariantContext, can_be_hoisted,
+        CanBeHoistedResult, LoopContext, LoopInvariantContext, can_be_hoisted,
     };
     use crate::ssa::opt::pure::Purity;
     use crate::ssa::opt::unrolling::Loops;
@@ -1937,10 +1937,10 @@ mod test {
         let mut ssa = Ssa::from_str(src).unwrap();
         let function = ssa.functions.get_mut(&ssa.main_id).unwrap();
         let mut loops = Loops::find_all(function);
-        let mut ctx = LoopInvariantContext::new(function, &loops.yet_to_unroll);
+        let ctx = LoopInvariantContext::new(function, &loops.yet_to_unroll);
         let pre_header = BasicBlockId::new(0);
         let loop_ = loops.yet_to_unroll.pop().unwrap();
-        let mut loop_ctx = ctx.init_loop_context(&loop_, pre_header);
+        let mut loop_ctx = LoopContext::new(&ctx.inserter, &ctx.cfg, &loop_, pre_header);
 
         let mut get_block_ctx = |id| {
             ctx.init_block_context(
