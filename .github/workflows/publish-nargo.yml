@@ -31,6 +31,10 @@ jobs:
       matrix:
         target: [x86_64-apple-darwin, aarch64-apple-darwin]
     timeout-minutes: 30
+    permissions:
+      id-token: write
+      contents: read
+      attestations: write
 
     steps:
       - name: Checkout
@@ -75,6 +79,12 @@ jobs:
           asset_name: nargo-${{ matrix.target }}.tar.gz
           overwrite: true
           tag: ${{ inputs.tag || 'nightly' }} # This will fail if `inputs.tag` is not a tag (e.g. testing a branch)
+
+      - name: Generate noir binaries attestation
+        if: ${{ inputs.publish || github.event_name == 'schedule' }}
+        uses: actions/attest-build-provenance@v3
+        with:
+          subject-path: ./noir-${{ matrix.target }}.tar.gz
 
       - name: Upload Noir binaries to release tag
         uses: svenstaro/upload-release-action@v2
@@ -128,6 +138,10 @@ jobs:
       matrix:
         target: [x86_64-unknown-linux-gnu, x86_64-unknown-linux-musl, aarch64-unknown-linux-gnu]
     timeout-minutes: 30
+    permissions:
+      id-token: write
+      contents: read
+      attestations: write
 
     steps:
       - name: Checkout
@@ -173,6 +187,12 @@ jobs:
           prerelease: true
           overwrite: true
           tag: ${{ inputs.tag || 'nightly' }} # This will fail if `inputs.tag` is not a tag (e.g. testing a branch)
+
+      - name: Generate noir binaries attestation
+        if: ${{ inputs.publish || github.event_name == 'schedule' }}
+        uses: actions/attest-build-provenance@v3
+        with:
+          subject-path: ./noir-${{ matrix.target }}.tar.gz
 
       - name: Upload Noir binaries to release tag
         uses: svenstaro/upload-release-action@v2
