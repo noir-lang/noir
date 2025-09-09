@@ -311,6 +311,7 @@ impl<'f> PerFunctionContext<'f> {
     /// at the end of this block will be remembered in `self.blocks`.
     fn analyze_block(&mut self, block: BasicBlockId, mut references: Block) {
         let instructions = self.inserter.function.dfg[block].take_instructions();
+        println!("Analyzing block {block}");
 
         // If this is the entry block, take all the block parameters and assume they may
         // be aliased to each other
@@ -1043,18 +1044,18 @@ mod tests {
             v4 = eq v0, Field 0
             jmpif v4 then: b2, else: b3
           b2():
-            v11 = load v3 -> &mut Field
-            store Field 2 at v11
-            v13 = add v0, Field 1
-            jmp b1(v13)
+            v5 = load v3 -> &mut Field
+            store Field 2 at v5
+            v8 = add v0, Field 1
+            jmp b1(v8)
           b3():
-            v5 = load v1 -> Field
-            v7 = eq v5, Field 2
-            constrain v5 == Field 2
-            v8 = load v3 -> &mut Field
-            v9 = load v8 -> Field
+            v9 = load v1 -> Field
             v10 = eq v9, Field 2
             constrain v9 == Field 2
+            v11 = load v3 -> &mut Field
+            v12 = load v11 -> Field
+            v13 = eq v12, Field 2
+            constrain v12 == Field 2
             return
         }
         ");
@@ -1392,18 +1393,19 @@ mod tests {
             store u32 0 at v2
             jmp b1()
           b1():
-            v4 = load v2 -> u32
-            v6 = eq v4, u32 1
-            jmpif v6 then: b2, else: b3
+            v7 = load v2 -> u32
+            v8 = eq v7, u32 1
+            jmpif v8 then: b2, else: b3
           b2():
             jmp b4()
           b3():
-            v7 = add v4, u32 1
-            store v7 at v2
+            v4 = load v2 -> u32
+            v6 = add v4, u32 1
+            store v6 at v2
             jmp b5()
           b4():
-            v8 = make_array [v1] : [&mut u32; 1]
-            return v8
+            v9 = make_array [v1] : [&mut u32; 1]
+            return v9
           b5():
             jmp b1()
         }
@@ -2212,44 +2214,44 @@ mod tests {
             v7 = lt v4, u32 3
             jmpif v7 then: b2, else: b3
           b2():
-            v15 = load v0 -> [Field; 3]
-            v16 = load v1 -> [Field; 4]
-            v17 = load v2 -> u32
-            v18 = load v3 -> u1
-            v19 = lt v4, v17
-            jmpif v19 then: b4, else: b5
-          b3():
             v8 = load v0 -> [Field; 3]
             v9 = load v1 -> [Field; 4]
             v10 = load v2 -> u32
             v11 = load v3 -> u1
-            inc_rc v9
-            v14 = call poseidon2_permutation(v9, u32 4) -> [Field; 4]
-            store v8 at v0
-            store v14 at v1
-            store v10 at v2
-            store v11 at v3
+            v12 = lt v4, v10
+            jmpif v12 then: b4, else: b5
+          b3():
+            v25 = load v0 -> [Field; 3]
+            v26 = load v1 -> [Field; 4]
+            v27 = load v2 -> u32
+            v28 = load v3 -> u1
+            inc_rc v26
+            v30 = call poseidon2_permutation(v26, u32 4) -> [Field; 4]
+            store v25 at v0
+            store v30 at v1
+            store v27 at v2
+            store v28 at v3
             return
           b4():
+            v14 = lt v4, u32 4
+            constrain v14 == u1 1, "Index out of bounds"
+            v16 = array_get v9, index v4 -> Field
+            v17 = lt v4, u32 3
+            constrain v17 == u1 1, "Index out of bounds"
+            v18 = array_get v8, index v4 -> Field
+            v19 = add v16, v18
             v20 = lt v4, u32 4
             constrain v20 == u1 1, "Index out of bounds"
-            v22 = array_get v16, index v4 -> Field
-            v23 = lt v4, u32 3
-            constrain v23 == u1 1, "Index out of bounds"
-            v24 = array_get v15, index v4 -> Field
-            v25 = add v22, v24
-            v26 = lt v4, u32 4
-            constrain v26 == u1 1, "Index out of bounds"
-            v27 = array_set v16, index v4, value v25
-            v29 = unchecked_add v4, u32 1
-            store v15 at v0
-            store v27 at v1
-            store v17 at v2
-            store v18 at v3
+            v21 = array_set v9, index v4, value v19
+            v23 = unchecked_add v4, u32 1
+            store v8 at v0
+            store v21 at v1
+            store v10 at v2
+            store v11 at v3
             jmp b5()
           b5():
-            v30 = unchecked_add v4, u32 1
-            jmp b1(v30)
+            v24 = unchecked_add v4, u32 1
+            jmp b1(v24)
         }
         "#);
     }

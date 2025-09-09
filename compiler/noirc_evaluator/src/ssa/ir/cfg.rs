@@ -8,7 +8,7 @@ use rustc_hash::FxHashMap as HashMap;
 use std::collections::HashSet;
 
 /// A container for the successors and predecessors of some Block.
-#[derive(Clone, Default)]
+#[derive(Clone, Default, Debug)]
 struct CfgNode {
     /// Set of blocks that containing jumps that target this block.
     /// The predecessor set has no meaningful order.
@@ -19,7 +19,7 @@ struct CfgNode {
     pub(crate) successors: BTreeSet<BasicBlockId>,
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone, Default, Debug)]
 /// The Control Flow Graph (CFG) maintains a mapping of blocks to their predecessors
 /// and successors where predecessors are basic blocks and successors are
 /// basic blocks.
@@ -134,6 +134,13 @@ impl ControlFlowGraph {
     pub(crate) fn reverse(&self) -> Self {
         let mut reversed_cfg = ControlFlowGraph { reversed: true, ..Default::default() };
 
+        // Ensure the reversed_cfg always contains at least the entry node. Otherwise
+        // adding the edges below results in an empty graph when calling reverse on a CFG
+        // with a single block. Also note that although we are adding the entry block here,
+        // it will not necessarily be the entry block in the reversed cfg.
+        let entry = self.entry_block();
+        reversed_cfg.data.insert(entry, Default::default());
+
         for (block_id, node) in &self.data {
             // For each block, reverse the edges
             // In the reversed CFG, successors becomes predecessors
@@ -143,11 +150,6 @@ impl ControlFlowGraph {
         }
 
         reversed_cfg
-    }
-
-    /// Returns the entry blocks for a CFG. This is all nodes without any predecessors.
-    pub(crate) fn compute_entry_blocks(&self) -> Vec<BasicBlockId> {
-        self.data.keys().filter(|&&block| self.predecessors(block).len() == 0).copied().collect()
     }
 
     /// Computes the reverse graph of the extended CFG.
@@ -195,8 +197,12 @@ impl ControlFlowGraph {
         let exit_nodes: Vec<BasicBlockId> =
             cfg.data.keys().filter(|&&block| cfg.successors(block).len() == 0).copied().collect();
         // Traverse the reverse CFG from the exit blocks
+        println!("cfg = {cfg:?}");
         let reverse = cfg.reverse();
+        println!("reversed = {reverse:?}");
         let post_order = crate::ssa::ir::post_order::PostOrder::with_cfg(&reverse);
+        println!("finished post_order");
+
         // Extract blocks that are not reachable from the exit blocks
         let rpo_traversal: HashSet<BasicBlockId> = HashSet::from_iter(post_order.into_vec());
         let dead_blocks: Vec<BasicBlockId> =
@@ -222,6 +228,53 @@ impl ControlFlowGraph {
         // We can now reverse the extended CFG
         cfg.reverse()
     }
+
+    /// Return the graph of basic blocks as a petgraph graph, along with
+    /// mappings to and from basicblockids and node indices.
+    pub(crate) fn as_petgraph(&self) -> PetgraphCFG {
+        let mut graph = petgraph::graph::DiGraph::new();
+        let mut block_to_node = HashMap::default();
+        let mut node_to_block = HashMap::default();
+
+        for block_id in self.data.keys() {
+            let index = graph.add_node(());
+            block_to_node.insert(*block_id, index);
+            node_to_block.insert(index, *block_id);
+        }
+
+        for (block_id, cfg_node) in self.data.iter() {
+            let index = block_to_node[block_id];
+
+            // We don't need to add predecessors, they'll get added when
+            // we add the previous block's successors.
+            for successor in cfg_node.successors.iter() {
+                let successor = block_to_node[successor];
+                graph.add_edge(index, successor, ());
+            }
+        }
+
+        PetgraphCFG { graph, node_to_block, block_to_node }
+    }
+
+    /// Return the entry block
+    pub(crate) fn entry_block(&self) -> BasicBlockId {
+        // `data` is a hashmap so the first key isn't necessarily the entry block b0.
+        println!("Computing entry block, data len = {}", self.data.len());
+        let mut block = *self.data.keys().next().unwrap();
+
+        // Keep going until the block has no predecessors
+        while let Some(predecessor) = self.predecessors(block).next() {
+            block = predecessor;
+        }
+        block
+    }
+}
+
+/// A petgraph representation of a CFG
+pub(crate) struct PetgraphCFG {
+    pub(crate) graph: petgraph::graph::DiGraph<(), ()>,
+    pub(crate) block_to_node: HashMap<BasicBlockId, petgraph::graph::NodeIndex>,
+    pub(crate) node_to_block: HashMap<petgraph::graph::NodeIndex, BasicBlockId>,
 }
 
 #[cfg(test)]

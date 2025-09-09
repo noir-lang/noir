@@ -42,6 +42,18 @@ mod unrolling;
 /// shift depending on whether temporary intermediate values were created.
 #[cfg(test)]
 pub(crate) fn assert_normalized_ssa_equals(mut ssa: super::Ssa, expected: &str) {
+    ssa.normalize_ids();
+    assert_ssa_equals_opt(&ssa, expected, true);
+}
+
+/// Assert the given SSA exactly matches the given source string with no normalization
+#[cfg(test)]
+pub(crate) fn assert_ssa_equals(ssa: &super::Ssa, expected: &str) {
+    assert_ssa_equals_opt(&ssa, expected, false);
+}
+
+#[cfg(test)]
+pub(crate) fn assert_ssa_equals_opt(ssa: &super::Ssa, expected: &str, normalize: bool) {
     use crate::{ssa::Ssa, trim_comments_from_lines, trim_leading_whitespace_from_lines};
 
     // Clean up the expected SSA a bit
@@ -62,9 +74,9 @@ pub(crate) fn assert_normalized_ssa_equals(mut ssa: super::Ssa, expected: &str) 
     // we parse it, normalize it and turn it back into a string.
     // This allows us to use any names and not just `b0`, `b1`, `v0`, `v1`, etc.
     // which is what the SSA printer produces.
-    expected_ssa.normalize_ids();
-
-    ssa.normalize_ids();
+    if normalize {
+        expected_ssa.normalize_ids();
+    }
 
     let ssa = ssa.print_without_locations().to_string();
     let ssa = ssa.trim_end();

@@ -911,18 +911,18 @@ mod tests {
             v5 = eq v0, Field 2
             jmpif v5 then: b2, else: b1
           b1():
-            v9 = eq v0, Field 3
-            jmpif v9 then: b4, else: b3
+            v7 = eq v0, Field 3
+            jmpif v7 then: b4, else: b3
           b2():
-            v7 = call f2(v1) -> u32
-            jmp b6(v7)
+            v14 = call f2(v1) -> u32
+            jmp b6(v14)
           b3():
             constrain v0 == Field 4
-            v14 = call f4(v1) -> u32
-            jmp b5(v14)
+            v10 = call f4(v1) -> u32
+            jmp b5(v10)
           b4():
-            v11 = call f3(v1) -> u32
-            jmp b5(v11)
+            v12 = call f3(v1) -> u32
+            jmp b5(v12)
           b5(v2: u32):
             jmp b6(v2)
           b6(v3: u32):
@@ -1184,8 +1184,8 @@ mod tests {
           b1():
             jmp b3(Field 2)
           b2():
-            v6 = eq v0, u32 1
-            jmpif v6 then: b4, else: b5
+            v7 = eq v0, u32 1
+            jmpif v7 then: b4, else: b5
           b3(v1: Field):
             v11 = call f5(v1, v0) -> u32
             return v11
@@ -1215,18 +1215,18 @@ mod tests {
             v5 = eq v0, Field 2
             jmpif v5 then: b2, else: b1
           b1():
-            v9 = eq v0, Field 3
-            jmpif v9 then: b4, else: b3
+            v7 = eq v0, Field 3
+            jmpif v7 then: b4, else: b3
           b2():
-            v7 = call f2(v1) -> u32
-            jmp b6(v7)
+            v14 = call f2(v1) -> u32
+            jmp b6(v14)
           b3():
             constrain v0 == Field 4
-            v14 = call f4(v1) -> u32
-            jmp b5(v14)
+            v10 = call f4(v1) -> u32
+            jmp b5(v10)
           b4():
-            v11 = call f3(v1) -> u32
-            jmp b5(v11)
+            v12 = call f3(v1) -> u32
+            jmp b5(v12)
           b5(v2: u32):
             jmp b6(v2)
           b6(v3: u32):
@@ -1983,8 +1983,8 @@ mod tests {
           b1():
             jmp b3(Field 1, Field 2)
           b2():
-            v6, v7 = call f3() -> (Field, Field)
-            jmp b3(v6, v7)
+            v8, v9 = call f3() -> (Field, Field)
+            jmp b3(v8, v9)
           b3(v1: Field, v2: Field):
             call f6(v2)
             return
@@ -2083,8 +2083,8 @@ mod tests {
           b1():
             jmp b3(Field 1, Field 2)
           b2():
-            v6, v7 = call f3() -> (Field, Field)
-            jmp b3(v6, v7)
+            v8, v9 = call f3() -> (Field, Field)
+            jmp b3(v8, v9)
           b3(v1: Field, v2: Field):
             call f6(v2)
             return

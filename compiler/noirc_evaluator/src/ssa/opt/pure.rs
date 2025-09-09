@@ -440,9 +440,9 @@ mod test {
           b1():
             jmp b3(Field 0)
           b2():
-            v5 = call f7(v0) -> u32
+            v6 = call f7(v0) -> u32
             call f6()
-            jmp b3(v5)
+            jmp b3(v6)
           b3(v1: u32):
             return v1
         }

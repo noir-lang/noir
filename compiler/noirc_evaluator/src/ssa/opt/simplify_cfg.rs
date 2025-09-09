@@ -717,21 +717,21 @@ mod test {
             v3 = array_get v0, index u32 8 -> u1
             jmpif v3 then: b1, else: b2
           b1():
-            v6 = array_get v0, index u32 4 -> u1
-            jmpif v6 then: b3, else: b4
-          b2():
             v5 = array_get v0, index u32 4 -> u1
-            jmp b5(v5)
+            jmpif v5 then: b3, else: b4
+          b2():
+            v9 = array_get v0, index u32 4 -> u1
+            jmp b5(v9)
           b3():
-            v8 = array_get v0, index u32 5 -> u1
-            jmpif v8 then: b6, else: b7
+            v7 = array_get v0, index u32 5 -> u1
+            jmpif v7 then: b6, else: b7
           b4():
             jmp b8()
           b5(v1: u1):
             return v1
           b6():
-            v9 = array_get v0, index u32 8 -> u1
-            jmpif v9 then: b10, else: b11
+            v8 = array_get v0, index u32 8 -> u1
+            jmpif v8 then: b10, else: b11
           b7():
             jmp b9()
           b8():
@@ -743,7 +743,7 @@ mod test {
           b11():
             jmp b12()
           b12():
-            jmpif v9 then: b13, else: b14
+            jmpif v8 then: b13, else: b14
           b13():
             jmp b15()
           b14():

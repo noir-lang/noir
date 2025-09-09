@@ -23,7 +23,6 @@ pub(crate) enum InstructionLocation {
     Terminator,
 }
 
-#[derive(Default)]
 pub(crate) struct ConstantAllocation {
     constant_usage: BTreeMap<ValueId, BTreeMap<BasicBlockId, Vec<InstructionLocation>>>,
     allocation_points: BTreeMap<BasicBlockId, BTreeMap<InstructionLocation, Vec<ValueId>>>,
@@ -32,6 +31,17 @@ pub(crate) struct ConstantAllocation {
 }
 
 impl ConstantAllocation {
+    /// Previously `ConstantAllocation::default`, this was made explicit to highlight that
+    /// it was constructed with a non-functioning dominator tree.
+    pub(crate) fn with_no_dominator_tree() -> Self {
+        Self {
+            constant_usage: Default::default(),
+            allocation_points: Default::default(),
+            dominator_tree: DominatorTree::uninitialized(),
+            blocks_within_loops: Default::default(),
+        }
+    }
+
     pub(crate) fn from_function(func: &Function) -> Self {
         let cfg = ControlFlowGraph::with_function(func);
         let post_order = PostOrder::with_function(func);

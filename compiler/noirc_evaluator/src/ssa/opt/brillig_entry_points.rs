@@ -774,10 +774,10 @@ mod tests {
           b1():
             jmp b3(u1 0)
           b2():
-            v6 = sub v1, u32 1
-            v8 = call f5(v0, v6) -> u1
-            v10 = call f6(v8, v6) -> u1
-            jmp b3(v10)
+            v7 = sub v1, u32 1
+            v9 = call f5(v0, v7) -> u1
+            v11 = call f6(v9, v7) -> u1
+            jmp b3(v11)
           b3(v2: u1):
             return v2
         }
@@ -788,10 +788,10 @@ mod tests {
           b1():
             jmp b3(u1 0)
           b2():
-            v6 = sub v1, u32 1
-            v8 = call f3(v0, v6) -> u1
-            v10 = call f4(v8, v6) -> u1
-            jmp b3(v10)
+            v7 = sub v1, u32 1
+            v9 = call f3(v0, v7) -> u1
+            v11 = call f4(v9, v7) -> u1
+            jmp b3(v11)
           b3(v2: u1):
             return v2
         }
@@ -802,10 +802,10 @@ mod tests {
           b1():
             jmp b3(u1 0)
           b2():
-            v6 = sub v1, u32 1
-            v8 = call f3(v0, v6) -> u1
-            v10 = call f4(v8, v6) -> u1
-            jmp b3(v10)
+            v7 = sub v1, u32 1
+            v9 = call f3(v0, v7) -> u1
+            v11 = call f4(v9, v7) -> u1
+            jmp b3(v11)
           b3(v2: u1):
             return v2
         }
@@ -816,10 +816,10 @@ mod tests {
           b1():
             jmp b3(u1 0)
           b2():
-            v6 = sub v1, u32 1
-            v8 = call f3(v0, v6) -> u1
-            v10 = call f4(v8, v6) -> u1
-            jmp b3(v10)
+            v7 = sub v1, u32 1
+            v9 = call f3(v0, v7) -> u1
+            v11 = call f4(v9, v7) -> u1
+            jmp b3(v11)
           b3(v2: u1):
             return v2
         }
@@ -830,10 +830,10 @@ mod tests {
           b1():
             jmp b3(u1 0)
           b2():
-            v6 = sub v1, u32 1
-            v8 = call f5(v0, v6) -> u1
-            v10 = call f6(v8, v6) -> u1
-            jmp b3(v10)
+            v7 = sub v1, u32 1
+            v9 = call f5(v0, v7) -> u1
+            v11 = call f6(v9, v7) -> u1
+            jmp b3(v11)
           b3(v2: u1):
             return v2
         }
@@ -844,10 +844,10 @@ mod tests {
           b1():
             jmp b3(u1 0)
           b2():
-            v6 = sub v1, u32 1
-            v8 = call f5(v0, v6) -> u1
-            v10 = call f6(v8, v6) -> u1
-            jmp b3(v10)
+            v7 = sub v1, u32 1
+            v9 = call f5(v0, v7) -> u1
+            v11 = call f6(v9, v7) -> u1
+            jmp b3(v11)
           b3(v2: u1):
             return v2
         }
