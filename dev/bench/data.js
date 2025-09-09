@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1757432515545,
+  "lastUpdate": 1757435687191,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -20231,48 +20231,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "2a936c7dba9bed79207028d552c216b54184a0a0",
-          "message": "chore: break `NodeInterner` into chunks (#9674)",
-          "timestamp": "2025-08-29T14:20:56Z",
-          "tree_id": "da0277e67a8ddac5a7a36a5f6abdc18b87aeeb0d",
-          "url": "https://github.com/noir-lang/noir/commit/2a936c7dba9bed79207028d552c216b54184a0a0"
-        },
-        "date": 1756478896356,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 248133,
-            "range": "± 264",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 217557,
-            "range": "± 3116",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2777751,
-            "range": "± 7266",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -22324,6 +22282,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2786864,
             "range": "± 1201",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "8e4f336a2c48307988ce27d125ecab57e2124826",
+          "message": "chore: encapsulate constant folding logic better (#9773)",
+          "timestamp": "2025-09-09T15:37:49Z",
+          "tree_id": "3c0df93638c56dd14a4f47aaabfc2db45eae5bef",
+          "url": "https://github.com/noir-lang/noir/commit/8e4f336a2c48307988ce27d125ecab57e2124826"
+        },
+        "date": 1757435667118,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 260574,
+            "range": "± 1046",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 230139,
+            "range": "± 2761",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2793462,
+            "range": "± 8910",
             "unit": "ns/iter"
           }
         ]
