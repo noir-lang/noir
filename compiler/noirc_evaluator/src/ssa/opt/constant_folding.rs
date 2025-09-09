@@ -1131,7 +1131,6 @@ mod test {
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.fold_constants();
 
-        // The terminators of b1 and b2 should now have constant arguments
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) predicate_pure fn main f0 {
           b0(v0: Field):
