@@ -1,92 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1757454215589,
+  "lastUpdate": 1757454632941,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "e4ee5c9333711799e312740ee1491e65aa2c6b3b",
-          "message": "chore: show which type is invalid as program input (#9701)",
-          "timestamp": "2025-09-01T14:45:08Z",
-          "tree_id": "fb94ac8e5a88fcd5e23a880dd52b5b26f305025a",
-          "url": "https://github.com/noir-lang/noir/commit/e4ee5c9333711799e312740ee1491e65aa2c6b3b"
-        },
-        "date": 1756740281164,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 240.51,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 550.07,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 214.96,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 1350,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 1400,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 1010,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 9690,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 9690,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 331.46,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 342.24,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 105.65,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 234.83,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -4199,6 +4115,90 @@ window.BENCHMARK_DATA = {
           {
             "name": ".",
             "value": 254.03,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "113b853847ffab3e126afaa23b5107dd9792d795",
+          "message": "feat: reverse loop condition in brillig to avoid NOT instruction (#9779)",
+          "timestamp": "2025-09-09T21:15:50Z",
+          "tree_id": "734d06d6bf50cb1c42b77cb63e07c03626b0a8cb",
+          "url": "https://github.com/noir-lang/noir/commit/113b853847ffab3e126afaa23b5107dd9792d795"
+        },
+        "date": 1757454613018,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": ".",
+            "value": 284.52,
+            "unit": "MB"
+          },
+          {
+            "name": ".",
+            "value": 593.53,
+            "unit": "MB"
+          },
+          {
+            "name": ".",
+            "value": 259.08,
+            "unit": "MB"
+          },
+          {
+            "name": ".",
+            "value": 1360,
+            "unit": "MB"
+          },
+          {
+            "name": ".",
+            "value": 1420,
+            "unit": "MB"
+          },
+          {
+            "name": ".",
+            "value": 998.49,
+            "unit": "MB"
+          },
+          {
+            "name": ".",
+            "value": 9680,
+            "unit": "MB"
+          },
+          {
+            "name": ".",
+            "value": 9690,
+            "unit": "MB"
+          },
+          {
+            "name": ".",
+            "value": 332.74,
+            "unit": "MB"
+          },
+          {
+            "name": ".",
+            "value": 343.46,
+            "unit": "MB"
+          },
+          {
+            "name": ".",
+            "value": 106.96,
+            "unit": "MB"
+          },
+          {
+            "name": ".",
+            "value": 254.09,
             "unit": "MB"
           }
         ]
