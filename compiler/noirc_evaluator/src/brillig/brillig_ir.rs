@@ -237,9 +237,8 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             // else the result is positive and so it must be less than '2**(bit_size-1)'
             |ctx| {
                 let max = 1_u128 << (left.bit_size - 1);
-                let no_overflow = ctx.allocate_register();
                 let max = ctx.make_constant_instruction(max.into(), left.bit_size);
-                let no_overflow = SingleAddrVariable::new(no_overflow, 1);
+                let no_overflow = SingleAddrVariable::new(ctx.allocate_register(), 1);
                 ctx.binary_instruction(result, max, no_overflow, BrilligBinaryOp::LessThan);
                 ctx.codegen_if_not(no_overflow.address, |ctx2| {
                     ctx2.codegen_constrain(
@@ -247,8 +246,8 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
                         Some("Attempt to divide with overflow".to_string()),
                     );
                 });
-                ctx.deallocate_register(max.address);
-                ctx.deallocate_register(no_overflow.address);
+                ctx.deallocate_single_addr(max);
+                ctx.deallocate_single_addr(no_overflow);
             },
         );
 
