@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1757454643067,
+  "lastUpdate": 1757454655884,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -12112,80 +12112,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "e4ee5c9333711799e312740ee1491e65aa2c6b3b",
-          "message": "chore: show which type is invalid as program input (#9701)",
-          "timestamp": "2025-09-01T14:45:08Z",
-          "tree_id": "fb94ac8e5a88fcd5e23a880dd52b5b26f305025a",
-          "url": "https://github.com/noir-lang/noir/commit/e4ee5c9333711799e312740ee1491e65aa2c6b3b"
-        },
-        "date": 1756740283909,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 213.9,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 247.1,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 198.73,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 502.47,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 434.88,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1500,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 329.22,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 331.75,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 70.43,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 57.32,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -15755,6 +15681,80 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/c7dd741e8c58be60182568ee127954e9f2990b70"
         },
         "date": 1757453137875,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": ".",
+            "value": 258.16,
+            "unit": "MB"
+          },
+          {
+            "name": ".",
+            "value": 291.32,
+            "unit": "MB"
+          },
+          {
+            "name": ".",
+            "value": 242.9,
+            "unit": "MB"
+          },
+          {
+            "name": ".",
+            "value": 506.04,
+            "unit": "MB"
+          },
+          {
+            "name": ".",
+            "value": 438.42,
+            "unit": "MB"
+          },
+          {
+            "name": ".",
+            "value": 1500,
+            "unit": "MB"
+          },
+          {
+            "name": ".",
+            "value": 330.5,
+            "unit": "MB"
+          },
+          {
+            "name": ".",
+            "value": 333.02,
+            "unit": "MB"
+          },
+          {
+            "name": ".",
+            "value": 72.45,
+            "unit": "MB"
+          },
+          {
+            "name": ".",
+            "value": 58.23,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "113b853847ffab3e126afaa23b5107dd9792d795",
+          "message": "feat: reverse loop condition in brillig to avoid NOT instruction (#9779)",
+          "timestamp": "2025-09-09T21:15:50Z",
+          "tree_id": "734d06d6bf50cb1c42b77cb63e07c03626b0a8cb",
+          "url": "https://github.com/noir-lang/noir/commit/113b853847ffab3e126afaa23b5107dd9792d795"
+        },
+        "date": 1757454635065,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
