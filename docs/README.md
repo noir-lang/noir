@@ -81,4 +81,4 @@ The site will be deployed at `noir-lang.org/docs/`. Test production configuratio
 ```sh
 yarn workspace docs production:serve
 ```
-Access at: `http://localhost:3003/docs/`
+Access at: `http://localhost:3000/docs/`
