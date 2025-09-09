@@ -14,15 +14,15 @@ use crate::ssa::{
     },
 };
 
-/// Checks if the given instruction is a call to a brillig function with all constant arguments.
+/// Checks if the given instruction is a call to a function with all constant arguments.
 /// If so, we can try to evaluate that function and replace the results with the evaluation results.
-pub(super) fn try_interpret_brillig_call(
+pub(super) fn try_interpret_call(
     instruction: &Instruction,
     block: BasicBlockId,
     dfg: &mut DataFlowGraph,
     interpreter: Option<&mut Interpreter<Empty>>,
 ) -> Option<Vec<ValueId>> {
-    let evaluation_result = evaluate_const_brillig_call(instruction, interpreter?, dfg);
+    let evaluation_result = evaluate_const_argument_call(instruction, interpreter?, dfg);
 
     match evaluation_result {
         EvaluationResult::NotABrilligCall | EvaluationResult::CannotEvaluate => None,
@@ -48,10 +48,9 @@ enum EvaluationResult {
     Evaluated(Vec<InterpreterValue>),
 }
 
-/// Tries to evaluate an instruction if it's a call that points to a brillig function,
-/// and all its arguments are constant.
-/// We do this by directly executing the function with a brillig VM.
-fn evaluate_const_brillig_call(
+/// Tries to evaluate an instruction if it's a call where all its arguments are constant.
+/// We do this by interpreting the function's SSA to calculate the result.
+fn evaluate_const_argument_call(
     instruction: &Instruction,
     interpreter: &mut Interpreter<Empty>,
     dfg: &mut DataFlowGraph,

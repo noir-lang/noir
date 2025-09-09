@@ -42,7 +42,7 @@ mod interpret;
 mod result_cache;
 mod simplification_cache;
 
-use interpret::try_interpret_brillig_call;
+use interpret::try_interpret_call;
 use result_cache::{CacheResult, InstructionResultCache};
 use simplification_cache::{ConstraintSimplificationCache, SimplificationCache};
 
@@ -292,7 +292,7 @@ impl Context {
             Self::push_instruction(id, instruction.clone(), &old_results, block, dfg)
         } else {
             // We only want to try to inline Brillig calls for Brillig entry points (functions called from an ACIR runtime).
-            try_interpret_brillig_call(&instruction, block, dfg, interpreter.as_mut())
+            try_interpret_call(&instruction, block, dfg, interpreter.as_mut())
                 // Otherwise, try inserting the instruction again to apply any optimizations using the newly resolved inputs.
                 .unwrap_or_else(|| {
                     Self::push_instruction(id, instruction.clone(), &old_results, block, dfg)
