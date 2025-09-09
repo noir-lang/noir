@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1757438670762,
+  "lastUpdate": 1757440459000,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -20221,48 +20221,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "a38288aeba7ecd4a3c8e94040201f4fe5104f729",
-          "message": "fix(ssa)!: Signed shift overflow checks rhs < bit_size (#9685)",
-          "timestamp": "2025-08-29T16:59:44Z",
-          "tree_id": "38f253fbcc8912f463e87fddc01edfd745cfc082",
-          "url": "https://github.com/noir-lang/noir/commit/a38288aeba7ecd4a3c8e94040201f4fe5104f729"
-        },
-        "date": 1756488424245,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 249766,
-            "range": "± 6621",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 226714,
-            "range": "± 5399",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2789345,
-            "range": "± 1922",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "jose@aztecprotocol.com",
             "name": "José Pedro Sousa",
             "username": "signorecello"
@@ -22314,6 +22272,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2808859,
             "range": "± 13020",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "20e49b4b2e970c7c17dd85fe458ca18203cb6dd9",
+          "message": "chore: bump `@web/dev-server-esbuild` and `playwright` (#9781)",
+          "timestamp": "2025-09-09T17:09:09Z",
+          "tree_id": "2edb87727b0fef66159c6e2d1399c104600563ee",
+          "url": "https://github.com/noir-lang/noir/commit/20e49b4b2e970c7c17dd85fe458ca18203cb6dd9"
+        },
+        "date": 1757440438470,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 259502,
+            "range": "± 1547",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 227802,
+            "range": "± 2832",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2793355,
+            "range": "± 8541",
             "unit": "ns/iter"
           }
         ]
