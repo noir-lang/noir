@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1757453075092,
+  "lastUpdate": 1757453157409,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -12112,80 +12112,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "9773b54a709ca7e9eae79ee7e651c3a88c60638c",
-          "message": "chore: bump deps (#9698)",
-          "timestamp": "2025-09-01T12:24:10+01:00",
-          "tree_id": "e2856f441d1ca7415f5c446a1ff74f4f5babd474",
-          "url": "https://github.com/noir-lang/noir/commit/9773b54a709ca7e9eae79ee7e651c3a88c60638c"
-        },
-        "date": 1756726951985,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 213.9,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 247.1,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 198.73,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 502.47,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 434.88,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1500,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 329.22,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 331.75,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 70.43,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 57.32,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -15804,6 +15730,80 @@ window.BENCHMARK_DATA = {
           },
           {
             "name": "sha512_100_bytes",
+            "value": 58.23,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c7dd741e8c58be60182568ee127954e9f2990b70",
+          "message": "chore: move `ram_blowup_regression` to be a compile-only test (#9790)",
+          "timestamp": "2025-09-09T20:41:27Z",
+          "tree_id": "14b7b54797e435ac71f829d6960c4f333b9b60a8",
+          "url": "https://github.com/noir-lang/noir/commit/c7dd741e8c58be60182568ee127954e9f2990b70"
+        },
+        "date": 1757453137875,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": ".",
+            "value": 258.16,
+            "unit": "MB"
+          },
+          {
+            "name": ".",
+            "value": 291.32,
+            "unit": "MB"
+          },
+          {
+            "name": ".",
+            "value": 242.9,
+            "unit": "MB"
+          },
+          {
+            "name": ".",
+            "value": 506.04,
+            "unit": "MB"
+          },
+          {
+            "name": ".",
+            "value": 438.42,
+            "unit": "MB"
+          },
+          {
+            "name": ".",
+            "value": 1500,
+            "unit": "MB"
+          },
+          {
+            "name": ".",
+            "value": 330.5,
+            "unit": "MB"
+          },
+          {
+            "name": ".",
+            "value": 333.02,
+            "unit": "MB"
+          },
+          {
+            "name": ".",
+            "value": 72.45,
+            "unit": "MB"
+          },
+          {
+            "name": ".",
             "value": 58.23,
             "unit": "MB"
           }
