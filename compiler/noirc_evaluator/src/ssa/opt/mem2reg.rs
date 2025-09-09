@@ -410,28 +410,63 @@ impl<'f> PerFunctionContext<'f> {
         &mut self,
         block_id: BasicBlockId,
         references: &mut Block,
-        instruction: InstructionId,
+        instruction_id: InstructionId,
     ) {
         // If the instruction was simplified and optimized out of the program we shouldn't analyze it.
         // Analyzing it could make tracking aliases less accurate if it is e.g. an ArrayGet
         // call that used to hold references but has since been optimized out to a known result.
         // However, if we don't analyze it, then it may be a MakeArray replacing an ArraySet containing references,
         // and we need to mark those references as used to keep their stores alive.
-        let (instruction, simplified) = {
-            let (ins, loc) = self.inserter.map_instruction(instruction);
-            match self.inserter.push_instruction_value(ins, instruction, block_id, loc) {
-                InsertInstructionResult::Results(id, _) => (id, false),
+        let (instruction, loc) = self.inserter.map_instruction(instruction_id);
+        let is_call = matches!(instruction, Instruction::Call { .. });
+
+        let (instructions, simplified) = {
+            match self.inserter.push_instruction_value(instruction, instruction_id, block_id, loc) {
+                InsertInstructionResult::Results(id, _) => (vec![id], false),
                 InsertInstructionResult::SimplifiedTo(value) => {
                     let value = &self.inserter.function.dfg[value];
-                    let Value::Instruction { instruction, .. } = value else {
+                    if let Value::Instruction { instruction, .. } = value {
+                        (vec![*instruction], true)
+                    } else {
                         return;
-                    };
-                    (*instruction, true)
+                    }
                 }
-                _ => return,
+                InsertInstructionResult::SimplifiedToMultiple(values) => {
+                    let ids = values
+                        .into_iter()
+                        .filter_map(|value| {
+                            let value = &self.inserter.function.dfg[value];
+                            if let Value::Instruction { instruction, .. } = value {
+                                Some(*instruction)
+                            } else {
+                                None
+                            }
+                        })
+                        .collect();
+                    (ids, true)
+                }
+                InsertInstructionResult::InstructionRemoved => return,
             }
         };
 
+        // A simplified call might be SlicePushBack or SlicePushFront.
+        // In that case we still need to analyze the original call arguments as we don't
+        // want to lose stores to references passed into the call.
+        if simplified && is_call {
+            self.analyze_instruction_without_simplifying(references, instruction_id, false);
+        }
+
+        for instruction in instructions {
+            self.analyze_instruction_without_simplifying(references, instruction, simplified);
+        }
+    }
+
+    fn analyze_instruction_without_simplifying(
+        &mut self,
+        references: &mut Block,
+        instruction: InstructionId,
+        simplified: bool,
+    ) {
         let ins = &self.inserter.function.dfg[instruction];
 
         // Some instructions, when simplified, cause problems if processed again.
@@ -2252,5 +2287,47 @@ mod tests {
             jmp b1(v30)
         }
         "#);
+    }
+
+    #[test]
+    fn preserves_stores_to_references_passed_to_simplified_slice_push_back() {
+        // The stores to the arrays eventually passed to `slice_push_back` must be preserved.
+        // The `slice_push_back` instruction is simplified to `make_array` (and the new slice length)
+        // but just analyzing this new `make_array` isn't enough: we need to consider the arguments
+        // passed to `slice_push_back` as well.
+        let src = r#"
+        brillig(inline) predicate_pure fn main f0 {
+          b0():
+            v0 = allocate -> &mut u1
+            store u1 0 at v0
+            v2 = make_array [v0] : [&mut u1]
+            v3 = allocate -> &mut u1
+            store u1 0 at v3
+            v6, v7 = call slice_push_back(u32 1, v2, v3) -> (u32, [&mut u1])
+            v8 = array_get v7, index u32 1 -> &mut u1
+            v9 = load v8 -> u1
+            return v9
+        }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
+
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) predicate_pure fn main f0 {
+          b0():
+            v0 = allocate -> &mut u1
+            store u1 0 at v0
+            v2 = make_array [v0] : [&mut u1]
+            v3 = allocate -> &mut u1
+            store u1 0 at v3
+            v4 = make_array [v0, v3] : [&mut u1]
+            v5 = make_array [v0, v3] : [&mut u1]
+            v6 = make_array [v0, v3] : [&mut u1]
+            v7 = load v3 -> u1
+            return v7
+        }
+        "
+        );
     }
 }
