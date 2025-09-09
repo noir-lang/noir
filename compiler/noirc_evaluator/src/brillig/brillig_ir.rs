@@ -226,16 +226,15 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             BrilligBinaryOp::Xor,
         );
 
-        self.codegen_if_else(
-            result_is_negative.address,
-            // If result has to be negative, perform two's complement
-            |ctx| {
+        self.codegen_branch(result_is_negative.address, |ctx, is_negative| {
+            if is_negative {
+                // If result has to be negative, perform two's complement
                 let zero = ctx.make_constant_instruction(0_usize.into(), result.bit_size);
                 ctx.binary_instruction(zero, result, result, BrilligBinaryOp::Sub);
                 ctx.deallocate_single_addr(zero);
-            },
-            // else the result is positive and so it must be less than '2**(bit_size-1)'
-            |ctx| {
+            } else {
+                // else the result is positive and so it must be less than '2**(bit_size-1)'
+
                 let max = 1_u128 << (left.bit_size - 1);
                 let max = ctx.make_constant_instruction(max.into(), left.bit_size);
                 let no_overflow = SingleAddrVariable::new(ctx.allocate_register(), 1);
@@ -248,8 +247,8 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
                 });
                 ctx.deallocate_single_addr(max);
                 ctx.deallocate_single_addr(no_overflow);
-            },
-        );
+            }
+        });
 
         self.deallocate_single_addr(left_is_negative);
         self.deallocate_single_addr(left_abs_value);

@@ -186,30 +186,6 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
         self.enter_section(end_section);
     }
 
-    /// This codegen issues two code branches where only one will be executed, chosen by `condition`
-    pub(crate) fn codegen_if_else(
-        &mut self,
-        condition: MemoryAddress,
-        f_then: impl FnOnce(&mut BrilligContext<F, Registers>),
-        f_else: impl FnOnce(&mut BrilligContext<F, Registers>),
-    ) {
-        let (then_section, then_label) = self.reserve_next_section_label();
-        let (else_section, else_label) = self.reserve_next_section_label();
-        let (end_section, end_label) = self.reserve_next_section_label();
-
-        self.jump_if_instruction(condition, then_label);
-        self.jump_instruction(else_label);
-
-        self.enter_section(then_section);
-        f_then(self);
-        self.jump_instruction(end_label);
-
-        self.enter_section(else_section);
-        f_else(self);
-
-        self.enter_section(end_section);
-    }
-
     /// Emits brillig bytecode to jump to a trap condition if `condition`
     /// is false. The trap will include the given message as revert data.
     pub(crate) fn codegen_constrain_with_revert_data(
