@@ -11,9 +11,9 @@
 //! since we must go through every instruction to find all references to `assert_constant`
 //! while loop unrolling only touches blocks with loops in them.
 use acvm::{FieldElement, acir::brillig::ForeignCallParam};
-use fxhash::FxHashSet as HashSet;
 use iter_extended::vecmap;
 use noirc_printable_type::{PrintableValueDisplay, TryFromParamsError};
+use rustc_hash::FxHashSet as HashSet;
 
 use crate::{
     errors::RuntimeError,
@@ -328,11 +328,11 @@ mod test {
           b0(v0: u32, v1: u32):
             jmp b1(v0)
           b1(v2: u32):
-            v3 = lt v2, v1                                   
+            v3 = lt v2, v1
             jmpif v3 then: b2, else: b3
           b2():
-            call assert_constant(v0)                          
-            v6 = unchecked_add v2, u32 1                      
+            call assert_constant(v0)
+            v6 = unchecked_add v2, u32 1
             jmp b1(v6)
           b3():
             return

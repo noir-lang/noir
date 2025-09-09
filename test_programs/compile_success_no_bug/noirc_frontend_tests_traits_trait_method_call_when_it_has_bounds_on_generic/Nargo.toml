@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_traits_trait_method_call_when_it_has_bounds_on_generic"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

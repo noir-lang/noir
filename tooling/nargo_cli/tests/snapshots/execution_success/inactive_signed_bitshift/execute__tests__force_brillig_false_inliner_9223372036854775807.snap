@@ -33,13 +33,13 @@ expression: artifact
       "visibility": "public"
     },
     "error_types": {
-      "6668324276689745315": {
-        "error_kind": "string",
-        "string": "Field failed to decompose into specified 4 limbs"
-      },
-      "14514982005979867414": {
+      "5421095327929394772": {
         "error_kind": "string",
         "string": "attempt to bit-shift with overflow"
+      },
+      "11019205087382408538": {
+        "error_kind": "string",
+        "string": "Field failed to decompose into specified 4 limbs"
       }
     }
   },
@@ -51,10 +51,10 @@ expression: artifact
     "return value indices : [_2]",
     "BLACKBOX::RANGE [(_0, 1)] []",
     "BLACKBOX::RANGE [(_1, 16)] []",
-    "BRILLIG CALL func 0: inputs: [EXPR [ (1, _1) 65521 ], EXPR [ 65536 ]], outputs: [_3, _4]",
+    "BRILLIG CALL func 0: inputs: [EXPR [ (1, _1) 65520 ], EXPR [ 65536 ]], outputs: [_3, _4]",
     "BLACKBOX::RANGE [(_3, 1)] []",
     "BLACKBOX::RANGE [(_4, 16)] []",
-    "EXPR [ (1, _1) (-65536, _3) (-1, _4) 65521 ]",
+    "EXPR [ (1, _1) (-65536, _3) (-1, _4) 65520 ]",
     "EXPR [ (-1, _0, _3) 0 ]",
     "BRILLIG CALL func 1: inputs: [EXPR [ (1, _1, _0) 0 ], EXPR [ 4 ], EXPR [ 2 ]], outputs: [[_5, _6, _7, _8]]",
     "BLACKBOX::RANGE [(_5, 1)] []",

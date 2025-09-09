@@ -23,16 +23,15 @@ use crate::{
         expr::*,
         function::{FunctionSignature, Parameters},
         stmt::{HirAssignStatement, HirLValue, HirLetStatement, HirPattern, HirStatement},
-        types,
     },
     node_interner::{self, DefinitionKind, NodeInterner, StmtId, TraitImplKind},
 };
 use acvm::{FieldElement, acir::AcirField};
 use ast::{GlobalId, IdentId, While};
-use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use iter_extended::{btree_map, try_vecmap, vecmap};
 use noirc_errors::Location;
 use noirc_printable_type::PrintableType;
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use std::{
     collections::{BTreeMap, VecDeque},
     unreachable,
@@ -125,7 +124,7 @@ type Functions = HashMap<
     HashMap<HirType, HashMap<Vec<HirType>, FuncId>>,
 >;
 
-type HirType = crate::Type;
+type HirType = Type;
 
 /// Starting from the given `main` function, monomorphize the entire program,
 /// replacing all references to type variables and NamedGenerics with concrete
@@ -241,10 +240,10 @@ impl<'interner> Monomorphizer<'interner> {
         LocalId(id)
     }
 
-    fn next_function_id(&mut self) -> ast::FuncId {
+    fn next_function_id(&mut self) -> FuncId {
         let id = self.next_function_id;
         self.next_function_id += 1;
-        ast::FuncId(id)
+        FuncId(id)
     }
 
     fn next_global_id(&mut self) -> GlobalId {
@@ -266,7 +265,7 @@ impl<'interner> Monomorphizer<'interner> {
     fn lookup_function(
         &mut self,
         id: node_interner::FuncId,
-        expr_id: node_interner::ExprId,
+        expr_id: ExprId,
         typ: &HirType,
         turbofish_generics: &[HirType],
         trait_method: Option<TraitItemId>,
@@ -408,7 +407,7 @@ impl<'interner> Monomorphizer<'interner> {
 
         let parameters = self.parameters(&meta.parameters)?;
         let body = self.expr(body_expr_id)?;
-        let function = ast::Function {
+        let function = Function {
             id,
             name,
             parameters,
@@ -424,7 +423,7 @@ impl<'interner> Monomorphizer<'interner> {
         Ok(())
     }
 
-    fn push_function(&mut self, id: FuncId, function: ast::Function) {
+    fn push_function(&mut self, id: FuncId, function: Function) {
         let existing = self.finished_functions.insert(id, function);
         assert!(existing.is_none());
     }
@@ -435,8 +434,7 @@ impl<'interner> Monomorphizer<'interner> {
     fn parameters(
         &mut self,
         params: &Parameters,
-    ) -> Result<Vec<(ast::LocalId, bool, String, ast::Type, Visibility)>, MonomorphizationError>
-    {
+    ) -> Result<Vec<(LocalId, bool, String, ast::Type, Visibility)>, MonomorphizationError> {
         let mut new_params = Vec::with_capacity(params.len());
         for (parameter, typ, visibility) in &params.0 {
             self.parameter(parameter, typ, visibility, &mut new_params)?;
@@ -449,7 +447,7 @@ impl<'interner> Monomorphizer<'interner> {
         param: &HirPattern,
         typ: &HirType,
         visibility: &Visibility,
-        new_params: &mut Vec<(ast::LocalId, bool, String, ast::Type, Visibility)>,
+        new_params: &mut Vec<(LocalId, bool, String, ast::Type, Visibility)>,
     ) -> Result<(), MonomorphizationError> {
         match param {
             HirPattern::Identifier(ident) => {
@@ -490,10 +488,7 @@ impl<'interner> Monomorphizer<'interner> {
         Ok(())
     }
 
-    pub(crate) fn expr(
-        &mut self,
-        expr: node_interner::ExprId,
-    ) -> Result<ast::Expression, MonomorphizationError> {
+    pub(crate) fn expr(&mut self, expr: ExprId) -> Result<ast::Expression, MonomorphizationError> {
         use ast::Expression::Literal;
         use ast::Literal::*;
 
@@ -664,7 +659,7 @@ impl<'interner> Monomorphizer<'interner> {
         Ok(expr)
     }
 
-    fn contains_reference(typ: &types::Type) -> bool {
+    fn contains_reference(typ: &Type) -> bool {
         match typ {
             Type::FieldElement
             | Type::Bool
@@ -719,8 +714,8 @@ impl<'interner> Monomorphizer<'interner> {
 
     fn standard_array(
         &mut self,
-        array: node_interner::ExprId,
-        array_elements: Vec<node_interner::ExprId>,
+        array: ExprId,
+        array_elements: Vec<ExprId>,
         is_slice: bool,
     ) -> Result<ast::Expression, MonomorphizationError> {
         let location = self.interner.expr_location(&array);
@@ -735,8 +730,8 @@ impl<'interner> Monomorphizer<'interner> {
 
     fn repeated_array(
         &mut self,
-        array: node_interner::ExprId,
-        repeated_element: node_interner::ExprId,
+        array: ExprId,
+        repeated_element: ExprId,
         length: HirType,
         is_slice: bool,
     ) -> Result<ast::Expression, MonomorphizationError> {
@@ -758,7 +753,7 @@ impl<'interner> Monomorphizer<'interner> {
 
     fn index(
         &mut self,
-        id: node_interner::ExprId,
+        id: ExprId,
         index: HirIndexExpression,
     ) -> Result<ast::Expression, MonomorphizationError> {
         let location = self.interner.expr_location(&id);
@@ -832,7 +827,7 @@ impl<'interner> Monomorphizer<'interner> {
     fn constructor(
         &mut self,
         constructor: HirConstructorExpression,
-        id: node_interner::ExprId,
+        id: ExprId,
     ) -> Result<ast::Expression, MonomorphizationError> {
         let location = self.interner.expr_location(&id);
 
@@ -902,7 +897,7 @@ impl<'interner> Monomorphizer<'interner> {
     fn enum_constructor(
         &mut self,
         constructor: HirEnumConstructorExpression,
-        id: node_interner::ExprId,
+        id: ExprId,
     ) -> Result<ast::Expression, MonomorphizationError> {
         let location = self.interner.expr_location(&id);
         let typ = self.interner.id_type(id);
@@ -1060,7 +1055,7 @@ impl<'interner> Monomorphizer<'interner> {
     fn ident(
         &mut self,
         ident: HirIdent,
-        expr_id: node_interner::ExprId,
+        expr_id: ExprId,
         generics: Option<Vec<HirType>>,
         // If set and this is a function value, only monomorphize the function for the
         // constrainedness given by `self.in_unconstrained_function` rather than returning a tuple
@@ -1621,13 +1616,13 @@ impl<'interner> Monomorphizer<'interner> {
             });
         }
         let to_value = to.evaluate_to_signed_field(&to.kind(), location);
-        if to_value.is_ok() {
+        if let Ok(to_value) = to_value {
             let skip_simplifications = false;
             let from_value =
                 from.evaluate_to_signed_field_helper(&to.kind(), location, skip_simplifications);
-            if from_value.is_err() || from_value.unwrap() != to_value.clone().unwrap() {
+            if from_value.is_err() || from_value.unwrap() != to_value {
                 return Err(MonomorphizationError::CheckedCastFailed {
-                    actual: HirType::Constant(to_value.unwrap(), to.kind()),
+                    actual: HirType::Constant(to_value, to.kind()),
                     expected: from.clone(),
                     location,
                 });
@@ -1665,7 +1660,7 @@ impl<'interner> Monomorphizer<'interner> {
 
     fn resolve_trait_item_expr(
         &mut self,
-        expr_id: node_interner::ExprId,
+        expr_id: ExprId,
         function_type: HirType,
         trait_item_id: TraitItemId,
         use_current_runtime: bool,
@@ -1691,7 +1686,7 @@ impl<'interner> Monomorphizer<'interner> {
     fn resolve_trait_method_expr(
         &mut self,
         func_id: node_interner::FuncId,
-        expr_id: node_interner::ExprId,
+        expr_id: ExprId,
         function_type: HirType,
         trait_item_id: TraitItemId,
     ) -> Result<ast::Expression, MonomorphizationError> {
@@ -1759,7 +1754,7 @@ impl<'interner> Monomorphizer<'interner> {
     fn function_call(
         &mut self,
         call: HirCallExpression,
-        id: node_interner::ExprId,
+        id: ExprId,
     ) -> Result<ast::Expression, MonomorphizationError> {
         let original_func = Box::new(self.extract_function(call.func)?);
 
@@ -1876,8 +1871,8 @@ impl<'interner> Monomorphizer<'interner> {
     fn try_evaluate_call(
         &mut self,
         func: &ast::Expression,
-        expr_id: &node_interner::ExprId,
-        arguments: &[node_interner::ExprId],
+        expr_id: &ExprId,
+        arguments: &[ExprId],
         argument_values: &[ast::Expression],
         result_type: &ast::Type,
     ) -> Result<Option<ast::Expression>, MonomorphizationError> {
@@ -1925,8 +1920,8 @@ impl<'interner> Monomorphizer<'interner> {
 
     fn checked_transmute(
         &mut self,
-        expr_id: node_interner::ExprId,
-        arguments: &[node_interner::ExprId],
+        expr_id: ExprId,
+        arguments: &[ExprId],
         argument_values: &[ast::Expression],
     ) -> Result<ast::Expression, MonomorphizationError> {
         let location = self.interner.expr_location(&expr_id);
@@ -1967,7 +1962,7 @@ impl<'interner> Monomorphizer<'interner> {
     fn queue_function(
         &mut self,
         id: node_interner::FuncId,
-        expr_id: node_interner::ExprId,
+        expr_id: ExprId,
         function_type: HirType,
         turbofish_generics: Vec<HirType>,
         trait_method: Option<TraitItemId>,
@@ -2053,7 +2048,7 @@ impl<'interner> Monomorphizer<'interner> {
     fn lambda(
         &mut self,
         lambda: HirLambda,
-        expr: node_interner::ExprId,
+        expr: ExprId,
     ) -> Result<ast::Expression, MonomorphizationError> {
         // Function values are represented as a tuple of (constrained version, unconstrained version)
         self.monomorphize_constrained_and_unconstrained(false, |this: &mut Self| {
@@ -2069,7 +2064,7 @@ impl<'interner> Monomorphizer<'interner> {
     fn lambda_no_capture(
         &mut self,
         lambda: HirLambda,
-        expr: node_interner::ExprId,
+        expr: ExprId,
     ) -> Result<ast::Expression, MonomorphizationError> {
         let location = self.interner.expr_location(&expr);
         let ret_type = Self::convert_type(&lambda.return_type, location)?;
@@ -2085,7 +2080,7 @@ impl<'interner> Monomorphizer<'interner> {
         let body = self.expr(lambda.body)?;
         let id = self.next_function_id();
 
-        let function = ast::Function {
+        let function = Function {
             id,
             name: lambda_name.to_owned(),
             parameters,
@@ -2119,7 +2114,7 @@ impl<'interner> Monomorphizer<'interner> {
     fn lambda_with_setup(
         &mut self,
         lambda: HirLambda,
-        expr: node_interner::ExprId,
+        expr: ExprId,
     ) -> Result<(ast::Expression, ast::Expression), MonomorphizationError> {
         // returns (<closure setup>, <closure variable>)
         //   which can be used directly in callsites or transformed
@@ -2173,7 +2168,7 @@ impl<'interner> Monomorphizer<'interner> {
             })?);
 
         let expr_type = self.interner.id_type(expr);
-        let env_typ = if let types::Type::Function(_, _, function_env_type, _) = expr_type {
+        let env_typ = if let Type::Function(_, _, function_env_type, _) = expr_type {
             Self::convert_type(&function_env_type, location)?
         } else {
             unreachable!("expected a Function type for a Lambda node")
@@ -2223,7 +2218,7 @@ impl<'interner> Monomorphizer<'interner> {
             vec![(env_local_id, true, env_name.to_string(), env_typ.clone(), Visibility::Private)];
         parameters.append(&mut converted_parameters);
 
-        let function = ast::Function {
+        let function = Function {
             id,
             name,
             parameters,
@@ -2333,11 +2328,7 @@ impl<'interner> Monomorphizer<'interner> {
     /// Implements std::unsafe_func::zeroed by returning an appropriate zeroed
     /// ast literal or collection node for the given type. Note that for functions
     /// there is no obvious zeroed value so this should be considered unsafe to use.
-    fn zeroed_value_of_type(
-        &mut self,
-        typ: &ast::Type,
-        location: noirc_errors::Location,
-    ) -> ast::Expression {
+    fn zeroed_value_of_type(&mut self, typ: &ast::Type, location: Location) -> ast::Expression {
         match typ {
             ast::Type::Field | ast::Type::Integer(..) => {
                 let typ = typ.clone();
@@ -2408,7 +2399,7 @@ impl<'interner> Monomorphizer<'interner> {
         ret_type: &ast::Type,
         env_type: &ast::Type,
         unconstrained: bool,
-        location: noirc_errors::Location,
+        location: Location,
     ) -> ast::Expression {
         let lambda_name = "zeroed_lambda";
 
@@ -2422,7 +2413,7 @@ impl<'interner> Monomorphizer<'interner> {
         let return_type = ret_type.clone();
         let name = lambda_name.to_owned();
 
-        let function = ast::Function {
+        let function = Function {
             id,
             name,
             parameters,
