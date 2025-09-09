@@ -1,5 +1,6 @@
 use std::borrow::Cow;
 
+use fxhash::FxHashSet;
 use petgraph::graph::NodeIndex;
 
 use crate::ssa::ir::{
@@ -27,7 +28,10 @@ pub(super) struct Block {
     pub(super) alias_graph: AliasGraph,
 
     /// The last instance of a `Store` instruction to each address in this block
-    pub(super) last_stores: im::OrdMap<ValueId, InstructionId>,
+    /// This is a set of instructions for each value in the case this block is a
+    /// result of merging multiple predecessors, we will have 1 last store for
+    /// each block with a store to the same reference.
+    pub(super) last_stores: im::OrdMap<ValueId, FxHashSet<InstructionId>>,
 }
 
 /// A `Container` is stored for any ValueId whose type may contain references.
@@ -78,6 +82,10 @@ impl Block {
         self.alias_graph.new_derived_reference(address, derived_from, dfg.type_of_value(address));
     }
 
+    pub(super) fn get_contained_references(&self, value: ValueId) -> AliasSet {
+        self.containers.get(&value).cloned().unwrap_or_else(AliasSet::unknown)
+    }
+
     pub(super) fn insert_derived_reference_from_alias_set(
         &mut self,
         address: ValueId,
@@ -94,6 +102,16 @@ impl Block {
     pub(super) fn unify(mut self, other: &Self, dfg: &DataFlowGraph) -> Self {
         self.containers = Self::unify_alias_sets(&self.containers, &other.containers);
         self.alias_graph = self.alias_graph.unify(&other.alias_graph, dfg);
+
+        let mut last_stores = self.last_stores.clone().intersection(other.last_stores.clone());
+        // The above intersection keeps the values from `self.last_stores` so we still
+        // have to go through them again to manually union their values.
+        for (reference, stores) in other.last_stores.iter() {
+            if let Some(existing_stores) = last_stores.get_mut(reference) {
+                existing_stores.extend(stores.iter().copied());
+            }
+        }
+        self.last_stores = last_stores;
         self
     }
 
@@ -113,6 +131,30 @@ impl Block {
             }
         }
         intersection
+    }
+
+    /// Adds the previous `last_stores` for the given address (and its aliases) to the list of instructions
+    /// to remove and sets the new entry to `new_instruction`.
+    pub(super) fn update_last_store(&mut self, address: ValueId, new_instruction: InstructionId, instructions_to_remove: &mut FxHashSet<InstructionId>) {
+        let aliases = self.get_aliases_for_value(address);
+
+        // If the aliases are unknown we have to clear the last stores - we can't keep them
+        // to maybe be removed later since if this is the last block, they may be erroneously
+        // removed 
+        if aliases.is_unknown() {
+            self.last_stores.clear();
+        } else {
+            for alias in aliases.iter() {
+                if let Some(stores) = self.last_stores.remove(&alias) {
+                    println!("update_last_store: removing {stores:?}");
+                    instructions_to_remove.extend(stores);
+                }
+            }
+        }
+
+        let new_set = std::iter::once(new_instruction).collect();
+        println!("Inserting last store {new_instruction}");
+        self.last_stores.insert(address, new_set);
     }
 
     /// Forget the last store to an address and all of its aliases, to eliminate them
@@ -139,13 +181,18 @@ impl Block {
     /// which are candidates for removal at the end. Also marks the values in the last
     /// store as used, now that we know we want to keep them.
     fn keep_last_store(&mut self, address: ValueId, function: &Function) {
-        if let Some(instruction) = self.last_stores.remove(&address) {
-            // Whenever we decide we want to keep a store instruction, we also need
-            // to go through its stored value and mark that used as well.
-            match &function.dfg[instruction] {
-                Instruction::Store { value, .. } => self.mark_value_used(*value, function),
-                other => {
-                    unreachable!("last_store held an id of a non-store instruction: {other:?}")
+        println!("keep_last_store({address})");
+        if let Some(instructions) = self.last_stores.remove(&address) {
+            println!("  keep_last_store kept {} instruction(s)", instructions.len());
+
+            for instruction in instructions {
+                // Whenever we decide we want to keep a store instruction, we also need
+                // to go through its stored value and mark that used as well.
+                match &function.dfg[instruction] {
+                    Instruction::Store { value, .. } => self.mark_value_used(*value, function),
+                    other => {
+                        unreachable!("last_store held an id of a non-store instruction: {other:?}")
+                    }
                 }
             }
         }
@@ -163,18 +210,6 @@ impl Block {
                 self.mark_value_used(value, function);
             }
         }
-    }
-
-    /// Collect all aliases used by the given value list
-    pub(super) fn collect_all_aliases(
-        &self,
-        values: impl IntoIterator<Item = ValueId>,
-    ) -> AliasSet {
-        let mut aliases = AliasSet::known_empty();
-        for value in values {
-            aliases.unify(&self.get_aliases_for_value(value));
-        }
-        aliases
     }
 
     pub(super) fn get_aliases_for_value(&self, value: ValueId) -> AliasSet {

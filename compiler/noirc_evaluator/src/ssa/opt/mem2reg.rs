@@ -143,11 +143,6 @@ struct PerFunctionContext<'f> {
     /// Track whether a reference was passed into another instruction (e.g. Call)
     /// This is needed to determine whether we can remove a store.
     instruction_input_references: HashSet<ValueId>,
-
-    /// Track whether a reference has been aliased, and store the respective
-    /// instruction that aliased that reference.
-    /// If that store has been set for removal, we can also remove this instruction.
-    aliased_references: HashMap<ValueId, HashSet<InstructionId>>,
 }
 
 impl<'f> PerFunctionContext<'f> {
@@ -162,7 +157,6 @@ impl<'f> PerFunctionContext<'f> {
             blocks: BTreeMap::new(),
             instructions_to_remove: HashSet::default(),
             used_addresses: HashSet::default(),
-            aliased_references: HashMap::default(),
             instruction_input_references: HashSet::default(),
         }
     }
@@ -174,7 +168,11 @@ impl<'f> PerFunctionContext<'f> {
     fn mem2reg(&mut self) {
         // Iterate each block in reverse post order = forward order
         let mut block_order = self.post_order.as_slice().to_vec();
+        let last_block = block_order[0];
         block_order.reverse();
+        println!("block order = {block_order:?}");
+
+        println!("function = {}", self.inserter.function);
 
         for block in block_order {
             let references = self.find_starting_references(block);
@@ -203,18 +201,18 @@ impl<'f> PerFunctionContext<'f> {
 
         // If we never load from an address within a function we can remove all stores to that address.
         // This rule does not apply to reference parameters, which we must also check for before removing these stores.
-        for (_, block) in self.blocks.iter() {
-            for (store_address, store_instruction) in block.last_stores.iter() {
-                let store_alias_used = self.is_store_alias_used(
-                    store_address,
-                    block,
-                    &all_terminator_values,
-                    &per_func_block_params,
-                );
+        let block = &self.blocks[&last_block];
+        for (store_address, store_instructions) in block.last_stores.iter() {
+            let store_alias_used = self.is_store_alias_used(
+                store_address,
+                block,
+                &all_terminator_values,
+                &per_func_block_params,
+            );
 
-                if !self.used_addresses.contains(store_address) && !store_alias_used {
-                    self.instructions_to_remove.insert(*store_instruction);
-                }
+            if !self.used_addresses.contains(store_address) && !store_alias_used {
+                println!("last block: removing {store_instructions:?}");
+                self.instructions_to_remove.extend(store_instructions.iter().copied());
             }
         }
     }
@@ -254,14 +252,6 @@ impl<'f> PerFunctionContext<'f> {
             if all_terminator_values.contains(&alias) {
                 return true;
             }
-
-            // Check whether there are any aliases whose instructions are not all marked for removal.
-            // If there is any alias marked to survive, we should not remove its last store.
-            if let Some(alias_instructions) = self.aliased_references.get(&alias) {
-                if !alias_instructions.is_subset(&self.instructions_to_remove) {
-                    return true;
-                }
-            }
         }
 
         false
@@ -285,9 +275,7 @@ impl<'f> PerFunctionContext<'f> {
         let mut predecessors = self.cfg.predecessors(block);
 
         if let Some(first_predecessor) = predecessors.next() {
-            let mut first = self.blocks.get(&first_predecessor).cloned().unwrap_or_default();
-
-            first.last_stores.clear();
+            let first = self.blocks.get(&first_predecessor).cloned().unwrap_or_default();
 
             // Note that we have to start folding with the first block as the accumulator.
             // If we started with an empty block, an empty block union'd with any other block
@@ -359,8 +347,20 @@ impl<'f> PerFunctionContext<'f> {
             let mut aliases = aliases.into_iter();
             let Some(first) = aliases.next() else { continue };
 
-            for alias in aliases {
-                references.alias_graph.add_undirected_alias_from_indices(first, alias);
+            // If there are multiple aliases add:
+            // - First as an undirected alias to each reference of the same type. Since this
+            //   is undirected, this will link all parameters of the same type in the graph.
+            // - An orphan node as a possible alias to each reference of the same type. This
+            //   tells the alias graph that other parameters may not necessarily be aliased
+            //   to `first`.
+            if aliases.len() > 0 {
+                let extra_alias = references.alias_graph.new_orphan_reference();
+                references.alias_graph.add_directed_alias_from_indices(extra_alias, first);
+
+                for alias in aliases {
+                    references.alias_graph.add_undirected_alias_from_indices(first, alias);
+                    references.alias_graph.add_directed_alias_from_indices(extra_alias, alias);
+                }
             }
         }
     }
@@ -415,13 +415,15 @@ impl<'f> PerFunctionContext<'f> {
     fn remove_stores_that_do_not_alias_parameters(&mut self, references: &Block) {
         let reference_parameters = self.reference_parameters();
 
-        for (allocation, instruction) in &references.last_stores {
-            let aliases = references.get_aliases_for_value(*allocation);
-            let allocation_aliases_parameter =
-                aliases.any(|alias| reference_parameters.contains(&alias));
-            // If `allocation_aliases_parameter` is known to be false
-            if allocation_aliases_parameter == Some(false) {
-                self.instructions_to_remove.insert(*instruction);
+        for (allocation, instructions) in &references.last_stores {
+            for instruction in instructions {
+                let aliases = references.get_aliases_for_value(*allocation);
+                let allocation_aliases_parameter =
+                    aliases.any(|alias| reference_parameters.contains(&alias));
+                // If `allocation_aliases_parameter` is known to be false
+                if allocation_aliases_parameter == Some(false) {
+                    self.instructions_to_remove.insert(*instruction);
+                }
             }
         }
     }
@@ -474,17 +476,20 @@ impl<'f> PerFunctionContext<'f> {
                     self.used_addresses.insert(address);
                     // Stores to any of its aliases should also be considered loaded.
                     self.used_addresses.extend(references.get_aliases_for_value(address).iter());
+                    self.mark_address_used(address, references);
                 }
 
                 // If the address is potentially aliased we must keep the stores to it
-                if references.get_aliases_for_value(address).single_alias().is_none() {
-                    self.mark_address_used(address, references);
-                }
+                // if references.get_aliases_for_value(address).single_alias().is_none() {
+                //     self.mark_address_used(address, references);
+                // }
 
                 // If `address` is a nested reference we have to set each container alias as a
                 // possible alias of the new resulting reference.
                 if self.inserter.function.dfg.value_is_reference(result) {
-                    let aliases = references.containers[&address].clone();
+                    let aliases = references.get_contained_references(address);
+                    println!("Getting container for {address} in block {}:\n  References = {aliases:?}", block_id);
+
                     let dfg = &self.inserter.function.dfg;
                     references.insert_derived_reference_from_alias_set(result, &aliases, dfg);
 
@@ -502,27 +507,9 @@ impl<'f> PerFunctionContext<'f> {
                 let address = *address;
                 let value = *value;
 
-                let address_aliases = references.get_aliases_for_value(address);
-
                 // If there was another store to this instruction without any (unremoved) loads or
                 // function calls in-between, we can remove the previous store.
-                if !self.aliased_references.contains_key(&address) && !address_aliases.is_unknown()
-                {
-                    if let Some(last_store) = references.last_stores.get(&address) {
-                        self.instructions_to_remove.insert(*last_store);
-                    }
-                }
-
-                // Remember that we used the value in this instruction. If this instruction
-                // isn't removed at the end, we need to keep the stores to the value as well.
-                let value_aliases = references.get_aliases_for_value(address);
-                if value_aliases.is_unknown() {
-                    self.aliased_references.entry(value).or_default().insert(instruction);
-                } else {
-                    for alias in value_aliases.iter() {
-                        self.aliased_references.entry(alias).or_default().insert(instruction);
-                    }
-                }
+                references.update_last_store(address, instruction, &mut self.instructions_to_remove);
 
                 if self.inserter.function.dfg.value_is_nested_reference(address) {
                     let container = references
@@ -533,9 +520,6 @@ impl<'f> PerFunctionContext<'f> {
                 }
 
                 references.set_known_value(address, value);
-                // If we see a store to an address, the last load to that address needs to remain.
-                // references.keep_last_load_for(address);
-                references.last_stores.insert(address, instruction);
             }
             Instruction::Allocate => {
                 // Register the new reference
@@ -543,6 +527,7 @@ impl<'f> PerFunctionContext<'f> {
                 let result = dfg.instruction_results(instruction)[0];
 
                 if dfg.value_is_nested_reference(result) {
+                    println!("Inserting container for {result} in block {}", block_id);
                     references.containers.insert(result, Container::known_empty());
                 }
                 references.insert_fresh_reference(result, dfg);
@@ -605,13 +590,6 @@ impl<'f> PerFunctionContext<'f> {
                     aliases.unify(&value_aliases);
 
                     references.containers.insert(result, aliases);
-
-                    // Similar to how we remember that we used a value in a `Store` instruction,
-                    // take note that it was used in the `ArraySet`. If this instruction is not
-                    // going to be removed at the end, we shall keep the stores to this value as well.
-                    for alias in value_aliases.iter() {
-                        self.aliased_references.entry(alias).or_default().insert(instruction);
-                    }
                 }
             }
             Instruction::Call { arguments, .. } => {
@@ -1109,18 +1087,17 @@ mod tests {
             v4 = eq v0, Field 0
             jmpif v4 then: b2, else: b3
           b2():
-            v11 = load v3 -> &mut Field
-            store Field 2 at v11
-            v13 = add v0, Field 1
-            jmp b1(v13)
+            v10 = load v3 -> &mut Field
+            store Field 2 at v10
+            v12 = add v0, Field 1
+            jmp b1(v12)
           b3():
             v5 = load v1 -> Field
             v7 = eq v5, Field 2
             constrain v5 == Field 2
             v8 = load v3 -> &mut Field
-            v9 = load v8 -> Field
-            v10 = eq v9, Field 2
-            constrain v9 == Field 2
+            v9 = eq v5, Field 2
+            constrain v5 == Field 2
             return
         }
         ");
@@ -2102,7 +2079,6 @@ mod tests {
             store v2 at v3
             v4 = make_array [v3, v3] : [&mut &mut &mut Field; 2]
             v5 = allocate -> &mut [&mut &mut &mut Field; 2]
-            store Field 1 at v0
             return
         }
         ");

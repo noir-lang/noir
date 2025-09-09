@@ -18,10 +18,6 @@ impl AliasSet {
         Self { aliases: None }
     }
 
-    pub(super) fn known(value: ValueId) -> AliasSet {
-        Self { aliases: Some(VecSet::single(value)) }
-    }
-
     pub(super) fn known_multiple(values: VecSet<[ValueId; 1]>) -> AliasSet {
         Self { aliases: Some(values) }
     }
@@ -35,14 +31,6 @@ impl AliasSet {
 
     pub(super) fn is_unknown(&self) -> bool {
         self.aliases.is_none()
-    }
-
-    /// Return the single known alias if there is exactly one.
-    /// Otherwise, return None.
-    pub(super) fn single_alias(&self) -> Option<ValueId> {
-        self.aliases
-            .as_ref()
-            .and_then(|aliases| (aliases.len() == 1).then(|| *aliases.iter().next().unwrap()))
     }
 
     /// Unify this alias set with another. The result of this set is empty if either set is empty.
@@ -72,16 +60,4 @@ impl AliasSet {
     pub(super) fn iter(&self) -> impl Iterator<Item = ValueId> {
         self.aliases.iter().flat_map(|aliases| aliases.iter().copied())
     }
-
-    /// Returns the count of aliases
-    pub(super) fn len(&self) -> usize {
-        self.aliases.as_ref().map(|aliases| aliases.len()).unwrap_or(0)
-    }
-
-    // Return the first ValueId in the alias set as long as there is at least one.
-    // The ordering is arbitrary (by lowest ValueId) so this method should only be
-    // used when you need an arbitrary ValueId from the alias set.
-    // pub(super) fn first(&self) -> Option<ValueId> {
-    //     self.iter().next()
-    // }
 }

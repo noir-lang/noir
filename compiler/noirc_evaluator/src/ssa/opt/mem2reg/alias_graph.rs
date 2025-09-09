@@ -136,17 +136,17 @@ impl AliasGraph {
     ) {
         // Optimization: if there is only one reference we may be derived from, just
         // re-use the same node for that reference so they directly share ReferenceValues.
-        if derived_from.len() == 1 {
-            let node = self.address_to_node[&derived_from[0]];
-            self.address_to_node.insert(new_reference, node);
-        } else {
+        // if derived_from.len() == 1 {
+        //     let node = self.address_to_node[&derived_from[0]];
+        //     self.address_to_node.insert(new_reference, node);
+        // } else {
             let new_reference = self.new_reference(new_reference, reference_type);
             for child in derived_from {
                 let child = self.address_to_node[child];
                 // data flows from the child to the new reference
                 self.graph.update_edge(child, new_reference, ());
             }
-        }
+        // }
     }
 
     pub(crate) fn new_derived_reference_from_alias_set(
@@ -156,6 +156,8 @@ impl AliasGraph {
         reference_type: Type,
     ) {
         let aliases = if aliases.is_unknown() {
+            println!("  aliases are none, linking to {} aliases of the same type",
+                self.type_to_node[&reference_type].len());
             // If the aliases are unknown we have to link it to every value id of the given type
             self.type_to_node[&reference_type].iter().copied().collect::<Vec<_>>()
         } else {
@@ -177,7 +179,23 @@ impl AliasGraph {
     /// Return the value stored at `reference`, if known.
     pub(crate) fn get_known_value(&self, reference: ValueId) -> Option<ValueId> {
         let node = self.address_to_node.get(&reference)?;
-        self.graph[*node]
+
+        // Check if we directly know the value
+        if let Some(value) = self.graph[*node] {
+            return Some(value);
+        }
+
+        // Otherwise, if this reference was derived from exactly one alias,
+        // it must be that alias and we can check its value.
+        let mut neighbors = self.graph.neighbors_directed(*node, Direction::Incoming);
+        let first = neighbors.next()?;
+        let only_one_neighbor = neighbors.next().is_none();
+
+        if only_one_neighbor {
+            self.graph[first]
+        } else {
+            None
+        }
     }
 
     fn traverse_possible_aliases(
@@ -357,6 +375,13 @@ mod tests {
         ssa_gen::Ssa,
     };
 
+    #[track_caller]
+    fn pretty_print_assert_eq(actual: impl Into<String>, expected: impl Into<String>) {
+        let actual = actual.into();
+        let expected = expected.into();
+        assert_eq!(actual, expected, "\nExpected:\n{expected}\nActual:\n{actual}");
+    }
+
     /// Returns the alias graph after the given block, after running mem2reg on the given SSA source.
     fn alias_graph_after_block(ssa_src: &str, block: Option<BasicBlockId>) -> AliasGraph {
         let mut ssa = Ssa::from_str(ssa_src).unwrap().mem2reg();
@@ -420,8 +445,7 @@ v3 <- v0
 ";
 
         let graph = alias_graph_after_last_block(ssa);
-        println!("{graph}");
-        assert_eq!(graph.to_string(), expected);
+        pretty_print_assert_eq(graph.to_string(), expected);
     }
 
     #[test]
@@ -468,8 +492,7 @@ v3 <- v0
         }
         ";
         let graph = alias_graph_after_last_block(src);
-        println!("{graph}");
-        assert_eq!(graph.to_string(), "");
+        pretty_print_assert_eq(graph.to_string(), "");
     }
 
     #[test]
@@ -478,42 +501,55 @@ v3 <- v0
         let src = "
          acir(inline) fn main f0 {
            b0():
-             v0 = allocate -> &mut Field
-             store Field 5 at v0
-             v2 = load v0 -> Field
+             v1 = allocate -> &mut Field
+             store Field 5 at v1
+             v2 = load v1 -> Field
              jmp b1(v2)
-           b1(v3: Field):
-             v4 = load v0 -> Field
-             store Field 6 at v0
-             v6 = load v0 -> Field
-             return v3, v4, v6
+           b1(v0: Field):
+             v4 = load v1 -> Field
+             store Field 6 at v1
+             v6 = load v1 -> Field
+             return v0, v4, v6
          }
         ";
         let graph = alias_graph_after_last_block(src);
-        println!("{graph}");
-        assert_eq!(graph.to_string(), "");
+        pretty_print_assert_eq(graph.to_string(), "v1\n");
     }
 
-    // #[test]
-    // fn unknown_ref_becomes_alias_in_loop() {
-    //     let src = "
-    //     acir(inline) fn main f0 {
-    //       b0(v0: u1):
-    //         v1 = allocate -> &mut Field
-    //         store Field 0 at v1
-    //         jmpif b1(u32 0)
-    //       b1(v2: u32):
-    //         v3 = lt v2, u32 10
-    //         jmpif v3 then: b2, else: b3
-    //       b2():
-    //         // v4 is initially unaliased but becomes aliased to v1
-    //         // at the end of this block
-    //         v4 = allocate -> &mut Field
-    //       b3():
-    //     }
-    //     ";
-    //     let graph = alias_graph_after_last_block(src);
-    //     println!("{graph}");
-    //     assert_eq!(graph.to_string(), "");
-    // }
+    #[test]
+    fn remove_repeat_loads() {
+        // This tests starts with two loads from the same unknown load.
+        // Specifically you should look for `load v2` in `b3`.
+        // We should be able to remove the second repeated load.
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            store Field 0 at v0
+            v2 = allocate -> &mut &mut Field
+            store v0 at v2
+            jmp b1(Field 0)
+          b1(v3: Field):
+            v4 = eq v3, Field 0
+            jmpif v4 then: b2, else: b3
+          b2():
+            v5 = load v2 -> &mut Field
+            store Field 2 at v5
+            v8 = add v3, Field 1
+            jmp b1(v8)
+          b3():
+            v9 = load v0 -> Field
+            v10 = eq v9, Field 2
+            constrain v9 == Field 2
+            v11 = load v2 -> &mut Field
+            v12 = load v2 -> &mut Field
+            v13 = load v12 -> Field
+            v14 = eq v13, Field 2
+            constrain v13 == Field 2
+            return
+        }
+        ";
+        let graph = alias_graph_after_block(src, Some(BasicBlockId::test_new(2)));
+        pretty_print_assert_eq(graph.to_string(), "v1 -> v10\nv3\nv10 <- v1\n");
+    }
 }
