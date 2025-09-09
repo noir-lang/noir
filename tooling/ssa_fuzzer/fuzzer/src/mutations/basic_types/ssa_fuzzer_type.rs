@@ -16,7 +16,7 @@ fn generate_random_reference_type(rng: &mut StdRng, config: GenerateTypeConfig) 
 fn generate_random_array_type(rng: &mut StdRng, config: GenerateTypeConfig) -> Type {
     Type::Array(
         Arc::new(vec![generate_random_ssa_fuzzer_type(rng, config)]),
-        rng.gen_range(1..MAX_ARRAY_SIZE) as u32, // empty arrays are not allowed
+        rng.random_range(1..MAX_ARRAY_SIZE) as u32, // empty arrays are not allowed
     )
 }
 

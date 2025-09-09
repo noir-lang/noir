@@ -19,7 +19,7 @@ fn generate_random_witness_value(rng: &mut StdRng) -> WitnessValue {
             WitnessValue::Numeric(Unstructured::new(&bytes).arbitrary().unwrap())
         }
         GenerateInitialWitness::Array => {
-            let size = rng.gen_range(1..MAX_ARRAY_SIZE);
+            let size = rng.random_range(1..MAX_ARRAY_SIZE);
             let first_element = generate_random_witness_value(rng);
             let values = (0..size)
                 .map(|_| witness::generate_witness_of_the_same_type(rng, &first_element))
