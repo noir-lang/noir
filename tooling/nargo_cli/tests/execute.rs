@@ -131,14 +131,7 @@ mod tests {
             .join("\n")
     }
 
-    fn execution_success(
-        mut nargo: Command,
-        test_program_dir: PathBuf,
-        check_stdout: bool,
-        _check_artifact: bool,
-        _force_brillig: ForceBrillig,
-        _inliner: Inliner,
-    ) {
+    fn execution_success(mut nargo: Command, test_program_dir: PathBuf, check_stdout: bool) {
         let target_dir = tempfile::tempdir().unwrap().keep();
 
         nargo.arg(format!("--target-dir={}", target_dir.to_string_lossy()));
@@ -453,27 +446,6 @@ mod tests {
         nargo.arg("--program-dir").arg(target_dir);
         nargo.arg("fmt");
         nargo.assert().success();
-    }
-
-    fn find_program_artifact_in_dir(dir: &PathBuf) -> Option<PathBuf> {
-        if !dir.exists() {
-            return None;
-        }
-
-        for entry in fs::read_dir(dir).unwrap() {
-            let Ok(entry) = entry else {
-                continue;
-            };
-
-            let path = entry.path();
-            if path.extension().is_none_or(|ext| ext != "json") {
-                continue;
-            };
-
-            return Some(path);
-        }
-
-        None
     }
 
     fn find_prover_toml_in_dir(dir: &PathBuf) -> Option<PathBuf> {
