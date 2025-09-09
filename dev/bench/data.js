@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1757447501181,
+  "lastUpdate": 1757447562555,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -12112,80 +12112,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "3b6b3592bd3058c4325637f4b13556b2ed704124",
-          "message": "chore(licm): Break things up further in LICM (#9683)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
-          "timestamp": "2025-08-29T18:25:01Z",
-          "tree_id": "c5250f4666ab31013e7243aa1559503b0c40c504",
-          "url": "https://github.com/noir-lang/noir/commit/3b6b3592bd3058c4325637f4b13556b2ed704124"
-        },
-        "date": 1756494194647,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 213.88,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 247.08,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 198.71,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 502.47,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 434.93,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1500,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 329.26,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 331.79,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 70.43,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 57.32,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "163862677+noirwhal@users.noreply.github.com",
             "name": "noirwhal",
             "username": "noirwhal"
@@ -15755,6 +15681,80 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/4dda4f88837045bcea002b2d65ee5570e942efbe"
         },
         "date": 1757442468813,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 258.16,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 291.32,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 242.9,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 506.04,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 438.42,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1500,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 330.5,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 333.02,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 72.45,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 58.23,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "af9c9f8357d3134c8238763442882aaa7908f7cf",
+          "message": "chore: Check an inline always weight threshold during inline info computation (#9487)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-09-09T19:05:09Z",
+          "tree_id": "6e99fb89c5dc0cdae1200481f1deca6b06353eab",
+          "url": "https://github.com/noir-lang/noir/commit/af9c9f8357d3134c8238763442882aaa7908f7cf"
+        },
+        "date": 1757447497122,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
