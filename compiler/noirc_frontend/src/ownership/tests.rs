@@ -124,8 +124,6 @@ fn considers_lvalue_index_identifier_in_last_use() {
         b[0] = !c[0];
         assert_eq(c[0], true);
     }
-
-    fn use_var<T>(_x: T) {}
     ";
 
     let program = get_monomorphized_no_emit_test(src).unwrap();
@@ -152,8 +150,6 @@ fn analyzes_expression_before_lvalue_in_assignment() {
         };
         assert_eq(c[0], true);
     }
-
-    fn use_var<T>(_x: T) {}
     ";
 
     let program = get_monomorphized_no_emit_test(src).unwrap();
