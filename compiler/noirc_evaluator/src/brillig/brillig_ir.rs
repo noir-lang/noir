@@ -226,29 +226,32 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             BrilligBinaryOp::Xor,
         );
 
-        // If result has to be negative, perform two's complement
-        self.codegen_if(result_is_negative.address, |ctx| {
-            let zero = ctx.make_constant_instruction(0_usize.into(), result.bit_size);
-            ctx.binary_instruction(zero, result, result, BrilligBinaryOp::Sub);
-            ctx.deallocate_single_addr(zero);
-        });
-        // else the result is positive and so it must be less than '2**(bit_size-1)'
+        self.codegen_if_else(
+            result_is_negative.address,
+            // If result has to be negative, perform two's complement
+            |ctx| {
+                let zero = ctx.make_constant_instruction(0_usize.into(), result.bit_size);
+                ctx.binary_instruction(zero, result, result, BrilligBinaryOp::Sub);
+                ctx.deallocate_single_addr(zero);
+            },
+            // else the result is positive and so it must be less than '2**(bit_size-1)'
+            |ctx| {
+                let max = 1_u128 << (left.bit_size - 1);
+                let no_overflow = ctx.allocate_register();
+                let max = ctx.make_constant_instruction(max.into(), left.bit_size);
+                let no_overflow = SingleAddrVariable::new(no_overflow, 1);
+                ctx.binary_instruction(result, max, no_overflow, BrilligBinaryOp::LessThan);
+                ctx.codegen_if_not(no_overflow.address, |ctx2| {
+                    ctx2.codegen_constrain(
+                        no_overflow,
+                        Some("Attempt to divide with overflow".to_string()),
+                    );
+                });
+                ctx.deallocate_register(max.address);
+                ctx.deallocate_register(no_overflow.address);
+            },
+        );
 
-        self.codegen_if_not(result_is_negative.address, |ctx| {
-            let max = 1_u128 << (left.bit_size - 1);
-            let no_overflow = ctx.allocate_register();
-            let max = ctx.make_constant_instruction(max.into(), left.bit_size);
-            let no_overflow = SingleAddrVariable::new(no_overflow, 1);
-            ctx.binary_instruction(result, max, no_overflow, BrilligBinaryOp::LessThan);
-            ctx.codegen_if_not(no_overflow.address, |ctx2| {
-                ctx2.codegen_constrain(
-                    no_overflow,
-                    Some("Attempt to divide with overflow".to_string()),
-                );
-            });
-            ctx.deallocate_register(max.address);
-            ctx.deallocate_register(no_overflow.address);
-        });
         self.deallocate_single_addr(left_is_negative);
         self.deallocate_single_addr(left_abs_value);
         self.deallocate_single_addr(right_is_negative);
