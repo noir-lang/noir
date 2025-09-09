@@ -414,10 +414,7 @@ mod test {
             }
         "#;
         let result = interpret_expect_error(src);
-        assert!(matches!(
-            result,
-            InterpreterError::BinaryOperationOverflow { operator: "/", location: _ }
-        ));
+        assert!(matches!(result, InterpreterError::InvalidValuesForBinary { operator: "/", .. }));
     }
 
     #[test]
@@ -428,10 +425,7 @@ mod test {
             }
         "#;
         let result = interpret_expect_error(src);
-        assert!(matches!(
-            result,
-            InterpreterError::BinaryOperationOverflow { operator: "/", location: _ }
-        ));
+        assert!(matches!(result, InterpreterError::InvalidValuesForBinary { operator: "/", .. }));
     }
 
     #[test]
