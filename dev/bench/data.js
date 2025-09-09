@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1757435687191,
+  "lastUpdate": 1757435860907,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -20231,48 +20231,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "1b24d1c5533b103eff16e2ae134d4c82be918b8b",
-          "message": "feat: Propagate purities using SCCs (#9672)",
-          "timestamp": "2025-08-29T14:42:45Z",
-          "tree_id": "c02da68b9de2ea01275850a25e22257330fe3b68",
-          "url": "https://github.com/noir-lang/noir/commit/1b24d1c5533b103eff16e2ae134d4c82be918b8b"
-        },
-        "date": 1756480241468,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 250262,
-            "range": "± 1574",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 218678,
-            "range": "± 2324",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2780715,
-            "range": "± 1365",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -22324,6 +22282,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2793462,
             "range": "± 8910",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "c857d4b3a86aeb1db1f8a5b21cedb73b97724e91",
+          "message": "chore(die): Module doc comments (#9768)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
+          "timestamp": "2025-09-09T15:49:03Z",
+          "tree_id": "64ead37040c35f271f3537d7e853544272068a48",
+          "url": "https://github.com/noir-lang/noir/commit/c857d4b3a86aeb1db1f8a5b21cedb73b97724e91"
+        },
+        "date": 1757435841140,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 246053,
+            "range": "± 786",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 217039,
+            "range": "± 2670",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2783259,
+            "range": "± 1312",
             "unit": "ns/iter"
           }
         ]
