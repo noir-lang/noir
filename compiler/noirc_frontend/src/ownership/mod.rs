@@ -133,10 +133,7 @@ impl Context {
     /// but their LHS is always exempt from clones so this is unchanged.
     ///
     /// # Returns
-    /// A boolean representing whether or not the expression was borrowed by reference or moved.
-    /// This helps the caller determine whether we need to clone the result of a borrowed expression.
-    /// `true` represents an expression that was moved
-    /// `false` represents an expression borrowed by reference
+    /// A boolean representing whether or not the expression was borrowed by reference (false) or moved (true).
     fn handle_reference_expression(&mut self, expr: &mut Expression) -> bool {
         match expr {
             Expression::Ident(_) => false,
