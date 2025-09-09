@@ -6,7 +6,7 @@ use crate::ssa::ir::{
 };
 use rustc_hash::FxHashMap as HashMap;
 
-/// Records a simplified equivalents of an [`Instruction`] in the blocks
+/// Records a simplified equivalents of an [`Instruction`][crate::ssa::ir::instruction::Instruction] in the blocks
 /// where the constraint that advised the simplification has been encountered.
 ///
 /// For more information see [`ConstraintSimplificationCache`].
