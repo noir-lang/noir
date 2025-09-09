@@ -2028,9 +2028,39 @@ mod test {
     #[test_case("u32", 0, 10, 0, true, "sub", 5, false, "sub overflows, but loop empty")]
     #[test_case("u32", 0, 10, 0, true, "unchecked_sub", 5, true, "loop empty, but sub unchecked")]
     #[test_case("u32", 0, 10, 10, true, "mul", 10, true, "loop executes, mul cannot overflow")]
-    #[test_case("u32", 0, 10, 10, true, "mul", i64::from(u32::MAX), true, "mul overflows, and loop executes")]
-    #[test_case("u32", 0, 10, 0, true, "mul", i64::from(u32::MAX), false, "mul overflows, but loop empty")]
-    #[test_case("u32", 0, 10, 0, true, "unchecked_mul", i64::from(u32::MAX), true, "loop empty, but mul unchecked")]
+    #[test_case(
+        "u32",
+        0,
+        10,
+        10,
+        true,
+        "mul",
+        i64::from(u32::MAX),
+        true,
+        "mul overflows, and loop executes"
+    )]
+    #[test_case(
+        "u32",
+        0,
+        10,
+        0,
+        true,
+        "mul",
+        i64::from(u32::MAX),
+        false,
+        "mul overflows, but loop empty"
+    )]
+    #[test_case(
+        "u32",
+        0,
+        10,
+        0,
+        true,
+        "unchecked_mul",
+        i64::from(u32::MAX),
+        true,
+        "loop empty, but mul unchecked"
+    )]
     #[test_case("u32", 0, 10, 10, true, "div", 2, true, "loop executes, div ok")]
     #[test_case("u32", 0, 10, 0, true, "div", 2, true, "loop empty, div ok")]
     #[test_case("u32", 0, 10, 10, true, "div", 0, true, "div by zero, and loop executes")]
