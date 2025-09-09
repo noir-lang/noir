@@ -113,3 +113,29 @@ fn can_move_within_loop() {
     }
     ");
 }
+
+#[test]
+fn considers_lvalue_index_identifier_in_last_use() {
+    let src = "
+    unconstrained fn main() {
+        let mut b = [true];
+        let mut c = [false];
+        c = b;
+        b[0] = !c[0];
+        assert_eq(c[0], true);
+    }
+
+    fn use_var<T>(_x: T) {}
+    ";
+
+    let program = get_monomorphized_no_emit_test(src).unwrap();
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0() -> () {
+        let mut b$l0 = [true];
+        let mut c$l1 = [false];
+        c$l1 = b$l0.clone();
+        b$l0[0] = (!c$l1[0]);
+        assert((c$l1[0] == true));
+    }
+    ");
+}
