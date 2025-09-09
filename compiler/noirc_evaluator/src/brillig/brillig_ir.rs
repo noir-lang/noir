@@ -233,7 +233,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             ctx.deallocate_single_addr(zero);
         });
         // else the result is positive and so it must be less than '2**(bit_size-1)'
-        let max = (1 << (left.bit_size - 1)) as u128;
+        let max = 1_u128 << (left.bit_size - 1);
         let no_overflow = self.allocate_register();
         let max = self.make_constant_instruction(max.into(), left.bit_size);
         let no_overflow = SingleAddrVariable::new(no_overflow, 1);
