@@ -17,6 +17,8 @@ jobs:
     name: cargo clippy
     runs-on: ubuntu-22.04
     timeout-minutes: 30
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout
@@ -45,6 +47,8 @@ jobs:
     name: cargo fmt
     runs-on: ubuntu-22.04
     timeout-minutes: 30
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout
@@ -71,6 +75,8 @@ jobs:
     name: cargo doc
     runs-on: ubuntu-22.04
     timeout-minutes: 30
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout
@@ -99,6 +105,8 @@ jobs:
     name: eslint
     runs-on: ubuntu-22.04
     timeout-minutes: 30
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout
@@ -115,6 +123,8 @@ jobs:
   build-nargo:
     runs-on: ubuntu-22.04
     timeout-minutes: 30
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout Noir repo
@@ -151,6 +161,8 @@ jobs:
     name: Nargo fmt
     runs-on: ubuntu-22.04
     timeout-minutes: 30
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout
@@ -180,6 +192,8 @@ jobs:
       - rustdoc
       - eslint
       - nargo_fmt
+    permissions:
+      contents: read
 
     steps:
         - name: Report overall success
