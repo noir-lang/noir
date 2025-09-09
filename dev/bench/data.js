@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1757441889925,
+  "lastUpdate": 1757442061195,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -4208,90 +4208,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "jose@aztecprotocol.com",
-            "name": "José Pedro Sousa",
-            "username": "signorecello"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "e5bd63846b7b408f8dd890afbb902d473bdf792d",
-          "message": "chore(docs): spinning out bb docs (#9402)\n\nCo-authored-by: Savio <72797635+Savio-Sou@users.noreply.github.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-08-29T17:37:58Z",
-          "tree_id": "99788380e7972e3da85fd3039c197277da9a348e",
-          "url": "https://github.com/noir-lang/noir/commit/e5bd63846b7b408f8dd890afbb902d473bdf792d"
-        },
-        "date": 1756491069792,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 1.914,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 7.838,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.392,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 15.24,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 12.92,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 21.84,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 201,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 198,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.388,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.498,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.8,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 1.585,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -8401,6 +8317,90 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 1.92,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "4dda4f88837045bcea002b2d65ee5570e942efbe",
+          "message": "chore: remove snapshots from `test_programs` artifacts (#9788)",
+          "timestamp": "2025-09-09T17:39:35Z",
+          "tree_id": "4e669c595013357a631b9b79809626e3cd0c5840",
+          "url": "https://github.com/noir-lang/noir/commit/4dda4f88837045bcea002b2d65ee5570e942efbe"
+        },
+        "date": 1757442041717,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1.76,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 8.82,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.4,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 17.92,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 16.3,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 17.7,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 207,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 207,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.396,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.522,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.79,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 1.716,
             "unit": "s"
           }
         ]
