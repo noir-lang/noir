@@ -246,6 +246,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
                     Some("Attempt to divide with overflow".to_string()),
                 );
             });
+            ctx.deallocate_register(max.address);
             ctx.deallocate_register(no_overflow.address);
         });
         self.deallocate_single_addr(left_is_negative);
