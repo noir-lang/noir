@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1757455143261,
+  "lastUpdate": 1757455144892,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -8410,80 +8410,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "a869373de6d06ba2b8f9999d12813d5139eb664b",
-          "message": "fix(licm): Use `Loop::header` in `Loop::is_fully_executed` (#9700)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-09-01T14:52:52Z",
-          "tree_id": "d3f4a065daa9db0a8759adab5029262ee42ba4a4",
-          "url": "https://github.com/noir-lang/noir/commit/a869373de6d06ba2b8f9999d12813d5139eb664b"
-        },
-        "date": 1756740257159,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.015,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.155,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.01,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.263,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 0.161,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 13.3,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.002,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.004,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.02,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 0.1,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -12103,6 +12029,80 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 0.108,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "bf6b8dfcbd8f54b597d8c42251e6b12384390970",
+          "message": "Revert \"chore: move `ram_blowup_regression` to be a compile-only test\" (#9801)",
+          "timestamp": "2025-09-09T22:49:46+01:00",
+          "tree_id": "04a59fc91afe68d12f3f1ff368ea2952dc47731b",
+          "url": "https://github.com/noir-lang/noir/commit/bf6b8dfcbd8f54b597d8c42251e6b12384390970"
+        },
+        "date": 1757455124508,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.013,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.163,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.011,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.264,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.166,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 14.1,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.002,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.004,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.018,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 0.106,
             "unit": "s"
           }
         ]
