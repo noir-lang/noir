@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1757457302153,
+  "lastUpdate": 1757457640649,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -8420,80 +8420,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "9f646acc9046e6e52cb992d1a9123ba779594a76",
-          "message": "chore: remove playwright workaround (#9704)",
-          "timestamp": "2025-09-01T19:22:22+01:00",
-          "tree_id": "5604bd9f0017c8412c002845c34d3a9df1372b54",
-          "url": "https://github.com/noir-lang/noir/commit/9f646acc9046e6e52cb992d1a9123ba779594a76"
-        },
-        "date": 1756751430693,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.016,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.155,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.01,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.264,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 0.158,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 13,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.002,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.004,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.019,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 0.105,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "f5cbfb4b58988d502f70cd891409bf52eced4509",
           "message": "chore: remove duplicated frontend tests (#9706)",
           "timestamp": "2025-09-01T19:51:20Z",
@@ -12103,6 +12029,80 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 0.106,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "1b5e1de2e7c3d46945bb6747eba4e44342bd6b4e",
+          "message": "feat(ownership): Do not clone indexed call results containing arrays (#9791)\n\nCo-authored-by: jfecher <jfecher11@gmail.com>",
+          "timestamp": "2025-09-09T22:09:26Z",
+          "tree_id": "db6f64465734c6dc11d6359509f6ae556f361d96",
+          "url": "https://github.com/noir-lang/noir/commit/1b5e1de2e7c3d46945bb6747eba4e44342bd6b4e"
+        },
+        "date": 1757457620594,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.013,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.163,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.011,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.267,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.168,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 14.3,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.002,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.005,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.019,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 0.105,
             "unit": "s"
           }
         ]
