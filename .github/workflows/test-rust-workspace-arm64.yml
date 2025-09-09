@@ -16,6 +16,8 @@ jobs:
     name: Build test artifacts
     runs-on: macos-latest
     timeout-minutes: 30
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout
@@ -53,6 +55,8 @@ jobs:
     runs-on: macos-latest
     needs: [build-test-artifacts]
     timeout-minutes: 15
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
@@ -90,6 +94,8 @@ jobs:
     if: ${{ always() }}
     needs:
       - run-tests
+    permissions:
+      contents: read
 
     steps:
       - name: Report overall success

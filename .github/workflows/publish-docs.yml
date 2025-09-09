@@ -11,6 +11,8 @@ jobs:
   publish-docs:
     name: Publish docs
     runs-on: ubuntu-22.04
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout release branch
