@@ -690,11 +690,12 @@ mod tests {
                     );
 
                     // Go into the last created directory
-                    if indent > current_indent && last_item.is_some() {
-                        let last_item = last_item.unwrap();
-                        assert!(is_dir(&last_item), "last item was not a dir: {last_item}");
-                        current_dir.push(last_item);
-                        current_indent += 1;
+                    if let Some(last_item) = last_item {
+                        if indent > current_indent {
+                            assert!(is_dir(&last_item), "last item was not a dir: {last_item}");
+                            current_dir.push(last_item);
+                            current_indent += 1;
+                        }
                     }
                     // Go back into an ancestor directory
                     while indent < current_indent {

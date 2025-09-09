@@ -24,13 +24,13 @@ expression: artifact
       "visibility": "public"
     },
     "error_types": {
-      "14225679739041873922": {
-        "error_kind": "string",
-        "string": "Index out of bounds"
-      },
-      "15839565830707987292": {
+      "2043772407049807006": {
         "error_kind": "string",
         "string": "attempt to calculate the remainder with a divisor of zero"
+      },
+      "16431471497789672479": {
+        "error_kind": "string",
+        "string": "Index out of bounds"
       }
     }
   },

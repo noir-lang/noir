@@ -1,7 +1,7 @@
 use std::{borrow::Cow, cell::RefCell, collections::BTreeSet, rc::Rc};
 
-use fxhash::FxHashMap as HashMap;
 use im::HashSet;
+use rustc_hash::FxHashMap as HashMap;
 
 #[cfg(test)]
 use proptest_derive::Arbitrary;
@@ -30,6 +30,7 @@ use super::traits::NamedType;
 
 mod arithmetic;
 mod unification;
+pub(crate) mod validity;
 
 pub use unification::UnificationError;
 
@@ -1352,193 +1353,6 @@ impl Type {
         matches!(self.follow_bindings_shallow().as_ref(), Type::Reference(_, _))
     }
 
-    /// True if this type can be used as a parameter to `main` or a contract function.
-    /// This is only false for unsized types like slices or slices that do not make sense
-    /// as a program input such as named generics or mutable references.
-    ///
-    /// This function should match the same check done in `create_value_from_type` in acir_gen.
-    /// If this function does not catch a case where a type should be valid, it will later lead to a
-    /// panic in that function instead of a user-facing compiler error message.
-    pub(crate) fn is_valid_for_program_input(&self) -> bool {
-        match self {
-            // Type::Error is allowed as usual since it indicates an error was already issued and
-            // we don't need to issue further errors about this likely unresolved type
-            // TypeVariable and Generic are allowed here too as they can only result from
-            // generics being declared on the function itself, but we produce a different error in that case.
-            Type::FieldElement
-            | Type::Integer(_, _)
-            | Type::Bool
-            | Type::Constant(_, _)
-            | Type::TypeVariable(_)
-            | Type::NamedGeneric(_)
-            | Type::Error => true,
-
-            Type::Unit
-            | Type::FmtString(_, _)
-            | Type::Function(_, _, _, _)
-            | Type::Reference(..)
-            | Type::Forall(_, _)
-            | Type::Quoted(_)
-            | Type::Slice(_)
-            | Type::TraitAsType(..) => false,
-
-            Type::CheckedCast { to, .. } => to.is_valid_for_program_input(),
-
-            Type::Alias(alias, generics) => {
-                let alias = alias.borrow();
-                alias.get_type(generics).is_valid_for_program_input()
-            }
-
-            Type::Array(length, element) => {
-                self.array_or_string_len_is_not_zero()
-                    && length.is_valid_for_program_input()
-                    && element.is_valid_for_program_input()
-            }
-            Type::String(length) => {
-                self.array_or_string_len_is_not_zero() && length.is_valid_for_program_input()
-            }
-            Type::Tuple(elements) => elements.iter().all(|elem| elem.is_valid_for_program_input()),
-            Type::DataType(definition, generics) => {
-                if let Some(fields) = definition.borrow().get_fields(generics) {
-                    fields.into_iter().all(|(_, field, _)| field.is_valid_for_program_input())
-                } else {
-                    // Arbitrarily disallow enums from program input, though we may support them later
-                    false
-                }
-            }
-
-            Type::InfixExpr(lhs, _, rhs, _) => {
-                lhs.is_valid_for_program_input() && rhs.is_valid_for_program_input()
-            }
-        }
-    }
-
-    /// Empty arrays and strings (which are arrays under the hood) are disallowed
-    /// as input to program entry points.
-    ///
-    /// The point of inputs to entry points is to process input data.
-    /// Thus, passing empty arrays is pointless and adds extra complexity to the compiler
-    /// for handling them.
-    fn array_or_string_len_is_not_zero(&self) -> bool {
-        match self {
-            Type::Array(length, _) | Type::String(length) => {
-                let length = length.evaluate_to_u32(Location::dummy()).unwrap_or(0);
-                length != 0
-            }
-            _ => panic!("ICE: Expected an array or string type"),
-        }
-    }
-
-    /// True if this type can be used as a parameter to an ACIR function that is not `main` or a contract function.
-    /// This encapsulates functions for which we may not want to inline during compilation.
-    ///
-    /// The inputs allowed for a function entry point differ from those allowed as input to a program as there are
-    /// certain types which through compilation we know what their size should be.
-    /// This includes types such as numeric generics.
-    pub(crate) fn is_valid_non_inlined_function_input(&self) -> bool {
-        match self {
-            // Type::Error is allowed as usual since it indicates an error was already issued and
-            // we don't need to issue further errors about this likely unresolved type
-            Type::FieldElement
-            | Type::Integer(_, _)
-            | Type::Bool
-            | Type::Unit
-            | Type::Constant(_, _)
-            | Type::TypeVariable(_)
-            | Type::NamedGeneric(_)
-            | Type::InfixExpr(..)
-            | Type::Error => true,
-
-            Type::FmtString(_, _)
-            // To enable this we would need to determine the size of the closure outputs at compile-time.
-            // This is possible as long as the output size is not dependent upon a witness condition.
-            | Type::Function(_, _, _, _)
-            | Type::Slice(_)
-            | Type::Reference(..)
-            | Type::Forall(_, _)
-            // TODO: probably can allow code as it is all compile time
-            | Type::Quoted(_)
-            | Type::TraitAsType(..) => false,
-
-            Type::CheckedCast { to, .. } => to.is_valid_non_inlined_function_input(),
-
-            Type::Alias(alias, generics) => {
-                let alias = alias.borrow();
-                alias.get_type(generics).is_valid_non_inlined_function_input()
-            }
-
-            Type::Array(length, element) => {
-                length.is_valid_non_inlined_function_input() && element.is_valid_non_inlined_function_input()
-            }
-            Type::String(length) => length.is_valid_non_inlined_function_input(),
-            Type::Tuple(elements) => elements.iter().all(|elem| elem.is_valid_non_inlined_function_input()),
-            Type::DataType(definition, generics) => {
-                if let Some(fields) = definition.borrow().get_fields(generics) {
-                    fields.into_iter()
-                    .all(|(_, field, _)| field.is_valid_non_inlined_function_input())
-                } else {
-                    false
-                }
-            }
-        }
-    }
-
-    /// Returns true if a value of this type can safely pass between constrained and
-    /// unconstrained functions (and vice-versa).
-    pub(crate) fn is_valid_for_unconstrained_boundary(&self) -> bool {
-        match self {
-            Type::FieldElement
-            | Type::Integer(_, _)
-            | Type::Bool
-            | Type::Unit
-            | Type::Constant(_, _)
-            | Type::Slice(_)
-            | Type::Function(_, _, _, _)
-            | Type::FmtString(_, _)
-            | Type::InfixExpr(..)
-            | Type::Error => true,
-
-            Type::TypeVariable(type_var) | Type::NamedGeneric(NamedGeneric { type_var, .. }) => {
-                if let TypeBinding::Bound(typ) = &*type_var.borrow() {
-                    typ.is_valid_for_unconstrained_boundary()
-                } else {
-                    true
-                }
-            }
-
-            Type::CheckedCast { to, .. } => to.is_valid_for_unconstrained_boundary(),
-
-            // Quoted objects only exist at compile-time where the only execution
-            // environment is the interpreter. In this environment, they are valid.
-            Type::Quoted(_) => true,
-
-            Type::Reference(..) | Type::Forall(_, _) | Type::TraitAsType(..) => false,
-
-            Type::Alias(alias, generics) => {
-                let alias = alias.borrow();
-                alias.get_type(generics).is_valid_for_unconstrained_boundary()
-            }
-
-            Type::Array(length, element) => {
-                length.is_valid_for_unconstrained_boundary()
-                    && element.is_valid_for_unconstrained_boundary()
-            }
-            Type::String(length) => length.is_valid_for_unconstrained_boundary(),
-            Type::Tuple(elements) => {
-                elements.iter().all(|elem| elem.is_valid_for_unconstrained_boundary())
-            }
-            Type::DataType(definition, generics) => {
-                if let Some(fields) = definition.borrow().get_fields(generics) {
-                    fields
-                        .into_iter()
-                        .all(|(_, field, _)| field.is_valid_for_unconstrained_boundary())
-                } else {
-                    false
-                }
-            }
-        }
-    }
-
     /// Returns the number of `Forall`-quantified type variables on this type.
     /// Returns 0 if this is not a Type::Forall
     pub fn generic_count(&self) -> usize {
@@ -1783,6 +1597,56 @@ impl Type {
                 false
             }
             _ => false,
+        }
+    }
+
+    pub(crate) fn contains_reference(&self) -> bool {
+        match self {
+            Type::Unit
+            | Type::Bool
+            | Type::String(..)
+            | Type::Integer(..)
+            | Type::FieldElement
+            | Type::Quoted(..)
+            | Type::Constant(..)
+            | Type::Function(..)
+            | Type::TraitAsType(..)
+            | Type::Forall(..)
+            | Type::Error => false,
+            Type::Array(length, typ) => length.contains_reference() || typ.contains_reference(),
+            Type::Slice(length) => length.contains_reference(),
+            Type::FmtString(length, typ) => length.contains_reference() || typ.contains_reference(),
+            Type::Tuple(types) => types.iter().any(|typ| typ.contains_reference()),
+            Type::DataType(typ, generics) => {
+                let typ = typ.borrow();
+                if let Some(fields) = typ.get_fields(generics) {
+                    if fields.iter().any(|(_, field, _)| field.contains_reference()) {
+                        return true;
+                    }
+                } else if let Some(variants) = typ.get_variants(generics) {
+                    if variants
+                        .iter()
+                        .flat_map(|(_, args)| args)
+                        .any(|typ| typ.contains_reference())
+                    {
+                        return true;
+                    }
+                }
+                false
+            }
+            Type::Alias(alias, generics) => alias.borrow().get_type(generics).is_nested_slice(),
+            Type::TypeVariable(type_variable)
+            | Type::NamedGeneric(NamedGeneric { type_var: type_variable, .. }) => {
+                match &*type_variable.borrow() {
+                    TypeBinding::Bound(binding) => binding.contains_reference(),
+                    TypeBinding::Unbound(_, _) => false,
+                }
+            }
+            Type::CheckedCast { from: _, to } => to.contains_reference(),
+            Type::InfixExpr(lhs, _op, rhs, _) => {
+                lhs.contains_reference() || rhs.contains_reference()
+            }
+            Type::Reference(..) => true,
         }
     }
 

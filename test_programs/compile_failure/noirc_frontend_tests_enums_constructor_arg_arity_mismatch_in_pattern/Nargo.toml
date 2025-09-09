@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_enums_constructor_arg_arity_mismatch_in_pattern"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

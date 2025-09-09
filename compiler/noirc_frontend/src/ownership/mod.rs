@@ -42,7 +42,7 @@ use crate::{
     },
 };
 
-use fxhash::FxHashMap as HashMap;
+use rustc_hash::FxHashMap as HashMap;
 
 mod last_uses;
 mod tests;
@@ -148,6 +148,11 @@ impl Context {
                 self.handle_reference_expression(rhs);
             }
             Expression::ExtractTupleField(tuple, _index) => self.handle_reference_expression(tuple),
+
+            Expression::Index(index) => {
+                self.handle_reference_expression(&mut index.collection);
+                self.handle_expression(&mut index.index);
+            }
 
             // If we have something like `f(arg)` then we want to treat those variables normally
             // rather than avoid cloning them. So we shouldn't recur in `handle_reference_expression`.
@@ -267,7 +272,7 @@ impl Context {
     }
 
     fn handle_index(&mut self, index_expr: &mut Expression) {
-        let crate::monomorphization::ast::Expression::Index(index) = index_expr else {
+        let Expression::Index(index) = index_expr else {
             panic!("handle_index should only be called with Index nodes");
         };
 

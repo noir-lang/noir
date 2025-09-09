@@ -16,6 +16,8 @@ jobs:
   critical-library-list:
     name: Load critical library list
     runs-on: ubuntu-22.04
+    permissions:
+      contents: read
     outputs:
       libraries: ${{ steps.get_critical_libraries.outputs.libraries }}
 
@@ -35,6 +37,8 @@ jobs:
   yarn-lock:
     runs-on: ubuntu-22.04
     timeout-minutes: 30
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout
@@ -48,6 +52,8 @@ jobs:
   build-nargo:
     runs-on: ubuntu-22.04
     timeout-minutes: 30
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout Noir repo
@@ -67,22 +73,18 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Package artifacts
-        run: |
-          mkdir dist
-          cp ./target/release/nargo ./dist/nargo
-          7z a -ttar -so -an ./dist/* | 7z a -si ./nargo-x86_64-unknown-linux-gnu.tar.gz
-
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: nargo
-          path: ./dist/*
+          path: ./target/release/nargo
           retention-days: 3
 
   build-noir-execute:
     runs-on: ubuntu-22.04
     timeout-minutes: 30
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout Noir repo
@@ -102,22 +104,18 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Package artifacts
-        run: |
-          mkdir dist
-          cp ./target/release/noir-execute ./dist/noir-execute
-          7z a -ttar -so -an ./dist/* | 7z a -si ./noir-execute-x86_64-unknown-linux-gnu.tar.gz
-
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: noir-execute
-          path: ./dist/*
+          path: ./target/release/noir-execute
           retention-days: 3
 
   build-noirc-abi:
     runs-on: ubuntu-22.04
     timeout-minutes: 30
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout Noir repo
@@ -135,8 +133,10 @@ jobs:
       - name: Install Yarn dependencies
         uses: ./.github/actions/setup
 
+      - uses: taiki-e/install-action@just
+
       - name: Build noirc_abi
-        run: ./.github/scripts/noirc-abi-build.sh
+        run: just build-package @noir-lang/noirc_abi
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -150,6 +150,8 @@ jobs:
   build-noir-wasm:
     runs-on: ubuntu-22.04
     timeout-minutes: 30
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout sources
@@ -167,11 +169,13 @@ jobs:
       - name: Install Yarn dependencies
         uses: ./.github/actions/setup
 
+      - uses: taiki-e/install-action@just
+
       - name: Build noir_js_types
-        run: yarn workspace @noir-lang/types build
+        run: just build-package @noir-lang/types
 
       - name: Build noir_wasm
-        run: ./.github/scripts/noir-wasm-build.sh
+        run: just build-package @noir-lang/noir_wasm
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -185,6 +189,8 @@ jobs:
   build-acvm-js:
     runs-on: ubuntu-22.04
     timeout-minutes: 30
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout sources
@@ -202,8 +208,10 @@ jobs:
       - name: Install Yarn dependencies
         uses: ./.github/actions/setup
 
+      - uses: taiki-e/install-action@just
+
       - name: Build acvm_js
-        run: ./.github/scripts/acvm_js-build.sh
+        run: just build-package @noir-lang/acvm_js
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -221,6 +229,8 @@ jobs:
     name: ACVM JS (Node.js)
     runs-on: ubuntu-22.04
     timeout-minutes: 30
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout sources
@@ -243,6 +253,8 @@ jobs:
     name: ACVM JS (Browser)
     runs-on: ubuntu-22.04
     timeout-minutes: 30
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout sources
@@ -257,8 +269,10 @@ jobs:
       - name: Set up test environment
         uses: ./.github/actions/setup
 
+      - uses: taiki-e/install-action@just
+
       - name: Install Playwright
-        uses: ./.github/actions/install-playwright
+        run: just install-playwright
 
       - name: Run browser tests
         run: yarn workspace @noir-lang/acvm_js test:browser
@@ -268,6 +282,8 @@ jobs:
     name: noirc_abi
     runs-on: ubuntu-22.04
     timeout-minutes: 30
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout sources
@@ -285,8 +301,10 @@ jobs:
       - name: Run node tests
         run: yarn workspace @noir-lang/noirc_abi test
 
+      - uses: taiki-e/install-action@just
+
       - name: Install Playwright
-        uses: ./.github/actions/install-playwright
+        run: just install-playwright
 
       - name: Run browser tests
         run: yarn workspace @noir-lang/noirc_abi test:browser
@@ -296,6 +314,8 @@ jobs:
     name: Noir JS
     runs-on: ubuntu-22.04
     timeout-minutes: 30
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout
@@ -319,12 +339,14 @@ jobs:
       - name: Install Yarn dependencies
         uses: ./.github/actions/setup
 
+      - uses: taiki-e/install-action@just
+
       - name: Build noir_js_types
-        run: yarn workspace @noir-lang/types build
+        run: just build-package @noir-lang/types
 
       - name: Run noir_js tests
         run: |
-          yarn workspace @noir-lang/noir_js build
+          just build-package @noir-lang/noir_js
           yarn workspace @noir-lang/noir_js test
 
   test-noir-wasm:
@@ -332,6 +354,8 @@ jobs:
     name: noir_wasm
     runs-on: ubuntu-22.04
     timeout-minutes: 30
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout sources
@@ -352,8 +376,10 @@ jobs:
       - name: Build fixtures
         run: yarn workspace @noir-lang/noir_wasm test:build_fixtures
 
+      - uses: taiki-e/install-action@just
+
       - name: Install Playwright
-        uses: ./.github/actions/install-playwright
+        run: just install-playwright
 
       - name: Run node tests
         run: yarn workspace @noir-lang/noir_wasm test:node
@@ -366,6 +392,8 @@ jobs:
     name: noir_codegen
     runs-on: ubuntu-22.04
     timeout-minutes: 30
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout
@@ -389,11 +417,13 @@ jobs:
       - name: Install Yarn dependencies
         uses: ./.github/actions/setup
 
+      - uses: taiki-e/install-action@just
+
       - name: Build noir_js_types
-        run: yarn workspace @noir-lang/types build
+        run: just build-package @noir-lang/types
 
       - name: Build noir_js
-        run: yarn workspace @noir-lang/noir_js build
+        run: just build-package @noir-lang/noir_js
 
       - name: Run noir_codegen tests
         run: yarn workspace @noir-lang/noir_codegen test
@@ -403,6 +433,8 @@ jobs:
     runs-on: ubuntu-24.04
     needs: [build-acvm-js, build-noir-wasm, build-nargo, build-noirc-abi]
     timeout-minutes: 30
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout
@@ -454,6 +486,8 @@ jobs:
     runs-on: ubuntu-22.04
     needs: [build-acvm-js, build-noir-wasm, build-noirc-abi]
     timeout-minutes: 30
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout
@@ -480,8 +514,10 @@ jobs:
       - name: Install Yarn dependencies
         uses: ./.github/actions/setup
 
+      - uses: taiki-e/install-action@just
+
       - name: Install Playwright
-        uses: ./.github/actions/install-playwright
+        run: just install-playwright
 
       - name: Setup `integration-tests`
         run: |
@@ -497,17 +533,27 @@ jobs:
   test-examples:
     name: Example scripts
     runs-on: ubuntu-24.04
-    needs: [build-nargo, build-noir-execute]
+    needs: [build-nargo, build-noir-execute, build-acvm-js, build-noirc-abi]
     timeout-minutes: 30
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout
         uses: actions/checkout@v5
 
       - name: Install Foundry
-        uses: foundry-rs/foundry-toolchain@v1.2.0
+        uses: foundry-rs/foundry-toolchain@v1.4.0
         with:
-          version: nightly-8660e5b941fe7f4d67e246cfd3dafea330fb53b1
+          version: v1.3.3
+
+      - name: Install Yarn dependencies
+        uses: ./.github/actions/setup
+
+      - uses: taiki-e/install-action@just
+
+      - name: Install Playwright
+        run: just install-playwright
 
       - name: Install `bb`
         run: |
@@ -521,22 +567,32 @@ jobs:
       - name: Download noir-execute binary
         uses: ./.github/actions/download-noir-execute
 
-      - name: Run `prove_and_verify`
-        working-directory: ./examples/prove_and_verify
-        run: ./test.sh
+      - name: Download acvm_js package artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: acvm-js
+          path: ./acvm-repo/acvm_js
 
-      - name: Run `solidity_verifier`
-        working-directory: ./examples/solidity_verifier
-        run: ./test.sh
+      - name: Download noirc_abi package artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: noirc_abi_wasm
+          path: ./tooling/noirc_abi_wasm
 
-      - name: Run `oracle_transcript`
-        working-directory: ./examples/oracle_transcript
-        run: ./test.sh
+      - name: Build noir_js
+        run: |
+          just build-package @noir-lang/types
+          just build-package @noir-lang/noir_js
+
+      - name: Run examples
+        run: just run-examples
 
   external-repo-checks:
     needs: [build-nargo, critical-library-list]
     runs-on: ubuntu-22.04
     timeout-minutes: 30
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
@@ -615,10 +671,12 @@ jobs:
           fi
 
   compile-noir-contracts:
+    name: Compile `noir-contracts` zero inliner aggressiveness
     needs: [build-nargo]
     runs-on: ubuntu-22.04
     timeout-minutes: 30
-    name: Compile `noir-contracts` zero inliner aggressiveness
+    permissions:
+      contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -712,6 +770,8 @@ jobs:
       - test-integration-browser
       - test-examples
       - compile-noir-contracts
+    permissions:
+      contents: read
 
     steps:
         - name: Report overall success
