@@ -2283,18 +2283,28 @@ mod tests {
 
     #[test]
     fn analyzes_instruction_simplified_to_multiple() {
+        // This is a test to make sure that if an instruction is simplified to multiple instructions,
+        // like in the case of `slice_push_back`, those are handled correctly.
         let src = r#"
         brillig(inline) predicate_pure fn main f0 {
           b0():
-            v0 = allocate -> &mut u1
-            store u1 0 at v0
-            v2 = make_array [v0] : [&mut u1]
-            v3 = allocate -> &mut u1
-            store u1 0 at v3
-            v6, v7 = call slice_push_back(u32 1, v2, v3) -> (u32, [&mut u1])
-            v8 = array_get v7, index u32 1 -> &mut u1
-            v9 = load v8 -> u1
-            return v9
+            v4 = allocate -> &mut u1
+            store u1 0 at v4
+            v7 = make_array [v4] : [&mut u1]
+            v8 = allocate -> &mut u1
+            store u1 0 at v8
+            v11, v12 = call slice_push_back(u32 2, v7, v8) -> (u32, [&mut u1])
+            v16 = array_get v12, index u32 1 -> &mut u1
+            v17 = load v16 -> u1
+            jmpif v17 then: b1, else: b2
+          b1():
+            jmp b3(v12)
+          b2():
+            jmp b3(v12)
+          b3(v2: [&mut u1]):
+            v23 = array_get v2, index u32 0 -> &mut u1
+            v24 = load v23 -> u1
+            return v24
         }
         "#;
 
@@ -2304,13 +2314,23 @@ mod tests {
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) predicate_pure fn main f0 {
           b0():
-            v0 = allocate -> &mut u1
-            v1 = make_array [v0] : [&mut u1]
-            v2 = allocate -> &mut u1
-            v3 = make_array [v0, v2] : [&mut u1]
-            v4 = make_array [v0, v2] : [&mut u1]
-            v5 = make_array [v0, v2] : [&mut u1]
-            return u1 0
+            v1 = allocate -> &mut u1
+            store u1 0 at v1
+            v3 = make_array [v1] : [&mut u1]
+            v4 = allocate -> &mut u1
+            store u1 0 at v4
+            v5 = make_array [v1, v4] : [&mut u1]
+            v7 = array_set v5, index u32 2, value v4
+            v8 = make_array [v1, v4] : [&mut u1]
+            jmpif u1 0 then: b1, else: b2
+          b1():
+            jmp b3(v8)
+          b2():
+            jmp b3(v8)
+          b3(v0: [&mut u1]):
+            v10 = array_get v0, index u32 0 -> &mut u1
+            v11 = load v10 -> u1
+            return v11
         }
         "
         );
