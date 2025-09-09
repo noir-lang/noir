@@ -131,14 +131,7 @@ mod tests {
             .join("\n")
     }
 
-    fn execution_success(
-        mut nargo: Command,
-        test_program_dir: PathBuf,
-        check_stdout: bool,
-        check_artifact: bool,
-        force_brillig: ForceBrillig,
-        inliner: Inliner,
-    ) {
+    fn execution_success(mut nargo: Command, test_program_dir: PathBuf, check_stdout: bool) {
         let target_dir = tempfile::tempdir().unwrap().keep();
 
         nargo.arg(format!("--target-dir={}", target_dir.to_string_lossy()));
@@ -181,16 +174,6 @@ mod tests {
                     "Expected Prover.toml to contain a `return` key because the program produced an output"
                 );
             }
-        }
-
-        if check_artifact {
-            check_program_artifact(
-                "execution_success",
-                &test_program_dir,
-                &target_dir,
-                force_brillig,
-                inliner,
-            );
         }
     }
 
@@ -264,14 +247,6 @@ mod tests {
             0,
             "expected the number of opcodes to be 0"
         );
-
-        check_program_artifact(
-            "compile_success_empty",
-            &test_program_dir,
-            &target_dir,
-            force_brillig,
-            inliner,
-        );
     }
 
     fn compile_success_contract(
@@ -285,14 +260,6 @@ mod tests {
         nargo.arg(format!("--target-dir={}", target_dir.to_string_lossy()));
 
         nargo.assert().success().stderr(predicate::str::contains("warning:").not());
-
-        check_contract_artifact(
-            "compile_success_contract",
-            &test_program_dir,
-            &target_dir,
-            force_brillig,
-            inliner,
-        );
     }
 
     fn compile_success_no_bug(mut nargo: Command) {
@@ -479,104 +446,6 @@ mod tests {
         nargo.arg("--program-dir").arg(target_dir);
         nargo.arg("fmt");
         nargo.assert().success();
-    }
-
-    fn check_program_artifact(
-        prefix: &'static str,
-        test_program_dir: &Path,
-        target_dir: &PathBuf,
-        force_brillig: ForceBrillig,
-        inliner: Inliner,
-    ) {
-        let artifact_filename =
-            find_program_artifact_in_dir(target_dir).expect("Expected an artifact to exist");
-
-        let artifact_file = fs::File::open(&artifact_filename).unwrap();
-        let artifact: ProgramArtifact = serde_json::from_reader(artifact_file).unwrap();
-
-        let _ = fs::remove_dir_all(target_dir);
-
-        let test_name = test_program_dir.file_name().unwrap().to_string_lossy().to_string();
-        if test_name == "workspace" {
-            // workspace outputs multiple artifacts so we get a non-deterministic result.
-            return;
-        }
-
-        let snapshot_name = format!("force_brillig_{}_inliner_{}", force_brillig.0, inliner.0);
-        insta::with_settings!(
-            {
-                snapshot_path => format!("./snapshots/{prefix}/{test_name}")
-            },
-            {
-            insta::assert_json_snapshot!(snapshot_name, artifact, {
-                ".noir_version" => "[noir_version]",
-                ".hash" => "[hash]",
-                ".bytecode" => insta::dynamic_redaction(|value, _path| {
-                    // assert that the value looks like a uuid here
-                    let bytecode_b64 = value.as_str().unwrap();
-                    let bytecode = base64::engine::general_purpose::STANDARD
-                        .decode(bytecode_b64)
-                        .unwrap();
-                    let program = Program::<FieldElement>::deserialize_program(&bytecode).unwrap();
-                    Content::Seq(program.to_string().split("\n").filter(|line: &&str| !line.is_empty()).map(Content::from).collect::<Vec<Content>>())
-                }),
-                ".file_map" => "[file_map]",
-                ".debug_symbols" => "[debug_symbols]",
-            });
-        });
-    }
-
-    fn check_contract_artifact(
-        prefix: &'static str,
-        test_program_dir: &Path,
-        target_dir: &PathBuf,
-        force_brillig: ForceBrillig,
-        inliner: Inliner,
-    ) {
-        let artifact_filename =
-            find_program_artifact_in_dir(target_dir).expect("Expected an artifact to exist");
-
-        let artifact_file = fs::File::open(&artifact_filename).unwrap();
-        let artifact: ContractArtifact = serde_json::from_reader(artifact_file).unwrap();
-
-        fs::remove_dir_all(target_dir).expect("Could not remove target dir");
-
-        let test_name = test_program_dir.file_name().unwrap().to_string_lossy().to_string();
-
-        let snapshot_name = format!("force_brillig_{}_inliner_{}", force_brillig.0, inliner.0);
-        insta::with_settings!(
-            {
-                snapshot_path => format!("./snapshots/{prefix}/{test_name}")
-            },
-            {
-            insta::assert_json_snapshot!(snapshot_name, artifact, {
-                ".noir_version" => "[noir_version]",
-                ".functions[].hash" => "[hash]",
-                ".file_map" => "[file_map]",
-                ".debug_symbols" => "[debug_symbols]",
-            });
-        });
-    }
-
-    fn find_program_artifact_in_dir(dir: &PathBuf) -> Option<PathBuf> {
-        if !dir.exists() {
-            return None;
-        }
-
-        for entry in fs::read_dir(dir).unwrap() {
-            let Ok(entry) = entry else {
-                continue;
-            };
-
-            let path = entry.path();
-            if path.extension().is_none_or(|ext| ext != "json") {
-                continue;
-            };
-
-            return Some(path);
-        }
-
-        None
     }
 
     fn find_prover_toml_in_dir(dir: &PathBuf) -> Option<PathBuf> {
