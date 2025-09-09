@@ -82,14 +82,3 @@ The site will be deployed at `noir-lang.org/docs/`. Test production configuratio
 yarn workspace docs production:serve
 ```
 Access at: `http://localhost:3003/docs/`
-
-### Docker Test (Recommended)
-```sh
-yarn workspace docs production:docker:test
-```
-Access at: `http://localhost:3003/docs/`
-
-Stop Docker:
-```sh
-yarn workspace docs production:docker:stop
-```
