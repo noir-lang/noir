@@ -418,7 +418,6 @@ impl<'f> PerFunctionContext<'f> {
         // However, if we don't analyze it, then it may be a MakeArray replacing an ArraySet containing references,
         // and we need to mark those references as used to keep their stores alive.
         let (instruction, loc) = self.inserter.map_instruction(instruction_id);
-        let is_call = matches!(instruction, Instruction::Call { .. });
 
         let (instructions, simplified) = {
             match self.inserter.push_instruction_value(instruction, instruction_id, block_id, loc) {
@@ -448,13 +447,6 @@ impl<'f> PerFunctionContext<'f> {
                 InsertInstructionResult::InstructionRemoved => return,
             }
         };
-
-        // A simplified call might be SlicePushBack or SlicePushFront.
-        // In that case we still need to analyze the original call arguments as we don't
-        // want to lose stores to references passed into the call.
-        if simplified && is_call {
-            self.analyze_instruction_without_simplifying(references, instruction_id, false);
-        }
 
         for instruction in instructions {
             self.analyze_instruction_without_simplifying(references, instruction, simplified);
@@ -2290,11 +2282,7 @@ mod tests {
     }
 
     #[test]
-    fn preserves_stores_to_references_passed_to_simplified_slice_push_back() {
-        // The stores to the arrays eventually passed to `slice_push_back` must be preserved.
-        // The `slice_push_back` instruction is simplified to `make_array` (and the new slice length)
-        // but just analyzing this new `make_array` isn't enough: we need to consider the arguments
-        // passed to `slice_push_back` as well.
+    fn analyzes_instruction_simplified_to_multiple() {
         let src = r#"
         brillig(inline) predicate_pure fn main f0 {
           b0():
@@ -2317,15 +2305,12 @@ mod tests {
         brillig(inline) predicate_pure fn main f0 {
           b0():
             v0 = allocate -> &mut u1
-            store u1 0 at v0
-            v2 = make_array [v0] : [&mut u1]
-            v3 = allocate -> &mut u1
-            store u1 0 at v3
-            v4 = make_array [v0, v3] : [&mut u1]
-            v5 = make_array [v0, v3] : [&mut u1]
-            v6 = make_array [v0, v3] : [&mut u1]
-            v7 = load v3 -> u1
-            return v7
+            v1 = make_array [v0] : [&mut u1]
+            v2 = allocate -> &mut u1
+            v3 = make_array [v0, v2] : [&mut u1]
+            v4 = make_array [v0, v2] : [&mut u1]
+            v5 = make_array [v0, v2] : [&mut u1]
+            return u1 0
         }
         "
         );
