@@ -20,24 +20,31 @@ use std::{
 };
 
 use acvm::{FieldElement, acir::AcirField};
-use im::Vector;
 use iter_extended::vecmap;
 
 use crate::ssa::{
-    interpreter::{Interpreter, InterpreterOptions, value::Value as InterpreterValue},
+    interpreter::{Interpreter, InterpreterOptions},
     ir::{
         basic_block::BasicBlockId,
         dfg::{DataFlowGraph, InsertInstructionResult},
         dom::DominatorTree,
         function::{Function, FunctionId, RuntimeType},
         instruction::{ArrayOffset, Instruction, InstructionId},
-        types::{NumericType, Type},
+        types::NumericType,
         value::{Value, ValueId, ValueMapping},
     },
     opt::pure::Purity,
     ssa_gen::Ssa,
 };
 use rustc_hash::FxHashMap as HashMap;
+
+mod interpret;
+mod result_cache;
+mod simplification_cache;
+
+use interpret::try_interpret_call;
+use result_cache::{CacheResult, InstructionResultCache};
+use simplification_cache::{ConstraintSimplificationCache, SimplificationCache};
 
 impl Ssa {
     /// Performs constant folding on each instruction.
@@ -155,68 +162,6 @@ struct Context {
     values_to_replace: ValueMapping,
 }
 
-/// Records a simplified equivalents of an [`Instruction`] in the blocks
-/// where the constraint that advised the simplification has been encountered.
-///
-/// For more information see [`ConstraintSimplificationCache`].
-#[derive(Default)]
-struct SimplificationCache {
-    /// Simplified expressions where we found them.
-    ///
-    /// It will always have at least one value because `add` is called
-    /// after the default is constructed.
-    simplifications: HashMap<BasicBlockId, ValueId>,
-}
-
-impl SimplificationCache {
-    /// Called with a newly encountered simplification.
-    fn add(&mut self, dfg: &DataFlowGraph, simple: ValueId, block: BasicBlockId) {
-        self.simplifications
-            .entry(block)
-            .and_modify(|existing| {
-                // `SimplificationCache` may already hold a simplification in this block
-                // so we check whether `simple` is a better simplification than the current one.
-                if let Some((_, simpler)) = simplify(dfg, *existing, simple) {
-                    *existing = simpler;
-                };
-            })
-            .or_insert(simple);
-    }
-
-    /// Try to find a simplification in a visible block.
-    fn get(&self, block: BasicBlockId, dom: &DominatorTree) -> Option<ValueId> {
-        // Deterministically walk up the dominator chain until we encounter a block that contains a simplification.
-        dom.find_map_dominator(block, |b| self.simplifications.get(&b).cloned())
-    }
-}
-
-/// HashMap from `(side_effects_enabled_var, Instruction)` to a simplified expression that it can
-/// be replaced with based on constraints that testify to their equivalence, stored together
-/// with the set of blocks at which this constraint has been observed.
-///
-/// Only blocks dominated by one in the cache should have access to this information, otherwise
-/// we create a sort of time paradox where we replace an instruction with a constant we believe
-/// it _should_ equal to, without ever actually producing and asserting the value.
-type ConstraintSimplificationCache = HashMap<ValueId, HashMap<ValueId, SimplificationCache>>;
-
-/// HashMap from `(Instruction, side_effects_enabled_var)` to the results of the instruction.
-/// Stored as a two-level map to avoid cloning Instructions during the `.get` call.
-///
-/// The `side_effects_enabled_var` is optional because we only use them when `Instruction::requires_acir_gen_predicate`
-/// is true _and_ the constraint information is also taken into account.
-///
-/// In addition to each result, the original BasicBlockId is stored as well. This allows us
-/// to deduplicate instructions across blocks as long as the new block dominates the original.
-type InstructionResultCache = HashMap<Instruction, HashMap<Option<ValueId>, ResultCache>>;
-
-/// Records the results of all duplicate [`Instruction`]s along with the blocks in which they sit.
-///
-/// For more information see [`InstructionResultCache`].
-#[derive(Default)]
-struct ResultCache {
-    result: Option<(BasicBlockId, Vec<ValueId>)>,
-}
-
 impl Context {
     fn new(use_constraint_info: bool) -> Self {
         Self {
@@ -269,23 +214,14 @@ impl Context {
         // However, constraints do not have "results" like other instructions, thus are not included in `self.values_to_replace`.
         // To take advantage of constraint simplification we need to still resolve its cache.
         let mut terminator = function.dfg[block_id].take_terminator();
-        terminator.map_values_mut(|value| {
-            Self::resolve_cache(
-                block_id,
-                dom,
-                self.get_constraint_map(side_effects_enabled_var),
-                value,
-            )
-        });
+        let constraint_simplification_cache =
+            &*self.constraint_simplification_mappings.get(side_effects_enabled_var);
+        let mut resolve_cache =
+            |value| resolve_cache(block_id, dom, constraint_simplification_cache, value);
+
+        terminator.map_values_mut(&mut resolve_cache);
         function.dfg[block_id].set_terminator(terminator);
-        function.dfg.data_bus.map_values_mut(|value| {
-            Self::resolve_cache(
-                block_id,
-                dom,
-                self.get_constraint_map(side_effects_enabled_var),
-                value,
-            )
-        });
+        function.dfg.data_bus.map_values_mut(resolve_cache);
 
         self.block_queue.extend(function.dfg[block_id].successors());
     }
@@ -299,7 +235,8 @@ impl Context {
         side_effects_enabled_var: &mut ValueId,
         interpreter: &mut Option<Interpreter<Empty>>,
     ) {
-        let constraint_simplification_mapping = self.get_constraint_map(*side_effects_enabled_var);
+        let constraint_simplification_mapping =
+            self.constraint_simplification_mappings.get(*side_effects_enabled_var);
         let dfg = &mut function.dfg;
 
         let instruction =
@@ -309,8 +246,10 @@ impl Context {
 
         // If a copy of this instruction exists earlier in the block, then reuse the previous results.
         let runtime_is_brillig = dfg.runtime().is_brillig();
+        let predicate = self.use_constraint_info && instruction.requires_acir_gen_predicate(dfg);
+        let predicate = predicate.then_some(*side_effects_enabled_var);
         if let Some(cache_result) =
-            self.get_cached(dfg, dom, id, &instruction, *side_effects_enabled_var, block)
+            self.cached_instruction_results.get(dfg, dom, id, &instruction, predicate, block)
         {
             match cache_result {
                 CacheResult::Cached(cached) => {
@@ -335,7 +274,7 @@ impl Context {
                     }
 
                     let cached = cached.to_vec();
-                    self.replace_result_ids(&old_results, &cached);
+                    self.values_to_replace.batch_insert(&old_results, &cached);
                     return;
                 }
                 CacheResult::NeedToHoistToCommonBlock(dominator) => {
@@ -353,19 +292,14 @@ impl Context {
             Self::push_instruction(id, instruction.clone(), &old_results, block, dfg)
         } else {
             // We only want to try to inline Brillig calls for Brillig entry points (functions called from an ACIR runtime).
-            Self::try_inline_brillig_call_with_all_constants(
-                &instruction,
-                block,
-                dfg,
-                interpreter.as_mut(),
-            )
-            // Otherwise, try inserting the instruction again to apply any optimizations using the newly resolved inputs.
-            .unwrap_or_else(|| {
-                Self::push_instruction(id, instruction.clone(), &old_results, block, dfg)
-            })
+            try_interpret_call(&instruction, block, dfg, interpreter.as_mut())
+                // Otherwise, try inserting the instruction again to apply any optimizations using the newly resolved inputs.
+                .unwrap_or_else(|| {
+                    Self::push_instruction(id, instruction.clone(), &old_results, block, dfg)
+                })
         };
 
-        self.replace_result_ids(&old_results, &new_results);
+        self.values_to_replace.batch_insert(&old_results, &new_results);
 
         self.cache_instruction(
             instruction.clone(),
@@ -382,29 +316,6 @@ impl Context {
         };
     }
 
-    // Alternate between resolving `value_id` in the `dfg` and checking to see if the resolved value
-    // has been constrained to be equal to some simpler value in the current block.
-    //
-    // This allows us to reach a stable final `ValueId` for each instruction input as we add more
-    // constraints to the cache.
-    fn resolve_cache(
-        block: BasicBlockId,
-        dom: &mut DominatorTree,
-        cache: &HashMap<ValueId, SimplificationCache>,
-        value_id: ValueId,
-    ) -> ValueId {
-        match cache.get(&value_id) {
-            Some(simplification_cache) => {
-                if let Some(simplified) = simplification_cache.get(block, dom) {
-                    Self::resolve_cache(block, dom, cache, simplified)
-                } else {
-                    value_id
-                }
-            }
-            None => value_id,
-        }
-    }
-
     /// Fetches an [`Instruction`] by its [`InstructionId`] and fully resolves its inputs.
     fn resolve_instruction(
         instruction_id: InstructionId,
@@ -417,7 +328,7 @@ impl Context {
 
         // Resolve any inputs to ensure that we're comparing like-for-like instructions.
         instruction.map_values_mut(|value_id| {
-            Self::resolve_cache(block, dom, constraint_simplification_mapping, value_id)
+            resolve_cache(block, dom, constraint_simplification_mapping, value_id)
         });
         instruction
     }
@@ -469,12 +380,13 @@ impl Context {
             // to map from the more complex to the simpler value.
             if let Instruction::Constrain(lhs, rhs, _) = instruction {
                 // These `ValueId`s should be fully resolved now.
-                if let Some((complex, simple)) = simplify(&function.dfg, lhs, rhs) {
-                    self.get_constraint_map(side_effects_enabled_var)
-                        .entry(complex)
-                        .or_default()
-                        .add(&function.dfg, simple, block);
-                }
+                self.constraint_simplification_mappings.cache(
+                    &function.dfg,
+                    side_effects_enabled_var,
+                    block,
+                    lhs,
+                    rhs,
+                );
             }
         }
 
@@ -496,15 +408,11 @@ impl Context {
                 Instruction::ArrayGet { array: instruction_results[0], index: *index, offset };
 
             // If we encounter an array_get for this address, we know what the result will be.
-            self.cached_instruction_results
-                .entry(array_get)
-                .or_default()
-                .entry(predicate)
-                .or_default()
-                .cache(block, vec![*value]);
+            self.cached_instruction_results.cache(array_get, predicate, block, vec![*value]);
         }
 
-        self.remove_possibly_mutated_cached_make_arrays(&instruction, function);
+        self.cached_instruction_results
+            .remove_possibly_mutated_cached_make_arrays(&instruction, function);
 
         // If the instruction doesn't have side-effects and if it won't interact with enable_side_effects during acir_gen,
         // we cache the results so we can reuse them if the same instruction appears again later in the block.
@@ -520,271 +428,36 @@ impl Context {
             let predicate = use_predicate.then_some(side_effects_enabled_var);
 
             // If we see this make_array again, we can reuse the current result.
-            self.cached_instruction_results
-                .entry(instruction)
-                .or_default()
-                .entry(predicate)
-                .or_default()
-                .cache(block, instruction_results);
+            self.cached_instruction_results.cache(
+                instruction,
+                predicate,
+                block,
+                instruction_results,
+            );
         }
     }
+}
 
-    /// Get the simplification mapping from complex to simpler instructions,
-    /// which all depend on the same side effect condition variable.
-    fn get_constraint_map(
-        &mut self,
-        side_effects_enabled_var: ValueId,
-    ) -> &mut HashMap<ValueId, SimplificationCache> {
-        self.constraint_simplification_mappings.entry(side_effects_enabled_var).or_default()
-    }
-
-    /// Replaces a set of [`ValueId`]s inside the [`DataFlowGraph`] with another.
-    fn replace_result_ids(&mut self, old_results: &[ValueId], new_results: &[ValueId]) {
-        debug_assert_eq!(
-            old_results.len(),
-            new_results.len(),
-            "Constant folding should never mutate instruction return type"
-        );
-        for (old_result, new_result) in old_results.iter().zip(new_results) {
-            self.values_to_replace.insert(*old_result, *new_result);
-        }
-    }
-
-    /// Get a cached result if it can be used in this context.
-    fn get_cached(
-        &self,
-        dfg: &DataFlowGraph,
-        dom: &mut DominatorTree,
-        id: InstructionId,
-        instruction: &Instruction,
-        side_effects_enabled_var: ValueId,
-        block: BasicBlockId,
-    ) -> Option<CacheResult> {
-        let results_for_instruction = self.cached_instruction_results.get(instruction)?;
-        let predicate = self.use_constraint_info && instruction.requires_acir_gen_predicate(dfg);
-        let predicate = predicate.then_some(side_effects_enabled_var);
-
-        let cached_results = results_for_instruction.get(&predicate)?.get(
-            block,
-            dom,
-            instruction.has_side_effects(dfg),
-        );
-
-        cached_results.filter(|results| {
-            // This is a hacky solution to https://github.com/noir-lang/noir/issues/9477
-            // We explicitly check that the cached result values are of the same type as expected by the instruction
-            // being checked against the cache and reject if they differ.
-            if let CacheResult::Cached(results) = results {
-                let old_results = dfg.instruction_results(id).to_vec();
-
-                results.len() == old_results.len()
-                    && old_results
-                        .iter()
-                        .zip(results.iter())
-                        .all(|(old, new)| dfg.type_of_value(*old) == dfg.type_of_value(*new))
+// Alternate between resolving `value_id` in the `dfg` and checking to see if the resolved value
+// has been constrained to be equal to some simpler value in the current block.
+//
+// This allows us to reach a stable final `ValueId` for each instruction input as we add more
+// constraints to the cache.
+fn resolve_cache(
+    block: BasicBlockId,
+    dom: &mut DominatorTree,
+    cache: &HashMap<ValueId, SimplificationCache>,
+    value_id: ValueId,
+) -> ValueId {
+    match cache.get(&value_id) {
+        Some(simplification_cache) => {
+            if let Some(simplified) = simplification_cache.get(block, dom) {
+                resolve_cache(block, dom, cache, simplified)
             } else {
-                true
-            }
-        })
-    }
-
-    /// Checks if the given instruction is a call to a brillig function with all constant arguments.
-    /// If so, we can try to evaluate that function and replace the results with the evaluation results.
-    fn try_inline_brillig_call_with_all_constants(
-        instruction: &Instruction,
-        block: BasicBlockId,
-        dfg: &mut DataFlowGraph,
-        interpreter: Option<&mut Interpreter<Empty>>,
-    ) -> Option<Vec<ValueId>> {
-        let evaluation_result = Self::evaluate_const_brillig_call(instruction, interpreter?, dfg);
-
-        match evaluation_result {
-            EvaluationResult::NotABrilligCall | EvaluationResult::CannotEvaluate => None,
-            EvaluationResult::Evaluated(const_results) => {
-                let new_results = vecmap(const_results, |const_result| {
-                    interpreter_value_to_ir_value(const_result, dfg, block)
-                });
-                Some(new_results)
+                value_id
             }
         }
-    }
-
-    /// Tries to evaluate an instruction if it's a call that points to a brillig function,
-    /// and all its arguments are constant.
-    /// We do this by directly executing the function with a brillig VM.
-    fn evaluate_const_brillig_call(
-        instruction: &Instruction,
-        interpreter: &mut Interpreter<Empty>,
-        dfg: &mut DataFlowGraph,
-    ) -> EvaluationResult {
-        let Instruction::Call { func: func_id, arguments } = instruction else {
-            return EvaluationResult::NotABrilligCall;
-        };
-
-        let func_value = &dfg[*func_id];
-        let Value::Function(func_id) = func_value else {
-            return EvaluationResult::NotABrilligCall;
-        };
-
-        let Some(func) = interpreter.functions().get(func_id) else {
-            return EvaluationResult::NotABrilligCall;
-        };
-
-        // Ensure all arguments to the call are constant
-        if !arguments.iter().all(|argument| dfg.is_constant(*argument)) {
-            return EvaluationResult::CannotEvaluate;
-        }
-
-        let interpreter_args =
-            arguments.iter().map(|arg| const_ir_value_to_interpreter_value(*arg, dfg)).collect();
-
-        let Ok(result_values) = interpreter.call_function(func.id(), interpreter_args) else {
-            return EvaluationResult::CannotEvaluate;
-        };
-
-        EvaluationResult::Evaluated(result_values)
-    }
-
-    /// Remove previously cached instructions that created arrays,
-    /// if the current instruction is such that it could modify that array.
-    fn remove_possibly_mutated_cached_make_arrays(
-        &mut self,
-        instruction: &Instruction,
-        function: &Function,
-    ) {
-        use Instruction::{ArraySet, Call, MakeArray, Store};
-
-        /// Recursively remove from the cache any array values.
-        fn go(
-            function: &Function,
-            cached_instruction_results: &mut InstructionResultCache,
-            value: &ValueId,
-        ) {
-            // We expect globals to be immutable, so we can cache those results indefinitely.
-            if function.dfg.is_global(*value) {
-                return;
-            };
-
-            // We only care about arrays and slices. (`Store` can act on non-array values as well)
-            if !function.dfg.type_of_value(*value).is_array() {
-                return;
-            };
-
-            // Look up the original instruction that created the value, which is the cache key.
-            let instruction = match &function.dfg[*value] {
-                Value::Instruction { instruction, .. } => &function.dfg[*instruction],
-                _ => return,
-            };
-
-            // Remove the creator instruction from the cache.
-            if matches!(instruction, MakeArray { .. } | Call { .. }) {
-                cached_instruction_results.remove(instruction);
-            }
-
-            // For arrays, we also want to invalidate the values, because multi-dimensional arrays
-            // can be passed around, and through them their sub-arrays might be modified.
-            if let MakeArray { elements, .. } = instruction {
-                for elem in elements {
-                    go(function, cached_instruction_results, elem);
-                }
-            }
-        }
-
-        let mut remove_if_array = |value| go(function, &mut self.cached_instruction_results, value);
-
-        // Should we consider calls to slice_push_back and similar to be mutating operations as well?
-        match instruction {
-            Store { value, .. } | ArraySet { array: value, .. } => {
-                // If we write to a value, it's not safe for reuse, as its value has changed since its creation.
-                remove_if_array(value);
-            }
-            Call { arguments, func } if function.runtime().is_brillig() => {
-                // If we pass a value to a function, it might get modified, making it unsafe for reuse after the call.
-                let Value::Function(func_id) = &function.dfg[*func] else { return };
-                if matches!(function.dfg.purity_of(*func_id), None | Some(Purity::Impure)) {
-                    // Arrays passed to functions might be mutated by them if there are no `inc_rc` instructions
-                    // placed *before* the call to protect them. Currently we don't track the ref count in this
-                    // context, so be conservative and do not reuse any array shared with a callee.
-                    // In ACIR we don't track refcounts, so it should be fine.
-                    for arg in arguments {
-                        remove_if_array(arg);
-                    }
-                }
-            }
-            _ => {}
-        }
-    }
-}
-
-impl ResultCache {
-    /// Records that an `Instruction` in block `block` produced the result values `results`.
-    fn cache(&mut self, block: BasicBlockId, results: Vec<ValueId>) {
-        if self.result.is_none() {
-            self.result = Some((block, results));
-        }
-    }
-
-    /// Returns a set of [`ValueId`]s produced from a copy of this [`Instruction`] which sits
-    /// within a block which dominates `block`.
-    ///
-    /// We require that the cached instruction's block dominates `block` in order to avoid
-    /// cycles causing issues (e.g. two instructions being replaced with the results of each other
-    /// such that neither instruction exists anymore.)
-    fn get(
-        &self,
-        block: BasicBlockId,
-        dom: &mut DominatorTree,
-        has_side_effects: bool,
-    ) -> Option<CacheResult> {
-        self.result.as_ref().and_then(|(origin_block, results)| {
-            if dom.dominates(*origin_block, block) {
-                Some(CacheResult::Cached(results))
-            } else if !has_side_effects {
-                // Insert a copy of this instruction in the common dominator
-                let dominator = dom.common_dominator(*origin_block, block);
-                Some(CacheResult::NeedToHoistToCommonBlock(dominator))
-            } else {
-                None
-            }
-        })
-    }
-}
-
-#[derive(Debug)]
-enum CacheResult<'a> {
-    Cached(&'a [ValueId]),
-    NeedToHoistToCommonBlock(BasicBlockId),
-}
-
-/// Result of trying to evaluate an instruction (any instruction) in this pass.
-enum EvaluationResult {
-    /// Nothing was done because the instruction wasn't a call to a brillig function,
-    /// or some arguments to it were not constants.
-    NotABrilligCall,
-    /// The instruction was a call to a brillig function, but we couldn't evaluate it.
-    /// This can occur in the situation where the brillig function reaches a "trap" or a foreign call opcode.
-    CannotEvaluate,
-    /// The instruction was a call to a brillig function and we were able to evaluate it,
-    /// returning [SSA interpreter][Interpreter] [values][InterpreterValue].
-    Evaluated(Vec<InterpreterValue>),
-}
-
-/// Check if one expression is simpler than the other.
-/// Returns `Some((complex, simple))` if a simplification was found, otherwise `None`.
-/// Expects the `ValueId`s to be fully resolved.
-fn simplify(dfg: &DataFlowGraph, lhs: ValueId, rhs: ValueId) -> Option<(ValueId, ValueId)> {
-    match (&dfg[lhs], &dfg[rhs]) {
-        // Ignore trivial constraints
-        (Value::NumericConstant { .. }, Value::NumericConstant { .. }) => None,
-
-        // Prefer replacing with constants where possible.
-        (Value::NumericConstant { .. }, _) => Some((rhs, lhs)),
-        (_, Value::NumericConstant { .. }) => Some((lhs, rhs)),
-        // Otherwise prefer block parameters over instruction results.
-        // This is as block parameters are more likely to be a single witness rather than a full expression.
-        (Value::Param { .. }, Value::Instruction { .. }) => Some((rhs, lhs)),
-        (Value::Instruction { .. }, Value::Param { .. }) => Some((lhs, rhs)),
-        (_, _) => None,
+        None => value_id,
     }
 }
 
@@ -850,90 +523,6 @@ pub(crate) fn can_be_deduplicated(
         Binary(_) | ArrayGet { .. } | ArraySet { .. } => {
             deduplicate_with_predicate || !instruction.requires_acir_gen_predicate(&function.dfg)
         }
-    }
-}
-
-/// Converts a constant [SSA value][Value] into an [interpreter value][InterpreterValue] for execution.
-fn const_ir_value_to_interpreter_value(value_id: ValueId, dfg: &DataFlowGraph) -> InterpreterValue {
-    let typ = dfg.type_of_value(value_id);
-    match typ {
-        Type::Numeric(numeric_type) => {
-            let constant =
-                dfg.get_numeric_constant(value_id).expect("Should have a numeric constant");
-            InterpreterValue::from_constant(constant, numeric_type)
-                .expect("Should be a valid constant")
-        }
-        Type::Reference(_) => unreachable!("References cannot be constant values"),
-        Type::Array(element_types, _) => {
-            let (array_constant, _) =
-                dfg.get_array_constant(value_id).expect("Should have an array constant");
-            let mut elements = Vec::new();
-            for element in array_constant {
-                elements.push(const_ir_value_to_interpreter_value(element, dfg));
-            }
-            InterpreterValue::array(elements, element_types.to_vec())
-        }
-        Type::Slice(element_types) => {
-            let (array_constant, _) =
-                dfg.get_array_constant(value_id).expect("Should have an array constant");
-            let mut elements = Vec::new();
-            for element in array_constant {
-                elements.push(const_ir_value_to_interpreter_value(element, dfg));
-            }
-            InterpreterValue::slice(elements, element_types)
-        }
-        Type::Function => unreachable!("Functions cannot be constant values"),
-    }
-}
-
-/// Converts a constant [interpreter value][InterpreterValue] back into an SSA constant.
-fn interpreter_value_to_ir_value(
-    value: InterpreterValue,
-    dfg: &mut DataFlowGraph,
-    block_id: BasicBlockId,
-) -> ValueId {
-    let typ = value.get_type();
-    match typ {
-        Type::Numeric(numeric_type) => {
-            let constant = value.as_numeric().expect("Should be numeric").convert_to_field();
-            dfg.make_constant(constant, numeric_type)
-        }
-        Type::Array(element_types, length) => {
-            let array = match value {
-                InterpreterValue::ArrayOrSlice(array) => array,
-                _ => unreachable!("Expected an ArrayOrSlice"),
-            };
-
-            let mut elements = Vector::new();
-            for element in array.elements.unwrap_or_clone() {
-                elements.push_back(interpreter_value_to_ir_value(element, dfg, block_id));
-            }
-
-            let instruction =
-                Instruction::MakeArray { elements, typ: Type::Array(element_types, length) };
-
-            let instruction_id = dfg.make_instruction(instruction, None);
-            dfg[block_id].instructions_mut().push(instruction_id);
-            *dfg.instruction_results(instruction_id).first().unwrap()
-        }
-        Type::Slice(element_types) => {
-            let array = match value {
-                InterpreterValue::ArrayOrSlice(array) => array,
-                _ => unreachable!("Expected an ArrayOrSlice"),
-            };
-
-            let mut elements = Vector::new();
-            for element in array.elements.unwrap_or_clone() {
-                elements.push_back(interpreter_value_to_ir_value(element, dfg, block_id));
-            }
-
-            let instruction = Instruction::MakeArray { elements, typ: Type::Slice(element_types) };
-
-            let instruction_id = dfg.make_instruction(instruction, None);
-            dfg[block_id].instructions_mut().push(instruction_id);
-            *dfg.instruction_results(instruction_id).first().unwrap()
-        }
-        Type::Function | Type::Reference(_) => unreachable!("Cannot be a constant value"),
     }
 }
 
