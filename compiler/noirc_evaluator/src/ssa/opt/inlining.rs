@@ -1440,6 +1440,48 @@ mod simple_functions {
     }
 
     #[test]
+    fn inline_functions_that_require_multiple_inlines() {
+        // f2 has greater than 10 instructions, which should initially prevent it from being inlined into f0.
+        // However, once f1 is inlined into f2, we should be able to fully inline into f0.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = call f2(v0) -> Field
+            return v1
+        }
+        brillig(inline) fn foo f1 {
+          b0(v0: Field):
+            return v0
+        }
+        brillig(inline) fn bar f2 {
+          b0(v0: Field):
+            v1 = call f1(v0) -> Field
+            v2 = call f1(v0) -> Field
+            v3 = call f1(v0) -> Field
+            v4 = call f1(v0) -> Field
+            v5 = call f1(v0) -> Field
+            v6 = call f1(v0) -> Field
+            v7 = call f1(v0) -> Field
+            v8 = call f1(v0) -> Field
+            v9 = call f1(v0) -> Field
+            v10 = call f1(v0) -> Field
+            v11 = add v1, v2
+            return v11
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let mut ssa = ssa.inline_functions(i64::MIN, MAX_INSTRUCTIONS).unwrap();
+        assert_ssa_snapshot!(&mut ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = add v0, v0
+            return v1
+        }
+        ");
+    }
+
+    #[test]
     fn inline_functions_with_one_instruction() {
         let src = "
         brillig(inline) fn main f0 {
