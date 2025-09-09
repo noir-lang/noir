@@ -829,7 +829,6 @@ impl BlockContext {
                     predicate,
                 );
                 assert_eq!(
-<<<<<<< HEAD
                     result.value_id,
                     brillig_builder
                         .ecdsa_secp256r1(
@@ -845,15 +844,6 @@ impl BlockContext {
                     &mut self.stored_variables,
                     &result.to_value_type(),
                     result.clone(),
-=======
-                    result,
-                    brillig_builder.ecdsa_secp256r1(
-                        prepared_signature.public_key_x,
-                        prepared_signature.public_key_y,
-                        prepared_signature.hash,
-                        prepared_signature.signature,
-                    )
->>>>>>> master
                 );
                 self.store_variable(&result);
             }
@@ -884,7 +874,6 @@ impl BlockContext {
                     predicate,
                 );
                 assert_eq!(
-<<<<<<< HEAD
                     result.value_id,
                     brillig_builder
                         .ecdsa_secp256k1(
@@ -900,15 +889,6 @@ impl BlockContext {
                     &mut self.stored_variables,
                     &result.to_value_type(),
                     result.clone(),
-=======
-                    result,
-                    brillig_builder.ecdsa_secp256k1(
-                        prepared_signature.public_key_x,
-                        prepared_signature.public_key_y,
-                        prepared_signature.hash,
-                        prepared_signature.signature,
-                    )
->>>>>>> master
                 );
                 self.store_variable(&result);
             }
