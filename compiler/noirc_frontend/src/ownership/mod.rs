@@ -280,7 +280,10 @@ impl Context {
         self.handle_reference_expression(&mut index.collection);
         self.handle_expression(&mut index.index);
 
-        if contains_array_or_str_type(&index.element_type) {
+        // We do not need to clone the result of a function call. 
+        // The appropriate cloning should be handled by the function internally or the caller of the function.
+        let is_call = matches!(*index.collection, Expression::Call(_));
+        if !is_call && contains_array_or_str_type(&index.element_type) {
             clone_expr(index_expr);
         }
     }
