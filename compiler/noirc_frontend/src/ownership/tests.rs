@@ -113,3 +113,61 @@ fn can_move_within_loop() {
     }
     ");
 }
+
+#[test]
+fn borrows_on_nested_index() {
+    let src = "
+    unconstrained fn main(x: Field, y: pub Field) {
+        let EXPONENTIATE: [[[Field; 2]; 2]; 2] = [[[1, 1], [0, 0]], [[1, 1], [0, 0]]];
+        let mut acc: Field = 0;
+        for i in 0..2 {
+            for j in 0..2 {
+                acc += EXPONENTIATE[i][j][i];
+            }
+        }
+        assert(acc != 0);
+    }
+    ";
+
+    let program = get_monomorphized_no_emit_test(src).unwrap();
+    // We expect no clones
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0(x$l0: Field, y$l1: pub Field) -> () {
+        let EXPONENTIATE$l2 = [[[1, 1], [0, 0]], [[1, 1], [0, 0]]];
+        let mut acc$l3 = 0;
+        for i$l4 in 0 .. 2 {
+            for j$l5 in 0 .. 2 {
+                acc$l3 = (acc$l3 + EXPONENTIATE$l2[i$l4][j$l5][i$l4])
+            }
+        };
+        assert((acc$l3 != 0));
+    }
+    ");
+}
+
+#[test]
+fn moves_call_array_result() {
+    let src = "
+    unconstrained fn main(i: u32) -> pub u32 {
+        let _a = foo()[1][0][1];
+        let _s = foo()[1][0][1];
+        i
+    }
+    unconstrained fn foo() -> [[[[u128; 0]; 2]; 1]; 2] {
+        [[[[], []]], [[[], []]]]
+    }
+    ";
+
+    let program = get_monomorphized_no_emit_test(src).unwrap();
+    // We expect no clones
+    insta::assert_snapshot!(program, @r"
+    unconstrained fn main$f0(i$l0: u32) -> pub u32 {
+        let _a$l1 = foo$f1()[1][0][1];
+        let _s$l2 = foo$f1()[1][0][1];
+        i$l0
+    }
+    unconstrained fn foo$f1() -> [[[[u128; 0]; 2]; 1]; 2] {
+        [[[[], []]], [[[], []]]]
+    }
+    ");
+}
