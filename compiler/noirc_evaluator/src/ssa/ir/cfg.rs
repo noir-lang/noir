@@ -3,12 +3,13 @@ use std::collections::BTreeSet;
 use super::{
     basic_block::{BasicBlock, BasicBlockId},
     function::Function,
+    post_order::PostOrder,
 };
 use rustc_hash::FxHashMap as HashMap;
 use std::collections::HashSet;
 
 /// A container for the successors and predecessors of some Block.
-#[derive(Clone, Default)]
+#[derive(Clone, Default, Debug)]
 struct CfgNode {
     /// Set of blocks that containing jumps that target this block.
     /// The predecessor set has no meaningful order.
@@ -19,12 +20,15 @@ struct CfgNode {
     pub(crate) successors: BTreeSet<BasicBlockId>,
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone, Default, Debug)]
 /// The Control Flow Graph (CFG) maintains a mapping of blocks to their predecessors
 /// and successors where predecessors are basic blocks and successors are
 /// basic blocks.
 pub(crate) struct ControlFlowGraph {
     data: HashMap<BasicBlockId, CfgNode>,
+
+    entry_block: Option<BasicBlockId>,
+
     /// Flag stating whether this CFG has been reversed.
     /// In a reversed CFG, successors become predecessors.
     reversed: bool,
@@ -41,7 +45,9 @@ impl ControlFlowGraph {
         let mut data = HashMap::default();
         data.insert(entry_block, empty_node);
 
-        let mut cfg = ControlFlowGraph { data, reversed: false };
+        let entry_block = Some(func.entry_block());
+
+        let mut cfg = ControlFlowGraph { data, entry_block, reversed: false };
         cfg.compute(func);
         cfg
     }
@@ -132,7 +138,14 @@ impl ControlFlowGraph {
 
     /// Reverse the control flow graph
     pub(crate) fn reverse(&self) -> Self {
-        let mut reversed_cfg = ControlFlowGraph { reversed: true, ..Default::default() };
+        let mut reversed_cfg = ControlFlowGraph { reversed: true, entry_block: None, ..Default::default() };
+
+        // Ensure the reversed_cfg always contains at least the entry node. Otherwise
+        // adding the edges below results in an empty graph when calling reverse on a CFG
+        // with a single block. Also note that although we are adding the entry block here,
+        // it will not necessarily be the entry block in the reversed cfg.
+        let entry = self.find_entry_block();
+        reversed_cfg.data.insert(entry, Default::default());
 
         for (block_id, node) in &self.data {
             // For each block, reverse the edges
@@ -142,12 +155,8 @@ impl ControlFlowGraph {
             }
         }
 
+        reversed_cfg.entry_block = Some(reversed_cfg.find_entry_block());
         reversed_cfg
-    }
-
-    /// Returns the entry blocks for a CFG. This is all nodes without any predecessors.
-    pub(crate) fn compute_entry_blocks(&self) -> Vec<BasicBlockId> {
-        self.data.keys().filter(|&&block| self.predecessors(block).len() == 0).copied().collect()
     }
 
     /// Computes the reverse graph of the extended CFG.
@@ -196,7 +205,8 @@ impl ControlFlowGraph {
             cfg.data.keys().filter(|&&block| cfg.successors(block).len() == 0).copied().collect();
         // Traverse the reverse CFG from the exit blocks
         let reverse = cfg.reverse();
-        let post_order = crate::ssa::ir::post_order::PostOrder::with_cfg(&reverse);
+        let post_order = PostOrder::with_cfg(&reverse);
+
         // Extract blocks that are not reachable from the exit blocks
         let rpo_traversal: HashSet<BasicBlockId> = HashSet::from_iter(post_order.into_vec());
         let dead_blocks: Vec<BasicBlockId> =
@@ -222,6 +232,55 @@ impl ControlFlowGraph {
         // We can now reverse the extended CFG
         cfg.reverse()
     }
+
+    /// Return the graph of basic blocks as a petgraph graph, along with
+    /// mappings to and from basicblockids and node indices.
+    pub(crate) fn as_petgraph(&self) -> PetgraphCFG {
+        let mut graph = petgraph::graph::DiGraph::new();
+        let mut block_to_node = HashMap::default();
+        let mut node_to_block = HashMap::default();
+
+        for block_id in self.data.keys() {
+            let index = graph.add_node(());
+            block_to_node.insert(*block_id, index);
+            node_to_block.insert(index, *block_id);
+        }
+
+        for (block_id, cfg_node) in self.data.iter() {
+            let index = block_to_node[block_id];
+
+            // We don't need to add predecessors, they'll get added when
+            // we add the previous block's successors.
+            for successor in cfg_node.successors.iter() {
+                let successor = block_to_node[successor];
+                graph.add_edge(index, successor, ());
+            }
+        }
+
+        PetgraphCFG { graph, node_to_block, block_to_node }
+    }
+
+    /// Find and return the entry block
+    pub(crate) fn find_entry_block(&self) -> BasicBlockId {
+        self.entry_block.unwrap_or_else(|| {
+            self.data
+                .iter()
+                .find_map(|(block, node)| node.predecessors.is_empty().then_some(*block))
+                .unwrap()
+        })
+    }
+
+    /// Return the topological order of blocks
+    pub(crate) fn topological_order(&self) -> Vec<BasicBlockId> {
+        PostOrder::compute_topological_order(self)
+    }
+}
+
+/// A petgraph representation of a CFG
+pub(crate) struct PetgraphCFG {
+    pub(crate) graph: petgraph::graph::DiGraph<(), ()>,
+    pub(crate) block_to_node: HashMap<BasicBlockId, petgraph::graph::NodeIndex>,
+    pub(crate) node_to_block: HashMap<petgraph::graph::NodeIndex, BasicBlockId>,
 }
 
 #[cfg(test)]

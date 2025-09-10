@@ -89,7 +89,6 @@ use crate::ssa::{
         function::Function,
         function_inserter::FunctionInserter,
         instruction::{Instruction, InstructionId, TerminatorInstruction},
-        post_order::PostOrder,
         types::Type,
         value::{Value, ValueId},
     },
@@ -122,7 +121,7 @@ impl Function {
 
 struct PerFunctionContext<'f> {
     cfg: ControlFlowGraph,
-    post_order: PostOrder,
+    topological_block_order: Vec<BasicBlockId>,
 
     blocks: BTreeMap<BasicBlockId, Block>,
 
@@ -151,11 +150,11 @@ struct PerFunctionContext<'f> {
 impl<'f> PerFunctionContext<'f> {
     fn new(function: &'f mut Function) -> Self {
         let cfg = ControlFlowGraph::with_function(function);
-        let post_order = PostOrder::with_cfg(&cfg);
+        let topological_block_order = cfg.topological_order();
 
         PerFunctionContext {
             cfg,
-            post_order,
+            topological_block_order,
             inserter: FunctionInserter::new(function),
             blocks: BTreeMap::new(),
             instructions_to_remove: HashSet::default(),
@@ -170,8 +169,8 @@ impl<'f> PerFunctionContext<'f> {
     /// This function is expected to be the same one that the internal cfg, post_order, and
     /// dom_tree were created from.
     fn mem2reg(&mut self) {
-        // Iterate each block in reverse post order = forward order
-        let block_order = self.post_order.clone().into_vec_reverse();
+        // Iterate each block in topological order
+        let block_order = self.topological_block_order.clone();
 
         for block in block_order {
             let references = self.find_starting_references(block);
@@ -327,7 +326,7 @@ impl<'f> PerFunctionContext<'f> {
         // If there's only 1 block in the function total, we can remove any remaining last stores
         // as well. We can't do this if there are multiple blocks since subsequent blocks may
         // reference these stores.
-        if self.post_order.as_slice().len() == 1 {
+        if self.topological_block_order.len() == 1 {
             self.remove_stores_that_do_not_alias_parameters_or_returns(&references);
         }
 
@@ -689,7 +688,7 @@ impl<'f> PerFunctionContext<'f> {
     /// no longer needed.
     fn remove_instructions(&mut self) {
         // The order we iterate blocks in is not important
-        for block in self.post_order.as_slice() {
+        for block in &self.topological_block_order {
             self.inserter.function.dfg[*block]
                 .instructions_mut()
                 .retain(|instruction| !self.instructions_to_remove.contains(instruction));
@@ -1062,18 +1061,18 @@ mod tests {
             v4 = eq v0, Field 0
             jmpif v4 then: b2, else: b3
           b2():
-            v11 = load v3 -> &mut Field
-            store Field 2 at v11
-            v13 = add v0, Field 1
-            jmp b1(v13)
+            v5 = load v3 -> &mut Field
+            store Field 2 at v5
+            v8 = add v0, Field 1
+            jmp b1(v8)
           b3():
-            v5 = load v1 -> Field
-            v7 = eq v5, Field 2
-            constrain v5 == Field 2
-            v8 = load v3 -> &mut Field
-            v9 = load v8 -> Field
+            v9 = load v1 -> Field
             v10 = eq v9, Field 2
             constrain v9 == Field 2
+            v11 = load v3 -> &mut Field
+            v12 = load v11 -> Field
+            v13 = eq v12, Field 2
+            constrain v12 == Field 2
             return
         }
         ");
@@ -2231,44 +2230,44 @@ mod tests {
             v7 = lt v4, u32 3
             jmpif v7 then: b2, else: b3
           b2():
-            v15 = load v0 -> [Field; 3]
-            v16 = load v1 -> [Field; 4]
-            v17 = load v2 -> u32
-            v18 = load v3 -> u1
-            v19 = lt v4, v17
-            jmpif v19 then: b4, else: b5
-          b3():
             v8 = load v0 -> [Field; 3]
             v9 = load v1 -> [Field; 4]
             v10 = load v2 -> u32
             v11 = load v3 -> u1
-            inc_rc v9
-            v14 = call poseidon2_permutation(v9, u32 4) -> [Field; 4]
-            store v8 at v0
-            store v14 at v1
-            store v10 at v2
-            store v11 at v3
+            v12 = lt v4, v10
+            jmpif v12 then: b4, else: b5
+          b3():
+            v25 = load v0 -> [Field; 3]
+            v26 = load v1 -> [Field; 4]
+            v27 = load v2 -> u32
+            v28 = load v3 -> u1
+            inc_rc v26
+            v30 = call poseidon2_permutation(v26, u32 4) -> [Field; 4]
+            store v25 at v0
+            store v30 at v1
+            store v27 at v2
+            store v28 at v3
             return
           b4():
+            v14 = lt v4, u32 4
+            constrain v14 == u1 1, "Index out of bounds"
+            v16 = array_get v9, index v4 -> Field
+            v17 = lt v4, u32 3
+            constrain v17 == u1 1, "Index out of bounds"
+            v18 = array_get v8, index v4 -> Field
+            v19 = add v16, v18
             v20 = lt v4, u32 4
             constrain v20 == u1 1, "Index out of bounds"
-            v22 = array_get v16, index v4 -> Field
-            v23 = lt v4, u32 3
-            constrain v23 == u1 1, "Index out of bounds"
-            v24 = array_get v15, index v4 -> Field
-            v25 = add v22, v24
-            v26 = lt v4, u32 4
-            constrain v26 == u1 1, "Index out of bounds"
-            v27 = array_set v16, index v4, value v25
-            v29 = unchecked_add v4, u32 1
-            store v15 at v0
-            store v27 at v1
-            store v17 at v2
-            store v18 at v3
+            v21 = array_set v9, index v4, value v19
+            v23 = unchecked_add v4, u32 1
+            store v8 at v0
+            store v21 at v1
+            store v10 at v2
+            store v11 at v3
             jmp b5()
           b5():
-            v30 = unchecked_add v4, u32 1
-            jmp b1(v30)
+            v24 = unchecked_add v4, u32 1
+            jmp b1(v24)
         }
         "#);
     }

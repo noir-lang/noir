@@ -56,11 +56,14 @@ impl Ssa {
             function.loop_invariant_code_motion();
             // We might not be able to unroll all loops without fully inlining them, so ignore errors.
             let _ = function.unroll_loops_iteratively();
+
+            function.simplify_function_cfg();
+
             // Reduce the number of redundant stores/loads after unrolling
             function.mem2reg();
 
             // Try to reduce the number of blocks.
-            function.simplify_function();
+            function.simplify_function_cfg();
 
             // Put it back into the SSA, so the next functions can pick it up.
             self.functions.insert(id, function);
@@ -112,7 +115,7 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.preprocess_functions(i64::MAX, MAX_INSTRUCTIONS).unwrap();
 
-        assert_ssa_snapshot!(ssa, @r#"
+        assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0():
             call f1()
@@ -122,14 +125,14 @@ mod tests {
           b0(v0: u32, v1: Field):
             jmpif v0 then: b1, else: b2
           b1():
-            v4 = add v0, u32 1
+            v3 = add v0, u32 1
             jmp b3()
           b2():
-            v3 = sub v0, u32 1
+            v4 = sub v0, u32 1
             jmp b3()
           b3():
             return
         }
-        "#);
+        ");
     }
 }

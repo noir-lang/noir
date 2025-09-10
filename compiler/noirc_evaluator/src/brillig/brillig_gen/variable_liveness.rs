@@ -113,7 +113,6 @@ fn compute_used_before_def(
 type LastUses = HashMap<InstructionId, Variables>;
 
 /// A struct representing the liveness of variables throughout a function.
-#[derive(Default)]
 pub(crate) struct VariableLiveness {
     cfg: ControlFlowGraph,
     post_order: PostOrder,
@@ -127,6 +126,19 @@ pub(crate) struct VariableLiveness {
 }
 
 impl VariableLiveness {
+    /// Previously `VariableLiveness::default` this was renamed to be made more explicit
+    /// that the inner fields still need to be initialized (`dominator_tree` specifically).
+    pub(crate) fn with_no_dominator_tree() -> Self {
+        Self {
+            cfg: Default::default(),
+            post_order: Default::default(),
+            dominator_tree: DominatorTree::uninitialized(),
+            live_in: Default::default(),
+            last_uses: Default::default(),
+            param_definitions: Default::default(),
+        }
+    }
+
     /// Computes the liveness of variables throughout a function.
     pub(crate) fn from_function(func: &Function, constants: &ConstantAllocation) -> Self {
         let cfg = ControlFlowGraph::with_function(func);
@@ -143,11 +155,8 @@ impl VariableLiveness {
         };
 
         instance.compute_block_param_definitions(func);
-
         instance.compute_live_in_of_blocks(func, constants);
-
         instance.compute_last_uses(func);
-
         instance
     }
 

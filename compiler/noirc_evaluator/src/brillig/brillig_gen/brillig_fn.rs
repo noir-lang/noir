@@ -23,7 +23,6 @@ use super::{constant_allocation::ConstantAllocation, variable_liveness::Variable
 /// This structure is instantiated once per function and used throughout basic block code generation.
 /// It can also represent a non-function context (e.g., global instantiation) to reuse block codegen logic
 /// by leaving its `function_id` field unset.
-#[derive(Default)]
 pub(crate) struct FunctionContext {
     /// A `FunctionContext` is necessary for using a Brillig block's code gen, but sometimes
     /// such as with globals, we are not within a function and do not have a [FunctionId].
@@ -56,6 +55,19 @@ impl FunctionContext {
             liveness,
             is_entry_point,
             constant_allocation: constants,
+        }
+    }
+
+    /// Previously FunctionContext::default, but this relied on a default `ConstantAllocation` which
+    /// may not work as expected so it is made explicit here.
+    pub(crate) fn with_no_constant_allocation_or_liveness() -> Self {
+        Self {
+            function_id: None,
+            ssa_value_allocations: Default::default(),
+            blocks: Default::default(),
+            liveness: VariableLiveness::with_no_dominator_tree(),
+            constant_allocation: ConstantAllocation::with_no_dominator_tree(),
+            is_entry_point: Default::default(),
         }
     }
 

@@ -5,7 +5,6 @@ use crate::ssa::{
         basic_block::BasicBlockId,
         function::{Function, FunctionId},
         map::SparseMap,
-        post_order::PostOrder,
         value::{Value, ValueId},
     },
     ssa_gen::Ssa,
@@ -95,10 +94,10 @@ impl Context {
         let reachable_blocks = old_function.reachable_blocks();
         self.new_ids.populate_blocks(reachable_blocks, old_function, new_function);
 
-        let reverse_post_order = PostOrder::with_function(old_function).into_vec_reverse();
+        let topological_order = old_function.topological_block_order();
 
         // Map each parameter, instruction, and terminator
-        for old_block_id in reverse_post_order {
+        for old_block_id in topological_order {
             let new_block_id = self.new_ids.blocks[&old_block_id];
 
             let old_block = &mut old_function.dfg[old_block_id];

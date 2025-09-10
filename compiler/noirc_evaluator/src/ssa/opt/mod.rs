@@ -63,7 +63,6 @@ pub(crate) fn assert_normalized_ssa_equals(mut ssa: super::Ssa, expected: &str) 
     // This allows us to use any names and not just `b0`, `b1`, `v0`, `v1`, etc.
     // which is what the SSA printer produces.
     expected_ssa.normalize_ids();
-
     ssa.normalize_ids();
 
     let ssa = ssa.print_without_locations().to_string();

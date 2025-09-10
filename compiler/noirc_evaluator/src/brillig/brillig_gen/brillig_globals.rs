@@ -258,7 +258,7 @@ impl Brillig {
         let empty_globals = HashMap::default();
         // We can use any ID here as this context is only going to be used for globals which does not differentiate
         // by functions and blocks. The only Label that should be used in the globals context is `Label::globals_init()`
-        let mut function_context = FunctionContext::default();
+        let mut function_context = FunctionContext::with_no_constant_allocation_or_liveness();
         brillig_context.enter_context(Label::globals_init(entry_point));
 
         let block_id = DataFlowGraph::default().make_block();

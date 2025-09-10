@@ -354,6 +354,7 @@ impl PostDominanceFrontiers {
     fn with_function(func: &mut Function) -> Self {
         let reversed_cfg = ControlFlowGraph::extended_reverse(func);
         let post_order = PostOrder::with_cfg(&reversed_cfg);
+
         let mut post_dom = DominatorTree::with_cfg_and_post_order(&reversed_cfg, &post_order);
         let post_dom_frontiers = post_dom.compute_dominance_frontiers(&reversed_cfg);
 
@@ -1716,14 +1717,14 @@ mod test {
           b5():
             jmpif v4 then: b7, else: b8
           b6():
-            v12 = unchecked_add v1, u32 1
-            jmp b1(v12)
+            v14 = unchecked_add v1, u32 1
+            jmp b1(v14)
           b7():
             constrain v9 == u32 6
             jmp b8()
           b8():
-            v14 = unchecked_add v2, u32 1
-            jmp b4(v14)
+            v13 = unchecked_add v2, u32 1
+            jmp b4(v13)
         }
         ");
     }
@@ -2812,20 +2813,20 @@ mod control_dependence {
           b2():
             jmpif u1 1 then: b4, else: b5
           b3():
-            v8 = load v4 -> u32
-            v9 = lt v1, v8
-            constrain v9 == u1 1
+            v16 = load v4 -> u32
+            v17 = lt v1, v16
+            constrain v17 == u1 1
             return
           b4():
-            v11 = load v4 -> u32
-            v13 = add v11, u32 1
-            store v13 at v4
+            v9 = load v4 -> u32
+            v11 = add v9, u32 1
+            store v11 at v4
             jmp b5()
           b5():
-            v15 = lt v3, u32 4
+            v13 = lt v3, u32 4
             constrain u1 0 == u1 1
-            v17 = unchecked_add v3, u32 1
-            jmp b1(v17)
+            v15 = unchecked_add v3, u32 1
+            jmp b1(v15)
         }
         ");
     }
@@ -2958,18 +2959,18 @@ mod control_dependence {
           b2():
             jmpif u1 1 then: b4, else: b5
           b3():
-            v8 = load v4 -> u32
-            v9 = lt v1, v8
-            constrain v9 == u1 1
+            v13 = load v4 -> u32
+            v14 = lt v1, v13
+            constrain v14 == u1 1
             return
           b4():
-            v11 = load v4 -> u32
-            v13 = add v11, u32 1
-            store v13 at v4
+            v9 = load v4 -> u32
+            v11 = add v9, u32 1
+            store v11 at v4
             jmp b5()
           b5():
-            v14 = unchecked_add v3, u32 1
-            jmp b1(v14)
+            v12 = unchecked_add v3, u32 1
+            jmp b1(v12)
         }
         ");
     }
@@ -3106,14 +3107,14 @@ mod control_dependence {
             v7 = div Field 1, v3
             jmp b6(u32 0)
           b5():
-            v10 = unchecked_add v1, u32 1
-            jmp b1(v10)
+            v11 = unchecked_add v1, u32 1
+            jmp b1(v11)
           b6(v2: u32):
             v8 = eq v2, u32 0
             jmpif v8 then: b7, else: b8
           b7():
-            v11 = unchecked_add v2, u32 1
-            jmp b6(v11)
+            v10 = unchecked_add v2, u32 1
+            jmp b6(v10)
           b8():
             jmp b5()
         }
@@ -3367,14 +3368,14 @@ mod control_dependence {
             return i16 3
           b4():
             range_check v20 to 8 bits
-            v27 = cast v20 as u8
-            v28 = lt v27, v23
-            constrain v28 == u1 1
-            v30 = cast v6 as i8
+            v26 = cast v20 as u8
+            v27 = lt v26, v23
+            constrain v27 == u1 1
+            v29 = cast v6 as i8
             jmp b5()
           b5():
-            v32 = unchecked_add v2, u32 1
-            jmp b1(v32)
+            v31 = unchecked_add v2, u32 1
+            jmp b1(v31)
         }
         ");
     }
