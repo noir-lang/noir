@@ -47,7 +47,7 @@ mod checks;
 pub mod function_builder;
 pub mod interpreter;
 pub mod ir;
-pub(crate) mod opt;
+pub mod opt;
 pub mod parser;
 pub mod ssa_gen;
 pub(crate) mod validation;
@@ -90,6 +90,9 @@ pub struct SsaEvaluatorOptions {
     /// The higher the value, the more inlined Brillig functions will be.
     pub inliner_aggressiveness: i64,
 
+    //// The higher the value, the more Brillig functions will be set to always be inlined.
+    pub small_function_max_instruction: usize,
+
     /// Maximum accepted percentage increase in the Brillig bytecode size after unrolling loops.
     /// When `None` the size increase check is skipped altogether and any decrease in the SSA
     /// instruction count is accepted.
@@ -112,11 +115,21 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         SsaPass::new(Ssa::mem2reg, "Mem2Reg"),
         SsaPass::new(Ssa::remove_paired_rc, "Removing Paired rc_inc & rc_decs"),
         SsaPass::new_try(
-            move |ssa| ssa.preprocess_functions(options.inliner_aggressiveness),
+            move |ssa| {
+                ssa.preprocess_functions(
+                    options.inliner_aggressiveness,
+                    options.small_function_max_instruction,
+                )
+            },
             "Preprocessing Functions",
         ),
         SsaPass::new_try(
-            move |ssa| ssa.inline_functions(options.inliner_aggressiveness),
+            move |ssa| {
+                ssa.inline_functions(
+                    options.inliner_aggressiveness,
+                    options.small_function_max_instruction,
+                )
+            },
             "Inlining",
         ),
         // Run mem2reg with the CFG separated into blocks
@@ -151,7 +164,12 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         // This pass must come immediately following `mem2reg` as the succeeding passes
         // may create an SSA which inlining fails to handle.
         SsaPass::new_try(
-            move |ssa| ssa.inline_functions_with_no_predicates(options.inliner_aggressiveness),
+            move |ssa| {
+                ssa.inline_functions_with_no_predicates(
+                    options.inliner_aggressiveness,
+                    options.small_function_max_instruction,
+                )
+            },
             "Inlining",
         ),
         SsaPass::new_try(Ssa::remove_if_else, "Remove IfElse"),
