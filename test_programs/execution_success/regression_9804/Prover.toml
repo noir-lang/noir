@@ -1,1 +1,3 @@
-return = [[19, 112]]
+a = 10
+b = false
+return = 0
