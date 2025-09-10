@@ -1,7 +1,6 @@
 use crate::fuzz_lib::fuzzer::FuzzerOutput;
 use crate::utils::fuzzer_output_to_json;
 use acvm::{AcirField, FieldElement};
-use reqwest;
 use serde_json::{Value, json};
 
 const TRANSPILER_URL: &str = "http://localhost:51447/transpile";
@@ -26,8 +25,7 @@ pub(crate) fn compare_with_avm(fuzzer_output: &FuzzerOutput) -> AvmComparisonRes
         Ok(v) => v,
         Err(e) => {
             return AvmComparisonResult::TranspilerError(format!(
-                "Failed to parse fuzzer output: {}",
-                e
+                "Failed to parse fuzzer output: {e}",
             ));
         }
     };
@@ -88,14 +86,14 @@ fn call_transpiler(bytecode: &str) -> Result<String, String> {
         .post(TRANSPILER_URL)
         .json(&payload)
         .send()
-        .map_err(|e| format!("Transpiler request failed: {}", e))?;
+        .map_err(|e| format!("Transpiler request failed: {e}"))?;
 
     if !response.status().is_success() {
         return Err(format!("Transpiler returned status: {}", response.status()));
     }
 
     let result: Value =
-        response.json().map_err(|e| format!("Failed to parse transpiler response: {}", e))?;
+        response.json().map_err(|e| format!("Failed to parse transpiler response: {e}"))?;
 
     match result["avm_bytecode"].as_str() {
         Some(avm_bytecode) => Ok(avm_bytecode.to_string()),
@@ -114,18 +112,18 @@ fn call_simulator(avm_bytecode: &str, inputs: &[String]) -> Result<Vec<FieldElem
         .post(SIMULATOR_URL)
         .json(&payload)
         .send()
-        .map_err(|e| format!("Simulator request failed: {}", e))?;
+        .map_err(|e| format!("Simulator request failed: {e}"))?;
 
     if !response.status().is_success() {
         return Err(format!("Simulator returned status: {}", response.status()));
     }
 
     let result: Value =
-        response.json().map_err(|e| format!("Failed to parse simulator response: {}", e))?;
+        response.json().map_err(|e| format!("Failed to parse simulator response: {e}"))?;
 
     if result["reverted"].as_bool().unwrap_or(false) {
         let error_msg = result["error"].as_str().unwrap_or("Unknown error");
-        return Err(format!("AVM execution reverted: {}", error_msg));
+        return Err(format!("AVM execution reverted: {error_msg}"));
     }
 
     let outputs = match result["outputs"].as_array() {
@@ -137,7 +135,7 @@ fn call_simulator(avm_bytecode: &str, inputs: &[String]) -> Result<Vec<FieldElem
                     // Convert hex string to FieldElement
                     // The simulator returns hex strings, so we need to parse them
                     FieldElement::from_hex(hex_str)
-                        .ok_or_else(|| format!("Failed to parse hex output: {}", hex_str))
+                        .ok_or_else(|| format!("Failed to parse hex output: {hex_str}"))
                 })
                 .collect::<Result<Vec<FieldElement>, String>>()?
         }

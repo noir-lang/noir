@@ -71,22 +71,22 @@ libfuzzer_sys::fuzz_target!(|data: &[u8]| -> Corpus {
 
     match compare_with_avm(&fuzzer_output) {
         AvmComparisonResult::Match => {
-            log::info!("AVM and Brillig outputs match");
+            log::debug!("AVM and Brillig outputs match");
         }
         AvmComparisonResult::Mismatch { brillig_outputs, avm_outputs } => {
             log::error!("AVM and Brillig outputs mismatch!");
-            log::error!("Brillig outputs: {:?}", brillig_outputs);
-            log::error!("AVM outputs: {:?}", avm_outputs);
+            log::error!("Brillig outputs: {brillig_outputs:?}");
+            log::error!("AVM outputs: {avm_outputs:?}");
             panic!("AVM vs Brillig mismatch detected");
         }
         AvmComparisonResult::TranspilerError(err) => {
-            panic!("Transpiler error: {}", err);
+            panic!("Transpiler error: {err}");
         }
         AvmComparisonResult::SimulatorError(err) => {
-            panic!("Simulator error: {}", err);
+            panic!("Simulator error: {err}");
         }
         AvmComparisonResult::BrilligCompilationError(err) => {
-            log::debug!("Brillig compilation error: {}", err);
+            log::debug!("Brillig compilation error: {err}");
         }
     }
 
