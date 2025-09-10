@@ -421,19 +421,19 @@ impl<'f> PerFunctionContext<'f> {
 
         match self.inserter.push_instruction_value(instruction, instruction_id, block_id, loc) {
             InsertInstructionResult::Results(id, _) => {
-                self.analyze_instruction_without_simplifying(references, id, false);
+                self.analyze_possibly_simplified_instruction(references, id, false);
             }
             InsertInstructionResult::SimplifiedTo(value) => {
                 let value = &self.inserter.function.dfg[value];
                 if let Value::Instruction { instruction, .. } = value {
-                    self.analyze_instruction_without_simplifying(references, *instruction, true);
+                    self.analyze_possibly_simplified_instruction(references, *instruction, true);
                 }
             }
             InsertInstructionResult::SimplifiedToMultiple(values) => {
                 for value in values {
                     let value = &self.inserter.function.dfg[value];
                     if let Value::Instruction { instruction, .. } = value {
-                        self.analyze_instruction_without_simplifying(
+                        self.analyze_possibly_simplified_instruction(
                             references,
                             *instruction,
                             true,
@@ -445,7 +445,7 @@ impl<'f> PerFunctionContext<'f> {
         }
     }
 
-    fn analyze_instruction_without_simplifying(
+    fn analyze_possibly_simplified_instruction(
         &mut self,
         references: &mut Block,
         instruction: InstructionId,
