@@ -241,44 +241,46 @@ impl Function {
                     }
                 }
                 Instruction::Binary(binary @ Binary { lhs, operator, rhs }) => {
-                    if let Some(message) =
+                    let Some(message) =
                         binary_operation_always_fails(*lhs, *operator, *rhs, context)
-                    {
-                        // Check if this operation is one that should only fail if the predicate is enabled.
-                        let requires_acir_gen_predicate =
-                            binary.requires_acir_gen_predicate(context.dfg);
+                    else {
+                        return;
+                    };
 
-                        let fails_under_predicate =
-                            requires_acir_gen_predicate && !is_predicate_constant_one();
+                    // Check if this operation is one that should only fail if the predicate is enabled.
+                    let requires_acir_gen_predicate =
+                        binary.requires_acir_gen_predicate(context.dfg);
 
-                        // Insert the instruction right away so we can add a constrain immediately after it
-                        context.insert_current_instruction();
+                    let fails_under_predicate =
+                        requires_acir_gen_predicate && !is_predicate_constant_one();
 
-                        // Insert a constraint which makes it easy to see that this instruction will fail.
-                        let guard = if fails_under_predicate {
-                            context.enable_side_effects
-                        } else {
-                            context.dfg.make_constant(1_u128.into(), NumericType::bool())
-                        };
-                        let zero = context.dfg.make_constant(0_u128.into(), NumericType::bool());
-                        let message = Some(ConstrainError::StaticString(message));
-                        let instruction = Instruction::Constrain(zero, guard, message);
-                        let call_stack =
-                            context.dfg.get_instruction_call_stack_id(context.instruction_id);
+                    // Insert the instruction right away so we can add a constrain immediately after it
+                    context.insert_current_instruction();
 
-                        context.dfg.insert_instruction_and_results(
-                            instruction,
-                            block_id,
-                            None,
-                            call_stack,
-                        );
+                    // Insert a constraint which makes it easy to see that this instruction will fail.
+                    let guard = if fails_under_predicate {
+                        context.enable_side_effects
+                    } else {
+                        context.dfg.make_constant(1_u128.into(), NumericType::bool())
+                    };
+                    let zero = context.dfg.make_constant(0_u128.into(), NumericType::bool());
+                    let message = Some(ConstrainError::StaticString(message));
+                    let instruction = Instruction::Constrain(zero, guard, message);
+                    let call_stack =
+                        context.dfg.get_instruction_call_stack_id(context.instruction_id);
 
-                        // Subsequent instructions can either be removed, of replaced by defaults until the next predicate.
-                        current_block_reachability = if fails_under_predicate {
-                            Reachability::UnreachableUnderPredicate
-                        } else {
-                            Reachability::Unreachable
-                        }
+                    context.dfg.insert_instruction_and_results(
+                        instruction,
+                        block_id,
+                        None,
+                        call_stack,
+                    );
+
+                    // Subsequent instructions can either be removed, of replaced by defaults until the next predicate.
+                    current_block_reachability = if fails_under_predicate {
+                        Reachability::UnreachableUnderPredicate
+                    } else {
+                        Reachability::Unreachable
                     }
                 }
                 Instruction::ArrayGet { array, index, offset }
