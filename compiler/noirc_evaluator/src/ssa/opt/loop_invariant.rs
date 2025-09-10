@@ -692,17 +692,6 @@ impl<'f> LoopInvariantContext<'f> {
             return true;
         }
 
-        println!("can_hoist_invariant: {instruction:?}");
-        println!(
-            "  - can_be_hoisted_from_loop_bounds: {}",
-            self.can_be_hoisted_from_loop_bounds(loop_context, &instruction)
-        );
-        println!("  - can_be_hoisted: {:?}", can_be_hoisted(&instruction, self.inserter.function));
-        println!(
-            "  - can_hoist_control_dependent_instruction: {}",
-            block_context.can_hoist_control_dependent_instruction()
-        );
-
         // Check if the operation depends only on the outer loop variable, in which case it can be hoisted
         // into the pre-header of a nested loop even if the nested loop does not execute.
         if self.can_be_hoisted_from_loop_bounds(loop_context, &instruction) {
@@ -887,21 +876,8 @@ fn can_be_hoisted(instruction: &Instruction, function: &Function) -> CanBeHoiste
         MakeArray { .. } => function.runtime().is_acir().into(),
 
         // These can have different behavior depending on the predicate.
-        Binary(_) | ArraySet { .. } => {
+        Binary(_) | ArraySet { .. } | ArrayGet { .. } => {
             if !instruction.requires_acir_gen_predicate(&function.dfg) {
-                Yes
-            } else {
-                WithPredicate
-            }
-        }
-        // ArrayGet requires a predicate in ACIR, but is considered "pure" in Brillig.
-        // However, that doesn't make it safe to hoist: we expect it to come with OOB
-        // constraints that do require the predicate to be hoisted, and we should not
-        // hoist the corresponding ArrayGet without them. Should we hoist them, the
-        // operation would succeed in Brillig, but return potentially invalid, which
-        // could cause subsequent operations to fail.
-        ArrayGet { array, index, offset: _ } => {
-            if function.dfg.is_safe_index(*index, *array) {
                 Yes
             } else {
                 WithPredicate
