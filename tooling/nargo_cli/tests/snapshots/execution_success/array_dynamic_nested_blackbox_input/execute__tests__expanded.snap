@@ -14,6 +14,7 @@ struct Foo {
 
 fn main(mut x: [Foo; 3], y: pub u32, hash_result: pub [u8; 32]) {
     {
+<<<<<<< HEAD
         let i_3963: u32 = y - 1_u32;
         x[i_3963].bar.inner = [106_u8, 107_u8, 10_u8];
     };
@@ -21,6 +22,15 @@ fn main(mut x: [Foo; 3], y: pub u32, hash_result: pub [u8; 32]) {
     {
         let i_3965: u32 = y - 1_u32;
         hash_input[i_3965] = 0_u8;
+=======
+        let i_4235: u32 = y - 1_u32;
+        x[i_4235].bar.inner = [106_u8, 107_u8, 10_u8];
+    };
+    let mut hash_input: [u8; 3] = x[y - 1_u32].bar.inner;
+    {
+        let i_4237: u32 = y - 1_u32;
+        hash_input[i_4237] = 0_u8;
+>>>>>>> 1b5e1de2e7c3d46945bb6747eba4e44342bd6b4e
     };
     let hash: [u8; 32] = std::hash::blake3(hash_input);
     assert(hash == hash_result);

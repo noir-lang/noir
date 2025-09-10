@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_traits_trait_bound_with_associated_constant"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

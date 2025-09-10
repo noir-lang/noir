@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_numeric_generic_field_arithmetic_larger_than_u32"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

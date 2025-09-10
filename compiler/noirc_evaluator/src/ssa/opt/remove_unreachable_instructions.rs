@@ -6,6 +6,124 @@
 //!
 //! This pass might also add constrain checks after existing instructions,
 //! for example binary operations that are guaranteed to overflow.
+//!
+//! ## Handling of `constrain`
+//!
+//! Given an SSA like this:
+//!
+//! ```ssa
+//! constrain u1 0 == u1 1
+//! v1 = load v0 -> Field
+//! return v1
+//! ```
+//!
+//! Because the constrain is guaranteed to fail, every instruction after it is removed
+//! and the terminator is replaced with `unreachable`:
+//!
+//! ```ssa
+//! constrain u1 0 == u1 1
+//! unreachable
+//! ```
+//!
+//! Similarly, `constrain u1 0 != u1 0` will have the same treatment.
+//!
+//! ## Handling of binary operations
+//!
+//! If a binary operation is guaranteed to overflow or fail:
+//!
+//! ```ssa
+//! v4 = add u8 254, u8 127 // guaranteed to overflow
+//! v5 = add v4, v6
+//! return v5
+//! ```
+//!
+//! the operation is left in the SSA but a constrain failure is added after it,
+//! and every subsequent instruction is removed:
+//!
+//! ```ssa
+//! v4 = add u8 254, u8 127
+//! constrain u1 0 == u1 1, "attempt to add with overflow"
+//! unreachable
+//! ```
+//!
+//! Division by zero is an operation that is guaranteed to fail, but it does not overflow.
+//!
+//! Because binary operations can depend on a side-effects variable (`enable_side_effects`),
+//! the constrain will check the value of this variable whenever a non-constant side effect
+//! is active. Every subsequent instruction is then replaced with a zeroed-value.
+//! So for example this SSA:
+//!
+//! ```ssa
+//! enable_side_effects v3
+//! v4 = add u8 254, u8 127 // guaranteed to overflow
+//! v5 = add v4, v6
+//! return v5
+//! ```
+//!
+//! is replaced with this one:
+//!
+//! ```ssa
+//! enable_side_effects v3
+//! v4 = add u8 254, u8 127 // guaranteed to overflow
+//! constrain u1 0 == v3, "attempt to add with overflow"
+//! return u8 0
+//! ```
+//!
+//! ## Handling of array_get and array_set
+//!
+//! If an array operation in ACIR is guaranteed to produce an index-out-of-bounds:
+//!
+//! ```ssa
+//! enable_side_effects v0
+//! v1 = make_array [] -> [&mut Field; 0]
+//! v2 = array_get v1, index u32 0 -> &mut Field
+//! v3 = load v2
+//! v4 = add v3, Field 2
+//! ```
+//!
+//! the array operation is replaced with a constrain failure and its results with
+//! default values:
+//!
+//! ```ssa
+//! enable_side_effects v0
+//! v1 = make_array [] -> [&mut Field; 0]
+//! constrain v0 == u1 0, "Index out of bounds"
+//! v2 = allocate -> &mut Field
+//! store Field 0 at v2
+//! v3 <- load v2 -> Field
+//! v4 = add v3, Field 2
+//! ```
+//!
+//! For the `store` and the `load` to be resolved, this pass has to be followed up
+//! with a `mem2reg` pass before any subsequent DIE pass would remove the `store`,
+//! leaving the `load` with a reference that never gets stored at.
+//!
+//! ## Handling of slice operations
+//!
+//! If a slice operation like `slice_push_back` or `slice_pop_front` in ACIR is guaranteed
+//! to fail, which can only happen if the slice is empty, the operation is removed
+//! and replaced with a constrain failure, then the returned slice is replaced with
+//! an empty slice. So this SSA:
+//!
+//! ```ssa
+//! v0 = make_array [] -> [u32]
+//! v2, v3, v4 = call slice_pop_front(u32 0, v0) -> (u32, u32, [u32])
+//! v5 = add v2, u32 1
+//! return v4, v5
+//! ```
+//!
+//! is replaced with this SSA:
+//!
+//! ```ssa
+//! v0 = make_array [] -> [u32]
+//! constrain u1 0 == u1 1, "Index out of bounds"
+//! v1 = make_array [] -> [u32]
+//! return v1, u32 0
+//! ```
+//!
+//! ## Preconditions:
+//! - the [inlining][`super::inlining`] and [flatten_cfg][`super::flatten_cfg`] must
+//!   not run after this pass as they can't handle the `unreachable` terminator.
 use std::sync::Arc;
 
 use acvm::{AcirField, FieldElement};
@@ -190,47 +308,26 @@ impl Function {
                     };
 
                     if array_op_always_fails {
-                        current_block_reachability = if is_predicate_constant_one() {
-                            // If we have an array that contains references we no longer need to bother with resolution of those references.
-                            // However, we want a trap to still be triggered by an OOB array access.
-                            // Thus, we can replace our array with dummy numerics to avoid unnecessary allocations
-                            // making there way further down the compilation pipeline (e.g. ACIR where references are not supported).
-                            let (old_instruction, old_array, trap_array) = match array_or_slice_type
-                            {
-                                Type::Array(_, len) => {
-                                    let dummy_array_typ = Type::Array(
-                                        Arc::new(vec![Type::Numeric(NumericType::unsigned(1))]),
-                                        len,
-                                    );
-                                    (
-                                        instruction.clone(),
-                                        *array,
-                                        zeroed_value(
-                                            context.dfg,
-                                            func_id,
-                                            block_id,
-                                            &dummy_array_typ,
-                                        ),
-                                    )
-                                }
-                                _ => unreachable!("Expected an array type"),
-                            };
-                            let new_instruction = old_instruction.map_values(|value| {
-                                if value == old_array { trap_array } else { value }
-                            });
-                            let stack =
-                                context.dfg.get_instruction_call_stack_id(context.instruction_id);
-                            context.dfg.insert_instruction_and_results(
-                                new_instruction,
-                                block_id,
-                                Some(vec![Type::Numeric(NumericType::unsigned(1))]),
-                                stack,
-                            );
-                            // Remove the old failing array access in favor of the dummy one
-                            context.remove_current_instruction();
+                        let always_fail = is_predicate_constant_one();
+                        // We could leave the array operation to trigger an OOB on the invalid access, however if the array contains and returns
+                        // references, then the SSA passes still won't be able to deal with them as nothing ever stores to references which are
+                        // never created. Instead, we can replace the result of the instruction with defaults, which will allocate and store
+                        // defaults to those references, so subsequent SSA passes can complete without errors.
+                        insert_constraint(
+                            context,
+                            block_id,
+                            side_effects_condition,
+                            "Index out of bounds".to_string(),
+                        );
 
+                        current_block_reachability = if always_fail {
+                            // If the block fails unconditionally, we don't even need a default for the results.
+                            context.remove_current_instruction();
                             Reachability::Unreachable
                         } else {
+                            // We will never use the results (the constraint fails if the side effects are enabled),
+                            // but we need them to make the rest of the SSA valid even if the side effects are off.
+                            remove_and_replace_with_defaults(context, func_id, block_id);
                             Reachability::UnreachableUnderPredicate
                         };
                     }
@@ -265,6 +362,9 @@ impl Function {
                                 context.remove_current_instruction();
                                 Reachability::Unreachable
                             } else {
+                                // Here we could use the empty slice as the replacement of the return value,
+                                // except that slice operations also return the removed element and the new length
+                                // so it's easier to just use zeroed values here
                                 remove_and_replace_with_defaults(context, func_id, block_id);
                                 Reachability::UnreachableUnderPredicate
                             };
@@ -1003,7 +1103,7 @@ mod test {
     }
 
     #[test]
-    fn transforms_failing_array_access_to_work_on_dummy_array() {
+    fn removes_failing_array_access_when_predicate_is_one() {
         let src = "
         acir(inline) predicate_pure fn main f0 {
           b0():
@@ -1020,19 +1120,53 @@ mod test {
         let ssa = ssa.remove_unreachable_instructions();
 
         // We expect the array containing references to no longer be in use,
-        // for the failing array get to now be over a dummy array.
-        // We expect the new assertion to also use the correct dummy type (u1) as to have a well formed SSA.
-        assert_ssa_snapshot!(ssa, @r"
+        // and the failing array_get instructions be replaced by an always-fail constraint.
+        assert_ssa_snapshot!(ssa, @r#"
         acir(inline) predicate_pure fn main f0 {
           b0():
             v0 = allocate -> &mut u8
             store u8 0 at v0
             v2 = make_array [u8 0, v0] : [(u8, &mut u8); 1]
-            v4 = make_array [u1 0] : [u1; 1]
-            v6 = array_get v4, index u32 2 -> u1
+            constrain u1 0 == u1 1, "Index out of bounds"
             unreachable
         }
-        ");
+        "#);
+    }
+
+    #[test]
+    fn removes_failing_array_access_when_predicate_is_variable() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1):
+            enable_side_effects v0
+            v1 = make_array [] : [&mut u8; 0]
+            v2 = array_get v1, index u32 0 -> &mut u8
+            v3 = load v2 -> u8
+            enable_side_effects u1 1
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.remove_unreachable_instructions();
+
+        // We expect the empty array to no longer be in use,
+        // and the result of the array_get be replaced by an allocation and store
+        // that makes the following load valid, but technically unreachable because
+        // of a conditionally failing constraint.
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1):
+            enable_side_effects v0
+            v1 = make_array [] : [&mut u8; 0]
+            constrain u1 0 == v0, "Index out of bounds"
+            v3 = allocate -> &mut u8
+            store u8 0 at v3
+            v5 = load v3 -> u8
+            enable_side_effects u1 1
+            return
+        }
+        "#);
     }
 
     #[test]
@@ -1100,6 +1234,40 @@ mod test {
             v1 = make_array [] : [u32]
             constrain u1 0 == u1 1, "Index out of bounds"
             unreachable
+        }
+        "#);
+    }
+
+    #[test]
+    fn simplifies_instructions_following_conditional_failure() {
+        // In the following SSA we have:
+        // 1. v1 is a divide-by-zero which turns into an conditional-fail constraint under v0
+        // 2. v2 is replaced by its default value (because division is considered side effecting)
+        // 3. v3 would be turned into a `truncate u64 0 to 32 bits` due to step 2, which is not expected to reach ACIR gen.
+        // We expect 3 to disappear as it can be simplified out.
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1):
+            enable_side_effects v0
+            v1 = div u64 1, u64 0
+            v2 = div u64 1, u64 1
+            v3 = truncate v2 to 32 bits, max_bit_size: 254
+            enable_side_effects u1 1
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.remove_unreachable_instructions();
+
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1):
+            enable_side_effects v0
+            v3 = div u64 1, u64 0
+            constrain u1 0 == v0, "attempt to divide by zero"
+            enable_side_effects u1 1
+            return
         }
         "#);
     }

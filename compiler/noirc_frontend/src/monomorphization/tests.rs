@@ -1,15 +1,8 @@
 #![cfg(test)]
 use crate::{
-    check_monomorphization_error_using_features, elaborator::UnstableFeature, test_utils::Expect,
+    check_monomorphization_error_using_features, elaborator::UnstableFeature,
+    test_utils::get_monomorphized,
 };
-
-// NOTE: this will fail in CI when called twice within one test: test names must be unique
-#[macro_export]
-macro_rules! get_monomorphized {
-    ($src:expr, $expect:expr) => {
-        $crate::test_utils::get_monomorphized($src, Some($crate::function_path!()), $expect)
-    };
-}
 
 // NOTE: this will fail in CI when called twice within one test: test names must be unique
 #[macro_export]
@@ -19,7 +12,6 @@ macro_rules! check_rewrite {
     };
 }
 
-#[named]
 #[test]
 fn bounded_recursive_type_errors() {
     // We want to eventually allow bounded recursive types like this, but for now they are
@@ -43,7 +35,6 @@ fn bounded_recursive_type_errors() {
     check_monomorphization_error_using_features!(src, &features);
 }
 
-#[named]
 #[test]
 fn recursive_type_with_alias_errors() {
     // We want to eventually allow bounded recursive types like this, but for now they are
@@ -79,7 +70,6 @@ fn recursive_type_with_alias_errors() {
     check_monomorphization_error_using_features!(src, &features);
 }
 
-#[named]
 #[test]
 fn mutually_recursive_types_error() {
     // cSpell:disable
@@ -105,7 +95,6 @@ fn mutually_recursive_types_error() {
     check_monomorphization_error_using_features!(src, &features);
 }
 
-#[named]
 #[test]
 fn simple_closure_with_no_captured_variables() {
     let src = r#"
@@ -116,7 +105,7 @@ fn simple_closure_with_no_captured_variables() {
     }
     "#;
 
-    let program = get_monomorphized!(src, Expect::Success).unwrap();
+    let program = get_monomorphized(src).unwrap();
     insta::assert_snapshot!(program, @r"
     fn main$f0(y$l0: call_data(0) Field) -> pub Field {
         let x$l1 = 1;

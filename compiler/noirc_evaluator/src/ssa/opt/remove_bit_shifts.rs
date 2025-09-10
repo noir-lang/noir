@@ -1,3 +1,65 @@
+//! This SSA pass replaces Shl and Shr instructions in ACIR functions with more primitive
+//! arithmetic instructions since ACIR doesn't directly support bit shifts.
+//!
+//! In all cases, if the shift amount is equal to or exceeds the operand's number of bits,
+//! the result will be a constrain failure (attempt to bit-shift with overflow).
+//!
+//! ## Unsigned shift-right
+//!
+//! Shifting an unsigned integer to the right by N is the same as diving by 2^N:
+//!
+//! ```ssa
+//! // this:
+//! v2 = shr v1, 3
+//!
+//! // is replaced with:
+//! v2 = div v1, 8
+//! ```
+//!
+//! If the shift amount is not a constant, 2^N is computed via square&multiply,
+//! using the bits decomposition of exponent.
+//!
+//! Pseudo-code of the computation:
+//!
+//! ```text
+//! let mut r = 1;
+//! let exponent_bits = to_bits(exponent);
+//! for i in 1 .. bit_size + 1 {
+//!     let r_squared = r * r;
+//!     let b = exponent_bits[bit_size - i];
+//!     r = if b { 2 * r_squared } else { r_squared };
+//! }
+//! ```
+//!
+//! ## Unsigned shift-left
+//!
+//! Shifting an unsigned integer to the right by N is the same as multiplying by 2^N.
+//! However, since that can overflow the target bit size, the operation is done using
+//! Field, then truncated to the target bit size.
+//!
+//! ```ssa
+//! // this, assuming v1 is a u8:
+//! v2 = shl v1, 3
+//!
+//! // is replaced with:
+//! v2 = cast v1 as Field
+//! v3 = mul v2, 8
+//! v4 = truncate v3 to 8 bits, max_bit_size: 11
+//! v5 = cast v4 as u8
+//! ```
+//!
+//! Like in the previous case, if the shift amount is not a constant it's computed
+//! via square&multiply.
+//!
+//! ## Signed shift-right
+//!
+//! This case is similar to unsigned shift-right except that for negative numbers we
+//! slightly adjust the value to shift, then adjust it again after performing the division,
+//! so the results are the expected ones.
+//!
+//! ## Signed shift-left
+//!
+//! This case is similar to unsigned shift-left.
 use std::{borrow::Cow, sync::Arc};
 
 use acvm::{FieldElement, acir::AcirField};
@@ -17,8 +79,7 @@ use crate::ssa::{
 use super::simple_optimization::SimpleOptimizationContext;
 
 impl Ssa {
-    /// Replaces Shl and Shr instructions with more primitive arithmetic instructions
-    /// since our backend doesn't directly support bit shifts.
+    /// Go through every ACIR function replacing bit shifts with more primitive arithmetic operations,
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn remove_bit_shifts(mut self) -> Ssa {
         for function in self.functions.values_mut() {
@@ -29,9 +90,9 @@ impl Ssa {
 }
 
 impl Function {
-    /// Go through every instruction, replacing bit shifts with more primitive arithmetic
-    /// operations.
-    pub(crate) fn remove_bit_shifts(&mut self) {
+    /// If this is an ACIR function, go through every instruction, replacing bit shifts with
+    /// more primitive arithmetic operations,
+    fn remove_bit_shifts(&mut self) {
         if self.runtime().is_brillig() {
             return;
         }
@@ -57,6 +118,8 @@ impl Function {
             let old_result = *context.dfg.instruction_results(instruction_id).first().unwrap();
 
             let mut bitshift_context = Context { context };
+            bitshift_context.enforce_bitshift_rhs_lt_bit_size(rhs);
+
             let new_result = if operator == BinaryOp::Shl {
                 bitshift_context.insert_wrapping_shift_left(lhs, rhs)
             } else {
@@ -93,8 +156,6 @@ impl Context<'_, '_, '_> {
             },
         );
 
-        let pow = self.two_pow(rhs);
-
         // We cap the maximum number of bits here to ensure that we don't try and truncate using a
         // `max_bit_size` greater than what's allowable by the underlying `FieldElement` as this is meaningless.
         //
@@ -105,13 +166,45 @@ impl Context<'_, '_, '_> {
             FieldElement::max_num_bits(),
         );
         if max_bit <= typ.bit_size() {
+            // If the result is guaranteed to fit in the target type we can simply multiply
+            let pow = self.two_pow(rhs);
             let pow = self.insert_cast(pow, typ);
             // Unchecked mul as it can't overflow
             self.insert_binary(lhs, BinaryOp::Mul { unchecked: true }, pow)
-        } else {
+        } else if max_bit < FieldElement::max_num_bits() {
+            // If the result fits in a FieldElement we can multiply in Field, then truncate
+            let pow = self.two_pow(rhs);
             let lhs_field = self.insert_cast(lhs, NumericType::NativeField);
             // Unchecked mul as this is a wrapping operation that we later truncate
             let result = self.insert_binary(lhs_field, BinaryOp::Mul { unchecked: true }, pow);
+            let result = self.insert_truncate(result, typ.bit_size(), max_bit);
+            self.insert_cast(result, typ)
+        } else {
+            // Otherwise, the result might not bit in a FieldElement.
+            // For this, if we have to do `lhs << rhs` we can first shift by half of `rhs`, truncate,
+            // then shift by `rhs - half_of_rhs` and truncate again.
+            assert!(typ.bit_size() <= 128);
+
+            let two = self.numeric_constant(FieldElement::from(2_u32), typ);
+
+            // rhs_divided_by_two = rhs / 2
+            let rhs_divided_by_two = self.insert_binary(rhs, BinaryOp::Div, two);
+
+            // rhs_remainder = rhs - rhs_remainder
+            let rhs_remainder =
+                self.insert_binary(rhs, BinaryOp::Sub { unchecked: true }, rhs_divided_by_two);
+
+            // pow1 = 2^rhs_divided_by_two
+            // pow2 = r^rhs_remainder
+            let pow1 = self.two_pow(rhs_divided_by_two);
+            let pow2 = self.two_pow(rhs_remainder);
+
+            // result = lhs * pow1 * pow2 = lhs * 2^rhs_divided_by_two * 2^rhs_remainder
+            //        = lhs * 2^(rhs_divided_by_two + rhs_remainder) = lhs * 2^rhs
+            let lhs_field = self.insert_cast(lhs, NumericType::NativeField);
+            let result = self.insert_binary(lhs_field, BinaryOp::Mul { unchecked: true }, pow1);
+            let result = self.insert_truncate(result, typ.bit_size(), max_bit);
+            let result = self.insert_binary(result, BinaryOp::Mul { unchecked: true }, pow2);
             let result = self.insert_truncate(result, typ.bit_size(), max_bit);
             self.insert_cast(result, typ)
         }
@@ -181,7 +274,7 @@ impl Context<'_, '_, '_> {
     /// }
     fn two_pow(&mut self, exponent: ValueId) -> ValueId {
         // Require that exponent < bit_size, ensuring that `pow` returns a value consistent with `lhs`'s type.
-        let max_bit_size = self.enforce_bitshift_rhs_lt_bit_size(exponent);
+        let max_bit_size = self.context.dfg.type_of_value(exponent).bit_size();
 
         if let Some(exponent_const) = self.context.dfg.get_numeric_constant(exponent) {
             let exponent_const_as_u32 = exponent_const.try_to_u32();
@@ -193,7 +286,7 @@ impl Context<'_, '_, '_> {
             } else {
                 FieldElement::from(2u32).pow(&exponent_const)
             };
-            return self.numeric_constant(pow, NumericType::NativeField);
+            return self.field_constant(pow);
         }
 
         // When shifting, for instance, `u32` values the maximum allowed value is 31, one less than the bit size.
@@ -249,21 +342,13 @@ impl Context<'_, '_, '_> {
 
     /// Insert constraints ensuring that the right-hand side of a bit-shift operation
     /// is less than the bit size of the left-hand side.
-    /// Returns the maximum bit size allowed for `rhs`.
-    fn enforce_bitshift_rhs_lt_bit_size(&mut self, rhs: ValueId) -> u32 {
+    fn enforce_bitshift_rhs_lt_bit_size(&mut self, rhs: ValueId) {
         let one = self.numeric_constant(FieldElement::one(), NumericType::bool());
         let rhs_type = self.context.dfg.type_of_value(rhs);
 
         let assert_message = Some("attempt to bit-shift with overflow".to_owned());
 
-        let bit_size = match rhs_type {
-            Type::Numeric(NumericType::Unsigned { bit_size }) => bit_size,
-            Type::Numeric(NumericType::Signed { bit_size }) => {
-                assert!(bit_size > 1, "ICE - i1 is not a valid type");
-                bit_size
-            }
-            _ => unreachable!("check_shift_overflow called with non-numeric type"),
-        };
+        let bit_size = rhs_type.bit_size();
         let bit_size_field = FieldElement::from(bit_size);
 
         let unsigned_typ = NumericType::unsigned(bit_size);
@@ -271,8 +356,6 @@ impl Context<'_, '_, '_> {
         let rhs = self.insert_cast(rhs, unsigned_typ);
         let overflow = self.insert_binary(rhs, BinaryOp::Lt, max);
         self.insert_constrain(overflow, one, assert_message.map(Into::into));
-
-        bit_size
     }
 
     pub(crate) fn field_constant(&mut self, constant: FieldElement) -> ValueId {
@@ -886,5 +969,30 @@ mod tests {
             jmpif v8 then: b1, else: b2
         }
         "#);
+    }
+
+    #[test]
+    fn left_bit_shift_u128_overflow_field() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u128):
+            v2 = shl v0, u128 127
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.remove_bit_shifts();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u128):
+            v1 = cast v0 as Field
+            v3 = mul v1, Field 9223372036854775808
+            v4 = truncate v3 to 128 bits, max_bit_size: 254
+            v6 = mul v4, Field 18446744073709551616
+            v7 = truncate v6 to 128 bits, max_bit_size: 254
+            v8 = cast v7 as u128
+            return v8
+        }
+        ");
     }
 }
