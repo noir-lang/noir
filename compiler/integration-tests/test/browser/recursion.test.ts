@@ -39,7 +39,7 @@ describe('It compiles noir program code, receiving circuit bytes and abi object.
     };
 
     const main_program = await getCircuit(`${base_relative_path}/${circuit_main}`);
-    const main_backend = new UltraHonkBackend(main_program.bytecode, {}, { recursive: true });
+    const main_backend = new UltraHonkBackend(main_program.bytecode, { logger: logger.debug }, { recursive: true });
 
     const { witness: main_witnessUint8Array } = await new Noir(main_program).execute(main_inputs);
 
@@ -60,7 +60,11 @@ describe('It compiles noir program code, receiving circuit bytes and abi object.
     logger.debug('recursion_inputs', recursion_inputs);
 
     const recursion_program = await getCircuit(`${base_relative_path}/${circuit_recursion}`);
-    const recursion_backend = new UltraHonkBackend(recursion_program.bytecode, {}, { recursive: false });
+    const recursion_backend = new UltraHonkBackend(
+      recursion_program.bytecode,
+      { logger: logger.debug },
+      { recursive: false },
+    );
 
     const { witness: recursion_witnessUint8Array } = await new Noir(recursion_program).execute(recursion_inputs);
 

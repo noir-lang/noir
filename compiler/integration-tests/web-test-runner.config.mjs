@@ -44,6 +44,7 @@ export default {
           imports: {
             // mock os module
             os: '/test/mocks/os.js',
+            pino: '/test/mocks/pino.js',
           },
         },
       },
