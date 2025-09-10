@@ -419,37 +419,29 @@ impl<'f> PerFunctionContext<'f> {
         // and we need to mark those references as used to keep their stores alive.
         let (instruction, loc) = self.inserter.map_instruction(instruction_id);
 
-        let (instructions, simplified) = {
-            match self.inserter.push_instruction_value(instruction, instruction_id, block_id, loc) {
-                InsertInstructionResult::Results(id, _) => (vec![id], false),
-                InsertInstructionResult::SimplifiedTo(value) => {
+        match self.inserter.push_instruction_value(instruction, instruction_id, block_id, loc) {
+            InsertInstructionResult::Results(id, _) => {
+                self.analyze_instruction_without_simplifying(references, id, false);
+            }
+            InsertInstructionResult::SimplifiedTo(value) => {
+                let value = &self.inserter.function.dfg[value];
+                if let Value::Instruction { instruction, .. } = value {
+                    self.analyze_instruction_without_simplifying(references, *instruction, true);
+                }
+            }
+            InsertInstructionResult::SimplifiedToMultiple(values) => {
+                for value in values {
                     let value = &self.inserter.function.dfg[value];
                     if let Value::Instruction { instruction, .. } = value {
-                        (vec![*instruction], true)
-                    } else {
-                        return;
+                        self.analyze_instruction_without_simplifying(
+                            references,
+                            *instruction,
+                            true,
+                        );
                     }
                 }
-                InsertInstructionResult::SimplifiedToMultiple(values) => {
-                    let ids = values
-                        .into_iter()
-                        .filter_map(|value| {
-                            let value = &self.inserter.function.dfg[value];
-                            if let Value::Instruction { instruction, .. } = value {
-                                Some(*instruction)
-                            } else {
-                                None
-                            }
-                        })
-                        .collect();
-                    (ids, true)
-                }
-                InsertInstructionResult::InstructionRemoved => return,
             }
-        };
-
-        for instruction in instructions {
-            self.analyze_instruction_without_simplifying(references, instruction, simplified);
+            InsertInstructionResult::InstructionRemoved => (),
         }
     }
 
