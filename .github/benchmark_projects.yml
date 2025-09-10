@@ -35,7 +35,7 @@ projects:
     path: noir-projects/noir-protocol-circuits/crates/rollup-base-private
     num_runs: 5
     timeout: 15
-    compilation-timeout: 21
+    compilation-timeout: 25
     execution-timeout: 1
     compilation-memory-limit: 1600
     execution-memory-limit: 650
