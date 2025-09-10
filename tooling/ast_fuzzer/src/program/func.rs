@@ -911,7 +911,7 @@ impl<'a> FunctionContext<'a> {
             unreachable!("only expected to be called with Slice");
         };
         // The rules around dynamic indexing is the same as for arrays.
-        let (idx_expr, idx_dyn) = if max_depth == 0 || bool::arbitrary(u)? {
+        let (mut idx_expr, idx_dyn) = if max_depth == 0 || bool::arbitrary(u)? {
             // Avoid any stack overflow where we look for an index in the slice itself.
             (self.gen_literal(u, &types::U32)?, false)
         } else {
@@ -951,8 +951,10 @@ impl<'a> FunctionContext<'a> {
         // Get the runtime length.
         let len_expr = self.call_array_len(Expression::Ident(ident_1), src_type.clone());
 
-        // Take the modulo.
-        let idx_expr = expr::modulo(idx_expr, len_expr);
+        // Take the modulo, but leave a small chance for index OOB.
+        if self.avoid_index_out_of_bounds(u)? {
+            idx_expr = expr::modulo(idx_expr, len_expr);
+        }
 
         // Access the item by index
         let item_expr = access_item(self, ident_2, idx_expr);
@@ -999,9 +1001,15 @@ impl<'a> FunctionContext<'a> {
     ) -> arbitrary::Result<TrackedExpression> {
         assert!(len > 0, "cannot index empty array");
         if max_depth > 0 && u.ratio(1, 3)? {
-            let (idx, idx_dyn) =
+            let (mut idx, idx_dyn) =
                 self.gen_expr(u, &types::U32, max_depth.saturating_sub(1), Flags::NESTED)?;
-            Ok((expr::index_modulo(idx, len), idx_dyn))
+
+            // Limit the index to be in the valid range for the array length, with a small chance of index OOB.
+            if self.avoid_index_out_of_bounds(u)? {
+                idx = expr::index_modulo(idx, len);
+            }
+
+            Ok((idx, idx_dyn))
         } else {
             let idx = u.choose_index(len as usize)?;
             Ok((expr::u32_literal(idx as u32), false))
@@ -2277,6 +2285,16 @@ impl<'a> FunctionContext<'a> {
             vec![slice_type, types::U32, item_type],
             vec![slice, idx, item],
         )
+    }
+
+    /// Random decision whether to allow "Index out of bounds" errors to happen
+    /// on a specific array or slice access operation.
+    fn avoid_index_out_of_bounds(&self, u: &mut Unstructured) -> arbitrary::Result<bool> {
+        // We often use the `avoid_overflow` configuration in tests to turn off "easy to trigger errors".
+        if self.config().avoid_overflow {
+            return Ok(false);
+        }
+        u.ratio(1, 10)
     }
 }
 
