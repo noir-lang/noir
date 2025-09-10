@@ -141,7 +141,7 @@ struct Context<'m, 'dfg, 'mapping> {
 impl Context<'_, '_, '_> {
     /// Insert ssa instructions which computes lhs << rhs by doing lhs*2^rhs
     /// and truncate the result to bit_size
-    pub(crate) fn insert_wrapping_shift_left(&mut self, lhs: ValueId, rhs: ValueId) -> ValueId {
+    fn insert_wrapping_shift_left(&mut self, lhs: ValueId, rhs: ValueId) -> ValueId {
         let typ = self.context.dfg.type_of_value(lhs).unwrap_numeric();
         let max_lhs_bits = self.context.dfg.get_value_max_num_bits(lhs);
         let max_bit_shift_size = self.context.dfg.get_numeric_constant(rhs).map_or_else(
@@ -213,7 +213,7 @@ impl Context<'_, '_, '_> {
     /// Insert ssa instructions which computes lhs >> rhs by doing lhs/2^rhs
     /// For negative signed integers, we do the division on the 1-complement representation of lhs,
     /// before converting back the result to the 2-complement representation.
-    pub(crate) fn insert_shift_right(&mut self, lhs: ValueId, rhs: ValueId) -> ValueId {
+    fn insert_shift_right(&mut self, lhs: ValueId, rhs: ValueId) -> ValueId {
         let lhs_typ = self.context.dfg.type_of_value(lhs).unwrap_numeric();
 
         let pow = self.two_pow(rhs);
@@ -352,34 +352,25 @@ impl Context<'_, '_, '_> {
         self.insert_constrain(overflow, one, assert_message.map(Into::into));
     }
 
-    pub(crate) fn field_constant(&mut self, constant: FieldElement) -> ValueId {
+    fn field_constant(&mut self, constant: FieldElement) -> ValueId {
         self.context.dfg.make_constant(constant, NumericType::NativeField)
     }
 
     /// Insert a numeric constant into the current function
-    pub(crate) fn numeric_constant(
-        &mut self,
-        value: impl Into<FieldElement>,
-        typ: NumericType,
-    ) -> ValueId {
+    fn numeric_constant(&mut self, value: impl Into<FieldElement>, typ: NumericType) -> ValueId {
         self.context.dfg.make_constant(value.into(), typ)
     }
 
     /// Insert a binary instruction at the end of the current block.
     /// Returns the result of the binary instruction.
-    pub(crate) fn insert_binary(
-        &mut self,
-        lhs: ValueId,
-        operator: BinaryOp,
-        rhs: ValueId,
-    ) -> ValueId {
+    fn insert_binary(&mut self, lhs: ValueId, operator: BinaryOp, rhs: ValueId) -> ValueId {
         let instruction = Instruction::Binary(Binary { lhs, rhs, operator });
         self.context.insert_instruction(instruction, None).first()
     }
 
     /// Insert a not instruction at the end of the current block.
     /// Returns the result of the instruction.
-    pub(crate) fn insert_not(&mut self, rhs: ValueId) -> ValueId {
+    fn insert_not(&mut self, rhs: ValueId) -> ValueId {
         self.context.insert_instruction(Instruction::Not(rhs), None).first()
     }
 
@@ -395,12 +386,7 @@ impl Context<'_, '_, '_> {
 
     /// Insert a truncate instruction at the end of the current block.
     /// Returns the result of the truncate instruction.
-    pub(crate) fn insert_truncate(
-        &mut self,
-        value: ValueId,
-        bit_size: u32,
-        max_bit_size: u32,
-    ) -> ValueId {
+    fn insert_truncate(&mut self, value: ValueId, bit_size: u32, max_bit_size: u32) -> ValueId {
         self.context
             .insert_instruction(Instruction::Truncate { value, bit_size, max_bit_size }, None)
             .first()
@@ -408,13 +394,13 @@ impl Context<'_, '_, '_> {
 
     /// Insert a cast instruction at the end of the current block.
     /// Returns the result of the cast instruction.
-    pub(crate) fn insert_cast(&mut self, value: ValueId, typ: NumericType) -> ValueId {
+    fn insert_cast(&mut self, value: ValueId, typ: NumericType) -> ValueId {
         self.context.insert_instruction(Instruction::Cast(value, typ), None).first()
     }
 
     /// Insert a call instruction at the end of the current block and return
     /// the results of the call.
-    pub(crate) fn insert_call(
+    fn insert_call(
         &mut self,
         func: ValueId,
         arguments: Vec<ValueId>,
@@ -426,12 +412,7 @@ impl Context<'_, '_, '_> {
     }
 
     /// Insert an instruction to extract an element from an array
-    pub(crate) fn insert_array_get(
-        &mut self,
-        array: ValueId,
-        index: ValueId,
-        element_type: Type,
-    ) -> ValueId {
+    fn insert_array_get(&mut self, array: ValueId, index: ValueId, element_type: Type) -> ValueId {
         let element_type = Some(vec![element_type]);
         let offset = ArrayOffset::None;
         let instruction = Instruction::ArrayGet { array, index, offset };
