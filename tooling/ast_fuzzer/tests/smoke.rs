@@ -14,7 +14,10 @@ use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use nargo::{NargoError, foreign_calls::DefaultForeignCallBuilder};
 use noir_ast_fuzzer::{Config, DisplayAstAsNoir, arb_inputs, arb_program, program_abi};
 use noirc_abi::input_parser::Format;
-use noirc_evaluator::{brillig::BrilligOptions, ssa};
+use noirc_evaluator::{
+    brillig::BrilligOptions,
+    ssa::{self, opt::inlining::MAX_INSTRUCTIONS},
+};
 
 fn seed_from_env() -> Option<u64> {
     let Ok(seed) = std::env::var("NOIR_AST_FUZZER_SEED") else { return None };
@@ -43,6 +46,7 @@ fn arb_program_can_be_executed() {
             skip_brillig_constraints_check: true,
             enable_brillig_constraints_check_lookback: false,
             inliner_aggressiveness: 0,
+            small_function_max_instruction: MAX_INSTRUCTIONS,
             max_bytecode_increase_percent: None,
             skip_passes: Default::default(),
         };

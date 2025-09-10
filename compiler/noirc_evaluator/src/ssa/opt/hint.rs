@@ -7,7 +7,8 @@ mod tests {
         brillig::BrilligOptions,
         errors::RuntimeError,
         ssa::{
-            OptimizationLevel, Ssa, SsaBuilder, SsaEvaluatorOptions, SsaLogging, primary_passes,
+            OptimizationLevel, Ssa, SsaBuilder, SsaEvaluatorOptions, SsaLogging,
+            opt::inlining::MAX_INSTRUCTIONS, primary_passes,
         },
     };
 
@@ -22,6 +23,7 @@ mod tests {
             enable_brillig_constraints_check_lookback: false,
             skip_brillig_constraints_check: true,
             inliner_aggressiveness: 0,
+            small_function_max_instruction: MAX_INSTRUCTIONS,
             max_bytecode_increase_percent: None,
             optimization_level: OptimizationLevel::All,
             skip_passes: Default::default(),

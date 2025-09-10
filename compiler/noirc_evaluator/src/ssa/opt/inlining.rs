@@ -8,7 +8,7 @@ use crate::errors::RuntimeError;
 use acvm::acir::AcirField;
 use im::HashMap;
 use iter_extended::vecmap;
-use noirc_errors::call_stack::CallStackId;
+use noirc_errors::{Location, call_stack::CallStackId};
 
 use crate::ssa::{
     function_builder::FunctionBuilder,
@@ -16,7 +16,7 @@ use crate::ssa::{
         basic_block::BasicBlockId,
         call_graph::CallGraph,
         dfg::InsertInstructionResult,
-        function::{Function, FunctionId, RuntimeType},
+        function::{Function, FunctionId},
         instruction::{Instruction, InstructionId, TerminatorInstruction},
         value::{Value, ValueId},
     },
@@ -25,6 +25,7 @@ use crate::ssa::{
 
 pub(super) mod inline_info;
 
+pub use inline_info::MAX_INSTRUCTIONS;
 pub(super) use inline_info::{InlineInfo, InlineInfos, compute_inline_infos};
 
 /// An arbitrary limit to the maximum number of recursive call
@@ -51,22 +52,28 @@ impl Ssa {
     ///
     /// This step should run after runtime separation, since it relies on the runtime of the called functions being final.
     #[tracing::instrument(level = "trace", skip(self))]
-    pub(crate) fn inline_functions(self, aggressiveness: i64) -> Result<Ssa, RuntimeError> {
-        self.inline_until_fixed_point(aggressiveness, false)
+    pub(crate) fn inline_functions(
+        self,
+        aggressiveness: i64,
+        small_function_max_instructions: usize,
+    ) -> Result<Ssa, RuntimeError> {
+        self.inline_until_fixed_point(aggressiveness, small_function_max_instructions, false)
     }
 
     /// Run the inlining pass where functions marked with `InlineType::NoPredicates` as not entry points
     pub(crate) fn inline_functions_with_no_predicates(
         self,
         aggressiveness: i64,
+        small_function_max_instructions: usize,
     ) -> Result<Ssa, RuntimeError> {
-        self.inline_until_fixed_point(aggressiveness, true)
+        self.inline_until_fixed_point(aggressiveness, small_function_max_instructions, true)
     }
 
     /// Inline functions repeatedly until no new functions are inlined.
     pub(crate) fn inline_until_fixed_point(
         mut self,
         aggressiveness: i64,
+        small_function_max_instructions: usize,
         inline_no_predicates_functions: bool,
     ) -> Result<Ssa, RuntimeError> {
         loop {
@@ -77,10 +84,10 @@ impl Ssa {
                 &self,
                 &call_graph,
                 inline_no_predicates_functions,
+                small_function_max_instructions,
                 aggressiveness,
             );
-            self =
-                Self::inline_functions_inner(self, &inline_infos, inline_no_predicates_functions)?;
+            self = Self::inline_functions_inner(self, &inline_infos)?;
 
             let num_functions_after = self.functions.len();
             if num_functions_after == num_functions_before {
@@ -91,30 +98,15 @@ impl Ssa {
         Ok(self)
     }
 
-    fn inline_functions_inner(
-        mut self,
-        inline_infos: &InlineInfos,
-        inline_no_predicates_functions: bool,
-    ) -> Result<Ssa, RuntimeError> {
+    fn inline_functions_inner(mut self, inline_infos: &InlineInfos) -> Result<Ssa, RuntimeError> {
         let inline_targets = inline_infos.iter().filter_map(|(id, info)| {
             let dfg = &self.functions[id].dfg;
             info.is_inline_target(dfg).then_some(*id)
         });
 
         let should_inline_call = |callee: &Function| -> bool {
-            match callee.runtime() {
-                RuntimeType::Acir(_) => {
-                    // If we have not already finished the flattening pass, functions marked
-                    // to not have predicates should be preserved.
-                    let preserve_function =
-                        !inline_no_predicates_functions && callee.is_no_predicates();
-                    !preserve_function
-                }
-                RuntimeType::Brillig(_) => {
-                    // We inline inline if the function called wasn't ruled out as too costly or recursive.
-                    InlineInfo::should_inline(inline_infos, callee.id())
-                }
-            }
+            // We defer to the inline info computation to determine whether a function should be inlined
+            InlineInfo::should_inline(inline_infos, callee.id())
         };
 
         // NOTE: Functions are processed independently of each other, with the final mapping replacing the original,
@@ -126,8 +118,8 @@ impl Ssa {
             assert_eq!(inlined.id(), entry_point);
             new_functions.insert(entry_point, inlined);
         }
-        self.functions = new_functions;
 
+        self.functions = new_functions;
         Ok(self)
     }
 }
@@ -463,29 +455,31 @@ impl<'function> PerFunctionContext<'function> {
             match &self.source_function.dfg[*id] {
                 Instruction::Call { func, arguments } => match self.get_function(*func) {
                     Some(func_id) => {
-                        if let Some(callee) = self.should_inline_call(ssa, func_id) {
-                            if should_inline_call(callee) {
-                                self.inline_function(
-                                    ssa,
-                                    *id,
-                                    func_id,
-                                    arguments,
-                                    should_inline_call,
-                                )?;
+                        let call_stack = self.source_function.dfg.get_instruction_call_stack(*id);
+                        let callee = &ssa.functions[&func_id];
 
-                                // This is only relevant during handling functions with `InlineType::NoPredicates` as these
-                                // can pollute the function they're being inlined into with `Instruction::EnabledSideEffects`,
-                                // resulting in predicates not being applied properly.
-                                //
-                                // Note that this doesn't cover the case in which there exists an `Instruction::EnableSideEffectsIf`
-                                // within the function being inlined whilst the source function has not encountered one yet.
-                                // In practice this isn't an issue as the last `Instruction::EnableSideEffectsIf` in the
-                                // function being inlined will be to turn off predicates rather than to create one.
-                                if let Some(condition) = side_effects_enabled {
-                                    self.context.builder.insert_enable_side_effects_if(condition);
-                                }
-                            } else {
-                                self.push_instruction(*id);
+                        // Sanity check to validate runtime compatibility
+                        self.validate_callee(callee, call_stack)?;
+
+                        // Do not inline self-recursive functions on the top level.
+                        // Inlining a self-recursive function works when there is something to inline into
+                        // by importing all the recursive blocks, but for the entry function there is no wrapper.
+                        // We must do this check here as inlining can be can triggered on a non-inline target (e.g., non-entry point).
+                        let inlining_self_recursion_at_top_level =
+                            self.entry_function.id() == func_id;
+                        if !inlining_self_recursion_at_top_level && should_inline_call(callee) {
+                            self.inline_function(ssa, *id, func_id, arguments, should_inline_call)?;
+
+                            // This is only relevant during handling functions with `InlineType::NoPredicates` as these
+                            // can pollute the function they're being inlined into with `Instruction::EnabledSideEffects`,
+                            // resulting in predicates not being applied properly.
+                            //
+                            // Note that this doesn't cover the case in which there exists an `Instruction::EnableSideEffectsIf`
+                            // within the function being inlined whilst the source function has not encountered one yet.
+                            // In practice this isn't an issue as the last `Instruction::EnableSideEffectsIf` in the
+                            // function being inlined will be to turn off predicates rather than to create one.
+                            if let Some(condition) = side_effects_enabled {
+                                self.context.builder.insert_enable_side_effects_if(condition);
                             }
                         } else {
                             self.push_instruction(*id);
@@ -503,36 +497,33 @@ impl<'function> PerFunctionContext<'function> {
         Ok(())
     }
 
-    fn should_inline_call<'a>(
+    /// Extra error check where given a caller's runtime its callee runtime is valid.
+    /// We determine validity as the following (where we have caller -> callee).
+    /// Valid:
+    /// - ACIR -> ACIR
+    /// - ACIR -> Brillig
+    /// - Brillig -> Brillig
+    ///
+    /// Invalid:
+    /// - Brillig -> ACIR
+    ///
+    /// Whether a valid callee should be inlined is determined separately by the inline info computation.
+    fn validate_callee(
         &self,
-        ssa: &'a Ssa,
-        called_func_id: FunctionId,
-    ) -> Option<&'a Function> {
-        // Do not inline self-recursive functions on the top level.
-        // Inlining a self-recursive function works when there is something to inline into
-        // by importing all the recursive blocks, but for the entry function there is no wrapper.
-        if self.entry_function.id() == called_func_id {
-            return None;
+        callee: &Function,
+        call_stack: Vec<Location>,
+    ) -> Result<(), RuntimeError> {
+        if self.entry_function.runtime().is_brillig() && callee.runtime().is_acir() {
+            // If the caller is Brillig and the called function is ACIR,
+            // it cannot be inlined because runtimes do not share the same semantics
+            return Err(RuntimeError::UnconstrainedCallingConstrained {
+                call_stack,
+                constrained: callee.name().to_string(),
+                unconstrained: self.entry_function.name().to_string(),
+            });
         }
 
-        let callee = &ssa.functions[&called_func_id];
-
-        match callee.runtime() {
-            RuntimeType::Acir(inline_type) => {
-                // If the called function is acir, we inline if it's not an entry point
-                if inline_type.is_entry_point() {
-                    return None;
-                }
-            }
-            RuntimeType::Brillig(_) => {
-                if self.entry_function.runtime().is_acir() {
-                    // We never inline a brillig function into an ACIR function.
-                    return None;
-                }
-            }
-        }
-
-        Some(callee)
+        Ok(())
     }
 
     /// Inline a function call and remember the inlined return values in the values map
@@ -700,8 +691,16 @@ impl<'function> PerFunctionContext<'function> {
 mod test {
     use crate::{
         assert_ssa_snapshot,
-        ssa::{Ssa, ir::instruction::TerminatorInstruction, opt::assert_normalized_ssa_equals},
+        errors::RuntimeError,
+        ssa::{
+            Ssa,
+            ir::{instruction::TerminatorInstruction, map::Id},
+            opt::assert_normalized_ssa_equals,
+        },
     };
+
+    // We set zero for `small_function_max_instructions` as to avoid the maximum weight threshold at which we always inline a function.
+    const MAX_INSTRUCTIONS: usize = 0;
 
     #[test]
     fn basic_inlining() {
@@ -718,7 +717,7 @@ mod test {
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.inline_functions(i64::MAX).unwrap();
+        let ssa = ssa.inline_functions(i64::MAX, MAX_INSTRUCTIONS).unwrap();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn foo f0 {
           b0():
@@ -743,7 +742,7 @@ mod test {
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.inline_functions(i64::MAX).unwrap();
+        let ssa = ssa.inline_functions(i64::MAX, MAX_INSTRUCTIONS).unwrap();
         assert_normalized_ssa_equals(ssa, src);
     }
 
@@ -777,7 +776,7 @@ mod test {
         ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.inline_functions(i64::MAX).unwrap();
+        let ssa = ssa.inline_functions(i64::MAX, MAX_INSTRUCTIONS).unwrap();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: Field):
@@ -795,7 +794,6 @@ mod test {
             v2 = call f1(u32 5) -> u32
             return v2
         }
-
         acir(inline) fn factorial f1 {
           b0(v1: u32):
             v2 = lt v1, u32 1
@@ -813,7 +811,7 @@ mod test {
         ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.inline_functions(i64::MAX).unwrap();
+        let ssa = ssa.inline_functions(i64::MAX, MAX_INSTRUCTIONS).unwrap();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0():
@@ -850,6 +848,55 @@ mod test {
         ");
     }
 
+    /// This test is the same as [recursive_functions] we just want to test that inlining
+    /// does not fail when triggered from the self recursive non-entry point function instead
+    /// of the program entry point.
+    #[test]
+    fn recursive_functions_non_inline_target() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v2 = call f1(u32 5) -> u32
+            return v2
+        }
+        acir(inline) fn factorial f1 {
+          b0(v1: u32):
+            v2 = lt v1, u32 1
+            jmpif v2 then: b1, else: b2
+          b1():
+            jmp b3(u32 1)
+          b2():
+            v4 = sub v1, u32 1
+            v5 = call f1(v4) -> u32
+            v6 = mul v1, v5
+            jmp b3(v6)
+          b3(v7: u32):
+            return v7
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let f1 = &ssa.functions[&Id::test_new(1)];
+        let function = f1.inlined(&ssa, &|_| true).unwrap();
+        // The expected string must be formatted this way as to account for newlines and whitespace
+        assert_eq!(
+            function.to_string(),
+            "acir(inline) fn factorial f1 {
+  b0(v0: u32):
+    v3 = eq v0, u32 0
+    jmpif v3 then: b1, else: b2
+  b1():
+    jmp b3(u32 1)
+  b2():
+    v5 = sub v0, u32 1
+    v7 = call f1(v5) -> u32
+    v8 = mul v0, v7
+    jmp b3(v8)
+  b3(v4: u32):
+    return v4
+}"
+        );
+    }
+
     #[test]
     fn displaced_return_mapping() {
         // This test is designed specifically to catch a regression in which the ids of blocks
@@ -871,7 +918,7 @@ mod test {
         ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.inline_functions(i64::MAX).unwrap();
+        let ssa = ssa.inline_functions(i64::MAX, MAX_INSTRUCTIONS).unwrap();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0(v0: u1):
@@ -906,7 +953,7 @@ mod test {
         let ssa = Ssa::from_str(src).unwrap();
         assert_eq!(ssa.functions.len(), 2);
 
-        let ssa = ssa.inline_functions(i64::MAX);
+        let ssa = ssa.inline_functions(i64::MAX, MAX_INSTRUCTIONS);
         let Err(err) = ssa else {
             panic!("inline_functions cannot inline recursive functions");
         };
@@ -921,14 +968,13 @@ mod test {
             v1 = call f1() -> Field
             return v1
         }
-
         brillig(inline) fn bar f1 {
           b0():
             return Field 72
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.inline_functions(i64::MIN).unwrap();
+        let ssa = ssa.inline_functions(i64::MIN, MAX_INSTRUCTIONS).unwrap();
         // No inlining has happened
         assert_normalized_ssa_equals(ssa, src);
     }
@@ -957,8 +1003,7 @@ mod test {
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
-
-        let ssa = ssa.inline_functions(0).unwrap();
+        let ssa = ssa.inline_functions(0, MAX_INSTRUCTIONS).unwrap();
         // No inlining has happened in f0
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn foo f0 {
@@ -1011,7 +1056,7 @@ mod test {
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.inline_functions(i64::MAX).unwrap();
+        let ssa = ssa.inline_functions(i64::MAX, MAX_INSTRUCTIONS).unwrap();
 
         // We expect a block from all calls to f1 and f2 to be pruned and that the constant argument to the f2 call
         // is propagated to the jmpif conditional in b0.
@@ -1051,7 +1096,7 @@ mod test {
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.inline_functions(i64::MAX).unwrap();
+        let ssa = ssa.inline_functions(i64::MAX, MAX_INSTRUCTIONS).unwrap();
 
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
@@ -1076,7 +1121,7 @@ mod test {
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.inline_functions(i64::MAX).unwrap();
+        let ssa = ssa.inline_functions(i64::MAX, MAX_INSTRUCTIONS).unwrap();
         assert_normalized_ssa_equals(ssa, src);
     }
 
@@ -1095,7 +1140,7 @@ mod test {
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.inline_functions_with_no_predicates(i64::MAX).unwrap();
+        let ssa = ssa.inline_functions_with_no_predicates(i64::MAX, MAX_INSTRUCTIONS).unwrap();
 
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
@@ -1113,14 +1158,13 @@ mod test {
               call f1()
               return
         }
-
         brillig(inline_always) fn always_inline f1 {
             b0():
-              return
+                return
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.inline_functions(i64::MIN).unwrap();
+        let ssa = ssa.inline_functions(i64::MIN, MAX_INSTRUCTIONS).unwrap();
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
           b0():
@@ -1132,7 +1176,7 @@ mod test {
         // not marked with `inline_always`
         let no_inline_always_src = &src.replace("inline_always", "inline");
         let ssa = Ssa::from_str(no_inline_always_src).unwrap();
-        let ssa = ssa.inline_functions(i64::MIN).unwrap();
+        let ssa = ssa.inline_functions(i64::MIN, MAX_INSTRUCTIONS).unwrap();
         assert_normalized_ssa_equals(ssa, no_inline_always_src);
     }
 
@@ -1155,7 +1199,7 @@ mod test {
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.inline_functions(i64::MAX).unwrap();
+        let ssa = ssa.inline_functions(i64::MAX, MAX_INSTRUCTIONS).unwrap();
 
         assert_ssa_snapshot!(ssa, @r"
         g0 = Field 1
@@ -1188,7 +1232,7 @@ mod test {
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.inline_functions(i64::MAX).unwrap();
+        let ssa = ssa.inline_functions(i64::MAX, MAX_INSTRUCTIONS).unwrap();
 
         assert_ssa_snapshot!(ssa, @r"
         g0 = Field 1
@@ -1219,7 +1263,7 @@ mod test {
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.inline_functions(i64::MAX).unwrap();
+        let ssa = ssa.inline_functions(i64::MAX, MAX_INSTRUCTIONS).unwrap();
 
         // The string output of global constants resolve to their inner values, so we need to check whether they are globals explicitly.
         let main = ssa.main();
@@ -1258,7 +1302,7 @@ mod test {
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.inline_functions(i64::MAX).unwrap();
+        let ssa = ssa.inline_functions(i64::MAX, MAX_INSTRUCTIONS).unwrap();
 
         // The string output of global constants resolve to their inner values, so we need to check whether they are globals explicitly.
         let main = ssa.main();
@@ -1297,6 +1341,346 @@ mod test {
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
-        let _ = ssa.inline_functions(i64::MAX).unwrap();
+        let _ = ssa.inline_functions(i64::MAX, MAX_INSTRUCTIONS).unwrap();
+    }
+
+    #[test]
+    // We should not inline an ACIR function called from a Brillig function because ACIR and Brillig semantics are different.
+    fn inlining_acir_into_brillig_function() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32):
+            call f1(v0)
+            return
+        }
+        acir(inline) fn foo f1 {
+          b0(v0: u32):
+            v4 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+            v5 = array_get v4, index v0 -> Field
+            return
+        }
+        ";
+        let ssa = Ssa::from_str_no_validation(src).unwrap();
+        let ssa = ssa.inline_functions(i64::MAX, MAX_INSTRUCTIONS);
+        if !matches!(ssa, Err(RuntimeError::UnconstrainedCallingConstrained { .. })) {
+            panic!("Expected inlining to fail with RuntimeError::UnconstrainedCallingConstrained");
+        }
+    }
+
+    #[test]
+    fn does_not_inline_acir_fold_functions() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: Field):
+            v3 = call f1(v0, v1) -> Field
+            v4 = call f1(v0, v1) -> Field
+            v5 = call f1(v0, v1) -> Field
+            v6 = eq v3, v4
+            constrain v3 == v4
+            v7 = eq v4, v5
+            constrain v4 == v5
+            return
+        }
+        acir(fold) fn foo f1 {
+          b0(v0: Field, v1: Field):
+            v2 = eq v0, v1
+            v3 = not v2
+            constrain v2 == u1 0
+            return v0
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        assert_normalized_ssa_equals(ssa, src);
+    }
+}
+
+/// This test module contains tests specifically for inlining small functions which we always expect to be inlined.
+#[cfg(test)]
+mod simple_functions {
+    use crate::{
+        assert_ssa_snapshot,
+        ssa::{
+            Ssa,
+            opt::{assert_normalized_ssa_equals, inlining::MAX_INSTRUCTIONS},
+        },
+    };
+
+    fn assert_does_not_inline(src: &str) {
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.inline_functions(i64::MAX, MAX_INSTRUCTIONS).unwrap();
+        assert_normalized_ssa_equals(ssa, src);
+    }
+
+    #[test]
+    fn inline_functions_with_zero_instructions() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: Field):
+            v2 = call f1(v0) -> Field
+            v3 = call f1(v0) -> Field
+            v4 = add v2, v3
+            return v4
+        }
+
+        brillig(inline) fn foo f1 {
+          b0(v0: Field):
+            return v0
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.inline_functions(i64::MIN, MAX_INSTRUCTIONS).unwrap();
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = add v0, v0
+            return v1
+        }
+        ");
+    }
+
+    #[test]
+    fn inline_functions_that_require_multiple_inlines() {
+        // f2 has greater than 10 instructions, which should initially prevent it from being inlined into f0.
+        // However, once f1 is inlined into f2, we should be able to fully inline into f0.
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = call f2(v0) -> Field
+            return v1
+        }
+        brillig(inline) fn foo f1 {
+          b0(v0: Field):
+            return v0
+        }
+        brillig(inline) fn bar f2 {
+          b0(v0: Field):
+            v1 = call f1(v0) -> Field
+            v2 = call f1(v0) -> Field
+            v3 = call f1(v0) -> Field
+            v4 = call f1(v0) -> Field
+            v5 = call f1(v0) -> Field
+            v6 = call f1(v0) -> Field
+            v7 = call f1(v0) -> Field
+            v8 = call f1(v0) -> Field
+            v9 = call f1(v0) -> Field
+            v10 = call f1(v0) -> Field
+            v11 = add v1, v2
+            return v11
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let mut ssa = ssa.inline_functions(i64::MIN, MAX_INSTRUCTIONS).unwrap();
+        assert_ssa_snapshot!(&mut ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = add v0, v0
+            return v1
+        }
+        ");
+    }
+
+    #[test]
+    fn inline_functions_with_one_instruction() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: Field):
+            v2 = call f1(v0) -> Field
+            v3 = call f1(v0) -> Field
+            v4 = add v2, v3
+            return v4
+        }
+
+        brillig(inline) fn foo f1 {
+          b0(v0: Field):
+            v2 = add v0, Field 1
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.inline_functions(i64::MIN, MAX_INSTRUCTIONS).unwrap();
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: Field):
+            v2 = add v0, Field 1
+            v3 = add v0, Field 1
+            v4 = add v2, v3
+            return v4
+        }
+        ");
+    }
+
+    #[test]
+    fn does_not_inline_function_with_one_instruction_that_calls_itself() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = call f1(v0) -> Field
+            return v1
+        }
+
+        brillig(inline) fn foo f1 {
+          b0(v0: Field):
+            v1 = call f1(v0) -> Field
+            return v1
+        }
+        ";
+        assert_does_not_inline(src);
+    }
+
+    #[test]
+    fn does_not_inline_acir_functions_with_no_predicates() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v2 = call f1(v0) -> Field
+            v3 = call f1(v0) -> Field
+            v4 = add v2, v3
+            return v4
+        }
+
+        acir(no_predicates) fn foo f1 {
+          b0(v0: Field):
+            v2 = add v0, Field 1
+            return v2
+        }
+        ";
+        assert_does_not_inline(src);
+    }
+
+    #[test]
+    fn does_inline_brillig_functions_with_no_predicates() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: Field):
+            v2 = call f1(v0) -> Field
+            v3 = call f1(v0) -> Field
+            v4 = add v2, v3
+            return v4
+        }
+
+        brillig(no_predicates) fn foo f1 {
+          b0(v0: Field):
+            v2 = add v0, Field 1
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.inline_functions(i64::MIN, MAX_INSTRUCTIONS).unwrap();
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: Field):
+            v2 = add v0, Field 1
+            v3 = add v0, Field 1
+            v4 = add v2, v3
+            return v4
+        }
+        ");
+    }
+
+    #[test]
+    fn does_not_inline_brillig_entry_point_functions() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v2 = call f1(v0) -> Field
+            v3 = call f1(v0) -> Field
+            v4 = add v2, v3
+            return v4
+        }
+        brillig(inline) fn foo f1 {
+          b0(v0: Field):
+            v2 = add v0, Field 1
+            return v2
+        }
+        ";
+        assert_does_not_inline(src);
+    }
+
+    #[test]
+    fn does_not_inline_mutually_recursive_functions_acir() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            call f1()
+            return
+        }
+        acir(inline) fn starter f1 {
+          b0():
+            call f2()
+            return
+        }
+        acir(inline) fn main f2 {
+          b0():
+            call f1()
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.inline_functions(i64::MIN, MAX_INSTRUCTIONS);
+
+        let Err(err) = ssa else {
+            panic!("inline_functions cannot inline recursive functions");
+        };
+        insta::assert_snapshot!(err.to_string(), @"Attempted to recurse more than 1000 times during inlining function 'starter'");
+    }
+
+    #[test]
+    fn does_not_inline_mutually_recursive_functions_brillig() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            call f1()
+            return
+        }
+        brillig(inline) fn starter f1 {
+          b0():
+            call f2()
+            return
+        }
+        brillig(inline) fn ping f2 {
+          b0():
+            call f3()
+            return
+        }
+        brillig(inline) fn pong f3 {
+          b0():
+            call f2()
+            return
+        }
+        ";
+        assert_does_not_inline(src);
+    }
+
+    #[test]
+    fn does_not_inline_function_with_multiple_instructions() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: Field):
+            v1 = call f1(v0) -> Field
+            return v1
+        }
+
+        brillig(inline) fn foo f1 {
+          b0(v0: Field):
+            v1 = add v0, Field 1
+            v2 = mul v1, Field 2
+            v3 = mul v2, Field 2
+            v4 = mul v3, Field 2
+            v5 = mul v4, Field 2
+            v6 = mul v5, Field 2
+            v7 = mul v6, Field 2
+            v8 = mul v7, Field 2
+            v9 = mul v8, Field 2
+            v10 = mul v9, Field 2
+            v11 = mul v10, Field 2
+            return v11
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.inline_functions(i64::MIN, MAX_INSTRUCTIONS).unwrap();
+        assert_normalized_ssa_equals(ssa, src);
     }
 }

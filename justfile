@@ -1,4 +1,10 @@
-ci := env("CI", "")
+ci := if env("CI", "") == "true" {
+  "1"
+} else if env("CI", "") == "1" {
+  "1"
+} else {
+  "0"
+} 
 use-cross := env("JUST_USE_CROSS", "")
 
 # target information
@@ -16,20 +22,22 @@ install-binstall:
     curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
   fi
 
+cargo-binstall-args := if ci == "1" { "--force" } else { "" }
+
 # Installs tools necessary for working with Rust code
 install-rust-tools: install-binstall
-  cargo binstall cargo-nextest@0.9.103 -y
-  cargo binstall cargo-insta@1.42.2 -y
+  cargo binstall cargo-nextest@0.9.103 -y {{cargo-binstall-args}}
+  cargo binstall cargo-insta@1.42.2 -y {{cargo-binstall-args}}
 
 # Installs tools necessary for working with Javascript code
 install-js-tools: install-binstall
-  cargo binstall wasm-pack@0.13.1 -y
-  cargo binstall wasm-bindgen-cli@0.2.100 -y
-  cargo binstall wasm-opt@0.116.1 -y
+  cargo binstall wasm-pack@0.13.1 -y {{cargo-binstall-args}}
+  cargo binstall wasm-bindgen-cli@0.2.100 -y {{cargo-binstall-args}}
+  cargo binstall wasm-opt@0.116.1 -y {{cargo-binstall-args}}
 
 # Installs Playwright (necessary for Javascript browser tests but slow to install)
 install-playwright:
-  npx -y playwright@1.49 install --with-deps
+  npx -y playwright@1.55.0 install --with-deps
 
 # Installs Foundry (necessary for examples)
 install-foundry:
@@ -102,6 +110,16 @@ fuzz-nightly: install-rust-tools
   # In the nightly tests we want to explore uncharted territory.
   NOIR_AST_FUZZER_FORCE_NON_DETERMINISTIC=1 cargo nextest run -p noir_ast_fuzzer_fuzz --no-fail-fast
 
+# Checks if there are any pending insta.rs snapshots and errors if any exist.
+check-pending-snapshots:
+  #!/usr/bin/env bash
+  snapshots=$(find . -name *.snap.new) 
+  if [[ -n "$snapshots" ]]; then \
+    echo "Found pending snapshots:"
+    echo ""
+    echo $snapshots
+    exit 1
+  fi
 
 export RUSTDOCFLAGS := "-Dwarnings -Drustdoc::unescaped_backticks"
 # Generate doc.rs site for Rust code.

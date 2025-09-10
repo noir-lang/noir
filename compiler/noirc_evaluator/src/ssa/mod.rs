@@ -47,7 +47,7 @@ mod checks;
 pub mod function_builder;
 pub mod interpreter;
 pub mod ir;
-pub(crate) mod opt;
+pub mod opt;
 pub mod parser;
 pub mod ssa_gen;
 pub(crate) mod validation;
@@ -99,6 +99,9 @@ pub struct SsaEvaluatorOptions {
     /// The higher the value, the more inlined Brillig functions will be.
     pub inliner_aggressiveness: i64,
 
+    //// The higher the value, the more Brillig functions will be set to always be inlined.
+    pub small_function_max_instruction: usize,
+
     /// Maximum accepted percentage increase in the Brillig bytecode size after unrolling loops.
     /// When `None` the size increase check is skipped altogether and any decrease in the SSA
     /// instruction count is accepted.
@@ -125,23 +128,35 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         vec![All, Debug],
     );
     ssa_pass_builder.add_pass(Ssa::defunctionalize, "Defunctionalization", vec![All, Debug]);
-    ssa_pass_builder.add_pass(Ssa::inline_simple_functions, "Inlining simple functions", vec![All]);
+    ssa_pass_builder.add_try_pass(
+        Ssa::inline_simple_functions,
+        "Inlining simple functions",
+        vec![All],
+    );
     ssa_pass_builder.attach_pass_to_last(Ssa::remove_unreachable_functions, vec![All]);
-    // BUG: Enabling this mem2reg causes an integration test failure in aztec-package; see:
-    // https://github.com/AztecProtocol/aztec-packages/pull/11294#issuecomment-2622809518
-    //SsaPass::new(Ssa::mem2reg, "Mem2Reg (1st)"),
+    ssa_pass_builder.add_pass(Ssa::mem2reg, "Mem2Reg", vec![All, Debug]);
     ssa_pass_builder.add_pass(
         Ssa::remove_paired_rc,
         "Removing Paired rc_inc & rc_decs",
         vec![All, Debug],
     );
     ssa_pass_builder.add_try_pass(
-        move |ssa| ssa.preprocess_functions(options.inliner_aggressiveness),
+        move |ssa| {
+            ssa.preprocess_functions(
+                options.inliner_aggressiveness,
+                options.small_function_max_instruction,
+            )
+        },
         "Preprocessing Functions",
         vec![All],
     );
     ssa_pass_builder.add_try_pass(
-        move |ssa| ssa.inline_functions(options.inliner_aggressiveness),
+        move |ssa| {
+            ssa.inline_functions(
+                options.inliner_aggressiveness,
+                options.small_function_max_instruction,
+            )
+        },
         "Inlining",
         vec![All, Debug],
     );
@@ -192,7 +207,12 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
     // This pass must come immediately following `mem2reg` as the succeeding passes
     // may create an SSA which inlining fails to handle.
     ssa_pass_builder.add_try_pass(
-        move |ssa| ssa.inline_functions_with_no_predicates(options.inliner_aggressiveness),
+        move |ssa| {
+            ssa.inline_functions_with_no_predicates(
+                options.inliner_aggressiveness,
+                options.small_function_max_instruction,
+            )
+        },
         "Inlining",
         vec![All],
     );
@@ -220,7 +240,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         vec![All],
     );
     ssa_pass_builder.add_pass(
-        Ssa::make_constrain_not_equal_instructions,
+        Ssa::make_constrain_not_equal,
         "Adding constrain not equal",
         vec![All, Debug],
     );
@@ -232,8 +252,9 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
     // We cannot run mem2reg after DIE, because it removes Store instructions.
     // We have to run it before, to give it a chance to turn Store+Load into known values.
     ssa_pass_builder.add_pass(Ssa::mem2reg, "Mem2Reg", vec![All, Debug]);
-    // Removing unreachable instructions before DIE, so it gets rid of loads that mem2reg couldn't,
-    // if they are unreachable and would cause the DIE post-checks to fail.
+    // Removing unreachable instructions before mem2reg, which may result in some default Store
+    // instructions being added, which it can pair up with Loads. If we ran it after it,
+    // then DIE would just remove the Stores, leaving the Loads dangling.
     // This has to be done after flattening, as it destroys the CFG by removing terminators.
     ssa_pass_builder.add_pass(
         Ssa::remove_unreachable_instructions,
@@ -241,6 +262,9 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         vec![All, Debug],
     );
     ssa_pass_builder.attach_pass_to_last(Ssa::remove_unreachable_functions, vec![All, Debug]);
+    // We cannot run mem2reg after DIE, because it removes Store instructions.
+    // We have to run it before, to give it a chance to turn Store+Load into known values.
+    ssa_pass_builder.add_pass(Ssa::mem2reg, "Mem2Reg", vec![All, Debug]);
     ssa_pass_builder.add_pass(
         Ssa::dead_instruction_elimination,
         "Dead Instruction Elimination",
@@ -265,8 +289,16 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
     );
     // TODO(totel): Test if the following passes can be marked as debug
     ssa_pass_builder.add_pass(Ssa::checked_to_unchecked, "Checked to unchecked", vec![All, Debug]);
-    ssa_pass_builder.add_pass(Ssa::fold_constants_with_brillig, "Inlining Brillig Calls", vec![All]);
-    ssa_pass_builder.add_pass(Ssa::remove_unreachable_instructions, "Remove Unreachable Instructions", vec![All]);
+    ssa_pass_builder.add_pass(
+        Ssa::fold_constants_with_brillig,
+        "Inlining Brillig Calls",
+        vec![All],
+    );
+    ssa_pass_builder.add_pass(
+        Ssa::remove_unreachable_instructions,
+        "Remove Unreachable Instructions",
+        vec![All],
+    );
     ssa_pass_builder.attach_pass_to_last(Ssa::remove_unreachable_functions, vec![All, Debug]);
     ssa_pass_builder.add_pass(
         Ssa::brillig_array_get_and_set,
@@ -291,12 +323,15 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         "Verifying no dynamic array indices to reference value elements",
         vec![All, Debug],
     );
-    ssa_pass_builder.attach_pass_to_last(|ssa| {
-        // Deferred sanity checks that don't modify the SSA, just panic if we have something unexpected
-        // that we don't know how to attribute to a concrete error with the Noir code.
-        ssa.dead_instruction_elimination_post_check(true);
-        ssa
-    }, vec![All, Debug]);
+    ssa_pass_builder.attach_pass_to_last(
+        |ssa| {
+            // Deferred sanity checks that don't modify the SSA, just panic if we have something unexpected
+            // that we don't know how to attribute to a concrete error with the Noir code.
+            ssa.dead_instruction_elimination_post_check(true);
+            ssa
+        },
+        vec![All, Debug],
+    );
 
     ssa_pass_builder.finish()
 }

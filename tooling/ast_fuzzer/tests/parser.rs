@@ -13,6 +13,7 @@ use noirc_evaluator::{
     ssa::{
         self,
         ir::function::function_values_iter,
+        opt::inlining::MAX_INSTRUCTIONS,
         primary_passes,
         ssa_gen::{self, Ssa}, OptimizationLevel,
     },
@@ -43,6 +44,7 @@ fn arb_ssa_roundtrip() {
             skip_brillig_constraints_check: true,
             enable_brillig_constraints_check_lookback: false,
             inliner_aggressiveness: 0,
+            small_function_max_instruction: MAX_INSTRUCTIONS,
             max_bytecode_increase_percent: None,
             skip_passes: Default::default(),
             optimization_level: OptimizationLevel::All,

@@ -1,6 +1,8 @@
 #![forbid(unsafe_code)]
 #![warn(unused_crate_dependencies, unused_extern_crates)]
 
+use std::hash::BuildHasher;
+
 use abi_gen::{abi_type_from_hir_type, value_from_hir_expression};
 use acvm::acir::circuit::ExpressionWidth;
 use acvm::compiler::MIN_EXPRESSION_WIDTH;
@@ -12,6 +14,7 @@ use noirc_errors::{CustomDiagnostic, DiagnosticKind};
 use noirc_evaluator::brillig::BrilligOptions;
 use noirc_evaluator::create_program;
 use noirc_evaluator::errors::RuntimeError;
+use noirc_evaluator::ssa::opt::inlining::MAX_INSTRUCTIONS;
 use noirc_evaluator::ssa::{
     OptimizationLevel, SsaEvaluatorOptions, SsaLogging, SsaProgramArtifact,
     create_program_with_minimal_passes,
@@ -179,6 +182,11 @@ pub struct CompileOptions {
     #[arg(long, hide = true, allow_hyphen_values = true, default_value_t = i64::MAX)]
     pub inliner_aggressiveness: i64,
 
+    /// Setting to decide the maximum weight threshold at which we designate a function
+    /// as "small" and thus to always be inlined.
+    #[arg(long, hide = true, allow_hyphen_values = true, default_value_t = MAX_INSTRUCTIONS)]
+    pub small_function_max_instructions: usize,
+
     /// Setting the maximum acceptable increase in Brillig bytecode size due to
     /// unrolling small loops. When left empty, any change is accepted as long
     /// as it required fewer SSA instructions.
@@ -248,6 +256,7 @@ impl CompileOptions {
             skip_brillig_constraints_check: !self.silence_warnings
                 && self.skip_brillig_constraints_check,
             inliner_aggressiveness: self.inliner_aggressiveness,
+            small_function_max_instruction: self.small_function_max_instructions,
             max_bytecode_increase_percent: self.max_bytecode_increase_percent,
             skip_passes: self.skip_ssa_pass.clone(),
             optimization_level: if compiling_for_debug {
@@ -805,7 +814,7 @@ pub fn compile_no_check(
         || options.minimal_ssa;
 
     // Hash the AST program, which is going to be used to fingerprint the compilation artifact.
-    let hash = fxhash::hash64(&program);
+    let hash = rustc_hash::FxBuildHasher.hash_one(&program);
 
     if let Some(cached_program) = cached_program {
         if !force_compile && cached_program.hash == hash {

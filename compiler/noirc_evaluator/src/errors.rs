@@ -85,6 +85,14 @@ pub enum RuntimeError {
         "Only constant indices are supported when indexing an array containing reference values"
     )]
     DynamicIndexingWithReference { call_stack: CallStack },
+    #[error(
+        "Calling constrained function '{constrained}' from the unconstrained function '{unconstrained}'"
+    )]
+    UnconstrainedCallingConstrained {
+        call_stack: CallStack,
+        constrained: String,
+        unconstrained: String,
+    },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Hash)]
@@ -198,7 +206,8 @@ impl RuntimeError {
             | RuntimeError::BreakOrContinue { call_stack }
             | RuntimeError::DynamicIndexingWithReference { call_stack }
             | RuntimeError::UnknownReference { call_stack }
-            | RuntimeError::RecursionLimit { call_stack, .. } => call_stack,
+            | RuntimeError::RecursionLimit { call_stack, .. }
+            | RuntimeError::UnconstrainedCallingConstrained { call_stack, .. } => call_stack,
         }
     }
 }
