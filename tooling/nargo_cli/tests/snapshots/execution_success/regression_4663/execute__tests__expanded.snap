@@ -1,0 +1,12 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+use poseidon::poseidon::PoseidonHasher;
+use std::{collections::map::HashMap, hash::BuildHasherDefault};
+
+fn main() {
+    let map: HashMap<u64, u64, 10, BuildHasherDefault<PoseidonHasher>> =
+        HashMap::<u64, u64, 10, BuildHasherDefault<PoseidonHasher>>::default();
+    println(map == map);
+}
