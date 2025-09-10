@@ -358,6 +358,8 @@ impl Function {
                 _ => (),
             };
 
+            // Once we find an instruction that will always fail, replace the terminator with `unreachable`.
+            // Subsequent instructions in this block will be removed.
             if current_block_reachability == Reachability::Unreachable {
                 let terminator = context.dfg[block_id].take_terminator();
                 let call_stack = terminator.call_stack();
