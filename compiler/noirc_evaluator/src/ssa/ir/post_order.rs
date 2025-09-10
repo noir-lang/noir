@@ -50,7 +50,6 @@ impl PostOrder {
     /// Finds the maximum cost from `root` to every reachable node in a directed graph.
     /// Each edge may be used at most once.
     fn topological_sort(graph: &Graph<(), ()>) -> Vec<NodeIndex> {
-        println!("sort {graph:?}");
         petgraph::algo::kosaraju_scc(graph)
             .into_iter()
             .rev()
@@ -61,7 +60,6 @@ impl PostOrder {
                 } else if let Some((subgraph, new_to_old_indices)) =
                     Self::loop_subgraph(graph, &scc)
                 {
-                    println!("subgraph = {subgraph:?}");
                     let mut hops = Self::topological_sort(&subgraph);
                     hops.iter_mut().for_each(|index| *index = new_to_old_indices[index]);
                     hops

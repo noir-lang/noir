@@ -310,7 +310,6 @@ impl<'f> PerFunctionContext<'f> {
     /// at the end of this block will be remembered in `self.blocks`.
     fn analyze_block(&mut self, block: BasicBlockId, mut references: Block) {
         let instructions = self.inserter.function.dfg[block].take_instructions();
-        println!("Analyzing block {block}");
 
         // If this is the entry block, take all the block parameters and assume they may
         // be aliased to each other
