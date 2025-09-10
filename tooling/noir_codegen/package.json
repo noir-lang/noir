@@ -18,7 +18,7 @@
   },
   "dependencies": {
     "@noir-lang/types": "workspace:*",
-    "glob": "^11.0.2",
+    "glob": "^11.0.3",
     "ts-command-line-args": "^2.5.1"
   },
   "files": [
