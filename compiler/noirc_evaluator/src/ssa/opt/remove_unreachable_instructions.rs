@@ -175,16 +175,12 @@ impl Function {
         // after an always failing one was found.
         let mut current_block_reachability = Reachability::Reachable;
 
-        let one = self.dfg.make_constant(1_u32.into(), NumericType::bool());
-        let mut side_effects_condition = one;
-
         self.simple_optimization(|context| {
             let block_id = context.block_id;
 
             if current_block_id != Some(block_id) {
                 current_block_id = Some(block_id);
                 current_block_reachability = Reachability::Reachable;
-                side_effects_condition = one;
             }
 
             if current_block_reachability == Reachability::Unreachable {
@@ -194,15 +190,13 @@ impl Function {
 
             let instruction = context.instruction();
             if let Instruction::EnableSideEffectsIf { condition } = instruction {
-                side_effects_condition = *condition;
-                current_block_reachability =
-                    match context.dfg.get_numeric_constant(side_effects_condition) {
-                        Some(predicate) if predicate.is_zero() => {
-                            // We can replace side effecting instructions with defaults until the next predicate.
-                            Reachability::UnreachableUnderPredicate
-                        }
-                        _ => Reachability::Reachable,
-                    };
+                current_block_reachability = match context.dfg.get_numeric_constant(*condition) {
+                    Some(predicate) if predicate.is_zero() => {
+                        // We can replace side effecting instructions with defaults until the next predicate.
+                        Reachability::UnreachableUnderPredicate
+                    }
+                    _ => Reachability::Reachable,
+                };
                 return;
             };
 
@@ -218,7 +212,7 @@ impl Function {
 
             // Check if the current predicate is known to be enabled.
             let is_predicate_constant_one =
-                || match context.dfg.get_numeric_constant(side_effects_condition) {
+                || match context.dfg.get_numeric_constant(context.enable_side_effects) {
                     Some(predicate) => predicate.is_one(),
                     None => false, // The predicate is a variable
                 };
@@ -262,7 +256,7 @@ impl Function {
 
                         // Insert a constraint which makes it easy to see that this instruction will fail.
                         let guard = if fails_under_predicate {
-                            side_effects_condition
+                            context.enable_side_effects
                         } else {
                             context.dfg.make_constant(1_u128.into(), NumericType::bool())
                         };
@@ -313,12 +307,7 @@ impl Function {
                         // references, then the SSA passes still won't be able to deal with them as nothing ever stores to references which are
                         // never created. Instead, we can replace the result of the instruction with defaults, which will allocate and store
                         // defaults to those references, so subsequent SSA passes can complete without errors.
-                        insert_constraint(
-                            context,
-                            block_id,
-                            side_effects_condition,
-                            "Index out of bounds".to_string(),
-                        );
+                        insert_constraint(context, block_id, "Index out of bounds".to_string());
 
                         current_block_reachability = if always_fail {
                             // If the block fails unconditionally, we don't even need a default for the results.
@@ -351,12 +340,7 @@ impl Function {
 
                             // We might think that if the predicate is constant 1, we can leave the pop as it will always fail.
                             // However by turning the block Unreachable, ACIR-gen would create empty bytecode and not fail the circuit.
-                            insert_constraint(
-                                context,
-                                block_id,
-                                side_effects_condition,
-                                "Index out of bounds".to_string(),
-                            );
+                            insert_constraint(context, block_id, "Index out of bounds".to_string());
 
                             current_block_reachability = if always_fail {
                                 context.remove_current_instruction();
@@ -502,12 +486,11 @@ fn remove_and_replace_with_defaults(
 fn insert_constraint(
     context: &mut SimpleOptimizationContext<'_, '_>,
     block_id: BasicBlockId,
-    predicate: ValueId,
     msg: String,
 ) {
     let zero = context.dfg.make_constant(0_u128.into(), NumericType::bool());
     let message = Some(ConstrainError::StaticString(msg));
-    let instruction = Instruction::Constrain(zero, predicate, message);
+    let instruction = Instruction::Constrain(zero, context.enable_side_effects, message);
     let call_stack = context.dfg.get_instruction_call_stack_id(context.instruction_id);
     context.dfg.insert_instruction_and_results(instruction, block_id, None, call_stack);
 }
