@@ -36,21 +36,12 @@ fn compact_decode<let N: u32>(input: [u8; N], length: Field) -> ([U4; 16], Field
             if (i as u32) < (length as u32) {
                 let x: u8 = input[i];
                 {
-<<<<<<< HEAD
-                    let i_3988: u32 = (2_u32 * i) - 1_u32;
-                    nibble[i_3988] = U4::from_u8(x >> 4_u8);
+                    let i_4293: u32 = (2_u32 * i) - 1_u32;
+                    nibble[i_4293] = U4::from_u8(x >> 4_u8);
                 };
                 {
-                    let i_3989: u32 = 2_u32 * i;
-                    nibble[i_3989] = U4::from_u8(x & 15_u8);
-=======
-                    let i_4260: u32 = (2_u32 * i) - 1_u32;
-                    nibble[i_4260] = U4::from_u8(x >> 4_u8);
-                };
-                {
-                    let i_4261: u32 = 2_u32 * i;
-                    nibble[i_4261] = U4::from_u8(x & 15_u8);
->>>>>>> 1b5e1de2e7c3d46945bb6747eba4e44342bd6b4e
+                    let i_4294: u32 = 2_u32 * i;
+                    nibble[i_4294] = U4::from_u8(x & 15_u8);
                 }
             }
         }
@@ -59,21 +50,12 @@ fn compact_decode<let N: u32>(input: [u8; N], length: Field) -> ([U4; 16], Field
             if (i as u32) < ((length as u32) - 1_u32) {
                 let x: u8 = input[i + 1_u32];
                 {
-<<<<<<< HEAD
-                    let i_3992: u32 = 2_u32 * i;
-                    nibble[i_3992] = U4::from_u8(x >> 4_u8);
+                    let i_4297: u32 = 2_u32 * i;
+                    nibble[i_4297] = U4::from_u8(x >> 4_u8);
                 };
                 {
-                    let i_3993: u32 = (2_u32 * i) + 1_u32;
-                    nibble[i_3993] = U4::from_u8(x & 15_u8);
-=======
-                    let i_4264: u32 = 2_u32 * i;
-                    nibble[i_4264] = U4::from_u8(x >> 4_u8);
-                };
-                {
-                    let i_4265: u32 = (2_u32 * i) + 1_u32;
-                    nibble[i_4265] = U4::from_u8(x & 15_u8);
->>>>>>> 1b5e1de2e7c3d46945bb6747eba4e44342bd6b4e
+                    let i_4298: u32 = (2_u32 * i) + 1_u32;
+                    nibble[i_4298] = U4::from_u8(x & 15_u8);
                 }
             }
         }

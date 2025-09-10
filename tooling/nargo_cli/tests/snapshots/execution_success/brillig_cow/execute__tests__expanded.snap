@@ -22,13 +22,8 @@ fn modify_in_inlined_constrained(original: [Field; 5], index: u32) -> ExecutionR
     modified[index] = 27_Field;
     let modified_once: [Field; 5] = modified;
     {
-<<<<<<< HEAD
-        let i_3975: u32 = index + 1_u32;
-        modified[i_3975] = 27_Field;
-=======
-        let i_4247: u32 = index + 1_u32;
-        modified[i_4247] = 27_Field;
->>>>>>> 1b5e1de2e7c3d46945bb6747eba4e44342bd6b4e
+        let i_4280: u32 = index + 1_u32;
+        modified[i_4280] = 27_Field;
     };
     ExecutionResult { original: original, modified_once: modified_once, modified_twice: modified }
 }
@@ -38,13 +33,8 @@ unconstrained fn modify_in_unconstrained(original: [Field; 5], index: u32) -> Ex
     modified[index] = 27_Field;
     let modified_once: [Field; 5] = modified;
     {
-<<<<<<< HEAD
-        let i_3978: u32 = index + 1_u32;
-        modified[i_3978] = 27_Field;
-=======
-        let i_4250: u32 = index + 1_u32;
-        modified[i_4250] = 27_Field;
->>>>>>> 1b5e1de2e7c3d46945bb6747eba4e44342bd6b4e
+        let i_4283: u32 = index + 1_u32;
+        modified[i_4283] = 27_Field;
     };
     ExecutionResult { original: original, modified_once: modified_once, modified_twice: modified }
 }
