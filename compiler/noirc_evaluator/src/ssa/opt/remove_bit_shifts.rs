@@ -93,7 +93,7 @@ impl Function {
     /// If this is an ACIR function, go through every instruction, replacing bit shifts with
     /// more primitive arithmetic operations,
     fn remove_bit_shifts(&mut self) {
-        if self.runtime().is_brillig() {
+        if !self.runtime().is_acir() {
             return;
         }
 
