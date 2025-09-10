@@ -287,41 +287,38 @@ impl Function {
                 | Instruction::ArraySet { array, index, offset, .. }
                     if context.dfg.runtime().is_acir() =>
                 {
-                    let array_or_slice_type = context.dfg.type_of_value(*array);
-                    let array_op_always_fails = match &array_or_slice_type {
-                        Type::Slice(_) => false,
-                        array_type @ Type::Array(_, len) => {
-                            *len == 0
-                                || context.dfg.get_numeric_constant(*index).is_some_and(|index| {
-                                    (index.try_to_u32().unwrap() - offset.to_u32())
-                                        >= (array_type.element_size() as u32 * len)
-                                })
-                        }
-
-                        _ => unreachable!(
-                            "Encountered non-array type during array read/write operation"
-                        ),
+                    let array_type = context.dfg.type_of_value(*array);
+                    // We can only know a guaranteed out-of-bounds access for arrays, never for slices.
+                    let Type::Array(_, len) = array_type else {
+                        return;
                     };
 
-                    if array_op_always_fails {
-                        let always_fail = is_predicate_constant_one();
-                        // We could leave the array operation to trigger an OOB on the invalid access, however if the array contains and returns
-                        // references, then the SSA passes still won't be able to deal with them as nothing ever stores to references which are
-                        // never created. Instead, we can replace the result of the instruction with defaults, which will allocate and store
-                        // defaults to those references, so subsequent SSA passes can complete without errors.
-                        insert_constraint(context, block_id, "Index out of bounds".to_string());
-
-                        current_block_reachability = if always_fail {
-                            // If the block fails unconditionally, we don't even need a default for the results.
-                            context.remove_current_instruction();
-                            Reachability::Unreachable
-                        } else {
-                            // We will never use the results (the constraint fails if the side effects are enabled),
-                            // but we need them to make the rest of the SSA valid even if the side effects are off.
-                            remove_and_replace_with_defaults(context, func_id, block_id);
-                            Reachability::UnreachableUnderPredicate
-                        };
+                    let array_op_always_fails = len == 0
+                        || context.dfg.get_numeric_constant(*index).is_some_and(|index| {
+                            (index.try_to_u32().unwrap() - offset.to_u32())
+                                >= (array_type.element_size() as u32 * len)
+                        });
+                    if !array_op_always_fails {
+                        return;
                     }
+
+                    let always_fail = is_predicate_constant_one();
+                    // We could leave the array operation to trigger an OOB on the invalid access, however if the array contains and returns
+                    // references, then the SSA passes still won't be able to deal with them as nothing ever stores to references which are
+                    // never created. Instead, we can replace the result of the instruction with defaults, which will allocate and store
+                    // defaults to those references, so subsequent SSA passes can complete without errors.
+                    insert_constraint(context, block_id, "Index out of bounds".to_string());
+
+                    current_block_reachability = if always_fail {
+                        // If the block fails unconditionally, we don't even need a default for the results.
+                        context.remove_current_instruction();
+                        Reachability::Unreachable
+                    } else {
+                        // We will never use the results (the constraint fails if the side effects are enabled),
+                        // but we need them to make the rest of the SSA valid even if the side effects are off.
+                        remove_and_replace_with_defaults(context, func_id, block_id);
+                        Reachability::UnreachableUnderPredicate
+                    };
                 }
                 // Intrinsic Slice operations in ACIR on empty arrays need to be replaced with a (conditional) constraint.
                 // In Brillig they will be protected by an access constraint, which, if known to fail, will make the block unreachable.
