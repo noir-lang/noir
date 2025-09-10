@@ -9,6 +9,7 @@ import { InputMap } from '@noir-lang/noirc_abi';
 import { createFileManager, compile } from '@noir-lang/noir_wasm';
 
 const logger = new Logger({ name: 'test', minLevel: TEST_LOG_LEVEL });
+const debugLogger = logger.debug.bind(logger);
 
 const { default: initACVM } = acvm;
 const { default: newABICoder } = abi;
@@ -39,7 +40,7 @@ describe('It compiles noir program code, receiving circuit bytes and abi object.
     };
 
     const main_program = await getCircuit(`${base_relative_path}/${circuit_main}`);
-    const main_backend = new UltraHonkBackend(main_program.bytecode, { logger: logger.debug }, { recursive: true });
+    const main_backend = new UltraHonkBackend(main_program.bytecode, { logger: debugLogger }, { recursive: true });
 
     const { witness: main_witnessUint8Array } = await new Noir(main_program).execute(main_inputs);
 
@@ -62,7 +63,7 @@ describe('It compiles noir program code, receiving circuit bytes and abi object.
     const recursion_program = await getCircuit(`${base_relative_path}/${circuit_recursion}`);
     const recursion_backend = new UltraHonkBackend(
       recursion_program.bytecode,
-      { logger: logger.debug },
+      { logger: debugLogger },
       { recursive: false },
     );
 

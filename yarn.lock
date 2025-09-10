@@ -7841,6 +7841,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@noir-lang/acvm_js@npm:1.0.0-beta.11-585175e.nightly":
+  version: 1.0.0-beta.11-585175e.nightly
+  resolution: "@noir-lang/acvm_js@npm:1.0.0-beta.11-585175e.nightly"
+  checksum: 10/9c3ebdbef41675c9c4baff98f6bcd65a58dbc5dfb49d0bc8484f7b1d6b2055421de543be89edd89eeb5a37f730b851b80e761ba759e2aec9b75710e3941c4881
+  languageName: node
+  linkType: hard
+
 "@noir-lang/acvm_js@workspace:*, @noir-lang/acvm_js@workspace:acvm-repo/acvm_js":
   version: 0.0.0-use.local
   resolution: "@noir-lang/acvm_js@workspace:acvm-repo/acvm_js"
@@ -7884,6 +7891,18 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@noir-lang/noir_js@npm:1.0.0-beta.11-585175e.nightly":
+  version: 1.0.0-beta.11-585175e.nightly
+  resolution: "@noir-lang/noir_js@npm:1.0.0-beta.11-585175e.nightly"
+  dependencies:
+    "@noir-lang/acvm_js": "npm:1.0.0-beta.11-585175e.nightly"
+    "@noir-lang/noirc_abi": "npm:1.0.0-beta.11-585175e.nightly"
+    "@noir-lang/types": "npm:1.0.0-beta.11-585175e.nightly"
+    pako: "npm:^2.1.0"
+  checksum: 10/11af2c935567de8a9f2c4f3fe87c606abb6dbb9e06f26db51c2e5cb48303dea8e8bbf442643de6212b53f93d9c2fa5b2c8bb775bbed0cbd1751807592aa3b7c8
+  languageName: node
+  linkType: hard
+
 "@noir-lang/noir_js@workspace:*, @noir-lang/noir_js@workspace:tooling/noir_js":
   version: 0.0.0-use.local
   resolution: "@noir-lang/noir_js@workspace:tooling/noir_js"
@@ -7909,7 +7928,17 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@noir-lang/noir_wasm@workspace:*, @noir-lang/noir_wasm@workspace:compiler/wasm":
+"@noir-lang/noir_wasm@npm:1.0.0-beta.11-585175e.nightly":
+  version: 1.0.0-beta.11-585175e.nightly
+  resolution: "@noir-lang/noir_wasm@npm:1.0.0-beta.11-585175e.nightly"
+  dependencies:
+    "@noir-lang/types": "npm:1.0.0-beta.11-585175e.nightly"
+    pako: "npm:^2.1.0"
+  checksum: 10/ae4b7f17b3cfad74660c1d1ec8bac64f117f055c4624981149d557a614064f12c29aeb305e9356a1c41bbd3a865529ac76f033194777fd94a2a6fbdffc02e3af
+  languageName: node
+  linkType: hard
+
+"@noir-lang/noir_wasm@workspace:compiler/wasm":
   version: 0.0.0-use.local
   resolution: "@noir-lang/noir_wasm@workspace:compiler/wasm"
   dependencies:
@@ -7957,6 +7986,15 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@noir-lang/noirc_abi@npm:1.0.0-beta.11-585175e.nightly":
+  version: 1.0.0-beta.11-585175e.nightly
+  resolution: "@noir-lang/noirc_abi@npm:1.0.0-beta.11-585175e.nightly"
+  dependencies:
+    "@noir-lang/types": "npm:1.0.0-beta.11-585175e.nightly"
+  checksum: 10/bf3d9d1685a22f430b71ee38bce51f3e357e7470c31531565ee711a12a589f2b729f2d39cde79960b787e715d76f35c8d658a01492c642fbb8101a4ef748190e
+  languageName: node
+  linkType: hard
+
 "@noir-lang/noirc_abi@workspace:*, @noir-lang/noirc_abi@workspace:tooling/noirc_abi_wasm":
   version: 0.0.0-use.local
   resolution: "@noir-lang/noirc_abi@workspace:tooling/noirc_abi_wasm"
@@ -7990,6 +8028,13 @@ __metadata:
     typescript: "npm:^5.8.3"
   languageName: unknown
   linkType: soft
+
+"@noir-lang/types@npm:1.0.0-beta.11-585175e.nightly":
+  version: 1.0.0-beta.11-585175e.nightly
+  resolution: "@noir-lang/types@npm:1.0.0-beta.11-585175e.nightly"
+  checksum: 10/c0b8709664d05d51c44a887107d4076c584261e3382b495655b4712e4296740993885474ca3093e680e1fe8cb1aba63f305b429cd7f9477e1bac1af29f7bafa5
+  languageName: node
+  linkType: hard
 
 "@noir-lang/types@workspace:*, @noir-lang/types@workspace:tooling/noir_js_types":
   version: 0.0.0-use.local
@@ -13283,6 +13328,13 @@ __metadata:
   version: 0.2.13
   resolution: "buffer-crc32@npm:0.2.13"
   checksum: 10/06252347ae6daca3453b94e4b2f1d3754a3b146a111d81c68924c22d91889a40623264e95e67955b1cb4a68cbedf317abeabb5140a9766ed248973096db5ce1c
+  languageName: node
+  linkType: hard
+
+"buffer-esm@npm:^1.2.0":
+  version: 1.2.0
+  resolution: "buffer-esm@npm:1.2.0"
+  checksum: 10/69bae6dd6ca0d1c6b9e408a8b61de4e70df884b2091464c02da32da503fbcb115208bf37c5afe6b3c4d64328b31c326e6b06231571c771988bc969f234023496
   languageName: node
   linkType: hard
 
@@ -19112,14 +19164,15 @@ __metadata:
   resolution: "integration-tests@workspace:compiler/integration-tests"
   dependencies:
     "@aztec/bb.js": "npm:1.2.0"
-    "@noir-lang/noir_js": "workspace:*"
-    "@noir-lang/noir_wasm": "workspace:*"
+    "@noir-lang/noir_js": "npm:1.0.0-beta.11-585175e.nightly"
+    "@noir-lang/noir_wasm": "npm:1.0.0-beta.11-585175e.nightly"
     "@nomicfoundation/hardhat-chai-matchers": "npm:^2.0.8"
     "@nomicfoundation/hardhat-ethers": "npm:^3.0.8"
     "@web/dev-server-esbuild": "npm:^1.0.4"
     "@web/dev-server-import-maps": "npm:^0.2.1"
     "@web/test-runner": "npm:^0.20.2"
     "@web/test-runner-playwright": "npm:^0.11.1"
+    buffer-esm: "npm:^1.2.0"
     eslint: "npm:^9.28.0"
     eslint-plugin-prettier: "npm:^5.4.1"
     ethers: "npm:^6.14.3"

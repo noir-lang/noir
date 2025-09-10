@@ -11,6 +11,7 @@ import { UltraHonkBackend } from '@aztec/bb.js';
 import { getFile } from './utils.js';
 
 const logger = new Logger({ name: 'test', minLevel: TEST_LOG_LEVEL });
+const debugLogger = logger.debug.bind(logger);
 
 const test_cases = [
   {
@@ -63,7 +64,7 @@ test_cases.forEach((testInfo) => {
     const program = new Noir(noir_program);
     const { witness } = await program.execute(inputs);
 
-    const backend = new UltraHonkBackend(noir_program.bytecode, { logger: logger.debug });
+    const backend = new UltraHonkBackend(noir_program.bytecode, { logger: debugLogger });
     const proof = await backend.generateProof(witness);
 
     // JS verification

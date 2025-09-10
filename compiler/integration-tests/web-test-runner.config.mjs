@@ -31,9 +31,23 @@ export default {
       if (ctx.url.endsWith('.wasm.gz')) {
         ctx.url = ctx.url.replace('/', '/node_modules/@aztec/bb.js/dest/browser/');
       }
+      // Mock pino as its not supported on ESM environment
+      // In our tests we are overriding the logger to tslog anyway
+      if (ctx.url.includes('pino/browser.js')) {
+        ctx.url = '/compiler/integration-tests/test/mocks/pino.js';
+      }
       await next();
     },
   ],
+  testRunnerHtml: (testFramework) =>
+    // Polyfill Buffer
+    `<!DOCTYPE html>
+    <html>
+      <body>
+        <script type="module" src="/compiler/integration-tests/test/mocks/buffer.js"></script>
+        <script type="module" src="${testFramework}"></script>
+      </body>
+    </html>`,
   plugins: [
     esbuildPlugin({
       ts: true,
@@ -44,7 +58,6 @@ export default {
           imports: {
             // mock os module
             os: '/test/mocks/os.js',
-            pino: '/test/mocks/pino.js',
           },
         },
       },
