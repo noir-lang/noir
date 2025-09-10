@@ -26,6 +26,9 @@ struct CfgNode {
 /// basic blocks.
 pub(crate) struct ControlFlowGraph {
     data: HashMap<BasicBlockId, CfgNode>,
+
+    entry_block: Option<BasicBlockId>,
+
     /// Flag stating whether this CFG has been reversed.
     /// In a reversed CFG, successors become predecessors.
     reversed: bool,
@@ -42,7 +45,9 @@ impl ControlFlowGraph {
         let mut data = HashMap::default();
         data.insert(entry_block, empty_node);
 
-        let mut cfg = ControlFlowGraph { data, reversed: false };
+        let entry_block = Some(func.entry_block());
+
+        let mut cfg = ControlFlowGraph { data, entry_block, reversed: false };
         cfg.compute(func);
         cfg
     }
@@ -133,13 +138,13 @@ impl ControlFlowGraph {
 
     /// Reverse the control flow graph
     pub(crate) fn reverse(&self) -> Self {
-        let mut reversed_cfg = ControlFlowGraph { reversed: true, ..Default::default() };
+        let mut reversed_cfg = ControlFlowGraph { reversed: true, entry_block: None, ..Default::default() };
 
         // Ensure the reversed_cfg always contains at least the entry node. Otherwise
         // adding the edges below results in an empty graph when calling reverse on a CFG
         // with a single block. Also note that although we are adding the entry block here,
         // it will not necessarily be the entry block in the reversed cfg.
-        let entry = self.entry_block();
+        let entry = self.find_entry_block();
         reversed_cfg.data.insert(entry, Default::default());
 
         for (block_id, node) in &self.data {
@@ -150,6 +155,7 @@ impl ControlFlowGraph {
             }
         }
 
+        reversed_cfg.entry_block = Some(reversed_cfg.find_entry_block());
         reversed_cfg
     }
 
@@ -255,11 +261,13 @@ impl ControlFlowGraph {
     }
 
     /// Find and return the entry block
-    pub(crate) fn entry_block(&self) -> BasicBlockId {
-        self.data
-            .iter()
-            .find_map(|(block, node)| (node.predecessors.len() == 0).then_some(*block))
-            .unwrap()
+    pub(crate) fn find_entry_block(&self) -> BasicBlockId {
+        self.entry_block.unwrap_or_else(|| {
+            self.data
+                .iter()
+                .find_map(|(block, node)| node.predecessors.is_empty().then_some(*block))
+                .unwrap()
+        })
     }
 
     /// Return the topological order of blocks
