@@ -3,8 +3,6 @@ use crate::fuzz_lib::fuzzer::FuzzerOutput;
 use base64::{Engine as _, engine::general_purpose};
 
 // TODO(sn): change to impl Serialize for FuzzerOutput with brillig inputs and outputs
-// TODO(sn): legacy for https://github.com/AztecProtocol/aztec-packages/tree/next/barretenberg/security/ssa_fuzzer_programs_proving
-//  "program" field  -> "acir_program"; witness_stack -> acir_witness_stack
 pub(crate) fn fuzzer_output_to_json(fuzzer_output: FuzzerOutput) -> String {
     let program = &fuzzer_output.program;
     let program_json = serde_json::to_string(program).unwrap();

@@ -46,8 +46,14 @@ libfuzzer_sys::fuzz_target!(|data: &[u8]| -> Corpus {
     }
 
     // You can disable some instructions with bugs that are not fixed yet
-    let instruction_options = InstructionOptions { ..InstructionOptions::default() };
     let modes = vec![FuzzerMode::NonConstant];
+    let instruction_options = InstructionOptions {
+        array_get_enabled: false,
+        array_set_enabled: false,
+        ecdsa_secp256k1_enabled: false,
+        ecdsa_secp256r1_enabled: false,
+        ..InstructionOptions::default()
+    };
     let fuzzer_command_options =
         FuzzerCommandOptions { loops_enabled: false, ..FuzzerCommandOptions::default() };
     let options = FuzzerOptions {

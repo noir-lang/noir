@@ -101,10 +101,10 @@ impl FuzzerOutput {
 
     pub(crate) fn compare_results(&self, other: &Self) -> CompareResults {
         match (self.is_program_compiled(), other.is_program_compiled()) {
-            (true, true) => CompareResults::BothFailed,
+            (false, false) => CompareResults::BothFailed,
             (true, false) => CompareResults::LeftCompilationFailed,
             (false, true) => CompareResults::RightCompilationFailed,
-            (false, false) => {
+            (true, true) => {
                 // both programs compiled successfully
                 let left_return_witnesses = self.get_return_witnesses();
                 let right_return_witnesses = other.get_return_witnesses();

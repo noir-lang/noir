@@ -60,6 +60,11 @@ pub(crate) fn fuzz_target(
             match result {
                 CompareResults::Agree(_witness_stack) => {
                     // thats fine
+                    log::debug!(
+                        "Fuzzer runtimes {} and {} agree on the return values",
+                        runtimes[i],
+                        runtimes[j]
+                    );
                 }
                 CompareResults::Disagree(witness_stack_1, witness_stack_2) => {
                     panic!(
@@ -97,6 +102,7 @@ pub(crate) fn fuzz_target(
                 }
                 CompareResults::BothFailed => {
                     // thats fine
+                    log::debug!("Fuzzer runtimes {} and {} both failed", runtimes[i], runtimes[j]);
                 }
             }
         }
