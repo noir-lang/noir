@@ -233,11 +233,8 @@ impl Context<'_, '_, '_> {
                 let lhs_as_field = self.insert_cast(lhs, NumericType::NativeField);
                 // For negative numbers, convert to 1-complement using wrapping addition of a + 1
                 // Unchecked add as these are fields
-                let one_complement = self.insert_binary(
-                    lhs_sign_as_field,
-                    BinaryOp::Add { unchecked: true },
-                    lhs_as_field,
-                );
+                let add = BinaryOp::Add { unchecked: true };
+                let one_complement = self.insert_binary(lhs_sign_as_field, add, lhs_as_field);
                 let one_complement = self.insert_truncate(one_complement, bit_size, bit_size + 1);
                 let one_complement =
                     self.insert_cast(one_complement, NumericType::signed(bit_size));
@@ -251,11 +248,8 @@ impl Context<'_, '_, '_> {
                 // - ones_complement(lhs) / (2^rhs) == 0
                 // As the upper bit is set for the ones complement of negative numbers we'd need 2^rhs
                 // to be larger than the lhs bitsize for this to overflow.
-                let shifted = self.insert_binary(
-                    shifted_complement,
-                    BinaryOp::Sub { unchecked: true },
-                    lhs_sign_as_int,
-                );
+                let sub = BinaryOp::Sub { unchecked: true };
+                let shifted = self.insert_binary(shifted_complement, sub, lhs_sign_as_int);
                 self.insert_truncate(shifted, bit_size, bit_size + 1)
             }
 
