@@ -460,7 +460,7 @@ impl Instruction {
                 // it is expected that OOB checks are inserted separately. However, it would
                 // not be safe to separate the `ArrayGet` from the OOB constraints that precede it,
                 // because while it could read an array index, the returned data could be invalid,
-                // and for example fail at runtime if we tried using it in the wrong context.
+                // and fail at runtime if we tried using it in the wrong context.
                 !dfg.is_safe_index(*index, *array)
             }
 
@@ -563,7 +563,7 @@ impl Instruction {
             // Thus, in Brillig an `ArrayGet` is always a pure operation in isolation and
             // it is expected that OOB checks are inserted separately. However, it would not
             // be safe to separate the `ArrayGet` from its corresponding OOB constraints in Brillig,
-            // as an value read from an array at an invalid index could cause failures when subsequently
+            // as a value read from an array at an invalid index could cause failures when subsequently
             // used in the wrong context. Since we use this information to decide whether to hoist
             // instructions during deduplication, we consider unsafe values as potentially having
             // indirect side effects.
