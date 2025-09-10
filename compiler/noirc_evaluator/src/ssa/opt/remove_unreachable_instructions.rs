@@ -320,39 +320,43 @@ impl Function {
                         Reachability::UnreachableUnderPredicate
                     };
                 }
-                // Intrinsic Slice operations in ACIR on empty arrays need to be replaced with a (conditional) constraint.
-                // In Brillig they will be protected by an access constraint, which, if known to fail, will make the block unreachable.
                 Instruction::Call { func, arguments } if context.dfg.runtime().is_acir() => {
-                    if let Value::Intrinsic(Intrinsic::SlicePopBack | Intrinsic::SlicePopFront) =
+                    // Intrinsic Slice operations in ACIR on empty arrays need to be replaced with a (conditional) constraint.
+                    // In Brillig they will be protected by an access constraint, which, if known to fail, will make the block unreachable.
+                    let Value::Intrinsic(Intrinsic::SlicePopBack | Intrinsic::SlicePopFront) =
                         &context.dfg[*func]
-                    {
-                        let length = arguments.get(0).unwrap_or_else(|| {
-                            unreachable!("slice operations have 2 arguments: [length, slice]")
-                        });
-                        let is_empty =
-                            context.dfg.get_numeric_constant(*length).is_some_and(|v| v.is_zero());
-                        // If the compiler knows the slice is empty, there is no point trying to pop from it, we know it will fail.
-                        // Barretenberg doesn't handle memory operations with predicates, so we can't rely on those to disable the operation
-                        // based on the current side effect variable. Instead we need to replace it with a conditional constraint.
-                        if is_empty {
-                            let always_fail = is_predicate_constant_one();
+                    else {
+                        return;
+                    };
 
-                            // We might think that if the predicate is constant 1, we can leave the pop as it will always fail.
-                            // However by turning the block Unreachable, ACIR-gen would create empty bytecode and not fail the circuit.
-                            insert_constraint(context, block_id, "Index out of bounds".to_string());
-
-                            current_block_reachability = if always_fail {
-                                context.remove_current_instruction();
-                                Reachability::Unreachable
-                            } else {
-                                // Here we could use the empty slice as the replacement of the return value,
-                                // except that slice operations also return the removed element and the new length
-                                // so it's easier to just use zeroed values here
-                                remove_and_replace_with_defaults(context, func_id, block_id);
-                                Reachability::UnreachableUnderPredicate
-                            };
-                        }
+                    let length = arguments.get(0).unwrap_or_else(|| {
+                        unreachable!("slice operations have 2 arguments: [length, slice]")
+                    });
+                    let is_empty =
+                        context.dfg.get_numeric_constant(*length).is_some_and(|v| v.is_zero());
+                    if !is_empty {
+                        return;
                     }
+
+                    // If the compiler knows the slice is empty, there is no point trying to pop from it, we know it will fail.
+                    // Barretenberg doesn't handle memory operations with predicates, so we can't rely on those to disable the operation
+                    // based on the current side effect variable. Instead we need to replace it with a conditional constraint.
+                    let always_fail = is_predicate_constant_one();
+
+                    // We might think that if the predicate is constant 1, we can leave the pop as it will always fail.
+                    // However by turning the block Unreachable, ACIR-gen would create empty bytecode and not fail the circuit.
+                    insert_constraint(context, block_id, "Index out of bounds".to_string());
+
+                    current_block_reachability = if always_fail {
+                        context.remove_current_instruction();
+                        Reachability::Unreachable
+                    } else {
+                        // Here we could use the empty slice as the replacement of the return value,
+                        // except that slice operations also return the removed element and the new length
+                        // so it's easier to just use zeroed values here
+                        remove_and_replace_with_defaults(context, func_id, block_id);
+                        Reachability::UnreachableUnderPredicate
+                    };
                 }
                 _ => (),
             };
