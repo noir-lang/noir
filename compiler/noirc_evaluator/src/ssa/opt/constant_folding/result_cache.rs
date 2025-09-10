@@ -7,7 +7,10 @@ use crate::ssa::{
         instruction::{Instruction, InstructionId},
         value::{Value, ValueId},
     },
-    opt::pure::Purity,
+    opt::{
+        loop_invariant::{CanBeHoistedResult, can_be_hoisted},
+        pure::Purity,
+    },
 };
 use rustc_hash::FxHashMap as HashMap;
 
@@ -40,7 +43,7 @@ impl InstructionResultCache {
         let cached_results = results_for_instruction.get(&predicate)?.get(
             block,
             dom,
-            instruction.has_side_effects(dfg),
+            can_be_hoisted(instruction, dfg) == CanBeHoistedResult::Yes,
         );
 
         cached_results.filter(|results| {
@@ -174,12 +177,12 @@ impl ResultCache {
         &self,
         block: BasicBlockId,
         dom: &mut DominatorTree,
-        has_side_effects: bool,
+        can_be_hoisted: bool,
     ) -> Option<CacheResult> {
         self.result.as_ref().and_then(|(origin_block, results)| {
             if dom.dominates(*origin_block, block) {
                 Some(CacheResult::Cached(results))
-            } else if !has_side_effects {
+            } else if can_be_hoisted {
                 // Insert a copy of this instruction in the common dominator
                 let dominator = dom.common_dominator(*origin_block, block);
                 Some(CacheResult::NeedToHoistToCommonBlock(dominator))

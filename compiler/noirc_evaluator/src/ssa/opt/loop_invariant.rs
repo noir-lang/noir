@@ -91,6 +91,7 @@ use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
         cfg::ControlFlowGraph,
+        dfg::DataFlowGraph,
         dom::DominatorTree,
         function::Function,
         function_inserter::FunctionInserter,
@@ -698,7 +699,7 @@ impl<'f> LoopInvariantContext<'f> {
             return true;
         }
 
-        match can_be_hoisted(&instruction, self.inserter.function) {
+        match can_be_hoisted(&instruction, &self.inserter.function.dfg) {
             Yes => true,
             No => false,
             WithPredicate => block_context.can_hoist_control_dependent_instruction(),
@@ -793,7 +794,7 @@ fn get_induction_var_bounds(
 
 /// Indicate whether an instruction can be hoisted.
 #[derive(Debug, PartialEq, Eq)]
-enum CanBeHoistedResult {
+pub(super) enum CanBeHoistedResult {
     Yes,
     No,
     WithPredicate,
@@ -825,7 +826,7 @@ impl From<bool> for CanBeHoistedResult {
 /// This differs from `can_be_deduplicated` as that method assumes there is a matching instruction
 /// with the same inputs. Hoisting is for lone instructions, meaning a mislabeled hoist could cause
 /// unexpected failures if the instruction was never meant to be executed.
-fn can_be_hoisted(instruction: &Instruction, function: &Function) -> CanBeHoistedResult {
+pub(super) fn can_be_hoisted(instruction: &Instruction, dfg: &DataFlowGraph) -> CanBeHoistedResult {
     use CanBeHoistedResult::*;
     use Instruction::*;
 
@@ -839,9 +840,9 @@ fn can_be_hoisted(instruction: &Instruction, function: &Function) -> CanBeHoiste
         | DecrementRc { .. } => No,
 
         Call { func, .. } => {
-            let purity = match function.dfg[*func] {
+            let purity = match dfg[*func] {
                 Value::Intrinsic(intrinsic) => Some(intrinsic.purity()),
-                Value::Function(id) => function.dfg.purity_of(id),
+                Value::Function(id) => dfg.purity_of(id),
                 _ => None,
             };
             match purity {
@@ -855,7 +856,7 @@ fn can_be_hoisted(instruction: &Instruction, function: &Function) -> CanBeHoiste
         Cast(source, target_type) => {
             // A cast may have dependence on a range-check, which may not be hoisted, so we cannot always hoist a cast.
             // We can safely hoist a cast from a smaller to a larger type as no range check is necessary in this case.
-            let source_type = function.dfg.type_of_value(*source).unwrap_numeric();
+            let source_type = dfg.type_of_value(*source).unwrap_numeric();
             (source_type.bit_size() <= target_type.bit_size()).into()
         }
 
@@ -873,15 +874,11 @@ fn can_be_hoisted(instruction: &Instruction, function: &Function) -> CanBeHoiste
         // hoisted. We know that in this module we will insert a corresponding `IncRc` to
         // allow safe hoisting in unconstrained code, but just in case we would expose this
         // function to other modules, we return a more restrictive result here.
-        MakeArray { .. } => function.runtime().is_acir().into(),
+        MakeArray { .. } => dfg.runtime().is_acir().into(),
 
         // These can have different behavior depending on the predicate.
         Binary(_) | ArraySet { .. } | ArrayGet { .. } => {
-            if !instruction.requires_acir_gen_predicate(&function.dfg) {
-                Yes
-            } else {
-                WithPredicate
-            }
+            if !instruction.requires_acir_gen_predicate(&dfg) { Yes } else { WithPredicate }
         }
     }
 }
@@ -2321,7 +2318,7 @@ mod test {
             typ: Type::Array(Arc::new(vec![]), 0),
         };
 
-        assert_eq!(can_be_hoisted(&instruction, function), result);
+        assert_eq!(can_be_hoisted(&instruction, &function.dfg), result);
     }
 }
 
