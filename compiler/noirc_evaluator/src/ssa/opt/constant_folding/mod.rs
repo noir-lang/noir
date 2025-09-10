@@ -261,11 +261,11 @@ impl Context {
                             Instruction::MakeArray { .. } | Instruction::Call { .. }
                         )
                     {
+                        let call_stack = dfg.get_instruction_call_stack_id(id);
                         for &value in cached {
                             let value_type = dfg.type_of_value(value);
                             if value_type.is_array() {
                                 let inc_rc = Instruction::IncrementRc { value };
-                                let call_stack = dfg.get_instruction_call_stack_id(id);
                                 dfg.insert_instruction_and_results(inc_rc, block, None, call_stack);
                             }
                         }
