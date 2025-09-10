@@ -877,9 +877,25 @@ pub(super) fn can_be_hoisted(instruction: &Instruction, dfg: &DataFlowGraph) -> 
         MakeArray { .. } => dfg.runtime().is_acir().into(),
 
         // These can have different behavior depending on the predicate.
-        Binary(_) | ArraySet { .. } | ArrayGet { .. } => {
-            if !instruction.requires_acir_gen_predicate(&dfg) { Yes } else { WithPredicate }
+        Binary(_) => {
+            if !instruction.has_side_effects(&dfg) {
+                Yes
+            } else {
+                WithPredicate
+            }
         }
+
+        // ArrayGet is considered not to need a predicate and be "pure" in Brillig,
+        // however it should not be separated from its OOB constraints if its unsafe.
+        ArrayGet { index, array, offset: _ } => {
+            if dfg.is_safe_index(*index, *array) {
+                Yes
+            } else {
+                WithPredicate
+            }
+        }
+
+        ArraySet { .. } => WithPredicate,
     }
 }
 
@@ -2039,11 +2055,11 @@ mod test {
     #[test_case("u32", 0, 10, 10, true, "eq", 5, true, "eq is safe")]
     #[test_case("u32", 0, 10, 0, true, "eq", 5, true, "loop empty, but eq is safe")]
     #[test_case("u32", 5, 10, 10, true, "shr", 1, true, "loop executes, shr ok")]
-    #[test_case("u32", 5, 10, 0, true, "shr", 1, false, "loop empty, shr ok")]
+    #[test_case("u32", 5, 10, 0, true, "shr", 1, true, "loop empty, shr ok")]
     #[test_case("u32", 5, 10, 10, true, "shr", 32, true, "shr overflow, and loop executes")]
     #[test_case("u32", 5, 10, 0, true, "shr", 32, false, "shr overflow, but loop empty")]
     #[test_case("u32", 5, 10, 10, true, "shl", 1, true, "loop executes, shl ok")]
-    #[test_case("u32", 5, 10, 0, true, "shl", 1, false, "loop empty, shl ok")]
+    #[test_case("u32", 5, 10, 0, true, "shl", 1, true, "loop empty, shl ok")]
     #[test_case("u32", 5, 10, 10, true, "shl", 32, true, "shl overflow, and loop executes")]
     #[test_case("u32", 5, 10, 0, true, "shl", 32, false, "shl overflow, but loop empty")]
     #[test_case("i32", -10, 10, 10, false, "div", 100, true, "div by zero (mid), and loop executes")]
@@ -2091,6 +2107,8 @@ mod test {
         }}
         "#
         );
+
+        println!("{src}");
 
         let ssa = Ssa::from_str(&src).unwrap();
         let ssa = ssa.loop_invariant_code_motion();
