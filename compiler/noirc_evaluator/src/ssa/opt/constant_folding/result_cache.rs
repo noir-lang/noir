@@ -40,11 +40,15 @@ impl InstructionResultCache {
     ) -> Option<CacheResult> {
         let results_for_instruction = self.0.get(instruction)?;
 
-        let cached_results = results_for_instruction.get(&predicate)?.get(
-            block,
-            dom,
-            can_be_hoisted(instruction, dfg) == CanBeHoistedResult::Yes,
-        );
+        // It's okay to hoist arrays: they are just moved as duplicates, and the next constant folding
+        // pass will deduplicate them and insert `IncRc`.
+        let can_be_hoisted = match can_be_hoisted(instruction, dfg) {
+            CanBeHoistedResult::Yes | CanBeHoistedResult::WithRefCount => true,
+            CanBeHoistedResult::No | CanBeHoistedResult::WithPredicate => false,
+        };
+
+        let cached_results =
+            results_for_instruction.get(&predicate)?.get(block, dom, can_be_hoisted);
 
         cached_results.filter(|results| {
             // This is a hacky solution to https://github.com/noir-lang/noir/issues/9477

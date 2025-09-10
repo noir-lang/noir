@@ -666,7 +666,6 @@ impl<'f> LoopInvariantContext<'f> {
         instruction_id: InstructionId,
     ) -> bool {
         use CanBeHoistedResult::*;
-        use Instruction::*;
 
         let mut is_loop_invariant = true;
         // The list of blocks for a nested loop contain any inner loops as well.
@@ -687,12 +686,6 @@ impl<'f> LoopInvariantContext<'f> {
             return false;
         }
 
-        // MakeArray is only safe to hoist in ACIR, but we know that in Brillig we will insert an `IncRc`
-        // in `LoopInvariantContext::hoist_loop_invariants` to keep it safe, so it's okay to hoist them.
-        if matches!(instruction, MakeArray { .. }) {
-            return true;
-        }
-
         // Check if the operation depends only on the outer loop variable, in which case it can be hoisted
         // into the pre-header of a nested loop even if the nested loop does not execute.
         if self.can_be_hoisted_from_loop_bounds(loop_context, &instruction) {
@@ -703,6 +696,11 @@ impl<'f> LoopInvariantContext<'f> {
             Yes => true,
             No => false,
             WithPredicate => block_context.can_hoist_control_dependent_instruction(),
+            WithRefCount => {
+                // MakeArray is only safe to hoist in ACIR, but we know that in Brillig we will insert an `IncRc`
+                // in `LoopInvariantContext::hoist_loop_invariants` to keep it safe, so it's okay to hoist them.
+                true
+            }
         }
     }
 
@@ -798,6 +796,7 @@ pub(super) enum CanBeHoistedResult {
     Yes,
     No,
     WithPredicate,
+    WithRefCount,
 }
 
 impl From<bool> for CanBeHoistedResult {
@@ -874,7 +873,13 @@ pub(super) fn can_be_hoisted(instruction: &Instruction, dfg: &DataFlowGraph) -> 
         // hoisted. We know that in this module we will insert a corresponding `IncRc` to
         // allow safe hoisting in unconstrained code, but just in case we would expose this
         // function to other modules, we return a more restrictive result here.
-        MakeArray { .. } => dfg.runtime().is_acir().into(),
+        MakeArray { .. } => {
+            if dfg.runtime().is_acir() {
+                Yes
+            } else {
+                WithRefCount
+            }
+        }
 
         // These can have different behavior depending on the predicate.
         Binary(_) => {
@@ -2314,7 +2319,7 @@ mod test {
     }
 
     /// Test that in itself `MakeArray` is only safe to be hoisted in ACIR.
-    #[test_case(RuntimeType::Brillig(InlineType::default()), CanBeHoistedResult::No)]
+    #[test_case(RuntimeType::Brillig(InlineType::default()), CanBeHoistedResult::WithRefCount)]
     #[test_case(RuntimeType::Acir(InlineType::default()), CanBeHoistedResult::Yes)]
     fn make_array_can_be_hoisted(runtime: RuntimeType, result: CanBeHoistedResult) {
         // This is just a stub to create a function with the expected runtime.
