@@ -33,7 +33,7 @@ expression: artifact
     "private parameters indices : [_0, _1]",
     "public parameters indices : []",
     "return value indices : []",
-    "BLACKBOX::RANGE [(_0, 32)] []",
+    "BLACKBOX::RANGE [_0]:32 bits []",
     "EXPR [ (-1, _2) 1 ]",
     "EXPR [ (-1, _3) 2 ]",
     "EXPR [ (-1, _4) 3 ]",
@@ -62,10 +62,9 @@ expression: artifact
   ],
   "debug_symbols": "[debug_symbols]",
   "file_map": "[file_map]",
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "directive_invert"
-  ]
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
+  }
 }

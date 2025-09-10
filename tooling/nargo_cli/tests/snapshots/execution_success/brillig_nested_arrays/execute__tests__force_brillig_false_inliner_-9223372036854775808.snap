@@ -48,8 +48,8 @@ expression: artifact
     "private parameters indices : [_0, _1]",
     "public parameters indices : []",
     "return value indices : []",
-    "BLACKBOX::RANGE [(_0, 32)] []",
-    "BLACKBOX::RANGE [(_1, 32)] []",
+    "BLACKBOX::RANGE [_0]:32 bits []",
+    "BLACKBOX::RANGE [_1]:32 bits []",
     "BRILLIG CALL func 0: inputs: [[EXPR [ 3 ], EXPR [ 1 ], EXPR [ 2 ], EXPR [ 1 ], EXPR [ 2 ], EXPR [ 3 ], EXPR [ 6 ], EXPR [ 4 ], EXPR [ 5 ], EXPR [ 1 ], EXPR [ 2 ], EXPR [ 3 ]], EXPR [ (1, _0) 0 ], EXPR [ (1, _1) 0 ]], outputs: [_2]",
     "EXPR [ (1, _2) -10 ]",
     "BRILLIG CALL func 1: inputs: [[EXPR [ 3 ], EXPR [ 1 ], EXPR [ 2 ], EXPR [ 1 ], EXPR [ 2 ], EXPR [ 3 ], EXPR [ 6 ], EXPR [ 4 ], EXPR [ 5 ], EXPR [ 1 ], EXPR [ 2 ], EXPR [ 3 ]], EXPR [ (1, _0) 0 ], EXPR [ (1, _1) 0 ]], outputs: []",
@@ -63,12 +63,9 @@ expression: artifact
   ],
   "debug_symbols": "[debug_symbols]",
   "file_map": "[file_map]",
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "access_nested",
-    "assert_inside_brillig",
-    "create_and_assert_inside_brillig"
-  ]
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
+  }
 }

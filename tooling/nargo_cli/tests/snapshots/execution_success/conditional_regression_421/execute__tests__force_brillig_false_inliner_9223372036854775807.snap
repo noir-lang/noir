@@ -39,11 +39,11 @@ expression: artifact
     "private parameters indices : [_0, _1, _2, _3, _4]",
     "public parameters indices : []",
     "return value indices : []",
-    "BLACKBOX::RANGE [(_0, 32)] []",
-    "BLACKBOX::RANGE [(_1, 32)] []",
-    "BLACKBOX::RANGE [(_2, 32)] []",
-    "BLACKBOX::RANGE [(_3, 32)] []",
-    "BLACKBOX::RANGE [(_4, 32)] []",
+    "BLACKBOX::RANGE [_0]:32 bits []",
+    "BLACKBOX::RANGE [_1]:32 bits []",
+    "BLACKBOX::RANGE [_2]:32 bits []",
+    "BLACKBOX::RANGE [_3]:32 bits []",
+    "BLACKBOX::RANGE [_4]:32 bits []",
     "EXPR [ (1, _0) (-1, _1) (-1, _5) 0 ]",
     "BRILLIG CALL func 0: inputs: [EXPR [ (1, _5) 0 ]], outputs: [_6]",
     "EXPR [ (1, _5, _6) (1, _7) -1 ]",
@@ -67,10 +67,9 @@ expression: artifact
   ],
   "debug_symbols": "[debug_symbols]",
   "file_map": "[file_map]",
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "directive_invert"
-  ]
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
+  }
 }

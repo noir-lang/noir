@@ -114,15 +114,25 @@ fn assert_zero_with_mul_terms() {
 }
 
 #[test]
-fn range_and_xor() {
+fn range_check() {
+    let src = "
+    current witness index : _5
+    private parameters indices : []
+    public parameters indices : []
+    return value indices : []
+    BLACKBOX::RANGE [_0]:32 bits []
+    ";
+    assert_circuit_roundtrip(src);
+}
+
+#[test]
+fn xor() {
     let src = "
     current witness index : _2
     private parameters indices : [_0]
     public parameters indices : [_1]
     return value indices : []
-    BLACKBOX::RANGE [(_0, 32)] []
-    BLACKBOX::RANGE [(_1, 32)] []
-    BLACKBOX::XOR [(_0, 32), (_1, 32)] [_2]
+    BLACKBOX::XOR [_0, _1]:32 bits [_2]
     EXPR [ (1, _2) -15 ]
     ";
     assert_circuit_roundtrip(src);
@@ -136,67 +146,67 @@ fn aes128_encrypt() {
     private parameters indices : [_0, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14, _15, _16, _17, _18, _19, _20, _21, _22, _23, _24, _25, _26, _27, _28, _29, _30, _31, _32, _33, _34, _35, _36, _37, _38, _39, _40, _41, _42, _43]
     public parameters indices : [_44, _45, _46, _47, _48, _49, _50, _51, _52, _53, _54, _55, _56, _57, _58, _59]
     return value indices : []
-    BLACKBOX::RANGE [(_0, 8)] []
-    BLACKBOX::RANGE [(_1, 8)] []
-    BLACKBOX::RANGE [(_2, 8)] []
-    BLACKBOX::RANGE [(_3, 8)] []
-    BLACKBOX::RANGE [(_4, 8)] []
-    BLACKBOX::RANGE [(_5, 8)] []
-    BLACKBOX::RANGE [(_6, 8)] []
-    BLACKBOX::RANGE [(_7, 8)] []
-    BLACKBOX::RANGE [(_8, 8)] []
-    BLACKBOX::RANGE [(_9, 8)] []
-    BLACKBOX::RANGE [(_10, 8)] []
-    BLACKBOX::RANGE [(_11, 8)] []
-    BLACKBOX::RANGE [(_12, 8)] []
-    BLACKBOX::RANGE [(_13, 8)] []
-    BLACKBOX::RANGE [(_14, 8)] []
-    BLACKBOX::RANGE [(_15, 8)] []
-    BLACKBOX::RANGE [(_16, 8)] []
-    BLACKBOX::RANGE [(_17, 8)] []
-    BLACKBOX::RANGE [(_18, 8)] []
-    BLACKBOX::RANGE [(_19, 8)] []
-    BLACKBOX::RANGE [(_20, 8)] []
-    BLACKBOX::RANGE [(_21, 8)] []
-    BLACKBOX::RANGE [(_22, 8)] []
-    BLACKBOX::RANGE [(_23, 8)] []
-    BLACKBOX::RANGE [(_24, 8)] []
-    BLACKBOX::RANGE [(_25, 8)] []
-    BLACKBOX::RANGE [(_26, 8)] []
-    BLACKBOX::RANGE [(_27, 8)] []
-    BLACKBOX::RANGE [(_28, 8)] []
-    BLACKBOX::RANGE [(_29, 8)] []
-    BLACKBOX::RANGE [(_30, 8)] []
-    BLACKBOX::RANGE [(_31, 8)] []
-    BLACKBOX::RANGE [(_32, 8)] []
-    BLACKBOX::RANGE [(_33, 8)] []
-    BLACKBOX::RANGE [(_34, 8)] []
-    BLACKBOX::RANGE [(_35, 8)] []
-    BLACKBOX::RANGE [(_36, 8)] []
-    BLACKBOX::RANGE [(_37, 8)] []
-    BLACKBOX::RANGE [(_38, 8)] []
-    BLACKBOX::RANGE [(_39, 8)] []
-    BLACKBOX::RANGE [(_40, 8)] []
-    BLACKBOX::RANGE [(_41, 8)] []
-    BLACKBOX::RANGE [(_42, 8)] []
-    BLACKBOX::RANGE [(_43, 8)] []
-    BLACKBOX::RANGE [(_44, 8)] []
-    BLACKBOX::RANGE [(_45, 8)] []
-    BLACKBOX::RANGE [(_46, 8)] []
-    BLACKBOX::RANGE [(_47, 8)] []
-    BLACKBOX::RANGE [(_48, 8)] []
-    BLACKBOX::RANGE [(_49, 8)] []
-    BLACKBOX::RANGE [(_50, 8)] []
-    BLACKBOX::RANGE [(_51, 8)] []
-    BLACKBOX::RANGE [(_52, 8)] []
-    BLACKBOX::RANGE [(_53, 8)] []
-    BLACKBOX::RANGE [(_54, 8)] []
-    BLACKBOX::RANGE [(_55, 8)] []
-    BLACKBOX::RANGE [(_56, 8)] []
-    BLACKBOX::RANGE [(_57, 8)] []
-    BLACKBOX::RANGE [(_58, 8)] []
-    BLACKBOX::RANGE [(_59, 8)] []
-    BLACKBOX::AES128_ENCRYPT [(_12, 8), (_13, 8), (_14, 8), (_15, 8), (_16, 8), (_17, 8), (_18, 8), (_19, 8), (_20, 8), (_21, 8), (_22, 8), (_23, 8), (_24, 8), (_25, 8), (_26, 8), (_27, 8), (_28, 8), (_29, 8), (_30, 8), (_31, 8), (_32, 8), (_33, 8), (_34, 8), (_35, 8), (_36, 8), (_37, 8), (_38, 8), (_39, 8), (_40, 8), (_41, 8), (_42, 8), (_43, 8)] [_60, _61, _62, _63, _64, _65, _66, _67, _68, _69, _70, _71, _72, _73, _74, _75]
+    BLACKBOX::RANGE [_0]:8 bits []
+    BLACKBOX::RANGE [_1]:8 bits []
+    BLACKBOX::RANGE [_2]:8 bits []
+    BLACKBOX::RANGE [_3]:8 bits []
+    BLACKBOX::RANGE [_4]:8 bits []
+    BLACKBOX::RANGE [_5]:8 bits []
+    BLACKBOX::RANGE [_6]:8 bits []
+    BLACKBOX::RANGE [_7]:8 bits []
+    BLACKBOX::RANGE [_8]:8 bits []
+    BLACKBOX::RANGE [_9]:8 bits []
+    BLACKBOX::RANGE [_10]:8 bits []
+    BLACKBOX::RANGE [_11]:8 bits []
+    BLACKBOX::RANGE [_12]:8 bits []
+    BLACKBOX::RANGE [_13]:8 bits []
+    BLACKBOX::RANGE [_14]:8 bits []
+    BLACKBOX::RANGE [_15]:8 bits []
+    BLACKBOX::RANGE [_16]:8 bits []
+    BLACKBOX::RANGE [_17]:8 bits []
+    BLACKBOX::RANGE [_18]:8 bits []
+    BLACKBOX::RANGE [_19]:8 bits []
+    BLACKBOX::RANGE [_20]:8 bits []
+    BLACKBOX::RANGE [_21]:8 bits []
+    BLACKBOX::RANGE [_22]:8 bits []
+    BLACKBOX::RANGE [_23]:8 bits []
+    BLACKBOX::RANGE [_24]:8 bits []
+    BLACKBOX::RANGE [_25]:8 bits []
+    BLACKBOX::RANGE [_26]:8 bits []
+    BLACKBOX::RANGE [_27]:8 bits []
+    BLACKBOX::RANGE [_28]:8 bits []
+    BLACKBOX::RANGE [_29]:8 bits []
+    BLACKBOX::RANGE [_30]:8 bits []
+    BLACKBOX::RANGE [_31]:8 bits []
+    BLACKBOX::RANGE [_32]:8 bits []
+    BLACKBOX::RANGE [_33]:8 bits []
+    BLACKBOX::RANGE [_34]:8 bits []
+    BLACKBOX::RANGE [_35]:8 bits []
+    BLACKBOX::RANGE [_36]:8 bits []
+    BLACKBOX::RANGE [_37]:8 bits []
+    BLACKBOX::RANGE [_38]:8 bits []
+    BLACKBOX::RANGE [_39]:8 bits []
+    BLACKBOX::RANGE [_40]:8 bits []
+    BLACKBOX::RANGE [_41]:8 bits []
+    BLACKBOX::RANGE [_42]:8 bits []
+    BLACKBOX::RANGE [_43]:8 bits []
+    BLACKBOX::RANGE [_44]:8 bits []
+    BLACKBOX::RANGE [_45]:8 bits []
+    BLACKBOX::RANGE [_46]:8 bits []
+    BLACKBOX::RANGE [_47]:8 bits []
+    BLACKBOX::RANGE [_48]:8 bits []
+    BLACKBOX::RANGE [_49]:8 bits []
+    BLACKBOX::RANGE [_50]:8 bits []
+    BLACKBOX::RANGE [_51]:8 bits []
+    BLACKBOX::RANGE [_52]:8 bits []
+    BLACKBOX::RANGE [_53]:8 bits []
+    BLACKBOX::RANGE [_54]:8 bits []
+    BLACKBOX::RANGE [_55]:8 bits []
+    BLACKBOX::RANGE [_56]:8 bits []
+    BLACKBOX::RANGE [_57]:8 bits []
+    BLACKBOX::RANGE [_58]:8 bits []
+    BLACKBOX::RANGE [_59]:8 bits []
+    BLACKBOX::AES128_ENCRYPT [_12, _13, _14, _15, _16, _17, _18, _19, _20, _21, _22, _23, _24, _25, _26, _27, _28, _29, _30, _31, _32, _33, _34, _35, _36, _37, _38, _39, _40, _41, _42, _43] [_60, _61, _62, _63, _64, _65, _66, _67, _68, _69, _70, _71, _72, _73, _74, _75]
     EXPR [ (-1, _44) (1, _60) 0 ]
     EXPR [ (-1, _45) (1, _61) 0 ]
     EXPR [ (-1, _46) (1, _62) 0 ]
@@ -224,7 +234,7 @@ fn blake2s() {
     private parameters indices : [_0, _1, _2, _3, _4]
     public parameters indices : [_5, _6, _7, _8, _9, _10, _11, _12, _13, _14, _15, _16, _17, _18, _19, _20, _21, _22, _23, _24, _25, _26, _27, _28, _29, _30, _31, _32, _33, _34, _35, _36]
     return value indices : []
-    BLACKBOX::BLAKE2S [(_0, 8), (_1, 8), (_2, 8), (_3, 8), (_4, 8)] [_37, _38, _39, _40, _41, _42, _43, _44, _45, _46, _47, _48, _49, _50, _51, _52, _53, _54, _55, _56, _57, _58, _59, _60, _61, _62, _63, _64, _65, _66, _67, _68]
+    BLACKBOX::BLAKE2S [_0, _1, _2, _3, _4] [_37, _38, _39, _40, _41, _42, _43, _44, _45, _46, _47, _48, _49, _50, _51, _52, _53, _54, _55, _56, _57, _58, _59, _60, _61, _62, _63, _64, _65, _66, _67, _68]
     ";
     assert_circuit_roundtrip(src);
 }
@@ -236,32 +246,32 @@ fn blake3() {
     private parameters indices : [_0, _1, _2, _3, _4]
     public parameters indices : []
     return value indices : []
-    BLACKBOX::BLAKE3 [(_0, 8), (_1, 8), (_2, 8), (_3, 8), (_4, 8)] [_5, _6, _7, _8, _9, _10, _11, _12, _13, _14, _15, _16, _17, _18, _19, _20, _21, _22, _23, _24, _25, _26, _27, _28, _29, _30, _31, _32, _33, _34, _35, _36]
+    BLACKBOX::BLAKE3 [_0, _1, _2, _3, _4] [_5, _6, _7, _8, _9, _10, _11, _12, _13, _14, _15, _16, _17, _18, _19, _20, _21, _22, _23, _24, _25, _26, _27, _28, _29, _30, _31, _32, _33, _34, _35, _36]
     ";
     assert_circuit_roundtrip(src);
 }
 
 #[test]
 fn ecdsa_secp256k1() {
-    let input_witnesses: Vec<String> = (0..160).map(|i| format!("(_{i}, 8)")).collect();
+    let input_witnesses: Vec<String> = (0..161).map(|i| format!("_{i}")).collect();
     let inputs_str = input_witnesses.join(", ");
 
     let src = format!(
         "
-    current witness index : _160
+    current witness index : _161
     private parameters indices : []
     public parameters indices : []
     return value indices : []
-    BLACKBOX::ECDSA_SECP256K1 [{inputs_str}] [_160]
+    BLACKBOX::ECDSA_SECP256K1 [{inputs_str}] [_161]
     "
     );
     assert_circuit_roundtrip(&src);
 }
 
 #[test]
-#[should_panic]
+#[should_panic = "Expected 32 inputs for public_key_y, found 3"]
 fn ecdsa_secp256k1_missing_inputs() {
-    let input_witnesses: Vec<String> = (0..100).map(|i| format!("(_{i}, 8)")).collect();
+    let input_witnesses: Vec<String> = (0..100).map(|i| format!("_{i}")).collect();
     let inputs_str = input_witnesses.join(", ");
 
     let src = format!(
@@ -278,25 +288,25 @@ fn ecdsa_secp256k1_missing_inputs() {
 
 #[test]
 fn ecdsa_secp256r1() {
-    let input_witnesses: Vec<String> = (0..160).map(|i| format!("(_{i}, 8)")).collect();
+    let input_witnesses: Vec<String> = (0..161).map(|i| format!("_{i}")).collect();
     let inputs_str = input_witnesses.join(", ");
 
     let src = format!(
         "
-    current witness index : _160
+    current witness index : _161
     private parameters indices : []
     public parameters indices : []
     return value indices : []
-    BLACKBOX::ECDSA_SECP256R1 [{inputs_str}] [_160]
+    BLACKBOX::ECDSA_SECP256R1 [{inputs_str}] [_161]
     "
     );
     assert_circuit_roundtrip(&src);
 }
 
 #[test]
-#[should_panic]
+#[should_panic = "Expected 32 inputs for public_key_y, found 3"]
 fn ecdsa_secp256r1_missing_inputs() {
-    let input_witnesses: Vec<String> = (0..100).map(|i| format!("(_{i}, 8)")).collect();
+    let input_witnesses: Vec<String> = (0..100).map(|i| format!("_{i}")).collect();
     let inputs_str = input_witnesses.join(", ");
 
     let src = format!(
@@ -313,7 +323,7 @@ fn ecdsa_secp256r1_missing_inputs() {
 
 #[test]
 fn keccakf1600() {
-    let input_witnesses: Vec<String> = (0..25).map(|i| format!("(_{i}, 64)")).collect();
+    let input_witnesses: Vec<String> = (0..25).map(|i| format!("_{i}")).collect();
     let inputs_str = input_witnesses.join(", ");
 
     let output_witnesses: Vec<String> = (25..50).map(|i| format!("_{i}")).collect();
@@ -332,9 +342,9 @@ fn keccakf1600() {
 }
 
 #[test]
-#[should_panic]
+#[should_panic = "Expected 25 inputs for Keccakf1600 inputs, found 24"]
 fn keccakf1600_missing_inputs() {
-    let input_witnesses: Vec<String> = (0..24).map(|i| format!("(_{i}, 64)")).collect();
+    let input_witnesses: Vec<String> = (0..24).map(|i| format!("_{i}")).collect();
     let inputs_str = input_witnesses.join(", ");
 
     let output_witnesses: Vec<String> = (24..49).map(|i| format!("_{i}")).collect();
@@ -359,7 +369,7 @@ fn embedded_curve_add() {
     private parameters indices : []
     public parameters indices : []
     return value indices : []
-    BLACKBOX::EMBEDDED_CURVE_ADD [(_0, 255), (_1, 255), (_2, 1), (_3, 255), (_4, 255), (_5, 1)] [_6, _7, _8]
+    BLACKBOX::EMBEDDED_CURVE_ADD [_0, _1, _2, _3, _4, _5, _6] [_7, _8, _9]
     ";
     assert_circuit_roundtrip(src);
 }
@@ -368,11 +378,11 @@ fn embedded_curve_add() {
 #[should_panic]
 fn embedded_curve_add_wrong_output_count() {
     let src = "
-        current witness index : _8
+        current witness index : _9
         private parameters indices : []
         public parameters indices : []
         return value indices : []
-        BLACKBOX::EMBEDDED_CURVE_ADD [(_0, 255), (_1, 255), (_2, 1), (_3, 255), (_4, 255), (_5, 1)] [_6, _7]
+        BLACKBOX::EMBEDDED_CURVE_ADD [_0, _1, _2, _3, _4, _5, _6] [_7, _8]
     ";
     let _ = Circuit::from_str(src).unwrap();
 }
@@ -384,14 +394,14 @@ fn poseidon2_permutation() {
     private parameters indices : []
     public parameters indices : []
     return value indices : []
-    BLACKBOX::POSEIDON2_PERMUTATION [(_0, 255), (_1, 255), (_2, 255)] [_3, _4, _5]
+    BLACKBOX::POSEIDON2_PERMUTATION [_0, _1, _2] [_3, _4, _5]
     ";
     assert_circuit_roundtrip(src);
 }
 
 #[test]
 fn sha256_compression() {
-    let input_witnesses: Vec<String> = (0..24).map(|i| format!("(_{i}, 8)")).collect();
+    let input_witnesses: Vec<String> = (0..24).map(|i| format!("_{i}")).collect();
     let inputs_str = input_witnesses.join(", ");
 
     let output_witnesses: Vec<String> = (24..32).map(|i| format!("_{i}")).collect();
@@ -412,7 +422,7 @@ fn sha256_compression() {
 #[test]
 #[should_panic]
 fn sha256_compression_missing_outputs() {
-    let input_witnesses: Vec<String> = (0..24).map(|i| format!("(_{i}, 8)")).collect();
+    let input_witnesses: Vec<String> = (0..24).map(|i| format!("_{i}")).collect();
     let inputs_str = input_witnesses.join(", ");
 
     let output_witnesses: Vec<String> = (24..31).map(|i| format!("_{i}")).collect(); // should be 8 total
@@ -438,19 +448,6 @@ fn memory_read() {
     public parameters indices : []
     return value indices : []
     MEM (id: 0, read at: EXPR [ (1, _0) 0 ], value: EXPR [ (1, _1) 0 ]) 
-    ";
-    assert_circuit_roundtrip(src);
-}
-
-#[test]
-fn memory_read_with_predicate() {
-    let src = "
-    current witness index : _2
-    private parameters indices : []
-    public parameters indices : []
-    return value indices : []
-    MEM PREDICATE: EXPR [ (1, _0) 0 ]
-    (id: 0, read at: EXPR [ (1, _1) 0 ], value: EXPR [ (1, _2) 0 ]) 
     ";
     assert_circuit_roundtrip(src);
 }
@@ -566,25 +563,25 @@ fn array_dynamic() {
     private parameters indices : [_0, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14, _15, _16, _17, _18]
     public parameters indices : []
     return value indices : []
-    BLACKBOX::RANGE [(_0, 32)] []
-    BLACKBOX::RANGE [(_1, 32)] []
-    BLACKBOX::RANGE [(_2, 32)] []
-    BLACKBOX::RANGE [(_3, 32)] []
-    BLACKBOX::RANGE [(_4, 32)] []
+    BLACKBOX::RANGE [_0]:32 bits []
+    BLACKBOX::RANGE [_1]:32 bits []
+    BLACKBOX::RANGE [_2]:32 bits []
+    BLACKBOX::RANGE [_3]:32 bits []
+    BLACKBOX::RANGE [_4]:32 bits []
     INIT (id: 0, len: 5, witnesses: [_0, _1, _2, _3, _4])
-    BLACKBOX::RANGE [(_5, 32)] []
-    BLACKBOX::RANGE [(_6, 32)] []
+    BLACKBOX::RANGE [_5]:32 bits []
+    BLACKBOX::RANGE [_6]:32 bits []
     INIT (id: 1, len: 5, witnesses: [_7, _8, _9, _10, _11])
-    BLACKBOX::RANGE [(_12, 32)] []
-    BLACKBOX::RANGE [(_13, 32)] []
-    BLACKBOX::RANGE [(_14, 32)] []
-    BLACKBOX::RANGE [(_15, 32)] []
-    BLACKBOX::RANGE [(_16, 32)] []
-    BLACKBOX::RANGE [(_17, 32)] []
+    BLACKBOX::RANGE [_12]:32 bits []
+    BLACKBOX::RANGE [_13]:32 bits []
+    BLACKBOX::RANGE [_14]:32 bits []
+    BLACKBOX::RANGE [_15]:32 bits []
+    BLACKBOX::RANGE [_16]:32 bits []
+    BLACKBOX::RANGE [_17]:32 bits []
     EXPR [ (5, _6) (-1, _19) 0 ]
-    BLACKBOX::RANGE [(_19, 32)] []
+    BLACKBOX::RANGE [_19]:32 bits []
     EXPR [ (1, _5) (-1, _19) (-1, _20) 0 ]
-    BLACKBOX::RANGE [(_20, 32)] []
+    BLACKBOX::RANGE [_20]:32 bits []
     EXPR [ (1, _20) (-1, _21) -5 ]
     EXPR [ (1, _21) (-1, _22) -3 ]
     MEM (id: 0, read at: EXPR [ (1, _21) 0 ], value: EXPR [ (1, _23) 0 ]) 
@@ -592,7 +589,7 @@ fn array_dynamic() {
     MEM (id: 0, read at: EXPR [ (1, _22) 0 ], value: EXPR [ (1, _24) 0 ]) 
     EXPR [ (1, _24) -101 ]
     BRILLIG CALL func 0: inputs: [EXPR [ (1, _22) 4294967291 ], EXPR [ 4294967296 ]], outputs: [_25, _26]
-    BLACKBOX::RANGE [(_26, 32)] []
+    BLACKBOX::RANGE [_26]:32 bits []
     EXPR [ (1, _22) (-4294967296, _25) (-1, _26) 4294967291 ]
     EXPR [ (-1, _25) 0 ]
     EXPR [ (-1, _27) 0 ]
@@ -603,16 +600,16 @@ fn array_dynamic() {
     MEM (id: 0, read at: EXPR [ (1, _29) 0 ], value: EXPR [ (1, _30) 0 ]) 
     EXPR [ (1, _30) 0 ]
     BRILLIG CALL func 0: inputs: [EXPR [ (1, _21) 4294967286 ], EXPR [ 4294967296 ]], outputs: [_31, _32]
-    BLACKBOX::RANGE [(_31, 1)] []
-    BLACKBOX::RANGE [(_32, 32)] []
+    BLACKBOX::RANGE [_31]:1 bits []
+    BLACKBOX::RANGE [_32]:32 bits []
     EXPR [ (1, _21) (-4294967296, _31) (-1, _32) 4294967286 ]
     EXPR [ (-1, _21, _31) (1, _21) (-1, _33) 0 ]
     MEM (id: 0, read at: EXPR [ (1, _33) 0 ], value: EXPR [ (1, _34) 0 ]) 
     EXPR [ (-1, _31, _34) (2, _31) (1, _34) (-1, _35) -2 ]
-    BLACKBOX::RANGE [(_35, 32)] []
+    BLACKBOX::RANGE [_35]:32 bits []
     BRILLIG CALL func 0: inputs: [EXPR [ (1, _21) 4294967291 ], EXPR [ 4294967296 ]], outputs: [_36, _37]
-    BLACKBOX::RANGE [(_36, 1)] []
-    BLACKBOX::RANGE [(_37, 32)] []
+    BLACKBOX::RANGE [_36]:1 bits []
+    BLACKBOX::RANGE [_37]:32 bits []
     EXPR [ (1, _21) (-4294967296, _36) (-1, _37) 4294967291 ]
     EXPR [ (1, _31, _36) (-1, _36) 0 ]
     EXPR [ (-1, _21, _31) (1, _21) (-1, _38) 0 ]
@@ -653,22 +650,22 @@ fn array_dynamic() {
     BRILLIG CALL func 1: inputs: [EXPR [ (1, _62) (1, _63) (1, _64) (1, _65) (1, _66) 0 ]], outputs: [_67]
     EXPR [ (1, _62, _67) (1, _63, _67) (1, _64, _67) (1, _65, _67) (1, _66, _67) -1 ]
     BRILLIG CALL func 0: inputs: [EXPR [ (1, _18) 0 ], EXPR [ 4294967296 ]], outputs: [_68, _69]
-    BLACKBOX::RANGE [(_68, 222)] []
-    BLACKBOX::RANGE [(_69, 32)] []
+    BLACKBOX::RANGE [_68]:222 bits []
+    BLACKBOX::RANGE [_69]:32 bits []
     EXPR [ (1, _18) (-4294967296, _68) (-1, _69) 0 ]
     EXPR [ (-1, _68) (-1, _70) 5096253676302562286669017222071363378443840053029366383258766538131 ]
-    BLACKBOX::RANGE [(_70, 222)] []
+    BLACKBOX::RANGE [_70]:222 bits []
     BRILLIG CALL func 1: inputs: [EXPR [ (-1, _68) 5096253676302562286669017222071363378443840053029366383258766538131 ]], outputs: [_71]
     EXPR [ (-1, _68, _71) (5096253676302562286669017222071363378443840053029366383258766538131, _71) (1, _72) -1 ]
     EXPR [ (-1, _68, _72) (5096253676302562286669017222071363378443840053029366383258766538131, _72) 0 ]
     EXPR [ (1, _69, _72) (268435455, _72) (-1, _73) 0 ]
-    BLACKBOX::RANGE [(_73, 32)] []
+    BLACKBOX::RANGE [_73]:32 bits []
     BRILLIG CALL func 0: inputs: [EXPR [ (-1, _69) 4294967299 ], EXPR [ 4294967296 ]], outputs: [_74, _75]
-    BLACKBOX::RANGE [(_74, 1)] []
-    BLACKBOX::RANGE [(_75, 32)] []
+    BLACKBOX::RANGE [_74]:1 bits []
+    BLACKBOX::RANGE [_75]:32 bits []
     EXPR [ (-1, _69) (-4294967296, _74) (-1, _75) 4294967299 ]
     EXPR [ (-1, _17, _74) (1, _17) (-3, _74) (-1, _76) 3 ]
-    BLACKBOX::RANGE [(_76, 32)] []
+    BLACKBOX::RANGE [_76]:32 bits []
     EXPR [ (-1, _74, _76) (1, _76) (-1, _77) 0 ]
     MEM (id: 1, read at: EXPR [ (1, _77) 0 ], value: EXPR [ (1, _78) 0 ]) 
     EXPR [ (1, _15, _74) (-1, _74, _78) (-1, _15) (1, _78) 0 ]

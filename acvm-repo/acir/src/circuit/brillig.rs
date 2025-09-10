@@ -82,6 +82,8 @@ impl std::fmt::Display for BrilligOutputs {
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Default, Debug, Hash)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub struct BrilligBytecode<F> {
+    #[serde(default)] // For backwards compatibility
+    pub function_name: String,
     pub bytecode: Vec<BrilligOpcode<F>>,
 }
 

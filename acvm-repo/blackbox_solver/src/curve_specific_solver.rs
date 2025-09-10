@@ -23,11 +23,7 @@ pub trait BlackBoxFunctionSolver<F> {
         input2_y: &F,
         input2_infinite: &F,
     ) -> Result<(F, F, F), BlackBoxResolutionError>;
-    fn poseidon2_permutation(
-        &self,
-        inputs: &[F],
-        len: u32,
-    ) -> Result<Vec<F>, BlackBoxResolutionError>;
+    fn poseidon2_permutation(&self, inputs: &[F]) -> Result<Vec<F>, BlackBoxResolutionError>;
 }
 
 // pedantic_solving: bool
@@ -73,11 +69,7 @@ impl<F> BlackBoxFunctionSolver<F> for StubbedBlackBoxSolver {
     ) -> Result<(F, F, F), BlackBoxResolutionError> {
         Err(Self::fail(BlackBoxFunc::EmbeddedCurveAdd))
     }
-    fn poseidon2_permutation(
-        &self,
-        _inputs: &[F],
-        _len: u32,
-    ) -> Result<Vec<F>, BlackBoxResolutionError> {
+    fn poseidon2_permutation(&self, _inputs: &[F]) -> Result<Vec<F>, BlackBoxResolutionError> {
         Err(Self::fail(BlackBoxFunc::Poseidon2Permutation))
     }
 }

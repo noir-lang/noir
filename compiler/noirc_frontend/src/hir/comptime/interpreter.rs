@@ -2,7 +2,6 @@ use std::collections::VecDeque;
 use std::{collections::hash_map::Entry, rc::Rc};
 
 use acvm::AcirField;
-use acvm::blackbox_solver::BigIntSolverWithId;
 use im::Vector;
 use iter_extended::try_vecmap;
 use noirc_errors::Location;
@@ -67,9 +66,6 @@ pub struct Interpreter<'local, 'interner> {
     /// multiple times. Without this map, when one of these inner functions exits we would
     /// unbind the generic completely instead of resetting it to its previous binding.
     bound_generics: Vec<HashMap<TypeVariable, (Type, Kind)>>,
-
-    /// Stateful bigint calculator.
-    bigint_solver: BigIntSolverWithId,
 }
 
 #[allow(unused)]
@@ -80,15 +76,7 @@ impl<'local, 'interner> Interpreter<'local, 'interner> {
         current_function: Option<FuncId>,
     ) -> Self {
         let pedantic_solving = elaborator.pedantic_solving();
-        let bigint_solver = BigIntSolverWithId::with_pedantic_solving(pedantic_solving);
-        Self {
-            elaborator,
-            crate_id,
-            current_function,
-            bound_generics: Vec::new(),
-            in_loop: false,
-            bigint_solver,
-        }
+        Self { elaborator, crate_id, current_function, bound_generics: Vec::new(), in_loop: false }
     }
 
     pub(crate) fn call_function(

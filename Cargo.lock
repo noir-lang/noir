@@ -93,7 +93,6 @@ dependencies = [
  "keccak",
  "libaes",
  "log",
- "num-bigint",
  "num-prime",
  "p256",
  "proptest",
@@ -857,11 +856,9 @@ name = "brillig"
 version = "1.0.0-beta.12"
 dependencies = [
  "acir_field",
- "num-bigint",
  "proptest",
  "proptest-derive",
  "serde",
- "serde_json",
 ]
 
 [[package]]
@@ -3319,6 +3316,9 @@ dependencies = [
  "noirc_errors",
  "noirc_frontend",
  "noirc_printable_type",
+ "num-bigint",
+ "proptest",
+ "proptest-derive",
  "rand 0.8.5",
  "rayon",
  "serde",

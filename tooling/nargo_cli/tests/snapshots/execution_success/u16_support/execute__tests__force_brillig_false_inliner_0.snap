@@ -39,16 +39,16 @@ expression: artifact
     "private parameters indices : [_0]",
     "public parameters indices : []",
     "return value indices : []",
-    "BLACKBOX::RANGE [(_0, 16)] []",
+    "BLACKBOX::RANGE [_0]:16 bits []",
     "BRILLIG CALL func 1: inputs: [EXPR [ (1, _0) 65520 ], EXPR [ 65536 ]], outputs: [_1, _2]",
-    "BLACKBOX::RANGE [(_2, 16)] []",
+    "BLACKBOX::RANGE [_2]:16 bits []",
     "EXPR [ (1, _0) (-65536, _1) (-1, _2) 65520 ]",
     "EXPR [ (-1, _1) 0 ]",
     "BRILLIG CALL func 2: inputs: [EXPR [ (1, _0) 0 ], EXPR [ 4 ], EXPR [ 2 ]], outputs: [[_3, _4, _5, _6]]",
-    "BLACKBOX::RANGE [(_3, 1)] []",
-    "BLACKBOX::RANGE [(_4, 1)] []",
-    "BLACKBOX::RANGE [(_5, 1)] []",
-    "BLACKBOX::RANGE [(_6, 1)] []",
+    "BLACKBOX::RANGE [_3]:1 bits []",
+    "BLACKBOX::RANGE [_4]:1 bits []",
+    "BLACKBOX::RANGE [_5]:1 bits []",
+    "BLACKBOX::RANGE [_6]:1 bits []",
     "EXPR [ (1, _0) (-1, _3) (-2, _4) (-4, _5) (-8, _6) 0 ]",
     "EXPR [ (1, _6, _6) (2, _6) (-1, _7) 1 ]",
     "EXPR [ (-1, _5) (-1, _8) 1 ]",
@@ -60,16 +60,16 @@ expression: artifact
     "EXPR [ (-1, _3) (-1, _14) 1 ]",
     "EXPR [ (2, _3, _13) (1, _13, _14) (-1, _15) 0 ]",
     "BRILLIG CALL func 1: inputs: [EXPR [ (1, _0, _15) 0 ], EXPR [ 65536 ]], outputs: [_16, _17]",
-    "BLACKBOX::RANGE [(_16, 16)] []",
+    "BLACKBOX::RANGE [_16]:16 bits []",
     "EXPR [ (1, _0, _15) (-65536, _16) (-1, _17) 0 ]",
     "EXPR [ (1, _17) -8 ]",
     "BRILLIG CALL func 3: inputs: [EXPR [ (1, _15) 0 ]], outputs: [_18]",
     "EXPR [ (1, _15, _18) -1 ]",
     "BRILLIG CALL func 1: inputs: [EXPR [ 8 ], EXPR [ (1, _15) 0 ]], outputs: [_19, _20]",
-    "BLACKBOX::RANGE [(_19, 16)] []",
-    "BLACKBOX::RANGE [(_20, 16)] []",
+    "BLACKBOX::RANGE [_19]:16 bits []",
+    "BLACKBOX::RANGE [_20]:16 bits []",
     "EXPR [ (1, _15) (-1, _20) (-1, _21) -1 ]",
-    "BLACKBOX::RANGE [(_21, 16)] []",
+    "BLACKBOX::RANGE [_21]:16 bits []",
     "EXPR [ (-1, _15, _19) (-1, _20) 8 ]",
     "EXPR [ (-1, _0) (1, _19) 0 ]",
     "BRILLIG CALL func 0: inputs: [EXPR [ (1, _0) 0 ]], outputs: []",
@@ -84,13 +84,9 @@ expression: artifact
   ],
   "debug_symbols": "[debug_symbols]",
   "file_map": "[file_map]",
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "test_u16_unconstrained",
-    "directive_integer_quotient",
-    "directive_to_radix",
-    "directive_invert"
-  ]
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
+  }
 }

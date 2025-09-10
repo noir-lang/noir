@@ -51,18 +51,18 @@ expression: artifact
     "private parameters indices : [_0, _1]",
     "public parameters indices : []",
     "return value indices : [_2]",
-    "BLACKBOX::RANGE [(_0, 32)] []",
-    "BLACKBOX::RANGE [(_1, 8)] []",
+    "BLACKBOX::RANGE [_0]:32 bits []",
+    "BLACKBOX::RANGE [_1]:8 bits []",
     "BRILLIG CALL func 0: inputs: [EXPR [ (1, _1) 4294967264 ], EXPR [ 4294967296 ]], outputs: [_3, _4]",
-    "BLACKBOX::RANGE [(_4, 32)] []",
+    "BLACKBOX::RANGE [_4]:32 bits []",
     "EXPR [ (1, _1) (-4294967296, _3) (-1, _4) 4294967264 ]",
     "EXPR [ (-1, _3) 0 ]",
     "BRILLIG CALL func 1: inputs: [EXPR [ (1, _1) 0 ], EXPR [ 5 ], EXPR [ 2 ]], outputs: [[_5, _6, _7, _8, _9]]",
-    "BLACKBOX::RANGE [(_5, 1)] []",
-    "BLACKBOX::RANGE [(_6, 1)] []",
-    "BLACKBOX::RANGE [(_7, 1)] []",
-    "BLACKBOX::RANGE [(_8, 1)] []",
-    "BLACKBOX::RANGE [(_9, 1)] []",
+    "BLACKBOX::RANGE [_5]:1 bits []",
+    "BLACKBOX::RANGE [_6]:1 bits []",
+    "BLACKBOX::RANGE [_7]:1 bits []",
+    "BLACKBOX::RANGE [_8]:1 bits []",
+    "BLACKBOX::RANGE [_9]:1 bits []",
     "EXPR [ (1, _1) (-1, _5) (-2, _6) (-4, _7) (-8, _8) (-16, _9) 0 ]",
     "EXPR [ (1, _9, _9) (2, _9) (-1, _10) 1 ]",
     "EXPR [ (-1, _8) (-1, _11) 1 ]",
@@ -77,8 +77,8 @@ expression: artifact
     "EXPR [ (-1, _5) (-1, _20) 1 ]",
     "EXPR [ (2, _5, _19) (1, _19, _20) (-1, _21) 0 ]",
     "BRILLIG CALL func 0: inputs: [EXPR [ (1, _0, _21) 0 ], EXPR [ 4294967296 ]], outputs: [_22, _23]",
-    "BLACKBOX::RANGE [(_22, 8)] []",
-    "BLACKBOX::RANGE [(_23, 32)] []",
+    "BLACKBOX::RANGE [_22]:8 bits []",
+    "BLACKBOX::RANGE [_23]:32 bits []",
     "EXPR [ (1, _0, _21) (-4294967296, _22) (-1, _23) 0 ]",
     "EXPR [ (1, _2) (-1, _23) 0 ]",
     "unconstrained func 0",
@@ -88,11 +88,9 @@ expression: artifact
   ],
   "debug_symbols": "[debug_symbols]",
   "file_map": "[file_map]",
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "directive_integer_quotient",
-    "directive_to_radix"
-  ]
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
+  }
 }

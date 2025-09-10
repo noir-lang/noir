@@ -277,7 +277,7 @@ impl InstructionArgumentsMutation {
                     }
                 }
             }
-            Instruction::PointAdd { p1, p2 } => {
+            Instruction::PointAdd { p1, p2, .. } => {
                 match BASIC_INSTRUCTION_ARGUMENT_MUTATION_CONFIGURATION.select(rng) {
                     InstructionArgumentMutationOptions::Left => {
                         mutate_point(p1, rng);
@@ -288,7 +288,7 @@ impl InstructionArgumentsMutation {
                 }
             }
 
-            Instruction::MultiScalarMul { points_and_scalars } => {
+            Instruction::MultiScalarMul { points_and_scalars, .. } => {
                 mutate_vec(
                     points_and_scalars,
                     rng,
@@ -306,6 +306,7 @@ impl InstructionArgumentsMutation {
                 corrupt_pubkey_x,
                 corrupt_pubkey_y,
                 corrupt_signature,
+                ..
             }
             | Instruction::EcdsaSecp256r1 {
                 msg,
@@ -313,6 +314,7 @@ impl InstructionArgumentsMutation {
                 corrupt_pubkey_x,
                 corrupt_pubkey_y,
                 corrupt_signature,
+                ..
             } => {
                 mutate_vec(
                     msg,

@@ -10,11 +10,19 @@ fn main() {
 fn bug() {
     let mut a: ([Field; 2], Field) = ([1_Field, 2_Field], 3_Field);
     {
+<<<<<<< HEAD
         let i_4234: u32 = {
             a = ([4_Field, 5_Field], 6_Field);
             1_u32
         };
         a.0[i_4234] = 7_Field;
+=======
+        let i_3948: u32 = {
+            a = ([4_Field, 5_Field], 6_Field);
+            1_u32
+        };
+        a.0[i_3948] = 7_Field;
+>>>>>>> 5b65f9637e85a4177692c3190cb35ea678fb15e9
     };
     assert(a == ([4_Field, 7_Field], 6_Field));
 }

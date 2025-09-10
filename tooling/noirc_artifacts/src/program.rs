@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 
 use acvm::FieldElement;
+use acvm::acir::circuit::ExpressionWidth;
 use acvm::acir::circuit::Program;
 use fm::FileId;
 use noirc_abi::Abi;
@@ -37,10 +38,8 @@ pub struct ProgramArtifact {
 
     /// Map of file Id to the source code so locations in debug info can be mapped to source code they point to.
     pub file_map: BTreeMap<FileId, DebugFile>,
-
-    pub names: Vec<String>,
-    /// Names of the unconstrained functions in the program.
-    pub brillig_names: Vec<String>,
+    /// Maximum width of the expressions which will be constrained
+    pub expression_width: ExpressionWidth,
 }
 
 impl From<CompiledProgram> for ProgramArtifact {
@@ -52,8 +51,7 @@ impl From<CompiledProgram> for ProgramArtifact {
             bytecode: compiled_program.program,
             debug_symbols: ProgramDebugInfo { debug_infos: compiled_program.debug },
             file_map: compiled_program.file_map,
-            names: compiled_program.names,
-            brillig_names: compiled_program.brillig_names,
+            expression_width: compiled_program.expression_width,
         }
     }
 }
@@ -68,8 +66,7 @@ impl From<ProgramArtifact> for CompiledProgram {
             debug: program.debug_symbols.debug_infos,
             file_map: program.file_map,
             warnings: vec![],
-            names: program.names,
-            brillig_names: program.brillig_names,
+            expression_width: program.expression_width,
         }
     }
 }

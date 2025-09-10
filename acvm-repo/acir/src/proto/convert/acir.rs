@@ -6,12 +6,12 @@ use crate::{
     },
     proto::acir::circuit::{
         AssertMessage, AssertionPayload, BlackBoxFuncCall, BlockType, BrilligInputs,
-        BrilligOutputs, Circuit, ConstantOrWitnessEnum, ExpressionOrMemory, ExpressionWidth,
-        FunctionInput, MemOp, Opcode, OpcodeLocation,
+        BrilligOutputs, Circuit, ExpressionOrMemory, ExpressionWidth, FunctionInput, MemOp, Opcode,
+        OpcodeLocation,
     },
 };
 use acir_field::AcirField;
-use color_eyre::eyre::{self, Context};
+use color_eyre::eyre::{self};
 use noir_protobuf::{ProtoCodec, decode_oneof_map};
 
 use super::ProtoSchema;
@@ -19,9 +19,9 @@ use super::ProtoSchema;
 impl<F: AcirField> ProtoCodec<circuit::Circuit<F>, Circuit> for ProtoSchema<F> {
     fn encode(value: &circuit::Circuit<F>) -> Circuit {
         Circuit {
+            function_name: value.function_name.clone(),
             current_witness_index: value.current_witness_index,
             opcodes: Self::encode_vec(&value.opcodes),
-            expression_width: Self::encode_some(&value.expression_width),
             private_parameters: Self::encode_vec(value.private_parameters.iter()),
             public_parameters: Self::encode_vec(value.public_parameters.0.iter()),
             return_values: Self::encode_vec(value.return_values.0.iter()),
@@ -31,9 +31,9 @@ impl<F: AcirField> ProtoCodec<circuit::Circuit<F>, Circuit> for ProtoSchema<F> {
 
     fn decode(value: &Circuit) -> eyre::Result<circuit::Circuit<F>> {
         Ok(circuit::Circuit {
+            function_name: value.function_name.clone(),
             current_witness_index: value.current_witness_index,
             opcodes: Self::decode_vec_wrap(&value.opcodes, "opcodes")?,
-            expression_width: Self::decode_some_wrap(&value.expression_width, "expression_width")?,
             private_parameters: Self::decode_vec_wrap(
                 &value.private_parameters,
                 "private_parameters",
@@ -182,11 +182,10 @@ where
             circuit::Opcode::BlackBoxFuncCall(black_box_func_call) => {
                 Value::BlackboxFuncCall(Self::encode(black_box_func_call))
             }
-            circuit::Opcode::MemoryOp { block_id, op, predicate } => Value::MemoryOp(MemoryOp {
-                block_id: block_id.0,
-                op: Self::encode_some(op),
-                predicate: predicate.as_ref().map(Self::encode),
-            }),
+            circuit::Opcode::MemoryOp { block_id, op } => Value::MemoryOp(
+                #[allow(deprecated)]
+                MemoryOp { block_id: block_id.0, op: Self::encode_some(op), predicate: None },
+            ),
             circuit::Opcode::MemoryInit { block_id, init, block_type } => {
                 Value::MemoryInit(MemoryInit {
                     block_id: block_id.0,
@@ -224,7 +223,6 @@ where
             Value::MemoryOp(memory_op) => Ok(circuit::Opcode::MemoryOp {
                 block_id: BlockId(memory_op.block_id),
                 op: Self::decode_some_wrap(&memory_op.op, "op")?,
-                predicate: Self::decode_opt_wrap(&memory_op.predicate, "predicate")?,
             }),
             Value::MemoryInit(memory_init) => Ok(circuit::Opcode::MemoryInit {
                 block_id: BlockId(memory_init.block_id),
@@ -283,18 +281,20 @@ where
                     outputs: Self::encode_vec(outputs),
                 })
             }
-            opcodes::BlackBoxFuncCall::AND { lhs, rhs, output } => Value::And(And {
+            opcodes::BlackBoxFuncCall::AND { lhs, rhs, num_bits, output } => Value::And(And {
                 lhs: Self::encode_some(lhs),
                 rhs: Self::encode_some(rhs),
+                num_bits: *num_bits,
                 output: Self::encode_some(output),
             }),
-            opcodes::BlackBoxFuncCall::XOR { lhs, rhs, output } => Value::Xor(Xor {
+            opcodes::BlackBoxFuncCall::XOR { lhs, rhs, num_bits, output } => Value::Xor(Xor {
                 lhs: Self::encode_some(lhs),
                 rhs: Self::encode_some(rhs),
+                num_bits: *num_bits,
                 output: Self::encode_some(output),
             }),
-            opcodes::BlackBoxFuncCall::RANGE { input } => {
-                Value::Range(Range { input: Self::encode_some(input) })
+            opcodes::BlackBoxFuncCall::RANGE { input, num_bits } => {
+                Value::Range(Range { input: Self::encode_some(input), num_bits: *num_bits })
             }
             opcodes::BlackBoxFuncCall::Blake2s { inputs, outputs } => Value::Blake2s(Blake2s {
                 inputs: Self::encode_vec(inputs),
@@ -310,12 +310,14 @@ where
                 signature,
                 hashed_message,
                 output,
+                predicate,
             } => Value::EcdsaSecp256k1(EcdsaSecp256k1 {
                 public_key_x: Self::encode_vec(public_key_x.as_ref()),
                 public_key_y: Self::encode_vec(public_key_y.as_ref()),
                 signature: Self::encode_vec(signature.as_ref()),
                 hashed_message: Self::encode_vec(hashed_message.as_ref()),
                 output: Self::encode_some(output),
+                predicate: Self::encode_some(predicate),
             }),
             opcodes::BlackBoxFuncCall::EcdsaSecp256r1 {
                 public_key_x,
@@ -323,26 +325,30 @@ where
                 signature,
                 hashed_message,
                 output,
+                predicate,
             } => Value::EcdsaSecp256r1(EcdsaSecp256r1 {
                 public_key_x: Self::encode_vec(public_key_x.as_ref()),
                 public_key_y: Self::encode_vec(public_key_y.as_ref()),
                 signature: Self::encode_vec(signature.as_ref()),
                 hashed_message: Self::encode_vec(hashed_message.as_ref()),
                 output: Self::encode_some(output),
+                predicate: Self::encode_some(predicate),
             }),
-            opcodes::BlackBoxFuncCall::MultiScalarMul { points, scalars, outputs } => {
+            opcodes::BlackBoxFuncCall::MultiScalarMul { points, scalars, predicate, outputs } => {
                 let (w1, w2, w3) = outputs;
                 Value::MultiScalarMul(MultiScalarMul {
                     points: Self::encode_vec(points),
                     scalars: Self::encode_vec(scalars),
+                    predicate: Self::encode_some(predicate),
                     outputs: Self::encode_vec([w1, w2, w3]),
                 })
             }
-            opcodes::BlackBoxFuncCall::EmbeddedCurveAdd { input1, input2, outputs } => {
+            opcodes::BlackBoxFuncCall::EmbeddedCurveAdd { input1, input2, predicate, outputs } => {
                 let (w1, w2, w3) = outputs;
                 Value::EmbeddedCurveAdd(EmbeddedCurveAdd {
                     input1: Self::encode_vec(input1.as_ref()),
                     input2: Self::encode_vec(input2.as_ref()),
+                    predicate: Self::encode_some(predicate),
                     outputs: Self::encode_vec([w1, w2, w3]),
                 })
             }
@@ -358,43 +364,19 @@ where
                 public_inputs,
                 key_hash,
                 proof_type,
+                predicate,
             } => Value::RecursiveAggregation(RecursiveAggregation {
                 verification_key: Self::encode_vec(verification_key),
                 proof: Self::encode_vec(proof),
                 public_inputs: Self::encode_vec(public_inputs),
                 key_hash: Self::encode_some(key_hash),
                 proof_type: *proof_type,
+                predicate: Self::encode_some(predicate),
             }),
-            opcodes::BlackBoxFuncCall::BigIntAdd { lhs, rhs, output } => {
-                Value::BigIntAdd(BigIntAdd { lhs: *lhs, rhs: *rhs, output: *output })
-            }
-            opcodes::BlackBoxFuncCall::BigIntSub { lhs, rhs, output } => {
-                Value::BigIntSub(BigIntSub { lhs: *lhs, rhs: *rhs, output: *output })
-            }
-            opcodes::BlackBoxFuncCall::BigIntMul { lhs, rhs, output } => {
-                Value::BigIntMul(BigIntMul { lhs: *lhs, rhs: *rhs, output: *output })
-            }
-            opcodes::BlackBoxFuncCall::BigIntDiv { lhs, rhs, output } => {
-                Value::BigIntDiv(BigIntDiv { lhs: *lhs, rhs: *rhs, output: *output })
-            }
-            opcodes::BlackBoxFuncCall::BigIntFromLeBytes { inputs, modulus, output } => {
-                Value::BigIntFromLeBytes(BigIntFromLeBytes {
-                    inputs: Self::encode_vec(inputs),
-                    modulus: modulus.clone(),
-                    output: *output,
-                })
-            }
-            opcodes::BlackBoxFuncCall::BigIntToLeBytes { input, outputs } => {
-                Value::BigIntToLeBytes(BigIntToLeBytes {
-                    input: *input,
-                    outputs: Self::encode_vec(outputs),
-                })
-            }
-            opcodes::BlackBoxFuncCall::Poseidon2Permutation { inputs, outputs, len } => {
+            opcodes::BlackBoxFuncCall::Poseidon2Permutation { inputs, outputs } => {
                 Value::Poseidon2Permutation(Poseidon2Permutation {
                     inputs: Self::encode_vec(inputs),
                     outputs: Self::encode_vec(outputs),
-                    len: *len,
                 })
             }
             opcodes::BlackBoxFuncCall::Sha256Compression { inputs, hash_values, outputs } => {
@@ -423,15 +405,18 @@ where
                     Value::And(v) => Ok(opcodes::BlackBoxFuncCall::AND {
                         lhs: Self::decode_some_wrap(&v.lhs, "lhs")?,
                         rhs: Self::decode_some_wrap(&v.rhs, "rhs")?,
+                        num_bits: v.num_bits,
                         output: Self::decode_some_wrap(&v.output, "output")?,
                     }),
                     Value::Xor(v) => Ok(opcodes::BlackBoxFuncCall::XOR {
                         lhs: Self::decode_some_wrap(&v.lhs, "lhs")?,
                         rhs: Self::decode_some_wrap(&v.rhs, "rhs")?,
+                        num_bits: v.num_bits,
                         output: Self::decode_some_wrap(&v.output, "output")?,
                     }),
                     Value::Range(v) => Ok(opcodes::BlackBoxFuncCall::RANGE {
                         input: Self::decode_some_wrap(&v.input, "input")?,
+                        num_bits: v.num_bits,
                     }),
                     Value::Blake2s(v) => Ok(opcodes::BlackBoxFuncCall::Blake2s {
                         inputs: Self::decode_vec_wrap(&v.inputs, "inputs")?,
@@ -450,6 +435,7 @@ where
                             "hashed_message",
                         )?,
                         output: Self::decode_some_wrap(&v.output, "output")?,
+                        predicate: Self::decode_some_wrap(&v.predicate, "predicate")?,
                     }),
                     Value::EcdsaSecp256r1(v) => Ok(opcodes::BlackBoxFuncCall::EcdsaSecp256r1 {
                         public_key_x: Self::decode_box_arr_wrap(&v.public_key_x, "public_key_x")?,
@@ -460,16 +446,19 @@ where
                             "hashed_message",
                         )?,
                         output: Self::decode_some_wrap(&v.output, "output")?,
+                        predicate: Self::decode_some_wrap(&v.predicate, "predicate")?,
                     }),
                     Value::MultiScalarMul(v) => Ok(opcodes::BlackBoxFuncCall::MultiScalarMul {
                         points: Self::decode_vec_wrap(&v.points, "points")?,
                         scalars: Self::decode_vec_wrap(&v.scalars, "scalars")?,
+                        predicate: Self::decode_some_wrap(&v.predicate, "predicate")?,
                         outputs: Self::decode_arr_wrap(&v.outputs, "outputs")
                             .map(|[w1, w2, w3]| (w1, w2, w3))?,
                     }),
                     Value::EmbeddedCurveAdd(v) => Ok(opcodes::BlackBoxFuncCall::EmbeddedCurveAdd {
                         input1: Self::decode_box_arr_wrap(&v.input1, "input1")?,
                         input2: Self::decode_box_arr_wrap(&v.input2, "input2")?,
+                        predicate: Self::decode_some_wrap(&v.predicate, "predicate")?,
                         outputs: Self::decode_arr_wrap(&v.outputs, "outputs")
                             .map(|[w1, w2, w3]| (w1, w2, w3))?,
                     }),
@@ -490,44 +479,13 @@ where
                             )?,
                             key_hash: Self::decode_some_wrap(&v.key_hash, "key_hash")?,
                             proof_type: v.proof_type,
+                            predicate: Self::decode_some_wrap(&v.predicate, "predicate")?,
                         })
                     }
-                    Value::BigIntAdd(v) => Ok(opcodes::BlackBoxFuncCall::BigIntAdd {
-                        lhs: v.lhs,
-                        rhs: v.rhs,
-                        output: v.output,
-                    }),
-                    Value::BigIntSub(v) => Ok(opcodes::BlackBoxFuncCall::BigIntSub {
-                        lhs: v.lhs,
-                        rhs: v.rhs,
-                        output: v.output,
-                    }),
-                    Value::BigIntMul(v) => Ok(opcodes::BlackBoxFuncCall::BigIntMul {
-                        lhs: v.lhs,
-                        rhs: v.rhs,
-                        output: v.output,
-                    }),
-                    Value::BigIntDiv(v) => Ok(opcodes::BlackBoxFuncCall::BigIntDiv {
-                        lhs: v.lhs,
-                        rhs: v.rhs,
-                        output: v.output,
-                    }),
-                    Value::BigIntFromLeBytes(v) => {
-                        Ok(opcodes::BlackBoxFuncCall::BigIntFromLeBytes {
-                            inputs: Self::decode_vec_wrap(&v.inputs, "inputs")?,
-                            modulus: v.modulus.clone(),
-                            output: v.output,
-                        })
-                    }
-                    Value::BigIntToLeBytes(v) => Ok(opcodes::BlackBoxFuncCall::BigIntToLeBytes {
-                        input: v.input,
-                        outputs: Self::decode_vec_wrap(&v.outputs, "outputs")?,
-                    }),
                     Value::Poseidon2Permutation(v) => {
                         Ok(opcodes::BlackBoxFuncCall::Poseidon2Permutation {
                             inputs: Self::decode_vec_wrap(&v.inputs, "inputs")?,
                             outputs: Self::decode_vec_wrap(&v.outputs, "outputs")?,
-                            len: v.len,
                         })
                     }
                     Value::Sha256Compression(v) => {
@@ -548,46 +506,22 @@ where
     F: AcirField,
 {
     fn encode(value: &opcodes::FunctionInput<F>) -> FunctionInput {
-        FunctionInput { input: Self::encode_some(value.input_ref()), num_bits: value.num_bits() }
+        use crate::proto::acir::circuit::function_input::*;
+        let value = match value {
+            opcodes::FunctionInput::Constant(field) => Value::Constant(Self::encode(field)),
+            opcodes::FunctionInput::Witness(witness) => Value::Witness(Self::encode(witness)),
+        };
+        FunctionInput { value: Some(value) }
     }
 
     fn decode(value: &FunctionInput) -> eyre::Result<opcodes::FunctionInput<F>> {
-        let input = Self::decode_some_wrap(&value.input, "input")?;
-
-        match input {
-            opcodes::ConstantOrWitnessEnum::Constant(c) => {
-                opcodes::FunctionInput::constant(c, value.num_bits).wrap_err("constant")
-            }
-            opcodes::ConstantOrWitnessEnum::Witness(w) => {
-                Ok(opcodes::FunctionInput::witness(w, value.num_bits))
-            }
-        }
-    }
-}
-
-impl<F> ProtoCodec<opcodes::ConstantOrWitnessEnum<F>, ConstantOrWitnessEnum> for ProtoSchema<F>
-where
-    F: AcirField,
-{
-    fn encode(value: &opcodes::ConstantOrWitnessEnum<F>) -> ConstantOrWitnessEnum {
-        use crate::proto::acir::circuit::constant_or_witness_enum::*;
-        let value = match value {
-            opcodes::ConstantOrWitnessEnum::Constant(field) => Value::Constant(Self::encode(field)),
-            opcodes::ConstantOrWitnessEnum::Witness(witness) => {
-                Value::Witness(Self::encode(witness))
-            }
-        };
-        ConstantOrWitnessEnum { value: Some(value) }
-    }
-
-    fn decode(value: &ConstantOrWitnessEnum) -> eyre::Result<opcodes::ConstantOrWitnessEnum<F>> {
-        use crate::proto::acir::circuit::constant_or_witness_enum::*;
+        use crate::proto::acir::circuit::function_input::*;
         decode_oneof_map(&value.value, |value| match value {
             Value::Constant(field) => {
-                Ok(opcodes::ConstantOrWitnessEnum::Constant(Self::decode_wrap(field, "constant")?))
+                Ok(opcodes::FunctionInput::Constant(Self::decode_wrap(field, "constant")?))
             }
             Value::Witness(witness) => {
-                Ok(opcodes::ConstantOrWitnessEnum::Witness(Self::decode_wrap(witness, "witness")?))
+                Ok(opcodes::FunctionInput::Witness(Self::decode_wrap(witness, "witness")?))
             }
         })
     }

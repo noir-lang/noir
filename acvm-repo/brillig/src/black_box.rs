@@ -42,21 +42,9 @@ pub enum BlackBoxOp {
         input2_infinite: MemoryAddress,
         result: HeapArray,
     },
-    /// BigInt addition
-    BigIntAdd { lhs: MemoryAddress, rhs: MemoryAddress, output: MemoryAddress },
-    /// BigInt subtraction
-    BigIntSub { lhs: MemoryAddress, rhs: MemoryAddress, output: MemoryAddress },
-    /// BigInt multiplication
-    BigIntMul { lhs: MemoryAddress, rhs: MemoryAddress, output: MemoryAddress },
-    /// BigInt division
-    BigIntDiv { lhs: MemoryAddress, rhs: MemoryAddress, output: MemoryAddress },
-    /// BigInt from le bytes
-    BigIntFromLeBytes { inputs: HeapVector, modulus: HeapVector, output: MemoryAddress },
-    /// BigInt to le bytes
-    BigIntToLeBytes { input: MemoryAddress, output: HeapVector },
     /// Applies the Poseidon2 permutation function to the given state,
     /// outputting the permuted state.
-    Poseidon2Permutation { message: HeapVector, output: HeapArray, len: MemoryAddress },
+    Poseidon2Permutation { message: HeapVector, output: HeapArray },
     /// Applies the SHA-256 compression function to the input message
     Sha256Compression { input: HeapArray, hash_values: HeapArray, output: HeapArray },
     /// Returns a decomposition in `num_limbs` limbs of the given input over the given radix.

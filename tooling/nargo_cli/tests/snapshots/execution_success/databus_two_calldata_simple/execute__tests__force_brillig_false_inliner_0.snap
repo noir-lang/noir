@@ -64,25 +64,26 @@ expression: artifact
     "private parameters indices : [_0, _1, _2, _3, _4, _5, _6]",
     "public parameters indices : []",
     "return value indices : []",
-    "BLACKBOX::RANGE [(_1, 32)] []",
-    "BLACKBOX::RANGE [(_2, 32)] []",
-    "BLACKBOX::RANGE [(_3, 32)] []",
-    "BLACKBOX::RANGE [(_4, 32)] []",
-    "BLACKBOX::RANGE [(_5, 32)] []",
-    "BLACKBOX::RANGE [(_6, 32)] []",
+    "BLACKBOX::RANGE [_1]:32 bits []",
+    "BLACKBOX::RANGE [_2]:32 bits []",
+    "BLACKBOX::RANGE [_3]:32 bits []",
+    "BLACKBOX::RANGE [_4]:32 bits []",
+    "BLACKBOX::RANGE [_5]:32 bits []",
+    "BLACKBOX::RANGE [_6]:32 bits []",
     "INIT CALLDATA 0 (id: 2, len: 2, witnesses: [_1, _2])",
     "MEM (id: 2, read at: EXPR [ (1, _0) 0 ], value: EXPR [ (1, _8) 0 ]) ",
     "INIT CALLDATA 1 (id: 4, len: 4, witnesses: [_3, _4, _5, _6])",
     "MEM (id: 4, read at: EXPR [ (1, _0) 0 ], value: EXPR [ (1, _9) 0 ]) ",
     "EXPR [ (1, _8) (1, _9) (-1, _10) 0 ]",
-    "BLACKBOX::RANGE [(_10, 32)] []",
+    "BLACKBOX::RANGE [_10]:32 bits []",
     "EXPR [ (1, _7) (-1, _10) 0 ]",
     "INIT RETURNDATA (id: 3, len: 1, witnesses: [_7])"
   ],
   "debug_symbols": "[debug_symbols]",
   "file_map": "[file_map]",
-  "names": [
-    "main"
-  ],
-  "brillig_names": []
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
+  }
 }

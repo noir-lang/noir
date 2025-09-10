@@ -27,15 +27,15 @@ expression: artifact
     "public parameters indices : []",
     "return value indices : []",
     "BRILLIG CALL func 0: inputs: [EXPR [ (1, _0) 0 ], EXPR [ 256 ]], outputs: [_1, _2]",
-    "BLACKBOX::RANGE [(_1, 56)] []",
+    "BLACKBOX::RANGE [_1]:56 bits []",
     "EXPR [ (1, _0) (-256, _1) (-1, _2) 0 ]",
     "EXPR [ (1, _2) -255 ]",
     "BRILLIG CALL func 0: inputs: [EXPR [ (1, _0) 0 ], EXPR [ 65536 ]], outputs: [_3, _4]",
-    "BLACKBOX::RANGE [(_3, 48)] []",
+    "BLACKBOX::RANGE [_3]:48 bits []",
     "EXPR [ (1, _0) (-65536, _3) (-1, _4) 0 ]",
     "EXPR [ (1, _4) -65535 ]",
     "BRILLIG CALL func 0: inputs: [EXPR [ (1, _0) 0 ], EXPR [ 4294967296 ]], outputs: [_5, _6]",
-    "BLACKBOX::RANGE [(_5, 32)] []",
+    "BLACKBOX::RANGE [_5]:32 bits []",
     "EXPR [ (1, _0) (-4294967296, _5) (-1, _6) 0 ]",
     "EXPR [ (1, _6) -4294967295 ]",
     "EXPR [ (1, _0) -18446744073709551615 ]",
@@ -44,10 +44,9 @@ expression: artifact
   ],
   "debug_symbols": "[debug_symbols]",
   "file_map": "[file_map]",
-  "names": [
-    "main"
-  ],
-  "brillig_names": [
-    "directive_integer_quotient"
-  ]
+  "expression_width": {
+    "Bounded": {
+      "width": 4
+    }
+  }
 }

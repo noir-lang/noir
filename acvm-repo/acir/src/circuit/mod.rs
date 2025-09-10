@@ -54,6 +54,9 @@ pub struct Program<F: AcirField> {
 #[derive(Clone, PartialEq, Eq, Serialize, Deserialize, Default, Hash)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub struct Circuit<F: AcirField> {
+    /// Name of the function represented by this circuit.
+    #[serde(default)] // For backwards compatibility
+    pub function_name: String,
     /// current_witness_index is the highest witness index in the circuit. The next witness to be added to this circuit
     /// will take on this value. (The value is cached here as an optimization.)
     pub current_witness_index: u32,
@@ -62,8 +65,6 @@ pub struct Circuit<F: AcirField> {
     /// The opcodes should be further converted into a backend-specific circuit representation.
     /// When initial witness inputs are provided, these opcodes can also be used for generating an execution trace.
     pub opcodes: Vec<Opcode<F>>,
-    /// Maximum width of the [expression][Expression]'s which will be constrained
-    pub expression_width: ExpressionWidth,
 
     /// The set of private inputs to the circuit.
     pub private_parameters: BTreeSet<Witness>,
@@ -411,30 +412,29 @@ mod tests {
         Circuit, Compression, Opcode, PublicInputs,
         opcodes::{BlackBoxFuncCall, FunctionInput},
     };
-    use crate::{
-        circuit::{ExpressionWidth, Program},
-        native_types::Witness,
-    };
+    use crate::{circuit::Program, native_types::Witness};
     use acir_field::{AcirField, FieldElement};
     use serde::{Deserialize, Serialize};
 
     fn and_opcode<F: AcirField>() -> Opcode<F> {
         Opcode::BlackBoxFuncCall(BlackBoxFuncCall::AND {
-            lhs: FunctionInput::witness(Witness(1), 4),
-            rhs: FunctionInput::witness(Witness(2), 4),
+            lhs: FunctionInput::Witness(Witness(1)),
+            rhs: FunctionInput::Witness(Witness(2)),
+            num_bits: 4,
             output: Witness(3),
         })
     }
 
     fn range_opcode<F: AcirField>() -> Opcode<F> {
         Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
-            input: FunctionInput::witness(Witness(1), 8),
+            input: FunctionInput::Witness(Witness(1)),
+            num_bits: 8,
         })
     }
 
     fn keccakf1600_opcode<F: AcirField>() -> Opcode<F> {
         let inputs: Box<[FunctionInput<F>; 25]> =
-            Box::new(std::array::from_fn(|i| FunctionInput::witness(Witness(i as u32 + 1), 8)));
+            Box::new(std::array::from_fn(|i| FunctionInput::Witness(Witness(i as u32 + 1))));
         let outputs: Box<[Witness; 25]> = Box::new(std::array::from_fn(|i| Witness(i as u32 + 26)));
 
         Opcode::BlackBoxFuncCall(BlackBoxFuncCall::Keccakf1600 { inputs, outputs })
@@ -443,8 +443,8 @@ mod tests {
     #[test]
     fn serialization_roundtrip() {
         let circuit = Circuit {
+            function_name: "test".to_string(),
             current_witness_index: 5,
-            expression_width: ExpressionWidth::Unbounded,
             opcodes: vec![and_opcode::<FieldElement>(), range_opcode()],
             private_parameters: BTreeSet::new(),
             public_parameters: PublicInputs(BTreeSet::from_iter(vec![Witness(2), Witness(12)])),
@@ -468,8 +468,8 @@ mod tests {
     #[test]
     fn test_serialize() {
         let circuit = Circuit {
+            function_name: "test".to_string(),
             current_witness_index: 0,
-            expression_width: ExpressionWidth::Unbounded,
             opcodes: vec![
                 Opcode::AssertZero(crate::native_types::Expression {
                     mul_terms: vec![],
@@ -514,8 +514,8 @@ mod tests {
     #[test]
     fn circuit_display_snapshot() {
         let circuit = Circuit {
+            function_name: "test".to_string(),
             current_witness_index: 3,
-            expression_width: ExpressionWidth::Unbounded,
             opcodes: vec![
                 Opcode::AssertZero(crate::native_types::Expression {
                     mul_terms: vec![],
@@ -537,15 +537,15 @@ mod tests {
         insta::assert_snapshot!(
             circuit.to_string(),
             @r"
-            current witness index : _3
-            private parameters indices : []
-            public parameters indices : [_2]
-            return value indices : [_2]
-            EXPR [ (2, _1) 8 ]
-            BLACKBOX::RANGE [(_1, 8)] []
-            BLACKBOX::AND [(_1, 4), (_2, 4)] [_3]
-            BLACKBOX::KECCAKF1600 [(_1, 8), (_2, 8), (_3, 8), (_4, 8), (_5, 8), (_6, 8), (_7, 8), (_8, 8), (_9, 8), (_10, 8), (_11, 8), (_12, 8), (_13, 8), (_14, 8), (_15, 8), (_16, 8), (_17, 8), (_18, 8), (_19, 8), (_20, 8), (_21, 8), (_22, 8), (_23, 8), (_24, 8), (_25, 8)] [_26, _27, _28, _29, _30, _31, _32, _33, _34, _35, _36, _37, _38, _39, _40, _41, _42, _43, _44, _45, _46, _47, _48, _49, _50]
-            "
+        current witness index : _3
+        private parameters indices : []
+        public parameters indices : [_2]
+        return value indices : [_2]
+        EXPR [ (2, _1) 8 ]
+        BLACKBOX::RANGE [_1]:8 bits []
+        BLACKBOX::AND [_1, _2]:4 bits [_3]
+        BLACKBOX::KECCAKF1600 [_1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14, _15, _16, _17, _18, _19, _20, _21, _22, _23, _24, _25] [_26, _27, _28, _29, _30, _31, _32, _33, _34, _35, _36, _37, _38, _39, _40, _41, _42, _43, _44, _45, _46, _47, _48, _49, _50]
+        "
         );
     }
 
