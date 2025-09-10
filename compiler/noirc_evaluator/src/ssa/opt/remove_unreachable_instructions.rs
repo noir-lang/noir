@@ -370,6 +370,7 @@ impl Function {
     }
 }
 
+/// If a binary operation is guaranteed to fail, returns the error message. Otherwise returns None.
 fn binary_operation_always_fails(
     lhs: ValueId,
     operator: BinaryOp,
