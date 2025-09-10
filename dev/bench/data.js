@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1757503749837,
+  "lastUpdate": 1757504734934,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -20206,48 +20206,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "4ac0daf94c891e09d27a517f53ab5c4e24a357df",
-          "message": "chore: Add `PostOrder::into_vec_reverse` (#9708)",
-          "timestamp": "2025-09-02T09:53:06Z",
-          "tree_id": "d077c9845924c3630da6d632120c73fa95f4e6ae",
-          "url": "https://github.com/noir-lang/noir/commit/4ac0daf94c891e09d27a517f53ab5c4e24a357df"
-        },
-        "date": 1756808278968,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 265344,
-            "range": "± 721",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 236011,
-            "range": "± 7803",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2798542,
-            "range": "± 2515",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -22299,6 +22257,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2803879,
             "range": "± 2209",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "8cfbdb9d2cbe21faa883271d3259c726db275ad5",
+          "message": "fix: proper error when dividing by minus 1 (#9762)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-09-10T11:18:32Z",
+          "tree_id": "9f5d3c67bd42a8d00fce203fb35809bb60c78c31",
+          "url": "https://github.com/noir-lang/noir/commit/8cfbdb9d2cbe21faa883271d3259c726db275ad5"
+        },
+        "date": 1757504714365,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 247823,
+            "range": "± 467",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 219636,
+            "range": "± 5348",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2787840,
+            "range": "± 20480",
             "unit": "ns/iter"
           }
         ]
