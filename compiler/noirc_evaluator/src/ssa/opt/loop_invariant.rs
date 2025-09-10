@@ -2108,8 +2108,6 @@ mod test {
         "#
         );
 
-        println!("{src}");
-
         let ssa = Ssa::from_str(&src).unwrap();
         let ssa = ssa.loop_invariant_code_motion();
         // The pre-header of the loop b4 is b2
