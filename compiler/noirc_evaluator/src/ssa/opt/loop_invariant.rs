@@ -2331,11 +2331,13 @@ mod control_dependence {
         assert_ssa_snapshot,
         ssa::{
             interpreter::{errors::InterpreterError, tests::from_constant},
-            ir::types::NumericType,
+            ir::{function::RuntimeType, types::NumericType},
             opt::{assert_normalized_ssa_equals, assert_ssa_does_not_change, unrolling::Loops},
             ssa_gen::Ssa,
         },
     };
+    use noirc_frontend::monomorphization::ast::InlineType;
+    use test_case::test_case;
 
     #[test]
     fn do_not_hoist_unsafe_mul_in_control_dependent_block() {
@@ -3489,5 +3491,36 @@ mod control_dependence {
         let mut loops = Loops::find_all(ssa.main());
         let loop_ = loops.yet_to_unroll.pop().unwrap();
         assert!(!loop_.is_fully_executed(&loops.cfg));
+    }
+
+    #[test_case(RuntimeType::Brillig(InlineType::default()))]
+    #[test_case(RuntimeType::Acir(InlineType::default()))]
+    fn do_not_hoist_unsafe_array_get_from_control_dependent_block(runtime: RuntimeType) {
+        // We use an unknown index v0 to index an array, but only if v1 is true,
+        // so we should not hoist the constraint or the array_get into the header.
+        let src = format!(
+            r#"
+          {runtime} impure fn main f0 {{
+            b0(v0: u32, v1: u1):
+              v2 = make_array [u8 0, u8 1] : [u8; 2]
+              jmp b1(u32 0)
+            b1(v3: u32):
+              v4 = lt v3, u32 2
+              jmpif v4 then: b2, else: b3
+            b2():
+              jmpif v2 then: b4, else: b5
+            b3():
+              return
+            b4():
+              constrain v0 == u32 0, "Index out of bounds"
+              v5 = array_get v2, index v0 -> u8
+              jmp b5()
+            b5():
+              v6 = unchecked_add v3, u32 1
+              jmp b1(v6)
+          }}
+          "#
+        );
+        assert_ssa_does_not_change(&src, Ssa::loop_invariant_code_motion);
     }
 }
