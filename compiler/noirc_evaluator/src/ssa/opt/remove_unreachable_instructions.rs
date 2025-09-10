@@ -329,7 +329,7 @@ impl Function {
                         return;
                     };
 
-                    let length = arguments.get(0).unwrap_or_else(|| {
+                    let length = arguments.first().unwrap_or_else(|| {
                         unreachable!("slice operations have 2 arguments: [length, slice]")
                     });
                     let is_empty =
