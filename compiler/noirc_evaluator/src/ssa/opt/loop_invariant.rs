@@ -878,7 +878,7 @@ pub(super) fn can_be_hoisted(instruction: &Instruction, dfg: &DataFlowGraph) -> 
 
         // These can have different behavior depending on the predicate.
         Binary(_) => {
-            if !instruction.has_side_effects(&dfg) {
+            if !instruction.has_side_effects(dfg) {
                 Yes
             } else {
                 WithPredicate
