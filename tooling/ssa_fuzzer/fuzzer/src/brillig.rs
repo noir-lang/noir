@@ -13,11 +13,16 @@ use fuzz_lib::{
 use libfuzzer_sys::Corpus;
 use mutations::mutate;
 use noirc_driver::CompileOptions;
+use noirc_evaluator::ssa::ir::function::RuntimeType;
+use noirc_frontend::monomorphization::ast::InlineType as FrontendInlineType;
 use rand::{SeedableRng, rngs::StdRng};
 use sha1::{Digest, Sha1};
 use utils::{push_fuzzer_output_to_redis_queue, redis};
 
 const MAX_EXECUTION_TIME_TO_KEEP_IN_CORPUS: u64 = 3;
+const INLINE_TYPE: FrontendInlineType = FrontendInlineType::Inline;
+const BRILLIG_RUNTIME: RuntimeType = RuntimeType::Brillig(INLINE_TYPE);
+const TARGET_RUNTIMES: [RuntimeType; 1] = [BRILLIG_RUNTIME];
 
 libfuzzer_sys::fuzz_target!(|data: &[u8]| -> Corpus {
     let _ = env_logger::try_init();
@@ -40,23 +45,15 @@ libfuzzer_sys::fuzz_target!(|data: &[u8]| -> Corpus {
         }
     }
 
-    // Disable some instructions with bugs that are not fixed yet
+    // You can disable some instructions with bugs that are not fixed yet
+    let modes = vec![FuzzerMode::NonConstant];
     let instruction_options = InstructionOptions {
-        // https://github.com/noir-lang/noir/issues/9707
-        shr_enabled: false,
-        shl_enabled: false,
-        // https://github.com/noir-lang/noir/issues/9437
         array_get_enabled: false,
         array_set_enabled: false,
-        // https://github.com/noir-lang/noir/issues/9559
-        point_add_enabled: false,
-        multi_scalar_mul_enabled: false,
-        // https://github.com/noir-lang/noir/issues/9619
         ecdsa_secp256k1_enabled: false,
         ecdsa_secp256r1_enabled: false,
         ..InstructionOptions::default()
     };
-    let modes = vec![FuzzerMode::NonConstant];
     let fuzzer_command_options =
         FuzzerCommandOptions { loops_enabled: false, ..FuzzerCommandOptions::default() };
     let options = FuzzerOptions {
@@ -70,12 +67,11 @@ libfuzzer_sys::fuzz_target!(|data: &[u8]| -> Corpus {
         .unwrap_or((FuzzerData::default(), 1337))
         .0;
     let start = std::time::Instant::now();
-    let fuzzer_output = fuzz_target(fuzzer_data, options);
+    let fuzzer_output = fuzz_target(fuzzer_data, TARGET_RUNTIMES.to_vec(), options);
 
     // If REDIS_URL is set and generated program is executed
-    if redis::ensure_redis_connection() && fuzzer_output.is_some() {
+    if redis::ensure_redis_connection() {
         // cargo-fuzz saves tests with name equal to sha1 of content
-        let fuzzer_output = fuzzer_output.unwrap();
         let mut hasher = Sha1::new();
         hasher.update(data);
         let sha1_hash = hasher.finalize();
