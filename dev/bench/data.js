@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1757494845710,
+  "lastUpdate": 1757502932700,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -20216,48 +20216,6 @@ window.BENCHMARK_DATA = {
             "username": "web-flow"
           },
           "distinct": true,
-          "id": "63f1528a210015029f1647285aaf084222051a63",
-          "message": "chore: Refactor `compute_dominance_frontiers` (#9703)",
-          "timestamp": "2025-09-02T06:48:23Z",
-          "tree_id": "dc8ce1ec04f8dc05b20db4ea75f94404ac0cb64f",
-          "url": "https://github.com/noir-lang/noir/commit/63f1528a210015029f1647285aaf084222051a63"
-        },
-        "date": 1756798068086,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 255829,
-            "range": "± 501",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 230414,
-            "range": "± 4599",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2792091,
-            "range": "± 1192",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
           "id": "4ac0daf94c891e09d27a517f53ab5c4e24a357df",
           "message": "chore: Add `PostOrder::into_vec_reverse` (#9708)",
           "timestamp": "2025-09-02T09:53:06Z",
@@ -22299,6 +22257,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2808473,
             "range": "± 1238",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "26174818+jialinli98@users.noreply.github.com",
+            "name": "Jialin Li",
+            "username": "jialinli98"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "6645261b1b15f5d74b781bcedce60278e352b84f",
+          "message": "chore: tests for field in stdlib (#9677)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-09-10T10:48:48Z",
+          "tree_id": "dc54eefd521ac9efe725a888c7b4a940482c2593",
+          "url": "https://github.com/noir-lang/noir/commit/6645261b1b15f5d74b781bcedce60278e352b84f"
+        },
+        "date": 1757502911810,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 255841,
+            "range": "± 751",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 228525,
+            "range": "± 2574",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2803879,
+            "range": "± 2209",
             "unit": "ns/iter"
           }
         ]
