@@ -1,9 +1,11 @@
 #![no_main]
 
+mod avm_integration;
 pub(crate) mod fuzz_lib;
 mod mutations;
 mod utils;
 
+use avm_integration::{AvmComparisonResult, compare_with_avm};
 use bincode::serde::{borrow_decode_from_slice, encode_to_vec};
 use fuzz_lib::{
     fuzz_target_lib::fuzz_target,
@@ -16,10 +18,8 @@ use noirc_driver::CompileOptions;
 use noirc_evaluator::ssa::ir::function::RuntimeType;
 use noirc_frontend::monomorphization::ast::InlineType as FrontendInlineType;
 use rand::{SeedableRng, rngs::StdRng};
-use sha1::{Digest, Sha1};
-use utils::{push_fuzzer_output_to_redis_queue, redis};
 
-const MAX_EXECUTION_TIME_TO_KEEP_IN_CORPUS: u64 = 3;
+const MAX_EXECUTION_TIME_TO_KEEP_IN_CORPUS: u64 = 10;
 const INLINE_TYPE: FrontendInlineType = FrontendInlineType::Inline;
 const BRILLIG_RUNTIME: RuntimeType = RuntimeType::Brillig(INLINE_TYPE);
 const TARGET_RUNTIMES: [RuntimeType; 1] = [BRILLIG_RUNTIME];
@@ -69,22 +69,31 @@ libfuzzer_sys::fuzz_target!(|data: &[u8]| -> Corpus {
     let start = std::time::Instant::now();
     let fuzzer_output = fuzz_target(fuzzer_data, TARGET_RUNTIMES.to_vec(), options);
 
-    // If REDIS_URL is set and generated program is executed
-    if redis::ensure_redis_connection() {
-        // cargo-fuzz saves tests with name equal to sha1 of content
-        let mut hasher = Sha1::new();
-        hasher.update(data);
-        let sha1_hash = hasher.finalize();
-        let test_id = format!("{sha1_hash:x}");
-        match push_fuzzer_output_to_redis_queue("fuzzer_output", test_id, fuzzer_output) {
-            Ok(json_str) => log::debug!("{json_str}"),
-            Err(e) => log::error!("Failed to push to Redis queue: {e}"),
+    match compare_with_avm(&fuzzer_output) {
+        AvmComparisonResult::Match => {
+            log::info!("AVM and Brillig outputs match");
+        }
+        AvmComparisonResult::Mismatch { brillig_outputs, avm_outputs } => {
+            log::error!("AVM and Brillig outputs mismatch!");
+            log::error!("Brillig outputs: {:?}", brillig_outputs);
+            log::error!("AVM outputs: {:?}", avm_outputs);
+            panic!("AVM vs Brillig mismatch detected");
+        }
+        AvmComparisonResult::TranspilerError(err) => {
+            panic!("Transpiler error: {}", err);
+        }
+        AvmComparisonResult::SimulatorError(err) => {
+            panic!("Simulator error: {}", err);
+        }
+        AvmComparisonResult::BrilligCompilationError(err) => {
+            log::debug!("Brillig compilation error: {}", err);
         }
     }
 
     if start.elapsed().as_secs() > MAX_EXECUTION_TIME_TO_KEEP_IN_CORPUS {
         return Corpus::Reject;
     }
+
     Corpus::Keep
 });
 
