@@ -377,22 +377,9 @@ fn binary_operation_always_fails(
     context: &SimpleOptimizationContext,
 ) -> Option<String> {
     // Unchecked operations can never fail
-    match operator {
-        BinaryOp::Add { unchecked } | BinaryOp::Sub { unchecked } | BinaryOp::Mul { unchecked } => {
-            if unchecked {
-                return None;
-            }
-        }
-        BinaryOp::Div
-        | BinaryOp::Mod
-        | BinaryOp::Eq
-        | BinaryOp::Lt
-        | BinaryOp::And
-        | BinaryOp::Or
-        | BinaryOp::Xor
-        | BinaryOp::Shl
-        | BinaryOp::Shr => (),
-    };
+    if binary_operator_is_unchecked(operator) {
+        return None;
+    }
 
     let rhs_value = context.dfg.get_numeric_constant(rhs)?;
 
@@ -413,6 +400,23 @@ fn binary_operation_always_fails(
     match eval_constant_binary_op(lhs_value, rhs_value, operator, numeric_type) {
         BinaryEvaluationResult::Failure(message) => Some(message),
         BinaryEvaluationResult::CouldNotEvaluate | BinaryEvaluationResult::Success(..) => None,
+    }
+}
+
+fn binary_operator_is_unchecked(operator: BinaryOp) -> bool {
+    match operator {
+        BinaryOp::Add { unchecked } | BinaryOp::Sub { unchecked } | BinaryOp::Mul { unchecked } => {
+            unchecked
+        }
+        BinaryOp::Div
+        | BinaryOp::Mod
+        | BinaryOp::Eq
+        | BinaryOp::Lt
+        | BinaryOp::And
+        | BinaryOp::Or
+        | BinaryOp::Xor
+        | BinaryOp::Shl
+        | BinaryOp::Shr => false,
     }
 }
 
