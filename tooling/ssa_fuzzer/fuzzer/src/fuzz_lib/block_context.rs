@@ -877,13 +877,12 @@ impl BlockContext {
         index: Option<usize>,
     ) -> TypedValue {
         log::debug!("Finding values with type: {type_:?}");
-        let values_of_such_type = self.stored_variables.get(type_);
-        if values_of_such_type.is_some() {
+        if let Some(values_of_such_type) = self.stored_variables.get(type_) {
             if let Some(index) = index {
-                let length = values_of_such_type.unwrap().len();
-                return values_of_such_type.unwrap().get(index % length).cloned().unwrap();
+                let length = values_of_such_type.len();
+                return values_of_such_type.get(index % length).cloned().unwrap();
             } else {
-                return values_of_such_type.unwrap().last().cloned().unwrap();
+                return values_of_such_type.last().cloned().unwrap();
             }
         }
 
