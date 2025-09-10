@@ -140,13 +140,8 @@ impl PostOrder {
         // Observation: the topological order for a SSA graph with 1 entry and 1 exit
         // is each block sorted by order of the maximum cost to reach that block from the
         // entry block using each edge at most once.
-        dbg!();
         let graph = cfg.as_petgraph();
-        dbg!();
-
         let sort = Self::topological_sort(&graph.graph);
-
-        dbg!(&sort);
         vecmap(sort, |index| graph.node_to_block[&index])
     }
 }

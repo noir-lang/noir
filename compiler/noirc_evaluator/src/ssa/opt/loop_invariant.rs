@@ -117,43 +117,32 @@ impl Ssa {
             function.loop_invariant_code_motion();
         }
 
-        dbg!();
         self
     }
 }
 
 impl Function {
     pub(super) fn loop_invariant_code_motion(&mut self) {
-        dbg!();
         Loops::find_all(self).hoist_loop_invariants(self);
-        dbg!();
     }
 }
 
 impl Loops {
     fn hoist_loop_invariants(mut self, function: &mut Function) {
-        dbg!();
         let mut context = LoopInvariantContext::new(function, &self.yet_to_unroll);
-        dbg!();
 
         // The loops should be sorted by the number of blocks.
         // We want to access outer nested loops first, which we do by popping
         // from the top of the list.
         while let Some(loop_) = self.yet_to_unroll.pop() {
-            dbg!(&loop_);
             // If the loop does not have a preheader we skip hoisting loop invariants for this loop
             if let Ok(pre_header) = loop_.get_pre_header(context.inserter.function, &self.cfg) {
-                dbg!();
                 context.hoist_loop_invariants(&loop_, &self.yet_to_unroll, pre_header);
-                dbg!();
             };
         }
 
-        dbg!();
         context.map_dependent_instructions();
-        dbg!();
         context.inserter.map_data_bus_in_place();
-        dbg!();
     }
 }
 
@@ -286,6 +275,42 @@ impl BlockContext {
 }
 
 impl LoopContext {
+    /// Create a `LoopContext`:
+    /// * Gather the variables declared within the loop
+    /// * Determine the induction variable bounds
+    fn new(
+        inserter: &FunctionInserter,
+        cfg: &ControlFlowGraph,
+        loop_: &Loop,
+        pre_header: BasicBlockId,
+    ) -> Self {
+        let mut defined_in_loop = HashSet::default();
+        for block in loop_.blocks.iter() {
+            let params = inserter.function.dfg.block_parameters(*block);
+            defined_in_loop.extend(params);
+            for instruction_id in inserter.function.dfg[*block].instructions() {
+                let results = inserter.function.dfg.instruction_results(*instruction_id);
+                defined_in_loop.extend(results);
+            }
+        }
+        let induction_variable = get_induction_var_bounds(inserter, loop_, pre_header);
+
+        Self {
+            // There is only ever one current induction variable for a loop.
+            induction_variable,
+            does_loop_execute: does_loop_execute(induction_variable.map(|(_, bounds)| bounds)),
+            pre_header,
+            defined_in_loop,
+            loop_invariants: HashSet::default(),
+            // Clear any cached control dependent nested loop blocks from the previous loop.
+            // This set is only relevant within the scope of a single loop.
+            // Keeping previous data would incorrectly classify blocks as control dependent,
+            // leading to missed hoisting opportunities.
+            nested_loop_control_dependent_blocks: HashSet::default(),
+            no_break: loop_.is_fully_executed(cfg),
+        }
+    }
+
     fn pre_header(&self) -> BasicBlockId {
         self.pre_header
     }
@@ -388,28 +413,20 @@ impl<'f> LoopInvariantContext<'f> {
         all_loops: &[Loop],
         pre_header: BasicBlockId,
     ) {
-        dbg!();
-        let mut loop_context = self.init_loop_context(loop_, pre_header);
-        dbg!();
+        let mut loop_context = LoopContext::new(&self.inserter, &self.cfg, loop_, pre_header);
 
         for block in loop_.blocks.iter() {
-            dbg!(block);
             let mut block_context =
                 self.init_block_context(&mut loop_context, loop_, all_loops, *block);
 
-            dbg!();
             for instruction_id in self.inserter.function.dfg[*block].take_instructions() {
-                dbg!(instruction_id);
-
                 if self.simplify_from_loop_bounds(&loop_context, &block_context, instruction_id) {
                     continue;
                 }
-                dbg!();
                 let hoist_invariant =
                     self.can_hoist_invariant(&loop_context, &block_context, instruction_id);
 
                 if hoist_invariant {
-                    dbg!();
                     self.inserter.push_instruction(instruction_id, pre_header);
 
                     // If we are hoisting a MakeArray instruction,
@@ -458,7 +475,6 @@ impl<'f> LoopInvariantContext<'f> {
                     .extend_values_defined_in_loop_and_invariants(&results, hoist_invariant);
             }
         }
-        dbg!();
 
         // We're now done with this loop so it's now safe to insert its bounds into `outer_induction_variables`.
         if let Some((induction_variable, bounds)) =
@@ -466,7 +482,6 @@ impl<'f> LoopInvariantContext<'f> {
         {
             self.outer_induction_variables.insert(induction_variable, bounds);
         };
-        dbg!();
     }
 
     /// Checks whether a `block` is control dependent on any blocks after
@@ -586,37 +601,6 @@ impl<'f> LoopInvariantContext<'f> {
             }
         }
         true
-    }
-
-    /// Create a `LoopContext`:
-    /// * Gather the variables declared within the loop
-    /// * Determine the induction variable bounds
-    fn init_loop_context(&mut self, loop_: &Loop, pre_header: BasicBlockId) -> LoopContext {
-        let mut defined_in_loop = HashSet::default();
-        for block in loop_.blocks.iter() {
-            let params = self.inserter.function.dfg.block_parameters(*block);
-            defined_in_loop.extend(params);
-            for instruction_id in self.inserter.function.dfg[*block].instructions() {
-                let results = self.inserter.function.dfg.instruction_results(*instruction_id);
-                defined_in_loop.extend(results);
-            }
-        }
-        let induction_variable = get_induction_var_bounds(&self.inserter, loop_, pre_header);
-
-        LoopContext {
-            // There is only ever one current induction variable for a loop.
-            induction_variable,
-            does_loop_execute: does_loop_execute(induction_variable.map(|(_, bounds)| bounds)),
-            pre_header,
-            defined_in_loop,
-            loop_invariants: HashSet::default(),
-            // Clear any cached control dependent nested loop blocks from the previous loop.
-            // This set is only relevant within the scope of a single loop.
-            // Keeping previous data would incorrectly classify blocks as control dependent,
-            // leading to missed hoisting opportunities.
-            nested_loop_control_dependent_blocks: HashSet::default(),
-            no_break: loop_.is_fully_executed(&self.cfg),
-        }
     }
 
     /// Create a `BlockContext`.
@@ -893,7 +877,7 @@ fn can_be_hoisted(instruction: &Instruction, function: &Function) -> CanBeHoiste
         MakeArray { .. } => function.runtime().is_acir().into(),
 
         // These can have different behavior depending on the predicate.
-        Binary(_) | ArrayGet { .. } | ArraySet { .. } => {
+        Binary(_) | ArraySet { .. } | ArrayGet { .. } => {
             if !instruction.requires_acir_gen_predicate(&function.dfg) {
                 Yes
             } else {
@@ -914,7 +898,7 @@ mod test {
     use crate::ssa::ir::instruction::{Instruction, Intrinsic, TerminatorInstruction};
     use crate::ssa::ir::types::Type;
     use crate::ssa::opt::loop_invariant::{
-        CanBeHoistedResult, LoopInvariantContext, can_be_hoisted,
+        CanBeHoistedResult, LoopContext, LoopInvariantContext, can_be_hoisted,
     };
     use crate::ssa::opt::pure::Purity;
     use crate::ssa::opt::unrolling::Loops;
@@ -1954,10 +1938,10 @@ mod test {
         let mut ssa = Ssa::from_str(src).unwrap();
         let function = ssa.functions.get_mut(&ssa.main_id).unwrap();
         let mut loops = Loops::find_all(function);
-        let mut ctx = LoopInvariantContext::new(function, &loops.yet_to_unroll);
+        let ctx = LoopInvariantContext::new(function, &loops.yet_to_unroll);
         let pre_header = BasicBlockId::new(0);
         let loop_ = loops.yet_to_unroll.pop().unwrap();
-        let mut loop_ctx = ctx.init_loop_context(&loop_, pre_header);
+        let mut loop_ctx = LoopContext::new(&ctx.inserter, &ctx.cfg, &loop_, pre_header);
 
         let mut get_block_ctx = |id| {
             ctx.init_block_context(
@@ -2060,8 +2044,8 @@ mod test {
     #[test_case("u32", 0, 10, 0, true, "eq", 5, true, "loop empty, but eq is safe")]
     #[test_case("u32", 5, 10, 10, true, "shr", 1, true, "loop executes, shr ok")]
     #[test_case("u32", 5, 10, 0, true, "shr", 1, false, "loop empty, shr ok")]
-    #[test_case("u32", 5, 10, 10, true, "shr", 10, true, "shr overflow, and loop executes")]
-    #[test_case("u32", 5, 10, 0, true, "shr", 10, false, "shr overflow, but loop empty")]
+    #[test_case("u32", 5, 10, 10, true, "shr", 32, true, "shr overflow, and loop executes")]
+    #[test_case("u32", 5, 10, 0, true, "shr", 32, false, "shr overflow, but loop empty")]
     #[test_case("u32", 5, 10, 10, true, "shl", 1, true, "loop executes, shl ok")]
     #[test_case("u32", 5, 10, 0, true, "shl", 1, false, "loop empty, shl ok")]
     #[test_case("u32", 5, 10, 10, true, "shl", 32, true, "shl overflow, and loop executes")]
@@ -2348,11 +2332,13 @@ mod control_dependence {
         assert_ssa_snapshot,
         ssa::{
             interpreter::{errors::InterpreterError, tests::from_constant},
-            ir::types::NumericType,
+            ir::{function::RuntimeType, types::NumericType},
             opt::{assert_normalized_ssa_equals, assert_ssa_does_not_change, unrolling::Loops},
             ssa_gen::Ssa,
         },
     };
+    use noirc_frontend::monomorphization::ast::InlineType;
+    use test_case::test_case;
 
     #[test]
     fn do_not_hoist_unsafe_mul_in_control_dependent_block() {
@@ -3506,5 +3492,39 @@ mod control_dependence {
         let mut loops = Loops::find_all(ssa.main());
         let loop_ = loops.yet_to_unroll.pop().unwrap();
         assert!(!loop_.is_fully_executed(&loops.cfg));
+    }
+
+    #[test_case(RuntimeType::Brillig(InlineType::default()))]
+    #[test_case(RuntimeType::Acir(InlineType::default()))]
+    fn do_not_hoist_unsafe_array_get_from_control_dependent_block(runtime: RuntimeType) {
+        // We use an unknown index v0 to index an array, but only if v1 is true,
+        // so we should not hoist the constraint or the array_get into the header.
+        // Hoisting the array operation and indexing with an invalid `v0` would
+        // not cause an OOB in Brillig, however the returned value would be invalid,
+        // causing knockdown loop invariant instructions to fail when the loop is not meant to fail.
+        let src = format!(
+            r#"
+          {runtime} impure fn main f0 {{
+            b0(v0: u32, v1: u1):
+              v2 = make_array [u8 0, u8 1] : [u8; 2]
+              jmp b1(u32 0)
+            b1(v3: u32):
+              v4 = lt v3, u32 2
+              jmpif v4 then: b2, else: b3
+            b2():
+              jmpif v2 then: b4, else: b5
+            b3():
+              return
+            b4():
+              constrain v0 == u32 0, "Index out of bounds"
+              v5 = array_get v2, index v0 -> u8
+              jmp b5()
+            b5():
+              v6 = unchecked_add v3, u32 1
+              jmp b1(v6)
+          }}
+          "#
+        );
+        assert_ssa_does_not_change(&src, Ssa::loop_invariant_code_motion);
     }
 }

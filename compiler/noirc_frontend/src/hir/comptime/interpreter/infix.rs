@@ -23,7 +23,14 @@ pub(super) fn evaluate_infix(
     let lhs_overflow = InterpreterError::BinaryOperationOverflow { operator: "<<", location };
     let rhs_overflow = InterpreterError::BinaryOperationOverflow { operator: ">>", location };
     let math_error = |operator| InterpreterError::BinaryOperationOverflow { location, operator };
-
+    if operator.kind == BinaryOpKind::Divide && rhs_value.is_zero() {
+        return Err(InterpreterError::InvalidValuesForBinary {
+            lhs: lhs_type,
+            rhs: rhs_type,
+            location,
+            operator: "/",
+        });
+    }
     /// Generate matches that can promote the type of one side to the other if they are compatible.
     macro_rules! match_values {
         (($lhs_value:ident as $lhs:ident $op:literal $rhs_value:ident as $rhs:ident) {
@@ -149,7 +156,7 @@ pub(super) fn evaluate_infix(
         BinaryOpKind::Divide => match_arithmetic! {
             (lhs_value as lhs "/" rhs_value as rhs) {
                 field: if rhs.absolute_value().is_zero() {
-                    return Err(math_error("/"));
+                   return Err( InterpreterError::InvalidValuesForBinary { lhs: lhs_type, rhs: rhs_type, location, operator: "/" });
                 } else {
                     lhs / rhs
                 },
@@ -407,10 +414,7 @@ mod test {
             }
         "#;
         let result = interpret_expect_error(src);
-        assert!(matches!(
-            result,
-            InterpreterError::BinaryOperationOverflow { operator: "/", location: _ }
-        ));
+        assert!(matches!(result, InterpreterError::InvalidValuesForBinary { operator: "/", .. }));
     }
 
     #[test]
@@ -421,10 +425,7 @@ mod test {
             }
         "#;
         let result = interpret_expect_error(src);
-        assert!(matches!(
-            result,
-            InterpreterError::BinaryOperationOverflow { operator: "/", location: _ }
-        ));
+        assert!(matches!(result, InterpreterError::InvalidValuesForBinary { operator: "/", .. }));
     }
 
     #[test]

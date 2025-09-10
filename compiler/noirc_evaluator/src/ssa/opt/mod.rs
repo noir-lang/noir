@@ -19,7 +19,7 @@ mod expand_signed_checks;
 pub(crate) mod flatten_cfg;
 mod hint;
 mod inline_simple_functions;
-pub(crate) mod inlining;
+pub mod inlining;
 mod loop_invariant;
 mod make_constrain_not_equal;
 mod mem2reg;

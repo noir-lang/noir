@@ -264,7 +264,6 @@ impl ControlFlowGraph {
 
     /// Return the topological order of blocks
     pub(crate) fn topological_order(&self) -> Vec<BasicBlockId> {
-        dbg!();
         PostOrder::compute_topological_order(self)
     }
 }
