@@ -667,7 +667,7 @@ fn create_apply_function(
 
         // The above code can result in a suboptimal CFG so we simplify it here.
         let mut function = function_builder.current_function;
-        function.simplify_function();
+        function.simplify_function_cfg();
         function
     })
 }

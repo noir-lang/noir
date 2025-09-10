@@ -7,6 +7,7 @@ use noirc_frontend::monomorphization::ast::InlineType;
 use serde::{Deserialize, Serialize};
 
 use super::basic_block::BasicBlockId;
+use super::cfg::ControlFlowGraph;
 use super::dfg::{DataFlowGraph, GlobalsGraph};
 use super::instruction::TerminatorInstruction;
 use super::map::Id;
@@ -238,6 +239,11 @@ impl Function {
 
     pub fn has_data_bus_return_data(&self) -> bool {
         self.dfg.data_bus.return_data.is_some()
+    }
+
+    /// Return the topological ordering of blocks
+    pub fn topological_block_order(&self) -> Vec<BasicBlockId> {
+        ControlFlowGraph::with_function(self).topological_order()
     }
 }
 

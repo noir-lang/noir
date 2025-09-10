@@ -623,10 +623,12 @@ mod test {
         }
         "#;
         let ssa = Ssa::from_str(src).unwrap();
+        dbg!();
 
         // If we try to run the branch analysis now, it panics, it doesn't have the expected CFG structure.
         // Instead, run the pipeline up to just before the flattening pass.
         let ssa = run_pipeline_up_to_pass(ssa, "Flattening");
+        dbg!();
 
         // The resulting SSA has more than 70k blocks.
         // Both functions in the SSA have blocks such as b1->[b5, b6]->b7 where
@@ -634,8 +636,11 @@ mod test {
         // a recursive algorithm, and can cause a stack overflow.
 
         let function = ssa.main();
+        dbg!();
         let cfg = ControlFlowGraph::with_function(function);
+        dbg!();
         let _ = find_branch_ends(function, &cfg);
+        dbg!();
     }
 
     fn run_pipeline_up_to_pass(mut ssa: Ssa, stop_before_pass: &str) -> Ssa {
@@ -657,10 +662,12 @@ mod test {
             if pass.msg() == stop_before_pass {
                 break;
             }
+            dbg!("Running pass ", pass.msg());
             ssa = pass
                 .run(ssa)
                 .unwrap_or_else(|e| panic!("failed to run pass '{}': {e}", pass.msg()));
         }
+        dbg!();
         ssa
     }
 }

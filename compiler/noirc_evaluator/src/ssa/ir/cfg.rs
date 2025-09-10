@@ -3,6 +3,7 @@ use std::collections::BTreeSet;
 use super::{
     basic_block::{BasicBlock, BasicBlockId},
     function::Function,
+    post_order::PostOrder,
 };
 use rustc_hash::FxHashMap as HashMap;
 use std::collections::HashSet;
@@ -197,11 +198,8 @@ impl ControlFlowGraph {
         let exit_nodes: Vec<BasicBlockId> =
             cfg.data.keys().filter(|&&block| cfg.successors(block).len() == 0).copied().collect();
         // Traverse the reverse CFG from the exit blocks
-        println!("cfg = {cfg:?}");
         let reverse = cfg.reverse();
-        println!("reversed = {reverse:?}");
-        let post_order = crate::ssa::ir::post_order::PostOrder::with_cfg(&reverse);
-        println!("finished post_order");
+        let post_order = PostOrder::with_cfg(&reverse);
 
         // Extract blocks that are not reachable from the exit blocks
         let rpo_traversal: HashSet<BasicBlockId> = HashSet::from_iter(post_order.into_vec());
@@ -256,17 +254,18 @@ impl ControlFlowGraph {
         PetgraphCFG { graph, node_to_block, block_to_node }
     }
 
-    /// Return the entry block
+    /// Find and return the entry block
     pub(crate) fn entry_block(&self) -> BasicBlockId {
-        // `data` is a hashmap so the first key isn't necessarily the entry block b0.
-        println!("Computing entry block, data len = {}", self.data.len());
-        let mut block = *self.data.keys().next().unwrap();
+        self.data
+            .iter()
+            .find_map(|(block, node)| (node.predecessors.len() == 0).then_some(*block))
+            .unwrap()
+    }
 
-        // Keep going until the block has no predecessors
-        while let Some(predecessor) = self.predecessors(block).next() {
-            block = predecessor;
-        }
-        block
+    /// Return the topological order of blocks
+    pub(crate) fn topological_order(&self) -> Vec<BasicBlockId> {
+        dbg!();
+        PostOrder::compute_topological_order(self)
     }
 }
 

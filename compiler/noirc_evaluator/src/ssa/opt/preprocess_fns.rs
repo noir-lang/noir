@@ -44,21 +44,34 @@ impl Ssa {
             // Help unrolling determine bounds.
             function.as_slice_optimization();
             // Prepare for unrolling
+            dbg!();
             function.loop_invariant_code_motion();
+            dbg!();
             // We might not be able to unroll all loops without fully inlining them, so ignore errors.
             let _ = function.unroll_loops_iteratively();
+            dbg!();
+
+            function.simplify_function_cfg();
+
+            println!("Performing mem2reg on:\n{function}");
+
             // Reduce the number of redundant stores/loads after unrolling
             function.mem2reg();
+            dbg!();
 
             // Try to reduce the number of blocks.
-            function.simplify_function();
+            function.simplify_function_cfg();
+            dbg!();
 
             // Put it back into the SSA, so the next functions can pick it up.
             self.functions.insert(id, function);
+            dbg!();
         }
 
+        dbg!();
         // Remove any functions that have been inlined into others already.
         let ssa = self.remove_unreachable_functions();
+        dbg!();
         // Remove leftover instructions.
         Ok(ssa.dead_instruction_elimination_pre_flattening())
     }

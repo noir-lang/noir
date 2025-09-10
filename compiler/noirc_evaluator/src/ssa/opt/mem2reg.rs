@@ -89,7 +89,6 @@ use crate::ssa::{
         function::Function,
         function_inserter::FunctionInserter,
         instruction::{Instruction, InstructionId, TerminatorInstruction},
-        post_order::PostOrder,
         types::Type,
         value::{Value, ValueId},
     },
@@ -113,16 +112,21 @@ impl Ssa {
 
 impl Function {
     pub(crate) fn mem2reg(&mut self) {
+        dbg!();
         let mut context = PerFunctionContext::new(self);
+        dbg!();
         context.mem2reg();
+        dbg!();
         context.remove_instructions();
+        dbg!();
         context.update_data_bus();
+        dbg!();
     }
 }
 
 struct PerFunctionContext<'f> {
     cfg: ControlFlowGraph,
-    post_order: PostOrder,
+    topological_block_order: Vec<BasicBlockId>,
 
     blocks: BTreeMap<BasicBlockId, Block>,
 
@@ -150,12 +154,15 @@ struct PerFunctionContext<'f> {
 
 impl<'f> PerFunctionContext<'f> {
     fn new(function: &'f mut Function) -> Self {
+        dbg!();
         let cfg = ControlFlowGraph::with_function(function);
-        let post_order = PostOrder::with_cfg(&cfg);
+        dbg!();
+        let topological_block_order = cfg.topological_order();
+        dbg!();
 
         PerFunctionContext {
             cfg,
-            post_order,
+            topological_block_order,
             inserter: FunctionInserter::new(function),
             blocks: BTreeMap::new(),
             instructions_to_remove: HashSet::default(),
@@ -170,20 +177,29 @@ impl<'f> PerFunctionContext<'f> {
     /// This function is expected to be the same one that the internal cfg, post_order, and
     /// dom_tree were created from.
     fn mem2reg(&mut self) {
-        // Iterate each block in reverse post order = forward order
-        let block_order = self.post_order.clone().into_vec_reverse();
+        // Iterate each block in topological order
+        dbg!();
+        let block_order = self.topological_block_order.clone();
 
+        dbg!();
         for block in block_order {
+            dbg!();
             let references = self.find_starting_references(block);
+            dbg!();
             self.analyze_block(block, references);
+            dbg!();
         }
 
+        dbg!();
         let mut all_terminator_values = HashSet::default();
         let mut per_func_block_params: HashSet<ValueId> = HashSet::default();
+        dbg!();
         for (block_id, references) in self.blocks.iter_mut() {
+            dbg!();
             let block_params = self.inserter.function.dfg.block_parameters(*block_id);
             per_func_block_params.extend(block_params.iter());
             let terminator = self.inserter.function.dfg[*block_id].unwrap_terminator();
+            dbg!();
             terminator.for_each_value(|value| {
                 all_terminator_values.insert(value);
                 // Also insert all the aliases of this value as being used in the terminator,
@@ -200,8 +216,11 @@ impl<'f> PerFunctionContext<'f> {
 
         // If we never load from an address within a function we can remove all stores to that address.
         // This rule does not apply to reference parameters, which we must also check for before removing these stores.
+        dbg!();
         for (_, block) in self.blocks.iter() {
+            dbg!();
             for (store_address, store_instruction) in block.last_stores.iter() {
+                dbg!();
                 let store_alias_used = self.is_store_alias_used(
                     store_address,
                     block,
@@ -328,7 +347,7 @@ impl<'f> PerFunctionContext<'f> {
         // If there's only 1 block in the function total, we can remove any remaining last stores
         // as well. We can't do this if there are multiple blocks since subsequent blocks may
         // reference these stores.
-        if self.post_order.as_slice().len() == 1 {
+        if self.topological_block_order.len() == 1 {
             self.remove_stores_that_do_not_alias_parameters_or_returns(&references);
         }
 
@@ -671,7 +690,7 @@ impl<'f> PerFunctionContext<'f> {
     /// no longer needed.
     fn remove_instructions(&mut self) {
         // The order we iterate blocks in is not important
-        for block in self.post_order.as_slice() {
+        for block in &self.topological_block_order {
             self.inserter.function.dfg[*block]
                 .instructions_mut()
                 .retain(|instruction| !self.instructions_to_remove.contains(instruction));
@@ -1393,19 +1412,18 @@ mod tests {
             store u32 0 at v2
             jmp b1()
           b1():
-            v7 = load v2 -> u32
-            v8 = eq v7, u32 1
-            jmpif v8 then: b2, else: b3
+            v4 = load v2 -> u32
+            v6 = eq v4, u32 1
+            jmpif v6 then: b2, else: b3
           b2():
             jmp b4()
           b3():
-            v4 = load v2 -> u32
-            v6 = add v4, u32 1
-            store v6 at v2
+            v7 = add v4, u32 1
+            store v7 at v2
             jmp b5()
           b4():
-            v9 = make_array [v1] : [&mut u32; 1]
-            return v9
+            v8 = make_array [v1] : [&mut u32; 1]
+            return v8
           b5():
             jmp b1()
         }

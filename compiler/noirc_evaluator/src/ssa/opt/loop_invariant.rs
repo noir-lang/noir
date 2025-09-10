@@ -117,32 +117,43 @@ impl Ssa {
             function.loop_invariant_code_motion();
         }
 
+        dbg!();
         self
     }
 }
 
 impl Function {
     pub(super) fn loop_invariant_code_motion(&mut self) {
+        dbg!();
         Loops::find_all(self).hoist_loop_invariants(self);
+        dbg!();
     }
 }
 
 impl Loops {
     fn hoist_loop_invariants(mut self, function: &mut Function) {
+        dbg!();
         let mut context = LoopInvariantContext::new(function, &self.yet_to_unroll);
+        dbg!();
 
         // The loops should be sorted by the number of blocks.
         // We want to access outer nested loops first, which we do by popping
         // from the top of the list.
         while let Some(loop_) = self.yet_to_unroll.pop() {
+            dbg!(&loop_);
             // If the loop does not have a preheader we skip hoisting loop invariants for this loop
             if let Ok(pre_header) = loop_.get_pre_header(context.inserter.function, &self.cfg) {
+                dbg!();
                 context.hoist_loop_invariants(&loop_, &self.yet_to_unroll, pre_header);
+                dbg!();
             };
         }
 
+        dbg!();
         context.map_dependent_instructions();
+        dbg!();
         context.inserter.map_data_bus_in_place();
+        dbg!();
     }
 }
 
@@ -316,8 +327,6 @@ struct PostDominanceFrontiers {
 
 impl PostDominanceFrontiers {
     fn with_function(func: &mut Function) -> Self {
-        println!("PostDominanceFrontiers of function:\n{func}");
-
         let reversed_cfg = ControlFlowGraph::extended_reverse(func);
         let post_order = PostOrder::with_cfg(&reversed_cfg);
 
@@ -379,20 +388,28 @@ impl<'f> LoopInvariantContext<'f> {
         all_loops: &[Loop],
         pre_header: BasicBlockId,
     ) {
+        dbg!();
         let mut loop_context = self.init_loop_context(loop_, pre_header);
+        dbg!();
 
         for block in loop_.blocks.iter() {
+            dbg!(block);
             let mut block_context =
                 self.init_block_context(&mut loop_context, loop_, all_loops, *block);
 
+            dbg!();
             for instruction_id in self.inserter.function.dfg[*block].take_instructions() {
+                dbg!(instruction_id);
+
                 if self.simplify_from_loop_bounds(&loop_context, &block_context, instruction_id) {
                     continue;
                 }
+                dbg!();
                 let hoist_invariant =
                     self.can_hoist_invariant(&loop_context, &block_context, instruction_id);
 
                 if hoist_invariant {
+                    dbg!();
                     self.inserter.push_instruction(instruction_id, pre_header);
 
                     // If we are hoisting a MakeArray instruction,
@@ -441,6 +458,7 @@ impl<'f> LoopInvariantContext<'f> {
                     .extend_values_defined_in_loop_and_invariants(&results, hoist_invariant);
             }
         }
+        dbg!();
 
         // We're now done with this loop so it's now safe to insert its bounds into `outer_induction_variables`.
         if let Some((induction_variable, bounds)) =
@@ -448,6 +466,7 @@ impl<'f> LoopInvariantContext<'f> {
         {
             self.outer_induction_variables.insert(induction_variable, bounds);
         };
+        dbg!();
     }
 
     /// Checks whether a `block` is control dependent on any blocks after
@@ -983,13 +1002,13 @@ mod test {
             constrain v3 == i32 6
             jmp b1(i32 0)
           b1(v2: i32):
-            v9 = lt v2, i32 4
-            jmpif v9 then: b3, else: b2
+            v7 = lt v2, i32 4
+            jmpif v7 then: b3, else: b2
           b2():
             return
           b3():
-            v7 = unchecked_add v2, i32 1
-            jmp b1(v7)
+            v9 = unchecked_add v2, i32 1
+            jmp b1(v9)
         }
         ");
     }
@@ -1031,14 +1050,14 @@ mod test {
             v3 = unchecked_mul v0, v1
             jmp b1(i32 0)
           b1(v2: i32):
-            v8 = lt v2, i32 4
-            jmpif v8 then: b3, else: b2
+            v6 = lt v2, i32 4
+            jmpif v6 then: b3, else: b2
           b2():
             return
           b3():
             constrain v3 == v2
-            v6 = unchecked_add v2, i32 1
-            jmp b1(v6)
+            v8 = unchecked_add v2, i32 1
+            jmp b1(v8)
         }
         ");
     }
@@ -1087,21 +1106,21 @@ mod test {
             constrain v4 == i32 6
             jmp b1(i32 0)
           b1(v2: i32):
-            v11 = lt v2, i32 4
-            jmpif v11 then: b3, else: b2
+            v8 = lt v2, i32 4
+            jmpif v8 then: b3, else: b2
           b2():
             return
           b3():
             jmp b4(i32 0)
           b4(v3: i32):
-            v8 = lt v3, i32 4
-            jmpif v8 then: b6, else: b5
+            v9 = lt v3, i32 4
+            jmpif v9 then: b6, else: b5
           b5():
-            v10 = unchecked_add v2, i32 1
-            jmp b1(v10)
+            v12 = unchecked_add v2, i32 1
+            jmp b1(v12)
           b6():
-            v12 = unchecked_add v3, i32 1
-            jmp b4(v12)
+            v11 = unchecked_add v3, i32 1
+            jmp b4(v11)
         }
         ");
     }
@@ -1142,22 +1161,22 @@ mod test {
           b0(v0: i32):
             jmp b1(i32 0)
           b1(v1: i32):
-            v11 = lt v1, i32 3
-            jmpif v11 then: b3, else: b2
+            v5 = lt v1, i32 3
+            jmpif v5 then: b3, else: b2
           b2():
             return
           b3():
-            v5 = unchecked_mul v1, i32 5
+            v7 = unchecked_mul v1, i32 5
             jmp b4(i32 0)
           b4(v2: i32):
-            v7 = lt v2, i32 2
-            jmpif v7 then: b6, else: b5
+            v9 = lt v2, i32 2
+            jmpif v9 then: b6, else: b5
           b5():
-            v9 = unchecked_add v1, i32 1
-            jmp b1(v9)
+            v12 = unchecked_add v1, i32 1
+            jmp b1(v12)
           b6():
-            v12 = unchecked_add v2, i32 1
-            jmp b4(v12)
+            v11 = unchecked_add v2, i32 1
+            jmp b4(v11)
         }
         ");
     }
@@ -1210,13 +1229,13 @@ mod test {
             constrain v4 == i32 12
             jmp b1(i32 0)
           b1(v2: i32):
-            v11 = lt v2, i32 4
-            jmpif v11 then: b3, else: b2
+            v9 = lt v2, i32 4
+            jmpif v9 then: b3, else: b2
           b2():
             return
           b3():
-            v9 = unchecked_add v2, i32 1
-            jmp b1(v9)
+            v11 = unchecked_add v2, i32 1
+            jmp b1(v11)
         }
         ");
     }
@@ -1330,35 +1349,35 @@ mod test {
             inc_rc v6
             jmp b1(u32 0)
           b1(v2: u32):
-            v14 = lt v2, u32 4
-            jmpif v14 then: b3, else: b2
+            v9 = lt v2, u32 4
+            jmpif v9 then: b3, else: b2
           b2():
             return
           b3():
-            v15 = array_get v6, index v2 -> u32
-            v16 = eq v15, v0
-            constrain v15 == v0
+            v10 = array_get v6, index v2 -> u32
+            v11 = eq v10, v0
+            constrain v10 == v0
             jmp b4(u32 0)
           b4(v3: u32):
             v12 = lt v3, u32 4
             jmpif v12 then: b6, else: b5
           b5():
-            v13 = unchecked_add v2, u32 1
-            jmp b1(v13)
+            v19 = unchecked_add v2, u32 1
+            jmp b1(v19)
           b6():
-            v17 = array_get v6, index v3 -> u32
-            v18 = eq v17, v0
-            constrain v17 == v0
+            v13 = array_get v6, index v3 -> u32
+            v14 = eq v13, v0
+            constrain v13 == v0
             jmp b7(u32 0)
           b7(v4: u32):
-            v9 = lt v4, u32 4
-            jmpif v9 then: b9, else: b8
+            v15 = lt v4, u32 4
+            jmpif v15 then: b9, else: b8
           b8():
-            v11 = unchecked_add v3, u32 1
-            jmp b4(v11)
+            v18 = unchecked_add v3, u32 1
+            jmp b4(v18)
           b9():
-            v19 = unchecked_add v4, u32 1
-            jmp b7(v19)
+            v17 = unchecked_add v4, u32 1
+            jmp b7(v17)
         }
         ");
     }
@@ -1429,20 +1448,20 @@ mod test {
             v14 = make_array [Field 1, Field 2, Field 3, Field 4, Field 5] : [Field; 5]
             jmp b1(u32 0)
           b1(v2: u32):
-            v23 = lt v2, u32 5
-            jmpif v23 then: b3, else: b2
+            v17 = lt v2, u32 5
+            jmpif v17 then: b3, else: b2
           b2():
             v24 = load v9 -> [Field; 5]
             call f1(v24)
             return
           b3():
             inc_rc v14
-            v16 = allocate -> &mut [Field; 5]
-            v17 = add v1, v2
-            v19 = array_set v14, index v17, value Field 128
-            call f1(v19)
-            v21 = unchecked_add v2, u32 1
-            jmp b1(v21)
+            v18 = allocate -> &mut [Field; 5]
+            v19 = add v1, v2
+            v21 = array_set v14, index v19, value Field 128
+            call f1(v21)
+            v23 = unchecked_add v2, u32 1
+            jmp b1(v23)
         }
         brillig(inline) fn foo f1 {
           b0(v0: [Field; 5]):
@@ -1486,17 +1505,17 @@ mod test {
             v8 = make_array [Field 1, Field 2, Field 3, Field 4, Field 5] : [Field; 5]
             jmp b1(u32 0)
           b1(v2: u32):
-            v18 = lt v2, u32 5
-            jmpif v18 then: b3, else: b2
+            v11 = lt v2, u32 5
+            jmpif v11 then: b3, else: b2
           b2():
             return
           b3():
-            v10 = allocate -> &mut [Field; 5]
-            v11 = add v1, v2
-            v13 = array_set v8, index v11, value Field 128
-            call f1(v13)
-            v16 = unchecked_add v2, u32 1
-            jmp b1(v16)
+            v12 = allocate -> &mut [Field; 5]
+            v13 = add v1, v2
+            v15 = array_set v8, index v13, value Field 128
+            call f1(v15)
+            v18 = unchecked_add v2, u32 1
+            jmp b1(v18)
         }
         acir(inline) fn foo f1 {
           b0(v0: [Field; 5]):
@@ -1537,13 +1556,13 @@ mod test {
             constrain v3 == u32 6
             jmp b1(u32 0)
           b1(v2: u32):
-            v9 = lt v2, u32 4
-            jmpif v9 then: b3, else: b2
+            v7 = lt v2, u32 4
+            jmpif v7 then: b3, else: b2
           b2():
             return
           b3():
-            v7 = unchecked_add v2, u32 1
-            jmp b1(v7)
+            v9 = unchecked_add v2, u32 1
+            jmp b1(v9)
         }
         ");
     }
@@ -1601,13 +1620,13 @@ mod test {
           b0(v0: u32, v1: u32):
             jmp b1(u32 1)
           b1(v2: u32):
-            v6 = lt v2, u32 4
-            jmpif v6 then: b3, else: b2
+            v5 = lt v2, u32 4
+            jmpif v5 then: b3, else: b2
           b2():
             return
           b3():
-            v4 = unchecked_sub v2, u32 1
-            jmp b1(v4)
+            v6 = unchecked_sub v2, u32 1
+            jmp b1(v6)
         }
         ");
     }
@@ -1714,14 +1733,14 @@ mod test {
           b5():
             jmpif v4 then: b7, else: b8
           b6():
-            v12 = unchecked_add v1, u32 1
-            jmp b1(v12)
+            v14 = unchecked_add v1, u32 1
+            jmp b1(v14)
           b7():
             constrain v9 == u32 6
             jmp b8()
           b8():
-            v14 = unchecked_add v2, u32 1
-            jmp b4(v14)
+            v13 = unchecked_add v2, u32 1
+            jmp b4(v13)
         }
         ");
     }
@@ -3092,24 +3111,24 @@ mod control_dependence {
             v3 = cast v0 as Field
             jmp b1(u32 0)
           b1(v1: u32):
-            v9 = eq v1, u32 0
-            jmpif v9 then: b2, else: b3
+            v5 = eq v1, u32 0
+            jmpif v5 then: b2, else: b3
           b2():
             jmpif v0 then: b4, else: b5
           b3():
             return
           b4():
-            v11 = div Field 1, v3
+            v7 = div Field 1, v3
             jmp b6(u32 0)
           b5():
-            v8 = unchecked_add v1, u32 1
-            jmp b1(v8)
+            v11 = unchecked_add v1, u32 1
+            jmp b1(v11)
           b6(v2: u32):
-            v7 = eq v2, u32 0
-            jmpif v7 then: b7, else: b8
+            v8 = eq v2, u32 0
+            jmpif v8 then: b7, else: b8
           b7():
-            v6 = unchecked_add v2, u32 1
-            jmp b6(v6)
+            v10 = unchecked_add v2, u32 1
+            jmp b6(v10)
           b8():
             jmp b5()
         }

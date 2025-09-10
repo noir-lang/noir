@@ -6,10 +6,9 @@
 //!
 //! This ordering is beneficial to the efficiency of various algorithms, such as those for dead
 //! code elimination and calculating dominance trees.
-use std::collections::BTreeMap;
-
-use petgraph::{graph::NodeIndex, visit::EdgeRef};
-use rustc_hash::FxHashSet;
+use iter_extended::vecmap;
+use petgraph::{Direction, Graph, graph::NodeIndex, visit::EdgeRef};
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::ssa::ir::{basic_block::BasicBlockId, function::Function};
 
@@ -48,53 +47,90 @@ impl PostOrder {
         blocks
     }
 
-    fn max_cost_path(
-        graph: &petgraph::Graph<(), ()>,
-        start: NodeIndex,
-        end: NodeIndex,
-    ) -> Option<i32> {
-        let mut best_cost: Option<i32> = None;
-
-        // Stack will track (current_node, current_cost, used_edges)
-        let mut stack: Vec<(NodeIndex, i32, FxHashSet<(NodeIndex, NodeIndex)>)> = Vec::new();
-        stack.push((start, 0, FxHashSet::default()));
-
-        while let Some((node, cost, used)) = stack.pop() {
-            if node == end {
-                best_cost = Some(best_cost.map_or(cost, |b| b.max(cost)));
-                continue;
-            }
-
-            for edge in graph.edges(node) {
-                let target = edge.target();
-                let edge_key = (node, target);
-
-                if used.contains(&edge_key) {
-                    continue;
+    /// Finds the maximum cost from `root` to every reachable node in a directed graph.
+    /// Each edge may be used at most once.
+    fn topological_sort(graph: &Graph<(), ()>) -> Vec<NodeIndex> {
+        println!("sort {graph:?}");
+        petgraph::algo::kosaraju_scc(graph)
+            .into_iter()
+            .rev()
+            .flat_map(|scc| {
+                if scc.len() == 1 {
+                    scc
+                // Build subgraph of just the loop blocks
+                } else if let Some((subgraph, new_to_old_indices)) =
+                    Self::loop_subgraph(graph, &scc)
+                {
+                    println!("subgraph = {subgraph:?}");
+                    let mut hops = Self::topological_sort(&subgraph);
+                    hops.iter_mut().for_each(|index| *index = new_to_old_indices[index]);
+                    hops
+                } else {
+                    scc
                 }
+            })
+            .collect()
+    }
 
-                let mut next_used = used.clone();
-                next_used.insert(edge_key);
+    fn loop_subgraph(
+        graph: &Graph<(), ()>,
+        scc: &[NodeIndex],
+    ) -> Option<(Graph<(), ()>, HashMap<NodeIndex, NodeIndex>)> {
+        let mut new_graph = Graph::new();
+        let mut old_to_new = HashMap::default();
+        let mut new_to_old = HashMap::default();
 
-                let weight = 1;
-                stack.push((target, cost + weight, next_used));
+        for node in scc {
+            let new_node = new_graph.add_node(());
+            old_to_new.insert(*node, new_node);
+            new_to_old.insert(new_node, *node);
+        }
+
+        // blocks that are candidates for the loop header.
+        // This is normally a straightforward answer of "the only block with an outgoing
+        // edge leading out of the loop" but in the presense of loops with `break`, there
+        // may be multiple such blocks. In those cases, the loop header is the candidate
+        // which still leads to all other blocks in the loops.
+        let mut possible_headers = HashSet::default();
+        for node in scc {
+            let new_node = old_to_new[node];
+
+            for neighbor in graph.neighbors_directed(*node, Direction::Outgoing) {
+                let Some(new_neighbor) = old_to_new.get(&neighbor) else {
+                    possible_headers.insert(new_node);
+                    continue;
+                };
+                new_graph.add_edge(new_node, *new_neighbor, ());
             }
         }
 
-        best_cost
+        // This can occur with infinite loops since they may have no exits
+        if possible_headers.is_empty() {
+            return None;
+        }
+
+        // If there are multiple possible headers in the loop, arbitrarily choose the first
+        let header = possible_headers.into_iter().next().unwrap();
+
+        // Finally, cut all incoming edges on the header
+        let edges = vecmap(new_graph.edges_directed(header, Direction::Incoming), |edge| edge.id());
+        for edge in edges {
+            new_graph.remove_edge(edge);
+        }
+
+        Some((new_graph, new_to_old))
     }
 
     // Computes the post-order of the CFG which is defined as the reverse-topological sort
     // of the SCCs of the CFG graph where each SCC is recursively sorted in reverse-topological
     // order. See the comment in `tests::nested_loop` for an example.
     fn compute_post_order(cfg: &ControlFlowGraph) -> Vec<BasicBlockId> {
-        println!("cfg 91 = {cfg:?}");
         let mut order = Self::compute_topological_order(cfg);
         order.reverse();
         order
     }
 
-    fn compute_topological_order(cfg: &ControlFlowGraph) -> Vec<BasicBlockId> {
+    pub(super) fn compute_topological_order(cfg: &ControlFlowGraph) -> Vec<BasicBlockId> {
         // Implementation note:
         // - Computing via DfsPostOrder is invalid since in the presence of loops, the exit
         //   block may not be the first within the post-order.
@@ -104,24 +140,14 @@ impl PostOrder {
         // Observation: the topological order for a SSA graph with 1 entry and 1 exit
         // is each block sorted by order of the maximum cost to reach that block from the
         // entry block using each edge at most once.
-        println!("cfg 106 = {cfg:?}");
+        dbg!();
         let graph = cfg.as_petgraph();
+        dbg!();
 
-        // BTreeMaps are sorted internally by their key. Map each block from
-        // its cost from the entry block to the block itself so we can later `.collect`
-        // to retrieve a Vec in topological order.
-        let mut blocks = BTreeMap::new();
+        let sort = Self::topological_sort(&graph.graph);
 
-        println!("cfg 114 = {cfg:?}");
-        let entry = graph.block_to_node[&cfg.entry_block()];
-
-        for (block_node, block_id) in graph.node_to_block.iter() {
-            let cost = Self::max_cost_path(&graph.graph, entry, *block_node);
-            blocks.insert(cost, *block_id);
-        }
-
-        println!("block costs: {blocks:?}");
-        blocks.into_values().collect::<Vec<_>>()
+        dbg!(&sort);
+        vecmap(sort, |index| graph.node_to_block[&index])
     }
 }
 
@@ -152,13 +178,13 @@ mod tests {
 
     #[test]
     fn arb_graph_with_unreachable() {
+        // This test is a bit odd since we'll never produce programs like this
         // A → B   C
         // ↓ ↗ ↓   ↓
         // D ← E → F
         // (`A` is entry block)
         // Result:
-        // F, E, B, D, A
-        // (E, B, D) ordering is arbitrary since they are loop blocks
+        // F, B, D, E, A
 
         let func_id = Id::test_new(0);
         let mut builder = FunctionBuilder::new("func".into(), func_id);
@@ -202,7 +228,7 @@ mod tests {
         let func = ssa.main();
         let post_order = PostOrder::with_function(func);
         let block_a_id = func.entry_block();
-        assert_eq!(post_order.0, [block_f_id, block_e_id, block_b_id, block_d_id, block_a_id]);
+        assert_eq!(post_order.0, [block_f_id, block_b_id, block_d_id, block_e_id, block_a_id]);
     }
 
     #[test]
@@ -259,6 +285,30 @@ mod tests {
     }
 
     #[test]
+    fn simple_if() {
+        let src = "
+        acir(inline) fn factorial f1 {
+          b0(v1: u32):
+            v2 = lt v1, u32 1
+            jmpif v2 then: b1, else: b2
+          b1():
+            jmp b3(u32 1)
+          b2():
+            v4 = sub v1, u32 1
+            v5 = call f1(v4) -> u32
+            v6 = mul v1, v5
+            jmp b3(v6)
+          b3(v7: u32):
+            return v7
+        }";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let func = ssa.main();
+        let post_order = PostOrder::with_function(func);
+        assert_eq!(post_order.0, [b(3), b(2), b(1), b(0)]);
+    }
+
+    #[test]
     fn nested_loop() {
         // b0 -> b1 -> b3
         //      / ^
@@ -304,11 +354,11 @@ mod tests {
         // from this node, and remove outgoing edges that lead out of the loop:
         //
         //       b1
-        //      /  
-        //     V    
-        //     b2    
-        //     |     
-        //     V     
+        //      /
+        //     V
+        //     b2
+        //     |
+        //     V
         //     b4->b6
         //     | ^
         //     V  \
@@ -323,8 +373,8 @@ mod tests {
         // We can do this again for the inner loop starting from `b4`:
         //
         //     b4
-        //     |  
-        //     V   
+        //     |
+        //     V
         //     b5->b8
         //     |   ^
         //     V  /
@@ -341,7 +391,7 @@ mod tests {
         // And finally to the original program to get:
         //
         // [b0, b1, b2, b4, b5, b7, b8, b6, b3]
-        // 
+        //
         // And the expected post-order is simply the reverse of this topological ordering
         let expected_post_order = [b(3), b(6), b(8), b(7), b(5), b(4), b(2), b(1), b(0)];
 

@@ -144,7 +144,7 @@ impl DominatorTree {
         }
     }
 
-    fn reverse_post_order_cmp(&self, a: BasicBlockId, b: BasicBlockId) -> Ordering {
+    fn topological_order_cmp(&self, a: BasicBlockId, b: BasicBlockId) -> Ordering {
         match (self.reverse_post_order_indices.get(&a), self.reverse_post_order_indices.get(&b)) {
             (Some(index_a), Some(index_b)) => index_a.cmp(index_b),
             _ => unreachable!("Post order for unreachable block is undefined"),
@@ -156,33 +156,33 @@ impl DominatorTree {
     /// Both basic blocks are assumed to be reachable.
     pub(crate) fn common_dominator(
         &self,
-        block_a_id: BasicBlockId,
-        block_b_id: BasicBlockId,
+        mut block_a_id: BasicBlockId,
+        mut block_b_id: BasicBlockId,
     ) -> BasicBlockId {
-        let mut a_node = self.graph.block_to_node[&block_a_id];
-        let mut b_node = self.graph.block_to_node[&block_b_id];
         loop {
-            match self.reverse_post_order_cmp(block_a_id, block_b_id) {
+            match self.topological_order_cmp(block_a_id, block_b_id) {
                 Ordering::Less => {
                     // "a" comes before "b" in the reverse post-order. Move "b" up.
-                    b_node = self
+                    let b_node = self.graph.block_to_node[&block_b_id];
+                    let b_node = self
                         .dominators
                         .immediate_dominator(b_node)
                         .expect("Unreachable basic block?");
+                    block_b_id = self.graph.node_to_block[&b_node];
                 }
                 Ordering::Greater => {
                     // "b" comes before "a" in the reverse post-order. Move "a" up.
-                    a_node = self
+                    let a_node = self.graph.block_to_node[&block_a_id];
+                    let a_node = self
                         .dominators
                         .immediate_dominator(a_node)
                         .expect("Unreachable basic block?");
+                    block_a_id = self.graph.node_to_block[&a_node];
                 }
                 Ordering::Equal => break,
             }
         }
 
-        let block_a_id = self.graph.node_to_block[&a_node];
-        let block_b_id = self.graph.node_to_block[&b_node];
         debug_assert_eq!(block_a_id, block_b_id, "Unreachable block passed to common_dominator?");
         block_a_id
     }
@@ -469,17 +469,17 @@ mod tests {
         assert_eq!(dt.immediate_dominator(blocks[1]), Some(blocks[2]));
         assert_eq!(dt.immediate_dominator(blocks[2]), Some(blocks[0]));
 
-        assert_eq!(dt.reverse_post_order_cmp(blocks[0], blocks[0]), Ordering::Equal);
-        assert_eq!(dt.reverse_post_order_cmp(blocks[0], blocks[1]), Ordering::Less);
-        assert_eq!(dt.reverse_post_order_cmp(blocks[0], blocks[2]), Ordering::Less);
+        assert_eq!(dt.topological_order_cmp(blocks[0], blocks[0]), Ordering::Equal);
+        assert_eq!(dt.topological_order_cmp(blocks[0], blocks[1]), Ordering::Less);
+        assert_eq!(dt.topological_order_cmp(blocks[0], blocks[2]), Ordering::Less);
 
-        assert_eq!(dt.reverse_post_order_cmp(blocks[1], blocks[0]), Ordering::Greater);
-        assert_eq!(dt.reverse_post_order_cmp(blocks[1], blocks[1]), Ordering::Equal);
-        assert_eq!(dt.reverse_post_order_cmp(blocks[1], blocks[2]), Ordering::Greater);
+        assert_eq!(dt.topological_order_cmp(blocks[1], blocks[0]), Ordering::Greater);
+        assert_eq!(dt.topological_order_cmp(blocks[1], blocks[1]), Ordering::Equal);
+        assert_eq!(dt.topological_order_cmp(blocks[1], blocks[2]), Ordering::Greater);
 
-        assert_eq!(dt.reverse_post_order_cmp(blocks[2], blocks[0]), Ordering::Greater);
-        assert_eq!(dt.reverse_post_order_cmp(blocks[2], blocks[1]), Ordering::Less);
-        assert_eq!(dt.reverse_post_order_cmp(blocks[2], blocks[2]), Ordering::Equal);
+        assert_eq!(dt.topological_order_cmp(blocks[2], blocks[0]), Ordering::Greater);
+        assert_eq!(dt.topological_order_cmp(blocks[2], blocks[1]), Ordering::Less);
+        assert_eq!(dt.topological_order_cmp(blocks[2], blocks[2]), Ordering::Equal);
 
         // Dominance matrix:
         // ✓: Row item dominates column item
@@ -512,17 +512,17 @@ mod tests {
         assert_eq!(post_dom.immediate_dominator(blocks[1]), None);
         assert_eq!(post_dom.immediate_dominator(blocks[2]), Some(blocks[1]));
 
-        assert_eq!(post_dom.reverse_post_order_cmp(blocks[0], blocks[0]), Ordering::Equal);
-        assert_eq!(post_dom.reverse_post_order_cmp(blocks[0], blocks[1]), Ordering::Greater);
-        assert_eq!(post_dom.reverse_post_order_cmp(blocks[0], blocks[2]), Ordering::Greater);
+        assert_eq!(post_dom.topological_order_cmp(blocks[0], blocks[0]), Ordering::Equal);
+        assert_eq!(post_dom.topological_order_cmp(blocks[0], blocks[1]), Ordering::Greater);
+        assert_eq!(post_dom.topological_order_cmp(blocks[0], blocks[2]), Ordering::Greater);
 
-        assert_eq!(post_dom.reverse_post_order_cmp(blocks[1], blocks[0]), Ordering::Less);
-        assert_eq!(post_dom.reverse_post_order_cmp(blocks[1], blocks[1]), Ordering::Equal);
-        assert_eq!(post_dom.reverse_post_order_cmp(blocks[1], blocks[2]), Ordering::Less);
+        assert_eq!(post_dom.topological_order_cmp(blocks[1], blocks[0]), Ordering::Less);
+        assert_eq!(post_dom.topological_order_cmp(blocks[1], blocks[1]), Ordering::Equal);
+        assert_eq!(post_dom.topological_order_cmp(blocks[1], blocks[2]), Ordering::Less);
 
-        assert_eq!(post_dom.reverse_post_order_cmp(blocks[2], blocks[0]), Ordering::Less);
-        assert_eq!(post_dom.reverse_post_order_cmp(blocks[2], blocks[1]), Ordering::Greater);
-        assert_eq!(post_dom.reverse_post_order_cmp(blocks[2], blocks[2]), Ordering::Equal);
+        assert_eq!(post_dom.topological_order_cmp(blocks[2], blocks[0]), Ordering::Less);
+        assert_eq!(post_dom.topological_order_cmp(blocks[2], blocks[1]), Ordering::Greater);
+        assert_eq!(post_dom.topological_order_cmp(blocks[2], blocks[2]), Ordering::Equal);
 
         // Post-dominance matrix:
         // ✓: Row item post-dominates column item

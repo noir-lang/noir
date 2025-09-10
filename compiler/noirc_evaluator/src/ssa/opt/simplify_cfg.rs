@@ -32,7 +32,7 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn simplify_cfg(mut self) -> Self {
         for function in self.functions.values_mut() {
-            function.simplify_function();
+            function.simplify_function_cfg();
         }
         self
     }
@@ -41,7 +41,7 @@ impl Ssa {
 impl Function {
     /// Simplify a function's cfg by going through each block to check for any simple blocks that can
     /// be inlined into their predecessor.
-    pub(crate) fn simplify_function(&mut self) {
+    pub(crate) fn simplify_function_cfg(&mut self) {
         let mut cfg = ControlFlowGraph::with_function(self);
         let mut values_to_replace = ValueMapping::default();
         let mut stack = vec![self.entry_block()];
