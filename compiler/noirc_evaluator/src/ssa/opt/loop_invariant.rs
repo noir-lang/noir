@@ -3498,6 +3498,9 @@ mod control_dependence {
     fn do_not_hoist_unsafe_array_get_from_control_dependent_block(runtime: RuntimeType) {
         // We use an unknown index v0 to index an array, but only if v1 is true,
         // so we should not hoist the constraint or the array_get into the header.
+        // Hoisting the array operation and indexing with an invalid `v0` would
+        // not cause an OOB in Brillig, however the returned value would be invalid,
+        // causing knockdown loop invariant instructions to fail when the loop is not meant to fail.
         let src = format!(
             r#"
           {runtime} impure fn main f0 {{
