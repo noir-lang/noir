@@ -68,7 +68,7 @@ impl Visitor for NodesCollector<'_> {
         };
 
         if let Some(group) = &mut self.module_group {
-            if location.range.end.line - group.end.range.end.line <= 1 {
+            if location.range.start.line - group.end.range.end.line <= 1 {
                 group.end = location;
                 group.count += 1;
                 return;
@@ -86,7 +86,7 @@ impl Visitor for NodesCollector<'_> {
         };
 
         if let Some(group) = &mut self.use_group {
-            if location.range.end.line - group.end.range.end.line <= 1 {
+            if location.range.start.line - group.end.range.end.line <= 1 {
                 group.end = location;
                 group.count += 1;
                 return true;

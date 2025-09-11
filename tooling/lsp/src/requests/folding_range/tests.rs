@@ -173,8 +173,30 @@ async fn test_use_list() {
     assert_eq!(range.end_line, 6);
     assert_eq!(range.kind, Some(FoldingRangeKind::Imports));
 
-    let range = &ranges[0];
+    let range = &ranges[1];
     assert_eq!(range.start_line, 2);
     assert_eq!(range.end_line, 5);
+    assert_eq!(range.kind, Some(FoldingRangeKind::Imports));
+}
+
+#[test]
+async fn test_series_of_use_when_there_is_a_list() {
+    let src = "
+        use one;
+        use two::{
+          three,
+        };
+        ";
+    let ranges = get_folding_ranges(src).await;
+    assert_eq!(ranges.len(), 2);
+
+    let range = &ranges[0];
+    assert_eq!(range.start_line, 2);
+    assert_eq!(range.end_line, 4);
+    assert_eq!(range.kind, Some(FoldingRangeKind::Imports));
+
+    let range = &ranges[1];
+    assert_eq!(range.start_line, 1);
+    assert_eq!(range.end_line, 4);
     assert_eq!(range.kind, Some(FoldingRangeKind::Imports));
 }

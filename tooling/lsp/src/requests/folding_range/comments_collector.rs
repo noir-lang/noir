@@ -63,7 +63,7 @@ impl<'files> CommentsCollector<'files> {
                     if let Some(group) = &mut self.current_line_comment_group {
                         // Keep grouping while the line comment style is the same and they are consecutive lines
                         if group.doc_style == doc_style
-                            && location.range.end.line - group.end.range.end.line <= 1
+                            && location.range.start.line - group.end.range.end.line <= 1
                         {
                             group.end = location;
                             continue;
