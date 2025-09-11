@@ -483,11 +483,21 @@ fn resolve_cache(
 enum CanBeDeduplicated {
     /// This instruction has no side effects so we can substitute the results for those of the same instruction elsewhere.
     Always,
-    /// This instruction has some side effects such as potentially fallible constraints
+    /// This instruction has some side effects such as potentially fallible constraints which could halt execution.
+    ///
+    /// This means that if this instruction passes under a given predicate, we can reuse its results across all
+    /// later instances of this instruction under the same predicate.
     UnderSamePredicate,
     /// This instruction has side effects which prevent all deduplication.
     ///
-    /// An example is `EnableSideEffects` where the placement of this instruction has an important effect on those around it.
+    /// An example is `EnableSideEffects` where a "duplicate" of this instruction has an important effect on later instructions
+    /// which is not implied by the existence of the original `EnableSideEffects` instruction. For example:
+    ///
+    /// ```
+    /// enable_side_effects u1 1
+    /// enable_side_effects u1 0
+    /// enable_side_effects u1 1 <-- deduplicating this instruction results in side effects being disabled rather than enabled.
+    /// ```
     Never,
 }
 
