@@ -33,12 +33,12 @@ libfuzzer_sys::fuzz_target!(|data: &[u8]| -> Corpus {
             "FULL" => compile_options.show_ssa = true,
             "FINAL" => {
                 compile_options.show_ssa_pass =
-                    vec!["After Dead Instruction Elimination - ACIR".to_string()];
+                    vec!["Dead Instruction Elimination (3)".to_string()];
             }
             "FIRST_AND_FINAL" => {
                 compile_options.show_ssa_pass = vec![
                     "After Removing Unreachable Functions (1)".to_string(),
-                    "After Dead Instruction Elimination - ACIR".to_string(),
+                    "Dead Instruction Elimination (3)".to_string(),
                 ];
             }
             _ => (),
@@ -52,6 +52,10 @@ libfuzzer_sys::fuzz_target!(|data: &[u8]| -> Corpus {
         array_set_enabled: false,
         ecdsa_secp256k1_enabled: false,
         ecdsa_secp256r1_enabled: false,
+        blake2s_hash_enabled: false,
+        blake3_hash_enabled: false,
+        aes128_encrypt_enabled: false,
+        field_to_bytes_to_field_enabled: false,
         ..InstructionOptions::default()
     };
     let fuzzer_command_options =
