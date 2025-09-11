@@ -122,10 +122,10 @@ async fn test_series_of_mod() {
     let range = &ranges[0];
     assert_eq!(range.start_line, 1);
     assert_eq!(range.end_line, 2);
-    assert_eq!(range.kind, Some(FoldingRangeKind::Comment));
+    assert_eq!(range.kind, None);
 
     let range = &ranges[1];
     assert_eq!(range.start_line, 4);
     assert_eq!(range.end_line, 6);
-    assert_eq!(range.kind, Some(FoldingRangeKind::Comment));
+    assert_eq!(range.kind, None);
 }
