@@ -492,8 +492,6 @@ impl<K, V, let N: u32, B> HashMap<K, V, N, B> {
                         result = Option::some(value);
                         should_break = true;
                     }
-                } else if slot._key_value.is_none() {
-                    should_break = true;
                 }
             }
         }
@@ -590,8 +588,6 @@ impl<K, V, let N: u32, B> HashMap<K, V, N, B> {
                         self._len -= 1;
                         should_break = true;
                     }
-                } else if slot._key_value.is_none() {
-                    should_break = true;
                 }
             }
         }
