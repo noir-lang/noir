@@ -34,10 +34,16 @@ impl<'files> NodesCollector<'files> {
     }
 
     fn push_group(group: &Group, kind: Option<FoldingRangeKind>, ranges: &mut Vec<FoldingRange>) {
+        let start_line = group.start.range.start.line;
+        let end_line = group.end.range.end.line;
+        if start_line == end_line {
+            return;
+        }
+
         ranges.push(FoldingRange {
-            start_line: group.start.range.start.line,
+            start_line,
             start_character: None,
-            end_line: group.end.range.end.line,
+            end_line,
             end_character: None,
             kind,
             collapsed_text: None,
