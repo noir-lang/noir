@@ -29,7 +29,7 @@ impl Ssa {
 }
 
 impl Function {
-    pub(crate) fn remove_enable_side_effects(&mut self) {
+    fn remove_enable_side_effects(&mut self) {
         if self.runtime().is_brillig() {
             // Brillig functions do not make use of the `EnableSideEffects` instruction so are unaffected by this pass.
             return;
