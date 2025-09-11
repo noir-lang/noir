@@ -7,7 +7,7 @@ use noirc_frontend::{
 
 use crate::requests::to_lsp_location;
 
-pub(super) struct FoldingRangeCommentsCollector<'files> {
+pub(super) struct CommentsCollector<'files> {
     file_id: FileId,
     files: &'files FileMap,
     ranges: Vec<FoldingRange>,
@@ -20,7 +20,7 @@ struct LineCommentGroup {
     doc_style: Option<DocStyle>,
 }
 
-impl<'files> FoldingRangeCommentsCollector<'files> {
+impl<'files> CommentsCollector<'files> {
     pub(super) fn new(file_id: FileId, files: &'files FileMap) -> Self {
         Self { file_id, files, ranges: Vec::new(), current_line_comment_group: None }
     }

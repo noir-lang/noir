@@ -7,7 +7,7 @@ use async_lsp::{
 
 use crate::{
     LspState,
-    requests::{folding_range::comments_collector::FoldingRangeCommentsCollector, process_request},
+    requests::{folding_range::comments_collector::CommentsCollector, process_request},
 };
 
 mod comments_collector;
@@ -28,7 +28,7 @@ pub(crate) fn on_folding_range_request(
         let file = args.files.get_file(file_id).unwrap();
         let source = file.source();
 
-        let comments_collector = FoldingRangeCommentsCollector::new(file_id, args.files);
+        let comments_collector = CommentsCollector::new(file_id, args.files);
         let comment_ranges = comments_collector.collect(source);
 
         Some(comment_ranges)
