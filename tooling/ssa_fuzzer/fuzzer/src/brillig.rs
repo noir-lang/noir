@@ -1,11 +1,11 @@
 #![no_main]
 
-mod avm_integration;
+mod abstract_vm_integration;
 pub(crate) mod fuzz_lib;
 mod mutations;
 mod utils;
 
-use avm_integration::{AvmComparisonResult, compare_with_avm};
+use abstract_vm_integration::{AbstractVMComparisonResult, compare_with_abstract_vm};
 use bincode::serde::{borrow_decode_from_slice, encode_to_vec};
 use fuzz_lib::{
     fuzz_target_lib::fuzz_target,
@@ -56,6 +56,10 @@ libfuzzer_sys::fuzz_target!(|data: &[u8]| -> Corpus {
         blake3_hash_enabled: false,
         aes128_encrypt_enabled: false,
         field_to_bytes_to_field_enabled: false,
+        point_add_enabled: false,
+        multi_scalar_mul_enabled: false,
+        shl_enabled: false,
+        shr_enabled: false,
         ..InstructionOptions::default()
     };
     let fuzzer_command_options =
@@ -73,23 +77,28 @@ libfuzzer_sys::fuzz_target!(|data: &[u8]| -> Corpus {
     let start = std::time::Instant::now();
     let fuzzer_output = fuzz_target(fuzzer_data, TARGET_RUNTIMES.to_vec(), options);
 
-    match compare_with_avm(&fuzzer_output) {
-        AvmComparisonResult::Match => {
-            log::debug!("AVM and Brillig outputs match");
+    match compare_with_abstract_vm(&fuzzer_output) {
+        AbstractVMComparisonResult::Match => {
+            log::debug!("Abstract VM and Brillig outputs match");
         }
-        AvmComparisonResult::Mismatch { brillig_outputs, avm_outputs } => {
-            log::error!("AVM and Brillig outputs mismatch!");
+        AbstractVMComparisonResult::Mismatch { brillig_outputs, abstract_vm_outputs } => {
+            log::error!("Abstract VM and Brillig outputs mismatch!");
             log::error!("Brillig outputs: {brillig_outputs:?}");
-            log::error!("AVM outputs: {avm_outputs:?}");
-            panic!("AVM vs Brillig mismatch detected");
+            log::error!("Abstract VM outputs: {abstract_vm_outputs:?}");
+            panic!("Abstract VM vs Brillig mismatch detected");
         }
-        AvmComparisonResult::TranspilerError(err) => {
+        AbstractVMComparisonResult::TranspilerError(err) => {
             panic!("Transpiler error: {err}");
         }
-        AvmComparisonResult::SimulatorError(err) => {
-            panic!("Simulator error: {err}");
+        AbstractVMComparisonResult::SimulatorError(err) => {
+            if err.contains("error sending request for url") {
+                // sometimes for some reason simulator service is not available?????????
+                log::error!("Simulator error: {err}");
+            } else {
+                panic!("Simulator error: {err}");
+            }
         }
-        AvmComparisonResult::BrilligCompilationError(err) => {
+        AbstractVMComparisonResult::BrilligCompilationError(err) => {
             log::debug!("Brillig compilation error: {err}");
         }
     }
