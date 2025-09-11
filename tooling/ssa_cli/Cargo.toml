@@ -8,6 +8,9 @@ rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
 
+[[bin]]
+name = "noir-ssa"
+path = "src/main.rs"
 
 [lints]
 workspace = true
@@ -22,3 +25,5 @@ tracing-subscriber.workspace = true
 
 # Noir repo dependencies
 noir_artifact_cli.workspace = true
+noirc_driver.workspace = true
+noirc_evaluator.workspace = true

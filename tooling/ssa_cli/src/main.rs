@@ -12,7 +12,7 @@ fn main() {
         .init();
 
     if let Err(e) = cli::start_cli() {
-        eprintln!("{e:?}");
+        eprintln!("{e:#}");
         std::process::exit(1);
     }
 }
