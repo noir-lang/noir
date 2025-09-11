@@ -72,6 +72,7 @@ dependencies = [
  "brillig_vm",
  "criterion",
  "indexmap 2.11.0",
+ "insta",
  "num-bigint",
  "pprof",
  "proptest",
