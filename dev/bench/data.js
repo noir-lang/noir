@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1757587570404,
+  "lastUpdate": 1757588343517,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -20215,48 +20215,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "7cab4ea751e3471b2e3b4c3656e0c16d7157d373",
-          "message": "chore: greenglight `remove_ureachable_instructions` (#9689)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
-          "timestamp": "2025-09-02T19:45:20Z",
-          "tree_id": "00a510ecf24a8383b797c5ce146b1857aec13da2",
-          "url": "https://github.com/noir-lang/noir/commit/7cab4ea751e3471b2e3b4c3656e0c16d7157d373"
-        },
-        "date": 1756843883513,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 259143,
-            "range": "± 668",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 230789,
-            "range": "± 7991",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2789347,
-            "range": "± 1386",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "8fd9446d746f05785cf2299522e94cf29c8df156",
           "message": "fix: disallow references in globals (#9713)",
@@ -22299,6 +22257,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2776693,
             "range": "± 18830",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "23c362721dea5ec275d534fad0c23ddf76db2955",
+          "message": "feat(fuzz): Generate calls to `slice_remove` and `slice_insert` in the AST fuzzer (#9786)",
+          "timestamp": "2025-09-11T10:32:10Z",
+          "tree_id": "7adcc31b5a3f25c0e684fb169b9b618a6d2c67ce",
+          "url": "https://github.com/noir-lang/noir/commit/23c362721dea5ec275d534fad0c23ddf76db2955"
+        },
+        "date": 1757588323226,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 256538,
+            "range": "± 497",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 228229,
+            "range": "± 804",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2806970,
+            "range": "± 1870",
             "unit": "ns/iter"
           }
         ]
