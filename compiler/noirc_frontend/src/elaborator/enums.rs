@@ -1,9 +1,9 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use fxhash::FxHashMap as HashMap;
 use iter_extended::{btree_map, try_vecmap, vecmap};
 use noirc_errors::Location;
 use rangemap::StepLite;
+use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
     DataType, Kind, Shared, Type,
@@ -183,14 +183,13 @@ impl Elaborator<'_> {
         let no_parameters = Parameters(Vec::new());
         let global_body =
             self.make_enum_variant_constructor(datatype, variant_index, &no_parameters, location);
-        let let_statement = crate::hir_def::stmt::HirStatement::Expression(global_body);
+        let let_statement = HirStatement::Expression(global_body);
 
         let statement_id = self.interner.get_global(global_id).let_statement;
         self.interner.replace_statement(statement_id, let_statement);
 
-        self.interner.get_global_mut(global_id).value = GlobalValue::Resolved(
-            crate::hir::comptime::Value::Enum(variant_index, Vec::new(), typ),
-        );
+        self.interner.get_global_mut(global_id).value =
+            GlobalValue::Resolved(Value::Enum(variant_index, Vec::new(), typ));
 
         Self::get_module_mut(self.def_maps, type_id.module_id())
             .declare_global(name.clone(), enum_.visibility, global_id)
@@ -553,7 +552,8 @@ impl Elaborator<'_> {
         variables_defined: &mut Vec<Ident>,
     ) -> Pattern {
         let location = constructor.typ.location;
-        let typ = self.resolve_type(constructor.typ);
+        let wildcard_allowed = true;
+        let typ = self.resolve_type(constructor.typ, wildcard_allowed);
 
         let Some((struct_name, mut expected_field_types)) =
             self.struct_name_and_field_types(&typ, location)
@@ -715,6 +715,7 @@ impl Elaborator<'_> {
             | PathResolutionItem::TypeAlias(_)
             | PathResolutionItem::PrimitiveType(_)
             | PathResolutionItem::Trait(_)
+            | PathResolutionItem::TraitAssociatedType(..)
             | PathResolutionItem::ModuleFunction(_)
             | PathResolutionItem::TypeAliasFunction(..)
             | PathResolutionItem::TraitFunction(..)
@@ -783,7 +784,7 @@ impl Elaborator<'_> {
             ($value:expr) => {{
                 let negative = $value < 0;
                 // Widen the value so that SignedType::MIN does not wrap to 0 when negated below
-                let mut widened = $value as i128;
+                let mut widened = i128::from($value);
                 if negative {
                     widened = -widened;
                 }
@@ -793,14 +794,14 @@ impl Elaborator<'_> {
 
         let value = match constant {
             Value::Bool(value) => SignedField::positive(value),
-            Value::Field(value) => SignedField::positive(value),
+            Value::Field(value) => value,
             Value::I8(value) => signed_to_signed_field!(value),
             Value::I16(value) => signed_to_signed_field!(value),
             Value::I32(value) => signed_to_signed_field!(value),
             Value::I64(value) => signed_to_signed_field!(value),
             Value::U1(value) => SignedField::positive(value),
-            Value::U8(value) => SignedField::positive(value as u128),
-            Value::U16(value) => SignedField::positive(value as u128),
+            Value::U8(value) => SignedField::positive(u128::from(value)),
+            Value::U16(value) => SignedField::positive(u128::from(value)),
             Value::U32(value) => SignedField::positive(value),
             Value::U64(value) => SignedField::positive(value),
             Value::U128(value) => SignedField::positive(value),
@@ -907,7 +908,7 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
                 let (cases, fallback) = self.compile_int_cases(rows, branch_var)?;
                 Ok(HirMatch::Switch(branch_var, cases, Some(fallback)))
             }
-            Type::TypeVariable(typevar) if typevar.is_integer_or_field() => {
+            Type::TypeVariable(typevar) if typevar.is_integer() || typevar.is_integer_or_field() => {
                 let (cases, fallback) = self.compile_int_cases(rows, branch_var)?;
                 Ok(HirMatch::Switch(branch_var, cases, Some(fallback)))
             }
@@ -1013,7 +1014,7 @@ impl<'elab, 'ctx> MatchCompiler<'elab, 'ctx> {
 
     /// Compiles the cases and fallback cases for integer and range patterns.
     ///
-    /// Integers have an infinite number of constructors, so we specialise the
+    /// Integers have an infinite number of constructors, so we specialize the
     /// compilation of integer and range patterns.
     fn compile_int_cases(
         &mut self,

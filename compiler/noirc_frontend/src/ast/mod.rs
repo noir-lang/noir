@@ -14,6 +14,7 @@ mod traits;
 mod type_alias;
 mod visitor;
 
+use noirc_errors::Located;
 use noirc_errors::Location;
 pub use visitor::AttributeTarget;
 pub use visitor::Visitor;
@@ -24,7 +25,6 @@ pub use function::*;
 #[cfg(test)]
 use proptest_derive::Arbitrary;
 
-use acvm::FieldElement;
 pub use docs::*;
 pub use enumeration::*;
 use noirc_errors::Span;
@@ -34,6 +34,7 @@ pub use traits::*;
 pub use type_alias::*;
 
 use crate::QuotedType;
+use crate::signed_field::SignedField;
 use crate::token::IntegerTypeSuffix;
 use crate::{
     BinaryTypeOperator,
@@ -42,7 +43,6 @@ use crate::{
     shared::Signedness,
 };
 
-use acvm::acir::AcirField;
 use iter_extended::vecmap;
 
 use strum::IntoEnumIterator;
@@ -151,7 +151,7 @@ pub enum UnresolvedTypeData {
 
     /// An "as Trait" path leading to an associated type.
     /// E.g. `<Foo as Trait>::Bar`
-    AsTraitPath(Box<crate::ast::AsTraitPath>),
+    AsTraitPath(Box<AsTraitPath>),
 
     /// An already resolved type. These can only be parsed if they were present in the token stream
     /// as a result of being spliced into a macro's token stream input.
@@ -234,7 +234,7 @@ impl From<Vec<GenericTypeArg>> for GenericTypeArgs {
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub enum UnresolvedTypeExpression {
     Variable(Path),
-    Constant(FieldElement, Option<IntegerTypeSuffix>, Location),
+    Constant(SignedField, Option<IntegerTypeSuffix>, Location),
     BinaryOperation(
         Box<UnresolvedTypeExpression>,
         BinaryTypeOperator,
@@ -295,10 +295,10 @@ impl std::fmt::Display for UnresolvedTypeData {
                 let args = vecmap(args, ToString::to_string).join(", ");
 
                 match &env.as_ref().typ {
-                    UnresolvedTypeData::Unit => {
+                    Unit => {
                         write!(f, "fn({args}) -> {ret}")
                     }
-                    UnresolvedTypeData::Tuple(env_types) => {
+                    Tuple(env_types) => {
                         let env_types = vecmap(env_types, |arg| arg.typ.to_string()).join(", ");
                         write!(f, "fn[{env_types}]({args}) -> {ret}")
                     }
@@ -492,6 +492,24 @@ impl UnresolvedTypeData {
             | UnresolvedTypeData::Error => false,
         }
     }
+
+    pub(crate) fn try_into_expression(&self) -> Option<UnresolvedTypeExpression> {
+        match self {
+            UnresolvedTypeData::Expression(expr) => Some(expr.clone()),
+            UnresolvedTypeData::Parenthesized(unresolved_type) => {
+                unresolved_type.typ.try_into_expression()
+            }
+            UnresolvedTypeData::Named(path, generics, _)
+                if path.is_ident() && generics.is_empty() =>
+            {
+                Some(UnresolvedTypeExpression::Variable(path.clone()))
+            }
+            UnresolvedTypeData::AsTraitPath(as_trait_path) => {
+                Some(UnresolvedTypeExpression::AsTraitPath(as_trait_path.clone()))
+            }
+            _ => None,
+        }
+    }
 }
 
 impl UnresolvedTypeExpression {
@@ -525,17 +543,12 @@ impl UnresolvedTypeExpression {
     fn from_expr_helper(expr: Expression) -> Result<UnresolvedTypeExpression, Expression> {
         match expr.kind {
             ExpressionKind::Literal(Literal::Integer(int, suffix)) => {
-                match int.try_to_unsigned::<u32>() {
-                    Some(int) => {
-                        Ok(UnresolvedTypeExpression::Constant(int.into(), suffix, expr.location))
-                    }
-                    None => Err(expr),
-                }
+                Ok(UnresolvedTypeExpression::Constant(int, suffix, expr.location))
             }
             ExpressionKind::Variable(path) => Ok(UnresolvedTypeExpression::Variable(path)),
             ExpressionKind::Prefix(prefix) if prefix.operator == UnaryOp::Minus => {
                 let lhs = Box::new(UnresolvedTypeExpression::Constant(
-                    FieldElement::zero(),
+                    SignedField::zero(),
                     None,
                     expr.location,
                 ));
@@ -575,6 +588,25 @@ impl UnresolvedTypeExpression {
         }
     }
 
+    pub fn to_expression_kind(&self) -> ExpressionKind {
+        match self {
+            UnresolvedTypeExpression::Variable(path) => ExpressionKind::Variable(path.clone()),
+            UnresolvedTypeExpression::Constant(int, suffix, _) => {
+                ExpressionKind::Literal(Literal::Integer(*int, *suffix))
+            }
+            UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, location) => {
+                ExpressionKind::Infix(Box::new(InfixExpression {
+                    lhs: Expression { kind: lhs.to_expression_kind(), location: *location },
+                    operator: Located::from(*location, op.operator_to_binary_op_kind_helper()),
+                    rhs: Expression { kind: rhs.to_expression_kind(), location: *location },
+                }))
+            }
+            UnresolvedTypeExpression::AsTraitPath(path) => {
+                ExpressionKind::AsTraitPath(Box::new(*path.clone()))
+            }
+        }
+    }
+
     fn operator_allowed(op: BinaryOpKind) -> bool {
         matches!(
             op,
@@ -596,6 +628,17 @@ impl UnresolvedTypeExpression {
             UnresolvedTypeExpression::Constant(..) | UnresolvedTypeExpression::AsTraitPath(_) => {
                 false
             }
+        }
+    }
+
+    pub(crate) fn is_valid_expression(&self) -> bool {
+        match self {
+            UnresolvedTypeExpression::Variable(path) => path.no_generic(),
+            UnresolvedTypeExpression::Constant(_, _, _) => true,
+            UnresolvedTypeExpression::BinaryOperation(lhs, _, rhs, _) => {
+                lhs.is_valid_expression() && rhs.is_valid_expression()
+            }
+            UnresolvedTypeExpression::AsTraitPath(_) => true,
         }
     }
 }

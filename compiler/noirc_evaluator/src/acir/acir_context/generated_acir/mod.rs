@@ -352,8 +352,7 @@ impl<F: AcirField> GeneratedAcir<F> {
         let radix_range = 2..=256;
         assert!(
             radix_range.contains(&radix),
-            "ICE: Radix must be in the range 2..=256, but found: {:?}",
-            radix
+            "ICE: Radix must be in the range 2..=256, but found: {radix:?}"
         );
         let radix_big = BigUint::from(radix);
         assert_eq!(
@@ -378,6 +377,10 @@ impl<F: AcirField> GeneratedAcir<F> {
         }
 
         self.assert_is_zero(input_expr - &composed_limbs);
+        let assertion_payload = self.generate_assertion_message_payload(format!(
+            "Field failed to decompose into specified {limb_count} limbs"
+        ));
+        self.assertion_payloads.insert(self.last_acir_opcode_location(), assertion_payload);
 
         Ok(limb_witnesses)
     }
@@ -405,12 +408,12 @@ impl<F: AcirField> GeneratedAcir<F> {
         let limbs_nb = Expression {
             mul_terms: Vec::new(),
             linear_combinations: Vec::new(),
-            q_c: F::from(limb_count as u128),
+            q_c: F::from(u128::from(limb_count)),
         };
         let radix_expr = Expression {
             mul_terms: Vec::new(),
             linear_combinations: Vec::new(),
-            q_c: F::from(radix as u128),
+            q_c: F::from(u128::from(radix)),
         };
         let inputs = vec![
             BrilligInputs::Single(expr.clone()),

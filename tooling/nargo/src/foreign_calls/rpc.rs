@@ -146,7 +146,33 @@ where
 }
 
 #[cfg(test)]
-mod tests {
+mod serialization_tests {
+    use acvm::{
+        AcirField, FieldElement, acir::brillig::ForeignCallParam,
+        brillig_vm::brillig::ForeignCallResult,
+    };
+
+    #[test]
+    fn deserializes_json_as_expected() {
+        let raw_responses: [(&str, Vec<ForeignCallParam<FieldElement>>); 3] = [
+            ("[]", Vec::new()),
+            (
+                "[\"0x0000000000000000000000000000000000000000000000000000000000000001\"]",
+                vec![ForeignCallParam::Single(FieldElement::one())],
+            ),
+            ("[[]]", vec![ForeignCallParam::Array(Vec::new())]),
+        ];
+
+        for (raw_response, expected) in raw_responses {
+            let decoded_response: ForeignCallResult<FieldElement> =
+                serde_json::from_str(&format!("{{ \"values\": {raw_response} }}")).unwrap();
+            assert_eq!(decoded_response, ForeignCallResult { values: expected });
+        }
+    }
+}
+
+#[cfg(test)]
+mod server_tests {
     use acvm::{
         FieldElement, acir::brillig::ForeignCallParam, brillig_vm::brillig::ForeignCallResult,
         pwg::ForeignCallWaitInfo,
@@ -196,7 +222,7 @@ mod tests {
             let response = match req.function_call.function.as_str() {
                 "sum" => self.sum(req.function_call.inputs[0].clone()),
                 "echo" => self.echo(req.function_call.inputs[0].clone()),
-                "id" => FieldElement::from(req.session_id as u128).into(),
+                "id" => FieldElement::from(u128::from(req.session_id)).into(),
                 _ => panic!("unexpected foreign call"),
             };
             Ok(response)
@@ -249,7 +275,7 @@ mod tests {
         let server = Server::builder().build("127.0.0.1:0").await?;
         let addr = server.local_addr()?;
         let handle = server.start(OracleResolverImpl.into_rpc());
-        let url = format!("http://{}", addr);
+        let url = format!("http://{addr}");
         // In this test we don't care about doing shutdown so let's it run forever.
         tokio::spawn(handle.stopped());
         Ok(url)

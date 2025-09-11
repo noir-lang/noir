@@ -7,7 +7,7 @@ use noirc_frontend::Shared;
 use crate::ssa::ir::{
     function::FunctionId,
     instruction::Intrinsic,
-    integer::IntegerConstant,
+    is_printable_byte,
     types::{CompositeType, NumericType, Type},
     value::ValueId,
 };
@@ -79,14 +79,16 @@ impl Value {
             Value::ArrayOrSlice(array) if array.is_slice => {
                 Type::Slice(array.element_types.clone())
             }
-            Value::ArrayOrSlice(array) => Type::Array(
-                array.element_types.clone(),
-                (array.elements.borrow().len() / array.element_types.len()) as u32,
-            ),
+            Value::ArrayOrSlice(array) => {
+                let len = array.elements.borrow().len().checked_div(array.element_types.len());
+                let len = len.unwrap_or(0) as u32;
+                Type::Array(array.element_types.clone(), len)
+            }
             Value::Function(_) | Value::Intrinsic(_) | Value::ForeignFunction(_) => Type::Function,
         }
     }
 
+    /// Create an empty reference value.
     pub(crate) fn reference(original_id: ValueId, element_type: Arc<Type>) -> Self {
         Value::Reference(ReferenceValue { original_id, element_type, element: Shared::new(None) })
     }
@@ -183,7 +185,16 @@ impl Value {
     pub(crate) fn uninitialized(typ: &Type, id: ValueId) -> Value {
         match typ {
             Type::Numeric(typ) => Value::Numeric(NumericValue::zero(*typ)),
-            Type::Reference(element_type) => Self::reference(id, element_type.clone()),
+            Type::Reference(element_type) => {
+                // Initialize the reference to a default value, so that if we execute a
+                // Load instruction when side effects are disabled, we don't get an error.
+                let value = Self::uninitialized(element_type, id);
+                Self::Reference(ReferenceValue {
+                    original_id: id,
+                    element_type: element_type.clone(),
+                    element: Shared::new(Some(value)),
+                })
+            }
             Type::Array(element_types, length) => {
                 let first_elements =
                     vecmap(element_types.iter(), |typ| Self::uninitialized(typ, id));
@@ -211,17 +222,23 @@ impl Value {
     pub fn snapshot(&self) -> Self {
         match self {
             Value::Numeric(n) => Value::Numeric(*n),
-            Value::Reference(r) => Value::Reference(ReferenceValue {
-                original_id: r.original_id,
-                element: Shared::new(r.element.borrow().clone()),
-                element_type: r.element_type.clone(),
-            }),
-            Value::ArrayOrSlice(a) => Value::ArrayOrSlice(ArrayValue {
-                elements: Shared::new(a.elements.borrow().clone()),
-                rc: Shared::new(*a.rc.borrow()),
-                element_types: a.element_types.clone(),
-                is_slice: a.is_slice,
-            }),
+            Value::Reference(r) => {
+                let element = r.element.borrow().as_ref().map(|v| v.snapshot());
+                Value::Reference(ReferenceValue {
+                    original_id: r.original_id,
+                    element: Shared::new(element),
+                    element_type: r.element_type.clone(),
+                })
+            }
+            Value::ArrayOrSlice(a) => {
+                let elements = a.elements.borrow().iter().map(|v| v.snapshot()).collect();
+                Value::ArrayOrSlice(ArrayValue {
+                    elements: Shared::new(elements),
+                    rc: Shared::new(*a.rc.borrow()),
+                    element_types: a.element_types.clone(),
+                    is_slice: a.is_slice,
+                })
+            }
             Value::Function(id) => Value::Function(*id),
             Value::Intrinsic(i) => Value::Intrinsic(*i),
             Value::ForeignFunction(s) => Value::ForeignFunction(s.clone()),
@@ -258,13 +275,6 @@ impl NumericValue {
         Self::from_constant(FieldElement::zero(), typ).expect("zero should fit in every type")
     }
 
-    pub(crate) fn neg_one(typ: NumericType) -> Self {
-        let neg_one = IntegerConstant::Signed { value: -1, bit_size: typ.bit_size() };
-        let (neg_one_constant, typ) = neg_one.into_numeric_constant();
-        Self::from_constant(neg_one_constant, typ)
-            .unwrap_or_else(|_| panic!("Negative one cannot fit in {typ}"))
-    }
-
     pub(crate) fn as_field(&self) -> Option<FieldElement> {
         match self {
             NumericValue::Field(value) => Some(*value),
@@ -275,13 +285,6 @@ impl NumericValue {
     pub(crate) fn as_bool(&self) -> Option<bool> {
         match self {
             NumericValue::U1(value) => Some(*value),
-            _ => None,
-        }
-    }
-
-    pub(crate) fn as_u8(&self) -> Option<u8> {
-        match self {
-            NumericValue::U8(value) => Some(*value),
             _ => None,
         }
     }
@@ -351,22 +354,22 @@ impl NumericValue {
         }
     }
 
-    pub(crate) fn convert_to_field(&self) -> FieldElement {
+    pub fn convert_to_field(&self) -> FieldElement {
         match self {
             NumericValue::Field(field) => *field,
             NumericValue::U1(boolean) if *boolean => FieldElement::one(),
             NumericValue::U1(_) => FieldElement::zero(),
-            NumericValue::U8(value) => FieldElement::from(*value as u32),
-            NumericValue::U16(value) => FieldElement::from(*value as u32),
+            NumericValue::U8(value) => FieldElement::from(u32::from(*value)),
+            NumericValue::U16(value) => FieldElement::from(u32::from(*value)),
             NumericValue::U32(value) => FieldElement::from(*value),
             NumericValue::U64(value) => FieldElement::from(*value),
             NumericValue::U128(value) => FieldElement::from(*value),
             // Need to cast possibly negative values to the unsigned variants
             // first to ensure they are zero-extended rather than sign-extended
-            NumericValue::I8(value) => FieldElement::from(*value as u8 as i128),
-            NumericValue::I16(value) => FieldElement::from(*value as u16 as i128),
-            NumericValue::I32(value) => FieldElement::from(*value as u32 as i128),
-            NumericValue::I64(value) => FieldElement::from(*value as u64 as i128),
+            NumericValue::I8(value) => FieldElement::from(i128::from(*value as u8)),
+            NumericValue::I16(value) => FieldElement::from(i128::from(*value as u16)),
+            NumericValue::I32(value) => FieldElement::from(i128::from(*value as u32)),
+            NumericValue::I64(value) => FieldElement::from(i128::from(*value as u64)),
         }
     }
 
@@ -398,7 +401,7 @@ impl std::fmt::Display for NumericValue {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             NumericValue::Field(value) => write!(f, "Field {value}"),
-            NumericValue::U1(value) => write!(f, "u1 {value}"),
+            NumericValue::U1(value) => write!(f, "u1 {}", if *value { "1" } else { "0" }),
             NumericValue::U8(value) => write!(f, "u8 {value}"),
             NumericValue::U16(value) => write!(f, "u16 {value}"),
             NumericValue::U32(value) => write!(f, "u32 {value}"),
@@ -424,11 +427,68 @@ impl std::fmt::Display for ReferenceValue {
 
 impl std::fmt::Display for ArrayValue {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let elements = self.elements.borrow();
-        let elements = vecmap(elements.iter(), ToString::to_string).join(", ");
+        let rc = self.rc.borrow();
 
         let is_slice = if self.is_slice { "&" } else { "" };
-        write!(f, "rc{} {is_slice}[{elements}]", self.rc.borrow())
+        write!(f, "rc{rc} {is_slice}")?;
+
+        // Check if the array could be shown as a string literal
+        if self.element_types.len() == 1
+            && matches!(self.element_types[0], Type::Numeric(NumericType::Unsigned { bit_size: 8 }))
+        {
+            let printable = self.elements.borrow().iter().all(|value| {
+                matches!(value, Value::Numeric(NumericValue::U8(byte)) if is_printable_byte(*byte))
+            });
+            if printable {
+                let bytes = self
+                    .elements
+                    .borrow()
+                    .iter()
+                    .map(|value| {
+                        let Value::Numeric(NumericValue::U8(byte)) = value else {
+                            panic!("Expected U8 value in array, found {value}");
+                        };
+                        *byte
+                    })
+                    .collect::<Vec<_>>();
+                let string = String::from_utf8(bytes).unwrap();
+                write!(f, "b{string:?}")?;
+                return Ok(());
+            }
+        }
+
+        write!(f, "[")?;
+
+        let length = self.elements.borrow().len() / self.element_types.len();
+        if length == 0 {
+            // We show an array length zero like `[T; 0]` or `[(T1, T2, ...); 0]`
+            let element_types = if self.element_types.len() == 1 {
+                self.element_types[0].to_string()
+            } else {
+                let element_types =
+                    vecmap(self.element_types.iter(), ToString::to_string).join(", ");
+                format!("({element_types})")
+            };
+            write!(f, "{element_types}; {length}")?;
+        } else {
+            // Otherwise we show the elements, but try to group them if the element type is a composite type
+            // (that way the element types can be inferred from the elements)
+            let element_types_len = self.element_types.len();
+            for (index, element) in self.elements.borrow().iter().enumerate() {
+                if index > 0 {
+                    write!(f, ", ")?;
+                }
+                if element_types_len > 1 && index % element_types_len == 0 {
+                    write!(f, "(")?;
+                }
+                write!(f, "{element}")?;
+                if element_types_len > 1 && index % element_types_len == element_types_len - 1 {
+                    write!(f, ")")?;
+                }
+            }
+        }
+
+        write!(f, "]")
     }
 }
 

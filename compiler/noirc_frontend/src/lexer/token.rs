@@ -381,10 +381,10 @@ impl Display for FmtStrFragment {
                     .replace('\0', "\\0")
                     .replace('\'', "\\'")
                     .replace('\"', "\\\"");
-                write!(f, "{}", string)
+                write!(f, "{string}")
             }
             FmtStrFragment::Interpolation(string, _) => {
-                write!(f, "{{{}}}", string)
+                write!(f, "{{{string}}}")
             }
         }
     }
@@ -447,7 +447,7 @@ impl LocatedToken {
     }
 }
 
-impl std::fmt::Display for LocatedToken {
+impl Display for LocatedToken {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.token().fmt(f)
     }
@@ -497,13 +497,13 @@ impl SpannedToken {
     }
 }
 
-impl std::fmt::Display for SpannedToken {
+impl Display for SpannedToken {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.token().fmt(f)
     }
 }
 
-impl fmt::Display for Token {
+impl Display for Token {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             Token::Ident(ref s) => write!(f, "{s}"),
@@ -600,7 +600,7 @@ impl fmt::Display for Token {
     }
 }
 
-impl fmt::Display for IntegerTypeSuffix {
+impl Display for IntegerTypeSuffix {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             IntegerTypeSuffix::I8 => write!(f, "i8"),
@@ -640,7 +640,7 @@ pub enum TokenKind {
     InnerDocComment,
 }
 
-impl fmt::Display for TokenKind {
+impl Display for TokenKind {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             TokenKind::Token(tok) => write!(f, "{tok}"),
@@ -741,7 +741,7 @@ pub enum IntType {
     Signed(u32),   // i64 = Signed(64)
 }
 
-impl fmt::Display for IntType {
+impl Display for IntType {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             IntType::Unsigned(num) => write!(f, "u{num}"),
@@ -794,7 +794,7 @@ pub enum TestScope {
     None,
 }
 
-impl fmt::Display for TestScope {
+impl Display for TestScope {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             TestScope::None => write!(f, ""),
@@ -809,7 +809,7 @@ impl fmt::Display for TestScope {
     }
 }
 
-/// FuzzingScopr is used to specify additional annotations for fuzzing harnesses
+/// FuzzingScope is used to specify additional annotations for fuzzing harnesses
 #[derive(PartialEq, Eq, Hash, Debug, Clone, PartialOrd, Ord)]
 pub enum FuzzingScope {
     /// If the fuzzing harness has a scope of ShouldFailWith, then it should only pass
@@ -826,7 +826,7 @@ pub enum FuzzingScope {
     None,
 }
 
-impl fmt::Display for FuzzingScope {
+impl Display for FuzzingScope {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             FuzzingScope::None => write!(f, ""),
@@ -966,7 +966,7 @@ pub enum Attribute {
     Secondary(SecondaryAttribute),
 }
 
-impl fmt::Display for Attribute {
+impl Display for Attribute {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Attribute::Function(attribute) => write!(f, "{attribute}"),
@@ -1059,13 +1059,13 @@ impl FunctionAttributeKind {
     }
 }
 
-impl fmt::Display for FunctionAttribute {
+impl Display for FunctionAttribute {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.kind.fmt(f)
     }
 }
 
-impl fmt::Display for FunctionAttributeKind {
+impl Display for FunctionAttributeKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             FunctionAttributeKind::Test(scope) => write!(f, "#[test{scope}]"),
@@ -1137,7 +1137,7 @@ impl SecondaryAttributeKind {
             SecondaryAttributeKind::Deprecated(Some(note)) => {
                 format!("deprecated({note:?})")
             }
-            SecondaryAttributeKind::Tag(contents) => format!("'{}", contents),
+            SecondaryAttributeKind::Tag(contents) => format!("'{contents}"),
             SecondaryAttributeKind::Meta(meta) => meta.to_string(),
             SecondaryAttributeKind::ContractLibraryMethod => "contract_library_method".to_string(),
             SecondaryAttributeKind::Export => "export".to_string(),
@@ -1150,13 +1150,13 @@ impl SecondaryAttributeKind {
     }
 }
 
-impl fmt::Display for SecondaryAttribute {
+impl Display for SecondaryAttribute {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.kind.fmt(f)
     }
 }
 
-impl fmt::Display for SecondaryAttributeKind {
+impl Display for SecondaryAttributeKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "#[{}]", self.contents())
     }
@@ -1240,7 +1240,7 @@ pub enum Keyword {
     While,
 }
 
-impl fmt::Display for Keyword {
+impl Display for Keyword {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             Keyword::As => write!(f, "as"),

@@ -47,7 +47,8 @@ fn main(x: Field, y: Field) {
     foo(bar2);
     let int1: BigInt<1> = BigInt::<1> { limbs: [1_u32] };
     let int2: BigInt<1> = BigInt::<1> { limbs: [2_u32] };
-    let BigInt::<1> { limbs }: BigInt<1> = int1.second(int2).first(int1);
+    let BigInt::<1> { limbs }: BigInt<1> =
+        BigInt::<1>::first(BigInt::<1>::second(int1, int2), int1);
     assert(limbs == int2.limbs);
     assert(bar1.get_other() == bar1.other);
     let one: Field = x;

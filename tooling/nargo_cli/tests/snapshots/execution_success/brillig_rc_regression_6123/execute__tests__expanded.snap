@@ -29,8 +29,10 @@ fn swap_items<T, let N: u32>(vec: &mut BoundedVec<T, N>, from_index: u32, to_ind
 }
 
 unconstrained fn main() {
-    let mut builder: Builder =
-        Builder { note_hashes: BoundedVec::new(), nullifiers: BoundedVec::new() };
+    let mut builder: Builder = Builder {
+        note_hashes: BoundedVec::<Field, 2>::new(),
+        nullifiers: BoundedVec::<Field, 2>::new(),
+    };
     builder.append_note_hashes_with_logs(2_u32);
     builder.nullifiers.set_unchecked(1_u32, 27_Field);
     let note_hashes: [Field; 2] = builder.note_hashes.storage();

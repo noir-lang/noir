@@ -1,4 +1,4 @@
-define: &AZ_COMMIT fe25e8151d865a744220512c782713e46482165a
+define: &AZ_COMMIT 3e2417cf884017a8a53a0f28a7aff59032b31583
 projects:
   private-kernel-inner:
     repo: AztecProtocol/aztec-packages
@@ -8,17 +8,17 @@ projects:
     compilation-timeout: 3.0
     execution-timeout: 0.08
     compilation-memory-limit: 350
-    execution-memory-limit: 250
+    execution-memory-limit: 300
   private-kernel-tail:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
     path: noir-projects/noir-protocol-circuits/crates/private-kernel-tail
     num_runs: 5
     timeout: 4
-    compilation-timeout: 1.5
+    compilation-timeout: 3
     execution-timeout: 0.04
-    compilation-memory-limit: 250
-    execution-memory-limit: 230
+    compilation-memory-limit: 300
+    execution-memory-limit: 250
   private-kernel-reset:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
@@ -35,7 +35,7 @@ projects:
     path: noir-projects/noir-protocol-circuits/crates/rollup-base-private
     num_runs: 5
     timeout: 15
-    compilation-timeout: 20
+    compilation-timeout: 25
     execution-timeout: 1
     compilation-memory-limit: 1600
     execution-memory-limit: 650
@@ -56,7 +56,7 @@ projects:
     cannot_execute: true
     num_runs: 5
     timeout: 60
-    compilation-timeout: 25
+    compilation-timeout: 30
     compilation-memory-limit: 1500
   rollup-block-root-single-tx:
     repo: AztecProtocol/aztec-packages
@@ -65,7 +65,7 @@ projects:
     cannot_execute: true
     num_runs: 1
     timeout: 60
-    compilation-timeout: 200
+    compilation-timeout: 250
     compilation-memory-limit: 10000
   rollup-block-root:
     repo: AztecProtocol/aztec-packages
@@ -73,7 +73,7 @@ projects:
     path: noir-projects/noir-protocol-circuits/crates/rollup-block-root
     num_runs: 1
     timeout: 60
-    compilation-timeout: 200
+    compilation-timeout: 250
     execution-timeout: 40
     compilation-memory-limit: 10000
     execution-memory-limit: 1900
@@ -83,7 +83,7 @@ projects:
     path: noir-projects/noir-protocol-circuits/crates/rollup-merge
     num_runs: 5
     timeout: 300
-    compilation-timeout: 1.5
+    compilation-timeout: 4
     execution-timeout: 0.01
     compilation-memory-limit: 450
     execution-memory-limit: 450
@@ -104,5 +104,14 @@ projects:
     timeout: 300
     compilation-timeout: 2
     execution-timeout: 0.6
+    compilation-memory-limit: 450
+    execution-memory-limit: 400
+  sha512-100-bytes:
+    repo: noir-lang/noir
+    path: test_programs/benchmarks/sha512_100_bytes
+    num_runs: 10
+    timeout: 300
+    compilation-timeout: 10
+    execution-timeout: 5
     compilation-memory-limit: 450
     execution-memory-limit: 400

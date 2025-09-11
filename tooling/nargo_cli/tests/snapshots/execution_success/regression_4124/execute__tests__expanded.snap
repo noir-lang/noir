@@ -41,6 +41,6 @@ impl<T> PublicMutable<T> {
 }
 
 fn main(value: Field) {
-    let ps: PublicMutable<Field> = PublicMutable::new(27_Field);
+    let ps: PublicMutable<Field> = PublicMutable::<Field>::new(27_Field);
     assert(ps.read() == value);
 }

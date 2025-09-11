@@ -1,6 +1,5 @@
 use std::{borrow::Cow, rc::Rc, vec};
 
-use acvm::FieldElement;
 use im::Vector;
 use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
@@ -59,8 +58,14 @@ pub enum Value {
     // in case they use functions such as `Quoted::as_type` which require them.
     Closure(Box<Closure>),
 
-    Tuple(Vec<Value>),
-    Struct(HashMap<Rc<String>, Value>, Type),
+    /// Tuple elements are automatically shared to support projection into a tuple:
+    /// `let elem = &mut tuple.0` should mutate the original element.
+    Tuple(Vec<Shared<Value>>),
+
+    /// Struct elements are automatically shared to support projection:
+    /// `let elem = &mut my_struct.field` should mutate the original element.
+    Struct(StructFields, Type),
+
     Enum(/*tag*/ usize, /*args*/ Vec<Value>, Type),
     Pointer(Shared<Value>, /* auto_deref */ bool, /* mutable */ bool),
     Array(Vector<Value>, Type),
@@ -78,6 +83,8 @@ pub enum Value {
     TypedExpr(TypedExpr),
     UnresolvedType(UnresolvedTypeData),
 }
+
+pub(super) type StructFields = HashMap<Rc<String>, Shared<Value>>;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Closure {
@@ -112,8 +119,8 @@ impl Value {
         Value::Expr(Box::new(ExprValue::Statement(statement)))
     }
 
-    pub(crate) fn lvalue(lvaue: LValue) -> Self {
-        Value::Expr(Box::new(ExprValue::LValue(lvaue)))
+    pub(crate) fn lvalue(lvalue: LValue) -> Self {
+        Value::Expr(Box::new(ExprValue::LValue(lvalue)))
     }
 
     pub(crate) fn pattern(pattern: Pattern) -> Self {
@@ -145,7 +152,7 @@ impl Value {
             Value::Function(_, typ, _) => return Cow::Borrowed(typ),
             Value::Closure(closure) => return Cow::Borrowed(&closure.typ),
             Value::Tuple(fields) => {
-                Type::Tuple(vecmap(fields, |field| field.get_type().into_owned()))
+                Type::Tuple(vecmap(fields, |field| field.borrow().get_type().into_owned()))
             }
             Value::Struct(_, typ) => return Cow::Borrowed(typ),
             Value::Enum(_, _, typ) => return Cow::Borrowed(typ),
@@ -207,11 +214,11 @@ impl Value {
                 Some(IntegerTypeSuffix::U1),
             )),
             Value::U8(value) => ExpressionKind::Literal(Literal::Integer(
-                SignedField::positive(value as u128),
+                SignedField::positive(u128::from(value)),
                 Some(IntegerTypeSuffix::U8),
             )),
             Value::U16(value) => ExpressionKind::Literal(Literal::Integer(
-                SignedField::positive(value as u128),
+                SignedField::positive(u128::from(value)),
                 Some(IntegerTypeSuffix::U16),
             )),
             Value::U32(value) => ExpressionKind::Literal(Literal::Integer(
@@ -244,13 +251,14 @@ impl Value {
                 ExpressionKind::Resolved(expr_id)
             }
             Value::Tuple(fields) => {
-                let fields =
-                    try_vecmap(fields, |field| field.into_expression(elaborator, location))?;
+                let fields = try_vecmap(fields, |field| {
+                    field.unwrap_or_clone().into_expression(elaborator, location)
+                })?;
                 ExpressionKind::Tuple(fields)
             }
             Value::Struct(fields, typ) => {
                 let fields = try_vecmap(fields, |(name, field)| {
-                    let field = field.into_expression(elaborator, location)?;
+                    let field = field.unwrap_or_clone().into_expression(elaborator, location)?;
                     Ok((Ident::new(unwrap_rc(name), location), field))
                 })?;
 
@@ -379,12 +387,12 @@ impl Value {
             Value::U1(value) => {
                 HirExpression::Literal(HirLiteral::Integer(SignedField::positive(value)))
             }
-            Value::U8(value) => {
-                HirExpression::Literal(HirLiteral::Integer(SignedField::positive(value as u128)))
-            }
-            Value::U16(value) => {
-                HirExpression::Literal(HirLiteral::Integer(SignedField::positive(value as u128)))
-            }
+            Value::U8(value) => HirExpression::Literal(HirLiteral::Integer(SignedField::positive(
+                u128::from(value),
+            ))),
+            Value::U16(value) => HirExpression::Literal(HirLiteral::Integer(
+                SignedField::positive(u128::from(value)),
+            )),
             Value::U32(value) => {
                 HirExpression::Literal(HirLiteral::Integer(SignedField::positive(value)))
             }
@@ -412,13 +420,14 @@ impl Value {
                 return Ok(expr_id);
             }
             Value::Tuple(fields) => {
-                let fields =
-                    try_vecmap(fields, |field| field.into_hir_expression(interner, location))?;
+                let fields = try_vecmap(fields, |field| {
+                    field.unwrap_or_clone().into_hir_expression(interner, location)
+                })?;
                 HirExpression::Tuple(fields)
             }
             Value::Struct(fields, typ) => {
                 let fields = try_vecmap(fields, |(name, field)| {
-                    let field = field.into_hir_expression(interner, location)?;
+                    let field = field.unwrap_or_clone().into_hir_expression(interner, location)?;
                     Ok((Ident::new(unwrap_rc(name), location), field))
                 })?;
 
@@ -531,18 +540,18 @@ impl Value {
             }
             Value::TypedExpr(TypedExpr::ExprId(expr_id)) => vec![Token::UnquoteMarker(expr_id)],
             Value::Bool(bool) => vec![Token::Bool(bool)],
-            Value::U1(bool) => vec![Token::Int((bool as u128).into(), None)],
+            Value::U1(bool) => vec![Token::Int(u128::from(bool).into(), None)],
             Value::U8(value) => {
-                vec![Token::Int((value as u128).into(), None)]
+                vec![Token::Int(u128::from(value).into(), None)]
             }
             Value::U16(value) => {
-                vec![Token::Int((value as u128).into(), None)]
+                vec![Token::Int(u128::from(value).into(), None)]
             }
             Value::U32(value) => {
-                vec![Token::Int((value as u128).into(), None)]
+                vec![Token::Int(u128::from(value).into(), None)]
             }
             Value::U64(value) => {
-                vec![Token::Int((value as u128).into(), None)]
+                vec![Token::Int(u128::from(value).into(), None)]
             }
             Value::U128(value) => vec![Token::Int(value.into(), None)],
             Value::I8(value) => {
@@ -605,6 +614,24 @@ impl Value {
         )
     }
 
+    pub(crate) fn is_zero(&self) -> bool {
+        use Value::*;
+        match self {
+            Field(value) => value.is_zero(),
+            I8(value) => *value == 0,
+            I16(value) => *value == 0,
+            I32(value) => *value == 0,
+            I64(value) => *value == 0,
+            U1(value) => !*value,
+            U8(value) => *value == 0,
+            U16(value) => *value == 0,
+            U32(value) => *value == 0,
+            U64(value) => *value == 0,
+            U128(value) => *value == 0,
+            _ => false,
+        }
+    }
+
     pub(crate) fn contains_function_or_closure(&self) -> bool {
         match self {
             Value::Function(..) => true,
@@ -615,9 +642,11 @@ impl Value {
             Value::Slice(values, _) => {
                 values.iter().any(|value| value.contains_function_or_closure())
             }
-            Value::Tuple(values) => values.iter().any(|value| value.contains_function_or_closure()),
+            Value::Tuple(values) => {
+                values.iter().any(|value| value.borrow().contains_function_or_closure())
+            }
             Value::Struct(fields, _) => {
-                fields.values().any(|value| value.contains_function_or_closure())
+                fields.values().any(|value| value.borrow().contains_function_or_closure())
             }
             Value::Enum(_, values, _) => {
                 values.iter().any(|value| value.contains_function_or_closure())
@@ -654,27 +683,21 @@ impl Value {
         }
     }
 
-    /// Converts any non-negative `Value` into a `FieldElement`.
-    /// Returns `None` for negative integers and non-integral `Value`s.
-    pub(crate) fn to_field_element(&self) -> Option<FieldElement> {
+    /// Converts any integral `Value` into a `SignedField`.
+    /// Returns `None` for non-integral `Value`s.
+    pub(crate) fn to_signed_field(&self) -> Option<SignedField> {
         match self {
-            Self::Field(value) => {
-                if value.is_negative() {
-                    None
-                } else {
-                    Some(value.absolute_value())
-                }
-            }
+            Self::Field(value) => Some(*value),
 
             Self::I8(value) => (*value >= 0).then_some((*value as u128).into()),
             Self::I16(value) => (*value >= 0).then_some((*value as u128).into()),
             Self::I32(value) => (*value >= 0).then_some((*value as u128).into()),
             Self::I64(value) => (*value >= 0).then_some((*value as u128).into()),
-            Self::U1(value) => Some(FieldElement::from(*value)),
-            Self::U8(value) => Some((*value as u128).into()),
-            Self::U16(value) => Some((*value as u128).into()),
-            Self::U32(value) => Some((*value as u128).into()),
-            Self::U64(value) => Some((*value as u128).into()),
+            Self::U1(value) => Some(if *value { SignedField::one() } else { SignedField::zero() }),
+            Self::U8(value) => Some(u128::from(*value).into()),
+            Self::U16(value) => Some(u128::from(*value).into()),
+            Self::U32(value) => Some(u128::from(*value).into()),
+            Self::U64(value) => Some(u128::from(*value).into()),
             Self::U128(value) => Some((*value).into()),
             _ => None,
         }
@@ -705,6 +728,23 @@ impl Value {
             Value::I32(x) => *x < 0,
             Value::I64(x) => *x < 0,
             _ => false, // Unsigned or Field types are never negative
+        }
+    }
+
+    /// Structs and tuples store references to their fields internally which need to be manually
+    /// changed when moving them.
+    pub(crate) fn move_struct(self) -> Value {
+        match self {
+            Value::Tuple(fields) => Value::Tuple(vecmap(fields, |field| {
+                Shared::new(field.unwrap_or_clone().move_struct())
+            })),
+            Value::Struct(fields, typ) => {
+                let fields = fields.into_iter().map(|(name, field)| {
+                    (name, Shared::new(field.unwrap_or_clone().move_struct()))
+                });
+                Value::Struct(fields.collect(), typ)
+            }
+            other => other,
         }
     }
 }

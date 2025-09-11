@@ -17,7 +17,6 @@ pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
     let config = Config {
         // Overflows are easy to trigger.
         avoid_overflow: u.arbitrary()?,
-        avoid_large_int_literals: true,
         ..Default::default()
     };
 
@@ -32,7 +31,6 @@ pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
                 change_all_functions_into_unconstrained(program),
                 &options.onto(default_ssa_options()),
                 &passes,
-                |_| vec![],
                 Some("init"),
             );
             Ok((ssa, options))

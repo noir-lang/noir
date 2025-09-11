@@ -393,25 +393,29 @@ impl WrappingAdd for u128 {
 
 impl WrappingAdd for i8 {
     fn wrapping_add(self: i8, y: i8) -> i8 {
-        wrapping_add_hlp(self, y)
+        let x = self as u8;
+        x.wrapping_add(y as u8) as i8
     }
 }
 
 impl WrappingAdd for i16 {
     fn wrapping_add(self: i16, y: i16) -> i16 {
-        wrapping_add_hlp(self, y)
+        let x = self as u16;
+        x.wrapping_add(y as u16) as i16
     }
 }
 
 impl WrappingAdd for i32 {
     fn wrapping_add(self: i32, y: i32) -> i32 {
-        wrapping_add_hlp(self, y)
+        let x = self as u32;
+        x.wrapping_add(y as u32) as i32
     }
 }
 
 impl WrappingAdd for i64 {
     fn wrapping_add(self: i64, y: i64) -> i64 {
-        wrapping_add_hlp(self, y)
+        let x = self as u64;
+        x.wrapping_add(y as u64) as i64
     }
 }
 impl WrappingAdd for Field {
@@ -462,24 +466,28 @@ impl WrappingSub for u128 {
 
 impl WrappingSub for i8 {
     fn wrapping_sub(self: i8, y: i8) -> i8 {
-        wrapping_sub_hlp(self, y) as i8
+        let x = self as u8;
+        x.wrapping_sub(y as u8) as i8
     }
 }
 
 impl WrappingSub for i16 {
     fn wrapping_sub(self: i16, y: i16) -> i16 {
-        wrapping_sub_hlp(self, y) as i16
+        let x = self as u16;
+        x.wrapping_sub(y as u16) as i16
     }
 }
 
 impl WrappingSub for i32 {
     fn wrapping_sub(self: i32, y: i32) -> i32 {
-        wrapping_sub_hlp(self, y) as i32
+        let x = self as u32;
+        x.wrapping_sub(y as u32) as i32
     }
 }
 impl WrappingSub for i64 {
     fn wrapping_sub(self: i64, y: i64) -> i64 {
-        wrapping_sub_hlp(self, y) as i64
+        let x = self as u64;
+        x.wrapping_sub(y as u64) as i64
     }
 }
 impl WrappingSub for Field {
@@ -525,25 +533,29 @@ impl WrappingMul for u64 {
 
 impl WrappingMul for i8 {
     fn wrapping_mul(self: i8, y: i8) -> i8 {
-        wrapping_mul_hlp(self, y)
+        let x = self as u8;
+        x.wrapping_mul(y as u8) as i8
     }
 }
 
 impl WrappingMul for i16 {
     fn wrapping_mul(self: i16, y: i16) -> i16 {
-        wrapping_mul_hlp(self, y)
+        let x = self as u16;
+        x.wrapping_mul(y as u16) as i16
     }
 }
 
 impl WrappingMul for i32 {
     fn wrapping_mul(self: i32, y: i32) -> i32 {
-        wrapping_mul_hlp(self, y)
+        let x = self as u32;
+        x.wrapping_mul(y as u32) as i32
     }
 }
 
 impl WrappingMul for i64 {
     fn wrapping_mul(self: i64, y: i64) -> i64 {
-        wrapping_mul_hlp(self, y)
+        let x = self as u64;
+        x.wrapping_mul(y as u64) as i64
     }
 }
 

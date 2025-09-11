@@ -81,7 +81,7 @@ fn print_content(
 ) {
     if raw_source_printing {
         if cursor == "->" && highlight.is_some() {
-            println!("{}", content);
+            println!("{content}");
         }
         return;
     }

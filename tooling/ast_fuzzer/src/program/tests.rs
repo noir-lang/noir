@@ -86,9 +86,9 @@ fn test_modulo_of_negative_literals_in_range() {
     assert_ssa_snapshot!(ssa, @r"
     acir(inline) fn main f0 {
       b0():
-        jmp b1(i64 18446744073709551612)
+        jmp b1(i64 -4)
       b1(v0: i64):
-        v3 = lt v0, i64 18446744073709551615
+        v3 = lt v0, i64 -1
         jmpif v3 then: b2, else: b3
       b2():
         jmp b3()
@@ -203,34 +203,34 @@ fn test_recursion_limit_rewrite() {
     insta::assert_snapshot!(code, @r"
     #[inline_always]
     fn main() -> () {
-        let mut ctx_limit: u32 = 25;
+        let mut ctx_limit: u32 = 25_u32;
         foo((&mut ctx_limit))
     }
     #[inline_always]
     fn foo(ctx_limit: &mut u32) -> () {
-        if ((*ctx_limit) == 0) {
+        if ((*ctx_limit) == 0_u32) {
             ()
         } else {
-            *ctx_limit = ((*ctx_limit) - 1);
+            *ctx_limit = ((*ctx_limit) - 1_u32);
             unsafe { bar_proxy((*ctx_limit)) }
         }
     }
     #[inline_always]
     unconstrained fn bar(ctx_limit: &mut u32) -> () {
-        if ((*ctx_limit) == 0) {
+        if ((*ctx_limit) == 0_u32) {
             ()
         } else {
-            *ctx_limit = ((*ctx_limit) - 1);
+            *ctx_limit = ((*ctx_limit) - 1_u32);
             baz(ctx_limit);
             qux(ctx_limit)
         }
     }
     #[inline_always]
     unconstrained fn baz(ctx_limit: &mut u32) -> () {
-        if ((*ctx_limit) == 0) {
+        if ((*ctx_limit) == 0_u32) {
             ()
         } else {
-            *ctx_limit = ((*ctx_limit) - 1);
+            *ctx_limit = ((*ctx_limit) - 1_u32);
             baz(ctx_limit)
         }
     }

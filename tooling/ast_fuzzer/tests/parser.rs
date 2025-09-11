@@ -13,6 +13,7 @@ use noirc_evaluator::{
     ssa::{
         self,
         ir::function::function_values_iter,
+        opt::inlining::MAX_INSTRUCTIONS,
         primary_passes,
         ssa_gen::{self, Ssa},
     },
@@ -43,6 +44,7 @@ fn arb_ssa_roundtrip() {
             skip_brillig_constraints_check: true,
             enable_brillig_constraints_check_lookback: false,
             inliner_aggressiveness: 0,
+            small_function_max_instruction: MAX_INSTRUCTIONS,
             max_bytecode_increase_percent: None,
             skip_passes: Default::default(),
         };
@@ -76,7 +78,7 @@ fn arb_ssa_roundtrip() {
         ssa1.normalize_ids();
 
         // Print to str and parse back.
-        let ssa2 = Ssa::from_str_no_validation(&ssa1.print_without_locations().to_string())
+        let mut ssa2 = Ssa::from_str_no_validation(&ssa1.print_without_locations().to_string())
             .unwrap_or_else(|e| {
                 let msg = passes.last().map(|p| p.msg()).unwrap_or("Initial SSA");
                 print_ast_and_panic(&format!(
@@ -84,8 +86,14 @@ fn arb_ssa_roundtrip() {
                 ))
             });
 
+        ssa2.normalize_ids();
+
         // Not everything is populated by the parser, and unfortunately serializing to JSON doesn't work either.
         for (func_id, func1) in ssa1.functions {
+            if func1.name() == "apply_dummy" {
+                // The dummy function has different IDs for its parameters. But it's empty, so ignore it.
+                continue;
+            }
             let func2 = &ssa2.functions[&func_id];
             let values1 = function_values_iter(&func1).collect::<Vec<_>>();
             let values2 = function_values_iter(func2).collect::<Vec<_>>();

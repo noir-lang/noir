@@ -24,9 +24,10 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
         target_function: FunctionId,
         globals_init: bool,
         globals_memory_size: usize,
+        name: &str,
         options: &BrilligOptions,
     ) -> BrilligArtifact<F> {
-        let mut context = BrilligContext::new(options);
+        let mut context = BrilligContext::new(name, options);
 
         context.set_globals_memory_size(Some(globals_memory_size));
 
@@ -180,6 +181,7 @@ impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
         }
 
         for (i, bit_size) in arguments.iter().flat_map(flat_bit_sizes).enumerate() {
+            // cSpell:disable-next-line
             // Calldatacopy tags everything with field type, so when downcast when necessary
             if bit_size < F::max_num_bits() {
                 self.cast_instruction(

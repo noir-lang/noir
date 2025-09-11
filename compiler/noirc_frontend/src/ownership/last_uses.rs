@@ -27,7 +27,7 @@
 //!   ownership pass such that only `.c` is cloned but it is still an area for improvement.
 use crate::monomorphization::ast::{self, IdentId, LocalId};
 use crate::monomorphization::ast::{Expression, Function, Literal};
-use fxhash::FxHashMap as HashMap;
+use rustc_hash::FxHashMap as HashMap;
 
 use super::Context;
 
@@ -288,7 +288,7 @@ impl LastUseContext {
             Expression::While(while_expr) => self.track_variables_in_while(while_expr),
             Expression::If(if_expr) => self.track_variables_in_if(if_expr),
             Expression::Match(match_expr) => self.track_variables_in_match(match_expr),
-            Expression::Tuple(elems) => self.track_variables_in_tuple(elems),
+            Expression::Tuple(elements) => self.track_variables_in_tuple(elements),
             Expression::ExtractTupleField(tuple, _index) => {
                 self.track_variables_in_expression(tuple);
             }
@@ -381,7 +381,7 @@ impl LastUseContext {
         let match_id = self.next_if_or_match_id();
 
         for (i, case) in match_expr.cases.iter().enumerate() {
-            for argument in &case.arguments {
+            for (argument, _) in &case.arguments {
                 self.declare_variable(*argument);
             }
 
@@ -397,8 +397,8 @@ impl LastUseContext {
         }
     }
 
-    fn track_variables_in_tuple(&mut self, elems: &[Expression]) {
-        for elem in elems {
+    fn track_variables_in_tuple(&mut self, elements: &[Expression]) {
+        for elem in elements {
             self.track_variables_in_expression(elem);
         }
     }
@@ -428,8 +428,8 @@ impl LastUseContext {
     }
 
     fn track_variables_in_assign(&mut self, assign: &ast::Assign) {
-        self.track_variables_in_lvalue(&assign.lvalue);
         self.track_variables_in_expression(&assign.expression);
+        self.track_variables_in_lvalue(&assign.lvalue, false /* nested */);
     }
 
     /// A variable in an lvalue position is never moved (otherwise you wouldn't
@@ -441,20 +441,29 @@ impl LastUseContext {
     /// if the last use of one was just before it is assigned, it can actually be
     /// moved before it is assigned. This should be fine because we move out of the
     /// binding, and the binding isn't used until it is set to a new value.
-    fn track_variables_in_lvalue(&mut self, lvalue: &ast::LValue) {
+    ///
+    /// The `nested` parameter indicates whether this l-value is nested inside another l-value.
+    /// For top-level identifiers there's nothing to track, but for an identifier happening
+    /// as part of an index (`ident[index] = ...`) we do want to consider `ident` as moved.
+    fn track_variables_in_lvalue(&mut self, lvalue: &ast::LValue, nested: bool) {
         match lvalue {
             // All identifiers in lvalues are implicitly `&mut ident` and thus aren't moved
-            ast::LValue::Ident(_) => (),
+            ast::LValue::Ident(ident) => {
+                if nested {
+                    self.track_variables_in_ident(ident);
+                }
+            }
             ast::LValue::Index { array, index, element_type: _, location: _ } => {
                 self.track_variables_in_expression(index);
-                self.track_variables_in_lvalue(array);
+                self.track_variables_in_lvalue(array, true);
             }
             ast::LValue::MemberAccess { object, field_index: _ } => {
-                self.track_variables_in_lvalue(object);
+                self.track_variables_in_lvalue(object, true);
             }
             ast::LValue::Dereference { reference, element_type: _ } => {
-                self.track_variables_in_lvalue(reference);
+                self.track_variables_in_lvalue(reference, true);
             }
+            ast::LValue::Clone(_) => todo!(),
         }
     }
 }

@@ -20,9 +20,9 @@ impl Read for u32 {
 
 fn main() {
     let data: [Field; 1] = [1_Field];
-    let value: u32 = Read::read(data);
+    let value: u32 = u32::read(data);
     assert(value == 1_u32);
-    let value: Field = Read::read(data);
+    let value: Field = Field::read(data);
     assert(value == 10_Field);
 }
 

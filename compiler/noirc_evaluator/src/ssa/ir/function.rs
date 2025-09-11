@@ -121,7 +121,7 @@ impl Function {
 
     /// The name of the function.
     /// Used exclusively for debugging purposes.
-    pub(crate) fn name(&self) -> &str {
+    pub fn name(&self) -> &str {
         &self.name
     }
 
@@ -165,14 +165,16 @@ impl Function {
     }
 
     /// Returns the return types of this function.
-    pub(crate) fn returns(&self) -> &[ValueId] {
+    /// None might be returned if the function ends up with all of its block
+    /// terminators being `jmp`, `jmpif` or `unreachable`.
+    pub(crate) fn returns(&self) -> Option<&[ValueId]> {
         for block in self.reachable_blocks() {
             let terminator = self.dfg[block].terminator();
             if let Some(TerminatorInstruction::Return { return_values, .. }) = terminator {
-                return return_values;
+                return Some(return_values);
             }
         }
-        &[]
+        None
     }
 
     /// Collects all the reachable blocks of this function.
@@ -194,7 +196,8 @@ impl Function {
 
     pub(crate) fn signature(&self) -> Signature {
         let params = vecmap(self.parameters(), |param| self.dfg.type_of_value(*param));
-        let returns = vecmap(self.returns(), |ret| self.dfg.type_of_value(*ret));
+        let returns =
+            vecmap(self.returns().unwrap_or_default(), |ret| self.dfg.type_of_value(*ret));
         Signature { params, returns }
     }
 
@@ -209,12 +212,13 @@ impl Function {
         unreachable!("SSA Function {} has no reachable return instruction!", self.id())
     }
 
+    /// Total number of instructions in the reachable blocks of this function.
     pub(crate) fn num_instructions(&self) -> usize {
         self.reachable_blocks()
             .iter()
             .map(|block| {
                 let block = &self.dfg[*block];
-                block.instructions().len() + block.terminator().is_some() as usize
+                block.instructions().len() + usize::from(block.terminator().is_some())
             })
             .sum()
     }

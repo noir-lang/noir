@@ -42,7 +42,7 @@ use crate::{
     },
 };
 
-use fxhash::FxHashMap as HashMap;
+use rustc_hash::FxHashMap as HashMap;
 
 mod last_uses;
 mod tests;
@@ -131,9 +131,12 @@ impl Context {
     ///
     /// Note that this also matches on dereference operations to exempt their LHS from clones,
     /// but their LHS is always exempt from clones so this is unchanged.
-    fn handle_reference_expression(&mut self, expr: &mut Expression) {
+    ///
+    /// # Returns
+    /// A boolean representing whether or not the expression was borrowed by reference (false) or moved (true).
+    fn handle_reference_expression(&mut self, expr: &mut Expression) -> bool {
         match expr {
-            Expression::Ident(_) => (),
+            Expression::Ident(_) => false,
             Expression::Block(exprs) => {
                 let len_minus_one = exprs.len().saturating_sub(1);
                 for expr in exprs.iter_mut().take(len_minus_one) {
@@ -141,17 +144,28 @@ impl Context {
                     self.handle_expression(expr);
                 }
                 if let Some(expr) = exprs.last_mut() {
-                    self.handle_reference_expression(expr);
+                    self.handle_reference_expression(expr)
+                } else {
+                    true
                 }
             }
             Expression::Unary(Unary { rhs, operator: UnaryOp::Dereference { .. }, .. }) => {
-                self.handle_reference_expression(rhs);
+                self.handle_reference_expression(rhs)
             }
             Expression::ExtractTupleField(tuple, _index) => self.handle_reference_expression(tuple),
 
+            Expression::Index(index) => {
+                let is_moved = self.handle_reference_expression(&mut index.collection);
+                self.handle_expression(&mut index.index);
+                is_moved
+            }
+
             // If we have something like `f(arg)` then we want to treat those variables normally
             // rather than avoid cloning them. So we shouldn't recur in `handle_reference_expression`.
-            other => self.handle_expression(other),
+            other => {
+                self.handle_expression(other);
+                true
+            }
         }
     }
 
@@ -267,15 +281,16 @@ impl Context {
     }
 
     fn handle_index(&mut self, index_expr: &mut Expression) {
-        let crate::monomorphization::ast::Expression::Index(index) = index_expr else {
+        let Expression::Index(index) = index_expr else {
             panic!("handle_index should only be called with Index nodes");
         };
 
         // Don't clone the collection, cloning only the resulting element is cheaper.
-        self.handle_reference_expression(&mut index.collection);
+        let is_moved = self.handle_reference_expression(&mut index.collection);
         self.handle_expression(&mut index.index);
 
-        if contains_array_or_str_type(&index.element_type) {
+        // If the index collection is being borrowed we need to clone the result.
+        if !is_moved && contains_array_or_str_type(&index.element_type) {
             clone_expr(index_expr);
         }
     }
@@ -324,6 +339,20 @@ impl Context {
         for arg in &mut call.arguments {
             self.handle_expression(arg);
         }
+
+        // Hack to avoid clones when calling `array.len()`.
+        // That function takes arrays by value but we know it never mutates them.
+        if let Expression::Ident(ident) = call.func.as_ref() {
+            if let Definition::Builtin(name) = &ident.definition {
+                if name == "array_len" {
+                    if let Some(Expression::Clone(array)) = call.arguments.get_mut(0) {
+                        let array =
+                            std::mem::replace(array.as_mut(), Expression::Literal(Literal::Unit));
+                        call.arguments[0] = array;
+                    }
+                }
+            }
+        }
     }
 
     fn handle_let(&mut self, let_expr: &mut crate::monomorphization::ast::Let) {
@@ -343,8 +372,8 @@ impl Context {
     }
 
     fn handle_assign(&mut self, assign: &mut crate::monomorphization::ast::Assign) {
-        self.handle_lvalue(&mut assign.lvalue);
         self.handle_expression(&mut assign.expression);
+        self.handle_lvalue(&mut assign.lvalue);
     }
 
     fn handle_lvalue(&mut self, lvalue: &mut LValue) {
@@ -355,6 +384,10 @@ impl Context {
             LValue::Index { array, index, element_type: _, location: _ } => {
                 self.handle_expression(index);
                 self.handle_lvalue(array);
+
+                if contains_index(array) {
+                    **array = LValue::Clone(array.clone());
+                }
             }
             LValue::MemberAccess { object, field_index: _ } => {
                 self.handle_lvalue(object);
@@ -362,7 +395,21 @@ impl Context {
             LValue::Dereference { reference, element_type: _ } => {
                 self.handle_lvalue(reference);
             }
+            // LValue::Clone isn't present before this pass and is only inserted after we already
+            // handle the corresponding lvalue
+            LValue::Clone(_) => unreachable!("LValue::Clone should only be inserted by this pass"),
         }
+    }
+}
+
+fn contains_index(lvalue: &LValue) -> bool {
+    use LValue::*;
+    match lvalue {
+        Ident(_) => false,
+        Index { .. } => true,
+        Dereference { reference: lvalue, .. }
+        | MemberAccess { object: lvalue, .. }
+        | Clone(lvalue) => contains_index(lvalue),
     }
 }
 
@@ -386,7 +433,7 @@ fn contains_array_or_str_type(typ: &Type) -> bool {
 
         Type::Array(_, _) | Type::String(_) | Type::FmtString(_, _) | Type::Slice(_) => true,
 
-        Type::Tuple(elems) => elems.iter().any(contains_array_or_str_type),
+        Type::Tuple(elements) => elements.iter().any(contains_array_or_str_type),
     }
 }
 

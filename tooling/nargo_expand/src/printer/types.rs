@@ -10,6 +10,14 @@ impl ItemPrinter<'_, '_> {
     }
 
     pub(super) fn show_type(&mut self, typ: &Type) {
+        self.show_type_impl(typ, false /* as expression */);
+    }
+
+    pub(super) fn show_type_as_expression(&mut self, typ: &Type) {
+        self.show_type_impl(typ, true /* as expression */);
+    }
+
+    fn show_type_impl(&mut self, typ: &Type, as_expression: bool) {
         if self.self_type.as_ref() == Some(typ) {
             self.push_str("Self");
             return;
@@ -17,25 +25,58 @@ impl ItemPrinter<'_, '_> {
 
         match typ {
             Type::Array(length, typ) => {
+                if as_expression {
+                    self.push('<');
+                }
+
                 self.push('[');
                 self.show_type(typ);
                 self.push_str("; ");
                 self.show_type(length);
                 self.push(']');
+
+                if as_expression {
+                    self.push('>');
+                }
             }
             Type::Slice(typ) => {
+                if as_expression {
+                    self.push('<');
+                }
+
                 self.push('[');
                 self.show_type(typ);
                 self.push(']');
+
+                if as_expression {
+                    self.push('>');
+                }
+            }
+            Type::String(length) => {
+                self.push_str("str");
+                if as_expression {
+                    self.push_str("::");
+                }
+                self.push('<');
+                self.show_type(length);
+                self.push('>');
             }
             Type::FmtString(length, typ) => {
-                self.push_str("fmtstr<");
+                self.push_str("fmtstr");
+                if as_expression {
+                    self.push_str("::");
+                }
+                self.push('<');
                 self.show_type(length);
                 self.push_str(", ");
                 self.show_type(typ);
                 self.push('>');
             }
             Type::Tuple(types) => {
+                if as_expression {
+                    self.push('<');
+                }
+
                 let len = types.len();
                 self.push('(');
                 self.show_types_separated_by_comma(types);
@@ -43,6 +84,10 @@ impl ItemPrinter<'_, '_> {
                     self.push(',');
                 }
                 self.push(')');
+
+                if as_expression {
+                    self.push('>');
+                }
             }
             Type::DataType(data_type, generics) => {
                 let data_type = data_type.borrow();
@@ -53,6 +98,9 @@ impl ItemPrinter<'_, '_> {
                     use_import,
                 );
                 if !generics.is_empty() {
+                    if as_expression {
+                        self.push_str("::");
+                    }
                     self.push_str("<");
                     self.show_types_separated_by_comma(generics);
                     self.push('>');
@@ -67,6 +115,9 @@ impl ItemPrinter<'_, '_> {
                     use_import,
                 );
                 if !generics.is_empty() {
+                    if as_expression {
+                        self.push_str("::");
+                    }
                     self.push_str("<");
                     self.show_types_separated_by_comma(generics);
                     self.push('>');
@@ -74,7 +125,7 @@ impl ItemPrinter<'_, '_> {
             }
             Type::TypeVariable(type_variable) => match &*type_variable.borrow() {
                 TypeBinding::Bound(typ) => {
-                    self.show_type(typ);
+                    self.show_type_impl(typ, as_expression);
                 }
                 TypeBinding::Unbound(..) => {
                     self.push('_');
@@ -88,15 +139,19 @@ impl ItemPrinter<'_, '_> {
             }
             Type::NamedGeneric(NamedGeneric { name, type_var, .. }) => {
                 if let TypeBinding::Bound(typ) = &*type_var.borrow() {
-                    self.show_type(typ);
+                    self.show_type_impl(typ, as_expression);
                 } else {
                     self.push_str(name);
                 }
             }
             Type::CheckedCast { from: _, to } => {
-                self.show_type(to);
+                self.show_type_impl(to, as_expression);
             }
             Type::Function(args, ret, env, unconstrained) => {
+                if as_expression {
+                    self.push('<');
+                }
+
                 if *unconstrained {
                     self.push_str("unconstrained ");
                 }
@@ -113,6 +168,10 @@ impl ItemPrinter<'_, '_> {
                     self.push_str(" -> ");
                     self.show_type(ret);
                 }
+
+                if as_expression {
+                    self.push('>');
+                }
             }
             Type::Reference(typ, mutable) => {
                 if *mutable {
@@ -120,7 +179,7 @@ impl ItemPrinter<'_, '_> {
                 } else {
                     self.push('&');
                 }
-                self.show_type(typ);
+                self.show_type_impl(typ, as_expression);
             }
             Type::Forall(..) => {
                 panic!("Should not need to print Type::Forall")
@@ -135,11 +194,16 @@ impl ItemPrinter<'_, '_> {
                 self.push(' ');
                 self.show_type_maybe_in_parentheses(rhs);
             }
-            Type::Unit
-            | Type::Bool
+            Type::Unit => {
+                if as_expression {
+                    self.push_str("<()>");
+                } else {
+                    self.push_str("()");
+                }
+            }
+            Type::Bool
             | Type::Integer(..)
             | Type::FieldElement
-            | Type::String(_)
             | Type::Quoted(..)
             | Type::Error => self.push_str(&typ.to_string()),
         }

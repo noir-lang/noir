@@ -15,7 +15,7 @@ enum Visit {
     Last,
 }
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub(crate) struct PostOrder(Vec<BasicBlockId>);
 
 impl PostOrder {
@@ -36,8 +36,16 @@ impl PostOrder {
         PostOrder(Self::compute_post_order(cfg))
     }
 
+    /// Return blocks in post-order.
     pub(crate) fn into_vec(self) -> Vec<BasicBlockId> {
         self.0
+    }
+
+    /// Return blocks in reverse-post-order a.k.a. forward-order.
+    pub(crate) fn into_vec_reverse(self) -> Vec<BasicBlockId> {
+        let mut blocks = self.into_vec();
+        blocks.reverse();
+        blocks
     }
 
     // Computes the post-order of the CFG by doing a depth-first traversal of the

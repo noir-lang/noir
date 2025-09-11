@@ -1,0 +1,12 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+bug: Assertion is always false: attempt to subtract with overflow
+  ┌─ src/main.nr:8:9
+  │
+8 │     b[((x - y) % z)].0
+  │         ----- As a result, the compiled circuit is ensured to fail. Other assertions may also fail during execution
+  │
+  = Call stack:
+    1. src/main.nr:8:9

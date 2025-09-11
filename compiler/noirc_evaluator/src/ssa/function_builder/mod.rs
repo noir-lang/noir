@@ -178,7 +178,6 @@ impl FunctionBuilder {
     }
 
     /// Insert a numeric constant into the current function of type Field
-    #[cfg(test)]
     pub fn field_constant(&mut self, value: impl Into<FieldElement>) -> ValueId {
         self.numeric_constant(value.into(), NumericType::NativeField)
     }
@@ -247,7 +246,7 @@ impl FunctionBuilder {
         self.current_block
     }
 
-    pub fn get_current_block_index(&mut self) -> BasicBlockId {
+    pub fn get_current_block_index(&self) -> BasicBlockId {
         self.current_block
     }
 

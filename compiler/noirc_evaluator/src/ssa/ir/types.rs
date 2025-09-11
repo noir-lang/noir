@@ -62,23 +62,19 @@ impl NumericType {
         match self {
             NumericType::Unsigned { bit_size } => {
                 let max = if bit_size == 128 { u128::MAX } else { 2u128.pow(bit_size) - 1 };
-                if value.is_negative() {
-                    return Some(format!("0..={}", max));
-                }
-                if value.absolute_value() <= max.into() {
-                    None
+                if value.is_negative() || value > SignedField::positive(max) {
+                    Some(format!("0..={max}"))
                 } else {
-                    Some(format!("0..={}", max))
+                    None
                 }
             }
             NumericType::Signed { bit_size } => {
                 let min = 2u128.pow(bit_size - 1);
                 let max = 2u128.pow(bit_size - 1) - 1;
-                let target_max = if value.is_negative() { min } else { max };
-                if value.absolute_value() <= target_max.into() {
-                    None
+                if value > SignedField::positive(max) || value < SignedField::negative(min) {
+                    Some(format!("-{min}..={max}"))
                 } else {
-                    Some(format!("-{}..={}", min, max))
+                    None
                 }
             }
             NumericType::NativeField => None,
@@ -153,6 +149,11 @@ impl Type {
     /// Returns whether the `Type` represents an unsigned numeric type.
     pub fn is_unsigned(&self) -> bool {
         matches!(self, Type::Numeric(NumericType::Unsigned { .. }))
+    }
+
+    /// Returns whether the `Type` represents an signed numeric type.
+    pub fn is_signed(&self) -> bool {
+        matches!(self, Type::Numeric(NumericType::Signed { .. }))
     }
 
     /// Create a new signed integer type with the given amount of bits.

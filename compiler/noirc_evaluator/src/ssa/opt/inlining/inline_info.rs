@@ -1,17 +1,28 @@
 use std::collections::{BTreeMap, VecDeque};
 
-use fxhash::FxHashSet as HashSet;
 use im::HashMap;
 use petgraph::graph::NodeIndex as PetGraphIndex;
+use rustc_hash::FxHashSet as HashSet;
 
 use crate::ssa::{
     ir::{
         call_graph::{CallGraph, called_functions},
         dfg::DataFlowGraph,
         function::{Function, FunctionId},
+        instruction::{Instruction, Intrinsic},
     },
     ssa_gen::Ssa,
 };
+
+/// The maximum number of instructions chosen below is an expert estimation of a "small" function
+/// in our SSA IR. Generally, inlining small functions with no control flow should enable further optimizations
+/// in the compiler while avoiding code size bloat.
+///
+/// For example, a common "simple" function is writing into a mutable reference.
+/// When that function has no control flow, it generally means we can expect all loads and stores within the
+/// function to be resolved upon inlining. Inlining this type of basic function both reduces the number of
+/// loads/stores to be executed and enables the compiler to continue optimizing at the inline site.
+pub const MAX_INSTRUCTIONS: usize = 10;
 
 /// Information about a function to aid the decision about whether to inline it or not.
 /// The final decision depends on what we're inlining it into.
@@ -21,6 +32,7 @@ pub(crate) struct InlineInfo {
     is_acir_entry_point: bool,
     is_recursive: bool,
     pub(crate) should_inline: bool,
+    pub(super) contains_static_assertion: bool,
     weight: i64,
     cost: i64,
 }
@@ -56,6 +68,7 @@ pub(crate) fn compute_inline_infos(
     ssa: &Ssa,
     call_graph: &CallGraph,
     inline_no_predicates_functions: bool,
+    small_function_max_instructions: usize,
     aggressiveness: i64,
 ) -> InlineInfos {
     let mut inline_infos = InlineInfos::default();
@@ -93,11 +106,13 @@ pub(crate) fn compute_inline_infos(
     let times_called = call_graph.times_called();
     // Find mutual recursion in our call graph
     let recursive_functions = call_graph.get_recursive_functions();
+    let small_function_max_instructions = small_function_max_instructions as i64;
     for recursive_func in recursive_functions.iter() {
         inline_infos.entry(*recursive_func).or_default().is_recursive = true;
         compute_function_should_be_inlined(
             ssa,
             inline_no_predicates_functions,
+            small_function_max_instructions,
             aggressiveness,
             &times_called,
             &mut inline_infos,
@@ -115,6 +130,7 @@ pub(crate) fn compute_inline_infos(
         compute_function_should_be_inlined(
             ssa,
             inline_no_predicates_functions,
+            small_function_max_instructions,
             aggressiveness,
             &times_called,
             &mut inline_infos,
@@ -144,9 +160,11 @@ pub(crate) fn compute_inline_infos(
 /// A function's net cost is then (cost of inlining - cost of retaining).
 /// The net cost is then compared against the inliner aggressiveness setting. If the net cost is less than the aggressiveness,
 /// we inline the function (granted there are not other restrictions such as recursion).
+#[allow(clippy::too_many_arguments)]
 fn compute_function_should_be_inlined(
     ssa: &Ssa,
     inline_no_predicates_functions: bool,
+    small_function_max_instructions: i64,
     aggressiveness: i64,
     times_called: &HashMap<FunctionId, usize>,
     inline_infos: &mut InlineInfos,
@@ -154,12 +172,50 @@ fn compute_function_should_be_inlined(
     index: PetGraphIndex,
 ) {
     let func_id = call_graph.indices_to_ids()[&index];
-    if inline_infos.get(&func_id).is_some_and(|info| info.should_inline || info.weight != 0) {
+    if inline_infos.get(&func_id).is_some_and(|info| {
+        info.should_inline
+            || info.weight != 0
+            || info.is_brillig_entry_point
+            || info.is_acir_entry_point
+    }) {
         return; // Already processed
     }
 
+    let function = &ssa.functions[&func_id];
+    let runtime = function.runtime();
+
+    if runtime.is_acir() {
+        let info = inline_infos.entry(func_id).or_default();
+        info.should_inline = true;
+        return;
+    }
+
+    let is_recursive = inline_infos.get(&func_id).is_some_and(|info| info.is_recursive);
+    if runtime.is_brillig() && is_recursive {
+        return;
+    }
+
+    let assert_constant_id = function.dfg.get_intrinsic(Intrinsic::AssertConstant).copied();
+    let static_assert_id = function.dfg.get_intrinsic(Intrinsic::StaticAssert).copied();
+
+    let contains_static_assertion = if assert_constant_id.is_none() && static_assert_id.is_none() {
+        false
+    } else {
+        function.reachable_blocks().iter().any(|block| {
+            function.dfg[*block].instructions().iter().any(|instruction| {
+                match &function.dfg[*instruction] {
+                    Instruction::Call { func, .. } => {
+                        Some(*func) == assert_constant_id || Some(*func) == static_assert_id
+                    }
+                    _ => false,
+                }
+            })
+        })
+    };
+
     let neighbors = call_graph.graph().neighbors(index);
-    let mut total_weight = compute_function_own_weight(&ssa.functions[&func_id]) as i64;
+    let mut total_weight = compute_function_own_weight(function) as i64;
+    let instruction_weight = total_weight;
     for neighbor_index in neighbors {
         let callee = call_graph.indices_to_ids()[&neighbor_index];
         if inline_infos.get(&callee).is_some_and(|info| info.should_inline) {
@@ -167,23 +223,29 @@ fn compute_function_should_be_inlined(
         }
     }
     let times = times_called[&func_id] as i64;
-    let interface_cost = compute_function_interface_cost(&ssa.functions[&func_id]) as i64;
+    let interface_cost = compute_function_interface_cost(function) as i64;
     let inline_cost = times.saturating_mul(total_weight);
     let retain_cost = times.saturating_mul(interface_cost) + total_weight;
     let net_cost = inline_cost.saturating_sub(retain_cost);
-    let runtime = ssa.functions[&func_id].runtime();
     let info = inline_infos.entry(func_id).or_default();
 
+    info.contains_static_assertion = contains_static_assertion;
     info.weight = total_weight;
     info.cost = net_cost;
 
-    if info.is_recursive {
-        return;
-    }
+    let entry_block_id = function.entry_block();
+    let entry_block = &function.dfg[entry_block_id];
+    let should_inline_no_pred_function =
+        runtime.is_no_predicates() && inline_no_predicates_functions;
+    let is_simple_function = entry_block.successors().next().is_none()
+        && instruction_weight < small_function_max_instructions;
 
-    let should_inline = (net_cost < aggressiveness)
+    let should_inline = is_simple_function
+        || net_cost < aggressiveness
         || runtime.is_inline_always()
-        || (runtime.is_no_predicates() && inline_no_predicates_functions);
+        || should_inline_no_pred_function
+        || contains_static_assertion
+        || runtime.is_acir();
 
     info.should_inline = should_inline;
 }
@@ -289,14 +351,14 @@ fn compute_function_own_weight(func: &Function) -> usize {
 
 /// Compute interface cost of a function based on the number of inputs and outputs.
 fn compute_function_interface_cost(func: &Function) -> usize {
-    func.parameters().len() + func.returns().len()
+    func.parameters().len() + func.returns().unwrap_or_default().len()
 }
 
 #[cfg(test)]
 mod tests {
     use crate::ssa::{
         ir::{call_graph::CallGraph, map::Id},
-        opt::inlining::inline_info::compute_bottom_up_order,
+        opt::inlining::{MAX_INSTRUCTIONS, inline_info::compute_bottom_up_order},
         ssa_gen::Ssa,
     };
 
@@ -329,7 +391,8 @@ mod tests {
 
         let ssa = Ssa::from_str(src).unwrap();
         let call_graph = CallGraph::from_ssa_weighted(&ssa);
-        let inline_infos = compute_inline_infos(&ssa, &call_graph, false, i64::MAX);
+        let inline_infos =
+            compute_inline_infos(&ssa, &call_graph, false, MAX_INSTRUCTIONS, i64::MAX);
 
         let func_0 = inline_infos.get(&Id::test_new(0)).expect("Should have computed inline info");
         assert!(!func_0.is_recursive);
@@ -434,5 +497,126 @@ mod tests {
             "main"
         );
         assert!(tws[3] > std::cmp::max(tws[1], tws[2]), "ideally 'main' has the most weight");
+    }
+
+    #[test]
+    fn mark_static_assertions_to_always_be_inlined() {
+        let src = "
+        brillig(inline) fn main f0 {
+            b0():
+              call f1(Field 1)
+              return
+        }
+        brillig(inline) fn foo f1 {
+            b0(v0: Field):
+              call assert_constant(v0)
+              return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let call_graph = CallGraph::from_ssa_weighted(&ssa);
+        let infos = compute_inline_infos(&ssa, &call_graph, false, MAX_INSTRUCTIONS, 0);
+
+        let f1 = infos.get(&Id::test_new(1)).expect("f1 should be analyzed");
+        assert!(
+            f1.contains_static_assertion,
+            "f1 should be marked as containing a static assertion"
+        );
+        assert!(f1.should_inline, "f1 should be inlined due to static assertion");
+    }
+
+    #[test]
+    fn no_predicates() {
+        let src = "
+        acir(inline) fn main f0 {
+            b0():
+              call f1()
+              return
+        }
+        acir(no_predicates) fn no_predicates f1 {
+            b0():
+              return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let call_graph = CallGraph::from_ssa_weighted(&ssa);
+        let infos = compute_inline_infos(&ssa, &call_graph, false, MAX_INSTRUCTIONS, i64::MIN);
+        let f1 = infos.get(&Id::test_new(1)).expect("Should analyze f1");
+        assert!(
+            !f1.should_inline,
+            "no_predicates functions should NOT be inlined if the flag is false"
+        );
+
+        let infos = compute_inline_infos(&ssa, &call_graph, false, MAX_INSTRUCTIONS, 0);
+        let f1 = infos.get(&Id::test_new(1)).expect("Should analyze f1");
+        assert!(
+            !f1.should_inline,
+            "no_predicates functions should NOT be inlined if the flag is false"
+        );
+
+        let infos = compute_inline_infos(&ssa, &call_graph, false, MAX_INSTRUCTIONS, i64::MAX);
+        let f1 = infos.get(&Id::test_new(1)).expect("Should analyze f1");
+        assert!(
+            !f1.should_inline,
+            "no_predicates functions should NOT be inlined if the flag is false"
+        );
+
+        let infos = compute_inline_infos(&ssa, &call_graph, true, MAX_INSTRUCTIONS, i64::MIN);
+        let f1 = infos.get(&Id::test_new(1)).expect("Should analyze f1");
+        assert!(f1.should_inline, "no_predicates functions should be inlined if the flag is true");
+
+        let infos = compute_inline_infos(&ssa, &call_graph, true, MAX_INSTRUCTIONS, 0);
+        let f1 = infos.get(&Id::test_new(1)).expect("Should analyze f1");
+        assert!(f1.should_inline, "no_predicates functions should be inlined if the flag is true");
+
+        let infos = compute_inline_infos(&ssa, &call_graph, true, MAX_INSTRUCTIONS, i64::MAX);
+        let f1 = infos.get(&Id::test_new(1)).expect("Should analyze f1");
+        assert!(f1.should_inline, "no_predicates functions should be inlined if the flag is true");
+    }
+
+    #[test]
+    fn inline_always_functions_are_inlined() {
+        let src = "
+        brillig(inline) fn main f0 {
+            b0():
+              call f1()
+              return
+        }
+
+        brillig(inline_always) fn always_inline f1 {
+            b0():
+              return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let call_graph = CallGraph::from_ssa_weighted(&ssa);
+        let infos = compute_inline_infos(&ssa, &call_graph, false, MAX_INSTRUCTIONS, 0);
+
+        let f1 = infos.get(&Id::test_new(1)).expect("Should analyze f1");
+        assert!(f1.should_inline, "inline_always functions should be inlined");
+    }
+
+    #[test]
+    fn basic_inlining_brillig_not_inlined_into_acir() {
+        let src = "
+        acir(inline) fn foo f0 {
+          b0():
+            v1 = call f1() -> Field
+            return v1
+        }
+        brillig(inline) fn bar f1 {
+          b0():
+            return Field 72
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let call_graph = CallGraph::from_ssa_weighted(&ssa);
+        let infos = compute_inline_infos(&ssa, &call_graph, false, MAX_INSTRUCTIONS, 0);
+
+        let f1 = infos.get(&Id::test_new(1)).expect("Should analyze f1");
+        assert!(!f1.should_inline, "Brillig entry points should never be inlined");
     }
 }

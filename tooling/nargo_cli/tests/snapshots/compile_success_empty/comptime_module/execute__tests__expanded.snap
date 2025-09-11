@@ -64,9 +64,9 @@ pub struct Foo {}
 mod add_to_me {
     fn add_to_me_function() {}
 
-    pub fn added_function() -> super::Foo {
+    pub fn added_function() -> crate::Foo {
         add_to_me_function();
-        super::Foo {}
+        crate::Foo {}
     }
 }
 
@@ -104,6 +104,6 @@ fn as_module_test() {
 mod separate_module {
     comptime fn inner_attribute_separate_module(m: Module) {
         assert(m.name() == quote { separate_module });
-        super::increment_counter();
+        crate::increment_counter();
     }
 }

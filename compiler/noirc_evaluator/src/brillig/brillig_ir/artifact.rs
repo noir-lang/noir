@@ -86,13 +86,13 @@ impl std::fmt::Display for LabelType {
         match self {
             LabelType::Function(function_id, block_id) => {
                 if let Some(block_id) = block_id {
-                    write!(f, "Function({:?}, {:?})", function_id, block_id)
+                    write!(f, "Function({function_id:?}, {block_id:?})")
                 } else {
-                    write!(f, "Function({:?})", function_id)
+                    write!(f, "Function({function_id:?})")
                 }
             }
             LabelType::Entrypoint => write!(f, "Entrypoint"),
-            LabelType::Procedure(procedure_id) => write!(f, "Procedure({:?})", procedure_id),
+            LabelType::Procedure(procedure_id) => write!(f, "Procedure({procedure_id:?})"),
             LabelType::GlobalInit(function_id) => {
                 write!(f, "Globals Initialization({function_id:?})")
             }

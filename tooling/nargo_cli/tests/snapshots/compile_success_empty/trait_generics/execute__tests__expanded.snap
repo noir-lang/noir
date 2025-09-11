@@ -15,7 +15,7 @@ where
     T: MyInto<U>,
     U: Eq,
 {
-    assert(MyInto::into(x) == u);
+    assert(x.into() == u);
 }
 
 trait MyInto<T> {
@@ -26,11 +26,8 @@ impl<let N: u32, T, U> MyInto<[U; N]> for [T; N]
 where
     T: MyInto<U>,
 {
-    fn into(self) -> [U; N]
-    where
-        T: MyInto<U>,
-    {
-        self.map(|x: T| -> U MyInto::into(x))
+    fn into(self) -> [U; N] {
+        self.map(|x: T| -> U x.into())
     }
 }
 
@@ -60,7 +57,7 @@ fn sum<T, let M: u32>(data: T) -> Field
 where
     T: Serializable<M>,
 {
-    let serialized: [Field; M] = Serializable::serialize(data);
+    let serialized: [Field; M] = data.serialize();
     serialized.fold(0_Field, |acc: Field, elem: Field| -> Field { acc + elem })
 }
 
@@ -68,6 +65,6 @@ fn sum_static<T, let M: u32>(data: T) -> Field
 where
     T: Serializable<M>,
 {
-    let serialized: [Field; M] = Serializable::serialize(data);
+    let serialized: [Field; M] = data.serialize();
     serialized.fold(0_Field, |acc: Field, elem: Field| -> Field { acc + elem })
 }

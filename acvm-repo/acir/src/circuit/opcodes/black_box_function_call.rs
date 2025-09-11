@@ -76,7 +76,7 @@ impl<F: AcirField> FunctionInput<F> {
             Ok(FunctionInput { input: ConstantOrWitnessEnum::Constant(value), num_bits: max_bits })
         } else {
             let value_num_bits = value.num_bits();
-            let value = format!("{}", value);
+            let value = format!("{value}");
             Err(InvalidInputBitSize { value, value_num_bits, max_bits })
         }
     }
@@ -89,7 +89,7 @@ impl<F: std::fmt::Display> std::fmt::Display for FunctionInput<F> {
                 write!(f, "({constant}, {})", self.num_bits)
             }
             ConstantOrWitnessEnum::Witness(witness) => {
-                write!(f, "(_{}, {})", witness.0, self.num_bits)
+                write!(f, "({}, {})", witness, self.num_bits)
             }
         }
     }
@@ -377,14 +377,19 @@ impl<F> BlackBoxFuncCall<F> {
 impl<F: Copy> BlackBoxFuncCall<F> {
     pub fn get_inputs_vec(&self) -> Vec<FunctionInput<F>> {
         match self {
-            BlackBoxFuncCall::AES128Encrypt { inputs, .. }
-            | BlackBoxFuncCall::Blake2s { inputs, .. }
+            BlackBoxFuncCall::Blake2s { inputs, .. }
             | BlackBoxFuncCall::Blake3 { inputs, .. }
             | BlackBoxFuncCall::BigIntFromLeBytes { inputs, .. }
             | BlackBoxFuncCall::Poseidon2Permutation { inputs, .. } => inputs.to_vec(),
 
             BlackBoxFuncCall::Keccakf1600 { inputs, .. } => inputs.to_vec(),
-
+            BlackBoxFuncCall::AES128Encrypt { inputs, iv, key, .. } => {
+                let mut all_inputs: Vec<FunctionInput<F>> =
+                    Vec::with_capacity(inputs.len() + iv.len() + key.len());
+                all_inputs.extend(**iv);
+                all_inputs.extend(**key);
+                all_inputs
+            }
             BlackBoxFuncCall::Sha256Compression { inputs, hash_values, .. } => {
                 inputs.iter().chain(hash_values.as_ref()).copied().collect()
             }
@@ -551,9 +556,11 @@ mod tests {
 
     #[test]
     fn keccakf1600_serialization_roundtrip() {
+        use crate::serialization::{bincode_deserialize, bincode_serialize};
+
         let opcode = keccakf1600_opcode::<FieldElement>();
-        let buf = bincode::serialize(&opcode).unwrap();
-        let recovered_opcode = bincode::deserialize(&buf).unwrap();
+        let buf = bincode_serialize(&opcode).unwrap();
+        let recovered_opcode = bincode_deserialize(&buf).unwrap();
         assert_eq!(opcode, recovered_opcode);
     }
 }

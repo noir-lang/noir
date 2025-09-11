@@ -41,6 +41,7 @@ pub fn prepare_dependencies(
         match dep {
             Dependency::Remote { package } | Dependency::Local { package } => {
                 let crate_id = prepare_dependency(context, &package.entry_path);
+                add_unstable_features(context, crate_id, package);
                 add_dep(context, parent_crate, crate_id, dep_name.clone());
                 prepare_dependencies(context, crate_id, &package.dependencies);
             }
@@ -127,7 +128,7 @@ fn insert_all_files_into_file_manager(
             src.to_string()
         } else {
             std::fs::read_to_string(filename.as_path())
-                .unwrap_or_else(|_| panic!("could not read file {:?} into string", filename))
+                .unwrap_or_else(|_| panic!("could not read file {filename:?} into string"))
         };
 
         file_manager.add_file_with_source(filename.as_path(), source);
@@ -230,9 +231,24 @@ pub fn parse_all(file_manager: &FileManager) -> ParsedFiles {
 
 #[cfg(not(any(target_arch = "wasm32", target_arch = "wasm64")))]
 pub fn parse_all(file_manager: &FileManager) -> ParsedFiles {
-    let num_threads = rayon::current_num_threads();
+    // Collect only .nr files to process
+    let nr_files: Vec<_> = file_manager
+        .as_file_map()
+        .all_file_ids()
+        .filter(|&&file_id| {
+            let file_path = file_manager.path(file_id).expect("expected file to exist");
+            let file_extension =
+                file_path.extension().expect("expected all file paths to have an extension");
+            file_extension == "nr"
+        })
+        .copied()
+        .collect();
+
+    // Limit threads to the actual number of files we need to process.
+    let num_threads = rayon::current_num_threads().min(nr_files.len()).max(1);
+
     let (sender, receiver) = mpsc::channel();
-    let iter = &Mutex::new(file_manager.as_file_map().all_file_ids());
+    let iter = &Mutex::new(nr_files.into_iter());
 
     thread::scope(|scope| {
         // Start worker threads
@@ -246,17 +262,9 @@ pub fn parse_all(file_manager: &FileManager) -> ParsedFiles {
                 .spawn_scoped(scope, move || {
                     loop {
                         // Get next file to process from the iterator.
-                        let Some(&file_id) = iter.lock().unwrap().next() else {
+                        let Some(file_id) = iter.lock().unwrap().next() else {
                             break;
                         };
-
-                        let file_path = file_manager.path(file_id).expect("expected file to exist");
-                        let file_extension = file_path
-                            .extension()
-                            .expect("expected all file paths to have an extension");
-                        if file_extension != "nr" {
-                            continue;
-                        }
 
                         let parsed_file = parse_file(file_manager, file_id);
 
@@ -287,10 +295,15 @@ pub fn prepare_package<'file_manager, 'parsed_files>(
     package: &Package,
 ) -> (Context<'file_manager, 'parsed_files>, CrateId) {
     let mut context = Context::from_ref_file_manager(file_manager, parsed_files);
-
     let crate_id = prepare_crate(&mut context, &package.entry_path);
-
+    add_unstable_features(&mut context, crate_id, package);
     prepare_dependencies(&mut context, crate_id, &package.dependencies);
-
     (context, crate_id)
+}
+
+/// Add any unstable features required by the `Package` to the `Context`.
+fn add_unstable_features(context: &mut Context, crate_id: CrateId, package: &Package) {
+    context
+        .required_unstable_features
+        .insert(crate_id, package.compiler_required_unstable_features.clone());
 }

@@ -131,7 +131,7 @@ pub struct FuncMeta {
     // This flag is needed for the attribute check pass
     pub has_body: bool,
 
-    /// Trait constraints that were specifiied directly on this function.
+    /// Trait constraints that were specified directly on this function.
     pub trait_constraints: Vec<TraitConstraint>,
 
     /// Trait constraints that came either from a parent item (for example a where clause on a

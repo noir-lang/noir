@@ -1,0 +1,42 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+struct Foo {
+    inner: Field,
+}
+
+struct Bar {
+    inner: Foo,
+}
+
+fn main() {
+    nested_dereferences();
+    nested_struct_aliases_in_array();
+}
+
+fn nested_dereferences() {
+    let mut var: Foo = Foo { inner: 0_Field };
+    let ref: &mut &mut Foo = &mut &mut var;
+    let mut array: [&mut &mut Foo; 2] = [ref, ref];
+    assert((**array[0_u32]).inner == 0_Field);
+    (**array[0_u32]).inner = 1_Field;
+    (**array[1_u32]).inner = 2_Field;
+    assert(var.inner == 2_Field);
+    assert((**ref).inner == 2_Field);
+    assert((**array[0_u32]).inner == 2_Field);
+    assert((**array[1_u32]).inner == 2_Field);
+}
+
+fn nested_struct_aliases_in_array() {
+    let mut var: Bar = Bar { inner: Foo { inner: 0_Field } };
+    let ref: &mut &mut &mut Bar = &mut &mut &mut var;
+    let mut array: [&mut &mut &mut Bar; 2] = [ref, ref];
+    (**array[0_u32]).inner.inner = (**array[0_u32]).inner.inner + 5_Field;
+    (**array[1_u32]).inner.inner = (**array[1_u32]).inner.inner + 2_Field;
+    assert(var.inner.inner == 7_Field);
+    assert((***ref).inner.inner == 7_Field);
+    assert((**array[0_u32]).inner.inner == 7_Field);
+    assert((**array[1_u32]).inner.inner == 7_Field);
+    assert(var.inner.inner == 7_Field);
+}

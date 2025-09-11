@@ -68,6 +68,7 @@ pub(super) fn compile_prepare_vector_insert_procedure<F: AcirField + DebugToStri
         source_size,
         source_capacity,
         source_items_pointer,
+        None,
     );
 
     // Target size is source size + item_count

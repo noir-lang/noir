@@ -17,9 +17,9 @@ impl<let N: u32, T> Collection for [T; N] {
 
     fn cget(self, index: u32) -> Option<T> {
         if index < self.len() {
-            Option::some(self[index])
+            Option::<T>::some(self[index])
         } else {
-            Option::none()
+            Option::<T>::none()
         }
     }
 

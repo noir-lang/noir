@@ -1,10 +1,8 @@
-use std::collections::BTreeMap;
-
 use nargo_fmt::ImportsGranularity;
 use noirc_driver::CrateId;
 use noirc_frontend::{
     graph::CrateGraph,
-    hir::def_map::{CrateDefMap, ModuleId},
+    hir::def_map::{DefMaps, ModuleId},
     node_interner::NodeInterner,
     parse_program_with_dummy_file,
 };
@@ -15,12 +13,10 @@ mod items;
 mod printer;
 
 /// Returns the expanded code for the given crate.
-/// Note that `context` that holds the crate graph, def maps and interner
-/// must have `activate_lsp_mode` called on it before invoking this function.
 pub fn get_expanded_crate(
     crate_id: CrateId,
     crate_graph: &CrateGraph,
-    def_maps: &BTreeMap<CrateId, CrateDefMap>,
+    def_maps: &DefMaps,
     interner: &NodeInterner,
 ) -> String {
     let root_module_id = def_maps[&crate_id].root();

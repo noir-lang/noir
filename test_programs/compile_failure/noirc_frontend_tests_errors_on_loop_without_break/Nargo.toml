@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_errors_on_loop_without_break"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

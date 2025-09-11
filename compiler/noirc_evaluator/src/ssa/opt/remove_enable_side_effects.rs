@@ -49,7 +49,7 @@ impl Function {
 
         let mut previous_block = None;
 
-        self.simple_reachable_blocks_optimization(|context| {
+        self.simple_optimization(|context| {
             if Some(context.block_id) != previous_block {
                 active_condition = one;
                 last_side_effects_enabled_instruction = None;
@@ -68,6 +68,7 @@ impl Function {
                     context.remove_current_instruction();
                     return;
                 }
+                active_condition = *condition;
 
                 // If we're seeing an `enable_side_effects u1 1` then we want to insert it immediately.
                 // This is because we want to maximize the effect it will have.
@@ -75,15 +76,13 @@ impl Function {
                     .dfg
                     .get_numeric_constant(*condition)
                     .is_some_and(|condition| condition.is_one());
+
                 if condition_is_one {
                     last_side_effects_enabled_instruction = None;
-                    active_condition = *condition;
-                    return;
+                } else {
+                    last_side_effects_enabled_instruction = Some(instruction_id);
+                    context.remove_current_instruction();
                 }
-
-                last_side_effects_enabled_instruction = Some(instruction_id);
-                active_condition = *condition;
-                context.remove_current_instruction();
                 return;
             }
 
@@ -93,7 +92,7 @@ impl Function {
                 if let Some(enable_side_effects_instruction_id) =
                     last_side_effects_enabled_instruction.take()
                 {
-                    context.insert_instruction(enable_side_effects_instruction_id);
+                    context.insert_instruction_by_id(enable_side_effects_instruction_id);
                 }
             }
         });
@@ -276,23 +275,23 @@ mod test {
     }
 
     #[test]
-    fn remove_enable_side_effects_for_slice_pop_back() {
+    fn keep_enable_side_effects_for_slice_pop_back() {
         let src = get_slice_intrinsic_src(
             "v13, v14, v15",
             &Intrinsic::SlicePopBack.to_string(),
             ") -> (u32, [Field], Field)",
         );
-        verify_all_enable_side_effects_removed(&src);
+        verify_ssa_unchanged(&src);
     }
 
     #[test]
-    fn remove_enable_side_effects_for_slice_pop_front() {
+    fn keep_enable_side_effects_for_slice_pop_front() {
         let src = get_slice_intrinsic_src(
             "v13, v14, v15",
             &Intrinsic::SlicePopFront.to_string(),
             ") -> (Field, u32, [Field])",
         );
-        verify_all_enable_side_effects_removed(&src);
+        verify_ssa_unchanged(&src);
     }
 
     #[test]

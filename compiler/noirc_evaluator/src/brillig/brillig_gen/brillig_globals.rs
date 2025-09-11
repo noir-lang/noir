@@ -1,10 +1,13 @@
+//! Codegen for converting SSA globals to Brillig bytecode.
 use std::collections::{BTreeMap, BTreeSet};
 
 use acvm::FieldElement;
-use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use super::brillig_block::BrilligBlock;
 use super::{BrilligVariable, Function, FunctionContext, ValueId};
+use crate::ssa::ir::call_graph::CallGraph;
+use crate::ssa::ssa_gen::Ssa;
 use crate::{
     brillig::{
         Brillig, BrilligOptions, ConstantAllocation, DataFlowGraph, FunctionId, Label,
@@ -46,7 +49,7 @@ pub(crate) struct BrilligGlobals {
 
 /// Mapping of SSA value ids to their Brillig allocations
 pub(crate) type SsaToBrilligGlobals = HashMap<ValueId, BrilligVariable>;
-
+/// Mapping of constant values shared across functions hoisted to the global memory space
 pub(crate) type HoistedConstantsToBrilligGlobals =
     HashMap<(FieldElement, NumericType), BrilligVariable>;
 /// Mapping of a constant value and the number of functions in which it occurs
@@ -54,11 +57,12 @@ pub(crate) type ConstantCounterMap = HashMap<(FieldElement, NumericType), usize>
 
 impl BrilligGlobals {
     pub(crate) fn new(
-        functions: &BTreeMap<FunctionId, Function>,
+        ssa: &Ssa,
         mut used_globals: HashMap<FunctionId, HashSet<ValueId>>,
         main_id: FunctionId,
     ) -> Self {
-        let brillig_entry_points = get_brillig_entry_points(functions, main_id);
+        let call_graph = CallGraph::from_ssa(ssa);
+        let brillig_entry_points = get_brillig_entry_points(&ssa.functions, main_id, &call_graph);
 
         let mut hoisted_global_constants: HashMap<FunctionId, ConstantCounterMap> =
             HashMap::default();
@@ -69,14 +73,14 @@ impl BrilligGlobals {
             Self::mark_globals_for_hoisting(
                 &mut hoisted_global_constants,
                 *entry_point,
-                &functions[entry_point],
+                &ssa.functions[entry_point],
             );
 
             for inner_call in entry_point_inner_calls.iter() {
                 Self::mark_globals_for_hoisting(
                     &mut hoisted_global_constants,
                     *entry_point,
-                    &functions[inner_call],
+                    &ssa.functions[inner_call],
                 );
 
                 let inner_globals = used_globals
@@ -284,6 +288,7 @@ impl Brillig {
         (artifact, function_context.ssa_value_allocations, globals_size, hoisted_global_constants)
     }
 }
+
 #[cfg(test)]
 mod tests {
     use acvm::{

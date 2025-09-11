@@ -143,6 +143,29 @@ impl<F: PrimeField> FieldElement<F> {
         let fr = F::from_str(input).ok()?;
         Some(FieldElement(fr))
     }
+
+    /// Assume this field element holds a signed integer of the given `bit_size` and format
+    /// it as a string. The range of valid values for this field element is `0..2^bit_size`
+    /// with `0..2^(bit_size - 1)` representing positive values and `2^(bit_size - 1)..2^bit_size`
+    /// representing negative values (as is commonly done for signed integers).
+    /// `2^(bit_size - 1)` is the lowest negative value, so for example if bit_size is 8 then
+    /// `0..127` map to `0..127`, `128` maps to `-128`, `129` maps to `-127` and `255` maps to `-1`.
+    /// If `self` falls outside of the valid range it's formatted as-is.
+    pub fn to_string_as_signed_integer(self, bit_size: u32) -> String {
+        assert!(bit_size <= 128);
+        if self.num_bits() > bit_size {
+            return self.to_string();
+        }
+
+        // Compute the maximum value that is considered a positive value
+        let max = if bit_size == 128 { i128::MAX as u128 } else { (1 << (bit_size - 1)) - 1 };
+        if self.to_u128() > max {
+            let f = FieldElement::from(2u32).pow(&bit_size.into()) - self;
+            format!("-{f}")
+        } else {
+            self.to_string()
+        }
+    }
 }
 
 impl<F: PrimeField> AcirField for FieldElement<F> {
@@ -197,9 +220,9 @@ impl<F: PrimeField> AcirField for FieldElement<F> {
         let as_bigint = self.0.into_bigint();
         let limbs = as_bigint.as_ref();
 
-        let mut result = limbs[0] as u128;
+        let mut result = u128::from(limbs[0]);
         if limbs.len() > 1 {
-            let high_limb = limbs[1] as u128;
+            let high_limb = u128::from(limbs[1]);
             result += high_limb << 64;
         }
 
@@ -255,11 +278,26 @@ impl<F: PrimeField> AcirField for FieldElement<F> {
         bytes.reverse();
         hex::encode(bytes)
     }
+
+    fn to_short_hex(self) -> String {
+        if self.is_zero() {
+            return "0x00".to_owned();
+        }
+        let mut hex = "0x".to_string();
+        let self_to_hex = self.to_hex();
+        let trimmed_field = self_to_hex.trim_start_matches('0');
+        if trimmed_field.len() % 2 != 0 {
+            hex.push('0');
+        }
+        hex.push_str(trimmed_field);
+        hex
+    }
+
     fn from_hex(hex_str: &str) -> Option<FieldElement<F>> {
         let value = hex_str.strip_prefix("0x").unwrap_or(hex_str);
         // Values of odd length require an additional "0" prefix
         let sanitized_value =
-            if value.len() % 2 == 0 { value.to_string() } else { format!("0{}", value) };
+            if value.len() % 2 == 0 { value.to_string() } else { format!("0{value}") };
         let hex_as_bytes = hex::decode(sanitized_value).ok()?;
         Some(FieldElement::from_be_bytes_reduce(&hex_as_bytes))
     }
@@ -495,7 +533,7 @@ mod tests {
         assert_eq!(from_le, field);
 
         // Additional test with a larger number to ensure proper byte handling
-        let large_field = FieldElement::<ark_bn254::Fr>::from(0x0123_4567_89AB_CDEF_u64);
+        let large_field = FieldElement::<ark_bn254::Fr>::from(0x0123_4567_89AB_CDEF_u64); // cSpell:disable-line
         let large_le = large_field.to_le_bytes();
         let reconstructed = FieldElement::from_le_bytes_reduce(&large_le);
         assert_eq!(reconstructed, large_field);
@@ -526,5 +564,49 @@ mod tests {
 
             prop_assert_eq!(fe_1, fe_2, "equivalent hex strings with opposite parity deserialized to different values");
         }
+    }
+
+    #[test]
+    fn test_to_hex() {
+        type F = FieldElement<ark_bn254::Fr>;
+        assert_eq!(
+            F::zero().to_hex(),
+            "0000000000000000000000000000000000000000000000000000000000000000"
+        );
+        assert_eq!(
+            F::one().to_hex(),
+            "0000000000000000000000000000000000000000000000000000000000000001"
+        );
+        assert_eq!(
+            F::from(0x123_u128).to_hex(),
+            "0000000000000000000000000000000000000000000000000000000000000123"
+        );
+        assert_eq!(
+            F::from(0x1234_u128).to_hex(),
+            "0000000000000000000000000000000000000000000000000000000000001234"
+        );
+    }
+
+    #[test]
+    fn test_to_short_hex() {
+        type F = FieldElement<ark_bn254::Fr>;
+        assert_eq!(F::zero().to_short_hex(), "0x00");
+        assert_eq!(F::one().to_short_hex(), "0x01");
+        assert_eq!(F::from(0x123_u128).to_short_hex(), "0x0123");
+        assert_eq!(F::from(0x1234_u128).to_short_hex(), "0x1234");
+    }
+
+    #[test]
+    fn to_string_as_signed_integer() {
+        type F = FieldElement<ark_bn254::Fr>;
+        assert_eq!(F::zero().to_string_as_signed_integer(8), "0");
+        assert_eq!(F::one().to_string_as_signed_integer(8), "1");
+        assert_eq!(F::from(127_u128).to_string_as_signed_integer(8), "127");
+        assert_eq!(F::from(128_u128).to_string_as_signed_integer(8), "-128");
+        assert_eq!(F::from(129_u128).to_string_as_signed_integer(8), "-127");
+        assert_eq!(F::from(255_u128).to_string_as_signed_integer(8), "-1");
+        assert_eq!(F::from(32767_u128).to_string_as_signed_integer(16), "32767");
+        assert_eq!(F::from(32768_u128).to_string_as_signed_integer(16), "-32768");
+        assert_eq!(F::from(65535_u128).to_string_as_signed_integer(16), "-1");
     }
 }

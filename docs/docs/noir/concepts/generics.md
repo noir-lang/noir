@@ -53,7 +53,7 @@ struct will be of a certain generic type. In this case `value` is of type `T`.
 ```rust
 struct RepeatedValue<T> {
     value: T,
-    count: Field,
+    count: u32,
 }
 
 impl<T> RepeatedValue<T> {

@@ -1,3 +1,10 @@
+//! The `brillig` module contains all logic necessary for noirc's Brillig-gen pass
+//! for generating Brillig bytecode from [Ssa].
+//!
+//! # Usage
+//!
+//! Brillig generation is performed by calling the [Ssa::to_brillig] method.
+//! All compiled Brillig artifacts will be returned as the [Brillig] context structure.
 pub(crate) mod brillig_gen;
 pub mod brillig_ir;
 
@@ -23,7 +30,7 @@ use crate::ssa::{
     },
     ssa_gen::Ssa,
 };
-use fxhash::FxHashMap as HashMap;
+use rustc_hash::FxHashMap as HashMap;
 use std::{borrow::Cow, collections::BTreeSet};
 
 pub use self::brillig_ir::procedures::ProcedureId;
@@ -95,7 +102,7 @@ impl Brillig {
         hoisted_global_constants: &HashMap<(FieldElement, NumericType), BrilligVariable>,
         is_entry_point: bool,
     ) -> BrilligArtifact<FieldElement> {
-        let mut brillig_context = BrilligContext::new(options);
+        let mut brillig_context = BrilligContext::new(func.name(), options);
 
         let mut function_context = FunctionContext::new(func, is_entry_point);
 
@@ -115,9 +122,7 @@ impl Brillig {
             );
         }
 
-        let mut artifact = brillig_context.artifact();
-        artifact.name = func.name().to_string();
-        artifact
+        brillig_context.artifact()
     }
 }
 
@@ -132,7 +137,7 @@ impl Ssa {
     /// Compile Brillig functions and ACIR functions reachable from them
     #[tracing::instrument(level = "trace", skip_all)]
     pub fn to_brillig(&self, options: &BrilligOptions) -> Brillig {
-        let used_globals_map = self.used_globals_in_brillig_functions();
+        let used_globals_map = self.used_globals_in_functions();
 
         // Collect all the function ids that are reachable from brillig
         // That means all the functions marked as brillig and ACIR functions called by them
@@ -148,8 +153,7 @@ impl Ssa {
             return brillig;
         }
 
-        let mut brillig_globals =
-            BrilligGlobals::new(&self.functions, used_globals_map, self.main_id);
+        let mut brillig_globals = BrilligGlobals::new(self, used_globals_map, self.main_id);
 
         // SSA Globals are computed once at compile time and shared across all functions,
         // thus we can just fetch globals from the main function.

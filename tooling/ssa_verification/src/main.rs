@@ -58,7 +58,7 @@ fn save_artifacts(all_artifacts: Vec<InstructionArtifacts>, dir: &str) {
         match save_to_file(&ungzip(acir), &filename) {
             Ok(_) => (),
             Err(error) => {
-                eprintln!("Error saving data: {}", error);
+                eprintln!("Error saving data: {error}");
                 std::process::exit(1);
             }
         }
@@ -82,8 +82,6 @@ fn main() {
     let u64_var = Variable { variable_type: VariableType::Unsigned, variable_size: 64 };
     // 32 bit unsigned
     let u32_var = Variable { variable_type: VariableType::Unsigned, variable_size: 32 };
-    // 8 bit unsigned
-    let u8_var = Variable { variable_type: VariableType::Unsigned, variable_size: 8 };
 
     // Tests for bitvector operations with max bit size (128 bits)
     all_artifacts.push(InstructionArtifacts::new_add(&u128_var, &u128_var));
@@ -122,9 +120,9 @@ fn main() {
     // shl truncates variable, so test different sizes
     // Too heavy to test 127 bits, but it just multiplies or divides by 2^rhs
     // Should work the same if div and mul are verified
-    all_artifacts.push(InstructionArtifacts::new_shl(&u64_var, &u8_var));
-    all_artifacts.push(InstructionArtifacts::new_shr(&u64_var, &u8_var));
-    all_artifacts.push(InstructionArtifacts::new_shl(&u32_var, &u8_var));
+    all_artifacts.push(InstructionArtifacts::new_shl(&u64_var, &u64_var));
+    all_artifacts.push(InstructionArtifacts::new_shr(&u64_var, &u64_var));
+    all_artifacts.push(InstructionArtifacts::new_shl(&u32_var, &u32_var));
 
     // Test binary operations with 32 bits
     all_artifacts.push(InstructionArtifacts::new_xor(&u32_var, &u32_var));

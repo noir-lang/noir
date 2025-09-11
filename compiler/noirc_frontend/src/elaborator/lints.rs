@@ -224,7 +224,7 @@ pub(crate) fn check_integer_literal_fits_its_type(
                     return Some(TypeCheckError::IntegerLiteralDoesNotFitItsType {
                         expr: value,
                         ty: typ.clone(),
-                        range: format!("0..={}", max),
+                        range: format!("0..={max}"),
                         location,
                     });
                 }
@@ -241,7 +241,7 @@ pub(crate) fn check_integer_literal_fits_its_type(
                     return Some(TypeCheckError::IntegerLiteralDoesNotFitItsType {
                         expr: value,
                         ty: typ.clone(),
-                        range: format!("-{}..={}", min, max),
+                        range: format!("-{min}..={max}"),
                         location,
                     });
                 }

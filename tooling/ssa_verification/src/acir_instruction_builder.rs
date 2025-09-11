@@ -7,13 +7,11 @@ use acvm::{
 };
 use std::collections::BTreeSet;
 
-use noirc_evaluator::ssa::ssa_gen::Ssa;
 use noirc_evaluator::ssa::{
     SsaEvaluatorOptions, ir::map::Id, optimize_ssa_builder_into_acir, primary_passes,
-    secondary_passes,
 };
 use noirc_evaluator::ssa::{SsaLogging, ir::function::Function};
-use std::collections::HashMap;
+use noirc_evaluator::ssa::{opt::inlining::MAX_INSTRUCTIONS, ssa_gen::Ssa};
 
 use noirc_evaluator::brillig::BrilligOptions;
 use noirc_evaluator::ssa::{
@@ -233,14 +231,7 @@ impl InstructionArtifacts {
 /// Converts SSA to ACIR program
 fn ssa_to_acir_program(ssa: Ssa) -> AcirProgram<FieldElement> {
     // third brillig names, fourth errors
-    let builder = SsaBuilder {
-        ssa,
-        ssa_logging: SsaLogging::None,
-        print_codegen_timings: false,
-        passed: HashMap::default(),
-        skip_passes: vec![],
-        files: None,
-    };
+    let builder = SsaBuilder::from_ssa(ssa, SsaLogging::None, false, None);
     let ssa_evaluator_options = SsaEvaluatorOptions {
         ssa_logging: SsaLogging::None,
         print_codegen_timings: false,
@@ -249,6 +240,7 @@ fn ssa_to_acir_program(ssa: Ssa) -> AcirProgram<FieldElement> {
         skip_underconstrained_check: true,
         skip_brillig_constraints_check: true,
         inliner_aggressiveness: 0,
+        small_function_max_instruction: MAX_INSTRUCTIONS,
         max_bytecode_increase_percent: None,
         brillig_options: BrilligOptions::default(),
         enable_brillig_constraints_check_lookback: false,
@@ -258,7 +250,6 @@ fn ssa_to_acir_program(ssa: Ssa) -> AcirProgram<FieldElement> {
         builder,
         &ssa_evaluator_options,
         &primary_passes(&ssa_evaluator_options),
-        secondary_passes,
     ) {
         Ok(artifacts_and_warnings) => artifacts_and_warnings.0,
         Err(_) => panic!("Should compile manually generated SSA into acir"),

@@ -100,11 +100,10 @@ fn find_workspace(project_folder: &str, package: Option<&str>) -> Option<Workspa
 
 fn workspace_not_found_error_msg(project_folder: &str, package: Option<&str>) -> String {
     match package {
-        Some(pkg) => format!(
-            r#"Noir Debugger could not load program from {}, package {}"#,
-            project_folder, pkg
-        ),
-        None => format!(r#"Noir Debugger could not load program from {}"#, project_folder),
+        Some(pkg) => {
+            format!(r#"Noir Debugger could not load program from {project_folder}, package {pkg}"#)
+        }
+        None => format!(r#"Noir Debugger could not load program from {project_folder}"#),
     }
 }
 
@@ -234,9 +233,9 @@ fn loop_uninitialized_dap<R: Read, W: Write>(
                     .and_then(|v| v.as_str())
                     .map(String::from);
 
-                eprintln!("Project folder: {}", project_folder);
+                eprintln!("Project folder: {project_folder}");
                 eprintln!("Package: {}", package.unwrap_or("(default)"));
-                eprintln!("Prover name: {}", prover_name);
+                eprintln!("Prover name: {prover_name}");
 
                 let compile_options = compile_options_for_debugging(
                     generate_acir,

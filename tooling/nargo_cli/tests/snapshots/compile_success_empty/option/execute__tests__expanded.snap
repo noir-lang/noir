@@ -4,8 +4,8 @@ expression: expanded_code
 ---
 fn main() {
     let ten: Field = 10_Field;
-    let none: Option<Field> = Option::none();
-    let some: Option<Field> = Option::some(3_Field);
+    let none: Option<Field> = Option::<Field>::none();
+    let some: Option<Field> = Option::<Field>::some(3_Field);
     assert(none.is_none());
     assert(some.is_some());
     assert(some.unwrap() == 3_Field);
@@ -32,21 +32,24 @@ fn main() {
     assert(some.and(none).is_none());
     assert(some.and(some).is_some());
     let add1_u64: fn(Field) -> Option<u64> =
-        |value: Field| -> Option<u64> Option::some((value as u64) + 1_u64);
+        |value: Field| -> Option<u64> Option::<u64>::some((value as u64) + 1_u64);
     assert(none.and_then(|_value: Field| -> Option<Field> none).is_none());
     assert(none.and_then(add1_u64).is_none());
     assert(some.and_then(|_value: Field| -> Option<Field> none).is_none());
     assert(some.and_then(add1_u64).unwrap() == 4_u64);
-    assert(some.and_then(|x: Field| -> Option<Field> Option::some(x + ten)).unwrap() == 13_Field);
+    assert(
+        some.and_then(|x: Field| -> Option<Field> Option::<Field>::some(x + ten)).unwrap()
+            == 13_Field,
+    );
     assert(none.or(none).is_none());
     assert(none.or(some).is_some());
     assert(some.or(none).is_some());
     assert(some.or(some).is_some());
-    assert(none.or_else(|| -> Option<Field> Option::none()).is_none());
-    assert(none.or_else(|| -> Option<Field> Option::some(5_Field)).is_some());
-    assert(some.or_else(|| -> Option<Field> Option::none()).is_some());
-    assert(some.or_else(|| -> Option<Field> Option::some(5_Field)).is_some());
-    assert(some.or_else(|| -> Option<Field> Option::some(ten)).is_some());
+    assert(none.or_else(|| -> Option<Field> Option::<Field>::none()).is_none());
+    assert(none.or_else(|| -> Option<Field> Option::<Field>::some(5_Field)).is_some());
+    assert(some.or_else(|| -> Option<Field> Option::<Field>::none()).is_some());
+    assert(some.or_else(|| -> Option<Field> Option::<Field>::some(5_Field)).is_some());
+    assert(some.or_else(|| -> Option<Field> Option::<Field>::some(ten)).is_some());
     assert(none.xor(none).is_none());
     assert(none.xor(some).is_some());
     assert(some.xor(none).is_some());

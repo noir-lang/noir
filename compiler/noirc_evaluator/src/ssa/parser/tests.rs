@@ -11,7 +11,7 @@ fn assert_ssa_roundtrip(src: &str) {
     let ssa = trim_leading_whitespace_from_lines(&ssa);
     let src = trim_leading_whitespace_from_lines(src);
     if ssa != src {
-        println!("Expected:\n~~~\n{}\n~~~\nGot:\n~~~\n{}\n~~~", src, ssa);
+        println!("Expected:\n~~~\n{src}\n~~~\nGot:\n~~~\n{ssa}\n~~~");
         similar_asserts::assert_eq!(ssa, src);
     }
 }
@@ -51,6 +51,17 @@ fn test_return_integer() {
         );
         assert_ssa_roundtrip(&src);
     }
+}
+
+#[test]
+fn test_return_negative_integer() {
+    let src = "
+        acir(inline) fn main f0 {
+          b0():
+            return i8 -53
+        }
+        ";
+    assert_ssa_roundtrip(src);
 }
 
 #[test]
@@ -498,7 +509,7 @@ fn test_binary() {
         let src = format!(
             "
             acir(inline) fn main f0 {{
-              b0(v0: u32, v1: u8):
+              b0(v0: u32, v1: u32):
                 v2 = {op} v0, v1
                 return
             }}
@@ -584,7 +595,7 @@ fn test_load() {
 fn test_store() {
     let src = "
         acir(inline) fn main f0 {
-          b0(v0: Field):
+          b0(v0: &mut Field):
             store Field 1 at v0
             return
         }
@@ -798,7 +809,7 @@ fn test_parses_print() {
 }
 
 #[test]
-fn parses_variable_from_a_syntantically_following_block_but_logically_preceding_block_with_jmp() {
+fn parses_variable_from_a_syntactically_following_block_but_logically_preceding_block_with_jmp() {
     let src = "
         acir(inline) impure fn main f0 {
           b0():
@@ -816,7 +827,7 @@ fn parses_variable_from_a_syntantically_following_block_but_logically_preceding_
 }
 
 #[test]
-fn parses_variable_from_a_syntantically_following_block_but_logically_preceding_block_with_jmpif() {
+fn parses_variable_from_a_syntactically_following_block_but_logically_preceding_block_with_jmpif() {
     let src = "
         acir(inline) impure fn main f0 {
           b0(v0: u1):

@@ -71,6 +71,11 @@ impl FunctionDefinition {
     // docs:start:set_unconstrained
     pub comptime fn set_unconstrained(self, value: bool) {}
     // docs:end:set_unconstrained
+
+    #[builtin(function_def_visibility)]
+    // docs:start:visibility
+    pub comptime fn visibility(self) -> Quoted {}
+    // docs:end:visibility
 }
 
 impl crate::hash::Hash for FunctionDefinition {

@@ -2,10 +2,10 @@
 source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
-fn main(x: u128, y: u128, z: u8) {
+fn main(x: u128, y: u128, z: u128) {
     let const_x: u128 = 12345_u128;
     let const_y: u128 = 2345678_u128;
-    let const_z: u8 = 2_u8;
+    let const_z: u128 = 2_u128;
     assert((x + y) == (const_x + const_y));
     assert((y - x) == (const_y - const_x));
     assert((x * y) == (const_x * const_y));
