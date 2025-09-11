@@ -12,7 +12,7 @@ use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::ssa::ir::{basic_block::BasicBlockId, function::Function};
 
-use super::cfg::ControlFlowGraph;
+use super::{cfg::ControlFlowGraph, instruction::TerminatorInstruction};
 
 #[derive(Default, Clone)]
 pub(crate) struct PostOrder(Vec<BasicBlockId>);
@@ -27,12 +27,12 @@ impl PostOrder {
     /// Allocate and compute a function's block post-order.
     pub(crate) fn with_function(func: &Function) -> Self {
         let cfg = ControlFlowGraph::with_function(func);
-        Self::with_cfg(&cfg)
+        PostOrder(Self::compute_post_order(func, &cfg))
     }
 
     /// Allocate and compute a function's block post-order.
     pub(crate) fn with_cfg(cfg: &ControlFlowGraph) -> Self {
-        PostOrder(Self::compute_post_order(cfg))
+        todo!()
     }
 
     /// Return blocks in post-order.
@@ -122,26 +122,130 @@ impl PostOrder {
     // Computes the post-order of the CFG which is defined as the reverse-topological sort
     // of the SCCs of the CFG graph where each SCC is recursively sorted in reverse-topological
     // order. See the comment in `tests::nested_loop` for an example.
-    fn compute_post_order(cfg: &ControlFlowGraph) -> Vec<BasicBlockId> {
-        let mut order = Self::compute_topological_order(cfg);
+    fn compute_post_order(func: &Function, cfg: &ControlFlowGraph) -> Vec<BasicBlockId> {
+        let mut order = Self::compute_topological_order(func, cfg);
         order.reverse();
         order
     }
 
-    pub(super) fn compute_topological_order(cfg: &ControlFlowGraph) -> Vec<BasicBlockId> {
+    pub(super) fn compute_topological_order(func: &Function, cfg: &ControlFlowGraph) -> Vec<BasicBlockId> {
         // Implementation note:
         // - Computing via DfsPostOrder is invalid since in the presence of loops, the exit
         //   block may not be the first within the post-order.
         // - Computing via SCCS is invalid since `kosaraju_scc` doesn't specify an ordering
         //   within SCCS.
         //
-        // Observation: the topological order for a SSA graph with 1 entry and 1 exit
-        // is each block sorted by order of the maximum cost to reach that block from the
-        // entry block using each edge at most once.
-        let graph = cfg.as_petgraph();
-        let sort = Self::topological_sort(&graph.graph);
-        vecmap(sort, |index| graph.node_to_block[&index])
+        // Observation: Due to how we lay out blocks in ssa-gen when we encounter a
+        // `jmp_if v0 then: b1, else: b2` terminator it will always fall into one of
+        // the following categories:
+        // - if-then: `b1` leads to the then branch, `b2` will be the merge node
+        // - if-then-else: `b1` leads to the then branch, `b2` leads to the else branch, the
+        //   merge node is unknown.
+        // - for/while loop: `b1` leads to the loop body, `b2` is the merge node.
+        // 
+        // We want the topological sort to place the merge node and subsequent blocks after
+        // the blocks within these constructs in each case. With the above observation, this
+        // merge block is known in the case of loops which means we can forgo an expensive
+        // SCC analysis. We can adopt the general approach of "follow the then branch until reaching
+        // the merge node then stop and explore any other branches." Where this fails is in
+        // the if-then-else case where the merge node is unknown. To address this we can 
+        // adopt the following rule:
+        // - If a block with an incoming edge is found that is not within the known list of merge
+        //   points, assume it is a merge point for a if-then-else, and backtrack to the most
+        //   recent not-taken branch.
+        let mut order = Vec::new();
+        let mut known_merges = HashSet::default();
+
+        let mut merge_point_stack = Vec::new();
+        let mut else_branches_stack = Vec::new();
+
+        use TerminatorInstruction::*;
+        let mut next_block = Some(cfg.find_entry_block());
+        while let Some(current_block) = next_block.take() {
+            println!("current block = {current_block}");
+
+            match classify_block(current_block, cfg, &known_merges) {
+                BlockKind::LoopStart => {
+                    if merge_point_stack.last().map_or(false, |(block, _)| *block == current_block) {
+
+                    }
+                },
+                BlockKind::BranchStart => todo!(),
+                BlockKind::MergePoint => todo!(),
+                BlockKind::Normal => todo!(),
+            }
+
+            if let Some(JmpIf { else_destination, .. }) = func.dfg[current_block].terminator() {
+                if cfg.predecessors(*else_destination).len() > 1 {
+                    println!("  pushing merge block {else_destination}");
+                    known_merge_blocks_stack.push(*else_destination);
+                } else {
+                    println!("  pushing else block {else_destination}");
+                    else_branches_stack.push(*else_destination);
+                }
+            }
+
+            if is_merge_point(current_block) {
+                if !known_merge_blocks_stack.contains(&current_block) {
+                    println!("  current block is not a known merge block");
+                    // This is the merge point of an if-then-else, backtrack to the last else node
+                    assert!(!else_branches_stack.is_empty());
+                    next_block = else_branches_stack.pop();
+                    known_merge_blocks_stack.push(current_block);
+                    continue;
+                } else {
+                    println!("  current block is known merge block");
+                    // known_merge_blocks_stack.retain(|block| *block != current_block);
+                }
+            }
+
+            println!("  pushing {current_block}");
+            order.push(current_block);
+
+            match func.dfg[current_block].terminator() {
+                Some(JmpIf { then_destination, .. }) => {
+                    next_block = Some(*then_destination);
+                }
+                Some(Jmp { destination, .. }) => {
+                    next_block = Some(*destination);
+                }
+                None | Some(Return { .. } | Unreachable { .. }) => {}
+            }
+        }
+
+        dbg!(order)
     }
+}
+
+fn classify_block(block: BasicBlockId, cfg: &ControlFlowGraph, expected_merges: &HashSet<BasicBlockId>) -> BlockKind {
+    if cfg.predecessors(block).len() > 1 {
+        if expected_merges.contains(&block) {
+            BlockKind::MergePoint
+        } else if cfg.successors(block).len() > 1 {
+            BlockKind::LoopStart
+        } else {
+            BlockKind::MergePoint
+        }
+    } else if cfg.successors(block).len() > 1 {
+        BlockKind::BranchStart
+    } else {
+        BlockKind::Normal
+    }
+}
+
+enum BlockKind {
+    LoopStart,
+    BranchStart,
+    MergePoint,
+    Normal,
+}
+
+enum MergePointAction {
+    /// Backtrack to previous branches
+    Backtrack,
+
+    /// Previous branches finished, continue after this block
+    Continue,
 }
 
 #[cfg(test)]

@@ -243,7 +243,7 @@ impl Function {
 
     /// Return the topological ordering of blocks
     pub fn topological_block_order(&self) -> Vec<BasicBlockId> {
-        ControlFlowGraph::with_function(self).topological_order()
+        ControlFlowGraph::with_function(self).topological_order(self)
     }
 }
 

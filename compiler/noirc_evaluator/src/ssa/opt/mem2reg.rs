@@ -150,7 +150,7 @@ struct PerFunctionContext<'f> {
 impl<'f> PerFunctionContext<'f> {
     fn new(function: &'f mut Function) -> Self {
         let cfg = ControlFlowGraph::with_function(function);
-        let topological_block_order = cfg.topological_order();
+        let topological_block_order = cfg.topological_order(function);
 
         PerFunctionContext {
             cfg,
