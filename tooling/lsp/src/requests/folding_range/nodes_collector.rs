@@ -16,6 +16,7 @@ pub(super) struct NodesCollector<'files> {
 struct Group {
     start: lsp_types::Location,
     end: lsp_types::Location,
+    count: usize,
 }
 
 impl<'files> NodesCollector<'files> {
@@ -39,6 +40,10 @@ impl<'files> NodesCollector<'files> {
     }
 
     fn push_group(group: &Group, kind: Option<FoldingRangeKind>, ranges: &mut Vec<FoldingRange>) {
+        if group.count == 1 {
+            return;
+        }
+
         let start_line = group.start.range.start.line;
         let end_line = group.end.range.end.line;
         if start_line == end_line {
@@ -65,13 +70,14 @@ impl Visitor for NodesCollector<'_> {
         if let Some(group) = &mut self.module_group {
             if location.range.end.line - group.end.range.end.line <= 1 {
                 group.end = location;
+                group.count += 1;
                 return;
             }
 
             Self::push_group(group, None, &mut self.ranges);
         }
 
-        self.module_group = Some(Group { start: location.clone(), end: location });
+        self.module_group = Some(Group { start: location.clone(), end: location, count: 1 });
     }
 
     fn visit_import(&mut self, _: &UseTree, span: Span, _visibility: ItemVisibility) -> bool {
@@ -82,13 +88,35 @@ impl Visitor for NodesCollector<'_> {
         if let Some(group) = &mut self.use_group {
             if location.range.end.line - group.end.range.end.line <= 1 {
                 group.end = location;
+                group.count += 1;
                 return true;
             }
 
             Self::push_group(group, Some(FoldingRangeKind::Imports), &mut self.ranges);
         }
 
-        self.use_group = Some(Group { start: location.clone(), end: location });
+        self.use_group = Some(Group { start: location.clone(), end: location, count: 1 });
+
+        true
+    }
+
+    fn visit_use_tree(&mut self, use_tree: &UseTree) -> bool {
+        let Some(location) = to_lsp_location(self.files, self.file_id, use_tree.location.span)
+        else {
+            return true;
+        };
+
+        // If the use tree spans multiple lines, we can fold it
+        if location.range.start.line != location.range.end.line {
+            self.ranges.push(FoldingRange {
+                start_line: location.range.start.line,
+                start_character: None,
+                end_line: location.range.end.line,
+                end_character: None,
+                kind: Some(FoldingRangeKind::Imports),
+                collapsed_text: None,
+            });
+        }
 
         true
     }
