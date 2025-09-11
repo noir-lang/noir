@@ -2289,12 +2289,14 @@ impl<'a> FunctionContext<'a> {
 
     /// Random decision whether to allow "Index out of bounds" errors to happen
     /// on a specific array or slice access operation.
+    ///
+    /// If `avoid_oob` is turned on in the config, then this is always `true`.
     fn avoid_index_out_of_bounds(&self, u: &mut Unstructured) -> arbitrary::Result<bool> {
-        // We often use the `avoid_overflow` configuration in tests to turn off "easy to trigger errors".
-        if self.config().avoid_overflow {
-            return Ok(false);
+        if self.config().avoid_index_out_of_bounds {
+            return Ok(true);
         }
-        u.ratio(1, 10)
+        // Avoid OOB with 90% chance.
+        u.ratio(9, 10)
     }
 }
 
