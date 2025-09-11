@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1757617264649,
+  "lastUpdate": 1757623472498,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -20211,48 +20211,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "f0783eaec0ba97f6f2147ace59f6f787dc55d322",
-          "message": "chore: remove empty main from frontend tests (#9726)",
-          "timestamp": "2025-09-04T09:41:09Z",
-          "tree_id": "c9771598b3b531d2a89c9d0e23d5e20ca6af7e5a",
-          "url": "https://github.com/noir-lang/noir/commit/f0783eaec0ba97f6f2147ace59f6f787dc55d322"
-        },
-        "date": 1756980461858,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 263706,
-            "range": "± 1428",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 231123,
-            "range": "± 7646",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2783593,
-            "range": "± 2001",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "47281315+guipublic@users.noreply.github.com",
             "name": "guipublic",
             "username": "guipublic"
@@ -22304,6 +22262,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2793857,
             "range": "± 9489",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "1578b7c34c5b0da131cb1e5493e3c4d6f51f5e24",
+          "message": "feat(fuzz): Allow index OOB with a small probability (#9803)",
+          "timestamp": "2025-09-11T20:15:31Z",
+          "tree_id": "ef336b235fd37aeb6c95b49db8b3c13e7fb0d725",
+          "url": "https://github.com/noir-lang/noir/commit/1578b7c34c5b0da131cb1e5493e3c4d6f51f5e24"
+        },
+        "date": 1757623451777,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 259073,
+            "range": "± 1700",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 232255,
+            "range": "± 3986",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2794664,
+            "range": "± 3893",
             "unit": "ns/iter"
           }
         ]
