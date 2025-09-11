@@ -480,6 +480,18 @@ fn memory_init() {
 }
 
 #[test]
+fn memory_init_duplicate_witness() {
+    let src = "
+    current witness index : _4
+    private parameters indices : []
+    public parameters indices : []
+    return value indices : []
+    INIT (id: 4, len: 2, witnesses: [_0, _0])
+    ";
+    assert_circuit_roundtrip(src);
+}
+
+#[test]
 fn memory_databus() {
     let src = "
     current witness index : _5
