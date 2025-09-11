@@ -49,35 +49,14 @@ use simplification_cache::{ConstraintSimplificationCache, SimplificationCache};
 impl Ssa {
     /// Performs constant folding on each instruction.
     ///
+    /// It will attempt to replace any calls to brillig functions with constant arguments with their results.
+    ///
     /// It will not look at constraints to inform simplifications
     /// based on the stated equivalence of two instructions.
     ///
     /// See [`constant_folding`][self] module for more information.
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn fold_constants(mut self) -> Ssa {
-        for function in self.functions.values_mut() {
-            function.constant_fold(false, &mut None);
-        }
-        self
-    }
-
-    /// Performs constant folding on each instruction.
-    ///
-    /// Also uses constraint information to inform more optimizations.
-    ///
-    /// See [`constant_folding`][self] module for more information.
-    #[tracing::instrument(level = "trace", skip(self))]
-    pub(crate) fn fold_constants_using_constraints(mut self) -> Ssa {
-        for function in self.functions.values_mut() {
-            function.constant_fold(true, &mut None);
-        }
-        self
-    }
-
-    /// Performs constant folding on each instruction while also replacing calls to brillig functions
-    /// with all constant arguments by trying to evaluate those calls.
-    #[tracing::instrument(level = "trace", skip(self))]
-    pub fn fold_constants_with_brillig(mut self) -> Ssa {
         // Collect all brillig functions so that later we can find them when processing a call instruction
         let mut brillig_functions: BTreeMap<FunctionId, Function> = BTreeMap::new();
         for (func_id, func) in &self.functions {
@@ -86,23 +65,49 @@ impl Ssa {
                 brillig_functions.insert(*func_id, cloned_function);
             };
         }
-        let mut interpreter = if brillig_functions.is_empty() {
-            None
-        } else {
-            let mut interpreter = Interpreter::new_from_functions(
-                &brillig_functions,
-                InterpreterOptions { no_foreign_calls: true, ..Default::default() },
-                std::io::empty(),
-            );
-            // Interpret globals once so that we do not have to repeat this computation on every Brillig call.
-            interpreter.interpret_globals().expect("ICE: Interpreter failed to interpret globals");
-            Some(interpreter)
-        };
+        let mut interpreter = Interpreter::new_from_functions(
+            &brillig_functions,
+            InterpreterOptions { no_foreign_calls: true, ..Default::default() },
+            std::io::empty(),
+        );
+        // Interpret globals once so that we do not have to repeat this computation on every Brillig call.
+        interpreter.interpret_globals().expect("ICE: Interpreter failed to interpret globals");
 
         for function in self.functions.values_mut() {
             function.constant_fold(false, &mut interpreter);
         }
+        self
+    }
 
+    /// Performs constant folding on each instruction.
+    ///
+    /// It will attempt to replace any calls to brillig functions with constant arguments with their results.
+    ///
+    /// Also uses constraint information to inform more optimizations.
+    ///
+    /// See [`constant_folding`][self] module for more information.
+    #[tracing::instrument(level = "trace", skip(self))]
+    pub(crate) fn fold_constants_using_constraints(mut self) -> Ssa {
+        // Collect all brillig functions so that later we can find them when processing a call instruction
+        let mut brillig_functions: BTreeMap<FunctionId, Function> = BTreeMap::new();
+        for (func_id, func) in &self.functions {
+            if let RuntimeType::Brillig(..) = func.runtime() {
+                let cloned_function = Function::clone_with_id(*func_id, func);
+                brillig_functions.insert(*func_id, cloned_function);
+            };
+        }
+
+        let mut interpreter = Interpreter::new_from_functions(
+            &brillig_functions,
+            InterpreterOptions { no_foreign_calls: true, ..Default::default() },
+            std::io::empty(),
+        );
+        // Interpret globals once so that we do not have to repeat this computation on every Brillig call.
+        interpreter.interpret_globals().expect("ICE: Interpreter failed to interpret globals");
+
+        for function in self.functions.values_mut() {
+            function.constant_fold(true, &mut interpreter);
+        }
         self
     }
 }
@@ -113,7 +118,7 @@ impl Function {
     pub(crate) fn constant_fold(
         &mut self,
         use_constraint_info: bool,
-        interpreter: &mut Option<Interpreter<Empty>>,
+        interpreter: &mut Interpreter<Empty>,
     ) {
         let mut context = Context::new(use_constraint_info);
         let mut dom = DominatorTree::with_function(self);
@@ -179,7 +184,7 @@ impl Context {
         dfg: &mut DataFlowGraph,
         dom: &mut DominatorTree,
         block_id: BasicBlockId,
-        interpreter: &mut Option<Interpreter<Empty>>,
+        interpreter: &mut Interpreter<Empty>,
     ) {
         let instructions = dfg[block_id].take_instructions();
 
@@ -233,7 +238,7 @@ impl Context {
         mut block: BasicBlockId,
         id: InstructionId,
         side_effects_enabled_var: &mut ValueId,
-        interpreter: &mut Option<Interpreter<Empty>>,
+        interpreter: &mut Interpreter<Empty>,
     ) {
         let constraint_simplification_mapping =
             self.constraint_simplification_mappings.get(*side_effects_enabled_var);
@@ -290,7 +295,7 @@ impl Context {
             Self::push_instruction(id, instruction.clone(), &old_results, block, dfg)
         } else {
             // We only want to try to inline Brillig calls for Brillig entry points (functions called from an ACIR runtime).
-            try_interpret_call(&instruction, block, dfg, interpreter.as_mut())
+            try_interpret_call(&instruction, block, dfg, interpreter)
                 // Otherwise, try inserting the instruction again to apply any optimizations using the newly resolved inputs.
                 .unwrap_or_else(|| {
                     Self::push_instruction(id, instruction.clone(), &old_results, block, dfg)
@@ -997,7 +1002,7 @@ mod test {
             ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.fold_constants_with_brillig();
+        let ssa = ssa.fold_constants();
         let ssa = ssa.remove_unreachable_functions();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
@@ -1024,7 +1029,7 @@ mod test {
             ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.fold_constants_with_brillig();
+        let ssa = ssa.fold_constants();
         let ssa = ssa.remove_unreachable_functions();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
@@ -1052,7 +1057,7 @@ mod test {
             ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.fold_constants_with_brillig();
+        let ssa = ssa.fold_constants();
         let ssa = ssa.remove_unreachable_functions();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
@@ -1079,7 +1084,7 @@ mod test {
             ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.fold_constants_with_brillig();
+        let ssa = ssa.fold_constants();
         let ssa = ssa.remove_unreachable_functions();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
@@ -1107,7 +1112,7 @@ mod test {
             ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.fold_constants_with_brillig();
+        let ssa = ssa.fold_constants();
         let ssa = ssa.remove_unreachable_functions();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
@@ -1142,7 +1147,7 @@ mod test {
         // Need to run SSA pass that sets up Brillig array gets
         let ssa = ssa.brillig_array_get_and_set();
 
-        let ssa = ssa.fold_constants_with_brillig();
+        let ssa = ssa.fold_constants();
         let ssa = ssa.remove_unreachable_functions();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
@@ -1172,7 +1177,7 @@ mod test {
         ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.fold_constants_with_brillig();
+        let ssa = ssa.fold_constants();
         let ssa = ssa.remove_unreachable_functions();
         assert_ssa_snapshot!(ssa, @r"
         g0 = Field 2
@@ -1209,7 +1214,7 @@ mod test {
         ";
         let ssa = Ssa::from_str(src).unwrap();
 
-        let ssa = ssa.fold_constants_with_brillig();
+        let ssa = ssa.fold_constants();
         let ssa = ssa.remove_unreachable_functions();
         assert_ssa_snapshot!(ssa, @r"
         g0 = Field 2
@@ -1497,7 +1502,7 @@ mod test {
                 return v2
             }
         ";
-        assert_ssa_does_not_change(src, Ssa::fold_constants_with_brillig);
+        assert_ssa_does_not_change(src, Ssa::fold_constants);
     }
 
     #[test]
