@@ -2763,7 +2763,7 @@ mod control_dependence {
 
     #[test]
     fn simplify_constraint() {
-        // This test shows the simplification of the constraint constrain v17 == u1 1 which is converted into constrain u1 0 == u1 1 in b5
+        // This test shows the constraint constrain v17 == u1 1 is not simplified into constrain u1 0 == u1 1
         let src = "
         brillig(inline) fn main f0 {
           entry(v0: u32, v1: u32, v2: u32):
@@ -2795,11 +2795,10 @@ mod control_dependence {
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
-
         let ssa = ssa.loop_invariant_code_motion();
-        // The loop is guaranteed to fully execute, so we expect the constrain to be simplified into constrain u1 0 == u1 1
-        // However, even though the constrain is not a loop invariant we expect it to remain in place
-        // as it is control dependent upon its predecessor blocks which are not pure.
+
+        // Despite the loop is guaranteed to fully execute, which implies that the constrain will fail at some iteration,
+        // the constraint is not simplified in case some side-effect instruction would run in the previous iterations.
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
           b0(v0: u32, v1: u32, v2: u32):
@@ -2823,9 +2822,9 @@ mod control_dependence {
             jmp b5()
           b5():
             v15 = lt v3, u32 4
-            constrain u1 0 == u1 1
-            v17 = unchecked_add v3, u32 1
-            jmp b1(v17)
+            constrain v15 == u1 1
+            v16 = unchecked_add v3, u32 1
+            jmp b1(v16)
         }
         ");
     }
