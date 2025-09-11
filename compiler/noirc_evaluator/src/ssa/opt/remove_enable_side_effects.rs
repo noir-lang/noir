@@ -163,7 +163,6 @@ mod test {
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
-        println!("{ssa}");
 
         let ssa = ssa.remove_enable_side_effects();
         assert_ssa_snapshot!(ssa, @r"
@@ -371,5 +370,36 @@ mod test {
         }
         ";
         assert_ssa_does_not_change(src, Ssa::remove_enable_side_effects);
+    }
+
+    #[test]
+    fn moves_enable_side_effects_just_before_instruction_affected_by_it() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: [u16; 3], v1: u32, v2: u1):
+            // This instruction should be moved right before the `add` instruction,
+            // as it's the first instruction affected by the side effects var.
+            enable_side_effects v2
+
+            v4 = allocate -> &mut Field
+            v5 = allocate -> &mut Field
+            v6 = add v1, u32 1
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.remove_enable_side_effects();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: [u16; 3], v1: u32, v2: u1):
+            v3 = allocate -> &mut Field
+            v4 = allocate -> &mut Field
+            enable_side_effects v2
+            v6 = add v1, u32 1
+            return
+        }
+        "
+        );
     }
 }
