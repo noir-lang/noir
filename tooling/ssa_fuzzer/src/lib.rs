@@ -99,7 +99,7 @@ mod tests {
             run_and_compare(&acir_program.program, &brillig_program.program, initial_witness);
         // If not agree throw panic, it is not intended to happen in tests
         match compare_results {
-            CompareResults::Agree(result) => result.peek().unwrap().witness[return_value],
+            CompareResults::Agree(result, _) => result.peek().unwrap().witness[return_value],
             CompareResults::Disagree(acir_result, brillig_result) => {
                 let acir_result = acir_result.peek().unwrap().witness[return_value];
                 let brillig_result = brillig_result.peek().unwrap().witness[return_value];
