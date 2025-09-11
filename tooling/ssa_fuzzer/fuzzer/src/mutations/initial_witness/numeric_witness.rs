@@ -117,8 +117,8 @@ impl MinValueMutation {
 struct WitnessSmallAddSubMutation;
 impl WitnessSmallAddSubMutation {
     fn mutate(rng: &mut StdRng, value: &mut WitnessValueNumeric) {
-        let small_update: i128 = rng.gen_range(0..256);
-        let sign: bool = rng.gen_range(0..2) == 0;
+        let small_update: i128 = rng.random_range(0..256);
+        let sign: bool = rng.random_range(0..2) == 0;
         *value = match value {
             WitnessValueNumeric::Field(field) => WitnessValueNumeric::Field(FieldRepresentation {
                 high: field.high,
@@ -184,8 +184,8 @@ impl WitnessSmallAddSubMutation {
 struct WitnessAddSubPowerOfTwoMutation;
 impl WitnessAddSubPowerOfTwoMutation {
     fn mutate(rng: &mut StdRng, value: &mut WitnessValueNumeric) {
-        let exponent = rng.gen_range(0..254);
-        let sign: bool = rng.gen_range(0..2) == 0;
+        let exponent = rng.random_range(0..254);
+        let sign: bool = rng.random_range(0..2) == 0;
         *value = match value {
             WitnessValueNumeric::Field(field) => {
                 // I don't think implementing field addition is worth the effort, so we just
