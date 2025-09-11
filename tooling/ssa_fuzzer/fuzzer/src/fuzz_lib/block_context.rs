@@ -458,6 +458,9 @@ impl BlockContext {
                 }
             }
             Instruction::FieldToBytesToField { field_idx } => {
+                if !self.options.instruction_options.field_to_bytes_to_field_enabled {
+                    return;
+                }
                 let field = self.get_stored_variable(&Type::Numeric(NumericType::Field), field_idx);
                 let field = match field {
                     Some(field) => field,
@@ -468,6 +471,9 @@ impl BlockContext {
                 self.store_variable(&field);
             }
             Instruction::Blake2sHash { field_idx, limbs_count } => {
+                if !self.options.instruction_options.blake2s_hash_enabled {
+                    return;
+                }
                 let input = self.get_stored_variable(&Type::Numeric(NumericType::Field), field_idx);
                 let input = match input {
                     Some(input) => input,
@@ -482,6 +488,9 @@ impl BlockContext {
                 self.store_variable(&hash_as_field);
             }
             Instruction::Blake3Hash { field_idx, limbs_count } => {
+                if !self.options.instruction_options.blake3_hash_enabled {
+                    return;
+                }
                 let input = self.get_stored_variable(&Type::Numeric(NumericType::Field), field_idx);
                 let input = match input {
                     Some(input) => input,
@@ -496,6 +505,9 @@ impl BlockContext {
                 self.store_variable(&hash_as_field);
             }
             Instruction::Keccakf1600Hash { u64_indices, load_elements_of_array } => {
+                if !self.options.instruction_options.keccakf1600_hash_enabled {
+                    return;
+                }
                 let input = match self.insert_array(
                     builder,
                     u64_indices.to_vec(),
@@ -520,6 +532,9 @@ impl BlockContext {
                 }
             }
             Instruction::Aes128Encrypt { input_idx, input_limbs_count, key_idx, iv_idx } => {
+                if !self.options.instruction_options.aes128_encrypt_enabled {
+                    return;
+                }
                 if input_limbs_count == 0 {
                     return;
                 }
@@ -554,6 +569,9 @@ impl BlockContext {
                 state_indices,
                 load_elements_of_array,
             } => {
+                if !self.options.instruction_options.sha256_compression_enabled {
+                    return;
+                }
                 let input = match self.insert_array(
                     builder,
                     input_indices.to_vec(),
