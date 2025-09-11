@@ -457,8 +457,11 @@ impl Instruction {
                 // `ArrayGet`s which read from "known good" indices from an array should not need a predicate.
                 // This extra out of bounds (OOB) check is only inserted in the ACIR runtime.
                 // Thus, in Brillig an `ArrayGet` is always a pure operation in isolation and
-                // it is expected that OOB checks are inserted separately.
-                dfg.runtime().is_acir() && !dfg.is_safe_index(*index, *array)
+                // it is expected that OOB checks are inserted separately. However, it would
+                // not be safe to separate the `ArrayGet` from the OOB constraints that precede it,
+                // because while it could read an array index, the returned data could be invalid,
+                // and fail at runtime if we tried using it in the wrong context.
+                !dfg.is_safe_index(*index, *array)
             }
 
             Instruction::EnableSideEffectsIf { .. } | Instruction::ArraySet { .. } => true,
@@ -558,10 +561,13 @@ impl Instruction {
             // `ArrayGet`s which read from "known good" indices from an array have no side effects
             // This extra out of bounds (OOB) check is only inserted in the ACIR runtime.
             // Thus, in Brillig an `ArrayGet` is always a pure operation in isolation and
-            // it is expected that OOB checks are inserted separately.
-            ArrayGet { array, index, offset: _ } => {
-                dfg.runtime().is_acir() && !dfg.is_safe_index(*index, *array)
-            }
+            // it is expected that OOB checks are inserted separately. However, it would not
+            // be safe to separate the `ArrayGet` from its corresponding OOB constraints in Brillig,
+            // as a value read from an array at an invalid index could cause failures when subsequently
+            // used in the wrong context. Since we use this information to decide whether to hoist
+            // instructions during deduplication, we consider unsafe values as potentially having
+            // indirect side effects.
+            ArrayGet { array, index, offset: _ } => !dfg.is_safe_index(*index, *array),
 
             // ArraySet has side effects
             ArraySet { .. } => true,

@@ -13,11 +13,17 @@ use fuzz_lib::{
 use libfuzzer_sys::Corpus;
 use mutations::mutate;
 use noirc_driver::CompileOptions;
+use noirc_evaluator::ssa::ir::function::RuntimeType;
+use noirc_frontend::monomorphization::ast::InlineType as FrontendInlineType;
 use rand::{SeedableRng, rngs::StdRng};
 use sha1::{Digest, Sha1};
 use utils::{push_fuzzer_output_to_redis_queue, redis};
 
 const MAX_EXECUTION_TIME_TO_KEEP_IN_CORPUS: u64 = 3;
+const INLINE_TYPE: FrontendInlineType = FrontendInlineType::Inline;
+const ACIR_RUNTIME: RuntimeType = RuntimeType::Acir(INLINE_TYPE);
+const BRILLIG_RUNTIME: RuntimeType = RuntimeType::Brillig(INLINE_TYPE);
+const TARGET_RUNTIMES: [RuntimeType; 2] = [ACIR_RUNTIME, BRILLIG_RUNTIME];
 
 libfuzzer_sys::fuzz_target!(|data: &[u8]| -> Corpus {
     let _ = env_logger::try_init();
@@ -70,12 +76,11 @@ libfuzzer_sys::fuzz_target!(|data: &[u8]| -> Corpus {
         .unwrap_or((FuzzerData::default(), 1337))
         .0;
     let start = std::time::Instant::now();
-    let fuzzer_output = fuzz_target(fuzzer_data, options);
+    let fuzzer_output = fuzz_target(fuzzer_data, TARGET_RUNTIMES.to_vec(), options);
 
     // If REDIS_URL is set and generated program is executed
-    if redis::ensure_redis_connection() && fuzzer_output.is_some() {
+    if redis::ensure_redis_connection() {
         // cargo-fuzz saves tests with name equal to sha1 of content
-        let fuzzer_output = fuzzer_output.unwrap();
         let mut hasher = Sha1::new();
         hasher.update(data);
         let sha1_hash = hasher.finalize();
