@@ -122,7 +122,6 @@ mod test {
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
-        println!("{ssa}");
 
         let ssa = ssa.remove_enable_side_effects();
         assert_ssa_snapshot!(ssa, @r"
@@ -208,7 +207,6 @@ mod test {
             v6 = array_get v0, index u32 0 -> u16
             v7 = cast v6 as u32
             v8 = array_get v4, index u32 0 -> u1
-            enable_side_effects v8
             v9 = not v8
             enable_side_effects v9
             v11 = mod v7, u32 3
@@ -222,31 +220,7 @@ mod test {
             return v3
         }
         "#;
-
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.remove_enable_side_effects();
-
-        // We expect the SSA to be unchanged
-        assert_ssa_snapshot!(ssa, @r#"
-        acir(inline) predicate_pure fn main f0 {
-          b0(v0: [u16; 3], v1: [u1; 1]):
-            v4 = call f1(v0, u1 1) -> [u1; 1]
-            v6 = array_get v0, index u32 0 -> u16
-            v7 = cast v6 as u32
-            v8 = array_get v4, index u32 0 -> u1
-            v9 = not v8
-            enable_side_effects v9
-            v11 = mod v7, u32 3
-            v12 = array_get v0, index v11 -> u16
-            enable_side_effects u1 1
-            return v12
-        }
-        brillig(inline) predicate_pure fn func_1 f1 {
-          b0(v0: [u16; 3], v1: u1):
-            v3 = make_array [u1 0] : [u1; 1]
-            return v3
-        }
-        "#);
+        assert_ssa_does_not_change(src, Ssa::remove_enable_side_effects);
     }
 
     #[test]
@@ -260,19 +234,7 @@ mod test {
             return
         }
         "#;
-
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.remove_enable_side_effects();
-        // We expect the SSA to be unchanged
-        assert_ssa_snapshot!(ssa, @r#"
-        acir(inline) predicate_pure fn main f0 {
-          b0(v0: [u32; 3], v1: u1):
-            v3 = array_get v0, index u32 0 -> u32
-            enable_side_effects v1
-            v5 = div v3, u32 3
-            return
-        }
-        "#);
+        assert_ssa_does_not_change(src, Ssa::remove_enable_side_effects);
     }
 
     #[test]
