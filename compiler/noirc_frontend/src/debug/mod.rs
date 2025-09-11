@@ -696,7 +696,7 @@ fn build_assign_member_stmt(
         }),
         is_macro_call: false,
         arguments: [
-            vec![uint_expr(var_id.0 as u128, location)],
+            vec![uint_expr(u128::from(var_id.0), location)],
             vec![expr.clone()],
             indexes.iter().rev().cloned().collect(),
         ]
@@ -715,7 +715,7 @@ fn build_debug_call_stmt(fname: &str, fn_id: DebugFnId, location: Location) -> a
             location,
         }),
         is_macro_call: false,
-        arguments: vec![uint_expr(fn_id.0 as u128, location)],
+        arguments: vec![uint_expr(u128::from(fn_id.0), location)],
     }));
     ast::Statement { kind: ast::StatementKind::Semi(ast::Expression { kind, location }), location }
 }
