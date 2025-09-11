@@ -97,6 +97,6 @@ pub fn compile_from_ssa(
     ssa: Ssa,
     options: &CompileOptions,
 ) -> Result<CompiledProgram, CompileError> {
-    let artifacts = optimize_ssa_into_acir(ssa, options.as_ssa_options(PathBuf::new()))?;
+    let artifacts = optimize_ssa_into_acir(ssa, options.as_ssa_options(PathBuf::new(), options.instrument_debug))?;
     Ok(compile_from_artifacts(artifacts))
 }

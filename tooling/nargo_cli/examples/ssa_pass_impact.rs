@@ -122,7 +122,7 @@ fn main() {
         ..Default::default()
     };
 
-    let ssa_options = compile_options.as_ssa_options(PathBuf::new());
+    let ssa_options = compile_options.as_ssa_options(PathBuf::new(), compile_options.instrument_debug);
 
     let last_pass = primary_passes(&ssa_options)
         .iter()
