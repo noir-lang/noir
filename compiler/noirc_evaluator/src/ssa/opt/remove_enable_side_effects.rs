@@ -1,6 +1,6 @@
 //! The goal of the "remove enable side effects" optimization pass is to delay any
-//! [Instruction::EnableSideEffectsIf] instructions such that they cover the minimum number of
-//! instructions possible.
+//! [Instruction::EnableSideEffectsIf] instructions in ACIR functions such that they cover
+//! the minimum number of instructions possible.
 //!
 //! The pass works as follows:
 //! - Insert instructions until an [Instruction::EnableSideEffectsIf] is encountered, save this
@@ -8,9 +8,20 @@
 //! - Continue inserting instructions until either
 //!     - Another [Instruction::EnableSideEffectsIf] is encountered, if so then drop the previous
 //!       [InstructionId][crate::ssa::ir::instruction::InstructionId] in favour of this one.
-//!     - An [Instruction] with side-effects is encountered, if so then insert the currently saved
-//!       [Instruction::EnableSideEffectsIf] before the [Instruction]. Continue inserting
-//!       instructions until the next [Instruction::EnableSideEffectsIf] is encountered.
+//!     - An [Instruction] that is affected by the side-effects variable is encountered, if so
+//!       then insert the currently saved [Instruction::EnableSideEffectsIf] before the
+//!       [Instruction]. Continue inserting instructions until the next
+//!       [Instruction::EnableSideEffectsIf] is encountered.
+//!
+//! The pass will also remove redundant [Instruction::EnableSideEffectsIf] instructions,
+//! for example if two consecutive [Instruction::EnableSideEffectsIf] instructions have the same
+//! condition.
+//!
+//! This pass doesn't run in Brillig functions as [Instruction::EnableSideEffectsIf] is not allowed
+//! in Brillig functions.
+//!
+//! //! ## Preconditions:
+//! - This pass must run once ACIR functions only have one basic block.
 
 use acvm::{FieldElement, acir::AcirField};
 
@@ -37,7 +48,7 @@ impl Function {
             return;
         }
 
-        // Make sure this optimization runs when there's only one block
+        // Check the precondition thatthis optimization runs when there's only one block
         let block = self.entry_block();
         assert_eq!(self.dfg[block].successors().count(), 0);
 
