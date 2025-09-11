@@ -110,3 +110,12 @@ pub fn compile<F: AcirField>(
 
     (acir, transformation_map)
 }
+
+#[macro_export]
+macro_rules! assert_circuit_snapshot {
+    ($acir:expr, $($arg:tt)*) => {
+        #[allow(unused_mut)]
+        let acir_string = $acir.to_string();
+        insta::assert_snapshot!(acir_string, $($arg)*)
+    };
+}

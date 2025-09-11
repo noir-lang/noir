@@ -5,7 +5,8 @@ pub mod call_stack;
 pub mod debug_info;
 mod position;
 pub mod reporter;
-pub use position::{Located, Location, Position, Span, Spanned};
+pub use noirc_span::{Span, Spanned};
+pub use position::{Located, Location, Position};
 pub use reporter::{CustomDiagnostic, DiagnosticKind};
 use std::io::Write;
 

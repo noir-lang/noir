@@ -1,5 +1,5 @@
 [package]
-name = "noirc_errors"
+name = "noirc_span"
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
@@ -12,14 +12,5 @@ workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-acvm.workspace = true
-codespan-reporting.workspace = true
-fm.workspace = true
-rustc-hash.workspace = true
-noirc_printable_type.workspace = true
-noirc_span.workspace = true
+codespan.workspace = true
 serde.workspace = true
-tracing.workspace = true
-flate2.workspace = true
-serde_json.workspace = true
-base64.workspace = true
