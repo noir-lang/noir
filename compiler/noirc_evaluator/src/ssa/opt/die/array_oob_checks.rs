@@ -4,7 +4,7 @@ use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
         function::Function,
-        instruction::{BinaryOp, Instruction},
+        instruction::{ArrayOffset, BinaryOp, Instruction},
         types::{NumericType, Type},
         value::ValueId,
     },
@@ -149,16 +149,23 @@ impl Context {
 /// if we have an unused array operation we need insert an OOB check so that the
 /// side effects ordering remains correct.
 pub(super) fn should_insert_oob_check(function: &Function, instruction: &Instruction) -> bool {
+    if !function.runtime().is_acir() {
+        return false;
+    }
+
     use Instruction::*;
-    let might_be_out_of_bounds = match instruction {
-        ArrayGet { array, index, .. } | ArraySet { array, index, .. } => {
+    match instruction {
+        ArrayGet { array, index, offset } | ArraySet { array, index, offset, .. } => {
+            assert!(
+                matches!(offset, ArrayOffset::None),
+                "ICE: The array offset should always be `None` for ACIR"
+            );
             // We only care about arrays here as slices are expected to have explicit checks laid down in the initial SSA.
             function.dfg.try_get_array_length(*array).is_some()
                 && !function.dfg.is_safe_index(*index, *array)
         }
         _ => false,
-    };
-    function.runtime().is_acir() && might_be_out_of_bounds
+    }
 }
 
 pub(super) fn handle_array_get_group(
