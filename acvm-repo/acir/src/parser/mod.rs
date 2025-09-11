@@ -3,7 +3,7 @@ use std::{collections::BTreeSet, str::FromStr};
 use acir_field::{AcirField, FieldElement};
 
 use lexer::{Lexer, LexerError};
-use noirc_errors::Span;
+use noirc_span::Span;
 use thiserror::Error;
 use token::{Keyword, SpannedToken, Token};
 
@@ -21,6 +21,7 @@ use crate::{
 };
 
 mod lexer;
+#[cfg(test)]
 mod tests;
 mod token;
 

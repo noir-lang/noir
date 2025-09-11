@@ -16,7 +16,7 @@ dependencies = [
  "flate2",
  "insta",
  "noir_protobuf",
- "noirc_errors",
+ "noirc_span",
  "num-bigint",
  "num-traits",
  "num_enum",
@@ -3715,11 +3715,11 @@ version = "1.0.0-beta.12"
 dependencies = [
  "acvm",
  "base64",
- "codespan",
  "codespan-reporting",
  "flate2",
  "fm",
  "noirc_printable_type",
+ "noirc_span",
  "rustc-hash",
  "serde",
  "serde_json",
@@ -3803,6 +3803,14 @@ dependencies = [
  "proptest",
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "noirc_span"
+version = "1.0.0-beta.12"
+dependencies = [
+ "codespan",
+ "serde",
 ]
 
 [[package]]

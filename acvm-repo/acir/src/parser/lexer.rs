@@ -2,8 +2,7 @@ use std::str::{CharIndices, FromStr};
 
 use acir_field::{AcirField, FieldElement};
 
-use noirc_errors::{Position, Span};
-
+use noirc_span::{Position, Span};
 use num_bigint::BigInt;
 use num_traits::One;
 use thiserror::Error;

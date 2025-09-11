@@ -305,7 +305,19 @@ mod tests {
     #[test]
     fn retain_lowest_range_size() {
         // The optimizer should keep the lowest bit size range constraint
+        // let src = "
+        // current witness index : _1
+        // private parameters indices : []
+        // public parameters indices : []
+        // return value indices : []
+        // BLACKBOX::RANGE [(_1, 32)] []
+        // BLACKBOX::RANGE [(_1, 16)] []
+        // ";
+        // let circuit = Circuit::from_str(src).unwrap();
+
         let circuit = test_circuit(vec![(Witness(1), 32), (Witness(1), 16)]);
+        println!("{circuit}");
+
         let acir_opcode_positions = circuit.opcodes.iter().enumerate().map(|(i, _)| i).collect();
         let brillig_side_effects = BTreeMap::new();
         let optimizer = RangeOptimizer::new(circuit, &brillig_side_effects);
