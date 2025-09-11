@@ -188,6 +188,7 @@ pub(super) fn evaluate_infix(
             (lhs_value as lhs ">>" rhs_value as rhs) => {
                 #[allow(unused_comparisons, clippy::absurd_extreme_comparisons)]
                 if rhs > 127 {return Err(rhs_overflow);}
+                #[allow(clippy::cast_lossless)]
                 lhs.checked_shr(rhs as u32)
             }
         },
@@ -196,9 +197,9 @@ pub(super) fn evaluate_infix(
             (lhs_value as lhs "<<" rhs_value as rhs) => {
                 #[allow(unused_comparisons, clippy::absurd_extreme_comparisons)]
                 if rhs > 127 {return Err(lhs_overflow);}
-                lhs.checked_shl(
-                rhs as u32
-            )}
+                #[allow(clippy::cast_lossless)]
+                lhs.checked_shl(rhs as u32)
+            }
         },
         BinaryOpKind::Modulo => match (&lhs_value, &rhs_value) {
             (Value::I8(i8::MIN), Value::I8(-1)) => Ok(Value::I8(0)),
