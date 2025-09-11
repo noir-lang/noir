@@ -8,6 +8,8 @@ jobs:
   algolia_recrawl:
     name: Algolia Recrawl
     runs-on: ubuntu-22.04
+    permissions:
+      contents: read
     steps:
       - name: Algolia crawler creation and crawl
         uses: algolia/algoliasearch-crawler-github-actions@v1.1.0

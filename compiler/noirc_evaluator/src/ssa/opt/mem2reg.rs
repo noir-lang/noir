@@ -78,7 +78,7 @@ mod block;
 
 use std::collections::{BTreeMap, BTreeSet};
 
-use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use vec_collections::VecSet;
 
 use crate::ssa::{
@@ -410,28 +410,47 @@ impl<'f> PerFunctionContext<'f> {
         &mut self,
         block_id: BasicBlockId,
         references: &mut Block,
-        instruction: InstructionId,
+        instruction_id: InstructionId,
     ) {
         // If the instruction was simplified and optimized out of the program we shouldn't analyze it.
         // Analyzing it could make tracking aliases less accurate if it is e.g. an ArrayGet
         // call that used to hold references but has since been optimized out to a known result.
         // However, if we don't analyze it, then it may be a MakeArray replacing an ArraySet containing references,
         // and we need to mark those references as used to keep their stores alive.
-        let (instruction, simplified) = {
-            let (ins, loc) = self.inserter.map_instruction(instruction);
-            match self.inserter.push_instruction_value(ins, instruction, block_id, loc) {
-                InsertInstructionResult::Results(id, _) => (id, false),
-                InsertInstructionResult::SimplifiedTo(value) => {
-                    let value = &self.inserter.function.dfg[value];
-                    let Value::Instruction { instruction, .. } = value else {
-                        return;
-                    };
-                    (*instruction, true)
-                }
-                _ => return,
-            }
-        };
+        let (instruction, loc) = self.inserter.map_instruction(instruction_id);
 
+        match self.inserter.push_instruction_value(instruction, instruction_id, block_id, loc) {
+            InsertInstructionResult::Results(id, _) => {
+                self.analyze_possibly_simplified_instruction(references, id, false);
+            }
+            InsertInstructionResult::SimplifiedTo(value) => {
+                let value = &self.inserter.function.dfg[value];
+                if let Value::Instruction { instruction, .. } = value {
+                    self.analyze_possibly_simplified_instruction(references, *instruction, true);
+                }
+            }
+            InsertInstructionResult::SimplifiedToMultiple(values) => {
+                for value in values {
+                    let value = &self.inserter.function.dfg[value];
+                    if let Value::Instruction { instruction, .. } = value {
+                        self.analyze_possibly_simplified_instruction(
+                            references,
+                            *instruction,
+                            true,
+                        );
+                    }
+                }
+            }
+            InsertInstructionResult::InstructionRemoved => (),
+        }
+    }
+
+    fn analyze_possibly_simplified_instruction(
+        &mut self,
+        references: &mut Block,
+        instruction: InstructionId,
+        simplified: bool,
+    ) {
         let ins = &self.inserter.function.dfg[instruction];
 
         // Some instructions, when simplified, cause problems if processed again.
@@ -2252,5 +2271,60 @@ mod tests {
             jmp b1(v30)
         }
         "#);
+    }
+
+    #[test]
+    fn analyzes_instruction_simplified_to_multiple() {
+        // This is a test to make sure that if an instruction is simplified to multiple instructions,
+        // like in the case of `slice_push_back`, those are handled correctly.
+        let src = r#"
+        brillig(inline) predicate_pure fn main f0 {
+          b0():
+            v4 = allocate -> &mut u1
+            store u1 0 at v4
+            v7 = make_array [v4] : [&mut u1]
+            v8 = allocate -> &mut u1
+            store u1 0 at v8
+            v11, v12 = call slice_push_back(u32 2, v7, v8) -> (u32, [&mut u1])
+            v16 = array_get v12, index u32 1 -> &mut u1
+            v17 = load v16 -> u1
+            jmpif v17 then: b1, else: b2
+          b1():
+            jmp b3(v12)
+          b2():
+            jmp b3(v12)
+          b3(v2: [&mut u1]):
+            v23 = array_get v2, index u32 0 -> &mut u1
+            v24 = load v23 -> u1
+            return v24
+        }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
+
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) predicate_pure fn main f0 {
+          b0():
+            v1 = allocate -> &mut u1
+            store u1 0 at v1
+            v3 = make_array [v1] : [&mut u1]
+            v4 = allocate -> &mut u1
+            store u1 0 at v4
+            v5 = make_array [v1, v4] : [&mut u1]
+            v7 = array_set v5, index u32 2, value v4
+            v8 = make_array [v1, v4] : [&mut u1]
+            jmpif u1 0 then: b1, else: b2
+          b1():
+            jmp b3(v8)
+          b2():
+            jmp b3(v8)
+          b3(v0: [&mut u1]):
+            v10 = array_get v0, index u32 0 -> &mut u1
+            v11 = load v10 -> u1
+            return v11
+        }
+        "
+        );
     }
 }

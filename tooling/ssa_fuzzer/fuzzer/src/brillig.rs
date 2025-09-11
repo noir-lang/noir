@@ -97,7 +97,6 @@ libfuzzer_sys::fuzz_target!(|data: &[u8]| -> Corpus {
     if start.elapsed().as_secs() > MAX_EXECUTION_TIME_TO_KEEP_IN_CORPUS {
         return Corpus::Reject;
     }
-
     Corpus::Keep
 });
 
