@@ -4,10 +4,10 @@ expression: expanded_code
 ---
 fn main(x: u1, y: u1, z: u1) -> pub u1 {
     let p: u1 = y - z;
-    if p != 0 {
+    if p != 0_u1 {
         let a: u1 = x / z;
         let b: u1 = a - z;
-        if b != 0 {
+        if b != 0_u1 {
             let _: u1 = a / b;
         }
     };

@@ -9,39 +9,42 @@ global B: Field = 4294967297;
 global C: Field = 8589934594;
 
 fn main() {
-    assert(C == 8589934594);
-    let mut leading_zeroes: Field = 0;
+    assert(C == 8589934594_Field);
+    let mut leading_zeroes: Field = 0_Field;
     let mut stop: bool = false;
     let bits: [u1; 64] = C.to_be_bits();
-    for i in 0..64 {
-        if (bits[i] == 0) & !stop {
-            leading_zeroes = leading_zeroes + 1;
+    for i in 0_u32..64_u32 {
+        if (bits[i] == 0_u1) & !stop {
+            leading_zeroes = leading_zeroes + 1_Field;
         } else {
             stop = true;
         }
     }
-    let size: Field = 64 - leading_zeroes;
-    assert(size == 34);
+    let size: Field = 64_Field - leading_zeroes;
+    assert(size == 34_Field);
     C.assert_max_bit_size::<34>();
     assert(
         C.to_be_bits()
             == [
-                1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 0, 1, 0,
+                1_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1,
+                0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1,
+                0_u1, 0_u1, 0_u1, 0_u1, 1_u1, 0_u1,
             ],
     );
     assert(
         C.to_be_bits()
             == [
-                0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 0, 0, 1, 0,
+                0_u1, 1_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1,
+                0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1,
+                0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 1_u1, 0_u1,
             ],
     );
     assert(
         C.to_be_bits()
             == [
-                0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 0, 0, 0, 1, 0,
+                0_u1, 0_u1, 1_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1,
+                0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1,
+                0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 0_u1, 1_u1, 0_u1,
             ],
     );
 }

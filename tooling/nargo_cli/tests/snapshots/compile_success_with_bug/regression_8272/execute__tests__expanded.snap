@@ -3,9 +3,9 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 fn main(b: [u32; 1]) {
-    func_1(3032078109, b);
+    func_1(3032078109_u32, b);
 }
 
 fn func_1(a: u32, mut b: [u32; 1]) {
-    b[0] = b[0] % (869374236 - a);
+    b[0_u32] = b[0_u32] % (869374236_u32 - a);
 }

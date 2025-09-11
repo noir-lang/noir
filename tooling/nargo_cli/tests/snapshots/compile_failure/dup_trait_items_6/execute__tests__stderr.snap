@@ -9,13 +9,13 @@ warning: struct `MyStruct` is never constructed
   │        -------- struct is never constructed
   │
 
-error: Duplicate definitions of trait associated function with name SomeFunc found
+error: Duplicate definitions of trait associated item with name SomeFunc found
   ┌─ src/main.nr:2:6
   │
 2 │   fn SomeFunc() { };
-  │      -------- First trait associated function found here
+  │      -------- First trait associated item found here
 3 │   fn SomeFunc() { };
-  │      -------- Second trait associated function found here
+  │      -------- Second trait associated item found here
   │
 
 error: Expected a trait item but found ';'

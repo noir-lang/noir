@@ -1,0 +1,60 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+error: SuperCallInterface expects 0 generics but 1 was given
+   ┌─ src/main.nr:37:6
+   │
+37 │ impl SuperCallInterface<()> for PrivateVoidCallInterface {
+   │      ------------------
+   │
+
+error: `SuperCallInterface` is missing the associated type `T`
+   ┌─ src/main.nr:37:6
+   │
+37 │ impl SuperCallInterface<()> for PrivateVoidCallInterface {
+   │      ------------------
+   │
+
+error: No matching impl found for `Field: Deserialize<N = _>`
+   ┌─ src/main.nr:46:26
+   │
+46 │   let _should_be_field = PrivateCallInterface {return_type: 1}.call();
+   │                          ------------------------------------------ No impl for `Field: Deserialize<N = _>`
+   │
+
+error: Type annotation needed
+   ┌─ src/main.nr:46:26
+   │
+46 │   let _should_be_field = PrivateCallInterface {return_type: 1}.call();
+   │                          ------------------------------------------ Could not determine the value of the generic argument `<T as Deserialize>::N` declared on the struct `PrivateCallInterface`
+   │
+
+error: The trait bound `T: Deserialize<N = M>` is not satisfied
+   ┌─ src/main.nr:15:41
+   │
+15 │ trait SuperCallInterface where Self::T: Deserialize<N = Self::M> {
+   │                                         ----------- required by this bound in `SuperCallInterface`
+   ·
+22 │ impl<T> SuperCallInterface for PrivateCallInterface<T>
+   │                                ----------------------- The trait `Deserialize<N = M>` is not implemented for `T`
+   │
+
+error: The trait bound `T: Deserialize<N = M>` is not satisfied
+   ┌─ src/main.nr:15:41
+   │
+15 │ trait SuperCallInterface where Self::T: Deserialize<N = Self::M> {
+   │                                         ----------- required by this bound in `SuperCallInterface`
+   ·
+37 │ impl SuperCallInterface<()> for PrivateVoidCallInterface {
+   │                                 ------------------------ The trait `Deserialize<N = M>` is not implemented for `T`
+   │
+
+error: Expected type fn(PrivateVoidCallInterface) -> _, found type fn(PrivateVoidCallInterface) -> ()
+   ┌─ src/main.nr:40:8
+   │
+40 │     fn call(self) -> () {
+   │        ----
+   │
+
+Aborting due to 7 previous errors

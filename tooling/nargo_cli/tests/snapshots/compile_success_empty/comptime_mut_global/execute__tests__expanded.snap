@@ -6,16 +6,16 @@ comptime mut global COUNTER: Field = 2;
 
 comptime fn get_unique_id() -> Field {
     let id: Field = COUNTER;
-    COUNTER = COUNTER + 1;
+    COUNTER = COUNTER + 1_Field;
     id
 }
 
 fn id1() -> Field {
-    0
+    0_Field
 }
 
 fn id2() -> Field {
-    1
+    1_Field
 }
 
 fn main() {

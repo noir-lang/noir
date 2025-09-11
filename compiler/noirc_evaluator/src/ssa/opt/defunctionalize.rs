@@ -48,9 +48,10 @@ use crate::ssa::{
         types::{NumericType, Type},
         value::{Value, ValueId},
     },
+    opt::pure::Purity,
     ssa_gen::Ssa,
 };
-use fxhash::FxHashMap as HashMap;
+use rustc_hash::FxHashMap as HashMap;
 
 /// Represents an 'apply' function created by this pass to dispatch higher order functions to.
 /// Pseudocode of an `apply` function is given below:
@@ -75,7 +76,7 @@ struct ApplyFunction {
 
 /// All functions used as a value that share the same signature and runtime type
 /// Maps ([Signature], [RuntimeType]) -> Vec<[FunctionId]>
-type Variants = BTreeMap<(Signature, RuntimeType), Vec<FunctionId>>;
+type Variants = BTreeMap<(Signature, RuntimeType), Vec<(FunctionId, RuntimeType)>>;
 /// All generated apply functions for each grouping of function variants.
 /// Each apply function is handles a specific ([Signature], [RuntimeType]) group.
 /// Maps ([Signature], [RuntimeType]) -> [ApplyFunction]
@@ -97,13 +98,18 @@ impl Ssa {
         let variants = find_variants(&self);
 
         // Generate the apply functions for the provided variants
-        let apply_functions = create_apply_functions(&mut self, variants);
+        let (apply_functions, purities) = create_apply_functions(&mut self, variants);
 
         // Setup the pass context
         let context = DefunctionalizationContext { apply_functions };
 
         // Run defunctionalization over all functions in the SSA
         context.defunctionalize_all(&mut self);
+
+        let purities = Arc::new(purities);
+        for function in self.functions.values_mut() {
+            function.dfg.set_function_purities(purities.clone());
+        }
 
         // Check that we have established the properties expected from this pass.
         #[cfg(debug_assertions)]
@@ -117,7 +123,66 @@ impl DefunctionalizationContext {
     /// Defunctionalize all functions in the SSA
     fn defunctionalize_all(mut self, ssa: &mut Ssa) {
         for function in ssa.functions.values_mut() {
+            // We mutate value types in `defunctionalize`, so to prevent that from affecting which
+            // apply functions are chosen we replace all first-class function calls with calls to
+            // the appropriate apply function beforehand.
+            self.replace_fist_class_calls_with_apply_function(function);
+
+            // Replace any first-class function values with field values. This will also mutate the
+            // type of some values, such as block arguments
             self.defunctionalize(function);
+        }
+    }
+
+    /// Replaces any function calls using first-class function values with calls to the
+    /// appropriate `apply` function. Note that this must be done before types are mutated
+    /// in `defunctionalize` since this uses the pre-mutated types to query apply functions.
+    fn replace_fist_class_calls_with_apply_function(&mut self, func: &mut Function) {
+        for block_id in func.reachable_blocks() {
+            let block = &mut func.dfg[block_id];
+
+            #[allow(clippy::unnecessary_to_owned)] // clippy is wrong here
+            for instruction_id in block.instructions().to_vec() {
+                let instruction = &func.dfg[instruction_id];
+
+                // Operate on call instructions
+                let (target_func_id, arguments) = match &instruction {
+                    Instruction::Call { func: target_func_id, arguments } => {
+                        (*target_func_id, arguments)
+                    }
+                    _ => continue,
+                };
+
+                // If the target is a function used as value
+                use Value::Param;
+                if matches!(&func.dfg[target_func_id], Param { .. } | Value::Instruction { .. }) {
+                    let mut arguments = arguments.clone();
+                    let results = func.dfg.instruction_results(instruction_id);
+                    let signature = Signature {
+                        params: vecmap(&arguments, |param| func.dfg.type_of_value(*param)),
+                        returns: vecmap(results, |result| func.dfg.type_of_value(*result)),
+                    };
+
+                    // Find the correct apply function
+                    let Some(apply_function) = self.get_apply_function(signature, func.runtime())
+                    else {
+                        // We should have generated an apply function for all function's used as a value,
+                        // even if there are no variants for that function call.
+                        panic!(
+                            "ICE: It is expected to have an apply function for every function used as a value"
+                        );
+                    };
+
+                    // Replace the instruction with a call to apply
+                    let apply_function_value_id = func.dfg.import_function(apply_function.id);
+                    if apply_function.dispatches_to_multiple_functions {
+                        arguments.insert(0, target_func_id);
+                    }
+                    let func_id = apply_function_value_id;
+                    let replacement_instruction = Instruction::Call { func: func_id, arguments };
+                    func.dfg[instruction_id] = replacement_instruction;
+                }
+            }
         }
     }
 
@@ -146,15 +211,13 @@ impl DefunctionalizationContext {
             block.set_terminator(terminator);
 
             // Now we can finally change each instruction, replacing
-            // each first class function with a field value and replacing calls
-            // to a first class function to a call to the relevant `apply` function.
+            // each first class function with a field value.
             #[allow(clippy::unnecessary_to_owned)] // clippy is wrong here
             for instruction_id in block.instructions().to_vec() {
                 let mut instruction = func.dfg[instruction_id].clone();
-                let mut replacement_instruction = None;
 
                 if remove_first_class_functions_in_instruction(func, &mut instruction) {
-                    func.dfg[instruction_id] = instruction.clone();
+                    func.dfg[instruction_id] = instruction;
                 }
 
                 #[allow(clippy::unnecessary_to_owned)] // clippy is wrong here
@@ -163,49 +226,6 @@ impl DefunctionalizationContext {
                     if let Some(rep) = replacement_type(typ) {
                         func.dfg.set_type_of_value(result, rep);
                     }
-                }
-
-                // Operate on call instructions
-                let (target_func_id, arguments) = match &instruction {
-                    Instruction::Call { func: target_func_id, arguments } => {
-                        (*target_func_id, arguments)
-                    }
-                    _ => {
-                        continue;
-                    }
-                };
-
-                match func.dfg[target_func_id] {
-                    // If the target is a function used as value
-                    Value::Param { .. } | Value::Instruction { .. } => {
-                        let mut arguments = arguments.clone();
-                        let results = func.dfg.instruction_results(instruction_id);
-                        let signature = Signature {
-                            params: vecmap(&arguments, |param| func.dfg.type_of_value(*param)),
-                            returns: vecmap(results, |result| func.dfg.type_of_value(*result)),
-                        };
-
-                        // Find the correct apply function
-                        let Some(apply_function) =
-                            self.get_apply_function(signature, func.runtime())
-                        else {
-                            // If there is no apply function then this should be a parameter in a function
-                            // that will never actually be called, and the DIE pass will eventually remove it.
-                            continue;
-                        };
-
-                        // Replace the instruction with a call to apply
-                        let apply_function_value_id = func.dfg.import_function(apply_function.id);
-                        if apply_function.dispatches_to_multiple_functions {
-                            arguments.insert(0, target_func_id);
-                        }
-                        let func = apply_function_value_id;
-                        replacement_instruction = Some(Instruction::Call { func, arguments });
-                    }
-                    _ => {}
-                }
-                if let Some(new_instruction) = replacement_instruction {
-                    func.dfg[instruction_id] = new_instruction;
                 }
             }
         }
@@ -243,12 +263,17 @@ fn remove_first_class_functions_in_instruction(
             *arg = map_value(*arg);
         }
     } else if let Instruction::MakeArray { typ, .. } = instruction {
+        let mut modified_type = false;
         if let Some(rep) = replacement_type(typ) {
             *typ = rep;
+            modified_type = true;
         }
+
         instruction.map_values_mut(map_value);
 
-        modified = true;
+        if modified_type {
+            modified = true;
+        }
     } else {
         instruction.map_values_mut(map_value);
     }
@@ -309,9 +334,21 @@ fn find_variants(ssa: &Ssa) -> Variants {
     let mut variants: Variants = BTreeMap::new();
 
     // Further group function variant candidates by their caller runtime.
+    // The target functions are never tested against their runtime, which is assumed to be correct,
+    // but there is nothing which guarantees this.
+    // Filtering the functions by their runtime at this stage will not work because if the variant
+    // is empty, the apply function will create a dummy function. So instead of calling a function with a wrong runtime,
+    // we would end-up calling a dummy function.
+    // The solution is to add the runtime information to the variants map
+    // and defer to create_apply_function for handling the runtime checks.
     for (dispatch_signature, caller_runtime) in dynamic_dispatches {
-        let target_fns =
-            signature_to_functions_as_value.get(&dispatch_signature).cloned().unwrap_or_default();
+        let target_fns = signature_to_functions_as_value
+            .get(&dispatch_signature)
+            .cloned()
+            .unwrap_or_default()
+            .into_iter()
+            .map(|f| (f, ssa.functions[&f].runtime()));
+        let target_fns: Vec<(FunctionId, RuntimeType)> = target_fns.collect();
         variants.insert((dispatch_signature, caller_runtime), target_fns);
     }
 
@@ -349,7 +386,8 @@ fn find_functions_as_values(func: &Function) -> BTreeSet<FunctionId> {
     functions_as_values
 }
 
-/// Finds all dynamic dispatch signatures in the given function
+/// Finds all dynamic dispatch signatures in the given function.
+/// Note that these are the signatures before function types are mutated to turn into field types.
 ///
 /// A dynamic dispatch is defined as a call into a function value where that
 /// value comes from a parameter (i.e., calling a function passed as a function parameter
@@ -386,53 +424,97 @@ fn find_dynamic_dispatches(func: &Function) -> BTreeSet<Signature> {
 /// for a specific ([Signature], [RuntimeType]) group.
 /// Otherwise, if there is a single variant that function is simply reused.
 ///
+/// If there are no variants a dummy function is created.
+/// A dummy function acts as a safe no-op to continue compilation even though there are no variants
+/// for a first-class function call. For more information you can reference [create_dummy_function].
+///
 /// # Arguments
 /// - `ssa`: A mutable reference to the full [Ssa] structure containing all functions.
 /// - `variants_map`:  [Variants]
 ///
 /// # Returns
-/// [ApplyFunctions]
-fn create_apply_functions(ssa: &mut Ssa, variants_map: Variants) -> ApplyFunctions {
+/// - [ApplyFunctions] keyed by each function's signature _before_ functions are changed
+///   into field types. The inner apply function itself will have its defunctionalized type,
+///   with function values represented as field values.
+/// - [HashMap<FunctionId, Purity>] with purities that must be set to all functions in the SSA,
+///   as this function might have created dummy pure functions.
+fn create_apply_functions(
+    ssa: &mut Ssa,
+    variants_map: Variants,
+) -> (ApplyFunctions, HashMap<FunctionId, Purity>) {
     let mut apply_functions = HashMap::default();
-    for ((mut signature, runtime), variants) in variants_map.into_iter() {
-        if variants.is_empty() {
-            // If no variants exist for a dynamic call we leave removing those dead parameters to DIE
-            continue;
-        }
+    let mut purities = if ssa.functions.is_empty() {
+        HashMap::default()
+    } else {
+        (*ssa.functions.iter().next().unwrap().1.dfg.function_purities).clone()
+    };
+
+    for ((signature, caller_runtime), variants) in variants_map.into_iter() {
+        // Calling an ACIR function from a Brillig runtime is not allowed.
+        // We expect all ACIR functions called from Brillig to be specialized
+        // as Brillig functions at compile time (e.g., before SSA generation).
+        // Closures are expected to be duplicated by their runtime.
+        // It is expected that the frontend has appropriately extracted the correct closure
+        // based on the current runtime of the caller function.
+        // However, during defunctionalization we are unable to tell that the correct target is being called so all
+        // variants with different runtimes will be included in the apply function.
+        // Including a closure variant with a different runtime in the closure variant will cause an ill-formed SSA.
+        // Thus, to avoid a broken SSA we simply do not include calls to variants which differ from their callers.
+        // It is expected that if the new ID associated with the bad variant is used, that we will still fail as the last
+        // function to dispatch constrains that we have an expected ID.
+        let pre_runtime_filter_len = variants.len();
+        let variants: Vec<(FunctionId, RuntimeType)> = variants
+            .into_iter()
+            .filter(|(_, runtime)| !(runtime.is_acir() && caller_runtime.is_brillig()))
+            .collect();
+
         let dispatches_to_multiple_functions = variants.len() > 1;
+
+        // This will be the same signature but with each function type replaced with
+        // a Field type.
+        let mut defunctionalized_signature = signature.clone();
 
         // Update the shared function signature of the higher-order function variants
         // to replace any function passed as a value to a numeric field type.
-        for param in &mut signature.params {
-            if let Some(rep) = replacement_type(param) {
-                *param = rep;
-            }
-        }
-
-        // Update the return value types as we did for the signature parameters above.
-        for ret in &mut signature.returns {
-            if let Some(rep) = replacement_type(ret) {
-                *ret = rep;
+        for typ in defunctionalized_signature
+            .params
+            .iter_mut()
+            .chain(&mut defunctionalized_signature.returns)
+        {
+            if let Some(rep) = replacement_type(typ) {
+                *typ = rep;
             }
         }
 
         let id = if dispatches_to_multiple_functions {
             // If we have multiple variants for this signature and runtime type group
             // we need to generate an apply function.
-            create_apply_function(ssa, signature.clone(), runtime, variants)
-        } else {
+            create_apply_function(ssa, defunctionalized_signature, caller_runtime, variants)
+        } else if !variants.is_empty() {
             // If there is only variant, we can use it directly rather than creating a new apply function.
-            variants[0]
+            variants[0].0
+        } else if pre_runtime_filter_len != 0 && caller_runtime.is_brillig() {
+            // We had variants, but they were all filtered out.
+            // Frontend bug: only ACIR variants in a Brillig group.
+            panic!("ICE: invalid defunctionalization: only ACIR variants for a Brillig runtime",);
+        } else {
+            // If no variants exist for a dynamic call we leave removing those dead calls and parameters to DIE.
+            // However, we have to construct a dummy function for these dead calls as to keep a well formed SSA
+            // and to not break the semantics of other SSA passes before DIE is reached.
+            create_dummy_function(ssa, defunctionalized_signature, caller_runtime, &mut purities)
         };
-        apply_functions
-            .insert((signature, runtime), ApplyFunction { id, dispatches_to_multiple_functions });
+        apply_functions.insert(
+            (signature, caller_runtime),
+            ApplyFunction { id, dispatches_to_multiple_functions },
+        );
     }
-    apply_functions
+
+    (apply_functions, purities)
 }
 
 /// Transforms a [FunctionId] into a [FieldElement]
 fn function_id_to_field(function_id: FunctionId) -> FieldElement {
-    (function_id.to_u32() as u128).into()
+    u128::from(function_id.to_u32()).into()
 }
 
 /// Creates a single apply function to enable dispatch across multiple function variants
@@ -448,7 +530,7 @@ fn function_id_to_field(function_id: FunctionId) -> FieldElement {
 ///
 /// # Arguments
 /// - `ssa`: A mutable reference to the full [Ssa] structure containing all functions.
-/// - `signature`: The shared [Signature] of all variants.
+/// - `signature`: The shared [Signature] of all variants but with each `Type::Function` replaced with a field type.
 /// - `caller_runtime`: The runtime in which the apply function will be called, used to update inlining policies.
 /// - `function_ids`: A non-empty list of [FunctionId]s representing concrete functions to dispatch between.
 ///   This method will panic if `function_ids` is empty.
@@ -462,7 +544,7 @@ fn create_apply_function(
     ssa: &mut Ssa,
     signature: Signature,
     caller_runtime: RuntimeType,
-    function_ids: Vec<FunctionId>,
+    function_ids: Vec<(FunctionId, RuntimeType)>,
 ) -> FunctionId {
     assert!(!function_ids.is_empty());
     // Clone the user-defined globals and the function purities mapping,
@@ -470,11 +552,9 @@ fn create_apply_function(
     // We will be borrowing `ssa` mutably so we need to fetch this shared information
     // before attempting to add a new function to the SSA.
     let globals = ssa.main().dfg.globals.clone();
-    let purities = ssa.main().dfg.function_purities.clone();
     ssa.add_fn(|id| {
         let mut function_builder = FunctionBuilder::new("apply".to_string(), id);
         function_builder.set_globals(globals);
-        function_builder.set_purities(purities);
 
         // We want to push for apply functions to be inlined more aggressively;
         // they are expected to be optimized away by constants visible at the call site.
@@ -505,7 +585,7 @@ fn create_apply_function(
         // Switch back to the entry block to build the rest of the dispatch function
         function_builder.switch_to_block(entry_block);
 
-        for (index, function_id) in function_ids.iter().enumerate() {
+        for (index, (function_id, _)) in function_ids.iter().enumerate() {
             let is_last = index == function_ids.len() - 1;
             let mut next_function_block = None;
 
@@ -559,7 +639,8 @@ fn create_apply_function(
         // local_end_block3--/
         //
         // This is necessary since SSA panics during flattening if we immediately
-        // try to jump directly to end block instead: https://github.com/noir-lang/noir/issues/7323.
+        // try to jump directly to end block instead
+        // (see https://github.com/noir-lang/noir/issues/7323 for a case where this happens).
         //
         // It'd also be more efficient to merge them tournament-bracket style but that
         // also leads to panics during flattening for similar reasons.
@@ -584,8 +665,90 @@ fn create_apply_function(
         function_builder.switch_to_block(end_block);
         function_builder.terminate_with_return(end_results);
 
+        // The above code can result in a suboptimal CFG so we simplify it here.
+        let mut function = function_builder.current_function;
+        function.simplify_function();
+        function
+    })
+}
+
+/// Creates a placeholder (dummy) function to replace calls to invalid function references.
+/// An example of a possible invalid function reference is an out-of-bounds access on a zero-length function array.
+///
+/// This prevents the compiler from crashing by ensuring that the IR always has a valid function to call.
+/// The dummy function is created using the supplied function's signature as to maintain a well formed SSA IR.
+/// The dummy function is pure, contains no logic, and just returns zeroed out values for its return types.
+///
+/// This is especially useful in cases where we cannot statically resolve the function reference,
+/// but want to continue compiling the rest of the program safely.
+///
+/// Returns the [FunctionId] of the newly created dummy function.
+fn create_dummy_function(
+    ssa: &mut Ssa,
+    signature: Signature,
+    caller_runtime: RuntimeType,
+    purities: &mut HashMap<FunctionId, Purity>,
+) -> FunctionId {
+    ssa.add_fn(|id| {
+        let mut function_builder = FunctionBuilder::new("apply_dummy".to_string(), id);
+
+        // Set the runtime of the dummy function. The dummy function is expect to always be simplified out
+        // but we let the caller set the runtime here as to match Noir's runtime semantics.
+        let runtime = match caller_runtime {
+            RuntimeType::Acir(_) => RuntimeType::Acir(InlineType::InlineAlways),
+            RuntimeType::Brillig(_) => RuntimeType::Brillig(InlineType::InlineAlways),
+        };
+        function_builder.set_runtime(runtime);
+
+        // The remaining dummy function parameters are the actual parameters of the function call without any variants.
+        // We generate these just to maintain a well-formed IR. Not doing this could result in errors if the dummy function
+        // was set to be inlined before the call to it was removed by DIE.
+        vecmap(signature.params, |typ| function_builder.add_parameter(typ));
+
+        // We can mark the dummy function pure as all it does is return.
+        // As the dummy function is just meant to be a placeholder for any calls to
+        // higher-order functions without variants, we want the function to be marked pure
+        // so that dead instruction elimination can remove any calls to it.
+        purities.insert(id, Purity::Pure);
+
+        let results =
+            vecmap(signature.returns, |typ| make_dummy_return_data(&mut function_builder, &typ));
+
+        function_builder.terminate_with_return(results);
+
         function_builder.current_function
     })
+}
+
+/// Construct a dummy value to be returned from the placeholder function for calls to invalid lambda references.
+/// We need to construct the appropriate value so that our SSA is well formed even if the function
+/// pointer has no variants.
+fn make_dummy_return_data(function_builder: &mut FunctionBuilder, typ: &Type) -> ValueId {
+    match typ {
+        Type::Numeric(numeric_type) => function_builder.numeric_constant(0_u128, *numeric_type),
+        Type::Array(element_types, len) => {
+            let mut array = im::Vector::new();
+            for _ in 0..*len {
+                for typ in element_types.iter() {
+                    array.push_back(make_dummy_return_data(function_builder, typ));
+                }
+            }
+            function_builder.insert_make_array(array, typ.clone())
+        }
+        Type::Slice(_) => {
+            let array = im::Vector::new();
+            // The contents of a slice do not matter for a dummy function, we simply
+            // desire to have a well formed SSA by returning the correct value for a type.
+            // Thus, we return an empty slice here.
+            function_builder.insert_make_array(array, typ.clone())
+        }
+        Type::Reference(element_type) => function_builder.insert_allocate((**element_type).clone()),
+        Type::Function => {
+            unreachable!(
+                "ICE: Any function passed as a value should have already been converted to a field type"
+            )
+        }
+    }
 }
 
 /// Check post-execution properties:
@@ -655,14 +818,12 @@ fn replacement_types(types: &[Type]) -> Option<Vec<Type>> {
 
 #[cfg(test)]
 mod tests {
-    use crate::ssa::interpreter::{
-        IResults,
-        tests::expect_value_with_args,
-        value::{NumericValue, Value},
+    use crate::{
+        assert_ssa_snapshot,
+        ssa::{ir::function::FunctionId, opt::defunctionalize::create_apply_functions},
     };
-    use crate::{assert_ssa_snapshot, ssa::ir::function::FunctionId};
 
-    use super::Ssa;
+    use super::{Ssa, find_variants};
 
     #[test]
     fn apply_inherits_caller_runtime() {
@@ -747,33 +908,25 @@ mod tests {
         }
         brillig(inline_always) fn apply f5 {
           b0(v0: Field, v1: u32):
-            v9 = eq v0, Field 2
-            jmpif v9 then: b3, else: b2
-          b1(v2: u32):
-            return v2
+            v5 = eq v0, Field 2
+            jmpif v5 then: b2, else: b1
+          b1():
+            v9 = eq v0, Field 3
+            jmpif v9 then: b4, else: b3
           b2():
-            v13 = eq v0, Field 3
-            jmpif v13 then: b6, else: b5
+            v7 = call f2(v1) -> u32
+            jmp b6(v7)
           b3():
-            v11 = call f2(v1) -> u32
-            jmp b4(v11)
-          b4(v3: u32):
-            jmp b10(v3)
-          b5():
             constrain v0 == Field 4
-            v18 = call f4(v1) -> u32
-            jmp b8(v18)
-          b6():
-            v15 = call f3(v1) -> u32
-            jmp b7(v15)
-          b7(v4: u32):
-            jmp b9(v4)
-          b8(v5: u32):
-            jmp b9(v5)
-          b9(v6: u32):
-            jmp b10(v6)
-          b10(v7: u32):
-            jmp b1(v7)
+            v14 = call f4(v1) -> u32
+            jmp b5(v14)
+          b4():
+            v11 = call f3(v1) -> u32
+            jmp b5(v11)
+          b5(v2: u32):
+            jmp b6(v2)
+          b6(v3: u32):
+            return v3
         }
         ");
     }
@@ -781,45 +934,56 @@ mod tests {
     #[test]
     fn apply_created_per_caller_runtime() {
         let src = "
-          acir(inline) fn main f0 {
-            b0(v0: u32):
-              v3 = call f1(f2, v0) -> u32
-              v5 = add v0, u32 1
-              v6 = eq v3, v5
-              constrain v3 == v5
-              v9 = call f4(f3, v0) -> u32
-              v10 = add v0, u32 1
-              v11 = eq v9, v10
-              constrain v9 == v10
-              return
-          }
-          brillig(inline) fn wrapper f1 {
-            b0(v0: function, v1: u32):
-              v2 = call v0(v1) -> u32
-              return v2
-          }
-          acir(inline) fn wrapper_acir f4 {
-            b0(v0: function, v1: u32):
-              v2 = call v0(v1) -> u32
-              return v2
-          }
-          brillig(inline) fn increment f2 {
-            b0(v0: u32):
-              v2 = add v0, u32 1
-              return v2
-          }
-          acir(inline) fn increment_acir f3 {
-            b0(v0: u32):
-              v2 = add v0, u32 1
-              return v2
-          }
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v3 = call f1(f3, v0) -> u32
+            v5 = call f1(f6, v0) -> u32
+            v7 = add v0, u32 1
+            v8 = eq v3, v7
+            constrain v3 == v7
+            v11 = call f2(f4, v0) -> u32
+            v13 = call f2(f5, v0) -> u32
+            v14 = add v0, u32 1
+            v15 = eq v11, v14
+            constrain v11 == v14
+            return
+        }
+        brillig(inline) fn wrapper f1 {
+          b0(v0: function, v1: u32):
+            v2 = call v0(v1) -> u32
+            return v2
+        }
+        acir(inline) fn wrapper_acir f2 {
+          b0(v0: function, v1: u32):
+            v2 = call v0(v1) -> u32
+            return v2
+        }
+        brillig(inline) fn increment f3 {
+          b0(v0: u32):
+            v2 = add v0, u32 1
+            return v2
+        }
+        acir(inline) fn increment_acir f4 {
+          b0(v0: u32):
+            v2 = add v0, u32 1
+            return v2
+        }
+        acir(inline) fn increment_acir1 f5 {
+          b0(v0: u32):
+            v2 = add v0, u32 1
+            return v2
+        }
+        brillig(inline) fn increment_brillig1 f6 {
+          b0(v0: u32):
+            v2 = add v0, u32 1
+            return v2
+        }
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.defunctionalize();
 
         let applies = ssa.functions.values().filter(|f| f.name() == "apply").collect::<Vec<_>>();
-        assert_eq!(applies.len(), 2);
         assert!(applies.iter().any(|f| f.runtime().is_acir()));
         assert!(applies.iter().any(|f| f.runtime().is_brillig()));
     }
@@ -893,23 +1057,17 @@ mod tests {
         }
         acir(inline_always) fn apply f4 {
           b0(v0: Field):
-            v6 = eq v0, Field 1
-            jmpif v6 then: b3, else: b2
-          b1(v1: u32):
-            return v1
-          b2():
+            v3 = eq v0, Field 1
+            jmpif v3 then: b2, else: b1
+          b1():
             constrain v0 == Field 2
-            v11 = call f2() -> u32
-            jmp b5(v11)
-          b3():
-            v8 = call f1() -> u32
-            jmp b4(v8)
-          b4(v2: u32):
-            jmp b6(v2)
-          b5(v3: u32):
-            jmp b6(v3)
-          b6(v4: u32):
-            jmp b1(v4)
+            v8 = call f2() -> u32
+            jmp b3(v8)
+          b2():
+            v5 = call f1() -> u32
+            jmp b3(v5)
+          b3(v1: u32):
+            return v1
         }
         "
         );
@@ -1051,8 +1209,12 @@ mod tests {
         }
         brillig(inline) fn func_2 f2 {
           b0(v0: Field):
-            v2 = call v0(u128 1) -> u1
-            return v2
+            v3 = call f3(u128 1) -> u1
+            return v3
+        }
+        brillig(inline_always) pure fn apply_dummy f3 {
+          b0(v0: u128):
+            return u1 0
         }
         ");
     }
@@ -1149,33 +1311,25 @@ mod tests {
         }
         acir(inline_always) fn apply f5 {
           b0(v0: Field, v1: u32):
-            v9 = eq v0, Field 2
-            jmpif v9 then: b3, else: b2
-          b1(v2: u32):
-            return v2
+            v5 = eq v0, Field 2
+            jmpif v5 then: b2, else: b1
+          b1():
+            v9 = eq v0, Field 3
+            jmpif v9 then: b4, else: b3
           b2():
-            v13 = eq v0, Field 3
-            jmpif v13 then: b6, else: b5
+            v7 = call f2(v1) -> u32
+            jmp b6(v7)
           b3():
-            v11 = call f2(v1) -> u32
-            jmp b4(v11)
-          b4(v3: u32):
-            jmp b10(v3)
-          b5():
             constrain v0 == Field 4
-            v18 = call f4(v1) -> u32
-            jmp b8(v18)
-          b6():
-            v15 = call f3(v1) -> u32
-            jmp b7(v15)
-          b7(v4: u32):
-            jmp b9(v4)
-          b8(v5: u32):
-            jmp b9(v5)
-          b9(v6: u32):
-            jmp b10(v6)
-          b10(v7: u32):
-            jmp b1(v7)
+            v14 = call f4(v1) -> u32
+            jmp b5(v14)
+          b4():
+            v11 = call f3(v1) -> u32
+            jmp b5(v11)
+          b5(v2: u32):
+            jmp b6(v2)
+          b6(v3: u32):
+            return v3
         }
         ");
     }
@@ -1242,55 +1396,45 @@ mod tests {
         acir(inline_always) fn apply f5 {
           b0(v0: Field):
             v2 = eq v0, Field 1
-            jmpif v2 then: b3, else: b2
+            jmpif v2 then: b2, else: b1
           b1():
-            return
-          b2():
             v5 = eq v0, Field 2
-            jmpif v5 then: b6, else: b5
-          b3():
+            jmpif v5 then: b4, else: b3
+          b2():
             call f1()
-            jmp b4()
-          b4():
-            jmp b14()
-          b5():
+            jmp b9()
+          b3():
             v8 = eq v0, Field 3
-            jmpif v8 then: b9, else: b8
-          b6():
+            jmpif v8 then: b6, else: b5
+          b4():
             call f2()
-            jmp b7()
-          b7():
-            jmp b13()
-          b8():
+            jmp b8()
+          b5():
             constrain v0 == Field 4
             call f4()
-            jmp b11()
-          b9():
+            jmp b7()
+          b6():
             call f3()
-            jmp b10()
-          b10():
-            jmp b12()
-          b11():
-            jmp b12()
-          b12():
-            jmp b13()
-          b13():
-            jmp b14()
-          b14():
-            jmp b1()
+            jmp b7()
+          b7():
+            jmp b8()
+          b8():
+            jmp b9()
+          b9():
+            return
         }
         "#);
     }
 
     #[test]
-    fn empty_make_array_updates_type() {
+    fn empty_make_array_with_functions() {
         let src = r#"
         acir(inline) fn main f0 {
-          b0(v0: u32):
-            v1 = make_array [] : [function; 0]
+          b0():
+            v0 = make_array [] : [function; 0]
             constrain u1 0 == u1 1, "Index out of bounds"
-            v5 = array_get v1, index u32 0 -> function
-            call v5()
+            v4 = array_get v0, index u32 0 -> function
+            v6, v7 = call v4(u32 5) -> (u32, [u32; 2])
             return
         }
         "#;
@@ -1298,17 +1442,56 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.defunctionalize();
 
-        // Guarantee that we still accurately modify the make_array instruction type for an empty array
+        // Guarantee we make the following updates:
+        // 1. The make_array instruction type is modified
+        // 2. We generate a dummy function which is used to modify function calls when there are no variants
         assert_ssa_snapshot!(ssa, @r#"
         acir(inline) fn main f0 {
-          b0(v0: u32):
-            v1 = make_array [] : [Field; 0]
+          b0():
+            v0 = make_array [] : [Field; 0]
             constrain u1 0 == u1 1, "Index out of bounds"
-            v5 = array_get v1, index u32 0 -> Field
-            call v5()
+            v4 = array_get v0, index u32 0 -> Field
+            v7, v8 = call f1(u32 5) -> (u32, [u32; 2])
             return
         }
+        acir(inline_always) pure fn apply_dummy f1 {
+          b0(v0: u32):
+            v2 = make_array [u32 0, u32 0] : [u32; 2]
+            return u32 0, v2
+        }
         "#);
+    }
+
+    #[test]
+    fn empty_make_array_with_functions_returning_functions() {
+        let src = "
+      acir(inline) fn main f0 {
+        b0():
+          v0 = make_array [] : [function; 0]
+          constrain u1 0 == u1 1
+          v4 = array_get v0, index u32 0 -> function
+          v6 = call v4(u32 2) -> function
+          return
+      }
+      ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.defunctionalize();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0():
+            v0 = make_array [] : [Field; 0]
+            constrain u1 0 == u1 1
+            v4 = array_get v0, index u32 0 -> Field
+            v7 = call f1(u32 2) -> Field
+            return
+        }
+        acir(inline_always) pure fn apply_dummy f1 {
+          b0(v0: u32):
+            return Field 0
+        }
+        ");
     }
 
     #[test]
@@ -1416,7 +1599,7 @@ mod tests {
         let src = r#"
         acir(inline) fn main f0 {
           b0(v0: u32):
-            v1 = make_array [f1] : [function; 0]
+            v1 = make_array [f1] : [function; 1]
             v2 = array_set v1, index u32 0, value f2
             return v0
         }
@@ -1439,5 +1622,622 @@ mod tests {
         assert_eq!(functions.len(), 2);
         assert!(functions.contains(&FunctionId::test_new(1))); // foo
         assert!(functions.contains(&FunctionId::test_new(2))); // bar
+    }
+
+    /// Ensure apply function are cached with the signature of the function before any mutations occur
+    #[test]
+    fn regression_8896() {
+        let src = r#"
+            acir(inline) fn main f0 {
+            b0(v0: Field):
+                v3 = call f1(f2) -> Field
+                v5 = call f1(f3) -> Field
+                v7 = eq v0, Field 0
+                jmpif v7 then: b1, else: b2
+            b1():
+                jmp b3(f4)
+            b2():
+                jmp b3(f5)
+            b3(v10: function):
+                v11 = add v3, v5
+                v12 = call v10(v0) -> Field
+                v13 = add v11, v12
+                return v13
+            }
+            acir(inline) fn dispatch1 f1 {
+            b0(v0: function):
+                v2 = call v0(f6) -> Field
+                v4 = mul v2, Field 3
+                return v4
+            }
+            acir(inline) fn lambda f2 {
+            b0(v0: function):
+                return Field 1
+            }
+            acir(inline) fn lambda f3 {
+            b0(v0: function):
+                return Field 2
+            }
+            acir(inline) fn fn1 f4 {
+            b0(v0: Field):
+                v2 = add v0, Field 1
+                return v2
+            }
+            acir(inline) fn fn2 f5 {
+            b0(v0: Field):
+                v2 = mul v0, Field 5
+                return v2
+            }
+            acir(inline) fn lambda f6 {
+            b0():
+                return Field 0
+            }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.defunctionalize();
+
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v4 = call f1(Field 2) -> Field
+            v6 = call f1(Field 3) -> Field
+            v8 = eq v0, Field 0
+            jmpif v8 then: b1, else: b2
+          b1():
+            jmp b3(Field 4)
+          b2():
+            jmp b3(Field 5)
+          b3(v1: Field):
+            v11 = add v4, v6
+            v13 = call f7(v1, v0) -> Field
+            v14 = add v11, v13
+            return v14
+        }
+        acir(inline) fn dispatch1 f1 {
+          b0(v0: Field):
+            v3 = call f8(v0, Field 6) -> Field
+            v5 = mul v3, Field 3
+            return v5
+        }
+        acir(inline) fn lambda f2 {
+          b0(v0: Field):
+            return Field 1
+        }
+        acir(inline) fn lambda f3 {
+          b0(v0: Field):
+            return Field 2
+        }
+        acir(inline) fn fn1 f4 {
+          b0(v0: Field):
+            v2 = add v0, Field 1
+            return v2
+        }
+        acir(inline) fn fn2 f5 {
+          b0(v0: Field):
+            v2 = mul v0, Field 5
+            return v2
+        }
+        acir(inline) fn lambda f6 {
+          b0():
+            return Field 0
+        }
+        acir(inline_always) fn apply f7 {
+          b0(v0: Field, v1: Field):
+            v4 = eq v0, Field 4
+            jmpif v4 then: b2, else: b1
+          b1():
+            constrain v0 == Field 5
+            v9 = call f5(v1) -> Field
+            jmp b3(v9)
+          b2():
+            v6 = call f4(v1) -> Field
+            jmp b3(v6)
+          b3(v2: Field):
+            return v2
+        }
+        acir(inline_always) fn apply f8 {
+          b0(v0: Field, v1: Field):
+            v4 = eq v0, Field 2
+            jmpif v4 then: b2, else: b1
+          b1():
+            constrain v0 == Field 3
+            v9 = call f3(v1) -> Field
+            jmp b3(v9)
+          b2():
+            v6 = call f2(v1) -> Field
+            jmp b3(v6)
+          b3(v2: Field):
+            return v2
+        }
+        ");
+    }
+
+    /// Ensure the correct type signature is used for recursive calls. We should expect 2 apply
+    /// functions generated, not one.
+    #[test]
+    fn regression_8897() {
+        let src = r#"
+            acir(inline) fn main f0 {
+            b0():
+                v3 = call f1(f2, Field 0) -> Field
+                return v3
+            }
+            acir(inline) fn simple_recur f1 {
+            b0(v0: function, v1: Field):
+                v3 = eq v1, Field 0
+                jmpif v3 then: b1, else: b2
+            b1():
+                jmp b3(f1)
+            b2():
+                jmp b3(f3)
+            b3(v6: function):
+                v9 = add v1, Field 1
+                v10 = call v6(f4, v9) -> Field
+                v11 = call v0(v10, Field 0) -> Field
+                return v11
+            }
+            acir(inline) fn fn1 f2 {
+            b0(v0: Field, v1: Field):
+                v3 = add v0, Field 1
+                return v3
+            }
+            acir(inline) fn lambda f3 {
+            b0(v0: function, v1: Field):
+                v4 = call f2(Field 0, Field 0) -> Field
+                return v4
+            }
+            acir(inline) fn fn2 f4 {
+            b0(v0: Field, v1: Field):
+                v3 = mul v1, Field 5
+                return v3
+            }
+        "#;
+
+        let mut ssa = Ssa::from_str(src).unwrap();
+        let variants = find_variants(&ssa);
+        assert_eq!(variants.len(), 2);
+
+        let (apply_functions, _purities) = create_apply_functions(&mut ssa, variants);
+        // This was 1 before this bug was fixed.
+        assert_eq!(apply_functions.len(), 2);
+    }
+
+    #[test]
+    fn acir_variant_in_brillig_last_function_to_dispatch() {
+        //The src code below correspond to this code:
+        // let f = if x == 1 { foo1 } else { foo };
+        // fn foo(x: Field) -> Field {
+        //     x * x
+        // }
+        // unconstrained fn foo1(x: Field) -> Field {
+        //     x * x
+        // }
+        // This code is invalid because foo1 and foo do not have compatible signatures.
+        // However, some generated code (e.g the zeroed impls generated by the frontend) may produce such code.
+        // We ensure that the apply function does not allow calling acir functions from a brillig function
+        let src = r#"
+        brillig(inline) fn main f0 {
+          b0(v0: Field, v1: Field, v2: Field):
+            v4 = allocate -> &mut Field
+            store v0 at v4
+            v5 = load v4 -> Field
+            v7 = eq v5, Field 1
+            jmpif v7 then: b1, else: b2
+          b1():
+            jmp b3(f1)
+          b2():
+            jmp b3(f3)
+          b3(v3: function):
+            v10 = load v4 -> Field
+            v12 = call f3(v10) -> Field
+            v13 = call v3(v12) -> Field
+            return
+        }
+        brillig(inline) fn foo1 f1 {
+          b0(v0: Field):
+            v1 = mul v0, v0
+            return v1
+        }
+        brillig(inline) fn foo2 f2 {
+          b0(v0: Field):
+            v1 = add v0, v0
+            return v1
+        }
+        acir(inline) fn foo f3 {
+          b0(v0: Field):
+            v1 = mul v0, v0
+            return v1
+        }
+       "#;
+
+        let ssa = Ssa::from_str_no_validation(src).unwrap();
+
+        let mut variants = find_variants(&ssa);
+        let ((_, caller_runtime), variants) = variants.pop_last().unwrap();
+        assert!(caller_runtime.is_brillig());
+        assert!(variants[0].1.is_brillig());
+        assert!(variants[1].1.is_acir());
+
+        let ssa = ssa.defunctionalize();
+
+        // The `apply` method skips calling the acir function f3.
+        // As there is only one other variant, we just call f1 directly.
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: Field, v1: Field, v2: Field):
+            v4 = allocate -> &mut Field
+            store v0 at v4
+            v5 = load v4 -> Field
+            v7 = eq v5, Field 1
+            jmpif v7 then: b1, else: b2
+          b1():
+            jmp b3(Field 1)
+          b2():
+            jmp b3(Field 3)
+          b3(v3: Field):
+            v9 = load v4 -> Field
+            v11 = call f3(v9) -> Field
+            v13 = call f1(v11) -> Field
+            return
+        }
+        brillig(inline) fn foo1 f1 {
+          b0(v0: Field):
+            v1 = mul v0, v0
+            return v1
+        }
+        brillig(inline) fn foo2 f2 {
+          b0(v0: Field):
+            v1 = add v0, v0
+            return v1
+        }
+        acir(inline) fn foo f3 {
+          b0(v0: Field):
+            v1 = mul v0, v0
+            return v1
+        }
+        ");
+    }
+
+    /// This test expands [acir_variant_in_brillig_last_function_to_dispatch] by having multiple
+    /// ACIR variants be at the end of the proposed variant dispatch table
+    #[test]
+    fn acir_variant_in_brillig_multiple_at_end_are_skipped() {
+        // Pseudocode of the intended semantics:
+        // let f = if x == 1 { foo1 } else if x == 2 { foo2 } else if x == 3 { foo3 } else { foo4 };
+        //
+        // - foo1, foo2 are Brillig functions
+        // - foo3, foo4 are ACIR functions
+        //
+        // At runtime, main may pass either f3 or f4 as the closure target `v2`.
+        // The apply function will skip those calls, but still constrain the target ID
+        // so that if f3/f4 are ever used, the program fails.
+        // If f3/f4 are ever used it means there is a bug upstream in the frontend.
+        let src = r#"
+        brillig(inline) fn main f0 {
+          b0(v0: Field, v1: Field):
+            v4 = eq v0, Field 1
+            jmpif v4 then: b1, else: b2
+          b1():
+            jmp b7(f1)
+          b2():
+            v6 = eq v0, Field 2
+            jmpif v6 then: b3, else: b4
+          b3():
+            jmp b7(f2)
+          b4():
+            v8 = eq v0, Field 3
+            jmpif v8 then: b5, else: b6
+          b5():
+            jmp b7(f3)
+          b6():
+            jmp b7(f4)
+          b7(v2: function):
+            v13 = call f1(v0) -> Field
+            v14 = call v2(v13) -> Field
+            return
+        }
+        brillig(inline) fn foo1 f1 {
+          b0(v0: Field):
+            v1 = mul v0, v0
+            return v1
+        }
+        brillig(inline) fn foo2 f2 {
+          b0(v0: Field):
+            v1 = add v0, v0
+            return v1
+        }
+        acir(inline) fn foo3 f3 {
+          b0(v0: Field):
+            v1 = sub v0, v0
+            return v1
+        }
+        acir(inline) fn foo4 f4 {
+          b0(v0: Field):
+            v1 = div v0, v0
+            return v1
+        }
+        "#;
+
+        let ssa = Ssa::from_str_no_validation(src).unwrap();
+
+        let mut variants = find_variants(&ssa);
+        let ((_, caller_runtime), variants) = variants.pop_last().unwrap();
+        assert!(caller_runtime.is_brillig());
+        assert!(variants[0].1.is_brillig());
+        assert!(variants[1].1.is_brillig());
+        assert!(variants[2].1.is_acir());
+        assert!(variants[3].1.is_acir());
+
+        let ssa = ssa.defunctionalize();
+
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: Field, v1: Field):
+            v4 = eq v0, Field 1
+            jmpif v4 then: b1, else: b2
+          b1():
+            jmp b7(Field 1)
+          b2():
+            v6 = eq v0, Field 2
+            jmpif v6 then: b3, else: b4
+          b3():
+            jmp b7(Field 2)
+          b4():
+            v8 = eq v0, Field 3
+            jmpif v8 then: b5, else: b6
+          b5():
+            jmp b7(Field 3)
+          b6():
+            jmp b7(Field 4)
+          b7(v2: Field):
+            v11 = call f1(v0) -> Field
+            v13 = call f5(v2, v11) -> Field
+            return
+        }
+        brillig(inline) fn foo1 f1 {
+          b0(v0: Field):
+            v1 = mul v0, v0
+            return v1
+        }
+        brillig(inline) fn foo2 f2 {
+          b0(v0: Field):
+            v1 = add v0, v0
+            return v1
+        }
+        acir(inline) fn foo3 f3 {
+          b0(v0: Field):
+            v1 = sub v0, v0
+            return v1
+        }
+        acir(inline) fn foo4 f4 {
+          b0(v0: Field):
+            v1 = div v0, v0
+            return v1
+        }
+        brillig(inline_always) fn apply f5 {
+          b0(v0: Field, v1: Field):
+            v4 = eq v0, Field 1
+            jmpif v4 then: b2, else: b1
+          b1():
+            constrain v0 == Field 2
+            v9 = call f2(v1) -> Field
+            jmp b3(v9)
+          b2():
+            v6 = call f1(v1) -> Field
+            jmp b3(v6)
+          b3(v2: Field):
+            return v2
+        }
+        ");
+    }
+
+    #[test]
+    fn acir_variant_in_brillig_not_last_to_dispatch() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32):
+            v4 = eq v0, u32 0
+            jmpif v4 then: b1, else: b2
+          b1():
+            jmp b3(f1, f2)
+          b2():
+            v6, v7 = call f3() -> (function, function)
+            jmp b3(v6, v7)
+          b3(v1: function, v2: function):
+            call v2()
+            return
+        }
+        brillig(inline) fn lambda f1 {
+          b0():
+            return
+        }
+        brillig(inline) fn lambda f2 {
+          b0():
+            return
+        }
+        brillig(inline) fn return_lambda f3 {
+          b0():
+            return f4, f5
+        }
+        acir(inline) fn zeroed_lambda f4 {
+          b0():
+            return
+        }
+        brillig(inline) fn zeroed_lambda f5 {
+          b0():
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.defunctionalize();
+
+        // If Field 4 were ever to be passed to `apply` the program would fail.
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) fn main f0 {
+          b0(v0: u32):
+            v4 = eq v0, u32 0
+            jmpif v4 then: b1, else: b2
+          b1():
+            jmp b3(Field 1, Field 2)
+          b2():
+            v6, v7 = call f3() -> (Field, Field)
+            jmp b3(v6, v7)
+          b3(v1: Field, v2: Field):
+            call f6(v2)
+            return
+        }
+        brillig(inline) fn lambda f1 {
+          b0():
+            return
+        }
+        brillig(inline) fn lambda f2 {
+          b0():
+            return
+        }
+        brillig(inline) fn return_lambda f3 {
+          b0():
+            return Field 4, Field 5
+        }
+        acir(inline) fn zeroed_lambda f4 {
+          b0():
+            return
+        }
+        brillig(inline) fn zeroed_lambda f5 {
+          b0():
+            return
+        }
+        brillig(inline_always) fn apply f6 {
+          b0(v0: Field):
+            v2 = eq v0, Field 1
+            jmpif v2 then: b3, else: b2
+          b1():
+            return
+          b2():
+            v5 = eq v0, Field 2
+            jmpif v5 then: b5, else: b4
+          b3():
+            call f1()
+            jmp b1()
+          b4():
+            constrain v0 == Field 5
+            call f5()
+            jmp b1()
+          b5():
+            call f2()
+            jmp b1()
+        }
+        ");
+    }
+
+    #[test]
+    fn brillig_variant_in_acir() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v4 = eq v0, u32 0
+            jmpif v4 then: b1, else: b2
+          b1():
+            jmp b3(f1, f2)
+          b2():
+            v6, v7 = call f3() -> (function, function)
+            jmp b3(v6, v7)
+          b3(v1: function, v2: function):
+            call v2()
+            return
+        }
+        acir(inline) fn lambda f1 {
+          b0():
+            return
+        }
+        acir(inline) fn lambda f2 {
+          b0():
+            return
+        }
+        acir(inline) fn return_lambda f3 {
+          b0():
+            return f4, f5
+        }
+        brillig(inline) fn zeroed_lambda f4 {
+          b0():
+            return
+        }
+        acir(inline) fn zeroed_lambda f5 {
+          b0():
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.defunctionalize();
+
+        // A call to f4 will be created in the `apply` function in this case.
+        // It is valid to call Brillig from ACIR as this will be treated as a new Brillig entry point.
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            v4 = eq v0, u32 0
+            jmpif v4 then: b1, else: b2
+          b1():
+            jmp b3(Field 1, Field 2)
+          b2():
+            v6, v7 = call f3() -> (Field, Field)
+            jmp b3(v6, v7)
+          b3(v1: Field, v2: Field):
+            call f6(v2)
+            return
+        }
+        acir(inline) fn lambda f1 {
+          b0():
+            return
+        }
+        acir(inline) fn lambda f2 {
+          b0():
+            return
+        }
+        acir(inline) fn return_lambda f3 {
+          b0():
+            return Field 4, Field 5
+        }
+        brillig(inline) fn zeroed_lambda f4 {
+          b0():
+            return
+        }
+        acir(inline) fn zeroed_lambda f5 {
+          b0():
+            return
+        }
+        acir(inline_always) fn apply f6 {
+          b0(v0: Field):
+            v2 = eq v0, Field 1
+            jmpif v2 then: b2, else: b1
+          b1():
+            v5 = eq v0, Field 2
+            jmpif v5 then: b4, else: b3
+          b2():
+            call f1()
+            jmp b9()
+          b3():
+            v8 = eq v0, Field 4
+            jmpif v8 then: b6, else: b5
+          b4():
+            call f2()
+            jmp b8()
+          b5():
+            constrain v0 == Field 5
+            call f5()
+            jmp b7()
+          b6():
+            call f4()
+            jmp b7()
+          b7():
+            jmp b8()
+          b8():
+            jmp b9()
+          b9():
+            return
+        }
+        ");
     }
 }

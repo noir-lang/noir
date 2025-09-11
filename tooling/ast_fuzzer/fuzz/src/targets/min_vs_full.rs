@@ -17,7 +17,6 @@ pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
     let config = Config {
         // Overflows are easy to trigger.
         avoid_overflow: u.arbitrary()?,
-        avoid_large_int_literals: true,
         ..Default::default()
     };
 
@@ -32,7 +31,6 @@ pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
                 change_all_functions_into_unconstrained(program),
                 &options.onto(default_ssa_options()),
                 &passes,
-                |_| vec![],
                 Some("init"),
             );
             Ok((ssa, options))
@@ -56,19 +54,13 @@ pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use crate::targets::tests::is_running_in_ci;
-
     /// ```ignore
-    /// NOIR_ARBTEST_SEED=0x6819c61400001000 \
+    /// NOIR_AST_FUZZER_SEED=0x6819c61400001000 \
     /// NOIR_AST_FUZZER_SHOW_AST=1 \
     /// cargo test -p noir_ast_fuzzer_fuzz min_vs_full
     /// ```
     #[test]
     fn fuzz_with_arbtest() {
-        if is_running_in_ci() {
-            // TODO: Investigate second program constraint failures.
-            return;
-        }
-        crate::targets::tests::fuzz_with_arbtest(super::fuzz);
+        crate::targets::tests::fuzz_with_arbtest(super::fuzz, 2000);
     }
 }

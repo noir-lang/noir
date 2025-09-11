@@ -37,7 +37,7 @@ fn compute<Event>(_event: Event) -> ([u8; 5], Field)
 where
     Event: EventInterface,
 {
-    ([0 as u8; 5], 0)
+    ([0_u8; 5], 0)
 }
 
 fn emit_with_keys<Event, let OB: u32>(

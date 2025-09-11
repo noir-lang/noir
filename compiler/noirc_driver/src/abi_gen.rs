@@ -23,7 +23,7 @@ use noirc_frontend::{
 
 /// Arranges a function signature and a generated circuit's return witnesses into a
 /// `noirc_abi::Abi`.
-pub(super) fn gen_abi(
+pub fn gen_abi(
     context: &Context,
     func_id: &FuncId,
     return_visibility: Visibility,

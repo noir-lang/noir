@@ -180,6 +180,7 @@ pub(crate) enum ParsedTerminator {
     Jmp { destination: Identifier, arguments: Vec<ParsedValue> },
     Jmpif { condition: ParsedValue, then_block: Identifier, else_block: Identifier },
     Return(Vec<ParsedValue>),
+    Unreachable,
 }
 
 #[derive(Debug, Clone)]

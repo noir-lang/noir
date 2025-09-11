@@ -1,5 +1,7 @@
 import { expect } from '@esm-bundle/chai';
 import * as TOML from 'smol-toml';
+import { Logger } from 'tslog';
+import { TEST_LOG_LEVEL } from '../environment.js';
 
 import { compile, createFileManager } from '@noir-lang/noir_wasm';
 import { Noir } from '@noir-lang/noir_js';
@@ -8,9 +10,12 @@ import { UltraHonkBackend } from '@aztec/bb.js';
 
 import { getFile } from './utils.js';
 
+const logger = new Logger({ name: 'test', minLevel: TEST_LOG_LEVEL });
+const debugLogger = logger.debug.bind(logger);
+
 const test_cases = [
   {
-    case: 'test_programs/execution_success/1_mul',
+    case: 'test_programs/execution_success/a_1_mul',
     numPublicInputs: 0,
   },
   {
@@ -59,7 +64,7 @@ test_cases.forEach((testInfo) => {
     const program = new Noir(noir_program);
     const { witness } = await program.execute(inputs);
 
-    const backend = new UltraHonkBackend(noir_program.bytecode);
+    const backend = new UltraHonkBackend(noir_program.bytecode, { logger: debugLogger });
     const proof = await backend.generateProof(witness);
 
     // JS verification

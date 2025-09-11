@@ -151,3 +151,13 @@ struct MyStruct {
     x: i32,
     y: Field,
 }
+
+pub fn match_on_u32_type_var(a: u32) {
+    for i in 0..5 {
+        let _ = match i {
+            1 => "one",
+            2 => "two",
+            _ => "???",
+        };
+    }
+}

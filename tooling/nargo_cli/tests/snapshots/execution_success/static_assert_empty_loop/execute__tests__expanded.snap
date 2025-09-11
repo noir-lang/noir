@@ -1,0 +1,88 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+unconstrained fn foo() -> [Field; 0] {
+    println("foo");
+    []
+}
+
+fn main() {
+    // Safety: comment added by `nargo expand`
+    let x: [Field; 0] = unsafe { foo() };
+    let _: [Field] = x.as_slice().map(|_: Field| -> Field {
+        assert(false, "test");
+        panic(f"test");
+        std::static_assert(false, "test");
+        assert_constant(x);
+        0_Field
+    });
+    let _: [Field] = x.as_slice().mapi(|_: u32, _: Field| -> Field {
+        assert(false, "test");
+        panic(f"test");
+        std::static_assert(false, "test");
+        assert_constant(x);
+        0_Field
+    });
+    x.as_slice().for_each(|_: Field| {
+        assert(false, "test");
+        panic(f"test");
+        std::static_assert(false, "test");
+        assert_constant(x);
+    });
+    x.as_slice().for_eachi(|_: u32, _: Field| {
+        assert(false, "test");
+        panic(f"test");
+        std::static_assert(false, "test");
+        assert_constant(x);
+    });
+    {
+        let ___i0: [Field] = x.as_slice();
+        for ___i1 in 0_u32..___i0.len() {
+            let _: Field = ___i0[___i1];
+            {
+                assert(false, "test");
+                panic(f"test");
+                std::static_assert(false, "test");
+                assert_constant(x);
+            }
+        }
+    };
+    let _: [(); 0] = x.map(|_: Field| {
+        std::static_assert(false, "test");
+        assert(false, "test");
+        panic(f"test");
+        assert_constant(x);
+    });
+    {
+        let ___i0: [Field; 0] = x;
+        for ___i1 in 0_u32..___i0.len() {
+            let _: Field = ___i0[___i1];
+            {
+                std::static_assert(false, "test");
+                assert(false, "test");
+                panic(f"test");
+                assert_constant(x);
+            }
+        }
+    };
+    let empty_array: [Field; 0] = [];
+    {
+        let ___i0: [Field] = empty_array.as_slice();
+        for ___i1 in 0_u32..___i0.len() {
+            let _: Field = ___i0[___i1];
+            {
+                std::static_assert(false, "test");
+                assert(false, "test");
+                panic(f"test");
+                assert_constant(x);
+            }
+        }
+    };
+    for _ in 0_u32..0_u32 {
+        std::static_assert(false, "test");
+        assert(false, "test");
+        panic(f"test");
+        assert_constant(x);
+    }
+}

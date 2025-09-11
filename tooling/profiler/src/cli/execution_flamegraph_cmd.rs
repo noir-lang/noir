@@ -261,7 +261,7 @@ mod tests {
                 &artifact_path,
                 &prover_toml_path,
                 &flamegraph_generator,
-                &Some(temp_dir.into_path()),
+                &Some(temp_dir.keep()),
                 false,
                 false,
                 false

@@ -79,12 +79,12 @@ impl Token {
 impl Display for Token {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Token::Ident(ident) => write!(f, "{}", ident),
-            Token::Int(int) => write!(f, "{}", int),
+            Token::Ident(ident) => write!(f, "{ident}"),
+            Token::Int(int) => write!(f, "{int}"),
             Token::Str(string) => write!(f, "{string:?}"),
             Token::ByteStr(string) => write!(f, "{string:?}"),
-            Token::Keyword(keyword) => write!(f, "{}", keyword),
-            Token::IntType(int_type) => write!(f, "{}", int_type),
+            Token::Keyword(keyword) => write!(f, "{keyword}"),
+            Token::IntType(int_type) => write!(f, "{int_type}"),
             Token::Assign => write!(f, "="),
             Token::LeftParen => write!(f, "("),
             Token::RightParen => write!(f, ")"),
@@ -107,7 +107,7 @@ impl Display for Token {
 
 impl std::fmt::Debug for Token {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self)
+        write!(f, "{self}")
     }
 }
 
@@ -172,6 +172,7 @@ pub(crate) enum Keyword {
     UncheckedAdd,
     UncheckedSub,
     UncheckedMul,
+    Unreachable,
     Value,
     Xor,
 }
@@ -238,6 +239,7 @@ impl Keyword {
             "unchecked_add" => Keyword::UncheckedAdd,
             "unchecked_sub" => Keyword::UncheckedSub,
             "unchecked_mul" => Keyword::UncheckedMul,
+            "unreachable" => Keyword::Unreachable,
             "value" => Keyword::Value,
             "xor" => Keyword::Xor,
             _ => return None,
@@ -308,6 +310,7 @@ impl Display for Keyword {
             Keyword::UncheckedAdd => write!(f, "unchecked_add"),
             Keyword::UncheckedSub => write!(f, "unchecked_sub"),
             Keyword::UncheckedMul => write!(f, "unchecked_mul"),
+            Keyword::Unreachable => write!(f, "unreachable"),
             Keyword::Value => write!(f, "value"),
             Keyword::Xor => write!(f, "xor"),
         }

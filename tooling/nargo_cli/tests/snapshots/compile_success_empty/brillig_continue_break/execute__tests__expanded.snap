@@ -9,18 +9,18 @@ fn main() {
 }
 
 unconstrained fn foo() -> bool {
-    let mut i: Field = 0;
+    let mut i: Field = 0_Field;
     let mut bug: bool = false;
     loop {
-        if i == 3 {
+        if i == 3_Field {
             break;
             bug = true;
-        } else if i == 2 {
-            i = i + 1;
+        } else if i == 2_Field {
+            i = i + 1_Field;
             continue;
             bug = true;
         };
-        i = i + 1;
+        i = i + 1_Field;
     }
     bug
 }

@@ -12,9 +12,18 @@
 //! - Check that the input values of certain instructions matches that instruction's constraint
 //!   At the moment, only [Instruction::Binary], [Instruction::ArrayGet], and [Instruction::ArraySet]
 //!   are type checked.
-use fxhash::FxHashSet as HashSet;
+use core::panic;
+use std::sync::Arc;
 
-use crate::ssa::ir::instruction::TerminatorInstruction;
+use acvm::{AcirField, FieldElement, acir::BlackBoxFunc};
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
+
+pub(crate) mod dynamic_array_indices;
+
+use crate::ssa::{
+    ir::{dfg::DataFlowGraph, instruction::TerminatorInstruction},
+    ssa_gen::Ssa,
+};
 
 use super::ir::{
     function::Function,
@@ -27,113 +36,92 @@ use super::ir::{
 /// during instruction visitation to track patterns that span multiple instructions.
 struct Validator<'f> {
     function: &'f Function,
-    // State for truncate-after-signed-sub validation
-    // Stores: Option<(bit_size, result)>
-    signed_binary_op: Option<PendingSignedOverflowOp>,
-}
+    ssa: &'f Ssa,
 
-#[derive(Debug)]
-enum PendingSignedOverflowOp {
-    AddOrSub { bit_size: u32, result: ValueId },
-    Mul { bit_size: u32, mul_result: ValueId, cast_result: Option<ValueId> },
+    // State for valid Field to integer casts
+    // Range checks are laid down in isolation and can make for safe casts
+    // If they occurred before the value being cast to a smaller type
+    // Stores: A set of (value being range constrained, the value's max bit size)
+    range_checks: HashMap<ValueId, u32>,
 }
 
 impl<'f> Validator<'f> {
-    fn new(function: &'f Function) -> Self {
-        Self { function, signed_binary_op: None }
+    fn new(function: &'f Function, ssa: &'f Ssa) -> Self {
+        Self { function, ssa, range_checks: HashMap::default() }
     }
 
-    /// Validates that any checked signed add/sub/mul are followed by the appropriate instructions.
-    /// Signed overflow is many instructions but we validate up to the initial truncate.
+    /// Enforces that every cast from Field -> unsigned/signed integer must obey the following invariants:
+    /// The value being cast is either:
+    /// 1. A truncate instruction that ensures the cast is valid
+    /// 2. A constant value known to be in-range
+    /// 3. A division or other operation whose result is known to fit within the target bit size
     ///
-    /// Expects the following SSA form for signed checked operations:
-    /// Add/Sub -> Truncate
-    /// Mul -> Cast -> Truncate
-    fn validate_signed_op_overflow_pattern(&mut self, instruction: InstructionId) {
+    /// Our initial SSA gen only generates preceding truncates for safe casts.
+    /// The cases accepted here are extended past what we perform during our initial SSA gen
+    /// to mirror the instruction simplifier and other logic that could be accepted as a safe cast.
+    fn validate_field_to_integer_cast_invariant(&mut self, instruction_id: InstructionId) {
         let dfg = &self.function.dfg;
-        match &dfg[instruction] {
-            Instruction::Binary(binary) => {
-                // Only reset if we are starting a new tracked op.
-                // We do not reset on unrelated ops. If we already an op pending, we have an ill formed signed op.
-                if self.signed_binary_op.is_some() {
-                    panic!("Signed binary operation does not follow overflow pattern");
-                }
 
-                // Assumes rhs_type is the same as lhs_type
-                let lhs_type = dfg.type_of_value(binary.lhs);
-                let Type::Numeric(NumericType::Signed { bit_size }) = lhs_type else {
-                    return;
-                };
+        let (cast_input, typ) = match &dfg[instruction_id] {
+            Instruction::Cast(cast_input, typ) => (*cast_input, *typ),
+            Instruction::RangeCheck { value, max_bit_size, .. } => {
+                self.range_checks.insert(*value, *max_bit_size);
+                return;
+            }
+            _ => return,
+        };
 
-                let result = dfg.instruction_results(instruction)[0];
-                match binary.operator {
-                    BinaryOp::Mul { unchecked: false } => {
-                        self.signed_binary_op = Some(PendingSignedOverflowOp::Mul {
-                            bit_size,
-                            mul_result: result,
-                            cast_result: None,
-                        });
-                    }
-                    BinaryOp::Add { unchecked: false } | BinaryOp::Sub { unchecked: false } => {
-                        self.signed_binary_op =
-                            Some(PendingSignedOverflowOp::AddOrSub { bit_size, result });
-                    }
-                    _ => {}
+        if !matches!(dfg.type_of_value(cast_input), Type::Numeric(NumericType::NativeField)) {
+            return;
+        }
+
+        let (NumericType::Signed { bit_size: target_type_size }
+        | NumericType::Unsigned { bit_size: target_type_size }) = typ
+        else {
+            return;
+        };
+
+        // If the cast input has already been range constrained to a bit size that fits
+        // in the destination type, we have a safe cast.
+        if let Some(max_bit_size) = self.range_checks.get(&cast_input) {
+            assert!(*max_bit_size <= target_type_size);
+            return;
+        }
+
+        match &dfg[cast_input] {
+            Value::Instruction { instruction, .. } => match &dfg[*instruction] {
+                Instruction::Truncate { value: _, bit_size, max_bit_size } => {
+                    assert!(*bit_size <= target_type_size);
+                    assert!(*max_bit_size <= FieldElement::max_num_bits());
                 }
-            }
-            Instruction::Truncate { value, bit_size, max_bit_size } => {
-                // Only a truncate can reset the signed binary op state
-                match self.signed_binary_op.take() {
-                    Some(PendingSignedOverflowOp::AddOrSub {
-                        bit_size: expected_bit_size,
-                        result,
-                    }) => {
-                        assert_eq!(*bit_size, expected_bit_size);
-                        assert_eq!(*max_bit_size, expected_bit_size + 1);
-                        assert_eq!(*value, result);
-                    }
-                    Some(PendingSignedOverflowOp::Mul {
-                        bit_size: expected_bit_size,
-                        cast_result: Some(cast),
-                        ..
-                    }) => {
-                        assert_eq!(*bit_size, expected_bit_size);
-                        assert_eq!(*max_bit_size, 2 * expected_bit_size);
-                        assert_eq!(*value, cast);
-                    }
-                    Some(PendingSignedOverflowOp::Mul { cast_result: None, .. }) => {
-                        panic!("Truncate not matched to signed overflow pattern");
-                    }
-                    None => {
-                        // Do nothing as there is no overflow op pending
-                    }
+                Instruction::Binary(Binary { lhs, rhs, operator: BinaryOp::Div, .. })
+                    if dfg.is_constant(*rhs) =>
+                {
+                    let numerator_bits = dfg.type_of_value(*lhs).bit_size();
+                    let divisor = dfg.get_numeric_constant(*rhs).unwrap();
+                    let divisor_bits = divisor.num_bits();
+                    let max_quotient_bits = numerator_bits - divisor_bits;
+
+                    assert!(
+                        max_quotient_bits <= target_type_size,
+                        "Cast from field after div could exceed bit size: expected ≤ {target_type_size}, got {max_quotient_bits}"
+                    );
                 }
-            }
-            Instruction::Cast(value, typ) => {
-                match &mut self.signed_binary_op {
-                    Some(PendingSignedOverflowOp::AddOrSub { .. }) => {
-                        panic!(
-                            "Invalid cast inserted after signed checked Add/Sub. It must be followed immediately by truncate"
-                        );
-                    }
-                    Some(PendingSignedOverflowOp::Mul {
-                        bit_size: expected_bit_size,
-                        mul_result,
-                        cast_result,
-                    }) => {
-                        assert_eq!(typ.bit_size(), 2 * *expected_bit_size);
-                        assert_eq!(*value, *mul_result);
-                        *cast_result = Some(dfg.instruction_results(instruction)[0]);
-                    }
-                    None => {
-                        // Do nothing as there is no overflow op pending
-                    }
+                _ => {
+                    panic!("Invalid cast from Field, must be truncated or provably safe");
                 }
+            },
+            Value::NumericConstant { constant, .. } => {
+                let max_val_bits = constant.num_bits();
+                assert!(
+                    max_val_bits <= target_type_size,
+                    "Constant too large for cast target: {max_val_bits} bits > {target_type_size}"
+                );
             }
             _ => {
-                if self.signed_binary_op.is_some() {
-                    panic!("Signed binary operation does not follow overflow pattern");
-                }
+                panic!(
+                    "Invalid cast from Field, not preceded by valid truncation or known safe value"
+                );
             }
         }
     }
@@ -164,39 +152,25 @@ impl<'f> Validator<'f> {
             Instruction::Binary(Binary { lhs, rhs, operator }) => {
                 let lhs_type = dfg.type_of_value(*lhs);
                 let rhs_type = dfg.type_of_value(*rhs);
-                match operator {
-                    BinaryOp::Lt => {
-                        if lhs_type != rhs_type {
-                            panic!(
-                                "Left-hand side and right-hand side of `lt` must have the same type"
-                            );
-                        }
 
-                        if matches!(lhs_type, Type::Numeric(NumericType::NativeField)) {
-                            panic!("Cannot use `lt` with field elements");
-                        }
-                    }
-                    BinaryOp::Shl => {
-                        if !matches!(rhs_type, Type::Numeric(NumericType::Unsigned { bit_size: 8 }))
-                        {
-                            panic!("Right-hand side of `shl` must be u8");
-                        }
-                    }
-                    BinaryOp::Shr => {
-                        if !matches!(rhs_type, Type::Numeric(NumericType::Unsigned { bit_size: 8 }))
-                        {
-                            panic!("Right-hand side of `shr` must be u8");
-                        }
-                    }
-                    _ => {
-                        if lhs_type != rhs_type {
-                            panic!(
-                                "Left-hand side and right-hand side of `{}` must have the same type",
-                                operator
-                            );
-                        }
-                    }
-                }
+                assert_eq!(
+                    lhs_type, rhs_type,
+                    "Left-hand side and right-hand side of `{operator}` must have the same type"
+                );
+
+                if lhs_type == Type::field()
+                    && matches!(
+                        operator,
+                        BinaryOp::Lt
+                            | BinaryOp::And
+                            | BinaryOp::Or
+                            | BinaryOp::Xor
+                            | BinaryOp::Shl
+                            | BinaryOp::Shr
+                    )
+                {
+                    panic!("Cannot use `{operator}` with field elements");
+                };
             }
             Instruction::ArrayGet { index, .. } | Instruction::ArraySet { index, .. } => {
                 let index_type = dfg.type_of_value(*index);
@@ -205,28 +179,408 @@ impl<'f> Validator<'f> {
                 }
             }
             Instruction::Call { func, arguments } => {
-                if let Value::Intrinsic(intrinsic) = &dfg[*func] {
-                    match intrinsic {
-                        Intrinsic::ToRadix(_) => {
-                            assert_eq!(arguments.len(), 2);
+                match &dfg[*func] {
+                    Value::Intrinsic(intrinsic) => {
+                        match intrinsic {
+                            Intrinsic::ToRadix(_) => {
+                                assert_arguments_length(arguments, 2, "ToRadix");
 
-                            let value_typ = dfg.type_of_value(arguments[0]);
-                            assert!(matches!(value_typ, Type::Numeric(NumericType::NativeField)));
+                                let value_type = dfg.type_of_value(arguments[0]);
+                                assert_field(&value_type, "ToRadix value");
 
-                            let radix_typ = dfg.type_of_value(arguments[1]);
-                            assert!(matches!(
-                                radix_typ,
-                                Type::Numeric(NumericType::Unsigned { bit_size: 32 })
-                            ));
+                                let radix_type = dfg.type_of_value(arguments[1]);
+                                assert_u32(&radix_type, "ToRadix radix");
+                            }
+                            Intrinsic::ToBits(_) => {
+                                // Intrinsic::ToBits always has a set radix
+                                assert_arguments_length(arguments, 1, "ToBits");
+
+                                let value_type = dfg.type_of_value(arguments[0]);
+                                assert_field(&value_type, "ToBits value");
+                            }
+                            Intrinsic::BlackBox(blackbox) => match blackbox {
+                                BlackBoxFunc::AND | BlackBoxFunc::XOR => {
+                                    assert_eq!(arguments.len(), 2);
+                                    let value_typ = dfg.type_of_value(arguments[0]);
+                                    assert!(
+                                        matches!(
+                                            value_typ,
+                                            Type::Numeric(
+                                                NumericType::Unsigned { .. }
+                                                    | NumericType::Signed { .. }
+                                            )
+                                        ),
+                                        "Bitwise operation performed on non-integer type"
+                                    );
+                                }
+                                BlackBoxFunc::AES128Encrypt => {
+                                    // fn aes128_encrypt<let N: u32>(
+                                    //     input: [u8; N],
+                                    //     iv: [u8; 16],
+                                    //     key: [u8; 16],
+                                    // ) -> [u8; N + 16 - N % 16] {}
+                                    assert_arguments_length(arguments, 3, "aes128_encrypt");
+
+                                    let input = arguments[0];
+                                    let input_type = dfg.type_of_value(input);
+                                    let input_length =
+                                        assert_u8_array(&input_type, "aes128_encrypt input");
+
+                                    let iv = arguments[1];
+                                    let iv_type = dfg.type_of_value(iv);
+                                    let iv_length = assert_u8_array(&iv_type, "aes128_encrypt iv");
+                                    assert_array_length(iv_length, 16, "aes128_encrypt iv");
+
+                                    let key = arguments[2];
+                                    let key_type = dfg.type_of_value(key);
+                                    let key_length =
+                                        assert_u8_array(&key_type, "aes128_encrypt key");
+                                    assert_array_length(key_length, 16, "aes128_encrypt key");
+
+                                    let results = dfg.instruction_results(instruction);
+                                    assert_eq!(results.len(), 1, "Expected one result",);
+                                    let result_type = dfg.type_of_value(results[0]);
+                                    let result_length =
+                                        assert_u8_array(&result_type, "aes128_encrypt output");
+                                    assert_eq!(
+                                        result_length,
+                                        input_length + 16 - input_length % 16,
+                                        "aes128_encrypt output length mismatch"
+                                    );
+                                }
+                                BlackBoxFunc::BigIntAdd
+                                | BlackBoxFunc::BigIntSub
+                                | BlackBoxFunc::BigIntMul
+                                | BlackBoxFunc::BigIntDiv
+                                | BlackBoxFunc::BigIntFromLeBytes
+                                | BlackBoxFunc::BigIntToLeBytes => {}
+                                BlackBoxFunc::Blake2s | BlackBoxFunc::Blake3 => {
+                                    // fn blake2s<let N: u32>(input: [u8; N]) -> [u8; 32]
+                                    // fn __blake3<let N: u32>(input: [u8; N]) -> [u8; 32] {}
+                                    assert_arguments_length(arguments, 1, "blake");
+
+                                    let input = arguments[0];
+                                    let input_type = dfg.type_of_value(input);
+                                    assert_u8_array(&input_type, "blake input");
+
+                                    let results = dfg.instruction_results(instruction);
+                                    assert_eq!(results.len(), 1, "Expected one result");
+                                    let result_type = dfg.type_of_value(results[0]);
+                                    let result_length =
+                                        assert_u8_array(&result_type, "blake output");
+                                    assert_array_length(result_length, 32, "blake output");
+                                }
+                                BlackBoxFunc::EcdsaSecp256k1 | BlackBoxFunc::EcdsaSecp256r1 => {
+                                    // fn verify_signature<let N: u32>(
+                                    //     public_key_x: [u8; 32],
+                                    //     public_key_y: [u8; 32],
+                                    //     signature: [u8; 64],
+                                    //     message_hash: [u8; N],
+                                    // ) -> bool
+                                    assert_arguments_length(arguments, 4, "ecdsa_secp_256");
+
+                                    let public_key_x = arguments[0];
+                                    let public_key_x_type = dfg.type_of_value(public_key_x);
+                                    let public_key_x_length = assert_u8_array(
+                                        &public_key_x_type,
+                                        "ecdsa_secp256 public_key_x",
+                                    );
+                                    assert_array_length(
+                                        public_key_x_length,
+                                        32,
+                                        "ecdsa_secp256 public_key_x",
+                                    );
+
+                                    let public_key_y = arguments[1];
+                                    let public_key_y_type = dfg.type_of_value(public_key_y);
+                                    let public_key_y_length = assert_u8_array(
+                                        &public_key_y_type,
+                                        "ecdsa_secp256 public_key_y",
+                                    );
+                                    assert_array_length(
+                                        public_key_y_length,
+                                        32,
+                                        "ecdsa_secp256 public_key_y",
+                                    );
+
+                                    let signature = arguments[2];
+                                    let signature_type = dfg.type_of_value(signature);
+                                    let signature_length =
+                                        assert_u8_array(&signature_type, "ecdsa_secp256 signature");
+                                    assert_array_length(
+                                        signature_length,
+                                        64,
+                                        "ecdsa_secp256 signature",
+                                    );
+
+                                    let message_hash = arguments[3];
+                                    let message_hash_type = dfg.type_of_value(message_hash);
+                                    assert_array(&message_hash_type, "ecdsa_secp256 message_hash");
+
+                                    let results = dfg.instruction_results(instruction);
+                                    assert_eq!(results.len(), 1, "Expected one result");
+                                    let result_type = dfg.type_of_value(results[0]);
+                                    assert_u1(&result_type, "ecdsa_secp256 result");
+                                }
+                                BlackBoxFunc::EmbeddedCurveAdd => {
+                                    // fn embedded_curve_add_array_return(
+                                    //     _point1: EmbeddedCurvePoint,
+                                    //     _point2: EmbeddedCurvePoint,
+                                    // ) -> [EmbeddedCurvePoint; 1] {}
+                                    //
+                                    // struct EmbeddedCurvePoint {
+                                    //     x: Field,
+                                    //     y: Field,
+                                    //     is_infinite: bool,
+                                    // }
+                                    assert_arguments_length(arguments, 6, "embedded_curve_add");
+
+                                    assert_embedded_curve_point(
+                                        arguments,
+                                        0,
+                                        dfg,
+                                        "embedded_curve_add _point1",
+                                    );
+                                    assert_embedded_curve_point(
+                                        arguments,
+                                        3,
+                                        dfg,
+                                        "embedded_curve_add _point2",
+                                    );
+
+                                    let results = dfg.instruction_results(instruction);
+                                    assert_eq!(results.len(), 1, "Expected one result");
+                                    let result_type = dfg.type_of_value(results[0]);
+                                    let (result_elements, result_length) =
+                                        assert_array(&result_type, "embedded_curve_add result");
+                                    assert_array_length(
+                                        result_length,
+                                        1,
+                                        "embedded_curve_add result length",
+                                    );
+                                    assert_eq!(
+                                        result_elements.len(),
+                                        3,
+                                        "Expected embedded_curve_add result element types length to be 3, got: {}",
+                                        result_elements.len(),
+                                    );
+                                    assert_field(
+                                        &result_elements[0],
+                                        "embedded_curve_add result x",
+                                    );
+                                    assert_field(
+                                        &result_elements[1],
+                                        "embedded_curve_add result y",
+                                    );
+                                    assert_u1(
+                                        &result_elements[2],
+                                        "embedded_curve_add result is_infinite",
+                                    );
+                                }
+                                BlackBoxFunc::Keccakf1600 => {
+                                    // fn keccakf1600(input: [u64; 25]) -> [u64; 25] {}
+                                    assert_eq!(arguments.len(), 1);
+
+                                    let input = arguments[0];
+                                    let input_type = dfg.type_of_value(input);
+                                    let input_length =
+                                        assert_u64_array(&input_type, "keccakf1600 input");
+                                    assert_array_length(input_length, 25, "keccakf1600 input");
+
+                                    let results = dfg.instruction_results(instruction);
+                                    assert_eq!(results.len(), 1);
+                                    let result_type = dfg.type_of_value(results[0]);
+                                    let result_length =
+                                        assert_u64_array(&result_type, "keccakf1600 result");
+                                    assert_array_length(result_length, 25, "keccakf1600 result");
+                                }
+                                BlackBoxFunc::MultiScalarMul => {
+                                    //  fn multi_scalar_mul_array_return<let N: u32>(
+                                    //     points: [EmbeddedCurvePoint; N],
+                                    //     scalars: [EmbeddedCurveScalar; N],
+                                    // ) -> [EmbeddedCurvePoint; 1] {}
+                                    assert_arguments_length(arguments, 2, "multi_scalar_mul");
+
+                                    let points_type = dfg.type_of_value(arguments[0]);
+                                    let scalars_type = dfg.type_of_value(arguments[1]);
+
+                                    let (points_elements, points_length) =
+                                        assert_array(&points_type, "multi_scalar_mul points");
+                                    assert_eq!(
+                                        points_elements.len(),
+                                        3,
+                                        "Expected multi_scalar_mul points element types length to be 3, got: {}",
+                                        points_elements.len()
+                                    );
+                                    assert_field(&points_elements[0], "multi_scalar_mul points x");
+                                    assert_field(&points_elements[1], "multi_scalar_mul points y");
+                                    assert_u1(
+                                        &points_elements[2],
+                                        "multi_scalar_mul points is_infinite",
+                                    );
+
+                                    let (scalars_elements, scalars_length) =
+                                        assert_array(&scalars_type, "multi_scalar_mul scalars");
+                                    assert_eq!(
+                                        scalars_elements.len(),
+                                        2,
+                                        "Expected multi_scalar_mul scalars element types length to be 2, got: {}",
+                                        scalars_elements.len()
+                                    );
+                                    assert_field(
+                                        &scalars_elements[0],
+                                        "multi_scalar_mul scalars lo",
+                                    );
+                                    assert_field(
+                                        &scalars_elements[1],
+                                        "multi_scalar_mul scalars hi",
+                                    );
+
+                                    assert_eq!(
+                                        points_length, scalars_length,
+                                        "MSM input array lengths mismatch"
+                                    );
+                                }
+                                BlackBoxFunc::Poseidon2Permutation => {
+                                    // fn poseidon2_permutation<let N: u32>(_input: [Field; N], _state_length: u32) -> [Field; N] {}
+                                    assert_arguments_length(arguments, 2, "poseidon2_permutation");
+
+                                    let input = arguments[0];
+                                    let input_type = dfg.type_of_value(input);
+                                    let input_length = assert_field_array(
+                                        &input_type,
+                                        "poseidon2_permutation _input",
+                                    );
+
+                                    let state_length = arguments[1];
+                                    let state_length_type = dfg.type_of_value(state_length);
+                                    assert_u32(
+                                        &state_length_type,
+                                        "poseidon2_permutation _state_length",
+                                    );
+
+                                    let results = dfg.instruction_results(instruction);
+                                    assert_eq!(results.len(), 1, "Expected one result");
+                                    let result_type = dfg.type_of_value(results[0]);
+                                    let result_length = assert_field_array(
+                                        &result_type,
+                                        "poseidon2_permutation result",
+                                    );
+                                    assert_eq!(
+                                        result_length, input_length,
+                                        "poseidon2_permutation input/output length mismatch"
+                                    );
+                                }
+                                BlackBoxFunc::RANGE => {}
+                                BlackBoxFunc::RecursiveAggregation => {
+                                    // fn verify_proof_internal<let N: u32, let M: u32, let K: u32>(
+                                    //     verification_key: [Field; N],
+                                    //     proof: [Field; M],
+                                    //     public_inputs: [Field; K],
+                                    //     key_hash: Field,
+                                    //     proof_type: u32,
+                                    // ) {}
+                                    assert_arguments_length(arguments, 5, "recursive_aggregation");
+
+                                    let verification_key = arguments[0];
+                                    let verification_key_type = dfg.type_of_value(verification_key);
+                                    assert_field_array(
+                                        &verification_key_type,
+                                        "recursive_aggregation verification_key",
+                                    );
+
+                                    let proof = arguments[1];
+                                    let proof_type = dfg.type_of_value(proof);
+                                    assert_field_array(&proof_type, "recursive_aggregation proof");
+
+                                    let public_inputs = arguments[2];
+                                    let public_inputs_type = dfg.type_of_value(public_inputs);
+                                    assert_field_array(
+                                        &public_inputs_type,
+                                        "recursive_aggregation public_inputs",
+                                    );
+
+                                    let key_hash = arguments[3];
+                                    let key_hash_type = dfg.type_of_value(key_hash);
+                                    assert_field(&key_hash_type, "recursive_aggregation key_hash");
+
+                                    let proof_type = arguments[4];
+                                    let proof_type_type = dfg.type_of_value(proof_type);
+                                    assert_u32(
+                                        &proof_type_type,
+                                        "recursive_aggregation proof_type",
+                                    );
+                                }
+                                BlackBoxFunc::Sha256Compression => {
+                                    // fn sha256_compression(input: [u32; 16], state: [u32; 8]) -> [u32; 8] {}
+                                    assert_arguments_length(arguments, 2, "sha256_compression");
+
+                                    let input = arguments[0];
+                                    let input_type = dfg.type_of_value(input);
+                                    let input_length =
+                                        assert_u32_array(&input_type, "sha256_compression input");
+                                    assert_array_length(
+                                        input_length,
+                                        16,
+                                        "sha256_compression input",
+                                    );
+
+                                    let state = arguments[1];
+                                    let state_type = dfg.type_of_value(state);
+                                    let state_length =
+                                        assert_u32_array(&state_type, "sha256_compression state");
+                                    assert_array_length(
+                                        state_length,
+                                        8,
+                                        "sha256_compression state",
+                                    );
+
+                                    let results = dfg.instruction_results(instruction);
+                                    assert_eq!(results.len(), 1, "Expected one result");
+                                    let result_type = dfg.type_of_value(results[0]);
+                                    let result_length =
+                                        assert_u32_array(&result_type, "sha256_compression result");
+                                    assert_array_length(
+                                        result_length,
+                                        8,
+                                        "sha256_compression result",
+                                    );
+                                }
+                            },
+                            _ => {}
                         }
-                        Intrinsic::ToBits(_) => {
-                            // Intrinsic::ToBits always has a set radix
-                            assert_eq!(arguments.len(), 1);
-                            let value_typ = dfg.type_of_value(arguments[0]);
-                            assert!(matches!(value_typ, Type::Numeric(NumericType::NativeField)));
-                        }
-                        _ => {}
                     }
+                    Value::Function(func_id) => {
+                        let called_function = &self.ssa.functions[func_id];
+                        if let Some(returns) = called_function.returns() {
+                            let instruction_results = dfg.instruction_results(instruction);
+                            if instruction_results.len() != returns.len() {
+                                panic!(
+                                    "Function call to {} expected {} return values, but got {}",
+                                    func_id,
+                                    instruction_results.len(),
+                                    returns.len(),
+                                );
+                            }
+                            for (index, (instruction_result, return_value)) in
+                                instruction_results.iter().zip(returns).enumerate()
+                            {
+                                let return_type = called_function.dfg.type_of_value(*return_value);
+                                let instruction_result_type =
+                                    dfg.type_of_value(*instruction_result);
+                                if return_type != instruction_result_type {
+                                    panic!(
+                                        "Function call to {} expected return type {}, but got {} (at position {})",
+                                        func_id,
+                                        instruction_result_type,
+                                        return_type,
+                                        index + 1
+                                    );
+                                }
+                            }
+                        }
+                    }
+                    _ => (),
                 }
             }
             Instruction::Constrain(lhs, rhs, _) | Instruction::ConstrainNotEqual(lhs, rhs, _) => {
@@ -238,22 +592,103 @@ impl<'f> Validator<'f> {
                     );
                 }
             }
+            Instruction::MakeArray { elements, typ: _ } => {
+                let results = dfg.instruction_results(instruction);
+                assert_eq!(results.len(), 1, "MakeArray must return exactly one value");
+
+                let result_type = dfg.type_of_value(results[0]);
+
+                let composite_type = match result_type {
+                    Type::Array(composite_type, length) => {
+                        let array_flattened_length = composite_type.len() * length as usize;
+                        if elements.len() != array_flattened_length {
+                            panic!(
+                                "MakeArray returns an array of flattened length {}, but it has {} elements",
+                                array_flattened_length,
+                                elements.len()
+                            );
+                        }
+                        composite_type
+                    }
+                    Type::Slice(composite_type) => {
+                        if elements.len() % composite_type.len() != 0 {
+                            panic!(
+                                "MakeArray slice has {} elements but composite type has {} types which don't divide the number of elements",
+                                elements.len(),
+                                composite_type.len()
+                            );
+                        }
+                        composite_type
+                    }
+                    _ => {
+                        panic!("MakeArray must return an array or slice type, not {result_type}");
+                    }
+                };
+
+                let composite_type_len = composite_type.len();
+                for (index, element) in elements.iter().enumerate() {
+                    let element_type = dfg.type_of_value(*element);
+                    let expected_type = &composite_type[index % composite_type_len];
+                    if &element_type != expected_type {
+                        panic!(
+                            "MakeArray has incorrect element type at index {index}: expected {}, got {}",
+                            expected_type, element_type
+                        );
+                    }
+                }
+            }
+            Instruction::Store { address, value } => {
+                let address_type = dfg.type_of_value(*address);
+                let Type::Reference(address_value_type) = address_type else {
+                    panic!("Store address must be a reference type, got {address_type}");
+                };
+
+                let value_type = dfg.type_of_value(*value);
+                if *address_value_type != value_type {
+                    panic!(
+                        "Store address type {} does not match value type {}",
+                        address_value_type, value_type
+                    );
+                }
+            }
             _ => (),
         }
     }
 
+    /// Validates that acir functions are not called from unconstrained code.
+    fn check_calls_in_unconstrained(&self, instruction: InstructionId) {
+        if self.function.runtime().is_brillig() {
+            if let Instruction::Call { func, .. } = &self.function.dfg[instruction] {
+                if let Value::Function(func_id) = &self.function.dfg[*func] {
+                    let called_function = &self.ssa.functions[func_id];
+                    if called_function.runtime().is_acir() {
+                        panic!("Call to acir function {} from unconstrained code", func_id);
+                    }
+                }
+            }
+        }
+    }
+
+    fn type_check_globals(&self) {
+        let globals = (*self.function.dfg.globals).clone();
+        for (_, global) in globals.values_iter() {
+            let global_typ = global.get_type();
+            if global_typ.contains_function() {
+                panic!("Globals cannot contain function pointers");
+            }
+        }
+    }
+
     fn run(&mut self) {
+        self.type_check_globals();
         self.validate_single_return_block();
 
         for block in self.function.reachable_blocks() {
             for instruction in self.function.dfg[block].instructions() {
-                self.validate_signed_op_overflow_pattern(*instruction);
+                self.validate_field_to_integer_cast_invariant(*instruction);
                 self.type_check_instruction(*instruction);
+                self.check_calls_in_unconstrained(*instruction);
             }
-        }
-
-        if self.signed_binary_op.is_some() {
-            panic!("Signed binary operation does not follow overflow pattern");
         }
     }
 }
@@ -261,299 +696,135 @@ impl<'f> Validator<'f> {
 /// Validates that the [Function] is well formed.
 ///
 /// Panics on malformed functions.
-pub(crate) fn validate_function(function: &Function) {
-    let mut validator = Validator::new(function);
+pub(crate) fn validate_function(function: &Function, ssa: &Ssa) {
+    let mut validator = Validator::new(function, ssa);
     validator.run();
+}
+
+fn assert_arguments_length(arguments: &[ValueId], expected: usize, object: &str) {
+    let actual = arguments.len();
+    assert_eq!(actual, expected, "Expected {object} to have {expected} arguments, got {actual}");
+}
+
+fn assert_field(typ: &Type, object: &str) {
+    if !matches!(typ, Type::Numeric(NumericType::NativeField)) {
+        panic!("{object} must be a Field, not {typ}");
+    }
+}
+
+fn assert_u1(typ: &Type, object: &str) {
+    if !matches!(typ, Type::Numeric(NumericType::Unsigned { bit_size: 1 })) {
+        panic!("{object} must be u1, not {typ}");
+    }
+}
+
+fn assert_u8(typ: &Type, object: &str) {
+    if !matches!(typ, Type::Numeric(NumericType::Unsigned { bit_size: 8 })) {
+        panic!("{object} must be u8, not {typ}");
+    }
+}
+
+fn assert_u32(typ: &Type, object: &str) {
+    if !matches!(typ, Type::Numeric(NumericType::Unsigned { bit_size: 32 })) {
+        panic!("{object} must be u32, not {typ}");
+    }
+}
+
+fn assert_u64(typ: &Type, object: &str) {
+    if !matches!(typ, Type::Numeric(NumericType::Unsigned { bit_size: 64 })) {
+        panic!("{object} must be u64, not {typ}");
+    }
+}
+
+fn assert_array<'a>(typ: &'a Type, object: &str) -> (&'a Arc<Vec<Type>>, u32) {
+    let Type::Array(elements, length) = typ else {
+        panic!("{object} must be an array");
+    };
+    (elements, *length)
+}
+
+fn assert_u8_array(typ: &Type, object: &str) -> u32 {
+    let (elements, length) = assert_array(typ, object);
+    assert_eq!(
+        elements.len(),
+        1,
+        "Expected {object} to be an array of length 1, not {}",
+        elements.len()
+    );
+    assert_u8(&elements[0], &format!("{object} array element"));
+    length
+}
+
+fn assert_u32_array(typ: &Type, object: &str) -> u32 {
+    let (elements, length) = assert_array(typ, object);
+    assert_eq!(
+        elements.len(),
+        1,
+        "Expected {object} to be an array of length 1, not {}",
+        elements.len()
+    );
+    assert_u32(&elements[0], &format!("{object} array element"));
+    length
+}
+
+fn assert_u64_array(typ: &Type, object: &str) -> u32 {
+    let (elements, length) = assert_array(typ, object);
+    assert_eq!(
+        elements.len(),
+        1,
+        "Expected {object} to be an array of length 1, not {}",
+        elements.len()
+    );
+    assert_u64(&elements[0], &format!("{object} array element"));
+    length
+}
+
+fn assert_field_array(typ: &Type, object: &str) -> u32 {
+    let (elements, length) = assert_array(typ, object);
+    assert_eq!(
+        elements.len(),
+        1,
+        "Expected {object} to be an array of length 1, not {}",
+        elements.len()
+    );
+    assert_field(&elements[0], &format!("{object} array element"));
+    length
+}
+
+fn assert_array_length(actual_length: u32, expected_length: u32, object: &str) {
+    assert_eq!(
+        actual_length, expected_length,
+        "Expected {object} to have length {expected_length}, got {actual_length}"
+    );
+}
+
+fn assert_embedded_curve_point(
+    arguments: &[ValueId],
+    index: usize,
+    dfg: &DataFlowGraph,
+    object: &str,
+) {
+    // struct EmbeddedCurvePoint {
+    //     x: Field,
+    //     y: Field,
+    //     is_infinite: bool,
+    // }
+    let point_x = arguments[index];
+    let point_x_type = dfg.type_of_value(point_x);
+    assert_field(&point_x_type, &format!("{object} x"));
+
+    let point_y = arguments[index + 1];
+    let point_y_type = dfg.type_of_value(point_y);
+    assert_field(&point_y_type, &format!("{object} y"));
+
+    let point_is_infinite = arguments[index + 2];
+    let point_is_infinite_type = dfg.type_of_value(point_is_infinite);
+    assert_u1(&point_is_infinite_type, &format!("{object} is_infinite"));
 }
 
 #[cfg(test)]
 mod tests {
     use crate::ssa::ssa_gen::Ssa;
-
-    #[test]
-    #[should_panic(expected = "Signed binary operation does not follow overflow pattern")]
-    fn lone_signed_sub_acir() {
-        let src = r"
-        acir(inline) pure fn main f0 {
-          b0(v0: i16, v1: i16):
-            v2 = sub v0, v1
-            return v2
-        }
-        ";
-
-        let _ = Ssa::from_str(src);
-    }
-
-    #[test]
-    #[should_panic(expected = "Signed binary operation does not follow overflow pattern")]
-    fn lone_signed_sub_brillig() {
-        // This matches the test above we just want to make sure it holds in the Brillig runtime as well as ACIR
-        let src = r"
-        brillig(inline) pure fn main f0 {
-          b0(v0: i16, v1: i16):
-            v2 = sub v0, v1
-            return v2
-        }
-        ";
-
-        let _ = Ssa::from_str(src);
-    }
-
-    #[test]
-    #[should_panic(expected = "Signed binary operation does not follow overflow pattern")]
-    fn lone_signed_add_acir() {
-        let src = r"
-        acir(inline) pure fn main f0 {
-          b0(v0: i16, v1: i16):
-            v2 = add v0, v1
-            return v2
-        }
-        ";
-
-        let _ = Ssa::from_str(src);
-    }
-
-    #[test]
-    #[should_panic(expected = "Signed binary operation does not follow overflow pattern")]
-    fn lone_signed_add_brillig() {
-        let src = r"
-        brillig(inline) pure fn main f0 {
-          b0(v0: i16, v1: i16):
-            v2 = add v0, v1
-            return v2
-        }
-        ";
-
-        let _ = Ssa::from_str(src);
-    }
-
-    #[test]
-    #[should_panic(expected = "assertion `left == right` failed")]
-    fn signed_sub_bad_truncate_bit_size() {
-        let src = r"
-        acir(inline) pure fn main f0 {
-          b0(v0: i16, v1: i16):
-            v2 = sub v0, v1
-            v3 = truncate v2 to 32 bits, max_bit_size: 33
-            return v3
-        }
-        ";
-
-        let _ = Ssa::from_str(src);
-    }
-
-    #[test]
-    #[should_panic(expected = "assertion `left == right` failed")]
-    fn signed_sub_bad_truncate_max_bit_size() {
-        let src = r"
-        acir(inline) pure fn main f0 {
-          b0(v0: i16, v1: i16):
-            v2 = sub v0, v1
-            v3 = truncate v2 to 16 bits, max_bit_size: 18
-            return v3
-        }
-        ";
-
-        let _ = Ssa::from_str(src);
-    }
-
-    #[test]
-    fn truncate_follows_signed_sub_acir() {
-        let src = r"
-        acir(inline) pure fn main f0 {
-          b0(v0: i16, v1: i16):
-            v2 = sub v0, v1
-            v3 = truncate v2 to 16 bits, max_bit_size: 17
-            return v3
-        }
-        ";
-
-        let _ = Ssa::from_str(src);
-    }
-
-    #[test]
-    fn truncate_follows_signed_sub_brillig() {
-        let src = r"
-        brillig(inline) pure fn main f0 {
-          b0(v0: i16, v1: i16):
-            v2 = sub v0, v1
-            v3 = truncate v2 to 16 bits, max_bit_size: 17
-            return v3
-        }
-        ";
-
-        let _ = Ssa::from_str(src);
-    }
-
-    #[test]
-    fn truncate_follows_signed_add_acir() {
-        let src = r"
-        acir(inline) pure fn main f0 {
-          b0(v0: i16, v1: i16):
-            v2 = add v0, v1
-            v3 = truncate v2 to 16 bits, max_bit_size: 17
-            return v3
-        }
-        ";
-
-        let _ = Ssa::from_str(src);
-    }
-
-    #[test]
-    fn truncate_follows_signed_add_brillig() {
-        let src = r"
-        brillig(inline) pure fn main f0 {
-          b0(v0: i16, v1: i16):
-            v2 = add v0, v1
-            v3 = truncate v2 to 16 bits, max_bit_size: 17
-            return v3
-        }
-        ";
-
-        let _ = Ssa::from_str(src);
-    }
-
-    #[test]
-    #[should_panic(
-        expected = "Invalid cast inserted after signed checked Add/Sub. It must be followed immediately by truncate"
-    )]
-    fn cast_and_truncate_follows_signed_add() {
-        let src = r"
-        brillig(inline) pure fn main f0 {
-          b0(v0: i16, v1: i16):
-            v2 = add v0, v1
-            v3 = cast v2 as i32
-            v4 = truncate v2 to 16 bits, max_bit_size: 17
-            return v4
-        }
-        ";
-
-        let _ = Ssa::from_str(src);
-    }
-
-    #[test]
-    #[should_panic(expected = "Signed binary operation does not follow overflow pattern")]
-    fn signed_mul_followed_by_binary() {
-        let src = "
-        acir(inline) predicate_pure fn main f0 {
-          b0(v0: Field):
-            v1 = truncate v0 to 16 bits, max_bit_size: 254
-            v2 = cast v1 as i16
-            v3 = mul v2, v2
-            v4 = div v3, v2
-            return v4
-        }
-        ";
-        let _ = Ssa::from_str(src);
-    }
-
-    #[test]
-    fn signed_mul_followed_by_cast_and_truncate() {
-        let src = "
-        acir(inline) predicate_pure fn main f0 {
-          b0(v0: i16):
-            v1 = mul v0, v0
-            v2 = cast v1 as u32
-            v3 = truncate v2 to 16 bits, max_bit_size: 32
-            v4 = cast v3 as i16
-            return v4
-        }
-        ";
-        let _ = Ssa::from_str(src);
-    }
-
-    #[test]
-    #[should_panic(expected = "assertion `left == right` failed")]
-    fn signed_mul_followed_by_bad_cast() {
-        let src = "
-        acir(inline) predicate_pure fn main f0 {
-          b0(v0: i16):
-            v1 = mul v0, v0
-            v2 = cast v0 as u16
-            v3 = truncate v2 to 16 bits, max_bit_size: 32
-            v4 = cast v3 as i16
-            return v4
-        }
-        ";
-        let _ = Ssa::from_str(src);
-    }
-
-    #[test]
-    #[should_panic(expected = "assertion `left == right` failed")]
-    fn signed_mul_followed_by_bad_cast_bit_size() {
-        let src = "
-        acir(inline) predicate_pure fn main f0 {
-          b0(v0: i16):
-            v1 = mul v0, v0
-            v2 = cast v1 as u16
-            v3 = truncate v2 to 16 bits, max_bit_size: 32
-            v4 = cast v3 as i16
-            return v4
-        }
-        ";
-        let _ = Ssa::from_str(src);
-    }
-
-    #[test]
-    #[should_panic(expected = "assertion `left == right` failed")]
-    fn signed_mul_followed_by_bad_truncate_bit_size() {
-        let src = "
-        acir(inline) predicate_pure fn main f0 {
-          b0(v0: i16):
-            v1 = mul v0, v0
-            v2 = cast v1 as u32
-            v3 = truncate v2 to 32 bits, max_bit_size: 32
-            v4 = cast v3 as i16
-            return v4
-        }
-        ";
-        let _ = Ssa::from_str(src);
-    }
-
-    #[test]
-    #[should_panic(expected = "assertion `left == right` failed")]
-    fn signed_mul_followed_by_bad_truncate_max_bit_size() {
-        let src = "
-        acir(inline) predicate_pure fn main f0 {
-          b0(v0: i16):
-            v1 = mul v0, v0
-            v2 = cast v1 as u32
-            v3 = truncate v2 to 16 bits, max_bit_size: 33
-            v4 = cast v3 as i16
-            return v4
-        }
-        ";
-        let _ = Ssa::from_str(src);
-    }
-
-    #[test]
-    #[should_panic(expected = "Signed binary operation does not follow overflow pattern")]
-    fn lone_signed_mul() {
-        let src = r"
-        acir(inline) pure fn main f0 {
-          b0(v0: i16, v1: i16):
-            v2 = mul v0, v1
-            return v2
-        }
-        ";
-
-        let _ = Ssa::from_str(src);
-    }
-
-    #[test]
-    #[should_panic(expected = "Truncate not matched to signed overflow pattern")]
-    fn signed_mul_followed_by_truncate_but_no_cast() {
-        let src = r"
-        acir(inline) pure fn main f0 {
-          b0(v0: i16, v1: i16):
-            v2 = mul v0, v1
-            v3 = truncate v2 to 16 bits, max_bit_size: 33
-            return v3
-        }
-        ";
-
-        let _ = Ssa::from_str(src);
-    }
 
     #[test]
     fn lone_truncate() {
@@ -564,7 +835,7 @@ mod tests {
             return v1
         }
         ";
-        let _ = Ssa::from_str(src);
+        let _ = Ssa::from_str(src).unwrap();
     }
 
     #[test]
@@ -577,7 +848,7 @@ mod tests {
             return
         }
         ";
-        let _ = Ssa::from_str(src);
+        let _ = Ssa::from_str(src).unwrap();
     }
 
     #[test]
@@ -592,12 +863,14 @@ mod tests {
             return
         }
         ";
-        let _ = Ssa::from_str(src);
+        let _ = Ssa::from_str(src).unwrap();
     }
 
     #[test]
-    #[should_panic(expected = "Right-hand side of `shr` must be u8")]
-    fn disallows_shr_with_non_u8() {
+    #[should_panic(
+        expected = "Left-hand side and right-hand side of `shr` must have the same type"
+    )]
+    fn disallows_shr_with_different_type() {
         let src = "
         acir(inline) fn main f0 {
           b0():
@@ -605,12 +878,14 @@ mod tests {
             return
         }
         ";
-        let _ = Ssa::from_str(src);
+        let _ = Ssa::from_str(src).unwrap();
     }
 
     #[test]
-    #[should_panic(expected = "Right-hand side of `shl` must be u8")]
-    fn disallows_shl_with_non_u8() {
+    #[should_panic(
+        expected = "Left-hand side and right-hand side of `shl` must have the same type"
+    )]
+    fn disallows_shl_with_different_type() {
         let src = "
         acir(inline) fn main f0 {
           b0():
@@ -618,13 +893,11 @@ mod tests {
             return
         }
         ";
-        let _ = Ssa::from_str(src);
+        let _ = Ssa::from_str(src).unwrap();
     }
 
     #[test]
-    #[should_panic(
-        expected = "assertion failed: matches!(value_typ, Type::Numeric(NumericType::NativeField))"
-    )]
+    #[should_panic(expected = "ToRadix value must be a Field, not u1")]
     fn to_le_radix_on_non_field_value() {
         let src = "
         brillig(inline) predicate_pure fn main f0 {
@@ -638,13 +911,11 @@ mod tests {
             return
         }
         ";
-        let _ = Ssa::from_str(src);
+        let _ = Ssa::from_str(src).unwrap();
     }
 
     #[test]
-    #[should_panic(
-        expected = "assertion failed: matches!(value_typ, Type::Numeric(NumericType::NativeField))"
-    )]
+    #[should_panic(expected = "ToBits value must be a Field, not u1")]
     fn to_le_bits_on_non_field_value() {
         let src = "
         brillig(inline) predicate_pure fn main f0 {
@@ -658,7 +929,7 @@ mod tests {
             return
         }
         ";
-        let _ = Ssa::from_str(src);
+        let _ = Ssa::from_str(src).unwrap();
     }
 
     #[test]
@@ -666,11 +937,11 @@ mod tests {
         let src = "
         brillig(inline) predicate_pure fn main f0 {
           b0(v0: Field):
-            v1 = call to_le_bytes(v0, u32 256) -> [u8; 1]
+            v1 = call to_le_radix(v0, u32 256) -> [u8; 1]
             return
         }
         ";
-        let _ = Ssa::from_str(src);
+        let _ = Ssa::from_str(src).unwrap();
     }
 
     #[test]
@@ -682,7 +953,7 @@ mod tests {
             return
         }
         ";
-        let _ = Ssa::from_str(src);
+        let _ = Ssa::from_str(src).unwrap();
     }
 
     #[should_panic(
@@ -697,7 +968,7 @@ mod tests {
             return
         }
         ";
-        let _ = Ssa::from_str(src);
+        let _ = Ssa::from_str(src).unwrap();
     }
 
     #[should_panic(
@@ -712,6 +983,320 @@ mod tests {
             return
         }
         ";
-        let _ = Ssa::from_str(src);
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn cast_from_field_constant_in_range() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v0 = cast Field 42 as u8
+            return v0
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn cast_from_field_constant_out_of_range_with_truncate() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v0 = truncate Field 123456 to 8 bits, max_bit_size: 16
+            v1 = cast v0 as u8
+            return v1
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    fn cast_from_field_division_safe() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v0 = div u16 256, u16 256
+            v1 = cast v0 as u8
+            return v1
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "Constant too large")]
+    fn cast_from_field_constant_too_large() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v0 = cast Field 300 as u8
+            return v0
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "Invalid cast from Field")]
+    fn cast_from_raw_field() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v0 = add Field 255, Field 1
+            v1 = cast v0 as u8
+            return v1
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "assertion")]
+    fn cast_after_unsafe_truncate() {
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v0 = truncate Field 1000 to 16 bits, max_bit_size: 16
+            v1 = cast v0 as u8
+            return v1
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "Globals cannot contain function pointers")]
+    fn function_pointer_in_global_array() {
+        let src = "
+        g2 = make_array [f1, f2] : [function; 2]
+
+        acir(inline) fn main f0 {
+          b0(v3: u32, v4: Field):
+            v6 = call f1() -> Field
+            v8 = call f2() -> Field
+            v10 = lt v3, u32 2
+            constrain v10 == u1 1
+            v12 = array_get g2, index v3 -> function
+            v13 = call v12() -> Field
+            v14 = eq v13, v4
+            constrain v13 == v4
+            return
+        }
+        acir(inline) fn f1 f1 {
+          b0():
+            return Field 1
+        }
+        acir(inline) fn f2 f2 {
+          b0():
+            return Field 2
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "Function call to f1 expected 2 return values, but got 1")]
+    fn call_has_wrong_return_count() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0, v1 = call f1() -> (Field, Field)
+            return v0
+        }
+
+        acir(inline) fn foo f1 {
+          b0():
+            return Field 1
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "Function call to f1 expected return type u8, but got Field (at position 1)"
+    )]
+    fn call_has_wrong_return_type() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = call f1() -> u8
+            return v0
+        }
+
+        acir(inline) fn foo f1 {
+          b0():
+            return Field 1
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "Function f1 has multiple return blocks")]
+    fn multiple_return_blocks() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v1 = call f1(u1 1) -> Field
+            return v1
+        }
+
+        acir(inline) fn f1 f1 {
+          b0(v0: u1):
+            jmpif v0 then: b1, else: b2
+          b1():
+            return Field 1
+          b2():
+            return Field 2
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "MakeArray returns an array of flattened length 2, but it has 3 elements"
+    )]
+    fn make_array_returns_incorrect_length() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = make_array [u8 1, u8 2, u8 3] : [u8; 2]
+            return v0
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "MakeArray returns an array of flattened length 4, but it has 3 elements"
+    )]
+    fn make_array_returns_incorrect_length_composite_type() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = make_array [u8 1, u8 2, u8 3] : [(u8, u8); 2]
+            return v0
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "MakeArray slice has 3 elements but composite type has 2 types which don't divide the number of elements"
+    )]
+    fn make_array_slice_returns_incorrect_length() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = make_array [u8 1, u8 2, u8 3] : [(u8, u8)]
+            return v0
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "MakeArray has incorrect element type at index 1: expected u8, got Field"
+    )]
+    fn make_array_has_incorrect_element_type() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = make_array [u8 1, Field 2, u8 3, u8 4] : [(u8, u8); 2]
+            return v0
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "Store address type u8 does not match value type Field")]
+    fn store_has_incorrect_type() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut u8
+            store Field 1 at v0
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "Cannot use `and` with field elements")]
+    fn bitwise_and_has_incorrect_type() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: Field):
+            v2 = and v0, v1
+            return v2
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "Cannot use `or` with field elements")]
+    fn bitwise_or_has_incorrect_type() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: Field):
+            v2 = or v0, v1
+            return v2
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "Cannot use `xor` with field elements")]
+    fn bitwise_xor_has_incorrect_type() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: Field):
+            v2 = xor v0, v1
+            return v2
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "multi_scalar_mul points is_infinite must be u1, not Field")]
+    fn msm_has_incorrect_type() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: [(Field, Field, Field); 3], v1: [(Field, Field); 3]):
+            v2 = call multi_scalar_mul(v0, v1) -> [(Field, Field, u1); 1]
+            return v2
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "Call to acir function f1 from unconstrained code")]
+    fn disallows_calling_acir_from_brillig() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32):
+            call f1(v0)
+            return
+        }
+        acir(inline) fn foo f1 {
+          b0(v0: u32):
+            v4 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+            v5 = array_get v4, index v0 -> Field
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
     }
 }

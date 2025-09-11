@@ -9,4 +9,11 @@ error: Type provided when a numeric generic was expected
   │                  ---------- the numeric generic is not of type `u32`
   │
 
-Aborting due to 1 previous error
+error: Type annotation needed
+  ┌─ src/main.nr:3:5
+  │
+3 │     foo(x);
+  │     --- Could not determine the type of the generic argument `N` declared on the function `foo`
+  │
+
+Aborting due to 2 previous errors

@@ -19,12 +19,12 @@ fn main(x: Field, y: pub Field) {
 }
 
 unconstrained fn entry_point_no_global(x: Field, y: Field) {
-    assert((x + y) != 100);
+    assert((x + y) != 100_Field);
 }
 
 unconstrained fn entry_point_one_global(x: Field, y: Field) {
     let z: Field = (TWO + x) + y;
-    assert(z == 3);
+    assert(z == 3_Field);
 }
 
 unconstrained fn entry_point_inner_func_globals(x: Field, y: Field) {
@@ -33,12 +33,12 @@ unconstrained fn entry_point_inner_func_globals(x: Field, y: Field) {
 
 unconstrained fn wrapper(x: Field, y: Field) {
     let z: Field = (ONE + x) + y;
-    assert(z == 2);
+    assert(z == 2_Field);
     entry_point_one_global(x, y);
     entry_point_one_diff_global(y, x);
 }
 
 unconstrained fn entry_point_one_diff_global(x: Field, y: Field) {
     let z: Field = (THREE + x) + y;
-    assert(z == 4);
+    assert(z == 4_Field);
 }

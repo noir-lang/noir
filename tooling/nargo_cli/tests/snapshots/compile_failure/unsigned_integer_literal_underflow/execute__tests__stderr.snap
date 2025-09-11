@@ -8,7 +8,5 @@ error: The value `-1` cannot fit into `u8` which has range `0..=255`
 2 │     foo(-1)
   │         --
   │
-  = Call stack:
-    1. src/main.nr:2:9
 
 Aborting due to 1 previous error

@@ -1,7 +1,0 @@
----
-source: tooling/nargo_cli/tests/execute.rs
-expression: expanded_code
----
-fn main() {
-    assert((256 as u8) == 0);
-}

@@ -1,4 +1,4 @@
-//! This module is an abstraction layer over `Brillig`
+//! This module is an abstraction layer over `Brillig`.
 //! To allow for separation of concerns, it knows nothing
 //! about SSA types, and can therefore be tested independently.
 //! `brillig_gen` is therefore the module which combines both
@@ -140,9 +140,11 @@ impl<F, R> BrilligContext<F, R> {
 
 /// Regular brillig context to codegen user defined functions
 impl<F: AcirField + DebugToString> BrilligContext<F, Stack> {
-    pub(crate) fn new(options: &BrilligOptions) -> BrilligContext<F, Stack> {
+    pub(crate) fn new(function_name: &str, options: &BrilligOptions) -> BrilligContext<F, Stack> {
+        let mut obj = BrilligArtifact::default();
+        obj.name = function_name.to_owned();
         BrilligContext {
-            obj: BrilligArtifact::default(),
+            obj,
             registers: Stack::new(),
             context_label: Label::entrypoint(),
             current_section: 0,
@@ -224,11 +226,27 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
             BrilligBinaryOp::Xor,
         );
 
-        // If result has to be negative, perform two's complement
-        self.codegen_if(result_is_negative.address, |ctx| {
-            let zero = ctx.make_constant_instruction(0_usize.into(), result.bit_size);
-            ctx.binary_instruction(zero, result, result, BrilligBinaryOp::Sub);
-            ctx.deallocate_single_addr(zero);
+        self.codegen_branch(result_is_negative.address, |ctx, is_negative| {
+            if is_negative {
+                // If result has to be negative, perform two's complement
+                let zero = ctx.make_constant_instruction(0_usize.into(), result.bit_size);
+                ctx.binary_instruction(zero, result, result, BrilligBinaryOp::Sub);
+                ctx.deallocate_single_addr(zero);
+            } else {
+                // else the result is positive and so it must be less than '2**(bit_size-1)'
+                let max = 1_u128 << (left.bit_size - 1);
+                let max = ctx.make_constant_instruction(max.into(), left.bit_size);
+                let no_overflow = SingleAddrVariable::new(ctx.allocate_register(), 1);
+                ctx.binary_instruction(result, max, no_overflow, BrilligBinaryOp::LessThan);
+                ctx.codegen_if_not(no_overflow.address, |ctx2| {
+                    ctx2.codegen_constrain(
+                        no_overflow,
+                        Some("Attempt to divide with overflow".to_string()),
+                    );
+                });
+                ctx.deallocate_single_addr(max);
+                ctx.deallocate_single_addr(no_overflow);
+            }
         });
 
         self.deallocate_single_addr(left_is_negative);
@@ -297,6 +315,10 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
     /// Returns the artifact
     pub(crate) fn artifact(self) -> BrilligArtifact<F> {
         self.obj
+    }
+
+    pub(crate) fn name(&self) -> &str {
+        &self.obj.name
     }
 
     /// Sets a current call stack that the next pushed opcodes will be associated with.
@@ -369,7 +391,7 @@ pub(crate) mod tests {
             enable_debug_assertions: true,
             enable_array_copy_counter: false,
         };
-        let mut context = BrilligContext::new(&options);
+        let mut context = BrilligContext::new("test", &options);
         context.enter_context(Label::function(id));
         context
     }
@@ -391,6 +413,7 @@ pub(crate) mod tests {
             FunctionId::test_new(0),
             false,
             0,
+            "entry_point",
             &options,
         );
         entry_point_artifact.link_with(&artifact);
@@ -438,7 +461,7 @@ pub(crate) mod tests {
             enable_debug_assertions: true,
             enable_array_copy_counter: false,
         };
-        let mut context = BrilligContext::new(&options);
+        let mut context = BrilligContext::new("test", &options);
         let r_stack = ReservedRegisters::free_memory_pointer();
         // Start stack pointer at 0
         context.usize_const_instruction(r_stack, FieldElement::from(ReservedRegisters::len() + 3));

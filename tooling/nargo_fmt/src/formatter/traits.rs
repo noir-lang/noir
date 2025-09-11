@@ -111,13 +111,13 @@ impl Formatter<'_> {
                 };
                 self.format_function_impl(func);
             }
-            TraitItem::Constant { name, typ, default_value } => {
+            TraitItem::Constant { name, typ } => {
                 let pattern = Pattern::Identifier(name);
                 let chunks = self.chunk_formatter().format_let_or_global(
                     Keyword::Let,
                     pattern,
                     typ,
-                    default_value,
+                    None,
                     Vec::new(), // Attributes
                 );
                 self.write_indentation();
@@ -228,20 +228,6 @@ mod tests {
         let expected = "mod moo {
     trait Foo {
         let x: i32;
-    }
-}
-";
-        assert_format(src, expected);
-    }
-
-    #[test]
-    fn format_trait_with_constant_with_value() {
-        let src = " mod moo { trait Foo { 
-            let  x  : i32  =  1 ;
-         } }";
-        let expected = "mod moo {
-    trait Foo {
-        let x: i32 = 1;
     }
 }
 ";

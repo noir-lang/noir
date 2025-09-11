@@ -17,7 +17,6 @@ use crate::hir_def::expr::{
 use crate::hir_def::stmt::{HirLValue, HirPattern, HirStatement};
 use crate::hir_def::types::{Type, TypeBinding};
 use crate::node_interner::{DefinitionId, ExprId, NodeInterner, StmtId};
-use crate::signed_field::SignedField;
 
 // TODO:
 // - Full path for idents & types
@@ -101,7 +100,9 @@ impl HirExpression {
                 ExpressionKind::Literal(Literal::Bool(*value))
             }
             HirExpression::Literal(HirLiteral::Integer(value)) => {
-                ExpressionKind::Literal(Literal::Integer(*value))
+                // Losing the integer suffix information here, but this should just be for
+                // displaying these values anyway
+                ExpressionKind::Literal(Literal::Integer(*value, None))
             }
             HirExpression::Literal(HirLiteral::Str(string)) => {
                 ExpressionKind::Literal(Literal::Str(string.clone()))
@@ -270,7 +271,7 @@ impl Constructor {
             Constructor::True => ExpressionKind::Literal(Literal::Bool(true)),
             Constructor::False => ExpressionKind::Literal(Literal::Bool(false)),
             Constructor::Unit => ExpressionKind::Literal(Literal::Unit),
-            Constructor::Int(value) => ExpressionKind::Literal(Literal::Integer(*value)),
+            Constructor::Int(value) => ExpressionKind::Literal(Literal::Integer(*value, None)),
             Constructor::Tuple(_) => ExpressionKind::Tuple(arguments),
             Constructor::Variant(typ, index) => {
                 let typ = typ.follow_bindings_shallow();
@@ -425,7 +426,7 @@ impl Type {
             Type::TypeVariable(binding) => match &*binding.borrow() {
                 TypeBinding::Bound(typ) => return typ.to_display_ast(),
                 TypeBinding::Unbound(id, type_var_kind) => {
-                    let name = format!("var_{:?}_{}", type_var_kind, id);
+                    let name = format!("var_{type_var_kind:?}_{id}");
                     let path =
                         Path::from_single(name, Location::new(Span::empty(0), FileId::dummy()));
                     let expression = UnresolvedTypeExpression::Variable(path);
@@ -461,7 +462,13 @@ impl Type {
             // Since there is no UnresolvedTypeData equivalent for Type::Forall, we use
             // this to ignore this case since it shouldn't be needed anyway.
             Type::Forall(_, typ) => return typ.to_display_ast(),
-            Type::Constant(..) => panic!("Type::Constant where a type was expected: {self:?}"),
+            Type::Constant(value, kind) => {
+                UnresolvedTypeData::Expression(UnresolvedTypeExpression::Constant(
+                    *value,
+                    kind.as_integer_type_suffix(),
+                    Location::dummy(),
+                ))
+            }
             Type::Quoted(quoted_type) => {
                 UnresolvedTypeData::quoted(*quoted_type, Location::dummy())
             }
@@ -483,7 +490,9 @@ impl Type {
         let location = Location::dummy();
 
         match self.follow_bindings() {
-            Type::Constant(length, _kind) => UnresolvedTypeExpression::Constant(length, location),
+            Type::Constant(length, kind) => {
+                UnresolvedTypeExpression::Constant(length, kind.as_integer_type_suffix(), location)
+            }
             Type::NamedGeneric(NamedGeneric { name, .. }) => {
                 let path = Path::from_single(name.as_ref().clone(), location);
                 UnresolvedTypeExpression::Variable(path)
@@ -498,7 +507,9 @@ impl HirLValue {
     /// Convert to AST for display (some details lost)
     fn to_display_ast(&self, interner: &NodeInterner) -> LValue {
         match self {
-            HirLValue::Ident(ident, _) => LValue::Ident(ident.to_display_ast(interner)),
+            HirLValue::Ident(path, _) => {
+                LValue::Path(Path::from_ident(path.to_display_ast(interner)))
+            }
             HirLValue::MemberAccess { object, field_name, field_index: _, typ: _, location } => {
                 let object = Box::new(object.to_display_ast(interner));
                 LValue::MemberAccess { object, field_name: field_name.clone(), location: *location }
@@ -526,8 +537,9 @@ impl HirArrayLiteral {
             HirArrayLiteral::Repeated { repeated_element, length } => {
                 let repeated_element = Box::new(repeated_element.to_display_ast(interner));
                 let length = match length {
-                    Type::Constant(length, _kind) => {
-                        let literal = Literal::Integer(SignedField::positive(*length));
+                    Type::Constant(length, kind) => {
+                        let suffix = kind.as_integer_type_suffix();
+                        let literal = Literal::Integer(*length, suffix);
                         let expr_kind = ExpressionKind::Literal(literal);
                         Box::new(Expression::new(expr_kind, location))
                     }

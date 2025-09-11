@@ -3,12 +3,12 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 comptime fn my_macro(x: Field, y: Field) -> Quoted {
-    quote { x + y + a + b }
+    quote { $x + $y + a + b }
 }
 
 fn main() {
-    let a: Field = 100;
-    let b: Field = 200;
-    let result: Field = { ((1 + 2) + a) + b };
-    assert(result == (((1 + 2) + a) + b));
+    let a: Field = 100_Field;
+    let b: Field = 200_Field;
+    let result: Field = { ((1_Field + 2_Field) + a) + b };
+    assert(result == (((1_Field + 2_Field) + a) + b));
 }

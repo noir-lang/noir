@@ -1,3 +1,5 @@
+#![forbid(unsafe_code)]
+
 use noirc_artifacts::{contract::ContractArtifact, program::ProgramArtifact};
 
 pub mod commands;

@@ -48,7 +48,7 @@ To get quick feedback about whether there are any easy-to-discover bugs, we can 
 cargo test -p noir_ast_fuzzer_fuzz arbtest
 ```
 
-Unlike `cargo fuzz`, these don't "ramp up" the complexity of the code, but go full tilt from the beginning, and only run for a limited amount of time (e.g. 10 seconds). Upon failure they print a hexadecimal `seed`, which can be used with the `NOIR_ARBTEST_SEED` env var to replicate the error.
+Unlike `cargo fuzz`, these don't "ramp up" the complexity of the code, but go full tilt from the beginning, and only run for a limited amount of time (e.g. 10 seconds). Upon failure they print a hexadecimal `seed`, which can be used with the `NOIR_AST_FUZZER_SEED` env var to replicate the error.
 
 ## Minimizing Noir
 

@@ -40,6 +40,7 @@ nargo.workspace = true
 # This is an unused dependency, we are adding it
 # so that we can enable the js feature in getrandom.
 getrandom = { workspace = true, features = ["js"] }
+getrandomv3 = { package = "getrandom", version = "^0.3.3", features = ["wasm_js"] }
 
 # This is an unused dependency, we are adding it
 # so that we can enable the debug-embed feature in rust-embed.

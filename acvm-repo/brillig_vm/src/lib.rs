@@ -1,6 +1,4 @@
 #![forbid(unsafe_code)]
-#![warn(unreachable_pub)]
-#![warn(clippy::semicolon_if_nothing_returned)]
 #![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
 
 //! The Brillig VM is a specialized VM which allows the [ACVM][acvm] to perform custom non-determinism.
@@ -35,21 +33,44 @@ mod memory;
 /// The error call stack contains the opcode indexes of the call stack at the time of failure, plus the index of the opcode that failed.
 pub type ErrorCallStack = Vec<usize>;
 
+/// Represents the reason why the Brillig VM failed during execution.
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum FailureReason {
-    Trap { revert_data_offset: usize, revert_data_size: usize },
+    /// A trap was encountered, which indicates an explicit failure from within the VM program.
+    ///
+    /// A trap is triggered explicitly by the [trap opcode][Opcode::Trap].
+    /// The revert data is referenced by the offset and size in the VM memory.
+    Trap {
+        /// Offset in memory where the revert data begins.
+        revert_data_offset: usize,
+        /// Size of the revert data.
+        revert_data_size: usize,
+    },
+    /// A runtime failure during execution.
+    /// This error is triggered by all opcodes aside the [trap opcode][Opcode::Trap].
+    /// For example, a [binary operation][Opcode::BinaryIntOp] can trigger a division by zero error.
     RuntimeError { message: String },
 }
 
+/// Represents the current execution status of the Brillig VM.
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum VMStatus<F> {
+    /// The VM has completed execution successfully.
+    /// The output of the program is stored in the VM memory and can be accessed via the provided offset and size.
     Finished {
+        /// Offset in memory where the return data begins.
         return_data_offset: usize,
+        /// Size of the return data.
         return_data_size: usize,
     },
+    /// The VM is still in progress and has not yet completed execution.
+    /// This is used when simulating execution.
     InProgress,
+    /// The VM encountered a failure and halted execution.
     Failure {
+        /// The reason for the failure.
         reason: FailureReason,
+        /// The call stack at the time the failure occurred, useful for debugging nested calls.
         call_stack: ErrorCallStack,
     },
     /// The VM process is not solvable as a [foreign call][Opcode::ForeignCall] has been
@@ -67,7 +88,7 @@ pub enum VMStatus<F> {
     },
 }
 
-// A sample for each opcode that was executed.
+/// All samples for each opcode that was executed
 pub type BrilligProfilingSamples = Vec<BrilligProfilingSample>;
 
 /// The position of an opcode that is currently being executed in the bytecode
@@ -93,9 +114,10 @@ pub type UniqueFeatureIndex = usize;
 /// A map for translating encountered branching logic to features for fuzzing
 pub type BranchToFeatureMap = HashMap<Branch, UniqueFeatureIndex>;
 
+/// A sample for an executed opcode
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct BrilligProfilingSample {
-    // The call stack when processing a given opcode.
+    /// The call stack when processing a given opcode.
     pub call_stack: Vec<usize>,
 }
 
@@ -503,11 +525,50 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                     // resolved inputs back to the caller. Once the caller pushes to `foreign_call_results`,
                     // they can then make another call to the VM that starts at this opcode
                     // but has the necessary results to proceed with execution.
+
+                    // With slices we might have more items in the HeapVector than the semantic length
+                    // indicated by the field preceding the pointer to the vector in the inputs.
+                    // This happens when SSA merges slices of different length, which can result in
+                    // a vector that has room for the longer of the two, partially filled with items
+                    // from the shorter. There are ways to deal with this on the receiver side,
+                    // but it is cumbersome, and the cleanest solution is not to send the extra empty
+                    // items at all. To do this, however, we need infer which input is the vector length.
+                    let mut vector_length: Option<usize> = None;
+
                     let resolved_inputs = inputs
                         .iter()
                         .zip(input_value_types)
-                        .map(|(input, input_type)| self.get_memory_values(*input, input_type))
+                        .map(|(input, input_type)| {
+                            let mut input = self.get_memory_values(*input, input_type);
+                            // Truncate slices to their semantic length, which we remember from the preceding field.
+                            match input_type {
+                                HeapValueType::Simple(BitSize::Integer(IntegerBitSize::U32)) => {
+                                    // If we have a single u32 we may have a slice representation, so store this input.
+                                    // On the next iteration, if we have a vector then we know we have the dynamic length
+                                    // for that slice.
+                                    let ForeignCallParam::Single(length) = input else {
+                                        unreachable!("expected u32; got {input:?}");
+                                    };
+                                    vector_length = Some(length.to_u128() as usize);
+                                }
+                                HeapValueType::Vector { value_types } => {
+                                    if let Some(length) = vector_length {
+                                        let type_size = vector_element_size(value_types);
+                                        let mut fields = input.fields();
+                                        fields.truncate(length * type_size);
+                                        input = ForeignCallParam::Array(fields);
+                                    }
+                                    vector_length = None;
+                                }
+                                _ => {
+                                    // Otherwise we are not dealing with a u32 followed by a vector.
+                                    vector_length = None;
+                                }
+                            }
+                            input
+                        })
                         .collect::<Vec<_>>();
+
                     return self.wait_for_foreign_call(function.clone(), resolved_inputs);
                 }
 
@@ -576,7 +637,8 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                 // Convert our destination_pointer to an address
                 let destination = self.memory.read_ref(*destination_pointer);
                 // Use our usize destination index to set the value in memory
-                self.memory.write(destination, self.memory.read(*source_address));
+                let value = self.memory.read(*source_address);
+                self.memory.write(destination, value);
                 self.increment_program_counter()
             }
             Opcode::Call { location } => {
@@ -632,6 +694,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
         self.status.clone()
     }
 
+    /// Get input data from memory to pass to foreign calls.
     fn get_memory_values(
         &self,
         input: ValueOrArray,
@@ -688,11 +751,15 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                 0 == size % value_types.len(),
                 "array/vector does not contain a whole number of elements"
             );
+
+            // We want to send vectors to foreign functions truncated to their semantic length.
+            let mut vector_length: Option<usize> = None;
+
             (0..size)
                 .zip(value_types.iter().cycle())
-                .flat_map(|(i, value_type)| {
+                .map(|(i, value_type)| {
                     let value_address = start.offset(i);
-                    match value_type {
+                    let values = match value_type {
                         HeapValueType::Simple(_) => {
                             vec![self.memory.read(value_address)]
                         }
@@ -717,7 +784,27 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                                 value_types,
                             )
                         }
+                    };
+                    (value_type, values)
+                })
+                .flat_map(|(value_type, mut values)| {
+                    match value_type {
+                        HeapValueType::Simple(BitSize::Integer(IntegerBitSize::U32)) => {
+                            vector_length = Some(values[0].to_usize());
+                        }
+                        HeapValueType::Vector { value_types } => {
+                            if let Some(length) = vector_length {
+                                let type_size = vector_element_size(value_types);
+                                values.truncate(length * type_size);
+                            }
+                            vector_length = None;
+                        }
+                        _ => {
+                            // Otherwise we are not dealing with a u32 followed by a vector.
+                            vector_length = None;
+                        }
                     }
+                    values
                 })
                 .collect::<Vec<_>>()
         }
@@ -747,11 +834,33 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
             ));
         }
 
+        debug_assert_eq!(
+            destinations.len(),
+            destination_value_types.len(),
+            "Number of destinations must match number of value types",
+        );
+        debug_assert_eq!(
+            destinations.len(),
+            values.len(),
+            "Number of foreign call return values must match number of destinations",
+        );
         for ((destination, value_type), output) in
             destinations.iter().zip(destination_value_types).zip(&values)
         {
             match (destination, value_type) {
                 (ValueOrArray::MemoryAddress(value_index), HeapValueType::Simple(bit_size)) => {
+                    let output_fields = output.fields();
+                    if value_type
+                        .flattened_size()
+                        .is_some_and(|flattened_size| output_fields.len() != flattened_size)
+                    {
+                        return Err(format!(
+                            "Foreign call return value does not match expected size. Expected {} but got {}",
+                            value_type.flattened_size().unwrap(),
+                            output_fields.len(),
+                        ));
+                    }
+
                     match output {
                         ForeignCallParam::Single(value) => {
                             self.write_value_to_memory(*value_index, value, *bit_size)?;
@@ -767,20 +876,38 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                     ValueOrArray::HeapArray(HeapArray { pointer: pointer_index, size }),
                     HeapValueType::Array { value_types, size: type_size },
                 ) if size == type_size => {
+                    let output_fields = output.fields();
+                    if value_type
+                        .flattened_size()
+                        .is_some_and(|flattened_size| output_fields.len() != flattened_size)
+                    {
+                        return Err(format!(
+                            "Foreign call return value does not match expected size. Expected {} but got {}",
+                            value_type.flattened_size().unwrap(),
+                            output_fields.len(),
+                        ));
+                    }
+
                     if HeapValueType::all_simple(value_types) {
                         match output {
                             ForeignCallParam::Array(values) => {
                                 if values.len() != *size {
                                     // foreign call returning flattened values into a nested type, so the sizes do not match
                                     let destination = self.memory.read_ref(*pointer_index);
-                                    let return_type = value_type;
+
                                     let mut flatten_values_idx = 0; //index of values read from flatten_values
                                     self.write_slice_of_values_to_memory(
                                         destination,
-                                        &output.fields(),
+                                        &output_fields,
                                         &mut flatten_values_idx,
-                                        return_type,
+                                        value_type,
                                     )?;
+                                    // Should be caught earlier but we want to be explicit.
+                                    debug_assert_eq!(
+                                        flatten_values_idx,
+                                        output_fields.len(),
+                                        "Not all values were written to memory"
+                                    );
                                 } else {
                                     self.write_values_to_memory_slice(
                                         *pointer_index,
@@ -803,10 +930,15 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                         let mut flatten_values_idx = 0; //index of values read from flatten_values
                         self.write_slice_of_values_to_memory(
                             destination,
-                            &output.fields(),
+                            &output_fields,
                             &mut flatten_values_idx,
                             return_type,
                         )?;
+                        debug_assert_eq!(
+                            flatten_values_idx,
+                            output_fields.len(),
+                            "Not all values were written to memory"
+                        );
                     }
                 }
                 (
@@ -819,6 +951,10 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                     if HeapValueType::all_simple(value_types) {
                         match output {
                             ForeignCallParam::Array(values) => {
+                                if values.len() % value_types.len() != 0 {
+                                    return Err("Returned data does not match vector element size"
+                                        .to_string());
+                                }
                                 // Set our size in the size address
                                 self.memory.write(*size_index, values.len().into());
                                 self.write_values_to_memory_slice(
@@ -846,8 +982,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
             }
         }
 
-        let _ =
-            std::mem::replace(&mut self.foreign_call_results[foreign_call_index].values, values);
+        self.foreign_call_results[foreign_call_index].values = values;
 
         Ok(())
     }
@@ -864,8 +999,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
             self.memory.write(destination, memory_value);
         } else {
             return Err(format!(
-                "Foreign call result value {} does not fit in bit size {:?}",
-                value, value_bit_size
+                "Foreign call result value {value} does not fit in bit size {value_bit_size:?}"
             ));
         }
         Ok(())
@@ -897,8 +1031,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
             self.memory.write_slice(destination, &memory_values);
         } else {
             return Err(format!(
-                "Foreign call result values {:?} do not match expected bit sizes",
-                values,
+                "Foreign call result values {values:?} do not match expected bit sizes",
             ));
         }
         Ok(())
@@ -952,8 +1085,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                             }
                             HeapValueType::Vector { .. } => {
                                 return Err(format!(
-                                    "Unsupported returned type in foreign calls {:?}",
-                                    typ
+                                    "Unsupported returned type in foreign calls {typ:?}"
                                 ));
                             }
                         }
@@ -962,7 +1094,7 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                 Ok(())
             }
             HeapValueType::Vector { .. } => {
-                Err(format!("Unsupported returned type in foreign calls {:?}", value_type))
+                Err(format!("Unsupported returned type in foreign calls {value_type:?}"))
             }
         }
     }
@@ -1002,7 +1134,6 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
 
         let result_value = evaluate_binary_int_op(&op, lhs_value, rhs_value, bit_size)?;
         self.memory.write(result, result_value);
-
         self.fuzzing_trace_binary_int_op_comparison(&op, lhs_value, rhs_value, result_value);
         Ok(())
     }
@@ -1026,6 +1157,19 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
         self.memory.write(destination, negated_value);
         Ok(())
     }
+}
+
+/// Returns the total number of field elements required to represent the elements in the vector in memory.
+///
+/// Panics if the vector contains nested vectors. Such types are not supported and are rejected by the frontend.
+fn vector_element_size(value_types: &[HeapValueType]) -> usize {
+    value_types
+        .iter()
+        .map(|typ| {
+            typ.flattened_size()
+                .unwrap_or_else(|| panic!("unexpected nested dynamic element type: {typ:?}"))
+        })
+        .sum()
 }
 
 #[cfg(test)]
@@ -1121,6 +1265,7 @@ mod tests {
     }
 
     #[test]
+    // cSpell:disable-next-line
     fn jmpifnot_opcode() {
         let calldata: Vec<FieldElement> = vec![1u128.into(), 2u128.into()];
 

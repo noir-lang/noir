@@ -30,7 +30,7 @@ impl FromField for AztecAddress {
 
 impl Deserialize<1> for AztecAddress {
     fn deserialize(fields: [Field; 1]) -> Self {
-        Self::from_field(fields[0])
+        Self::from_field(fields[0_u32])
     }
 }
 
@@ -48,17 +48,14 @@ impl<T> Deserialize<1> for MyStruct<T>
 where
     T: FromField,
 {
-    fn deserialize(fields: [Field; 1]) -> Self
-    where
-        T: FromField,
-    {
-        Self { a: FromField::from_field(fields[0]) }
+    fn deserialize(fields: [Field; 1]) -> Self {
+        Self { a: T::from_field(fields[0_u32]) }
     }
 }
 
 fn main() {
-    let fields: [Field; 1] = [5; 1];
-    let foo: MyStruct<AztecAddress> = Deserialize::<1>::deserialize(fields);
-    let bar: AztecAddress = AztecAddress { inner: 5 };
+    let fields: [Field; 1] = [5_Field; 1];
+    let foo: MyStruct<AztecAddress> = MyStruct::<AztecAddress>::deserialize(fields);
+    let bar: AztecAddress = AztecAddress { inner: 5_Field };
     assert(foo.a == bar);
 }

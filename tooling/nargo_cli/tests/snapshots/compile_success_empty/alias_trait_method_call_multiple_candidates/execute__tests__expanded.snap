@@ -1,0 +1,38 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+use std::convert::From;
+
+struct MyU128 {
+    lo: Field,
+    hi: Field,
+}
+
+impl MyU128 {
+    pub fn from_u64s_le(lo: u64, hi: u64) -> Self {
+        Self { lo: lo as Field, hi: hi as Field }
+    }
+}
+
+impl From<u64> for MyU128 {
+    fn from(value: u64) -> Self {
+        Self::from_u64s_le(value, 0_u64)
+    }
+}
+
+impl From<u32> for MyU128 {
+    fn from(value: u32) -> Self {
+        <Self as From<u64>>::from(value as u64)
+    }
+}
+
+type MyU128Alias = MyU128;
+
+fn main() {
+    let x: u64 = 0_u64;
+    let mut small_int: MyU128 = <MyU128 as From<u64>>::from(x);
+    assert(small_int.lo == (x as Field));
+    let u32_3: u32 = 3_u32;
+    assert(<MyU128 as From<u32>>::from(u32_3).lo == 3_Field);
+}

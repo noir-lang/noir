@@ -1,4 +1,4 @@
-use std::cmp::Ordering;
+use std::{cmp::Ordering, collections::BTreeMap, io::Write};
 
 use super::{
     Ssa,
@@ -15,9 +15,9 @@ use super::{
 use crate::ssa::ir::{instruction::binary::truncate_field, printer::display_binary};
 use acvm::{AcirField, FieldElement};
 use errors::{InternalError, InterpreterError, MAX_UNSIGNED_BIT_SIZE};
-use fxhash::FxHashMap as HashMap;
 use iter_extended::{try_vecmap, vecmap};
 use noirc_frontend::Shared;
+use rustc_hash::FxHashMap as HashMap;
 use value::{ArrayValue, NumericValue, ReferenceValue};
 
 pub mod errors;
@@ -27,18 +27,30 @@ pub mod value;
 
 use value::Value;
 
-struct Interpreter<'ssa> {
+pub(crate) struct Interpreter<'ssa, W> {
     /// Contains each function called with `main` (or the first called function if
     /// the interpreter was manually invoked on a different function) at
     /// the front of the Vec.
     call_stack: Vec<CallContext>,
 
-    ssa: &'ssa Ssa,
+    functions: &'ssa BTreeMap<FunctionId, Function>,
 
     /// This variable can be modified by `enable_side_effects_if` instructions and is
     /// expected to have no effect if there are no such instructions or if the code
     /// being executed is an unconstrained function.
     side_effects_enabled: bool,
+
+    options: InterpreterOptions,
+    /// Print output.
+    output: W,
+}
+
+#[derive(Debug, Clone, Copy, Default)]
+pub struct InterpreterOptions {
+    /// If true, the interpreter will trace its execution.
+    pub trace: bool,
+    /// If true, the interpreter treats all foreign function calls (e.g., `print`) as unknown
+    pub no_foreign_calls: bool,
 }
 
 struct CallContext {
@@ -66,20 +78,47 @@ pub type IResults = IResult<Vec<Value>>;
 #[allow(unused)]
 impl Ssa {
     pub fn interpret(&self, args: Vec<Value>) -> IResults {
-        self.interpret_function(self.main_id, args)
+        self.interpret_with_options(args, InterpreterOptions::default(), std::io::empty())
     }
 
-    pub(crate) fn interpret_function(&self, function: FunctionId, args: Vec<Value>) -> IResults {
-        let mut interpreter = Interpreter::new(self);
+    pub fn interpret_with_options<W: Write>(
+        &self,
+        args: Vec<Value>,
+        options: InterpreterOptions,
+        output: W,
+    ) -> IResults {
+        self.interpret_function(self.main_id, args, options, output)
+    }
+
+    fn interpret_function<W: Write>(
+        &self,
+        function: FunctionId,
+        args: Vec<Value>,
+        options: InterpreterOptions,
+        output: W,
+    ) -> IResults {
+        let mut interpreter = Interpreter::new(self, options, output);
         interpreter.interpret_globals()?;
         interpreter.call_function(function, args)
     }
 }
 
-impl<'ssa> Interpreter<'ssa> {
-    fn new(ssa: &'ssa Ssa) -> Self {
+impl<'ssa, W: Write> Interpreter<'ssa, W> {
+    fn new(ssa: &'ssa Ssa, options: InterpreterOptions, output: W) -> Self {
+        Self::new_from_functions(&ssa.functions, options, output)
+    }
+
+    pub(crate) fn new_from_functions(
+        functions: &'ssa BTreeMap<FunctionId, Function>,
+        options: InterpreterOptions,
+        output: W,
+    ) -> Self {
         let call_stack = vec![CallContext::global_context()];
-        Self { ssa, call_stack, side_effects_enabled: true }
+        Self { functions, call_stack, side_effects_enabled: true, options, output }
+    }
+
+    pub(crate) fn functions(&self) -> &BTreeMap<FunctionId, Function> {
+        self.functions
     }
 
     fn call_context(&self) -> &CallContext {
@@ -94,12 +133,15 @@ impl<'ssa> Interpreter<'ssa> {
         &self.call_stack.first().expect("call_stack should always be non-empty").scope
     }
 
-    fn current_function(&self) -> &'ssa Function {
+    fn try_current_function(&self) -> Option<&'ssa Function> {
         let current_function_id = self.call_context().called_function;
-        let current_function_id = current_function_id.expect(
+        current_function_id.map(|current_function_id| &self.functions[&current_function_id])
+    }
+
+    fn current_function(&self) -> &'ssa Function {
+        self.try_current_function().expect(
             "Tried calling `Interpreter::current_function` while evaluating global instructions",
-        );
-        &self.ssa.functions[&current_function_id]
+        )
     }
 
     fn dfg(&self) -> &'ssa DataFlowGraph {
@@ -112,12 +154,32 @@ impl<'ssa> Interpreter<'ssa> {
 
     /// Define or redefine a value.
     /// Redefinitions are expected in the case of loops.
-    fn define(&mut self, id: ValueId, value: Value) {
+    fn define(&mut self, id: ValueId, value: Value) -> IResult<()> {
+        if self.options.trace {
+            println!("{id} = {value}");
+        }
+
+        if let Some(func) = self.try_current_function() {
+            let expected_type = func.dfg.type_of_value(id);
+            let actual_type = value.get_type();
+
+            if expected_type != actual_type {
+                return Err(internal(InternalError::ValueTypeDoesNotMatchReturnType {
+                    value_id: id,
+                    expected_type: expected_type.to_string(),
+                    actual_type: actual_type.to_string(),
+                }));
+            }
+        }
+
         self.call_context_mut().scope.insert(id, value);
+
+        Ok(())
     }
 
-    fn interpret_globals(&mut self) -> IResult<()> {
-        let globals = &self.ssa.main().dfg.globals;
+    pub(crate) fn interpret_globals(&mut self) -> IResult<()> {
+        let (_, function) = self.functions.first_key_value().unwrap();
+        let globals = &function.dfg.globals;
         for (global_id, global) in globals.values_iter() {
             let value = match global {
                 super::ir::value::Value::Instruction { instruction, .. } => {
@@ -137,15 +199,24 @@ impl<'ssa> Interpreter<'ssa> {
                     unreachable!()
                 }
             };
-            self.define(global_id, value);
+            self.define(global_id, value)?;
         }
         Ok(())
     }
 
-    fn call_function(&mut self, function_id: FunctionId, mut arguments: Vec<Value>) -> IResults {
+    pub(crate) fn call_function(
+        &mut self,
+        function_id: FunctionId,
+        mut arguments: Vec<Value>,
+    ) -> IResults {
         self.call_stack.push(CallContext::new(function_id));
 
-        let function = &self.ssa.functions[&function_id];
+        let function = &self.functions[&function_id];
+        if self.options.trace {
+            println!();
+            println!("enter function {} ({})", function_id, function.name());
+        }
+
         let mut block_id = function.entry_block();
         let dfg = self.dfg();
 
@@ -165,7 +236,7 @@ impl<'ssa> Interpreter<'ssa> {
             }
 
             for (parameter, argument) in block.parameters().iter().zip(arguments) {
-                self.define(*parameter, argument);
+                self.define(*parameter, argument)?;
             }
 
             for instruction_id in block.instructions() {
@@ -181,6 +252,9 @@ impl<'ssa> Interpreter<'ssa> {
                 }
                 Some(TerminatorInstruction::Jmp { destination, arguments: jump_args, .. }) => {
                     block_id = *destination;
+                    if self.options.trace {
+                        println!("jump to {block_id}");
+                    }
                     arguments = self.lookup_all(jump_args)?;
                 }
                 Some(TerminatorInstruction::JmpIf {
@@ -194,15 +268,43 @@ impl<'ssa> Interpreter<'ssa> {
                     } else {
                         *else_destination
                     };
+                    if self.options.trace {
+                        println!("jump to {block_id}");
+                    }
                     arguments = Vec::new();
                 }
                 Some(TerminatorInstruction::Return { return_values, call_stack: _ }) => {
-                    break self.lookup_all(return_values)?;
+                    let return_values = self.lookup_all(return_values)?;
+                    if self.options.trace && !return_values.is_empty() {
+                        let return_values =
+                            return_values.iter().map(ToString::to_string).collect::<Vec<_>>();
+                        println!("return {}", return_values.join(", "));
+                    }
+
+                    break return_values;
+                }
+                Some(TerminatorInstruction::Unreachable { .. }) => {
+                    return Err(InterpreterError::ReachedTheUnreachable);
                 }
             }
         };
 
+        if self.options.trace {
+            println!("exit function {} ({})", function_id, function.name());
+            println!();
+        }
+
         self.call_stack.pop();
+
+        if self.options.trace {
+            if let Some(context) = self.call_stack.last() {
+                if let Some(function_id) = context.called_function {
+                    let function = &self.functions[&function_id];
+                    println!("back in function {} ({})", function_id, function.name());
+                }
+            }
+        }
+
         Ok(return_values)
     }
 
@@ -376,9 +478,17 @@ impl<'ssa> Interpreter<'ssa> {
         try_vecmap(ids, |id| self.lookup(*id))
     }
 
-    fn side_effects_enabled(&self) -> bool {
-        match self.current_function().runtime() {
-            RuntimeType::Acir(_) => self.side_effects_enabled,
+    fn side_effects_enabled(&self, instruction: &Instruction) -> bool {
+        let Some(current_function) = self.try_current_function() else {
+            // If there's no current function it means we are evaluating global instructions
+            return true;
+        };
+
+        match current_function.runtime() {
+            RuntimeType::Acir(_) => {
+                self.side_effects_enabled
+                    || !instruction.requires_acir_gen_predicate(&current_function.dfg)
+            }
             RuntimeType::Brillig(_) => true,
         }
     }
@@ -389,10 +499,12 @@ impl<'ssa> Interpreter<'ssa> {
         instruction: &Instruction,
         results: &[ValueId],
     ) -> IResult<()> {
+        let side_effects_enabled = self.side_effects_enabled(instruction);
+
         match instruction {
             Instruction::Binary(binary) => {
-                let result = self.interpret_binary(binary)?;
-                self.define(results[0], result);
+                let result = self.interpret_binary(binary, side_effects_enabled)?;
+                self.define(results[0], result)?;
                 Ok(())
             }
             // Cast in SSA changes the type without altering the value
@@ -400,7 +512,7 @@ impl<'ssa> Interpreter<'ssa> {
                 let value = self.lookup_numeric(*value, "cast")?;
                 let field = value.convert_to_field();
                 let result = Value::from_constant(field, *numeric_type)?;
-                self.define(results[0], result);
+                self.define(results[0], result)?;
                 Ok(())
             }
             Instruction::Not(id) => self.interpret_not(*id, results[0]),
@@ -410,15 +522,15 @@ impl<'ssa> Interpreter<'ssa> {
             Instruction::Constrain(lhs_id, rhs_id, constrain_error) => {
                 let lhs = self.lookup(*lhs_id)?;
                 let rhs = self.lookup(*rhs_id)?;
-                if self.side_effects_enabled() && lhs != rhs {
+                if side_effects_enabled && lhs != rhs {
                     let lhs = lhs.to_string();
                     let rhs = rhs.to_string();
                     let lhs_id = *lhs_id;
                     let rhs_id = *rhs_id;
                     let msg = if let Some(ConstrainError::StaticString(msg)) = constrain_error {
-                        format!(", \"{msg}\"")
+                        Some(msg.clone())
                     } else {
-                        "".to_string()
+                        None
                     };
                     return Err(InterpreterError::ConstrainEqFailed {
                         lhs,
@@ -433,15 +545,15 @@ impl<'ssa> Interpreter<'ssa> {
             Instruction::ConstrainNotEqual(lhs_id, rhs_id, constrain_error) => {
                 let lhs = self.lookup(*lhs_id)?;
                 let rhs = self.lookup(*rhs_id)?;
-                if self.side_effects_enabled() && lhs == rhs {
+                if side_effects_enabled && lhs == rhs {
                     let lhs = lhs.to_string();
                     let rhs = rhs.to_string();
                     let lhs_id = *lhs_id;
                     let rhs_id = *rhs_id;
                     let msg = if let Some(ConstrainError::StaticString(msg)) = constrain_error {
-                        format!(", \"{msg}\"")
+                        Some(msg.clone())
                     } else {
-                        "".to_string()
+                        None
                     };
                     return Err(InterpreterError::ConstrainNeFailed {
                         lhs,
@@ -453,10 +565,16 @@ impl<'ssa> Interpreter<'ssa> {
                 }
                 Ok(())
             }
-            Instruction::RangeCheck { value, max_bit_size, assert_message } => {
-                self.interpret_range_check(*value, *max_bit_size, assert_message.as_ref())
+            Instruction::RangeCheck { value, max_bit_size, assert_message } => self
+                .interpret_range_check(
+                    *value,
+                    *max_bit_size,
+                    assert_message.as_ref(),
+                    side_effects_enabled,
+                ),
+            Instruction::Call { func, arguments } => {
+                self.interpret_call(*func, arguments, results, side_effects_enabled)
             }
-            Instruction::Call { func, arguments } => self.interpret_call(*func, arguments, results),
             Instruction::Allocate => {
                 self.interpret_allocate(results[0]);
                 Ok(())
@@ -468,11 +586,18 @@ impl<'ssa> Interpreter<'ssa> {
                 Ok(())
             }
             Instruction::ArrayGet { array, index, offset } => {
-                self.interpret_array_get(*array, *index, *offset, results[0])
+                self.interpret_array_get(*array, *index, *offset, results[0], side_effects_enabled)
             }
-            Instruction::ArraySet { array, index, value, mutable, offset } => {
-                self.interpret_array_set(*array, *index, *value, *mutable, *offset, results[0])
-            }
+            Instruction::ArraySet { array, index, value, mutable, offset } => self
+                .interpret_array_set(
+                    *array,
+                    *index,
+                    *value,
+                    *mutable,
+                    *offset,
+                    results[0],
+                    side_effects_enabled,
+                ),
             Instruction::IncrementRc { value } => self.interpret_inc_rc(*value),
             Instruction::DecrementRc { value } => self.interpret_dec_rc(*value),
             Instruction::IfElse { then_condition, then_value, else_condition, else_value } => self
@@ -509,8 +634,7 @@ impl<'ssa> Interpreter<'ssa> {
             NumericValue::I32(value) => NumericValue::I32(!value),
             NumericValue::I64(value) => NumericValue::I64(!value),
         };
-        self.define(result, Value::Numeric(new_result));
-        Ok(())
+        self.define(result, Value::Numeric(new_result))
     }
 
     fn interpret_truncate(
@@ -547,8 +671,7 @@ impl<'ssa> Interpreter<'ssa> {
             }
         };
 
-        self.define(result, Value::Numeric(truncated));
-        Ok(())
+        self.define(result, Value::Numeric(truncated))
     }
 
     fn interpret_range_check(
@@ -556,8 +679,9 @@ impl<'ssa> Interpreter<'ssa> {
         value_id: ValueId,
         max_bit_size: u32,
         error_message: Option<&String>,
+        side_effects_enabled: bool,
     ) -> IResult<()> {
-        if !self.side_effects_enabled() {
+        if !side_effects_enabled {
             return Ok(());
         }
 
@@ -607,17 +731,13 @@ impl<'ssa> Interpreter<'ssa> {
             let actual_bits = bit_count;
             let max_bits = max_bit_size;
 
-            if let Some(message) = error_message {
-                Err(InterpreterError::RangeCheckFailedWithMessage {
-                    value,
-                    value_id,
-                    actual_bits,
-                    max_bits,
-                    message: message.clone(),
-                })
-            } else {
-                Err(InterpreterError::RangeCheckFailed { value, value_id, actual_bits, max_bits })
-            }
+            Err(InterpreterError::RangeCheckFailed {
+                value,
+                value_id,
+                actual_bits,
+                max_bits,
+                msg: error_message.cloned(),
+            })
         } else {
             Ok(())
         }
@@ -628,18 +748,19 @@ impl<'ssa> Interpreter<'ssa> {
         function_id: ValueId,
         argument_ids: &[ValueId],
         results: &[ValueId],
+        side_effects_enabled: bool,
     ) -> IResult<()> {
         let function = self.lookup(function_id)?;
         let mut arguments = try_vecmap(argument_ids, |argument| self.lookup(*argument))?;
 
-        let new_results = if self.side_effects_enabled() {
+        let new_results = if side_effects_enabled {
             match function {
                 Value::Function(id) => {
                     // If we're crossing a constrained -> unconstrained boundary we have to wipe
                     // any shared mutable fields in our arguments since brillig should conceptually
                     // receive fresh array on each invocation.
                     if !self.in_unconstrained_context()
-                        && self.ssa.functions[&id].runtime().is_brillig()
+                        && self.functions[&id].runtime().is_brillig()
                     {
                         for argument in arguments.iter_mut() {
                             Self::reset_array_state(argument)?;
@@ -649,6 +770,9 @@ impl<'ssa> Interpreter<'ssa> {
                 }
                 Value::Intrinsic(intrinsic) => {
                     self.call_intrinsic(intrinsic, argument_ids, results)?
+                }
+                Value::ForeignFunction(name) if self.options.no_foreign_calls => {
+                    return Err(InterpreterError::UnknownForeignFunctionCall { name });
                 }
                 Value::ForeignFunction(name) if name == "print" => self.call_print(arguments)?,
                 Value::ForeignFunction(name) => {
@@ -679,7 +803,7 @@ impl<'ssa> Interpreter<'ssa> {
         }
 
         for (result, new_result) in results.iter().zip(new_results) {
-            self.define(*result, new_result);
+            self.define(*result, new_result)?;
         }
         Ok(())
     }
@@ -687,7 +811,7 @@ impl<'ssa> Interpreter<'ssa> {
     /// Try to get a function's name or approximate it if it is not known
     fn try_get_function_name(&self, function: ValueId) -> String {
         match self.lookup(function) {
-            Ok(Value::Function(id)) => match self.ssa.functions.get(&id) {
+            Ok(Value::Function(id)) => match self.functions.get(&id) {
                 Some(function) => function.name().to_string(),
                 None => "unknown function".to_string(),
             },
@@ -725,7 +849,7 @@ impl<'ssa> Interpreter<'ssa> {
         }
     }
 
-    fn interpret_allocate(&mut self, result: ValueId) {
+    fn interpret_allocate(&mut self, result: ValueId) -> IResult<()> {
         let result_type = self.dfg().type_of_value(result);
         let element_type = match result_type {
             Type::Reference(element_type) => element_type,
@@ -733,26 +857,34 @@ impl<'ssa> Interpreter<'ssa> {
                 "Result of allocate should always be a reference type, but found {other}"
             ),
         };
-        self.define(result, Value::reference(result, element_type));
+        let value = Value::reference(result, element_type);
+        self.define(result, value)
     }
 
     fn interpret_load(&mut self, address: ValueId, result: ValueId) -> IResult<()> {
         let address = self.lookup_reference(address, "load")?;
 
         let element = address.element.borrow();
-        let Some(value) = &*element else {
+        let Some(value) = element.as_ref() else {
             let value = address.to_string();
             return Err(internal(InternalError::UninitializedReferenceValueLoaded { value }));
         };
 
-        self.define(result, value.clone());
+        self.define(result, value.clone())?;
         Ok(())
     }
 
     fn interpret_store(&mut self, address: ValueId, value: ValueId) -> IResult<()> {
-        let address = self.lookup_reference(address, "store")?;
+        let reference_address = self.lookup_reference(address, "store")?;
+
         let value = self.lookup(value)?;
-        *address.element.borrow_mut() = Some(value);
+
+        if self.options.trace {
+            println!("store {value} at {address}");
+        }
+
+        *reference_address.element.borrow_mut() = Some(value);
+
         Ok(())
     }
 
@@ -762,20 +894,47 @@ impl<'ssa> Interpreter<'ssa> {
         index: ValueId,
         offset: ArrayOffset,
         result: ValueId,
+        side_effects_enabled: bool,
     ) -> IResult<()> {
-        let element = if self.side_effects_enabled() {
-            let array = self.lookup_array_or_slice(array, "array get")?;
-            let index = self.lookup_u32(index, "array get index")?;
-            let index = index - offset.to_u32();
-            array.elements.borrow()[index as usize].clone()
+        let array = self.lookup_array_or_slice(array, "array get")?;
+        let index = self.lookup_u32(index, "array get index")?;
+        let mut index = index - offset.to_u32();
+
+        let element = if array.elements.borrow().is_empty() {
+            // Accessing an array of 0-len is replaced by asserting
+            // the branch is not-taken during acir-gen and
+            // a zeroed type is used in case of array get
+            // So we can simply replace it with uninitialized value
+            if side_effects_enabled {
+                return Err(InterpreterError::IndexOutOfBounds { index, length: 0 });
+            } else {
+                let typ = self.dfg().type_of_value(result);
+                Value::uninitialized(&typ, result)
+            }
         } else {
-            let typ = self.dfg().type_of_value(result);
-            Value::uninitialized(&typ, result)
+            // An array_get with false side_effects_enabled is replaced
+            // by a load at a valid index during acir-gen.
+            if !side_effects_enabled {
+                // Find a valid index
+                let typ = self.dfg().type_of_value(result);
+                for (i, element) in array.elements.borrow().iter().enumerate() {
+                    if element.get_type() == typ {
+                        index = i as u32;
+                        break;
+                    }
+                }
+            }
+            let elements = array.elements.borrow();
+            let element = elements.get(index as usize).ok_or_else(|| {
+                InterpreterError::IndexOutOfBounds { index, length: elements.len() as u32 }
+            })?;
+            element.clone()
         };
-        self.define(result, element);
+        self.define(result, element)?;
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn interpret_array_set(
         &mut self,
         array: ValueId,
@@ -784,16 +943,22 @@ impl<'ssa> Interpreter<'ssa> {
         mutable: bool,
         offset: ArrayOffset,
         result: ValueId,
+        side_effects_enabled: bool,
     ) -> IResult<()> {
         let array = self.lookup_array_or_slice(array, "array set")?;
 
-        let result_array = if self.side_effects_enabled() {
+        let result_array = if side_effects_enabled {
             let index = self.lookup_u32(index, "array set index")?;
             let index = index - offset.to_u32();
             let value = self.lookup(value)?;
 
             let should_mutate =
                 if self.in_unconstrained_context() { *array.rc.borrow() == 1 } else { mutable };
+
+            let len = array.elements.borrow().len();
+            if index as usize >= len {
+                return Err(InterpreterError::IndexOutOfBounds { index, length: len as u32 });
+            }
 
             if should_mutate {
                 array.elements.borrow_mut()[index as usize] = value;
@@ -811,7 +976,7 @@ impl<'ssa> Interpreter<'ssa> {
             // Side effects are disabled, return the original array
             Value::ArrayOrSlice(array)
         };
-        self.define(result, result_array);
+        self.define(result, result_array)?;
         Ok(())
     }
 
@@ -877,8 +1042,7 @@ impl<'ssa> Interpreter<'ssa> {
             else_value
         };
 
-        self.define(result, new_result);
-        Ok(())
+        self.define(result, new_result)
     }
 
     fn interpret_make_array(
@@ -890,14 +1054,57 @@ impl<'ssa> Interpreter<'ssa> {
         let elements = try_vecmap(elements, |element| self.lookup(*element))?;
         let is_slice = matches!(&result_type, Type::Slice(..));
 
+        // The number of elements in the array must be a multiple of the number of element types
+        let element_types = result_type.clone().element_types();
+        if element_types.is_empty() {
+            if !elements.is_empty() {
+                return Err(internal(InternalError::MakeArrayElementCountMismatch {
+                    result,
+                    elements_count: elements.len(),
+                    types_count: element_types.len(),
+                }));
+            }
+        } else if elements.len() % element_types.len() != 0 {
+            return Err(internal(InternalError::MakeArrayElementCountMismatch {
+                result,
+                elements_count: elements.len(),
+                types_count: element_types.len(),
+            }));
+        }
+
+        // Make sure each element's type matches the one in element_types
+        for (index, (element, expected_type)) in
+            elements.iter().zip(element_types.iter().cycle()).enumerate()
+        {
+            let actual_type = element.get_type();
+            if &actual_type != expected_type {
+                return Err(internal(InternalError::MakeArrayElementTypeMismatch {
+                    result,
+                    index,
+                    actual_type: actual_type.to_string(),
+                    expected_type: expected_type.to_string(),
+                }));
+            }
+        }
+
         let array = Value::ArrayOrSlice(ArrayValue {
             elements: Shared::new(elements),
             rc: Shared::new(1),
-            element_types: result_type.clone().element_types(),
+            element_types,
             is_slice,
         });
-        self.define(result, array);
-        Ok(())
+        self.define(result, array)
+    }
+
+    fn interpret_binary(&self, binary: &Binary, side_effects_enabled: bool) -> IResult<Value> {
+        let lhs_id = binary.lhs;
+        let rhs_id = binary.rhs;
+        let lhs = self.lookup_numeric(lhs_id, "binary op lhs")?;
+        let rhs = self.lookup_numeric(rhs_id, "binary op rhs")?;
+        evaluate_binary(binary, lhs, rhs, side_effects_enabled, |binary| {
+            display_binary(binary, self.dfg())
+        })
+        .map(Value::Numeric)
     }
 }
 
@@ -966,7 +1173,7 @@ macro_rules! apply_int_binop {
 /// # Returns
 /// A `NumericValue` containing the result of the operation, or an `Err` with the appropriate error.
 macro_rules! apply_int_binop_opt {
-    ($dfg:expr, $lhs:expr, $rhs:expr, $binary:expr, $f:expr) => {{
+    ($lhs:expr, $rhs:expr, $binary:expr, $f:expr, $display_binary:expr) => {{
         use value::NumericValue::*;
 
         let lhs = $lhs;
@@ -975,7 +1182,7 @@ macro_rules! apply_int_binop_opt {
         let operator = binary.operator;
 
         let overflow = || {
-            if matches!(binary.operator, BinaryOp::Div | BinaryOp::Mod) {
+            if matches!(operator, BinaryOp::Div | BinaryOp::Mod) {
                 let lhs_id = binary.lhs;
                 let rhs_id = binary.rhs;
                 let lhs = lhs.to_string();
@@ -983,8 +1190,8 @@ macro_rules! apply_int_binop_opt {
                 InterpreterError::DivisionByZero { lhs_id, lhs, rhs_id, rhs }
             } else {
                 let instruction =
-                    format!("`{}` ({operator} {lhs}, {rhs})", display_binary(binary, $dfg));
-                InterpreterError::Overflow { instruction }
+                    format!("`{}` ({operator} {lhs}, {rhs})", $display_binary(binary));
+                InterpreterError::Overflow { operator, instruction }
             }
         };
 
@@ -1046,280 +1253,350 @@ macro_rules! apply_int_comparison_op {
     }};
 }
 
-impl Interpreter<'_> {
-    fn interpret_binary(&mut self, binary: &Binary) -> IResult<Value> {
-        let lhs_id = binary.lhs;
-        let rhs_id = binary.rhs;
-        let lhs = self.lookup_numeric(lhs_id, "binary op lhs")?;
-        let rhs = self.lookup_numeric(rhs_id, "binary op rhs")?;
+fn evaluate_binary(
+    binary: &Binary,
+    lhs: NumericValue,
+    rhs: NumericValue,
+    side_effects_enabled: bool,
+    display_binary: impl Fn(&Binary) -> String,
+) -> IResult<NumericValue> {
+    let lhs_id = binary.lhs;
+    let rhs_id = binary.rhs;
 
-        if lhs.get_type() != rhs.get_type()
-            && !matches!(binary.operator, BinaryOp::Shl | BinaryOp::Shr)
-        {
-            return Err(internal(InternalError::MismatchedTypesInBinaryOperator {
-                lhs_id,
-                lhs: lhs.to_string(),
-                operator: binary.operator,
-                rhs_id,
-                rhs: rhs.to_string(),
-            }));
+    if lhs.get_type() != rhs.get_type() {
+        return Err(internal(InternalError::MismatchedTypesInBinaryOperator {
+            lhs_id,
+            lhs: lhs.to_string(),
+            operator: binary.operator,
+            rhs_id,
+            rhs: rhs.to_string(),
+        }));
+    }
+
+    // Disable this instruction if it is side-effectual and side effects are disabled.
+    if !side_effects_enabled {
+        return Ok(NumericValue::zero(lhs.get_type()));
+    }
+
+    if let (Some(lhs), Some(rhs)) = (lhs.as_field(), rhs.as_field()) {
+        return interpret_field_binary_op(lhs, binary.operator, rhs, lhs_id, rhs_id);
+    }
+
+    if let (Some(lhs), Some(rhs)) = (lhs.as_bool(), rhs.as_bool()) {
+        return interpret_u1_binary_op(lhs, rhs, binary, &display_binary);
+    }
+
+    let result = match binary.operator {
+        BinaryOp::Add { unchecked: false } => {
+            apply_int_binop_opt!(
+                lhs,
+                rhs,
+                binary,
+                num_traits::CheckedAdd::checked_add,
+                display_binary
+            )
         }
-
-        // Disable this instruction if it is side-effectful and side effects are disabled.
-        if !self.side_effects_enabled() && binary.requires_acir_gen_predicate(self.dfg()) {
-            let zero = NumericValue::zero(lhs.get_type());
-            return Ok(Value::Numeric(zero));
+        BinaryOp::Add { unchecked: true } => {
+            apply_int_binop!(lhs, rhs, binary, num_traits::WrappingAdd::wrapping_add)
         }
-
-        if let (Some(lhs), Some(rhs)) = (lhs.as_field(), rhs.as_field()) {
-            return self.interpret_field_binary_op(lhs, binary.operator, rhs, lhs_id, rhs_id);
+        BinaryOp::Sub { unchecked: false } => {
+            apply_int_binop_opt!(
+                lhs,
+                rhs,
+                binary,
+                num_traits::CheckedSub::checked_sub,
+                display_binary
+            )
         }
-
-        if let (Some(lhs), Some(rhs)) = (lhs.as_bool(), rhs.as_bool()) {
-            return self.interpret_u1_binary_op(lhs, rhs, binary);
+        BinaryOp::Sub { unchecked: true } => {
+            apply_int_binop!(lhs, rhs, binary, num_traits::WrappingSub::wrapping_sub)
         }
-
-        let dfg = self.dfg();
-        let result = match binary.operator {
-            BinaryOp::Add { unchecked: false } => {
-                if lhs.get_type().is_unsigned() {
-                    apply_int_binop_opt!(dfg, lhs, rhs, binary, num_traits::CheckedAdd::checked_add)
-                } else {
-                    apply_int_binop!(lhs, rhs, binary, num_traits::WrappingAdd::wrapping_add)
-                }
+        BinaryOp::Mul { unchecked: false } => {
+            // Only unsigned multiplication has side effects
+            apply_int_binop_opt!(
+                lhs,
+                rhs,
+                binary,
+                num_traits::CheckedMul::checked_mul,
+                display_binary
+            )
+        }
+        BinaryOp::Mul { unchecked: true } => {
+            apply_int_binop!(lhs, rhs, binary, num_traits::WrappingMul::wrapping_mul)
+        }
+        BinaryOp::Div => {
+            apply_int_binop_opt!(
+                lhs,
+                rhs,
+                binary,
+                num_traits::CheckedDiv::checked_div,
+                display_binary
+            )
+        }
+        BinaryOp::Mod => match (lhs, rhs) {
+            (NumericValue::I8(i8::MIN), NumericValue::I8(-1)) => NumericValue::I8(0),
+            (NumericValue::I16(i16::MIN), NumericValue::I16(-1)) => NumericValue::I16(0),
+            (NumericValue::I32(i32::MIN), NumericValue::I32(-1)) => NumericValue::I32(0),
+            (NumericValue::I64(i64::MIN), NumericValue::I64(-1)) => NumericValue::I64(0),
+            _ => {
+                apply_int_binop_opt!(
+                    lhs,
+                    rhs,
+                    binary,
+                    num_traits::CheckedRem::checked_rem,
+                    display_binary
+                )
             }
-            BinaryOp::Add { unchecked: true } => {
-                apply_int_binop!(lhs, rhs, binary, num_traits::WrappingAdd::wrapping_add)
-            }
-            BinaryOp::Sub { unchecked: false } => {
-                if lhs.get_type().is_unsigned() {
-                    apply_int_binop_opt!(dfg, lhs, rhs, binary, num_traits::CheckedSub::checked_sub)
-                } else {
-                    apply_int_binop!(lhs, rhs, binary, num_traits::WrappingSub::wrapping_sub)
-                }
-            }
-            BinaryOp::Sub { unchecked: true } => {
-                apply_int_binop!(lhs, rhs, binary, num_traits::WrappingSub::wrapping_sub)
-            }
-            BinaryOp::Mul { unchecked: false } => {
-                // Only unsigned multiplication has side effects
-                if lhs.get_type().is_unsigned() {
-                    apply_int_binop_opt!(dfg, lhs, rhs, binary, num_traits::CheckedMul::checked_mul)
-                } else {
-                    apply_int_binop!(lhs, rhs, binary, num_traits::WrappingMul::wrapping_mul)
-                }
-            }
-            BinaryOp::Mul { unchecked: true } => {
-                apply_int_binop!(lhs, rhs, binary, num_traits::WrappingMul::wrapping_mul)
-            }
-            BinaryOp::Div => {
-                apply_int_binop_opt!(dfg, lhs, rhs, binary, num_traits::CheckedDiv::checked_div)
-            }
-            BinaryOp::Mod => {
-                apply_int_binop_opt!(dfg, lhs, rhs, binary, num_traits::CheckedRem::checked_rem)
-            }
-            BinaryOp::Eq => apply_int_comparison_op!(lhs, rhs, binary, |a, b| a == b),
-            BinaryOp::Lt => apply_int_comparison_op!(lhs, rhs, binary, |a, b| a < b),
-            BinaryOp::And => {
-                apply_int_binop!(lhs, rhs, binary, std::ops::BitAnd::bitand)
-            }
-            BinaryOp::Or => {
-                apply_int_binop!(lhs, rhs, binary, std::ops::BitOr::bitor)
-            }
-            BinaryOp::Xor => {
-                apply_int_binop!(lhs, rhs, binary, std::ops::BitXor::bitxor)
-            }
-            BinaryOp::Shl => {
-                let Some(rhs) = rhs.as_u8() else {
-                    let rhs = rhs.to_string();
-                    return Err(internal(InternalError::RhsOfBitShiftShouldBeU8 {
+        },
+        BinaryOp::Eq => apply_int_comparison_op!(lhs, rhs, binary, |a, b| a == b),
+        BinaryOp::Lt => apply_int_comparison_op!(lhs, rhs, binary, |a, b| a < b),
+        BinaryOp::And => {
+            apply_int_binop!(lhs, rhs, binary, std::ops::BitAnd::bitand)
+        }
+        BinaryOp::Or => {
+            apply_int_binop!(lhs, rhs, binary, std::ops::BitOr::bitor)
+        }
+        BinaryOp::Xor => {
+            apply_int_binop!(lhs, rhs, binary, std::ops::BitXor::bitxor)
+        }
+        BinaryOp::Shl => {
+            use NumericValue::*;
+            let instruction = format!("`{}` ({lhs} << {rhs})", display_binary(binary));
+            let overflow = InterpreterError::Overflow { operator: BinaryOp::Shl, instruction };
+            match (lhs, rhs) {
+                (Field(_), _) | (_, Field(_)) => {
+                    return Err(internal(InternalError::UnsupportedOperatorForType {
                         operator: "<<",
-                        rhs_id,
-                        rhs,
+                        typ: "Field",
                     }));
-                };
-
-                let rhs = rhs as u32;
-                use NumericValue::*;
-                match lhs {
-                    Field(_) => {
-                        return Err(internal(InternalError::UnsupportedOperatorForType {
-                            operator: "<<",
-                            typ: "Field",
-                        }));
-                    }
-                    U1(value) => U1(if rhs == 0 { value } else { false }),
-                    U8(value) => U8(value.checked_shl(rhs).unwrap_or(0)),
-                    U16(value) => U16(value.checked_shl(rhs).unwrap_or(0)),
-                    U32(value) => U32(value.checked_shl(rhs).unwrap_or(0)),
-                    U64(value) => U64(value.checked_shl(rhs).unwrap_or(0)),
-                    U128(value) => U128(value.checked_shl(rhs).unwrap_or(0)),
-                    I8(value) => I8(value.checked_shl(rhs).unwrap_or(0)),
-                    I16(value) => I16(value.checked_shl(rhs).unwrap_or(0)),
-                    I32(value) => I32(value.checked_shl(rhs).unwrap_or(0)),
-                    I64(value) => I64(value.checked_shl(rhs).unwrap_or(0)),
                 }
-            }
-            BinaryOp::Shr => {
-                let fallback = || {
-                    if lhs.is_negative() {
-                        NumericValue::neg_one(lhs.get_type())
-                    } else {
-                        NumericValue::zero(lhs.get_type())
-                    }
-                };
-
-                let Some(rhs) = rhs.as_u8() else {
-                    let rhs = rhs.to_string();
-                    return Err(internal(InternalError::RhsOfBitShiftShouldBeU8 {
-                        operator: ">>",
-                        rhs_id,
-                        rhs,
+                (U1(lhs_value), U1(rhs_value)) => U1(if !rhs_value { lhs_value } else { false }),
+                (U8(lhs_value), U8(rhs_value)) => {
+                    lhs_value.checked_shl(rhs_value.into()).map(U8).ok_or(overflow)?
+                }
+                (U16(lhs_value), U16(rhs_value)) => {
+                    lhs_value.checked_shl(rhs_value.into()).map(U16).ok_or(overflow)?
+                }
+                (U32(lhs_value), U32(rhs_value)) => {
+                    lhs_value.checked_shl(rhs_value).map(U32).ok_or(overflow)?
+                }
+                (U64(lhs_value), U64(rhs_value)) => {
+                    let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow.clone())?;
+                    lhs_value.checked_shl(rhs_value).map(U64).ok_or(overflow)?
+                }
+                (U128(lhs_value), U128(rhs_value)) => {
+                    let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow.clone())?;
+                    lhs_value.checked_shl(rhs_value).map(U128).ok_or(overflow)?
+                }
+                (I8(lhs_value), I8(rhs_value)) => {
+                    let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow.clone())?;
+                    lhs_value.checked_shl(rhs_value).map(I8).ok_or(overflow)?
+                }
+                (I16(lhs_value), I16(rhs_value)) => {
+                    let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow.clone())?;
+                    lhs_value.checked_shl(rhs_value).map(I16).ok_or(overflow)?
+                }
+                (I32(lhs_value), I32(rhs_value)) => {
+                    let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow.clone())?;
+                    lhs_value.checked_shl(rhs_value).map(I32).ok_or(overflow)?
+                }
+                (I64(lhs_value), I64(rhs_value)) => {
+                    let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow.clone())?;
+                    lhs_value.checked_shl(rhs_value).map(I64).ok_or(overflow)?
+                }
+                _ => {
+                    return Err(internal(InternalError::MismatchedTypesInBinaryOperator {
+                        lhs: lhs.to_string(),
+                        rhs: rhs.to_string(),
+                        operator: binary.operator,
+                        lhs_id: binary.lhs,
+                        rhs_id: binary.rhs,
                     }));
-                };
-
-                let rhs = rhs as u32;
-                use NumericValue::*;
-                match lhs {
-                    Field(_) => {
-                        return Err(internal(InternalError::UnsupportedOperatorForType {
-                            operator: ">>",
-                            typ: "Field",
-                        }));
-                    }
-                    U1(value) => U1(if rhs == 0 { value } else { false }),
-                    U8(value) => value.checked_shr(rhs).map(U8).unwrap_or_else(fallback),
-                    U16(value) => value.checked_shr(rhs).map(U16).unwrap_or_else(fallback),
-                    U32(value) => value.checked_shr(rhs).map(U32).unwrap_or_else(fallback),
-                    U64(value) => value.checked_shr(rhs).map(U64).unwrap_or_else(fallback),
-                    U128(value) => value.checked_shr(rhs).map(U128).unwrap_or_else(fallback),
-                    I8(value) => value.checked_shr(rhs).map(I8).unwrap_or_else(fallback),
-                    I16(value) => value.checked_shr(rhs).map(I16).unwrap_or_else(fallback),
-                    I32(value) => value.checked_shr(rhs).map(I32).unwrap_or_else(fallback),
-                    I64(value) => value.checked_shr(rhs).map(I64).unwrap_or_else(fallback),
                 }
             }
-        };
-        Ok(Value::Numeric(result))
-    }
+        }
+        BinaryOp::Shr => {
+            let instruction = format!("`{}` ({lhs} >> {rhs})", display_binary(binary));
+            let overflow = InterpreterError::Overflow { operator: BinaryOp::Shr, instruction };
 
-    fn interpret_field_binary_op(
-        &mut self,
-        lhs: FieldElement,
-        operator: BinaryOp,
-        rhs: FieldElement,
-        lhs_id: ValueId,
-        rhs_id: ValueId,
-    ) -> IResult<Value> {
-        let unsupported_operator = |operator| -> IResult<Value> {
-            let typ = "Field";
-            Err(internal(InternalError::UnsupportedOperatorForType { operator, typ }))
-        };
-
-        let result = match operator {
-            BinaryOp::Add { unchecked: _ } => NumericValue::Field(lhs + rhs),
-            BinaryOp::Sub { unchecked: _ } => NumericValue::Field(lhs - rhs),
-            BinaryOp::Mul { unchecked: _ } => NumericValue::Field(lhs * rhs),
-            BinaryOp::Div => {
-                if rhs.is_zero() {
-                    let lhs = lhs.to_string();
-                    let rhs = rhs.to_string();
-                    return Err(InterpreterError::DivisionByZero { lhs_id, lhs, rhs_id, rhs });
+            use NumericValue::*;
+            match (lhs, rhs) {
+                (Field(_), _) | (_, Field(_)) => {
+                    return Err(internal(InternalError::UnsupportedOperatorForType {
+                        operator: "<<",
+                        typ: "Field",
+                    }));
                 }
-                NumericValue::Field(lhs / rhs)
-            }
-            BinaryOp::Mod => return unsupported_operator("%"),
-            BinaryOp::Eq => NumericValue::U1(lhs == rhs),
-            BinaryOp::Lt => NumericValue::U1(lhs < rhs),
-            BinaryOp::And => return unsupported_operator("&"),
-            BinaryOp::Or => return unsupported_operator("|"),
-            BinaryOp::Xor => return unsupported_operator("^"),
-            BinaryOp::Shl => return unsupported_operator("<<"),
-            BinaryOp::Shr => return unsupported_operator(">>"),
-        };
-        Ok(Value::Numeric(result))
-    }
-
-    fn interpret_u1_binary_op(&mut self, lhs: bool, rhs: bool, binary: &Binary) -> IResult<Value> {
-        let overflow = || {
-            let instruction = format!("`{}` ({lhs} << {rhs})", display_binary(binary, self.dfg()));
-            InterpreterError::Overflow { instruction }
-        };
-
-        let lhs_id = binary.lhs;
-        let rhs_id = binary.rhs;
-
-        let result = match binary.operator {
-            BinaryOp::Add { unchecked: true } => lhs ^ rhs,
-            BinaryOp::Add { unchecked: false } => {
-                if lhs && rhs {
-                    return Err(overflow());
-                } else {
-                    lhs ^ rhs
+                (U1(lhs_value), U1(rhs_value)) => U1(if !rhs_value { lhs_value } else { false }),
+                (U8(lhs_value), U8(rhs_value)) => {
+                    lhs_value.checked_shr(rhs_value.into()).map(U8).ok_or(overflow)?
+                }
+                (U16(lhs_value), U16(rhs_value)) => {
+                    lhs_value.checked_shr(rhs_value.into()).map(U16).ok_or(overflow)?
+                }
+                (U32(lhs_value), U32(rhs_value)) => {
+                    lhs_value.checked_shr(rhs_value).map(U32).ok_or(overflow)?
+                }
+                (U64(lhs_value), U64(rhs_value)) => {
+                    let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow.clone())?;
+                    lhs_value.checked_shr(rhs_value).map(U64).ok_or(overflow)?
+                }
+                (U128(lhs_value), U128(rhs_value)) => {
+                    let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow.clone())?;
+                    lhs_value.checked_shr(rhs_value).map(U128).ok_or(overflow)?
+                }
+                (I8(lhs_value), I8(rhs_value)) => {
+                    let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow.clone())?;
+                    lhs_value.checked_shr(rhs_value).map(I8).ok_or(overflow)?
+                }
+                (I16(lhs_value), I16(rhs_value)) => {
+                    let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow.clone())?;
+                    lhs_value.checked_shr(rhs_value).map(I16).ok_or(overflow)?
+                }
+                (I32(lhs_value), I32(rhs_value)) => {
+                    let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow.clone())?;
+                    lhs_value.checked_shr(rhs_value).map(I32).ok_or(overflow)?
+                }
+                (I64(lhs_value), I64(rhs_value)) => {
+                    let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow.clone())?;
+                    lhs_value.checked_shr(rhs_value).map(I64).ok_or(overflow)?
+                }
+                _ => {
+                    return Err(internal(InternalError::MismatchedTypesInBinaryOperator {
+                        lhs: lhs.to_string(),
+                        rhs: rhs.to_string(),
+                        operator: binary.operator,
+                        lhs_id: binary.lhs,
+                        rhs_id: binary.rhs,
+                    }));
                 }
             }
-            BinaryOp::Sub { unchecked: true } => {
-                // (0, 0) -> 0
-                // (0, 1) -> 1  (underflow)
-                // (1, 0) -> 1
-                // (1, 1) -> 0
+        }
+    };
+    Ok(result)
+}
+
+fn interpret_field_binary_op(
+    lhs: FieldElement,
+    operator: BinaryOp,
+    rhs: FieldElement,
+    lhs_id: ValueId,
+    rhs_id: ValueId,
+) -> IResult<NumericValue> {
+    let unsupported_operator = |operator| -> IResult<NumericValue> {
+        let typ = "Field";
+        Err(internal(InternalError::UnsupportedOperatorForType { operator, typ }))
+    };
+
+    let result = match operator {
+        BinaryOp::Add { unchecked: _ } => NumericValue::Field(lhs + rhs),
+        BinaryOp::Sub { unchecked: _ } => NumericValue::Field(lhs - rhs),
+        BinaryOp::Mul { unchecked: _ } => NumericValue::Field(lhs * rhs),
+        BinaryOp::Div => {
+            if rhs.is_zero() {
+                let lhs = lhs.to_string();
+                let rhs = rhs.to_string();
+                return Err(InterpreterError::DivisionByZero { lhs_id, lhs, rhs_id, rhs });
+            }
+            NumericValue::Field(lhs / rhs)
+        }
+        BinaryOp::Mod => return unsupported_operator("%"),
+        BinaryOp::Eq => NumericValue::U1(lhs == rhs),
+        BinaryOp::Lt => NumericValue::U1(lhs < rhs),
+        BinaryOp::And => return unsupported_operator("&"),
+        BinaryOp::Or => return unsupported_operator("|"),
+        BinaryOp::Xor => return unsupported_operator("^"),
+        BinaryOp::Shl => return unsupported_operator("<<"),
+        BinaryOp::Shr => return unsupported_operator(">>"),
+    };
+    Ok(result)
+}
+
+fn interpret_u1_binary_op(
+    lhs: bool,
+    rhs: bool,
+    binary: &Binary,
+    display_binary: &impl Fn(&Binary) -> String,
+) -> IResult<NumericValue> {
+    let overflow = || {
+        let instruction = format!("`{}` ({lhs} << {rhs})", display_binary(binary));
+        let operator = binary.operator;
+        InterpreterError::Overflow { operator, instruction }
+    };
+
+    let lhs_id = binary.lhs;
+    let rhs_id = binary.rhs;
+
+    let result = match binary.operator {
+        BinaryOp::Add { unchecked: true } => lhs ^ rhs,
+        BinaryOp::Add { unchecked: false } => {
+            if lhs && rhs {
+                return Err(overflow());
+            } else {
                 lhs ^ rhs
             }
-            BinaryOp::Sub { unchecked: false } => {
-                if !lhs && rhs {
-                    return Err(overflow());
-                } else {
-                    lhs ^ rhs
-                }
+        }
+        BinaryOp::Sub { unchecked: true } => {
+            // (0, 0) -> 0
+            // (0, 1) -> 1  (underflow)
+            // (1, 0) -> 1
+            // (1, 1) -> 0
+            lhs ^ rhs
+        }
+        BinaryOp::Sub { unchecked: false } => {
+            if !lhs && rhs {
+                return Err(overflow());
+            } else {
+                lhs ^ rhs
             }
-            BinaryOp::Mul { unchecked: _ } => lhs & rhs, // (*) = (&) for u1
-            BinaryOp::Div => {
-                // (0, 0) -> (division by 0)
-                // (0, 1) -> 0
-                // (1, 0) -> (division by 0)
-                // (1, 1) -> 1
-                if !rhs {
-                    let lhs = (lhs as u8).to_string();
-                    let rhs = (rhs as u8).to_string();
-                    return Err(InterpreterError::DivisionByZero { lhs_id, lhs, rhs_id, rhs });
-                }
+        }
+        BinaryOp::Mul { unchecked: _ } => lhs & rhs, // (*) = (&) for u1
+        BinaryOp::Div => {
+            // (0, 0) -> (division by 0)
+            // (0, 1) -> 0
+            // (1, 0) -> (division by 0)
+            // (1, 1) -> 1
+            if !rhs {
+                let lhs = u8::from(lhs).to_string();
+                let rhs = u8::from(rhs).to_string();
+                return Err(InterpreterError::DivisionByZero { lhs_id, lhs, rhs_id, rhs });
+            }
+            lhs
+        }
+        BinaryOp::Mod => {
+            // (0, 0) -> (division by 0)
+            // (0, 1) -> 0
+            // (1, 0) -> (division by 0)
+            // (1, 1) -> 0
+            if !rhs {
+                let lhs = format!("u1 {}", u8::from(lhs));
+                let rhs = format!("u1 {}", u8::from(rhs));
+                return Err(InterpreterError::DivisionByZero { lhs_id, lhs, rhs_id, rhs });
+            }
+            false
+        }
+        BinaryOp::Eq => lhs == rhs,
+        // clippy complains when you do `lhs < rhs` and recommends this instead
+        BinaryOp::Lt => !lhs & rhs,
+        BinaryOp::And => lhs & rhs,
+        BinaryOp::Or => lhs | rhs,
+        BinaryOp::Xor => lhs ^ rhs,
+        BinaryOp::Shl => {
+            if rhs {
+                return Err(overflow());
+            } else {
                 lhs
             }
-            BinaryOp::Mod => {
-                // (0, 0) -> (division by 0)
-                // (0, 1) -> 0
-                // (1, 0) -> (division by 0)
-                // (1, 1) -> 0
-                if !rhs {
-                    let lhs = format!("u1 {}", lhs as u8);
-                    let rhs = format!("u1 {}", rhs as u8);
-                    return Err(InterpreterError::DivisionByZero { lhs_id, lhs, rhs_id, rhs });
-                }
-                false
+        }
+        BinaryOp::Shr => {
+            if rhs {
+                return Err(overflow());
+            } else {
+                lhs
             }
-            BinaryOp::Eq => lhs == rhs,
-            // clippy complains when you do `lhs < rhs` and recommends this instead
-            BinaryOp::Lt => !lhs & rhs,
-            BinaryOp::And => lhs & rhs,
-            BinaryOp::Or => lhs | rhs,
-            BinaryOp::Xor => lhs ^ rhs,
-            BinaryOp::Shl => {
-                return Err(internal(InternalError::RhsOfBitShiftShouldBeU8 {
-                    operator: "<<",
-                    rhs_id,
-                    rhs: format!("u1 {}", rhs as u8),
-                }));
-            }
-            BinaryOp::Shr => {
-                return Err(internal(InternalError::RhsOfBitShiftShouldBeU8 {
-                    operator: ">>",
-                    rhs_id,
-                    rhs: format!("u1 {}", rhs as u8),
-                }));
-            }
-        };
-        Ok(Value::Numeric(NumericValue::U1(result)))
-    }
+        }
+    };
+    Ok(NumericValue::U1(result))
 }
 
 fn truncate_unsigned<T>(value: T, bit_size: u32) -> IResult<T>
@@ -1349,6 +1626,14 @@ fn internal(error: InternalError) -> InterpreterError {
 
 #[cfg(test)]
 mod test {
+    use crate::ssa::{
+        interpreter::{IResult, errors::InterpreterError, value::NumericValue},
+        ir::{
+            instruction::{Binary, BinaryOp},
+            value::ValueId,
+        },
+    };
+
     #[test]
     fn test_truncate_unsigned() {
         assert_eq!(super::truncate_unsigned(57_u32, 8).unwrap(), 57);
@@ -1376,5 +1661,46 @@ mod test {
 
         // underflow to i16::MAX
         assert_eq!(super::truncate_unsigned(i16::MIN as u32 - 1, 16).unwrap() as i16, 32767);
+    }
+
+    #[test]
+    fn test_shl() {
+        let binary = Binary { lhs: ValueId::new(0), rhs: ValueId::new(1), operator: BinaryOp::Shl };
+
+        fn display(_: &Binary) -> String {
+            String::new()
+        }
+
+        let i8_testcases: Vec<((i8, i8), IResult<i8>)> = vec![
+            ((1, 7), Ok(-128)),
+            ((2, 6), Ok(-128)),
+            ((4, 5), Ok(-128)),
+            ((8, 4), Ok(-128)),
+            ((16, 3), Ok(-128)),
+            ((32, 2), Ok(-128)),
+            ((64, 1), Ok(-128)),
+            ((3, 7), Ok(-128)),
+            (
+                (1, 8),
+                Err(InterpreterError::Overflow {
+                    operator: BinaryOp::Shl,
+                    instruction: "`` (i8 1 << i8 8)".to_string(),
+                }),
+            ),
+        ];
+
+        for ((lhs, rhs), expected_result) in i8_testcases {
+            assert_eq!(
+                super::evaluate_binary(
+                    &binary,
+                    NumericValue::I8(lhs),
+                    NumericValue::I8(rhs),
+                    true,
+                    display
+                ),
+                expected_result.map(NumericValue::I8),
+                "{lhs} << {rhs}",
+            );
+        }
     }
 }

@@ -104,7 +104,7 @@ cargo test -p noir_ast_fuzzer_fuzz arbtest
 Should it find any problems, the test would print a _seed_ which we can use to replicate the test, for example:
 
 ```shell
-NOIR_ARBTEST_SEED=0x6819c61400001000 cargo test -p noir_ast_fuzzer_fuzz comptime_vs_brillig
+NOIR_AST_FUZZER_SEED=0x6819c61400001000 cargo test -p noir_ast_fuzzer_fuzz comptime_vs_brillig
 ```
 
-When the `NOIR_ARBTEST_SEED` is present, or when there is a non-panicky error, the tests will print out the Noir AST and the `Prover.toml` file which can be used to reproduce the problem as an integration test.
+When the `NOIR_AST_FUZZER_SEED` is present, or when there is a non-panicky error, the tests will print out the Noir AST and the `Prover.toml` file which can be used to reproduce the problem as an integration test.

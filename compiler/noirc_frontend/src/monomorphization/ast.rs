@@ -283,6 +283,11 @@ pub struct Unary {
     pub rhs: Box<Expression>,
     pub result_type: Type,
     pub location: Location,
+
+    /// Carried over from `HirPrefixExpression::skip`. This also flags whether we should directly
+    /// return `rhs` and skip performing this operation. Compared to replacing this node with rhs
+    /// directly, keeping this flag keeps `--show-monomorphized` output the same.
+    pub skip: bool,
 }
 
 pub type BinaryOp = BinaryOpKind;
@@ -305,7 +310,7 @@ pub struct If {
 
 #[derive(Debug, Clone, Hash)]
 pub struct Match {
-    pub variable_to_match: LocalId,
+    pub variable_to_match: (LocalId, String),
     pub cases: Vec<MatchCase>,
     pub default_case: Option<Box<Expression>>,
     pub typ: Type,
@@ -314,7 +319,7 @@ pub struct Match {
 #[derive(Debug, Clone, Hash)]
 pub struct MatchCase {
     pub constructor: Constructor,
-    pub arguments: Vec<LocalId>,
+    pub arguments: Vec<(LocalId, String)>,
     pub branch: Expression,
 }
 
@@ -384,9 +389,22 @@ pub struct BinaryStatement {
 #[derive(Debug, Clone, Hash)]
 pub enum LValue {
     Ident(Ident),
-    Index { array: Box<LValue>, index: Box<Expression>, element_type: Type, location: Location },
-    MemberAccess { object: Box<LValue>, field_index: usize },
-    Dereference { reference: Box<LValue>, element_type: Type },
+    Index {
+        array: Box<LValue>,
+        index: Box<Expression>,
+        element_type: Type,
+        location: Location,
+    },
+    MemberAccess {
+        object: Box<LValue>,
+        field_index: usize,
+    },
+    Dereference {
+        reference: Box<LValue>,
+        element_type: Type,
+    },
+    /// Analogous to Expression::Clone. Clone the resulting lvalue after evaluating it.
+    Clone(Box<LValue>),
 }
 
 pub type Parameters =
@@ -446,7 +464,7 @@ impl InlineType {
     }
 }
 
-impl std::fmt::Display for InlineType {
+impl Display for InlineType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             InlineType::Inline => write!(f, "inline"),
@@ -596,13 +614,13 @@ impl std::ops::IndexMut<FuncId> for Program {
     }
 }
 
-impl std::fmt::Display for Program {
+impl Display for Program {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         super::printer::AstPrinter::default().print_program(self, f)
     }
 }
 
-impl std::fmt::Display for Function {
+impl Display for Function {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         super::printer::AstPrinter::default().print_function(
             self,
@@ -612,13 +630,13 @@ impl std::fmt::Display for Function {
     }
 }
 
-impl std::fmt::Display for Expression {
+impl Display for Expression {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         super::printer::AstPrinter::default().print_expr(self, f)
     }
 }
 
-impl std::fmt::Display for Type {
+impl Display for Type {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Type::Field => write!(f, "Field"),

@@ -126,9 +126,16 @@ pub enum InterpreterError {
         operator: &'static str,
         location: Location,
     },
-    MathError {
+    BinaryOperationOverflow {
         operator: &'static str,
         location: Location,
+    },
+    NegateWithOverflow {
+        location: Location,
+    },
+    CannotApplyMinusToType {
+        location: Location,
+        typ: &'static str,
     },
     CastToNonNumericType {
         typ: Type,
@@ -265,7 +272,7 @@ pub enum InterpreterError {
 }
 
 #[allow(unused)]
-pub(super) type IResult<T> = std::result::Result<T, InterpreterError>;
+pub(super) type IResult<T> = Result<T, InterpreterError>;
 
 impl From<InterpreterError> for CompilationError {
     fn from(error: InterpreterError) -> Self {
@@ -301,7 +308,9 @@ impl InterpreterError {
             | InterpreterError::TypeUnsupported { location, .. }
             | InterpreterError::InvalidValueForUnary { location, .. }
             | InterpreterError::InvalidValuesForBinary { location, .. }
-            | InterpreterError::MathError { location, .. }
+            | InterpreterError::BinaryOperationOverflow { location, .. }
+            | InterpreterError::NegateWithOverflow { location, .. }
+            | InterpreterError::CannotApplyMinusToType { location, .. }
             | InterpreterError::CastToNonNumericType { location, .. }
             | InterpreterError::NonStructInConstructor { location, .. }
             | InterpreterError::NonEnumInConstructor { location, .. }
@@ -343,14 +352,14 @@ impl InterpreterError {
     }
 
     pub(crate) fn debug_evaluate_comptime(expr: impl Display, location: Location) -> Self {
-        let mut formatted_result = format!("{}", expr);
+        let mut formatted_result = format!("{expr}");
         // if multi-line, display on a separate line from the message
         if formatted_result.contains('\n') {
             formatted_result.insert(0, '\n');
         }
         let diagnostic = CustomDiagnostic::simple_info(
             "`comptime` expression ran:".to_string(),
-            format!("After evaluation: {}", formatted_result),
+            format!("After evaluation: {formatted_result}"),
             location,
         );
         InterpreterError::DebugEvaluateComptime { diagnostic, location }
@@ -501,23 +510,31 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 CustomDiagnostic::simple_error(msg, String::new(), *location)
             }
             InterpreterError::InvalidValuesForBinary { lhs, rhs, operator, location } => {
-                let msg = format!("No implementation for `{lhs}` {operator} `{rhs}`");
-                CustomDiagnostic::simple_error(msg, String::new(), *location)
-            }
-            InterpreterError::MathError { operator, location } => {
                 let msg = if *operator == "/" {
                     "Attempt to divide by zero".to_string()
                 } else {
-                    let operator = match *operator {
-                        "+" => "add",
-                        "-" => "subtract",
-                        "*" => "multiply",
-                        ">>" => "shift right",
-                        "<<" => "shift left",
-                        _ => operator,
-                    };
-                    format!("Attempt to {operator} with overflow")
+                    format!("No implementation for `{lhs}` {operator} `{rhs}`")
                 };
+                CustomDiagnostic::simple_error(msg, String::new(), *location)
+            }
+            InterpreterError::BinaryOperationOverflow { operator, location } => {
+                let operator = match *operator {
+                    "+" => "add",
+                    "-" => "subtract",
+                    "*" => "multiply",
+                    ">>" | "<<" => "bit-shift",
+                    _ => operator,
+                };
+                let msg = format!("Attempt to {operator} with overflow");
+
+                CustomDiagnostic::simple_error(msg, String::new(), *location)
+            }
+            InterpreterError::NegateWithOverflow { location } => {
+                let msg = "Attempt to negate with overflow".to_string();
+                CustomDiagnostic::simple_error(msg, String::new(), *location)
+            }
+            InterpreterError::CannotApplyMinusToType { location, typ } => {
+                let msg = format!("Cannot apply unary operator `-` to type `{typ}`");
                 CustomDiagnostic::simple_error(msg, String::new(), *location)
             }
             InterpreterError::CastToNonNumericType { typ, location } => {

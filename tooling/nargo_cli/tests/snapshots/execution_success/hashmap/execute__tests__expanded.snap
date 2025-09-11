@@ -27,18 +27,20 @@ global V_CMP: fn(Field, Field) -> bool = |a: Field, b: Field| -> bool a.lt(b);
 
 global KV_CMP: fn((K, V), (K, V)) -> bool = |a: (K, V), b: (K, V)| -> bool a.0.lt(b.0);
 
-global ALLOCATE_HASHMAP: fn() -> HashMap<K, V, 8, BuildHasherDefault<Poseidon2Hasher>> =
-    || -> HashMap<K, V, 8, BuildHasherDefault<Poseidon2Hasher>> Default::default();
+global ALLOCATE_HASHMAP: fn() -> HashMap<K, V, 8, BuildHasherDefault<Poseidon2Hasher>> = || -> HashMap<K, V, 8, BuildHasherDefault<Poseidon2Hasher>> {
+    HashMap::<Field, Field, 8, BuildHasherDefault<Poseidon2Hasher>>::default()
+};
 
 fn main(input: [Entry; 6]) {
-    test_sequential(input[0].key, input[0].value);
-    test_multiple_equal_insert(input[1].key, input[1].value);
-    test_value_override(input[2].key, input[2].value, input[3].value);
+    test_sequential(input[0_u32].key, input[0_u32].value);
+    test_multiple_equal_insert(input[1_u32].key, input[1_u32].value);
+    test_value_override(input[2_u32].key, input[2_u32].value, input[3_u32].value);
     test_insert_and_methods(input);
     test_hashmaps_equality(input);
     test_retain();
     test_iterators();
     test_mut_iterators();
+    test_iter_len_shrink_on_key_collision();
     doc_tests();
 }
 
@@ -47,7 +49,7 @@ fn test_sequential(key: K, value: V) {
         ALLOCATE_HASHMAP();
     assert(hashmap.is_empty(), "New HashMap should be empty.");
     hashmap.insert(key, value);
-    assert(hashmap.len() == 1, "HashMap after one insert should have a length of 1 element.");
+    assert(hashmap.len() == 1_u32, "HashMap after one insert should have a length of 1 element.");
     let got: Option<Field> = hashmap.get(key);
     assert(got.is_some(), "Got none value.");
     let got: Field = got.unwrap_unchecked();
@@ -65,11 +67,11 @@ fn test_multiple_equal_insert(key: K, value: V) {
     let mut hashmap: HashMap<Field, Field, 8, BuildHasherDefault<Poseidon2Hasher>> =
         ALLOCATE_HASHMAP();
     assert(hashmap.is_empty(), "New HashMap should be empty.");
-    for _ in 0..HASHMAP_LEN {
+    for _ in 0_u32..HASHMAP_LEN {
         hashmap.insert(key, value);
     }
     let len: u32 = hashmap.len();
-    assert(len == 1, f"HashMap length must be 1, got {len}.");
+    assert(len == 1_u32, f"HashMap length must be 1, got {len}.");
     let got: Option<Field> = hashmap.get(key);
     assert(got.is_some(), "Got none value.");
     let got: Field = got.unwrap_unchecked();
@@ -82,7 +84,7 @@ fn test_value_override(key: K, value: V, new_value: V) {
     assert(hashmap.is_empty(), "New hashmap should be empty.");
     hashmap.insert(key, value);
     hashmap.insert(key, new_value);
-    assert(hashmap.len() == 1, "HashMap length is invalid.");
+    assert(hashmap.len() == 1_u32, "HashMap length is invalid.");
     let got: Option<Field> = hashmap.get(key);
     assert(got.is_some(), "Got none value.");
     let got: Field = got.unwrap_unchecked();
@@ -95,7 +97,7 @@ fn test_insert_and_methods(input: [Entry; 6]) {
     assert(hashmap.is_empty(), "New HashMap should be empty.");
     {
         let ___i0: [Entry; 6] = input;
-        for ___i1 in 0..___i0.len() {
+        for ___i1 in 0_u32..___i0.len() {
             let entry: Entry = ___i0[___i1];
             {
                 hashmap.insert(entry.key, entry.value);
@@ -105,7 +107,7 @@ fn test_insert_and_methods(input: [Entry; 6]) {
     assert(hashmap.len() == HASHMAP_LEN, "hashmap.len() does not match input length.");
     {
         let ___i0: [Entry; 6] = input;
-        for ___i1 in 0..___i0.len() {
+        for ___i1 in 0_u32..___i0.len() {
             let entry: Entry = ___i0[___i1];
             {
                 let entry_key: Field = entry.key;
@@ -121,17 +123,18 @@ fn test_retain() {
     let mut hashmap: HashMap<Field, Field, 8, BuildHasherDefault<Poseidon2Hasher>> =
         ALLOCATE_HASHMAP();
     assert(hashmap.is_empty(), "New HashMap should be empty.");
-    let (key, value): (Field, Field) = (5, 11);
+    let (key, value): (Field, Field) = (5_Field, 11_Field);
     hashmap.insert(key, value);
-    let (key, value): (Field, Field) = (2, 13);
+    let (key, value): (Field, Field) = (2_Field, 13_Field);
     hashmap.insert(key, value);
-    let (key, value): (Field, Field) = (11, 5);
+    let (key, value): (Field, Field) = (11_Field, 5_Field);
     hashmap.insert(key, value);
-    let predicate: fn(Field, Field) -> bool = |key: K, value: V| -> bool { (key * value) == 55 };
+    let predicate: fn(Field, Field) -> bool =
+        |key: K, value: V| -> bool { (key * value) == 55_Field };
     hashmap.retain(predicate);
-    assert(hashmap.len() == 2, "HashMap should have retained 2 elements.");
+    assert(hashmap.len() == 2_u32, "HashMap should have retained 2 elements.");
     assert(
-        hashmap.get(2).is_none(),
+        hashmap.get(2_Field).is_none(),
         "Pair should have been removed, since it does not match predicate.",
     );
 }
@@ -143,7 +146,7 @@ fn test_hashmaps_equality(input: [Entry; 6]) {
         ALLOCATE_HASHMAP();
     {
         let ___i0: [Entry; 6] = input;
-        for ___i1 in 0..___i0.len() {
+        for ___i1 in 0_u32..___i0.len() {
             let entry: Entry = ___i0[___i1];
             {
                 hashmap_1.insert(entry.key, entry.value);
@@ -152,118 +155,146 @@ fn test_hashmaps_equality(input: [Entry; 6]) {
         }
     };
     assert(hashmap_1 == hashmap_2, "HashMaps should be equal.");
-    hashmap_2.remove(input[0].key);
+    hashmap_2.remove(input[0_u32].key);
     assert(hashmap_1 != hashmap_2, "HashMaps should not be equal.");
 }
 
 fn test_iterators() {
     let mut hashmap: HashMap<Field, Field, 8, BuildHasherDefault<Poseidon2Hasher>> =
         ALLOCATE_HASHMAP();
-    hashmap.insert(2, 3);
-    hashmap.insert(5, 7);
-    hashmap.insert(11, 13);
+    hashmap.insert(2_Field, 3_Field);
+    hashmap.insert(5_Field, 7_Field);
+    hashmap.insert(11_Field, 13_Field);
     let keys: [K; 3] = cut(hashmap.keys()).sort_via(K_CMP);
     let values: [V; 3] = cut(hashmap.values()).sort_via(V_CMP);
     let entries: [(K, V); 3] = cut(hashmap.entries()).sort_via(KV_CMP);
-    assert(keys == [2, 5, 11], "Got incorrect iteration of keys.");
-    assert(values == [3, 7, 13], "Got incorrect iteration of values.");
-    assert(entries == [(2, 3), (5, 7), (11, 13)], "Got incorrect iteration of entries.");
+    assert(keys == [2_Field, 5_Field, 11_Field], "Got incorrect iteration of keys.");
+    assert(values == [3_Field, 7_Field, 13_Field], "Got incorrect iteration of values.");
+    assert(
+        entries == [(2_Field, 3_Field), (5_Field, 7_Field), (11_Field, 13_Field)],
+        "Got incorrect iteration of entries.",
+    );
 }
 
 fn test_mut_iterators() {
     let mut hashmap: HashMap<Field, Field, 8, BuildHasherDefault<Poseidon2Hasher>> =
         ALLOCATE_HASHMAP();
-    hashmap.insert(2, 3);
-    hashmap.insert(5, 7);
-    hashmap.insert(11, 13);
-    let f: fn(Field) -> Field = |k: K| -> K { k * 3 };
+    hashmap.insert(2_Field, 3_Field);
+    hashmap.insert(5_Field, 7_Field);
+    hashmap.insert(11_Field, 13_Field);
+    let f: fn(Field) -> Field = |k: K| -> K { k * 3_Field };
     hashmap.iter_keys_mut(f);
-    let f: fn(Field) -> Field = |v: V| -> V { v * 5 };
+    let f: fn(Field) -> Field = |v: V| -> V { v * 5_Field };
     hashmap.iter_values_mut(f);
     let keys: [K; 3] = cut(hashmap.keys()).sort_via(K_CMP);
     let values: [V; 3] = cut(hashmap.values()).sort_via(V_CMP);
-    assert(keys == [6, 15, 33], f"Got incorrect iteration of keys: {keys}");
-    assert(values == [15, 35, 65], "Got incorrect iteration of values.");
-    let f: fn(Field, Field) -> (Field, Field) = |k: K, v: V| -> (K, V) { (k * 2, v * 2) };
+    assert(keys == [6_Field, 15_Field, 33_Field], f"Got incorrect iteration of keys: {keys}");
+    assert(values == [15_Field, 35_Field, 65_Field], "Got incorrect iteration of values.");
+    let f: fn(Field, Field) -> (Field, Field) =
+        |k: K, v: V| -> (K, V) { (k * 2_Field, v * 2_Field) };
     hashmap.iter_mut(f);
     let entries: [(K, V); 3] = cut(hashmap.entries()).sort_via(KV_CMP);
-    assert(entries == [(12, 30), (30, 70), (66, 130)], "Got incorrect iteration of entries.");
+    assert(
+        entries == [(12_Field, 30_Field), (30_Field, 70_Field), (66_Field, 130_Field)],
+        "Got incorrect iteration of entries.",
+    );
+}
+
+fn test_iter_len_shrink_on_key_collision() {
+    let mut hashmap: HashMap<Field, Field, 8, BuildHasherDefault<Poseidon2Hasher>> =
+        ALLOCATE_HASHMAP();
+    hashmap.insert(1_Field, 10_Field);
+    hashmap.insert(2_Field, 20_Field);
+    hashmap.insert(3_Field, 30_Field);
+    hashmap.iter_keys_mut(|_k: K| -> K { 0_Field });
+    assert(
+        hashmap.len() == 1_u32,
+        "HashMap length should shrink to 1 after key collisions during iter_keys_mut.",
+    );
+    let _: BoundedVec<(Field, Field), 8> = hashmap.entries();
+    let _: BoundedVec<Field, 8> = hashmap.keys();
+    let _: BoundedVec<Field, 8> = hashmap.values();
 }
 
 type MyMap = HashMap<u8, u32, 10, BuildHasherDefault<Poseidon2Hasher>>;
 
 /// Tests examples from the stdlib hashmap documentation
 fn doc_tests() {
-    let hashmap: HashMap<u8, u32, 10, BuildHasherDefault<Poseidon2Hasher>> = Default::default();
-    assert(hashmap.is_empty());
-    let my_hasher: BuildHasherDefault<Poseidon2Hasher> = Default::default();
     let hashmap: HashMap<u8, u32, 10, BuildHasherDefault<Poseidon2Hasher>> =
-        HashMap::with_hasher(my_hasher);
+        HashMap::<u8, u32, 10, BuildHasherDefault<Poseidon2Hasher>>::default();
     assert(hashmap.is_empty());
-    let mut map: HashMap<Field, Field, 5, BuildHasherDefault<Poseidon2Hasher>> = Default::default();
-    map.insert(12, 42);
-    assert(map.len() == 1);
+    let my_hasher: BuildHasherDefault<Poseidon2Hasher> =
+        <BuildHasherDefault<Poseidon2Hasher> as Default>::default();
+    let hashmap: HashMap<u8, u32, 10, BuildHasherDefault<Poseidon2Hasher>> =
+        HashMap::<u8, u32, 10, BuildHasherDefault<Poseidon2Hasher>>::with_hasher(my_hasher);
+    assert(hashmap.is_empty());
+    let mut map: HashMap<Field, Field, 5, BuildHasherDefault<Poseidon2Hasher>> =
+        HashMap::<Field, Field, 5, BuildHasherDefault<Poseidon2Hasher>>::default();
+    map.insert(12_Field, 42_Field);
+    assert(map.len() == 1_u32);
     get_example(map);
-    map.remove(12);
+    map.remove(12_Field);
     assert(map.is_empty());
-    map.remove(12);
+    map.remove(12_Field);
     assert(map.is_empty());
     assert(map.is_empty());
-    map.insert(1, 2);
+    map.insert(1_Field, 2_Field);
     assert(!map.is_empty());
-    map.remove(1);
+    map.remove(1_Field);
     assert(map.is_empty());
-    assert(map.len() == 0);
-    map.insert(1, 2);
-    map.insert(3, 4);
-    map.insert(5, 6);
-    assert(map.len() == 3);
-    map.insert(3, 7);
-    assert(map.len() == 3);
-    map.remove(1);
-    assert(map.len() == 2);
+    assert(map.len() == 0_u32);
+    map.insert(1_Field, 2_Field);
+    map.insert(3_Field, 4_Field);
+    map.insert(5_Field, 6_Field);
+    assert(map.len() == 3_u32);
+    map.insert(3_Field, 7_Field);
+    assert(map.len() == 3_u32);
+    map.remove(1_Field);
+    assert(map.len() == 2_u32);
     let empty_map: HashMap<Field, Field, 42, BuildHasherDefault<Poseidon2Hasher>> =
-        Default::default();
-    assert(empty_map.len() == 0);
-    assert(empty_map.capacity() == 42);
+        HashMap::<Field, Field, 42, BuildHasherDefault<Poseidon2Hasher>>::default();
+    assert(empty_map.len() == 0_u32);
+    assert(empty_map.capacity() == 42_u32);
     assert(!map.is_empty());
     map.clear();
     assert(map.is_empty());
-    if map.contains_key(7) {
-        let value: Option<Field> = map.get(7);
+    if map.contains_key(7_Field) {
+        let value: Option<Field> = map.get(7_Field);
         assert(value.is_some());
     } else {
         println("No value for key 7!");
     };
     entries_examples(map);
     iter_examples(map);
-    map.retain(|k: Field, v: Field| -> bool { (k != 0) & (v != 0) });
-    let mut map1: HashMap<Field, u64, 4, BuildHasherDefault<Poseidon2Hasher>> = Default::default();
-    let mut map2: HashMap<Field, u64, 4, BuildHasherDefault<Poseidon2Hasher>> = Default::default();
-    map1.insert(1, 2);
-    map1.insert(3, 4);
-    map2.insert(3, 4);
-    map2.insert(1, 2);
+    map.retain(|k: Field, v: Field| -> bool { (k != 0_Field) & (v != 0_Field) });
+    let mut map1: HashMap<Field, u64, 4, BuildHasherDefault<Poseidon2Hasher>> =
+        HashMap::<Field, u64, 4, BuildHasherDefault<Poseidon2Hasher>>::default();
+    let mut map2: HashMap<Field, u64, 4, BuildHasherDefault<Poseidon2Hasher>> =
+        HashMap::<Field, u64, 4, BuildHasherDefault<Poseidon2Hasher>>::default();
+    map1.insert(1_Field, 2_u64);
+    map1.insert(3_Field, 4_u64);
+    map2.insert(3_Field, 4_u64);
+    map2.insert(1_Field, 2_u64);
     assert(map1 == map2);
 }
 
 fn get_example(map: HashMap<Field, Field, 5, BuildHasherDefault<Poseidon2Hasher>>) {
-    let x: Option<Field> = map.get(12);
+    let x: Option<Field> = map.get(12_Field);
     if x.is_some() {
-        assert(x.unwrap() == 42);
+        assert(x.unwrap() == 42_Field);
     }
 }
 
 fn entries_examples(map: HashMap<Field, Field, 5, BuildHasherDefault<Poseidon2Hasher>>) {
     let entries: BoundedVec<(Field, Field), 5> = map.entries();
-    for i in 0..map.capacity() {
+    for i in 0_u32..map.capacity() {
         if i < entries.len() {
             let (key, value): (Field, Field) = entries.get(i);
             println(f"{key} -> {value}");
         }
     }
     let keys: BoundedVec<Field, 5> = map.keys();
-    for i in 0..keys.max_len() {
+    for i in 0_u32..keys.max_len() {
         if i < keys.len() {
             let key: Field = keys.get_unchecked(i);
             let value: Field = map.get(key).unwrap_unchecked();
@@ -271,7 +302,7 @@ fn entries_examples(map: HashMap<Field, Field, 5, BuildHasherDefault<Poseidon2Ha
         }
     }
     let values: BoundedVec<Field, 5> = map.values();
-    for i in 0..values.max_len() {
+    for i in 0_u32..values.max_len() {
         if i < values.len() {
             let value: Field = values.get_unchecked(i);
             println(f"Found value {value}");
@@ -280,16 +311,16 @@ fn entries_examples(map: HashMap<Field, Field, 5, BuildHasherDefault<Poseidon2Ha
 }
 
 fn iter_examples(mut map: HashMap<Field, Field, 5, BuildHasherDefault<Poseidon2Hasher>>) {
-    map.iter_mut(|k: Field, v: Field| -> (Field, Field) (k + 1, v * 2));
-    map.iter_keys_mut(|k: Field| -> Field { k * 2 });
-    map.iter_values_mut(|v: Field| -> Field { v / 2 });
+    map.iter_mut(|k: Field, v: Field| -> (Field, Field) (k + 1_Field, v * 2_Field));
+    map.iter_keys_mut(|k: Field| -> Field { k * 2_Field });
+    map.iter_values_mut(|v: Field| -> Field { v / 2_Field });
 }
 
 mod utils {
     pub(crate) fn cut<T, let N: u32, let M: u32>(input: BoundedVec<T, N>) -> [T; M] {
         assert(M < N, "M should be less than N.");
-        let mut new: BoundedVec<T, M> = BoundedVec::new();
-        for i in 0..M {
+        let mut new: BoundedVec<T, M> = BoundedVec::<T, M>::new();
+        for i in 0_u32..M {
             new.push(input.get(i));
         }
         new.storage()

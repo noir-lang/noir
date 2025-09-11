@@ -7,12 +7,12 @@ use noirc_frontend::{
         ArrayLiteral, AsTraitPath, AssignStatement, BlockExpression, CallExpression,
         CastExpression, ConstrainExpression, ConstructorExpression, Documented, EnumVariant,
         Expression, ExpressionKind, ForBounds, ForLoopStatement, ForRange, FunctionDefinition,
-        FunctionReturnType, GenericTypeArgs, Ident, IfExpression, IndexExpression, InfixExpression,
-        LValue, Lambda, LetStatement, Literal, MatchExpression, MemberAccessExpression,
-        MethodCallExpression, ModuleDeclaration, NoirEnumeration, NoirFunction, NoirStruct,
-        NoirTrait, NoirTraitImpl, NoirTypeAlias, Param, Path, PathSegment, Pattern,
+        FunctionReturnType, GenericTypeArgs, Ident, IdentOrQuotedType, IfExpression,
+        IndexExpression, InfixExpression, LValue, Lambda, LetStatement, Literal, MatchExpression,
+        MemberAccessExpression, MethodCallExpression, ModuleDeclaration, NoirEnumeration,
+        NoirFunction, NoirStruct, NoirTrait, NoirTraitImpl, Param, Path, PathSegment, Pattern,
         PrefixExpression, Statement, StatementKind, StructField, TraitBound, TraitImplItem,
-        TraitImplItemKind, TraitItem, TypeImpl, TypePath, UnresolvedGeneric,
+        TraitImplItemKind, TraitItem, TypeAlias, TypeImpl, TypePath, UnresolvedGeneric,
         UnresolvedTraitConstraint, UnresolvedType, UnresolvedTypeData, UnresolvedTypeExpression,
         UnsafeExpression, UseTree, UseTreeKind, WhileStatement,
     },
@@ -57,7 +57,7 @@ fn item_kind_with_file(item_kind: ItemKind, file: FileId) -> ItemKind {
         }
         ItemKind::Impl(type_impl) => ItemKind::Impl(type_impl_with_file(type_impl, file)),
         ItemKind::TypeAlias(noir_type_alias) => {
-            ItemKind::TypeAlias(noir_type_alias_with_file(noir_type_alias, file))
+            ItemKind::TypeAlias(type_alias_with_file(noir_type_alias, file))
         }
         ItemKind::Global(let_statement, item_visibility) => {
             ItemKind::Global(let_statement_with_file(let_statement, file), item_visibility)
@@ -136,13 +136,17 @@ fn pattern_with_file(pattern: Pattern, file: FileId) -> Pattern {
     }
 }
 
-fn noir_type_alias_with_file(noir_type_alias: NoirTypeAlias, file: FileId) -> NoirTypeAlias {
-    NoirTypeAlias {
-        name: ident_with_file(noir_type_alias.name, file),
-        generics: unresolved_generics_with_file(noir_type_alias.generics, file),
-        typ: unresolved_type_with_file(noir_type_alias.typ, file),
-        visibility: noir_type_alias.visibility,
-        location: location_with_file(noir_type_alias.location, file),
+fn type_alias_with_file(type_alias: TypeAlias, file: FileId) -> TypeAlias {
+    TypeAlias {
+        name: ident_with_file(type_alias.name, file),
+        generics: unresolved_generics_with_file(type_alias.generics, file),
+        typ: unresolved_type_with_file(type_alias.typ, file),
+        visibility: type_alias.visibility,
+        location: location_with_file(type_alias.location, file),
+        numeric_type: type_alias
+            .numeric_type
+            .map(|num_type| unresolved_type_with_file(num_type, file)),
+        numeric_location: location_with_file(type_alias.numeric_location, file),
     }
 }
 
@@ -277,10 +281,9 @@ fn trait_item_with_file(item: TraitItem, file: FileId) -> TraitItem {
             where_clause: unresolved_trait_constraints_with_file(where_clause, file),
             body: body.map(|body| block_expression_with_file(body, file)),
         },
-        TraitItem::Constant { name, typ, default_value } => TraitItem::Constant {
+        TraitItem::Constant { name, typ } => TraitItem::Constant {
             name: ident_with_file(name, file),
             typ: unresolved_type_with_file(typ, file),
-            default_value: default_value.map(|value| expression_with_file(value, file)),
         },
         TraitItem::Type { name, bounds } => TraitItem::Type {
             name: ident_with_file(name, file),
@@ -519,8 +522,12 @@ fn unresolved_type_expression_with_file(
         UnresolvedTypeExpression::Variable(path) => {
             UnresolvedTypeExpression::Variable(path_with_file(path, file))
         }
-        UnresolvedTypeExpression::Constant(field_element, location) => {
-            UnresolvedTypeExpression::Constant(field_element, location_with_file(location, file))
+        UnresolvedTypeExpression::Constant(field_element, suffix, location) => {
+            UnresolvedTypeExpression::Constant(
+                field_element,
+                suffix,
+                location_with_file(location, file),
+            )
         }
         UnresolvedTypeExpression::BinaryOperation(lhs, op, rhs, location) => {
             UnresolvedTypeExpression::BinaryOperation(
@@ -943,7 +950,7 @@ fn assign_statement_with_file(assign: AssignStatement, file: FileId) -> AssignSt
 
 fn lvalue_with_file(lvalue: LValue, file: FileId) -> LValue {
     match lvalue {
-        LValue::Ident(ident) => LValue::Ident(ident_with_file(ident, file)),
+        LValue::Path(path) => LValue::Path(path_with_file(path, file)),
         LValue::MemberAccess { object, field_name, location } => LValue::MemberAccess {
             object: Box::new(lvalue_with_file(*object, file)),
             field_name: ident_with_file(field_name, file),
@@ -972,17 +979,22 @@ fn unresolved_generics_with_file(
 }
 
 fn unresolved_generic_with_file(generic: UnresolvedGeneric, file: FileId) -> UnresolvedGeneric {
-    match generic {
-        UnresolvedGeneric::Variable(ident, trait_bounds) => {
-            let trait_bounds = vecmap(trait_bounds, |bound| trait_bound_with_file(bound, file));
-            UnresolvedGeneric::Variable(ident_with_file(ident, file), trait_bounds)
+    let ident = match generic.ident() {
+        IdentOrQuotedType::Ident(ident) => {
+            IdentOrQuotedType::Ident(ident_with_file(ident.clone(), file))
         }
-        UnresolvedGeneric::Numeric { ident, typ } => UnresolvedGeneric::Numeric {
-            ident: ident_with_file(ident, file),
-            typ: unresolved_type_with_file(typ, file),
-        },
-        UnresolvedGeneric::Resolved(quoted_type_id, location) => {
-            UnresolvedGeneric::Resolved(quoted_type_id, location_with_file(location, file))
+        IdentOrQuotedType::Quoted(quoted_type_id, location) => {
+            IdentOrQuotedType::Quoted(*quoted_type_id, location_with_file(*location, file))
+        }
+    };
+
+    match generic {
+        UnresolvedGeneric::Variable(_, trait_bounds) => {
+            let trait_bounds = vecmap(trait_bounds, |bound| trait_bound_with_file(bound, file));
+            UnresolvedGeneric::Variable(ident, trait_bounds)
+        }
+        UnresolvedGeneric::Numeric { ident: _, typ } => {
+            UnresolvedGeneric::Numeric { ident, typ: unresolved_type_with_file(typ, file) }
         }
     }
 }

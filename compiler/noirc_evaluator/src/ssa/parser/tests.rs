@@ -7,11 +7,11 @@ use crate::{
 
 fn assert_ssa_roundtrip(src: &str) {
     let ssa = Ssa::from_str(src).unwrap();
-    let ssa = ssa.to_string();
+    let ssa = ssa.print_without_locations().to_string();
     let ssa = trim_leading_whitespace_from_lines(&ssa);
     let src = trim_leading_whitespace_from_lines(src);
     if ssa != src {
-        println!("Expected:\n~~~\n{}\n~~~\nGot:\n~~~\n{}\n~~~", src, ssa);
+        println!("Expected:\n~~~\n{src}\n~~~\nGot:\n~~~\n{ssa}\n~~~");
         similar_asserts::assert_eq!(ssa, src);
     }
 }
@@ -51,6 +51,17 @@ fn test_return_integer() {
         );
         assert_ssa_roundtrip(&src);
     }
+}
+
+#[test]
+fn test_return_negative_integer() {
+    let src = "
+        acir(inline) fn main f0 {
+          b0():
+            return i8 -53
+        }
+        ";
+    assert_ssa_roundtrip(src);
 }
 
 #[test]
@@ -260,6 +271,17 @@ fn test_call_no_return_value() {
 }
 
 #[test]
+fn test_unreachable() {
+    let src = "
+        acir(inline) fn main f0 {
+          b0():
+            unreachable
+        }
+        ";
+    assert_ssa_roundtrip(src);
+}
+
+#[test]
 fn test_call_intrinsic() {
     let src = "
         acir(inline) fn main f0 {
@@ -288,8 +310,9 @@ fn test_cast() {
     let src = "
         acir(inline) fn main f0 {
           b0(v0: Field):
-            v1 = cast v0 as i32
-            return v1
+            v1 = truncate v0 to 32 bits, max_bit_size: 254
+            v2 = cast v1 as i32
+            return v2
         }
         ";
     assert_ssa_roundtrip(src);
@@ -486,7 +509,7 @@ fn test_binary() {
         let src = format!(
             "
             acir(inline) fn main f0 {{
-              b0(v0: u32, v1: u8):
+              b0(v0: u32, v1: u32):
                 v2 = {op} v0, v1
                 return
             }}
@@ -572,7 +595,7 @@ fn test_load() {
 fn test_store() {
     let src = "
         acir(inline) fn main f0 {
-          b0(v0: Field):
+          b0(v0: &mut Field):
             store Field 1 at v0
             return
         }
@@ -786,7 +809,7 @@ fn test_parses_print() {
 }
 
 #[test]
-fn parses_variable_from_a_syntantically_following_block_but_logically_preceding_block_with_jmp() {
+fn parses_variable_from_a_syntactically_following_block_but_logically_preceding_block_with_jmp() {
     let src = "
         acir(inline) impure fn main f0 {
           b0():
@@ -804,7 +827,7 @@ fn parses_variable_from_a_syntantically_following_block_but_logically_preceding_
 }
 
 #[test]
-fn parses_variable_from_a_syntantically_following_block_but_logically_preceding_block_with_jmpif() {
+fn parses_variable_from_a_syntactically_following_block_but_logically_preceding_block_with_jmpif() {
     let src = "
         acir(inline) impure fn main f0 {
           b0(v0: u1):
@@ -821,4 +844,53 @@ fn parses_variable_from_a_syntantically_following_block_but_logically_preceding_
         }
         ";
     assert_ssa_roundtrip(src);
+}
+
+#[test]
+fn function_pointer_in_global_array() {
+    let src = "
+    g2 = make_array [f1, f2] : [function; 2]
+    acir(inline) fn main f0 {
+      b0(v3: u32, v4: Field):
+        v6 = call f1() -> Field
+        v8 = call f2() -> Field
+        v10 = lt v3, u32 2
+        constrain v10 == u1 1
+        v12 = array_get g2, index v3 -> function
+        v13 = call v12() -> Field
+        v14 = eq v13, v4
+        constrain v13 == v4
+        return
+    }
+    acir(inline) fn f1 f1 {
+      b0():
+        return Field 1
+    }
+    acir(inline) fn f2 f2 {
+      b0():
+        return Field 2
+    }
+    ";
+    let _ = Ssa::from_str_no_validation(src).unwrap();
+}
+
+#[test]
+#[should_panic(expected = "Unknown global")]
+fn unknown_function_global_function_pointer() {
+    let src = "
+    g2 = make_array [f1, f2] : [function; 2]
+    acir(inline) fn main f0 {
+      b0(v3: u32, v4: Field):
+        v6 = call f1() -> Field
+        v8 = call f2() -> Field
+        v10 = lt v3, u32 2
+        constrain v10 == u1 1
+        v12 = array_get g2, index v3 -> function
+        v13 = call v12() -> Field
+        v14 = eq v13, v4
+        constrain v13 == v4
+        return
+    }
+    ";
+    let _ = Ssa::from_str_no_validation(src).unwrap();
 }

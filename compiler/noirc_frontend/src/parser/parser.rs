@@ -7,7 +7,7 @@ use crate::{
     ast::{Ident, ItemVisibility},
     lexer::{Lexer, lexer::LocatedTokenResult},
     node_interner::ExprId,
-    token::{FmtStrFragment, Keyword, LocatedToken, Token, TokenKind, Tokens},
+    token::{FmtStrFragment, IntegerTypeSuffix, Keyword, LocatedToken, Token, TokenKind, Tokens},
 };
 
 use super::{ParsedModule, ParserError, ParserErrorReason, labels::ParsingRuleLabel};
@@ -220,7 +220,12 @@ impl<'a> Parser<'a> {
                     }
                 },
                 Some(Err(lexer_error)) => self.errors.push(lexer_error.into()),
-                None => return (eof_located_token(), last_comments),
+                None => {
+                    let end_span = Span::single_char(self.current_token_location.span.end());
+                    let end_location = Location::new(end_span, self.current_token_location.file);
+                    let end_token = LocatedToken::new(Token::EOF, end_location);
+                    return (end_token, last_comments);
+                }
             }
         }
     }
@@ -264,11 +269,11 @@ impl<'a> Parser<'a> {
         false
     }
 
-    fn eat_int(&mut self) -> Option<FieldElement> {
+    fn eat_int(&mut self) -> Option<(FieldElement, Option<IntegerTypeSuffix>)> {
         if matches!(self.token.token(), Token::Int(..)) {
             let token = self.bump();
             match token.into_token() {
-                Token::Int(int) => Some(int),
+                Token::Int(int, suffix) => Some((int, suffix)),
                 _ => unreachable!(),
             }
         } else {

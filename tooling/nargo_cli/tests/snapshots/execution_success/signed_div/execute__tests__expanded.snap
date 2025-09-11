@@ -9,7 +9,7 @@ struct SignedDivOp {
 }
 
 fn main(ops: [SignedDivOp; 15]) {
-    for i in 0..15 {
+    for i in 0_u32..15_u32 {
         assert((ops[i].lhs / ops[i].rhs) == ops[i].result);
     }
 }

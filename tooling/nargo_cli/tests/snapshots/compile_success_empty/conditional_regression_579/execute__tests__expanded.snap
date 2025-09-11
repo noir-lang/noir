@@ -4,9 +4,9 @@ expression: expanded_code
 ---
 fn main() {
     let result1_true: MyStruct579 = test(true);
-    assert(result1_true.array_param[0] == 1);
+    assert(result1_true.array_param[0_u32] == 1_u32);
     let result1_false: MyStruct579 = test(false);
-    assert(result1_false.array_param[0] == 0);
+    assert(result1_false.array_param[0_u32] == 0_u32);
 }
 
 struct MyStruct579 {
@@ -20,9 +20,9 @@ impl MyStruct579 {
 }
 
 fn test(flag: bool) -> MyStruct579 {
-    let mut my_struct: MyStruct579 = MyStruct579::new([0; 2]);
+    let mut my_struct: MyStruct579 = MyStruct579::new([0_u32; 2]);
     if flag == true {
-        my_struct = MyStruct579::new([1; 2]);
+        my_struct = MyStruct579::new([1_u32; 2]);
     };
     my_struct
 }

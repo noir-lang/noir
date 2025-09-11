@@ -3,5 +3,5 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 fn main() {
-    assert([[1]] == [[1]]);
+    assert([[1_Field]] == [[1_Field]]);
 }

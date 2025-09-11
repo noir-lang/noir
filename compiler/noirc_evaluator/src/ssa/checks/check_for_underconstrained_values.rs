@@ -434,8 +434,7 @@ impl DependencyContext {
                             self.update_children(&[*value_id], &results);
                         } else {
                             panic!(
-                                "load instruction {} has attempted to access previously unused memory location",
-                                instruction
+                                "load instruction {instruction} has attempted to access previously unused memory location"
                             );
                         }
                     }
@@ -687,7 +686,7 @@ impl Context {
         &mut self,
         function: &Function,
     ) -> BTreeSet<usize> {
-        let returns = function.returns();
+        let returns = function.returns().unwrap_or_default();
         let variable_parameters_and_return_values = function
             .parameters()
             .iter()
@@ -1033,7 +1032,7 @@ mod test {
             inc_rc v4
             inc_rc v5
             v8 = call f1(v4) -> u32
-            v9 = allocate -> &mut u32
+            v9 = allocate -> &mut u1
             store u1 0 at v9
             v10 = load v9 -> u1
             v11 = array_get v4, index u32 0 -> u32

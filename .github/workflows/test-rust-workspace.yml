@@ -17,10 +17,12 @@ jobs:
     name: Build test artifacts
     runs-on: ubuntu-22.04
     timeout-minutes: 30
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.85.0
@@ -54,12 +56,14 @@ jobs:
     runs-on: ubuntu-22.04
     needs: [build-test-artifacts]
     timeout-minutes: 15
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
         partition: [1, 2, 3, 4]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Setup toolchain
         uses: dtolnay/rust-toolchain@1.85.0
@@ -83,7 +87,25 @@ jobs:
             --partition count:${{ matrix.partition }}/4 \
             --profile $NEXTEST_PROFILE
         env:
-          NEXTEST_PROFILE: ${{ (github.event_name == 'merge_group' && 'merge-queue') || 'ci' }}
+          NEXTEST_PROFILE: ${{ (github.event_name == 'merge_group' && 'merge-queue') || (github.ref == 'refs/heads/master' && 'ci-master') || 'ci' }}
+
+  check-pending-snapshots:
+    name: Check for pending snapshots
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Install just
+        uses: taiki-e/install-action@just
+
+      - name: Check for pending snapshots
+        run: just check-pending-snapshots
 
   # This is a job which depends on all test jobs and reports the overall status.
   # This allows us to add/remove test jobs without having to update the required workflows.
@@ -94,6 +116,9 @@ jobs:
     if: ${{ always() }}
     needs:
       - run-tests
+      - check-pending-snapshots
+    permissions:
+      contents: read
 
     steps:
       - name: Report overall success

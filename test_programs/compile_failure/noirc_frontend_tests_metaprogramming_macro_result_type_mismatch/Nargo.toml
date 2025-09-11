@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_metaprogramming_macro_result_type_mismatch"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

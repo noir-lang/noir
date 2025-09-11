@@ -3,10 +3,10 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 unconstrained fn maximum_price(options: [u32; 3]) -> u32 {
-    let mut maximum_option: u32 = 0;
+    let mut maximum_option: u32 = 0_u32;
     {
         let ___i0: [u32; 3] = options;
-        for ___i1 in 0..___i0.len() {
+        for ___i1 in 0_u32..___i0.len() {
             let option: u32 = ___i0[___i1];
             {
                 if option > maximum_option {
@@ -21,12 +21,12 @@ unconstrained fn maximum_price(options: [u32; 3]) -> u32 {
 fn main(sandwiches: pub [u32; 3], drinks: pub [u32; 3], snacks: pub [u32; 3], best_value: u32) {
     // Safety: comment added by `nargo expand`
     unsafe {
-        let meal_deal_cost: u32 = 390;
+        let meal_deal_cost: u32 = 390_u32;
         let most_expensive_sandwich: u32 = maximum_price(sandwiches);
         let mut sandwich_exists: bool = false;
         {
             let ___i0: [u32; 3] = sandwiches;
-            for ___i1 in 0..___i0.len() {
+            for ___i1 in 0_u32..___i0.len() {
                 let sandwich_price: u32 = ___i0[___i1];
                 {
                     assert(sandwich_price <= most_expensive_sandwich);
@@ -39,7 +39,7 @@ fn main(sandwiches: pub [u32; 3], drinks: pub [u32; 3], snacks: pub [u32; 3], be
         let mut drink_exists: bool = false;
         {
             let ___i0: [u32; 3] = drinks;
-            for ___i1 in 0..___i0.len() {
+            for ___i1 in 0_u32..___i0.len() {
                 let drink_price: u32 = ___i0[___i1];
                 {
                     assert(drink_price <= most_expensive_drink);

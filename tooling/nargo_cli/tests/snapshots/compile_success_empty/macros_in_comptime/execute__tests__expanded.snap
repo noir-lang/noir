@@ -11,14 +11,14 @@ fn main() {
 }
 
 comptime fn foo<let N: Field>(x: Field) {
-    assert(modulus_num_bits() != 0);
+    assert(modulus_num_bits() != 0_u64);
     let cond: Quoted = quote { modulus_num_bits() != 0 };
     assert(unquote!(cond));
-    assert(5 == x);
-    assert(5 == unquote!(quote { x }));
-    assert(3 == N);
-    assert(3 == unquote!(quote { N }));
-    for _ in 0..0 {
+    assert(5_Field == x);
+    assert(5_Field == unquote!(quote { x }));
+    assert(3_Field == N);
+    assert(3_Field == unquote!(quote { N }));
+    for _ in 0_u32..0_u32 {
         break;
     }
     let loop_: Quoted = quote {
@@ -33,7 +33,7 @@ mod submodule {
     use std::{field::modulus_be_bytes, meta::unquote};
 
     pub comptime fn bar() {
-        assert(modulus_be_bytes().len() != 0);
+        assert(modulus_be_bytes().len() != 0_u32);
         let cond: Quoted = quote { modulus_be_bytes().len() != 0 };
         assert(unquote!(cond));
     }

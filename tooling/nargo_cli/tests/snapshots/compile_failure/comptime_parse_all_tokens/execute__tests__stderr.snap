@@ -9,7 +9,7 @@ error: Expected an identifier, `crate`, `dep` or `super` but found '(type)'
   │ ------ Failed to parse macro's token stream into top-level item
   ·
 8 │     quote { use $t; }
-  │     -----------------
+  │                  -
   │
   = The resulting token stream was: (stream starts on next line)
       use Field;

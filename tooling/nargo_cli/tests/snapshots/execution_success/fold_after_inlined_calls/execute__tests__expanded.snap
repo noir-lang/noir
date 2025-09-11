@@ -3,15 +3,15 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 fn main(x: u32) {
-    assert(increment(x) == (x + 1));
+    assert(increment(x) == (x + 1_u32));
     foo(x);
 }
 
 #[fold]
 fn foo(x: u32) {
-    assert(x == 1);
+    assert(x == 1_u32);
 }
 
 fn increment(x: u32) -> u32 {
-    x + 1
+    x + 1_u32
 }

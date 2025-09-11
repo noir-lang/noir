@@ -3,7 +3,6 @@ use crate::ssa::{
         function::Function,
         instruction::{Instruction, Intrinsic},
         types::{NumericType, Type},
-        value::Value,
     },
     ssa_gen::Ssa,
 };
@@ -16,6 +15,7 @@ impl Ssa {
     /// necessary when the value of the array is unknown.
     ///
     /// Note that this pass must be placed before loop unrolling to be useful.
+    #[expect(clippy::wrong_self_convention)]
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn as_slice_optimization(mut self) -> Self {
         for func in self.functions.values_mut() {
@@ -27,7 +27,12 @@ impl Ssa {
 
 impl Function {
     pub(crate) fn as_slice_optimization(&mut self) {
-        self.simple_reachable_blocks_optimization(|context| {
+        // If `as_slice` isn't called in this function there's nothing to do
+        let Some(as_slice) = self.dfg.get_intrinsic(Intrinsic::AsSlice).copied() else {
+            return;
+        };
+
+        self.simple_optimization(|context| {
             let instruction_id = context.instruction_id;
             let instruction = context.instruction();
 
@@ -36,11 +41,12 @@ impl Function {
                 _ => return,
             };
 
-            let Value::Intrinsic(Intrinsic::AsSlice) = context.dfg[*target_func] else {
+            if *target_func != as_slice {
                 return;
-            };
+            }
 
-            let first_argument = arguments.first().unwrap();
+            let first_argument =
+                arguments.first().expect("AsSlice should always have one argument");
             let array_typ = context.dfg.type_of_value(*first_argument);
             let Type::Array(_, length) = array_typ else {
                 unreachable!("AsSlice called with non-array {}", array_typ);
@@ -65,12 +71,12 @@ mod test {
         // In this code we expect `return v2` to be replaced with `return u32 3` because
         // that's the length of the v0 array.
         let src = "
-            acir(inline) fn main f0 {
-              b0(v0: [Field; 3]):
-                v2, v3 = call as_slice(v0) -> (u32, [Field])
-                return v2
-            }
-            ";
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 3]):
+            v2, v3 = call as_slice(v0) -> (u32, [Field])
+            return v2
+        }
+        ";
         let ssa = Ssa::from_str(src).unwrap();
 
         let ssa = ssa.as_slice_optimization();
@@ -81,5 +87,82 @@ mod test {
             return u32 3
         }
         ");
+    }
+
+    #[test]
+    fn as_slice_length_multiple_different_arrays() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 3], v1: [Field; 5]):
+            v3, v4 = call as_slice(v0) -> (u32, [Field])
+            v5, v6 = call as_slice(v1) -> (u32, [Field])
+            return v3, v5
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.as_slice_optimization();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 3], v1: [Field; 5]):
+            v3, v4 = call as_slice(v0) -> (u32, [Field])
+            v5, v6 = call as_slice(v1) -> (u32, [Field])
+            return u32 3, u32 5
+        }
+        ");
+    }
+
+    /// TODO(https://github.com/noir-lang/noir/issues/9416): This test should be prevented during SSA validation
+    /// Once type checking of intrinsic function calls is supported this test will have to be run against non-validated SSA.
+    #[test]
+    #[should_panic(expected = "AsSlice called with non-array [Field]")]
+    fn as_slice_length_on_slice_type() {
+        let src = "
+        acir(inline) fn main f0 {
+            b0():
+              v3 = make_array [Field 1, Field 2, Field 3] : [Field] 
+              v4 = call f1(v3) -> u32
+              return v4
+        }
+
+        acir(inline) fn foo f1 {
+            b0(v0: [Field]):
+              v2, v3 = call as_slice(v0) -> (u32, [Field])
+              return v2
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let _ = ssa.as_slice_optimization();
+    }
+
+    /// TODO(https://github.com/noir-lang/noir/issues/9416): This test should be prevented during SSA validation
+    /// Once type checking of intrinsic function calls is supported this test will have to be run against non-validated SSA.
+    #[test]
+    #[should_panic(expected = "AsSlice called with non-array Field")]
+    fn as_slice_length_on_numeric_type() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v2, v3 = call as_slice(v0) -> (u32, [Field])
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let _ = ssa.as_slice_optimization();
+    }
+
+    /// TODO(https://github.com/noir-lang/noir/issues/9416): This test should be prevented during SSA validation
+    /// Once type checking of intrinsic function calls is supported this test will have to be run against non-validated SSA.
+    #[test]
+    #[should_panic(expected = "AsSlice should always have one argument")]
+    fn as_slice_wrong_number_of_arguments() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v1, v2 = call as_slice() -> (u32, [Field])
+            return v1
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let _ = ssa.as_slice_optimization();
     }
 }

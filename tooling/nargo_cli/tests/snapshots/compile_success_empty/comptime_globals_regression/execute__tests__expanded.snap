@@ -7,7 +7,7 @@ comptime mut global COUNTER: Field = 2;
 fn main() {
     ();
     ();
-    assert(get_counter() == 2);
+    assert(get_counter() == 2_Field);
 }
 
 fn get_counter() -> Field {
@@ -15,6 +15,6 @@ fn get_counter() -> Field {
 }
 
 comptime fn increment() {
-    COUNTER = COUNTER + 1;
+    COUNTER = COUNTER + 1_Field;
     assert(get_counter() == COUNTER);
 }

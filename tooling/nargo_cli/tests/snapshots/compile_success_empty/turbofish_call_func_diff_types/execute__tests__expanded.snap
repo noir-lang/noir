@@ -6,12 +6,12 @@ use poseidon::{poseidon2::Poseidon2Hasher, poseidon::PoseidonHasher};
 use std::hash::Hasher;
 
 fn main(x: Field, y: pub Field) {
-    let mut hasher: PoseidonHasher = Default::default();
+    let mut hasher: PoseidonHasher = PoseidonHasher::default();
     hasher.write(x);
     hasher.write(y);
     let poseidon_expected_hash: Field = hasher.finish();
     assert(hash_simple_array::<PoseidonHasher>([x, y]) == poseidon_expected_hash);
-    let mut hasher: Poseidon2Hasher = Default::default();
+    let mut hasher: Poseidon2Hasher = Poseidon2Hasher::default();
     hasher.write(x);
     hasher.write(y);
     let poseidon2_expected_hash: Field = hasher.finish();
@@ -23,8 +23,8 @@ where
     H: Hasher,
     H: Default,
 {
-    let mut hasher: H = Default::default();
-    Hasher::write(&mut hasher, input[0]);
-    Hasher::write(&mut hasher, input[1]);
-    Hasher::finish(hasher)
+    let mut hasher: H = H::default();
+    hasher.write(input[0_u32]);
+    hasher.write(input[1_u32]);
+    hasher.finish()
 }

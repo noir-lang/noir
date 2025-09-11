@@ -3,24 +3,24 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 fn main() {
-    let arr: [u8; 2] = [1, 2];
-    let as_bits_hardcode_1: [u1; 2] = [1, 0];
-    let mut c1: Field = 0;
-    for i in 0..2 {
+    let arr: [u8; 2] = [1_u8, 2_u8];
+    let as_bits_hardcode_1: [u1; 2] = [1_u1, 0_u1];
+    let mut c1: Field = 0_Field;
+    for i in 0_u32..2_u32 {
         let mut as_bits: [u1; 2] = (arr[i] as Field).to_le_bits();
-        c1 = c1 + (as_bits[0] as Field);
-        if i == 0 {
-            assert(arr[i] == 1);
-            for k in 0..2 {
+        c1 = c1 + (as_bits[0_u32] as Field);
+        if i == 0_u32 {
+            assert(arr[i] == 1_u8);
+            for k in 0_u32..2_u32 {
                 assert(as_bits_hardcode_1[k] == as_bits[k]);
             }
         };
-        if i == 1 {
-            assert(arr[i] == 2);
-            for k in 0..2 {
+        if i == 1_u32 {
+            assert(arr[i] == 2_u8);
+            for k in 0_u32..2_u32 {
                 assert(as_bits_hardcode_1[k] != as_bits[k]);
             }
         }
     }
-    assert(c1 == 1);
+    assert(c1 == 1_Field);
 }

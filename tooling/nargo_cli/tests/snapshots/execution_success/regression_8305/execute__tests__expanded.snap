@@ -1,0 +1,13 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(a: i32) -> pub i32 {
+    let mut r: i32 = 0_i32;
+    let s: i32 = -2_i32;
+    let e: i32 = -1_i32;
+    for _ in s - 0_i32..e + 0_i32 {
+        r = r + a;
+    }
+    r
+}

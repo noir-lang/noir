@@ -21,9 +21,9 @@ impl DoNothing for MyStruct {
 comptime fn derive_do_nothing(s: TypeDefinition) -> Quoted {
     let typ: Type = s.as_type();
     let generics: Quoted =
-        s.generics().map(|g: (Type, Option<Type>)| -> Quoted quote { g }).join(quote { ,  });
+        s.generics().map(|g: (Type, Option<Type>)| -> Quoted quote { $g }).join(quote { ,  });
     quote {
-        impl < generics > DoNothing for typ {
+        impl < $generics > DoNothing for $typ {
             fn do_nothing(_self: Self) {
                 // Traits can't tell us what to do
                 println("something");
@@ -40,11 +40,8 @@ impl<T> Default for MyOtherOtherStruct<T>
 where
     T: Default,
 {
-    fn default() -> Self
-    where
-        T: Default,
-    {
-        Self { x: Default::default() }
+    fn default() -> Self {
+        Self { x: T::default() }
     }
 }
 
@@ -52,10 +49,7 @@ impl<T> Eq for MyOtherOtherStruct<T>
 where
     T: Eq,
 {
-    fn eq(_self: Self, _other: Self) -> bool
-    where
-        T: Eq,
-    {
+    fn eq(_self: Self, _other: Self) -> bool {
         _self.x == _other.x
     }
 }
@@ -67,9 +61,8 @@ where
     fn hash<H>(_self: Self, _state: &mut H)
     where
         H: Hasher,
-        T: Hash,
     {
-        Hash::hash(_self.x, _state);
+        _self.x.hash(_state);
     }
 }
 
@@ -77,13 +70,10 @@ impl<T> Ord for MyOtherOtherStruct<T>
 where
     T: Ord,
 {
-    fn cmp(_self: Self, _other: Self) -> std::cmp::Ordering
-    where
-        T: Ord,
-    {
+    fn cmp(_self: Self, _other: Self) -> std::cmp::Ordering {
         let mut result: std::cmp::Ordering = std::cmp::Ordering::equal();
         if result == std::cmp::Ordering::equal() {
-            result = Ord::cmp(_self.x, _other.x);
+            result = _self.x.cmp(_other.x);
         };
         result
     }
@@ -100,12 +90,12 @@ where
     A: Default,
     B: Default,
 {
-    fn default() -> Self
-    where
-        A: Default,
-        B: Default,
-    {
-        Self { field1: Default::default(), field2: Default::default(), field3: Default::default() }
+    fn default() -> Self {
+        Self {
+            field1: A::default(),
+            field2: B::default(),
+            field3: <MyOtherOtherStruct<B> as Default>::default(),
+        }
     }
 }
 
@@ -114,11 +104,7 @@ where
     A: Eq,
     B: Eq,
 {
-    fn eq(_self: Self, _other: Self) -> bool
-    where
-        A: Eq,
-        B: Eq,
-    {
+    fn eq(_self: Self, _other: Self) -> bool {
         ((_self.field1 == _other.field1) & (_self.field2 == _other.field2))
             & (_self.field3 == _other.field3)
     }
@@ -132,11 +118,9 @@ where
     fn hash<H>(_self: Self, _state: &mut H)
     where
         H: Hasher,
-        A: Hash,
-        B: Hash,
     {
-        Hash::hash(_self.field1, _state);
-        Hash::hash(_self.field2, _state);
+        _self.field1.hash(_state);
+        _self.field2.hash(_state);
         _self.field3.hash(_state);
     }
 }
@@ -146,17 +130,13 @@ where
     A: Ord,
     B: Ord,
 {
-    fn cmp(_self: Self, _other: Self) -> std::cmp::Ordering
-    where
-        A: Ord,
-        B: Ord,
-    {
+    fn cmp(_self: Self, _other: Self) -> std::cmp::Ordering {
         let mut result: std::cmp::Ordering = std::cmp::Ordering::equal();
         if result == std::cmp::Ordering::equal() {
-            result = Ord::cmp(_self.field1, _other.field1);
+            result = _self.field1.cmp(_other.field1);
         };
         if result == std::cmp::Ordering::equal() {
-            result = Ord::cmp(_self.field2, _other.field2);
+            result = _self.field2.cmp(_other.field2);
         };
         if result == std::cmp::Ordering::equal() {
             result = _self.field3.cmp(_other.field3);
@@ -194,26 +174,26 @@ impl Ord for EmptyStruct {
 }
 
 fn main() {
-    let s: MyStruct = MyStruct { my_field: 1 };
+    let s: MyStruct = MyStruct { my_field: 1_u32 };
     s.do_nothing();
-    let o: MyOtherStruct<Field, u32> = Default::default();
+    let o: MyOtherStruct<Field, u32> = MyOtherStruct::<Field, u32>::default();
     assert(o == o);
-    let o: MyOtherStruct<u8, [str<2>]> = Default::default();
+    let o: MyOtherStruct<u8, [str<2>]> = MyOtherStruct::<u8, [str<2>]>::default();
     assert(o == o);
     let o1: MyOtherStruct<u32, i8> = MyOtherStruct::<u32, i8> {
-        field1: 12 as u32,
-        field2: 24 as i8,
-        field3: MyOtherOtherStruct::<i8> { x: 54 as i8 },
+        field1: 12_u32,
+        field2: 24_i8,
+        field3: MyOtherOtherStruct::<i8> { x: 54_i8 },
     };
     let o2: MyOtherStruct<u32, i8> = MyOtherStruct::<u32, i8> {
-        field1: 12 as u32,
-        field2: 24 as i8,
-        field3: MyOtherOtherStruct::<i8> { x: 55 as i8 },
+        field1: 12_u32,
+        field2: 24_i8,
+        field3: MyOtherOtherStruct::<i8> { x: 55_i8 },
     };
     assert(o1 < o2);
-    let mut hasher: TestHasher = TestHasher { result: 0 };
+    let mut hasher: TestHasher = TestHasher { result: 0_Field };
     o1.hash(&mut hasher);
-    assert(hasher.finish() == ((12 + 24) + 54));
+    assert(hasher.finish() == ((12_Field + 24_Field) + 54_Field));
     let empty: EmptyStruct = EmptyStruct {};
     assert(empty == empty);
 }

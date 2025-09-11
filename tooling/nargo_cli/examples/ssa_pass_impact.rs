@@ -11,7 +11,6 @@ use std::{
     sync::OnceLock,
 };
 
-use acvm::acir::circuit::ExpressionWidth;
 use clap::Parser;
 use fm::FileManager;
 use nargo::{
@@ -26,9 +25,8 @@ use noirc_driver::{
 };
 use noirc_errors::CustomDiagnostic;
 use noirc_evaluator::{
-    brillig::BrilligOptions,
     errors::RuntimeError,
-    ssa::{SsaEvaluatorOptions, SsaLogging, SsaPass, primary_passes, ssa_gen},
+    ssa::{SsaPass, primary_passes, ssa_gen},
 };
 use noirc_frontend::{
     debug::DebugInstrumenter,
@@ -118,22 +116,13 @@ fn main() {
         // Keep this up to date with whatever features are required by the integration tests.
         unstable_features: vec![UnstableFeature::Enums],
         silence_warnings: true,
+        skip_underconstrained_check: true,
+        skip_brillig_constraints_check: true,
+        inliner_aggressiveness: opts.inliner_aggressiveness,
         ..Default::default()
     };
 
-    let ssa_options = SsaEvaluatorOptions {
-        ssa_logging: SsaLogging::None,
-        brillig_options: BrilligOptions::default(),
-        print_codegen_timings: false,
-        expression_width: ExpressionWidth::default(),
-        emit_ssa: None,
-        skip_underconstrained_check: true,
-        skip_brillig_constraints_check: true,
-        enable_brillig_constraints_check_lookback: false,
-        inliner_aggressiveness: opts.inliner_aggressiveness,
-        max_bytecode_increase_percent: None,
-        skip_passes: Default::default(),
-    };
+    let ssa_options = compile_options.as_ssa_options(PathBuf::new());
 
     let last_pass = primary_passes(&ssa_options)
         .iter()
@@ -275,15 +264,20 @@ fn collect_ssa_before_and_after(
     let mut last_msg = "Initial";
 
     for (i, pass) in passes.iter().enumerate() {
-        let before = pass.msg().contains(name).then(|| format!("{ssa}"));
+        let before =
+            pass.msg().contains(name).then(|| format!("{}", ssa.print_without_locations()));
         ssa = pass.run(ssa)?;
         if let Some(before) = before {
             pairs.push(SsaBeforeAndAfter {
                 before: SsaPrint { step: i, msg: last_msg.to_string(), ssa: before },
-                after: SsaPrint { step: i + 1, msg: pass.msg().to_string(), ssa: format!("{ssa}") },
+                after: SsaPrint {
+                    step: i + 1,
+                    msg: pass.msg().to_string(),
+                    ssa: format!("{}", ssa.print_without_locations()),
+                },
             });
         }
-        last_msg = pass.msg()
+        last_msg = pass.msg();
     }
 
     Ok(pairs)

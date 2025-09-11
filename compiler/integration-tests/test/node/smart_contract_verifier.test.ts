@@ -12,8 +12,8 @@ import { compile, createFileManager } from '@noir-lang/noir_wasm';
 
 const test_cases = [
   {
-    case: 'test_programs/execution_success/1_mul',
-    compiled: 'contracts/1_mul.sol:HonkVerifier',
+    case: 'test_programs/execution_success/a_1_mul',
+    compiled: 'contracts/a_1_mul.sol:HonkVerifier',
     numPublicInputs: 0,
   },
   {
@@ -46,12 +46,12 @@ test_cases.forEach((testInfo) => {
     const inputs = toml.parse(prover_toml);
     const { witness } = await program.execute(inputs);
 
-    const backend = new UltraHonkBackend(noir_program.bytecode, {}, { recursive: false });
-    const proofData = await backend.generateProof(witness, { keccak: true });
+    const backend = new UltraHonkBackend(noir_program.bytecode);
+    const proofData = await backend.generateProof(witness, { keccakZK: true });
 
     // JS verification
 
-    const verified = await backend.verifyProof(proofData, { keccak: true });
+    const verified = await backend.verifyProof(proofData, { keccakZK: true });
     expect(verified, 'Proof fails verification in JS').to.be.true;
 
     // Smart contract verification

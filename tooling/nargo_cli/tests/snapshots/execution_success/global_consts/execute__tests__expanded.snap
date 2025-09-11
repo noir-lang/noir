@@ -4,8 +4,8 @@ expression: expanded_code
 ---
 mod baz {
     pub fn from_baz(x: [Field; 3]) {
-        for i in 0..super::foo::MAGIC_NUMBER {
-            assert(x[i] == (super::foo::MAGIC_NUMBER as Field));
+        for i in 0_u32..crate::foo::MAGIC_NUMBER {
+            assert(x[i] == (crate::foo::MAGIC_NUMBER as Field));
         }
     }
 }
@@ -24,7 +24,7 @@ mod foo {
     pub(crate) global TYPE_INFERRED: u32 = 42;
 
     pub fn from_foo(x: [Field; 5]) {
-        for i in 0..bar::N {
+        for i in 0_u32..bar::N {
             assert(x[i] == (bar::N as Field));
         }
     }
@@ -54,48 +54,48 @@ global VALS: [Test; 1] = [Test { v: 100 }];
 global NESTED: [[Test; 1]; 2] = [[Test { v: 100 }], [Test { v: 100 }]];
 
 unconstrained fn calculate_global_value() -> Field {
-    42
+    42_Field
 }
 
 global CALCULATED_GLOBAL: Field = 42;
 
 fn main(a: [Field; 32], b: [Field; 32], c: pub [Field; 3], d: [Field; 5]) {
     let test_struct: Dummy = Dummy { x: d, y: c };
-    for i in 0..foo::MAGIC_NUMBER {
+    for i in 0_u32..foo::MAGIC_NUMBER {
         assert(c[i] == (foo::MAGIC_NUMBER as Field));
         assert(test_struct.y[i] == (foo::MAGIC_NUMBER as Field));
-        assert(test_struct.y[i] != NESTED[1][0].v);
+        assert(test_struct.y[i] != NESTED[1_u32][0_u32].v);
     }
     assert((N as Field) != (M as Field));
-    let expected: u32 = 42;
+    let expected: u32 = 42_u32;
     assert(foo::TYPE_INFERRED == expected);
-    let mut y: u32 = 5;
+    let mut y: u32 = 5_u32;
     let mut x: u32 = M;
-    for i in 0..N * N {
-        let M: u32 = 10;
+    for i in 0_u32..N * N {
+        let M: u32 = 10_u32;
         x = M;
         y = i;
     }
-    assert(y == 24);
-    assert(x == 10);
-    let q: Field = multiplyByM(3);
-    assert(q == 96);
+    assert(y == 24_u32);
+    assert(x == 10_u32);
+    let q: Field = multiplyByM(3_Field);
+    assert(q == 96_Field);
     arrays_neq(a, b);
     let t: [Field; 2] = [N as Field, M as Field];
-    assert(t[1] == 32);
-    assert(15 == my_submodule::my_helper());
+    assert(t[1_u32] == 32_Field);
+    assert(15_Field == my_submodule::my_helper());
     let add_submodules_N: Field = (my_submodule::N as Field) + (foo::bar::N as Field);
-    assert(15 == add_submodules_N);
-    let add_from_bar_N: Field = (my_submodule::N as Field) + foo::bar::from_bar(1);
-    assert(15 == add_from_bar_N);
-    let sugared: [Field; 12] = [0; 12];
-    assert(sugared[my_submodule::N + 1] == 0);
+    assert(15_Field == add_submodules_N);
+    let add_from_bar_N: Field = (my_submodule::N as Field) + foo::bar::from_bar(1_Field);
+    assert(15_Field == add_from_bar_N);
+    let sugared: [Field; 12] = [0_Field; 12];
+    assert(sugared[my_submodule::N + 1_u32] == 0_Field);
     let arr: [Field; 10] = [N as Field; 10];
-    assert((arr[0] == 5) & (arr[9] == 5));
+    assert((arr[0_u32] == 5_Field) & (arr[9_u32] == 5_Field));
     foo::from_foo(d);
     baz::from_baz(c);
     assert(DERIVED == ((M as Field) + L));
-    assert(CALCULATED_GLOBAL == 42);
+    assert(CALCULATED_GLOBAL == 42_Field);
 }
 
 fn multiplyByM(x: Field) -> Field {
@@ -110,7 +110,7 @@ mod my_submodule {
     pub(crate) global N: u32 = 10;
 
     pub fn my_helper() -> Field {
-        let N: u32 = 15;
+        let N: u32 = 15_u32;
         let x: Field = N as Field;
         x
     }
@@ -124,7 +124,7 @@ struct Bar {}
 
 impl Bar {
     fn get_a() -> Field {
-        1
+        1_Field
     }
 }
 

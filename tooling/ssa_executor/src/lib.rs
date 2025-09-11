@@ -1,31 +1,36 @@
+#![forbid(unsafe_code)]
+#![cfg_attr(not(test), warn(unused_crate_dependencies, unused_extern_crates))]
+#![allow(clippy::result_large_err)]
+
 pub mod compiler;
 pub mod runner;
 
 use crate::compiler::compile_from_ssa;
 use crate::runner::{SsaExecutionError, execute_single};
 use acvm::FieldElement;
-use acvm::acir::native_types::WitnessMap;
+use acvm::acir::native_types::{WitnessMap, WitnessStack};
 use noirc_driver::CompileOptions;
-use noirc_evaluator::ssa::ssa_gen::Ssa;
+use noirc_evaluator::ssa::ssa_gen::{Ssa, validate_ssa};
 
 pub fn execute_ssa(
     ssa: String,
     initial_witness: WitnessMap<FieldElement>,
     compile_options: CompileOptions,
-) -> Result<WitnessMap<FieldElement>, SsaExecutionError> {
+) -> Result<WitnessStack<FieldElement>, SsaExecutionError> {
     let ssa = Ssa::from_str(&ssa);
     match ssa {
         Ok(ssa) => {
+            validate_ssa(&ssa);
+
             let compiled_program = compile_from_ssa(ssa, &compile_options);
             match compiled_program {
                 Ok(compiled_program) => execute_single(&compiled_program.program, initial_witness),
                 Err(e) => Err(SsaExecutionError::SsaCompilationFailed(format!(
-                    "SSA compilation failed: {:?}",
-                    e
+                    "SSA compilation failed: {e:?}"
                 ))),
             }
         }
-        Err(e) => Err(SsaExecutionError::SsaParsingFailed(format!("SSA parsing failed: {:?}", e))),
+        Err(e) => Err(SsaExecutionError::SsaParsingFailed(format!("SSA parsing failed: {e:?}"))),
     }
 }
 
@@ -49,7 +54,7 @@ mod tests {
         witness_map.insert(Witness(1), FieldElement::from(2_u32));
         let result = execute_ssa(ssa.to_string(), witness_map, CompileOptions::default());
         // 1 + 2 == 3
-        assert_eq!(result.unwrap()[&Witness(2)], FieldElement::from(3_u32));
+        assert_eq!(result.unwrap().peek().unwrap().witness[&Witness(2)], FieldElement::from(3_u32));
     }
 
     #[test]
@@ -65,7 +70,10 @@ mod tests {
         witness_map.insert(Witness(1), FieldElement::from(10_u32));
         let result = execute_ssa(ssa.to_string(), witness_map, CompileOptions::default());
         // 20 * 10 == 200
-        assert_eq!(result.unwrap()[&Witness(2)], FieldElement::from(200_u32));
+        assert_eq!(
+            result.unwrap().peek().unwrap().witness[&Witness(2)],
+            FieldElement::from(200_u32)
+        );
     }
 
     #[test]
@@ -78,5 +86,57 @@ mod tests {
             }";
         let result = execute_ssa(ssa.to_string(), WitnessMap::new(), CompileOptions::default());
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn bound_constraint_with_offset_bug() {
+        let ssa_without_runtime = "
+            (inline) fn main f0 {
+              b0(v0: i32, v1: u1, v2: u1, v3: u1, v4: u1, v5: u1, v6: u1):
+                jmpif v6 then: b1, else: b2
+              b1():
+                v7 = cast v0 as u128
+                jmp b3()
+              b2():
+                jmp b9()
+              b3():
+                v8 = div v7, v7
+                jmp b4()
+              b4():
+                v9 = not v8
+                jmp b5()
+              b5():
+                v10 = add v8, v9
+                jmp b6()
+              b6():
+                v12 = div v9, v9
+                jmp b7()
+              b7():
+                v13 = div v12, v10
+                jmp b9()
+              b8():
+                v14 = cast v1 as Field
+                return v14
+              b9():
+                jmp b8()
+            }
+        ";
+        let acir_ssa = "acir".to_string() + ssa_without_runtime;
+        let brillig_ssa = "brillig".to_string() + ssa_without_runtime;
+        let mut witness_map = WitnessMap::new();
+        witness_map.insert(Witness(0), FieldElement::from(1188688178_u32));
+        for i in 1..6 {
+            witness_map.insert(Witness(i), FieldElement::from(1_u32));
+        }
+        witness_map.insert(Witness(6), FieldElement::from(0_u32));
+        let acir_result =
+            execute_ssa(acir_ssa.to_string(), witness_map.clone(), CompileOptions::default());
+        let brillig_result =
+            execute_ssa(brillig_ssa.to_string(), witness_map, CompileOptions::default());
+        match (acir_result, brillig_result) {
+            (Err(acir), Ok(_brillig)) => panic!("Acir failed with: {acir}, brillig succeeded"),
+            (Ok(_acir), Err(brillig)) => panic!("Acir succeeded, brillig failed: {brillig}"),
+            _ => {}
+        }
     }
 }

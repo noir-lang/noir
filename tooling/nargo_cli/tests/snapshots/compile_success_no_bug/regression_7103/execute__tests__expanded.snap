@@ -8,10 +8,10 @@ fn main() {
 }
 
 unconstrained fn loophole() {
-    let mut i: Field = 0;
+    let mut i: Field = 0_Field;
     loop {
         println(i);
-        i = i + 1;
+        i = i + 1_Field;
         if false {
             break;
         }

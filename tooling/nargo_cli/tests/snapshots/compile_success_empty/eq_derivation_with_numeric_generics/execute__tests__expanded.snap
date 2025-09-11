@@ -14,7 +14,7 @@ impl<let T: u32> Eq for Foo<T> {
 }
 
 fn main() {
-    let foo: Foo<10> = Foo::<10> { a: [0; 10], b: 27 };
-    let bar: Foo<10> = Foo::<10> { a: [0; 10], b: 28 };
+    let foo: Foo<10> = Foo::<10> { a: [0_Field; 10], b: 27_u32 };
+    let bar: Foo<10> = Foo::<10> { a: [0_Field; 10], b: 28_u32 };
     assert(foo != bar);
 }

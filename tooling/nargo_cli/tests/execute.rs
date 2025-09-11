@@ -131,22 +131,20 @@ mod tests {
             .join("\n")
     }
 
-    fn execution_success(
-        mut nargo: Command,
-        test_program_dir: PathBuf,
-        check_stdout: bool,
-        force_brillig: ForceBrillig,
-        inliner: Inliner,
-    ) {
-        let target_dir = tempfile::tempdir().unwrap().into_path();
+    fn execution_success(mut nargo: Command, test_program_dir: PathBuf, check_stdout: bool) {
+        let target_dir = tempfile::tempdir().unwrap().keep();
 
         nargo.arg(format!("--target-dir={}", target_dir.to_string_lossy()));
 
         nargo.assert().success();
 
+        let mut has_circuit_output = false;
+
         if check_stdout {
             let output = nargo.output().unwrap();
             let stdout = String::from_utf8(output.stdout).unwrap();
+            has_circuit_output = stdout.contains("Circuit output:");
+
             let stdout = remove_noise_lines(stdout);
 
             let test_name = test_program_dir.file_name().unwrap().to_string_lossy().to_string();
@@ -156,17 +154,27 @@ mod tests {
                     snapshot_path => format!("./snapshots/execution_success/{test_name}")
                 },
                 {
-                insta::assert_snapshot!(snapshot_name, stdout)
-            })
+                insta::assert_snapshot!(snapshot_name, stdout);
+            });
         }
 
-        check_program_artifact(
-            "execution_success",
-            &test_program_dir,
-            &target_dir,
-            force_brillig,
-            inliner,
-        );
+        if has_circuit_output {
+            let prover_toml_path = find_prover_toml_in_dir(&test_program_dir).expect(
+                "Expected a Prover.toml file to exist because the program produced an output",
+            );
+            let prover_toml_contents =
+                fs::read_to_string(prover_toml_path).expect("Failed to read Prover.toml");
+            let prover_toml: toml::Value =
+                toml::from_str(&prover_toml_contents).expect("Failed to parse Prover.toml");
+            let toml::Value::Table(table) = prover_toml else {
+                panic!("Expected Prover.toml to be a table");
+            };
+            if !table.contains_key("return") {
+                panic!(
+                    "Expected Prover.toml to contain a `return` key because the program produced an output"
+                );
+            }
+        }
     }
 
     fn execution_failure(mut nargo: Command) {
@@ -239,14 +247,6 @@ mod tests {
             0,
             "expected the number of opcodes to be 0"
         );
-
-        check_program_artifact(
-            "compile_success_empty",
-            &test_program_dir,
-            &target_dir,
-            force_brillig,
-            inliner,
-        );
     }
 
     fn compile_success_contract(
@@ -260,22 +260,29 @@ mod tests {
         nargo.arg(format!("--target-dir={}", target_dir.to_string_lossy()));
 
         nargo.assert().success().stderr(predicate::str::contains("warning:").not());
-
-        check_contract_artifact(
-            "compile_success_contract",
-            &test_program_dir,
-            &target_dir,
-            force_brillig,
-            inliner,
-        );
     }
 
     fn compile_success_no_bug(mut nargo: Command) {
         nargo.assert().success().stderr(predicate::str::contains("bug:").not());
     }
 
-    fn compile_success_with_bug(mut nargo: Command) {
+    fn compile_success_with_bug(mut nargo: Command, test_program_dir: PathBuf) {
         nargo.assert().success().stderr(predicate::str::contains("bug:"));
+
+        let output = nargo.output().unwrap();
+        let stderr = String::from_utf8(output.stderr).unwrap();
+        let stderr = remove_noise_lines(stderr);
+        let stderr = delete_test_program_dir_occurrences(stderr, &test_program_dir);
+
+        let test_name = test_program_dir.file_name().unwrap().to_string_lossy().to_string();
+        let snapshot_name = "stderr";
+        insta::with_settings!(
+            {
+                snapshot_path => format!("./snapshots/compile_success_with_bug/{test_name}")
+            },
+            {
+            insta::assert_snapshot!(snapshot_name, stderr);
+        });
     }
 
     fn compile_failure(mut nargo: Command, test_program_dir: PathBuf) {
@@ -296,8 +303,12 @@ mod tests {
                 snapshot_path => format!("./snapshots/compile_failure/{test_name}")
             },
             {
-            insta::assert_snapshot!(snapshot_name, stderr)
-        })
+            insta::assert_snapshot!(snapshot_name, stderr);
+        });
+    }
+
+    fn interpret_execution_success(mut nargo: Command) {
+        nargo.assert().success();
     }
 
     fn nargo_expand_execute(test_program_dir: PathBuf) {
@@ -339,14 +350,14 @@ mod tests {
             snapshot_path => format!("./snapshots/execution_success/{test_name}")
         },
         {
-            insta::assert_snapshot!(snapshot_name, expanded_code)
+            insta::assert_snapshot!(snapshot_name, expanded_code);
         });
 
         // Create a new directory where we'll put the expanded code
-        let temp_dir = tempfile::tempdir().unwrap().into_path();
+        let temp_dir = tempfile::tempdir().unwrap().keep();
 
         // Copy everything from the original directory to the new directory
-        // (because some depdendencies might be there and might be needed for the expanded code to work)
+        // (because some dependencies might be there and might be needed for the expanded code to work)
         copy_dir_all(test_program_dir.clone(), temp_dir.clone()).unwrap();
 
         // Create a main file for the expanded code
@@ -400,14 +411,14 @@ mod tests {
             snapshot_path => format!("./snapshots/{prefix}/{test_name}")
         },
         {
-            insta::assert_snapshot!(snapshot_name, expanded_code)
+            insta::assert_snapshot!(snapshot_name, expanded_code);
         });
 
         // Create a new directory where we'll put the expanded code
-        let temp_dir = tempfile::tempdir().unwrap().into_path();
+        let temp_dir = tempfile::tempdir().unwrap().keep();
 
         // Copy everything from the original directory to the new directory
-        // (because some depdendencies might be there and might be needed for the expanded code to work)
+        // (because some dependencies might be there and might be needed for the expanded code to work)
         copy_dir_all(test_program_dir.clone(), temp_dir.clone()).unwrap();
 
         // Create a main file for the expanded code
@@ -437,90 +448,7 @@ mod tests {
         nargo.assert().success();
     }
 
-    fn check_program_artifact(
-        prefix: &'static str,
-        test_program_dir: &Path,
-        target_dir: &PathBuf,
-        force_brillig: ForceBrillig,
-        inliner: Inliner,
-    ) {
-        let artifact_filename =
-            find_program_artifact_in_dir(target_dir).expect("Expected an artifact to exist");
-
-        let artifact_file = fs::File::open(&artifact_filename).unwrap();
-        let artifact: ProgramArtifact = serde_json::from_reader(artifact_file).unwrap();
-
-        let _ = fs::remove_dir_all(target_dir);
-
-        let test_name = test_program_dir.file_name().unwrap().to_string_lossy().to_string();
-        if test_name == "workspace" {
-            // workspace outputs multiple artifacts so we get a non-deterministic result.
-            return;
-        }
-
-        let snapshot_name = format!("force_brillig_{}_inliner_{}", force_brillig.0, inliner.0);
-        insta::with_settings!(
-            {
-                snapshot_path => format!("./snapshots/{prefix}/{test_name}")
-            },
-            {
-            insta::assert_json_snapshot!(snapshot_name, artifact, {
-                ".noir_version" => "[noir_version]",
-                ".hash" => "[hash]",
-                ".bytecode" => insta::dynamic_redaction(|value, _path| {
-                    // assert that the value looks like a uuid here
-                    let bytecode_b64 = value.as_str().unwrap();
-                    let bytecode = base64::engine::general_purpose::STANDARD
-                        .decode(bytecode_b64)
-                        .unwrap();
-                    let program = Program::<FieldElement>::deserialize_program(&bytecode).unwrap();
-                    Content::Seq(program.to_string().split("\n").filter(|line: &&str| !line.is_empty()).map(Content::from).collect::<Vec<Content>>())
-                }),
-                ".file_map.**.path" => file_map_path_redaction(),
-            })
-        })
-    }
-
-    fn check_contract_artifact(
-        prefix: &'static str,
-        test_program_dir: &Path,
-        target_dir: &PathBuf,
-        force_brillig: ForceBrillig,
-        inliner: Inliner,
-    ) {
-        let artifact_filename =
-            find_program_artifact_in_dir(target_dir).expect("Expected an artifact to exist");
-
-        let artifact_file = fs::File::open(&artifact_filename).unwrap();
-        let artifact: ContractArtifact = serde_json::from_reader(artifact_file).unwrap();
-
-        fs::remove_dir_all(target_dir).expect("Could not remove target dir");
-
-        let test_name = test_program_dir.file_name().unwrap().to_string_lossy().to_string();
-
-        let snapshot_name = format!("force_brillig_{}_inliner_{}", force_brillig.0, inliner.0);
-        insta::with_settings!(
-            {
-                snapshot_path => format!("./snapshots/{prefix}/{test_name}")
-            },
-            {
-            insta::assert_json_snapshot!(snapshot_name, artifact, {
-                ".noir_version" => "[noir_version]",
-                ".functions[].hash" => "[hash]",
-                ".file_map.**.path" => file_map_path_redaction(),
-            })
-        })
-    }
-
-    fn file_map_path_redaction() -> Redaction {
-        insta::dynamic_redaction(|value, _path| {
-            // Some paths are absolute: clear those out.
-            let value = value.as_str().expect("Expected a string value in a path entry");
-            if value.starts_with("/") { String::new() } else { value.to_string() }
-        })
-    }
-
-    fn find_program_artifact_in_dir(dir: &PathBuf) -> Option<PathBuf> {
+    fn find_prover_toml_in_dir(dir: &PathBuf) -> Option<PathBuf> {
         if !dir.exists() {
             return None;
         }
@@ -531,7 +459,14 @@ mod tests {
             };
 
             let path = entry.path();
-            if path.extension().is_none_or(|ext| ext != "json") {
+
+            if entry.file_type().is_ok_and(|file_type| file_type.is_dir()) {
+                if let Some(prover_toml) = find_prover_toml_in_dir(&path) {
+                    return Some(prover_toml);
+                }
+            }
+
+            if path.file_name().is_none_or(|name| name != "Prover.toml") {
                 continue;
             };
 

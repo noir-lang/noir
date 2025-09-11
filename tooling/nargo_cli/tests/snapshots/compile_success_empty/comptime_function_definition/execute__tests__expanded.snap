@@ -17,65 +17,74 @@ pub fn foo(
     (b, c): (i32, i32),
 ) -> i32 {
     let _: (i32, Field, Field, Field, bool, i32, i32) = (w, y, x, some_field, a, b, c);
-    1
+    1_i32
 }
 
 #[test]
 #[deprecated]
 fn some_test() {}
 
+pub(crate) fn pub_crate_fn() {}
+
 comptime fn function_attr(f: FunctionDefinition) {
     let parameters: [(Quoted, Type)] = f.parameters();
-    assert(parameters.len() == 5);
-    assert(parameters[0].0 == quote { w });
-    assert(parameters[1].0 == quote { y });
+    assert(parameters.len() == 5_u32);
+    assert(parameters[0_u32].0 == quote { w });
+    assert(parameters[1_u32].0 == quote { y });
     assert(
-        parameters[2].0
+        parameters[2_u32].0
             == quote {
         Foo {
             x, field: some_field
         }
     },
     );
-    assert(parameters[3].0 == quote { mut a });
-    assert(parameters[4].0 == quote { (b, c) });
-    let an_i32: i32 = 0;
-    assert(parameters[0].1 == type_of(an_i32));
-    assert(parameters[1].1 == type_of(0));
-    assert(parameters[2].1 == type_of(Foo { x: 0, field: 1 }));
-    assert(parameters[3].1 == type_of(true));
-    assert(parameters[4].1 == type_of((an_i32, an_i32)));
+    assert(parameters[3_u32].0 == quote { mut a });
+    assert(parameters[4_u32].0 == quote { (b, c) });
+    let an_i32: i32 = 0_i32;
+    assert(parameters[0_u32].1 == type_of(an_i32));
+    assert(parameters[1_u32].1 == type_of(0_Field));
+    assert(parameters[2_u32].1 == type_of(Foo { x: 0_Field, field: 1_Field }));
+    assert(parameters[3_u32].1 == type_of(true));
+    assert(parameters[4_u32].1 == type_of((an_i32, an_i32)));
     assert(f.return_type() == type_of(an_i32));
     assert(f.name() == quote { foo });
     assert(f.has_named_attribute("function_attr"));
+    assert(f.visibility() == quote { pub })
 }
 
 comptime fn check_named_attribute(f: FunctionDefinition) {
     assert(f.has_named_attribute("test"));
     assert(f.has_named_attribute("deprecated"));
+    assert(f.visibility() == quote {  })
+}
+
+comptime fn check_visibility(f: FunctionDefinition) {
+    assert(f.visibility() == quote { pub(crate) })
 }
 
 fn add_one(x: Field) -> Field {
-    x + 1
+    x + 1_Field
 }
 
 comptime fn mutate_add_one(f: FunctionDefinition) {
-    assert(f.parameters().len() == 0);
-    f.set_parameters(&[(quote { x }, type_of(0))]);
-    assert(f.parameters().len() == 1);
+    assert(f.parameters().len() == 0_u32);
+    f.set_parameters(&[(quote { x }, type_of(0_Field))]);
+    assert(f.parameters().len() == 1_u32);
     assert(f.return_type() == type_of(()));
-    f.set_return_type(type_of(0));
-    assert(f.return_type() == type_of(0));
+    f.set_return_type(type_of(0_Field));
+    assert(f.return_type() == type_of(0_Field));
     f.set_body(quote { x + 1 }.as_expr().unwrap());
 }
 
 fn main() {
-    assert(add_one(41) == 42);
+    assert(add_one(41_Field) == 42_Field);
+    pub_crate_fn();
 }
 
 contract some_contract {
     pub fn bar() -> pub Field {
-        1
+        1_Field
     }
 }
 
@@ -104,17 +113,17 @@ mod test_as_typed_expr_1 {
     comptime fn foo(module: Module) -> Quoted {
         let method: FunctionDefinition = module.functions().filter(|f: FunctionDefinition| -> bool {
             f.name() == quote { method }
-        })[0];
+        })[0_u32];
         let func: TypedExpr = method.as_typed_expr();
         quote {
             pub fn bar() -> i32 {
-                func(1)
+                $func(1)
             }
         }
     }
 
     pub fn bar() -> i32 {
-        method(1)
+        method(1_i32)
     }
 
     pub fn test() {
@@ -130,13 +139,13 @@ mod test_as_typed_expr_2 {
     comptime fn foo(module: Module) -> Quoted {
         let method: FunctionDefinition = module.functions().filter(|f: FunctionDefinition| -> bool {
             f.name() == quote { method }
-        })[0];
+        })[0_u32];
         let func: TypedExpr = method.as_typed_expr();
         quote {
             pub fn bar() -> u32 {
                 // Safety: test program
                 unsafe {
-                    func([1, 2, 3, 0])
+                    $func([1, 2, 3, 0])
                 }
             }
         }
@@ -145,7 +154,7 @@ mod test_as_typed_expr_2 {
     pub fn bar() -> u32 {
         // Safety: comment added by `nargo expand`
         unsafe {
-            method([1, 2, 3, 0])
+            method([1_Field, 2_Field, 3_Field, 0_Field])
         }
     }
 
@@ -163,20 +172,20 @@ mod test_as_typed_expr_3 {
     comptime fn foo(module: Module) -> Quoted {
         let method: FunctionDefinition = module.functions().filter(|f: FunctionDefinition| -> bool {
             f.name() == quote { method }
-        })[0];
+        })[0_u32];
         let func: TypedExpr = method.as_typed_expr();
         quote {
             pub fn bar() -> u32 {
                 // Safety: test program
                 comptime {
-                    func(([1, 2, 3, 0], "a"))
+                    $func(([1, 2, 3, 0], "a"))
                 }
             }
         }
     }
 
     pub fn bar() -> u32 {
-        4
+        4_u32
     }
 
     pub fn test() {
@@ -186,11 +195,11 @@ mod test_as_typed_expr_3 {
 
 mod test_as_typed_expr_4 {
     comptime fn foo(f: TypedExpr) -> Quoted {
-        quote { f() }
+        quote { $f() }
     }
 
     fn bar() -> Field {
-        1
+        1_Field
     }
 
     fn baz() -> Field {
@@ -218,10 +227,7 @@ mod test_as_typed_expr_5 {
     where
         T: Trait,
     {
-        fn pack(self)
-        where
-            T: Trait,
-        {}
+        fn pack(self) {}
     }
 
     fn foo() {

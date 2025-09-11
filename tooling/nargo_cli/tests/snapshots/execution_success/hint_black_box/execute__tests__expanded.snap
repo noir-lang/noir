@@ -5,9 +5,9 @@ expression: expanded_code
 use std::hint::black_box;
 
 fn main(a: u32, b: u32) {
-    assert(loop_(5, a) == b);
-    assert(loop_(5, 10) == b);
-    assert(loop_(5, black_box(10)) == b);
+    assert(loop_(5_u32, a) == b);
+    assert(loop_(5_u32, 10_u32) == b);
+    assert(loop_(5_u32, black_box(10_u32)) == b);
     let arr: [u32; 5] = [a, a, a, a, a];
     assert(array_sum(arr) == b);
     assert(array_sum(black_box(arr)) == b);
@@ -17,38 +17,38 @@ fn main(a: u32, b: u32) {
     let s: u32 = unsafe { brillig_slice_sum(black_box(arr.as_slice())) };
     assert(s == b);
     let mut d: u32 = b;
-    let mut c: u32 = 0;
+    let mut c: u32 = 0_u32;
     set_ref(&mut c, &mut d);
     assert(c == b);
-    let mut c: u32 = 0;
+    let mut c: u32 = 0_u32;
     set_ref(&mut c, &mut black_box(d));
     assert(c == b);
-    let mut c: u32 = 0;
+    let mut c: u32 = 0_u32;
     set_ref(&mut black_box(c), &mut d);
-    assert(c == 0);
+    assert(c == 0_u32);
 }
 
 fn loop_(n: u32, k: u32) -> u32 {
-    let mut sum: u32 = 0;
-    for _ in 0..n {
+    let mut sum: u32 = 0_u32;
+    for _ in 0_u32..n {
         sum = sum + k;
     }
     sum
 }
 
 fn array_sum<let N: u32>(xs: [u32; N]) -> u32 {
-    let mut sum: u32 = 0;
-    for i in 0..N {
+    let mut sum: u32 = 0_u32;
+    for i in 0_u32..N {
         sum = sum + xs[i];
     }
     sum
 }
 
 fn slice_sum(xs: [u32]) -> u32 {
-    let mut sum: u32 = 0;
+    let mut sum: u32 = 0_u32;
     {
         let ___i0: [u32] = xs;
-        for ___i1 in 0..___i0.len() {
+        for ___i1 in 0_u32..___i0.len() {
             let x: u32 = ___i0[___i1];
             {
                 sum = sum + x;
@@ -59,10 +59,10 @@ fn slice_sum(xs: [u32]) -> u32 {
 }
 
 unconstrained fn brillig_slice_sum(xs: [u32]) -> u32 {
-    let mut sum: u32 = 0;
+    let mut sum: u32 = 0_u32;
     {
         let ___i0: [u32] = xs;
-        for ___i1 in 0..___i0.len() {
+        for ___i1 in 0_u32..___i0.len() {
             let x: u32 = ___i0[___i1];
             {
                 sum = sum + x;
@@ -73,5 +73,5 @@ unconstrained fn brillig_slice_sum(xs: [u32]) -> u32 {
 }
 
 fn set_ref(c: &mut u32, b: &mut u32) {
-    *(c) = *b;
+    *c = *b;
 }

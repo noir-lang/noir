@@ -9,7 +9,7 @@ fn main() {
 comptime fn my_macro() -> Quoted {
     let typ: Type = quote { Foo }.as_type();
     quote {
-        typ {
+        $typ {
             
         }
     }

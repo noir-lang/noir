@@ -3,27 +3,27 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 fn g(x: &mut Field) {
-    *(x) = *x * 2;
+    *x = *x * 2_Field;
 }
 
 fn h(x: &mut Field) {
-    *(x) = *x * 3;
+    *x = *x * 3_Field;
 }
 
 fn selector(flag: &mut bool) -> fn(&mut Field) {
     let my_func: fn(&mut Field) = if *flag { g } else { h };
-    *(flag) = !*flag;
+    *flag = !*flag;
     my_func
 }
 
 fn main() {
     let mut flag: bool = true;
-    let mut x: Field = 100;
+    let mut x: Field = 100_Field;
     let returned_func: fn(&mut Field) = selector(&mut flag);
     returned_func(&mut x);
-    assert(x == 200);
-    let mut y: Field = 100;
+    assert(x == 200_Field);
+    let mut y: Field = 100_Field;
     let returned_func2: fn(&mut Field) = selector(&mut flag);
     returned_func2(&mut y);
-    assert(y == 300);
+    assert(y == 300_Field);
 }

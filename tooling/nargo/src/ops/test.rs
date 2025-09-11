@@ -245,7 +245,7 @@ where
         Some(ref dir) => PathBuf::from(dir),
         None => {
             let corpus_dir = tempfile::tempdir().expect("Couldn't create temporary directory");
-            let corpus_dir = corpus_dir.into_path();
+            let corpus_dir = corpus_dir.keep();
             temporary_dirs_to_delete.push(corpus_dir.clone());
             corpus_dir
         }

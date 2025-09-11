@@ -6,7 +6,7 @@ struct Struct {}
 
 impl Trait<Field> for Struct {
     fn method(self) -> Field {
-        1
+        1_Field
     }
 }
 
@@ -16,14 +16,14 @@ trait Trait<T> {
 
 fn main() {
     let st: Struct = Struct {};
-    assert(st.method() == 1);
+    assert(st.method() == 1_Field);
 }
 
 comptime fn foo(_: FunctionDefinition) -> Quoted {
     let tr: TraitConstraint = quote { Trait < Field >  }.as_trait_constraint();
     let st: Type = quote { Struct }.as_type();
     quote {
-        impl tr for st {
+        impl $tr for $st {
             fn method(self) -> Field {
                 1
             }

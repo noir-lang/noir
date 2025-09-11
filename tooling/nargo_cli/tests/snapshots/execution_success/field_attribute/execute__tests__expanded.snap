@@ -8,5 +8,5 @@ fn main(mut x: u32) {
 
 #[field(bn254)]
 fn foo() -> u32 {
-    1
+    1_u32
 }

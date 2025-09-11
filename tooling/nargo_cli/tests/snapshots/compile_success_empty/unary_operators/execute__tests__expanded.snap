@@ -3,8 +3,8 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 fn main() {
-    let x: Field = -1;
-    assert(x == (1 - 2));
-    let y: i32 = -1;
-    assert(y == (1 - 2));
+    let x: Field = -1_Field;
+    assert(x == (1_Field - 2_Field));
+    let y: i32 = -1_i32;
+    assert(y == (1_i32 - 2_i32));
 }

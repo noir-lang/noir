@@ -10,21 +10,21 @@ unconstrained fn main() -> pub u32 {
 }
 
 fn loop_with_negative_literal() -> u32 {
-    let s: i64 = -5;
-    let e: i64 = 10;
-    let mut sum: u32 = 0;
+    let s: i64 = -5_i64;
+    let e: i64 = 10_i64;
+    let mut sum: u32 = 0_u32;
     for _ in s..e {
-        sum = sum + 1;
+        sum = sum + 1_u32;
     }
     sum
 }
 
 fn loop_with_u128_literal() -> u32 {
-    let s: u128 = 170141183460469231731687303715884105715;
-    let e: u128 = 170141183460469231731687303715884105730;
-    let mut sum: u32 = 0;
+    let s: u128 = 170141183460469231731687303715884105715_u128;
+    let e: u128 = 170141183460469231731687303715884105730_u128;
+    let mut sum: u32 = 0_u32;
     for _ in s..e {
-        sum = sum + 1;
+        sum = sum + 1_u32;
     }
     sum
 }

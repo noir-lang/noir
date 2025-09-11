@@ -3,5 +3,5 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 fn main(x: Field) -> pub [Field; 1] {
-    [x + 1]
+    [x + 1_Field]
 }

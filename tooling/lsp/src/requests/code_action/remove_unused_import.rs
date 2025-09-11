@@ -142,7 +142,7 @@ fn use_tree_to_string(use_tree: UseTree, visibility: ItemVisibility, nesting: us
     let string = if nesting > 0 && string.contains('\n') {
         // If the import is nested in a module, we just formatted it without indents so we need to add them.
         let indent = " ".repeat(nesting * 4);
-        string.lines().map(|line| format!("{}{}", indent, line)).collect::<Vec<_>>().join("\n")
+        string.lines().map(|line| format!("{indent}{line}")).collect::<Vec<_>>().join("\n")
     } else {
         string
     };

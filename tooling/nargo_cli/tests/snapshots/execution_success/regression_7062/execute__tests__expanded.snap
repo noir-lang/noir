@@ -3,11 +3,11 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 fn main(value: Field, index: u32) {
-    let mut args: [Field] = &[0, 1];
+    let mut args: [Field] = &[0_Field, 1_Field];
     args[index] = value;
     // Safety: comment added by `nargo expand`
     unsafe { store(args) };
-    assert((args[0] + args[1]) != 0);
+    assert((args[0_u32] + args[1_u32]) != 0_Field);
 }
 
 pub unconstrained fn store(_: [Field]) {}

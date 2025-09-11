@@ -7,5 +7,5 @@ global G_C: [[str<1>; 4]; 4] =
 
 unconstrained fn main(a: [[str<1>; 4]; 4]) {
     let mut f: [[str<1>; 4]; 4] = a;
-    f[0] = G_C[3];
+    f[0_u32] = G_C[3_u32];
 }

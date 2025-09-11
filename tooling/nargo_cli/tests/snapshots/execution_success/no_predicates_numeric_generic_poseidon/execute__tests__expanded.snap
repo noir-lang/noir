@@ -14,17 +14,17 @@ pub fn poseidon_hash<let N: u32>(inputs: [Field; N]) -> Field {
 }
 
 fn main(to_hash: [[Field; 10]; 2], enable: [bool; 2]) -> pub [Field; 3] {
-    let mut result: [Field; 3] = [0; 3];
-    for i in 0..NUM_HASHES {
+    let mut result: [Field; 3] = [0_Field; 3];
+    for i in 0_u32..NUM_HASHES {
         let enable: bool = enable[i];
         let to_hash: [Field; 10] = to_hash[i];
         if enable {
             result[i] = poseidon_hash(to_hash);
         }
     }
-    let mut double_preimage: [Field; 20] = [0; 20];
-    for i in 0..HASH_LENGTH * 2 {
-        double_preimage[i] = to_hash[0][i % HASH_LENGTH];
+    let mut double_preimage: [Field; 20] = [0_Field; 20];
+    for i in 0_u32..HASH_LENGTH * 2_u32 {
+        double_preimage[i] = to_hash[0_u32][i % HASH_LENGTH];
     }
     result[NUM_HASHES] = poseidon_hash(double_preimage);
     result

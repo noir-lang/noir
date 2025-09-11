@@ -3,12 +3,12 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 unconstrained fn main() {
-    let mut inner: [Field; 2] = [1, 2];
+    let mut inner: [Field; 2] = [1_Field, 2_Field];
     foo(inner, &mut inner);
 }
 
 unconstrained fn foo(a: [Field; 2], b: &mut [Field; 2]) {
-    b[0] = 100;
-    assert(a == [1, 2]);
-    assert(*b == [100, 2]);
+    b[0_u32] = 100_Field;
+    assert(a == [1_Field, 2_Field]);
+    assert(*b == [100_Field, 2_Field]);
 }

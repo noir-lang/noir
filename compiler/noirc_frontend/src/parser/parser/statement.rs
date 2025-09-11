@@ -660,7 +660,7 @@ mod tests {
         let StatementKind::Assign(assign) = statement.kind else {
             panic!("Expected assign");
         };
-        let LValue::Ident(ident) = assign.lvalue else {
+        let LValue::Path(ident) = assign.lvalue else {
             panic!("Expected ident");
         };
         assert_eq!(ident.to_string(), "x");
@@ -684,10 +684,24 @@ mod tests {
         let StatementKind::Assign(assign) = statement.kind else {
             panic!("Expected assign");
         };
-        let LValue::Ident(ident) = assign.lvalue else {
+        let LValue::Path(ident) = assign.lvalue else {
             panic!("Expected ident");
         };
         assert_eq!(ident.to_string(), "x");
+    }
+
+    #[test]
+    fn parses_assignment_with_path() {
+        let src = "x::y = 1";
+        let statement = parse_statement_no_errors(src);
+        let StatementKind::Assign(assign) = statement.kind else {
+            panic!("Expected assign");
+        };
+        let LValue::Path(path) = assign.lvalue else {
+            panic!("Expected path");
+        };
+        assert_eq!(path.to_string(), "x::y");
+        assert_eq!(assign.expression.to_string(), "1");
     }
 
     #[test]

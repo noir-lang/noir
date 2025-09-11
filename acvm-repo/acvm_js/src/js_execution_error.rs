@@ -50,7 +50,7 @@ impl JsExecutionError {
             Some(call_stack) => {
                 let js_array = Array::new();
                 for loc in call_stack {
-                    js_array.push(&JsValue::from(format!("{}", loc)));
+                    js_array.push(&JsValue::from(format!("{loc}")));
                 }
                 js_array.into()
             }

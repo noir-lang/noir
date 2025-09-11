@@ -3,46 +3,46 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 fn must_be_zero(x: u8) {
-    assert(x == 0);
+    assert(x == 0_u8);
 }
 
 fn test3(x: u8) {
-    if x == 0 {
+    if x == 0_u8 {
         must_be_zero(x);
     }
 }
 
 fn test4() -> [u32; 4] {
-    let b: [u32; 4] = [1, 2, 3, 4];
+    let b: [u32; 4] = [1_u32, 2_u32, 3_u32, 4_u32];
     b
 }
 
 fn main(a: u32, mut c: [u32; 4]) {
-    test3(1);
-    if a == 0 {
+    test3(1_u8);
+    if a == 0_u32 {
         c = test4();
     } else {
-        assert(c[1] != 2);
+        assert(c[1_u32] != 2_u32);
     };
-    if false { c[1] = 5; };
-    assert(c[1] == 2);
-    test5(4);
-    let mut c_sync: Field = 0;
-    if a == 42 {
+    if false { c[1_u32] = 5_u32; };
+    assert(c[1_u32] == 2_u32);
+    test5(4_u32);
+    let mut c_sync: Field = 0_Field;
+    if a == 42_u32 {
         c_sync = foo2();
     } else {
         c_sync = foo2() + foo2();
     };
-    assert(c_sync == 6);
+    assert(c_sync == 6_Field);
 }
 
 fn test5(a: u32) {
-    if a > 1 {
-        let q: u32 = a / 2;
-        assert(q == 2);
+    if a > 1_u32 {
+        let q: u32 = a / 2_u32;
+        assert(q == 2_u32);
     }
 }
 
 fn foo2() -> Field {
-    3
+    3_Field
 }

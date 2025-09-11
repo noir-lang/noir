@@ -6,7 +6,7 @@ use crate::{
     DataType, Kind, Shared, Type, TypeAlias, TypeBindings,
     ast::{
         ERROR_IDENT, Expression, ExpressionKind, GenericTypeArgs, Ident, ItemVisibility, Path,
-        PathSegment, Pattern, TypePath,
+        PathSegment, Pattern, TypePath, UnresolvedTypeExpression,
     },
     elaborator::{
         Turbofish,
@@ -18,18 +18,18 @@ use crate::{
         type_check::{Source, TypeCheckError},
     },
     hir_def::{
-        expr::{HirExpression, HirIdent, HirLiteral, HirMethodReference, ImplKind, TraitMethod},
+        expr::{HirExpression, HirIdent, HirMethodReference, ImplKind, TraitItem},
         stmt::HirPattern,
     },
     node_interner::{
         DefinitionId, DefinitionInfo, DefinitionKind, ExprId, FuncId, GlobalId, TraitImplKind,
         TypeAliasId, TypeId,
     },
-    signed_field::SignedField,
 };
 
 use super::{
     Elaborator, ResolverMeta,
+    function_context::BindableTypeVariableKind,
     path_resolution::{PathResolutionItem, TypedPath, TypedPathSegment},
 };
 
@@ -581,6 +581,18 @@ impl Elaborator<'_> {
         let (expr, item) = self.resolve_variable(variable);
         let definition_id = expr.id;
 
+        if let Some(PathResolutionItem::TypeAlias(alias)) = item {
+            // A type alias to a numeric generics is considered like a variable
+            // but it is not a real variable so it does not resolve to a valid Identifier
+            // In order to handle this, we retrieve the numeric generics expression that the type aliases to
+            let type_alias = self.interner.get_type_alias(alias);
+            if let Some(expr) = &type_alias.borrow().numeric_expr {
+                let expr = UnresolvedTypeExpression::to_expression_kind(expr);
+                let expr = Expression::new(expr, type_alias.borrow().location);
+                return self.elaborate_expression(expr);
+            }
+        }
+
         let (type_generics, self_generic) = if let Some(item) = item {
             self.resolve_item_turbofish_and_self_type(item)
         } else {
@@ -630,7 +642,15 @@ impl Elaborator<'_> {
         let id = self.interner.push_expr(HirExpression::Ident(expr.clone(), generics.clone()));
 
         self.interner.push_expr_location(id, location);
-        let typ = self.type_check_variable_with_bindings(expr, id, generics, bindings);
+        // TODO: set this to `true`. See https://github.com/noir-lang/noir/issues/8687
+        let push_required_type_variables = self.current_trait.is_none();
+        let typ = self.type_check_variable_with_bindings(
+            expr,
+            id,
+            generics,
+            bindings,
+            push_required_type_variables,
+        );
         self.interner.push_expr_type(id, typ.clone());
 
         // If this variable it a comptime local variable, use its current value as the final expression
@@ -671,28 +691,8 @@ impl Elaborator<'_> {
 
         let location = variable.location;
         let name = variable.segments[1].ident.as_str();
-
-        // Check the `Self::AssociatedConstant` case when inside a trait
-        if let Some(trait_id) = &self.current_trait {
-            let trait_ = self.interner.get_trait(*trait_id);
-            if let Some(associated_type) = trait_.get_associated_type(name) {
-                if let Kind::Numeric(numeric_type) = associated_type.kind() {
-                    // We can produce any value here because this trait method is never going to
-                    // produce code (only trait impl methods do)
-                    let numeric_type: Type = *numeric_type.clone();
-                    let value = SignedField::zero();
-                    return Some(self.constant_integer(numeric_type, value, location));
-                }
-            }
-        }
-
-        let Some(self_type) = &self.self_type else {
-            return None;
-        };
-
-        let Some(trait_impl_id) = &self.current_trait_impl else {
-            return None;
-        };
+        let self_type = self.self_type.as_ref()?;
+        let trait_impl_id = &self.current_trait_impl?;
 
         // Check the `Self::AssociatedConstant` case when inside a trait impl
         if let Some((definition_id, numeric_type)) =
@@ -737,24 +737,12 @@ impl Elaborator<'_> {
         let generics = segment.generics.map(|generics| {
             vecmap(generics, |generic| {
                 let location = generic.location;
-                let typ = self.use_type_with_kind(generic, &Kind::Any);
+                let wildcard_allowed = true;
+                let typ = self.use_type_with_kind(generic, &Kind::Any, wildcard_allowed);
                 Located::from(location, typ)
             })
         });
         TypedPathSegment { ident: segment.ident, generics, location: segment.location }
-    }
-
-    fn constant_integer(
-        &mut self,
-        numeric_type: Type,
-        value: SignedField,
-        location: Location,
-    ) -> (ExprId, Type) {
-        let hir_expr = HirExpression::Literal(HirLiteral::Integer(value));
-        let id = self.interner.push_expr(hir_expr);
-        self.interner.push_expr_location(id, location);
-        self.interner.push_expr_type(id, numeric_type.clone());
-        (id, numeric_type)
     }
 
     /// Solve any generics that are part of the path before the function, for example:
@@ -831,6 +819,7 @@ impl Elaborator<'_> {
             | PathResolutionItem::TypeAlias(..)
             | PathResolutionItem::PrimitiveType(..)
             | PathResolutionItem::Trait(..)
+            | PathResolutionItem::TraitAssociatedType(..)
             | PathResolutionItem::Global(..)
             | PathResolutionItem::ModuleFunction(..) => (Vec::new(), None),
         }
@@ -895,11 +884,11 @@ impl Elaborator<'_> {
                     trait_path_resolution.item,
                 ),
 
-                TraitPathResolutionMethod::TraitMethod(trait_method) => (
+                TraitPathResolutionMethod::TraitItem(item) => (
                     HirIdent {
                         location: path.location,
-                        id: self.interner.trait_method_id(trait_method.method_id),
-                        impl_kind: ImplKind::TraitMethod(trait_method),
+                        id: item.definition,
+                        impl_kind: ImplKind::TraitItem(item),
                     },
                     trait_path_resolution.item,
                 ),
@@ -974,21 +963,30 @@ impl Elaborator<'_> {
         generics: Option<Vec<Type>>,
     ) -> Type {
         let bindings = TypeBindings::default();
-        self.type_check_variable_with_bindings(ident, expr_id, generics, bindings)
+        // TODO: set this to `true`. See https://github.com/noir-lang/noir/issues/8687
+        let push_required_type_variables = self.current_trait.is_none();
+        self.type_check_variable_with_bindings(
+            ident,
+            expr_id,
+            generics,
+            bindings,
+            push_required_type_variables,
+        )
     }
 
-    pub(super) fn type_check_variable_with_bindings(
+    pub(crate) fn type_check_variable_with_bindings(
         &mut self,
         ident: HirIdent,
         expr_id: ExprId,
         generics: Option<Vec<Type>>,
         mut bindings: TypeBindings,
+        push_required_type_variables: bool,
     ) -> Type {
         // Add type bindings from any constraints that were used.
         // We need to do this first since otherwise instantiating the type below
         // will replace each trait generic with a fresh type variable, rather than
         // the type used in the trait constraint (if it exists). See #4088.
-        if let ImplKind::TraitMethod(method) = &ident.impl_kind {
+        if let ImplKind::TraitItem(method) = &ident.impl_kind {
             self.bind_generics_from_trait_constraint(
                 &method.constraint,
                 method.assumed,
@@ -1018,8 +1016,52 @@ impl Elaborator<'_> {
         let (typ, bindings) =
             self.instantiate(t, bindings, generics, function_generic_count, location);
 
+        if let ImplKind::TraitItem(mut method) = ident.impl_kind {
+            method.constraint.apply_bindings(&bindings);
+            if method.assumed {
+                let trait_generics = method.constraint.trait_bound.trait_generics.clone();
+                let object_type = method.constraint.typ;
+                let trait_impl = TraitImplKind::Assumed { object_type, trait_generics };
+                self.interner.select_impl_for_expression(expr_id, trait_impl);
+            } else {
+                self.push_trait_constraint(
+                    method.constraint,
+                    expr_id,
+                    true, // this constraint should lead to choosing a trait impl method
+                );
+            }
+        }
+
         // Push any trait constraints required by this definition to the context
         // to be checked later when the type of this variable is further constrained.
+        //
+        // This must be done before the above trait constraint in case the above one further
+        // restricts types.
+        //
+        // For example, in this code:
+        //
+        // ```noir
+        // trait One {}
+        //
+        // trait Two<O: One> {
+        //     fn new() -> Self;
+        // }
+        //
+        // fn foo<X: One, T: Two<X>>() {
+        //     let _: T = Two::new();
+        // }
+        // ```
+        //
+        // when type-checking `Two::new` we'll have a return type `'2` which is constrained by `'2: Two<'1>`.
+        // Then the definition for `new` has a constraint on it, `O: One`, which translates to `'1: One`.
+        //
+        // Because of the explicit type in the `let`, `'2` will be unified with `T`.
+        // Then we must first verify the constraint `'2: Two<'1>`, which is now `T: Two<'1>`, to find
+        // that the implementation is the assumed one `T: Two<X>` so that `'1` is bound to `X`.
+        // Then we can successfully verify the constraint `'1: One` which now became `X: One` which holds
+        // because of the assumed constraint.
+        //
+        // If we try to find a trait implementation for `'1` before finding one for `'2` we'll never find it.
         if let Some(definition) = self.interner.try_definition(ident.id) {
             if let DefinitionKind::Function(function) = definition.kind {
                 let function = self.interner.function_meta(&function);
@@ -1035,21 +1077,13 @@ impl Elaborator<'_> {
             }
         }
 
-        if let ImplKind::TraitMethod(mut method) = ident.impl_kind {
-            method.constraint.apply_bindings(&bindings);
-            if method.assumed {
-                let trait_generics = method.constraint.trait_bound.trait_generics.clone();
-                let object_type = method.constraint.typ;
-                let trait_impl = TraitImplKind::Assumed { object_type, trait_generics };
-                self.interner.select_impl_for_expression(expr_id, trait_impl);
-            } else {
-                // Currently only one impl can be selected per expr_id, so this
-                // constraint needs to be pushed after any other constraints so
-                // that monomorphization can resolve this trait method to the correct impl.
-                self.push_trait_constraint(
-                    method.constraint,
-                    expr_id,
-                    true, // this constraint should lead to choosing a trait impl method
+        if push_required_type_variables {
+            for (type_variable, _kind, typ) in bindings.values() {
+                self.push_required_type_variable(
+                    type_variable.id(),
+                    typ.clone(),
+                    BindableTypeVariableKind::Ident(ident.id),
+                    ident.location,
                 );
             }
         }
@@ -1083,7 +1117,12 @@ impl Elaborator<'_> {
                         Type::Forall(generics, _) => generics.len() - function_generic_count,
                         _ => 0,
                     };
-                    typ.instantiate_with(turbofish_generics, self.interner, implicit_generic_count)
+                    typ.instantiate_with_bindings_and_turbofish(
+                        bindings,
+                        turbofish_generics,
+                        self.interner,
+                        implicit_generic_count,
+                    )
                 }
             }
             None => typ.instantiate_with_bindings(bindings, self.interner),
@@ -1094,6 +1133,19 @@ impl Elaborator<'_> {
         &mut self,
         path: TypedPath,
     ) -> ((HirIdent, usize), Option<PathResolutionItem>) {
+        let location = Location::new(path.last_ident().span(), path.location.file);
+
+        self.get_ident_from_path_or_error(path).unwrap_or_else(|error| {
+            self.push_err(error);
+            let id = DefinitionId::dummy_id();
+            ((HirIdent::non_trait_method(id, location), 0), None)
+        })
+    }
+
+    pub(crate) fn get_ident_from_path_or_error(
+        &mut self,
+        path: TypedPath,
+    ) -> Result<((HirIdent, usize), Option<PathResolutionItem>), ResolverError> {
         let location = Location::new(path.last_ident().span(), path.location.file);
         let use_variable_result = path.as_single_segment().map(|segment| {
             let result = self.use_variable(&segment.ident);
@@ -1106,30 +1158,39 @@ impl Elaborator<'_> {
         });
 
         let error = match use_variable_result {
-            Some(Ok(found)) => return (found, None),
+            Some(Ok(found)) => return Ok((found, None)),
             // Try to look it up as a global, but still issue the first error if we fail
             Some(Err(error)) => match self.lookup_global(path) {
                 Ok((id, item)) => {
-                    return ((HirIdent::non_trait_method(id, location), 0), Some(item));
+                    return Ok(((HirIdent::non_trait_method(id, location), 0), Some(item)));
                 }
                 Err(_) => error,
             },
             None => match self.lookup_global(path) {
+                Ok((dummy_id, PathResolutionItem::TypeAlias(type_alias_id)))
+                    if dummy_id == DefinitionId::dummy_id() =>
+                {
+                    // Allow path which resolves to a type alias
+                    return Ok((
+                        (HirIdent::non_trait_method(dummy_id, location), 4),
+                        Some(PathResolutionItem::TypeAlias(type_alias_id)),
+                    ));
+                }
                 Ok((id, item)) => {
-                    return ((HirIdent::non_trait_method(id, location), 0), Some(item));
+                    return Ok(((HirIdent::non_trait_method(id, location), 0), Some(item)));
                 }
                 Err(error) => error,
             },
         };
-        self.push_err(error);
-        let id = DefinitionId::dummy_id();
-        ((HirIdent::non_trait_method(id, location), 0), None)
+
+        Err(error)
     }
 
     pub(super) fn elaborate_type_path(&mut self, path: TypePath) -> (ExprId, Type) {
         let typ_location = path.typ.location;
         let turbofish = path.turbofish;
-        let typ = self.use_type(path.typ);
+        let wildcard_allowed = true;
+        let typ = self.use_type(path.typ, wildcard_allowed);
         self.elaborate_type_path_impl(typ, path.item, turbofish, typ_location)
     }
 
@@ -1167,11 +1228,11 @@ impl Elaborator<'_> {
 
         let impl_kind = match method {
             HirMethodReference::FuncId(_) => ImplKind::NotATraitMethod,
-            HirMethodReference::TraitMethodId(method_id, generics, _) => {
+            HirMethodReference::TraitItemId(definition, trait_id, generics, _) => {
                 let mut constraint =
-                    self.interner.get_trait(method_id.trait_id).as_constraint(ident_location);
+                    self.interner.get_trait(trait_id).as_constraint(ident_location);
                 constraint.trait_bound.trait_generics = generics;
-                ImplKind::TraitMethod(TraitMethod { method_id, constraint, assumed: false })
+                ImplKind::TraitItem(TraitItem { definition, constraint, assumed: false })
             }
         };
 

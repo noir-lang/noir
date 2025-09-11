@@ -21,13 +21,15 @@ struct Point {
 
 impl<let N: u32> FromCallData<N, N - 2> for Point {
     fn from_calldata(calldata: [Field; N]) -> (Self, [Field; N - 2]) {
-        let (x, calldata): (Field, [Field; N - 1]) = FromCallData::from_calldata(calldata);
-        let (y, calldata): (Field, [Field; N - 2]) = FromCallData::from_calldata(calldata);
+        let (x, calldata): (Field, [Field; N - 1]) =
+            <Field as FromCallData<N, N - 1>>::from_calldata(calldata);
+        let (y, calldata): (Field, [Field; N - 2]) =
+            <Field as FromCallData<N - 1, N - 2>>::from_calldata(calldata);
         (Self { x: x, y: y }, calldata)
     }
 }
 
 fn main() {
-    let calldata: [Field; 2] = [1, 2];
-    let _: (Point, [Field; 2 - 2]) = FromCallData::from_calldata(calldata);
+    let calldata: [Field; 2] = [1_Field, 2_Field];
+    let _: (Point, [Field; 2 - 2]) = <Point as FromCallData<2, 2 - 2>>::from_calldata(calldata);
 }

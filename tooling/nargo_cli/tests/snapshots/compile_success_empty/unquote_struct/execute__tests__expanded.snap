@@ -5,7 +5,7 @@ expression: expanded_code
 use std::meta::unquote;
 
 fn main() {
-    let foo: Foo = Foo { x: 4, y: 4 };
+    let foo: Foo = Foo { x: 4_Field, y: 4_u32 };
     foo.assert_equal();
 }
 
@@ -16,11 +16,11 @@ fn foo(x: Field, y: u32) -> u32 {
 comptime fn output_struct(f: FunctionDefinition) -> Quoted {
     let fields: Quoted = f
         .parameters()
-        .map(|(name, typ): (Quoted, Type)| -> Quoted quote { name: typ,  })
+        .map(|(name, typ): (Quoted, Type)| -> Quoted quote { $name: $typ,  })
         .join(quote {  });
     quote {
         struct Foo {
-            fields
+            $fields
         }
         impl Foo {
             fn assert_equal(self) {

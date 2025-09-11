@@ -15,15 +15,15 @@ unconstrained fn test_u16_unconstrained(x: u16) {
 }
 
 fn test_u16(x: u16) {
-    let t1: u16 = 1234;
-    let t2: u16 = 4321;
+    let t1: u16 = 1234_u16;
+    let t2: u16 = 4321_u16;
     let t: u16 = t1 + t2;
     let t4: u16 = t - t2;
     assert(t4 == t1);
     let mut small_int: u16 = x as u16;
-    let shift: u16 = small_int << (x as u8);
-    assert(shift == 8);
-    assert((shift >> (x as u8)) == small_int);
-    assert((shift >> 15) == 0);
-    assert((shift << 15) == 0);
+    let shift: u16 = small_int << x;
+    assert(shift == 8_u16);
+    assert((shift >> x) == small_int);
+    assert((shift >> 15_u16) == 0_u16);
+    assert((shift << 15_u16) == 0_u16);
 }

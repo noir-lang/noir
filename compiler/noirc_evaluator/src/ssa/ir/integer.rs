@@ -94,6 +94,13 @@ impl IntegerConstant {
             Self::Unsigned { value, .. } => value.is_zero(),
         }
     }
+
+    pub(crate) fn is_negative(&self) -> bool {
+        match self {
+            Self::Signed { value, .. } => value.is_negative(),
+            Self::Unsigned { .. } => false,
+        }
+    }
 }
 
 impl PartialOrd for IntegerConstant {

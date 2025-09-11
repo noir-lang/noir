@@ -3,9 +3,9 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 fn main() {
-    let array: [Field; 3] = [1, 2, 3];
+    let array: [Field; 3] = [1_Field, 2_Field, 3_Field];
     assert(array.my_eq(array));
-    let array: [Field; 3] = [1, 2, 3];
+    let array: [Field; 3] = [1_Field, 2_Field, 3_Field];
     assert(array.my_eq(array));
 }
 
@@ -17,13 +17,10 @@ impl<T> MyEq for [T; 3]
 where
     T: MyEq,
 {
-    fn my_eq(self, other: Self) -> bool
-    where
-        T: MyEq,
-    {
+    fn my_eq(self, other: Self) -> bool {
         let mut ret: bool = true;
-        for i in 0..self.len() {
-            ret = ret & MyEq::my_eq(self[i], other[i]);
+        for i in 0_u32..self.len() {
+            ret = ret & self[i].my_eq(other[i]);
         }
         ret
     }

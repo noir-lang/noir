@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_unused_items_no_warning_on_indirect_struct_if_it_has_an_abi_attribute"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

@@ -105,6 +105,28 @@ impl Context<'_> {
             unreachable!("ICE: expected array or slice type");
         };
 
+        // For 0-length arrays and slices, even the disabled memory operations would cause runtime failures.
+        // Set rhe result to a zero value that matches the type then bypass the rest of the operation,
+        // leaving an assertion that the side effect variable must be false.
+        if self.has_zero_length(array, dfg) {
+            // Zero result.
+            let result_ids = dfg.instruction_results(instruction);
+            for result_id in result_ids {
+                let res_typ = dfg.type_of_value(*result_id);
+                let zero_value = self.array_zero_value(&res_typ)?;
+                self.ssa_values.insert(*result_id, zero_value);
+            }
+            // Make sure this code is disabled, or fail with "Index out of bounds".
+            let msg = "Index out of bounds, array has size 0".to_string();
+            let msg = self.acir_context.generate_assertion_message_payload(msg);
+            let zero = self.acir_context.add_constant(FieldElement::zero());
+            return self.acir_context.assert_eq_var(
+                self.current_side_effects_enabled_var,
+                zero,
+                Some(msg),
+            );
+        }
+
         if self.handle_constant_index_wrapper(instruction, dfg, array, index, store_value)? {
             return Ok(());
         }
@@ -116,6 +138,7 @@ impl Context<'_> {
         // For simplicity we compute the offset only for simple arrays
         let is_simple_array = dfg.instruction_results(instruction).len() == 1
             && (array_has_constant_element_size(&array_typ) == Some(1));
+
         let offset = if is_simple_array {
             let result_type = dfg.type_of_value(dfg.instruction_results(instruction)[0]);
             match array_typ {
@@ -128,6 +151,7 @@ impl Context<'_> {
         } else {
             None
         };
+
         let (new_index, new_value) = self.convert_array_operation_inputs(
             array,
             dfg,
@@ -219,6 +243,13 @@ impl Context<'_> {
             // as if the predicate were true. This is as if the predicate were to resolve to false then
             // the result should not affect the rest of circuit execution.
             let value = array[index].clone();
+            // An `Array` might contain a `DynamicArray`, however if we define the result this way,
+            // we would bypass the array initialization and the handling of dynamic values that
+            // happens in `array_get_value`. Rather than repeat it here, let the non-special-case
+            // handling take over by returning `false`.
+            if matches!(value, AcirValue::DynamicArray(_)) {
+                return Ok(false);
+            }
             self.define_result(dfg, instruction, value);
             Ok(true)
         }
@@ -472,6 +503,31 @@ impl Context<'_> {
         }
     }
 
+    /// Construct a value with all zero values, which we can use to provide a default value
+    /// when we cannot use `array_get_value` because the array length itself is zero, yet
+    /// we also don't want a memory operation to fail, because the operation will never
+    /// actually run, because we know that the side effect variable is false.
+    pub(super) fn array_zero_value(&mut self, ssa_type: &Type) -> Result<AcirValue, RuntimeError> {
+        match ssa_type.clone() {
+            Type::Numeric(numeric_type) => {
+                let zero = self.acir_context.add_constant(FieldElement::zero());
+                let typ = AcirType::NumericType(numeric_type);
+                Ok(AcirValue::Var(zero, typ))
+            }
+            Type::Array(element_types, len) => {
+                let mut values = im::Vector::new();
+                for _ in 0..len {
+                    for typ in element_types.as_ref() {
+                        values.push_back(self.array_zero_value(typ)?);
+                    }
+                }
+                Ok(AcirValue::Array(values))
+            }
+            Type::Reference(reference_type) => self.array_zero_value(reference_type.as_ref()),
+            _ => unreachable!("ICE: Expected an array or numeric but got {ssa_type:?}"),
+        }
+    }
+
     /// If `mutate_array` is:
     /// - `true`: Mutate the array directly
     /// - `false`: Copy the array and generates a write opcode on the new array. This is
@@ -676,7 +732,7 @@ impl Context<'_> {
             }
             _ => Err(InternalError::Unexpected {
                 expected: "AcirValue::DynamicArray or AcirValue::Array".to_owned(),
-                found: format!("{:?}", array_acir_value),
+                found: format!("{array_acir_value:?}"),
                 call_stack: self.acir_context.get_call_stack(),
             }
             .into()),
@@ -769,24 +825,47 @@ impl Context<'_> {
         if !array_typ.contains_slice_element() {
             array_typ.flattened_size() as usize
         } else {
-            let mut size = 0;
             match &dfg[array] {
-                Value::NumericConstant { .. } => {
-                    size += 1;
-                }
-                Value::Instruction { .. } => {
+                Value::NumericConstant { .. } => 1,
+                Value::Instruction { .. } | Value::Param { .. } => {
                     let array_acir_value = self.convert_value(array, dfg);
-                    size += flattened_value_size(&array_acir_value);
-                }
-                Value::Param { .. } => {
-                    let array_acir_value = self.convert_value(array, dfg);
-                    size += flattened_value_size(&array_acir_value);
+                    flattened_value_size(&array_acir_value)
                 }
                 _ => {
                     unreachable!("ICE: Unexpected SSA value when computing the slice size");
                 }
             }
-            size
+        }
+    }
+
+    /// Check if the array or slice has 0 length.
+    ///
+    /// This is different from `flattened_size` in that a non-zero length
+    /// array containing zero length arrays has zero size, but we can still
+    /// access its elements.
+    fn has_zero_length(&mut self, array: ValueId, dfg: &DataFlowGraph) -> bool {
+        if let Type::Array(_, size) = dfg.type_of_value(array) {
+            size == 0
+        } else {
+            match &dfg[array] {
+                Value::Instruction { .. } | Value::Param { .. } => {
+                    let array_acir_value = self.convert_value(array, dfg);
+                    match array_acir_value {
+                        AcirValue::DynamicArray(AcirDynamicArray { len, .. }) => len == 0,
+                        AcirValue::Array(values) => values.is_empty(),
+                        AcirValue::Var(_, _) => {
+                            unreachable!(
+                                "ICE: Unexpected ACIR value for array or slice: {array_acir_value:?}"
+                            )
+                        }
+                    }
+                }
+                other => {
+                    unreachable!(
+                        "ICE: Unexpected SSA value when computing the slice size: {other:?}"
+                    );
+                }
+            }
         }
     }
 

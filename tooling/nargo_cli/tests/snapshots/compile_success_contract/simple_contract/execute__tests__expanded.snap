@@ -4,15 +4,15 @@ expression: expanded_code
 ---
 contract Foo {
     fn double(x: Field) -> pub Field {
-        x * 2
+        x * 2_Field
     }
 
     fn triple(x: Field) -> pub Field {
-        x * 3
+        x * 3_Field
     }
 
     fn quadruple(x: Field) -> pub Field {
-        x * 4
+        x * 4_Field
     }
 
     #[contract_library_method]

@@ -95,9 +95,9 @@ fn main(x: u32) {
     assert(b_false.to_field() == 3);
     let f = 13 as Field;
     assert(f.to_field() == 13);
-    let k_true = (12 as u32, true);
+    let k_true = (12_u32, true);
     assert(k_true.to_field() == 12);
-    let k_false = (11 as u32, false);
+    let k_false = (11_u32, false);
     assert(k_false.to_field() == 32);
     let m = "String";
     assert(m.to_field() == 6);
@@ -110,6 +110,6 @@ fn main(x: u32) {
     assert(f"i: {i}, j: {j}".to_field() == 52);
     assert(some_func.to_field() == 17);
 
-    let mut y = 0 as u64;
+    let mut y = 0_u64;
     assert(y.to_field() == 66);
 }

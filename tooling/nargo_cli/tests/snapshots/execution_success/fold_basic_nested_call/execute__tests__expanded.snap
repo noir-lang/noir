@@ -10,7 +10,7 @@ fn main(x: Field, y: pub Field) {
 
 #[fold]
 fn func_with_nested_foo_call(x: Field, y: Field) -> Field {
-    foo(x + 2, y)
+    foo(x + 2_Field, y)
 }
 
 #[fold]

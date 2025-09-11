@@ -5,13 +5,13 @@ expression: expanded_code
 global N: u32 = 10;
 
 unconstrained fn main() {
-    let mut arr: [Field; 10] = [0; 10];
+    let mut arr: [Field; 10] = [0_Field; 10];
     let mut mid_change: [Field; 10] = arr;
-    for i in 0..N {
-        if i == (N / 2) { mid_change = arr; };
-        arr[i] = 27;
+    for i in 0_u32..N {
+        if i == (N / 2_u32) { mid_change = arr; };
+        arr[i] = 27_Field;
     }
-    let modified_i: u32 = (N / 2) + 1;
-    assert(arr[modified_i] == 27);
-    assert(mid_change[modified_i] != 27);
+    let modified_i: u32 = (N / 2_u32) + 1_u32;
+    assert(arr[modified_i] == 27_Field);
+    assert(mid_change[modified_i] != 27_Field);
 }

@@ -5,7 +5,7 @@ expression: expanded_code
 fn main(x: Field) {
     // Safety: comment added by `nargo expand`
     let y: Field = unsafe { empty(x) };
-    let mut value: Field = 0;
+    let mut value: Field = 0_Field;
     let term1: Field = (x * x) - (x * y);
     std::as_witness(term1);
     value = value + term1;
@@ -13,14 +13,14 @@ fn main(x: Field) {
     value = value + term2;
     value.assert_max_bit_size::<1>();
     // Safety: comment added by `nargo expand`
-    let y: Field = unsafe { empty(x + 1) };
-    let z: Field = (y + x) + 1;
+    let y: Field = unsafe { empty(x + 1_Field) };
+    let z: Field = (y + x) + 1_Field;
     let z1: Field = z + y;
-    assert((z + z1) != 3);
-    let w: Field = (y + (2 * x)) + 3;
+    assert((z + z1) != 3_Field);
+    let w: Field = (y + (2_Field * x)) + 3_Field;
     assert((w + z1) != z);
 }
 
 unconstrained fn empty(_: Field) -> Field {
-    0
+    0_Field
 }

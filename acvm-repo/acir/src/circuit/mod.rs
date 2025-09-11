@@ -371,11 +371,11 @@ impl<F: AcirField> std::fmt::Debug for Circuit<F> {
 impl<F: AcirField> std::fmt::Display for Program<F> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for (func_index, function) in self.functions.iter().enumerate() {
-            writeln!(f, "func {}", func_index)?;
-            writeln!(f, "{}", function)?;
+            writeln!(f, "func {func_index}")?;
+            writeln!(f, "{function}")?;
         }
         for (func_index, function) in self.unconstrained_functions.iter().enumerate() {
-            writeln!(f, "unconstrained func {}", func_index)?;
+            writeln!(f, "unconstrained func {func_index}")?;
             writeln!(f, "{:?}", function.bytecode)?;
         }
         Ok(())
@@ -584,6 +584,7 @@ mod tests {
         }
 
         /// Override the maximum size of collections created by `proptest`.
+        #[allow(unsafe_code)]
         fn run_with_max_size_range<T, F>(cases: u32, f: F)
         where
             T: Arbitrary,

@@ -28,6 +28,7 @@ pub(crate) fn on_references_request(
 #[cfg(test)]
 mod references_tests {
     use super::*;
+    use crate::notifications::workspace_from_document_uri;
     use crate::test_utils::{self, search_in_file};
     use crate::utils::get_cursor_line_and_column;
     use crate::{notifications, on_did_open_text_document};
@@ -113,13 +114,9 @@ mod references_tests {
 
         // We call this to open the document, so that the entire workspace is analyzed
         let output_diagnostics = true;
+        let workspace = workspace_from_document_uri(one_lib.clone()).unwrap();
 
-        notifications::process_workspace_for_noir_document(
-            &mut state,
-            one_lib.clone(),
-            output_diagnostics,
-        )
-        .unwrap();
+        notifications::process_workspace(&mut state, &workspace, output_diagnostics).unwrap();
 
         let params = ReferenceParams {
             text_document_position: TextDocumentPositionParams {
@@ -193,7 +190,7 @@ mod references_tests {
 
         let (line, column, src) = get_cursor_line_and_column(src);
 
-        on_did_open_text_document(
+        let _ = on_did_open_text_document(
             &mut state,
             DidOpenTextDocumentParams {
                 text_document: TextDocumentItem {

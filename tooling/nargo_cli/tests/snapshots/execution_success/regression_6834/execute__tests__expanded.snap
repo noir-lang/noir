@@ -3,11 +3,11 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 fn main(year: u32, min_age: u8) -> pub u32 {
-    if min_age == 0 {
-        (year - 2) / 4
-    } else if year > 1 {
-        (year - 2) / 4
+    if min_age == 0_u8 {
+        (year - 2_u32) / 4_u32
+    } else if year > 1_u32 {
+        (year - 2_u32) / 4_u32
     } else {
-        0
+        0_u32
     }
 }

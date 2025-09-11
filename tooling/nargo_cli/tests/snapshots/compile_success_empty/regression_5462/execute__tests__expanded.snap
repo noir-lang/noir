@@ -7,7 +7,7 @@ fn main() {
     if empty_slice != &[] {
         let _: (u8, [u8]) = empty_slice.pop_front();
     };
-    if empty_slice.len() != 0 {
+    if empty_slice.len() != 0_u32 {
         let _: (u8, [u8]) = empty_slice.pop_front();
     }
 }

@@ -3,11 +3,11 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 fn main(x: u8, result: [u8; 32]) {
-    let x: u8 = x % 31;
-    let mut digest: [u8; 32] = [0; 32];
-    for i in 0..70 {
+    let x: u8 = x % 31_u8;
+    let mut digest: [u8; 32] = [0_u8; 32];
+    for i in 0_u8..70_u8 {
         let y: u8 = x + i;
-        let a: [u8; 8] = [y, x, 32, 0, y + 1, y - 1, y - 2, 5];
+        let a: [u8; 8] = [y, x, 32_u8, 0_u8, y + 1_u8, y - 1_u8, y - 2_u8, 5_u8];
         digest = std::hash::blake3(a);
     }
     assert(digest == result);

@@ -3,12 +3,12 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 fn main(x: u32, y: pub u32) {
-    let new_field: [u32; 3] = new_field_in_array([x, y, 3]);
-    assert(new_field[0] == 25);
+    let new_field: [u32; 3] = new_field_in_array([x, y, 3_u32]);
+    assert(new_field[0_u32] == 25_u32);
 }
 
 #[fold]
 fn new_field_in_array(mut input: [u32; 3]) -> [u32; 3] {
-    input[0] = input[0] + 20;
+    input[0_u32] = input[0_u32] + 20_u32;
     input
 }

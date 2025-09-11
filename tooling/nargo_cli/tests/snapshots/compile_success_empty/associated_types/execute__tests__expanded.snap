@@ -17,9 +17,9 @@ impl<let N: u32, T> Collection for [T; N] {
 
     fn cget(self, index: u32) -> Option<T> {
         if index < self.len() {
-            Option::some(self[index])
+            Option::<T>::some(self[index])
         } else {
-            Option::none()
+            Option::<T>::none()
         }
     }
 
@@ -29,6 +29,6 @@ impl<let N: u32, T> Collection for [T; N] {
 }
 
 fn main() {
-    let array: [Field; 5] = [1, 2, 3, 0, 5];
-    assert(array.ctake(3) == std::mem::zeroed());
+    let array: [Field; 5] = [1_Field, 2_Field, 3_Field, 0_Field, 5_Field];
+    assert(array.ctake(3_u32) == std::mem::zeroed());
 }

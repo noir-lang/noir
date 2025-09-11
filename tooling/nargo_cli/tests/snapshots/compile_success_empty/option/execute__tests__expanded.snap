@@ -3,50 +3,53 @@ source: tooling/nargo_cli/tests/execute.rs
 expression: expanded_code
 ---
 fn main() {
-    let ten: Field = 10;
-    let none: Option<Field> = Option::none();
-    let some: Option<Field> = Option::some(3);
+    let ten: Field = 10_Field;
+    let none: Option<Field> = Option::<Field>::none();
+    let some: Option<Field> = Option::<Field>::some(3_Field);
     assert(none.is_none());
     assert(some.is_some());
-    assert(some.unwrap() == 3);
-    assert(none.unwrap_or(2) == 2);
-    assert(some.unwrap_or(2) == 3);
-    assert(none.unwrap_or_else(|| -> Field 5) == 5);
-    assert(some.unwrap_or_else(|| -> Field 5) == 3);
-    assert(none.unwrap_or_else(|| -> Field { ten + 5 }) == 15);
-    assert(some.unwrap_or_else(|| -> Field { ten + 5 }) == 3);
-    assert(none.map(|x: Field| -> Field { x * 2 }).is_none());
-    assert(some.map(|x: Field| -> Field { x * 2 }).unwrap() == 6);
-    assert(some.map(|x: Field| -> Field { x * ten }).unwrap() == 30);
-    assert(some.expect(f"Should have a value") == 3);
-    assert(none.map_or(0, |x: Field| -> Field { x * 2 }) == 0);
-    assert(some.map_or(0, |x: Field| -> Field { x * 2 }) == 6);
-    assert(none.map_or(0, |x: Field| -> Field { x * ten }) == 0);
-    assert(some.map_or(0, |x: Field| -> Field { x * ten }) == 30);
-    assert(none.map_or_else(|| -> Field 0, |x: Field| -> Field { x * 2 }) == 0);
-    assert(some.map_or_else(|| -> Field 0, |x: Field| -> Field { x * 2 }) == 6);
-    assert(none.map_or_else(|| -> Field 0, |x: Field| -> Field { x * ten }) == 0);
-    assert(some.map_or_else(|| -> Field ten, |x: Field| -> Field { x * 2 }) == 6);
+    assert(some.unwrap() == 3_Field);
+    assert(none.unwrap_or(2_Field) == 2_Field);
+    assert(some.unwrap_or(2_Field) == 3_Field);
+    assert(none.unwrap_or_else(|| -> Field 5_Field) == 5_Field);
+    assert(some.unwrap_or_else(|| -> Field 5_Field) == 3_Field);
+    assert(none.unwrap_or_else(|| -> Field { ten + 5_Field }) == 15_Field);
+    assert(some.unwrap_or_else(|| -> Field { ten + 5_Field }) == 3_Field);
+    assert(none.map(|x: Field| -> Field { x * 2_Field }).is_none());
+    assert(some.map(|x: Field| -> Field { x * 2_Field }).unwrap() == 6_Field);
+    assert(some.map(|x: Field| -> Field { x * ten }).unwrap() == 30_Field);
+    assert(some.expect(f"Should have a value") == 3_Field);
+    assert(none.map_or(0_Field, |x: Field| -> Field { x * 2_Field }) == 0_Field);
+    assert(some.map_or(0_Field, |x: Field| -> Field { x * 2_Field }) == 6_Field);
+    assert(none.map_or(0_Field, |x: Field| -> Field { x * ten }) == 0_Field);
+    assert(some.map_or(0_Field, |x: Field| -> Field { x * ten }) == 30_Field);
+    assert(none.map_or_else(|| -> Field 0_Field, |x: Field| -> Field { x * 2_Field }) == 0_Field);
+    assert(some.map_or_else(|| -> Field 0_Field, |x: Field| -> Field { x * 2_Field }) == 6_Field);
+    assert(none.map_or_else(|| -> Field 0_Field, |x: Field| -> Field { x * ten }) == 0_Field);
+    assert(some.map_or_else(|| -> Field ten, |x: Field| -> Field { x * 2_Field }) == 6_Field);
     assert(none.and(none).is_none());
     assert(none.and(some).is_none());
     assert(some.and(none).is_none());
     assert(some.and(some).is_some());
     let add1_u64: fn(Field) -> Option<u64> =
-        |value: Field| -> Option<u64> Option::some((value as u64) + 1);
+        |value: Field| -> Option<u64> Option::<u64>::some((value as u64) + 1_u64);
     assert(none.and_then(|_value: Field| -> Option<Field> none).is_none());
     assert(none.and_then(add1_u64).is_none());
     assert(some.and_then(|_value: Field| -> Option<Field> none).is_none());
-    assert(some.and_then(add1_u64).unwrap() == 4);
-    assert(some.and_then(|x: Field| -> Option<Field> Option::some(x + ten)).unwrap() == 13);
+    assert(some.and_then(add1_u64).unwrap() == 4_u64);
+    assert(
+        some.and_then(|x: Field| -> Option<Field> Option::<Field>::some(x + ten)).unwrap()
+            == 13_Field,
+    );
     assert(none.or(none).is_none());
     assert(none.or(some).is_some());
     assert(some.or(none).is_some());
     assert(some.or(some).is_some());
-    assert(none.or_else(|| -> Option<Field> Option::none()).is_none());
-    assert(none.or_else(|| -> Option<Field> Option::some(5)).is_some());
-    assert(some.or_else(|| -> Option<Field> Option::none()).is_some());
-    assert(some.or_else(|| -> Option<Field> Option::some(5)).is_some());
-    assert(some.or_else(|| -> Option<Field> Option::some(ten)).is_some());
+    assert(none.or_else(|| -> Option<Field> Option::<Field>::none()).is_none());
+    assert(none.or_else(|| -> Option<Field> Option::<Field>::some(5_Field)).is_some());
+    assert(some.or_else(|| -> Option<Field> Option::<Field>::none()).is_some());
+    assert(some.or_else(|| -> Option<Field> Option::<Field>::some(5_Field)).is_some());
+    assert(some.or_else(|| -> Option<Field> Option::<Field>::some(ten)).is_some());
     assert(none.xor(none).is_none());
     assert(none.xor(some).is_some());
     assert(some.xor(none).is_some());
