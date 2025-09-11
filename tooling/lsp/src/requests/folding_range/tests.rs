@@ -129,3 +129,27 @@ async fn test_series_of_mod() {
     assert_eq!(range.end_line, 6);
     assert_eq!(range.kind, None);
 }
+
+#[test]
+async fn test_series_of_use() {
+    let src = "
+        use one;
+        use two;
+
+        use three;
+        use four;
+        use five;
+        ";
+    let ranges = get_folding_ranges(src).await;
+    assert_eq!(ranges.len(), 2);
+
+    let range = &ranges[0];
+    assert_eq!(range.start_line, 1);
+    assert_eq!(range.end_line, 2);
+    assert_eq!(range.kind, Some(FoldingRangeKind::Imports));
+
+    let range = &ranges[1];
+    assert_eq!(range.start_line, 4);
+    assert_eq!(range.end_line, 6);
+    assert_eq!(range.kind, Some(FoldingRangeKind::Imports));
+}

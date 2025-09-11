@@ -1,7 +1,7 @@
 use async_lsp::lsp_types::{self, FoldingRange, FoldingRangeKind};
 use fm::{FileId, FileMap};
 use noirc_errors::Span;
-use noirc_frontend::ast::{ModuleDeclaration, Visitor};
+use noirc_frontend::ast::{ItemVisibility, ModuleDeclaration, UseTree, Visitor};
 
 use crate::requests::to_lsp_location;
 
@@ -10,6 +10,7 @@ pub(super) struct NodesCollector<'files> {
     files: &'files FileMap,
     ranges: Vec<FoldingRange>,
     module_group: Option<Group>,
+    use_group: Option<Group>,
 }
 
 struct Group {
@@ -19,7 +20,7 @@ struct Group {
 
 impl<'files> NodesCollector<'files> {
     pub(super) fn new(file_id: FileId, files: &'files FileMap) -> Self {
-        Self { file_id, files, ranges: Vec::new(), module_group: None }
+        Self { file_id, files, ranges: Vec::new(), module_group: None, use_group: None }
     }
 
     pub(super) fn collect(mut self, source: &str) -> Vec<FoldingRange> {
@@ -28,6 +29,10 @@ impl<'files> NodesCollector<'files> {
 
         if let Some(group) = &self.module_group {
             Self::push_group(group, None, &mut self.ranges);
+        }
+
+        if let Some(group) = &self.use_group {
+            Self::push_group(group, Some(FoldingRangeKind::Imports), &mut self.ranges);
         }
 
         self.ranges
@@ -67,5 +72,24 @@ impl Visitor for NodesCollector<'_> {
         }
 
         self.module_group = Some(Group { start: location.clone(), end: location });
+    }
+
+    fn visit_import(&mut self, _: &UseTree, span: Span, _visibility: ItemVisibility) -> bool {
+        let Some(location) = to_lsp_location(self.files, self.file_id, span) else {
+            return true;
+        };
+
+        if let Some(group) = &mut self.use_group {
+            if location.range.end.line - group.end.range.end.line <= 1 {
+                group.end = location;
+                return true;
+            }
+
+            Self::push_group(group, Some(FoldingRangeKind::Imports), &mut self.ranges);
+        }
+
+        self.use_group = Some(Group { start: location.clone(), end: location });
+
+        true
     }
 }
