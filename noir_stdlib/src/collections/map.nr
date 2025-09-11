@@ -516,7 +516,6 @@ impl<K, V, let N: u32, B> HashMap<K, V, N, B> {
         B: BuildHasher,
     {
         // docs:end:insert
-        self.assert_load_factor();
 
         let hash = self.hash(key);
         let mut should_break = false;
@@ -529,6 +528,7 @@ impl<K, V, let N: u32, B> HashMap<K, V, N, B> {
 
                 // Either marked as deleted or has unset key-value.
                 if slot.is_available() {
+                    self.assert_load_factor();
                     insert = true;
                     self._len += 1;
                 } else {
