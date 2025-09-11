@@ -1,14 +1,16 @@
-//! The goal of the "remove enable side effects" optimization pass is to delay any [Instruction::EnableSideEffectsIf]
-//! instructions such that they cover the minimum number of instructions possible.
+//! The goal of the "remove enable side effects" optimization pass is to delay any
+//! [Instruction::EnableSideEffectsIf] instructions such that they cover the minimum number of
+//! instructions possible.
 //!
 //! The pass works as follows:
-//! - Insert instructions until an [Instruction::EnableSideEffectsIf] is encountered, save this [InstructionId][crate::ssa::ir::instruction::InstructionId].
+//! - Insert instructions until an [Instruction::EnableSideEffectsIf] is encountered, save this
+//!   [InstructionId][crate::ssa::ir::instruction::InstructionId].
 //! - Continue inserting instructions until either
-//!     - Another [Instruction::EnableSideEffectsIf] is encountered, if so then drop the previous [InstructionId][crate::ssa::ir::instruction::InstructionId] in favour
-//!       of this one.
-//!     - An [Instruction] with side-effects is encountered, if so then insert the currently saved [Instruction::EnableSideEffectsIf]
-//!       before the [Instruction]. Continue inserting instructions until the next [Instruction::EnableSideEffectsIf] is encountered.
-//!
+//!     - Another [Instruction::EnableSideEffectsIf] is encountered, if so then drop the previous
+//!       [InstructionId][crate::ssa::ir::instruction::InstructionId] in favour of this one.
+//!     - An [Instruction] with side-effects is encountered, if so then insert the currently saved
+//!       [Instruction::EnableSideEffectsIf] before the [Instruction]. Continue inserting
+//!       instructions until the next [Instruction::EnableSideEffectsIf] is encountered.
 
 use acvm::{FieldElement, acir::AcirField};
 
@@ -75,8 +77,8 @@ impl Function {
                 if condition_is_one {
                     last_side_effects_enabled_instruction = None;
                 } else {
-                    last_side_effects_enabled_instruction = Some(context.instruction_id);
                     context.remove_current_instruction();
+                    last_side_effects_enabled_instruction = Some(context.instruction_id);
                 }
                 return;
             }
