@@ -532,6 +532,9 @@ impl BlockContext {
                 }
             }
             Instruction::Aes128Encrypt { input_idx, input_limbs_count, key_idx, iv_idx } => {
+                if !self.options.instruction_options.aes128_encrypt_enabled {
+                    return;
+                }
                 if input_limbs_count == 0 {
                     return;
                 }
