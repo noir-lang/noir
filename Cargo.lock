@@ -2518,6 +2518,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "im-rc"
+version = "15.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "af1955a75fa080c677d3972822ec4bad316169ab1cfc6c257a942c2265dbe5fe"
+dependencies = [
+ "bitmaps",
+ "rand_core 0.6.4",
+ "rand_xoshiro",
+ "serde",
+ "sized-chunks",
+ "typenum",
+ "version_check",
+]
+
+[[package]]
 name = "include_dir"
 version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3403,7 +3418,7 @@ dependencies = [
  "bn254_blackbox_solver",
  "build-data",
  "color-eyre",
- "im",
+ "im-rc",
  "insta",
  "iter-extended",
  "log",
@@ -3538,7 +3553,7 @@ dependencies = [
  "color-eyre",
  "const_format",
  "fm",
- "im",
+ "im-rc",
  "inferno",
  "nargo",
  "noir_artifact_cli",
@@ -3737,6 +3752,7 @@ dependencies = [
  "chrono",
  "fm",
  "im",
+ "im-rc",
  "indexmap 2.11.0",
  "insta",
  "iter-extended",
@@ -3772,7 +3788,7 @@ dependencies = [
  "bn254_blackbox_solver",
  "cfg-if",
  "fm",
- "im",
+ "im-rc",
  "insta",
  "iter-extended",
  "noirc_arena",
@@ -6606,7 +6622,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.59.0",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]

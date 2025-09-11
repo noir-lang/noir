@@ -71,7 +71,7 @@ pub mod types;
 mod unquote;
 
 use function_context::FunctionContext;
-use im::HashSet;
+use im_rc::HashSet;
 use iter_extended::vecmap;
 use noirc_errors::{Located, Location};
 pub(crate) use options::ElaboratorOptions;
@@ -202,7 +202,7 @@ pub struct Elaborator<'context> {
     /// they are elaborated (e.g. in a function's type or another global's RHS).
     unresolved_globals: BTreeMap<GlobalId, UnresolvedGlobal>,
 
-    pub(crate) interpreter_call_stack: im::Vector<Location>,
+    pub(crate) interpreter_call_stack: im_rc::Vector<Location>,
 
     /// If greater than 0, field visibility errors won't be reported.
     /// This is used when elaborating a comptime expression that is a struct constructor
@@ -216,7 +216,7 @@ pub struct Elaborator<'context> {
     /// Sometimes items are elaborated because a function attribute ran and generated items.
     /// The Elaborator keeps track of these reasons so that when an error is produced it will
     /// be wrapped in another error that will include this reason.
-    pub(crate) elaborate_reasons: im::Vector<ElaborateReason>,
+    pub(crate) elaborate_reasons: im_rc::Vector<ElaborateReason>,
 }
 
 #[derive(Copy, Clone)]
@@ -251,9 +251,9 @@ impl<'context> Elaborator<'context> {
         interpreter_output: &'context Option<Rc<RefCell<dyn std::io::Write>>>,
         required_unstable_features: &'context BTreeMap<CrateId, Vec<UnstableFeature>>,
         crate_id: CrateId,
-        interpreter_call_stack: im::Vector<Location>,
+        interpreter_call_stack: im_rc::Vector<Location>,
         options: ElaboratorOptions<'context>,
-        elaborate_reasons: im::Vector<ElaborateReason>,
+        elaborate_reasons: im_rc::Vector<ElaborateReason>,
     ) -> Self {
         Self {
             scopes: ScopeForest::default(),
@@ -299,9 +299,9 @@ impl<'context> Elaborator<'context> {
             &context.interpreter_output,
             &context.required_unstable_features,
             crate_id,
-            im::Vector::new(),
+            im_rc::Vector::new(),
             options,
-            im::Vector::new(),
+            im_rc::Vector::new(),
         )
     }
 

@@ -230,8 +230,8 @@ impl CallGraph {
     }
 
     /// Compute the times each function is called from any other function.
-    pub(crate) fn times_called(&self) -> im::HashMap<FunctionId, usize> {
-        let mut counts = im::HashMap::default();
+    pub(crate) fn times_called(&self) -> im_rc::HashMap<FunctionId, usize> {
+        let mut counts = im_rc::HashMap::default();
 
         for edge in self.graph.edge_references() {
             let callee_idx = edge.target();

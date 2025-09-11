@@ -8,7 +8,7 @@ use crate::ssa::ir::function::{Function, FunctionId};
 use crate::ssa::ir::instruction::{Hint, Instruction, InstructionId, Intrinsic};
 use crate::ssa::ir::value::{Value, ValueId};
 use crate::ssa::ssa_gen::Ssa;
-use im::HashMap;
+use im_rc::HashMap;
 use noirc_errors::Location;
 use rayon::prelude::*;
 use std::collections::{BTreeMap, BTreeSet, HashSet};

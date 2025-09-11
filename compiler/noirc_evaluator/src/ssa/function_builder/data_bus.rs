@@ -24,7 +24,7 @@ pub(crate) enum DatabusVisibility {
 /// replacing public inputs
 #[derive(Clone, Debug)]
 pub(crate) struct DataBusBuilder {
-    pub(crate) values: im::Vector<ValueId>,
+    pub(crate) values: im_rc::Vector<ValueId>,
     index: usize,
     pub(crate) map: HashMap<ValueId, usize>,
     pub(crate) databus: Option<ValueId>,
@@ -37,7 +37,7 @@ impl DataBusBuilder {
             index: 0,
             map: HashMap::default(),
             databus: None,
-            values: im::Vector::new(),
+            values: im_rc::Vector::new(),
             call_data_id: None,
         }
     }
@@ -202,14 +202,15 @@ impl FunctionBuilder {
         let array = (len > 0 && matches!(self.current_function.runtime(), RuntimeType::Acir(_)))
             .then(|| {
                 let array_type = Type::Array(Arc::new(vec![Type::field()]), len);
-                self.insert_make_array(databus.values, array_type)
+                let values = databus.values.into_iter().collect();
+                self.insert_make_array(values, array_type)
             });
 
         DataBusBuilder {
             index: 0,
             map: databus.map,
             databus: array,
-            values: im::Vector::new(),
+            values: im_rc::Vector::new(),
             call_data_id,
         }
     }

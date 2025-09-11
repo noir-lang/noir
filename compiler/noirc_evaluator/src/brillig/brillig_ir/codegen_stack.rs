@@ -85,13 +85,13 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
 #[derive(Default)]
 struct LoopDetector {
     visited_sources: HashSet<MemoryAddress>,
-    loops: Vec<im::OrdSet<MemoryAddress>>,
+    loops: Vec<im_rc::OrdSet<MemoryAddress>>,
 }
 
 impl LoopDetector {
     fn collect_loops(&mut self, movements: &HashMap<MemoryAddress, HashSet<MemoryAddress>>) {
         for source in movements.keys() {
-            self.find_loop_recursive(*source, movements, im::OrdSet::default());
+            self.find_loop_recursive(*source, movements, im_rc::OrdSet::default());
         }
     }
 
@@ -99,7 +99,7 @@ impl LoopDetector {
         &mut self,
         source: MemoryAddress,
         movements: &HashMap<MemoryAddress, HashSet<MemoryAddress>>,
-        mut previous_sources: im::OrdSet<MemoryAddress>,
+        mut previous_sources: im_rc::OrdSet<MemoryAddress>,
     ) {
         if self.visited_sources.contains(&source) {
             return;

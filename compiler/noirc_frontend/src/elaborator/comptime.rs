@@ -310,7 +310,7 @@ impl<'context> Elaborator<'context> {
         let varargs_elem_type = varargs_type.as_ref().and_then(|t| t.slice_element_type());
 
         let mut new_arguments = Vec::with_capacity(arguments.len());
-        let mut varargs = im::Vector::new();
+        let mut varargs = im_rc::Vector::new();
 
         for (i, arg) in arguments.into_iter().enumerate() {
             let arg_location = arg.location;

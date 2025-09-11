@@ -61,7 +61,7 @@ pub enum InterpreterError {
     FailingConstraint {
         message: Option<String>,
         location: Location,
-        call_stack: im::Vector<Location>,
+        call_stack: im_rc::Vector<Location>,
     },
     NonIntegerUsedInLoop {
         typ: Type,

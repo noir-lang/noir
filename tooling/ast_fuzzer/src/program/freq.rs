@@ -5,7 +5,7 @@ use arbitrary::Unstructured;
 /// Frequency distribution of generators.
 #[derive(Debug, Clone)]
 pub struct Freqs {
-    items: im::HashMap<&'static str, usize>,
+    items: im_rc::HashMap<&'static str, usize>,
     total: usize,
 }
 

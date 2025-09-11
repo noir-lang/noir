@@ -224,7 +224,7 @@ pub(super) struct FunctionContext<'a> {
     /// by locally defined variables. Block scopes add and remove layers.
     locals: ScopeStack<LocalId>,
     /// Indicate which local variables are derived from function inputs.
-    dynamics: Stack<im::HashMap<LocalId, bool>>,
+    dynamics: Stack<im_rc::HashMap<LocalId, bool>>,
     /// Indicator of being in a loop (and hence able to generate
     /// break and continue statements)
     in_loop: bool,

@@ -93,7 +93,7 @@ pub(crate) fn check_arguments<const N: usize>(
 pub(crate) fn get_array(
     interner: &NodeInterner,
     (value, location): (Value, Location),
-) -> IResult<(im::Vector<Value>, Type)> {
+) -> IResult<(im_rc::Vector<Value>, Type)> {
     match value {
         Value::Array(values, typ) => Ok((values, typ)),
         value => {
@@ -155,7 +155,7 @@ pub(crate) fn get_bool((value, location): (Value, Location)) -> IResult<bool> {
 pub(crate) fn get_slice(
     interner: &NodeInterner,
     (value, location): (Value, Location),
-) -> IResult<(im::Vector<Value>, Type)> {
+) -> IResult<(im_rc::Vector<Value>, Type)> {
     match value {
         Value::Slice(values, typ) => Ok((values, typ)),
         value => {

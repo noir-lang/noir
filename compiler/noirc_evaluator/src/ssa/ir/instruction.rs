@@ -367,14 +367,14 @@ pub enum Instruction {
     /// An instruction to increment the reference count of a value.
     ///
     /// This currently only has an effect in Brillig code where array sharing and copy on write is
-    /// implemented via reference counting. In ACIR code this is done with im::Vector and these
+    /// implemented via reference counting. In ACIR code this is done with im_rc::Vector and these
     /// IncrementRc instructions are ignored.
     IncrementRc { value: ValueId },
 
     /// An instruction to decrement the reference count of a value.
     ///
     /// This currently only has an effect in Brillig code where array sharing and copy on write is
-    /// implemented via reference counting. In ACIR code this is done with im::Vector and these
+    /// implemented via reference counting. In ACIR code this is done with im_rc::Vector and these
     /// DecrementRc instructions are ignored.
     DecrementRc { value: ValueId },
 

@@ -1,6 +1,6 @@
 use std::{borrow::Cow, rc::Rc};
 
-use im::HashSet;
+use im_rc::HashSet;
 use iter_extended::vecmap;
 use noirc_errors::Location;
 use rustc_hash::FxHashMap as HashMap;

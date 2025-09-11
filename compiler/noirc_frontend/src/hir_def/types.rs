@@ -1,6 +1,6 @@
 use std::{borrow::Cow, cell::RefCell, collections::BTreeSet, rc::Rc};
 
-use im::HashSet;
+use im_rc::HashSet;
 use rustc_hash::FxHashMap as HashMap;
 
 #[cfg(test)]

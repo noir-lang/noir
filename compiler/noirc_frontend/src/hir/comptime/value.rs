@@ -1,6 +1,6 @@
 use std::{borrow::Cow, rc::Rc, vec};
 
-use im::Vector;
+use im_rc::Vector;
 use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
 use strum_macros::Display;

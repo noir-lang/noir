@@ -3,7 +3,7 @@ use std::{collections::hash_map::Entry, rc::Rc};
 
 use acvm::AcirField;
 use acvm::blackbox_solver::BigIntSolverWithId;
-use im::Vector;
+use im_rc::Vector;
 use iter_extended::try_vecmap;
 use noirc_errors::Location;
 use rustc_hash::FxHashMap as HashMap;

@@ -19,24 +19,24 @@ pub(super) struct Block {
     /// Maps a ValueId to the Expression it represents.
     /// Multiple ValueIds can map to the same Expression, e.g.
     /// dereferences to the same allocation.
-    pub(super) expressions: im::OrdMap<ValueId, Expression>,
+    pub(super) expressions: im_rc::OrdMap<ValueId, Expression>,
 
     /// Each expression is tracked as to how many aliases it
     /// may have. If there is only 1, we can attempt to optimize
     /// out any known loads to that alias. Note that "alias" here
     /// includes the original reference as well.
-    pub(super) aliases: im::OrdMap<Expression, AliasSet>,
+    pub(super) aliases: im_rc::OrdMap<Expression, AliasSet>,
 
     /// Each allocate instruction result (and some reference block parameters)
     /// will map to a Reference value which tracks whether the last value stored
     /// to the reference is known.
-    pub(super) references: im::OrdMap<ValueId, ValueId>,
+    pub(super) references: im_rc::OrdMap<ValueId, ValueId>,
 
     /// The last instance of a `Store` instruction to each address in this block
-    pub(super) last_stores: im::OrdMap<ValueId, InstructionId>,
+    pub(super) last_stores: im_rc::OrdMap<ValueId, InstructionId>,
 
     // The last instance of a `Load` instruction to each address in this block
-    pub(super) last_loads: im::OrdMap<ValueId, InstructionId>,
+    pub(super) last_loads: im_rc::OrdMap<ValueId, InstructionId>,
 }
 
 /// An `Expression` here is used to represent a canonical key
@@ -122,7 +122,7 @@ impl Block {
         }
 
         // Keep only the references present in both maps.
-        let mut intersection = im::OrdMap::new();
+        let mut intersection = im_rc::OrdMap::new();
         for (value_id, reference) in &other.references {
             if let Some(existing) = self.references.get(value_id) {
                 if reference == existing {
@@ -133,7 +133,7 @@ impl Block {
         self.references = intersection;
 
         // Keep only the last loads present in both maps, if they map to the same InstructionId
-        let mut intersection = im::OrdMap::new();
+        let mut intersection = im_rc::OrdMap::new();
         for (value_id, instruction) in &other.last_loads {
             if let Some(existing) = self.last_loads.get(value_id) {
                 if existing == instruction {

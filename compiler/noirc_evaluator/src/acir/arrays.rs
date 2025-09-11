@@ -204,7 +204,7 @@ impl Context<'_> {
         &mut self,
         instruction: InstructionId,
         dfg: &DataFlowGraph,
-        array: im::Vector<AcirValue>,
+        array: im_rc::Vector<AcirValue>,
         index: FieldElement,
         store_value: Option<AcirValue>,
     ) -> Result<bool, RuntimeError> {
@@ -336,7 +336,7 @@ impl Context<'_> {
                 Ok(AcirValue::Var(new_value, AcirType::field()))
             }
             (AcirValue::Array(values), AcirValue::Array(dummy_values)) => {
-                let mut elements = im::Vector::new();
+                let mut elements = im_rc::Vector::new();
 
                 assert_eq!(
                     values.len(),
@@ -372,7 +372,7 @@ impl Context<'_> {
                     Ok::<AcirValue, RuntimeError>(AcirValue::Var(read, AcirType::field()))
                 })?;
 
-                let mut elements = im::Vector::new();
+                let mut elements = im_rc::Vector::new();
                 for (val, dummy_val) in values.iter().zip(dummy_values) {
                     elements.push_back(self.convert_array_set_store_value(val, &dummy_val)?);
                 }
@@ -398,7 +398,7 @@ impl Context<'_> {
         match typ {
             Type::Numeric(_) => self.array_get_value(typ, call_data_block, offset),
             Type::Array(arc, len) => {
-                let mut result = im::Vector::new();
+                let mut result = im_rc::Vector::new();
                 for _i in 0..*len {
                     for sub_type in arc.iter() {
                         let element = self.get_from_call_data(offset, call_data_block, sub_type)?;
@@ -488,7 +488,7 @@ impl Context<'_> {
                 Ok(AcirValue::Var(read, typ))
             }
             Type::Array(element_types, len) => {
-                let mut values = im::Vector::new();
+                let mut values = im_rc::Vector::new();
                 for _ in 0..len {
                     for typ in element_types.as_ref() {
                         values.push_back(self.array_get_value(typ, block_id, var_index)?);
@@ -515,7 +515,7 @@ impl Context<'_> {
                 Ok(AcirValue::Var(zero, typ))
             }
             Type::Array(element_types, len) => {
-                let mut values = im::Vector::new();
+                let mut values = im_rc::Vector::new();
                 for _ in 0..len {
                     for typ in element_types.as_ref() {
                         values.push_back(self.array_zero_value(typ)?);
@@ -742,7 +742,7 @@ impl Context<'_> {
     pub(super) fn read_array(
         &mut self,
         array: AcirValue,
-    ) -> Result<im::Vector<AcirValue>, RuntimeError> {
+    ) -> Result<im_rc::Vector<AcirValue>, RuntimeError> {
         match array {
             AcirValue::Var(_, _) => unreachable!("ICE: attempting to copy a non-array value"),
             AcirValue::Array(vars) => Ok(vars),
@@ -776,7 +776,7 @@ impl Context<'_> {
         &mut self,
         source: BlockId,
         array_len: usize,
-    ) -> Result<im::Vector<AcirValue>, RuntimeError> {
+    ) -> Result<im_rc::Vector<AcirValue>, RuntimeError> {
         let init_values = try_vecmap(0..array_len, |i| {
             let index_var = self.acir_context.add_constant(i);
 
@@ -935,7 +935,7 @@ impl Context<'_> {
     }
 }
 
-fn calculate_element_type_sizes_array(array: &im::Vector<AcirValue>) -> Vec<usize> {
+fn calculate_element_type_sizes_array(array: &im_rc::Vector<AcirValue>) -> Vec<usize> {
     let mut flat_elem_type_sizes = Vec::new();
     flat_elem_type_sizes.push(0);
     for (i, value) in array.iter().enumerate() {

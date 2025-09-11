@@ -274,7 +274,7 @@ fn add_locations_to_folded_stack_items(
 /// main::baz::qux 800
 fn to_folded_sorted_lines(
     folded_stack_items: &BTreeMap<String, FoldedStackItem>,
-    parent_stacks: im::Vector<String>,
+    parent_stacks: im_rc::Vector<String>,
 ) -> Vec<String> {
     let mut result_vector = Vec::with_capacity(folded_stack_items.len());
 

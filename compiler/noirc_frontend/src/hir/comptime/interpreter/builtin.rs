@@ -11,7 +11,7 @@ use builtin_helpers::{
     parse, quote_ident, replace_func_meta_parameters, replace_func_meta_return_type,
     visibility_to_quoted,
 };
-use im::Vector;
+use im_rc::Vector;
 use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
 use num_bigint::BigUint;

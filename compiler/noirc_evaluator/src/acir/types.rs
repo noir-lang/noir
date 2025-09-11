@@ -121,7 +121,7 @@ impl Debug for AcirDynamicArray {
 #[derive(Debug, Clone)]
 pub(crate) enum AcirValue {
     Var(AcirVar, AcirType),
-    Array(im::Vector<AcirValue>),
+    Array(im_rc::Vector<AcirValue>),
     DynamicArray(AcirDynamicArray),
 }
 

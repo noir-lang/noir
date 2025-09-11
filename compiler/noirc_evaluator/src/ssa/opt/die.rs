@@ -735,7 +735,7 @@ fn die_post_check(func: &Function, flattened: bool) {
 mod test {
     use std::sync::Arc;
 
-    use im::vector;
+    use im_rc::vector;
     use noirc_frontend::monomorphization::ast::InlineType;
 
     use crate::{

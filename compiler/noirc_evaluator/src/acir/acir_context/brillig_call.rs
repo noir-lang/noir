@@ -197,7 +197,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
 
     /// Recursively create zeroed-out acir values for returned arrays. This is necessary because a brillig returned array can have nested arrays as elements.
     fn zeroed_array_output(&mut self, element_types: &[AcirType], size: usize) -> AcirValue {
-        let mut array_values = im::Vector::new();
+        let mut array_values = im_rc::Vector::new();
         for _ in 0..size {
             for element_type in element_types {
                 match element_type {
@@ -224,7 +224,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         size: usize,
     ) -> (AcirValue, Vec<Witness>) {
         let mut witnesses = Vec::new();
-        let mut array_values = im::Vector::new();
+        let mut array_values = im_rc::Vector::new();
         for _ in 0..size {
             for element_type in element_types {
                 match element_type {
@@ -276,7 +276,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         size: usize,
         memory_iter: &mut impl Iterator<Item = MemoryValue<F>>,
     ) -> AcirValue {
-        let mut array_values = im::Vector::new();
+        let mut array_values = im_rc::Vector::new();
         for _ in 0..size {
             for element_type in element_types {
                 match element_type {

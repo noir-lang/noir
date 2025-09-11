@@ -6,7 +6,7 @@ use std::collections::{HashSet, VecDeque};
 
 use crate::errors::RuntimeError;
 use acvm::acir::AcirField;
-use im::HashMap;
+use im_rc::HashMap;
 use iter_extended::vecmap;
 use noirc_errors::{Location, call_stack::CallStackId};
 

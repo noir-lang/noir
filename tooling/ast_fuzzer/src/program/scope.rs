@@ -11,11 +11,11 @@ pub(crate) type Variable = (/*mutable*/ bool, Name, Type);
 pub struct Scope<K: Ord> {
     /// ID and type of variables created in all visible scopes,
     /// which includes this scope and its ancestors.
-    variables: im::OrdMap<K, Variable>,
+    variables: im_rc::OrdMap<K, Variable>,
     /// Reverse index of variables which can produce a type.
     /// For example an `(u8, [u64; 4])` can produce the tuple itself,
     /// the array in it, and both primitive types.
-    producers: im::OrdMap<Type, im::OrdSet<K>>,
+    producers: im_rc::OrdMap<Type, im_rc::OrdSet<K>>,
 }
 
 impl<K> Scope<K>
@@ -24,7 +24,7 @@ where
 {
     /// Create the initial scope from function parameters.
     pub fn from_variables(vars: impl Iterator<Item = (K, bool, Name, Type)>) -> Self {
-        let mut scope = Self { variables: im::OrdMap::new(), producers: im::OrdMap::new() };
+        let mut scope = Self { variables: im_rc::OrdMap::new(), producers: im_rc::OrdMap::new() };
         for (id, mutable, name, typ) in vars {
             scope.add(id, mutable, name, typ);
         }
