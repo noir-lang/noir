@@ -103,7 +103,9 @@ mod test {
     };
 
     #[test]
-    fn remove_chains_of_same_condition() {
+    fn remove_chains_of_same_condition_with_constant() {
+        // Here all enable_side_effects u1 1 are removed because by default the active
+        // side effects var is `u1 1` so all of these are redundant.
         let src = "
         acir(inline) fn main f0 {
           b0(v0: Field):
@@ -120,6 +122,7 @@ mod test {
         }
         ";
         let ssa = Ssa::from_str(src).unwrap();
+        println!("{ssa}");
 
         let ssa = ssa.remove_enable_side_effects();
         assert_ssa_snapshot!(ssa, @r"
@@ -129,6 +132,34 @@ mod test {
             v3 = mul v0, Field 2
             v4 = mul v0, Field 2
             v5 = mul v0, Field 2
+            return
+        }
+        "
+        );
+    }
+
+    #[test]
+    fn remove_chains_of_same_condition_with_variable() {
+        // Here only the first enable_side_effects is kept because the rest are redundant
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: [u16; 3], v1: u32, v2: u1):
+            enable_side_effects v2
+            enable_side_effects v2
+            v3 = array_get v0, index v1 -> u16
+            enable_side_effects v2
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        println!("{ssa}");
+
+        let ssa = ssa.remove_enable_side_effects();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: [u16; 3], v1: u32, v2: u1):
+            enable_side_effects v2
+            v3 = array_get v0, index v1 -> u16
             return
         }
         "
