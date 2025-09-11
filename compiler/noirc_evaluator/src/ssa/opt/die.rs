@@ -564,7 +564,7 @@ impl Context {
                 );
                 let index = index.first();
                 let array_length =
-                    function.dfg.make_constant((array_length as u128).into(), length_type);
+                    function.dfg.make_constant(u128::from(array_length).into(), length_type);
 
                 let is_index_out_of_bounds = function.dfg.insert_instruction_and_results(
                     Instruction::binary(BinaryOp::Lt, index, array_length),

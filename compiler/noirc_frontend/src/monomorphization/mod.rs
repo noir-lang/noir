@@ -1950,7 +1950,7 @@ impl<'interner> Monomorphizer<'interner> {
         let int_type = Type::Integer(Signedness::Unsigned, arr_elem_bits);
 
         let bytes_as_expr = vecmap(bytes, |byte| {
-            let value = SignedField::positive(byte as u32);
+            let value = SignedField::positive(u32::from(byte));
             Expression::Literal(Literal::Integer(value, int_type.clone(), location))
         });
 

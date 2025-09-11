@@ -49,7 +49,7 @@ impl<F: AcirField> MemoryOpSolver<F> {
         if index >= self.block_len {
             return Err(OpcodeResolutionError::IndexOutOfBounds {
                 opcode_location: ErrorLocation::Unresolved,
-                index: F::from(index as u128),
+                index: F::from(u128::from(index)),
                 array_size: self.block_len,
             });
         }
@@ -62,7 +62,7 @@ impl<F: AcirField> MemoryOpSolver<F> {
     fn read_memory_index(&self, index: MemoryIndex) -> Result<F, OpcodeResolutionError<F>> {
         self.block_value.get(&index).copied().ok_or(OpcodeResolutionError::IndexOutOfBounds {
             opcode_location: ErrorLocation::Unresolved,
-            index: F::from(index as u128),
+            index: F::from(u128::from(index)),
             array_size: self.block_len,
         })
     }
