@@ -1134,10 +1134,10 @@ fn test_u32(lhs in 0u32.., rhs in 0u32..) {
 
     //unchecked operations assume no under/over-flow
     let mut unchecked_operators = vec![];
-    if (lhs + rhs).to_u128() <= u32::MAX as u128 {
+    if (lhs + rhs).to_u128() <= u128::from(u32::MAX) {
         unchecked_operators.push("unchecked_add");
     }
-    if (lhs * rhs).to_u128() <= u32::MAX as u128 {
+    if (lhs * rhs).to_u128() <= u128::from(u32::MAX) {
     unchecked_operators.push("unchecked_mul");
     }
     if lhs >= rhs {
@@ -1176,8 +1176,8 @@ fn test_constraint_u64(lhs in 0u64.., rhs in 0u64..) {
 
 #[test]
 fn test_constraint_u16(lhs in 0u16.., rhs in 0u16..) {
-    let lhs = FieldElement::from(lhs as u128);
-    let rhs = FieldElement::from(rhs as u128);
+    let lhs = FieldElement::from(u128::from(lhs));
+    let rhs = FieldElement::from(u128::from(rhs));
     let operators = ["constrain ==", "constrain !="];
     test_operators(&operators, "u16", &[lhs,rhs]);
     test_operators(&operators, "i16", &[lhs,rhs]);
@@ -1185,8 +1185,8 @@ fn test_constraint_u16(lhs in 0u16.., rhs in 0u16..) {
 
 #[test]
 fn test_constraint_u8(lhs in 0u8.., rhs in 0u8..) {
-    let lhs = FieldElement::from(lhs as u128);
-    let rhs = FieldElement::from(rhs as u128);
+    let lhs = FieldElement::from(u128::from(lhs));
+    let rhs = FieldElement::from(u128::from(rhs));
     let operators = ["constrain ==", "constrain !="];
     test_operators(&operators, "u8", &[lhs,rhs]);
     test_operators(&operators, "i8", &[lhs,rhs]);

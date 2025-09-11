@@ -12,11 +12,11 @@ pub(super) struct BigIntId {
 
 impl BigIntId {
     pub(super) fn bigint_id<F: From<u128>>(&self) -> F {
-        F::from(self.bigint_id as u128)
+        F::from(u128::from(self.bigint_id))
     }
 
     pub(super) fn modulus_id<F: From<u128>>(&self) -> F {
-        F::from(self.modulus_id as u128)
+        F::from(u128::from(self.modulus_id))
     }
 }
 

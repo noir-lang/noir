@@ -183,7 +183,7 @@ fn comptime_check_field_and() {
 #[ignore]
 fn comptime_check_field_shl() {
     let strategy = any::<(u32, u8)>()
-        .prop_map(|(a, b)| (format!("{a} << {b}"), "a << b", a, b as u32))
+        .prop_map(|(a, b)| (format!("{a} << {b}"), "a << b", a, u32::from(b)))
         .boxed();
 
     comptime_check_field_expression(strategy, *NUM_CASES, false);
@@ -193,7 +193,7 @@ fn comptime_check_field_shl() {
 #[ignore]
 fn comptime_check_field_shr() {
     let strategy = any::<(u32, u8)>()
-        .prop_map(|(a, b)| (format!("{a} >> {b}"), "a >> b", a, b as u32))
+        .prop_map(|(a, b)| (format!("{a} >> {b}"), "a >> b", a, u32::from(b)))
         .boxed();
 
     comptime_check_field_expression(strategy, *NUM_CASES, false);
