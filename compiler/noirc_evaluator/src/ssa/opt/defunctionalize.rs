@@ -51,7 +51,7 @@ use crate::ssa::{
     opt::pure::Purity,
     ssa_gen::Ssa,
 };
-use fxhash::FxHashMap as HashMap;
+use rustc_hash::FxHashMap as HashMap;
 
 /// Represents an 'apply' function created by this pass to dispatch higher order functions to.
 /// Pseudocode of an `apply` function is given below:
@@ -514,7 +514,7 @@ fn create_apply_functions(
 
 /// Transforms a [FunctionId] into a [FieldElement]
 fn function_id_to_field(function_id: FunctionId) -> FieldElement {
-    (function_id.to_u32() as u128).into()
+    u128::from(function_id.to_u32()).into()
 }
 
 /// Creates a single apply function to enable dispatch across multiple function variants

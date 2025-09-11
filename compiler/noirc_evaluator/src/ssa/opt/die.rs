@@ -3,10 +3,48 @@
 //!
 //! DIE also tracks which block parameters are unused.
 //! Unused parameters are then pruned by the [prune_dead_parameters] pass.
+//!
+//! ## Design
+//! - Instructions are scanned in reverse (within each block), keeping track of
+//!   used values. If the current instruction is safe for removal (no side effects)
+//!   and its results are all unused the instruction will be marked for removal.
+//!   Traversing in reverse enables removing entire unused chains of computation.
+//! - The pass also tracks unused [IncrementRc][Instruction::IncrementRc] and [DecrementRc][Instruction::DecrementRc] instructions.
+//!   This pass defines an IncrementRc/DecrementRc as unused if the increment/decrement occurs on an array type that is never mutated
+//!   in the current block.   
+//! - Block parameters are also tracked. Unused parameters are pruned in a follow-up [prune_dead_parameters] pass
+//!   to maintain separation of concerns and SSA consistency.
+//! - The main DIE pass and dead parameter pruning are called in a fixed point feedback loop that stops
+//!   once there are no more unused parameters.
+//!
+//! ## Runtime Differences
+//! - ACIR
+//!   - Array operations implicitly enforce OOB checks. DIE therefore
+//!     inserts synthetic OOB checks if array ops are removed, to preserve side-effect
+//!     ordering semantics.
+//!     As the SSA flattens all tuples, unused accesses on composite arrays can lead to potentially
+//!     multiple unused array accesses. As to avoid redundant OOB checks, we search for "array get groups"
+//!     and only insert a single OOB check for an array get group.
+//!   - [Store][Instruction::Store] instructions can only be removed if the `flattened` flag is set.
+//! - Brillig
+//!   - Array operations are explicit and thus it is expected separate OOB checks
+//!     have been laid down. Thus, no extra instructions are inserted for unused array accesses.
+//!   - [Store][Instruction::Store] instructions are never removed.
+//!
+//! ## Preconditions
+//! - ACIR: By default the pass must be run after [mem2reg][crate::ssa::opt::mem2reg] and [CFG flattening][crate::ssa::opt::flatten_cfg].
+//!   If the pass is run before these passes, it must be explicitly stated.
+//! - Must be run on the full [Ssa], not individual [Function]s, to avoid dangling
+//!   parameter references from dead parameter pruning.
+//!
+//! ## Post-conditions
+//! - If DIE was run after mem2reg and flattening, no unreachable
+//!   [Load][Instruction::Load] or [Store][Instruction::Store] instructions should remain in ACIR code.
+//! - All unused SSA instructions (pure ops, unused RCs, dead params) are removed.
 use acvm::{AcirField, FieldElement, acir::BlackBoxFunc};
-use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use noirc_errors::call_stack::CallStackId;
 use rayon::iter::{IntoParallelRefMutIterator, ParallelIterator};
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::ssa::{
     ir::{
@@ -526,7 +564,7 @@ impl Context {
                 );
                 let index = index.first();
                 let array_length =
-                    function.dfg.make_constant((array_length as u128).into(), length_type);
+                    function.dfg.make_constant(u128::from(array_length).into(), length_type);
 
                 let is_index_out_of_bounds = function.dfg.insert_instruction_and_results(
                     Instruction::binary(BinaryOp::Lt, index, array_length),

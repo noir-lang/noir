@@ -37,7 +37,7 @@ install-js-tools: install-binstall
 
 # Installs Playwright (necessary for Javascript browser tests but slow to install)
 install-playwright:
-  npx -y playwright@1.49 install --with-deps
+  npx -y playwright@1.55.0 install --with-deps
 
 # Installs Foundry (necessary for examples)
 install-foundry:
@@ -110,6 +110,16 @@ fuzz-nightly: install-rust-tools
   # In the nightly tests we want to explore uncharted territory.
   NOIR_AST_FUZZER_FORCE_NON_DETERMINISTIC=1 cargo nextest run -p noir_ast_fuzzer_fuzz --no-fail-fast
 
+# Checks if there are any pending insta.rs snapshots and errors if any exist.
+check-pending-snapshots:
+  #!/usr/bin/env bash
+  snapshots=$(find . -name *.snap.new) 
+  if [[ -n "$snapshots" ]]; then \
+    echo "Found pending snapshots:"
+    echo ""
+    echo $snapshots
+    exit 1
+  fi
 
 export RUSTDOCFLAGS := "-Dwarnings -Drustdoc::unescaped_backticks"
 # Generate doc.rs site for Rust code.

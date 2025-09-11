@@ -6,11 +6,10 @@ use crate::ssa::{
             binary::{BinaryEvaluationResult, eval_constant_binary_op},
         },
         integer::IntegerConstant,
-        value::{Value, ValueId},
+        value::ValueId,
     },
     opt::loop_invariant::BlockContext,
 };
-use acvm::{FieldElement, acir::AcirField};
 use noirc_errors::call_stack::CallStackId;
 
 use super::{LoopContext, LoopInvariantContext};
@@ -26,10 +25,6 @@ impl LoopInvariantContext<'_> {
         binary: &Binary,
     ) -> bool {
         match binary.operator {
-            // An unchecked operation cannot overflow, so it can be safely evaluated
-            BinaryOp::Add { unchecked: true }
-            | BinaryOp::Mul { unchecked: true }
-            | BinaryOp::Sub { unchecked: true } => true,
             BinaryOp::Div | BinaryOp::Mod => {
                 // Division can be evaluated if we ensure that the divisor cannot be zero
                 let Some((left, value, lower, upper)) =
@@ -58,9 +53,11 @@ impl LoopInvariantContext<'_> {
 
                 false
             }
+            // An unchecked operation cannot overflow, so it can be safely evaluated.
             // Some checked operations can be safely evaluated, depending on the loop bounds, but in that case,
-            // they would have been already converted to unchecked operation in `simplify_induction_variable_in_binary()`
-            _ => false,
+            // they would have been already converted to unchecked operation in `simplify_induction_variable_in_binary()`.
+            // These are all handled by `requires_acir_gen_predicate`, and are redundant with `can_be_hoisted`.
+            _ => !binary.requires_acir_gen_predicate(&self.inserter.function.dfg),
         }
     }
 
@@ -73,7 +70,7 @@ impl LoopInvariantContext<'_> {
     /// with a known upper bound, we know whether that binary operation will ever overflow.
     /// If we determine that an overflow is not possible we can convert the checked operation to unchecked.
     ///
-    /// The function returns false if the instruction must be added to the block
+    /// The function returns `false` if the instruction must be added to the block, which involves further simplification.
     pub(super) fn simplify_from_loop_bounds(
         &mut self,
         loop_context: &LoopContext,
@@ -93,7 +90,6 @@ impl LoopInvariantContext<'_> {
                 self.inserter.function.dfg[instruction_id] = instruction;
                 false
             }
-            SimplifyResult::Remove => true,
             SimplifyResult::None => false,
             _ => unreachable!(
                 "ICE - loop bounds simplification should only simplify to a value or an instruction"
@@ -101,52 +97,9 @@ impl LoopInvariantContext<'_> {
         }
     }
 
-    /// Simplify 'assert(lhs < rhs)' into 'assert(max(lhs) < rhs)' if lhs is an induction variable and rhs a loop invariant
-    /// For this simplification to be valid, we need to ensure that the induction variable takes all the values from min(induction) up to max(induction)
-    /// This means that the assert must be executed  at each loop iteration, and that the loop processes all the iteration space
-    /// This is ensured via control dependence and the check for break patterns, before calling this function.
-    fn simplify_induction_in_constrain(
-        &mut self,
-        loop_context: &LoopContext,
-        lhs: ValueId,
-        rhs: ValueId,
-        err: &Option<ConstrainError>,
-        call_stack: CallStackId,
-    ) -> SimplifyResult {
-        let mut extract_variables = |rhs, lhs| {
-            let rhs_true =
-                self.inserter.function.dfg.get_numeric_constant(rhs)? == FieldElement::one();
-            let (is_left, min, max, binary) =
-                self.extract_induction_and_invariant(loop_context, lhs)?;
-            match (is_left, rhs_true) {
-                (true, true) => Some((max, binary.rhs)),
-                (false, true) => Some((binary.lhs, min)),
-                _ => None,
-            }
-        };
-        let Some((new_lhs, new_rhs)) = extract_variables(rhs, lhs) else {
-            return SimplifyResult::None;
-        };
-        let new_binary =
-            Instruction::Binary(Binary { lhs: new_lhs, rhs: new_rhs, operator: BinaryOp::Lt });
-        // The new comparison can be safely hoisted to the pre-header because it is loop invariant and control independent
-        let comparison_results = self
-            .inserter
-            .function
-            .dfg
-            .insert_instruction_and_results(new_binary, loop_context.pre_header(), None, call_stack)
-            .results();
-        assert!(comparison_results.len() == 1);
-        SimplifyResult::SimplifiedToInstruction(Instruction::Constrain(
-            comparison_results[0],
-            rhs,
-            err.clone(),
-        ))
-    }
-
     /// Replace 'assert(invariant != induction)' with assert((invariant < min(induction) || (invariant > max(induction)))
     /// For this simplification to be valid, we need to ensure that the induction variable takes all the values from min(induction) up to max(induction)
-    /// This means that the assert must be executed  at each loop iteration, and that the loop processes all the iteration space
+    /// This means that the assert must be executed at each loop iteration, and that the loop processes all the iteration space.
     /// This is ensured via control dependence and the check for break patterns, before calling this function.
     fn simplify_not_equal_constraint(
         &mut self,
@@ -156,12 +109,12 @@ impl LoopInvariantContext<'_> {
         err: &Option<ConstrainError>,
         call_stack: CallStackId,
     ) -> SimplifyResult {
-        let (invariant, upper, lower) =
-            match self.match_induction_and_invariant(loop_context, lhs, rhs) {
-                Some((true, upper, lower)) => (rhs, upper, lower),
-                Some((false, upper, lower)) => (lhs, upper, lower),
-                _ => return SimplifyResult::None,
-            };
+        let (invariant, min, max) = match self.match_induction_and_invariant(loop_context, lhs, rhs)
+        {
+            Some((true, min, max)) => (rhs, min, max),
+            Some((false, min, max)) => (lhs, min, max),
+            _ => return SimplifyResult::None,
+        };
 
         let mut insert_binary_to_preheader = |lhs, rhs, operator| {
             let binary = Instruction::Binary(Binary { lhs, rhs, operator });
@@ -175,36 +128,15 @@ impl LoopInvariantContext<'_> {
             results[0]
         };
         // The comparisons can be safely hoisted to the pre-header because they are loop invariant and control independent
-        let check_lower_bound = insert_binary_to_preheader(*invariant, lower, BinaryOp::Lt);
-        let check_upper_bound = insert_binary_to_preheader(upper, *invariant, BinaryOp::Lt);
-        let check_bounds =
-            insert_binary_to_preheader(check_lower_bound, check_upper_bound, BinaryOp::Or);
+        let check_min = insert_binary_to_preheader(*invariant, min, BinaryOp::Lt);
+        let check_max = insert_binary_to_preheader(max, *invariant, BinaryOp::Lt);
+        let check_bounds = insert_binary_to_preheader(check_min, check_max, BinaryOp::Or);
 
         SimplifyResult::SimplifiedToInstruction(Instruction::Constrain(
             check_bounds,
             self.true_value,
             err.clone(),
         ))
-    }
-
-    /// Returns the binary instruction only if the input value refers to a binary instruction with invariant and induction variables as operands
-    /// The return values are:
-    /// - a boolean indicating if the induction variable is on the lhs
-    /// - the minimum and maximum values of the induction variable, coming from the loop bounds
-    /// - the binary instruction itself
-    fn extract_induction_and_invariant(
-        &mut self,
-        loop_context: &LoopContext,
-        value: ValueId,
-    ) -> Option<(bool, ValueId, ValueId, Binary)> {
-        let Value::Instruction { instruction, .. } = &self.inserter.function.dfg[value] else {
-            return None;
-        };
-        let Instruction::Binary(binary) = self.inserter.function.dfg[*instruction].clone() else {
-            return None;
-        };
-        self.match_induction_and_invariant(loop_context, &binary.lhs, &binary.rhs)
-            .map(|(is_left, min, max)| (is_left, min, max, binary))
     }
 
     /// If the inputs are an induction and loop invariant variables, it returns
@@ -252,17 +184,6 @@ impl LoopInvariantContext<'_> {
                 binary,
                 block_context.is_header,
             ),
-            Instruction::Constrain(x, y, err) => {
-                // Ensure the loop is fully executed
-                if loop_context.no_break
-                    && block_context.can_simplify_control_dependent_instruction()
-                {
-                    assert!(block_context.does_execute, "executing a non executable loop");
-                    self.simplify_induction_in_constrain(loop_context, *x, *y, err, call_stack)
-                } else {
-                    SimplifyResult::None
-                }
-            }
             Instruction::ConstrainNotEqual(x, y, err) => {
                 // Ensure the loop is fully executed
                 if loop_context.no_break
@@ -296,11 +217,11 @@ impl LoopInvariantContext<'_> {
             rhs_const,
             loop_context
                 .get_current_induction_variable_bounds(*lhs)
-                .and_then(|v| if only_outer_induction { None } else { Some(v) })
+                .filter(|_| !only_outer_induction)
                 .or(self.outer_induction_variables.get(lhs).copied()),
             loop_context
                 .get_current_induction_variable_bounds(*rhs)
-                .and_then(|v| if only_outer_induction { None } else { Some(v) })
+                .filter(|_| !only_outer_induction)
                 .or(self.outer_induction_variables.get(rhs).copied()),
         ) {
             // LHS is a constant, RHS is the induction variable with a known lower and upper bound.
@@ -332,29 +253,36 @@ impl LoopInvariantContext<'_> {
         // Note that here we allow all_induction_variables
         let operand_type = self.inserter.function.dfg.type_of_value(binary.lhs).unwrap_numeric();
 
-        let Some((is_induction_var_lhs, value, lower_bound, upper_bound)) =
+        let Some((is_induction_var_lhs, constant, lower_bound, upper_bound)) =
             self.match_induction_and_constant(loop_context, &binary.lhs, &binary.rhs, is_header)
         else {
             return SimplifyResult::None;
         };
 
-        // Handle arithmetic operations
+        // Handle arithmetic operations:
+        // Check if we can simplify either `lower op const` or `const op upper` into an unchecked version of the operation.
         if let Some((lhs, rhs)) = match binary.operator {
             BinaryOp::Add { unchecked }
             | BinaryOp::Sub { unchecked }
             | BinaryOp::Mul { unchecked }
                 if unchecked =>
             {
+                // Already unchecked, no need to simplify.
                 return SimplifyResult::None;
             }
             BinaryOp::Sub { .. } => {
                 if is_induction_var_lhs {
-                    Some((lower_bound, value))
+                    // `i - const` won't overflow if the lowest `i` doesn't.
+                    Some((lower_bound, constant))
                 } else {
-                    Some((value, upper_bound))
+                    // `const - i` won't overflow if the highest `i` doesn't.
+                    Some((constant, upper_bound))
                 }
             }
-            BinaryOp::Add { .. } | BinaryOp::Mul { .. } => Some((value, upper_bound)),
+            BinaryOp::Add { .. } | BinaryOp::Mul { .. } => {
+                // `i + const` won't overflow if the highest `i` value doesn't.
+                Some((constant, upper_bound))
+            }
             BinaryOp::Div | BinaryOp::Mod => return SimplifyResult::None,
             _ => None,
         } {
@@ -379,20 +307,24 @@ impl LoopInvariantContext<'_> {
             }
         }
 
-        // Handle comparisons
+        // Handle comparisons. (The upper_bound is exclusive).
         match binary.operator {
             BinaryOp::Eq => {
-                if value >= upper_bound || value < lower_bound {
+                if constant >= upper_bound || constant < lower_bound {
+                    // `i == const` cannot be true if the constant is out of range.
                     SimplifyResult::SimplifiedTo(self.false_value)
                 } else {
                     SimplifyResult::None
                 }
             }
             BinaryOp::Lt => match is_induction_var_lhs {
-                true if upper_bound <= value => SimplifyResult::SimplifiedTo(self.true_value),
-                true if lower_bound >= value => SimplifyResult::SimplifiedTo(self.false_value),
-                false if lower_bound > value => SimplifyResult::SimplifiedTo(self.true_value),
-                false if upper_bound <= value.inc() => {
+                // `i < const`
+                true if upper_bound <= constant => SimplifyResult::SimplifiedTo(self.true_value),
+                true if lower_bound >= constant => SimplifyResult::SimplifiedTo(self.false_value),
+                // `const < i`
+                false if lower_bound > constant => SimplifyResult::SimplifiedTo(self.true_value),
+                false if upper_bound <= constant.inc() => {
+                    // If `const >= upper_bound - 1` then it will never be less than `i`.
                     SimplifyResult::SimplifiedTo(self.false_value)
                 }
                 _ => SimplifyResult::None,
