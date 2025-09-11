@@ -402,4 +402,39 @@ mod test {
         "
         );
     }
+
+    #[test]
+    fn remove_enable_side_effects_that_has_no_effect() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: [u16; 3], v1: u32, v2: u1, v3: u1):
+
+            // This instruction isn't affected by any instruction so it should be removed.
+            enable_side_effects v2
+
+            v4 = allocate -> &mut Field
+
+            // This one should still be removed to just before the `add` instruction.
+            enable_side_effects v3
+
+            v5 = allocate -> &mut Field
+            v6 = add v1, u32 1
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let ssa = ssa.remove_enable_side_effects();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: [u16; 3], v1: u32, v2: u1, v3: u1):
+            v4 = allocate -> &mut Field
+            v5 = allocate -> &mut Field
+            enable_side_effects v3
+            v7 = add v1, u32 1
+            return
+        }
+        "
+        );
+    }
 }
