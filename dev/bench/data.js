@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1757519728421,
+  "lastUpdate": 1757582836496,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -20206,48 +20206,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "2289e0715c7b2c5e45a9123e28605ef7db101f75",
-          "message": "chore: replace usage of shell scripts with justfile (#9691)",
-          "timestamp": "2025-09-02T15:53:16Z",
-          "tree_id": "dea8c3c89e4a2e4f606feb7f7db5d6df7e4298b3",
-          "url": "https://github.com/noir-lang/noir/commit/2289e0715c7b2c5e45a9123e28605ef7db101f75"
-        },
-        "date": 1756829996000,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 257612,
-            "range": "± 1373",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 234853,
-            "range": "± 1201",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2795263,
-            "range": "± 19051",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -22299,6 +22257,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2785067,
             "range": "± 1676",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "860661b88a2d4d8ad1388dafe98681824451a13c",
+          "message": "fix: do not simplify constraints with induction variable (#9806)",
+          "timestamp": "2025-09-11T08:59:52Z",
+          "tree_id": "2e988a95dbeb5a8a1af9f03638ee95de438b6505",
+          "url": "https://github.com/noir-lang/noir/commit/860661b88a2d4d8ad1388dafe98681824451a13c"
+        },
+        "date": 1757582816700,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 248065,
+            "range": "± 1685",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 219949,
+            "range": "± 4520",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2786010,
+            "range": "± 10028",
             "unit": "ns/iter"
           }
         ]
