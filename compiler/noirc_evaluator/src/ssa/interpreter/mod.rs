@@ -928,7 +928,23 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             let element = elements.get(index as usize).ok_or_else(|| {
                 InterpreterError::IndexOutOfBounds { index, length: elements.len() as u32 }
             })?;
-            element.clone()
+
+            // Either return a fresh nested array (in constrained context) or just clone the element.
+            element
+                .as_array_or_slice()
+                .filter(|_| !self.in_unconstrained_context())
+                .map(|array| {
+                    // In the ACIR runtime we expect fresh arrays when accessing a nested array.
+                    // If we do not clone the elements here a mutable array set afterwards could mutate
+                    // not just this returned array but the array we are fetching from in this array get.
+                    Value::ArrayOrSlice(ArrayValue {
+                        elements: Shared::new(array.elements.borrow().to_vec()),
+                        rc: array.rc,
+                        element_types: array.element_types,
+                        is_slice: array.is_slice,
+                    })
+                })
+                .unwrap_or_else(|| element.clone())
         };
         self.define(result, element)?;
         Ok(())
