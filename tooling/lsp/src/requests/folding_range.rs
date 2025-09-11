@@ -58,9 +58,9 @@ impl<'files> FoldingRangeCommentsCollector<'files> {
     }
 
     fn collect(mut self, source: &str) -> Vec<FoldingRange> {
-        let mut lexer = Lexer::new(source, self.file_id).skip_comments(false);
+        let lexer = Lexer::new(source, self.file_id).skip_comments(false);
 
-        while let Some(token) = lexer.next() {
+        for token in lexer {
             let Ok(token) = token else {
                 continue;
             };
@@ -102,7 +102,7 @@ impl<'files> FoldingRangeCommentsCollector<'files> {
                         }
 
                         // A new group starts, so push the current one
-                        Self::push_line_comment_group(&group, &mut self.ranges);
+                        Self::push_line_comment_group(group, &mut self.ranges);
                     }
 
                     let start = location.clone();
