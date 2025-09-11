@@ -200,7 +200,7 @@ pub fn report_all<'files>(
     diagnostics.append(&mut errors);
 
     let error_count =
-        diagnostics.iter().map(|error| error.report(files, deny_warnings) as u32).sum();
+        diagnostics.iter().map(|error| u32::from(error.report(files, deny_warnings))).sum();
 
     ReportedErrors { error_count }
 }
