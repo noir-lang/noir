@@ -61,7 +61,7 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
             // read the source, and figure out which passes we can apply to it based on its state.
             let options = CompileOptions::default().as_ssa_options(Default::default());
             for (msg, _) in ssa_passes(&options) {
-                println!("{msg}")
+                println!("{msg}");
             }
         }
         SsaCommand::Check => {
@@ -114,7 +114,7 @@ fn parse_ssa(src: &str, validate: bool) -> eyre::Result<Ssa> {
 /// List of the SSA passes in the primary pipeline, enriched with their "step"
 /// count so we can use unambiguous naming in filtering.
 fn ssa_passes(options: &SsaEvaluatorOptions) -> Vec<(String, SsaPass<'_>)> {
-    primary_passes(&options)
+    primary_passes(options)
         .into_iter()
         .enumerate()
         .map(|(i, pass)| {

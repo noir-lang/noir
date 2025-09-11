@@ -1,9 +1,15 @@
-use std::path::PathBuf;
+use std::{collections::BTreeMap, path::PathBuf};
 
 use clap::Args;
-use color_eyre::eyre;
+use color_eyre::eyre::{self, Context, bail};
+use iter_extended::vecmap;
 use noir_artifact_cli::commands::parse_and_normalize_path;
-use noirc_evaluator::ssa::ssa_gen::Ssa;
+use noirc_abi::{Abi, AbiParameter, AbiReturnType, AbiType, AbiVisibility, Sign};
+use noirc_evaluator::ssa::{
+    interpreter::InterpreterOptions,
+    ir::types::{NumericType, Type},
+    ssa_gen::Ssa,
+};
 
 /// Parse the input SSA and it arguments, run the SSA interpreter,
 /// then write the return values to stdout.
@@ -16,8 +22,120 @@ pub(super) struct InterpretCommand {
     /// If empty, we assume the SSA has no arguments.
     #[clap(long, short, value_parser = parse_and_normalize_path)]
     pub input_path: Option<PathBuf>,
+
+    /// Turn on tracing in the SSA interpreter.
+    #[clap(long, default_value_t = false)]
+    pub trace: bool,
 }
 
-pub(super) fn run(_args: InterpretCommand, _ssa: Ssa) -> eyre::Result<()> {
-    todo!()
+pub(super) fn run(args: InterpretCommand, ssa: Ssa) -> eyre::Result<()> {
+    // Construct an ABI, which we can then use to parse input values.
+    let abi = abi_from_ssa(&ssa);
+
+    let (input_map, return_value) = match args.input_path {
+        Some(path) => noir_artifact_cli::fs::inputs::read_inputs_from_file(&path, &abi)
+            .wrap_err_with(|| format!("failed to read inputs from {}", path.to_string_lossy()))?,
+        None => (BTreeMap::default(), None),
+    };
+
+    let options = InterpreterOptions { trace: args.trace, ..Default::default() };
+
+    let ssa_args = noir_ast_fuzzer::input_values_to_ssa(&abi, &input_map);
+
+    let ssa_return =
+        if let (Some(return_type), Some(return_value)) = (&abi.return_type, return_value) {
+            Some(noir_ast_fuzzer::input_value_to_ssa(&return_type.abi_type, &return_value))
+        } else {
+            None
+        };
+
+    let result = ssa.interpret_with_options(ssa_args, options, std::io::stdout());
+
+    // Mimicking the way `nargo interpret` presents its results.
+    match &result {
+        Ok(value) => {
+            let value_as_string = vecmap(value, ToString::to_string).join(", ");
+            println!("--- Interpreter result:\nOk({value_as_string})\n---");
+        }
+        Err(err) => {
+            println!("--- Interpreter result:\nErr({err})\n---");
+        }
+    }
+
+    if let Some(return_value) = ssa_return {
+        let return_value_as_string = vecmap(&return_value, ToString::to_string).join(", ");
+        let Ok(result) = result else {
+            bail!(
+                "Interpreter produced an unexpected error.\nExpected result: {return_value_as_string}"
+            );
+        };
+        if return_value != result {
+            let result_as_string = vecmap(&result, ToString::to_string).join(", ");
+            bail!(
+                "Interpreter produced an unexpected result.\nExpected result: {return_value_as_string}\nActual result: {result_as_string}"
+            )
+        }
+    }
+
+    Ok(())
+}
+
+/// Derive an ABI description from the SSA parameters.
+fn abi_from_ssa(ssa: &Ssa) -> Abi {
+    let main = &ssa.functions[&ssa.main_id];
+    let param_types = main.parameter_types();
+    let return_types = main.return_types().filter(|ts| !ts.is_empty());
+
+    let parameters =
+        param_types.iter().enumerate().map(|(i, typ)| abi_param_from_ssa(i, typ)).collect();
+
+    let return_type =
+        return_types.map(|types| abi_return_from_ssa(&types, main.has_data_bus_return_data()));
+
+    Abi { parameters, return_type, error_types: Default::default() }
+}
+
+fn abi_param_from_ssa(pos: usize, typ: &Type) -> AbiParameter {
+    AbiParameter {
+        name: format!("v{pos}"),
+        typ: abi_type_from_ssa(typ),
+        // TODO: Databus visibility?
+        visibility: AbiVisibility::Public,
+    }
+}
+
+fn abi_return_from_ssa(types: &[Type], is_databus: bool) -> AbiReturnType {
+    AbiReturnType {
+        abi_type: abi_type_from_multi_ssa(types),
+        visibility: if is_databus { AbiVisibility::DataBus } else { AbiVisibility::Public },
+    }
+}
+
+fn abi_type_from_multi_ssa(types: &[Type]) -> AbiType {
+    match types.len() {
+        0 => unreachable!("cannot construct ABI type from 0 types"),
+        1 => abi_type_from_ssa(&types[0]),
+        _ => AbiType::Tuple { fields: vecmap(types, abi_type_from_ssa) },
+    }
+}
+
+fn abi_type_from_ssa(typ: &Type) -> AbiType {
+    match typ {
+        Type::Numeric(numeric_type) => match numeric_type {
+            NumericType::NativeField => AbiType::Field,
+            NumericType::Unsigned { bit_size: 1 } => AbiType::Boolean,
+            NumericType::Unsigned { bit_size } => {
+                AbiType::Integer { sign: Sign::Unsigned, width: *bit_size }
+            }
+            NumericType::Signed { bit_size } => {
+                AbiType::Integer { sign: Sign::Signed, width: *bit_size }
+            }
+        },
+        Type::Array(items, length) => {
+            AbiType::Array { length: *length, typ: Box::new(abi_type_from_multi_ssa(items)) }
+        }
+        Type::Reference(_) => unreachable!("refs do not appear in SSA ABI"),
+        Type::Function => unreachable!("functions do not appear in SSA ABI"),
+        Type::Slice(_) => unreachable!("slices do not appear in SSA ABI"),
+    }
 }
