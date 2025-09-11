@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1757589861724,
+  "lastUpdate": 1757589862889,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -26505,90 +26505,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "910cd9349e0b9382c1512935bc3e1d791891bd21",
-          "message": "fix(ssa): Simplify instructions during `remove_unreachable_instructions` (#9709)",
-          "timestamp": "2025-09-03T10:53:07Z",
-          "tree_id": "a85d985806ba6b7b8b27e7cb5d778b92226ce324",
-          "url": "https://github.com/noir-lang/noir/commit/910cd9349e0b9382c1512935bc3e1d791891bd21"
-        },
-        "date": 1756899118095,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 14792,
-            "unit": "opcodes"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 68868,
-            "unit": "opcodes"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 11177,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 221339,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 159930,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 68108,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 964515,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 965801,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1409,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-root",
-            "value": 2631,
-            "unit": "opcodes"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 5700,
-            "unit": "opcodes"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 13173,
-            "unit": "opcodes"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -30633,6 +30549,90 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/bc981893fbf8eceeff01e2491d7d6bc68cdfe8ad"
         },
         "date": 1757589663463,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 14792,
+            "unit": "opcodes"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 68868,
+            "unit": "opcodes"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 11177,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 221339,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 159930,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 68108,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 964515,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 965801,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1409,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-root",
+            "value": 2631,
+            "unit": "opcodes"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 5700,
+            "unit": "opcodes"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 13173,
+            "unit": "opcodes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2e6bb0b12e3d0607eb806705c529dc8e1a2df42e",
+          "message": "chore: use `DataFlowGraph` over `Function` in constant_folding (#9811)",
+          "timestamp": "2025-09-11T10:38:32Z",
+          "tree_id": "687dfcce8104d63b077379745e052e8c61e50288",
+          "url": "https://github.com/noir-lang/noir/commit/2e6bb0b12e3d0607eb806705c529dc8e1a2df42e"
+        },
+        "date": 1757589840143,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
