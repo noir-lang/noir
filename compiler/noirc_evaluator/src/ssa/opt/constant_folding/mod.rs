@@ -142,10 +142,19 @@ fn constant_folding_post_check(context: &Context, dfg: &DataFlowGraph) {
 }
 
 struct Context {
-    use_constraint_info: bool,
-    /// Maps pre-folded ValueIds to the new ValueIds obtained by re-inserting the instruction.
     visited_blocks: HashSet<BasicBlockId>,
     block_queue: VecDeque<BasicBlockId>,
+
+    /// Whether to use [constraints][Instruction::Constrain] to inform simplifications later on in the program.
+    ///
+    /// For example, this allows simplifying the instructions below to determine that `v2 == Field 3` without
+    /// laying down constraints for the addition:
+    ///
+    /// ```
+    /// constrain v1 == Field 0
+    /// v2 = add v1, Field 2
+    /// ```
+    use_constraint_info: bool,
 
     /// Contains sets of values which are constrained to be equivalent to each other.
     ///
@@ -156,9 +165,12 @@ struct Context {
     /// being used to modify the rest of the program.
     constraint_simplification_mappings: ConstraintSimplificationCache,
 
-    // Cache of instructions without any side-effects along with their outputs.
+    /// Cache of instructions along with their outputs which are safe to reuse.
+    ///
+    /// See [`can_be_deduplicated`] for more information
     cached_instruction_results: InstructionResultCache,
 
+    /// Maps pre-folded ValueIds to the new ValueIds obtained by re-inserting the instruction.
     values_to_replace: ValueMapping,
 }
 
