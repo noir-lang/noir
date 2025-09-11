@@ -5,7 +5,7 @@ use crate::fuzz_target_lib::fuzz_target;
 use crate::fuzzer::FuzzerData;
 use crate::instruction::{Argument, Instruction, InstructionBlock, NumericArgument};
 use crate::options::FuzzerOptions;
-use crate::tests::common::{default_input_types, default_witness};
+use crate::tests::common::{default_input_types, default_runtimes, default_witness};
 use acvm::FieldElement;
 use noir_ssa_fuzzer::typed_value::{NumericType, Type};
 use std::sync::Arc;
@@ -74,13 +74,13 @@ fn test_other_function_mutates_reference() {
         instruction_blocks,
     };
 
-    let result = fuzz_target(data, FuzzerOptions::default());
-    match result {
-        Some(result) => {
-            assert_eq!(result.get_return_values()[0], FieldElement::from(1_u32));
-        }
-        None => {
+    let result = fuzz_target(data, default_runtimes(), FuzzerOptions::default());
+    match result.get_return_witnesses().is_empty() {
+        true => {
             panic!("Program failed to execute");
+        }
+        false => {
+            assert_eq!(result.get_return_witnesses()[0], FieldElement::from(1_u32));
         }
     }
 }
@@ -160,13 +160,13 @@ fn test_reference_to_reference() {
         initial_witness: default_witness(),
         instruction_blocks,
     };
-    let result = fuzz_target(data, FuzzerOptions::default());
-    match result {
-        Some(result) => {
-            assert_eq!(result.get_return_values()[0], FieldElement::from(1_u32));
-        }
-        None => {
+    let result = fuzz_target(data, default_runtimes(), FuzzerOptions::default());
+    match result.get_return_witnesses().is_empty() {
+        true => {
             panic!("Program failed to execute");
+        }
+        false => {
+            assert_eq!(result.get_return_witnesses()[0], FieldElement::from(1_u32));
         }
     }
 }

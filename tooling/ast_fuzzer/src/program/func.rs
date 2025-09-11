@@ -670,9 +670,36 @@ impl<'a> FunctionContext<'a> {
             if let Type::Slice(item_type) = src_type {
                 if bool::arbitrary(u)? {
                     let (item, item_dyn) = self.gen_expr(u, item_type, max_depth, Flags::TOP)?;
-                    let push_expr =
-                        self.call_slice_push(src_expr, src_type.clone(), bool::arbitrary(u)?, item);
-                    return Ok(Some((push_expr, src_dyn || item_dyn)));
+                    // We can use push_back, push_front, or insert.
+                    if bool::arbitrary(u)? {
+                        let push_expr = self.call_slice_push(
+                            src_type.clone(),
+                            item_type.as_ref().clone(),
+                            src_expr,
+                            bool::arbitrary(u)?,
+                            item,
+                        );
+                        return Ok(Some((push_expr, src_dyn || item_dyn)));
+                    } else {
+                        // Generate a random index and insert the item at it.
+                        return self.gen_slice_access(
+                            u,
+                            (src_expr, src_dyn || item_dyn),
+                            src_type,
+                            src_mutable,
+                            tgt_type,
+                            max_depth,
+                            |this, ident, idx| {
+                                this.call_slice_insert(
+                                    src_type.clone(),
+                                    item_type.as_ref().clone(),
+                                    Expression::Ident(ident),
+                                    idx,
+                                    item,
+                                )
+                            },
+                        );
+                    }
                 }
             }
             // Otherwise just return as-is.
@@ -697,6 +724,7 @@ impl<'a> FunctionContext<'a> {
 
         // See how we can produce tgt from src.
         match (src_type, tgt_type) {
+            // Simple numeric conversions.
             (
                 Type::Field,
                 Type::Integer(Signedness::Unsigned, IntegerBitSize::HundredTwentyEight),
@@ -708,10 +736,12 @@ impl<'a> FunctionContext<'a> {
             {
                 src_as_tgt()
             }
+            // Dereference right into the target type.
             (Type::Reference(typ, _), _) if typ.as_ref() == tgt_type => {
                 let expr = expr::deref(src_expr, tgt_type.clone());
                 Ok(Some((expr, src_dyn)))
             }
+            // Mutable reference over the source type.
             (_, Type::Reference(typ, true)) if typ.as_ref() == src_type => {
                 let expr = if src_mutable {
                     expr::ref_mut(src_expr, typ.as_ref().clone())
@@ -720,6 +750,7 @@ impl<'a> FunctionContext<'a> {
                 };
                 Ok(Some((expr, src_dyn)))
             }
+            // Index a non-empty array.
             (Type::Array(len, item_type), _) if *len > 0 => {
                 // Indexing arrays that contains references with dynamic indexes was banned in #8888
                 // If we are already looking for an index where we can't use dynamic inputs,
@@ -761,107 +792,72 @@ impl<'a> FunctionContext<'a> {
                     max_depth,
                 )
             }
+            // Pop from the front of a slice.
             (Type::Slice(item_type), Type::Tuple(fields))
                 if fields.len() == 2
                     && &fields[0] == item_type.as_ref()
                     && &fields[1] == src_type =>
             {
-                let pop_front = self.call_slice_pop(src_expr, src_type.clone(), true);
+                let pop_front = self.call_slice_pop(
+                    src_type.clone(),
+                    item_type.as_ref().clone(),
+                    src_expr,
+                    true,
+                );
                 Ok(Some((pop_front, src_dyn)))
             }
+            // Pop from the back of a slice, or remove an item.
             (Type::Slice(item_type), Type::Tuple(fields))
                 if fields.len() == 2
                     && &fields[0] == src_type
                     && &fields[1] == item_type.as_ref() =>
             {
-                let pop_back = self.call_slice_pop(src_expr, src_type.clone(), false);
-                Ok(Some((pop_back, src_dyn)))
-            }
-            (Type::Slice(item_type), _) => {
-                // We don't know the length of the slice at compile time,
-                // so we need to call the builtin function to get it,
-                // and use it for the length modulo.
-
-                // The rules around dynamic indexing is the same as for arrays.
-                let (idx_expr, idx_dyn) = if max_depth == 0 || bool::arbitrary(u)? {
-                    // Avoid any stack overflow where we look for an index in the slice itself.
-                    (self.gen_literal(u, &types::U32)?, false)
-                } else {
-                    let no_dynamic = self.in_no_dynamic
-                        || !self.unconstrained() && types::contains_reference(item_type);
-                    let was_in_no_dynamic = std::mem::replace(&mut self.in_no_dynamic, no_dynamic);
-
-                    // Choose a random index.
-                    let (idx_expr, idx_dyn) =
-                        self.gen_expr(u, &types::U32, max_depth.saturating_sub(1), Flags::NESTED)?;
-                    assert!(!(no_dynamic && idx_dyn), "non-dynamic index expected");
-
-                    self.in_no_dynamic = was_in_no_dynamic;
-                    (idx_expr, idx_dyn)
-                };
-
-                // Unless the slice is coming from an identifier or literal, we should create a let binding for it
-                // to avoid doubling up any side effects, or double using local variables when it was created.
-                let (let_expr, ident_1) = if let Expression::Ident(ident) = src_expr {
-                    (None, ident)
-                } else {
-                    let (let_expr, let_ident) = self.let_var_and_ident(
-                        false,
+                if bool::arbitrary(u)? {
+                    let pop_back = self.call_slice_pop(
                         src_type.clone(),
+                        item_type.as_ref().clone(),
                         src_expr,
                         false,
-                        src_dyn,
-                        local_name,
                     );
-                    (Some(let_expr), let_ident)
-                };
-
-                // We'll need the ident again to access the item.
-                let ident_2 = Ident { id: self.next_ident_id(), ..ident_1.clone() };
-
-                // Get the runtime length.
-                let len_expr = self.call_array_len(Expression::Ident(ident_1), src_type.clone());
-
-                // Take the modulo.
-                let idx_expr = expr::modulo(idx_expr, len_expr);
-
-                // Access the item.
-                let item_expr = Expression::Index(Index {
-                    collection: Box::new(Expression::Ident(ident_2)),
-                    index: Box::new(idx_expr),
-                    element_type: *item_type.clone(),
-                    location: Location::dummy(),
-                });
-
-                // Produce the target type from the item.
-                let Some((expr, is_dyn)) = self.gen_expr_from_source(
-                    u,
-                    (item_expr, src_dyn || idx_dyn),
-                    item_type,
-                    src_mutable,
-                    tgt_type,
-                    max_depth,
-                )?
-                else {
-                    return Ok(None);
-                };
-
-                // Append the let and the final expression if we needed a block,
-                // so we avoid suffixing a block with e.g. indexing, which would
-                // not be parsable by the frontend. Another way to do this would
-                // be to surround the block with parentheses.
-                // So either of this should work:
-                // * { let s = todo!(); s[123 % s.len()][456] }
-                // * ( { let s = todo!(); s[123 % s.len()] } )[456]
-                // But not this:
-                // * { let s = todo!(); s[123 % s.len()] }[123]
-                let expr = if let Some(let_expr) = let_expr {
-                    Expression::Block(vec![let_expr, expr])
+                    Ok(Some((pop_back, src_dyn)))
                 } else {
-                    expr
-                };
-                Ok(Some((expr, is_dyn)))
+                    self.gen_slice_access(
+                        u,
+                        (src_expr, src_dyn),
+                        src_type,
+                        src_mutable,
+                        tgt_type,
+                        max_depth,
+                        |this, ident, idx| {
+                            this.call_slice_remove(
+                                src_type.clone(),
+                                item_type.as_ref().clone(),
+                                Expression::Ident(ident),
+                                idx,
+                            )
+                        },
+                    )
+                }
             }
+            // Index a slice (might fail at runtime if empty).
+            (Type::Slice(item_type), _) => self.gen_slice_access(
+                u,
+                (src_expr, src_dyn),
+                src_type,
+                src_mutable,
+                tgt_type,
+                max_depth,
+                |_, ident, idx| {
+                    // Index the slice, represented by a variable, using the generated index.
+                    Expression::Index(Index {
+                        collection: Box::new(Expression::Ident(ident)),
+                        index: Box::new(idx),
+                        element_type: *item_type.clone(),
+                        location: Location::dummy(),
+                    })
+                },
+            ),
+            // Extract a tuple field.
             (Type::Tuple(items), _) => {
                 // Any of the items might be able to produce the target type.
                 let mut opts = Vec::new();
@@ -890,6 +886,106 @@ impl<'a> FunctionContext<'a> {
                 Ok(None)
             }
         }
+    }
+
+    /// Generate code to index an arbitrary item in a slice.
+    ///
+    /// Since we don't know the length of the slice at compile time,
+    /// this can involve creating a temporary variable, getting the length at runtime,
+    /// and using modulo to limit some random index to the runtime length.
+    #[allow(clippy::too_many_arguments)]
+    fn gen_slice_access<F>(
+        &mut self,
+        u: &mut Unstructured,
+        (src_expr, src_dyn): TrackedExpression,
+        src_type: &Type,
+        src_mutable: bool,
+        tgt_type: &Type,
+        max_depth: usize,
+        access_item: F,
+    ) -> arbitrary::Result<Option<TrackedExpression>>
+    where
+        F: FnOnce(&mut Self, Ident, Expression) -> Expression,
+    {
+        let Type::Slice(item_type) = src_type else {
+            unreachable!("only expected to be called with Slice");
+        };
+        // The rules around dynamic indexing is the same as for arrays.
+        let (idx_expr, idx_dyn) = if max_depth == 0 || bool::arbitrary(u)? {
+            // Avoid any stack overflow where we look for an index in the slice itself.
+            (self.gen_literal(u, &types::U32)?, false)
+        } else {
+            let no_dynamic =
+                self.in_no_dynamic || !self.unconstrained() && types::contains_reference(item_type);
+            let was_in_no_dynamic = std::mem::replace(&mut self.in_no_dynamic, no_dynamic);
+
+            // Choose a random index.
+            let (idx_expr, idx_dyn) =
+                self.gen_expr(u, &types::U32, max_depth.saturating_sub(1), Flags::NESTED)?;
+
+            assert!(!(no_dynamic && idx_dyn), "non-dynamic index expected");
+
+            self.in_no_dynamic = was_in_no_dynamic;
+            (idx_expr, idx_dyn)
+        };
+
+        // Unless the slice is coming from an identifier or literal, we should create a let binding for it
+        // to avoid doubling up any side effects, or double using local variables when it was created.
+        let (let_expr, ident_1) = if let Expression::Ident(ident) = src_expr {
+            (None, ident)
+        } else {
+            let (let_expr, let_ident) = self.let_var_and_ident(
+                false,
+                src_type.clone(),
+                src_expr,
+                false,
+                src_dyn,
+                local_name,
+            );
+            (Some(let_expr), let_ident)
+        };
+
+        // We'll need the ident again to access the item.
+        let ident_2 = Ident { id: self.next_ident_id(), ..ident_1.clone() };
+
+        // Get the runtime length.
+        let len_expr = self.call_array_len(Expression::Ident(ident_1), src_type.clone());
+
+        // Take the modulo.
+        let idx_expr = expr::modulo(idx_expr, len_expr);
+
+        // Access the item by index
+        let item_expr = access_item(self, ident_2, idx_expr);
+
+        // Produce the target type from the item.
+        let Some((expr, is_dyn)) = self.gen_expr_from_source(
+            u,
+            (item_expr, src_dyn || idx_dyn),
+            item_type,
+            src_mutable,
+            tgt_type,
+            max_depth,
+        )?
+        else {
+            return Ok(None);
+        };
+
+        // Append the let and the final expression if we needed a block,
+        // so we avoid suffixing a block with e.g. indexing, which would
+        // not be parsable by the frontend. Another way to do this would
+        // be to surround the block with parentheses.
+        // So either of this should work:
+        // * { let s = todo!(); s[123 % s.len()][456] }
+        // * ( { let s = todo!(); s[123 % s.len()] } )[456]
+        // But not this:
+        // * { let s = todo!(); s[123 % s.len()] }[123]
+        let expr = if let Some(let_expr) = let_expr {
+            Expression::Block(vec![let_expr, expr])
+        } else {
+            expr
+        };
+
+        Ok(Some((expr, is_dyn)))
     }
 
     /// Generate an arbitrary index for an array.
@@ -1158,7 +1254,7 @@ impl<'a> FunctionContext<'a> {
         if let Type::Slice(ref item_type) = typ {
             if bool::arbitrary(u)? {
                 let fields = if bool::arbitrary(u)? {
-                    // ([T], T) <- pop_back
+                    // ([T], T) <- pop_back or remove
                     vec![typ.clone(), item_type.as_ref().clone()]
                 } else {
                     // (T, [T]) <- pop_front
@@ -2083,65 +2179,21 @@ impl<'a> FunctionContext<'a> {
         })
     }
 
-    /// Construct a `Call` to the `slice_push_front` or `slice_push_back` builtin function.
-    fn call_slice_push(
+    /// Construct a `Call` to one of the `slice_*` builtin functions.
+    fn call_slice_builtin(
         &mut self,
-        slice: Expression,
-        slice_type: Type,
-        is_front: bool,
-        item: Expression,
+        name: &str,
+        return_type: Type,
+        arg_types: Vec<Type>,
+        args: Vec<Expression>,
     ) -> Expression {
-        let item_type = match slice_type {
-            Type::Slice(ref item_type) => item_type.as_ref().clone(),
-            other => unreachable!("only called with slice type; got {other}"),
-        };
-        let name = if is_front { "push_front" } else { "push_back" };
         let func_ident = Ident {
             location: None,
             definition: Definition::Builtin(format!("slice_{name}")),
             mutable: false,
             name: name.to_string(),
             typ: Type::Function(
-                vec![slice_type.clone(), item_type],
-                Box::new(slice_type.clone()),
-                Box::new(Type::Unit),
-                false,
-            ),
-            id: self.next_ident_id(),
-        };
-        Expression::Call(Call {
-            func: Box::new(Expression::Ident(func_ident)),
-            arguments: vec![slice, item],
-            return_type: slice_type,
-            location: Location::dummy(),
-        })
-    }
-
-    /// Construct a `Call` to the `slice_pop_front` or `slice_pop_back` builtin function.
-    fn call_slice_pop(
-        &mut self,
-        slice: Expression,
-        slice_type: Type,
-        is_front: bool,
-    ) -> Expression {
-        let item_type = match slice_type {
-            Type::Slice(ref item_type) => item_type.as_ref().clone(),
-            other => unreachable!("only called with slice type; got {other}"),
-        };
-        let name = if is_front { "pop_front" } else { "pop_back" };
-        let fields = if is_front {
-            vec![item_type, slice_type.clone()]
-        } else {
-            vec![slice_type.clone(), item_type]
-        };
-        let return_type = Type::Tuple(fields);
-        let func_ident = Ident {
-            location: None,
-            definition: Definition::Builtin(format!("slice_{name}")),
-            mutable: false,
-            name: name.to_string(),
-            typ: Type::Function(
-                vec![slice_type],
+                arg_types,
                 Box::new(return_type.clone()),
                 Box::new(Type::Unit),
                 false,
@@ -2150,10 +2202,81 @@ impl<'a> FunctionContext<'a> {
         };
         Expression::Call(Call {
             func: Box::new(Expression::Ident(func_ident)),
-            arguments: vec![slice],
+            arguments: args,
             return_type,
             location: Location::dummy(),
         })
+    }
+
+    /// Construct a `Call` to the `slice_push_front` or `slice_push_back` builtin function.
+    fn call_slice_push(
+        &mut self,
+        slice_type: Type,
+        item_type: Type,
+        slice: Expression,
+        is_front: bool,
+        item: Expression,
+    ) -> Expression {
+        self.call_slice_builtin(
+            if is_front { "push_front" } else { "push_back" },
+            slice_type.clone(),
+            vec![slice_type, item_type],
+            vec![slice, item],
+        )
+    }
+
+    /// Construct a `Call` to the `slice_pop_front` or `slice_pop_back` builtin function.
+    fn call_slice_pop(
+        &mut self,
+        slice_type: Type,
+        item_type: Type,
+        slice: Expression,
+        is_front: bool,
+    ) -> Expression {
+        let return_fields = if is_front {
+            vec![item_type, slice_type.clone()]
+        } else {
+            vec![slice_type.clone(), item_type]
+        };
+        self.call_slice_builtin(
+            if is_front { "pop_front" } else { "pop_back" },
+            Type::Tuple(return_fields),
+            vec![slice_type],
+            vec![slice],
+        )
+    }
+
+    /// Construct a `Call` to the `slice_remove` builtin function.
+    fn call_slice_remove(
+        &mut self,
+        slice_type: Type,
+        item_type: Type,
+        slice: Expression,
+        idx: Expression,
+    ) -> Expression {
+        self.call_slice_builtin(
+            "remove",
+            Type::Tuple(vec![slice_type.clone(), item_type]),
+            vec![slice_type, types::U32],
+            vec![slice, idx],
+        )
+    }
+
+    /// Construct a `Call` to the `slice_insert` builtin function.
+    fn call_slice_insert(
+        &mut self,
+        slice_type: Type,
+        item_type: Type,
+        slice: Expression,
+        idx: Expression,
+        item: Expression,
+    ) -> Expression {
+        self.call_slice_builtin(
+            "insert",
+            Type::Tuple(vec![slice_type.clone()]),
+            vec![slice_type, types::U32, item_type],
+            vec![slice, idx, item],
+        )
     }
 }
 
