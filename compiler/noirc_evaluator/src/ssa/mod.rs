@@ -185,6 +185,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         SsaPass::new(Ssa::remove_truncate_after_range_check, "Removing Truncate after RangeCheck"),
         SsaPass::new(Ssa::checked_to_unchecked, "Checked to unchecked"),
         SsaPass::new(Ssa::fold_constants_using_constraints, "Constant Folding using constraints"),
+        SsaPass::new(Ssa::fold_constants, "Constant Folding"),
         SsaPass::new(Ssa::remove_unreachable_instructions, "Remove Unreachable Instructions")
             .and_then(Ssa::remove_unreachable_functions),
         // This pass makes transformations specific to Brillig generation.
