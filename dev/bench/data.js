@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1757590372385,
+  "lastUpdate": 1757596399148,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -20206,48 +20206,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "569ce5f57f09f7559b5f0f89e9f9dbbfc0994fc7",
-          "message": "chore(ci): force cargo-binstall to install tools in CI (#9722)",
-          "timestamp": "2025-09-03T14:19:54Z",
-          "tree_id": "ba021257fdd79d701cb067cd68c38bcb462aec63",
-          "url": "https://github.com/noir-lang/noir/commit/569ce5f57f09f7559b5f0f89e9f9dbbfc0994fc7"
-        },
-        "date": 1756910785395,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 248296,
-            "range": "± 1802",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 218171,
-            "range": "± 2841",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2781418,
-            "range": "± 3374",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -22299,6 +22257,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2791233,
             "range": "± 20024",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "344986f013749e039395a97f22e5c597122287e4",
+          "message": "chore: bump linked bb version (#9237)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>\nCo-authored-by: saleel <saleel@saleel.xyz>",
+          "timestamp": "2025-09-11T12:45:17Z",
+          "tree_id": "cbff02227a2ca06660a20429f12a2a6e83b30f97",
+          "url": "https://github.com/noir-lang/noir/commit/344986f013749e039395a97f22e5c597122287e4"
+        },
+        "date": 1757596379486,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 260731,
+            "range": "± 1023",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 229359,
+            "range": "± 1662",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2806278,
+            "range": "± 6748",
             "unit": "ns/iter"
           }
         ]
