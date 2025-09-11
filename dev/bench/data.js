@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1757588766183,
+  "lastUpdate": 1757589246155,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -20206,48 +20206,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "910cd9349e0b9382c1512935bc3e1d791891bd21",
-          "message": "fix(ssa): Simplify instructions during `remove_unreachable_instructions` (#9709)",
-          "timestamp": "2025-09-03T10:53:07Z",
-          "tree_id": "a85d985806ba6b7b8b27e7cb5d778b92226ce324",
-          "url": "https://github.com/noir-lang/noir/commit/910cd9349e0b9382c1512935bc3e1d791891bd21"
-        },
-        "date": 1756898690096,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 265713,
-            "range": "± 564",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 241632,
-            "range": "± 3741",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2811582,
-            "range": "± 17476",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -22299,6 +22257,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2795682,
             "range": "± 3955",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2e6bb0b12e3d0607eb806705c529dc8e1a2df42e",
+          "message": "chore: use `DataFlowGraph` over `Function` in constant_folding (#9811)",
+          "timestamp": "2025-09-11T10:38:32Z",
+          "tree_id": "687dfcce8104d63b077379745e052e8c61e50288",
+          "url": "https://github.com/noir-lang/noir/commit/2e6bb0b12e3d0607eb806705c529dc8e1a2df42e"
+        },
+        "date": 1757589226611,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 255645,
+            "range": "± 954",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 222048,
+            "range": "± 1390",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2791233,
+            "range": "± 20024",
             "unit": "ns/iter"
           }
         ]
