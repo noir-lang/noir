@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1757612505717,
+  "lastUpdate": 1757616127837,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -20211,48 +20211,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "26174818+jialinli98@users.noreply.github.com",
-            "name": "Jialin Li",
-            "username": "jialinli98"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "fe1ce1dbf884684da6edc6fc9d337318f54624e8",
-          "message": "chore: add tests for slice (#9650)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-09-04T05:03:27Z",
-          "tree_id": "b172b3329d7b40076e9c7a24ad710780c1901d67",
-          "url": "https://github.com/noir-lang/noir/commit/fe1ce1dbf884684da6edc6fc9d337318f54624e8"
-        },
-        "date": 1756963766771,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 261776,
-            "range": "± 954",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 227714,
-            "range": "± 1739",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2783632,
-            "range": "± 1787",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -22304,6 +22262,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2795206,
             "range": "± 2011",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "2a5315c89a033340cd2d3299404bbdb97dd5d3c7",
+          "message": "chore(die): Encapsulate array access checks in separate module (#9828)",
+          "timestamp": "2025-09-11T18:08:54Z",
+          "tree_id": "e3f682021ce3a02a69640d83b8549816b09959c0",
+          "url": "https://github.com/noir-lang/noir/commit/2a5315c89a033340cd2d3299404bbdb97dd5d3c7"
+        },
+        "date": 1757616107873,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 260777,
+            "range": "± 1902",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 232630,
+            "range": "± 2051",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2793857,
+            "range": "± 9489",
             "unit": "ns/iter"
           }
         ]
