@@ -52,7 +52,6 @@ use crate::ssa::{
         function::{Function, FunctionId},
         instruction::{BinaryOp, Instruction, InstructionId, Intrinsic, TerminatorInstruction},
         post_order::PostOrder,
-        types::Type,
         value::{Value, ValueId},
     },
     opt::{die::array_oob_checks::should_insert_oob_check, pure::Purity},
