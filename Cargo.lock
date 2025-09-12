@@ -3577,6 +3577,7 @@ dependencies = [
  "noirc_driver",
  "noirc_errors",
  "noirc_evaluator",
+ "tempfile",
  "thiserror 1.0.69",
  "toml",
  "tracing-subscriber",

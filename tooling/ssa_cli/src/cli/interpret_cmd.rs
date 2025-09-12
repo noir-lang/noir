@@ -3,14 +3,20 @@ use std::{collections::BTreeMap, path::PathBuf};
 use clap::Args;
 use color_eyre::eyre::{self, Context, bail};
 use iter_extended::vecmap;
-use noir_artifact_cli::commands::parse_and_normalize_path;
-use noirc_abi::{Abi, AbiParameter, AbiReturnType, AbiType, AbiVisibility, Sign};
+use noir_artifact_cli::{commands::parse_and_normalize_path, fs::artifact::write_to_file};
+use noirc_abi::{
+    Abi, AbiParameter, AbiReturnType, AbiType, AbiVisibility, InputMap, Sign,
+    input_parser::InputValue,
+};
 use noirc_errors::println_to_stdout;
 use noirc_evaluator::ssa::{
     interpreter::InterpreterOptions,
     ir::types::{NumericType, Type},
     ssa_gen::Ssa,
 };
+use tempfile::NamedTempFile;
+
+const TOML_LINE_SEP: char = ';';
 
 /// Parse the input SSA and it arguments, run the SSA interpreter,
 /// then write the return values to stdout.
@@ -18,11 +24,21 @@ use noirc_evaluator::ssa::{
 pub(super) struct InterpretCommand {
     /// Path to the input arguments to the SSA interpreter.
     ///
-    /// Expected to be in TOML format, similar to `Prover.toml`.
+    /// Expected to be in TOML format or JSON, similar to `Prover.toml`.
     ///
     /// If empty, we assume the SSA has no arguments.
-    #[clap(long, short, value_parser = parse_and_normalize_path)]
+    #[clap(long, short, value_parser = parse_and_normalize_path, conflicts_with = "input_json", conflicts_with = "input_toml")]
     pub input_path: Option<PathBuf>,
+
+    /// Verbatim inputs in JSON format.
+    #[clap(long, conflicts_with = "input_path", conflicts_with = "input_toml")]
+    pub input_json: Option<String>,
+
+    /// Verbatim inputs in TOML format.
+    ///
+    /// Use ';' to separate what would normally be multiple lines.
+    #[clap(long, conflicts_with = "input_path", conflicts_with = "input_json")]
+    pub input_toml: Option<String>,
 
     /// Turn on tracing in the SSA interpreter.
     #[clap(long, default_value_t = false)]
@@ -33,14 +49,9 @@ pub(super) fn run(args: InterpretCommand, ssa: Ssa) -> eyre::Result<()> {
     // Construct an ABI, which we can then use to parse input values.
     let abi = abi_from_ssa(&ssa);
 
-    let (input_map, return_value) = match args.input_path {
-        Some(path) => noir_artifact_cli::fs::inputs::read_inputs_from_file(&path, &abi)
-            .wrap_err_with(|| format!("failed to read inputs from {}", path.to_string_lossy()))?,
-        None => (BTreeMap::default(), None),
-    };
-
     let options = InterpreterOptions { trace: args.trace, ..Default::default() };
 
+    let (input_map, return_value) = read_inputs_and_return(&abi, &args)?;
     let ssa_args = noir_ast_fuzzer::input_values_to_ssa(&abi, &input_map);
 
     let ssa_return =
@@ -139,4 +150,40 @@ fn abi_type_from_ssa(typ: &Type) -> AbiType {
         Type::Function => unreachable!("functions do not appear in SSA ABI"),
         Type::Slice(_) => unreachable!("slices do not appear in SSA ABI"),
     }
+}
+
+fn write_to_temp_file(content: &str, extension: &str) -> eyre::Result<NamedTempFile> {
+    let tmp = NamedTempFile::with_suffix(format!("ssa.input.{extension}"))?;
+
+    write_to_file(content.as_bytes(), tmp.path()).wrap_err_with(|| {
+        format!("failed to write {extension} to temp file at {}", tmp.path().to_string_lossy())
+    })?;
+
+    Ok(tmp)
+}
+
+fn read_inputs_and_return(
+    abi: &Abi,
+    args: &InterpretCommand,
+) -> eyre::Result<(InputMap, Option<InputValue>)> {
+    let (input_path, _guard) = if let Some(ref json) = args.input_json {
+        let tmp = write_to_temp_file(json, "json")?;
+        (Some(tmp.path().to_path_buf()), Some(tmp))
+    } else if let Some(ref toml) = args.input_toml {
+        // Split along the line separator and rejoin into a file.
+        let lines = toml.split(TOML_LINE_SEP).map(|s| s.trim_start()).collect::<Vec<_>>();
+        let toml = lines.join("\n");
+        let tmp = write_to_temp_file(&toml, "toml")?;
+        (Some(tmp.path().to_path_buf()), Some(tmp))
+    } else {
+        (args.input_path.clone(), None)
+    };
+
+    let (input_map, return_value) = match input_path {
+        Some(path) => noir_artifact_cli::fs::inputs::read_inputs_from_file(&path, abi)
+            .wrap_err_with(|| format!("failed to read inputs from {}", path.to_string_lossy()))?,
+        None => (BTreeMap::default(), None),
+    };
+
+    Ok((input_map, return_value))
 }

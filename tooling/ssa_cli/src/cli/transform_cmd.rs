@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use clap::Args;
 use color_eyre::eyre::{self, Context, bail};
-use noir_artifact_cli::commands::parse_and_normalize_path;
+use noir_artifact_cli::{commands::parse_and_normalize_path, fs::artifact::write_to_file};
 use noirc_driver::CompileOptions;
 use noirc_errors::{println_to_stderr, println_to_stdout};
 use noirc_evaluator::ssa::{SsaLogging, SsaPass, ssa_gen::Ssa};
@@ -57,7 +57,7 @@ pub(super) fn run(args: TransformCommand, mut ssa: Ssa) -> eyre::Result<()> {
     let output = format_ssa(&mut ssa, msg, true);
 
     if let Some(path) = args.output_path {
-        noir_artifact_cli::fs::artifact::write_to_file(output.as_bytes(), &path)
+        write_to_file(output.as_bytes(), &path)
             .wrap_err_with(|| format!("failed to write SSA to {}", path.to_string_lossy()))?;
     } else {
         println_to_stdout!("{output}");
