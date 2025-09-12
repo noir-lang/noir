@@ -83,34 +83,33 @@ pub(super) fn run(args: InterpretCommand, ssa: Ssa) -> eyre::Result<()> {
 /// Derive an ABI description from the SSA parameters.
 fn abi_from_ssa(ssa: &Ssa) -> Abi {
     let main = &ssa.functions[&ssa.main_id];
-    let param_types = main.parameter_types();
-    let return_types = main.return_types().filter(|ts| !ts.is_empty());
 
-    let parameters =
-        param_types.iter().enumerate().map(|(i, typ)| abi_param_from_ssa(i, typ)).collect();
+    // We ignore visibility and treat everything as public, because visibility
+    // is only available in the Program with the monomorphized AST from which
+    // we normally generate the SSA. The SSA itself doesn't carry information
+    // about the databus, for example.
+    let visibility = AbiVisibility::Public;
 
-    let return_type =
-        return_types.map(|types| abi_return_from_ssa(&types, main.has_data_bus_return_data()));
+    let parameters = main
+        .parameter_types()
+        .iter()
+        .enumerate()
+        .map(|(i, typ)| AbiParameter {
+            name: format!("v{i}"),
+            typ: abi_type_from_ssa(typ),
+            visibility,
+        })
+        .collect();
+
+    let return_type = main
+        .return_types()
+        .filter(|ts| !ts.is_empty())
+        .map(|types| AbiReturnType { abi_type: abi_type_from_multi_ssa(&types), visibility });
 
     Abi { parameters, return_type, error_types: Default::default() }
 }
 
-fn abi_param_from_ssa(pos: usize, typ: &Type) -> AbiParameter {
-    AbiParameter {
-        name: format!("v{pos}"),
-        typ: abi_type_from_ssa(typ),
-        // TODO: Databus visibility?
-        visibility: AbiVisibility::Public,
-    }
-}
-
-fn abi_return_from_ssa(types: &[Type], is_databus: bool) -> AbiReturnType {
-    AbiReturnType {
-        abi_type: abi_type_from_multi_ssa(types),
-        visibility: if is_databus { AbiVisibility::DataBus } else { AbiVisibility::Public },
-    }
-}
-
+/// Create an ABI type from multiple SSA types, for example when multiple values are returned, or appear in arrays.
 fn abi_type_from_multi_ssa(types: &[Type]) -> AbiType {
     match types.len() {
         0 => unreachable!("cannot construct ABI type from 0 types"),
@@ -119,6 +118,7 @@ fn abi_type_from_multi_ssa(types: &[Type]) -> AbiType {
     }
 }
 
+/// Create an ABI type from a single SSA type.
 fn abi_type_from_ssa(typ: &Type) -> AbiType {
     match typ {
         Type::Numeric(numeric_type) => match numeric_type {
