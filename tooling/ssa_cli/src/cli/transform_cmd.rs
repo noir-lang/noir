@@ -4,7 +4,7 @@ use clap::Args;
 use color_eyre::eyre::{self, Context, bail};
 use noir_artifact_cli::commands::parse_and_normalize_path;
 use noirc_driver::CompileOptions;
-use noirc_evaluator::ssa::{SsaPass, ssa_gen::Ssa};
+use noirc_evaluator::ssa::{SsaLogging, SsaPass, ssa_gen::Ssa};
 
 /// Parse the input SSA, run a specific SSA pass on it, then write the output SSA.
 #[derive(Debug, Clone, Args)]
@@ -17,7 +17,8 @@ pub(super) struct TransformCommand {
 
     /// Name of the SSA pass(es) to apply.
     ///
-    /// The name is used to look up the first matching pass in the default pipeline.
+    /// The names are used to look up the first matching pass in the default pipeline,
+    /// and apply them in the order of appearance (potentially multiple times).
     ///
     /// If no pass is specified, it applies all passes in the default pipeline.
     #[clap(long, short = 'p')]
@@ -35,7 +36,7 @@ pub(super) fn run(args: TransformCommand, mut ssa: Ssa) -> eyre::Result<()> {
 
     if args.ssa_pass.is_empty() {
         for pass in &passes {
-            (ssa, msg) = run_pass(ssa, pass)?;
+            (ssa, msg) = run_pass(ssa, pass, &options.ssa_logging)?;
         }
     } else {
         for name in args.ssa_pass {
@@ -47,12 +48,12 @@ pub(super) fn run(args: TransformCommand, mut ssa: Ssa) -> eyre::Result<()> {
                     name
                 );
             };
-            (ssa, msg) = run_pass(ssa, pass)?;
+            (ssa, msg) = run_pass(ssa, pass, &options.ssa_logging)?;
         }
     }
 
     // Print the final state so that that it can be piped back to the CLI.
-    let output = format_ssa(&ssa, msg);
+    let output = format_ssa(&mut ssa, msg);
 
     if let Some(path) = args.output_path {
         noir_artifact_cli::fs::artifact::write_to_file(output.as_bytes(), &path)
@@ -68,13 +69,19 @@ pub(super) fn run(args: TransformCommand, mut ssa: Ssa) -> eyre::Result<()> {
 fn run_pass<'a>(
     ssa: Ssa,
     (msg, pass): &'a (String, SsaPass<'_>),
+    ssa_logging: &SsaLogging,
 ) -> eyre::Result<(Ssa, &'a String)> {
-    let ssa = pass.run(ssa).wrap_err_with(|| format!("failed to run pass '{msg}'"))?;
+    let mut ssa = pass.run(ssa).wrap_err_with(|| format!("failed to run pass '{msg}'"))?;
+
+    if ssa_logging.matches(msg) {
+        eprintln!("{}", format_ssa(&mut ssa, msg));
+    }
 
     Ok((ssa, msg))
 }
 
 /// Format the SSA so that it can be printed and parsed back.
-fn format_ssa(ssa: &Ssa, msg: &str) -> String {
+fn format_ssa(ssa: &mut Ssa, msg: &str) -> String {
+    ssa.normalize_ids();
     format!("// After {msg}:\n{ssa}")
 }

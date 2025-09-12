@@ -3570,7 +3570,6 @@ dependencies = [
  "clap",
  "color-eyre",
  "const_format",
- "either",
  "iter-extended",
  "noir_artifact_cli",
  "noir_ast_fuzzer",
