@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1757690493017,
+  "lastUpdate": 1757690494924,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -4208,90 +4208,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "b2452725d8a6778bd9e9617c7e80d1c502ec397a",
-          "message": "feat: re-enable early mem2reg pass (#9744)",
-          "timestamp": "2025-09-05T17:43:54Z",
-          "tree_id": "146815b5e1e789c746c7ad4f1d4d44f73db9c97c",
-          "url": "https://github.com/noir-lang/noir/commit/b2452725d8a6778bd9e9617c7e80d1c502ec397a"
-        },
-        "date": 1757096292813,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 1.816,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 8.68,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.386,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 17.8,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 15.7,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 23.04,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 205,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 208,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.362,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.556,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.762,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 1.756,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -8396,6 +8312,90 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 1.719,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "548c6f7e52418fefd47cbda1d4667c0835a6fb23",
+          "message": "chore: more ACIR parser usages in tests, and optimize general optimizations (#9836)",
+          "timestamp": "2025-09-12T14:47:02Z",
+          "tree_id": "d424357612210778017da9b8a5c11edf5bdc0bd9",
+          "url": "https://github.com/noir-lang/noir/commit/548c6f7e52418fefd47cbda1d4667c0835a6fb23"
+        },
+        "date": 1757690472766,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1.95,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 9.136,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.372,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 19.36,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 16.12,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 17.38,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 204,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 194,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.356,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.552,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.796,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 1.886,
             "unit": "s"
           }
         ]
