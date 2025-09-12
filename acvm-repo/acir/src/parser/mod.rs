@@ -121,7 +121,6 @@ impl<'a> Parser<'a> {
     fn parse_current_witness_index(&mut self) -> ParseResult<u32> {
         self.eat_keyword_or_error(Keyword::Current)?;
         self.eat_keyword_or_error(Keyword::Witness)?;
-        self.eat_keyword_or_error(Keyword::Index)?;
         self.eat_or_error(Token::Colon)?;
 
         Ok(self.eat_witness_or_error()?.0)
@@ -130,7 +129,6 @@ impl<'a> Parser<'a> {
     fn parse_private_parameters(&mut self) -> ParseResult<BTreeSet<Witness>> {
         self.eat_keyword_or_error(Keyword::Private)?;
         self.eat_keyword_or_error(Keyword::Parameters)?;
-        self.eat_keyword_or_error(Keyword::Indices)?;
         self.eat_or_error(Token::Colon)?;
 
         self.parse_witness_ordered_set()
@@ -139,7 +137,6 @@ impl<'a> Parser<'a> {
     fn parse_public_parameters(&mut self) -> ParseResult<BTreeSet<Witness>> {
         self.eat_keyword_or_error(Keyword::Public)?;
         self.eat_keyword_or_error(Keyword::Parameters)?;
-        self.eat_keyword_or_error(Keyword::Indices)?;
         self.eat_or_error(Token::Colon)?;
 
         self.parse_witness_ordered_set()
@@ -147,8 +144,7 @@ impl<'a> Parser<'a> {
 
     fn parse_return_values(&mut self) -> ParseResult<BTreeSet<Witness>> {
         self.eat_keyword_or_error(Keyword::Return)?;
-        self.eat_keyword_or_error(Keyword::Value)?;
-        self.eat_keyword_or_error(Keyword::Indices)?;
+        self.eat_keyword_or_error(Keyword::Values)?;
         self.eat_or_error(Token::Colon)?;
 
         self.parse_witness_ordered_set()

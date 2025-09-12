@@ -242,7 +242,7 @@ mod tests {
 
         insta::assert_snapshot!(
             mem_init.to_string(),
-            @"INIT (id: 42, len: 10, witnesses: [_0, _1, _2, _3, _4, _5, _6, _7, _8, _9])"
+            @"INIT (id: 42, len: 10, witnesses: [w0, w1, w2, w3, w4, w5, w6, w7, w8, w9])"
         );
     }
 
@@ -256,7 +256,7 @@ mod tests {
 
         insta::assert_snapshot!(
             xor.to_string(),
-            @"BLACKBOX::XOR [(_0, 32), (_1, 32)] [_3]"
+            @"BLACKBOX::XOR [(w0, 32), (w1, 32)] [w3]"
         );
     }
 
@@ -268,7 +268,7 @@ mod tests {
 
         insta::assert_snapshot!(
             range.to_string(),
-            @"BLACKBOX::RANGE [(_0, 32)] []"
+            @"BLACKBOX::RANGE [(w0, 32)] []"
         );
     }
 }
