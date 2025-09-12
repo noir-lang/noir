@@ -43,6 +43,7 @@ members = [
     # Utility crates
     "utils/iter-extended",
 
+    "tooling/ssa_cli",
     "tooling/ssa_fuzzer",
     "tooling/ssa_fuzzer/fuzzer",
     "tooling/ssa_verification",
@@ -53,6 +54,7 @@ default-members = [
     "tooling/nargo_cli",
     "tooling/acvm_cli",
     "tooling/artifact_cli",
+    "tooling/ssa_cli",
     "tooling/profiler",
     "tooling/inspector",
 ]
