@@ -291,7 +291,7 @@ mod tests {
         acir(inline) fn main f0 {
           b0(v0: u128, v1: u1):
             enable_side_effects v1
-            v2 = mul v0, u128 18446744073709551617
+            v2 = mul v0, u128 85070591730234615865843651857942052864
             return v2
         }
         ";
@@ -302,7 +302,7 @@ mod tests {
         acir(inline) fn main f0 {
           b0(v0: u128, v1: u1):
             enable_side_effects v1
-            v3 = mul v0, u128 18446744073709551617
+            v3 = mul v0, u128 85070591730234615865843651857942052864
             v5 = div v0, u128 18446744073709551616
             v6 = cast v1 as u128
             v7 = unchecked_mul v5, v6
