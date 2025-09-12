@@ -7,7 +7,7 @@ use noirc_driver::CompileOptions;
 use noirc_errors::{println_to_stderr, println_to_stdout};
 use noirc_evaluator::ssa::{SsaLogging, SsaPass, ssa_gen::Ssa};
 
-/// Parse the input SSA, run a specific SSA pass on it, then write the output SSA.
+/// Parse the input SSA, run some SSA passes on it, then write the output SSA.
 #[derive(Debug, Clone, Args)]
 pub(super) struct TransformCommand {
     /// Path to write the output SSA to.
@@ -54,7 +54,7 @@ pub(super) fn run(args: TransformCommand, mut ssa: Ssa) -> eyre::Result<()> {
     }
 
     // Print the final state so that that it can be piped back to the CLI.
-    let output = format_ssa(&mut ssa, msg);
+    let output = format_ssa(&mut ssa, msg, true);
 
     if let Some(path) = args.output_path {
         noir_artifact_cli::fs::artifact::write_to_file(output.as_bytes(), &path)
@@ -75,14 +75,19 @@ fn run_pass<'a>(
     let mut ssa = pass.run(ssa).wrap_err_with(|| format!("failed to run pass '{msg}'"))?;
 
     if ssa_logging.matches(msg) {
-        println_to_stderr!("{}", format_ssa(&mut ssa, msg));
+        println_to_stderr!("{}", format_ssa(&mut ssa, msg, false));
     }
 
     Ok((ssa, msg))
 }
 
-/// Format the SSA so that it can be printed and parsed back.
-fn format_ssa(ssa: &mut Ssa, msg: &str) -> String {
+/// Render the SSA to a string.
+fn format_ssa(ssa: &mut Ssa, msg: &str, parsable: bool) -> String {
+    // Differentiate between log output and the final one by whether the "After" is commented out.
+    let prefix = if parsable { "// " } else { "" };
+
+    // Make sure variable IDs are consistent.
     ssa.normalize_ids();
-    format!("// After {msg}:\n{ssa}")
+
+    format!("{prefix}After {msg}:\n{ssa}")
 }
