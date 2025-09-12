@@ -218,7 +218,7 @@ impl Function {
             .iter()
             .map(|block| {
                 let block = &self.dfg[*block];
-                block.instructions().len() + block.terminator().is_some() as usize
+                block.instructions().len() + usize::from(block.terminator().is_some())
             })
             .sum()
     }

@@ -2,8 +2,7 @@ use std::str::{CharIndices, FromStr};
 
 use acir_field::{AcirField, FieldElement};
 
-use noirc_errors::{Position, Span};
-
+use noirc_span::{Position, Span};
 use num_bigint::BigInt;
 use num_traits::One;
 use thiserror::Error;
@@ -45,6 +44,14 @@ impl<'a> Lexer<'a> {
                     if char.is_ascii_whitespace() {
                         self.next_char();
                     } else {
+                        break;
+                    }
+                }
+                self.next_token()
+            }
+            '/' if self.peek_char() == Some('/') => {
+                while let Some(char) = self.next_char() {
+                    if char == '\n' {
                         break;
                     }
                 }

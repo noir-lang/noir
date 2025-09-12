@@ -131,9 +131,12 @@ impl Context {
     ///
     /// Note that this also matches on dereference operations to exempt their LHS from clones,
     /// but their LHS is always exempt from clones so this is unchanged.
-    fn handle_reference_expression(&mut self, expr: &mut Expression) {
+    ///
+    /// # Returns
+    /// A boolean representing whether or not the expression was borrowed by reference (false) or moved (true).
+    fn handle_reference_expression(&mut self, expr: &mut Expression) -> bool {
         match expr {
-            Expression::Ident(_) => (),
+            Expression::Ident(_) => false,
             Expression::Block(exprs) => {
                 let len_minus_one = exprs.len().saturating_sub(1);
                 for expr in exprs.iter_mut().take(len_minus_one) {
@@ -141,22 +144,28 @@ impl Context {
                     self.handle_expression(expr);
                 }
                 if let Some(expr) = exprs.last_mut() {
-                    self.handle_reference_expression(expr);
+                    self.handle_reference_expression(expr)
+                } else {
+                    true
                 }
             }
             Expression::Unary(Unary { rhs, operator: UnaryOp::Dereference { .. }, .. }) => {
-                self.handle_reference_expression(rhs);
+                self.handle_reference_expression(rhs)
             }
             Expression::ExtractTupleField(tuple, _index) => self.handle_reference_expression(tuple),
 
             Expression::Index(index) => {
-                self.handle_reference_expression(&mut index.collection);
+                let is_moved = self.handle_reference_expression(&mut index.collection);
                 self.handle_expression(&mut index.index);
+                is_moved
             }
 
             // If we have something like `f(arg)` then we want to treat those variables normally
             // rather than avoid cloning them. So we shouldn't recur in `handle_reference_expression`.
-            other => self.handle_expression(other),
+            other => {
+                self.handle_expression(other);
+                true
+            }
         }
     }
 
@@ -277,10 +286,11 @@ impl Context {
         };
 
         // Don't clone the collection, cloning only the resulting element is cheaper.
-        self.handle_reference_expression(&mut index.collection);
+        let is_moved = self.handle_reference_expression(&mut index.collection);
         self.handle_expression(&mut index.index);
 
-        if contains_array_or_str_type(&index.element_type) {
+        // If the index collection is being borrowed we need to clone the result.
+        if !is_moved && contains_array_or_str_type(&index.element_type) {
             clone_expr(index_expr);
         }
     }
@@ -362,8 +372,8 @@ impl Context {
     }
 
     fn handle_assign(&mut self, assign: &mut crate::monomorphization::ast::Assign) {
-        self.handle_lvalue(&mut assign.lvalue);
         self.handle_expression(&mut assign.expression);
+        self.handle_lvalue(&mut assign.lvalue);
     }
 
     fn handle_lvalue(&mut self, lvalue: &mut LValue) {
