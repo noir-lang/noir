@@ -3,12 +3,13 @@
 
 use std::cell::{Cell, RefCell};
 
+use crate::targets::default_config;
 use crate::{compare_results_compiled, create_ssa_or_die, default_ssa_options};
 use arbitrary::{Arbitrary, Unstructured};
 use color_eyre::eyre;
 use noir_ast_fuzzer::compare::{CompareMorph, CompareOptions};
 use noir_ast_fuzzer::scope::ScopeStack;
-use noir_ast_fuzzer::{Config, visitor::visit_expr_be_mut};
+use noir_ast_fuzzer::visitor::visit_expr_be_mut;
 use noir_ast_fuzzer::{rewrite, visitor};
 use noirc_frontend::ast::UnaryOp;
 use noirc_frontend::monomorphization::ast::{
@@ -18,7 +19,7 @@ use noirc_frontend::monomorphization::ast::{
 pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
     let rules = rules::all();
     let max_rewrites = 10;
-    let config = Config { avoid_overflow: u.arbitrary()?, ..Default::default() };
+    let config = default_config(u)?;
     let inputs = CompareMorph::arb(
         u,
         config,
