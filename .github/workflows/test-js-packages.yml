@@ -99,7 +99,7 @@ jobs:
           cache-on-failure: true
           save-if: ${{ github.event_name != 'merge_group' }}
 
-      - name: Build noir-execute
+      - name: Build artifact
         run: cargo build --package noir_artifact_cli --release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -130,7 +130,7 @@ jobs:
           cache-on-failure: true
           save-if: ${{ github.event_name != 'merge_group' }}
 
-      - name: Build noir-execute
+      - name: Build artifact
         run: cargo build --package noir_ssa_cli --release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -138,7 +138,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: noir-execute
+          name: noir-ssa
           path: ./target/release/noir-ssa
           retention-days: 3
 
