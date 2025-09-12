@@ -60,3 +60,75 @@ fn simplify_linear_terms<F: AcirField>(mut gate: Expression<F>) -> Expression<F>
         .collect();
     gate
 }
+
+#[cfg(test)]
+mod tests {
+    use acir::{
+        FieldElement,
+        circuit::{Circuit, Opcode},
+    };
+
+    use crate::{assert_circuit_snapshot, compiler::optimizers::GeneralOptimizer};
+
+    fn optimize(circuit: Circuit<FieldElement>) -> Circuit<FieldElement> {
+        let opcodes = circuit
+            .clone()
+            .opcodes
+            .into_iter()
+            .map(|opcode| {
+                if let Opcode::AssertZero(arith_expr) = opcode {
+                    Opcode::AssertZero(GeneralOptimizer::optimize(arith_expr))
+                } else {
+                    opcode
+                }
+            })
+            .collect();
+        let mut optimized_circuit = circuit;
+        optimized_circuit.opcodes = opcodes;
+        optimized_circuit
+    }
+
+    #[test]
+    fn removes_zero_coefficients_from_mul_terms() {
+        let src = "
+        current witness index : _1
+        private parameters indices : [_0, _1]
+        public parameters indices : []
+        return value indices : []
+
+        // The first multiplication should be removed
+        EXPR [ (0, _0, _1) (1, _0, _1) 0 ]
+        ";
+        let circuit = Circuit::from_str(src).unwrap();
+        let optimized_circuit = optimize(circuit);
+        assert_circuit_snapshot!(optimized_circuit, @r"
+        current witness index : _1
+        private parameters indices : [_0, _1]
+        public parameters indices : []
+        return value indices : []
+        EXPR [ (1, _0, _1) 0 ]
+        ");
+    }
+
+    #[test]
+    fn removes_zero_coefficients_from_linear_terms() {
+        let src = "
+        current witness index : _1
+        private parameters indices : [_0, _1]
+        public parameters indices : []
+        return value indices : []
+
+        // The first linear combination should be removed
+        EXPR [ (0, _0) (1, _1) 0 ]
+        ";
+        let circuit = Circuit::from_str(src).unwrap();
+        let optimized_circuit = optimize(circuit);
+        assert_circuit_snapshot!(optimized_circuit, @r"
+        current witness index : _1
+        private parameters indices : [_0, _1]
+        public parameters indices : []
+        return value indices : []
+        EXPR [ (1, _1) 0 ]
+        ");
+    }
+}
