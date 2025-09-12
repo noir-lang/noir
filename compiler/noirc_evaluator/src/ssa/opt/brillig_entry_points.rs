@@ -331,9 +331,8 @@ pub(crate) fn get_brillig_entry_points(
 
     for (_, callees) in acir_callers {
         // Filter only the Brillig callees. These are the Brillig entry points.
-        entry_points.extend(
-            callees.keys().filter(|callee| functions[callee].runtime().is_brillig()),
-        );
+        entry_points
+            .extend(callees.keys().filter(|callee| functions[callee].runtime().is_brillig()));
     }
 
     // If main has been marked as Brillig, it is itself an entry point.
