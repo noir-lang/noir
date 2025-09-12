@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_traits_type_checks_trait_default_method_and_does_not_error"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

@@ -14,7 +14,7 @@ use crate::{
 fn bit_size(typ: &Type) -> u32 {
     match typ {
         Type::FieldElement => FieldElement::max_num_bits(),
-        Type::Integer(_, bit_size) => bit_size.bit_size() as u32,
+        Type::Integer(_, bit_size) => u32::from(bit_size.bit_size()),
         Type::Bool => 2,
         _ => FieldElement::max_num_bits(),
     }
@@ -104,18 +104,18 @@ fn convert_to_field(value: Value, location: Location) -> IResult<(FieldElement, 
     Ok(match value {
         Value::Field(value) if value.is_negative() => (-value.absolute_value(), true),
         Value::Field(value) => (value.absolute_value(), false),
-        Value::U1(value) => ((value as u128).into(), false),
-        Value::U8(value) => ((value as u128).into(), false),
-        Value::U16(value) => ((value as u128).into(), false),
-        Value::U32(value) => ((value as u128).into(), false),
-        Value::U64(value) => ((value as u128).into(), false),
+        Value::U1(value) => (u128::from(value).into(), false),
+        Value::U8(value) => (u128::from(value).into(), false),
+        Value::U16(value) => (u128::from(value).into(), false),
+        Value::U32(value) => (u128::from(value).into(), false),
+        Value::U64(value) => (u128::from(value).into(), false),
         Value::U128(value) => (value.into(), false),
         // `is_negative` is only used for conversions to Field in which case
         // these should always be positive so that `-1 as i8 as Field == 255`
-        Value::I8(value) => (FieldElement::from(value as u8 as i128), false),
-        Value::I16(value) => (FieldElement::from(value as u16 as i128), false),
-        Value::I32(value) => (FieldElement::from(value as u32 as i128), false),
-        Value::I64(value) => (FieldElement::from(value as u64 as i128), false),
+        Value::I8(value) => (FieldElement::from(i128::from(value as u8)), false),
+        Value::I16(value) => (FieldElement::from(i128::from(value as u16)), false),
+        Value::I32(value) => (FieldElement::from(i128::from(value as u32)), false),
+        Value::I64(value) => (FieldElement::from(i128::from(value as u64)), false),
         Value::Bool(value) => (FieldElement::from(value), false),
         value => {
             let typ = value.get_type().into_owned();

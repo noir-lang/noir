@@ -10,8 +10,8 @@ use crate::ssa::{
     },
     ssa_gen::Ssa,
 };
-use fxhash::FxHashMap as HashMap;
 use iter_extended::vecmap;
+use rustc_hash::FxHashMap as HashMap;
 
 impl Ssa {
     /// This is a debugging pass which re-inserts each instruction
@@ -95,8 +95,7 @@ impl Context {
         let reachable_blocks = old_function.reachable_blocks();
         self.new_ids.populate_blocks(reachable_blocks, old_function, new_function);
 
-        let mut reverse_post_order = PostOrder::with_function(old_function).into_vec();
-        reverse_post_order.reverse();
+        let reverse_post_order = PostOrder::with_function(old_function).into_vec_reverse();
 
         // Map each parameter, instruction, and terminator
         for old_block_id in reverse_post_order {

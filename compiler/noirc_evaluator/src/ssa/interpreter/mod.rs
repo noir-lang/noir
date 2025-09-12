@@ -15,9 +15,9 @@ use super::{
 use crate::ssa::ir::{instruction::binary::truncate_field, printer::display_binary};
 use acvm::{AcirField, FieldElement};
 use errors::{InternalError, InterpreterError, MAX_UNSIGNED_BIT_SIZE};
-use fxhash::FxHashMap as HashMap;
 use iter_extended::{try_vecmap, vecmap};
 use noirc_frontend::Shared;
+use rustc_hash::FxHashMap as HashMap;
 use value::{ArrayValue, NumericValue, ReferenceValue};
 
 pub mod errors;
@@ -1557,8 +1557,8 @@ fn interpret_u1_binary_op(
             // (1, 0) -> (division by 0)
             // (1, 1) -> 1
             if !rhs {
-                let lhs = (lhs as u8).to_string();
-                let rhs = (rhs as u8).to_string();
+                let lhs = u8::from(lhs).to_string();
+                let rhs = u8::from(rhs).to_string();
                 return Err(InterpreterError::DivisionByZero { lhs_id, lhs, rhs_id, rhs });
             }
             lhs
@@ -1569,8 +1569,8 @@ fn interpret_u1_binary_op(
             // (1, 0) -> (division by 0)
             // (1, 1) -> 0
             if !rhs {
-                let lhs = format!("u1 {}", lhs as u8);
-                let rhs = format!("u1 {}", rhs as u8);
+                let lhs = format!("u1 {}", u8::from(lhs));
+                let rhs = format!("u1 {}", u8::from(rhs));
                 return Err(InterpreterError::DivisionByZero { lhs_id, lhs, rhs_id, rhs });
             }
             false
@@ -1583,14 +1583,14 @@ fn interpret_u1_binary_op(
         BinaryOp::Xor => lhs ^ rhs,
         BinaryOp::Shl => {
             if rhs {
-                false
+                return Err(overflow());
             } else {
                 lhs
             }
         }
         BinaryOp::Shr => {
             if rhs {
-                false
+                return Err(overflow());
             } else {
                 lhs
             }

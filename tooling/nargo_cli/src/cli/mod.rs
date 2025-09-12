@@ -5,6 +5,7 @@ use nargo_toml::{
     ManifestError, NargoToml, PackageConfig, PackageMetadata, PackageSelection,
     get_package_manifest, resolve_workspace_from_fixed_toml, resolve_workspace_from_toml,
 };
+use noir_artifact_cli::commands::parse_and_normalize_path;
 use noirc_driver::{CrateName, NOIR_ARTIFACT_VERSION_STRING};
 use std::{
     collections::BTreeMap,
@@ -60,11 +61,11 @@ struct NargoCli {
 #[derive(Args, Clone, Debug)]
 pub struct NargoConfig {
     // REMINDER: Also change this flag in the LSP test lens if renamed
-    #[arg(long, hide = true, global = true, default_value = "./", value_parser = parse_path)]
+    #[arg(long, hide = true, global = true, default_value = "./", value_parser = parse_and_normalize_path)]
     program_dir: PathBuf,
 
     /// Override the default target directory.
-    #[arg(long, hide = true, global = true, value_parser = parse_path)]
+    #[arg(long, hide = true, global = true, value_parser = parse_and_normalize_path)]
     target_dir: Option<PathBuf>,
 }
 
@@ -295,16 +296,6 @@ fn lock_workspace(
         locks.push(LockedFile(file));
     }
     Ok(locks)
-}
-
-/// Parses a path and turns it into an absolute one by joining to the current directory.
-fn parse_path(path: &str) -> Result<PathBuf, String> {
-    use fm::NormalizePath;
-    let mut path: PathBuf = path.parse().map_err(|e| format!("failed to parse path: {e}"))?;
-    if !path.is_absolute() {
-        path = std::env::current_dir().unwrap().join(path).normalize();
-    }
-    Ok(path)
 }
 
 #[cfg(test)]

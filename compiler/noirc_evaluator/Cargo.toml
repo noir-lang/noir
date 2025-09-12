@@ -16,7 +16,8 @@ noirc_frontend.workspace = true
 noirc_errors.workspace = true
 acvm.workspace = true
 bn254_blackbox_solver.workspace = true
-fxhash.workspace = true
+rustc-hash.workspace = true
+rustc-stable-hash = "^0.1.2"
 iter-extended.workspace = true
 thiserror.workspace = true
 noirc_printable_type.workspace = true
@@ -43,7 +44,6 @@ similar-asserts.workspace = true
 tracing-test = "0.2.5"
 num-traits.workspace = true
 test-case.workspace = true
-function_name = "0.3.0"
 insta.workspace = true
 noirc_frontend = { workspace = true, features = ["test_utils"] }
 

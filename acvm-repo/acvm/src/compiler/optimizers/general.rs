@@ -12,22 +12,13 @@ pub(crate) struct GeneralOptimizer;
 impl GeneralOptimizer {
     pub(crate) fn optimize<F: AcirField>(opcode: Expression<F>) -> Expression<F> {
         // XXX: Perhaps this optimization can be done on the fly
-        let opcode = remove_zero_coefficients(opcode);
         let opcode = simplify_mul_terms(opcode);
         simplify_linear_terms(opcode)
     }
 }
 
-// Remove all terms with zero as a coefficient
-fn remove_zero_coefficients<F: AcirField>(mut opcode: Expression<F>) -> Expression<F> {
-    // Check the mul terms
-    opcode.mul_terms.retain(|(scale, _, _)| !scale.is_zero());
-    // Check the linear combination terms
-    opcode.linear_combinations.retain(|(scale, _)| !scale.is_zero());
-    opcode
-}
-
-// Simplifies all mul terms with the same bi-variate variables
+// Simplifies all mul terms with the same bi-variate variables while also removing
+// terms that end up with a zero coefficient.
 fn simplify_mul_terms<F: AcirField>(mut gate: Expression<F>) -> Expression<F> {
     let mut hash_map: IndexMap<(Witness, Witness), F> = IndexMap::new();
 
@@ -40,11 +31,16 @@ fn simplify_mul_terms<F: AcirField>(mut gate: Expression<F>) -> Expression<F> {
         *hash_map.entry((pair[0], pair[1])).or_insert_with(F::zero) += scale;
     }
 
-    gate.mul_terms = hash_map.into_iter().map(|((w_l, w_r), scale)| (scale, w_l, w_r)).collect();
+    gate.mul_terms = hash_map
+        .into_iter()
+        .filter(|(_, scale)| !scale.is_zero())
+        .map(|((w_l, w_r), scale)| (scale, w_l, w_r))
+        .collect();
     gate
 }
 
-// Simplifies all linear terms with the same variables
+// Simplifies all linear terms with the same variables while also removing
+// terms that end up with a zero coefficient.
 fn simplify_linear_terms<F: AcirField>(mut gate: Expression<F>) -> Expression<F> {
     let mut hash_map: IndexMap<Witness, F> = IndexMap::new();
 
@@ -59,4 +55,162 @@ fn simplify_linear_terms<F: AcirField>(mut gate: Expression<F>) -> Expression<F>
         .map(|(witness, scale)| (scale, witness))
         .collect();
     gate
+}
+
+#[cfg(test)]
+mod tests {
+    use acir::{
+        FieldElement,
+        circuit::{Circuit, Opcode},
+    };
+
+    use crate::{assert_circuit_snapshot, compiler::optimizers::GeneralOptimizer};
+
+    fn optimize(circuit: Circuit<FieldElement>) -> Circuit<FieldElement> {
+        let opcodes = circuit
+            .clone()
+            .opcodes
+            .into_iter()
+            .map(|opcode| {
+                if let Opcode::AssertZero(arith_expr) = opcode {
+                    Opcode::AssertZero(GeneralOptimizer::optimize(arith_expr))
+                } else {
+                    opcode
+                }
+            })
+            .collect();
+        let mut optimized_circuit = circuit;
+        optimized_circuit.opcodes = opcodes;
+        optimized_circuit
+    }
+
+    #[test]
+    fn removes_zero_coefficients_from_mul_terms() {
+        let src = "
+        current witness index : _1
+        private parameters indices : [_0, _1]
+        public parameters indices : []
+        return value indices : []
+
+        // The first multiplication should be removed
+        EXPR [ (0, _0, _1) (1, _0, _1) 0 ]
+        ";
+        let circuit = Circuit::from_str(src).unwrap();
+        let optimized_circuit = optimize(circuit);
+        assert_circuit_snapshot!(optimized_circuit, @r"
+        current witness index : _1
+        private parameters indices : [_0, _1]
+        public parameters indices : []
+        return value indices : []
+        EXPR [ (1, _0, _1) 0 ]
+        ");
+    }
+
+    #[test]
+    fn removes_zero_coefficients_from_linear_terms() {
+        let src = "
+        current witness index : _1
+        private parameters indices : [_0, _1]
+        public parameters indices : []
+        return value indices : []
+
+        // The first linear combination should be removed
+        EXPR [ (0, _0) (1, _1) 0 ]
+        ";
+        let circuit = Circuit::from_str(src).unwrap();
+        let optimized_circuit = optimize(circuit);
+        assert_circuit_snapshot!(optimized_circuit, @r"
+        current witness index : _1
+        private parameters indices : [_0, _1]
+        public parameters indices : []
+        return value indices : []
+        EXPR [ (1, _1) 0 ]
+        ");
+    }
+
+    #[test]
+    fn simplifies_mul_terms() {
+        let src = "
+        current witness index : _1
+        private parameters indices : [_0, _1]
+        public parameters indices : []
+        return value indices : []
+
+        // There are all mul terms with the same variables so we should end up with just one
+        // that is the sum of all the coefficients
+        EXPR [ (2, _0, _1) (3, _1, _0) (4, _0, _1) 0 ]
+        ";
+        let circuit = Circuit::from_str(src).unwrap();
+        let optimized_circuit = optimize(circuit);
+        assert_circuit_snapshot!(optimized_circuit, @r"
+        current witness index : _1
+        private parameters indices : [_0, _1]
+        public parameters indices : []
+        return value indices : []
+        EXPR [ (9, _0, _1) 0 ]
+        ");
+    }
+
+    #[test]
+    fn removes_zero_coefficients_after_simplifying_mul_terms() {
+        let src = "
+        current witness index : _1
+        private parameters indices : [_0, _1]
+        public parameters indices : []
+        return value indices : []
+        EXPR [ (2, _0, _1) (3, _1, _0) (-5, _0, _1) 0 ]
+        ";
+        let circuit = Circuit::from_str(src).unwrap();
+        let optimized_circuit = optimize(circuit);
+        assert_circuit_snapshot!(optimized_circuit, @r"
+        current witness index : _1
+        private parameters indices : [_0, _1]
+        public parameters indices : []
+        return value indices : []
+        EXPR [ 0 ]
+        ");
+    }
+
+    #[test]
+    fn simplifies_linear_terms() {
+        let src = "
+        current witness index : _1
+        private parameters indices : [_0, _1]
+        public parameters indices : []
+        return value indices : []
+
+        // These are all linear terms with the same variable so we should end up with just one
+        // that is the sum of all the coefficients
+        EXPR [ (1, _0) (2, _0) (3, _0) 0 ]
+        ";
+        let circuit = Circuit::from_str(src).unwrap();
+        let optimized_circuit = optimize(circuit);
+        assert_circuit_snapshot!(optimized_circuit, @r"
+        current witness index : _1
+        private parameters indices : [_0, _1]
+        public parameters indices : []
+        return value indices : []
+        EXPR [ (6, _0) 0 ]
+        ");
+    }
+
+    #[test]
+    fn removes_zero_coefficients_after_simplifying_linear_terms() {
+        let src = "
+        current witness index : _1
+        private parameters indices : [_0, _1]
+        public parameters indices : []
+        return value indices : []
+        EXPR [ (1, _0) (2, _0) (-3, _0) 0 ]
+        ";
+        let circuit = Circuit::from_str(src).unwrap();
+        let optimized_circuit = optimize(circuit);
+        assert_circuit_snapshot!(optimized_circuit, @r"
+        current witness index : _1
+        private parameters indices : [_0, _1]
+        public parameters indices : []
+        return value indices : []
+        EXPR [ 0 ]
+        ");
+    }
 }

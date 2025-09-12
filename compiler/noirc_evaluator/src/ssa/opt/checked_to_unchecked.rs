@@ -4,7 +4,7 @@
 //! Signed checked binary operations should have already been converted to unchecked ones with
 //! an explicit overflow check during [`super::expand_signed_checks`].
 use acvm::AcirField as _;
-use fxhash::FxHashMap as HashMap;
+use rustc_hash::FxHashMap as HashMap;
 
 use crate::ssa::{
     ir::{
@@ -69,17 +69,17 @@ impl Function {
                         return;
                     };
 
-                    let max_lhs_bits = get_max_num_bits(dfg, lhs, &mut value_max_num_bits);
+                    let lhs_bits = lhs_const.num_bits();
                     let max_rhs_bits = get_max_num_bits(dfg, rhs, &mut value_max_num_bits);
                     let max_rhs =
                         if max_rhs_bits == 128 { u128::MAX } else { (1 << max_rhs_bits) - 1 };
 
                     // 1. `lhs` is a fixed constant and `rhs` is restricted such that `lhs - rhs > 0`
-                    //    Note strict inequality as `rhs > lhs` while `max_lhs_bits == max_rhs_bits` is possible.
+                    //    Note strict inequality as `rhs > lhs` while `lhs_bits == max_rhs_bits` is possible.
                     // 2. `lhs` is the maximum value for the maximum bitsize of `rhs`.
                     //    For example: `lhs` is 1 and `rhs` max bitsize is 1, so at most it's `1 - 1` which cannot overflow.
                     //    Another example: `lhs` is 255 and `rhs` max bitsize is 8, so at most it's `255 - 255` which cannot overflow, etc.
-                    if max_lhs_bits > max_rhs_bits || (lhs_const == max_rhs.into()) {
+                    if lhs_bits > max_rhs_bits || (lhs_const == max_rhs.into()) {
                         let operator = BinaryOp::Sub { unchecked: true };
                         let binary = Binary { operator, ..*binary };
                         context.replace_current_instruction_with(Instruction::Binary(binary));

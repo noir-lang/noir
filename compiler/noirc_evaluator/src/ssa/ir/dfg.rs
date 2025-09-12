@@ -18,9 +18,9 @@ use super::{
 };
 
 use acvm::{FieldElement, acir::AcirField};
-use fxhash::FxHashMap as HashMap;
 use iter_extended::vecmap;
 use noirc_errors::call_stack::{CallStack, CallStackHelper, CallStackId};
+use rustc_hash::FxHashMap as HashMap;
 use serde::{Deserialize, Serialize};
 use serde_with::DisplayFromStr;
 use serde_with::serde_as;
@@ -645,7 +645,7 @@ impl DataFlowGraph {
         #[allow(clippy::match_like_matches_macro)]
         match (self.type_of_value(array), self.get_numeric_constant(index)) {
             (Type::Array(elements, len), Some(index))
-                if index.to_u128() < (len as u128 * elements.len() as u128) =>
+                if index.to_u128() < (u128::from(len) * elements.len() as u128) =>
             {
                 true
             }

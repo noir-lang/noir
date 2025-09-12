@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_traits_regression_9245_small_code"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

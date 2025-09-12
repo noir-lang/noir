@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -e
 
+NARGO=${NARGO:-nargo}
+
 # These tests are incompatible with gas reporting
 excluded_dirs=("workspace" "overlapping_dep_and_mod" "overlapping_dep_and_mod_fix" "workspace_default_member" "workspace_reexport_bug")
 
