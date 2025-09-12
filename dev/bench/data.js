@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1757712929947,
+  "lastUpdate": 1757717719733,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -20216,48 +20216,6 @@ window.BENCHMARK_DATA = {
             "username": "TomAFrench"
           },
           "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "20c77406b405999043aa60768cba8a6ad9c79ec4",
-          "message": "chore: migrate away from fxhash to address advisory (#9750)",
-          "timestamp": "2025-09-08T11:04:21+01:00",
-          "tree_id": "4816178abe0c7ab8887a044fac708b518437e01b",
-          "url": "https://github.com/noir-lang/noir/commit/20c77406b405999043aa60768cba8a6ad9c79ec4"
-        },
-        "date": 1757326016001,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 255195,
-            "range": "± 4222",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 225689,
-            "range": "± 1153",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2785322,
-            "range": "± 18813",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -22304,6 +22262,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2794543,
             "range": "± 2502",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "26174818+jialinli98@users.noreply.github.com",
+            "name": "Jialin Li",
+            "username": "jialinli98"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "72c82624da2b202e511e2a46bce41dc8089a0973",
+          "message": "chore: tests for map in stdlib (#9676)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-09-12T22:26:13Z",
+          "tree_id": "fe9eb6c2a3b8ae8adade45ad862c37b241e0b4a5",
+          "url": "https://github.com/noir-lang/noir/commit/72c82624da2b202e511e2a46bce41dc8089a0973"
+        },
+        "date": 1757717699119,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 255274,
+            "range": "± 569",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 226675,
+            "range": "± 6151",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2793380,
+            "range": "± 6260",
             "unit": "ns/iter"
           }
         ]
