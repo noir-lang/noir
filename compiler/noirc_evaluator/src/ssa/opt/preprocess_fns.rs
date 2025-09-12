@@ -122,7 +122,7 @@ mod tests {
           b0(v0: u32):
             jmpif v0 then: b1, else: b2
           b1():
-            v3 = add v0, u32 1
+            v3  = add v0, u32 1
             jmp b3()
           b2():
             v2 = sub v0, u32 1
