@@ -61,7 +61,14 @@
 //! version. The result is that bytecode can safely reference the correct globals without conflicts.
 //!
 //! The test module for this pass can be referenced to see how this function duplication looks in SSA.
-
+//!
+//! ## Post-conditions
+//! - Each Brillig entry point has its own specialized set of functions. No non-entry Brillig
+//!   function is reachable from more than one entry point.
+//! - The single entry point restriction could be loosened if globals are not used at all or
+//!   some Brillig functions do not use globals.
+//!   However, Brillig generation attempts to hoist duplicated constants across functions
+//!   to the global memory space so this restriction needs to be enforced.
 use std::collections::{BTreeMap, BTreeSet};
 
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
@@ -138,6 +145,9 @@ impl Ssa {
                 resolve_cloned_function_call_sites(function, &new_functions_per_entry);
             }
         }
+
+        #[cfg(debug_assertions)]
+        brillig_specialization_post_check(&self);
 
         self
     }
@@ -395,6 +405,25 @@ pub(crate) fn build_inner_call_to_entry_points(
     }
 
     inner_call_to_entry_point
+}
+
+/// Check post-execution properties of the Brillig specialization pass:
+/// * No Brillig function should be reachable from more than one entry point
+///   (to prevent global allocation conflicts).
+#[cfg(debug_assertions)]
+fn brillig_specialization_post_check(ssa: &Ssa) {
+    let call_graph = CallGraph::from_ssa(ssa);
+    let brillig_entry_points = get_brillig_entry_points(&ssa.functions, ssa.main_id, &call_graph);
+    let inner_call_to_entry_point = build_inner_call_to_entry_points(&brillig_entry_points);
+
+    for (func_id, entry_points) in inner_call_to_entry_point {
+        if entry_points.len() > 1 {
+            panic!(
+                "Brillig specialization invariant violated: \
+                 function {func_id} is reachable from multiple entry points: {entry_points:?}"
+            );
+        }
+    }
 }
 
 #[cfg(test)]
