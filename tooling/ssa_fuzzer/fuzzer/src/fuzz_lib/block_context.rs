@@ -596,7 +596,7 @@ impl BlockContext {
                 }
                 let p1 = p1.unwrap();
                 let p2 = p2.unwrap();
-                let acir_point = builder.point_add(p1.clone(), p2.clone());
+                let acir_point = builder.point_add(p1.clone(), p2.clone(), predicate);
                 for typed_value in [&acir_point.x, &acir_point.y, &acir_point.is_infinite] {
                     self.store_variable(typed_value);
                 }
@@ -622,7 +622,8 @@ impl BlockContext {
                 if points_vec.len() != scalars_vec.len() {
                     unreachable!("points_vec.len() != scalars_vec.len()");
                 }
-                let point = builder.multi_scalar_mul(points_vec.clone(), scalars_vec.clone());
+                let point =
+                    builder.multi_scalar_mul(points_vec.clone(), scalars_vec.clone(), predicate);
                 for typed_value in [&point.x, &point.y, &point.is_infinite] {
                     self.store_variable(typed_value);
                 }
@@ -653,15 +654,6 @@ impl BlockContext {
                     prepared_signature.signature.clone(),
                     predicate,
                 );
-                assert_eq!(
-                    result,
-                    brillig_builder.ecdsa_secp256r1(
-                        prepared_signature.public_key_x,
-                        prepared_signature.public_key_y,
-                        prepared_signature.hash,
-                        prepared_signature.signature,
-                    )
-                );
                 self.store_variable(&result);
             }
             Instruction::EcdsaSecp256k1 {
@@ -689,15 +681,6 @@ impl BlockContext {
                     prepared_signature.hash.clone(),
                     prepared_signature.signature.clone(),
                     predicate,
-                );
-                assert_eq!(
-                    result,
-                    brillig_builder.ecdsa_secp256k1(
-                        prepared_signature.public_key_x,
-                        prepared_signature.public_key_y,
-                        prepared_signature.hash,
-                        prepared_signature.signature,
-                    )
                 );
                 self.store_variable(&result);
             }
