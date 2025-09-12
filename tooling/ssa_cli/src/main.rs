@@ -1,5 +1,6 @@
 #![forbid(unsafe_code)]
 
+use noirc_errors::println_to_stderr;
 use tracing_subscriber::{EnvFilter, fmt::format::FmtSpan};
 mod cli;
 
@@ -12,7 +13,7 @@ fn main() {
         .init();
 
     if let Err(e) = cli::start_cli() {
-        eprintln!("{e:#}");
+        println_to_stderr!("{e:#}");
         std::process::exit(1);
     }
 }

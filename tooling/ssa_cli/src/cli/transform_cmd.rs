@@ -4,6 +4,7 @@ use clap::Args;
 use color_eyre::eyre::{self, Context, bail};
 use noir_artifact_cli::commands::parse_and_normalize_path;
 use noirc_driver::CompileOptions;
+use noirc_errors::{println_to_stderr, println_to_stdout};
 use noirc_evaluator::ssa::{SsaLogging, SsaPass, ssa_gen::Ssa};
 
 /// Parse the input SSA, run a specific SSA pass on it, then write the output SSA.
@@ -59,7 +60,7 @@ pub(super) fn run(args: TransformCommand, mut ssa: Ssa) -> eyre::Result<()> {
         noir_artifact_cli::fs::artifact::write_to_file(output.as_bytes(), &path)
             .wrap_err_with(|| format!("failed to write SSA to {}", path.to_string_lossy()))?;
     } else {
-        println!("{output}");
+        println_to_stdout!("{output}");
     }
 
     Ok(())
@@ -74,7 +75,7 @@ fn run_pass<'a>(
     let mut ssa = pass.run(ssa).wrap_err_with(|| format!("failed to run pass '{msg}'"))?;
 
     if ssa_logging.matches(msg) {
-        eprintln!("{}", format_ssa(&mut ssa, msg));
+        println_to_stderr!("{}", format_ssa(&mut ssa, msg));
     }
 
     Ok((ssa, msg))

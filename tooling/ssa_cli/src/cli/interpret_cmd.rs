@@ -5,6 +5,7 @@ use color_eyre::eyre::{self, Context, bail};
 use iter_extended::vecmap;
 use noir_artifact_cli::commands::parse_and_normalize_path;
 use noirc_abi::{Abi, AbiParameter, AbiReturnType, AbiType, AbiVisibility, Sign};
+use noirc_errors::println_to_stdout;
 use noirc_evaluator::ssa::{
     interpreter::InterpreterOptions,
     ir::types::{NumericType, Type},
@@ -55,10 +56,10 @@ pub(super) fn run(args: InterpretCommand, ssa: Ssa) -> eyre::Result<()> {
     match &result {
         Ok(value) => {
             let value_as_string = vecmap(value, ToString::to_string).join(", ");
-            println!("--- Interpreter result:\nOk({value_as_string})\n---");
+            println_to_stdout!("--- Interpreter result:\nOk({value_as_string})\n---");
         }
         Err(err) => {
-            println!("--- Interpreter result:\nErr({err})\n---");
+            println_to_stdout!("--- Interpreter result:\nErr({err})\n---");
         }
     }
 

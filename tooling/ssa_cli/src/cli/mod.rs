@@ -6,6 +6,7 @@ use color_eyre::eyre::{self, Context, bail};
 use const_format::formatcp;
 use noir_artifact_cli::commands::parse_and_normalize_path;
 use noirc_driver::CompileOptions;
+use noirc_errors::{println_to_stderr, println_to_stdout};
 use noirc_evaluator::ssa::{SsaEvaluatorOptions, SsaPass, primary_passes, ssa_gen::Ssa};
 
 mod interpret_cmd;
@@ -61,7 +62,7 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
             // read the source, and figure out which passes we can apply to it based on its state.
             let options = CompileOptions::default().as_ssa_options(Default::default());
             for (msg, _) in ssa_passes(&options) {
-                println!("{msg}");
+                println_to_stdout!("{msg}");
             }
         }
         SsaCommand::Check => {
@@ -105,7 +106,7 @@ fn parse_ssa(src: &str, validate: bool) -> eyre::Result<Ssa> {
     match result {
         Ok(ssa) => Ok(ssa),
         Err(source_with_errors) => {
-            eprintln!("{source_with_errors:?}");
+            println_to_stderr!("{source_with_errors:?}");
             bail!("Failed to parse the SSA.")
         }
     }

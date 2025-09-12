@@ -3575,6 +3575,7 @@ dependencies = [
  "noir_ast_fuzzer",
  "noirc_abi",
  "noirc_driver",
+ "noirc_errors",
  "noirc_evaluator",
  "thiserror 1.0.69",
  "toml",
