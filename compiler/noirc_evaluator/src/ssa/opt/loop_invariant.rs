@@ -883,11 +883,9 @@ pub(super) fn can_be_hoisted(instruction: &Instruction, dfg: &DataFlowGraph) -> 
 
         // These can have different behavior depending on the predicate.
         Binary(_) => {
-            if !instruction.has_side_effects(dfg) {
-                Yes
-            } else {
-                WithPredicate
-            }
+            // `requires_acir_gen_predicate` and `has_side_effects` make slightly different
+            // decisions for binary ops, e.g. the latter looks for safe constants.
+            if !instruction.has_side_effects(dfg) { Yes } else { WithPredicate }
         }
 
         // ArrayGet is considered not to need a predicate and be "pure" in Brillig,
@@ -1681,7 +1679,8 @@ mod test {
     #[test]
     fn hoist_safe_div() {
         // This test is identical to `do_not_hoist_unsafe_div`, except the loop
-        // in this test starts with a lower bound of `1`.
+        // in this test starts with a lower bound of `1`, so it will never divide
+        // by a zero induction variable.
         let src = "
         brillig(inline) fn main f0 {
           b0(v0: u32):
@@ -1744,6 +1743,51 @@ mod test {
             jmp b4(v14)
         }
         ");
+    }
+
+    /// Test whether a division that doesn't depend on the induction variable gets hoisted out of a loop,
+    /// when it's in a control dependent block, which makes it depend on a predicate.
+    /// With a decision based on `requires_acir_gen_predicate` it would not be hoisted, but based on `has_side_effects` it is.
+    #[test_case(true, 10, true)]
+    #[test_case(false, 10, true)]
+    #[test_case(true, 0, false)]
+    #[test_case(false, 0, false)]
+    fn hoist_invariant_div(loop_executes: bool, denominator: u32, should_hoist: bool) {
+        let (lower, upper) = if loop_executes { (0, 5) } else { (0, 0) };
+        let src = format!(
+            "
+        brillig(inline) fn main f0 {{
+          b0(v0: u32, v1: u1):
+            jmp b1(u32 {lower})
+          b1(v2: u32):
+            v3 = lt v2, u32 {upper}
+            jmpif v3 then: b2, else: b3
+          b2():
+            jmpif v1 then: b4, else: b5
+          b3():
+            return
+          b4():
+            v4 = div v0, u32 {denominator}
+            jmp b5()
+          b5():
+            v5 = unchecked_add v2, u32 1
+            jmp b1(v5)
+        }}
+        "
+        );
+
+        let ssa = Ssa::from_str(&src).unwrap();
+        let ssa = ssa.loop_invariant_code_motion();
+
+        println!("{ssa}");
+
+        // The pre-header of the loop b1 is b0
+        let pre_header = &ssa.main().dfg[BasicBlockId::new(0)];
+        if !should_hoist {
+            assert!(pre_header.instructions().is_empty(), "should not hoist");
+        } else {
+            assert_eq!(pre_header.instructions().len(), 1, "should hoist");
+        }
     }
 
     #[test]
