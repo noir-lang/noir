@@ -119,13 +119,13 @@ mod tests {
             return
         }
         acir(inline) fn foo f1 {
-          b0(v0: u32, v1: Field):
+          b0(v0: u32):
             jmpif v0 then: b1, else: b2
           b1():
-            v4 = add v0, u32 1
+            v3 = add v0, u32 1
             jmp b3()
           b2():
-            v3 = sub v0, u32 1
+            v2 = sub v0, u32 1
             jmp b3()
           b3():
             return
