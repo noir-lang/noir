@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1757690173174,
+  "lastUpdate": 1757690489665,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -22313,90 +22313,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "b2452725d8a6778bd9e9617c7e80d1c502ec397a",
-          "message": "feat: re-enable early mem2reg pass (#9744)",
-          "timestamp": "2025-09-05T17:43:54Z",
-          "tree_id": "146815b5e1e789c746c7ad4f1d4d44f73db9c97c",
-          "url": "https://github.com/noir-lang/noir/commit/b2452725d8a6778bd9e9617c7e80d1c502ec397a"
-        },
-        "date": 1757096299359,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 709.3,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 2025,
-            "unit": "KB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 531,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 4348.2,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 3355.6,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 3853.4,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 30756.7,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 30794,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 188,
-            "unit": "KB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 390.6,
-            "unit": "KB"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 631.9,
-            "unit": "KB"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 525.5,
-            "unit": "KB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -26441,6 +26357,90 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/294caf851dc8f5846f3f76a32c22f18c49f3a240"
         },
         "date": 1757689525595,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 711.9,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 2027.3,
+            "unit": "KB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 534.7,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 4352.4,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 3359.4,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 3861.1,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 30912.3,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 30962.8,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 190.2,
+            "unit": "KB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 392.4,
+            "unit": "KB"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 634,
+            "unit": "KB"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 527.6,
+            "unit": "KB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "548c6f7e52418fefd47cbda1d4667c0835a6fb23",
+          "message": "chore: more ACIR parser usages in tests, and optimize general optimizations (#9836)",
+          "timestamp": "2025-09-12T14:47:02Z",
+          "tree_id": "d424357612210778017da9b8a5c11edf5bdc0bd9",
+          "url": "https://github.com/noir-lang/noir/commit/548c6f7e52418fefd47cbda1d4667c0835a6fb23"
+        },
+        "date": 1757690469998,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
