@@ -1,92 +1,8 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1757686381293,
+  "lastUpdate": 1757686384022,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
-      {
-        "commit": {
-          "author": {
-            "email": "jc@joshcrites.com",
-            "name": "josh crites",
-            "username": "critesjosh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "62c9543f382d306403442ad8b3277f1b3e8b7105",
-          "message": "chore(docs): Update Aztec logo in noir docs (#9740)",
-          "timestamp": "2025-09-04T20:29:44Z",
-          "tree_id": "9b71e2d3758c03e5ba642d5efc80205a04769257",
-          "url": "https://github.com/noir-lang/noir/commit/62c9543f382d306403442ad8b3277f1b3e8b7105"
-        },
-        "date": 1757020281780,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 284.74,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 594.25,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 258.95,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 1350,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 1400,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 1020,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 9690,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 9690,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 332.71,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 343.45,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 106.9,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 236.02,
-            "unit": "MB"
-          }
-        ]
-      },
       {
         "commit": {
           "author": {
@@ -4199,6 +4115,90 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512_100_bytes",
             "value": 265.51,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "35b7c14f383c3f558bd1408ab47a83736703e6a4",
+          "message": "chore: increase number of cases tried in PR fuzzing (#9829)",
+          "timestamp": "2025-09-12T13:29:39Z",
+          "tree_id": "2e7710df0be5a178c588ddffc3cca3ac4bc0541c",
+          "url": "https://github.com/noir-lang/noir/commit/35b7c14f383c3f558bd1408ab47a83736703e6a4"
+        },
+        "date": 1757686363843,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 285.18,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 594.19,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 259.75,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 1360,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 1420,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 999.21,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 9680,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 9690,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 333.41,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 344.12,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 107.62,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 265.52,
             "unit": "MB"
           }
         ]
