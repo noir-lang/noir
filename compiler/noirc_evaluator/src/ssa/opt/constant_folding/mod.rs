@@ -14,10 +14,7 @@
 //!
 //! This is the only pass which removes duplicated pure [`Instruction`]s however and so is needed when
 //! different blocks are merged, i.e. after the [`flatten_cfg`][super::flatten_cfg] pass.
-use std::{
-    collections::{BTreeMap, HashSet, VecDeque},
-    io::Empty,
-};
+use std::{collections::BTreeMap, io::Empty};
 
 use acvm::{FieldElement, acir::AcirField};
 use iter_extended::vecmap;
@@ -35,6 +32,7 @@ use crate::ssa::{
     },
     opt::pure::Purity,
     ssa_gen::Ssa,
+    visit_once_deque::VisitOnceDeque,
 };
 use rustc_hash::FxHashMap as HashMap;
 
@@ -120,11 +118,6 @@ impl Function {
         context.block_queue.push_back(self.entry_block());
 
         while let Some(block) = context.block_queue.pop_front() {
-            if context.visited_blocks.contains(&block) {
-                continue;
-            }
-
-            context.visited_blocks.insert(block);
             context.fold_constants_in_block(&mut self.dfg, &mut dom, block, interpreter);
         }
 
@@ -144,8 +137,7 @@ fn constant_folding_post_check(context: &Context, dfg: &DataFlowGraph) {
 struct Context {
     use_constraint_info: bool,
     /// Maps pre-folded ValueIds to the new ValueIds obtained by re-inserting the instruction.
-    visited_blocks: HashSet<BasicBlockId>,
-    block_queue: VecDeque<BasicBlockId>,
+    block_queue: VisitOnceDeque,
 
     /// Contains sets of values which are constrained to be equivalent to each other.
     ///
@@ -166,7 +158,6 @@ impl Context {
     fn new(use_constraint_info: bool) -> Self {
         Self {
             use_constraint_info,
-            visited_blocks: Default::default(),
             block_queue: Default::default(),
             constraint_simplification_mappings: Default::default(),
             cached_instruction_results: Default::default(),
