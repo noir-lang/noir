@@ -48,7 +48,7 @@ impl Function {
             return;
         }
 
-        // Check the precondition thatthis optimization runs when there's only one block
+        // Check the precondition that this optimization runs when there's only one block
         let block = self.entry_block();
         assert_eq!(self.dfg[block].successors().count(), 0);
 
