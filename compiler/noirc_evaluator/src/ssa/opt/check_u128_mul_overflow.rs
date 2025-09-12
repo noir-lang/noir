@@ -140,11 +140,13 @@ mod tests {
     };
 
     #[test]
-    fn does_not_insert_check_if_lhs_is_less_than_two_pow_64() {
+    fn does_not_insert_check_if_multiplying_lhs_will_not_overflow_field_element() {
+        // The big value here is 2^254 - 2^128 - 1, which, when multiplied by any u128
+        // won't overflow a Field element max value.
         let src = "
         acir(inline) fn main f0 {
           b0(v0: u128):
-            v2 = mul u128 18446744073709551615, v0
+            v2 = mul u128 85070591730234615865843651857942052863, v0
             return
         }
         ";
@@ -152,11 +154,13 @@ mod tests {
     }
 
     #[test]
-    fn does_not_insert_check_if_rhs_is_less_than_two_pow_64() {
+    fn does_not_insert_check_if_multiplying_rhs_will_not_overflow_field_element() {
+        // The big value here is 2^254 - 2^128 - 1, which, when multiplied by any u128
+        // won't overflow a Field element max value.
         let src = "
         acir(inline) fn main f0 {
           b0(v0: u128):
-            v2 = mul v0, u128 18446744073709551615
+            v2 = mul v0, u128 85070591730234615865843651857942052863
             return
         }
         ";
@@ -165,6 +169,8 @@ mod tests {
 
     #[test]
     fn inserts_check_for_lhs() {
+        // The big value here is 2^254 - 2^128, which, when multiplied by any u128
+        // might overflow a Field element max value.
         let src = "
         acir(inline) fn main f0 {
           b0(v0: u128):
@@ -188,6 +194,8 @@ mod tests {
 
     #[test]
     fn inserts_check_for_rhs() {
+        // The big value here is 2^254 - 2^128, which, when multiplied by any u128
+        // might overflow a Field element max value.
         let src = "
         acir(inline) fn main f0 {
           b0(v0: u128):
