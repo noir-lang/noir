@@ -199,13 +199,10 @@ impl<F: AcirField> MergeExpressionsOptimizer<F> {
 
                 witnesses
             }
-            Opcode::MemoryOp { block_id: _, op, predicate } => {
-                //index, value, and predicate
+            Opcode::MemoryOp { block_id: _, op } => {
+                //index and value
                 let mut witnesses = CircuitSimulator::expr_wit(&op.index);
                 witnesses.extend(CircuitSimulator::expr_wit(&op.value));
-                if let Some(p) = predicate {
-                    witnesses.extend(CircuitSimulator::expr_wit(p));
-                }
                 witnesses
             }
 

@@ -63,7 +63,7 @@ use acir::{
     circuit::{
         Circuit, Opcode,
         brillig::BrilligFunctionId,
-        opcodes::{BlackBoxFuncCall, BlockId, ConstantOrWitnessEnum, MemOp},
+        opcodes::{BlackBoxFuncCall, BlockId, FunctionInput, MemOp},
     },
     native_types::Witness,
 };
@@ -125,9 +125,9 @@ impl<'a, F: AcirField> RangeOptimizer<'a, F> {
                     }
                 }
 
-                Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE { input }) => {
-                    if let ConstantOrWitnessEnum::Witness(witness) = input.input() {
-                        Some((witness, input.num_bits(), false))
+                Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE { input, num_bits }) => {
+                    if let FunctionInput::Witness(witness) = input {
+                        Some((*witness, *num_bits, false))
                     } else {
                         None
                     }
@@ -192,12 +192,10 @@ impl<'a, F: AcirField> RangeOptimizer<'a, F> {
         // Going in reverse so we can propagate the side effect information backwards.
         for (idx, opcode) in self.circuit.opcodes.into_iter().enumerate().rev() {
             let Some(witness) = (match opcode {
-                Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE { input }) => {
-                    match input.input() {
-                        ConstantOrWitnessEnum::Witness(witness) => Some(witness),
-                        _ => None,
-                    }
-                }
+                Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
+                    input: FunctionInput::Witness(witness),
+                    ..
+                }) => Some(witness),
                 Opcode::BrilligCall { id, .. } => {
                     // Assume that Brillig calls might have side effects, unless we know they don't.
                     if self.brillig_side_effects.get(&id).copied().unwrap_or(true) {

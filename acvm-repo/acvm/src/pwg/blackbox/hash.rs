@@ -12,12 +12,13 @@ use crate::pwg::{input_to_value, insert_value};
 /// If successful, `initial_witness` will be mutated to contain the new witness assignment.
 pub(super) fn solve_generic_256_hash_opcode<F: AcirField>(
     initial_witness: &mut WitnessMap<F>,
-    inputs: &[FunctionInput<F>],
+    #[allow(clippy::ptr_arg)] //Clippy mistakenly believes that it can be replaced by &[..]
+    inputs: &Vec<FunctionInput<F>>,
     var_message_size: Option<&FunctionInput<F>>,
     outputs: &[Witness; 32],
     hash_function: fn(data: &[u8]) -> Result<[u8; 32], BlackBoxResolutionError>,
 ) -> Result<(), OpcodeResolutionError<F>> {
-    let message_input = get_hash_input(initial_witness, inputs, var_message_size)?;
+    let message_input = get_hash_input(initial_witness, inputs, var_message_size, 8)?;
     let digest: [u8; 32] = hash_function(&message_input)?;
 
     write_digest_to_outputs(initial_witness, outputs, digest)
@@ -28,13 +29,12 @@ fn get_hash_input<F: AcirField>(
     initial_witness: &WitnessMap<F>,
     inputs: &[FunctionInput<F>],
     message_size: Option<&FunctionInput<F>>,
+    num_bits: usize,
 ) -> Result<Vec<u8>, OpcodeResolutionError<F>> {
     // Read witness assignments.
     let mut message_input = Vec::new();
     for input in inputs.iter() {
-        let num_bits = input.num_bits() as usize;
-
-        let witness_assignment = input_to_value(initial_witness, *input, false)?;
+        let witness_assignment = input_to_value(initial_witness, *input)?;
         let bytes = witness_assignment.fetch_nearest_bytes(num_bits);
         message_input.extend(bytes);
     }
@@ -42,8 +42,7 @@ fn get_hash_input<F: AcirField>(
     // Truncate the message if there is a `message_size` parameter given
     match message_size {
         Some(input) => {
-            let num_bytes_to_take =
-                input_to_value(initial_witness, *input, false)?.to_u128() as usize;
+            let num_bytes_to_take = input_to_value(initial_witness, *input)?.to_u128() as usize;
 
             // If the number of bytes to take is more than the amount of bytes available
             // in the message, then we error.
@@ -83,7 +82,7 @@ fn to_u32_array<const N: usize, F: AcirField>(
 ) -> Result<[u32; N], OpcodeResolutionError<F>> {
     let mut result = [0; N];
     for (it, input) in result.iter_mut().zip(inputs) {
-        let witness_value = input_to_value(initial_witness, *input, false)?;
+        let witness_value = input_to_value(initial_witness, *input)?;
         *it = witness_value.to_u128() as u32;
     }
     Ok(result)
@@ -112,25 +111,14 @@ pub(crate) fn solve_poseidon2_permutation_opcode<F: AcirField>(
     initial_witness: &mut WitnessMap<F>,
     inputs: &[FunctionInput<F>],
     outputs: &[Witness],
-    len: u32,
 ) -> Result<(), OpcodeResolutionError<F>> {
-    if len as usize != inputs.len() {
+    if inputs.len() != outputs.len() {
         return Err(OpcodeResolutionError::BlackBoxFunctionFailed(
             acir::BlackBoxFunc::Poseidon2Permutation,
             format!(
-                "the number of inputs does not match specified length. {} != {}",
+                "the input and output sizes are not consistent. {} != {}",
                 inputs.len(),
-                len
-            ),
-        ));
-    }
-    if len as usize != outputs.len() {
-        return Err(OpcodeResolutionError::BlackBoxFunctionFailed(
-            acir::BlackBoxFunc::Poseidon2Permutation,
-            format!(
-                "the number of outputs does not match specified length. {} != {}",
-                outputs.len(),
-                len
+                outputs.len()
             ),
         ));
     }
@@ -138,10 +126,10 @@ pub(crate) fn solve_poseidon2_permutation_opcode<F: AcirField>(
     // Read witness assignments
     let state: Vec<F> = inputs
         .iter()
-        .map(|input| input_to_value(initial_witness, *input, false))
+        .map(|input| input_to_value(initial_witness, *input))
         .collect::<Result<_, _>>()?;
 
-    let state = backend.poseidon2_permutation(&state, len)?;
+    let state = backend.poseidon2_permutation(&state)?;
 
     // Write witness assignments
     for (output_witness, value) in outputs.iter().zip(state.into_iter()) {
