@@ -7,12 +7,13 @@
 //!
 //! ## How this pass works:
 //! - Iterates through all blocks in post-order (to ensure predecessors are visited after successors).
-//! - Detects and removes unused block parameters, except for those on entry blocks of entry point
-//!   functions (e.g., main, Brillig called from ACIR, foldable functions).
+//! - Detects and removes unused block parameters, except for those on entry blocks of program entry point
+//!   functions (e.g., `main`, foldable functions). Brillig entry points (except `main`) are not counted
+//!   here as their signature does not determine the ABI and is safe to update.
 //! - Clears the list of unused block parameters after removing them from the block.
 //! - Updates the corresponding argument lists in predecessor terminator instructions to keep
 //!   them aligned with the new parameter lists.
-//! - **Entry block parameters** of non-entry point functions may be pruned if they are unused,
+//! - **Entry block parameters** of non-program entry point functions may be pruned if they are unused,
 //!   and the corresponding call instructions are rewritten to remove the dead arguments.
 //! - Entry point functions often correspond to ABI inputs and must remain to preserve the program's external interface.
 //!
@@ -71,8 +72,6 @@
 //! ```text
 //! v0 = call f1() -> Field
 //! ```
-use std::collections::{BTreeMap, BTreeSet};
-
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::ssa::{
@@ -85,7 +84,6 @@ use crate::ssa::{
         post_order::PostOrder,
         value::{Value, ValueId},
     },
-    opt::brillig_entry_points::get_brillig_entry_points,
     ssa_gen::Ssa,
 };
 
@@ -96,22 +94,17 @@ impl Ssa {
         mut self,
         unused_parameters: &HashMap<FunctionId, HashMap<BasicBlockId, Vec<ValueId>>>,
     ) -> Self {
-        let call_graph = CallGraph::from_ssa(&self);
-        let brillig_entry_points =
-            get_brillig_entry_points(&self.functions, self.main_id, &call_graph);
-
         let mut entry_block_keep_lists = HashMap::default();
         for (func_id, unused_parameters) in unused_parameters {
             let function = self.functions.get_mut(func_id).expect("ICE: Function should exist");
-            if let Some(entry_keep_list) = function.prune_dead_parameters(
-                unused_parameters,
-                &brillig_entry_points,
-                self.main_id,
-            ) {
+            if let Some(entry_keep_list) =
+                function.prune_dead_parameters(unused_parameters, self.main_id)
+            {
                 entry_block_keep_lists.insert(*func_id, entry_keep_list);
             }
         }
 
+        let call_graph = CallGraph::from_ssa(&self);
         self.rewrite_calls_to_pruned_entry_blocks(&call_graph, &entry_block_keep_lists);
 
         self
@@ -180,16 +173,14 @@ impl Function {
     fn prune_dead_parameters(
         &mut self,
         unused_params: &HashMap<BasicBlockId, Vec<ValueId>>,
-        brillig_entry_points: &BTreeMap<FunctionId, BTreeSet<FunctionId>>,
         main_id: FunctionId,
     ) -> Option<Vec<bool>> {
         let cfg = ControlFlowGraph::with_function(self);
         let post_order = PostOrder::with_cfg(&cfg);
 
-        let is_brillig_entry_point = brillig_entry_points.contains_key(&self.id());
         let is_acir_entry_point = self.runtime().is_acir() && self.runtime().is_entry_point();
         let is_main = self.id() == main_id;
-        let can_prune_entry_block = !(is_brillig_entry_point || is_acir_entry_point || is_main);
+        let can_prune_entry_block = !(is_acir_entry_point || is_main);
 
         let mut entry_block_keep_list = None;
         for &block in post_order.as_slice() {
@@ -274,7 +265,7 @@ mod tests {
 
     use crate::ssa::Ssa;
     use crate::ssa::ir::map::Id;
-    use crate::ssa::opt::{assert_normalized_ssa_equals, assert_ssa_does_not_change};
+    use crate::ssa::opt::assert_normalized_ssa_equals;
 
     #[test]
     fn prune_unused_block_params() {
@@ -387,9 +378,9 @@ mod tests {
     }
 
     #[test]
-    fn do_not_prune_brillig_entry_point_dead_entry_block_params() {
+    fn do_not_prune_brillig_main_dead_entry_block_params() {
         let src = r#"
-        brillig(inline) fn test f0 {
+        brillig(inline) fn main f0 {
           b0(v0: Field, v1: Field):
             jmp b1(Field 1)
           b1(v2: Field):
@@ -416,7 +407,7 @@ mod tests {
         // b0 still has both parameters even though v0 is unused
         // as b0 is the entry block which would also change the function signature.
         assert_ssa_snapshot!(ssa, @r#"
-        brillig(inline) fn test f0 {
+        brillig(inline) fn main f0 {
           b0(v0: Field, v1: Field):
             jmp b1(Field 1)
           b1(v2: Field):
@@ -456,11 +447,51 @@ mod tests {
         assert!(b1_unused.is_empty());
 
         let ssa = ssa.prune_dead_parameters(&die_result.unused_parameters);
-        // b0 has both parameters removed as it is not an entry point
+        // b0 in f1 has both parameters removed as it is not an entry point
         // and we can rewrite its call site.
         // The call to f1 should also be rewritten to not pass any arguments.
         assert_ssa_snapshot!(ssa, @r#"
         brillig(inline) fn main f0 {
+          b0():
+            v1 = call f1() -> Field
+            return v1
+        }
+        brillig(inline) fn test f1 {
+          b0():
+            jmp b1(Field 1)
+          b1(v0: Field):
+            return v0
+        }
+        "#);
+    }
+
+    #[test]
+    fn prune_brillig_non_main_entry_point_dead_entry_block_params() {
+        let src = r#"
+        acir(inline) fn main f0 {
+          b0():
+            v0 = call f1(Field 5, Field 10) -> Field
+            return v0
+        }
+        brillig(inline) fn test f1 {
+          b0(v0: Field, v1: Field):
+            jmp b1(Field 1)
+          b1(v2: Field):
+            return v2
+        }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        // DIE is necessary to fetch the block parameters liveness information
+        let (ssa, die_result) = ssa.dead_instruction_elimination_inner(false);
+        let ssa = ssa.prune_dead_parameters(&die_result.unused_parameters);
+        // b0 in f1 has both parameters removed as it is not the program entry point
+        // and we can rewrite its call site.
+        // Although f1 is an entry point, its signature is not set by the frontend and
+        // is thus safe to have its entry block pruned.
+        // The call to f1 should also be rewritten to not pass any arguments.
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) fn main f0 {
           b0():
             v1 = call f1() -> Field
             return v1
