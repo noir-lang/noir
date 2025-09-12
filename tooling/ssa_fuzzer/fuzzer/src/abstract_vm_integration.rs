@@ -1,42 +1,19 @@
+//! Module for comparing Brillig output with Brillig-compatible Abstract VM output
 use crate::fuzz_lib::fuzzer::FuzzerOutput;
 use acvm::acir::circuit::Program;
 use acvm::{AcirField, FieldElement};
 use base64::Engine;
-use lazy_static::lazy_static;
-use serde::{Deserialize, Serialize};
-use std::env;
 use std::time::Instant;
 
-lazy_static! {
-    static ref ABSTRACT_VM_TRANSPILER_URL: String =
-        env::var("TRANSPILER_URL").unwrap_or("http://localhost:51447/transpile".to_string());
-    static ref ABSTRACT_VM_SIMULATOR_URL: String =
-        env::var("SIMULATOR_URL").unwrap_or("http://localhost:51446/execute".to_string());
-    static ref CLIENT: reqwest::blocking::Client = reqwest::blocking::Client::new();
-}
-
-#[derive(Serialize)]
-struct TranspilerRequest {
-    bytecode: String,
-}
-
-#[derive(Deserialize)]
-struct TranspilerResponse {
-    abstract_vm_bytecode: String,
-}
-
-#[derive(Serialize)]
-struct SimulatorRequest {
-    abstract_vm_bytecode: String,
-    inputs: Vec<String>,
-}
-
-#[derive(Deserialize)]
-struct SimulatorResponse {
-    reverted: bool,
-    outputs: Vec<String>,
-    error: Option<String>,
-}
+/// Function for transpiling Brillig bytecode to Abstract VM bytecode
+/// The first argument is the Brillig bytecode
+pub(crate) type TranspileBrilligBytecodeToAbstractVMBytecode =
+    Box<dyn Fn(String) -> Result<String, String>>;
+/// Function for executing Abstract VM bytecode
+/// The first argument is the Abstract VM bytecode
+/// The second argument is the inputs as strings
+pub(crate) type ExecuteAbstractVMBytecode =
+    Box<dyn Fn(String, Vec<String>) -> Result<Vec<String>, String>>;
 
 #[derive(Debug)]
 pub(crate) enum AbstractVMComparisonResult {
@@ -47,7 +24,11 @@ pub(crate) enum AbstractVMComparisonResult {
     BrilligCompilationError(String),
 }
 
-pub(crate) fn compare_with_abstract_vm(fuzzer_output: &FuzzerOutput) -> AbstractVMComparisonResult {
+pub(crate) fn compare_with_abstract_vm(
+    fuzzer_output: &FuzzerOutput,
+    transpiler: &TranspileBrilligBytecodeToAbstractVMBytecode,
+    simulator: &ExecuteAbstractVMBytecode,
+) -> AbstractVMComparisonResult {
     let step_start = Instant::now();
     let brillig_outputs = fuzzer_output.get_return_witnesses();
     let bytecode = if let Some(program) = &fuzzer_output.program {
@@ -61,7 +42,7 @@ pub(crate) fn compare_with_abstract_vm(fuzzer_output: &FuzzerOutput) -> Abstract
     log::debug!("Bytecode serialization: {:?}", step_start.elapsed());
 
     let step_start = Instant::now();
-    let abstract_vm_bytecode = match call_transpiler(&bytecode) {
+    let abstract_vm_bytecode = match transpiler(bytecode) {
         Ok(bc) => bc,
         Err(e) => return AbstractVMComparisonResult::TranspilerError(e),
     };
@@ -80,8 +61,10 @@ pub(crate) fn compare_with_abstract_vm(fuzzer_output: &FuzzerOutput) -> Abstract
         .collect::<Vec<String>>();
     log::debug!("Input extraction: {:?}", step_start.elapsed());
 
-    let abstract_vm_outputs = match call_simulator(&abstract_vm_bytecode, &inputs) {
-        Ok(outputs) => outputs,
+    let abstract_vm_outputs: Vec<FieldElement> = match simulator(abstract_vm_bytecode, inputs) {
+        Ok(outputs) => {
+            outputs.iter().map(|output| FieldElement::try_from_str(output).unwrap()).collect()
+        }
         Err(e) => {
             // brillig execution failed, so we assume the match
             if brillig_outputs.is_empty() {
@@ -102,78 +85,4 @@ pub(crate) fn compare_with_abstract_vm(fuzzer_output: &FuzzerOutput) -> Abstract
     }
 
     AbstractVMComparisonResult::Match
-}
-
-fn call_transpiler(bytecode: &str) -> Result<String, String> {
-    let client = CLIENT.clone();
-    let payload = TranspilerRequest { bytecode: bytecode.to_string() };
-
-    let step_start = Instant::now();
-    let response = client
-        .post(ABSTRACT_VM_TRANSPILER_URL.as_str())
-        .json(&payload)
-        .send()
-        .map_err(|e| format!("Transpiler request failed: {e}"))?;
-
-    log::debug!("Transpiler response time: {:?}", step_start.elapsed());
-
-    if !response.status().is_success() {
-        return Err(format!("Transpiler returned status: {}", response.status()));
-    }
-
-    let step_start = Instant::now();
-    let result: TranspilerResponse =
-        response.json().map_err(|e| format!("Failed to parse transpiler response: {e}"))?;
-
-    log::debug!("Transpiler response parsing: {:?}", step_start.elapsed());
-
-    Ok(result.abstract_vm_bytecode)
-}
-
-fn call_simulator(
-    abstract_vm_bytecode: &str,
-    inputs: &[String],
-) -> Result<Vec<FieldElement>, String> {
-    let client = CLIENT.clone();
-    let payload = SimulatorRequest {
-        abstract_vm_bytecode: abstract_vm_bytecode.to_string(),
-        inputs: inputs.to_vec(),
-    };
-
-    let step_start = Instant::now();
-    let response = client
-        .post(ABSTRACT_VM_SIMULATOR_URL.as_str())
-        .json(&payload)
-        .send()
-        .map_err(|e| format!("Simulator request failed: {e}"))?;
-
-    log::debug!("Simulator response: {:?}", step_start.elapsed());
-
-    if !response.status().is_success() {
-        return Err(format!("Simulator returned status: {}", response.status()));
-    }
-
-    let step_start = Instant::now();
-    let result: SimulatorResponse =
-        response.json().map_err(|e| format!("Failed to parse simulator response: {e}"))?;
-
-    if result.reverted {
-        let error_msg = result.error.as_deref().unwrap_or("Unknown error");
-        return Err(format!("AVM execution reverted: {error_msg}"));
-    }
-
-    let outputs = result
-        .outputs
-        .iter()
-        .map(|hex_str| {
-            // Convert hex string to FieldElement
-            // The simulator returns hex strings, so we need to parse them
-            FieldElement::from_hex(hex_str)
-                .ok_or_else(|| format!("Failed to parse hex output: {hex_str}"))
-        })
-        .collect::<Result<Vec<FieldElement>, String>>()?;
-
-    log::debug!("Simulator response parsing: {:?}", step_start.elapsed());
-
-    Ok(outputs)
 }
