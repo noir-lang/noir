@@ -1410,18 +1410,19 @@ mod tests {
             store u32 0 at v2
             jmp b1()
           b1():
-            v4 = load v2 -> u32
-            v6 = eq v4, u32 1
-            jmpif v6 then: b2, else: b3
+            v7 = load v2 -> u32
+            v8 = eq v7, u32 1
+            jmpif v8 then: b2, else: b3
           b2():
             jmp b4()
           b3():
-            v8 = add v4, u32 1
-            store v8 at v2
+            v4 = load v2 -> u32
+            v6 = add v4, u32 1
+            store v6 at v2
             jmp b5()
           b4():
-            v7 = make_array [v1] : [&mut u32; 1]
-            return v7
+            v9 = make_array [v1] : [&mut u32; 1]
+            return v9
           b5():
             jmp b1()
         }
@@ -2249,25 +2250,25 @@ mod tests {
             store v28 at v3
             return
           b4():
-            v14 = lt v4, u32 4
-            constrain v14 == u1 1, "Index out of bounds"
-            v16 = array_get v9, index v4 -> Field
-            v17 = lt v4, u32 3
-            constrain v17 == u1 1, "Index out of bounds"
-            v18 = array_get v8, index v4 -> Field
-            v19 = add v16, v18
-            v20 = lt v4, u32 4
-            constrain v20 == u1 1, "Index out of bounds"
-            v21 = array_set v9, index v4, value v19
-            v23 = unchecked_add v4, u32 1
+            v16 = lt v4, u32 4
+            constrain v16 == u1 1, "Index out of bounds"
+            v18 = array_get v9, index v4 -> Field
+            v19 = lt v4, u32 3
+            constrain v19 == u1 1, "Index out of bounds"
+            v20 = array_get v8, index v4 -> Field
+            v21 = add v18, v20
+            v22 = lt v4, u32 4
+            constrain v22 == u1 1, "Index out of bounds"
+            v23 = array_set v9, index v4, value v21
+            v24 = unchecked_add v4, u32 1
             store v8 at v0
-            store v21 at v1
+            store v23 at v1
             store v10 at v2
             store v11 at v3
             jmp b5()
           b5():
-            v24 = unchecked_add v4, u32 1
-            jmp b1(v24)
+            v14 = unchecked_add v4, u32 1
+            jmp b1(v14)
         }
         "#);
     }

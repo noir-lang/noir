@@ -986,13 +986,13 @@ mod test {
             constrain v3 == i32 6
             jmp b1(i32 0)
           b1(v2: i32):
-            v7 = lt v2, i32 4
-            jmpif v7 then: b3, else: b2
+            v9 = lt v2, i32 4
+            jmpif v9 then: b3, else: b2
           b2():
             return
           b3():
-            v9 = unchecked_add v2, i32 1
-            jmp b1(v9)
+            v7 = unchecked_add v2, i32 1
+            jmp b1(v7)
         }
         ");
     }
@@ -1034,14 +1034,14 @@ mod test {
             v3 = unchecked_mul v0, v1
             jmp b1(i32 0)
           b1(v2: i32):
-            v6 = lt v2, i32 4
-            jmpif v6 then: b3, else: b2
+            v8 = lt v2, i32 4
+            jmpif v8 then: b3, else: b2
           b2():
             return
           b3():
             constrain v3 == v2
-            v8 = unchecked_add v2, i32 1
-            jmp b1(v8)
+            v6 = unchecked_add v2, i32 1
+            jmp b1(v6)
         }
         ");
     }
@@ -1090,21 +1090,21 @@ mod test {
             constrain v4 == i32 6
             jmp b1(i32 0)
           b1(v2: i32):
-            v8 = lt v2, i32 4
-            jmpif v8 then: b3, else: b2
+            v12 = lt v2, i32 4
+            jmpif v12 then: b3, else: b2
           b2():
             return
           b3():
             jmp b4(i32 0)
           b4(v3: i32):
-            v9 = lt v3, i32 4
-            jmpif v9 then: b6, else: b5
+            v8 = lt v3, i32 4
+            jmpif v8 then: b6, else: b5
           b5():
             v11 = unchecked_add v2, i32 1
             jmp b1(v11)
           b6():
-            v12 = unchecked_add v3, i32 1
-            jmp b4(v12)
+            v10 = unchecked_add v3, i32 1
+            jmp b4(v10)
         }
         ");
     }
@@ -1145,22 +1145,22 @@ mod test {
           b0(v0: i32):
             jmp b1(i32 0)
           b1(v1: i32):
-            v5 = lt v1, i32 3
-            jmpif v5 then: b3, else: b2
+            v12 = lt v1, i32 3
+            jmpif v12 then: b3, else: b2
           b2():
             return
           b3():
-            v7 = unchecked_mul v1, i32 5
+            v5 = unchecked_mul v1, i32 5
             jmp b4(i32 0)
           b4(v2: i32):
-            v9 = lt v2, i32 2
-            jmpif v9 then: b6, else: b5
+            v7 = lt v2, i32 2
+            jmpif v7 then: b6, else: b5
           b5():
-            v11 = unchecked_add v1, i32 1
-            jmp b1(v11)
+            v10 = unchecked_add v1, i32 1
+            jmp b1(v10)
           b6():
-            v12 = unchecked_add v2, i32 1
-            jmp b4(v12)
+            v9 = unchecked_add v2, i32 1
+            jmp b4(v9)
         }
         ");
     }
@@ -1213,13 +1213,13 @@ mod test {
             constrain v4 == i32 12
             jmp b1(i32 0)
           b1(v2: i32):
-            v9 = lt v2, i32 4
-            jmpif v9 then: b3, else: b2
+            v11 = lt v2, i32 4
+            jmpif v11 then: b3, else: b2
           b2():
             return
           b3():
-            v11 = unchecked_add v2, i32 1
-            jmp b1(v11)
+            v9 = unchecked_add v2, i32 1
+            jmp b1(v9)
         }
         ");
     }
@@ -1333,35 +1333,35 @@ mod test {
             inc_rc v6
             jmp b1(u32 0)
           b1(v2: u32):
-            v9 = lt v2, u32 4
-            jmpif v9 then: b3, else: b2
+            v17 = lt v2, u32 4
+            jmpif v17 then: b3, else: b2
           b2():
             return
           b3():
-            v10 = array_get v6, index v2 -> u32
-            v11 = eq v10, v0
-            constrain v10 == v0
+            v18 = array_get v6, index v2 -> u32
+            v19 = eq v18, v0
+            constrain v18 == v0
             jmp b4(u32 0)
           b4(v3: u32):
-            v12 = lt v3, u32 4
-            jmpif v12 then: b6, else: b5
+            v13 = lt v3, u32 4
+            jmpif v13 then: b6, else: b5
           b5():
-            v14 = unchecked_add v2, u32 1
-            jmp b1(v14)
+            v16 = unchecked_add v2, u32 1
+            jmp b1(v16)
           b6():
-            v15 = array_get v6, index v3 -> u32
-            v16 = eq v15, v0
-            constrain v15 == v0
+            v14 = array_get v6, index v3 -> u32
+            v15 = eq v14, v0
+            constrain v14 == v0
             jmp b7(u32 0)
           b7(v4: u32):
-            v17 = lt v4, u32 4
-            jmpif v17 then: b9, else: b8
+            v9 = lt v4, u32 4
+            jmpif v9 then: b9, else: b8
           b8():
-            v18 = unchecked_add v3, u32 1
-            jmp b4(v18)
+            v12 = unchecked_add v3, u32 1
+            jmp b4(v12)
           b9():
-            v19 = unchecked_add v4, u32 1
-            jmp b7(v19)
+            v11 = unchecked_add v4, u32 1
+            jmp b7(v11)
         }
         ");
     }
@@ -1432,20 +1432,20 @@ mod test {
             v14 = make_array [Field 1, Field 2, Field 3, Field 4, Field 5] : [Field; 5]
             jmp b1(u32 0)
           b1(v2: u32):
-            v17 = lt v2, u32 5
-            jmpif v17 then: b3, else: b2
+            v23 = lt v2, u32 5
+            jmpif v23 then: b3, else: b2
           b2():
-            v18 = load v9 -> [Field; 5]
-            call f1(v18)
+            v24 = load v9 -> [Field; 5]
+            call f1(v24)
             return
           b3():
             inc_rc v14
-            v20 = allocate -> &mut [Field; 5]
-            v21 = add v1, v2
-            v23 = array_set v14, index v21, value Field 128
-            call f1(v23)
-            v24 = unchecked_add v2, u32 1
-            jmp b1(v24)
+            v16 = allocate -> &mut [Field; 5]
+            v17 = add v1, v2
+            v19 = array_set v14, index v17, value Field 128
+            call f1(v19)
+            v21 = unchecked_add v2, u32 1
+            jmp b1(v21)
         }
         brillig(inline) fn foo f1 {
           b0(v0: [Field; 5]):
@@ -1489,17 +1489,17 @@ mod test {
             v8 = make_array [Field 1, Field 2, Field 3, Field 4, Field 5] : [Field; 5]
             jmp b1(u32 0)
           b1(v2: u32):
-            v11 = lt v2, u32 5
-            jmpif v11 then: b3, else: b2
+            v18 = lt v2, u32 5
+            jmpif v18 then: b3, else: b2
           b2():
             return
           b3():
-            v12 = allocate -> &mut [Field; 5]
-            v13 = add v1, v2
-            v15 = array_set v8, index v13, value Field 128
-            call f1(v15)
-            v18 = unchecked_add v2, u32 1
-            jmp b1(v18)
+            v10 = allocate -> &mut [Field; 5]
+            v11 = add v1, v2
+            v13 = array_set v8, index v11, value Field 128
+            call f1(v13)
+            v16 = unchecked_add v2, u32 1
+            jmp b1(v16)
         }
         acir(inline) fn foo f1 {
           b0(v0: [Field; 5]):
@@ -1540,13 +1540,13 @@ mod test {
             constrain v3 == u32 6
             jmp b1(u32 0)
           b1(v2: u32):
-            v7 = lt v2, u32 4
-            jmpif v7 then: b3, else: b2
+            v9 = lt v2, u32 4
+            jmpif v9 then: b3, else: b2
           b2():
             return
           b3():
-            v9 = unchecked_add v2, u32 1
-            jmp b1(v9)
+            v7 = unchecked_add v2, u32 1
+            jmp b1(v7)
         }
         ");
     }
@@ -1604,13 +1604,13 @@ mod test {
           b0(v0: u32, v1: u32):
             jmp b1(u32 1)
           b1(v2: u32):
-            v5 = lt v2, u32 4
-            jmpif v5 then: b3, else: b2
+            v6 = lt v2, u32 4
+            jmpif v6 then: b3, else: b2
           b2():
             return
           b3():
-            v6 = unchecked_sub v2, u32 1
-            jmp b1(v6)
+            v4 = unchecked_sub v2, u32 1
+            jmp b1(v4)
         }
         ");
     }
@@ -1704,23 +1704,23 @@ mod test {
             v4 = eq v0, u32 5
             jmp b1(u32 1)
           b1(v1: u32):
-            v7 = lt v1, u32 4
-            jmpif v7 then: b2, else: b3
+            v10 = lt v1, u32 4
+            jmpif v10 then: b2, else: b3
           b2():
-            v9 = div u32 10, v1
+            v7 = div u32 10, v1
             jmp b4(u32 0)
           b3():
             return
           b4(v2: u32):
-            v11 = lt v2, u32 4
-            jmpif v11 then: b5, else: b6
+            v12 = lt v2, u32 4
+            jmpif v12 then: b5, else: b6
           b5():
             jmpif v4 then: b7, else: b8
           b6():
-            v14 = unchecked_add v1, u32 1
-            jmp b1(v14)
+            v11 = unchecked_add v1, u32 1
+            jmp b1(v11)
           b7():
-            constrain v9 == u32 6
+            constrain v7 == u32 6
             jmp b8()
           b8():
             v13 = unchecked_add v2, u32 1
@@ -2818,15 +2818,15 @@ mod control_dependence {
             constrain v17 == u1 1
             return
           b4():
-            v9 = load v4 -> u32
-            v11 = add v9, u32 1
-            store v11 at v4
+            v14 = load v4 -> u32
+            v15 = add v14, u32 1
+            store v15 at v4
             jmp b5()
           b5():
-            v13 = lt v3, u32 4
+            v10 = lt v3, u32 4
             constrain u1 0 == u1 1
-            v15 = unchecked_add v3, u32 1
-            jmp b1(v15)
+            v13 = unchecked_add v3, u32 1
+            jmp b1(v13)
         }
         ");
     }
@@ -2964,13 +2964,13 @@ mod control_dependence {
             constrain v14 == u1 1
             return
           b4():
-            v9 = load v4 -> u32
-            v11 = add v9, u32 1
-            store v11 at v4
+            v11 = load v4 -> u32
+            v12 = add v11, u32 1
+            store v12 at v4
             jmp b5()
           b5():
-            v12 = unchecked_add v3, u32 1
-            jmp b1(v12)
+            v10 = unchecked_add v3, u32 1
+            jmp b1(v10)
         }
         ");
     }
@@ -3097,24 +3097,24 @@ mod control_dependence {
             v3 = cast v0 as Field
             jmp b1(u32 0)
           b1(v1: u32):
-            v5 = eq v1, u32 0
-            jmpif v5 then: b2, else: b3
+            v9 = eq v1, u32 0
+            jmpif v9 then: b2, else: b3
           b2():
             jmpif v0 then: b4, else: b5
           b3():
             return
           b4():
-            v7 = div Field 1, v3
+            v11 = div Field 1, v3
             jmp b6(u32 0)
           b5():
-            v11 = unchecked_add v1, u32 1
-            jmp b1(v11)
+            v8 = unchecked_add v1, u32 1
+            jmp b1(v8)
           b6(v2: u32):
-            v8 = eq v2, u32 0
-            jmpif v8 then: b7, else: b8
+            v7 = eq v2, u32 0
+            jmpif v7 then: b7, else: b8
           b7():
-            v10 = unchecked_add v2, u32 1
-            jmp b6(v10)
+            v6 = unchecked_add v2, u32 1
+            jmp b6(v6)
           b8():
             jmp b5()
         }
@@ -3368,14 +3368,14 @@ mod control_dependence {
             return i16 3
           b4():
             range_check v20 to 8 bits
-            v26 = cast v20 as u8
-            v27 = lt v26, v23
-            constrain v27 == u1 1
-            v29 = cast v6 as i8
+            v28 = cast v20 as u8
+            v29 = lt v28, v23
+            constrain v29 == u1 1
+            v31 = cast v6 as i8
             jmp b5()
           b5():
-            v31 = unchecked_add v2, u32 1
-            jmp b1(v31)
+            v27 = unchecked_add v2, u32 1
+            jmp b1(v27)
         }
         ");
     }

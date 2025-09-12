@@ -48,7 +48,7 @@ impl PostOrder {
     // Computes the post-order of the CFG which is defined as the reverse-topological sort
     // of the SCCs of the CFG graph where each SCC is recursively sorted in reverse-topological
     // order. See the comment in `tests::nested_loop` for an example.
-    fn compute_post_order(cfg: &ControlFlowGraph) -> Vec<BasicBlockId> {
+    fn compute_post_order2(cfg: &ControlFlowGraph) -> Vec<BasicBlockId> {
         // Assumption: jumping to a lower block number = loop back-edge
         let mut graph = cfg.as_petgraph();
 
@@ -89,6 +89,18 @@ impl PostOrder {
         }
 
         order
+    }
+
+    // Computes the post-order of the CFG which is defined as the reverse-topological sort
+    // of the SCCs of the CFG graph where each SCC is recursively sorted in reverse-topological
+    // order. See the comment in `tests::nested_loop` for an example.
+    fn compute_post_order(cfg: &ControlFlowGraph) -> Vec<BasicBlockId> {
+        // Assumption: jumping to a lower block number = loop back-edge
+        let graph = cfg.as_petgraph();
+        let sccs = petgraph::algo::kosaraju_scc(&graph.graph);
+        sccs.into_iter()
+            .flat_map(|scc| scc.into_iter().rev().map(|node| graph.node_to_block[&node]))
+            .collect()
     }
 }
 

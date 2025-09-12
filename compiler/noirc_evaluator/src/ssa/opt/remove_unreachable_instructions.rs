@@ -971,8 +971,8 @@ mod test {
             constrain u1 0 == u1 1, "Index out of bounds"
             unreachable
           b3():
-            v4 = add Field 1, Field 2
-            return v4
+            v3 = add Field 1, Field 2
+            return v3
         }
         "#);
     }
@@ -1011,8 +1011,8 @@ mod test {
           b3():
             jmp b4()
           b4():
-            v4 = add Field 1, Field 2
-            return v4
+            v3 = add Field 1, Field 2
+            return v3
         }
         "#);
     }
@@ -1056,8 +1056,8 @@ mod test {
           b4():
             jmp b5()
           b5():
-            v4 = add Field 1, Field 2
-            return v4
+            v3 = add Field 1, Field 2
+            return v3
         }
         "#);
     }
