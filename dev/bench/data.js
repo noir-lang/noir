@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1757695360412,
+  "lastUpdate": 1757696085620,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -4217,90 +4217,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "61f3fb3e48986f069e6be61f637d7f63faf9e5c2",
-          "message": "chore(ssa): Consolidate should inline check into a single filter (#9738)",
-          "timestamp": "2025-09-05T18:45:23Z",
-          "tree_id": "5f239caf305704e795be5537dfc80c181e69cf85",
-          "url": "https://github.com/noir-lang/noir/commit/61f3fb3e48986f069e6be61f637d7f63faf9e5c2"
-        },
-        "date": 1757099830370,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 1.802,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 8.252,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.32,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 17.16,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 16.58,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 17.32,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 199,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 198,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.344,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.49,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.775,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 1.615,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "15aebdf6497398b79b39d091f0915cc57c8c8242",
           "message": "chore(inlining): Skip weight calc for ACIR functions and recursive Brillig functions (#9739)",
@@ -8396,6 +8312,90 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 1.886,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e6260d7b76ea148e5f7e50f7ffcc7a6b7a6be8d1",
+          "message": "feat(ssa): SSA CLI (#9826)",
+          "timestamp": "2025-09-12T15:56:59Z",
+          "tree_id": "a42a23373ae0514b8e9582711b413359d6db4ab1",
+          "url": "https://github.com/noir-lang/noir/commit/e6260d7b76ea148e5f7e50f7ffcc7a6b7a6be8d1"
+        },
+        "date": 1757696065592,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1.854,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 8.316,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.426,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 17.7,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 15.98,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 17.58,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 206,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 199,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.358,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.476,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.772,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 1.824,
             "unit": "s"
           }
         ]
