@@ -111,6 +111,37 @@ jobs:
           path: ./target/release/noir-execute
           retention-days: 3
 
+  build-noir-ssa:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout Noir repo
+        uses: actions/checkout@v5
+
+      - name: Setup toolchain
+        uses: dtolnay/rust-toolchain@1.85.0
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: x86_64-unknown-linux-gnu
+          cache-on-failure: true
+          save-if: ${{ github.event_name != 'merge_group' }}
+
+      - name: Build noir-execute
+        run: cargo build --package noir_ssa_cli --release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: noir-execute
+          path: ./target/release/noir-ssa
+          retention-days: 3
+
   build-noirc-abi:
     runs-on: ubuntu-22.04
     timeout-minutes: 30
@@ -533,7 +564,7 @@ jobs:
   test-examples:
     name: Example scripts
     runs-on: ubuntu-24.04
-    needs: [build-nargo, build-noir-execute, build-acvm-js, build-noirc-abi]
+    needs: [build-nargo, build-noir-execute, build-noir-ssa, build-acvm-js, build-noirc-abi]
     timeout-minutes: 30
     permissions:
       contents: read
@@ -566,6 +597,9 @@ jobs:
 
       - name: Download noir-execute binary
         uses: ./.github/actions/download-noir-execute
+
+      - name: Download noir-ssa binary
+        uses: ./.github/actions/download-noir-ssa
 
       - name: Download acvm_js package artifact
         uses: actions/download-artifact@v4
