@@ -268,11 +268,13 @@ impl CompareComptime {
 
     /// Check if a comptime error is due to some kind of arithmetic or constraint failure.
     fn is_assertion_diagnostic(e: &CustomDiagnostic) -> bool {
+        let msg = e.message.to_lowercase();
         e.secondaries.iter().any(|s| s.message == "Assertion failed")
-            || e.message.to_lowercase().contains("overflow")
-            || e.message.to_lowercase().contains("cannot fit into") // covers signed overflows
-            || e.message.to_lowercase().contains("divide by zero")
-            || e.message.to_lowercase().contains("division by zero")
+            || msg.contains("overflow")
+            || msg.contains("cannot fit into") // covers signed overflows
+            || msg.contains("divide by zero")
+            || msg.contains("division by zero")
+            || msg.contains("out of bounds")
     }
 
     /// Fabricate a result from a comptime `CustomDiagnostic` on the 1st side,
