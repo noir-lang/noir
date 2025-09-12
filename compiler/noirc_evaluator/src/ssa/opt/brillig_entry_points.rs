@@ -332,7 +332,7 @@ pub(crate) fn get_brillig_entry_points(
     for (_, callees) in acir_callers {
         // Filter only the Brillig callees. These are the Brillig entry points.
         entry_points.extend(
-            callees.keys().filter(|callee| functions[callee].runtime().is_brillig()).copied(),
+            callees.keys().filter(|callee| functions[callee].runtime().is_brillig()),
         );
     }
 
