@@ -154,4 +154,27 @@ mod tests {
         EXPR [ (9, _0, _1) 0 ]
         ");
     }
+
+    #[test]
+    fn simplifies_linear_terms() {
+        let src = "
+        current witness index : _1
+        private parameters indices : [_0, _1]
+        public parameters indices : []
+        return value indices : []
+
+        // These are all linear terms with the same variable so we should end up with just one
+        // that is the sum of all the coefficients
+        EXPR [ (1, _0) (2, _0) (3, _0) 0 ]
+        ";
+        let circuit = Circuit::from_str(src).unwrap();
+        let optimized_circuit = optimize(circuit);
+        assert_circuit_snapshot!(optimized_circuit, @r"
+        current witness index : _1
+        private parameters indices : [_0, _1]
+        public parameters indices : []
+        return value indices : []
+        EXPR [ (6, _0) 0 ]
+        ");
+    }
 }
