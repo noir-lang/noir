@@ -302,10 +302,10 @@ mod tests {
     #[test]
     fn does_not_eliminate_witnesses_returned_from_brillig() {
         let src = "
-        current witness index : w1
-        private parameters indices : [w0]
-        public parameters indices : []
-        return value indices : []
+        current witness: w1
+        private parameters: [w0]
+        public parameters: []
+        return values: []
         BRILLIG CALL func 0: inputs: [], outputs: [w1]
         EXPR [ (2, w0) (3, w1) (1, w2) 1 ]
         EXPR [ (2, w0) (2, w1) (1, w5) 1 ]
@@ -318,10 +318,10 @@ mod tests {
     #[test]
     fn does_not_eliminate_witnesses_returned_from_circuit() {
         let src = "
-        current witness index : w2
-        private parameters indices : [w0]
-        public parameters indices : []
-        return value indices : [w1, w2]
+        current witness: w2
+        private parameters: [w0]
+        public parameters: []
+        return values: [w1, w2]
         EXPR [ (-1, w0, w0) (1, w1) 0 ]
         EXPR [ (-1, w1) (1, w2) 0 ]
         ";
@@ -333,10 +333,10 @@ mod tests {
     #[test]
     fn does_not_attempt_to_merge_into_previous_opcodes() {
         let src = "
-        current witness index : w5
-        private parameters indices : [w0, w1]
-        public parameters indices : []
-        return value indices : []
+        current witness: w5
+        private parameters: [w0, w1]
+        public parameters: []
+        return values: []
         EXPR [ (1, w0, w0) (-1, w4) 0 ]
         EXPR [ (1, w0, w1) (1, w5) 0 ]
         EXPR [ (-1, w2) (1, w4) (1, w5) 0 ]
@@ -347,10 +347,10 @@ mod tests {
 
         let optimized_circuit = merge_expressions(circuit);
         assert_circuit_snapshot!(optimized_circuit, @r"
-        current witness index : w5
-        private parameters indices : [w0, w1]
-        public parameters indices : []
-        return value indices : []
+        current witness: w5
+        private parameters: [w0, w1]
+        public parameters: []
+        return values: []
         EXPR [ (1, w0, w1) (1, w5) 0 ]
         EXPR [ (2, w0, w0) (-1, w3) (2, w5) 0 ]
         BLACKBOX::RANGE [(w3, 32)] []
@@ -364,10 +364,10 @@ mod tests {
         // We would then merge the final two opcodes losing the check that the brillig call must match
         // with `w0 ^ w1`.
         let src = "
-        current witness index : w7
-        private parameters indices : [w0, w1]
-        public parameters indices : []
-        return value indices : [w2]
+        current witness: w7
+        private parameters: [w0, w1]
+        public parameters: []
+        return values: [w2]
         BRILLIG CALL func 0: inputs: [], outputs: [w3]
         BLACKBOX::AND [(w0, 8), (w1, 8)] [w4]
         EXPR [ (1, w3) (-1, w4) 0 ]

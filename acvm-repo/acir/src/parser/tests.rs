@@ -40,10 +40,10 @@ fn assert_circuit_roundtrip(src: &str) {
 #[test]
 fn current_witness() {
     let src = "
-    current witness index : w1
-    private parameters indices : []
-    public parameters indices : []
-    return value indices : []
+    current witness: w1
+    private parameters: []
+    public parameters: []
+    return values: []
     ";
     assert_circuit_roundtrip(src);
 }
@@ -51,10 +51,10 @@ fn current_witness() {
 #[test]
 fn private_parameters() {
     let src = "
-    current witness index : w4
-    private parameters indices : [w0, w1, w2, w3, w4]
-    public parameters indices : []
-    return value indices : []
+    current witness: w4
+    private parameters: [w0, w1, w2, w3, w4]
+    public parameters: []
+    return values: []
     ";
     assert_circuit_roundtrip(src);
 }
@@ -62,10 +62,10 @@ fn private_parameters() {
 #[test]
 fn public_parameters() {
     let src = "
-    current witness index : w9
-    private parameters indices : [w0, w1, w2, w3, w4]
-    public parameters indices : [w5, w6, w7, w8, w9]
-    return value indices : []
+    current witness: w9
+    private parameters: [w0, w1, w2, w3, w4]
+    public parameters: [w5, w6, w7, w8, w9]
+    return values: []
     ";
     assert_circuit_roundtrip(src);
 }
@@ -73,10 +73,10 @@ fn public_parameters() {
 #[test]
 fn return_values() {
     let src = "
-    current witness index : w12
-    private parameters indices : [w0, w1, w2, w3, w4]
-    public parameters indices : [w5, w6, w7, w8, w9]
-    return value indices : [w10, w11, w12]
+    current witness: w12
+    private parameters: [w0, w1, w2, w3, w4]
+    public parameters: [w5, w6, w7, w8, w9]
+    return values: [w10, w11, w12]
     ";
     assert_circuit_roundtrip(src);
 }
@@ -84,10 +84,10 @@ fn return_values() {
 #[test]
 fn assert_zero_opcodes() {
     let src = "
-    current witness index : w9
-    private parameters indices : [w0, w1, w2, w3, w4]
-    public parameters indices : [w5, w6, w7, w8, w9]
-    return value indices : []
+    current witness: w9
+    private parameters: [w0, w1, w2, w3, w4]
+    public parameters: [w5, w6, w7, w8, w9]
+    return values: []
     EXPR [ (1, w0) (-1, w5) 0 ]
     EXPR [ (1, w1) (-1, w6) 0 ]
     EXPR [ (1, w2) (-1, w7) 0 ]
@@ -100,10 +100,10 @@ fn assert_zero_opcodes() {
 #[test]
 fn assert_zero_with_mul_terms() {
     let src = "
-    current witness index : w6
-    private parameters indices : [w0, w1, w2]
-    public parameters indices : []
-    return value indices : []
+    current witness: w6
+    private parameters: [w0, w1, w2]
+    public parameters: []
+    return values: []
     EXPR [ (1, w0, w1) (-1, w3) 0 ]
     EXPR [ (1, w3, w3) (-1, w4) 0 ]
     EXPR [ (1, w4, w4) (-1, w5) 0 ]
@@ -116,10 +116,10 @@ fn assert_zero_with_mul_terms() {
 #[test]
 fn range_and_xor() {
     let src = "
-    current witness index : w2
-    private parameters indices : [w0]
-    public parameters indices : [w1]
-    return value indices : []
+    current witness: w2
+    private parameters: [w0]
+    public parameters: [w1]
+    return values: []
     BLACKBOX::RANGE [(w0, 32)] []
     BLACKBOX::RANGE [(w1, 32)] []
     BLACKBOX::XOR [(w0, 32), (w1, 32)] [w2]
@@ -132,10 +132,10 @@ fn range_and_xor() {
 fn aes128_encrypt() {
     // This ACIR represents an accurately constrained aes128 encryption in ACIR
     let src = "
-    current witness index : w75
-    private parameters indices : [w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15, w16, w17, w18, w19, w20, w21, w22, w23, w24, w25, w26, w27, w28, w29, w30, w31, w32, w33, w34, w35, w36, w37, w38, w39, w40, w41, w42, w43]
-    public parameters indices : [w44, w45, w46, w47, w48, w49, w50, w51, w52, w53, w54, w55, w56, w57, w58, w59]
-    return value indices : []
+    current witness: w75
+    private parameters: [w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15, w16, w17, w18, w19, w20, w21, w22, w23, w24, w25, w26, w27, w28, w29, w30, w31, w32, w33, w34, w35, w36, w37, w38, w39, w40, w41, w42, w43]
+    public parameters: [w44, w45, w46, w47, w48, w49, w50, w51, w52, w53, w54, w55, w56, w57, w58, w59]
+    return values: []
     BLACKBOX::RANGE [(w0, 8)] []
     BLACKBOX::RANGE [(w1, 8)] []
     BLACKBOX::RANGE [(w2, 8)] []
@@ -220,10 +220,10 @@ fn aes128_encrypt() {
 #[test]
 fn blake2s() {
     let src = "
-    current witness index : w68
-    private parameters indices : [w0, w1, w2, w3, w4]
-    public parameters indices : [w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15, w16, w17, w18, w19, w20, w21, w22, w23, w24, w25, w26, w27, w28, w29, w30, w31, w32, w33, w34, w35, w36]
-    return value indices : []
+    current witness: w68
+    private parameters: [w0, w1, w2, w3, w4]
+    public parameters: [w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15, w16, w17, w18, w19, w20, w21, w22, w23, w24, w25, w26, w27, w28, w29, w30, w31, w32, w33, w34, w35, w36]
+    return values: []
     BLACKBOX::BLAKE2S [(w0, 8), (w1, 8), (w2, 8), (w3, 8), (w4, 8)] [w37, w38, w39, w40, w41, w42, w43, w44, w45, w46, w47, w48, w49, w50, w51, w52, w53, w54, w55, w56, w57, w58, w59, w60, w61, w62, w63, w64, w65, w66, w67, w68]
     ";
     assert_circuit_roundtrip(src);
@@ -232,10 +232,10 @@ fn blake2s() {
 #[test]
 fn blake3() {
     let src = "
-    current witness index : w37
-    private parameters indices : [w0, w1, w2, w3, w4]
-    public parameters indices : []
-    return value indices : []
+    current witness: w37
+    private parameters: [w0, w1, w2, w3, w4]
+    public parameters: []
+    return values: []
     BLACKBOX::BLAKE3 [(w0, 8), (w1, 8), (w2, 8), (w3, 8), (w4, 8)] [w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15, w16, w17, w18, w19, w20, w21, w22, w23, w24, w25, w26, w27, w28, w29, w30, w31, w32, w33, w34, w35, w36]
     ";
     assert_circuit_roundtrip(src);
@@ -248,10 +248,10 @@ fn ecdsa_secp256k1() {
 
     let src = format!(
         "
-    current witness index : w160
-    private parameters indices : []
-    public parameters indices : []
-    return value indices : []
+    current witness: w160
+    private parameters: []
+    public parameters: []
+    return values: []
     BLACKBOX::ECDSA_SECP256K1 [{inputs_str}] [w160]
     "
     );
@@ -266,10 +266,10 @@ fn ecdsa_secp256k1_missing_inputs() {
 
     let src = format!(
         "
-    current witness index : w100
-    private parameters indices : []
-    public parameters indices : []
-    return value indices : []
+    current witness: w100
+    private parameters: []
+    public parameters: []
+    return values: []
     BLACKBOX::ECDSA_SECP256K1 [{inputs_str}] [w100]
     "
     );
@@ -283,10 +283,10 @@ fn ecdsa_secp256r1() {
 
     let src = format!(
         "
-    current witness index : w160
-    private parameters indices : []
-    public parameters indices : []
-    return value indices : []
+    current witness: w160
+    private parameters: []
+    public parameters: []
+    return values: []
     BLACKBOX::ECDSA_SECP256R1 [{inputs_str}] [w160]
     "
     );
@@ -301,10 +301,10 @@ fn ecdsa_secp256r1_missing_inputs() {
 
     let src = format!(
         "
-    current witness index : w100
-    private parameters indices : []
-    public parameters indices : []
-    return value indices : []
+    current witness: w100
+    private parameters: []
+    public parameters: []
+    return values: []
     BLACKBOX::ECDSA_SECP256R1 [{inputs_str}] [w100]
     "
     );
@@ -321,10 +321,10 @@ fn keccakf1600() {
 
     let src = format!(
         "
-    current witness index : w50
-    private parameters indices : []
-    public parameters indices : []
-    return value indices : []
+    current witness: w50
+    private parameters: []
+    public parameters: []
+    return values: []
     BLACKBOX::KECCAKF1600 [{inputs_str}] [{outputs_str}]
     "
     );
@@ -342,10 +342,10 @@ fn keccakf1600_missing_inputs() {
 
     let src = format!(
         "
-        current witness index : w49
-        private parameters indices : []
-        public parameters indices : []
-        return value indices : []
+        current witness: w49
+        private parameters: []
+        public parameters: []
+        return values: []
         BLACKBOX::KECCAKF1600 [{inputs_str}] [{outputs_str}]
         "
     );
@@ -355,10 +355,10 @@ fn keccakf1600_missing_inputs() {
 #[test]
 fn embedded_curve_add() {
     let src = "
-    current witness index : w9
-    private parameters indices : []
-    public parameters indices : []
-    return value indices : []
+    current witness: w9
+    private parameters: []
+    public parameters: []
+    return values: []
     BLACKBOX::EMBEDDED_CURVE_ADD [(w0, 255), (w1, 255), (w2, 1), (w3, 255), (w4, 255), (w5, 1)] [w6, w7, w8]
     ";
     assert_circuit_roundtrip(src);
@@ -368,10 +368,10 @@ fn embedded_curve_add() {
 #[should_panic]
 fn embedded_curve_add_wrong_output_count() {
     let src = "
-        current witness index : w8
-        private parameters indices : []
-        public parameters indices : []
-        return value indices : []
+        current witness: w8
+        private parameters: []
+        public parameters: []
+        return values: []
         BLACKBOX::EMBEDDED_CURVE_ADD [(w0, 255), (w1, 255), (w2, 1), (w3, 255), (w4, 255), (w5, 1)] [w6, w7]
     ";
     let _ = Circuit::from_str(src).unwrap();
@@ -380,10 +380,10 @@ fn embedded_curve_add_wrong_output_count() {
 #[test]
 fn poseidon2_permutation() {
     let src = "
-    current witness index : w5
-    private parameters indices : []
-    public parameters indices : []
-    return value indices : []
+    current witness: w5
+    private parameters: []
+    public parameters: []
+    return values: []
     BLACKBOX::POSEIDON2_PERMUTATION [(w0, 255), (w1, 255), (w2, 255)] [w3, w4, w5]
     ";
     assert_circuit_roundtrip(src);
@@ -399,10 +399,10 @@ fn sha256_compression() {
 
     let src = format!(
         "
-    current witness index : w31
-    private parameters indices : []
-    public parameters indices : []
-    return value indices : []
+    current witness: w31
+    private parameters: []
+    public parameters: []
+    return values: []
     BLACKBOX::SHA256_COMPRESSION [{inputs_str}] [{outputs_str}]
     "
     );
@@ -420,10 +420,10 @@ fn sha256_compression_missing_outputs() {
 
     let src = format!(
         "
-        current witness index : w31
-        private parameters indices : []
-        public parameters indices : []
-        return value indices : []
+        current witness: w31
+        private parameters: []
+        public parameters: []
+        return values: []
         BLACKBOX::SHA256_COMPRESSION [{inputs_str}] [{outputs_str}]
         "
     );
@@ -433,10 +433,10 @@ fn sha256_compression_missing_outputs() {
 #[test]
 fn memory_read() {
     let src = "
-    current witness index : w1
-    private parameters indices : []
-    public parameters indices : []
-    return value indices : []
+    current witness: w1
+    private parameters: []
+    public parameters: []
+    return values: []
     MEM (id: 0, read at: EXPR [ (1, w0) 0 ], value: EXPR [ (1, w1) 0 ]) 
     ";
     assert_circuit_roundtrip(src);
@@ -445,10 +445,10 @@ fn memory_read() {
 #[test]
 fn memory_read_with_predicate() {
     let src = "
-    current witness index : w2
-    private parameters indices : []
-    public parameters indices : []
-    return value indices : []
+    current witness: w2
+    private parameters: []
+    public parameters: []
+    return values: []
     MEM PREDICATE: EXPR [ (1, w0) 0 ]
     (id: 0, read at: EXPR [ (1, w1) 0 ], value: EXPR [ (1, w2) 0 ]) 
     ";
@@ -458,10 +458,10 @@ fn memory_read_with_predicate() {
 #[test]
 fn memory_write() {
     let src = "
-    current witness index : w1
-    private parameters indices : []
-    public parameters indices : []
-    return value indices : []
+    current witness: w1
+    private parameters: []
+    public parameters: []
+    return values: []
     MEM (id: 3, write EXPR [ (1, w0) 0 ] at: EXPR [ (1, w1) 0 ])
     ";
     assert_circuit_roundtrip(src);
@@ -470,10 +470,10 @@ fn memory_write() {
 #[test]
 fn memory_init() {
     let src = "
-    current witness index : w4
-    private parameters indices : []
-    public parameters indices : []
-    return value indices : []
+    current witness: w4
+    private parameters: []
+    public parameters: []
+    return values: []
     INIT (id: 4, len: 5, witnesses: [w0, w1, w2, w3, w4])
     ";
     assert_circuit_roundtrip(src);
@@ -482,10 +482,10 @@ fn memory_init() {
 #[test]
 fn memory_init_duplicate_witness() {
     let src = "
-    current witness index : w4
-    private parameters indices : []
-    public parameters indices : []
-    return value indices : []
+    current witness: w4
+    private parameters: []
+    public parameters: []
+    return values: []
     INIT (id: 4, len: 2, witnesses: [w0, w0])
     ";
     assert_circuit_roundtrip(src);
@@ -494,10 +494,10 @@ fn memory_init_duplicate_witness() {
 #[test]
 fn memory_databus() {
     let src = "
-    current witness index : w5
-    private parameters indices : [w0, w1, w2, w3, w4, w5]
-    public parameters indices : []
-    return value indices : []
+    current witness: w5
+    private parameters: [w0, w1, w2, w3, w4, w5]
+    public parameters: []
+    return values: []
     INIT CALLDATA 0 (id: 1, len: 5, witnesses: [w1, w2, w3, w4, w5])
     INIT RETURNDATA (id: 2, len: 1, witnesses: [w6])
     ";
@@ -507,10 +507,10 @@ fn memory_databus() {
 #[test]
 fn brillig_call() {
     let src = "
-    current witness index : w2
-    private parameters indices : [w0, w1, w2]
-    public parameters indices : []
-    return value indices : []
+    current witness: w2
+    private parameters: [w0, w1, w2]
+    public parameters: []
+    return values: []
     BRILLIG CALL func 0: inputs: [EXPR [ (1, w0) (-1, w1) 0 ]], outputs: [w3]
     EXPR [ (1, w0, w3) (-1, w1, w3) -1 ]
     EXPR [ (-1, w0) (1, w2) 0 ]
@@ -521,10 +521,10 @@ fn brillig_call() {
 #[test]
 fn brillig_call_with_predicate() {
     let src = "
-    current witness index : w2
-    private parameters indices : [w0, w1, w2]
-    public parameters indices : []
-    return value indices : []
+    current witness: w2
+    private parameters: [w0, w1, w2]
+    public parameters: []
+    return values: []
     BRILLIG CALL func 0: PREDICATE: EXPR [ 1 ]
     inputs: [EXPR [ (1, w0) (-1, w1) 0 ]], outputs: [w3]
     EXPR [ (1, w0, w3) (-1, w1, w3) -1 ]
@@ -536,10 +536,10 @@ fn brillig_call_with_predicate() {
 #[test]
 fn brillig_call_with_memory_array_input() {
     let src = "
-    current witness index : w2
-    private parameters indices : [w0, w1, w2]
-    public parameters indices : []
-    return value indices : []
+    current witness: w2
+    private parameters: [w0, w1, w2]
+    public parameters: []
+    return values: []
     BRILLIG CALL func 0: inputs: [EXPR [ 2 ], MemoryArray(0)], outputs: []
     ";
     assert_circuit_roundtrip(src);
@@ -548,10 +548,10 @@ fn brillig_call_with_memory_array_input() {
 #[test]
 fn call() {
     let src = "
-    current witness index : w2
-    private parameters indices : [w0]
-    public parameters indices : [w1]
-    return value indices : []
+    current witness: w2
+    private parameters: [w0]
+    public parameters: [w1]
+    return values: []
     CALL func 1: inputs: [w0, w1], outputs: [w2]
     ";
     assert_circuit_roundtrip(src);
@@ -560,10 +560,10 @@ fn call() {
 #[test]
 fn call_with_predicate() {
     let src = "
-    current witness index : w2
-    private parameters indices : [w0]
-    public parameters indices : [w1]
-    return value indices : []
+    current witness: w2
+    private parameters: [w0]
+    public parameters: [w1]
+    return values: []
     CALL func 1: PREDICATE: EXPR [ 1 ]
     inputs: [w0, w1], outputs: [w2]
     ";
@@ -574,10 +574,10 @@ fn call_with_predicate() {
 #[test]
 fn array_dynamic() {
     let src = "
-    current witness index : w78
-    private parameters indices : [w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15, w16, w17, w18]
-    public parameters indices : []
-    return value indices : []
+    current witness: w78
+    private parameters: [w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15, w16, w17, w18]
+    public parameters: []
+    return values: []
     BLACKBOX::RANGE [(w0, 32)] []
     BLACKBOX::RANGE [(w1, 32)] []
     BLACKBOX::RANGE [(w2, 32)] []

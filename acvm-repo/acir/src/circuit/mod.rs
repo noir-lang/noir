@@ -325,7 +325,7 @@ impl<F: AcirField + for<'a> Deserialize<'a>> Program<F> {
 
 impl<F: AcirField> std::fmt::Display for Circuit<F> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "current witness index : w{}", self.current_witness_index)?;
+        writeln!(f, "current witness: w{}", self.current_witness_index)?;
 
         let write_witness_indices =
             |f: &mut std::fmt::Formatter<'_>, indices: &[u32]| -> Result<(), std::fmt::Error> {
@@ -339,7 +339,7 @@ impl<F: AcirField> std::fmt::Display for Circuit<F> {
                 writeln!(f, "]")
             };
 
-        write!(f, "private parameters indices : ")?;
+        write!(f, "private parameters: ")?;
         write_witness_indices(
             f,
             &self
@@ -349,10 +349,10 @@ impl<F: AcirField> std::fmt::Display for Circuit<F> {
                 .collect::<Vec<_>>(),
         )?;
 
-        write!(f, "public parameters indices : ")?;
+        write!(f, "public parameters: ")?;
         write_witness_indices(f, &self.public_parameters.indices())?;
 
-        write!(f, "return value indices : ")?;
+        write!(f, "return values: ")?;
         write_witness_indices(f, &self.return_values.indices())?;
 
         for opcode in &self.opcodes {
@@ -537,10 +537,10 @@ mod tests {
         insta::assert_snapshot!(
             circuit.to_string(),
             @r"
-            current witness index : w3
-            private parameters indices : []
-            public parameters indices : [w2]
-            return value indices : [w2]
+            current witness: w3
+            private parameters: []
+            public parameters: [w2]
+            return values: [w2]
             EXPR [ (2, w1) 8 ]
             BLACKBOX::RANGE [(w1, 8)] []
             BLACKBOX::AND [(w1, 4), (w2, 4)] [w3]
