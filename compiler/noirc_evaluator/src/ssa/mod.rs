@@ -51,6 +51,7 @@ pub mod opt;
 pub mod parser;
 pub mod ssa_gen;
 pub(crate) mod validation;
+mod visit_once_deque;
 
 #[derive(Debug, Clone)]
 pub enum SsaLogging {
