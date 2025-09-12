@@ -22,14 +22,14 @@ use noirc_evaluator::ssa::ir::function::RuntimeType;
 use noirc_frontend::monomorphization::ast::InlineType as FrontendInlineType;
 use rand::{SeedableRng, rngs::StdRng};
 use serde_json::{Value, json};
-use std::fs;
 use std::io::{BufRead, BufReader, Write};
 use std::process::{Child, Command, Stdio};
 use std::sync::{Mutex, OnceLock};
+use std::{fs, io::Read};
 
 lazy_static::lazy_static! {
     static ref SIMULATOR_BIN_PATH: String = std::env::var("SIMULATOR_BIN_PATH").unwrap_or_else(|_| "/home/defkit/aztec-packages/yarn-project/simulator/dest/public/avm/avm_simulator_bin.js".to_string());
-    static ref TRANSPILER_BIN_PATH: String = std::env::var("TRANSPILER_BIN_PATH").unwrap_or_else(|_| "/home/defkit/aztec-packages/avm-transpiler/target/release/avm-transpiler".to_string());
+    static ref TRANSPILER_BIN_PATH: String = std::env::var("TRANSPILER_BIN_PATH").unwrap_or_else(|_| "/home/defkit/builder/avm-transpiler".to_string());
 }
 
 /// Placeholder for creating a base contract artifact to feed to the transpiler
@@ -171,6 +171,7 @@ impl SimulatorProcess {
             serde_json::to_string(&request)
                 .map_err(|e| format!("Failed to serialize request: {}", e))?
         );
+        log::debug!("Simulator request: {}", request_line);
 
         self.stdin
             .write_all(request_line.as_bytes())
@@ -178,10 +179,13 @@ impl SimulatorProcess {
         self.stdin.flush().map_err(|e| format!("Failed to flush simulator input: {}", e))?;
 
         // Read response
+        log::debug!("Reading response from simulator");
         let mut response_line = String::new();
         self.stdout
             .read_line(&mut response_line)
             .map_err(|e| format!("Failed to read from simulator: {}", e))?;
+
+        log::debug!("Simulator response: {}", response_line);
 
         let response: Value = serde_json::from_str(&response_line.trim())
             .map_err(|e| format!("Failed to parse simulator response: {}", e))?;
