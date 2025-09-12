@@ -72,7 +72,7 @@ fn check_u128_mul_overflow(
     let lhs_value = dfg.get_numeric_constant(lhs);
     let rhs_value = dfg.get_numeric_constant(rhs);
 
-    // If we multiply a constant value 2^n by an uknown u128 value we get at most `2^(n+128) - 2`.
+    // If we multiply a constant value 2^n by an unknown u128 value we get at most `2^(n+128) - 2`.
     // If `n+128` does not overflow the maximum Field element value, there's no need to check for overflow.
     let max_const_value_that_does_not_overflow = 1_u128 << (FieldElement::max_num_bits() - 128);
     if lhs_value.is_some_and(|value| value.to_u128() < max_const_value_that_does_not_overflow)
