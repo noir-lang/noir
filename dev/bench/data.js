@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1757698092992,
+  "lastUpdate": 1757698096868,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -12102,80 +12102,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "15aebdf6497398b79b39d091f0915cc57c8c8242",
-          "message": "chore(inlining): Skip weight calc for ACIR functions and recursive Brillig functions (#9739)",
-          "timestamp": "2025-09-05T19:44:38Z",
-          "tree_id": "b5f9e521f1efc35e0ddefe28d710b61fd8f035e3",
-          "url": "https://github.com/noir-lang/noir/commit/15aebdf6497398b79b39d091f0915cc57c8c8242"
-        },
-        "date": 1757103942171,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 258.14,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 291.31,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 242.89,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 506.01,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 438.39,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1500,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 330.47,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 332.99,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 72.45,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 58.23,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "163862677+noirwhal@users.noreply.github.com",
             "name": "noirwhal",
             "username": "noirwhal"
@@ -15765,6 +15691,80 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-base-private",
             "value": 506.72,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 439.12,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1540,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 331.16,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 333.68,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 72.87,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 69.42,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "00f5ece64d32fb2c602efd7525c0a950bb33f7e7",
+          "message": "chore: delete some unused snapshots (#9841)",
+          "timestamp": "2025-09-12T18:05:30+01:00",
+          "tree_id": "5cb58b43b03aa28e1d42c682028aa9ec72b1f987",
+          "url": "https://github.com/noir-lang/noir/commit/00f5ece64d32fb2c602efd7525c0a950bb33f7e7"
+        },
+        "date": 1757698075924,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 258.83,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 291.99,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 243.6,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 506.71,
             "unit": "MB"
           },
           {
