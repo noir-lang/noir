@@ -1073,6 +1073,105 @@ mod tests {
         );
     }
 
+    // This test shows that the following SSA returns a `NumericValue::Field` before
+    // `defunctionalize` is run, but returns a `FunctionId` after defunctionalize,
+    // when interpreted.
+    //
+    // Note that the ACIR 'main' fn returns a function
+    // (expected to be disallowed by the frontend).
+    #[test]
+    fn interpret_acir_returning_fn() {
+        let src = "
+          acir(inline) fn main f0 {
+            b0():
+              call f1()
+              return f1 
+          }
+          acir(inline) fn bar f1 {
+            b0():
+              return
+          }
+        ";
+
+        let defunctionalize_ssa = Ssa::from_str(src).unwrap();
+        let defunctionalize_ssa = defunctionalize_ssa.defunctionalize();
+        let defunctionalize_results = defunctionalize_ssa.interpret(vec![]);
+
+        let interpreter_return_values = expect_value_with_args(src, vec![]);
+
+        let expected_interpreter_return_values = Value::Function(FunctionId::test_new(1));
+        let expected_defunctionalize_results: IResults =
+            Ok(vec![Value::Numeric(NumericValue::Field(1u128.into()))]);
+
+        assert_eq!(defunctionalize_results, expected_defunctionalize_results);
+        assert_eq!(interpreter_return_values, expected_interpreter_return_values);
+
+        assert_ssa_snapshot!(defunctionalize_ssa, @r"
+          acir(inline) fn main f0 {
+            b0():
+              call f1()
+              return Field 1
+          }
+          acir(inline) fn bar f1 {
+            b0():
+              return
+          }
+        ");
+    }
+
+    // Test from SSA fuzzing to check behavior of 'defunctionalize' pass on
+    // an ACIR 'main' fn that accepts and returns a function parameter
+    // (expected to be disallowed by the frontend).
+    //
+    // When fuzzing, it was panicking with:
+    // "Could not find apply function"
+    #[test]
+    fn missing_fn_parameter_type() {
+        let src = "
+          acir(inline) fn get_t_c f3 {
+            b0(v0: function):
+              v1 = call v0() -> function
+              return v1
+          }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.defunctionalize();
+
+        assert_ssa_snapshot!(ssa, @r"
+          acir(inline) fn get_t_c f0 {
+            b0(v0: Field):
+              v1 = call v0() -> Field
+              return v1
+          }
+        ");
+    }
+
+    // Test from SSA fuzzing to check behavior of 'defunctionalize' pass on
+    // a Brillig 'main' fn that accepts a function parameter (expected to be
+    // disallowed by the frontend).
+    #[test]
+    fn missing_fn() {
+        let src = "
+          brillig(inline) fn main f0 {
+            b0(v0: function, v1: u32):
+              v2 = call v0(v1) -> u32
+              return v2
+          }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.defunctionalize();
+
+        assert_ssa_snapshot!(ssa, @r"
+          brillig(inline) fn main f0 {
+            b0(v0: Field, v1: u32):
+              v2 = call v0(v1) -> u32
+              return v2
+          }
+        ");
+    }
+
     #[test]
     fn missing_fn_variant() {
         let src = "
