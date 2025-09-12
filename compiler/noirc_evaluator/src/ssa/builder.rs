@@ -190,16 +190,7 @@ impl<'local> SsaBuilder<'local> {
             self.ssa.normalize_ids();
         }
 
-        let print_ssa_pass = match &self.ssa_logging {
-            SsaLogging::None => false,
-            SsaLogging::All => true,
-            SsaLogging::Contains(strings) => strings.iter().any(|string| {
-                let string = string.to_lowercase();
-                let string = string.strip_prefix("after ").unwrap_or(&string);
-                let string = string.strip_suffix(':').unwrap_or(string);
-                msg.to_lowercase().contains(string)
-            }),
-        };
+        let print_ssa_pass = self.ssa_logging.matches(msg);
 
         if print_ssa_pass {
             println_to_stdout!("After {msg}:\n{}", self.ssa.print_with(self.files));

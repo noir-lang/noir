@@ -3565,6 +3565,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "noir_ssa_cli"
+version = "1.0.0-beta.12"
+dependencies = [
+ "clap",
+ "color-eyre",
+ "const_format",
+ "iter-extended",
+ "noir_artifact_cli",
+ "noir_ast_fuzzer",
+ "noirc_abi",
+ "noirc_driver",
+ "noirc_errors",
+ "noirc_evaluator",
+ "tempfile",
+ "thiserror 1.0.69",
+ "toml",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "noir_ssa_executor"
 version = "1.0.0-beta.12"
 dependencies = [
