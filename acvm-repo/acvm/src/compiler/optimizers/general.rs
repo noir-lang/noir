@@ -177,4 +177,24 @@ mod tests {
         EXPR [ (6, _0) 0 ]
         ");
     }
+
+    #[test]
+    fn removes_zero_coefficients_after_simplifying_linear_terms() {
+        let src = "
+        current witness index : _1
+        private parameters indices : [_0, _1]
+        public parameters indices : []
+        return value indices : []
+        EXPR [ (1, _0) (2, _0) (-3, _0) 0 ]
+        ";
+        let circuit = Circuit::from_str(src).unwrap();
+        let optimized_circuit = optimize(circuit);
+        assert_circuit_snapshot!(optimized_circuit, @r"
+        current witness index : _1
+        private parameters indices : [_0, _1]
+        public parameters indices : []
+        return value indices : []
+        EXPR [ 0 ]
+        ");
+    }
 }
