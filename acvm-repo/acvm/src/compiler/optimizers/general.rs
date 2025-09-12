@@ -131,4 +131,27 @@ mod tests {
         EXPR [ (1, _1) 0 ]
         ");
     }
+
+    #[test]
+    fn simplifies_mul_terms() {
+        let src = "
+        current witness index : _1
+        private parameters indices : [_0, _1]
+        public parameters indices : []
+        return value indices : []
+
+        // There are all mul terms with the same variables so we should end up with just one
+        // that is the sum of all the coefficients
+        EXPR [ (2, _0, _1) (3, _1, _0) (4, _0, _1) 0 ]
+        ";
+        let circuit = Circuit::from_str(src).unwrap();
+        let optimized_circuit = optimize(circuit);
+        assert_circuit_snapshot!(optimized_circuit, @r"
+        current witness index : _1
+        private parameters indices : [_0, _1]
+        public parameters indices : []
+        return value indices : []
+        EXPR [ (9, _0, _1) 0 ]
+        ");
+    }
 }
