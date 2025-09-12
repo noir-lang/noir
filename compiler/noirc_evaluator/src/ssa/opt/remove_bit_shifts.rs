@@ -317,7 +317,7 @@ impl Context<'_, '_, '_> {
         // All operations are unchecked as we're acting on Field types (which are always unchecked)
         for i in 1..max_exponent_bits + 1 {
             let idx = self.numeric_constant(
-                FieldElement::from((max_exponent_bits - i) as i128),
+                FieldElement::from(i128::from(max_exponent_bits - i)),
                 NumericType::length_type(),
             );
             let b = self.insert_array_get(exponent_bits, idx, Type::bool());

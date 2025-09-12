@@ -2,9 +2,8 @@
 //! The purpose of this pass is to inline the instructions of each function call
 //! within the function caller. If all function calls are known, there will only
 //! be a single function remaining when the pass finishes.
-use std::collections::{HashSet, VecDeque};
 
-use crate::errors::RuntimeError;
+use crate::{errors::RuntimeError, ssa::visit_once_deque::VisitOnceDeque};
 use acvm::acir::AcirField;
 use im::HashMap;
 use iter_extended::vecmap;
@@ -337,7 +336,7 @@ impl<'function> PerFunctionContext<'function> {
     fn translate_block(
         &mut self,
         source_block: BasicBlockId,
-        block_queue: &mut VecDeque<BasicBlockId>,
+        block_queue: &mut VisitOnceDeque,
     ) -> BasicBlockId {
         if let Some(block) = self.blocks.get(&source_block) {
             return *block;
@@ -390,8 +389,7 @@ impl<'function> PerFunctionContext<'function> {
         ssa: &Ssa,
         should_inline_call: &impl Fn(&Function) -> bool,
     ) -> Result<Vec<ValueId>, RuntimeError> {
-        let mut seen_blocks = HashSet::new();
-        let mut block_queue = VecDeque::new();
+        let mut block_queue = VisitOnceDeque::default();
         block_queue.push_back(self.source_function.entry_block());
 
         // This Vec will contain each block with a Return instruction along with the
@@ -399,13 +397,9 @@ impl<'function> PerFunctionContext<'function> {
         let mut function_returns = vec![];
 
         while let Some(source_block_id) = block_queue.pop_front() {
-            if seen_blocks.contains(&source_block_id) {
-                continue;
-            }
             let translated_block_id = self.translate_block(source_block_id, &mut block_queue);
             self.context.builder.switch_to_block(translated_block_id);
 
-            seen_blocks.insert(source_block_id);
             self.inline_block_instructions(ssa, source_block_id, should_inline_call)?;
 
             if let Some((block, values)) =
@@ -612,7 +606,7 @@ impl<'function> PerFunctionContext<'function> {
     fn handle_terminator_instruction(
         &mut self,
         block_id: BasicBlockId,
-        block_queue: &mut VecDeque<BasicBlockId>,
+        block_queue: &mut VisitOnceDeque,
     ) -> Option<(BasicBlockId, Vec<ValueId>)> {
         match &self.source_function.dfg[block_id].unwrap_terminator() {
             TerminatorInstruction::Jmp { destination, arguments, call_stack } => {

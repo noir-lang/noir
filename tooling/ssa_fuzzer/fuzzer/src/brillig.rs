@@ -89,7 +89,7 @@ libfuzzer_sys::fuzz_target!(|data: &[u8]| -> Corpus {
 });
 
 libfuzzer_sys::fuzz_mutator!(|data: &mut [u8], _size: usize, max_size: usize, seed: u32| {
-    let mut rng = StdRng::seed_from_u64(seed as u64);
+    let mut rng = StdRng::seed_from_u64(u64::from(seed));
     let mut new_fuzzer_data: FuzzerData = borrow_decode_from_slice(data, bincode::config::legacy())
         .unwrap_or((FuzzerData::default(), 1337))
         .0;
