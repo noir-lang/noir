@@ -91,6 +91,7 @@ use crate::ssa::{
     ir::{
         basic_block::BasicBlockId,
         cfg::ControlFlowGraph,
+        dfg::DataFlowGraph,
         dom::DominatorTree,
         function::Function,
         function_inserter::FunctionInserter,
@@ -665,7 +666,6 @@ impl<'f> LoopInvariantContext<'f> {
         instruction_id: InstructionId,
     ) -> bool {
         use CanBeHoistedResult::*;
-        use Instruction::*;
 
         let mut is_loop_invariant = true;
         // The list of blocks for a nested loop contain any inner loops as well.
@@ -686,22 +686,21 @@ impl<'f> LoopInvariantContext<'f> {
             return false;
         }
 
-        // MakeArray is only safe to hoist in ACIR, but we know that in Brillig we will insert an `IncRc`
-        // in `LoopInvariantContext::hoist_loop_invariants` to keep it safe, so it's okay to hoist them.
-        if matches!(instruction, MakeArray { .. }) {
-            return true;
-        }
-
         // Check if the operation depends only on the outer loop variable, in which case it can be hoisted
         // into the pre-header of a nested loop even if the nested loop does not execute.
         if self.can_be_hoisted_from_loop_bounds(loop_context, &instruction) {
             return true;
         }
 
-        match can_be_hoisted(&instruction, self.inserter.function) {
+        match can_be_hoisted(&instruction, &self.inserter.function.dfg) {
             Yes => true,
             No => false,
             WithPredicate => block_context.can_hoist_control_dependent_instruction(),
+            WithRefCount => {
+                // MakeArray is only safe to hoist in ACIR, but we know that in Brillig we will insert an `IncRc`
+                // in `LoopInvariantContext::hoist_loop_invariants` to keep it safe, so it's okay to hoist them.
+                true
+            }
         }
     }
 
@@ -793,10 +792,11 @@ fn get_induction_var_bounds(
 
 /// Indicate whether an instruction can be hoisted.
 #[derive(Debug, PartialEq, Eq)]
-enum CanBeHoistedResult {
+pub(super) enum CanBeHoistedResult {
     Yes,
     No,
     WithPredicate,
+    WithRefCount,
 }
 
 impl From<bool> for CanBeHoistedResult {
@@ -825,7 +825,7 @@ impl From<bool> for CanBeHoistedResult {
 /// This differs from `can_be_deduplicated` as that method assumes there is a matching instruction
 /// with the same inputs. Hoisting is for lone instructions, meaning a mislabeled hoist could cause
 /// unexpected failures if the instruction was never meant to be executed.
-fn can_be_hoisted(instruction: &Instruction, function: &Function) -> CanBeHoistedResult {
+pub(super) fn can_be_hoisted(instruction: &Instruction, dfg: &DataFlowGraph) -> CanBeHoistedResult {
     use CanBeHoistedResult::*;
     use Instruction::*;
 
@@ -839,9 +839,9 @@ fn can_be_hoisted(instruction: &Instruction, function: &Function) -> CanBeHoiste
         | DecrementRc { .. } => No,
 
         Call { func, .. } => {
-            let purity = match function.dfg[*func] {
+            let purity = match dfg[*func] {
                 Value::Intrinsic(intrinsic) => Some(intrinsic.purity()),
-                Value::Function(id) => function.dfg.purity_of(id),
+                Value::Function(id) => dfg.purity_of(id),
                 _ => None,
             };
             match purity {
@@ -855,7 +855,7 @@ fn can_be_hoisted(instruction: &Instruction, function: &Function) -> CanBeHoiste
         Cast(source, target_type) => {
             // A cast may have dependence on a range-check, which may not be hoisted, so we cannot always hoist a cast.
             // We can safely hoist a cast from a smaller to a larger type as no range check is necessary in this case.
-            let source_type = function.dfg.type_of_value(*source).unwrap_numeric();
+            let source_type = dfg.type_of_value(*source).unwrap_numeric();
             (source_type.bit_size() <= target_type.bit_size()).into()
         }
 
@@ -873,16 +873,32 @@ fn can_be_hoisted(instruction: &Instruction, function: &Function) -> CanBeHoiste
         // hoisted. We know that in this module we will insert a corresponding `IncRc` to
         // allow safe hoisting in unconstrained code, but just in case we would expose this
         // function to other modules, we return a more restrictive result here.
-        MakeArray { .. } => function.runtime().is_acir().into(),
+        MakeArray { .. } => {
+            if dfg.runtime().is_acir() {
+                Yes
+            } else {
+                WithRefCount
+            }
+        }
 
         // These can have different behavior depending on the predicate.
-        Binary(_) | ArraySet { .. } | ArrayGet { .. } => {
-            if !instruction.requires_acir_gen_predicate(&function.dfg) {
+        Binary(_) => {
+            // `requires_acir_gen_predicate` and `has_side_effects` make slightly different
+            // decisions for binary ops, e.g. the latter looks for safe constants.
+            if !instruction.has_side_effects(dfg) { Yes } else { WithPredicate }
+        }
+
+        // ArrayGet is considered not to need a predicate and be "pure" in Brillig,
+        // however it should not be separated from its OOB constraints if its unsafe.
+        ArrayGet { index, array, offset: _ } => {
+            if dfg.is_safe_index(*index, *array) {
                 Yes
             } else {
                 WithPredicate
             }
         }
+
+        ArraySet { .. } => WithPredicate,
     }
 }
 
@@ -1663,7 +1679,8 @@ mod test {
     #[test]
     fn hoist_safe_div() {
         // This test is identical to `do_not_hoist_unsafe_div`, except the loop
-        // in this test starts with a lower bound of `1`.
+        // in this test starts with a lower bound of `1`, so it will never divide
+        // by a zero induction variable.
         let src = "
         brillig(inline) fn main f0 {
           b0(v0: u32):
@@ -1726,6 +1743,51 @@ mod test {
             jmp b4(v14)
         }
         ");
+    }
+
+    /// Test whether a division that doesn't depend on the induction variable gets hoisted out of a loop,
+    /// when it's in a control dependent block, which makes it depend on a predicate.
+    /// With a decision based on `requires_acir_gen_predicate` it would not be hoisted, but based on `has_side_effects` it is.
+    #[test_case(true, 10, true)]
+    #[test_case(false, 10, true)]
+    #[test_case(true, 0, false)]
+    #[test_case(false, 0, false)]
+    fn hoist_invariant_div(loop_executes: bool, denominator: u32, should_hoist: bool) {
+        let (lower, upper) = if loop_executes { (0, 5) } else { (0, 0) };
+        let src = format!(
+            "
+        brillig(inline) fn main f0 {{
+          b0(v0: u32, v1: u1):
+            jmp b1(u32 {lower})
+          b1(v2: u32):
+            v3 = lt v2, u32 {upper}
+            jmpif v3 then: b2, else: b3
+          b2():
+            jmpif v1 then: b4, else: b5
+          b3():
+            return
+          b4():
+            v4 = div v0, u32 {denominator}
+            jmp b5()
+          b5():
+            v5 = unchecked_add v2, u32 1
+            jmp b1(v5)
+        }}
+        "
+        );
+
+        let ssa = Ssa::from_str(&src).unwrap();
+        let ssa = ssa.loop_invariant_code_motion();
+
+        println!("{ssa}");
+
+        // The pre-header of the loop b1 is b0
+        let pre_header = &ssa.main().dfg[BasicBlockId::new(0)];
+        if !should_hoist {
+            assert!(pre_header.instructions().is_empty(), "should not hoist");
+        } else {
+            assert_eq!(pre_header.instructions().len(), 1, "should hoist");
+        }
     }
 
     #[test]
@@ -2072,11 +2134,11 @@ mod test {
     #[test_case("u32", 0, 10, 10, true, "eq", 5, true, "eq is safe")]
     #[test_case("u32", 0, 10, 0, true, "eq", 5, true, "loop empty, but eq is safe")]
     #[test_case("u32", 5, 10, 10, true, "shr", 1, true, "loop executes, shr ok")]
-    #[test_case("u32", 5, 10, 0, true, "shr", 1, false, "loop empty, shr ok")]
+    #[test_case("u32", 5, 10, 0, true, "shr", 1, true, "loop empty, shr ok")]
     #[test_case("u32", 5, 10, 10, true, "shr", 32, true, "shr overflow, and loop executes")]
     #[test_case("u32", 5, 10, 0, true, "shr", 32, false, "shr overflow, but loop empty")]
     #[test_case("u32", 5, 10, 10, true, "shl", 1, true, "loop executes, shl ok")]
-    #[test_case("u32", 5, 10, 0, true, "shl", 1, false, "loop empty, shl ok")]
+    #[test_case("u32", 5, 10, 0, true, "shl", 1, true, "loop empty, shl ok")]
     #[test_case("u32", 5, 10, 10, true, "shl", 32, true, "shl overflow, and loop executes")]
     #[test_case("u32", 5, 10, 0, true, "shl", 32, false, "shl overflow, but loop empty")]
     #[test_case("i32", -10, 10, 10, false, "div", 100, true, "div by zero (mid), and loop executes")]
@@ -2331,7 +2393,7 @@ mod test {
     }
 
     /// Test that in itself `MakeArray` is only safe to be hoisted in ACIR.
-    #[test_case(RuntimeType::Brillig(InlineType::default()), CanBeHoistedResult::No)]
+    #[test_case(RuntimeType::Brillig(InlineType::default()), CanBeHoistedResult::WithRefCount)]
     #[test_case(RuntimeType::Acir(InlineType::default()), CanBeHoistedResult::Yes)]
     fn make_array_can_be_hoisted(runtime: RuntimeType, result: CanBeHoistedResult) {
         // This is just a stub to create a function with the expected runtime.
@@ -2351,7 +2413,7 @@ mod test {
             typ: Type::Array(Arc::new(vec![]), 0),
         };
 
-        assert_eq!(can_be_hoisted(&instruction, function), result);
+        assert_eq!(can_be_hoisted(&instruction, &function.dfg), result);
     }
 }
 

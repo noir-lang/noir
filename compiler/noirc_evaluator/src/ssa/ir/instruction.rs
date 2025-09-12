@@ -461,7 +461,7 @@ impl Instruction {
                 // not be safe to separate the `ArrayGet` from the OOB constraints that precede it,
                 // because while it could read an array index, the returned data could be invalid,
                 // and fail at runtime if we tried using it in the wrong context.
-                !dfg.is_safe_index(*index, *array)
+                dfg.runtime().is_acir() && !dfg.is_safe_index(*index, *array)
             }
 
             Instruction::EnableSideEffectsIf { .. } | Instruction::ArraySet { .. } => true,
@@ -567,7 +567,9 @@ impl Instruction {
             // used in the wrong context. Since we use this information to decide whether to hoist
             // instructions during deduplication, we consider unsafe values as potentially having
             // indirect side effects.
-            ArrayGet { array, index, offset: _ } => !dfg.is_safe_index(*index, *array),
+            ArrayGet { array, index, offset: _ } => {
+                dfg.runtime().is_acir() && !dfg.is_safe_index(*index, *array)
+            }
 
             // ArraySet has side effects
             ArraySet { .. } => true,

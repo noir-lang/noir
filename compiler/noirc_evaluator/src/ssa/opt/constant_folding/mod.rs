@@ -1254,6 +1254,29 @@ mod test {
     }
 
     #[test]
+    fn does_not_hoist_range_checked_cast_to_common_ancestor() {
+        let src = "
+            brillig(inline) fn main f0 {
+              b0(v0: Field, v1: u1):
+                jmpif v1 then: b1, else: b2
+              b1():
+                range_check v0 to 8 bits
+                v2 = cast v0 as u8
+                jmp b2()
+              b2():
+                jmpif v1 then: b3, else: b4
+              b3():
+                range_check v0 to 8 bits
+                v3 = cast v0 as u8
+                jmp b4()
+              b4():
+                return
+            }
+            ";
+        assert_ssa_does_not_change(src, Ssa::fold_constants_using_constraints);
+    }
+
+    #[test]
     fn deduplicates_side_effecting_intrinsics() {
         let src = "
         // After EnableSideEffectsIf removal:
