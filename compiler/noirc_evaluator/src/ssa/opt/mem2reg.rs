@@ -150,7 +150,7 @@ struct PerFunctionContext<'f> {
 impl<'f> PerFunctionContext<'f> {
     fn new(function: &'f mut Function) -> Self {
         let cfg = ControlFlowGraph::with_function(function);
-        let topological_block_order = cfg.topological_order(function);
+        let topological_block_order = cfg.topological_order();
 
         PerFunctionContext {
             cfg,
@@ -1416,12 +1416,12 @@ mod tests {
           b2():
             jmp b4()
           b3():
-            v7 = add v4, u32 1
-            store v7 at v2
+            v8 = add v4, u32 1
+            store v8 at v2
             jmp b5()
           b4():
-            v8 = make_array [v1] : [&mut u32; 1]
-            return v8
+            v7 = make_array [v1] : [&mut u32; 1]
+            return v7
           b5():
             jmp b1()
         }

@@ -1061,11 +1061,11 @@ mod tests {
             jmpif v3 then: b2, else: b1
           b1():
             constrain v0 == Field 2
-            v8 = call f2() -> u32
-            jmp b3(v8)
+            v6 = call f2() -> u32
+            jmp b3(v6)
           b2():
-            v5 = call f1() -> u32
-            jmp b3(v5)
+            v8 = call f1() -> u32
+            jmp b3(v8)
           b3(v1: u32):
             return v1
         }
@@ -1184,11 +1184,11 @@ mod tests {
           b1():
             jmp b3(Field 2)
           b2():
-            v7 = eq v0, u32 1
-            jmpif v7 then: b4, else: b5
+            v9 = eq v0, u32 1
+            jmpif v9 then: b4, else: b5
           b3(v1: Field):
-            v11 = call f5(v1, v0) -> u32
-            return v11
+            v7 = call f5(v1, v0) -> u32
+            return v7
           b4():
             jmp b6(Field 3)
           b5():
@@ -1299,14 +1299,14 @@ mod tests {
             v2 = eq v0, Field 1
             jmpif v2 then: b2, else: b1
           b1():
-            v5 = eq v0, Field 2
-            jmpif v5 then: b4, else: b3
+            v4 = eq v0, Field 2
+            jmpif v4 then: b4, else: b3
           b2():
             call f1()
             jmp b9()
           b3():
-            v8 = eq v0, Field 3
-            jmpif v8 then: b6, else: b5
+            v6 = eq v0, Field 3
+            jmpif v6 then: b6, else: b5
           b4():
             call f2()
             jmp b8()
@@ -1629,11 +1629,11 @@ mod tests {
             jmpif v4 then: b2, else: b1
           b1():
             constrain v0 == Field 5
-            v9 = call f5(v1) -> Field
-            jmp b3(v9)
+            v7 = call f5(v1) -> Field
+            jmp b3(v7)
           b2():
-            v6 = call f4(v1) -> Field
-            jmp b3(v6)
+            v9 = call f4(v1) -> Field
+            jmp b3(v9)
           b3(v2: Field):
             return v2
         }
@@ -1643,11 +1643,11 @@ mod tests {
             jmpif v4 then: b2, else: b1
           b1():
             constrain v0 == Field 3
-            v9 = call f3(v1) -> Field
-            jmp b3(v9)
+            v7 = call f3(v1) -> Field
+            jmp b3(v7)
           b2():
-            v6 = call f2(v1) -> Field
-            jmp b3(v6)
+            v9 = call f2(v1) -> Field
+            jmp b3(v9)
           b3(v2: Field):
             return v2
         }
@@ -1922,11 +1922,11 @@ mod tests {
             jmpif v4 then: b2, else: b1
           b1():
             constrain v0 == Field 2
-            v9 = call f2(v1) -> Field
-            jmp b3(v9)
+            v7 = call f2(v1) -> Field
+            jmp b3(v7)
           b2():
-            v6 = call f1(v1) -> Field
-            jmp b3(v6)
+            v9 = call f1(v1) -> Field
+            jmp b3(v9)
           b3(v2: Field):
             return v2
         }
@@ -2016,8 +2016,8 @@ mod tests {
           b1():
             return
           b2():
-            v5 = eq v0, Field 2
-            jmpif v5 then: b5, else: b4
+            v4 = eq v0, Field 2
+            jmpif v4 then: b5, else: b4
           b3():
             call f1()
             jmp b1()
@@ -2114,14 +2114,14 @@ mod tests {
             v2 = eq v0, Field 1
             jmpif v2 then: b2, else: b1
           b1():
-            v5 = eq v0, Field 2
-            jmpif v5 then: b4, else: b3
+            v4 = eq v0, Field 2
+            jmpif v4 then: b4, else: b3
           b2():
             call f1()
             jmp b9()
           b3():
-            v8 = eq v0, Field 4
-            jmpif v8 then: b6, else: b5
+            v6 = eq v0, Field 4
+            jmpif v6 then: b6, else: b5
           b4():
             call f2()
             jmp b8()

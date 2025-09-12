@@ -1100,11 +1100,11 @@ mod test {
             v9 = lt v3, i32 4
             jmpif v9 then: b6, else: b5
           b5():
-            v12 = unchecked_add v2, i32 1
-            jmp b1(v12)
+            v11 = unchecked_add v2, i32 1
+            jmp b1(v11)
           b6():
-            v11 = unchecked_add v3, i32 1
-            jmp b4(v11)
+            v12 = unchecked_add v3, i32 1
+            jmp b4(v12)
         }
         ");
     }
@@ -1156,11 +1156,11 @@ mod test {
             v9 = lt v2, i32 2
             jmpif v9 then: b6, else: b5
           b5():
-            v12 = unchecked_add v1, i32 1
-            jmp b1(v12)
+            v11 = unchecked_add v1, i32 1
+            jmp b1(v11)
           b6():
-            v11 = unchecked_add v2, i32 1
-            jmp b4(v11)
+            v12 = unchecked_add v2, i32 1
+            jmp b4(v12)
         }
         ");
     }
@@ -1346,22 +1346,22 @@ mod test {
             v12 = lt v3, u32 4
             jmpif v12 then: b6, else: b5
           b5():
-            v19 = unchecked_add v2, u32 1
-            jmp b1(v19)
+            v14 = unchecked_add v2, u32 1
+            jmp b1(v14)
           b6():
-            v13 = array_get v6, index v3 -> u32
-            v14 = eq v13, v0
-            constrain v13 == v0
+            v15 = array_get v6, index v3 -> u32
+            v16 = eq v15, v0
+            constrain v15 == v0
             jmp b7(u32 0)
           b7(v4: u32):
-            v15 = lt v4, u32 4
-            jmpif v15 then: b9, else: b8
+            v17 = lt v4, u32 4
+            jmpif v17 then: b9, else: b8
           b8():
             v18 = unchecked_add v3, u32 1
             jmp b4(v18)
           b9():
-            v17 = unchecked_add v4, u32 1
-            jmp b7(v17)
+            v19 = unchecked_add v4, u32 1
+            jmp b7(v19)
         }
         ");
     }
@@ -1435,17 +1435,17 @@ mod test {
             v17 = lt v2, u32 5
             jmpif v17 then: b3, else: b2
           b2():
-            v24 = load v9 -> [Field; 5]
-            call f1(v24)
+            v18 = load v9 -> [Field; 5]
+            call f1(v18)
             return
           b3():
             inc_rc v14
-            v18 = allocate -> &mut [Field; 5]
-            v19 = add v1, v2
-            v21 = array_set v14, index v19, value Field 128
-            call f1(v21)
-            v23 = unchecked_add v2, u32 1
-            jmp b1(v23)
+            v20 = allocate -> &mut [Field; 5]
+            v21 = add v1, v2
+            v23 = array_set v14, index v21, value Field 128
+            call f1(v23)
+            v24 = unchecked_add v2, u32 1
+            jmp b1(v24)
         }
         brillig(inline) fn foo f1 {
           b0(v0: [Field; 5]):

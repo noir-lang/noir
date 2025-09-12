@@ -138,7 +138,8 @@ impl ControlFlowGraph {
 
     /// Reverse the control flow graph
     pub(crate) fn reverse(&self) -> Self {
-        let mut reversed_cfg = ControlFlowGraph { reversed: true, entry_block: None, ..Default::default() };
+        let mut reversed_cfg =
+            ControlFlowGraph { reversed: true, entry_block: None, ..Default::default() };
 
         // Ensure the reversed_cfg always contains at least the entry node. Otherwise
         // adding the edges below results in an empty graph when calling reverse on a CFG
@@ -251,7 +252,10 @@ impl ControlFlowGraph {
 
             // We don't need to add predecessors, they'll get added when
             // we add the previous block's successors.
-            for successor in cfg_node.successors.iter() {
+            //
+            // The .rev() here is arbitrary but ends up giving post-order
+            // a better ordering of [then, else] blocks instead of [else, then].
+            for successor in cfg_node.successors.iter().rev() {
                 let successor = block_to_node[successor];
                 graph.add_edge(index, successor, ());
             }
@@ -271,8 +275,8 @@ impl ControlFlowGraph {
     }
 
     /// Return the topological order of blocks
-    pub(crate) fn topological_order(&self, function: &Function) -> Vec<BasicBlockId> {
-        PostOrder::compute_topological_order(function, self)
+    pub(crate) fn topological_order(&self) -> Vec<BasicBlockId> {
+        PostOrder::with_cfg(self).into_vec_reverse()
     }
 }
 
