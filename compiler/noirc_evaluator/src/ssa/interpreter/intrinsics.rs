@@ -126,7 +126,7 @@ impl<W: Write> Interpreter<'_, W> {
                     let result =
                         acvm::blackbox_solver::aes128_encrypt(&inputs, iv_array, key_array)
                             .map_err(Self::convert_error)?;
-                    let result = result.iter().map(|v| (*v as u128).into());
+                    let result = result.iter().map(|v| u128::from(*v).into());
                     let result = Value::array_from_iter(result, NumericType::unsigned(8))?;
                     Ok(vec![result])
                 }
@@ -150,7 +150,7 @@ impl<W: Write> Interpreter<'_, W> {
                     let inputs = self.lookup_bytes(args[0], "call Blake2s BlackBox")?;
                     let result =
                         acvm::blackbox_solver::blake2s(&inputs).map_err(Self::convert_error)?;
-                    let result = result.iter().map(|e| (*e as u128).into());
+                    let result = result.iter().map(|e| u128::from(*e).into());
                     let result = Value::array_from_iter(result, NumericType::unsigned(8))?;
                     Ok(vec![result])
                 }
@@ -159,7 +159,7 @@ impl<W: Write> Interpreter<'_, W> {
                     let inputs = self.lookup_bytes(args[0], "call Blake3 BlackBox")?;
                     let results =
                         acvm::blackbox_solver::blake3(&inputs).map_err(Self::convert_error)?;
-                    let results = results.iter().map(|e| (*e as u128).into());
+                    let results = results.iter().map(|e| u128::from(*e).into());
                     let results = Value::array_from_iter(results, NumericType::unsigned(8))?;
                     Ok(vec![results])
                 }
@@ -249,14 +249,14 @@ impl<W: Write> Interpreter<'_, W> {
                     let mut points = Vec::new();
                     for (i, v) in input_points.elements.borrow().iter().enumerate() {
                         if i % 3 == 2 {
-                            points.push((v.as_bool().ok_or(
+                            points.push(u128::from(v.as_bool().ok_or(
                                 InterpreterError::Internal(InternalError::TypeError {
                                     value_id: args[0],
                                     value: v.to_string(),
                                     expected_type: "bool",
                                     instruction: "retrieving is_infinite in call to MultiScalarMul blackbox",
                                 })
-                            )? as u128).into());
+                            )?).into());
                         } else {
                             points.push(
                             v.as_field().ok_or(
@@ -312,7 +312,7 @@ impl<W: Write> Interpreter<'_, W> {
                     })?;
                     let results = acvm::blackbox_solver::keccakf1600(inputs_array)
                         .map_err(Self::convert_error)?;
-                    let results = results.iter().map(|e| (*e as u128).into());
+                    let results = results.iter().map(|e| u128::from(*e).into());
                     let results =
                         Value::array_from_iter(results, NumericType::Unsigned { bit_size: 64 })?;
                     Ok(vec![results])
@@ -371,7 +371,7 @@ impl<W: Write> Interpreter<'_, W> {
                         })
                     })?;
                     acvm::blackbox_solver::sha256_compression(&mut state, &inputs);
-                    let result = state.iter().map(|e| (*e as u128).into());
+                    let result = state.iter().map(|e| u128::from(*e).into());
                     let result = Value::array_from_iter(result, NumericType::unsigned(32))?;
                     Ok(vec![result])
                 }

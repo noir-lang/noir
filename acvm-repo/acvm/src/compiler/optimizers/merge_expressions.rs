@@ -276,20 +276,13 @@ impl<F: AcirField> MergeExpressionsOptimizer<F> {
 
 #[cfg(test)]
 mod tests {
-    use crate::compiler::{CircuitSimulator, optimizers::MergeExpressionsOptimizer};
-    use acir::{
-        FieldElement,
-        acir_field::AcirField,
-        circuit::{
-            Circuit, Opcode, PublicInputs,
-            brillig::{BrilligFunctionId, BrilligOutputs},
-            opcodes::{BlackBoxFuncCall, FunctionInput},
-        },
-        native_types::{Expression, Witness},
+    use crate::{
+        assert_circuit_snapshot,
+        compiler::{CircuitSimulator, optimizers::MergeExpressionsOptimizer},
     };
-    use std::collections::BTreeSet;
+    use acir::{FieldElement, circuit::Circuit};
 
-    fn must_check_circuit(circuit: Circuit<FieldElement>) -> Circuit<FieldElement> {
+    fn merge_expressions(circuit: Circuit<FieldElement>) -> Circuit<FieldElement> {
         assert!(CircuitSimulator::default().check_circuit(&circuit).is_none());
         let mut merge_optimizer = MergeExpressionsOptimizer::new();
         let acir_opcode_positions = vec![0; 20];
@@ -297,6 +290,7 @@ mod tests {
             merge_optimizer.eliminate_intermediate_variable(&circuit, acir_opcode_positions);
         let mut optimized_circuit = circuit;
         optimized_circuit.opcodes = opcodes;
+
         // check that the circuit is still valid after optimization
         assert!(CircuitSimulator::default().check_circuit(&optimized_circuit).is_none());
         optimized_circuit
@@ -304,143 +298,60 @@ mod tests {
 
     #[test]
     fn does_not_eliminate_witnesses_returned_from_brillig() {
-        let opcodes = vec![
-            Opcode::BrilligCall {
-                id: BrilligFunctionId::default(),
-                inputs: Vec::new(),
-                outputs: vec![BrilligOutputs::Simple(Witness(1))],
-                predicate: None,
-            },
-            Opcode::AssertZero(Expression {
-                mul_terms: Vec::new(),
-                linear_combinations: vec![
-                    (FieldElement::from(2_u128), Witness(0)),
-                    (FieldElement::from(3_u128), Witness(1)),
-                    (FieldElement::from(1_u128), Witness(2)),
-                ],
-                q_c: FieldElement::one(),
-            }),
-            Opcode::AssertZero(Expression {
-                mul_terms: Vec::new(),
-                linear_combinations: vec![
-                    (FieldElement::from(2_u128), Witness(0)),
-                    (FieldElement::from(2_u128), Witness(1)),
-                    (FieldElement::from(1_u128), Witness(5)),
-                ],
-                q_c: FieldElement::one(),
-            }),
-        ];
-
-        let mut private_parameters = BTreeSet::new();
-        private_parameters.insert(Witness(0));
-
-        let circuit = Circuit {
-            function_name: "test".to_string(),
-            current_witness_index: 1,
-            opcodes,
-            private_parameters,
-            public_parameters: PublicInputs::default(),
-            return_values: PublicInputs::default(),
-            assert_messages: Default::default(),
-        };
-        must_check_circuit(circuit);
+        let src = "
+        current witness index : _1
+        private parameters indices : [_0]
+        public parameters indices : []
+        return value indices : []
+        BRILLIG CALL func 0: inputs: [], outputs: [_1]
+        EXPR [ (2, _0) (3, _1) (1, _2) 1 ]
+        EXPR [ (2, _0) (2, _1) (1, _5) 1 ]
+        ";
+        let circuit = Circuit::from_str(src).unwrap();
+        let optimized_circuit = merge_expressions(circuit.clone());
+        assert_eq!(circuit, optimized_circuit);
     }
 
     #[test]
     fn does_not_eliminate_witnesses_returned_from_circuit() {
-        let opcodes = vec![
-            Opcode::AssertZero(Expression {
-                mul_terms: vec![(FieldElement::from(-1i128), Witness(0), Witness(0))],
-                linear_combinations: vec![(FieldElement::from(1i128), Witness(1))],
-                q_c: FieldElement::zero(),
-            }),
-            Opcode::AssertZero(Expression {
-                mul_terms: Vec::new(),
-                linear_combinations: vec![
-                    (FieldElement::from(-1i128), Witness(1)),
-                    (FieldElement::from(1i128), Witness(2)),
-                ],
-                q_c: FieldElement::zero(),
-            }),
-        ];
-        // Witness(1) could be eliminated because it's only used by 2 opcodes.
-
-        let mut private_parameters = BTreeSet::new();
-        private_parameters.insert(Witness(0));
-
-        let mut return_values = BTreeSet::new();
-        return_values.insert(Witness(1));
-        return_values.insert(Witness(2));
-
-        let circuit = Circuit {
-            function_name: "test".to_string(),
-            current_witness_index: 2,
-            opcodes,
-            private_parameters,
-            public_parameters: PublicInputs::default(),
-            return_values: PublicInputs(return_values),
-            assert_messages: Default::default(),
-        };
-
-        let mut merge_optimizer = MergeExpressionsOptimizer::new();
-        let acir_opcode_positions = vec![0; 20];
-        let (opcodes, _) =
-            merge_optimizer.eliminate_intermediate_variable(&circuit, acir_opcode_positions);
-
-        assert_eq!(opcodes.len(), 2);
+        let src = "
+        current witness index : _2
+        private parameters indices : [_0]
+        public parameters indices : []
+        return value indices : [_1, _2]
+        EXPR [ (-1, _0, _0) (1, _1) 0 ]
+        EXPR [ (-1, _1) (1, _2) 0 ]
+        ";
+        let circuit = Circuit::from_str(src).unwrap();
+        let optimized_circuit = merge_expressions(circuit.clone());
+        assert_eq!(circuit, optimized_circuit);
     }
 
     #[test]
     fn does_not_attempt_to_merge_into_previous_opcodes() {
-        let opcodes = vec![
-            Opcode::AssertZero(Expression {
-                mul_terms: vec![(FieldElement::one(), Witness(0), Witness(0))],
-                linear_combinations: vec![(-FieldElement::one(), Witness(4))],
-                q_c: FieldElement::zero(),
-            }),
-            Opcode::AssertZero(Expression {
-                mul_terms: vec![(FieldElement::one(), Witness(0), Witness(1))],
-                linear_combinations: vec![(FieldElement::one(), Witness(5))],
-                q_c: FieldElement::zero(),
-            }),
-            Opcode::AssertZero(Expression {
-                mul_terms: Vec::new(),
-                linear_combinations: vec![
-                    (-FieldElement::one(), Witness(2)),
-                    (FieldElement::one(), Witness(4)),
-                    (FieldElement::one(), Witness(5)),
-                ],
-                q_c: FieldElement::zero(),
-            }),
-            Opcode::AssertZero(Expression {
-                mul_terms: Vec::new(),
-                linear_combinations: vec![
-                    (FieldElement::one(), Witness(2)),
-                    (-FieldElement::one(), Witness(3)),
-                    (FieldElement::one(), Witness(4)),
-                    (FieldElement::one(), Witness(5)),
-                ],
-                q_c: FieldElement::zero(),
-            }),
-            Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
-                input: FunctionInput::Witness(Witness(3)),
-                num_bits: 32,
-            }),
-        ];
+        let src = "
+        current witness index : _5
+        private parameters indices : [_0, _1]
+        public parameters indices : []
+        return value indices : []
+        EXPR [ (1, _0, _0) (-1, _4) 0 ]
+        EXPR [ (1, _0, _1) (1, _5) 0 ]
+        EXPR [ (-1, _2) (1, _4) (1, _5) 0 ]
+        EXPR [ (1, _2) (-1, _3) (1, _4) (1, _5) 0 ]
+        BLACKBOX::RANGE [(_3, 32)] []
+        ";
+        let circuit = Circuit::from_str(src).unwrap();
 
-        let mut private_parameters = BTreeSet::new();
-        private_parameters.insert(Witness(0));
-        private_parameters.insert(Witness(1));
-        let circuit = Circuit {
-            function_name: "test".to_string(),
-            current_witness_index: 5,
-            opcodes,
-            private_parameters,
-            public_parameters: PublicInputs::default(),
-            return_values: PublicInputs::default(),
-            assert_messages: Default::default(),
-        };
-        must_check_circuit(circuit);
+        let optimized_circuit = merge_expressions(circuit);
+        assert_circuit_snapshot!(optimized_circuit, @r"
+        current witness index : _5
+        private parameters indices : [_0, _1]
+        public parameters indices : []
+        return value indices : []
+        EXPR [ (1, _0, _1) (1, _5) 0 ]
+        EXPR [ (2, _0, _0) (-1, _3) (2, _5) 0 ]
+        BLACKBOX::RANGE [(_3, 32)] []
+        ");
     }
 
     #[test]
@@ -449,43 +360,18 @@ mod tests {
         // Previously we would not track the usage of witness 4 in the output of the blackbox function.
         // We would then merge the final two opcodes losing the check that the brillig call must match
         // with `_0 ^ _1`.
-
-        let circuit: Circuit<FieldElement> = Circuit {
-            current_witness_index: 7,
-            opcodes: vec![
-                Opcode::BrilligCall {
-                    id: BrilligFunctionId(0),
-                    inputs: Vec::new(),
-                    outputs: vec![BrilligOutputs::Simple(Witness(3))],
-                    predicate: None,
-                },
-                Opcode::BlackBoxFuncCall(BlackBoxFuncCall::AND {
-                    lhs: FunctionInput::Witness(Witness(0)),
-                    rhs: FunctionInput::Witness(Witness(1)),
-                    num_bits: 8,
-                    output: Witness(4),
-                }),
-                Opcode::AssertZero(Expression {
-                    linear_combinations: vec![
-                        (FieldElement::one(), Witness(3)),
-                        (-FieldElement::one(), Witness(4)),
-                    ],
-                    ..Default::default()
-                }),
-                Opcode::AssertZero(Expression {
-                    linear_combinations: vec![
-                        (-FieldElement::one(), Witness(2)),
-                        (FieldElement::one(), Witness(4)),
-                    ],
-                    ..Default::default()
-                }),
-            ],
-            private_parameters: BTreeSet::from([Witness(0), Witness(1)]),
-            return_values: PublicInputs(BTreeSet::from([Witness(2)])),
-            ..Default::default()
-        };
-
-        let new_circuit = must_check_circuit(circuit.clone());
-        assert_eq!(circuit, new_circuit);
+        let src = "
+        current witness index : _7
+        private parameters indices : [_0, _1]
+        public parameters indices : []
+        return value indices : [_2]
+        BRILLIG CALL func 0: inputs: [], outputs: [_3]
+        BLACKBOX::AND [(_0, 8), (_1, 8)] [_4]
+        EXPR [ (1, _3) (-1, _4) 0 ]
+        EXPR [ (-1, _2) (1, _4) 0 ]
+        ";
+        let circuit = Circuit::from_str(src).unwrap();
+        let optimized_circuit = merge_expressions(circuit.clone());
+        assert_eq!(circuit, optimized_circuit);
     }
 }

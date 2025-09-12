@@ -217,9 +217,9 @@ impl<F: PrimeField> AcirField for FieldElement<F> {
         let as_bigint = self.0.into_bigint();
         let limbs = as_bigint.as_ref();
 
-        let mut result = limbs[0] as u128;
+        let mut result = u128::from(limbs[0]);
         if limbs.len() > 1 {
-            let high_limb = limbs[1] as u128;
+            let high_limb = u128::from(limbs[1]);
             result += high_limb << 64;
         }
 

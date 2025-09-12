@@ -3,7 +3,7 @@ use std::{collections::BTreeSet, str::FromStr};
 use acir_field::{AcirField, FieldElement};
 
 use lexer::{Lexer, LexerError};
-use noirc_errors::Span;
+use noirc_span::Span;
 use thiserror::Error;
 use token::{Keyword, SpannedToken, Token};
 
@@ -18,6 +18,7 @@ use crate::{
 };
 
 mod lexer;
+#[cfg(test)]
 mod tests;
 mod token;
 
@@ -150,14 +151,14 @@ impl<'a> Parser<'a> {
         self.parse_witness_ordered_set()
     }
 
-    fn parse_witness_ordered_set(&mut self) -> ParseResult<BTreeSet<Witness>> {
+    fn parse_witness_vector(&mut self) -> ParseResult<Vec<Witness>> {
         self.eat_or_error(Token::LeftBracket)?;
 
-        let mut witnesses = BTreeSet::new();
+        let mut witnesses = Vec::new();
 
         while !self.eat(Token::RightBracket)? {
             let witness = self.eat_witness_or_error()?;
-            witnesses.insert(witness);
+            witnesses.push(witness);
 
             // Eat optional comma
             if self.eat(Token::Comma)? {
@@ -173,8 +174,8 @@ impl<'a> Parser<'a> {
         Ok(witnesses)
     }
 
-    fn parse_witness_vector(&mut self) -> ParseResult<Vec<Witness>> {
-        self.parse_witness_ordered_set().map(|set| set.into_iter().collect::<Vec<_>>())
+    fn parse_witness_ordered_set(&mut self) -> ParseResult<BTreeSet<Witness>> {
+        self.parse_witness_vector().map(|vec| vec.into_iter().collect::<BTreeSet<_>>())
     }
 
     fn parse_opcodes(&mut self) -> ParseResult<Vec<Opcode<FieldElement>>> {

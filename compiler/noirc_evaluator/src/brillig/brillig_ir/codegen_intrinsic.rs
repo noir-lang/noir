@@ -48,7 +48,7 @@ impl<F: AcirField + DebugToString, Registers: RegisterAllocator> BrilligContext<
 
         // The modulus is guaranteed to fit, since we are truncating down to a bit size that is strictly less than the value_to_truncate.bit_size
         let modulus_var = self.make_constant_instruction(
-            F::from(2_usize).pow(&F::from(bit_size as u128)),
+            F::from(2_usize).pow(&F::from(u128::from(bit_size))),
             value_to_truncate.bit_size,
         );
 

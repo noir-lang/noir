@@ -386,7 +386,7 @@ mod server_tests {
             let response = match foreign_call.function.as_str() {
                 "sum" => self.sum(foreign_call.inputs[0].clone()),
                 "echo" => self.echo(foreign_call.inputs[0].clone()),
-                "id" => FieldElement::from(req.session_id as u128).into(),
+                "id" => FieldElement::from(u128::from(req.session_id)).into(),
                 _ => panic!("unexpected foreign call"),
             };
             Ok(prepare_foreign_call_result(response))

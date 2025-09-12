@@ -1724,11 +1724,11 @@ fn evaluate_prefix_with_value(rhs: Value, operator: UnaryOp, location: Location)
 
 fn to_u128(value: Value) -> Option<u128> {
     match value {
-        Value::U1(value) => Some(if value { 1_u128 } else { 0_u128 }),
-        Value::U8(value) => Some(value as u128),
-        Value::U16(value) => Some(value as u128),
-        Value::U32(value) => Some(value as u128),
-        Value::U64(value) => Some(value as u128),
+        Value::U1(value) => Some(u128::from(value)),
+        Value::U8(value) => Some(u128::from(value)),
+        Value::U16(value) => Some(u128::from(value)),
+        Value::U32(value) => Some(u128::from(value)),
+        Value::U64(value) => Some(u128::from(value)),
         Value::U128(value) => Some(value),
         _ => None,
     }
@@ -1736,10 +1736,10 @@ fn to_u128(value: Value) -> Option<u128> {
 
 fn to_i128(value: Value) -> Option<i128> {
     match value {
-        Value::I8(value) => Some(value as i128),
-        Value::I16(value) => Some(value as i128),
-        Value::I32(value) => Some(value as i128),
-        Value::I64(value) => Some(value as i128),
+        Value::I8(value) => Some(i128::from(value)),
+        Value::I16(value) => Some(i128::from(value)),
+        Value::I32(value) => Some(i128::from(value)),
+        Value::I64(value) => Some(i128::from(value)),
         _ => None,
     }
 }

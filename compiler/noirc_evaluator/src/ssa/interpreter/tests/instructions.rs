@@ -588,7 +588,7 @@ fn not() {
     assert_eq!(values[0], Value::bool(true));
     assert_eq!(values[1], Value::bool(false));
 
-    let not_constant = !136_u8 as u128;
+    let not_constant = u128::from(!136_u8);
     assert_eq!(values[2], from_constant(not_constant.into(), NumericType::unsigned(8)));
 }
 
@@ -603,7 +603,7 @@ fn truncate() {
         }
     ",
     );
-    let constant = 257_u16 as u8 as u128;
+    let constant = u128::from(257_u16 as u8);
     assert_eq!(value, from_constant(constant.into(), NumericType::unsigned(32)));
 }
 
@@ -1082,7 +1082,8 @@ fn make_array() {
     assert_eq!(values[0], Value::array(one_two.clone(), vec![Type::field()]));
     assert_eq!(values[1], Value::slice(one_two, Arc::new(vec![Type::field()])));
 
-    let hello = vecmap(b"Hello", |char| from_constant((*char as u32).into(), NumericType::char()));
+    let hello =
+        vecmap(b"Hello", |char| from_constant(u32::from(*char).into(), NumericType::char()));
     assert_eq!(values[2], Value::array(hello.clone(), vec![Type::char()]));
     assert_eq!(values[3], Value::slice(hello, Arc::new(vec![Type::char()])));
 }

@@ -3,7 +3,7 @@ use crate::fuzz_target_lib::fuzz_target;
 use crate::fuzzer::FuzzerData;
 use crate::instruction::{Instruction, InstructionBlock};
 use crate::options::FuzzerOptions;
-use crate::tests::common::{default_input_types, default_witness};
+use crate::tests::common::{default_input_types, default_runtimes, default_witness};
 use acvm::AcirField;
 use acvm::FieldElement;
 use noir_ssa_fuzzer::typed_value::{NumericType, Type};
@@ -33,8 +33,8 @@ fn test_valid_ecdsa_signature_secp256r1() {
         functions: vec![function],
         initial_witness: default_witness(),
     };
-    let result = fuzz_target(data, FuzzerOptions::default()).unwrap();
-    assert_eq!(result.get_return_values()[0], FieldElement::one());
+    let result = fuzz_target(data, default_runtimes(), FuzzerOptions::default());
+    assert_eq!(result.get_return_witnesses()[0], FieldElement::one());
 }
 
 #[test]
@@ -62,8 +62,8 @@ fn test_valid_ecdsa_signature_secp256k1() {
         functions: vec![function],
         initial_witness: default_witness(),
     };
-    let result = fuzz_target(data, FuzzerOptions::default()).unwrap();
-    assert_eq!(result.get_return_values()[0], FieldElement::one());
+    let result = fuzz_target(data, default_runtimes(), FuzzerOptions::default());
+    assert_eq!(result.get_return_witnesses()[0], FieldElement::one());
 }
 
 #[test]
@@ -91,10 +91,14 @@ fn test_corrupted_ecdsa_signature_secp256r1() {
         functions: vec![function],
         initial_witness: default_witness(),
     };
-    let result = fuzz_target(data, FuzzerOptions::default());
-    match result {
-        Some(res) => panic!("Programs executed with the Result: {:?}", res.get_return_values()),
-        None => println!("Error. As expected"),
+    let result = fuzz_target(data, default_runtimes(), FuzzerOptions::default());
+    match result.get_return_witnesses().is_empty() {
+        true => {
+            // thats okay
+        }
+        false => {
+            panic!("Programs executed with the Result: {:?}", result.get_return_witnesses())
+        }
     }
 }
 
@@ -123,9 +127,13 @@ fn test_corrupted_ecdsa_signature_secp256k1() {
         functions: vec![function],
         initial_witness: default_witness(),
     };
-    let result = fuzz_target(data, FuzzerOptions::default());
-    match result {
-        Some(res) => panic!("Programs executed with the Result: {:?}", res.get_return_values()),
-        None => println!("Error. As expected"),
+    let result = fuzz_target(data, default_runtimes(), FuzzerOptions::default());
+    match result.get_return_witnesses().is_empty() {
+        true => {
+            // thats okay
+        }
+        false => {
+            panic!("Programs executed with the Result: {:?}", result.get_return_witnesses())
+        }
     }
 }

@@ -127,7 +127,7 @@ impl FullDictionary {
                     _ => panic!("Shouldn't be used with other input value types"),
                 };
                 for character in initial_string.as_bytes().iter() {
-                    full_dictionary.insert(FieldElement::from(*character as i128));
+                    full_dictionary.insert(FieldElement::from(i128::from(*character)));
                 }
             }
             AbiType::Array { length: _, typ } => {

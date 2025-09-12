@@ -3,7 +3,7 @@ use crate::fuzz_target_lib::fuzz_target;
 use crate::fuzzer::FuzzerData;
 use crate::instruction::{Instruction, InstructionBlock, Point, Scalar};
 use crate::options::FuzzerOptions;
-use crate::tests::common::{default_input_types, default_witness};
+use crate::tests::common::{default_input_types, default_runtimes, default_witness};
 use acvm::FieldElement;
 use noir_ssa_fuzzer::typed_value::{NumericType, Type};
 
@@ -46,9 +46,9 @@ fn smoke_test_embedded_curve_add() {
         functions: vec![function],
         initial_witness: default_witness(),
     };
-    let result = fuzz_target(data, FuzzerOptions::default()).unwrap();
+    let result = fuzz_target(data, default_runtimes(), FuzzerOptions::default());
     assert_eq!(
-        result.get_return_values()[0],
+        result.get_return_witnesses()[0],
         FieldElement::try_from_str(
             "8902249110305491597038405103722863701255802573786510474664632793109847672620"
         )
@@ -92,9 +92,9 @@ fn smoke_test_embedded_multi_scalar_mul() {
         functions: vec![function],
         initial_witness: default_witness(),
     };
-    let result = fuzz_target(data, FuzzerOptions::default()).unwrap();
+    let result = fuzz_target(data, default_runtimes(), FuzzerOptions::default());
     assert_eq!(
-        result.get_return_values()[0],
+        result.get_return_witnesses()[0],
         FieldElement::try_from_str(
             "-3851299760922698091325321774664553326049887197487063802849283717866939395465"
         )

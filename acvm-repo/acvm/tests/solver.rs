@@ -1532,4 +1532,5 @@ proptest! {
         let (result, message) = prop_assert_injective(inputs, distinct_inputs, 1, None, pedantic_solving, poseidon2_permutation_op);
         prop_assert!(result, "{}", message);
     }
+
 }
