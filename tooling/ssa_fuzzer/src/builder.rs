@@ -789,16 +789,11 @@ impl FuzzerBuilder {
             Arc::new(vec![field_type.clone(), field_type.clone(), boolean_type.clone()]),
             1,
         );
-        let predicate = self.builder.numeric_constant(1_u32, NumericType::Unsigned { bit_size: 1 });
+        let predicate = self.builder.numeric_constant(1_u32, NumericType::Boolean.into());
         let result = self.builder.insert_call(
             intrinsic,
-<<<<<<< HEAD
             vec![basic_point, scalar_id, predicate],
-            vec![return_type.clone()],
-=======
-            vec![basic_point, scalar_id],
             vec![return_type.clone().into()],
->>>>>>> master
         );
         assert_eq!(result.len(), 1);
         let result = result[0];
@@ -849,16 +844,10 @@ impl FuzzerBuilder {
         for scalar in &scalars {
             assert!(scalar.validate());
         }
-<<<<<<< HEAD
         let predicate =
-            self.builder.numeric_constant(predicate as u32, NumericType::Unsigned { bit_size: 1 });
-        let field_type = Type::Numeric(NumericType::NativeField);
-        let boolean_type = Type::Numeric(NumericType::Unsigned { bit_size: 1 });
-=======
-
+            self.builder.numeric_constant(u32::from(predicate), NumericType::Boolean.into());
         let field_type = Type::Numeric(NumericType::Field);
         let boolean_type = Type::Numeric(NumericType::Boolean);
->>>>>>> master
         let intrinsic = self
             .builder
             .import_intrinsic("multi_scalar_mul")
@@ -889,13 +878,8 @@ impl FuzzerBuilder {
         );
         let result = self.builder.insert_call(
             intrinsic,
-<<<<<<< HEAD
             vec![point_ids_array, scalar_ids_array, predicate],
-            vec![return_type.clone()],
-=======
-            vec![point_ids_array, scalar_ids_array],
             vec![return_type.clone().into()],
->>>>>>> master
         );
         assert_eq!(result.len(), 1);
         let result = result[0];
@@ -930,15 +914,10 @@ impl FuzzerBuilder {
     pub fn point_add(&mut self, p1: Point, p2: Point, predicate: bool) -> Point {
         assert!(p1.validate());
         assert!(p2.validate());
-<<<<<<< HEAD
-        let field_type = Type::Numeric(NumericType::NativeField);
-        let boolean_type = Type::Numeric(NumericType::Unsigned { bit_size: 1 });
-        let predicate =
-            self.builder.numeric_constant(predicate as u32, NumericType::Unsigned { bit_size: 1 });
-=======
         let field_type = Type::Numeric(NumericType::Field);
         let boolean_type = Type::Numeric(NumericType::Boolean);
->>>>>>> master
+        let predicate =
+            self.builder.numeric_constant(u32::from(predicate), NumericType::Boolean.into());
         let intrinsic = self
             .builder
             .import_intrinsic("embedded_curve_add")
@@ -949,12 +928,8 @@ impl FuzzerBuilder {
             Arc::new(vec![field_type.clone(), field_type.clone(), boolean_type.clone()]),
             1,
         );
-<<<<<<< HEAD
-        let result = self.builder.insert_call(intrinsic, arguments, vec![return_type.clone()]);
-=======
         let result =
-            self.builder.insert_call(intrinsic, points_flattened, vec![return_type.clone().into()]);
->>>>>>> master
+            self.builder.insert_call(intrinsic, arguments, vec![return_type.clone().into()]);
         assert_eq!(result.len(), 1);
         let result = result[0];
         let x_idx = self.builder.numeric_constant(0_u32, NumericType::U32.into());
@@ -998,21 +973,6 @@ impl FuzzerBuilder {
         )
     }
 
-<<<<<<< HEAD
-=======
-    fn bytes_to_ssa_slice(&mut self, vec: Vec<u8>) -> TypedValue {
-        let elements: Vec<Id<Value>> = vec
-            .into_iter()
-            .map(|x| self.builder.numeric_constant(u32::from(x), NumericType::U8.into()))
-            .collect();
-        let slice_type = Type::Slice(Arc::new(vec![Type::Numeric(NumericType::U8)]));
-        TypedValue::new(
-            self.builder.insert_make_array(elements.into(), slice_type.clone().into()),
-            slice_type,
-        )
-    }
-
->>>>>>> master
     pub fn ecdsa_secp256r1(
         &mut self,
         pub_key_x: Vec<u8>,
@@ -1022,7 +982,7 @@ impl FuzzerBuilder {
         predicate: bool,
     ) -> TypedValue {
         let predicate =
-            self.builder.numeric_constant(predicate as u32, NumericType::Unsigned { bit_size: 1 });
+            self.builder.numeric_constant(u32::from(predicate), NumericType::Boolean.into());
         let pub_key_x = self.bytes_to_ssa_array(pub_key_x);
         let pub_key_y = self.bytes_to_ssa_array(pub_key_y);
         let hash = self.bytes_to_ssa_array(hash);
@@ -1034,7 +994,6 @@ impl FuzzerBuilder {
             .expect("ecdsa_secp256r1 intrinsic should be available");
         let result = self.builder.insert_call(
             intrinsic,
-<<<<<<< HEAD
             vec![
                 pub_key_x.value_id,
                 pub_key_y.value_id,
@@ -1042,11 +1001,7 @@ impl FuzzerBuilder {
                 hash.value_id,
                 predicate,
             ],
-            vec![return_type.clone()],
-=======
-            vec![pub_key_x.value_id, pub_key_y.value_id, signature.value_id, hash.value_id],
             vec![return_type.clone().into()],
->>>>>>> master
         );
         assert_eq!(result.len(), 1);
         let result = result[0];
@@ -1062,7 +1017,7 @@ impl FuzzerBuilder {
         predicate: bool,
     ) -> TypedValue {
         let predicate =
-            self.builder.numeric_constant(predicate as u32, NumericType::Unsigned { bit_size: 1 });
+            self.builder.numeric_constant(u32::from(predicate), NumericType::Boolean.into());
         let pub_key_x = self.bytes_to_ssa_array(pub_key_x);
         let pub_key_y = self.bytes_to_ssa_array(pub_key_y);
         let hash = self.bytes_to_ssa_array(hash);
@@ -1074,7 +1029,6 @@ impl FuzzerBuilder {
             .expect("ecdsa_secp256k1 intrinsic should be available");
         let result = self.builder.insert_call(
             intrinsic,
-<<<<<<< HEAD
             vec![
                 pub_key_x.value_id,
                 pub_key_y.value_id,
@@ -1082,11 +1036,7 @@ impl FuzzerBuilder {
                 hash.value_id,
                 predicate,
             ],
-            vec![return_type.clone()],
-=======
-            vec![pub_key_x.value_id, pub_key_y.value_id, signature.value_id, hash.value_id],
             vec![return_type.clone().into()],
->>>>>>> master
         );
         assert_eq!(result.len(), 1);
         let result = result[0];
