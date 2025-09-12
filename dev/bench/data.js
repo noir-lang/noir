@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1757689549119,
+  "lastUpdate": 1757689676540,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -12102,80 +12102,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "14659f3beac2784b834b62e0fdfda05e6440d5d2",
-          "message": "chore(licm): Identify untested code; refactoring; minor fixes (#9718)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-09-05T12:16:49Z",
-          "tree_id": "852442ba06125048865485e741b8781ffeded761",
-          "url": "https://github.com/noir-lang/noir/commit/14659f3beac2784b834b62e0fdfda05e6440d5d2"
-        },
-        "date": 1757077495345,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 258.14,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 291.33,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 242.94,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 503.7,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 436.08,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1500,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 330.47,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 332.99,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 72.43,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 58.23,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -15785,6 +15711,80 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-root",
             "value": 333.69,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 72.87,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 69.42,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "d60ba5c4241784987841fe71826064d11c0ff1ba",
+          "message": "feat: better check_u128_mul_overflow logic when an operand is constant (#9835)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-09-12T14:25:42Z",
+          "tree_id": "8ee47f5515e215d0ac26018fa61c89742cc4b404",
+          "url": "https://github.com/noir-lang/noir/commit/d60ba5c4241784987841fe71826064d11c0ff1ba"
+        },
+        "date": 1757689656590,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 258.82,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 291.99,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 243.57,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 506.71,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 439.09,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1500,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 331.16,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 333.68,
             "unit": "MB"
           },
           {
