@@ -69,11 +69,11 @@ fn check_u128_mul_overflow(
     let lhs_value = dfg.get_numeric_constant(lhs);
     let rhs_value = dfg.get_numeric_constant(rhs);
 
-    let two_pow_64 = 1_u128 << 64;
-
-    // If lhs or rhs are less than 2^64 then there's no Field overflow.
-    if lhs_value.is_some_and(|value| value.to_u128() < two_pow_64)
-        || rhs_value.is_some_and(|value| value.to_u128() < two_pow_64)
+    // If we multiply a constant value 2^n by an unknown u128 value we get at most `2^(n+128) - 2`.
+    // If `n+128` does not overflow the maximum Field element value, there's no need to check for overflow.
+    let max_const_value_that_does_not_overflow = 1_u128 << (FieldElement::max_num_bits() - 128);
+    if lhs_value.is_some_and(|value| value.to_u128() < max_const_value_that_does_not_overflow)
+        || rhs_value.is_some_and(|value| value.to_u128() < max_const_value_that_does_not_overflow)
     {
         return;
     }
@@ -82,6 +82,7 @@ fn check_u128_mul_overflow(
     let call_stack = dfg.get_instruction_call_stack_id(context.instruction_id);
 
     let u128 = NumericType::unsigned(128);
+    let two_pow_64 = 1_u128 << 64;
     let two_pow_64 = dfg.make_constant(two_pow_64.into(), u128);
     let mul = BinaryOp::Mul { unchecked: true };
 
@@ -146,11 +147,13 @@ mod tests {
     };
 
     #[test]
-    fn does_not_insert_check_if_lhs_is_less_than_two_pow_64() {
+    fn does_not_insert_check_if_multiplying_lhs_will_not_overflow_field_element() {
+        // The big value here is 2^254 - 2^128 - 1, which, when multiplied by any u128
+        // won't overflow a Field element max value.
         let src = "
         acir(inline) fn main f0 {
           b0(v0: u128):
-            v2 = mul u128 18446744073709551615, v0
+            v2 = mul u128 85070591730234615865843651857942052863, v0
             return
         }
         ";
@@ -158,11 +161,13 @@ mod tests {
     }
 
     #[test]
-    fn does_not_insert_check_if_rhs_is_less_than_two_pow_64() {
+    fn does_not_insert_check_if_multiplying_rhs_will_not_overflow_field_element() {
+        // The big value here is 2^254 - 2^128 - 1, which, when multiplied by any u128
+        // won't overflow a Field element max value.
         let src = "
         acir(inline) fn main f0 {
           b0(v0: u128):
-            v2 = mul v0, u128 18446744073709551615
+            v2 = mul v0, u128 85070591730234615865843651857942052863
             return
         }
         ";
@@ -171,10 +176,12 @@ mod tests {
 
     #[test]
     fn inserts_check_for_lhs() {
+        // The big value here is 2^254 - 2^128, which, when multiplied by any u128
+        // might overflow a Field element max value.
         let src = "
         acir(inline) fn main f0 {
           b0(v0: u128):
-            v2 = mul v0, u128 18446744073709551617
+            v2 = mul v0, u128 85070591730234615865843651857942052864
             return
         }
         ";
@@ -184,7 +191,7 @@ mod tests {
         assert_ssa_snapshot!(ssa, @r#"
         acir(inline) fn main f0 {
           b0(v0: u128):
-            v2 = mul v0, u128 18446744073709551617
+            v2 = mul v0, u128 85070591730234615865843651857942052864
             v4 = div v0, u128 18446744073709551616
             constrain v4 == u128 0, "attempt to multiply with overflow"
             return
@@ -194,10 +201,12 @@ mod tests {
 
     #[test]
     fn inserts_check_for_rhs() {
+        // The big value here is 2^254 - 2^128, which, when multiplied by any u128
+        // might overflow a Field element max value.
         let src = "
         acir(inline) fn main f0 {
           b0(v0: u128):
-            v2 = mul u128 18446744073709551617, v0
+            v2 = mul u128 85070591730234615865843651857942052864, v0
             return
         }
         ";
@@ -207,7 +216,7 @@ mod tests {
         assert_ssa_snapshot!(ssa, @r#"
         acir(inline) fn main f0 {
           b0(v0: u128):
-            v2 = mul u128 18446744073709551617, v0
+            v2 = mul u128 85070591730234615865843651857942052864, v0
             v4 = div v0, u128 18446744073709551616
             constrain v4 == u128 0, "attempt to multiply with overflow"
             return
@@ -245,7 +254,7 @@ mod tests {
         let src = "
         acir(inline) fn main f0 {
           b0():
-            v2 = mul u128 18446744073709551617, u128 18446744073709551616
+            v2 = mul u128 85070591730234615865843651857942052864, u128 85070591730234615865843651857942052865
             return
         }
         ";
@@ -256,7 +265,7 @@ mod tests {
         assert_ssa_snapshot!(ssa, @r#"
         acir(inline) fn main f0 {
           b0():
-            v2 = mul u128 18446744073709551617, u128 18446744073709551616
+            v2 = mul u128 85070591730234615865843651857942052864, u128 85070591730234615865843651857942052865
             constrain u128 1 == u128 0, "attempt to multiply with overflow"
             return
         }

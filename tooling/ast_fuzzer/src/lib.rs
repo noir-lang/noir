@@ -58,6 +58,13 @@ pub struct Config {
     /// Try to avoid overflowing operations. Useful when testing the minimal pipeline,
     /// to avoid trivial failures due to multiplying or adding constants.
     pub avoid_overflow: bool,
+    /// Try to avoid "Index out of bounds" by using modulo to limit indexing to the
+    /// range that an array or slice is expected to contain.
+    ///
+    /// This is easy to trigger (a random `u32` will most certainly be out of the range
+    /// of the arrays we generate), so by default it is "on". When it's "off", a random
+    /// decision is taken for each index operation whether to apply the modulo or not.
+    pub avoid_index_out_of_bounds: bool,
     /// Try to avoid operations that can result in error when zero is on the RHS.
     pub avoid_err_by_zero: bool,
     /// Avoid using negative integer literals where the frontend expects unsigned types.
@@ -134,6 +141,7 @@ impl Default for Config {
             stmt_freqs_brillig,
             force_brillig: false,
             avoid_overflow: false,
+            avoid_index_out_of_bounds: true,
             avoid_err_by_zero: false,
             avoid_large_int_literals: false,
             avoid_negative_int_literals: false,

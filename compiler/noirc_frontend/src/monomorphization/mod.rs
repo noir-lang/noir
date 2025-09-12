@@ -28,10 +28,10 @@ use crate::{
 };
 use acvm::{FieldElement, acir::AcirField};
 use ast::{GlobalId, IdentId, While};
-use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use iter_extended::{btree_map, try_vecmap, vecmap};
 use noirc_errors::Location;
 use noirc_printable_type::PrintableType;
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use std::{
     collections::{BTreeMap, VecDeque},
     unreachable,
@@ -1950,7 +1950,7 @@ impl<'interner> Monomorphizer<'interner> {
         let int_type = Type::Integer(Signedness::Unsigned, arr_elem_bits);
 
         let bytes_as_expr = vecmap(bytes, |byte| {
-            let value = SignedField::positive(byte as u32);
+            let value = SignedField::positive(u32::from(byte));
             Expression::Literal(Literal::Integer(value, int_type.clone(), location))
         });
 

@@ -662,7 +662,7 @@ impl<'a> Parser<'a> {
                 .bytes()
                 .map(|byte| {
                     ParsedValue::NumericConstant(ParsedNumericConstant {
-                        value: FieldElement::from(byte as u128),
+                        value: FieldElement::from(u128::from(byte)),
                         typ: u8.clone(),
                     })
                 })
@@ -675,7 +675,7 @@ impl<'a> Parser<'a> {
                 .bytes()
                 .map(|byte| {
                     ParsedValue::NumericConstant(ParsedNumericConstant {
-                        value: FieldElement::from(byte as u128),
+                        value: FieldElement::from(u128::from(byte)),
                         typ: u8.clone(),
                     })
                 })

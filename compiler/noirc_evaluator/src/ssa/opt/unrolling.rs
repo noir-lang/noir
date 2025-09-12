@@ -64,7 +64,7 @@ use crate::{
         ssa_gen::Ssa,
     },
 };
-use fxhash::FxHashMap as HashMap;
+use rustc_hash::FxHashMap as HashMap;
 
 impl Ssa {
     /// Loop unrolling can return errors, since ACIR functions need to be fully unrolled.
@@ -770,7 +770,7 @@ impl Loop {
     fn count_all_instructions(&self, function: &Function) -> usize {
         let iter = self.blocks.iter().map(|block| {
             let block = &function.dfg[*block];
-            block.instructions().len() + block.terminator().is_some() as usize
+            block.instructions().len() + usize::from(block.terminator().is_some())
         });
         iter.sum()
     }

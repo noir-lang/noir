@@ -103,10 +103,10 @@ impl<F: AcirField> MemoryValue<F> {
         match self {
             MemoryValue::Field(value) => *value,
             MemoryValue::U1(value) => F::from(*value),
-            MemoryValue::U8(value) => F::from(*value as u128),
-            MemoryValue::U16(value) => F::from(*value as u128),
-            MemoryValue::U32(value) => F::from(*value as u128),
-            MemoryValue::U64(value) => F::from(*value as u128),
+            MemoryValue::U8(value) => F::from(u128::from(*value)),
+            MemoryValue::U16(value) => F::from(u128::from(*value)),
+            MemoryValue::U32(value) => F::from(u128::from(*value)),
+            MemoryValue::U64(value) => F::from(u128::from(*value)),
             MemoryValue::U128(value) => F::from(*value),
         }
     }
@@ -115,11 +115,11 @@ impl<F: AcirField> MemoryValue<F> {
     pub fn to_u128(&self) -> Result<u128, MemoryTypeError> {
         match self {
             MemoryValue::Field(..) => Err(MemoryTypeError::NotAnInteger),
-            MemoryValue::U1(value) => Ok(*value as u8 as u128),
-            MemoryValue::U8(value) => Ok(*value as u128),
-            MemoryValue::U16(value) => Ok(*value as u128),
-            MemoryValue::U32(value) => Ok(*value as u128),
-            MemoryValue::U64(value) => Ok(*value as u128),
+            MemoryValue::U1(value) => Ok(u128::from(*value)),
+            MemoryValue::U8(value) => Ok(u128::from(*value)),
+            MemoryValue::U16(value) => Ok(u128::from(*value)),
+            MemoryValue::U32(value) => Ok(u128::from(*value)),
+            MemoryValue::U64(value) => Ok(u128::from(*value)),
             MemoryValue::U128(value) => Ok(*value),
         }
     }

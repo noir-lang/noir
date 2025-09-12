@@ -65,13 +65,13 @@ impl From<WitnessValueNumeric> for FieldElement {
             WitnessValueNumeric::U128(u128) => FieldElement::from(u128),
             WitnessValueNumeric::U64(u64) => FieldElement::from(u64),
             WitnessValueNumeric::U32(u32) => FieldElement::from(u32),
-            WitnessValueNumeric::U16(u16) => FieldElement::from(u16 as u64),
-            WitnessValueNumeric::U8(u8) => FieldElement::from(u8 as u64),
+            WitnessValueNumeric::U16(u16) => FieldElement::from(u64::from(u16)),
+            WitnessValueNumeric::U8(u8) => FieldElement::from(u64::from(u8)),
             WitnessValueNumeric::Boolean(bool) => FieldElement::from(bool),
             WitnessValueNumeric::I64(i64) => FieldElement::from(i64),
-            WitnessValueNumeric::I32(i32) => FieldElement::from(i32 as u64),
-            WitnessValueNumeric::I16(i16) => FieldElement::from(i16 as u64),
-            WitnessValueNumeric::I8(i8) => FieldElement::from(i8 as u64),
+            WitnessValueNumeric::I32(i32) => FieldElement::from(u64::from(i32)),
+            WitnessValueNumeric::I16(i16) => FieldElement::from(u64::from(i16)),
+            WitnessValueNumeric::I8(i8) => FieldElement::from(u64::from(i8)),
         }
     }
 }
@@ -127,7 +127,8 @@ fn initialize_witness_map_internal(witness: &[WitnessValue]) -> (Vec<FieldElemen
                 types.push(type_);
                 for val in arr {
                     // types of inner arrays are ignored, because they are already added to the types vector
-                    let (values, _types) = initialize_witness_map_internal(&[val.clone()]);
+                    let (values, _types) =
+                        initialize_witness_map_internal(std::slice::from_ref(val));
                     witness_vec.extend(values);
                 }
             }

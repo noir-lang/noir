@@ -141,7 +141,7 @@
 //! ```
 use std::sync::Arc;
 
-use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use acvm::{FieldElement, acir::AcirField, acir::BlackBoxFunc};
 use indexmap::set::IndexSet;
@@ -1192,7 +1192,7 @@ impl<'f> Context<'f> {
                 self.inserter
                     .function
                     .dfg
-                    .make_constant(FieldElement::from(*elem as u32), NumericType::unsigned(8))
+                    .make_constant(FieldElement::from(u32::from(*elem)), NumericType::unsigned(8))
             })
             .collect();
         let constant_array = Instruction::MakeArray { elements, typ: expected_array_type };
@@ -1226,7 +1226,7 @@ impl<'f> Context<'f> {
         condition: ValueId,
         call_stack: CallStackId,
     ) -> (ValueId, ValueId) {
-        let index = !abscissa as usize;
+        let index = usize::from(!abscissa);
         if inputs[3] == inputs[0] && inputs[4] == inputs[1] {
             // Point doubling
             let predicated_value =
