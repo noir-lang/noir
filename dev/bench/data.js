@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1757690978181,
+  "lastUpdate": 1757695360412,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -20220,48 +20220,6 @@ window.BENCHMARK_DATA = {
             "name": "GitHub",
             "username": "web-flow"
           },
-          "distinct": false,
-          "id": "61f3fb3e48986f069e6be61f637d7f63faf9e5c2",
-          "message": "chore(ssa): Consolidate should inline check into a single filter (#9738)",
-          "timestamp": "2025-09-05T18:45:23Z",
-          "tree_id": "5f239caf305704e795be5537dfc80c181e69cf85",
-          "url": "https://github.com/noir-lang/noir/commit/61f3fb3e48986f069e6be61f637d7f63faf9e5c2"
-        },
-        "date": 1757099497749,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 265846,
-            "range": "± 1387",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 229695,
-            "range": "± 3077",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2800817,
-            "range": "± 1904",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
           "distinct": true,
           "id": "15aebdf6497398b79b39d091f0915cc57c8c8242",
           "message": "chore(inlining): Skip weight calc for ACIR functions and recursive Brillig functions (#9739)",
@@ -22304,6 +22262,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2814911,
             "range": "± 2636",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e6260d7b76ea148e5f7e50f7ffcc7a6b7a6be8d1",
+          "message": "feat(ssa): SSA CLI (#9826)",
+          "timestamp": "2025-09-12T15:56:59Z",
+          "tree_id": "a42a23373ae0514b8e9582711b413359d6db4ab1",
+          "url": "https://github.com/noir-lang/noir/commit/e6260d7b76ea148e5f7e50f7ffcc7a6b7a6be8d1"
+        },
+        "date": 1757695340335,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 256449,
+            "range": "± 811",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 228248,
+            "range": "± 2639",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2794285,
+            "range": "± 8162",
             "unit": "ns/iter"
           }
         ]
