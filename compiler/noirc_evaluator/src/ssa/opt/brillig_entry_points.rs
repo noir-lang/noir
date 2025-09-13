@@ -426,7 +426,8 @@ pub(crate) fn build_inner_call_to_entry_points(
 #[cfg(debug_assertions)]
 fn brillig_specialization_post_check(ssa: &Ssa) {
     let call_graph = CallGraph::from_ssa(ssa);
-    let brillig_entry_points = get_brillig_entry_points(&ssa.functions, ssa.main_id, &call_graph);
+    let brillig_entry_points =
+        get_brillig_entry_points_with_reachability(&ssa.functions, ssa.main_id, &call_graph);
     let inner_call_to_entry_point = build_inner_call_to_entry_points(&brillig_entry_points);
 
     for (func_id, entry_points) in inner_call_to_entry_point {
