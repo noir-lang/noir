@@ -423,7 +423,7 @@ impl<'f> LoopInvariantContext<'f> {
                 if self.simplify_from_loop_bounds(&loop_context, &block_context, instruction_id) {
                     continue;
                 }
-                let hoist_invariant =
+                let (hoist_invariant, insert_rc) =
                     self.can_hoist_invariant(&loop_context, &block_context, instruction_id);
 
                 if hoist_invariant {
@@ -431,12 +431,7 @@ impl<'f> LoopInvariantContext<'f> {
 
                     // If we are hoisting a MakeArray instruction,
                     // we need to issue an extra inc_rc in case they are mutated afterward.
-                    if self.inserter.function.runtime().is_brillig()
-                        && matches!(
-                            self.inserter.function.dfg[instruction_id],
-                            Instruction::MakeArray { .. }
-                        )
-                    {
+                    if insert_rc {
                         let result =
                             self.inserter.function.dfg.instruction_results(instruction_id)[0];
                         let inc_rc = Instruction::IncrementRc { value: result };
@@ -659,12 +654,17 @@ impl<'f> LoopInvariantContext<'f> {
         }
     }
 
+    /// Decide if an in instruction can be hoisted into the pre-header of the loop.
+    ///
+    /// Returns 2 flags:
+    /// 1. Whether the instruction can be hoisted
+    /// 2. If it can be hoisted, does it require an `IncrementRc` instruction.
     fn can_hoist_invariant(
         &mut self,
         loop_context: &LoopContext,
         block_context: &BlockContext,
         instruction_id: InstructionId,
-    ) -> bool {
+    ) -> (bool, bool) {
         use CanBeHoistedResult::*;
 
         let mut is_loop_invariant = true;
@@ -683,22 +683,20 @@ impl<'f> LoopInvariantContext<'f> {
         });
 
         if !is_loop_invariant {
-            return false;
+            return (false, false);
         }
 
         // Check if the operation depends only on the outer loop variable, in which case it can be hoisted
         // into the pre-header of a nested loop even if the nested loop does not execute.
         if self.can_be_hoisted_from_loop_bounds(loop_context, &instruction) {
-            return true;
+            return (true, false);
         }
 
         match can_be_hoisted(&instruction, &self.inserter.function.dfg) {
-            Yes => true,
-            No => false,
-            WithPredicate => block_context.can_hoist_control_dependent_instruction(),
-            // MakeArray is only safe to hoist in ACIR, but we know that in Brillig we will insert an `IncRc`
-            // in `LoopInvariantContext::hoist_loop_invariants` to keep it safe, so it's okay to hoist them.
-            WithRefCount => true,
+            Yes => (true, false),
+            No => (false, false),
+            WithRefCount => (true, true),
+            WithPredicate => (block_context.can_hoist_control_dependent_instruction(), false),
         }
     }
 
@@ -867,10 +865,8 @@ fn can_be_hoisted(instruction: &Instruction, dfg: &DataFlowGraph) -> CanBeHoiste
         Noop => Yes,
 
         // Arrays can be mutated in unconstrained code so code that handles this case must
-        // take care to track whether the array was possibly mutated or not before
-        // hoisted. We know that in this module we will insert a corresponding `IncRc` to
-        // allow safe hoisting in unconstrained code, but just in case we would expose this
-        // function to other modules, we return a more restrictive result here.
+        // take care to track whether the array was possibly mutated or not before hoisted.
+        // An ACIR it is always safe to hoist MakeArray.
         MakeArray { .. } => {
             if dfg.runtime().is_acir() {
                 Yes
