@@ -135,9 +135,19 @@ fn constant_folding_post_check(context: &Context, dfg: &DataFlowGraph) {
 }
 
 struct Context {
-    use_constraint_info: bool,
     /// Maps pre-folded ValueIds to the new ValueIds obtained by re-inserting the instruction.
     block_queue: VisitOnceDeque,
+
+    /// Whether to use [constraints][Instruction::Constrain] to inform simplifications later on in the program.
+    ///
+    /// For example, this allows simplifying the instructions below to determine that `v2 == Field 3` without
+    /// laying down constraints for the addition:
+    ///
+    /// ```
+    /// constrain v1 == Field 0
+    /// v2 = add v1, Field 2
+    /// ```
+    use_constraint_info: bool,
 
     /// Contains sets of values which are constrained to be equivalent to each other.
     ///
@@ -148,9 +158,12 @@ struct Context {
     /// being used to modify the rest of the program.
     constraint_simplification_mappings: ConstraintSimplificationCache,
 
-    // Cache of instructions without any side-effects along with their outputs.
+    /// Cache of instructions along with their outputs which are safe to reuse.
+    ///
+    /// See [`can_be_deduplicated`] for more information
     cached_instruction_results: InstructionResultCache,
 
+    /// Maps pre-folded ValueIds to the new ValueIds obtained by re-inserting the instruction.
     values_to_replace: ValueMapping,
 }
 
@@ -406,11 +419,12 @@ impl Context {
         // If the instruction doesn't have side-effects and if it won't interact with enable_side_effects during acir_gen,
         // we cache the results so we can reuse them if the same instruction appears again later in the block.
         // Others have side effects representing failure, which are implicit in the ACIR code and can also be deduplicated.
-        let can_be_deduplicated = can_be_deduplicated(&instruction, dfg, self.use_constraint_info);
+        let can_be_deduplicated = can_be_deduplicated(&instruction, dfg);
 
-        // We also allow deduplicating MakeArray instructions that we have tracked which haven't
-        // been mutated.
-        if can_be_deduplicated || matches!(instruction, Instruction::MakeArray { .. }) {
+        let use_constraint_info = self.use_constraint_info;
+        let is_make_array = matches!(instruction, Instruction::MakeArray { .. });
+
+        let cache_instruction = || {
             let predicate = self.cache_predicate(side_effects_enabled_var, &instruction, dfg);
             // If we see this make_array again, we can reuse the current result.
             self.cached_instruction_results.cache(
@@ -419,6 +433,15 @@ impl Context {
                 block,
                 instruction_results,
             );
+        };
+
+        match can_be_deduplicated {
+            CanBeDeduplicated::Always => cache_instruction(),
+            CanBeDeduplicated::UnderSamePredicate if use_constraint_info => cache_instruction(),
+            // We also allow deduplicating MakeArray instructions that we have tracked which haven't been mutated.
+            _ if is_make_array => cache_instruction(),
+
+            CanBeDeduplicated::UnderSamePredicate | CanBeDeduplicated::Never => {}
         }
     }
 
@@ -461,6 +484,27 @@ fn resolve_cache(
     }
 }
 
+enum CanBeDeduplicated {
+    /// This instruction has no side effects so we can substitute the results for those of the same instruction elsewhere.
+    Always,
+    /// This instruction has some side effects such as potentially fallible constraints which could halt execution.
+    ///
+    /// This means that if this instruction passes under a given predicate, we can reuse its results across all
+    /// later instances of this instruction under the same predicate.
+    UnderSamePredicate,
+    /// This instruction has side effects which prevent all deduplication.
+    ///
+    /// An example is `EnableSideEffects` where a "duplicate" of this instruction has an important effect on later instructions
+    /// which is not implied by the existence of the original `EnableSideEffects` instruction. For example:
+    ///
+    /// ```
+    /// enable_side_effects u1 1
+    /// enable_side_effects u1 0
+    /// enable_side_effects u1 1 <-- deduplicating this instruction results in side effects being disabled rather than enabled.
+    /// ```
+    Never,
+}
+
 /// Indicates if the instruction can be safely replaced with the results of another instruction with the same inputs.
 /// If `deduplicate_with_predicate` is set, we assume we're deduplicating with the instruction
 /// and its predicate, rather than just the instruction. Setting this means instructions that
@@ -470,11 +514,7 @@ fn resolve_cache(
 /// These can be deduplicated because they implicitly depend on the predicate, not only when the caller uses the
 /// predicate variable as a key to cache results. However, to avoid tight coupling between passes, we make the deduplication
 /// conditional on whether the caller wants the predicate to be taken into account or not.
-pub(crate) fn can_be_deduplicated(
-    instruction: &Instruction,
-    dfg: &DataFlowGraph,
-    deduplicate_with_predicate: bool,
-) -> bool {
+fn can_be_deduplicated(instruction: &Instruction, dfg: &DataFlowGraph) -> CanBeDeduplicated {
     use Instruction::*;
 
     match instruction {
@@ -484,7 +524,7 @@ pub(crate) fn can_be_deduplicated(
         | Load { .. }
         | Store { .. }
         | IncrementRc { .. }
-        | DecrementRc { .. } => false,
+        | DecrementRc { .. } => CanBeDeduplicated::Never,
 
         Call { func, .. } => {
             let purity = match dfg[*func] {
@@ -493,35 +533,47 @@ pub(crate) fn can_be_deduplicated(
                 _ => None,
             };
             match purity {
-                Some(Purity::Pure) => true,
-                Some(Purity::PureWithPredicate) => deduplicate_with_predicate,
-                Some(Purity::Impure) => false,
-                None => false,
+                Some(Purity::Pure) => CanBeDeduplicated::Always,
+                Some(Purity::PureWithPredicate) => CanBeDeduplicated::UnderSamePredicate,
+                Some(Purity::Impure) => CanBeDeduplicated::Never,
+                None => CanBeDeduplicated::Never,
             }
         }
 
         // We can deduplicate these instructions if we know the predicate is also the same.
-        Constrain(..) | ConstrainNotEqual(..) | RangeCheck { .. } => deduplicate_with_predicate,
+        Constrain(..) | ConstrainNotEqual(..) | RangeCheck { .. } => {
+            CanBeDeduplicated::UnderSamePredicate
+        }
 
         // Noop instructions can always be deduplicated, although they're more likely to be
         // removed entirely.
-        Noop => true,
+        Noop => CanBeDeduplicated::Always,
 
         // These instructions can always be deduplicated
-        Cast(_, _) | Not(_) | Truncate { .. } | IfElse { .. } => true,
+        Cast(_, _) | Not(_) | Truncate { .. } | IfElse { .. } => CanBeDeduplicated::Always,
 
         // Arrays can be mutated in unconstrained code so code that handles this case must
         // take care to track whether the array was possibly mutated or not before
         // deduplicating. Since we don't know if the containing pass checks for this, we
         // can only assume these are safe to deduplicate in constrained code.
-        MakeArray { .. } => dfg.runtime().is_acir(),
+        MakeArray { .. } => {
+            if dfg.runtime().is_acir() {
+                CanBeDeduplicated::Always
+            } else {
+                CanBeDeduplicated::Never
+            }
+        }
 
         // These can have different behavior depending on the EnableSideEffectsIf context.
         // Replacing them with a similar instruction potentially enables replacing an instruction
         // with one that was disabled. See
         // https://github.com/noir-lang/noir/pull/4716#issuecomment-2047846328.
         Binary(_) | ArrayGet { .. } | ArraySet { .. } => {
-            deduplicate_with_predicate || !instruction.requires_acir_gen_predicate(dfg)
+            if instruction.requires_acir_gen_predicate(dfg) {
+                CanBeDeduplicated::UnderSamePredicate
+            } else {
+                CanBeDeduplicated::Always
+            }
         }
     }
 }
