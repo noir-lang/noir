@@ -175,16 +175,12 @@ impl Function {
         // after an always failing one was found.
         let mut current_block_reachability = Reachability::Reachable;
 
-        let one = self.dfg.make_constant(1_u32.into(), NumericType::bool());
-        let mut side_effects_condition = one;
-
         self.simple_optimization(|context| {
             let block_id = context.block_id;
 
             if current_block_id != Some(block_id) {
                 current_block_id = Some(block_id);
                 current_block_reachability = Reachability::Reachable;
-                side_effects_condition = one;
             }
 
             if current_block_reachability == Reachability::Unreachable {
@@ -194,15 +190,13 @@ impl Function {
 
             let instruction = context.instruction();
             if let Instruction::EnableSideEffectsIf { condition } = instruction {
-                side_effects_condition = *condition;
-                current_block_reachability =
-                    match context.dfg.get_numeric_constant(side_effects_condition) {
-                        Some(predicate) if predicate.is_zero() => {
-                            // We can replace side effecting instructions with defaults until the next predicate.
-                            Reachability::UnreachableUnderPredicate
-                        }
-                        _ => Reachability::Reachable,
-                    };
+                current_block_reachability = match context.dfg.get_numeric_constant(*condition) {
+                    Some(predicate) if predicate.is_zero() => {
+                        // We can replace side effecting instructions with defaults until the next predicate.
+                        Reachability::UnreachableUnderPredicate
+                    }
+                    _ => Reachability::Reachable,
+                };
                 return;
             };
 
@@ -218,7 +212,7 @@ impl Function {
 
             // Check if the current predicate is known to be enabled.
             let is_predicate_constant_one =
-                || match context.dfg.get_numeric_constant(side_effects_condition) {
+                || match context.dfg.get_numeric_constant(context.enable_side_effects) {
                     Some(predicate) => predicate.is_one(),
                     None => false, // The predicate is a variable
                 };
@@ -247,133 +241,128 @@ impl Function {
                     }
                 }
                 Instruction::Binary(binary @ Binary { lhs, operator, rhs }) => {
-                    if let Some(message) =
+                    let Some(message) =
                         binary_operation_always_fails(*lhs, *operator, *rhs, context)
-                    {
-                        // Check if this operation is one that should only fail if the predicate is enabled.
-                        let requires_acir_gen_predicate =
-                            binary.requires_acir_gen_predicate(context.dfg);
+                    else {
+                        return;
+                    };
 
-                        let fails_under_predicate =
-                            requires_acir_gen_predicate && !is_predicate_constant_one();
+                    // Check if this operation is one that should only fail if the predicate is enabled.
+                    let requires_acir_gen_predicate =
+                        binary.requires_acir_gen_predicate(context.dfg);
 
-                        // Insert the instruction right away so we can add a constrain immediately after it
-                        context.insert_current_instruction();
+                    let fails_under_predicate =
+                        requires_acir_gen_predicate && !is_predicate_constant_one();
 
-                        // Insert a constraint which makes it easy to see that this instruction will fail.
-                        let guard = if fails_under_predicate {
-                            side_effects_condition
-                        } else {
-                            context.dfg.make_constant(1_u128.into(), NumericType::bool())
-                        };
-                        let zero = context.dfg.make_constant(0_u128.into(), NumericType::bool());
-                        let message = Some(ConstrainError::StaticString(message));
-                        let instruction = Instruction::Constrain(zero, guard, message);
-                        let call_stack =
-                            context.dfg.get_instruction_call_stack_id(context.instruction_id);
+                    // Insert the instruction right away so we can add a constrain immediately after it
+                    context.insert_current_instruction();
 
-                        context.dfg.insert_instruction_and_results(
-                            instruction,
-                            block_id,
-                            None,
-                            call_stack,
-                        );
+                    // Insert a constraint which makes it easy to see that this instruction will fail.
+                    let guard = if fails_under_predicate {
+                        context.enable_side_effects
+                    } else {
+                        context.dfg.make_constant(1_u128.into(), NumericType::bool())
+                    };
+                    let zero = context.dfg.make_constant(0_u128.into(), NumericType::bool());
+                    let message = Some(ConstrainError::StaticString(message));
+                    let instruction = Instruction::Constrain(zero, guard, message);
+                    let call_stack =
+                        context.dfg.get_instruction_call_stack_id(context.instruction_id);
 
-                        // Subsequent instructions can either be removed, of replaced by defaults until the next predicate.
-                        current_block_reachability = if fails_under_predicate {
-                            Reachability::UnreachableUnderPredicate
-                        } else {
-                            Reachability::Unreachable
-                        }
+                    context.dfg.insert_instruction_and_results(
+                        instruction,
+                        block_id,
+                        None,
+                        call_stack,
+                    );
+
+                    // Subsequent instructions can either be removed, of replaced by defaults until the next predicate.
+                    current_block_reachability = if fails_under_predicate {
+                        Reachability::UnreachableUnderPredicate
+                    } else {
+                        Reachability::Unreachable
                     }
                 }
                 Instruction::ArrayGet { array, index, offset }
                 | Instruction::ArraySet { array, index, offset, .. }
                     if context.dfg.runtime().is_acir() =>
                 {
-                    let array_or_slice_type = context.dfg.type_of_value(*array);
-                    let array_op_always_fails = match &array_or_slice_type {
-                        Type::Slice(_) => false,
-                        array_type @ Type::Array(_, len) => {
-                            *len == 0
-                                || context.dfg.get_numeric_constant(*index).is_some_and(|index| {
-                                    (index.try_to_u32().unwrap() - offset.to_u32())
-                                        >= (array_type.element_size() as u32 * len)
-                                })
-                        }
-
-                        _ => unreachable!(
-                            "Encountered non-array type during array read/write operation"
-                        ),
+                    let array_type = context.dfg.type_of_value(*array);
+                    // We can only know a guaranteed out-of-bounds access for arrays, never for slices.
+                    let Type::Array(_, len) = array_type else {
+                        return;
                     };
 
-                    if array_op_always_fails {
-                        let always_fail = is_predicate_constant_one();
-                        // We could leave the array operation to trigger an OOB on the invalid access, however if the array contains and returns
-                        // references, then the SSA passes still won't be able to deal with them as nothing ever stores to references which are
-                        // never created. Instead, we can replace the result of the instruction with defaults, which will allocate and store
-                        // defaults to those references, so subsequent SSA passes can complete without errors.
-                        insert_constraint(
-                            context,
-                            block_id,
-                            side_effects_condition,
-                            "Index out of bounds".to_string(),
-                        );
-
-                        current_block_reachability = if always_fail {
-                            // If the block fails unconditionally, we don't even need a default for the results.
-                            context.remove_current_instruction();
-                            Reachability::Unreachable
-                        } else {
-                            // We will never use the results (the constraint fails if the side effects are enabled),
-                            // but we need them to make the rest of the SSA valid even if the side effects are off.
-                            remove_and_replace_with_defaults(context, func_id, block_id);
-                            Reachability::UnreachableUnderPredicate
-                        };
-                    }
-                }
-                // Intrinsic Slice operations in ACIR on empty arrays need to be replaced with a (conditional) constraint.
-                // In Brillig they will be protected by an access constraint, which, if known to fail, will make the block unreachable.
-                Instruction::Call { func, arguments } if context.dfg.runtime().is_acir() => {
-                    if let Value::Intrinsic(Intrinsic::SlicePopBack | Intrinsic::SlicePopFront) =
-                        &context.dfg[*func]
-                    {
-                        let length = arguments.iter().next().unwrap_or_else(|| {
-                            unreachable!("slice operations have 2 arguments: [length, slice]")
+                    let array_op_always_fails = len == 0
+                        || context.dfg.get_numeric_constant(*index).is_some_and(|index| {
+                            (index.try_to_u32().unwrap() - offset.to_u32())
+                                >= (array_type.element_size() as u32 * len)
                         });
-                        let is_empty =
-                            context.dfg.get_numeric_constant(*length).is_some_and(|v| v.is_zero());
-                        // If the compiler knows the slice is empty, there is no point trying to pop from it, we know it will fail.
-                        // Barretenberg doesn't handle memory operations with predicates, so we can't rely on those to disable the operation
-                        // based on the current side effect variable. Instead we need to replace it with a conditional constraint.
-                        if is_empty {
-                            let always_fail = is_predicate_constant_one();
-
-                            // We might think that if the predicate is constant 1, we can leave the pop as it will always fail.
-                            // However by turning the block Unreachable, ACIR-gen would create empty bytecode and not fail the circuit.
-                            insert_constraint(
-                                context,
-                                block_id,
-                                side_effects_condition,
-                                "Index out of bounds".to_string(),
-                            );
-
-                            current_block_reachability = if always_fail {
-                                context.remove_current_instruction();
-                                Reachability::Unreachable
-                            } else {
-                                // Here we could use the empty slice as the replacement of the return value,
-                                // except that slice operations also return the removed element and the new length
-                                // so it's easier to just use zeroed values here
-                                remove_and_replace_with_defaults(context, func_id, block_id);
-                                Reachability::UnreachableUnderPredicate
-                            };
-                        }
+                    if !array_op_always_fails {
+                        return;
                     }
+
+                    let always_fail = is_predicate_constant_one();
+                    // We could leave the array operation to trigger an OOB on the invalid access, however if the array contains and returns
+                    // references, then the SSA passes still won't be able to deal with them as nothing ever stores to references which are
+                    // never created. Instead, we can replace the result of the instruction with defaults, which will allocate and store
+                    // defaults to those references, so subsequent SSA passes can complete without errors.
+                    insert_constraint(context, block_id, "Index out of bounds".to_string());
+
+                    current_block_reachability = if always_fail {
+                        // If the block fails unconditionally, we don't even need a default for the results.
+                        context.remove_current_instruction();
+                        Reachability::Unreachable
+                    } else {
+                        // We will never use the results (the constraint fails if the side effects are enabled),
+                        // but we need them to make the rest of the SSA valid even if the side effects are off.
+                        remove_and_replace_with_defaults(context, func_id, block_id);
+                        Reachability::UnreachableUnderPredicate
+                    };
+                }
+                Instruction::Call { func, arguments } if context.dfg.runtime().is_acir() => {
+                    // Intrinsic Slice operations in ACIR on empty arrays need to be replaced with a (conditional) constraint.
+                    // In Brillig they will be protected by an access constraint, which, if known to fail, will make the block unreachable.
+                    let Value::Intrinsic(Intrinsic::SlicePopBack | Intrinsic::SlicePopFront) =
+                        &context.dfg[*func]
+                    else {
+                        return;
+                    };
+
+                    let length = arguments.first().unwrap_or_else(|| {
+                        unreachable!("slice operations have 2 arguments: [length, slice]")
+                    });
+                    let is_empty =
+                        context.dfg.get_numeric_constant(*length).is_some_and(|v| v.is_zero());
+                    if !is_empty {
+                        return;
+                    }
+
+                    // If the compiler knows the slice is empty, there is no point trying to pop from it, we know it will fail.
+                    // Barretenberg doesn't handle memory operations with predicates, so we can't rely on those to disable the operation
+                    // based on the current side effect variable. Instead we need to replace it with a conditional constraint.
+                    let always_fail = is_predicate_constant_one();
+
+                    // We might think that if the predicate is constant 1, we can leave the pop as it will always fail.
+                    // However by turning the block Unreachable, ACIR-gen would create empty bytecode and not fail the circuit.
+                    insert_constraint(context, block_id, "Index out of bounds".to_string());
+
+                    current_block_reachability = if always_fail {
+                        context.remove_current_instruction();
+                        Reachability::Unreachable
+                    } else {
+                        // Here we could use the empty slice as the replacement of the return value,
+                        // except that slice operations also return the removed element and the new length
+                        // so it's easier to just use zeroed values here
+                        remove_and_replace_with_defaults(context, func_id, block_id);
+                        Reachability::UnreachableUnderPredicate
+                    };
                 }
                 _ => (),
             };
 
+            // Once we find an instruction that will always fail, replace the terminator with `unreachable`.
+            // Subsequent instructions in this block will be removed.
             if current_block_reachability == Reachability::Unreachable {
                 let terminator = context.dfg[block_id].take_terminator();
                 let call_stack = terminator.call_stack();
@@ -384,6 +373,7 @@ impl Function {
     }
 }
 
+/// If a binary operation is guaranteed to fail, returns the error message. Otherwise returns None.
 fn binary_operation_always_fails(
     lhs: ValueId,
     operator: BinaryOp,
@@ -391,22 +381,9 @@ fn binary_operation_always_fails(
     context: &SimpleOptimizationContext,
 ) -> Option<String> {
     // Unchecked operations can never fail
-    match operator {
-        BinaryOp::Add { unchecked } | BinaryOp::Sub { unchecked } | BinaryOp::Mul { unchecked } => {
-            if unchecked {
-                return None;
-            }
-        }
-        BinaryOp::Div
-        | BinaryOp::Mod
-        | BinaryOp::Eq
-        | BinaryOp::Lt
-        | BinaryOp::And
-        | BinaryOp::Or
-        | BinaryOp::Xor
-        | BinaryOp::Shl
-        | BinaryOp::Shr => (),
-    };
+    if binary_operator_is_unchecked(operator) {
+        return None;
+    }
 
     let rhs_value = context.dfg.get_numeric_constant(rhs)?;
 
@@ -427,6 +404,23 @@ fn binary_operation_always_fails(
     match eval_constant_binary_op(lhs_value, rhs_value, operator, numeric_type) {
         BinaryEvaluationResult::Failure(message) => Some(message),
         BinaryEvaluationResult::CouldNotEvaluate | BinaryEvaluationResult::Success(..) => None,
+    }
+}
+
+fn binary_operator_is_unchecked(operator: BinaryOp) -> bool {
+    match operator {
+        BinaryOp::Add { unchecked } | BinaryOp::Sub { unchecked } | BinaryOp::Mul { unchecked } => {
+            unchecked
+        }
+        BinaryOp::Div
+        | BinaryOp::Mod
+        | BinaryOp::Eq
+        | BinaryOp::Lt
+        | BinaryOp::And
+        | BinaryOp::Or
+        | BinaryOp::Xor
+        | BinaryOp::Shl
+        | BinaryOp::Shr => false,
     }
 }
 
@@ -502,12 +496,11 @@ fn remove_and_replace_with_defaults(
 fn insert_constraint(
     context: &mut SimpleOptimizationContext<'_, '_>,
     block_id: BasicBlockId,
-    predicate: ValueId,
     msg: String,
 ) {
     let zero = context.dfg.make_constant(0_u128.into(), NumericType::bool());
     let message = Some(ConstrainError::StaticString(msg));
-    let instruction = Instruction::Constrain(zero, predicate, message);
+    let instruction = Instruction::Constrain(zero, context.enable_side_effects, message);
     let call_stack = context.dfg.get_instruction_call_stack_id(context.instruction_id);
     context.dfg.insert_instruction_and_results(instruction, block_id, None, call_stack);
 }
