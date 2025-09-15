@@ -820,7 +820,15 @@ fn replacement_types(types: &[Type]) -> Option<Vec<Type>> {
 mod tests {
     use crate::{
         assert_ssa_snapshot,
-        ssa::{ir::function::FunctionId, opt::defunctionalize::create_apply_functions},
+        ssa::{
+            interpreter::{
+                IResults,
+                tests::expect_value_with_args,
+                value::{NumericValue, Value},
+            },
+            ir::function::FunctionId,
+            opt::defunctionalize::create_apply_functions,
+        },
     };
 
     use super::{Ssa, find_variants};
