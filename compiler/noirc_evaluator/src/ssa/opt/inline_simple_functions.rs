@@ -42,7 +42,7 @@ impl Ssa {
             }
 
             // Do not inline Brillig entry points
-            if brillig_entry_points.contains_key(&callee.id()) {
+            if brillig_entry_points.contains(&callee.id()) {
                 return false;
             }
 

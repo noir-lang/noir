@@ -21,7 +21,7 @@ use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 pub(crate) mod dynamic_array_indices;
 
 use crate::ssa::{
-    ir::{dfg::DataFlowGraph, instruction::TerminatorInstruction},
+    ir::{basic_block::BasicBlockId, dfg::DataFlowGraph, instruction::TerminatorInstruction},
     ssa_gen::Ssa,
 };
 
@@ -679,6 +679,26 @@ impl<'f> Validator<'f> {
         }
     }
 
+    fn validate_block_terminator(&self, block: BasicBlockId) {
+        let terminator = self.function.dfg[block]
+            .terminator()
+            .expect("Block is expected to have a terminator instruction");
+
+        match terminator {
+            TerminatorInstruction::JmpIf { condition, .. } => {
+                let condition_type = self.function.dfg.type_of_value(*condition);
+                assert_eq!(
+                    condition_type,
+                    Type::bool(),
+                    "JmpIf conditions should have boolean type"
+                );
+            }
+            TerminatorInstruction::Jmp { .. }
+            | TerminatorInstruction::Return { .. }
+            | TerminatorInstruction::Unreachable { .. } => (),
+        }
+    }
+
     fn run(&mut self) {
         self.type_check_globals();
         self.validate_single_return_block();
@@ -689,6 +709,7 @@ impl<'f> Validator<'f> {
                 self.type_check_instruction(*instruction);
                 self.check_calls_in_unconstrained(*instruction);
             }
+            self.validate_block_terminator(block);
         }
     }
 }
@@ -1296,6 +1317,24 @@ mod tests {
             v5 = array_get v4, index v0 -> Field
             return
         }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "JmpIf conditions should have boolean type")]
+    fn disallows_non_boolean_jmpif_condition() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            jmpif v0 then: b1, else: b2
+          b1():
+            jmp b2()
+          b2():
+            return
+
+        }
+        
         ";
         let _ = Ssa::from_str(src).unwrap();
     }
