@@ -6,6 +6,7 @@
 //! This variant lets nargo parse the resulting source code which is slow
 //! but at the moment is more feature complete than using the interpreter
 //! directly.
+use crate::targets::default_config;
 use crate::{compare_results_comptime, create_ssa_or_die, default_ssa_options};
 use arbitrary::Unstructured;
 use color_eyre::eyre;
@@ -16,8 +17,6 @@ use noir_ast_fuzzer::rewrite::change_all_functions_into_unconstrained;
 
 pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
     let config = Config {
-        // It's easy to overflow.
-        avoid_overflow: u.arbitrary()?,
         // Avoid break/continue
         avoid_loop_control: true,
         // Match is not yet implemented in comptime.
@@ -29,7 +28,7 @@ pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
         // Use lower limits because of the interpreter, to avoid stack overflow
         max_loop_size: 5,
         max_recursive_calls: 5,
-        ..Default::default()
+        ..default_config(u)?
     };
 
     let inputs = CompareComptime::arb(u, config, |program| {
@@ -57,6 +56,6 @@ mod tests {
     /// ```
     #[test]
     fn fuzz_with_arbtest() {
-        crate::targets::tests::fuzz_with_arbtest(super::fuzz, 200);
+        crate::targets::tests::fuzz_with_arbtest(super::fuzz, 1000);
     }
 }

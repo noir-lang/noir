@@ -239,6 +239,16 @@ impl Function {
     pub fn has_data_bus_return_data(&self) -> bool {
         self.dfg.data_bus.return_data.is_some()
     }
+
+    /// Return the types of the function parameters.
+    pub fn parameter_types(&self) -> Vec<Type> {
+        vecmap(self.parameters(), |p| self.dfg.type_of_value(*p))
+    }
+
+    /// Return the types of the returned values, if there are any.
+    pub fn return_types(&self) -> Option<Vec<Type>> {
+        self.returns().map(|rs| vecmap(rs, |p| self.dfg.type_of_value(*p)))
+    }
 }
 
 impl Clone for Function {
