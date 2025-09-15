@@ -1,12 +1,7 @@
 use crate::{
     errors::{RtResult, RuntimeError},
     ssa::{
-        ir::{
-            dfg::DataFlowGraph,
-            function::Function,
-            instruction::Instruction,
-            value::{Value, ValueId},
-        },
+        ir::{dfg::DataFlowGraph, function::Function, instruction::Instruction, value::ValueId},
         ssa_gen::Ssa,
     },
 };
@@ -57,21 +52,12 @@ impl Function {
 
 /// Check if an value is a numeric constant, or a result of an instruction that only uses numeric constant inputs.
 fn is_non_dynamic(dfg: &DataFlowGraph, value: ValueId) -> bool {
-    if dfg.get_numeric_constant(value).is_some() {
-        return true;
-    }
-    // If the variable is coming from a `Param`, or anything other than an instruction, it's dynamic.
-    let Value::Instruction { instruction, .. } = &dfg[value] else {
-        return false;
-    };
-    let instruction = &dfg[*instruction];
-    // By now we should only be making calls to Brillig from ACIR, which is inherently dynamic.
-    if matches!(instruction, Instruction::Call { .. }) {
-        return false;
-    };
-    let mut result = true;
-    instruction.for_each_value(|id| result &= is_non_dynamic(dfg, id));
-    result
+    // We could check if a non-constant-numeric value is a result of for example a binary an instruction that only
+    // takes numeric constant input. However, if we have such a value, it might be a result of an overflowing
+    // index expression that we could not simplify at runtime, which means most likely mem2reg could not eliminate
+    // the reference allocation either, so even if we classified such indexes as non-dynamic, since they only use
+    // known constants, we would just get another obscure error down the line with a less obvious call stack.
+    dfg.get_numeric_constant(value).is_some()
 }
 
 #[cfg(test)]
@@ -130,7 +116,7 @@ mod tests {
     }
 
     #[test]
-    fn no_error_for_const_overflow() {
+    fn error_on_index_overflow() {
         // https://github.com/noir-lang/noir/issues/9853
         // fn main() -> pub bool {
         //     let mut e: [(&mut Field, bool); 1] = [((&mut -1), false)];
@@ -149,6 +135,6 @@ mod tests {
 
         let ssa = Ssa::from_str(src).unwrap();
         let result = ssa.verify_no_dynamic_indices_to_references();
-        assert!(result.is_ok());
+        assert!(matches!(result, Err(RuntimeError::DynamicIndexingWithReference { .. })));
     }
 }
