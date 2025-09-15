@@ -1,7 +1,12 @@
 use crate::{
     errors::{RtResult, RuntimeError},
     ssa::{
-        ir::{function::Function, instruction::Instruction},
+        ir::{
+            dfg::DataFlowGraph,
+            function::Function,
+            instruction::Instruction,
+            value::{Value, ValueId},
+        },
         ssa_gen::Ssa,
     },
 };
@@ -37,7 +42,7 @@ impl Function {
                         let array_type = self.dfg.type_of_value(*array);
                         let contains_reference = array_type.contains_reference();
 
-                        if contains_reference && self.dfg.get_numeric_constant(*index).is_none() {
+                        if contains_reference && !is_non_dynamic(&self.dfg, *index) {
                             let call_stack = self.dfg.get_instruction_call_stack(*instruction);
                             return Err(RuntimeError::DynamicIndexingWithReference { call_stack });
                         }
@@ -48,6 +53,25 @@ impl Function {
         }
         Ok(())
     }
+}
+
+/// Check if an value is a numeric constant, or a result of an instruction that only uses numeric constant inputs.
+fn is_non_dynamic(dfg: &DataFlowGraph, value: ValueId) -> bool {
+    if dfg.get_numeric_constant(value).is_some() {
+        return true;
+    }
+    // If the variable is coming from a `Param`, or anything other than an instruction, it's dynamic.
+    let Value::Instruction { instruction, .. } = &dfg[value] else {
+        return false;
+    };
+    let instruction = &dfg[*instruction];
+    // By now we should only be making calls to Brillig from ACIR, which is inherently dynamic.
+    if matches!(instruction, Instruction::Call { .. }) {
+        return false;
+    };
+    let mut result = true;
+    instruction.for_each_value(|id| result &= is_non_dynamic(dfg, id));
+    result
 }
 
 #[cfg(test)]
@@ -99,6 +123,29 @@ mod tests {
                 v9 = load v8 -> u1
                 return v9
             }"#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let result = ssa.verify_no_dynamic_indices_to_references();
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn no_error_for_const_overflow() {
+        // https://github.com/noir-lang/noir/issues/9853
+        // fn main() -> pub bool {
+        //     let mut e: [(&mut Field, bool); 1] = [((&mut -1), false)];
+        //     e[2147483648].1
+        // }
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0():
+            v0 = allocate -> &mut Field
+            v2 = make_array [v0, u1 0] : [(&mut Field, u1); 1]
+            v5 = unchecked_mul u32 2147483648, u32 2
+            v7 = unchecked_add v5, u32 1
+            v8 = array_get v2, index v7 -> u1
+            return v8
+        }"#;
 
         let ssa = Ssa::from_str(src).unwrap();
         let result = ssa.verify_no_dynamic_indices_to_references();
