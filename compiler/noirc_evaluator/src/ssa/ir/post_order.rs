@@ -184,7 +184,7 @@ mod tests {
         BasicBlockId::test_new(id)
     }
 
-    /// Documents the somewhat odd behavior from #9771
+    /// Documents the somewhat odd behavior from https://github.com/noir-lang/noir/issues/9771
     #[test]
     fn loop_regression() {
         // b0 -> b1 <-> b2
