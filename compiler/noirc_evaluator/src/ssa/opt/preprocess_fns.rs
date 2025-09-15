@@ -97,14 +97,15 @@ mod tests {
         }
         acir(inline) fn foo f0 {
           b0(v0: u32, v1: Field):
-            jmpif v0 then: b1, else: b2
+            v2 = eq v0, u32 1
+            jmpif v2 then: b1, else: b2
           b1():
             v6 = add v0, u32 1
             jmp b3(v6, v1)
           b2():
             v5 = sub v0, u32 1
             jmp b3(v5, v1)
-          b3(v2: u32, v3: Field):
+          b3(v3: u32, v4: Field):
             return
         }
         "#;
@@ -112,24 +113,25 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
         let ssa = ssa.preprocess_functions(i64::MAX, MAX_INSTRUCTIONS).unwrap();
 
-        assert_ssa_snapshot!(ssa, @r#"
+        assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0():
             call f1()
             return
         }
         acir(inline) fn foo f1 {
-          b0(v0: u32):
-            jmpif v0 then: b1, else: b2
+          b0(v0: u32, v1: Field):
+            v3 = eq v0, u32 1
+            jmpif v3 then: b1, else: b2
           b1():
-            v3 = add v0, u32 1
+            v5 = add v0, u32 1
             jmp b3()
           b2():
-            v2 = sub v0, u32 1
+            v4 = sub v0, u32 1
             jmp b3()
           b3():
             return
         }
-        "#);
+        ");
     }
 }
