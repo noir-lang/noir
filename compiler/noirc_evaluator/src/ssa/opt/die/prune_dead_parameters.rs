@@ -240,6 +240,7 @@ mod tests {
         brillig(inline) predicate_pure fn main f0 {
           b0(v1: [[u1; 4]; 4]):
             v3 = array_get v1, index u32 0 -> [u1; 4]
+            inc_rc v3
             v5 = array_get v3, index u32 3 -> u1
             jmpif v5 then: b1, else: b2
           b1():

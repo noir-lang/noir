@@ -10,8 +10,7 @@
 //!   and its results are all unused the instruction will be marked for removal.
 //!   Traversing in reverse enables removing entire unused chains of computation.
 //! - The pass also tracks unused [IncrementRc][Instruction::IncrementRc] and [DecrementRc][Instruction::DecrementRc] instructions.
-//!   This pass defines an IncrementRc/DecrementRc as unused if the increment/decrement occurs on an array type that is never mutated
-//!   in the current block.   
+//!   As these instructions contain side effects we only remove them after analyzing an entire function to see if their values are unused.
 //! - Block parameters are also tracked. Unused parameters are pruned in a follow-up [prune_dead_parameters] pass
 //!   to maintain separation of concerns and SSA consistency.
 //! - The main DIE pass and dead parameter pruning are called in a fixed point feedback loop that stops
@@ -52,14 +51,11 @@ use crate::ssa::{
         function::{Function, FunctionId},
         instruction::{BinaryOp, Instruction, InstructionId, Intrinsic, TerminatorInstruction},
         post_order::PostOrder,
-        types::Type,
         value::{Value, ValueId},
     },
     opt::{die::array_oob_checks::should_insert_oob_check, pure::Purity},
     ssa_gen::Ssa,
 };
-
-use super::rc::{RcInstruction, pop_rc_for};
 
 mod array_oob_checks;
 mod prune_dead_parameters;
@@ -173,8 +169,6 @@ impl Function {
     ) -> HashMap<BasicBlockId, Vec<ValueId>> {
         let mut context = Context { flattened, ..Default::default() };
 
-        context.mark_function_parameter_arrays_as_used(self);
-
         for call_data in &self.dfg.data_bus.call_data {
             context.mark_used_instruction_results(&self.dfg, call_data.array_id);
         }
@@ -239,9 +233,6 @@ struct Context {
     /// them just yet.
     flattened: bool,
 
-    /// Track IncrementRc instructions per block to determine whether they are useless.
-    rc_tracker: RcTracker,
-
     /// A per-block list indicating which block parameters are still considered alive.
     ///
     /// Each entry maps a [BasicBlockId] to a `Vec<bool>`, where the `i`th boolean corresponds to
@@ -281,9 +272,6 @@ impl Context {
         let block = &function.dfg[block_id];
         self.mark_terminator_values_as_used(function, block);
 
-        self.rc_tracker.new_block();
-        self.rc_tracker.mark_terminator_arrays_as_used(function, block);
-
         let instructions_len = block.instructions().len();
 
         // Indexes of instructions that might be out of bounds.
@@ -319,12 +307,7 @@ impl Context {
                     });
                 }
             }
-
-            self.rc_tracker.track_inc_rcs_to_remove(*instruction_id, function);
         }
-
-        self.instructions_to_remove.extend(self.rc_tracker.get_non_mutated_arrays(&function.dfg));
-        self.instructions_to_remove.extend(self.rc_tracker.rc_pairs_to_remove.drain());
 
         // If there are some instructions that might trigger an out of bounds error,
         // first add constrain checks. Then run the DIE pass again, which will remove those
@@ -393,23 +376,6 @@ impl Context {
         {
             self.used_values.insert(value_id);
         }
-    }
-
-    /// Mark any array parameters to the function itself as possibly mutated.
-    fn mark_function_parameter_arrays_as_used(&mut self, function: &Function) {
-        for parameter in function.parameters() {
-            let typ = function.dfg.type_of_value(*parameter);
-            if typ.contains_an_array() {
-                let typ = typ.get_contained_array();
-                // Want to store the array type which is being referenced,
-                // because it's the underlying array that the `inc_rc` is associated with.
-                self.add_mutated_array_type(typ.clone());
-            }
-        }
-    }
-
-    fn add_mutated_array_type(&mut self, typ: Type) {
-        self.rc_tracker.mutated_array_types.insert(typ.get_contained_array().clone());
     }
 
     /// Go through the RC instructions collected when we figured out which values were unused;
@@ -532,161 +498,6 @@ fn can_be_eliminated_if_unused(
 
             _ => false,
         },
-    }
-}
-
-#[derive(Default)]
-/// Per block RC tracker.
-struct RcTracker {
-    // We can track IncrementRc instructions per block to determine whether they are useless.
-    // IncrementRc and DecrementRc instructions are normally side effectual instructions, but we remove
-    // them if their value is not used anywhere in the function. However, even when their value is used, their existence
-    // is pointless logic if there is no array set between the increment and the decrement of the reference counter.
-    // We track per block whether an IncrementRc instruction has a paired DecrementRc instruction
-    // with the same value but no array set in between.
-    // If we see an inc/dec RC pair within a block we can safely remove both instructions.
-    rcs_with_possible_pairs: HashMap<Type, Vec<RcInstruction>>,
-    // Tracks repeated RC instructions: if there are two `inc_rc` for the same value in a row, the 2nd one is redundant.
-    rc_pairs_to_remove: HashSet<InstructionId>,
-    // We also separately track all IncrementRc instructions and all array types which have been mutably borrowed.
-    // If an array is the same type as one of those non-mutated array types, we can safely remove all IncrementRc instructions on that array.
-    inc_rcs: HashMap<ValueId, HashSet<InstructionId>>,
-    // Mutated arrays shared across the blocks of the function.
-    // When tracking mutations we consider arrays with the same type as all being possibly mutated.
-    mutated_array_types: HashSet<Type>,
-    // The SSA often creates patterns where after simplifications we end up with repeat
-    // IncrementRc instructions on the same value. We track whether the previous instruction was an IncrementRc,
-    // and if the current instruction is also an IncrementRc on the same value we remove the current instruction.
-    // `None` if the previous instruction was anything other than an IncrementRc
-    previous_inc_rc: Option<ValueId>,
-}
-
-impl RcTracker {
-    fn new_block(&mut self) {
-        self.rcs_with_possible_pairs.clear();
-        self.rc_pairs_to_remove.clear();
-        self.inc_rcs.clear();
-        self.previous_inc_rc = Default::default();
-    }
-
-    fn mark_terminator_arrays_as_used(&mut self, function: &Function, block: &BasicBlock) {
-        block.unwrap_terminator().for_each_value(|value| {
-            self.handle_value_for_mutated_array_types(value, &function.dfg);
-        });
-    }
-
-    fn handle_value_for_mutated_array_types(&mut self, value: ValueId, dfg: &DataFlowGraph) {
-        let typ = dfg.type_of_value(value);
-        if !matches!(&typ, Type::Array(_, _) | Type::Slice(_)) {
-            return;
-        }
-
-        self.mutated_array_types.insert(typ);
-
-        if dfg.is_global(value) {
-            return;
-        }
-
-        // Also check if the value is a MakeArray instruction. If so, do the same check for all of its values.
-        let Value::Instruction { instruction, .. } = &dfg[value] else {
-            return;
-        };
-        let Instruction::MakeArray { elements, typ: _ } = &dfg[*instruction] else {
-            return;
-        };
-
-        for element in elements {
-            self.handle_value_for_mutated_array_types(*element, dfg);
-        }
-    }
-
-    fn track_inc_rcs_to_remove(&mut self, instruction_id: InstructionId, function: &Function) {
-        let instruction = &function.dfg[instruction_id];
-
-        // Deduplicate IncRC instructions.
-        if let Instruction::IncrementRc { value } = instruction {
-            if let Some(previous_value) = self.previous_inc_rc {
-                if previous_value == *value {
-                    self.rc_pairs_to_remove.insert(instruction_id);
-                }
-            }
-            self.previous_inc_rc = Some(*value);
-        } else {
-            // Reset the deduplication.
-            self.previous_inc_rc = None;
-        }
-
-        // DIE loops over a block in reverse order, so we insert an RC instruction for possible removal
-        // when we see a DecrementRc and check whether it was possibly mutated when we see an IncrementRc.
-        match instruction {
-            Instruction::IncrementRc { value } => {
-                // Get any RC instruction recorded further down the block for this array;
-                // if it exists and not marked as mutated, then both RCs can be removed.
-                if let Some(inc_rc) =
-                    pop_rc_for(*value, function, &mut self.rcs_with_possible_pairs)
-                {
-                    if !inc_rc.possibly_mutated {
-                        self.rc_pairs_to_remove.insert(inc_rc.id);
-                        self.rc_pairs_to_remove.insert(instruction_id);
-                    }
-                }
-                // Remember that this array was RC'd by this instruction.
-                self.inc_rcs.entry(*value).or_default().insert(instruction_id);
-            }
-            Instruction::DecrementRc { value, .. } => {
-                let typ = function.dfg.type_of_value(*value);
-
-                // We assume arrays aren't mutated until we find an array_set
-                let dec_rc =
-                    RcInstruction { id: instruction_id, array: *value, possibly_mutated: false };
-                self.rcs_with_possible_pairs.entry(typ).or_default().push(dec_rc);
-            }
-            Instruction::ArraySet { array, value, .. } => {
-                let typ = function.dfg.type_of_value(*array);
-                // We mark all RCs that refer to arrays with a matching type as the one being set, as possibly mutated.
-                if let Some(dec_rcs) = self.rcs_with_possible_pairs.get_mut(&typ) {
-                    for dec_rc in dec_rcs {
-                        dec_rc.possibly_mutated = true;
-                    }
-                }
-                self.mutated_array_types.insert(typ);
-
-                let value_typ = function.dfg.type_of_value(*value);
-                if value_typ.is_array() {
-                    self.mutated_array_types.insert(value_typ);
-                }
-            }
-            Instruction::Store { value, .. } => {
-                // We are very conservative and say that any store of an array type means it has the potential to be mutated.
-                self.handle_value_for_mutated_array_types(*value, &function.dfg);
-            }
-            Instruction::Call { arguments, .. } => {
-                // Treat any array-type arguments to calls as possible sources of mutation.
-                // During the preprocessing of functions in isolation we don't want to
-                // get rid of IncRCs arrays that can potentially be mutated outside.
-                for arg in arguments {
-                    self.handle_value_for_mutated_array_types(*arg, &function.dfg);
-                }
-            }
-            _ => {}
-        }
-    }
-
-    /// Get all RC instructions which work on arrays whose type has not been marked as mutated.
-    fn get_non_mutated_arrays(&self, dfg: &DataFlowGraph) -> HashSet<InstructionId> {
-        self.inc_rcs
-            .keys()
-            .filter_map(|value| {
-                let typ = dfg.type_of_value(*value);
-                if !self.mutated_array_types.contains(&typ) {
-                    Some(&self.inc_rcs[value])
-                } else {
-                    None
-                }
-            })
-            .flatten()
-            .copied()
-            .collect()
     }
 }
 
@@ -909,37 +720,6 @@ mod test {
     }
 
     #[test]
-    fn keep_inc_rc_on_borrowed_array_set() {
-        let src = "
-        brillig(inline) fn main f0 {
-          b0(v0: [u32; 2]):
-            inc_rc v0
-            v3 = array_set v0, index u32 0, value u32 1
-            inc_rc v0
-            inc_rc v0
-            inc_rc v0
-            v4 = array_get v3, index u32 1 -> u32
-            return v4
-        }
-        ";
-        let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.dead_instruction_elimination();
-
-        // We expect the output to be unchanged
-        // Except for the repeated inc_rc instructions
-        assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) fn main f0 {
-          b0(v0: [u32; 2]):
-            inc_rc v0
-            v3 = array_set v0, index u32 0, value u32 1
-            inc_rc v0
-            v4 = array_get v3, index u32 1 -> u32
-            return v4
-        }
-        ");
-    }
-
-    #[test]
     fn does_not_remove_inc_or_dec_rc_of_if_they_are_loaded_from_a_reference() {
         let src = "
             brillig(inline) fn borrow_mut f0 {
@@ -956,66 +736,6 @@ mod test {
             }
             ";
         assert_ssa_does_not_change(src, Ssa::dead_instruction_elimination);
-    }
-
-    #[test]
-    fn does_not_remove_inc_rcs_that_are_never_mutably_borrowed() {
-        let src = "
-        brillig(inline) fn main f0 {
-          b0(v0: [Field; 2]):
-            inc_rc v0
-            inc_rc v0
-            inc_rc v0
-            v2 = array_get v0, index u32 0 -> Field
-            inc_rc v0
-            return v2
-        }
-        ";
-
-        let ssa = Ssa::from_str(src).unwrap();
-        let main = ssa.main();
-
-        // The instruction count never includes the terminator instruction
-        assert_eq!(main.dfg[main.entry_block()].instructions().len(), 5);
-
-        let ssa = ssa.dead_instruction_elimination();
-        assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) fn main f0 {
-          b0(v0: [Field; 2]):
-            inc_rc v0
-            v2 = array_get v0, index u32 0 -> Field
-            inc_rc v0
-            return v2
-        }
-        ");
-    }
-
-    #[test]
-    fn do_not_remove_inc_rcs_for_arrays_in_terminator() {
-        let src = "
-        brillig(inline) fn main f0 {
-          b0(v0: [Field; 2]):
-            inc_rc v0
-            inc_rc v0
-            inc_rc v0
-            v2 = array_get v0, index u32 0 -> Field
-            inc_rc v0
-            return v0, v2
-        }
-        ";
-
-        let ssa = Ssa::from_str(src).unwrap();
-
-        let ssa = ssa.dead_instruction_elimination();
-        assert_ssa_snapshot!(ssa, @r"
-        brillig(inline) fn main f0 {
-          b0(v0: [Field; 2]):
-            inc_rc v0
-            v2 = array_get v0, index u32 0 -> Field
-            inc_rc v0
-            return v0, v2
-        }
-        ");
     }
 
     #[test]

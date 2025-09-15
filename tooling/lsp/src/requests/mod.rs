@@ -55,6 +55,7 @@ mod code_lens_request;
 mod completion;
 mod document_symbol;
 mod expand;
+mod folding_range;
 mod goto_declaration;
 mod goto_definition;
 mod hover;
@@ -70,9 +71,10 @@ mod workspace_symbol;
 pub(crate) use {
     code_action::on_code_action_request, code_lens_request::on_code_lens_request,
     completion::on_completion_request, document_symbol::on_document_symbol_request,
-    expand::on_expand_request, goto_declaration::on_goto_declaration_request,
-    goto_definition::on_goto_definition_request, goto_definition::on_goto_type_definition_request,
-    hover::on_hover_request, inlay_hint::on_inlay_hint_request, references::on_references_request,
+    expand::on_expand_request, folding_range::on_folding_range_request,
+    goto_declaration::on_goto_declaration_request, goto_definition::on_goto_definition_request,
+    goto_definition::on_goto_type_definition_request, hover::on_hover_request,
+    inlay_hint::on_inlay_hint_request, references::on_references_request,
     rename::on_prepare_rename_request, rename::on_rename_request,
     signature_help::on_signature_help_request, std_source_code::on_std_source_code_request,
     test_run::on_test_run_request, tests::on_tests_request,
@@ -308,6 +310,7 @@ pub(crate) fn on_initialize(
                         resolve_provider: None,
                     },
                 )),
+                folding_range_provider: Some(true),
             },
             server_info: None,
         })
