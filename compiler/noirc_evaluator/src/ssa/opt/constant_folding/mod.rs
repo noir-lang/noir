@@ -1212,13 +1212,14 @@ mod test {
         let src = "
             brillig(inline) fn main f0 {
               b0(v0: Field, v1: Field):
-                v3 = eq v0, Field 0
-                jmpif v3 then: b1, else: b2
+                v2 = eq v0, Field 0
+                jmpif v2 then: b1, else: b2
               b1():
                 constrain v1 == Field 1
                 jmp b2()
               b2():
-                jmpif v0 then: b3, else: b4
+                v3 = eq v0, Field 1
+                jmpif v3 then: b3, else: b4
               b3():
                 constrain v1 == Field 1 // This was incorrectly hoisted to b0 but this condition is not valid when going b0 -> b2 -> b4
                 jmp b4()
@@ -1237,7 +1238,8 @@ mod test {
                 v2 = eq v0, u32 0
                 jmpif v2 then: b4, else: b1
               b1():
-                jmpif v0 then: b3, else: b2
+                v3 = eq v0, u32 1
+                jmpif v3 then: b3, else: b2
               b2():
                 jmp b5()
               b3():
