@@ -3,23 +3,25 @@ use acvm::{
     acir::{
         brillig::{BitSize, HeapVector, IntegerBitSize, MemoryAddress, Opcode as BrilligOpcode},
         circuit::{
-            ExpressionWidth, Opcode, OpcodeLocation,
+            ExpressionWidth, Opcode, OpcodeLocation, Program,
             brillig::BrilligFunctionId,
             opcodes::{AcirFunctionId, BlackBoxFuncCall},
         },
         native_types::{Witness, WitnessMap},
     },
+    assert_circuit_snapshot,
     blackbox_solver::StubbedBlackBoxSolver,
     pwg::{ACVM, ACVMStatus},
 };
 use noirc_errors::Location;
-use noirc_frontend::monomorphization::ast::InlineType;
+use noirc_frontend::{monomorphization::ast::InlineType, shared::Visibility};
 use std::collections::BTreeMap;
 
 use crate::{
     acir::{BrilligStdlibFunc, acir_context::BrilligStdLib, ssa::codegen_acir},
     brillig::{Brillig, BrilligOptions, brillig_ir::artifact::GeneratedBrillig},
     ssa::{
+        ArtifactsAndWarnings, combine_artifacts,
         function_builder::FunctionBuilder,
         interpreter::value::Value,
         ir::{
@@ -739,6 +741,48 @@ fn check_brillig_calls(
     );
 }
 
+/// Test utility for converting [ACIR gen artifacts][crate::acir::ssa::Artifacts]
+/// into the final [ACIR Program][Program] in order to use its parser and human-readable text format.
+fn ssa_to_acir_program(src: &str) -> Program<FieldElement> {
+    let ssa = Ssa::from_str(src).unwrap();
+
+    let arg_size_and_visibilities = ssa
+        .functions
+        .iter()
+        .filter(|(id, function)| {
+            function.runtime().is_acir()
+                && (**id == ssa.main_id || function.runtime().is_entry_point())
+        })
+        .map(|(_, function)| {
+            // Make all arguments private for the sake of simplicity.
+            let param_size: u32 = function
+                .parameters()
+                .iter()
+                .map(|param| function.dfg.type_of_value(*param).flattened_size())
+                .sum();
+            vec![(param_size, Visibility::Private)]
+        })
+        .collect::<Vec<_>>();
+
+    let brillig = ssa.to_brillig(&BrilligOptions::default());
+
+    let (acir_functions, _brillig_functions, _, _) = ssa
+        .into_acir(&brillig, &BrilligOptions::default(), ExpressionWidth::default())
+        .expect("Should compile manually written SSA into ACIR");
+
+    let artifacts =
+        ArtifactsAndWarnings((acir_functions, vec![], vec![], BTreeMap::default()), vec![]);
+    let program = combine_artifacts(
+        artifacts,
+        &arg_size_and_visibilities,
+        BTreeMap::default(),
+        BTreeMap::default(),
+        BTreeMap::default(),
+    )
+    .program;
+    program
+}
+
 #[test]
 fn unchecked_mul_should_not_have_range_check() {
     let src = "
@@ -748,25 +792,18 @@ fn unchecked_mul_should_not_have_range_check() {
                 return v3
             }
         ";
-    let ssa = Ssa::from_str(src).unwrap();
-    let brillig = ssa.to_brillig(&BrilligOptions::default());
+    let program = ssa_to_acir_program(src);
 
-    let (mut acir_functions, _brillig_functions, _, _) = ssa
-        .into_acir(&brillig, &BrilligOptions::default(), ExpressionWidth::default())
-        .expect("Should compile manually written SSA into ACIR");
-
-    assert_eq!(acir_functions.len(), 1);
-
-    let opcodes = acir_functions[0].take_opcodes();
-
-    for opcode in opcodes {
-        if let Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE { input }) = opcode {
-            assert!(
-                input.to_witness().0 <= 1,
-                "only input witnesses should have range checks: {opcode:?}"
-            );
-        }
-    }
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    current witness index : _2
+    private parameters indices : [_0, _1]
+    public parameters indices : []
+    return value indices : [_2]
+    BLACKBOX::RANGE [(_0, 32)] []
+    BLACKBOX::RANGE [(_1, 32)] []
+    EXPR [ (-1, _0, _1) (1, _2) 0 ]
+    ");
 }
 
 #[test]
@@ -786,18 +823,18 @@ fn does_not_generate_memory_blocks_without_dynamic_accesses() {
               return
           }
         ";
-    let ssa = Ssa::from_str(src).unwrap();
-    let brillig = ssa.to_brillig(&BrilligOptions::default());
-
-    let (acir_functions, _brillig_functions, _, _) = ssa
-        .into_acir(&brillig, &BrilligOptions::default(), ExpressionWidth::default())
-        .expect("Should compile manually written SSA into ACIR");
-
-    assert_eq!(acir_functions.len(), 1);
+    let program = ssa_to_acir_program(src);
 
     // Check that no memory opcodes were emitted.
-    let main = &acir_functions[0];
-    assert!(!main.opcodes().iter().any(|opcode| matches!(opcode, Opcode::MemoryOp { .. })));
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    current witness index : _1
+    private parameters indices : [_0, _1]
+    public parameters indices : []
+    return value indices : []
+    BRILLIG CALL func 0: inputs: [EXPR [ 2 ], [EXPR [ (1, _0) 0 ], EXPR [ (1, _1) 0 ]]], outputs: []
+    EXPR [ (1, _0) 0 ]
+    ");
 }
 
 #[test]
