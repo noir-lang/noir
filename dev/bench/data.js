@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1757952449047,
+  "lastUpdate": 1757952457461,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -26510,90 +26510,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "d664016a1d52b6262f0ad378b9bf98d380ff650f",
-          "message": "chore: add test for when pending snapshots are committed (#9757)",
-          "timestamp": "2025-09-08T16:51:07Z",
-          "tree_id": "a68d25f3bfc396733f048daa3e1e656ba2ebea0e",
-          "url": "https://github.com/noir-lang/noir/commit/d664016a1d52b6262f0ad378b9bf98d380ff650f"
-        },
-        "date": 1757352713778,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 14792,
-            "unit": "opcodes"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 68868,
-            "unit": "opcodes"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 11177,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 221339,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 159930,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 68108,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 964515,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 965801,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1409,
-            "unit": "opcodes"
-          },
-          {
-            "name": "rollup-root",
-            "value": 2631,
-            "unit": "opcodes"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 5700,
-            "unit": "opcodes"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 13173,
-            "unit": "opcodes"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -30638,6 +30554,90 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/46fb776ab8d7788ef2009d65064f91cc69f72dfa"
         },
         "date": 1757949649196,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 14792,
+            "unit": "opcodes"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 68868,
+            "unit": "opcodes"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 11177,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 221346,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 159937,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 67868,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 963687,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 964973,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1409,
+            "unit": "opcodes"
+          },
+          {
+            "name": "rollup-root",
+            "value": 2619,
+            "unit": "opcodes"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 5700,
+            "unit": "opcodes"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 13173,
+            "unit": "opcodes"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "66faaed23dba3b9e2f0c10b0929402aced1c81de",
+          "message": "feat(LSP): folding ranges (#9854)",
+          "timestamp": "2025-09-15T15:28:20Z",
+          "tree_id": "cbfe9ec518b177331ad84d2f422f81ef80326697",
+          "url": "https://github.com/noir-lang/noir/commit/66faaed23dba3b9e2f0c10b0929402aced1c81de"
+        },
+        "date": 1757952437439,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
