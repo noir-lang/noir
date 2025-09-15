@@ -20,7 +20,7 @@
 //! This pass doesn't run in Brillig functions as [Instruction::EnableSideEffectsIf] is not allowed
 //! in Brillig functions.
 //!
-//! //! ## Preconditions:
+//! ## Preconditions:
 //! - This pass must run once ACIR functions only have one basic block.
 
 use acvm::{FieldElement, acir::AcirField};
