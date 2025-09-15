@@ -1147,11 +1147,15 @@ mod tests {
         let ssa = ssa.defunctionalize();
 
         assert_ssa_snapshot!(ssa, @r"
-          acir(inline) fn get_t_c f0 {
-            b0(v0: Field):
-              v1 = call v0() -> Field
-              return v1
-          }
+        acir(inline) fn get_t_c f0 {
+          b0(v0: Field):
+            v2 = call f1() -> Field
+            return v2
+        }
+        acir(inline_always) pure fn apply_dummy f1 {
+          b0():
+            return Field 0
+        }
         ");
     }
 
@@ -1172,11 +1176,15 @@ mod tests {
         let ssa = ssa.defunctionalize();
 
         assert_ssa_snapshot!(ssa, @r"
-          brillig(inline) fn main f0 {
-            b0(v0: Field, v1: u32):
-              v2 = call v0(v1) -> u32
-              return v2
-          }
+        brillig(inline) fn main f0 {
+          b0(v0: Field, v1: u32):
+            v3 = call f1(v1) -> u32
+            return v3
+        }
+        brillig(inline_always) pure fn apply_dummy f1 {
+          b0(v0: u32):
+            return u32 0
+        }
         ");
     }
 
