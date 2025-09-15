@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1757948733706,
+  "lastUpdate": 1757948745160,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -8405,80 +8405,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "cd98836e7f9d5dcf0884fcbe03040b0275e7ad9b",
-          "message": "chore: migrate away from fxhash to address advisory (#9752)",
-          "timestamp": "2025-09-08T15:56:44Z",
-          "tree_id": "0670dd5d1b19b6de630b758f5f6935550087da4b",
-          "url": "https://github.com/noir-lang/noir/commit/cd98836e7f9d5dcf0884fcbe03040b0275e7ad9b"
-        },
-        "date": 1757348925804,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.016,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.163,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.011,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.267,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 0.164,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 15,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.002,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.004,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.02,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 0.102,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "72797635+Savio-Sou@users.noreply.github.com",
             "name": "Savio",
             "username": "Savio-Sou"
@@ -12093,6 +12019,80 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 0.102,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "158470fdd93b21dedcebbb9ab4ceec11f0adb087",
+          "message": "chore(ownership): Add tests for cloning nested arrays returned from indexing (#9789)",
+          "timestamp": "2025-09-15T14:28:04Z",
+          "tree_id": "51f2438d203363af915d792bfd4568c81f7397f4",
+          "url": "https://github.com/noir-lang/noir/commit/158470fdd93b21dedcebbb9ab4ceec11f0adb087"
+        },
+        "date": 1757948724117,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.018,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.162,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.011,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.267,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.168,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 14.2,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.002,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.004,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.019,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 0.108,
             "unit": "s"
           }
         ]
