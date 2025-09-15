@@ -135,7 +135,6 @@ fn constant_folding_post_check(context: &Context, dfg: &DataFlowGraph) {
 }
 
 struct Context {
-    use_constraint_info: bool,
     /// Maps pre-folded ValueIds to the new ValueIds obtained by re-inserting the instruction.
     block_queue: VisitOnceDeque,
 
