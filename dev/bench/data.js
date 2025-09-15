@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1757950143752,
+  "lastUpdate": 1757951818596,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -20211,48 +20211,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "d664016a1d52b6262f0ad378b9bf98d380ff650f",
-          "message": "chore: add test for when pending snapshots are committed (#9757)",
-          "timestamp": "2025-09-08T16:51:07Z",
-          "tree_id": "a68d25f3bfc396733f048daa3e1e656ba2ebea0e",
-          "url": "https://github.com/noir-lang/noir/commit/d664016a1d52b6262f0ad378b9bf98d380ff650f"
-        },
-        "date": 1757352230777,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 251068,
-            "range": "± 637",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 222699,
-            "range": "± 4162",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2803001,
-            "range": "± 1089",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -22304,6 +22262,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2803469,
             "range": "± 1231",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "66faaed23dba3b9e2f0c10b0929402aced1c81de",
+          "message": "feat(LSP): folding ranges (#9854)",
+          "timestamp": "2025-09-15T15:28:20Z",
+          "tree_id": "cbfe9ec518b177331ad84d2f422f81ef80326697",
+          "url": "https://github.com/noir-lang/noir/commit/66faaed23dba3b9e2f0c10b0929402aced1c81de"
+        },
+        "date": 1757951798697,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 257018,
+            "range": "± 656",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 227666,
+            "range": "± 4510",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2791261,
+            "range": "± 2046",
             "unit": "ns/iter"
           }
         ]
