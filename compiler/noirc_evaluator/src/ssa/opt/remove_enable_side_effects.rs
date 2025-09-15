@@ -65,6 +65,7 @@ impl Function {
             }
             previous_block = Some(context.block_id);
 
+            let instruction_id = context.instruction_id;
             let instruction = context.instruction();
 
             // If we run into another `Instruction::EnableSideEffectsIf` before encountering any
@@ -89,7 +90,7 @@ impl Function {
                     last_side_effects_enabled_instruction = None;
                 } else {
                     context.remove_current_instruction();
-                    last_side_effects_enabled_instruction = Some(context.instruction_id);
+                    last_side_effects_enabled_instruction = Some(instruction_id);
                 }
                 return;
             }
