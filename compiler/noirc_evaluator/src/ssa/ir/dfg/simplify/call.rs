@@ -95,7 +95,7 @@ pub(super) fn simplify_call(
         }
         Intrinsic::ArrayLen => {
             if let Some(length) = dfg.try_get_array_length(arguments[0]) {
-                let length = FieldElement::from(length as u128);
+                let length = FieldElement::from(u128::from(length));
                 SimplifyResult::SimplifiedTo(dfg.make_constant(length, NumericType::length_type()))
             } else if matches!(dfg.type_of_value(arguments[1]), Type::Slice(_)) {
                 SimplifyResult::SimplifiedTo(arguments[0])
@@ -633,7 +633,7 @@ fn simplify_black_box_func(
                         const_input.try_into().expect("Keccakf1600 input should have length of 25"),
                     )
                     .expect("Rust solvable black box function should not fail");
-                    let state_values = state.iter().map(|x| FieldElement::from(*x as u128));
+                    let state_values = state.iter().map(|x| FieldElement::from(u128::from(*x)));
                     let result_array = make_constant_array(
                         dfg,
                         state_values,

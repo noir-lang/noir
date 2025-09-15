@@ -359,17 +359,17 @@ impl NumericValue {
             NumericValue::Field(field) => *field,
             NumericValue::U1(boolean) if *boolean => FieldElement::one(),
             NumericValue::U1(_) => FieldElement::zero(),
-            NumericValue::U8(value) => FieldElement::from(*value as u32),
-            NumericValue::U16(value) => FieldElement::from(*value as u32),
+            NumericValue::U8(value) => FieldElement::from(u32::from(*value)),
+            NumericValue::U16(value) => FieldElement::from(u32::from(*value)),
             NumericValue::U32(value) => FieldElement::from(*value),
             NumericValue::U64(value) => FieldElement::from(*value),
             NumericValue::U128(value) => FieldElement::from(*value),
             // Need to cast possibly negative values to the unsigned variants
             // first to ensure they are zero-extended rather than sign-extended
-            NumericValue::I8(value) => FieldElement::from(*value as u8 as i128),
-            NumericValue::I16(value) => FieldElement::from(*value as u16 as i128),
-            NumericValue::I32(value) => FieldElement::from(*value as u32 as i128),
-            NumericValue::I64(value) => FieldElement::from(*value as u64 as i128),
+            NumericValue::I8(value) => FieldElement::from(i128::from(*value as u8)),
+            NumericValue::I16(value) => FieldElement::from(i128::from(*value as u16)),
+            NumericValue::I32(value) => FieldElement::from(i128::from(*value as u32)),
+            NumericValue::I64(value) => FieldElement::from(i128::from(*value as u64)),
         }
     }
 

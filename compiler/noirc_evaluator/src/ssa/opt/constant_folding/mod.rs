@@ -14,10 +14,7 @@
 //!
 //! This is the only pass which removes duplicated pure [`Instruction`]s however and so is needed when
 //! different blocks are merged, i.e. after the [`flatten_cfg`][super::flatten_cfg] pass.
-use std::{
-    collections::{BTreeMap, HashSet, VecDeque},
-    io::Empty,
-};
+use std::{collections::BTreeMap, io::Empty};
 
 use acvm::{FieldElement, acir::AcirField};
 use iter_extended::vecmap;
@@ -35,6 +32,7 @@ use crate::ssa::{
     },
     opt::pure::Purity,
     ssa_gen::Ssa,
+    visit_once_deque::VisitOnceDeque,
 };
 use rustc_hash::FxHashMap as HashMap;
 
@@ -120,11 +118,6 @@ impl Function {
         context.block_queue.push_back(self.entry_block());
 
         while let Some(block) = context.block_queue.pop_front() {
-            if context.visited_blocks.contains(&block) {
-                continue;
-            }
-
-            context.visited_blocks.insert(block);
             context.fold_constants_in_block(&mut self.dfg, &mut dom, block, interpreter);
         }
 
@@ -142,8 +135,9 @@ fn constant_folding_post_check(context: &Context, dfg: &DataFlowGraph) {
 }
 
 struct Context {
-    visited_blocks: HashSet<BasicBlockId>,
-    block_queue: VecDeque<BasicBlockId>,
+    use_constraint_info: bool,
+    /// Maps pre-folded ValueIds to the new ValueIds obtained by re-inserting the instruction.
+    block_queue: VisitOnceDeque,
 
     /// Whether to use [constraints][Instruction::Constrain] to inform simplifications later on in the program.
     ///
@@ -178,7 +172,6 @@ impl Context {
     fn new(use_constraint_info: bool) -> Self {
         Self {
             use_constraint_info,
-            visited_blocks: Default::default(),
             block_queue: Default::default(),
             constraint_simplification_mappings: Default::default(),
             cached_instruction_results: Default::default(),
@@ -1272,13 +1265,14 @@ mod test {
         let src = "
             brillig(inline) fn main f0 {
               b0(v0: Field, v1: Field):
-                v3 = eq v0, Field 0
-                jmpif v3 then: b1, else: b2
+                v2 = eq v0, Field 0
+                jmpif v2 then: b1, else: b2
               b1():
                 constrain v1 == Field 1
                 jmp b2()
               b2():
-                jmpif v0 then: b3, else: b4
+                v3 = eq v0, Field 1
+                jmpif v3 then: b3, else: b4
               b3():
                 constrain v1 == Field 1 // This was incorrectly hoisted to b0 but this condition is not valid when going b0 -> b2 -> b4
                 jmp b4()
@@ -1297,7 +1291,8 @@ mod test {
                 v2 = eq v0, u32 0
                 jmpif v2 then: b4, else: b1
               b1():
-                jmpif v0 then: b3, else: b2
+                v3 = eq v0, u32 1
+                jmpif v3 then: b3, else: b2
               b2():
                 jmp b5()
               b3():
