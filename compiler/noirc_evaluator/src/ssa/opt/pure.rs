@@ -382,7 +382,7 @@ mod test {
         assert_eq!(purities[&FunctionId::test_new(4)], Purity::PureWithPredicate);
         assert_eq!(purities[&FunctionId::test_new(5)], Purity::PureWithPredicate);
         assert_eq!(purities[&FunctionId::test_new(6)], Purity::Pure);
-        assert_eq!(purities[&FunctionId::test_new(7)], Purity::Pure);
+        assert_eq!(purities[&FunctionId::test_new(7)], Purity::PureWithPredicate);
 
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) impure fn main f0 {
@@ -430,7 +430,7 @@ mod test {
             store Field 0 at v5
             return
         }
-        acir(inline) pure fn pure_recursive f7 {
+        acir(inline) predicate_pure fn pure_recursive f7 {
           b0(v0: u32):
             v3 = lt v0, u32 1
             jmpif v3 then: b1, else: b2
