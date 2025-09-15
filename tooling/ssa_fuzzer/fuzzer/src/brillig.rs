@@ -22,14 +22,14 @@ use noirc_evaluator::ssa::ir::function::RuntimeType;
 use noirc_frontend::monomorphization::ast::InlineType as FrontendInlineType;
 use rand::{SeedableRng, rngs::StdRng};
 use serde_json::{Value, json};
+use std::fs;
 use std::io::{BufRead, BufReader, Write};
 use std::process::{Child, Command, Stdio};
 use std::sync::{Mutex, OnceLock};
-use std::{fs, io::Read};
 
 lazy_static::lazy_static! {
-    static ref SIMULATOR_BIN_PATH: String = std::env::var("SIMULATOR_BIN_PATH").unwrap_or_else(|_| "/home/defkit/aztec-packages/yarn-project/simulator/dest/public/avm/avm_simulator_bin.js".to_string());
-    static ref TRANSPILER_BIN_PATH: String = std::env::var("TRANSPILER_BIN_PATH").unwrap_or_else(|_| "/home/defkit/builder/avm-transpiler".to_string());
+    static ref SIMULATOR_BIN_PATH: String = std::env::var("SIMULATOR_BIN_PATH").expect("SIMULATOR_BIN_PATH must be set");
+    static ref TRANSPILER_BIN_PATH: String = std::env::var("TRANSPILER_BIN_PATH").expect("TRANSPILER_BIN_PATH must be set");
 }
 
 /// Placeholder for creating a base contract artifact to feed to the transpiler
@@ -90,33 +90,33 @@ fn transpile(bytecode_base64: String) -> Result<String, String> {
     }
 
     let contract_json = serde_json::to_string(&contract)
-        .map_err(|e| format!("Failed to serialize contract: {}", e))?;
+        .map_err(|e| format!("Failed to serialize contract: {e}"))?;
 
     fs::write("contract_artifact.json", contract_json)
-        .map_err(|e| format!("Failed to write contract artifact: {}", e))?;
+        .map_err(|e| format!("Failed to write contract artifact: {e}"))?;
     let output = Command::new(TRANSPILER_BIN_PATH.as_str())
         .arg("contract_artifact.json")
         .arg("output.json")
         .output()
-        .map_err(|e| format!("Failed to execute transpiler: {}", e))?;
+        .map_err(|e| format!("Failed to execute transpiler: {e}"))?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(format!("Transpiler failed: {}", stderr));
+        return Err(format!("Transpiler failed: {stderr}"));
     }
 
-    log::debug!("Transpiler output: {:?}", output);
+    log::debug!("Transpiler output: {output:?}");
 
     let output_content = fs::read_to_string("output.json")
-        .map_err(|e| format!("Failed to read output.json: {}", e))?;
+        .map_err(|e| format!("Failed to read output.json: {e}"))?;
 
     let output_json: Value = serde_json::from_str(&output_content)
-        .map_err(|e| format!("Failed to parse output.json: {}", e))?;
+        .map_err(|e| format!("Failed to parse output.json: {e}"))?;
 
     let bytecode = output_json
         .get("functions")
         .and_then(|f| f.as_array())
-        .and_then(|arr| arr.get(0))
+        .and_then(|arr| arr.first())
         .and_then(|func| func.get("bytecode"))
         .and_then(|bc| bc.as_str())
         .ok_or("Failed to extract bytecode from output")?;
@@ -150,7 +150,7 @@ impl SimulatorProcess {
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .spawn()
-            .map_err(|e| format!("Failed to start simulator process: {}", e))?;
+            .map_err(|e| format!("Failed to start simulator process: {e}"))?;
 
         let stdin = child.stdin.take().ok_or("Failed to get stdin")?;
         let stdout = child.stdout.take().ok_or("Failed to get stdout")?;
@@ -169,26 +169,26 @@ impl SimulatorProcess {
         let request_line = format!(
             "{}\n",
             serde_json::to_string(&request)
-                .map_err(|e| format!("Failed to serialize request: {}", e))?
+                .map_err(|e| format!("Failed to serialize request: {e}"))?
         );
-        log::debug!("Simulator request: {}", request_line);
+        log::debug!("Simulator request: {request_line}");
 
         self.stdin
             .write_all(request_line.as_bytes())
-            .map_err(|e| format!("Failed to write to simulator: {}", e))?;
-        self.stdin.flush().map_err(|e| format!("Failed to flush simulator input: {}", e))?;
+            .map_err(|e| format!("Failed to write to simulator: {e}"))?;
+        self.stdin.flush().map_err(|e| format!("Failed to flush simulator input: {e}"))?;
 
         // Read response
         log::debug!("Reading response from simulator");
         let mut response_line = String::new();
         self.stdout
             .read_line(&mut response_line)
-            .map_err(|e| format!("Failed to read from simulator: {}", e))?;
+            .map_err(|e| format!("Failed to read from simulator: {e}"))?;
 
-        log::debug!("Simulator response: {}", response_line);
+        log::debug!("Simulator response: {response_line}");
 
-        let response: Value = serde_json::from_str(&response_line.trim())
-            .map_err(|e| format!("Failed to parse simulator response: {}", e))?;
+        let response: Value = serde_json::from_str(response_line.trim())
+            .map_err(|e| format!("Failed to parse simulator response: {e}"))?;
 
         if let Some(reverted) = response.get("reverted").and_then(|v| v.as_bool()) {
             if reverted {
@@ -206,20 +206,25 @@ impl SimulatorProcess {
             .map(|v| v.as_str().ok_or("Invalid output format".to_string()).map(|s| s.to_string()))
             .collect();
 
-        result.map_err(|e| format!("Failed to parse output array: {}", e))
+        result.map_err(|e| format!("Failed to parse output array: {e}"))
     }
 }
 
 fn get_or_create_simulator()
 -> Result<std::sync::MutexGuard<'static, Option<SimulatorProcess>>, String> {
     let mutex = SIMULATOR_PROCESS.get_or_init(|| Mutex::new(None));
-    let mut guard = mutex.lock().map_err(|e| format!("Failed to lock simulator mutex: {}", e))?;
+    let mut guard = mutex.lock().map_err(|e| format!("Failed to lock simulator mutex: {e}"))?;
 
     if guard.is_none() {
         *guard = Some(SimulatorProcess::new()?);
     }
 
     Ok(guard)
+}
+
+/// Initialize the simulator process
+fn initialize() {
+    let _mutex = get_or_create_simulator().expect("Failed to create simulator");
 }
 
 /// Simulate Abstract VM bytecode execution
@@ -241,7 +246,11 @@ const INLINE_TYPE: FrontendInlineType = FrontendInlineType::Inline;
 const BRILLIG_RUNTIME: RuntimeType = RuntimeType::Brillig(INLINE_TYPE);
 const TARGET_RUNTIMES: [RuntimeType; 1] = [BRILLIG_RUNTIME];
 
-libfuzzer_sys::fuzz_target!(|data: &[u8]| -> Corpus {
+libfuzzer_sys::fuzz_target!(
+    init: {
+        println!("Initializing simulator process");
+        initialize();
+    }, |data: &[u8]| -> Corpus {
     let _ = env_logger::try_init();
 
     let mut compile_options = CompileOptions::default();
