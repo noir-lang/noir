@@ -272,10 +272,17 @@ fn analyze_call_graph(
                     }
                 }
 
-                // Recursive Brillig functions cannot be fully pure (may loop indefinitely),
+                // Recursive Brillig functions cannot be fully pure (may recurse indefinitely),
                 // but we still treat them as PureWithPredicate for deduplication purposes.
                 // If this function is recursive and a Brillig function, mark it as PureWithPredicate.
-                if recursive_functions.contains(&func) && functions[&func].runtime().is_brillig() {
+                let is_recursive_brillig =
+                    recursive_functions.contains(&func) && functions[&func].runtime().is_brillig();
+                // Recursive ACIR functions cannot be fully pure as they may also recurse indefinitely.
+                // Indefinite recursion is handled during function inlining, but we do not want to risk having that
+                // function entirely eliminated before inlining due to it being pure.
+                let is_recursive_acir =
+                    recursive_functions.contains(&func) && functions[&func].runtime().is_acir();
+                if is_recursive_brillig || is_recursive_acir {
                     combined_purity = combined_purity.unify(Purity::PureWithPredicate);
                 }
             }
@@ -614,7 +621,8 @@ mod test {
 
     #[test]
     fn mutual_recursion_marks_functions_pure() {
-        // We want to test that two pure mutually recursive functions do in fact mark each other as pure
+        // We want to test that two pure mutually recursive functions do in fact mark each other as PureWithPredicate.
+        // If we have indefinite recursion and we may accidentally eliminate an infinite loop before inlining can catch it.
         let src = r#"
         acir(inline) fn main f0 {
           b0():
@@ -653,9 +661,9 @@ mod test {
         let ssa = ssa.purity_analysis();
 
         let purities = &ssa.main().dfg.function_purities;
-        assert_eq!(purities[&FunctionId::test_new(0)], Purity::Pure);
-        assert_eq!(purities[&FunctionId::test_new(1)], Purity::Pure);
-        assert_eq!(purities[&FunctionId::test_new(2)], Purity::Pure);
+        assert_eq!(purities[&FunctionId::test_new(0)], Purity::PureWithPredicate);
+        assert_eq!(purities[&FunctionId::test_new(1)], Purity::PureWithPredicate);
+        assert_eq!(purities[&FunctionId::test_new(2)], Purity::PureWithPredicate);
     }
 
     /// This test matches [mutual_recursion_marks_functions_pure] except all functions have a Brillig runtime
