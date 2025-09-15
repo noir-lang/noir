@@ -117,6 +117,8 @@ pub(crate) enum Keyword {
     CallData,
     /// RETURNDATA
     ReturnData,
+    /// func
+    Function,
 }
 
 impl Keyword {
@@ -139,6 +141,7 @@ impl Keyword {
             "PREDICATE" => Keyword::Predicate,
             "CALLDATA" => Keyword::CallData,
             "RETURNDATA" => Keyword::ReturnData,
+            "func" => Keyword::Function,
             _ => return None,
         };
         Some(Token::Keyword(keyword))
@@ -165,6 +168,7 @@ impl std::fmt::Display for Keyword {
             Keyword::Predicate => write!(f, "PREDICATE"),
             Keyword::CallData => write!(f, "CALLDATA"),
             Keyword::ReturnData => write!(f, "RETURNDATA"),
+            Keyword::Function => write!(f, "func"),
         }
     }
 }
