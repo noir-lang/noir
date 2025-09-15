@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1757953439138,
+  "lastUpdate": 1757953856331,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -4208,90 +4208,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "a010e93594349e9d96a2025c8582a86aea560e6a",
-          "message": "fix(ssa): Accurate purities of ArraySet and RC instructions in Brillig (#9736)",
-          "timestamp": "2025-09-08T17:18:17Z",
-          "tree_id": "00a040ff79545674fff62e28403110b87ad9473c",
-          "url": "https://github.com/noir-lang/noir/commit/a010e93594349e9d96a2025c8582a86aea560e6a"
-        },
-        "date": 1757354515210,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 1.778,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 8.472,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.478,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 18.72,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 15.62,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 17.5,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 204,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 209,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.45,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.496,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.78,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 1.747,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -8396,6 +8312,90 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 1.976,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c90f13da03ee395ee1871c0d4a7a6e9dd07ef3f6",
+          "message": "chore: use enum for instruction deduplication safety (#9824)",
+          "timestamp": "2025-09-15T15:54:11Z",
+          "tree_id": "cace013ee34e4f63d08dcfe918486a5f1722dedc",
+          "url": "https://github.com/noir-lang/noir/commit/c90f13da03ee395ee1871c0d4a7a6e9dd07ef3f6"
+        },
+        "date": 1757953835779,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1.956,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 8.684,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.446,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 18.18,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 16.86,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 17.84,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 201,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 206,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.414,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.534,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.777,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 1.702,
             "unit": "s"
           }
         ]
