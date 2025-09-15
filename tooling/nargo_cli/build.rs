@@ -205,7 +205,7 @@ const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_EMPTY_TESTS: [&str; 9] = [
 
 /// These tests are ignored because of existing bugs in `nargo expand`.
 /// As the bugs are fixed these tests should be removed from this list.
-const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_NO_BUG_TESTS: [&str; 14] = [
+const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_NO_BUG_TESTS: [&str; 15] = [
     "noirc_frontend_tests_check_trait_as_type_as_fn_parameter",
     "noirc_frontend_tests_check_trait_as_type_as_two_fn_parameters",
     "noirc_frontend_tests_enums_match_on_empty_enum",
@@ -221,6 +221,7 @@ const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_NO_BUG_TESTS: [&str; 14] = [
     "noirc_frontend_tests_aliases_identity_numeric_type_alias_works",
     "noirc_frontend_tests_aliases_type_alias_to_numeric_as_generic",
     "noirc_frontend_tests_aliases_type_alias_to_numeric_generic",
+    "noirc_frontend_tests_traits_trait_bound_on_implementing_type",
 ];
 
 const IGNORED_NARGO_EXPAND_COMPILE_SUCCESS_WITH_BUG_TESTS: [&str; 0] = [];
@@ -396,16 +397,13 @@ fn generate_execution_success_tests(test_file: &mut File, test_data_dir: &Path) 
         let test_dir = test_dir.display();
 
         let check_stdout = !TESTS_WITHOUT_STDOUT_CHECK.contains(&test_name.as_str());
-        let check_artifact = true;
 
         generate_test_cases(
             test_file,
             &test_name,
             &test_dir,
             "execute",
-            &format!(
-                "execution_success(nargo, test_program_dir, {check_stdout}, {check_artifact}, force_brillig, inliner_aggressiveness);",
-            ),
+            &format!("execution_success(nargo, test_program_dir, {check_stdout});",),
             &MatrixConfig {
                 vary_brillig: !IGNORED_BRILLIG_TESTS.contains(&test_name.as_str()),
                 vary_inliner: true,
@@ -740,7 +738,8 @@ fn generate_interpret_execution_success_tests(test_file: &mut File, test_data_di
 }
 
 /// Run integration tests with the `--minimal-ssa` option and check that the return
-/// value matches the expectations.
+/// value matches the expectations. This also enables `--force-brillig` since `--minimal-ssa`
+/// is only valid when all functions are unconstrained.
 fn generate_minimal_execution_success_tests(test_file: &mut File, test_data_dir: &Path) {
     let test_type = "execution_success";
     let test_cases = read_test_cases(test_data_dir, test_type);
@@ -759,7 +758,6 @@ fn generate_minimal_execution_success_tests(test_file: &mut File, test_data_dir:
         let test_dir = test_dir.display();
 
         let check_stdout = !TESTS_WITHOUT_STDOUT_CHECK.contains(&test_name.as_str());
-        let check_artifact = false;
 
         generate_test_cases(
             test_file,
@@ -769,7 +767,7 @@ fn generate_minimal_execution_success_tests(test_file: &mut File, test_data_dir:
             &format!(
                 r#"
                 nargo.arg("--minimal-ssa");
-                execution_success(nargo, test_program_dir, {check_stdout}, {check_artifact}, force_brillig, inliner_aggressiveness);
+                execution_success(nargo, test_program_dir, {check_stdout});
                 "#,
             ),
             &MatrixConfig {

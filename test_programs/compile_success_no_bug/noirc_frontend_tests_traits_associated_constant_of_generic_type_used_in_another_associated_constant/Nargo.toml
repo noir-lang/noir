@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_traits_associated_constant_of_generic_type_used_in_another_associated_constant"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

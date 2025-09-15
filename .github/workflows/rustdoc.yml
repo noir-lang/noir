@@ -14,9 +14,13 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-22.04
+    permissions:
+      contents: read
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
+
+      - uses: taiki-e/install-action@just
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@1.85.0
@@ -32,7 +36,7 @@ jobs:
         run: cargo clean --doc
 
       - name: Build docs
-        run: cargo doc --no-deps --document-private-items --workspace
+        run: just doc
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -52,6 +56,8 @@ jobs:
     name: Deploy
     runs-on: ubuntu-22.04
     needs: build
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v5
         with:

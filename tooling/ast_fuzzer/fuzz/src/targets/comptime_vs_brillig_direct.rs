@@ -6,6 +6,7 @@
 //! This variant accesses the interpreter directly instead of going
 //! through nargo, which speeds up execution but also currently
 //! has some issues (inability to use prints among others).
+use crate::targets::default_config;
 use crate::{compare_results_comptime, create_ssa_or_die, default_ssa_options};
 use arbitrary::Unstructured;
 use color_eyre::eyre;
@@ -24,15 +25,13 @@ pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
         comptime_friendly: true,
         // Force brillig, to generate loops that the interpreter can do but ACIR cannot.
         force_brillig: true,
-        // Allow overflows half the time.
-        avoid_overflow: u.arbitrary()?,
         // Slices need some parts of the stdlib that we can't just append to the source
         // the way it is currently done to support prints, because they are low level extensions.
         avoid_slices: true,
         // Use lower limits because of the interpreter, to avoid stack overflow
         max_loop_size: 5,
         max_recursive_calls: 5,
-        ..Default::default()
+        ..default_config(u)?
     };
 
     let inputs = CompareComptime::arb(u, config, |program| {
@@ -68,6 +67,6 @@ mod tests {
     /// ```
     #[test]
     fn fuzz_with_arbtest() {
-        crate::targets::tests::fuzz_with_arbtest(super::fuzz, 500);
+        crate::targets::tests::fuzz_with_arbtest(super::fuzz, 2500);
     }
 }

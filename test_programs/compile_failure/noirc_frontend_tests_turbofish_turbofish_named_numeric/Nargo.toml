@@ -1,7 +1,0 @@
-
-            [package]
-            name = "noirc_frontend_tests_turbofish_turbofish_named_numeric"
-            type = "bin"
-            authors = [""]
-            
-            [dependencies]

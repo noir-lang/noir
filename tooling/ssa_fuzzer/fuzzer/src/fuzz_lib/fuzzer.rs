@@ -13,26 +13,25 @@
 //!    - If programs return different results
 //!    - If one program fails to compile but the other executes successfully
 
-use super::function_context::{FunctionData, WitnessValue};
-use super::instruction::InstructionBlock;
-use super::options::{FuzzerMode, FuzzerOptions};
-use super::program_context::{FuzzerProgramContext, program_context_by_mode};
-use super::{NUMBER_OF_PREDEFINED_VARIABLES, NUMBER_OF_VARIABLES_INITIAL};
+use super::{
+    function_context::FunctionData,
+    initial_witness::WitnessValue,
+    instruction::InstructionBlock,
+    options::{FuzzerMode, FuzzerOptions},
+    program_context::{FuzzerProgramContext, program_context_by_mode},
+};
 use acvm::FieldElement;
 use acvm::acir::native_types::{WitnessMap, WitnessStack};
-use libfuzzer_sys::{arbitrary, arbitrary::Arbitrary};
-use noir_ssa_executor::runner::execute_single;
-use noir_ssa_fuzzer::runner::{CompareResults, run_and_compare};
-use noir_ssa_fuzzer::typed_value::ValueType;
+use noir_ssa_fuzzer::{runner::execute, typed_value::Type};
 use noirc_driver::CompiledProgram;
+use noirc_evaluator::ssa::ir::function::RuntimeType;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 
-#[derive(Arbitrary, Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct FuzzerData {
     pub(crate) functions: Vec<FunctionData>,
-    pub(crate) initial_witness:
-        [WitnessValue; (NUMBER_OF_VARIABLES_INITIAL - NUMBER_OF_PREDEFINED_VARIABLES) as usize],
+    pub(crate) initial_witness: Vec<WitnessValue>,
     pub(crate) instruction_blocks: Vec<InstructionBlock>,
 }
 
@@ -40,8 +39,7 @@ impl Default for FuzzerData {
     fn default() -> Self {
         FuzzerData {
             functions: vec![FunctionData::default()],
-            initial_witness: [WitnessValue::default();
-                (NUMBER_OF_VARIABLES_INITIAL - NUMBER_OF_PREDEFINED_VARIABLES) as usize],
+            initial_witness: vec![WitnessValue::default()],
             instruction_blocks: vec![],
         }
     }
@@ -54,18 +52,88 @@ pub(crate) struct Fuzzer {
 #[derive(Clone, Debug)]
 pub(crate) struct FuzzerOutput {
     pub(crate) witness_stack: WitnessStack<FieldElement>,
-    pub(crate) program: CompiledProgram,
+    // None if the program failed to compile
+    pub(crate) program: Option<CompiledProgram>,
 }
 
+pub(crate) enum CompareResults {
+    Agree(Vec<FieldElement>),
+    Disagree(Vec<FieldElement>, Vec<FieldElement>),
+    LeftCompilationFailed,
+    RightCompilationFailed,
+    LeftExecutionFailed,
+    RightExecutionFailed,
+    BothFailed,
+}
+
+// TODO(sn): https://github.com/noir-lang/noir/issues/9743
 impl FuzzerOutput {
-    pub(crate) fn get_return_value(&self) -> FieldElement {
-        let return_witness = self.program.program.functions[0].return_values.0.first().unwrap();
-        self.witness_stack.peek().unwrap().witness[return_witness]
+    pub(crate) fn get_return_witnesses(&self) -> Vec<FieldElement> {
+        // program failed to compile
+        if self.program.is_none() {
+            return vec![];
+        }
+        let return_witnesses = &self.program.as_ref().unwrap().program.functions[0].return_values.0;
+        if return_witnesses.is_empty() {
+            return vec![];
+        }
+        let max_return_witness_index = return_witnesses.iter().max().unwrap();
+        let witness_vec = &self.witness_stack.peek().unwrap().witness;
+
+        // program failed to execute
+        if !witness_vec.contains_key(max_return_witness_index) {
+            return vec![];
+        }
+        return_witnesses.iter().map(|witness| witness_vec[witness]).collect()
+    }
+
+    #[allow(dead_code)] // TODO(sn): used in fuzzer_output_to_json
+    pub(crate) fn get_input_witnesses(&self) -> Vec<FieldElement> {
+        // program failed to compile
+        if self.program.is_none() {
+            return vec![];
+        }
+        let input_witnesses =
+            &self.program.as_ref().unwrap().program.functions[0].private_parameters;
+        let witness_vec = &self.witness_stack.peek().unwrap().witness;
+        input_witnesses.iter().map(|witness| witness_vec[witness]).collect()
+    }
+
+    pub(crate) fn compare_results(&self, other: &Self) -> CompareResults {
+        match (self.is_program_compiled(), other.is_program_compiled()) {
+            (false, false) => CompareResults::BothFailed,
+            (true, false) => CompareResults::LeftCompilationFailed,
+            (false, true) => CompareResults::RightCompilationFailed,
+            (true, true) => {
+                // both programs compiled successfully
+                let left_return_witnesses = self.get_return_witnesses();
+                let right_return_witnesses = other.get_return_witnesses();
+                match (left_return_witnesses.is_empty(), right_return_witnesses.is_empty()) {
+                    (true, true) => CompareResults::BothFailed,
+                    (true, false) => CompareResults::LeftExecutionFailed,
+                    (false, true) => CompareResults::RightExecutionFailed,
+                    (false, false) => {
+                        if left_return_witnesses != right_return_witnesses {
+                            return CompareResults::Disagree(
+                                left_return_witnesses.clone(),
+                                right_return_witnesses.clone(),
+                            );
+                        }
+                        CompareResults::Agree(left_return_witnesses)
+                    }
+                }
+            }
+        }
+    }
+
+    pub(crate) fn is_program_compiled(&self) -> bool {
+        self.program.is_some()
     }
 }
 
 impl Fuzzer {
     pub(crate) fn new(
+        runtime: RuntimeType,
         instruction_blocks: Vec<InstructionBlock>,
         values: Vec<FieldElement>,
         options: FuzzerOptions,
@@ -74,6 +142,7 @@ impl Fuzzer {
         for mode in &options.modes {
             contexts.push(program_context_by_mode(
                 mode.clone(),
+                runtime,
                 instruction_blocks.clone(),
                 values.clone(),
                 options.clone(),
@@ -82,7 +151,7 @@ impl Fuzzer {
         Self { contexts }
     }
 
-    pub(crate) fn process_function(&mut self, function_data: FunctionData, types: Vec<ValueType>) {
+    pub(crate) fn process_function(&mut self, function_data: FunctionData, types: Vec<Type>) {
         for context in &mut self.contexts {
             context.process_function(function_data.clone(), types.clone());
         }
@@ -92,8 +161,8 @@ impl Fuzzer {
     pub(crate) fn finalize_and_run(
         self,
         initial_witness: WitnessMap<FieldElement>,
-    ) -> Option<FuzzerOutput> {
-        let mut execution_results: HashMap<FuzzerMode, Option<FuzzerOutput>> = HashMap::new();
+    ) -> FuzzerOutput {
+        let mut execution_results: HashMap<FuzzerMode, FuzzerOutput> = HashMap::new();
         for mut context in self.contexts {
             context.finalize_program();
             execution_results.insert(
@@ -103,15 +172,15 @@ impl Fuzzer {
         }
         let results_set = execution_results
             .values()
-            .map(|result| -> Option<FieldElement> { result.as_ref().map(|r| r.get_return_value()) })
+            .map(|result| result.get_return_witnesses())
             .collect::<HashSet<_>>();
 
         if results_set.len() != 1 {
             let mut panic_string = String::new();
             for (mode, result) in execution_results {
-                if let Some(result) = result {
+                if !result.get_return_witnesses().is_empty() {
                     panic_string
-                        .push_str(&format!("Mode {mode:?}: {:?}\n", result.get_return_value()));
+                        .push_str(&format!("Mode {mode:?}: {:?}\n", result.get_return_witnesses()));
                 } else {
                     panic_string.push_str(&format!("Mode {mode:?} failed\n"));
                 }
@@ -124,87 +193,19 @@ impl Fuzzer {
     fn execute_and_compare(
         context: FuzzerProgramContext,
         initial_witness: WitnessMap<FieldElement>,
-    ) -> Option<FuzzerOutput> {
-        let (acir_program, brillig_program) = context.get_programs();
-        let (acir_program, brillig_program) = match (acir_program, brillig_program) {
-            (Ok(acir), Ok(brillig)) => (acir, brillig),
-            (Err(acir_error), Err(brillig_error)) => {
-                log::debug!("ACIR compilation error: {acir_error:?}");
-                log::debug!("Brillig compilation error: {brillig_error:?}");
-                log::debug!("ACIR and Brillig compilation failed");
-                return None;
-            }
-            (Ok(acir), Err(brillig_error)) => {
-                let acir_result = execute_single(&acir.program, initial_witness);
-                match acir_result {
-                    Ok(acir_result) => {
-                        let acir_return_witness =
-                            acir.program.functions[0].return_values.0.first().unwrap();
-                        panic!(
-                            "ACIR compiled and successfully executed, \
-                            but brillig compilation failed. Execution result of \
-                            acir only {:?}. Brillig compilation failed with: {:?}",
-                            acir_result.peek().unwrap().witness[acir_return_witness],
-                            brillig_error
-                        );
-                    }
-                    Err(acir_error) => {
-                        log::debug!("ACIR execution error: {acir_error:?}");
-                        log::debug!("Brillig compilation error: {brillig_error:?}");
-                        return None;
-                    }
-                }
-            }
-            (Err(acir_error), Ok(brillig)) => {
-                let brillig_result = execute_single(&brillig.program, initial_witness);
-                match brillig_result {
-                    Ok(brillig_result) => {
-                        let brillig_return_witness =
-                            brillig.program.functions[0].return_values.0.first().unwrap();
-                        panic!(
-                            "Brillig compiled and successfully executed, \
-                            but ACIR compilation failed. Execution result of \
-                            brillig only {:?}. ACIR compilation failed with: {:?}",
-                            brillig_result.peek().unwrap().witness[brillig_return_witness],
-                            acir_error
-                        );
-                    }
-                    Err(brillig_error) => {
-                        log::debug!("Brillig execution error: {brillig_error:?}");
-                        log::debug!("ACIR compilation error: {acir_error:?}");
-                        return None;
-                    }
-                }
-            }
-        };
-        let comparison_result =
-            run_and_compare(&acir_program.program, &brillig_program.program, initial_witness);
-        log::debug!("Comparison result: {comparison_result:?}");
-        match comparison_result {
-            CompareResults::Agree(result) => {
-                Some(FuzzerOutput { witness_stack: result, program: acir_program })
-            }
-            CompareResults::Disagree(acir_return_value, brillig_return_value) => {
-                panic!(
-                    "ACIR and Brillig programs returned different results: \
-                    ACIR returned {acir_return_value:?}, Brillig returned {brillig_return_value:?}"
-                );
-            }
-            CompareResults::AcirFailed(acir_error, brillig_return_value) => {
-                panic!(
-                    "ACIR execution failed with error: {acir_error:?}, Brillig returned {brillig_return_value:?}"
-                );
-            }
-            CompareResults::BrilligFailed(brillig_error, acir_return_value) => {
-                panic!(
-                    "Brillig execution failed with error: {brillig_error:?}, ACIR returned {acir_return_value:?}"
-                );
-            }
-            CompareResults::BothFailed(acir_error, brillig_error) => {
-                log::debug!("ACIR execution error: {acir_error:?}");
-                log::debug!("Brillig execution error: {brillig_error:?}");
-                None
-            }
+    ) -> FuzzerOutput {
+        let program = context.get_program();
+        let input_witness_stack = WitnessStack::from(initial_witness.clone());
+        if program.is_err() {
+            return FuzzerOutput { witness_stack: input_witness_stack, program: None };
         }
+        let witness_stack = execute(&program.as_ref().unwrap().program, initial_witness);
+        if witness_stack.is_err() {
+            return FuzzerOutput {
+                witness_stack: input_witness_stack,
+                program: Some(program.unwrap()),
+            };
+        }
+        FuzzerOutput { witness_stack: witness_stack.unwrap(), program: Some(program.unwrap()) }
     }
 }

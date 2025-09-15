@@ -1,5 +1,5 @@
 import type { Config } from '@docusaurus/types';
-
+const versions = require("./versions.json");
 const { themes } = require('prism-react-renderer');
 const lightTheme = themes.github;
 const darkTheme = themes.dracula;
@@ -12,7 +12,7 @@ export default {
   tagline: 'The Universal ZK Circuit Language',
   favicon: 'img/favicon.svg',
   url: 'https://noir-lang.org',
-  baseUrl: '/',
+  baseUrl: process.env.ENV === 'dev' ? '/' : '/docs/',
   onBrokenLinks: 'throw',
   onBrokenMarkdownLinks: process.env.ENV === 'dev' ? 'warn' : 'throw',
   trailingSlash: false,
@@ -28,7 +28,7 @@ export default {
         docs: {
           path: process.env.ENV === 'dev' ? 'docs' : 'processed-docs',
           sidebarPath: './sidebars.js',
-          routeBasePath: '/docs',
+          routeBasePath: '/',
           remarkPlugins: [math],
           rehypePlugins: [katex],
           versions: {
@@ -149,10 +149,28 @@ export default {
       name: 'resolve-react',
       configureWebpack() {
         return {
+          output: {
+            publicPath: process.env.ENV === 'dev' ? '/' : '/docs/',
+          },
           optimization: {
             innerGraph: false,
           },
         };
+      },
+    }),
+    // Create Netlify redirects only for production/staging
+    () => ({
+      name: 'netlify-redirects',
+      async postBuild({ outDir }) {
+        if (process.env.ENV !== 'dev') {
+          const { writeFileSync } = await import('fs');
+          const { join } = await import('path');
+          const redirectsContent = `# Netlify redirects for /docs/ routing
+/docs/assets/* /assets/:splat 200
+/docs/img/* /img/:splat 200
+/docs/* /:splat 200`;
+          writeFileSync(join(outDir, '_redirects'), redirectsContent);
+        }
       },
     }),
     [
@@ -211,6 +229,18 @@ export default {
         indexFormat: 'table',
         outputFileStrategy: 'members',
         membersWithOwnFile: ['Function', 'TypeAlias'],
+      },
+    ],
+    [
+      'docusaurus-plugin-llms',
+      {
+        generateLLMsTxt: true,
+        generateLLMsFullTxt: true,
+        docsDir: `versioned_docs/version-${versions[0]}/`,
+        title: 'Noir Language Documentation',
+        excludeImports: true,
+        ignoreFiles: [],
+        version: versions[0],
       },
     ],
   ],

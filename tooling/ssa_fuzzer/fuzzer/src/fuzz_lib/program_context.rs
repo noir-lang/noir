@@ -1,28 +1,30 @@
-use std::collections::BTreeMap;
-
-use super::function_context::{FunctionData, FuzzerFunctionCommand, FuzzerFunctionContext};
-use super::instruction::{FunctionInfo, InstructionBlock};
-use super::options::{FunctionContextOptions, FuzzerMode, FuzzerOptions};
+use super::{
+    function_context::{FunctionData, FuzzerFunctionCommand, FuzzerFunctionContext},
+    instruction::{FunctionInfo, InstructionBlock},
+    options::{FunctionContextOptions, FuzzerMode, FuzzerOptions},
+};
 use acvm::FieldElement;
 use noir_ssa_fuzzer::{
     builder::{FuzzerBuilder, FuzzerBuilderError},
-    typed_value::ValueType,
+    typed_value::Type,
 };
 use noirc_driver::CompiledProgram;
-use noirc_evaluator::ssa::ir::{function::Function, map::Id};
+use noirc_evaluator::ssa::ir::{
+    function::{Function, RuntimeType},
+    map::Id,
+};
+use std::collections::BTreeMap;
 
 struct StoredFunction {
     id: Id<Function>,
     function: FunctionData,
-    types: Vec<ValueType>,
+    types: Vec<Type>,
 }
 
 /// FuzzerProgramContext is a context for storing and processing SSA functions
 pub(crate) struct FuzzerProgramContext {
-    /// Builder for ACIR program
-    acir_builder: FuzzerBuilder,
-    /// Builder for Brillig program
-    brillig_builder: FuzzerBuilder,
+    /// Builder for the program
+    builder: FuzzerBuilder,
     /// Options for the program context
     program_context_options: FunctionContextOptions, // TODO
     /// Whether the program is executed in constants
@@ -49,16 +51,15 @@ impl FuzzerProgramContext {
     /// Creates a new FuzzerProgramContext
     fn new(
         program_context_options: FunctionContextOptions,
+        runtime: RuntimeType,
         instruction_blocks: Vec<InstructionBlock>,
         values: Vec<FieldElement>,
         mode: FuzzerMode,
     ) -> Self {
-        let acir_builder = FuzzerBuilder::new_acir(program_context_options.simplifying_enabled);
-        let brillig_builder =
-            FuzzerBuilder::new_brillig(program_context_options.simplifying_enabled);
+        let builder =
+            FuzzerBuilder::new_by_runtime(runtime, program_context_options.simplifying_enabled);
         Self {
-            acir_builder,
-            brillig_builder,
+            builder,
             program_context_options,
             is_constant: false,
             function_information: BTreeMap::new(),
@@ -74,16 +75,15 @@ impl FuzzerProgramContext {
     /// Creates a new FuzzerProgramContext where all inputs are constants
     fn new_constant_context(
         program_context_options: FunctionContextOptions,
+        runtime: RuntimeType,
         instruction_blocks: Vec<InstructionBlock>,
         values: Vec<FieldElement>,
         mode: FuzzerMode,
     ) -> Self {
-        let acir_builder = FuzzerBuilder::new_acir(program_context_options.simplifying_enabled);
-        let brillig_builder =
-            FuzzerBuilder::new_brillig(program_context_options.simplifying_enabled);
+        let builder =
+            FuzzerBuilder::new_by_runtime(runtime, program_context_options.simplifying_enabled);
         Self {
-            acir_builder,
-            brillig_builder,
+            builder,
             program_context_options,
             is_constant: true,
             function_information: BTreeMap::new(),
@@ -97,12 +97,12 @@ impl FuzzerProgramContext {
     }
 
     /// Stores function and its signature
-    pub(crate) fn process_function(&mut self, function: FunctionData, types: Vec<ValueType>) {
+    pub(crate) fn process_function(&mut self, function: FunctionData, types: Vec<Type>) {
         // leaving max_unrolled_size = 0 for now
         //
         let signature = FunctionInfo {
             input_types: types.clone(),
-            return_type: function.return_type,
+            return_type: function.return_type.clone(),
             max_unrolled_size: 0,
         };
         self.function_information.insert(self.current_function_id, signature);
@@ -133,9 +133,11 @@ impl FuzzerProgramContext {
                             [*block_body_idx % self.instruction_blocks.len()]
                         .instructions
                         .len();
-                        let cycle_iterations_count =
-                            if end_iter > start_iter { end_iter - start_iter + 1 } else { 1 }
-                                as usize;
+                        let cycle_iterations_count = if end_iter > start_iter {
+                            (end_iter - start_iter).saturating_add(1)
+                        } else {
+                            1
+                        } as usize;
                         cycle_sizes.push(cycle_iterations_count);
                         iterations_before *= cycle_iterations_count;
                         max_unrolled_size += instruction_block_size * iterations_before;
@@ -232,24 +234,22 @@ impl FuzzerProgramContext {
                     self.values
                         .iter()
                         .zip(stored_function.types.iter())
-                        .map(|(value, type_)| (*value, *type_))
+                        .map(|(value, type_)| (*value, type_.unwrap_numeric()))
                         .collect(),
                     &self.instruction_blocks,
                     self.program_context_options.clone(),
-                    stored_function.function.return_type,
+                    stored_function.function.return_type.clone(),
                     defined_functions,
-                    &mut self.acir_builder,
-                    &mut self.brillig_builder,
+                    &mut self.builder,
                 )
             } else {
                 FuzzerFunctionContext::new(
                     stored_function.types.to_vec(),
                     &self.instruction_blocks,
                     self.program_context_options.clone(),
-                    stored_function.function.return_type,
+                    stored_function.function.return_type.clone(),
                     defined_functions,
-                    &mut self.acir_builder,
-                    &mut self.brillig_builder,
+                    &mut self.builder,
                 )
             };
             self.is_main_initialized = true;
@@ -261,21 +261,14 @@ impl FuzzerProgramContext {
             if i != self.stored_functions.len() - 1 {
                 let current_id = stored_function.id;
                 let new_id = Id::<Function>::new(current_id.to_u32() + 1);
-                self.acir_builder.new_acir_function(format!("f{}", new_id.to_u32()), new_id);
-                self.brillig_builder.new_brillig_function(format!("f{}", new_id.to_u32()), new_id);
+                self.builder.new_function(format!("f{}", new_id.to_u32()), new_id);
             }
         }
     }
 
-    /// Returns programs for ACIR and Brillig
-    pub(crate) fn get_programs(
-        self,
-    ) -> (Result<CompiledProgram, FuzzerBuilderError>, Result<CompiledProgram, FuzzerBuilderError>)
-    {
-        (
-            self.acir_builder.compile(self.program_context_options.compile_options.clone()),
-            self.brillig_builder.compile(self.program_context_options.compile_options),
-        )
+    /// Returns program compiled from the builder
+    pub(crate) fn get_program(self) -> Result<CompiledProgram, FuzzerBuilderError> {
+        self.builder.compile(self.program_context_options.compile_options.clone())
     }
 
     pub(crate) fn get_mode(&self) -> FuzzerMode {
@@ -283,9 +276,10 @@ impl FuzzerProgramContext {
     }
 }
 
-/// Creates [`FuzzerProgramContext`] from [`FuzzerMode`]
+/// Creates [`FuzzerProgramContext`] from [`FuzzerMode`] and [`RuntimeType`]
 pub(crate) fn program_context_by_mode(
     mode: FuzzerMode,
+    runtime: RuntimeType,
     instruction_blocks: Vec<InstructionBlock>,
     values: Vec<FieldElement>,
     options: FuzzerOptions,
@@ -296,6 +290,7 @@ pub(crate) fn program_context_by_mode(
                 idempotent_morphing_enabled: false,
                 ..FunctionContextOptions::from(&options)
             },
+            runtime,
             instruction_blocks,
             values,
             mode,
@@ -305,6 +300,7 @@ pub(crate) fn program_context_by_mode(
                 idempotent_morphing_enabled: false,
                 ..FunctionContextOptions::from(&options)
             },
+            runtime,
             instruction_blocks,
             values,
             mode,
@@ -314,6 +310,7 @@ pub(crate) fn program_context_by_mode(
                 idempotent_morphing_enabled: true,
                 ..FunctionContextOptions::from(&options)
             },
+            runtime,
             instruction_blocks,
             values,
             mode,
@@ -327,6 +324,7 @@ pub(crate) fn program_context_by_mode(
                     idempotent_morphing_enabled: true,
                     ..FunctionContextOptions::from(&options)
                 },
+                runtime,
                 instruction_blocks,
                 values,
                 mode,
@@ -337,6 +335,7 @@ pub(crate) fn program_context_by_mode(
             options.simplifying_enabled = false;
             FuzzerProgramContext::new(
                 FunctionContextOptions::from(&options),
+                runtime,
                 instruction_blocks,
                 values,
                 mode,

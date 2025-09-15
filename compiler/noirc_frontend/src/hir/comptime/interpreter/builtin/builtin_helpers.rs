@@ -425,7 +425,7 @@ fn gather_hir_pattern_tokens(
             tokens.push(Token::Ident(name));
         }
         HirPattern::Mutable(pattern, _) => {
-            tokens.push(Token::Keyword(crate::token::Keyword::Mut));
+            tokens.push(Token::Keyword(Keyword::Mut));
             gather_hir_pattern_tokens(interner, pattern, tokens);
         }
         HirPattern::Tuple(patterns, _) => {
@@ -640,7 +640,7 @@ pub(super) fn hash_item<T: Hash>(
     let mut hasher = std::collections::hash_map::DefaultHasher::new();
     item.hash(&mut hasher);
     let hash = hasher.finish();
-    Ok(Value::Field(SignedField::positive(hash as u128)))
+    Ok(Value::Field(SignedField::positive(u128::from(hash))))
 }
 
 pub(super) fn eq_item<T: Eq>(

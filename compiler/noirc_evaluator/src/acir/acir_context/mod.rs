@@ -19,11 +19,11 @@ use acvm::{
         native_types::{Expression, Witness},
     },
 };
-use fxhash::FxHashMap as HashMap;
 use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::call_stack::{CallStack, CallStackHelper};
 use num_bigint::BigUint;
 use num_integer::Integer;
+use rustc_hash::FxHashMap as HashMap;
 use std::{borrow::Cow, cmp::Ordering};
 
 use crate::ssa::ir::{instruction::Endian, types::NumericType};
@@ -379,18 +379,23 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
             return Ok(lhs);
         }
 
-        let bit_size = typ.bit_size::<F>();
-        if bit_size == 1 {
-            // Operands are booleans.
-            //
-            // a ^ b == a + b - 2*a*b
-            let prod = self.mul_var(lhs, rhs)?;
-            let sum = self.add_var(lhs, rhs)?;
-            self.add_mul_var(sum, -F::from(2_u128), prod)
-        } else {
-            let inputs = vec![AcirValue::Var(lhs, typ.clone()), AcirValue::Var(rhs, typ)];
-            let outputs = self.black_box_function(BlackBoxFunc::XOR, inputs, 1)?;
-            Ok(outputs[0])
+        match typ.to_numeric_type() {
+            NumericType::Signed { bit_size: 1 } | NumericType::Unsigned { bit_size: 1 } => {
+                // Operands are booleans.
+                //
+                // a ^ b == a + b - 2*a*b
+                let prod = self.mul_var(lhs, rhs)?;
+                let sum = self.add_var(lhs, rhs)?;
+                self.add_mul_var(sum, -F::from(2_u128), prod)
+            }
+            NumericType::Signed { .. } | NumericType::Unsigned { .. } => {
+                let inputs = vec![AcirValue::Var(lhs, typ.clone()), AcirValue::Var(rhs, typ)];
+                let outputs = self.black_box_function(BlackBoxFunc::XOR, inputs, 1)?;
+                Ok(outputs[0])
+            }
+            NumericType::NativeField => {
+                unreachable!("Attempted to perform bitwise operation on `Field` type")
+            }
         }
     }
 
@@ -413,14 +418,19 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
             return Ok(zero);
         }
 
-        let bit_size = typ.bit_size::<F>();
-        if bit_size == 1 {
-            // Operands are booleans.
-            self.mul_var(lhs, rhs)
-        } else {
-            let inputs = vec![AcirValue::Var(lhs, typ.clone()), AcirValue::Var(rhs, typ)];
-            let outputs = self.black_box_function(BlackBoxFunc::AND, inputs, 1)?;
-            Ok(outputs[0])
+        match typ.to_numeric_type() {
+            NumericType::Signed { bit_size: 1 } | NumericType::Unsigned { bit_size: 1 } => {
+                // Operands are booleans.
+                self.mul_var(lhs, rhs)
+            }
+            NumericType::Signed { .. } | NumericType::Unsigned { .. } => {
+                let inputs = vec![AcirValue::Var(lhs, typ.clone()), AcirValue::Var(rhs, typ)];
+                let outputs = self.black_box_function(BlackBoxFunc::AND, inputs, 1)?;
+                Ok(outputs[0])
+            }
+            NumericType::NativeField => {
+                unreachable!("Attempted to perform bitwise operation on `Field` type")
+            }
         }
     }
 
@@ -441,20 +451,25 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
             return Ok(lhs);
         }
 
-        let bit_size = typ.bit_size::<F>();
-        if bit_size == 1 {
-            // Operands are booleans
-            // a + b - ab
-            let mul = self.mul_var(lhs, rhs)?;
-            let sum = self.add_var(lhs, rhs)?;
-            self.sub_var(sum, mul)
-        } else {
-            // Implement OR in terms of AND
-            // (NOT a) AND (NOT b) => NOT (a OR b)
-            let a = self.not_var(lhs, typ.clone())?;
-            let b = self.not_var(rhs, typ.clone())?;
-            let a_and_b = self.and_var(a, b, typ.clone())?;
-            self.not_var(a_and_b, typ)
+        match typ.to_numeric_type() {
+            NumericType::Signed { bit_size: 1 } | NumericType::Unsigned { bit_size: 1 } => {
+                // Operands are booleans
+                // a + b - ab
+                let mul = self.mul_var(lhs, rhs)?;
+                let sum = self.add_var(lhs, rhs)?;
+                self.sub_var(sum, mul)
+            }
+            NumericType::Signed { .. } | NumericType::Unsigned { .. } => {
+                // Implement OR in terms of AND
+                // (NOT a) AND (NOT b) => NOT (a OR b)
+                let a = self.not_var(lhs, typ.clone())?;
+                let b = self.not_var(rhs, typ.clone())?;
+                let a_and_b = self.and_var(a, b, typ.clone())?;
+                self.not_var(a_and_b, typ)
+            }
+            NumericType::NativeField => {
+                unreachable!("Attempted to perform bitwise operation on `Field` type")
+            }
         }
     }
 
@@ -1275,7 +1290,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         let same_sign = self.xor_var(
             lhs_sign,
             rhs_sign,
-            AcirType::NumericType(NumericType::Signed { bit_size: 1 }),
+            AcirType::NumericType(NumericType::Unsigned { bit_size: 1 }),
         )?;
 
         // We compute the input difference
@@ -1289,7 +1304,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         self.xor_var(
             diff_sign,
             same_sign,
-            AcirType::NumericType(NumericType::Signed { bit_size: 1 }),
+            AcirType::NumericType(NumericType::Unsigned { bit_size: 1 }),
         )
     }
 

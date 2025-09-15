@@ -212,12 +212,13 @@ impl Function {
         unreachable!("SSA Function {} has no reachable return instruction!", self.id())
     }
 
+    /// Total number of instructions in the reachable blocks of this function.
     pub(crate) fn num_instructions(&self) -> usize {
         self.reachable_blocks()
             .iter()
             .map(|block| {
                 let block = &self.dfg[*block];
-                block.instructions().len() + block.terminator().is_some() as usize
+                block.instructions().len() + usize::from(block.terminator().is_some())
             })
             .sum()
     }
@@ -237,6 +238,16 @@ impl Function {
 
     pub fn has_data_bus_return_data(&self) -> bool {
         self.dfg.data_bus.return_data.is_some()
+    }
+
+    /// Return the types of the function parameters.
+    pub fn parameter_types(&self) -> Vec<Type> {
+        vecmap(self.parameters(), |p| self.dfg.type_of_value(*p))
+    }
+
+    /// Return the types of the returned values, if there are any.
+    pub fn return_types(&self) -> Option<Vec<Type>> {
+        self.returns().map(|rs| vecmap(rs, |p| self.dfg.type_of_value(*p)))
     }
 }
 

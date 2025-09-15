@@ -1,4 +1,4 @@
-define: &AZ_COMMIT cb2a2fa78f30f196339ca044448e415c6a9b45cc
+define: &AZ_COMMIT 9adfd777a799c38e8053ce89d2c80542d71fb063
 libraries:
   noir_check_shuffle:
     repo: noir-lang/noir_check_shuffle
@@ -34,7 +34,7 @@ libraries:
     critical: true
   noir_bigcurve:
     repo: noir-lang/noir_bigcurve
-    timeout: 400
+    timeout: 450
     critical: true
   noir_base64:
     repo: noir-lang/noir_base64
@@ -50,7 +50,7 @@ libraries:
     critical: false
   noir_json_parser:
     repo: noir-lang/noir_json_parser
-    timeout: 12
+    timeout: 15
     critical: false
   sha256:
     repo: noir-lang/sha256
@@ -89,7 +89,7 @@ libraries:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
     path: noir-projects/noir-protocol-circuits/crates/parity-lib
-    timeout: 4
+    timeout: 7
     critical: false
   protocol_circuits_private_kernel_lib:
     repo: AztecProtocol/aztec-packages

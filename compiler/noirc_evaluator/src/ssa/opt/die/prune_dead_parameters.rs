@@ -39,7 +39,7 @@
 //! b1(v0: Field):
 //!   return v0
 //! ```
-use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 use crate::ssa::{
     ir::{
@@ -156,7 +156,7 @@ mod tests {
 
         let ssa = Ssa::from_str(src).unwrap();
         // DIE is necessary to fetch the block parameters liveness information
-        let (ssa, die_result) = ssa.dead_instruction_elimination_inner(false, false);
+        let (ssa, die_result) = ssa.dead_instruction_elimination_inner(false);
 
         assert!(die_result.unused_parameters.len() == 1);
         let function = die_result
@@ -208,7 +208,7 @@ mod tests {
 
         let ssa = Ssa::from_str(src).unwrap();
         // DIE is necessary to fetch the block parameters liveness information
-        let (ssa, die_result) = ssa.dead_instruction_elimination_inner(false, false);
+        let (ssa, die_result) = ssa.dead_instruction_elimination_inner(false);
 
         assert!(die_result.unused_parameters.len() == 1);
         let function = die_result
@@ -230,7 +230,7 @@ mod tests {
         assert_eq!(b3_unused[0].to_u32(), 2);
 
         let ssa = ssa.prune_dead_parameters(&die_result.unused_parameters);
-        let (ssa, _) = ssa.dead_instruction_elimination_inner(false, false);
+        let (ssa, _) = ssa.dead_instruction_elimination_inner(false);
 
         // We expect b3 to have no parameters anymore and both predecessors (b1 and b2)
         // should no longer pass any arguments to their terminator (which jumps to b3).
@@ -240,6 +240,7 @@ mod tests {
         brillig(inline) predicate_pure fn main f0 {
           b0(v1: [[u1; 4]; 4]):
             v3 = array_get v1, index u32 0 -> [u1; 4]
+            inc_rc v3
             v5 = array_get v3, index u32 3 -> u1
             jmpif v5 then: b1, else: b2
           b1():
@@ -265,7 +266,7 @@ mod tests {
 
         let ssa = Ssa::from_str(src).unwrap();
         // DIE is necessary to fetch the block parameters liveness information
-        let (ssa, die_result) = ssa.dead_instruction_elimination_inner(false, false);
+        let (ssa, die_result) = ssa.dead_instruction_elimination_inner(false);
 
         assert!(die_result.unused_parameters.len() == 1);
         let function = die_result
@@ -343,7 +344,7 @@ mod tests {
         let ssa = Ssa::from_str(src).unwrap();
 
         // DIE is necessary to fetch the block parameters liveness information
-        let (ssa, die_result) = ssa.dead_instruction_elimination_inner(false, false);
+        let (ssa, die_result) = ssa.dead_instruction_elimination_inner(false);
 
         assert!(die_result.unused_parameters.len() == 1);
         let function = die_result
@@ -367,7 +368,7 @@ mod tests {
 
         let ssa = ssa.prune_dead_parameters(&die_result.unused_parameters);
 
-        let (ssa, die_result) = ssa.dead_instruction_elimination_inner(false, false);
+        let (ssa, die_result) = ssa.dead_instruction_elimination_inner(false);
 
         assert!(die_result.unused_parameters.len() == 1);
         let function = die_result
@@ -408,7 +409,7 @@ mod tests {
 
         // Now check that calling the DIE -> parameter pruning feedback loop produces the same result
         let ssa = Ssa::from_str(src).unwrap();
-        let ssa = ssa.dead_instruction_elimination_with_pruning(false, false);
+        let ssa = ssa.dead_instruction_elimination_with_pruning(false);
         assert_ssa_snapshot!(ssa, @r#"
         brillig(inline) predicate_pure fn main f0 {
           b0(v0: i16):

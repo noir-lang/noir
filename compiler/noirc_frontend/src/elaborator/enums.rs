@@ -1,9 +1,9 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use fxhash::FxHashMap as HashMap;
 use iter_extended::{btree_map, try_vecmap, vecmap};
 use noirc_errors::Location;
 use rangemap::StepLite;
+use rustc_hash::FxHashMap as HashMap;
 
 use crate::{
     DataType, Kind, Shared, Type,
@@ -183,14 +183,13 @@ impl Elaborator<'_> {
         let no_parameters = Parameters(Vec::new());
         let global_body =
             self.make_enum_variant_constructor(datatype, variant_index, &no_parameters, location);
-        let let_statement = crate::hir_def::stmt::HirStatement::Expression(global_body);
+        let let_statement = HirStatement::Expression(global_body);
 
         let statement_id = self.interner.get_global(global_id).let_statement;
         self.interner.replace_statement(statement_id, let_statement);
 
-        self.interner.get_global_mut(global_id).value = GlobalValue::Resolved(
-            crate::hir::comptime::Value::Enum(variant_index, Vec::new(), typ),
-        );
+        self.interner.get_global_mut(global_id).value =
+            GlobalValue::Resolved(Value::Enum(variant_index, Vec::new(), typ));
 
         Self::get_module_mut(self.def_maps, type_id.module_id())
             .declare_global(name.clone(), enum_.visibility, global_id)
@@ -785,7 +784,7 @@ impl Elaborator<'_> {
             ($value:expr) => {{
                 let negative = $value < 0;
                 // Widen the value so that SignedType::MIN does not wrap to 0 when negated below
-                let mut widened = $value as i128;
+                let mut widened = i128::from($value);
                 if negative {
                     widened = -widened;
                 }
@@ -801,8 +800,8 @@ impl Elaborator<'_> {
             Value::I32(value) => signed_to_signed_field!(value),
             Value::I64(value) => signed_to_signed_field!(value),
             Value::U1(value) => SignedField::positive(value),
-            Value::U8(value) => SignedField::positive(value as u128),
-            Value::U16(value) => SignedField::positive(value as u128),
+            Value::U8(value) => SignedField::positive(u128::from(value)),
+            Value::U16(value) => SignedField::positive(u128::from(value)),
             Value::U32(value) => SignedField::positive(value),
             Value::U64(value) => SignedField::positive(value),
             Value::U128(value) => SignedField::positive(value),

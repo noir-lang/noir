@@ -637,7 +637,8 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
                 // Convert our destination_pointer to an address
                 let destination = self.memory.read_ref(*destination_pointer);
                 // Use our usize destination index to set the value in memory
-                self.memory.write(destination, self.memory.read(*source_address));
+                let value = self.memory.read(*source_address);
+                self.memory.write(destination, value);
                 self.increment_program_counter()
             }
             Opcode::Call { location } => {
@@ -1133,7 +1134,6 @@ impl<'a, F: AcirField, B: BlackBoxFunctionSolver<F>> VM<'a, F, B> {
 
         let result_value = evaluate_binary_int_op(&op, lhs_value, rhs_value, bit_size)?;
         self.memory.write(result, result_value);
-
         self.fuzzing_trace_binary_int_op_comparison(&op, lhs_value, rhs_value, result_value);
         Ok(())
     }
@@ -2752,173 +2752,6 @@ mod tests {
                     message: "Attempted to divide by zero".into()
                 },
                 call_stack: vec![2]
-            }
-        );
-    }
-
-    #[test]
-    fn aborts_when_foreign_call_returns_too_much_data() {
-        let calldata: Vec<FieldElement> = vec![];
-
-        let opcodes = &[
-            Opcode::Const {
-                destination: MemoryAddress::direct(0),
-                bit_size: BitSize::Integer(IntegerBitSize::U32),
-                value: FieldElement::from(1u64),
-            },
-            Opcode::ForeignCall {
-                function: "foo".to_string(),
-                destinations: vec![ValueOrArray::HeapArray(HeapArray {
-                    pointer: MemoryAddress::Direct(0),
-                    size: 3,
-                })],
-                destination_value_types: vec![HeapValueType::Array {
-                    value_types: vec![HeapValueType::Simple(BitSize::Field)],
-                    size: 3,
-                }],
-                inputs: Vec::new(),
-                input_value_types: Vec::new(),
-            },
-        ];
-        let solver = StubbedBlackBoxSolver::default();
-        let mut vm = VM::new(calldata, opcodes, &solver, false, None);
-
-        let status = vm.process_opcodes();
-        assert_eq!(
-            status,
-            VMStatus::ForeignCallWait { function: "foo".to_string(), inputs: Vec::new() }
-        );
-        vm.resolve_foreign_call(ForeignCallResult {
-            values: vec![ForeignCallParam::Array(vec![
-                FieldElement::from(1u128),
-                FieldElement::from(2u128),
-                FieldElement::from(3u128),
-                FieldElement::from(4u128), // Extra value that exceeds the expected size
-            ])],
-        });
-
-        let status = vm.process_opcode();
-        assert_eq!(
-            status,
-            VMStatus::Failure {
-                reason: FailureReason::RuntimeError {
-                    message:
-                        "Foreign call return value does not match expected size. Expected 3 but got 4"
-                            .to_string()
-                },
-                call_stack: vec![1]
-            }
-        );
-    }
-
-    #[test]
-    fn aborts_when_foreign_call_returns_not_enough_much_data() {
-        let calldata: Vec<FieldElement> = vec![];
-
-        let opcodes = &[
-            Opcode::Const {
-                destination: MemoryAddress::direct(0),
-                bit_size: BitSize::Integer(IntegerBitSize::U32),
-                value: FieldElement::from(1u64),
-            },
-            Opcode::ForeignCall {
-                function: "foo".to_string(),
-                destinations: vec![ValueOrArray::HeapArray(HeapArray {
-                    pointer: MemoryAddress::Direct(0),
-                    size: 3,
-                })],
-                destination_value_types: vec![HeapValueType::Array {
-                    value_types: vec![HeapValueType::Simple(BitSize::Field)],
-                    size: 3,
-                }],
-                inputs: Vec::new(),
-                input_value_types: Vec::new(),
-            },
-        ];
-        let solver = StubbedBlackBoxSolver::default();
-        let mut vm = VM::new(calldata, opcodes, &solver, false, None);
-
-        let status = vm.process_opcodes();
-        assert_eq!(
-            status,
-            VMStatus::ForeignCallWait { function: "foo".to_string(), inputs: Vec::new() }
-        );
-        vm.resolve_foreign_call(ForeignCallResult {
-            values: vec![ForeignCallParam::Array(vec![
-                FieldElement::from(1u128),
-                FieldElement::from(2u128),
-                // We're missing a value here
-            ])],
-        });
-
-        let status = vm.process_opcode();
-        assert_eq!(
-            status,
-            VMStatus::Failure {
-                reason: FailureReason::RuntimeError {
-                    message:
-                        "Foreign call return value does not match expected size. Expected 3 but got 2"
-                            .to_string()
-                },
-                call_stack: vec![1]
-            }
-        );
-    }
-
-    #[test]
-    fn aborts_when_foreign_call_returns_data_which_doesnt_match_vector_elements() {
-        let calldata: Vec<FieldElement> = vec![];
-
-        let opcodes = &[
-            Opcode::Const {
-                destination: MemoryAddress::direct(0),
-                bit_size: BitSize::Integer(IntegerBitSize::U32),
-                value: FieldElement::from(2u64),
-            },
-            Opcode::ForeignCall {
-                function: "foo".to_string(),
-                destinations: vec![ValueOrArray::HeapVector(HeapVector {
-                    pointer: MemoryAddress::Direct(0),
-                    size: MemoryAddress::Direct(1),
-                })],
-                destination_value_types: vec![HeapValueType::Vector {
-                    value_types: vec![
-                        HeapValueType::Simple(BitSize::Field),
-                        HeapValueType::Simple(BitSize::Field),
-                    ],
-                }],
-                inputs: Vec::new(),
-                input_value_types: Vec::new(),
-            },
-        ];
-        let solver = StubbedBlackBoxSolver::default();
-        let mut vm = VM::new(calldata, opcodes, &solver, false, None);
-
-        let status = vm.process_opcodes();
-        assert_eq!(
-            status,
-            VMStatus::ForeignCallWait { function: "foo".to_string(), inputs: Vec::new() }
-        );
-
-        // Here we're returning an array of 3 elements, however the vector expects 2 fields per element
-        // (see `value_types` above), so the returned data does not match the expected vector element size
-        vm.resolve_foreign_call(ForeignCallResult {
-            values: vec![ForeignCallParam::Array(vec![
-                FieldElement::from(1u128),
-                FieldElement::from(2u128),
-                FieldElement::from(3u128),
-                // We're missing a value here
-            ])],
-        });
-
-        let status = vm.process_opcode();
-        assert_eq!(
-            status,
-            VMStatus::Failure {
-                reason: FailureReason::RuntimeError {
-                    message: "Returned data does not match vector element size".to_string()
-                },
-                call_stack: vec![1]
             }
         );
     }

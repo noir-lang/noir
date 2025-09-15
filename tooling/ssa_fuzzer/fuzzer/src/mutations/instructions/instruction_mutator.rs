@@ -4,29 +4,42 @@
 //! 2. Argument mutation
 
 use crate::fuzz_lib::instruction::Instruction;
-use crate::mutations::basic_types::{
-    bool::mutate_bool, usize::mutate_usize, value_type::mutate_value_type, vec::mutate_vec,
-};
 use crate::mutations::configuration::{
-    ArrayGetMutationOptions, ArraySetMutationOptions, BASIC_ARRAY_GET_MUTATION_CONFIGURATION,
-    BASIC_ARRAY_SET_MUTATION_CONFIGURATION, BASIC_BOOL_MUTATION_CONFIGURATION,
-    BASIC_CREATE_ARRAY_MUTATION_CONFIGURATION, BASIC_INSTRUCTION_ARGUMENT_MUTATION_CONFIGURATION,
-    BASIC_INSTRUCTION_MUTATION_CONFIGURATION, BASIC_SAFE_INDEX_MUTATION_CONFIGURATION,
-    BASIC_USIZE_MUTATION_CONFIGURATION, BASIC_VALUE_TYPE_MUTATION_CONFIGURATION,
-    BASIC_VEC_MUTATION_CONFIGURATION, CreateArrayMutationOptions,
-    InstructionArgumentMutationOptions, InstructionMutationOptions, SIZE_OF_SMALL_ARBITRARY_BUFFER,
+    ArgumentMutationOptions, BASIC_ARGUMENT_MUTATION_CONFIGURATION,
+    BOOL_MUTATION_CONFIGURATION_MOSTLY_FALSE,
 };
-use crate::mutations::instructions::argument_mutator::argument_mutator;
+use crate::mutations::{
+    basic_types::{
+        bool::mutate_bool,
+        numeric_type::mutate_numeric_type,
+        point::{generate_random_point, mutate_point},
+        scalar::generate_random_scalar,
+        scalar::mutate_scalar,
+        ssa_fuzzer_type::mutate_ssa_fuzzer_type,
+        usize::mutate_usize,
+        vec::mutate_vec,
+    },
+    configuration::{
+        Aes128EncryptMutationOptions, ArrayGetMutationOptions, ArraySetMutationOptions,
+        BASIC_AES_128_ENCRYPT_MUTATION_CONFIGURATION, BASIC_ARRAY_GET_MUTATION_CONFIGURATION,
+        BASIC_ARRAY_SET_MUTATION_CONFIGURATION, BASIC_BLAKE_HASH_MUTATION_CONFIGURATION,
+        BASIC_BOOL_MUTATION_CONFIGURATION, BASIC_CREATE_ARRAY_MUTATION_CONFIGURATION,
+        BASIC_INSTRUCTION_ARGUMENT_MUTATION_CONFIGURATION,
+        BASIC_INSTRUCTION_MUTATION_CONFIGURATION, BASIC_NUMERIC_TYPE_MUTATION_CONFIGURATION,
+        BASIC_SHA256_COMPRESSION_MUTATION_CONFIGURATION, BASIC_USIZE_MUTATION_CONFIGURATION,
+        BASIC_VEC_MUTATION_CONFIGURATION, BOOL_MUTATION_CONFIGURATION_MOSTLY_TRUE,
+        BlakeHashMutationOptions, CreateArrayMutationOptions, InstructionArgumentMutationOptions,
+        InstructionMutationOptions, SIZE_OF_SMALL_ARBITRARY_BUFFER,
+        Sha256CompressionMutationOptions,
+    },
+    instructions::argument_mutator::numeric_argument_mutator,
+};
 use libfuzzer_sys::arbitrary::Unstructured;
 use rand::{Rng, rngs::StdRng};
 
-trait InstructionMutator {
-    fn mutate(rng: &mut StdRng, value: &mut Instruction);
-}
-
 /// Return new random instruction
 struct RandomMutation;
-impl InstructionMutator for RandomMutation {
+impl RandomMutation {
     fn mutate(rng: &mut StdRng, value: &mut Instruction) {
         let mut bytes = [0u8; SIZE_OF_SMALL_ARBITRARY_BUFFER];
         rng.fill(&mut bytes);
@@ -36,7 +49,7 @@ impl InstructionMutator for RandomMutation {
 
 /// Mutate arguments of the instruction
 struct InstructionArgumentsMutation;
-impl InstructionMutator for InstructionArgumentsMutation {
+impl InstructionArgumentsMutation {
     fn mutate(rng: &mut StdRng, value: &mut Instruction) {
         match value {
             // Binary operations
@@ -54,36 +67,56 @@ impl InstructionMutator for InstructionArgumentsMutation {
             | Instruction::Lt { lhs, rhs } => {
                 match BASIC_INSTRUCTION_ARGUMENT_MUTATION_CONFIGURATION.select(rng) {
                     InstructionArgumentMutationOptions::Left => {
-                        argument_mutator(lhs, rng);
+                        numeric_argument_mutator(lhs, rng);
                     }
                     InstructionArgumentMutationOptions::Right => {
-                        argument_mutator(rhs, rng);
+                        numeric_argument_mutator(rhs, rng);
                     }
                 }
             }
 
+            Instruction::Not { lhs } => {
+                numeric_argument_mutator(lhs, rng);
+            }
+
             // Unary operations
-            Instruction::Not { lhs }
-            | Instruction::AddToMemory { lhs }
-            | Instruction::LoadFromMemory { memory_addr: lhs } => {
-                argument_mutator(lhs, rng);
+            Instruction::AddToMemory { lhs } | Instruction::LoadFromMemory { memory_addr: lhs } => {
+                match BASIC_ARGUMENT_MUTATION_CONFIGURATION.select(rng) {
+                    ArgumentMutationOptions::MutateType => {
+                        mutate_ssa_fuzzer_type(&mut lhs.value_type, rng);
+                    }
+                    ArgumentMutationOptions::MutateIndex => {
+                        mutate_usize(&mut lhs.index, rng, BASIC_USIZE_MUTATION_CONFIGURATION);
+                    }
+                }
             }
 
             // Special cases
             Instruction::Cast { lhs, type_ } => {
                 match BASIC_INSTRUCTION_ARGUMENT_MUTATION_CONFIGURATION.select(rng) {
                     InstructionArgumentMutationOptions::Left => {
-                        argument_mutator(lhs, rng);
+                        numeric_argument_mutator(lhs, rng);
                     }
                     InstructionArgumentMutationOptions::Right => {
-                        mutate_value_type(type_, rng, BASIC_VALUE_TYPE_MUTATION_CONFIGURATION);
+                        mutate_numeric_type(type_, rng, BASIC_NUMERIC_TYPE_MUTATION_CONFIGURATION);
                     }
                 }
             }
             Instruction::SetToMemory { memory_addr_index, value } => {
                 match BASIC_INSTRUCTION_ARGUMENT_MUTATION_CONFIGURATION.select(rng) {
                     InstructionArgumentMutationOptions::Left => {
-                        argument_mutator(value, rng);
+                        match BASIC_ARGUMENT_MUTATION_CONFIGURATION.select(rng) {
+                            ArgumentMutationOptions::MutateType => {
+                                mutate_ssa_fuzzer_type(&mut value.value_type, rng);
+                            }
+                            ArgumentMutationOptions::MutateIndex => {
+                                mutate_usize(
+                                    &mut value.index,
+                                    rng,
+                                    BASIC_USIZE_MUTATION_CONFIGURATION,
+                                );
+                            }
+                        }
                     }
                     InstructionArgumentMutationOptions::Right => {
                         mutate_usize(memory_addr_index, rng, BASIC_USIZE_MUTATION_CONFIGURATION);
@@ -110,10 +143,10 @@ impl InstructionMutator for InstructionArgumentsMutation {
                         mutate_usize(array_index, rng, BASIC_USIZE_MUTATION_CONFIGURATION);
                     }
                     ArrayGetMutationOptions::Index => {
-                        argument_mutator(index, rng);
+                        numeric_argument_mutator(index, rng);
                     }
                     ArrayGetMutationOptions::SafeIndex => {
-                        mutate_bool(safe_index, rng, BASIC_SAFE_INDEX_MUTATION_CONFIGURATION);
+                        mutate_bool(safe_index, rng, BOOL_MUTATION_CONFIGURATION_MOSTLY_TRUE);
                     }
                 }
             }
@@ -123,17 +156,17 @@ impl InstructionMutator for InstructionArgumentsMutation {
                         mutate_usize(array_index, rng, BASIC_USIZE_MUTATION_CONFIGURATION);
                     }
                     ArraySetMutationOptions::Index => {
-                        argument_mutator(index, rng);
+                        numeric_argument_mutator(index, rng);
                     }
                     ArraySetMutationOptions::ValueIndex => {
                         mutate_usize(value_index, rng, BASIC_USIZE_MUTATION_CONFIGURATION);
                     }
                     ArraySetMutationOptions::SafeIndex => {
-                        mutate_bool(safe_index, rng, BASIC_SAFE_INDEX_MUTATION_CONFIGURATION);
+                        mutate_bool(safe_index, rng, BOOL_MUTATION_CONFIGURATION_MOSTLY_TRUE);
                     }
                 }
             }
-            Instruction::CreateArray { elements_indices, element_type, is_references } => {
+            Instruction::CreateArray { elements_indices, element_type } => {
                 match BASIC_CREATE_ARRAY_MUTATION_CONFIGURATION.select(rng) {
                     CreateArrayMutationOptions::ElementsIndices => {
                         mutate_vec(
@@ -142,18 +175,12 @@ impl InstructionMutator for InstructionArgumentsMutation {
                             |index, rng| {
                                 mutate_usize(index, rng, BASIC_USIZE_MUTATION_CONFIGURATION);
                             },
+                            |rng| rng.gen_range(usize::MIN..usize::MAX),
                             BASIC_VEC_MUTATION_CONFIGURATION,
                         );
                     }
                     CreateArrayMutationOptions::ElementType => {
-                        mutate_value_type(
-                            element_type,
-                            rng,
-                            BASIC_VALUE_TYPE_MUTATION_CONFIGURATION,
-                        );
-                    }
-                    CreateArrayMutationOptions::IsReferences => {
-                        mutate_bool(is_references, rng, BASIC_BOOL_MUTATION_CONFIGURATION);
+                        mutate_ssa_fuzzer_type(element_type, rng);
                     }
                 }
             }
@@ -166,7 +193,7 @@ impl InstructionMutator for InstructionArgumentsMutation {
                         mutate_usize(index, rng, BASIC_USIZE_MUTATION_CONFIGURATION);
                     }
                     ArrayGetMutationOptions::SafeIndex => {
-                        mutate_bool(safe_index, rng, BASIC_SAFE_INDEX_MUTATION_CONFIGURATION);
+                        mutate_bool(safe_index, rng, BOOL_MUTATION_CONFIGURATION_MOSTLY_TRUE);
                     }
                 }
             }
@@ -186,17 +213,120 @@ impl InstructionMutator for InstructionArgumentsMutation {
                     mutate_usize(value_index, rng, BASIC_USIZE_MUTATION_CONFIGURATION);
                 }
                 ArraySetMutationOptions::SafeIndex => {
-                    mutate_bool(safe_index, rng, BASIC_SAFE_INDEX_MUTATION_CONFIGURATION);
+                    mutate_bool(safe_index, rng, BOOL_MUTATION_CONFIGURATION_MOSTLY_TRUE);
                 }
             },
-            Instruction::FieldToBytesToField { .. }
-            | Instruction::Blake2sHash { .. }
-            | Instruction::Blake3Hash { .. }
-            | Instruction::Keccakf1600Hash { .. }
-            | Instruction::Aes128Encrypt { .. }
-            | Instruction::Sha256Compression { .. } => {
-                // TODO: Implement mutations for these instructions
-                // doesn't leave it as unimplemented, because fuzzer will try to mutate it anyway
+            Instruction::FieldToBytesToField { field_idx } => {
+                mutate_usize(field_idx, rng, BASIC_USIZE_MUTATION_CONFIGURATION);
+            }
+            Instruction::Blake2sHash { field_idx, limbs_count } => {
+                match BASIC_BLAKE_HASH_MUTATION_CONFIGURATION.select(rng) {
+                    BlakeHashMutationOptions::FieldIdx => {
+                        mutate_usize(field_idx, rng, BASIC_USIZE_MUTATION_CONFIGURATION);
+                    }
+                    BlakeHashMutationOptions::LimbsCount => {
+                        *limbs_count = rng.gen_range(u8::MIN..u8::MAX);
+                    }
+                }
+            }
+            Instruction::Blake3Hash { field_idx, limbs_count } => {
+                match BASIC_BLAKE_HASH_MUTATION_CONFIGURATION.select(rng) {
+                    BlakeHashMutationOptions::FieldIdx => {
+                        mutate_usize(field_idx, rng, BASIC_USIZE_MUTATION_CONFIGURATION);
+                    }
+                    BlakeHashMutationOptions::LimbsCount => {
+                        *limbs_count = rng.gen_range(u8::MIN..u8::MAX);
+                    }
+                }
+            }
+            Instruction::Keccakf1600Hash { u64_indices, load_elements_of_array } => {
+                let idx = rng.gen_range(0..u64_indices.len());
+                mutate_usize(&mut u64_indices[idx], rng, BASIC_USIZE_MUTATION_CONFIGURATION);
+                mutate_bool(load_elements_of_array, rng, BASIC_BOOL_MUTATION_CONFIGURATION);
+            }
+            Instruction::Sha256Compression {
+                input_indices,
+                state_indices,
+                load_elements_of_array,
+            } => match BASIC_SHA256_COMPRESSION_MUTATION_CONFIGURATION.select(rng) {
+                Sha256CompressionMutationOptions::InputIndices => {
+                    let idx = rng.gen_range(0..input_indices.len());
+                    mutate_usize(&mut input_indices[idx], rng, BASIC_USIZE_MUTATION_CONFIGURATION);
+                }
+                Sha256CompressionMutationOptions::StateIndices => {
+                    let idx = rng.gen_range(0..state_indices.len());
+                    mutate_usize(&mut state_indices[idx], rng, BASIC_USIZE_MUTATION_CONFIGURATION);
+                }
+                Sha256CompressionMutationOptions::LoadElementsOfArray => {
+                    mutate_bool(load_elements_of_array, rng, BASIC_BOOL_MUTATION_CONFIGURATION);
+                }
+            },
+            Instruction::Aes128Encrypt { input_idx, input_limbs_count, key_idx, iv_idx } => {
+                match BASIC_AES_128_ENCRYPT_MUTATION_CONFIGURATION.select(rng) {
+                    Aes128EncryptMutationOptions::InputIdx => {
+                        mutate_usize(input_idx, rng, BASIC_USIZE_MUTATION_CONFIGURATION);
+                    }
+                    Aes128EncryptMutationOptions::InputLimbsCount => {
+                        *input_limbs_count = rng.gen_range(u8::MIN..u8::MAX);
+                    }
+                    Aes128EncryptMutationOptions::KeyIdx => {
+                        mutate_usize(key_idx, rng, BASIC_USIZE_MUTATION_CONFIGURATION);
+                    }
+                    Aes128EncryptMutationOptions::IvIdx => {
+                        mutate_usize(iv_idx, rng, BASIC_USIZE_MUTATION_CONFIGURATION);
+                    }
+                }
+            }
+            Instruction::PointAdd { p1, p2 } => {
+                match BASIC_INSTRUCTION_ARGUMENT_MUTATION_CONFIGURATION.select(rng) {
+                    InstructionArgumentMutationOptions::Left => {
+                        mutate_point(p1, rng);
+                    }
+                    InstructionArgumentMutationOptions::Right => {
+                        mutate_point(p2, rng);
+                    }
+                }
+            }
+
+            Instruction::MultiScalarMul { points_and_scalars } => {
+                mutate_vec(
+                    points_and_scalars,
+                    rng,
+                    |(point, scalar), rng| {
+                        mutate_point(point, rng);
+                        mutate_scalar(scalar, rng);
+                    },
+                    |rng| (generate_random_point(rng), generate_random_scalar(rng)),
+                    BASIC_VEC_MUTATION_CONFIGURATION,
+                );
+            }
+            Instruction::EcdsaSecp256k1 {
+                msg,
+                corrupt_hash,
+                corrupt_pubkey_x,
+                corrupt_pubkey_y,
+                corrupt_signature,
+            }
+            | Instruction::EcdsaSecp256r1 {
+                msg,
+                corrupt_hash,
+                corrupt_pubkey_x,
+                corrupt_pubkey_y,
+                corrupt_signature,
+            } => {
+                mutate_vec(
+                    msg,
+                    rng,
+                    |byte, rng| {
+                        *byte = rng.gen_range(0..=255);
+                    },
+                    |rng| rng.gen_range(0..=255),
+                    BASIC_VEC_MUTATION_CONFIGURATION,
+                );
+                mutate_bool(corrupt_hash, rng, BOOL_MUTATION_CONFIGURATION_MOSTLY_FALSE);
+                mutate_bool(corrupt_pubkey_x, rng, BOOL_MUTATION_CONFIGURATION_MOSTLY_FALSE);
+                mutate_bool(corrupt_pubkey_y, rng, BOOL_MUTATION_CONFIGURATION_MOSTLY_FALSE);
+                mutate_bool(corrupt_signature, rng, BOOL_MUTATION_CONFIGURATION_MOSTLY_FALSE);
             }
         }
     }

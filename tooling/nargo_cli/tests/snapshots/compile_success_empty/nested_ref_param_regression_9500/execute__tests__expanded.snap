@@ -1,0 +1,16 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main() {
+    let ref: &mut Field = &mut 0_Field;
+    let ref3: &mut &mut Field = &mut &mut 0_Field;
+    foo(ref, ref, ref3);
+    assert(*ref == 2_Field);
+}
+
+fn foo(ref1: &mut Field, ref2: &mut Field, _ref3: &mut &mut Field) {
+    *ref1 = 1_Field;
+    *ref2 = 2_Field;
+    for _ in 0_u32..10_u32 {}
+}

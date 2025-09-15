@@ -21,10 +21,10 @@ use crate::ssa::ir::{
 };
 use acvm::acir::brillig::{MemoryAddress, ValueOrArray};
 use acvm::{FieldElement, acir::AcirField};
-use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use iter_extended::vecmap;
 use noirc_errors::call_stack::{CallStackHelper, CallStackId};
 use num_bigint::BigUint;
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use std::collections::BTreeSet;
 use std::sync::Arc;
 
@@ -1254,6 +1254,10 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         instruction_id: InstructionId,
         arguments: &[ValueId],
     ) {
+        // Slice operations always look like `... = call slice_<op> source_len, source_vector, ...`
+        let source_len = self.convert_ssa_value(arguments[0], dfg);
+        let source_len = source_len.extract_single_addr();
+
         let slice_id = arguments[1];
         let element_size = dfg.type_of_value(slice_id).element_size();
         let source_vector = self.convert_ssa_value(slice_id, dfg).extract_vector();
@@ -1261,6 +1265,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         let results = dfg.instruction_results(instruction_id);
         match intrinsic {
             Value::Intrinsic(Intrinsic::SlicePushBack) => {
+                // target_len, target_slice = slice_push_back source_len, source_slice
                 let target_len = match self.variables.define_variable(
                     self.function_context,
                     self.brillig_context,
@@ -1283,14 +1288,15 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                     self.convert_ssa_value(*arg, dfg)
                 });
 
-                self.update_slice_length(
-                    target_len.address,
-                    arguments[0],
-                    dfg,
-                    BrilligBinaryOp::Add,
-                );
+                // target_len = source_len + 1
+                self.update_slice_length(target_len, source_len, BrilligBinaryOp::Add);
 
-                self.slice_push_back_operation(target_vector, source_vector, &item_values);
+                self.slice_push_back_operation(
+                    target_vector,
+                    source_len,
+                    source_vector,
+                    &item_values,
+                );
             }
             Value::Intrinsic(Intrinsic::SlicePushFront) => {
                 let target_len = match self.variables.define_variable(
@@ -1314,14 +1320,14 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                     self.convert_ssa_value(*arg, dfg)
                 });
 
-                self.update_slice_length(
-                    target_len.address,
-                    arguments[0],
-                    dfg,
-                    BrilligBinaryOp::Add,
-                );
+                self.update_slice_length(target_len, source_len, BrilligBinaryOp::Add);
 
-                self.slice_push_front_operation(target_vector, source_vector, &item_values);
+                self.slice_push_front_operation(
+                    target_vector,
+                    source_len,
+                    source_vector,
+                    &item_values,
+                );
             }
             Value::Intrinsic(Intrinsic::SlicePopBack) => {
                 let target_len = match self.variables.define_variable(
@@ -1352,14 +1358,14 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                     )
                 });
 
-                self.update_slice_length(
-                    target_len.address,
-                    arguments[0],
-                    dfg,
-                    BrilligBinaryOp::Sub,
-                );
+                self.update_slice_length(target_len, source_len, BrilligBinaryOp::Sub);
 
-                self.slice_pop_back_operation(target_vector, source_vector, &pop_variables);
+                self.slice_pop_back_operation(
+                    target_vector,
+                    source_len,
+                    source_vector,
+                    &pop_variables,
+                );
             }
             Value::Intrinsic(Intrinsic::SlicePopFront) => {
                 let target_len = match self.variables.define_variable(
@@ -1389,14 +1395,14 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                 );
                 let target_vector = target_variable.extract_vector();
 
-                self.update_slice_length(
-                    target_len.address,
-                    arguments[0],
-                    dfg,
-                    BrilligBinaryOp::Sub,
-                );
+                self.update_slice_length(target_len, source_len, BrilligBinaryOp::Sub);
 
-                self.slice_pop_front_operation(target_vector, source_vector, &pop_variables);
+                self.slice_pop_front_operation(
+                    target_vector,
+                    source_len,
+                    source_vector,
+                    &pop_variables,
+                );
             }
             Value::Intrinsic(Intrinsic::SliceInsert) => {
                 let target_len = match self.variables.define_variable(
@@ -1437,12 +1443,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                     self.convert_ssa_value(*arg, dfg)
                 });
 
-                self.update_slice_length(
-                    target_len.address,
-                    arguments[0],
-                    dfg,
-                    BrilligBinaryOp::Add,
-                );
+                self.update_slice_length(target_len, source_len, BrilligBinaryOp::Add);
 
                 self.slice_insert_operation(target_vector, source_vector, converted_index, &items);
                 self.brillig_context.deallocate_single_addr(converted_index);
@@ -1490,12 +1491,7 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                     )
                 });
 
-                self.update_slice_length(
-                    target_len.address,
-                    arguments[0],
-                    dfg,
-                    BrilligBinaryOp::Sub,
-                );
+                self.update_slice_length(target_len, source_len, BrilligBinaryOp::Sub);
 
                 self.slice_remove_operation(
                     target_vector,
@@ -1510,6 +1506,8 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
         }
     }
 
+    /// Increase or decrease the slice length by 1.
+    ///
     /// Slices have a tuple structure (slice length, slice contents) to enable logic
     /// that uses dynamic slice lengths (such as with merging slices in the flattening pass).
     /// This method codegens an update to the slice length.
@@ -1525,15 +1523,11 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
     /// but if it's in SSA, there is a chance it can be optimized out.
     fn update_slice_length(
         &mut self,
-        target_len: MemoryAddress,
-        source_value: ValueId,
-        dfg: &DataFlowGraph,
+        target_len: SingleAddrVariable,
+        source_len: SingleAddrVariable,
         binary_op: BrilligBinaryOp,
     ) {
-        let source_len_variable = self.convert_ssa_value(source_value, dfg);
-        let source_len = source_len_variable.extract_single_addr();
-
-        self.brillig_context.codegen_usize_op(source_len.address, target_len, binary_op, 1);
+        self.brillig_context.codegen_usize_op(source_len.address, target_len.address, binary_op, 1);
     }
 
     /// Converts an SSA cast to a sequence of Brillig opcodes.
@@ -1701,47 +1695,20 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
 
         self.brillig_context.codegen_branch(left_is_negative.address, |ctx, is_negative| {
             if is_negative {
-                // If right value is greater than the left bit size, return -1
-                let rhs_does_not_overflow = SingleAddrVariable::new(ctx.allocate_register(), 1);
-                let lhs_bit_size =
-                    ctx.make_constant_instruction(left.bit_size.into(), right.bit_size);
-                ctx.binary_instruction(
-                    right,
-                    lhs_bit_size,
-                    rhs_does_not_overflow,
-                    BrilligBinaryOp::LessThan,
-                );
+                let one = ctx.make_constant_instruction(1_u128.into(), left.bit_size);
 
-                ctx.codegen_branch(rhs_does_not_overflow.address, |ctx, no_overflow| {
-                    if no_overflow {
-                        let one = ctx.make_constant_instruction(1_u128.into(), left.bit_size);
+                // computes 2^right
+                let two_pow = SingleAddrVariable::new(ctx.allocate_register(), left.bit_size);
+                ctx.binary_instruction(one, right, two_pow, BrilligBinaryOp::Shl);
 
-                        // computes 2^right
-                        let two = ctx.make_constant_instruction(2_u128.into(), left.bit_size);
-                        let two_pow = ctx.make_constant_instruction(1_u128.into(), left.bit_size);
-                        let right_u32 = SingleAddrVariable::new(ctx.allocate_register(), 32);
-                        ctx.cast(right_u32, right);
-                        let pow_body = |ctx: &mut BrilligContext<_, _>, _: SingleAddrVariable| {
-                            ctx.binary_instruction(two_pow, two, two_pow, BrilligBinaryOp::Mul);
-                        };
-                        ctx.codegen_for_loop(None, right_u32.address, None, pow_body);
+                // Right shift using division on 1-complement
+                ctx.binary_instruction(left, one, result, BrilligBinaryOp::Add);
+                ctx.convert_signed_division(result, two_pow, result);
+                ctx.binary_instruction(result, one, result, BrilligBinaryOp::Sub);
 
-                        // Right shift using division on 1-complement
-                        ctx.binary_instruction(left, one, result, BrilligBinaryOp::Add);
-                        ctx.convert_signed_division(result, two_pow, result);
-                        ctx.binary_instruction(result, one, result, BrilligBinaryOp::Sub);
-
-                        // Clean-up
-                        ctx.deallocate_single_addr(one);
-                        ctx.deallocate_single_addr(two);
-                        ctx.deallocate_single_addr(two_pow);
-                        ctx.deallocate_single_addr(right_u32);
-                    } else {
-                        ctx.const_instruction(result, ((1_u128 << left.bit_size) - 1).into());
-                    }
-                });
-
-                ctx.deallocate_single_addr(rhs_does_not_overflow);
+                // Clean-up
+                ctx.deallocate_single_addr(one);
+                ctx.deallocate_single_addr(two_pow);
             } else {
                 ctx.binary_instruction(left, right, result, BrilligBinaryOp::Shr);
             }

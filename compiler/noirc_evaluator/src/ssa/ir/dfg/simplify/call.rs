@@ -1,5 +1,5 @@
-use fxhash::FxHashMap as HashMap;
 use noirc_errors::call_stack::CallStackId;
+use rustc_hash::FxHashMap as HashMap;
 use std::{collections::VecDeque, sync::Arc};
 
 use acvm::{AcirField as _, FieldElement, acir::BlackBoxFunc};
@@ -95,7 +95,7 @@ pub(super) fn simplify_call(
         }
         Intrinsic::ArrayLen => {
             if let Some(length) = dfg.try_get_array_length(arguments[0]) {
-                let length = FieldElement::from(length as u128);
+                let length = FieldElement::from(u128::from(length));
                 SimplifyResult::SimplifiedTo(dfg.make_constant(length, NumericType::length_type()))
             } else if matches!(dfg.type_of_value(arguments[1]), Type::Slice(_)) {
                 SimplifyResult::SimplifiedTo(arguments[0])
@@ -293,7 +293,8 @@ pub(super) fn simplify_call(
                 panic!("ICE: static_assert called with wrong number of arguments")
             }
 
-            if !dfg.is_constant(arguments[1]) {
+            // Arguments at positions `1..` form the message and they must all be constant.
+            if arguments.iter().skip(1).any(|argument| !dfg.is_constant(*argument)) {
                 return SimplifyResult::None;
             }
 
@@ -632,7 +633,7 @@ fn simplify_black_box_func(
                         const_input.try_into().expect("Keccakf1600 input should have length of 25"),
                     )
                     .expect("Rust solvable black box function should not fail");
-                    let state_values = state.iter().map(|x| FieldElement::from(*x as u128));
+                    let state_values = state.iter().map(|x| FieldElement::from(u128::from(*x)));
                     let result_array = make_constant_array(
                         dfg,
                         state_values,

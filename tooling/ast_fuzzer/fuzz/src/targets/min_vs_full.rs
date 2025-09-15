@@ -1,24 +1,19 @@
 //! Compare the execution of random ASTs between the initial SSA
 //! (or as close as we can stay to the initial state)
 //! and the fully optimized version.
+use crate::targets::default_config;
 use crate::{
     compare_results_compiled, create_ssa_or_die, create_ssa_with_passes_or_die, default_ssa_options,
 };
 use arbitrary::{Arbitrary, Unstructured};
 use color_eyre::eyre;
 use noir_ast_fuzzer::compare::{CompareOptions, ComparePipelines};
-use noir_ast_fuzzer::{
-    Config, compare::CompareResult, rewrite::change_all_functions_into_unconstrained,
-};
+use noir_ast_fuzzer::{compare::CompareResult, rewrite::change_all_functions_into_unconstrained};
 use noirc_evaluator::ssa::minimal_passes;
 
 pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
     let passes = minimal_passes();
-    let config = Config {
-        // Overflows are easy to trigger.
-        avoid_overflow: u.arbitrary()?,
-        ..Default::default()
-    };
+    let config = default_config(u)?;
 
     let inputs = ComparePipelines::arb(
         u,
@@ -31,7 +26,6 @@ pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
                 change_all_functions_into_unconstrained(program),
                 &options.onto(default_ssa_options()),
                 &passes,
-                |_| vec![],
                 Some("init"),
             );
             Ok((ssa, options))
@@ -62,6 +56,6 @@ mod tests {
     /// ```
     #[test]
     fn fuzz_with_arbtest() {
-        crate::targets::tests::fuzz_with_arbtest(super::fuzz, 2000);
+        crate::targets::tests::fuzz_with_arbtest(super::fuzz, 10000);
     }
 }

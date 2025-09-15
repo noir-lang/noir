@@ -1,4 +1,4 @@
-use std::{cmp::Ordering, io::Write};
+use std::{cmp::Ordering, collections::BTreeMap, io::Write};
 
 use super::{
     Ssa,
@@ -15,9 +15,9 @@ use super::{
 use crate::ssa::ir::{instruction::binary::truncate_field, printer::display_binary};
 use acvm::{AcirField, FieldElement};
 use errors::{InternalError, InterpreterError, MAX_UNSIGNED_BIT_SIZE};
-use fxhash::FxHashMap as HashMap;
 use iter_extended::{try_vecmap, vecmap};
 use noirc_frontend::Shared;
+use rustc_hash::FxHashMap as HashMap;
 use value::{ArrayValue, NumericValue, ReferenceValue};
 
 pub mod errors;
@@ -27,13 +27,13 @@ pub mod value;
 
 use value::Value;
 
-struct Interpreter<'ssa, W> {
+pub(crate) struct Interpreter<'ssa, W> {
     /// Contains each function called with `main` (or the first called function if
     /// the interpreter was manually invoked on a different function) at
     /// the front of the Vec.
     call_stack: Vec<CallContext>,
 
-    ssa: &'ssa Ssa,
+    functions: &'ssa BTreeMap<FunctionId, Function>,
 
     /// This variable can be modified by `enable_side_effects_if` instructions and is
     /// expected to have no effect if there are no such instructions or if the code
@@ -49,6 +49,8 @@ struct Interpreter<'ssa, W> {
 pub struct InterpreterOptions {
     /// If true, the interpreter will trace its execution.
     pub trace: bool,
+    /// If true, the interpreter treats all foreign function calls (e.g., `print`) as unknown
+    pub no_foreign_calls: bool,
 }
 
 struct CallContext {
@@ -103,8 +105,20 @@ impl Ssa {
 
 impl<'ssa, W: Write> Interpreter<'ssa, W> {
     fn new(ssa: &'ssa Ssa, options: InterpreterOptions, output: W) -> Self {
+        Self::new_from_functions(&ssa.functions, options, output)
+    }
+
+    pub(crate) fn new_from_functions(
+        functions: &'ssa BTreeMap<FunctionId, Function>,
+        options: InterpreterOptions,
+        output: W,
+    ) -> Self {
         let call_stack = vec![CallContext::global_context()];
-        Self { ssa, call_stack, side_effects_enabled: true, options, output }
+        Self { functions, call_stack, side_effects_enabled: true, options, output }
+    }
+
+    pub(crate) fn functions(&self) -> &BTreeMap<FunctionId, Function> {
+        self.functions
     }
 
     fn call_context(&self) -> &CallContext {
@@ -121,7 +135,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
 
     fn try_current_function(&self) -> Option<&'ssa Function> {
         let current_function_id = self.call_context().called_function;
-        current_function_id.map(|current_function_id| &self.ssa.functions[&current_function_id])
+        current_function_id.map(|current_function_id| &self.functions[&current_function_id])
     }
 
     fn current_function(&self) -> &'ssa Function {
@@ -163,8 +177,9 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         Ok(())
     }
 
-    fn interpret_globals(&mut self) -> IResult<()> {
-        let globals = &self.ssa.main().dfg.globals;
+    pub(crate) fn interpret_globals(&mut self) -> IResult<()> {
+        let (_, function) = self.functions.first_key_value().unwrap();
+        let globals = &function.dfg.globals;
         for (global_id, global) in globals.values_iter() {
             let value = match global {
                 super::ir::value::Value::Instruction { instruction, .. } => {
@@ -189,10 +204,14 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         Ok(())
     }
 
-    fn call_function(&mut self, function_id: FunctionId, mut arguments: Vec<Value>) -> IResults {
+    pub(crate) fn call_function(
+        &mut self,
+        function_id: FunctionId,
+        mut arguments: Vec<Value>,
+    ) -> IResults {
         self.call_stack.push(CallContext::new(function_id));
 
-        let function = &self.ssa.functions[&function_id];
+        let function = &self.functions[&function_id];
         if self.options.trace {
             println!();
             println!("enter function {} ({})", function_id, function.name());
@@ -280,7 +299,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         if self.options.trace {
             if let Some(context) = self.call_stack.last() {
                 if let Some(function_id) = context.called_function {
-                    let function = &self.ssa.functions[&function_id];
+                    let function = &self.functions[&function_id];
                     println!("back in function {} ({})", function_id, function.name());
                 }
             }
@@ -741,7 +760,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                     // any shared mutable fields in our arguments since brillig should conceptually
                     // receive fresh array on each invocation.
                     if !self.in_unconstrained_context()
-                        && self.ssa.functions[&id].runtime().is_brillig()
+                        && self.functions[&id].runtime().is_brillig()
                     {
                         for argument in arguments.iter_mut() {
                             Self::reset_array_state(argument)?;
@@ -751,6 +770,9 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                 }
                 Value::Intrinsic(intrinsic) => {
                     self.call_intrinsic(intrinsic, argument_ids, results)?
+                }
+                Value::ForeignFunction(name) if self.options.no_foreign_calls => {
+                    return Err(InterpreterError::UnknownForeignFunctionCall { name });
                 }
                 Value::ForeignFunction(name) if name == "print" => self.call_print(arguments)?,
                 Value::ForeignFunction(name) => {
@@ -789,7 +811,7 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
     /// Try to get a function's name or approximate it if it is not known
     fn try_get_function_name(&self, function: ValueId) -> String {
         match self.lookup(function) {
-            Ok(Value::Function(id)) => match self.ssa.functions.get(&id) {
+            Ok(Value::Function(id)) => match self.functions.get(&id) {
                 Some(function) => function.name().to_string(),
                 None => "unknown function".to_string(),
             },
@@ -835,14 +857,15 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
                 "Result of allocate should always be a reference type, but found {other}"
             ),
         };
-        self.define(result, Value::reference(result, element_type))
+        let value = Value::reference(result, element_type);
+        self.define(result, value)
     }
 
     fn interpret_load(&mut self, address: ValueId, result: ValueId) -> IResult<()> {
         let address = self.lookup_reference(address, "load")?;
 
         let element = address.element.borrow();
-        let Some(value) = &*element else {
+        let Some(value) = element.as_ref() else {
             let value = address.to_string();
             return Err(internal(InternalError::UninitializedReferenceValueLoaded { value }));
         };
@@ -1072,6 +1095,17 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
         });
         self.define(result, array)
     }
+
+    fn interpret_binary(&self, binary: &Binary, side_effects_enabled: bool) -> IResult<Value> {
+        let lhs_id = binary.lhs;
+        let rhs_id = binary.rhs;
+        let lhs = self.lookup_numeric(lhs_id, "binary op lhs")?;
+        let rhs = self.lookup_numeric(rhs_id, "binary op rhs")?;
+        evaluate_binary(binary, lhs, rhs, side_effects_enabled, |binary| {
+            display_binary(binary, self.dfg())
+        })
+        .map(Value::Numeric)
+    }
 }
 
 /// Applies an infallible integer binary operation to two `NumericValue`s.
@@ -1139,7 +1173,7 @@ macro_rules! apply_int_binop {
 /// # Returns
 /// A `NumericValue` containing the result of the operation, or an `Err` with the appropriate error.
 macro_rules! apply_int_binop_opt {
-    ($dfg:expr, $lhs:expr, $rhs:expr, $binary:expr, $f:expr) => {{
+    ($lhs:expr, $rhs:expr, $binary:expr, $f:expr, $display_binary:expr) => {{
         use value::NumericValue::*;
 
         let lhs = $lhs;
@@ -1156,7 +1190,7 @@ macro_rules! apply_int_binop_opt {
                 InterpreterError::DivisionByZero { lhs_id, lhs, rhs_id, rhs }
             } else {
                 let instruction =
-                    format!("`{}` ({operator} {lhs}, {rhs})", display_binary(binary, $dfg));
+                    format!("`{}` ({operator} {lhs}, {rhs})", $display_binary(binary));
                 InterpreterError::Overflow { operator, instruction }
             }
         };
@@ -1219,331 +1253,350 @@ macro_rules! apply_int_comparison_op {
     }};
 }
 
-impl<W: Write> Interpreter<'_, W> {
-    fn interpret_binary(&mut self, binary: &Binary, side_effects_enabled: bool) -> IResult<Value> {
-        let lhs_id = binary.lhs;
-        let rhs_id = binary.rhs;
-        let lhs = self.lookup_numeric(lhs_id, "binary op lhs")?;
-        let rhs = self.lookup_numeric(rhs_id, "binary op rhs")?;
+fn evaluate_binary(
+    binary: &Binary,
+    lhs: NumericValue,
+    rhs: NumericValue,
+    side_effects_enabled: bool,
+    display_binary: impl Fn(&Binary) -> String,
+) -> IResult<NumericValue> {
+    let lhs_id = binary.lhs;
+    let rhs_id = binary.rhs;
 
-        if lhs.get_type() != rhs.get_type()
-            && !matches!(binary.operator, BinaryOp::Shl | BinaryOp::Shr)
-        {
-            return Err(internal(InternalError::MismatchedTypesInBinaryOperator {
-                lhs_id,
-                lhs: lhs.to_string(),
-                operator: binary.operator,
-                rhs_id,
-                rhs: rhs.to_string(),
-            }));
+    if lhs.get_type() != rhs.get_type() {
+        return Err(internal(InternalError::MismatchedTypesInBinaryOperator {
+            lhs_id,
+            lhs: lhs.to_string(),
+            operator: binary.operator,
+            rhs_id,
+            rhs: rhs.to_string(),
+        }));
+    }
+
+    // Disable this instruction if it is side-effectual and side effects are disabled.
+    if !side_effects_enabled {
+        return Ok(NumericValue::zero(lhs.get_type()));
+    }
+
+    if let (Some(lhs), Some(rhs)) = (lhs.as_field(), rhs.as_field()) {
+        return interpret_field_binary_op(lhs, binary.operator, rhs, lhs_id, rhs_id);
+    }
+
+    if let (Some(lhs), Some(rhs)) = (lhs.as_bool(), rhs.as_bool()) {
+        return interpret_u1_binary_op(lhs, rhs, binary, &display_binary);
+    }
+
+    let result = match binary.operator {
+        BinaryOp::Add { unchecked: false } => {
+            apply_int_binop_opt!(
+                lhs,
+                rhs,
+                binary,
+                num_traits::CheckedAdd::checked_add,
+                display_binary
+            )
         }
-
-        // Disable this instruction if it is side-effectual and side effects are disabled.
-        if !side_effects_enabled {
-            let zero = NumericValue::zero(lhs.get_type());
-            return Ok(Value::Numeric(zero));
+        BinaryOp::Add { unchecked: true } => {
+            apply_int_binop!(lhs, rhs, binary, num_traits::WrappingAdd::wrapping_add)
         }
-
-        if let (Some(lhs), Some(rhs)) = (lhs.as_field(), rhs.as_field()) {
-            return self.interpret_field_binary_op(lhs, binary.operator, rhs, lhs_id, rhs_id);
+        BinaryOp::Sub { unchecked: false } => {
+            apply_int_binop_opt!(
+                lhs,
+                rhs,
+                binary,
+                num_traits::CheckedSub::checked_sub,
+                display_binary
+            )
         }
-
-        if let (Some(lhs), Some(rhs)) = (lhs.as_bool(), rhs.as_bool()) {
-            return self.interpret_u1_binary_op(lhs, rhs, binary);
+        BinaryOp::Sub { unchecked: true } => {
+            apply_int_binop!(lhs, rhs, binary, num_traits::WrappingSub::wrapping_sub)
         }
-
-        let dfg = self.dfg();
-        let result = match binary.operator {
-            BinaryOp::Add { unchecked: false } => {
-                apply_int_binop_opt!(dfg, lhs, rhs, binary, num_traits::CheckedAdd::checked_add)
+        BinaryOp::Mul { unchecked: false } => {
+            // Only unsigned multiplication has side effects
+            apply_int_binop_opt!(
+                lhs,
+                rhs,
+                binary,
+                num_traits::CheckedMul::checked_mul,
+                display_binary
+            )
+        }
+        BinaryOp::Mul { unchecked: true } => {
+            apply_int_binop!(lhs, rhs, binary, num_traits::WrappingMul::wrapping_mul)
+        }
+        BinaryOp::Div => {
+            apply_int_binop_opt!(
+                lhs,
+                rhs,
+                binary,
+                num_traits::CheckedDiv::checked_div,
+                display_binary
+            )
+        }
+        BinaryOp::Mod => match (lhs, rhs) {
+            (NumericValue::I8(i8::MIN), NumericValue::I8(-1)) => NumericValue::I8(0),
+            (NumericValue::I16(i16::MIN), NumericValue::I16(-1)) => NumericValue::I16(0),
+            (NumericValue::I32(i32::MIN), NumericValue::I32(-1)) => NumericValue::I32(0),
+            (NumericValue::I64(i64::MIN), NumericValue::I64(-1)) => NumericValue::I64(0),
+            _ => {
+                apply_int_binop_opt!(
+                    lhs,
+                    rhs,
+                    binary,
+                    num_traits::CheckedRem::checked_rem,
+                    display_binary
+                )
             }
-            BinaryOp::Add { unchecked: true } => {
-                apply_int_binop!(lhs, rhs, binary, num_traits::WrappingAdd::wrapping_add)
-            }
-            BinaryOp::Sub { unchecked: false } => {
-                apply_int_binop_opt!(dfg, lhs, rhs, binary, num_traits::CheckedSub::checked_sub)
-            }
-            BinaryOp::Sub { unchecked: true } => {
-                apply_int_binop!(lhs, rhs, binary, num_traits::WrappingSub::wrapping_sub)
-            }
-            BinaryOp::Mul { unchecked: false } => {
-                // Only unsigned multiplication has side effects
-                apply_int_binop_opt!(dfg, lhs, rhs, binary, num_traits::CheckedMul::checked_mul)
-            }
-            BinaryOp::Mul { unchecked: true } => {
-                apply_int_binop!(lhs, rhs, binary, num_traits::WrappingMul::wrapping_mul)
-            }
-            BinaryOp::Div => {
-                apply_int_binop_opt!(dfg, lhs, rhs, binary, num_traits::CheckedDiv::checked_div)
-            }
-            BinaryOp::Mod => match (lhs, rhs) {
-                (NumericValue::I8(i8::MIN), NumericValue::I8(-1)) => NumericValue::I8(0),
-                (NumericValue::I16(i16::MIN), NumericValue::I16(-1)) => NumericValue::I16(0),
-                (NumericValue::I32(i32::MIN), NumericValue::I32(-1)) => NumericValue::I32(0),
-                (NumericValue::I64(i64::MIN), NumericValue::I64(-1)) => NumericValue::I64(0),
+        },
+        BinaryOp::Eq => apply_int_comparison_op!(lhs, rhs, binary, |a, b| a == b),
+        BinaryOp::Lt => apply_int_comparison_op!(lhs, rhs, binary, |a, b| a < b),
+        BinaryOp::And => {
+            apply_int_binop!(lhs, rhs, binary, std::ops::BitAnd::bitand)
+        }
+        BinaryOp::Or => {
+            apply_int_binop!(lhs, rhs, binary, std::ops::BitOr::bitor)
+        }
+        BinaryOp::Xor => {
+            apply_int_binop!(lhs, rhs, binary, std::ops::BitXor::bitxor)
+        }
+        BinaryOp::Shl => {
+            use NumericValue::*;
+            let instruction = format!("`{}` ({lhs} << {rhs})", display_binary(binary));
+            let overflow = InterpreterError::Overflow { operator: BinaryOp::Shl, instruction };
+            match (lhs, rhs) {
+                (Field(_), _) | (_, Field(_)) => {
+                    return Err(internal(InternalError::UnsupportedOperatorForType {
+                        operator: "<<",
+                        typ: "Field",
+                    }));
+                }
+                (U1(lhs_value), U1(rhs_value)) => U1(if !rhs_value { lhs_value } else { false }),
+                (U8(lhs_value), U8(rhs_value)) => {
+                    lhs_value.checked_shl(rhs_value.into()).map(U8).ok_or(overflow)?
+                }
+                (U16(lhs_value), U16(rhs_value)) => {
+                    lhs_value.checked_shl(rhs_value.into()).map(U16).ok_or(overflow)?
+                }
+                (U32(lhs_value), U32(rhs_value)) => {
+                    lhs_value.checked_shl(rhs_value).map(U32).ok_or(overflow)?
+                }
+                (U64(lhs_value), U64(rhs_value)) => {
+                    let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow.clone())?;
+                    lhs_value.checked_shl(rhs_value).map(U64).ok_or(overflow)?
+                }
+                (U128(lhs_value), U128(rhs_value)) => {
+                    let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow.clone())?;
+                    lhs_value.checked_shl(rhs_value).map(U128).ok_or(overflow)?
+                }
+                (I8(lhs_value), I8(rhs_value)) => {
+                    let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow.clone())?;
+                    lhs_value.checked_shl(rhs_value).map(I8).ok_or(overflow)?
+                }
+                (I16(lhs_value), I16(rhs_value)) => {
+                    let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow.clone())?;
+                    lhs_value.checked_shl(rhs_value).map(I16).ok_or(overflow)?
+                }
+                (I32(lhs_value), I32(rhs_value)) => {
+                    let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow.clone())?;
+                    lhs_value.checked_shl(rhs_value).map(I32).ok_or(overflow)?
+                }
+                (I64(lhs_value), I64(rhs_value)) => {
+                    let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow.clone())?;
+                    lhs_value.checked_shl(rhs_value).map(I64).ok_or(overflow)?
+                }
                 _ => {
-                    apply_int_binop_opt!(dfg, lhs, rhs, binary, num_traits::CheckedRem::checked_rem)
-                }
-            },
-            BinaryOp::Eq => apply_int_comparison_op!(lhs, rhs, binary, |a, b| a == b),
-            BinaryOp::Lt => apply_int_comparison_op!(lhs, rhs, binary, |a, b| a < b),
-            BinaryOp::And => {
-                apply_int_binop!(lhs, rhs, binary, std::ops::BitAnd::bitand)
-            }
-            BinaryOp::Or => {
-                apply_int_binop!(lhs, rhs, binary, std::ops::BitOr::bitor)
-            }
-            BinaryOp::Xor => {
-                apply_int_binop!(lhs, rhs, binary, std::ops::BitXor::bitxor)
-            }
-            BinaryOp::Shl => {
-                use NumericValue::*;
-                let instruction =
-                    format!("`{}` ({lhs} << {rhs})", display_binary(binary, self.dfg()));
-                let overflow = InterpreterError::Overflow { operator: BinaryOp::Shl, instruction };
-                match (lhs, rhs) {
-                    (Field(_), _) | (_, Field(_)) => {
-                        return Err(internal(InternalError::UnsupportedOperatorForType {
-                            operator: "<<",
-                            typ: "Field",
-                        }));
-                    }
-                    (U1(lhs_value), U1(rhs_value)) => {
-                        U1(if !rhs_value { lhs_value } else { false })
-                    }
-                    (U8(lhs_value), U8(rhs_value)) => {
-                        U8(lhs_value.checked_shl(rhs_value.into()).unwrap_or(0))
-                    }
-                    (U16(lhs_value), U16(rhs_value)) => {
-                        U16(lhs_value.checked_shl(rhs_value.into()).unwrap_or(0))
-                    }
-                    (U32(lhs_value), U32(rhs_value)) => {
-                        U32(lhs_value.checked_shl(rhs_value).unwrap_or(0))
-                    }
-                    (U64(lhs_value), U64(rhs_value)) => {
-                        let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow)?;
-                        U64(lhs_value.checked_shl(rhs_value).unwrap_or(0))
-                    }
-                    (U128(lhs_value), U128(rhs_value)) => {
-                        let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow)?;
-                        U128(lhs_value.checked_shl(rhs_value).unwrap_or(0))
-                    }
-                    (I8(lhs_value), I8(rhs_value)) => {
-                        let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow)?;
-                        I8(lhs_value.checked_shl(rhs_value).unwrap_or(0))
-                    }
-                    (I16(lhs_value), I16(rhs_value)) => {
-                        let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow)?;
-                        I16(lhs_value.checked_shl(rhs_value).unwrap_or(0))
-                    }
-                    (I32(lhs_value), I32(rhs_value)) => {
-                        let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow)?;
-                        I32(lhs_value.checked_shl(rhs_value).unwrap_or(0))
-                    }
-                    (I64(lhs_value), I64(rhs_value)) => {
-                        let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow)?;
-                        I64(lhs_value.checked_shl(rhs_value).unwrap_or(0))
-                    }
-                    _ => {
-                        return Err(internal(InternalError::MismatchedTypesInBinaryOperator {
-                            lhs: lhs.to_string(),
-                            rhs: rhs.to_string(),
-                            operator: binary.operator,
-                            lhs_id: binary.lhs,
-                            rhs_id: binary.rhs,
-                        }));
-                    }
+                    return Err(internal(InternalError::MismatchedTypesInBinaryOperator {
+                        lhs: lhs.to_string(),
+                        rhs: rhs.to_string(),
+                        operator: binary.operator,
+                        lhs_id: binary.lhs,
+                        rhs_id: binary.rhs,
+                    }));
                 }
             }
-            BinaryOp::Shr => {
-                let fallback = || {
-                    if lhs.is_negative() {
-                        NumericValue::neg_one(lhs.get_type())
-                    } else {
-                        NumericValue::zero(lhs.get_type())
-                    }
-                };
-                let instruction =
-                    format!("`{}` ({lhs} >> {rhs})", display_binary(binary, self.dfg()));
-                let overflow = InterpreterError::Overflow { operator: BinaryOp::Shr, instruction };
+        }
+        BinaryOp::Shr => {
+            let instruction = format!("`{}` ({lhs} >> {rhs})", display_binary(binary));
+            let overflow = InterpreterError::Overflow { operator: BinaryOp::Shr, instruction };
 
-                use NumericValue::*;
-                match (lhs, rhs) {
-                    (Field(_), _) | (_, Field(_)) => {
-                        return Err(internal(InternalError::UnsupportedOperatorForType {
-                            operator: "<<",
-                            typ: "Field",
-                        }));
-                    }
-                    (U1(lhs_value), U1(rhs_value)) => {
-                        U1(if !rhs_value { lhs_value } else { false })
-                    }
-                    (U8(lhs_value), U8(rhs_value)) => {
-                        lhs_value.checked_shr(rhs_value.into()).map(U8).unwrap_or_else(fallback)
-                    }
-                    (U16(lhs_value), U16(rhs_value)) => {
-                        lhs_value.checked_shr(rhs_value.into()).map(U16).unwrap_or_else(fallback)
-                    }
-                    (U32(lhs_value), U32(rhs_value)) => {
-                        lhs_value.checked_shr(rhs_value).map(U32).unwrap_or_else(fallback)
-                    }
-                    (U64(lhs_value), U64(rhs_value)) => {
-                        let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow)?;
-                        lhs_value.checked_shr(rhs_value).map(U64).unwrap_or_else(fallback)
-                    }
-                    (U128(lhs_value), U128(rhs_value)) => {
-                        let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow)?;
-                        lhs_value.checked_shr(rhs_value).map(U128).unwrap_or_else(fallback)
-                    }
-                    (I8(lhs_value), I8(rhs_value)) => {
-                        let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow)?;
-                        lhs_value.checked_shr(rhs_value).map(I8).unwrap_or_else(fallback)
-                    }
-                    (I16(lhs_value), I16(rhs_value)) => {
-                        let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow)?;
-                        lhs_value.checked_shr(rhs_value).map(I16).unwrap_or_else(fallback)
-                    }
-                    (I32(lhs_value), I32(rhs_value)) => {
-                        let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow)?;
-                        lhs_value.checked_shr(rhs_value).map(I32).unwrap_or_else(fallback)
-                    }
-                    (I64(lhs_value), I64(rhs_value)) => {
-                        let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow)?;
-                        lhs_value.checked_shr(rhs_value).map(I64).unwrap_or_else(fallback)
-                    }
-                    _ => {
-                        return Err(internal(InternalError::MismatchedTypesInBinaryOperator {
-                            lhs: lhs.to_string(),
-                            rhs: rhs.to_string(),
-                            operator: binary.operator,
-                            lhs_id: binary.lhs,
-                            rhs_id: binary.rhs,
-                        }));
-                    }
+            use NumericValue::*;
+            match (lhs, rhs) {
+                (Field(_), _) | (_, Field(_)) => {
+                    return Err(internal(InternalError::UnsupportedOperatorForType {
+                        operator: "<<",
+                        typ: "Field",
+                    }));
+                }
+                (U1(lhs_value), U1(rhs_value)) => U1(if !rhs_value { lhs_value } else { false }),
+                (U8(lhs_value), U8(rhs_value)) => {
+                    lhs_value.checked_shr(rhs_value.into()).map(U8).ok_or(overflow)?
+                }
+                (U16(lhs_value), U16(rhs_value)) => {
+                    lhs_value.checked_shr(rhs_value.into()).map(U16).ok_or(overflow)?
+                }
+                (U32(lhs_value), U32(rhs_value)) => {
+                    lhs_value.checked_shr(rhs_value).map(U32).ok_or(overflow)?
+                }
+                (U64(lhs_value), U64(rhs_value)) => {
+                    let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow.clone())?;
+                    lhs_value.checked_shr(rhs_value).map(U64).ok_or(overflow)?
+                }
+                (U128(lhs_value), U128(rhs_value)) => {
+                    let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow.clone())?;
+                    lhs_value.checked_shr(rhs_value).map(U128).ok_or(overflow)?
+                }
+                (I8(lhs_value), I8(rhs_value)) => {
+                    let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow.clone())?;
+                    lhs_value.checked_shr(rhs_value).map(I8).ok_or(overflow)?
+                }
+                (I16(lhs_value), I16(rhs_value)) => {
+                    let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow.clone())?;
+                    lhs_value.checked_shr(rhs_value).map(I16).ok_or(overflow)?
+                }
+                (I32(lhs_value), I32(rhs_value)) => {
+                    let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow.clone())?;
+                    lhs_value.checked_shr(rhs_value).map(I32).ok_or(overflow)?
+                }
+                (I64(lhs_value), I64(rhs_value)) => {
+                    let rhs_value: u32 = rhs_value.try_into().map_err(|_| overflow.clone())?;
+                    lhs_value.checked_shr(rhs_value).map(I64).ok_or(overflow)?
+                }
+                _ => {
+                    return Err(internal(InternalError::MismatchedTypesInBinaryOperator {
+                        lhs: lhs.to_string(),
+                        rhs: rhs.to_string(),
+                        operator: binary.operator,
+                        lhs_id: binary.lhs,
+                        rhs_id: binary.rhs,
+                    }));
                 }
             }
-        };
-        Ok(Value::Numeric(result))
-    }
+        }
+    };
+    Ok(result)
+}
 
-    fn interpret_field_binary_op(
-        &mut self,
-        lhs: FieldElement,
-        operator: BinaryOp,
-        rhs: FieldElement,
-        lhs_id: ValueId,
-        rhs_id: ValueId,
-    ) -> IResult<Value> {
-        let unsupported_operator = |operator| -> IResult<Value> {
-            let typ = "Field";
-            Err(internal(InternalError::UnsupportedOperatorForType { operator, typ }))
-        };
+fn interpret_field_binary_op(
+    lhs: FieldElement,
+    operator: BinaryOp,
+    rhs: FieldElement,
+    lhs_id: ValueId,
+    rhs_id: ValueId,
+) -> IResult<NumericValue> {
+    let unsupported_operator = |operator| -> IResult<NumericValue> {
+        let typ = "Field";
+        Err(internal(InternalError::UnsupportedOperatorForType { operator, typ }))
+    };
 
-        let result = match operator {
-            BinaryOp::Add { unchecked: _ } => NumericValue::Field(lhs + rhs),
-            BinaryOp::Sub { unchecked: _ } => NumericValue::Field(lhs - rhs),
-            BinaryOp::Mul { unchecked: _ } => NumericValue::Field(lhs * rhs),
-            BinaryOp::Div => {
-                if rhs.is_zero() {
-                    let lhs = lhs.to_string();
-                    let rhs = rhs.to_string();
-                    return Err(InterpreterError::DivisionByZero { lhs_id, lhs, rhs_id, rhs });
-                }
-                NumericValue::Field(lhs / rhs)
+    let result = match operator {
+        BinaryOp::Add { unchecked: _ } => NumericValue::Field(lhs + rhs),
+        BinaryOp::Sub { unchecked: _ } => NumericValue::Field(lhs - rhs),
+        BinaryOp::Mul { unchecked: _ } => NumericValue::Field(lhs * rhs),
+        BinaryOp::Div => {
+            if rhs.is_zero() {
+                let lhs = lhs.to_string();
+                let rhs = rhs.to_string();
+                return Err(InterpreterError::DivisionByZero { lhs_id, lhs, rhs_id, rhs });
             }
-            BinaryOp::Mod => return unsupported_operator("%"),
-            BinaryOp::Eq => NumericValue::U1(lhs == rhs),
-            BinaryOp::Lt => NumericValue::U1(lhs < rhs),
-            BinaryOp::And => return unsupported_operator("&"),
-            BinaryOp::Or => return unsupported_operator("|"),
-            BinaryOp::Xor => return unsupported_operator("^"),
-            BinaryOp::Shl => return unsupported_operator("<<"),
-            BinaryOp::Shr => return unsupported_operator(">>"),
-        };
-        Ok(Value::Numeric(result))
-    }
+            NumericValue::Field(lhs / rhs)
+        }
+        BinaryOp::Mod => return unsupported_operator("%"),
+        BinaryOp::Eq => NumericValue::U1(lhs == rhs),
+        BinaryOp::Lt => NumericValue::U1(lhs < rhs),
+        BinaryOp::And => return unsupported_operator("&"),
+        BinaryOp::Or => return unsupported_operator("|"),
+        BinaryOp::Xor => return unsupported_operator("^"),
+        BinaryOp::Shl => return unsupported_operator("<<"),
+        BinaryOp::Shr => return unsupported_operator(">>"),
+    };
+    Ok(result)
+}
 
-    fn interpret_u1_binary_op(&mut self, lhs: bool, rhs: bool, binary: &Binary) -> IResult<Value> {
-        let overflow = || {
-            let instruction = format!("`{}` ({lhs} << {rhs})", display_binary(binary, self.dfg()));
-            let operator = binary.operator;
-            InterpreterError::Overflow { operator, instruction }
-        };
+fn interpret_u1_binary_op(
+    lhs: bool,
+    rhs: bool,
+    binary: &Binary,
+    display_binary: &impl Fn(&Binary) -> String,
+) -> IResult<NumericValue> {
+    let overflow = || {
+        let instruction = format!("`{}` ({lhs} << {rhs})", display_binary(binary));
+        let operator = binary.operator;
+        InterpreterError::Overflow { operator, instruction }
+    };
 
-        let lhs_id = binary.lhs;
-        let rhs_id = binary.rhs;
+    let lhs_id = binary.lhs;
+    let rhs_id = binary.rhs;
 
-        let result = match binary.operator {
-            BinaryOp::Add { unchecked: true } => lhs ^ rhs,
-            BinaryOp::Add { unchecked: false } => {
-                if lhs && rhs {
-                    return Err(overflow());
-                } else {
-                    lhs ^ rhs
-                }
-            }
-            BinaryOp::Sub { unchecked: true } => {
-                // (0, 0) -> 0
-                // (0, 1) -> 1  (underflow)
-                // (1, 0) -> 1
-                // (1, 1) -> 0
+    let result = match binary.operator {
+        BinaryOp::Add { unchecked: true } => lhs ^ rhs,
+        BinaryOp::Add { unchecked: false } => {
+            if lhs && rhs {
+                return Err(overflow());
+            } else {
                 lhs ^ rhs
             }
-            BinaryOp::Sub { unchecked: false } => {
-                if !lhs && rhs {
-                    return Err(overflow());
-                } else {
-                    lhs ^ rhs
-                }
+        }
+        BinaryOp::Sub { unchecked: true } => {
+            // (0, 0) -> 0
+            // (0, 1) -> 1  (underflow)
+            // (1, 0) -> 1
+            // (1, 1) -> 0
+            lhs ^ rhs
+        }
+        BinaryOp::Sub { unchecked: false } => {
+            if !lhs && rhs {
+                return Err(overflow());
+            } else {
+                lhs ^ rhs
             }
-            BinaryOp::Mul { unchecked: _ } => lhs & rhs, // (*) = (&) for u1
-            BinaryOp::Div => {
-                // (0, 0) -> (division by 0)
-                // (0, 1) -> 0
-                // (1, 0) -> (division by 0)
-                // (1, 1) -> 1
-                if !rhs {
-                    let lhs = (lhs as u8).to_string();
-                    let rhs = (rhs as u8).to_string();
-                    return Err(InterpreterError::DivisionByZero { lhs_id, lhs, rhs_id, rhs });
-                }
+        }
+        BinaryOp::Mul { unchecked: _ } => lhs & rhs, // (*) = (&) for u1
+        BinaryOp::Div => {
+            // (0, 0) -> (division by 0)
+            // (0, 1) -> 0
+            // (1, 0) -> (division by 0)
+            // (1, 1) -> 1
+            if !rhs {
+                let lhs = u8::from(lhs).to_string();
+                let rhs = u8::from(rhs).to_string();
+                return Err(InterpreterError::DivisionByZero { lhs_id, lhs, rhs_id, rhs });
+            }
+            lhs
+        }
+        BinaryOp::Mod => {
+            // (0, 0) -> (division by 0)
+            // (0, 1) -> 0
+            // (1, 0) -> (division by 0)
+            // (1, 1) -> 0
+            if !rhs {
+                let lhs = format!("u1 {}", u8::from(lhs));
+                let rhs = format!("u1 {}", u8::from(rhs));
+                return Err(InterpreterError::DivisionByZero { lhs_id, lhs, rhs_id, rhs });
+            }
+            false
+        }
+        BinaryOp::Eq => lhs == rhs,
+        // clippy complains when you do `lhs < rhs` and recommends this instead
+        BinaryOp::Lt => !lhs & rhs,
+        BinaryOp::And => lhs & rhs,
+        BinaryOp::Or => lhs | rhs,
+        BinaryOp::Xor => lhs ^ rhs,
+        BinaryOp::Shl => {
+            if rhs {
+                return Err(overflow());
+            } else {
                 lhs
             }
-            BinaryOp::Mod => {
-                // (0, 0) -> (division by 0)
-                // (0, 1) -> 0
-                // (1, 0) -> (division by 0)
-                // (1, 1) -> 0
-                if !rhs {
-                    let lhs = format!("u1 {}", lhs as u8);
-                    let rhs = format!("u1 {}", rhs as u8);
-                    return Err(InterpreterError::DivisionByZero { lhs_id, lhs, rhs_id, rhs });
-                }
-                false
+        }
+        BinaryOp::Shr => {
+            if rhs {
+                return Err(overflow());
+            } else {
+                lhs
             }
-            BinaryOp::Eq => lhs == rhs,
-            // clippy complains when you do `lhs < rhs` and recommends this instead
-            BinaryOp::Lt => !lhs & rhs,
-            BinaryOp::And => lhs & rhs,
-            BinaryOp::Or => lhs | rhs,
-            BinaryOp::Xor => lhs ^ rhs,
-            BinaryOp::Shl => {
-                if rhs {
-                    false
-                } else {
-                    lhs
-                }
-            }
-            BinaryOp::Shr => {
-                if rhs {
-                    false
-                } else {
-                    lhs
-                }
-            }
-        };
-        Ok(Value::Numeric(NumericValue::U1(result)))
-    }
+        }
+    };
+    Ok(NumericValue::U1(result))
 }
 
 fn truncate_unsigned<T>(value: T, bit_size: u32) -> IResult<T>
@@ -1573,6 +1626,14 @@ fn internal(error: InternalError) -> InterpreterError {
 
 #[cfg(test)]
 mod test {
+    use crate::ssa::{
+        interpreter::{IResult, errors::InterpreterError, value::NumericValue},
+        ir::{
+            instruction::{Binary, BinaryOp},
+            value::ValueId,
+        },
+    };
+
     #[test]
     fn test_truncate_unsigned() {
         assert_eq!(super::truncate_unsigned(57_u32, 8).unwrap(), 57);
@@ -1600,5 +1661,46 @@ mod test {
 
         // underflow to i16::MAX
         assert_eq!(super::truncate_unsigned(i16::MIN as u32 - 1, 16).unwrap() as i16, 32767);
+    }
+
+    #[test]
+    fn test_shl() {
+        let binary = Binary { lhs: ValueId::new(0), rhs: ValueId::new(1), operator: BinaryOp::Shl };
+
+        fn display(_: &Binary) -> String {
+            String::new()
+        }
+
+        let i8_testcases: Vec<((i8, i8), IResult<i8>)> = vec![
+            ((1, 7), Ok(-128)),
+            ((2, 6), Ok(-128)),
+            ((4, 5), Ok(-128)),
+            ((8, 4), Ok(-128)),
+            ((16, 3), Ok(-128)),
+            ((32, 2), Ok(-128)),
+            ((64, 1), Ok(-128)),
+            ((3, 7), Ok(-128)),
+            (
+                (1, 8),
+                Err(InterpreterError::Overflow {
+                    operator: BinaryOp::Shl,
+                    instruction: "`` (i8 1 << i8 8)".to_string(),
+                }),
+            ),
+        ];
+
+        for ((lhs, rhs), expected_result) in i8_testcases {
+            assert_eq!(
+                super::evaluate_binary(
+                    &binary,
+                    NumericValue::I8(lhs),
+                    NumericValue::I8(rhs),
+                    true,
+                    display
+                ),
+                expected_result.map(NumericValue::I8),
+                "{lhs} << {rhs}",
+            );
+        }
     }
 }
