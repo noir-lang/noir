@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1757954510332,
+  "lastUpdate": 1757957838376,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -20211,48 +20211,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "1cc60bb7c92f0bb9e9bdcd2e1e233f781127e82a",
-          "message": "chore(ci): add permissions to CI workflows (#9763)",
-          "timestamp": "2025-09-08T21:31:52Z",
-          "tree_id": "f78d2a5b1f7f8858a398da9ff3fc2de1e367639e",
-          "url": "https://github.com/noir-lang/noir/commit/1cc60bb7c92f0bb9e9bdcd2e1e233f781127e82a"
-        },
-        "date": 1757368659849,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 247021,
-            "range": "± 1272",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 218650,
-            "range": "± 6257",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2787557,
-            "range": "± 2059",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -22304,6 +22262,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2821226,
             "range": "± 2579",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "671ffe9dc4ba2136635bba289dec3b12a73b5315",
+          "message": "chore: greenlight `remove_unreachable_instructions` for new requirements (#9810)",
+          "timestamp": "2025-09-15T16:57:48Z",
+          "tree_id": "57e9dc347e0742d32756e192a846bd292ac155bb",
+          "url": "https://github.com/noir-lang/noir/commit/671ffe9dc4ba2136635bba289dec3b12a73b5315"
+        },
+        "date": 1757957817171,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 260588,
+            "range": "± 1151",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 234272,
+            "range": "± 4341",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2828604,
+            "range": "± 3272",
             "unit": "ns/iter"
           }
         ]
