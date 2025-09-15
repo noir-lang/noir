@@ -1,4 +1,3 @@
-use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
@@ -38,8 +37,7 @@ impl Ssa {
 
         // Then transitively 'infect' any functions which call impure functions as also
         // impure.
-        let purities =
-            analyze_call_graph(call_graph, purities, &self.functions, &sccs, &recursive_functions);
+        let purities = analyze_call_graph(call_graph, purities, &sccs, &recursive_functions);
         let purities = Arc::new(purities);
 
         // We're done, now store purities somewhere every dfg can find it.
@@ -229,7 +227,6 @@ impl Function {
 fn analyze_call_graph(
     call_graph: CallGraph,
     starting_purities: FunctionPurities,
-    functions: &BTreeMap<FunctionId, Function>,
     sccs: &[Vec<FunctionId>],
     recursive_functions: &HashSet<FunctionId>,
 ) -> FunctionPurities {
@@ -272,17 +269,10 @@ fn analyze_call_graph(
                     }
                 }
 
-                // Recursive Brillig functions cannot be fully pure (may recurse indefinitely),
+                // Recursive functions cannot be fully pure (may recurse indefinitely),
                 // but we still treat them as PureWithPredicate for deduplication purposes.
-                // If this function is recursive and a Brillig function, mark it as PureWithPredicate.
-                let is_recursive_brillig =
-                    recursive_functions.contains(&func) && functions[&func].runtime().is_brillig();
-                // Recursive ACIR functions cannot be fully pure as they may also recurse indefinitely.
-                // Indefinite recursion is handled during function inlining, but we do not want to risk having that
-                // function entirely eliminated before inlining due to it being pure.
-                let is_recursive_acir =
-                    recursive_functions.contains(&func) && functions[&func].runtime().is_acir();
-                if is_recursive_brillig || is_recursive_acir {
+                // If we were to mark recursive functions pure we may entirely eliminate an infinite loop.
+                if recursive_functions.contains(&func) {
                     combined_purity = combined_purity.unify(Purity::PureWithPredicate);
                 }
             }
