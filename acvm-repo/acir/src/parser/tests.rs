@@ -745,7 +745,7 @@ fn fold_basic_mismatched_ids() {
     EXPR [ (1, _0, _3) (-1, _1, _3) -1 ]
     EXPR [ (-1, _0) (1, _2) 0 ]
     ";
-    let result = Program::from_str(&src).err().unwrap();
+    let result = Program::from_str(src).err().unwrap();
     let ParserError::UnexpectedFunctionId { expected, found, .. } = result.get_error() else {
         panic!("Expected `UnexpectedFunctionId` error");
     };
