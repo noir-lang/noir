@@ -573,7 +573,7 @@ impl<'a> Parser<'a> {
         // Parse `len: <int>`
         self.eat_expected_ident("len")?;
         self.eat_or_error(Token::Colon)?;
-        let _ = self.eat_u32_or_error()?;
+        let len = self.eat_u32_or_error()?;
         self.eat_or_error(Token::Comma)?;
 
         // Parse `witnesses: [_0, _1, ...]`
@@ -581,6 +581,14 @@ impl<'a> Parser<'a> {
         self.eat_or_error(Token::Colon)?;
         let init = self.parse_witness_vector()?;
         self.eat_or_error(Token::RightParen)?;
+
+        if init.len() != len as usize {
+            return Err(ParserError::InitLengthMismatch {
+                expected: len as usize,
+                found: init.len(),
+                span: self.token.span(),
+            });
+        }
 
         Ok(Opcode::MemoryInit { block_id, init, block_type })
     }
@@ -982,6 +990,8 @@ pub(crate) enum ParserError {
     IncorrectInputLength { expected: usize, found: usize, name: String, span: Span },
     #[error("Expected {expected} outputs for {name}, found {found}")]
     IncorrectOutputLength { expected: usize, found: usize, name: String, span: Span },
+    #[error("Expected {expected} witnesses for INIT, found {found}")]
+    InitLengthMismatch { expected: usize, found: usize, span: Span },
 }
 
 impl ParserError {
@@ -989,18 +999,19 @@ impl ParserError {
         use ParserError::*;
         match self {
             LexerError(e) => e.span(),
-            ExpectedToken { span, .. } => *span,
-            ExpectedOneOfTokens { span, .. } => *span,
-            ExpectedIdentifier { span, .. } => *span,
-            ExpectedFieldElement { span, .. } => *span,
-            ExpectedWitness { span, .. } => *span,
-            DuplicatedConstantTerm { span, .. } => *span,
-            MissingConstantTerm { span } => *span,
-            ExpectedBlackBoxFuncName { span, .. } => *span,
-            IntegerLargerThanU32 { span, .. } => *span,
-            InvalidInputBitSize { span, .. } => *span,
-            IncorrectInputLength { span, .. } => *span,
-            IncorrectOutputLength { span, .. } => *span,
+            ExpectedToken { span, .. }
+            | ExpectedOneOfTokens { span, .. }
+            | ExpectedIdentifier { span, .. }
+            | ExpectedFieldElement { span, .. }
+            | ExpectedWitness { span, .. }
+            | DuplicatedConstantTerm { span, .. }
+            | MissingConstantTerm { span }
+            | ExpectedBlackBoxFuncName { span, .. }
+            | IntegerLargerThanU32 { span, .. }
+            | InvalidInputBitSize { span, .. }
+            | IncorrectInputLength { span, .. }
+            | IncorrectOutputLength { span, .. }
+            | InitLengthMismatch { span, .. } => *span,
         }
     }
 }
