@@ -16,9 +16,11 @@ path = "src/main.rs"
 workspace = true
 
 [dependencies]
+base64.workspace = true
 clap.workspace = true
 color-eyre.workspace = true
 const_format.workspace = true
+serde_json.workspace = true
 thiserror.workspace = true
 toml.workspace = true
 tempfile.workspace = true

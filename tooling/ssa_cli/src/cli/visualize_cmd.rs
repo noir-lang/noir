@@ -1,10 +1,12 @@
 use std::fmt::Write;
 use std::path::PathBuf;
 
+use base64::Engine;
 use clap::Args;
 use color_eyre::eyre::{self, Context};
 use noir_artifact_cli::commands::parse_and_normalize_path;
 use noirc_evaluator::ssa::ssa_gen::Ssa;
+use serde_json::json;
 
 use crate::cli::write_output;
 
@@ -20,24 +22,31 @@ pub(super) struct VisualizeCommand {
     /// Surround the output with brackets for direct embedding in a Markdown file.
     ///
     /// Useful for dumping the output into a file that can be previewed in VS Code for example.
-    #[clap(long, short = 'p')]
+    #[clap(long, conflicts_with = "url_encode")]
     pub markdown: bool,
+
+    /// Encode the data to be included in a URL as expected by http://mermaid.live/view
+    #[clap(long, conflicts_with = "markdown")]
+    pub url_encode: bool,
 }
 
 pub(super) fn run(args: VisualizeCommand, ssa: Ssa) -> eyre::Result<()> {
-    let output = render_mermaid(ssa, args.markdown).wrap_err("failed to render SSA to Mermaid")?;
+    let mut output = render_mermaid(ssa).wrap_err("failed to render SSA to Mermaid")?;
+
+    if args.markdown {
+        output = format!("```mermaid\n{output}\n```")
+    } else if args.url_encode {
+        output = url_encode(output)?;
+    }
+
     write_output(&output, args.output_path)
 }
 
 /// Render the SSA as a Mermaid [flowchart](https://mermaid.js.org/syntax/flowchart.html).
-fn render_mermaid(ssa: Ssa, markdown: bool) -> eyre::Result<String> {
+fn render_mermaid(ssa: Ssa) -> eyre::Result<String> {
     let indent = "    ";
     let mut out = String::new();
     let mut write_out = |i: usize, s: String| writeln!(out, "{}{s}", indent.repeat(i));
-
-    if markdown {
-        write_out(0, "```mermaid".into())?;
-    }
 
     write_out(0, "flowchart TB".into())?;
 
@@ -75,9 +84,21 @@ fn render_mermaid(ssa: Ssa, markdown: bool) -> eyre::Result<String> {
         write_out(1, format!("{func_id}.{block_id} -..-> {callee_id}"))?;
     }
 
-    if markdown {
-        write_out(0, "```".into())?;
-    }
-
     Ok(out)
+}
+
+/// Encode the Mermaid markup as it is expected by the [Mermaid Live Editor](https://mermaid.live)
+///
+/// The returned URL fragment should be used as `https://mermaid.live/view#{fragment}`
+fn url_encode(markup: String) -> eyre::Result<String> {
+    // See https://github.com/mermaid-js/mermaid-live-editor/discussions/1291
+    let json = json!({
+        "code": markup,
+        "mermaid": {"theme": "default"}
+    });
+    let json = serde_json::to_string(&json)?;
+    // We can use the `pako:` encoding for compression, or the `base64:` encoding for no-compression.
+    let encoded = base64::engine::general_purpose::STANDARD.encode(json);
+    let fragment = format!("base64:{encoded}");
+    Ok(fragment)
 }
