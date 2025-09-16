@@ -5,12 +5,14 @@ use clap::{Args, Parser, Subcommand, command};
 use color_eyre::eyre::{self, Context, bail};
 use const_format::formatcp;
 use noir_artifact_cli::commands::parse_and_normalize_path;
+use noir_artifact_cli::fs::artifact::write_to_file;
 use noirc_driver::CompileOptions;
 use noirc_errors::{println_to_stderr, println_to_stdout};
 use noirc_evaluator::ssa::{SsaEvaluatorOptions, SsaPass, primary_passes, ssa_gen::Ssa};
 
 mod interpret_cmd;
 mod transform_cmd;
+mod visualize_cmd;
 
 const PKG_VERSION: &str = env!("CARGO_PKG_VERSION");
 static VERSION_STRING: &str = formatcp!("version = {}\n", PKG_VERSION,);
@@ -49,6 +51,7 @@ enum SsaCommand {
     Check,
     Interpret(interpret_cmd::InterpretCommand),
     Transform(transform_cmd::TransformCommand),
+    Visualize(visualize_cmd::VisualizeCommand),
 }
 
 pub(crate) fn start_cli() -> eyre::Result<()> {
@@ -70,6 +73,7 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
         }
         SsaCommand::Interpret(cmd) => interpret_cmd::run(cmd, ssa()?)?,
         SsaCommand::Transform(cmd) => transform_cmd::run(cmd, ssa()?)?,
+        SsaCommand::Visualize(cmd) => visualize_cmd::run(cmd, ssa()?)?,
     }
 
     Ok(())
@@ -94,6 +98,17 @@ fn read_source(path: Option<PathBuf>) -> eyre::Result<String> {
         handle.read_to_string(&mut src)?;
         Ok(src)
     }
+}
+
+/// Write the output to a file or stdout.
+fn write_output(output: &str, path: Option<PathBuf>) -> eyre::Result<()> {
+    if let Some(path) = path {
+        write_to_file(output.as_bytes(), &path)
+            .wrap_err_with(|| format!("failed to write output to {}", path.to_string_lossy()))?;
+    } else {
+        println_to_stdout!("{output}");
+    }
+    Ok(())
 }
 
 /// Parse the SSA.
