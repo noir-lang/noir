@@ -9,22 +9,15 @@ use acvm::{
     blackbox_solver::StubbedBlackBoxSolver,
     pwg::{ACVM, ACVMStatus},
 };
-use noirc_errors::{Location, debug_info::DebugInfo};
-use noirc_frontend::{monomorphization::ast::InlineType, shared::Visibility};
+use noirc_errors::debug_info::DebugInfo;
+use noirc_frontend::shared::Visibility;
 use std::collections::BTreeMap;
 
 use crate::{
     acir::{acir_context::BrilligStdLib, ssa::codegen_acir},
     brillig::{Brillig, BrilligOptions, brillig_ir::artifact::GeneratedBrillig},
     ssa::{
-        ArtifactsAndWarnings, combine_artifacts,
-        function_builder::FunctionBuilder,
-        interpreter::value::Value,
-        ir::{
-            function::FunctionId,
-            instruction::BinaryOp,
-            types::{NumericType, Type},
-        },
+        ArtifactsAndWarnings, combine_artifacts, interpreter::value::Value, ir::types::NumericType,
         ssa_gen::Ssa,
     },
 };

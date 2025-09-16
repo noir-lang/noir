@@ -1,17 +1,6 @@
 use acvm::{acir::circuit::brillig::BrilligFunctionId, assert_circuit_snapshot};
 
-use crate::{
-    acir::tests::ssa_to_acir_program_with_debug_info,
-    brillig::BrilligOptions,
-    ssa::{
-        function_builder::FunctionBuilder,
-        ir::{
-            instruction::BinaryOp,
-            map::Id,
-            types::{NumericType, Type},
-        },
-    },
-};
+use crate::acir::tests::ssa_to_acir_program_with_debug_info;
 
 // Test that given multiple calls to the same brillig function we generate only one bytecode
 // and the appropriate Brillig call opcodes are generated
