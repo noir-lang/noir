@@ -25,7 +25,7 @@ pub(super) struct VisualizeCommand {
     #[clap(long, conflicts_with = "url_encode")]
     pub markdown: bool,
 
-    /// Encode the data to be included in a URL as expected by http://mermaid.live/view
+    /// Encode the data to be included in a URL as expected by <https://mermaid.live/view>
     #[clap(long, conflicts_with = "markdown")]
     pub url_encode: bool,
 }
