@@ -326,13 +326,13 @@ impl<F: AcirField + for<'a> Deserialize<'a>> Program<F> {
 
 impl<F: AcirField> std::fmt::Display for Circuit<F> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "current witness index : _{}", self.current_witness_index)?;
+        writeln!(f, "current witness: w{}", self.current_witness_index)?;
 
         let write_witness_indices =
             |f: &mut std::fmt::Formatter<'_>, indices: &[u32]| -> Result<(), std::fmt::Error> {
                 write!(f, "[")?;
                 for (index, witness_index) in indices.iter().enumerate() {
-                    write!(f, "_{witness_index}")?;
+                    write!(f, "w{witness_index}")?;
                     if index != indices.len() - 1 {
                         write!(f, ", ")?;
                     }
@@ -340,7 +340,7 @@ impl<F: AcirField> std::fmt::Display for Circuit<F> {
                 writeln!(f, "]")
             };
 
-        write!(f, "private parameters indices : ")?;
+        write!(f, "private parameters: ")?;
         write_witness_indices(
             f,
             &self
@@ -350,10 +350,10 @@ impl<F: AcirField> std::fmt::Display for Circuit<F> {
                 .collect::<Vec<_>>(),
         )?;
 
-        write!(f, "public parameters indices : ")?;
+        write!(f, "public parameters: ")?;
         write_witness_indices(f, &self.public_parameters.indices())?;
 
-        write!(f, "return value indices : ")?;
+        write!(f, "return values: ")?;
         write_witness_indices(f, &self.return_values.indices())?;
 
         for opcode in &self.opcodes {
@@ -537,14 +537,14 @@ mod tests {
         insta::assert_snapshot!(
             circuit.to_string(),
             @r"
-        current witness index : _3
-        private parameters indices : []
-        public parameters indices : [_2]
-        return value indices : [_2]
-        EXPR [ (2, _1) 8 ]
+        current witness: w3
+        private parameters: []
+        public parameters: [w2]
+        return values: [w2]
+        EXPR [ (2, w1) 8 ]
         BLACKBOX::RANGE [_1]:8 bits []
-        BLACKBOX::AND [_1, _2]:4 bits [_3]
-        BLACKBOX::KECCAKF1600 [_1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14, _15, _16, _17, _18, _19, _20, _21, _22, _23, _24, _25] [_26, _27, _28, _29, _30, _31, _32, _33, _34, _35, _36, _37, _38, _39, _40, _41, _42, _43, _44, _45, _46, _47, _48, _49, _50]
+        BLACKBOX::AND [_1, _2]:4 bits [w3]
+        BLACKBOX::KECCAKF1600 [_1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14, _15, _16, _17, _18, _19, _20, _21, _22, _23, _24, _25] [w26, w27, w28, w29, w30, w31, w32, w33, w34, w35, w36, w37, w38, w39, w40, w41, w42, w43, w44, w45, w46, w47, w48, w49, w50]
         "
         );
     }

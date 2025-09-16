@@ -234,7 +234,7 @@ mod tests {
 
         insta::assert_snapshot!(
             mem_init.to_string(),
-            @"INIT (id: 42, len: 10, witnesses: [_0, _1, _2, _3, _4, _5, _6, _7, _8, _9])"
+            @"INIT (id: 42, len: 10, witnesses: [w0, w1, w2, w3, w4, w5, w6, w7, w8, w9])"
         );
     }
 
@@ -249,7 +249,7 @@ mod tests {
 
         insta::assert_snapshot!(
             xor.to_string(),
-            @"BLACKBOX::XOR [_0, _1]:32 bits [_3]"
+            @"BLACKBOX::XOR [_0, _1]:32 bits [w3]"
         );
     }
 

@@ -1165,6 +1165,18 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         let r_is_not_0 = self.not_var(r_is_0, AcirType::unsigned(1))?;
         let remainder = self.mul_var(remainder, r_is_not_0)?;
 
+        // The quotient must be a valid signed integer.
+        // For instance -128/-1 = 128, but 128 is not a valid i8
+        // Because it is the only possible overflow that can happen due to signed representation,
+        // we simply check for this case: quotient is negative, or distinct from 2^{bit_size-1}
+        // Indeed, negative quotient cannot 'overflow' because the division will not increase its absolute value
+        let assert_message =
+            self.generate_assertion_message_payload("Attempt to divide with overflow".to_string());
+        let unsigned = self.not_var(q_sign, AcirType::unsigned(1))?;
+        // We just use `unsigned` for the predicate of assert_neq_var because if the `predicate` is false, the quotient
+        // we get from the unsigned division under the predicate will not be 2^{bit_size-1} anyways.
+        self.assert_neq_var(quotient, max_power_of_two, unsigned, Some(assert_message))?;
+
         Ok((quotient, remainder))
     }
 

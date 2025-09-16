@@ -1082,6 +1082,33 @@ fn test_operators(
     }
 }
 
+#[test]
+// Regression for https://github.com/noir-lang/noir/issues/9847
+fn signed_div_overflow() {
+    // Test that check -128 / -1 overflow for i8
+    let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v1: i8, v2: i8):
+            v3 = div v1, v2
+            return
+        }
+        "#;
+
+    let ssa = Ssa::from_str(src).unwrap();
+    let inputs = vec![FieldElement::from(128_u128), FieldElement::from(255_u128)];
+    let inputs = inputs
+        .into_iter()
+        .enumerate()
+        .map(|(i, f)| (Witness(i as u32), f))
+        .collect::<BTreeMap<_, _>>();
+    let initial_witness = WitnessMap::from(inputs);
+    let output = None;
+
+    // acir execution should fail to divide -128 / -1
+    let acir_execution_result = execute_ssa(ssa, initial_witness.clone(), output.as_ref());
+    assert!(matches!(acir_execution_result, (ACVMStatus::Failure(_), _)));
+}
+
 proptest! {
 #[test]
 fn test_binary_on_field(lhs in 0u128.., rhs in 0u128..) {

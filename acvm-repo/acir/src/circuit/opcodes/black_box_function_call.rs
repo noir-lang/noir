@@ -454,7 +454,7 @@ impl<F: std::fmt::Display + Copy> std::fmt::Display for BlackBoxFuncCall<F> {
         let outputs_str = &self
             .get_outputs_vec()
             .iter()
-            .map(|i| format!("_{}", i.0))
+            .map(ToString::to_string)
             .collect::<Vec<String>>()
             .join(", ");
 

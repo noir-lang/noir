@@ -1,4 +1,7 @@
-use crate::circuit::Circuit;
+use crate::{
+    circuit::{Circuit, Program},
+    parser::ParserError,
+};
 
 /// Trims leading whitespace from each line of the input string
 #[cfg(test)]
@@ -37,13 +40,24 @@ fn assert_circuit_roundtrip(src: &str) {
     }
 }
 
+fn assert_program_roundtrip(src: &str) {
+    let program = Program::from_str(src).unwrap();
+    let program = program.to_string();
+    let program = trim_leading_whitespace_from_lines(&program);
+    let src = trim_leading_whitespace_from_lines(src);
+    if program != src {
+        println!("Expected:\n~~~\n{src}\n~~~\nGot:\n~~~\n{program}\n~~~");
+        similar_asserts::assert_eq!(program, src);
+    }
+}
+
 #[test]
 fn current_witness() {
     let src = "
-    current witness index : _1
-    private parameters indices : []
-    public parameters indices : []
-    return value indices : []
+    current witness: w1
+    private parameters: []
+    public parameters: []
+    return values: []
     ";
     assert_circuit_roundtrip(src);
 }
@@ -51,10 +65,10 @@ fn current_witness() {
 #[test]
 fn private_parameters() {
     let src = "
-    current witness index : _4
-    private parameters indices : [_0, _1, _2, _3, _4]
-    public parameters indices : []
-    return value indices : []
+    current witness: w4
+    private parameters: [w0, w1, w2, w3, w4]
+    public parameters: []
+    return values: []
     ";
     assert_circuit_roundtrip(src);
 }
@@ -62,10 +76,10 @@ fn private_parameters() {
 #[test]
 fn public_parameters() {
     let src = "
-    current witness index : _9
-    private parameters indices : [_0, _1, _2, _3, _4]
-    public parameters indices : [_5, _6, _7, _8, _9]
-    return value indices : []
+    current witness: w9
+    private parameters: [w0, w1, w2, w3, w4]
+    public parameters: [w5, w6, w7, w8, w9]
+    return values: []
     ";
     assert_circuit_roundtrip(src);
 }
@@ -73,10 +87,10 @@ fn public_parameters() {
 #[test]
 fn return_values() {
     let src = "
-    current witness index : _12
-    private parameters indices : [_0, _1, _2, _3, _4]
-    public parameters indices : [_5, _6, _7, _8, _9]
-    return value indices : [_10, _11, _12]
+    current witness: w12
+    private parameters: [w0, w1, w2, w3, w4]
+    public parameters: [w5, w6, w7, w8, w9]
+    return values: [w10, w11, w12]
     ";
     assert_circuit_roundtrip(src);
 }
@@ -84,15 +98,15 @@ fn return_values() {
 #[test]
 fn assert_zero_opcodes() {
     let src = "
-    current witness index : _9
-    private parameters indices : [_0, _1, _2, _3, _4]
-    public parameters indices : [_5, _6, _7, _8, _9]
-    return value indices : []
-    EXPR [ (1, _0) (-1, _5) 0 ]
-    EXPR [ (1, _1) (-1, _6) 0 ]
-    EXPR [ (1, _2) (-1, _7) 0 ]
-    EXPR [ (1, _3) (-1, _8) 0 ]
-    EXPR [ (1, _4) (-1, _9) 0 ]    
+    current witness: w9
+    private parameters: [w0, w1, w2, w3, w4]
+    public parameters: [w5, w6, w7, w8, w9]
+    return values: []
+    EXPR [ (1, w0) (-1, w5) 0 ]
+    EXPR [ (1, w1) (-1, w6) 0 ]
+    EXPR [ (1, w2) (-1, w7) 0 ]
+    EXPR [ (1, w3) (-1, w8) 0 ]
+    EXPR [ (1, w4) (-1, w9) 0 ]    
     ";
     assert_circuit_roundtrip(src);
 }
@@ -100,15 +114,15 @@ fn assert_zero_opcodes() {
 #[test]
 fn assert_zero_with_mul_terms() {
     let src = "
-    current witness index : _6
-    private parameters indices : [_0, _1, _2]
-    public parameters indices : []
-    return value indices : []
-    EXPR [ (1, _0, _1) (-1, _3) 0 ]
-    EXPR [ (1, _3, _3) (-1, _4) 0 ]
-    EXPR [ (1, _4, _4) (-1, _5) 0 ]
-    EXPR [ (1, _5, _5) (-1, _6) 0 ]
-    EXPR [ (-1, _2) (1, _6) 0 ]
+    current witness: w6
+    private parameters: [w0, w1, w2]
+    public parameters: []
+    return values: []
+    EXPR [ (1, w0, w1) (-1, w3) 0 ]
+    EXPR [ (1, w3, w3) (-1, w4) 0 ]
+    EXPR [ (1, w4, w4) (-1, w5) 0 ]
+    EXPR [ (1, w5, w5) (-1, w6) 0 ]
+    EXPR [ (-1, w2) (1, w6) 0 ]
     ";
     assert_circuit_roundtrip(src);
 }
@@ -128,12 +142,14 @@ fn range_check() {
 #[test]
 fn xor() {
     let src = "
-    current witness index : _2
-    private parameters indices : [_0]
-    public parameters indices : [_1]
-    return value indices : []
-    BLACKBOX::XOR [_0, _1]:32 bits [_2]
-    EXPR [ (1, _2) -15 ]
+    current witness: w2
+    private parameters: [w0]
+    public parameters: [w1]
+    return values: []
+    BLACKBOX::RANGE [w0]:32 bits []
+    BLACKBOX::RANGE [w1]:32 bits []
+    BLACKBOX::XOR [(w0, 32), (w1, 32)] [w2]
+    EXPR [ (1, w2) -15 ]
     ";
     assert_circuit_roundtrip(src);
 }
@@ -253,7 +269,7 @@ fn blake3() {
 
 #[test]
 fn ecdsa_secp256k1() {
-    let input_witnesses: Vec<String> = (0..161).map(|i| format!("_{i}")).collect();
+    let input_witnesses: Vec<String> = (0..161).map(|i| format!("w{i}")).collect();
     let inputs_str = input_witnesses.join(", ");
 
     let src = format!(
@@ -271,16 +287,16 @@ fn ecdsa_secp256k1() {
 #[test]
 #[should_panic = "Expected 32 inputs for public_key_y, found 3"]
 fn ecdsa_secp256k1_missing_inputs() {
-    let input_witnesses: Vec<String> = (0..100).map(|i| format!("_{i}")).collect();
+    let input_witnesses: Vec<String> = (0..100).map(|i| format!("w{i}")).collect();
     let inputs_str = input_witnesses.join(", ");
 
     let src = format!(
         "
-    current witness index : _100
-    private parameters indices : []
-    public parameters indices : []
-    return value indices : []
-    BLACKBOX::ECDSA_SECP256K1 [{inputs_str}] [_100]
+    current witness: w100
+    private parameters: []
+    public parameters: []
+    return values: []
+    BLACKBOX::ECDSA_SECP256K1 [{inputs_str}] [w100]
     "
     );
     let _ = Circuit::from_str(&src).unwrap();
@@ -288,16 +304,16 @@ fn ecdsa_secp256k1_missing_inputs() {
 
 #[test]
 fn ecdsa_secp256r1() {
-    let input_witnesses: Vec<String> = (0..161).map(|i| format!("_{i}")).collect();
+    let input_witnesses: Vec<String> = (0..161).map(|i| format!("w{i}")).collect();
     let inputs_str = input_witnesses.join(", ");
 
     let src = format!(
         "
-    current witness index : _161
-    private parameters indices : []
-    public parameters indices : []
-    return value indices : []
-    BLACKBOX::ECDSA_SECP256R1 [{inputs_str}] [_161]
+    current witness: w161
+    private parameters: []
+    public parameters: []
+    return values: []
+    BLACKBOX::ECDSA_SECP256R1 [{inputs_str}] [w161]
     "
     );
     assert_circuit_roundtrip(&src);
@@ -306,16 +322,16 @@ fn ecdsa_secp256r1() {
 #[test]
 #[should_panic = "Expected 32 inputs for public_key_y, found 3"]
 fn ecdsa_secp256r1_missing_inputs() {
-    let input_witnesses: Vec<String> = (0..100).map(|i| format!("_{i}")).collect();
+    let input_witnesses: Vec<String> = (0..100).map(|i| format!("w{i}")).collect();
     let inputs_str = input_witnesses.join(", ");
 
     let src = format!(
         "
-    current witness index : _100
-    private parameters indices : []
-    public parameters indices : []
-    return value indices : []
-    BLACKBOX::ECDSA_SECP256R1 [{inputs_str}] [_100]
+    current witness: w100
+    private parameters: []
+    public parameters: []
+    return values: []
+    BLACKBOX::ECDSA_SECP256R1 [{inputs_str}] [w100]
     "
     );
     let _ = Circuit::from_str(&src).unwrap();
@@ -323,18 +339,18 @@ fn ecdsa_secp256r1_missing_inputs() {
 
 #[test]
 fn keccakf1600() {
-    let input_witnesses: Vec<String> = (0..25).map(|i| format!("_{i}")).collect();
+    let input_witnesses: Vec<String> = (0..25).map(|i| format!("w{i}")).collect();
     let inputs_str = input_witnesses.join(", ");
 
-    let output_witnesses: Vec<String> = (25..50).map(|i| format!("_{i}")).collect();
+    let output_witnesses: Vec<String> = (25..50).map(|i| format!("w{i}")).collect();
     let outputs_str = output_witnesses.join(", ");
 
     let src = format!(
         "
-    current witness index : _50
-    private parameters indices : []
-    public parameters indices : []
-    return value indices : []
+    current witness: w50
+    private parameters: []
+    public parameters: []
+    return values: []
     BLACKBOX::KECCAKF1600 [{inputs_str}] [{outputs_str}]
     "
     );
@@ -344,18 +360,18 @@ fn keccakf1600() {
 #[test]
 #[should_panic = "Expected 25 inputs for Keccakf1600 inputs, found 24"]
 fn keccakf1600_missing_inputs() {
-    let input_witnesses: Vec<String> = (0..24).map(|i| format!("_{i}")).collect();
+    let input_witnesses: Vec<String> = (0..24).map(|i| format!("w{i}")).collect();
     let inputs_str = input_witnesses.join(", ");
 
-    let output_witnesses: Vec<String> = (24..49).map(|i| format!("_{i}")).collect();
+    let output_witnesses: Vec<String> = (24..49).map(|i| format!("w{i}")).collect();
     let outputs_str = output_witnesses.join(", ");
 
     let src = format!(
         "
-        current witness index : _49
-        private parameters indices : []
-        public parameters indices : []
-        return value indices : []
+        current witness: w49
+        private parameters: []
+        public parameters: []
+        return values: []
         BLACKBOX::KECCAKF1600 [{inputs_str}] [{outputs_str}]
         "
     );
@@ -378,11 +394,11 @@ fn embedded_curve_add() {
 #[should_panic]
 fn embedded_curve_add_wrong_output_count() {
     let src = "
-        current witness index : _9
-        private parameters indices : []
-        public parameters indices : []
-        return value indices : []
-        BLACKBOX::EMBEDDED_CURVE_ADD [_0, _1, _2, _3, _4, _5, _6] [_7, _8]
+        current witness: w9
+        private parameters: []
+        public parameters: []
+        return values: []
+        BLACKBOX::EMBEDDED_CURVE_ADD [w0, w1, w2, w3, w4, w5, _6] [w7, w8]
     ";
     let _ = Circuit::from_str(src).unwrap();
 }
@@ -401,18 +417,18 @@ fn poseidon2_permutation() {
 
 #[test]
 fn sha256_compression() {
-    let input_witnesses: Vec<String> = (0..24).map(|i| format!("_{i}")).collect();
+    let input_witnesses: Vec<String> = (0..24).map(|i| format!("w{i}")).collect();
     let inputs_str = input_witnesses.join(", ");
 
-    let output_witnesses: Vec<String> = (24..32).map(|i| format!("_{i}")).collect();
+    let output_witnesses: Vec<String> = (24..32).map(|i| format!("w{i}")).collect();
     let outputs_str = output_witnesses.join(", ");
 
     let src = format!(
         "
-    current witness index : _31
-    private parameters indices : []
-    public parameters indices : []
-    return value indices : []
+    current witness: w31
+    private parameters: []
+    public parameters: []
+    return values: []
     BLACKBOX::SHA256_COMPRESSION [{inputs_str}] [{outputs_str}]
     "
     );
@@ -422,18 +438,18 @@ fn sha256_compression() {
 #[test]
 #[should_panic]
 fn sha256_compression_missing_outputs() {
-    let input_witnesses: Vec<String> = (0..24).map(|i| format!("_{i}")).collect();
+    let input_witnesses: Vec<String> = (0..24).map(|i| format!("w{i}")).collect();
     let inputs_str = input_witnesses.join(", ");
 
-    let output_witnesses: Vec<String> = (24..31).map(|i| format!("_{i}")).collect(); // should be 8 total
+    let output_witnesses: Vec<String> = (24..31).map(|i| format!("w{i}")).collect(); // should be 8 total
     let outputs_str = output_witnesses.join(", ");
 
     let src = format!(
         "
-        current witness index : _31
-        private parameters indices : []
-        public parameters indices : []
-        return value indices : []
+        current witness: w31
+        private parameters: []
+        public parameters: []
+        return values: []
         BLACKBOX::SHA256_COMPRESSION [{inputs_str}] [{outputs_str}]
         "
     );
@@ -443,11 +459,11 @@ fn sha256_compression_missing_outputs() {
 #[test]
 fn memory_read() {
     let src = "
-    current witness index : _1
-    private parameters indices : []
-    public parameters indices : []
-    return value indices : []
-    MEM (id: 0, read at: EXPR [ (1, _0) 0 ], value: EXPR [ (1, _1) 0 ]) 
+    current witness: w1
+    private parameters: []
+    public parameters: []
+    return values: []
+    MEM (id: 0, read at: EXPR [ (1, w0) 0 ], value: EXPR [ (1, w1) 0 ]) 
     ";
     assert_circuit_roundtrip(src);
 }
@@ -455,11 +471,11 @@ fn memory_read() {
 #[test]
 fn memory_write() {
     let src = "
-    current witness index : _1
-    private parameters indices : []
-    public parameters indices : []
-    return value indices : []
-    MEM (id: 3, write EXPR [ (1, _0) 0 ] at: EXPR [ (1, _1) 0 ])
+    current witness: w1
+    private parameters: []
+    public parameters: []
+    return values: []
+    MEM (id: 3, write EXPR [ (1, w0) 0 ] at: EXPR [ (1, w1) 0 ])
     ";
     assert_circuit_roundtrip(src);
 }
@@ -467,11 +483,11 @@ fn memory_write() {
 #[test]
 fn memory_init() {
     let src = "
-    current witness index : _4
-    private parameters indices : []
-    public parameters indices : []
-    return value indices : []
-    INIT (id: 4, len: 5, witnesses: [_0, _1, _2, _3, _4])
+    current witness: w4
+    private parameters: []
+    public parameters: []
+    return values: []
+    INIT (id: 4, len: 5, witnesses: [w0, w1, w2, w3, w4])
     ";
     assert_circuit_roundtrip(src);
 }
@@ -479,11 +495,11 @@ fn memory_init() {
 #[test]
 fn memory_init_duplicate_witness() {
     let src = "
-    current witness index : _4
-    private parameters indices : []
-    public parameters indices : []
-    return value indices : []
-    INIT (id: 4, len: 2, witnesses: [_0, _0])
+    current witness: w4
+    private parameters: []
+    public parameters: []
+    return values: []
+    INIT (id: 4, len: 2, witnesses: [w0, w0])
     ";
     assert_circuit_roundtrip(src);
 }
@@ -491,12 +507,12 @@ fn memory_init_duplicate_witness() {
 #[test]
 fn memory_databus() {
     let src = "
-    current witness index : _5
-    private parameters indices : [_0, _1, _2, _3, _4, _5]
-    public parameters indices : []
-    return value indices : []
-    INIT CALLDATA 0 (id: 1, len: 5, witnesses: [_1, _2, _3, _4, _5])
-    INIT RETURNDATA (id: 2, len: 1, witnesses: [_6])
+    current witness: w5
+    private parameters: [w0, w1, w2, w3, w4, w5]
+    public parameters: []
+    return values: []
+    INIT CALLDATA 0 (id: 1, len: 5, witnesses: [w1, w2, w3, w4, w5])
+    INIT RETURNDATA (id: 2, len: 1, witnesses: [w6])
     ";
     assert_circuit_roundtrip(src);
 }
@@ -504,13 +520,13 @@ fn memory_databus() {
 #[test]
 fn brillig_call() {
     let src = "
-    current witness index : _2
-    private parameters indices : [_0, _1, _2]
-    public parameters indices : []
-    return value indices : []
-    BRILLIG CALL func 0: inputs: [EXPR [ (1, _0) (-1, _1) 0 ]], outputs: [_3]
-    EXPR [ (1, _0, _3) (-1, _1, _3) -1 ]
-    EXPR [ (-1, _0) (1, _2) 0 ]
+    current witness: w2
+    private parameters: [w0, w1, w2]
+    public parameters: []
+    return values: []
+    BRILLIG CALL func 0: inputs: [EXPR [ (1, w0) (-1, w1) 0 ]], outputs: [w3]
+    EXPR [ (1, w0, w3) (-1, w1, w3) -1 ]
+    EXPR [ (-1, w0) (1, w2) 0 ]
     ";
     assert_circuit_roundtrip(src);
 }
@@ -518,14 +534,14 @@ fn brillig_call() {
 #[test]
 fn brillig_call_with_predicate() {
     let src = "
-    current witness index : _2
-    private parameters indices : [_0, _1, _2]
-    public parameters indices : []
-    return value indices : []
+    current witness: w2
+    private parameters: [w0, w1, w2]
+    public parameters: []
+    return values: []
     BRILLIG CALL func 0: PREDICATE: EXPR [ 1 ]
-    inputs: [EXPR [ (1, _0) (-1, _1) 0 ]], outputs: [_3]
-    EXPR [ (1, _0, _3) (-1, _1, _3) -1 ]
-    EXPR [ (-1, _0) (1, _2) 0 ]
+    inputs: [EXPR [ (1, w0) (-1, w1) 0 ]], outputs: [w3]
+    EXPR [ (1, w0, w3) (-1, w1, w3) -1 ]
+    EXPR [ (-1, w0) (1, w2) 0 ]
     ";
     assert_circuit_roundtrip(src);
 }
@@ -533,10 +549,10 @@ fn brillig_call_with_predicate() {
 #[test]
 fn brillig_call_with_memory_array_input() {
     let src = "
-    current witness index : _2
-    private parameters indices : [_0, _1, _2]
-    public parameters indices : []
-    return value indices : []
+    current witness: w2
+    private parameters: [w0, w1, w2]
+    public parameters: []
+    return values: []
     BRILLIG CALL func 0: inputs: [EXPR [ 2 ], MemoryArray(0)], outputs: []
     ";
     assert_circuit_roundtrip(src);
@@ -545,11 +561,11 @@ fn brillig_call_with_memory_array_input() {
 #[test]
 fn call() {
     let src = "
-    current witness index : _2
-    private parameters indices : [_0]
-    public parameters indices : [_1]
-    return value indices : []
-    CALL func 1: inputs: [_0, _1], outputs: [_2]
+    current witness: w2
+    private parameters: [w0]
+    public parameters: [w1]
+    return values: []
+    CALL func 1: inputs: [w0, w1], outputs: [w2]
     ";
     assert_circuit_roundtrip(src);
 }
@@ -557,12 +573,12 @@ fn call() {
 #[test]
 fn call_with_predicate() {
     let src = "
-    current witness index : _2
-    private parameters indices : [_0]
-    public parameters indices : [_1]
-    return value indices : []
+    current witness: w2
+    private parameters: [w0]
+    public parameters: [w1]
+    return values: []
     CALL func 1: PREDICATE: EXPR [ 1 ]
-    inputs: [_0, _1], outputs: [_2]
+    inputs: [w0, w1], outputs: [w2]
     ";
     assert_circuit_roundtrip(src);
 }
@@ -683,4 +699,55 @@ fn array_dynamic() {
     EXPR [ (1, _15, _74) (-1, _74, _78) (-1, _15) (1, _78) 0 ]
     ";
     assert_circuit_roundtrip(src);
+}
+
+#[test]
+fn fold_basic() {
+    let src = "
+    func 0
+    current witness: w2
+    private parameters: [w0]
+    public parameters: [w1]
+    return values: []
+    CALL func 1: PREDICATE: EXPR [ 1 ]
+    inputs: [w0, w1], outputs: [w2]
+    
+    func 1
+    current witness: w3
+    private parameters: [w0, w1]
+    public parameters: []
+    return values: [w2]
+    BRILLIG CALL func 0: inputs: [EXPR [ (1, w0) (-1, w1) 0 ]], outputs: [w3]
+    EXPR [ (1, w0, w3) (-1, w1, w3) -1 ]
+    EXPR [ (-1, w0) (1, w2) 0 ]
+    ";
+    assert_program_roundtrip(src);
+}
+
+#[test]
+fn fold_basic_mismatched_ids() {
+    let src = "
+    func 0
+    current witness: w2
+    private parameters: [w0]
+    public parameters: [w1]
+    return values: []
+    CALL func 1: PREDICATE: EXPR [ 1 ]
+    inputs: [w0, w1], outputs: [w2]
+    
+    func 2
+    current witness: w3
+    private parameters: [w0, w1]
+    public parameters: []
+    return value indices : [w2]
+    BRILLIG CALL func 0: inputs: [EXPR [ (1, w0) (-1, w1) 0 ]], outputs: [w3]
+    EXPR [ (1, w0, w3) (-1, w1, w3) -1 ]
+    EXPR [ (-1, w0) (1, w2) 0 ]
+    ";
+    let result = Program::from_str(src).err().unwrap();
+    let ParserError::UnexpectedFunctionId { expected, found, .. } = result.get_error() else {
+        panic!("Expected `UnexpectedFunctionId` error");
+    };
+    assert_eq!(expected, 1);
+    assert_eq!(found, 2);
 }
