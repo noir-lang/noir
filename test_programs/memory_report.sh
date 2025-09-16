@@ -34,7 +34,11 @@ for test_path in ${tests_to_profile[@]}; do
             echo " ," >> $current_dir"/memory_report.json"
         fi
 
-        test_name=$(basename $test_path)
+        if [ "$1" == "1" ]; then
+            test_name=$(basename $current_dir)
+        else
+            test_name=$(basename $test_path)
+        fi
 
         COMMAND="compile --force --silence-warnings $FLAGS"
         if [ "$2" == "1" ]; then
