@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1758032281294,
+  "lastUpdate": 1758036731851,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -20186,48 +20186,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "alejo.amiras@gmail.com",
-            "name": "Alejo Amiras",
-            "username": "alejoamiras"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "04ac97f1593a6896b5c86e4bc96c8efcebbde9bc",
-          "message": "fix(docs): moves docs to correct path for sharing domain with landing (#9687)\n\nCo-authored-by: josh crites <jc@joshcrites.com>",
-          "timestamp": "2025-09-09T19:22:51Z",
-          "tree_id": "0c7173a1f3b23f1b93e45074fe16c684ac205d80",
-          "url": "https://github.com/noir-lang/noir/commit/04ac97f1593a6896b5c86e4bc96c8efcebbde9bc"
-        },
-        "date": 1757448042953,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 247499,
-            "range": "± 898",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 217739,
-            "range": "± 1025",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2784521,
-            "range": "± 2018",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -22279,6 +22237,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2795778,
             "range": "± 1471",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "0adabdfcaa35f314a363c378ef7c7868957f3621",
+          "message": "feat: LSP lightweight mode (#9869)",
+          "timestamp": "2025-09-16T15:02:21Z",
+          "tree_id": "12d2dce41ee323ffb6edf8def62f152f7d3805a4",
+          "url": "https://github.com/noir-lang/noir/commit/0adabdfcaa35f314a363c378ef7c7868957f3621"
+        },
+        "date": 1758036711781,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 253182,
+            "range": "± 1270",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 225496,
+            "range": "± 4269",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2800776,
+            "range": "± 17480",
             "unit": "ns/iter"
           }
         ]
