@@ -17,7 +17,7 @@ pub(super) struct VisualizeCommand {
     #[clap(long, short, value_parser = parse_and_normalize_path)]
     pub output_path: Option<PathBuf>,
 
-    /// Surround the output with syntax for direct embedding in a Markdown file.
+    /// Surround the output with brackets for direct embedding in a Markdown file.
     ///
     /// Useful for dumping the output into a file that can be previewed in VS Code for example.
     #[clap(long, short = 'p')]
@@ -25,15 +25,19 @@ pub(super) struct VisualizeCommand {
 }
 
 pub(super) fn run(args: VisualizeCommand, ssa: Ssa) -> eyre::Result<()> {
-    let output = render_mermaid(ssa).wrap_err("failed to render SSA to Mermaid")?;
+    let output = render_mermaid(ssa, args.markdown).wrap_err("failed to render SSA to Mermaid")?;
     write_output(&output, args.output_path)
 }
 
 /// Render the SSA as a Mermaid [flowchart](https://mermaid.js.org/syntax/flowchart.html).
-fn render_mermaid(ssa: Ssa) -> eyre::Result<String> {
+fn render_mermaid(ssa: Ssa, markdown: bool) -> eyre::Result<String> {
     let indent = "    ";
     let mut out = String::new();
     let mut write_out = |i: usize, s: String| writeln!(out, "{}{s}", indent.repeat(i));
+
+    if markdown {
+        write_out(0, "```mermaid".into())?;
+    }
 
     write_out(0, "flowchart TB".into())?;
 
@@ -69,6 +73,10 @@ fn render_mermaid(ssa: Ssa) -> eyre::Result<String> {
     // Render function calls.
     for (func_id, block_id, callee_id) in calls {
         write_out(1, format!("{func_id}.{block_id} -..-> {callee_id}"))?;
+    }
+
+    if markdown {
+        write_out(0, "```".into())?;
     }
 
     Ok(out)
