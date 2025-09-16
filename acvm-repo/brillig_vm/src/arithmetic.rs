@@ -179,7 +179,7 @@ pub(crate) fn evaluate_binary_int_op<F: AcirField>(
                 } else {
                     Err(BrilligArithmeticError::BitshiftOverflow {
                         bit_size: 8,
-                        shift_size: rhs as u128,
+                        shift_size: u128::from(rhs),
                     })
                 }
             }
@@ -189,7 +189,7 @@ pub(crate) fn evaluate_binary_int_op<F: AcirField>(
                 } else {
                     Err(BrilligArithmeticError::BitshiftOverflow {
                         bit_size: 16,
-                        shift_size: rhs as u128,
+                        shift_size: u128::from(rhs),
                     })
                 }
             }
@@ -199,7 +199,7 @@ pub(crate) fn evaluate_binary_int_op<F: AcirField>(
                 } else {
                     Err(BrilligArithmeticError::BitshiftOverflow {
                         bit_size: 32,
-                        shift_size: rhs as u128,
+                        shift_size: u128::from(rhs),
                     })
                 }
             }
@@ -209,7 +209,7 @@ pub(crate) fn evaluate_binary_int_op<F: AcirField>(
                 } else {
                     Err(BrilligArithmeticError::BitshiftOverflow {
                         bit_size: 64,
-                        shift_size: rhs as u128,
+                        shift_size: u128::from(rhs),
                     })
                 }
             }

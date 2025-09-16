@@ -1082,6 +1082,33 @@ fn test_operators(
     }
 }
 
+#[test]
+// Regression for https://github.com/noir-lang/noir/issues/9847
+fn signed_div_overflow() {
+    // Test that check -128 / -1 overflow for i8
+    let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v1: i8, v2: i8):
+            v3 = div v1, v2
+            return
+        }
+        "#;
+
+    let ssa = Ssa::from_str(src).unwrap();
+    let inputs = vec![FieldElement::from(128_u128), FieldElement::from(255_u128)];
+    let inputs = inputs
+        .into_iter()
+        .enumerate()
+        .map(|(i, f)| (Witness(i as u32), f))
+        .collect::<BTreeMap<_, _>>();
+    let initial_witness = WitnessMap::from(inputs);
+    let output = None;
+
+    // acir execution should fail to divide -128 / -1
+    let acir_execution_result = execute_ssa(ssa, initial_witness.clone(), output.as_ref());
+    assert!(matches!(acir_execution_result, (ACVMStatus::Failure(_), _)));
+}
+
 proptest! {
 #[test]
 fn test_binary_on_field(lhs in 0u128.., rhs in 0u128..) {
@@ -1134,10 +1161,10 @@ fn test_u32(lhs in 0u32.., rhs in 0u32..) {
 
     //unchecked operations assume no under/over-flow
     let mut unchecked_operators = vec![];
-    if (lhs + rhs).to_u128() <= u32::MAX as u128 {
+    if (lhs + rhs).to_u128() <= u128::from(u32::MAX) {
         unchecked_operators.push("unchecked_add");
     }
-    if (lhs * rhs).to_u128() <= u32::MAX as u128 {
+    if (lhs * rhs).to_u128() <= u128::from(u32::MAX) {
     unchecked_operators.push("unchecked_mul");
     }
     if lhs >= rhs {
@@ -1176,8 +1203,8 @@ fn test_constraint_u64(lhs in 0u64.., rhs in 0u64..) {
 
 #[test]
 fn test_constraint_u16(lhs in 0u16.., rhs in 0u16..) {
-    let lhs = FieldElement::from(lhs as u128);
-    let rhs = FieldElement::from(rhs as u128);
+    let lhs = FieldElement::from(u128::from(lhs));
+    let rhs = FieldElement::from(u128::from(rhs));
     let operators = ["constrain ==", "constrain !="];
     test_operators(&operators, "u16", &[lhs,rhs]);
     test_operators(&operators, "i16", &[lhs,rhs]);
@@ -1185,8 +1212,8 @@ fn test_constraint_u16(lhs in 0u16.., rhs in 0u16..) {
 
 #[test]
 fn test_constraint_u8(lhs in 0u8.., rhs in 0u8..) {
-    let lhs = FieldElement::from(lhs as u128);
-    let rhs = FieldElement::from(rhs as u128);
+    let lhs = FieldElement::from(u128::from(lhs));
+    let rhs = FieldElement::from(u128::from(rhs));
     let operators = ["constrain ==", "constrain !="];
     test_operators(&operators, "u8", &[lhs,rhs]);
     test_operators(&operators, "i8", &[lhs,rhs]);

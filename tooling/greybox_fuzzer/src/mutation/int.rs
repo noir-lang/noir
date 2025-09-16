@@ -171,7 +171,7 @@ fn add_small<T: OverflowingAdd + PrimInt + HasBits + AsPrimitive<i128>>(
     update: i8,
 ) -> FieldElement {
     let converted: T = T::from(*input).expect("Primitive should convert");
-    let update_t: T = T::from(update as i128).expect("Primitive should convert");
+    let update_t: T = T::from(i128::from(update)).expect("Primitive should convert");
     let (after_update, _) = converted.overflowing_add(&update_t);
     i128_to_field(after_update.as_(), T::BITS)
 }
@@ -182,7 +182,7 @@ fn wrapping_add_small_unsigned<T: WrappingAdd + PrimInt + HasBits + AsPrimitive<
     update: u8,
 ) -> FieldElement {
     let converted: T = T::from(*input).expect("Primitive should convert");
-    let update_t: T = T::from(update as u128).expect("Primitive should convert");
+    let update_t: T = T::from(u128::from(update)).expect("Primitive should convert");
     let after_update = converted.wrapping_add(&update_t);
     u128_to_field(after_update.as_())
 }
@@ -193,7 +193,7 @@ fn wrapping_sub_small_unsigned<T: WrappingSub + PrimInt + HasBits + AsPrimitive<
     update: u8,
 ) -> FieldElement {
     let converted: T = T::from(*input).expect("Primitive should convert");
-    let update_t: T = T::from(update as u128).expect("Primitive should convert");
+    let update_t: T = T::from(u128::from(update)).expect("Primitive should convert");
     let after_update = converted.wrapping_sub(&update_t);
     u128_to_field(after_update.as_())
 }
@@ -393,10 +393,10 @@ impl<'a> IntMutator<'a> {
             FixedIntSubstitutionOptions::Pow2 => 2i128.pow(self.prng.gen_range(0..(width - 1))),
         };
         let checked_value = match width {
-            8 => value.clamp(i8::MIN as i128, i8::MAX as i128),
-            16 => value.clamp(i16::MIN as i128, i16::MAX as i128),
-            32 => value.clamp(i32::MIN as i128, i32::MAX as i128),
-            64 => value.clamp(i64::MIN as i128, i64::MAX as i128),
+            8 => value.clamp(i128::from(i8::MIN), i128::from(i8::MAX)),
+            16 => value.clamp(i128::from(i16::MIN), i128::from(i16::MAX)),
+            32 => value.clamp(i128::from(i32::MIN), i128::from(i32::MAX)),
+            64 => value.clamp(i128::from(i64::MIN), i128::from(i64::MAX)),
             128 => value,
             _ => {
                 panic!("Shouldn't be reachable")

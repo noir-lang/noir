@@ -46,12 +46,12 @@ test_cases.forEach((testInfo) => {
     const inputs = toml.parse(prover_toml);
     const { witness } = await program.execute(inputs);
 
-    const backend = new UltraHonkBackend(noir_program.bytecode, {}, { recursive: false });
-    const proofData = await backend.generateProof(witness, { keccak: true });
+    const backend = new UltraHonkBackend(noir_program.bytecode);
+    const proofData = await backend.generateProof(witness, { keccakZK: true });
 
     // JS verification
 
-    const verified = await backend.verifyProof(proofData, { keccak: true });
+    const verified = await backend.verifyProof(proofData, { keccakZK: true });
     expect(verified, 'Proof fails verification in JS').to.be.true;
 
     // Smart contract verification
