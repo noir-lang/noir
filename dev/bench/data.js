@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1758050890658,
+  "lastUpdate": 1758053372481,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -20196,48 +20196,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "bf6b8dfcbd8f54b597d8c42251e6b12384390970",
-          "message": "Revert \"chore: move `ram_blowup_regression` to be a compile-only test\" (#9801)",
-          "timestamp": "2025-09-09T22:49:46+01:00",
-          "tree_id": "04a59fc91afe68d12f3f1ff368ea2952dc47731b",
-          "url": "https://github.com/noir-lang/noir/commit/bf6b8dfcbd8f54b597d8c42251e6b12384390970"
-        },
-        "date": 1757454751501,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 249958,
-            "range": "± 736",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 219878,
-            "range": "± 2884",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2785563,
-            "range": "± 1266",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -22289,6 +22247,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2817715,
             "range": "± 2957",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "d5c4ac8548a5f04fbef3013f72386a985f229c48",
+          "message": "chore(acir_gen): Remove Brillig execution with constant arguments  (#9879)",
+          "timestamp": "2025-09-16T19:40:23Z",
+          "tree_id": "b707a1db22f299442861e0e2097c1800f70eb5c9",
+          "url": "https://github.com/noir-lang/noir/commit/d5c4ac8548a5f04fbef3013f72386a985f229c48"
+        },
+        "date": 1758053352309,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 262442,
+            "range": "± 1019",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 234100,
+            "range": "± 3975",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2812940,
+            "range": "± 3030",
             "unit": "ns/iter"
           }
         ]
