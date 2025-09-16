@@ -40,7 +40,7 @@ for test_path in ${tests_to_profile[@]}; do
             test_name=$(basename $test_path)
         fi
 
-        if [ -n "$test_name" ]; then
+        if [ -z "$test_name" ]; then
             echo "test name is empty"
             exit 1
         fi
