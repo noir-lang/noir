@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1757968741020,
+  "lastUpdate": 1758018700127,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -20216,48 +20216,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "c857d4b3a86aeb1db1f8a5b21cedb73b97724e91",
-          "message": "chore(die): Module doc comments (#9768)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>",
-          "timestamp": "2025-09-09T15:49:03Z",
-          "tree_id": "64ead37040c35f271f3537d7e853544272068a48",
-          "url": "https://github.com/noir-lang/noir/commit/c857d4b3a86aeb1db1f8a5b21cedb73b97724e91"
-        },
-        "date": 1757435841140,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 246053,
-            "range": "± 786",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 217039,
-            "range": "± 2670",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2783259,
-            "range": "± 1312",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -22309,6 +22267,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2819468,
             "range": "± 1954",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "72c5842a449b93a1cd2959d2fa0bccd4a62e2c5b",
+          "message": "fix: check for signed division overflow (#9857)",
+          "timestamp": "2025-09-16T10:02:26Z",
+          "tree_id": "909fbbd53b2f0abea206ecb1902b1c743b77d8c1",
+          "url": "https://github.com/noir-lang/noir/commit/72c5842a449b93a1cd2959d2fa0bccd4a62e2c5b"
+        },
+        "date": 1758018679269,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 251180,
+            "range": "± 1124",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 224287,
+            "range": "± 5435",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2800439,
+            "range": "± 8224",
             "unit": "ns/iter"
           }
         ]
