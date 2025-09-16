@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1758019109081,
+  "lastUpdate": 1758019131561,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -20191,48 +20191,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "0284d29d3c1798cd9ade7da9be99e2062a330db7",
-          "message": "fix(ssa): Replace failing array access with constraint and defaults (#9776)",
-          "timestamp": "2025-09-09T16:11:15Z",
-          "tree_id": "0618bb25b566637ce60d02eeb5c18dcb3e95f97a",
-          "url": "https://github.com/noir-lang/noir/commit/0284d29d3c1798cd9ade7da9be99e2062a330db7"
-        },
-        "date": 1757436909599,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 246175,
-            "range": "± 360",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 218409,
-            "range": "± 3571",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2808859,
-            "range": "± 13020",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -22284,6 +22242,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2800439,
             "range": "± 8224",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "d0cbb4f2cfb99759631ea125c0decd452a74c90d",
+          "message": "chore(ssa): Run purity analysis before preprocessing of functions (#9837)",
+          "timestamp": "2025-09-16T10:11:06Z",
+          "tree_id": "09edae24f23b165cbbebdea7cf68d5d8a525cbc9",
+          "url": "https://github.com/noir-lang/noir/commit/d0cbb4f2cfb99759631ea125c0decd452a74c90d"
+        },
+        "date": 1758019111479,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 253976,
+            "range": "± 332",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 227912,
+            "range": "± 2233",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2798151,
+            "range": "± 1724",
             "unit": "ns/iter"
           }
         ]
