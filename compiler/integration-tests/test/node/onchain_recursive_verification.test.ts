@@ -24,6 +24,7 @@ it(`smart contract can verify a recursive proof`, async () => {
   const innerCircuitVerificationKey = await innerBackend.getVerificationKey();
   const barretenbergAPI = await Barretenberg.new({ threads: 1 });
   const vkAsFields = await barretenbergAPI.acirVkAsFieldsUltraHonk(new RawBuffer(innerCircuitVerificationKey));
+  const vkHash = await barretenbergAPI.poseidon2Hash(vkAsFields);
 
   // Generate proof of the recursive circuit
   const recursiveCircuitNoir = new Noir(recursionCircuit as CompiledCircuit);
@@ -33,6 +34,7 @@ it(`smart contract can verify a recursive proof`, async () => {
     proof: deflattenFields(intermediateProof),
     public_inputs: intermediatePublicInputs,
     verification_key: vkAsFields.map((field) => field.toString()),
+    key_hash: vkHash.toString(),
   };
   const { witness: recursiveWitness } = await recursiveCircuitNoir.execute(recursiveInputs);
   const { proof: recursiveProof, publicInputs: recursivePublicInputs } = await recursiveBackend.generateProof(
