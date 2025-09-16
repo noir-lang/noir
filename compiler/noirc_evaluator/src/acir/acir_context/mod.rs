@@ -1169,7 +1169,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         let r_is_not_0 = self.not_var(r_is_0, AcirType::unsigned(1))?;
         let remainder = self.mul_var(remainder, r_is_not_0)?;
 
-        // Issue #9847 - The quotient must be a valid signed integer.
+        // The quotient must be a valid signed integer.
         // For instance -128/-1 = 128, but 128 is not a valid i8
         // Because it is the only possible overflow that can happen due to signed representation,
         // we simply check for this case: quotient is negative, or distinct from 2^{bit_size-1}

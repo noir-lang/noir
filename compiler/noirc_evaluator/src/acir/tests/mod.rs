@@ -1083,6 +1083,7 @@ fn test_operators(
 }
 
 #[test]
+// Regression for https://github.com/noir-lang/noir/issues/9847
 fn signed_div_overflow() {
     // Test that check -128 / -1 overflow for i8
     let src = r#"
