@@ -171,8 +171,7 @@ mod tests {
         witness_map.insert(Witness(0), FieldElement::from(9_u32));
         witness_map.insert(Witness(1), FieldElement::from(3_u32));
         witness_map.insert(Witness(2), FieldElement::from(3_u32));
-        let result =
-            execute_ssa(src.to_string(), witness_map, CompileOptions::default());
+        let result = execute_ssa(src.to_string(), witness_map, CompileOptions::default());
         assert!(result.is_ok());
     }
 }
