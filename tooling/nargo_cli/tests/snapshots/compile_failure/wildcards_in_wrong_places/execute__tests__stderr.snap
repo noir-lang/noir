@@ -45,6 +45,13 @@ error: The placeholder `_` is not allowed within types on item signatures for fu
   │
 
 error: The placeholder `_` is not allowed within types on item signatures for functions
+   ┌─ src/main.nr:24:9
+   │
+24 │     Gen<_>: Trait2<T>,
+   │         -
+   │
+
+error: The placeholder `_` is not allowed within types on item signatures for functions
    ┌─ src/main.nr:10:16
    │
 10 │     fn foo(_: [_; _]) -> [_; _] {
@@ -70,6 +77,20 @@ error: The placeholder `_` is not allowed within types on item signatures for fu
    │
 10 │     fn foo(_: [_; _]) -> [_; _] {
    │                              -
+   │
+
+error: The placeholder `_` is not allowed within types on item signatures for functions
+   ┌─ src/main.nr:29:9
+   │
+29 │     Gen<_>: Trait2<_>,
+   │         -
+   │
+
+error: The placeholder `_` is not allowed within types on item signatures for functions
+   ┌─ src/main.nr:29:20
+   │
+29 │     Gen<_>: Trait2<_>,
+   │                    -
    │
 
 error: The placeholder `_` is not allowed within types on item signatures for functions
@@ -100,4 +121,18 @@ error: The placeholder `_` is not allowed within types on item signatures for fu
    │                                       -
    │
 
-Aborting due to 14 previous errors
+error: The placeholder `_` is not allowed within types on item signatures for functions
+   ┌─ src/main.nr:29:9
+   │
+29 │     Gen<_>: Trait2<_>,
+   │         -
+   │
+
+error: The placeholder `_` is not allowed within types on item signatures for functions
+   ┌─ src/main.nr:29:20
+   │
+29 │     Gen<_>: Trait2<_>,
+   │                    -
+   │
+
+Aborting due to 19 previous errors
