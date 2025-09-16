@@ -160,12 +160,8 @@ impl Translator {
                 // In our ACIR generation tests we want to make sure that `brillig_locations` in the `GeneratedAcir` was accurately set.
                 // Thus, we set a dummy location here so that translated instructions have a location associated with them.
                 let stack = vec![Location::dummy()];
-                let call_stack = self
-                    .builder
-                    .current_function
-                    .dfg
-                    .call_stack_data
-                    .get_or_insert_locations(&stack);
+                let call_stack_data = &mut self.builder.current_function.dfg.call_stack_data;
+                let call_stack = call_stack_data.get_or_insert_locations(&stack);
                 self.builder.set_call_stack(call_stack);
             }
         }
