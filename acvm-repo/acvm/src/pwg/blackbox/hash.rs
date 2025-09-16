@@ -101,7 +101,7 @@ pub(crate) fn solve_sha_256_permutation_opcode<F: AcirField>(
     sha256_compression(&mut state, &message);
 
     for (output_witness, value) in outputs.iter().zip(state.into_iter()) {
-        insert_value(output_witness, F::from(value as u128), initial_witness)?;
+        insert_value(output_witness, F::from(u128::from(value)), initial_witness)?;
     }
 
     Ok(())

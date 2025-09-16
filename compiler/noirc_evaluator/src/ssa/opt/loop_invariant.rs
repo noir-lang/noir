@@ -2020,17 +2020,47 @@ mod test {
         true,
         "nested loop empty, but add cannot overflow"
     )]
-    #[test_case("u32", 0, 10, 10, true, "add", (u32::MAX-5) as i64, true, "add overflows, and loop executes")]
-    #[test_case("u32", 0, 10, 0, true, "add", (u32::MAX-5) as i64, false, "add overflows, but loop empty")]
-    #[test_case("u32", 0, 10, 0, true, "unchecked_add", (u32::MAX-5) as i64, true, "loop empty, but add unchecked")]
+    #[test_case("u32", 0, 10, 10, true, "add", i64::from(u32::MAX - 5), true, "add overflows, and loop executes")]
+    #[test_case("u32", 0, 10, 0, true, "add", i64::from(u32::MAX - 5), false, "add overflows, but loop empty")]
+    #[test_case("u32", 0, 10, 0, true, "unchecked_add", i64::from(u32::MAX - 5), true, "loop empty, but add unchecked")]
     #[test_case("u32", 5, 10, 10, true, "sub", 5, true, "loop executes, sub cannot overflow")]
     #[test_case("u32", 0, 10, 10, true, "sub", 5, true, "sub overflows, and loop executes")]
     #[test_case("u32", 0, 10, 0, true, "sub", 5, false, "sub overflows, but loop empty")]
     #[test_case("u32", 0, 10, 0, true, "unchecked_sub", 5, true, "loop empty, but sub unchecked")]
     #[test_case("u32", 0, 10, 10, true, "mul", 10, true, "loop executes, mul cannot overflow")]
-    #[test_case("u32", 0, 10, 10, true, "mul", u32::MAX as i64, true, "mul overflows, and loop executes")]
-    #[test_case("u32", 0, 10, 0, true, "mul", u32::MAX as i64, false, "mul overflows, but loop empty")]
-    #[test_case("u32", 0, 10, 0, true, "unchecked_mul", u32::MAX as i64, true, "loop empty, but mul unchecked")]
+    #[test_case(
+        "u32",
+        0,
+        10,
+        10,
+        true,
+        "mul",
+        i64::from(u32::MAX),
+        true,
+        "mul overflows, and loop executes"
+    )]
+    #[test_case(
+        "u32",
+        0,
+        10,
+        0,
+        true,
+        "mul",
+        i64::from(u32::MAX),
+        false,
+        "mul overflows, but loop empty"
+    )]
+    #[test_case(
+        "u32",
+        0,
+        10,
+        0,
+        true,
+        "unchecked_mul",
+        i64::from(u32::MAX),
+        true,
+        "loop empty, but mul unchecked"
+    )]
     #[test_case("u32", 0, 10, 10, true, "div", 2, true, "loop executes, div ok")]
     #[test_case("u32", 0, 10, 0, true, "div", 2, true, "loop empty, div ok")]
     #[test_case("u32", 0, 10, 10, true, "div", 0, true, "div by zero, and loop executes")]
@@ -2763,7 +2793,7 @@ mod control_dependence {
 
     #[test]
     fn simplify_constraint() {
-        // This test shows the simplification of the constraint constrain v17 == u1 1 which is converted into constrain u1 0 == u1 1 in b5
+        // This test shows the constraint constrain v17 == u1 1 is not simplified into constrain u1 0 == u1 1
         let src = "
         brillig(inline) fn main f0 {
           entry(v0: u32, v1: u32, v2: u32):
@@ -2795,11 +2825,10 @@ mod control_dependence {
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
-
         let ssa = ssa.loop_invariant_code_motion();
-        // The loop is guaranteed to fully execute, so we expect the constrain to be simplified into constrain u1 0 == u1 1
-        // However, even though the constrain is not a loop invariant we expect it to remain in place
-        // as it is control dependent upon its predecessor blocks which are not pure.
+
+        // Despite the loop is guaranteed to fully execute, which implies that the constrain will fail at some iteration,
+        // the constraint is not simplified in case some side-effect instruction would run in the previous iterations.
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
           b0(v0: u32, v1: u32, v2: u32):
@@ -2823,9 +2852,9 @@ mod control_dependence {
             jmp b5()
           b5():
             v15 = lt v3, u32 4
-            constrain u1 0 == u1 1
-            v17 = unchecked_add v3, u32 1
-            jmp b1(v17)
+            constrain v15 == u1 1
+            v16 = unchecked_add v3, u32 1
+            jmp b1(v16)
         }
         ");
     }
@@ -3511,7 +3540,7 @@ mod control_dependence {
               v4 = lt v3, u32 2
               jmpif v4 then: b2, else: b3
             b2():
-              jmpif v2 then: b4, else: b5
+              jmpif v1 then: b4, else: b5
             b3():
               return
             b4():

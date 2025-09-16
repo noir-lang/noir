@@ -408,12 +408,12 @@ impl<F: AcirField> GeneratedAcir<F> {
         let limbs_nb = Expression {
             mul_terms: Vec::new(),
             linear_combinations: Vec::new(),
-            q_c: F::from(limb_count as u128),
+            q_c: F::from(u128::from(limb_count)),
         };
         let radix_expr = Expression {
             mul_terms: Vec::new(),
             linear_combinations: Vec::new(),
-            q_c: F::from(radix as u128),
+            q_c: F::from(u128::from(radix)),
         };
         let inputs = vec![
             BrilligInputs::Single(expr.clone()),
