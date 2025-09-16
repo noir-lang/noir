@@ -275,11 +275,8 @@ pub(crate) fn on_initialize(
                 text_document_sync: Some(TextDocumentSyncCapability::Kind(
                     TextDocumentSyncKind::FULL,
                 )),
-                code_lens_provider: if enable_code_lens {
-                    Some(CodeLensOptions { resolve_provider: Some(false) })
-                } else {
-                    None
-                },
+                code_lens_provider: enable_code_lens
+                    .then_some(CodeLensOptions { resolve_provider: Some(false) }),
                 document_formatting_provider: true,
                 nargo: Some(NargoCapability {
                     tests: Some(NargoTestsOptions {
@@ -307,16 +304,14 @@ pub(crate) fn on_initialize(
                         work_done_progress: None,
                     },
                 })),
-                inlay_hint_provider: if enable_inlay_hints {
-                    Some(lsp_types::OneOf::Right(lsp_types::InlayHintOptions {
+                inlay_hint_provider: enable_inlay_hints.then_some(lsp_types::OneOf::Right(
+                    lsp_types::InlayHintOptions {
                         work_done_progress_options: WorkDoneProgressOptions {
                             work_done_progress: None,
                         },
                         resolve_provider: None,
-                    }))
-                } else {
-                    None
-                },
+                    },
+                )),
                 document_symbol_provider: Some(lsp_types::OneOf::Right(
                     lsp_types::DocumentSymbolOptions {
                         work_done_progress_options: WorkDoneProgressOptions {
@@ -325,8 +320,8 @@ pub(crate) fn on_initialize(
                         label: Some("Noir".to_string()),
                     },
                 )),
-                completion_provider: if enable_completions {
-                    Some(lsp_types::OneOf::Right(lsp_types::CompletionOptions {
+                completion_provider: enable_completions.then_some(lsp_types::OneOf::Right(
+                    lsp_types::CompletionOptions {
                         resolve_provider: None,
                         trigger_characters: Some(vec![
                             ".".to_string(), // For method calls
@@ -338,32 +333,26 @@ pub(crate) fn on_initialize(
                             work_done_progress: None,
                         },
                         completion_item: None,
-                    }))
-                } else {
-                    None
-                },
-                signature_help_provider: if enable_signature_help {
-                    Some(lsp_types::OneOf::Right(lsp_types::SignatureHelpOptions {
+                    },
+                )),
+                signature_help_provider: enable_signature_help.then_some(lsp_types::OneOf::Right(
+                    lsp_types::SignatureHelpOptions {
                         trigger_characters: Some(vec!["(".to_string(), ",".to_string()]),
                         retrigger_characters: None,
                         work_done_progress_options: WorkDoneProgressOptions {
                             work_done_progress: None,
                         },
-                    }))
-                } else {
-                    None
-                },
-                code_action_provider: if enable_code_actions {
-                    Some(lsp_types::OneOf::Right(lsp_types::CodeActionOptions {
+                    },
+                )),
+                code_action_provider: enable_code_actions.then_some(lsp_types::OneOf::Right(
+                    lsp_types::CodeActionOptions {
                         code_action_kinds: Some(vec![CodeActionKind::QUICKFIX]),
                         work_done_progress_options: WorkDoneProgressOptions {
                             work_done_progress: None,
                         },
                         resolve_provider: None,
-                    }))
-                } else {
-                    None
-                },
+                    },
+                )),
                 workspace_symbol_provider: Some(lsp_types::OneOf::Right(
                     lsp_types::WorkspaceSymbolOptions {
                         work_done_progress_options: WorkDoneProgressOptions {
