@@ -706,21 +706,21 @@ fn array_dynamic() {
 fn fold_basic() {
     let src = "
     func 0
-    current witness index : _2
-    private parameters indices : [_0]
-    public parameters indices : [_1]
-    return value indices : []
+    current witness: w2
+    private parameters: [w0]
+    public parameters: [w1]
+    return values: []
     CALL func 1: PREDICATE: EXPR [ 1 ]
-    inputs: [_0, _1], outputs: [_2]
+    inputs: [w0, w1], outputs: [w2]
     
     func 1
-    current witness index : _3
-    private parameters indices : [_0, _1]
-    public parameters indices : []
-    return value indices : [_2]
-    BRILLIG CALL func 0: inputs: [EXPR [ (1, _0) (-1, _1) 0 ]], outputs: [_3]
-    EXPR [ (1, _0, _3) (-1, _1, _3) -1 ]
-    EXPR [ (-1, _0) (1, _2) 0 ]
+    current witness: w3
+    private parameters: [w0, w1]
+    public parameters: []
+    return values: [w2]
+    BRILLIG CALL func 0: inputs: [EXPR [ (1, w0) (-1, w1) 0 ]], outputs: [w3]
+    EXPR [ (1, w0, w3) (-1, w1, w3) -1 ]
+    EXPR [ (-1, w0) (1, w2) 0 ]
     ";
     assert_program_roundtrip(src);
 }
@@ -729,21 +729,21 @@ fn fold_basic() {
 fn fold_basic_mismatched_ids() {
     let src = "
     func 0
-    current witness index : _2
-    private parameters indices : [_0]
-    public parameters indices : [_1]
-    return value indices : []
+    current witness: w2
+    private parameters: [w0]
+    public parameters: [w1]
+    return values: []
     CALL func 1: PREDICATE: EXPR [ 1 ]
-    inputs: [_0, _1], outputs: [_2]
+    inputs: [w0, w1], outputs: [w2]
     
     func 2
-    current witness index : _3
-    private parameters indices : [_0, _1]
-    public parameters indices : []
-    return value indices : [_2]
-    BRILLIG CALL func 0: inputs: [EXPR [ (1, _0) (-1, _1) 0 ]], outputs: [_3]
-    EXPR [ (1, _0, _3) (-1, _1, _3) -1 ]
-    EXPR [ (-1, _0) (1, _2) 0 ]
+    current witness: w3
+    private parameters: [w0, w1]
+    public parameters: []
+    return value indices : [w2]
+    BRILLIG CALL func 0: inputs: [EXPR [ (1, w0) (-1, w1) 0 ]], outputs: [w3]
+    EXPR [ (1, w0, w3) (-1, w1, w3) -1 ]
+    EXPR [ (-1, w0) (1, w2) 0 ]
     ";
     let result = Program::from_str(src).err().unwrap();
     let ParserError::UnexpectedFunctionId { expected, found, .. } = result.get_error() else {
