@@ -258,7 +258,6 @@ fn brillig_stdlib_calls_with_multiple_acir_calls() {
     let foo_debug = &debug[1];
     assert_eq!(foo_debug.brillig_locations.len(), 0);
 
-
     // TODO(https://github.com/noir-lang/noir/issues/9877): Update this snapshot once the linked issue is fixed.
     // `CALL func 2` in `func 0` is incorrect.
     assert_circuit_snapshot!(program, @r"
