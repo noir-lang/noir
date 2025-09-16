@@ -73,7 +73,7 @@ fn ssa_to_acir_program(src: &str) -> Program<FieldElement> {
 
 fn ssa_to_acir_program_with_debug_info(src: &str) -> (Program<FieldElement>, Vec<DebugInfo>) {
     let ssa = Ssa::from_str(src).unwrap();
-
+    println!("{}", ssa);
     let arg_size_and_visibilities = ssa
         .functions
         .iter()
@@ -94,12 +94,14 @@ fn ssa_to_acir_program_with_debug_info(src: &str) -> (Program<FieldElement>, Vec
 
     let brillig = ssa.to_brillig(&BrilligOptions::default());
 
-    let (acir_functions, _brillig_functions, _, _) = ssa
+    let (acir_functions, brillig_functions, brillig_names, _) = ssa
         .into_acir(&brillig, &BrilligOptions::default(), ExpressionWidth::default())
         .expect("Should compile manually written SSA into ACIR");
 
-    let artifacts =
-        ArtifactsAndWarnings((acir_functions, vec![], vec![], BTreeMap::default()), vec![]);
+    let artifacts = ArtifactsAndWarnings(
+        (acir_functions, brillig_functions, brillig_names, BTreeMap::default()),
+        vec![],
+    );
     let program_artifact = combine_artifacts(
         artifacts,
         &arg_size_and_visibilities,

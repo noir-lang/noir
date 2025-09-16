@@ -1,17 +1,7 @@
-use std::collections::BTreeMap;
-
-use acvm::{
-    FieldElement,
-    acir::circuit::{ExpressionWidth, Opcode, OpcodeLocation, brillig::BrilligFunctionId},
-    assert_circuit_snapshot,
-};
-use noirc_frontend::monomorphization::ast::InlineType;
+use acvm::{acir::circuit::brillig::BrilligFunctionId, assert_circuit_snapshot};
 
 use crate::{
-    acir::{
-        acir_context::BrilligStdlibFunc,
-        tests::{build_basic_foo_with_return, ssa_to_acir_program_with_debug_info},
-    },
+    acir::tests::ssa_to_acir_program_with_debug_info,
     brillig::BrilligOptions,
     ssa::{
         function_builder::FunctionBuilder,
@@ -59,6 +49,7 @@ fn multiple_brillig_calls_one_bytecode() {
     assert_eq!(main_debug.brillig_locations.len(), 2);
     assert!(main_debug.brillig_locations.contains_key(&BrilligFunctionId(0)));
     assert!(main_debug.brillig_locations.contains_key(&BrilligFunctionId(1)));
+    println!("{program}");
 
     assert_circuit_snapshot!(program, @r"
     func 0
@@ -72,6 +63,11 @@ fn multiple_brillig_calls_one_bytecode() {
     BRILLIG CALL func 1: inputs: [EXPR [ (1, w0) 0 ], EXPR [ (1, w1) 0 ]], outputs: [w5]
     BRILLIG CALL func 0: inputs: [EXPR [ (1, w0) 0 ], EXPR [ (1, w1) 0 ]], outputs: [w6]
     BRILLIG CALL func 1: inputs: [EXPR [ (1, w0) 0 ], EXPR [ (1, w1) 0 ]], outputs: [w7]
+    
+    unconstrained func 0
+    [Const { destination: Direct(2), bit_size: Integer(U32), value: 1 }, Const { destination: Direct(1), bit_size: Integer(U32), value: 32839 }, Const { destination: Direct(0), bit_size: Integer(U32), value: 3 }, Const { destination: Relative(3), bit_size: Integer(U32), value: 2 }, Const { destination: Relative(4), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(32836), size_address: Relative(3), offset_address: Relative(4) }, Mov { destination: Relative(1), source: Direct(32836) }, Mov { destination: Relative(2), source: Direct(32837) }, Call { location: 14 }, Call { location: 15 }, Mov { destination: Direct(32838), source: Relative(1) }, Const { destination: Relative(2), bit_size: Integer(U32), value: 32838 }, Const { destination: Relative(3), bit_size: Integer(U32), value: 1 }, Stop { return_data: HeapVector { pointer: Relative(2), size: Relative(3) } }, Return, Call { location: 23 }, BinaryFieldOp { destination: Relative(3), op: Equals, lhs: Relative(1), rhs: Relative(2) }, Const { destination: Relative(2), bit_size: Integer(U1), value: 0 }, BinaryIntOp { destination: Relative(4), op: Equals, bit_size: U1, lhs: Relative(3), rhs: Relative(2) }, JumpIf { condition: Relative(4), location: 22 }, Const { destination: Relative(5), bit_size: Integer(U32), value: 0 }, Trap { revert_data: HeapVector { pointer: Direct(1), size: Relative(5) } }, Return, Const { destination: Direct(32772), bit_size: Integer(U32), value: 30720 }, BinaryIntOp { destination: Direct(32771), op: LessThan, bit_size: U32, lhs: Direct(0), rhs: Direct(32772) }, JumpIf { condition: Direct(32771), location: 28 }, IndirectConst { destination_pointer: Direct(1), bit_size: Integer(U64), value: 15764276373176857197 }, Trap { revert_data: HeapVector { pointer: Direct(1), size: Direct(2) } }, Return]
+    unconstrained func 1
+    [Const { destination: Direct(2), bit_size: Integer(U32), value: 1 }, Const { destination: Direct(1), bit_size: Integer(U32), value: 32839 }, Const { destination: Direct(0), bit_size: Integer(U32), value: 3 }, Const { destination: Relative(3), bit_size: Integer(U32), value: 2 }, Const { destination: Relative(4), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(32836), size_address: Relative(3), offset_address: Relative(4) }, Mov { destination: Relative(1), source: Direct(32836) }, Mov { destination: Relative(2), source: Direct(32837) }, Call { location: 14 }, Call { location: 15 }, Mov { destination: Direct(32838), source: Relative(1) }, Const { destination: Relative(2), bit_size: Integer(U32), value: 32838 }, Const { destination: Relative(3), bit_size: Integer(U32), value: 1 }, Stop { return_data: HeapVector { pointer: Relative(2), size: Relative(3) } }, Return, Call { location: 23 }, BinaryFieldOp { destination: Relative(3), op: Equals, lhs: Relative(1), rhs: Relative(2) }, Const { destination: Relative(2), bit_size: Integer(U1), value: 0 }, BinaryIntOp { destination: Relative(4), op: Equals, bit_size: U1, lhs: Relative(3), rhs: Relative(2) }, JumpIf { condition: Relative(4), location: 22 }, Const { destination: Relative(5), bit_size: Integer(U32), value: 0 }, Trap { revert_data: HeapVector { pointer: Direct(1), size: Relative(5) } }, Return, Const { destination: Direct(32772), bit_size: Integer(U32), value: 30720 }, BinaryIntOp { destination: Direct(32771), op: LessThan, bit_size: U32, lhs: Direct(0), rhs: Direct(32772) }, JumpIf { condition: Direct(32771), location: 28 }, IndirectConst { destination_pointer: Direct(1), bit_size: Integer(U64), value: 15764276373176857197 }, Trap { revert_data: HeapVector { pointer: Direct(1), size: Direct(2) } }, Return]
     ");
 }
 
@@ -81,12 +77,12 @@ fn multiple_brillig_calls_one_bytecode() {
 fn multiple_brillig_stdlib_calls() {
     let src = "
     acir(inline) fn main f0 {
-        b0(v0: u32, v1: u32, v2: u32):
-          v3 = div v0, v1
-          constrain v3 == v2
-          v4 = div v1, v2
-          constrain v4 == u32 1
-          return
+      b0(v0: u32, v1: u32, v2: u32):
+        v3 = div v0, v1
+        constrain v3 == v2
+        v4 = div v1, v2
+        constrain v4 == u32 1
+        return
     }";
     let (program, debug) = ssa_to_acir_program_with_debug_info(src);
     // We expect two brillig functions:
@@ -102,6 +98,7 @@ fn multiple_brillig_stdlib_calls() {
         0,
         "Brillig stdlib functions do not have location information"
     );
+    println!("{program}");
 
     assert_circuit_snapshot!(program, @r"
     func 0
@@ -129,6 +126,11 @@ fn multiple_brillig_stdlib_calls() {
     BLACKBOX::RANGE [(w10, 32)] []
     EXPR [ (-1, w2, w8) (1, w1) (-1, w9) 0 ]
     EXPR [ (1, w8) -1 ]
+    
+    unconstrained func 0
+    [Const { destination: Direct(21), bit_size: Integer(U32), value: 1 }, Const { destination: Direct(20), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(21), offset_address: Direct(20) }, Const { destination: Direct(2), bit_size: Field, value: 0 }, BinaryFieldOp { destination: Direct(3), op: Equals, lhs: Direct(0), rhs: Direct(2) }, JumpIf { condition: Direct(3), location: 8 }, Const { destination: Direct(1), bit_size: Field, value: 1 }, BinaryFieldOp { destination: Direct(0), op: Div, lhs: Direct(1), rhs: Direct(0) }, Stop { return_data: HeapVector { pointer: Direct(20), size: Direct(21) } }]
+    unconstrained func 1
+    [Const { destination: Direct(10), bit_size: Integer(U32), value: 2 }, Const { destination: Direct(11), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(10), offset_address: Direct(11) }, BinaryFieldOp { destination: Direct(2), op: IntegerDiv, lhs: Direct(0), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Mul, lhs: Direct(2), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Sub, lhs: Direct(0), rhs: Direct(1) }, Mov { destination: Direct(0), source: Direct(2) }, Stop { return_data: HeapVector { pointer: Direct(11), size: Direct(10) } }]
     ");
 }
 
@@ -141,14 +143,14 @@ fn brillig_stdlib_calls_with_regular_brillig_call() {
       b0(v0: u32, v1: u32, v2: u32):
         v4 = div v0, v1
         constrain v4 == v2
-        v5 = call f1(v0, v1) -> Field
-        v6 = call f1(v0, v1) -> Field
+        v5 = call f1(v0, v1) -> u32
+        v6 = call f1(v0, v1) -> u32
         v7 = div v1, v2
         constrain v7 == u32 1
         return
     }
     brillig(inline) fn foo f1 {
-      b0(v0: Field, v1: Field):
+      b0(v0: u32, v1: u32):
         v2 = eq v0, v1
         constrain v2 == u1 0
         return v0
@@ -190,7 +192,9 @@ fn brillig_stdlib_calls_with_regular_brillig_call() {
     EXPR [ (-1, w1, w4) (1, w0) (-1, w5) 0 ]
     EXPR [ (-1, w2) (1, w4) 0 ]
     BRILLIG CALL func 0: inputs: [EXPR [ (1, w0) 0 ], EXPR [ (1, w1) 0 ]], outputs: [w7]
+    BLACKBOX::RANGE [(w7, 32)] []
     BRILLIG CALL func 0: inputs: [EXPR [ (1, w0) 0 ], EXPR [ (1, w1) 0 ]], outputs: [w8]
+    BLACKBOX::RANGE [(w8, 32)] []
     BRILLIG CALL func 1: inputs: [EXPR [ (1, w2) 0 ]], outputs: [w9]
     EXPR [ (1, w2, w9) -1 ]
     BRILLIG CALL func 2: inputs: [EXPR [ (1, w1) 0 ], EXPR [ (1, w2) 0 ]], outputs: [w10, w11]
@@ -199,159 +203,117 @@ fn brillig_stdlib_calls_with_regular_brillig_call() {
     BLACKBOX::RANGE [(w12, 32)] []
     EXPR [ (-1, w2, w10) (1, w1) (-1, w11) 0 ]
     EXPR [ (1, w10) -1 ]
+    
+    unconstrained func 0
+    [Const { destination: Direct(2), bit_size: Integer(U32), value: 1 }, Const { destination: Direct(1), bit_size: Integer(U32), value: 32839 }, Const { destination: Direct(0), bit_size: Integer(U32), value: 3 }, Const { destination: Relative(3), bit_size: Integer(U32), value: 2 }, Const { destination: Relative(4), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(32836), size_address: Relative(3), offset_address: Relative(4) }, Cast { destination: Direct(32836), source: Direct(32836), bit_size: Integer(U32) }, Cast { destination: Direct(32837), source: Direct(32837), bit_size: Integer(U32) }, Mov { destination: Relative(1), source: Direct(32836) }, Mov { destination: Relative(2), source: Direct(32837) }, Call { location: 16 }, Call { location: 17 }, Mov { destination: Direct(32838), source: Relative(1) }, Const { destination: Relative(2), bit_size: Integer(U32), value: 32838 }, Const { destination: Relative(3), bit_size: Integer(U32), value: 1 }, Stop { return_data: HeapVector { pointer: Relative(2), size: Relative(3) } }, Return, Call { location: 25 }, BinaryIntOp { destination: Relative(3), op: Equals, bit_size: U32, lhs: Relative(1), rhs: Relative(2) }, Const { destination: Relative(2), bit_size: Integer(U1), value: 0 }, BinaryIntOp { destination: Relative(4), op: Equals, bit_size: U1, lhs: Relative(3), rhs: Relative(2) }, JumpIf { condition: Relative(4), location: 24 }, Const { destination: Relative(5), bit_size: Integer(U32), value: 0 }, Trap { revert_data: HeapVector { pointer: Direct(1), size: Relative(5) } }, Return, Const { destination: Direct(32772), bit_size: Integer(U32), value: 30720 }, BinaryIntOp { destination: Direct(32771), op: LessThan, bit_size: U32, lhs: Direct(0), rhs: Direct(32772) }, JumpIf { condition: Direct(32771), location: 30 }, IndirectConst { destination_pointer: Direct(1), bit_size: Integer(U64), value: 15764276373176857197 }, Trap { revert_data: HeapVector { pointer: Direct(1), size: Direct(2) } }, Return]
+    unconstrained func 1
+    [Const { destination: Direct(21), bit_size: Integer(U32), value: 1 }, Const { destination: Direct(20), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(21), offset_address: Direct(20) }, Const { destination: Direct(2), bit_size: Field, value: 0 }, BinaryFieldOp { destination: Direct(3), op: Equals, lhs: Direct(0), rhs: Direct(2) }, JumpIf { condition: Direct(3), location: 8 }, Const { destination: Direct(1), bit_size: Field, value: 1 }, BinaryFieldOp { destination: Direct(0), op: Div, lhs: Direct(1), rhs: Direct(0) }, Stop { return_data: HeapVector { pointer: Direct(20), size: Direct(21) } }]
+    unconstrained func 2
+    [Const { destination: Direct(10), bit_size: Integer(U32), value: 2 }, Const { destination: Direct(11), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(10), offset_address: Direct(11) }, BinaryFieldOp { destination: Direct(2), op: IntegerDiv, lhs: Direct(0), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Mul, lhs: Direct(2), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Sub, lhs: Direct(0), rhs: Direct(1) }, Mov { destination: Direct(0), source: Direct(2) }, Stop { return_data: HeapVector { pointer: Direct(11), size: Direct(10) } }]
     ");
 }
 
 // Test that given both normal Brillig calls, Brillig stdlib calls, and non-inlined ACIR calls, that we accurately generate ACIR.
 #[test]
 fn brillig_stdlib_calls_with_multiple_acir_calls() {
-    // acir(inline) fn main f0 {
-    //     b0(v0: u32, v1: u32, v2: u32):
-    //       v4 = div v0, v1
-    //       constrain v4 == v2
-    //       v5 = call f1(v0, v1)
-    //       v6 = call f2(v0, v1)
-    //       v7 = div v1, v2
-    //       constrain v7 == u32 1
-    //       return
-    // }
-    // brillig fn foo f1 {
-    //   b0(v0: Field, v1: Field):
-    //     v2 = eq v0, v1
-    //     constrain v2 == u1 0
-    //     return v0
-    // }
-    // acir(fold) fn foo f2 {
-    //     b0(v0: Field, v1: Field):
-    //       v2 = eq v0, v1
-    //       constrain v2 == u1 0
-    //       return v0
-    //   }
-    // }
-    let foo_id = Id::test_new(0);
-    let mut builder = FunctionBuilder::new("main".into(), foo_id);
-    let main_v0 = builder.add_parameter(Type::unsigned(32));
-    let main_v1 = builder.add_parameter(Type::unsigned(32));
-    let main_v2 = builder.add_parameter(Type::unsigned(32));
-
-    let foo_id = Id::test_new(1);
-    let foo = builder.import_function(foo_id);
-    let bar_id = Id::test_new(2);
-    let bar = builder.import_function(bar_id);
-
-    // Call a primitive operation that uses Brillig
-    let v0_div_v1 = builder.insert_binary(main_v0, BinaryOp::Div, main_v1);
-    builder.insert_constrain(v0_div_v1, main_v2, None);
-
-    // Insert multiple calls to the same Brillig function
-    builder.insert_call(foo, vec![main_v0, main_v1], vec![Type::field()]).to_vec();
-    builder.insert_call(foo, vec![main_v0, main_v1], vec![Type::field()]).to_vec();
-    builder.insert_call(bar, vec![main_v0, main_v1], vec![Type::field()]).to_vec();
-
-    // Call the same primitive operation again
-    let v1_div_v2 = builder.insert_binary(main_v1, BinaryOp::Div, main_v2);
-    let one = builder.numeric_constant(1u128, NumericType::unsigned(32));
-    builder.insert_constrain(v1_div_v2, one, None);
-
-    builder.terminate_with_return(vec![]);
-
-    // Build a Brillig function
-    build_basic_foo_with_return(&mut builder, foo_id, true, InlineType::default());
-    // Build an ACIR function which has the same logic as the Brillig function above
-    build_basic_foo_with_return(&mut builder, bar_id, false, InlineType::Fold);
-
-    let ssa = builder.finish();
-    // We need to generate  Brillig artifacts for the regular Brillig function and pass them to the ACIR generation pass.
-    let brillig = ssa.to_brillig(&BrilligOptions::default());
-
-    let (acir_functions, brillig_functions, _, _) = ssa
-        .generate_entry_point_index()
-        .into_acir(&brillig, &BrilligOptions::default(), ExpressionWidth::default())
-        .expect("Should compile manually written SSA into ACIR");
-
-    assert_eq!(acir_functions.len(), 2, "Should only have two ACIR functions");
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: u32, v1: u32, v2: u32):
+        v5 = div v0, v1
+        constrain v5 == v2
+        v6 = call f1(v0, v1) -> u32
+        v7 = call f1(v0, v1) -> u32
+        v8 = call f2(v0, v1) -> u32
+        v9 = div v1, v2
+        constrain v9 == u32 1
+        return
+    }
+    brillig(inline) fn foo f1 {
+      b0(v0: u32, v1: u32):
+        v2 = eq v0, v1
+        constrain v2 == u1 0
+        return v0
+    }
+    acir(fold) fn foo f2 {
+      b0(v0: u32, v1: u32):
+        v2 = eq v0, v1
+        constrain v2 == u1 0
+        return v0
+    }
+    ";
+    let (program, debug) = ssa_to_acir_program_with_debug_info(src);
+    println!("{program}");
     // We expect 3 brillig functions:
     //   - Quotient (shared between both divisions)
     //   - Inversion, caused by division-by-zero check (shared between both divisions)
     //   - Custom brillig function `foo`
-    assert_eq!(brillig_functions.len(), 3, "Should only have generated three Brillig functions");
-
-    let main_acir = &acir_functions[0];
-    let main_opcodes = main_acir.opcodes();
-    check_brillig_calls(&acir_functions[0].brillig_stdlib_func_locations, main_opcodes, 1, 4, 2);
-
-    assert_eq!(main_acir.brillig_locations.len(), 1);
-    assert!(main_acir.brillig_locations.contains_key(&BrilligFunctionId(0)));
-
-    let foo_acir = &acir_functions[1];
-    let foo_opcodes = foo_acir.opcodes();
-    check_brillig_calls(&acir_functions[1].brillig_stdlib_func_locations, foo_opcodes, 1, 1, 0);
-
-    assert_eq!(foo_acir.brillig_locations.len(), 0);
-}
-
-fn check_brillig_calls(
-    brillig_stdlib_function_locations: &BTreeMap<OpcodeLocation, BrilligStdlibFunc>,
-    opcodes: &[Opcode<FieldElement>],
-    num_normal_brillig_functions: u32,
-    expected_num_stdlib_calls: u32,
-    expected_num_normal_calls: u32,
-) {
-    // First we check calls to the Brillig stdlib
-    let mut num_brillig_stdlib_calls = 0;
-    for (i, (opcode_location, brillig_stdlib_func)) in
-        brillig_stdlib_function_locations.iter().enumerate()
-    {
-        // We can take just modulo 2 to determine the expected ID as we only code generated two Brillig stdlib function
-        let stdlib_func_index = (i % 2) as u32;
-        if stdlib_func_index == 0 {
-            assert!(matches!(brillig_stdlib_func, BrilligStdlibFunc::Inverse));
-        } else {
-            assert!(matches!(brillig_stdlib_func, BrilligStdlibFunc::Quotient));
-        }
-
-        match opcode_location {
-            OpcodeLocation::Acir(acir_index) => {
-                match opcodes[*acir_index] {
-                    Opcode::BrilligCall { id, .. } => {
-                        // Brillig stdlib function calls are only resolved at the end of ACIR generation so their
-                        // IDs are expected to always reference Brillig bytecode at the end of the Brillig functions list.
-                        // We have one normal Brillig call so we add one here to the std lib function's index within the std lib.
-                        let expected_id = stdlib_func_index + num_normal_brillig_functions;
-                        let expected_id = BrilligFunctionId(expected_id);
-                        assert_eq!(id, expected_id, "Expected {expected_id} but got {id}");
-                        num_brillig_stdlib_calls += 1;
-                    }
-                    _ => panic!("Expected BrilligCall opcode"),
-                }
-            }
-            _ => panic!("Expected OpcodeLocation::Acir"),
-        }
-    }
-
     assert_eq!(
-        num_brillig_stdlib_calls, expected_num_stdlib_calls,
-        "Should have {expected_num_stdlib_calls} BrilligCall opcodes to stdlib functions but got {num_brillig_stdlib_calls}"
+        program.unconstrained_functions.len(),
+        3,
+        "Should only have generated three Brillig functions"
     );
 
-    // Check the normal Brillig calls
-    // This check right now expects to only call one Brillig function.
-    let mut num_normal_brillig_calls = 0;
-    for (i, opcode) in opcodes.iter().enumerate() {
-        if let Opcode::BrilligCall { id, .. } = opcode {
-            if brillig_stdlib_function_locations.get(&OpcodeLocation::Acir(i)).is_some() {
-                // We should have already checked Brillig stdlib functions and only want to check normal Brillig calls here
-                continue;
-            }
-            // We only generate one normal Brillig call so we should expect a function ID of `0`
-            let expected_id = BrilligFunctionId(0);
-            assert_eq!(*id, expected_id, "Expected an id of {expected_id} but got {id}");
-            num_normal_brillig_calls += 1;
-        }
-    }
+    let main_debug = &debug[0];
+    assert_eq!(main_debug.brillig_locations.len(), 1);
+    assert!(main_debug.brillig_locations.contains_key(&BrilligFunctionId(0)));
 
-    assert_eq!(
-        num_normal_brillig_calls, expected_num_normal_calls,
-        "Should have {expected_num_normal_calls} BrilligCall opcodes to normal Brillig functions but got {num_normal_brillig_calls}"
-    );
+    let foo_debug = &debug[1];
+    assert_eq!(foo_debug.brillig_locations.len(), 0);
+
+    // TODO(https://github.com/noir-lang/noir/issues/9877): Update this snapshot once the linked issue is fixed.
+    // `CALL func 2` in `func 0` is incorrect.
+    assert_circuit_snapshot!(program, @r"
+    func 0
+    current witness: w13
+    private parameters: [w0, w1, w2]
+    public parameters: []
+    return values: []
+    BLACKBOX::RANGE [(w0, 32)] []
+    BLACKBOX::RANGE [(w1, 32)] []
+    BLACKBOX::RANGE [(w2, 32)] []
+    BRILLIG CALL func 1: inputs: [EXPR [ (1, w1) 0 ]], outputs: [w3]
+    EXPR [ (1, w1, w3) -1 ]
+    BRILLIG CALL func 2: inputs: [EXPR [ (1, w0) 0 ], EXPR [ (1, w1) 0 ]], outputs: [w4, w5]
+    BLACKBOX::RANGE [(w4, 32)] []
+    BLACKBOX::RANGE [(w5, 32)] []
+    EXPR [ (1, w1) (-1, w5) (-1, w6) -1 ]
+    BLACKBOX::RANGE [(w6, 32)] []
+    EXPR [ (-1, w1, w4) (1, w0) (-1, w5) 0 ]
+    EXPR [ (-1, w2) (1, w4) 0 ]
+    BRILLIG CALL func 0: inputs: [EXPR [ (1, w0) 0 ], EXPR [ (1, w1) 0 ]], outputs: [w7]
+    BLACKBOX::RANGE [(w7, 32)] []
+    BRILLIG CALL func 0: inputs: [EXPR [ (1, w0) 0 ], EXPR [ (1, w1) 0 ]], outputs: [w8]
+    BLACKBOX::RANGE [(w8, 32)] []
+    CALL func 2: PREDICATE: EXPR [ 1 ]
+    inputs: [w0, w1], outputs: [w9]
+    BRILLIG CALL func 1: inputs: [EXPR [ (1, w2) 0 ]], outputs: [w10]
+    EXPR [ (1, w2, w10) -1 ]
+    BRILLIG CALL func 2: inputs: [EXPR [ (1, w1) 0 ], EXPR [ (1, w2) 0 ]], outputs: [w11, w12]
+    BLACKBOX::RANGE [(w12, 32)] []
+    EXPR [ (1, w2) (-1, w12) (-1, w13) -1 ]
+    BLACKBOX::RANGE [(w13, 32)] []
+    EXPR [ (-1, w2, w11) (1, w1) (-1, w12) 0 ]
+    EXPR [ (1, w11) -1 ]
+    
+    func 1
+    current witness: w5
+    private parameters: [w0, w1]
+    public parameters: []
+    return values: [w2]
+    BLACKBOX::RANGE [(w0, 32)] []
+    BLACKBOX::RANGE [(w1, 32)] []
+    EXPR [ (1, w0) (-1, w1) (-1, w3) 0 ]
+    BRILLIG CALL func 1: inputs: [EXPR [ (1, w3) 0 ]], outputs: [w4]
+    EXPR [ (1, w3, w4) (1, w5) -1 ]
+    EXPR [ (1, w3, w5) 0 ]
+    EXPR [ (1, w5) 0 ]
+    EXPR [ (-1, w0) (1, w2) 0 ]
+    
+    unconstrained func 0
+    [Const { destination: Direct(2), bit_size: Integer(U32), value: 1 }, Const { destination: Direct(1), bit_size: Integer(U32), value: 32839 }, Const { destination: Direct(0), bit_size: Integer(U32), value: 3 }, Const { destination: Relative(3), bit_size: Integer(U32), value: 2 }, Const { destination: Relative(4), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(32836), size_address: Relative(3), offset_address: Relative(4) }, Cast { destination: Direct(32836), source: Direct(32836), bit_size: Integer(U32) }, Cast { destination: Direct(32837), source: Direct(32837), bit_size: Integer(U32) }, Mov { destination: Relative(1), source: Direct(32836) }, Mov { destination: Relative(2), source: Direct(32837) }, Call { location: 16 }, Call { location: 17 }, Mov { destination: Direct(32838), source: Relative(1) }, Const { destination: Relative(2), bit_size: Integer(U32), value: 32838 }, Const { destination: Relative(3), bit_size: Integer(U32), value: 1 }, Stop { return_data: HeapVector { pointer: Relative(2), size: Relative(3) } }, Return, Call { location: 25 }, BinaryIntOp { destination: Relative(3), op: Equals, bit_size: U32, lhs: Relative(1), rhs: Relative(2) }, Const { destination: Relative(2), bit_size: Integer(U1), value: 0 }, BinaryIntOp { destination: Relative(4), op: Equals, bit_size: U1, lhs: Relative(3), rhs: Relative(2) }, JumpIf { condition: Relative(4), location: 24 }, Const { destination: Relative(5), bit_size: Integer(U32), value: 0 }, Trap { revert_data: HeapVector { pointer: Direct(1), size: Relative(5) } }, Return, Const { destination: Direct(32772), bit_size: Integer(U32), value: 30720 }, BinaryIntOp { destination: Direct(32771), op: LessThan, bit_size: U32, lhs: Direct(0), rhs: Direct(32772) }, JumpIf { condition: Direct(32771), location: 30 }, IndirectConst { destination_pointer: Direct(1), bit_size: Integer(U64), value: 15764276373176857197 }, Trap { revert_data: HeapVector { pointer: Direct(1), size: Direct(2) } }, Return]
+    unconstrained func 1
+    [Const { destination: Direct(21), bit_size: Integer(U32), value: 1 }, Const { destination: Direct(20), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(21), offset_address: Direct(20) }, Const { destination: Direct(2), bit_size: Field, value: 0 }, BinaryFieldOp { destination: Direct(3), op: Equals, lhs: Direct(0), rhs: Direct(2) }, JumpIf { condition: Direct(3), location: 8 }, Const { destination: Direct(1), bit_size: Field, value: 1 }, BinaryFieldOp { destination: Direct(0), op: Div, lhs: Direct(1), rhs: Direct(0) }, Stop { return_data: HeapVector { pointer: Direct(20), size: Direct(21) } }]
+    unconstrained func 2
+    [Const { destination: Direct(10), bit_size: Integer(U32), value: 2 }, Const { destination: Direct(11), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(0), size_address: Direct(10), offset_address: Direct(11) }, BinaryFieldOp { destination: Direct(2), op: IntegerDiv, lhs: Direct(0), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Mul, lhs: Direct(2), rhs: Direct(1) }, BinaryFieldOp { destination: Direct(1), op: Sub, lhs: Direct(0), rhs: Direct(1) }, Mov { destination: Direct(0), source: Direct(2) }, Stop { return_data: HeapVector { pointer: Direct(11), size: Direct(10) } }]
+    ");
 }
