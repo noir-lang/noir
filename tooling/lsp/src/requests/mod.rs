@@ -90,6 +90,22 @@ pub(crate) struct LspInitializationOptions {
     #[serde(rename = "enableCodeLens", default = "default_enable_code_lens")]
     pub(crate) enable_code_lens: bool,
 
+    #[serde(rename = "enableInlayHints", default = "default_enable_inlay_hints")]
+    pub(crate) enable_inlay_hints: bool,
+
+    #[serde(rename = "enableCompletions", default = "default_enable_completions")]
+    pub(crate) enable_completions: bool,
+
+    #[serde(rename = "enableSignatureHelp", default = "default_enable_signature_help")]
+    pub(crate) enable_signature_help: bool,
+
+    #[serde(rename = "enableCodeActions", default = "default_enable_code_actions")]
+    pub(crate) enable_code_actions: bool,
+
+    /// Lightweight mode disables code lens, inlay hints, completions, signature help and code actions
+    #[serde(rename = "enableLightweightMode", default = "default_enable_lightweight_mode")]
+    pub(crate) enable_lightweight_mode: bool,
+
     #[serde(rename = "enableParsingCache", default = "default_enable_parsing_cache")]
     pub(crate) enable_parsing_cache: bool,
 
@@ -108,7 +124,7 @@ pub(crate) struct InlayHintsOptions {
     #[serde(rename = "closingBraceHints", default = "default_closing_brace_hints")]
     pub(crate) closing_brace_hints: ClosingBraceHintsOptions,
 
-    #[serde(rename = "ChainingHints", default = "default_chaining_hints")]
+    #[serde(rename = "chainingHints", default = "default_chaining_hints")]
     pub(crate) chaining_hints: ChainingHintsOptions,
 }
 
@@ -143,8 +159,28 @@ fn default_enable_code_lens() -> bool {
     true
 }
 
+fn default_enable_inlay_hints() -> bool {
+    true
+}
+
+fn default_enable_completions() -> bool {
+    true
+}
+
+fn default_enable_signature_help() -> bool {
+    true
+}
+
+fn default_enable_code_actions() -> bool {
+    true
+}
+
 fn default_enable_parsing_cache() -> bool {
     true
+}
+
+fn default_enable_lightweight_mode() -> bool {
+    false
 }
 
 fn default_inlay_hints() -> InlayHintsOptions {
@@ -201,6 +237,11 @@ impl Default for LspInitializationOptions {
             enable_code_lens: default_enable_code_lens(),
             enable_parsing_cache: default_enable_parsing_cache(),
             inlay_hints: default_inlay_hints(),
+            enable_inlay_hints: default_enable_inlay_hints(),
+            enable_completions: default_enable_completions(),
+            enable_signature_help: default_enable_signature_help(),
+            enable_code_actions: default_enable_code_actions(),
+            enable_lightweight_mode: default_enable_lightweight_mode(),
         }
     }
 }
@@ -217,13 +258,24 @@ pub(crate) fn on_initialize(
         .unwrap_or_default();
     state.options = initialization_options;
 
+    let enable_code_lens =
+        !initialization_options.enable_lightweight_mode && initialization_options.enable_code_lens;
+    let enable_inlay_hints = !initialization_options.enable_lightweight_mode
+        && initialization_options.enable_inlay_hints;
+    let enable_completions = !initialization_options.enable_lightweight_mode
+        && initialization_options.enable_completions;
+    let enable_signature_help = !initialization_options.enable_lightweight_mode
+        && initialization_options.enable_signature_help;
+    let enable_code_actions = !initialization_options.enable_lightweight_mode
+        && initialization_options.enable_code_actions;
+
     async move {
         Ok(InitializeResult {
             capabilities: ServerCapabilities {
                 text_document_sync: Some(TextDocumentSyncCapability::Kind(
                     TextDocumentSyncKind::FULL,
                 )),
-                code_lens_provider: if initialization_options.enable_code_lens {
+                code_lens_provider: if enable_code_lens {
                     Some(CodeLensOptions { resolve_provider: Some(false) })
                 } else {
                     None
@@ -255,12 +307,16 @@ pub(crate) fn on_initialize(
                         work_done_progress: None,
                     },
                 })),
-                inlay_hint_provider: Some(lsp_types::OneOf::Right(lsp_types::InlayHintOptions {
-                    work_done_progress_options: WorkDoneProgressOptions {
-                        work_done_progress: None,
-                    },
-                    resolve_provider: None,
-                })),
+                inlay_hint_provider: if enable_inlay_hints {
+                    Some(lsp_types::OneOf::Right(lsp_types::InlayHintOptions {
+                        work_done_progress_options: WorkDoneProgressOptions {
+                            work_done_progress: None,
+                        },
+                        resolve_provider: None,
+                    }))
+                } else {
+                    None
+                },
                 document_symbol_provider: Some(lsp_types::OneOf::Right(
                     lsp_types::DocumentSymbolOptions {
                         work_done_progress_options: WorkDoneProgressOptions {
@@ -269,35 +325,45 @@ pub(crate) fn on_initialize(
                         label: Some("Noir".to_string()),
                     },
                 )),
-                completion_provider: Some(lsp_types::OneOf::Right(lsp_types::CompletionOptions {
-                    resolve_provider: None,
-                    trigger_characters: Some(vec![
-                        ".".to_string(), // For method calls
-                        ":".to_string(), // For paths
-                        "$".to_string(), // For $var inside `quote { ... }`
-                    ]),
-                    all_commit_characters: None,
-                    work_done_progress_options: WorkDoneProgressOptions {
-                        work_done_progress: None,
-                    },
-                    completion_item: None,
-                })),
-                signature_help_provider: Some(lsp_types::OneOf::Right(
-                    lsp_types::SignatureHelpOptions {
+                completion_provider: if enable_completions {
+                    Some(lsp_types::OneOf::Right(lsp_types::CompletionOptions {
+                        resolve_provider: None,
+                        trigger_characters: Some(vec![
+                            ".".to_string(), // For method calls
+                            ":".to_string(), // For paths
+                            "$".to_string(), // For $var inside `quote { ... }`
+                        ]),
+                        all_commit_characters: None,
+                        work_done_progress_options: WorkDoneProgressOptions {
+                            work_done_progress: None,
+                        },
+                        completion_item: None,
+                    }))
+                } else {
+                    None
+                },
+                signature_help_provider: if enable_signature_help {
+                    Some(lsp_types::OneOf::Right(lsp_types::SignatureHelpOptions {
                         trigger_characters: Some(vec!["(".to_string(), ",".to_string()]),
                         retrigger_characters: None,
                         work_done_progress_options: WorkDoneProgressOptions {
                             work_done_progress: None,
                         },
-                    },
-                )),
-                code_action_provider: Some(lsp_types::OneOf::Right(lsp_types::CodeActionOptions {
-                    code_action_kinds: Some(vec![CodeActionKind::QUICKFIX]),
-                    work_done_progress_options: WorkDoneProgressOptions {
-                        work_done_progress: None,
-                    },
-                    resolve_provider: None,
-                })),
+                    }))
+                } else {
+                    None
+                },
+                code_action_provider: if enable_code_actions {
+                    Some(lsp_types::OneOf::Right(lsp_types::CodeActionOptions {
+                        code_action_kinds: Some(vec![CodeActionKind::QUICKFIX]),
+                        work_done_progress_options: WorkDoneProgressOptions {
+                            work_done_progress: None,
+                        },
+                        resolve_provider: None,
+                    }))
+                } else {
+                    None
+                },
                 workspace_symbol_provider: Some(lsp_types::OneOf::Right(
                     lsp_types::WorkspaceSymbolOptions {
                         work_done_progress_options: WorkDoneProgressOptions {
