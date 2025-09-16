@@ -10,8 +10,7 @@
 //!   and its results are all unused the instruction will be marked for removal.
 //!   Traversing in reverse enables removing entire unused chains of computation.
 //! - The pass also tracks unused [IncrementRc][Instruction::IncrementRc] and [DecrementRc][Instruction::DecrementRc] instructions.
-//!   This pass defines an IncrementRc/DecrementRc as unused if the increment/decrement occurs on an array type that is never mutated
-//!   in the current block.   
+//!   As these instructions contain side effects we only remove them after analyzing an entire function to see if their values are unused.
 //! - Block parameters are also tracked. Unused parameters are pruned in a follow-up [prune_dead_parameters] pass
 //!   to maintain separation of concerns and SSA consistency.
 //! - The main DIE pass and dead parameter pruning are called in a fixed point feedback loop that stops
@@ -763,7 +762,8 @@ mod test {
         }
         brillig(inline) fn foo f1 {
           b0(v0: [Field; 3]):
-            return Field 1
+            v1 = array_get v0, index u32 0 -> Field
+            return v1
         }
         ";
         assert_ssa_does_not_change(src, Ssa::dead_instruction_elimination);
