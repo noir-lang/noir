@@ -47,14 +47,13 @@ fn basic_call_with_outputs_assert(inline_type: InlineType) {
     }}
     acir({inline_type}) fn foo f1 {{
       b0(v0: Field, v1: Field):
-        v2 = eq v0, v1
-        constrain v2 == u1 0
+        constrain v0 == v1
         return v0
     }}
     "
     );
-    let program = ssa_to_acir_program(src);
 
+    let program = ssa_to_acir_program(src);
     assert_circuit_snapshot!(program, @r"
     func 0
     current witness: w3
@@ -68,15 +67,11 @@ fn basic_call_with_outputs_assert(inline_type: InlineType) {
     EXPR [ (1, w2) (-1, w3) 0 ]
     
     func 1
-    current witness: w5
+    current witness: w2
     private parameters: [w0, w1]
     public parameters: []
     return values: [w2]
-    EXPR [ (1, w0) (-1, w1) (-1, w3) 0 ]
-    BRILLIG CALL func 0: inputs: [EXPR [ (1, w3) 0 ]], outputs: [w4]
-    EXPR [ (1, w3, w4) (1, w5) -1 ]
-    EXPR [ (1, w3, w5) 0 ]
-    EXPR [ (1, w5) 0 ]
+    EXPR [ (1, w0) (-1, w1) 0 ]
     EXPR [ (-1, w0) (1, w2) 0 ]
     ");
 }
@@ -93,12 +88,12 @@ fn call_output_as_next_call_input(inline_type: InlineType) {
     }}
     acir({inline_type}) fn foo f1 {{
       b0(v0: Field, v1: Field):
-        v2 = eq v0, v1
-        constrain v2 == u1 0
+        constrain v0 == v1
         return v0
     }}
     "
     );
+
     let program = ssa_to_acir_program(src);
     // The expected result should look very similar to the `basic_call_with_outputs_assert test except that
     // the input witnesses of the `Call` opcodes will be different. The differences can discerned from the output below.
@@ -115,15 +110,11 @@ fn call_output_as_next_call_input(inline_type: InlineType) {
     EXPR [ (1, w2) (-1, w3) 0 ]
     
     func 1
-    current witness: w5
+    current witness: w2
     private parameters: [w0, w1]
     public parameters: []
     return values: [w2]
-    EXPR [ (1, w0) (-1, w1) (-1, w3) 0 ]
-    BRILLIG CALL func 0: inputs: [EXPR [ (1, w3) 0 ]], outputs: [w4]
-    EXPR [ (1, w3, w4) (1, w5) -1 ]
-    EXPR [ (1, w3, w5) 0 ]
-    EXPR [ (1, w5) 0 ]
+    EXPR [ (1, w0) (-1, w1) 0 ]
     EXPR [ (-1, w0) (1, w2) 0 ]
     ");
 }
@@ -146,8 +137,7 @@ fn basic_nested_call(inline_type: InlineType) {
     }}
     acir({inline_type}) fn foo f2 {{
       b0(v0: Field, v1: Field):
-        v2 = eq v0, v1
-        constrain v2 == u1 0
+        constrain v0 == v1
         return v0
     }}
     "
@@ -177,15 +167,11 @@ fn basic_nested_call(inline_type: InlineType) {
     EXPR [ (1, w2) (-1, w4) 0 ]
     
     func 2
-    current witness: w5
+    current witness: w2
     private parameters: [w0, w1]
     public parameters: []
     return values: [w2]
-    EXPR [ (1, w0) (-1, w1) (-1, w3) 0 ]
-    BRILLIG CALL func 0: inputs: [EXPR [ (1, w3) 0 ]], outputs: [w4]
-    EXPR [ (1, w3, w4) (1, w5) -1 ]
-    EXPR [ (1, w3, w5) 0 ]
-    EXPR [ (1, w5) 0 ]
+    EXPR [ (1, w0) (-1, w1) 0 ]
     EXPR [ (-1, w0) (1, w2) 0 ]
     ");
 }
