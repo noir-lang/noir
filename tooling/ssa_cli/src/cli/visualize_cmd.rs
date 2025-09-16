@@ -48,7 +48,7 @@ fn render_mermaid(ssa: Ssa, markdown: bool) -> eyre::Result<String> {
 
     // Render each function as a subgraph, with internal jumps only.
     for (func_id, func) in ssa.functions {
-        write_out(1, format!("subgraph {func_id}"))?;
+        write_out(1, format!("subgraph {func_id} [{} {func_id}]", func.name()))?;
         let view = func.view();
         for block_id in view.blocks_iter() {
             let successors = view.block_successors_iter(block_id);
