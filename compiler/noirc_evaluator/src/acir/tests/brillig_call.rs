@@ -49,7 +49,6 @@ fn multiple_brillig_calls_one_bytecode() {
     assert_eq!(main_debug.brillig_locations.len(), 2);
     assert!(main_debug.brillig_locations.contains_key(&BrilligFunctionId(0)));
     assert!(main_debug.brillig_locations.contains_key(&BrilligFunctionId(1)));
-    println!("{program}");
 
     assert_circuit_snapshot!(program, @r"
     func 0
@@ -98,7 +97,6 @@ fn multiple_brillig_stdlib_calls() {
         0,
         "Brillig stdlib functions do not have location information"
     );
-    println!("{program}");
 
     assert_circuit_snapshot!(program, @r"
     func 0
@@ -242,7 +240,7 @@ fn brillig_stdlib_calls_with_multiple_acir_calls() {
     }
     ";
     let (program, debug) = ssa_to_acir_program_with_debug_info(src);
-    println!("{program}");
+
     // We expect 3 brillig functions:
     //   - Quotient (shared between both divisions)
     //   - Inversion, caused by division-by-zero check (shared between both divisions)
@@ -259,6 +257,7 @@ fn brillig_stdlib_calls_with_multiple_acir_calls() {
 
     let foo_debug = &debug[1];
     assert_eq!(foo_debug.brillig_locations.len(), 0);
+
 
     // TODO(https://github.com/noir-lang/noir/issues/9877): Update this snapshot once the linked issue is fixed.
     // `CALL func 2` in `func 0` is incorrect.

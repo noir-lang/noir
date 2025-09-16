@@ -34,37 +34,6 @@ mod brillig_call;
 mod call;
 mod intrinsics;
 
-fn build_basic_foo_with_return(
-    builder: &mut FunctionBuilder,
-    foo_id: FunctionId,
-    brillig: bool,
-    inline_type: InlineType,
-) {
-    // fn foo f1 {
-    // b0(v0: Field, v1: Field):
-    //     v2 = eq v0, v1
-    //     constrain v2 == u1 0
-    //     return v0
-    // }
-    if brillig {
-        builder.new_brillig_function("foo".into(), foo_id, inline_type);
-    } else {
-        builder.new_function("foo".into(), foo_id, inline_type);
-    }
-    // Set a call stack for testing whether `brillig_locations` in the `GeneratedAcir` was accurately set.
-    let stack = vec![Location::dummy(), Location::dummy()];
-    let call_stack = builder.current_function.dfg.call_stack_data.get_or_insert_locations(&stack);
-    builder.set_call_stack(call_stack);
-
-    let foo_v0 = builder.add_parameter(Type::field());
-    let foo_v1 = builder.add_parameter(Type::field());
-
-    let foo_equality_check = builder.insert_binary(foo_v0, BinaryOp::Eq, foo_v1);
-    let zero = builder.numeric_constant(0u128, NumericType::unsigned(1));
-    builder.insert_constrain(foo_equality_check, zero, None);
-    builder.terminate_with_return(vec![foo_v0]);
-}
-
 /// Test utility for converting [ACIR gen artifacts][crate::acir::ssa::Artifacts]
 /// into the final [ACIR Program][Program] in order to use its parser and human-readable text format.
 fn ssa_to_acir_program(src: &str) -> Program<FieldElement> {
@@ -73,7 +42,6 @@ fn ssa_to_acir_program(src: &str) -> Program<FieldElement> {
 
 fn ssa_to_acir_program_with_debug_info(src: &str) -> (Program<FieldElement>, Vec<DebugInfo>) {
     let ssa = Ssa::from_str(src).unwrap();
-    println!("{}", ssa);
     let arg_size_and_visibilities = ssa
         .functions
         .iter()
