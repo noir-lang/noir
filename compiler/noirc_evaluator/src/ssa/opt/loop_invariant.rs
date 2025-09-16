@@ -3540,7 +3540,7 @@ mod control_dependence {
               v4 = lt v3, u32 2
               jmpif v4 then: b2, else: b3
             b2():
-              jmpif v2 then: b4, else: b5
+              jmpif v1 then: b4, else: b5
             b3():
               return
             b4():
