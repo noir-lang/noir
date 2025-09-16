@@ -1,6 +1,6 @@
 # SSA CLI
 
-The SSA CLI facilitates experimenting with SSA snippets outside the context of a Noir program. For example we can print the Initial SSA (or any itermediate step) of a Noir program from `nargo [compile|execute|interpret]` using the `--show-ssa-pass` option, and then use the SSA CLI to further `transform`, `interpret` or `visualize` it.
+The SSA CLI facilitates experimenting with SSA snippets outside the context of a Noir program. For example we can print the Initial SSA (or any intermediate step) of a Noir program from `nargo [compile|execute|interpret]` using the `--show-ssa-pass` option, and then use the SSA CLI to further `transform`, `interpret` or `visualize` it.
 
 
 ## Example
