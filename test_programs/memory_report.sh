@@ -40,6 +40,11 @@ for test_path in ${tests_to_profile[@]}; do
             test_name=$(basename $test_path)
         fi
 
+        if [ -n "$test_name" ]; then
+            echo "test name is empty"
+            exit 1
+        else
+
         COMMAND="compile --force --silence-warnings $FLAGS"
         if [ "$2" == "1" ]; then
             COMMAND="execute --silence-warnings"
