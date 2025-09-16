@@ -218,28 +218,24 @@ pub(crate) fn on_initialize(
     state.options = initialization_options;
 
     async move {
-        let text_document_sync = TextDocumentSyncCapability::Kind(TextDocumentSyncKind::FULL);
-
-        let code_lens = if initialization_options.enable_code_lens {
-            Some(CodeLensOptions { resolve_provider: Some(false) })
-        } else {
-            None
-        };
-
-        let nargo = NargoCapability {
-            tests: Some(NargoTestsOptions {
-                fetch: Some(true),
-                run: Some(true),
-                update: Some(true),
-            }),
-        };
-
         Ok(InitializeResult {
             capabilities: ServerCapabilities {
-                text_document_sync: Some(text_document_sync),
-                code_lens_provider: code_lens,
+                text_document_sync: Some(TextDocumentSyncCapability::Kind(
+                    TextDocumentSyncKind::FULL,
+                )),
+                code_lens_provider: if initialization_options.enable_code_lens {
+                    Some(CodeLensOptions { resolve_provider: Some(false) })
+                } else {
+                    None
+                },
                 document_formatting_provider: true,
-                nargo: Some(nargo),
+                nargo: Some(NargoCapability {
+                    tests: Some(NargoTestsOptions {
+                        fetch: Some(true),
+                        run: Some(true),
+                        update: Some(true),
+                    }),
+                }),
                 definition_provider: Some(lsp_types::OneOf::Left(true)),
                 declaration_provider: Some(DeclarationCapability::Simple(true)),
                 type_definition_provider: Some(TypeDefinitionProviderCapability::Simple(true)),
