@@ -48,6 +48,7 @@ enum SsaCommand {
     /// List the SSA passes we can apply.
     List,
     /// Parse and (optionally) validate the SSA.
+    /// Prints the normalized SSA, with canonic ID assignment.
     Check,
     Interpret(interpret_cmd::InterpretCommand),
     Transform(transform_cmd::TransformCommand),
@@ -69,7 +70,8 @@ pub(crate) fn start_cli() -> eyre::Result<()> {
             }
         }
         SsaCommand::Check => {
-            let _ = ssa()?;
+            // Parsing normalizes the SSA, so we just need to print it.
+            println_to_stdout!("{}", ssa()?);
         }
         SsaCommand::Interpret(cmd) => interpret_cmd::run(cmd, ssa()?)?,
         SsaCommand::Transform(cmd) => transform_cmd::run(cmd, ssa()?)?,
