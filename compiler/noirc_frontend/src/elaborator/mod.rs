@@ -1551,7 +1551,7 @@ impl<'context> Elaborator<'context> {
         self.local_module = module;
 
         for (generics, location, unresolved) in impls {
-            self.check_generics_appear_in_types(generics, &[self_type]);
+            self.check_generics_appear_in_types(generics, &[self_type], &[]);
 
             let old_generic_count = self.generics.len();
             self.add_generics(generics);
@@ -1580,6 +1580,7 @@ impl<'context> Elaborator<'context> {
         self.check_generics_appear_in_types(
             &trait_impl.generics,
             &[&trait_impl.r#trait, &trait_impl.object_type],
+            &trait_impl.where_clause,
         );
 
         if let Some(trait_id) = trait_impl.trait_id {
@@ -2467,11 +2468,13 @@ impl<'context> Elaborator<'context> {
             })
     }
 
-    /// Check that all the generics show up in any of `types` (if they don't, we produce an error)
+    /// Check that all the generics show up in any of `types` (if they don't, we produce an error),
+    /// or in any of a where clause associated type binding.
     fn check_generics_appear_in_types(
         &mut self,
         generics: &[UnresolvedGeneric],
         types: &[&UnresolvedType],
+        where_clause: &[UnresolvedTraitConstraint],
     ) {
         if generics.is_empty() {
             return;
@@ -2502,6 +2505,13 @@ impl<'context> Elaborator<'context> {
             RemoveGenericsAppearingInTypeVisitor { interner: self.interner, idents: &mut idents };
         for typ in types {
             typ.accept(&mut visitor);
+        }
+
+        // Removes the ones that show up in associated type bindings in the where clause
+        for where_clause in where_clause {
+            for (_name, typ) in &where_clause.trait_bound.trait_generics.named_args {
+                typ.accept(&mut visitor);
+            }
         }
 
         // The ones that remain are not mentioned in the impl: it's an error.

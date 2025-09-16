@@ -4292,10 +4292,21 @@ fn unconstrained_type_parameter_in_trait_impl() {
         impl<T, U> Trait<T> for Foo<T> {}
                 ^ The type parameter `U` is not constrained by the impl trait, self type, or predicates
                 ~ Hint: remove the `U` type parameter
-
-        fn main() {}
         "#;
     check_errors!(src);
+}
+
+#[test]
+fn does_not_error_if_type_parameter_is_used_in_trait_bound_named_generic() {
+    let src = r#"
+    pub trait SomeTrait {}
+    pub trait AnotherTrait {
+        type AssocType;
+    }
+
+    impl<T, U> SomeTrait for T where T: AnotherTrait<AssocType=U> {}
+    "#;
+    assert_no_errors!(src);
 }
 
 #[test]
