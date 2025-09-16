@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1758037561748,
+  "lastUpdate": 1758037565799,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -12102,80 +12102,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "alejo.amiras@gmail.com",
-            "name": "Alejo Amiras",
-            "username": "alejoamiras"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "04ac97f1593a6896b5c86e4bc96c8efcebbde9bc",
-          "message": "fix(docs): moves docs to correct path for sharing domain with landing (#9687)\n\nCo-authored-by: josh crites <jc@joshcrites.com>",
-          "timestamp": "2025-09-09T19:22:51Z",
-          "tree_id": "0c7173a1f3b23f1b93e45074fe16c684ac205d80",
-          "url": "https://github.com/noir-lang/noir/commit/04ac97f1593a6896b5c86e4bc96c8efcebbde9bc"
-        },
-        "date": 1757449223648,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 258.16,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 291.32,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 242.9,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 506.04,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 438.42,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1500,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 330.5,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 333.02,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 72.45,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 58.23,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -15745,6 +15671,80 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/be751f0d577841b4f88c96e3cd46f9f2312f6541"
         },
         "date": 1758031792878,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 258.74,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 291.13,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 242.63,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 506.71,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 440.02,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1530,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 331.06,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 333.57,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 73,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 69.57,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "0adabdfcaa35f314a363c378ef7c7868957f3621",
+          "message": "feat: LSP lightweight mode (#9869)",
+          "timestamp": "2025-09-16T15:02:21Z",
+          "tree_id": "12d2dce41ee323ffb6edf8def62f152f7d3805a4",
+          "url": "https://github.com/noir-lang/noir/commit/0adabdfcaa35f314a363c378ef7c7868957f3621"
+        },
+        "date": 1758037544413,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
