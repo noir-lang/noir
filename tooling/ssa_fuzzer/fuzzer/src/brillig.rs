@@ -210,6 +210,13 @@ impl SimulatorProcess {
     }
 }
 
+fn recreate_simulator() -> Result<(), String> {
+    let mutex = SIMULATOR_PROCESS.get_or_init(|| Mutex::new(None));
+    let mut guard = mutex.lock().map_err(|e| format!("Failed to lock simulator mutex: {e}"))?;
+    *guard = Some(SimulatorProcess::new()?);
+    Ok(())
+}
+
 fn get_or_create_simulator()
 -> Result<std::sync::MutexGuard<'static, Option<SimulatorProcess>>, String> {
     let mutex = SIMULATOR_PROCESS.get_or_init(|| Mutex::new(None));
@@ -320,12 +327,8 @@ libfuzzer_sys::fuzz_target!(
             panic!("Transpiler error: {err}");
         }
         AbstractVMComparisonResult::SimulatorError(err) => {
-            if err.contains("error sending request for url") {
-                // sometimes for some reason simulator service is not available?????????
-                log::error!("Simulator error: {err}");
-            } else {
-                panic!("Simulator error: {err}");
-            }
+            log::error!("Simulator error: {err}");
+            recreate_simulator().expect("Failed to recreate simulator");
         }
         AbstractVMComparisonResult::BrilligCompilationError(err) => {
             log::debug!("Brillig compilation error: {err}");

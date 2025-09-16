@@ -62,6 +62,7 @@ libfuzzer_sys::fuzz_target!(|data: &[u8]| -> Corpus {
         ecdsa_secp256r1_enabled: false,
         // https://github.com/noir-lang/noir/issues/9847
         div_enabled: false,
+        mod_enabled: false,
         ..InstructionOptions::default()
     };
     let modes = vec![FuzzerMode::NonConstant];
