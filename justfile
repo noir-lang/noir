@@ -136,7 +136,7 @@ format-noir:
 # Visualize the CFG after a certain SSA pass and open the Mermaid Live editor.
 # This is mostly here for reference: it only works if the pass matches a single unique pass in the pipeline, and there are no errors.
 [no-cd]
-visualize PASS:
+visualize-ssa-cfg PASS:
   open https://mermaid.live/view#$( \
     cargo run -q -p nargo_cli -- compile --show-ssa-pass {{PASS}} \
       | grep -v After \

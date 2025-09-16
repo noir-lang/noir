@@ -61,7 +61,7 @@ The result should look like [this](https://mermaid.live/view#pako:eNqNlN2ymjAUhV
 The same can be achieved for a Noir project with the following utility command:
 
 ```shell
-just visualize Initial
+just visualize-ssa-cfg Initial
 ```
 
 ### Transform
