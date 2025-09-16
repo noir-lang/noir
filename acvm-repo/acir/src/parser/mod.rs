@@ -10,7 +10,7 @@ use token::{Keyword, SpannedToken, Token};
 use crate::{
     BlackBoxFunc,
     circuit::{
-        Circuit, Opcode, PublicInputs,
+        Circuit, Opcode, Program, PublicInputs,
         brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs},
         opcodes::{
             AcirFunctionId, BlackBoxFuncCall, BlockId, BlockType, ConstantOrWitnessEnum,
@@ -33,6 +33,11 @@ pub struct AcirParserErrorWithSource {
 impl AcirParserErrorWithSource {
     fn parse_error(error: ParserError, src: &str) -> Self {
         Self { src: src.to_string(), error }
+    }
+
+    #[cfg(test)]
+    pub(super) fn get_error(self) -> ParserError {
+        self.error
     }
 }
 
@@ -65,6 +70,28 @@ impl std::fmt::Debug for AcirParserErrorWithSource {
     }
 }
 
+impl FromStr for Program<FieldElement> {
+    type Err = AcirParserErrorWithSource;
+
+    fn from_str(src: &str) -> Result<Self, Self::Err> {
+        Self::from_str_impl(src)
+    }
+}
+
+impl Program<FieldElement> {
+    /// Creates a [Program] object from the given string.
+    #[allow(clippy::should_implement_trait)]
+    pub fn from_str(src: &str) -> Result<Self, AcirParserErrorWithSource> {
+        FromStr::from_str(src)
+    }
+
+    pub fn from_str_impl(src: &str) -> Result<Self, AcirParserErrorWithSource> {
+        let mut parser =
+            Parser::new(src).map_err(|err| AcirParserErrorWithSource::parse_error(err, src))?;
+        parser.parse_program().map_err(|err| AcirParserErrorWithSource::parse_error(err, src))
+    }
+}
+
 impl FromStr for Circuit<FieldElement> {
     type Err = AcirParserErrorWithSource;
 
@@ -83,7 +110,7 @@ impl Circuit<FieldElement> {
     pub fn from_str_impl(src: &str) -> Result<Self, AcirParserErrorWithSource> {
         let mut parser =
             Parser::new(src).map_err(|err| AcirParserErrorWithSource::parse_error(err, src))?;
-        parser.parse_acir().map_err(|err| AcirParserErrorWithSource::parse_error(err, src))
+        parser.parse_circuit().map_err(|err| AcirParserErrorWithSource::parse_error(err, src))
     }
 }
 
@@ -100,7 +127,35 @@ impl<'a> Parser<'a> {
         Ok(parser)
     }
 
-    pub(crate) fn parse_acir(&mut self) -> ParseResult<Circuit<FieldElement>> {
+    /// Parse multiple [Circuit] blocks and return a [Program].
+    fn parse_program(&mut self) -> ParseResult<Program<FieldElement>> {
+        let mut functions: Vec<Circuit<FieldElement>> = Vec::new();
+
+        // We expect top-level "func" keywords for each circuit
+        while let Some(Keyword::Function) = self.peek_keyword() {
+            self.bump()?;
+
+            let func_id = self.eat_u32_or_error()?;
+            let expected_id = functions.len() as u32;
+            if func_id != expected_id {
+                return Err(ParserError::UnexpectedFunctionId {
+                    expected: expected_id,
+                    found: func_id,
+                    span: self.token.span(),
+                });
+            }
+
+            let circuit = self.parse_circuit()?;
+
+            functions.push(circuit);
+        }
+
+        // We don't support parsing unconstrained Brillig bytecode blocks
+        let unconstrained_functions = Vec::new();
+        Ok(Program { functions, unconstrained_functions })
+    }
+
+    pub(crate) fn parse_circuit(&mut self) -> ParseResult<Circuit<FieldElement>> {
         let current_witness_index = self.parse_current_witness_index()?;
         let private_parameters = self.parse_private_parameters()?;
         let public_parameters = PublicInputs(self.parse_public_parameters()?);
@@ -592,7 +647,7 @@ impl<'a> Parser<'a> {
     fn parse_brillig_call(&mut self) -> ParseResult<Opcode<FieldElement>> {
         self.eat_keyword_or_error(Keyword::Brillig)?;
         self.eat_keyword_or_error(Keyword::Call)?;
-        self.eat_expected_ident("func")?;
+        self.eat_keyword_or_error(Keyword::Function)?;
         let func_id = self.eat_u32_or_error()?;
         self.eat_or_error(Token::Colon)?;
 
@@ -686,7 +741,7 @@ impl<'a> Parser<'a> {
 
     fn parse_call(&mut self) -> ParseResult<Opcode<FieldElement>> {
         self.eat_keyword_or_error(Keyword::Call)?;
-        self.eat_expected_ident("func")?;
+        self.eat_keyword_or_error(Keyword::Function)?;
         let id = self.eat_u32_or_error()?;
         self.eat_or_error(Token::Colon)?;
         let predicate = self.eat_predicate()?;
@@ -986,6 +1041,8 @@ pub(crate) enum ParserError {
     IncorrectInputLength { expected: usize, found: usize, name: String, span: Span },
     #[error("Expected {expected} outputs for {name}, found {found}")]
     IncorrectOutputLength { expected: usize, found: usize, name: String, span: Span },
+    #[error("Expected function id {expected}, found {found}")]
+    UnexpectedFunctionId { expected: u32, found: u32, span: Span },
 }
 
 impl ParserError {
@@ -1005,6 +1062,7 @@ impl ParserError {
             InvalidInputBitSize { span, .. } => *span,
             IncorrectInputLength { span, .. } => *span,
             IncorrectOutputLength { span, .. } => *span,
+            UnexpectedFunctionId { span, .. } => *span,
         }
     }
 }
