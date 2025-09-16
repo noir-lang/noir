@@ -864,7 +864,7 @@ impl<'context> Elaborator<'context> {
         &mut self,
         constraint: &UnresolvedTraitConstraint,
     ) -> Option<TraitConstraint> {
-        let wildcard_allowed = true;
+        let wildcard_allowed = false;
         let typ = self.resolve_type(constraint.typ.clone(), wildcard_allowed);
         let trait_bound = self.resolve_trait_bound(&constraint.trait_bound)?;
         let location = constraint.trait_bound.trait_path.location;
@@ -891,7 +891,7 @@ impl<'context> Elaborator<'context> {
         let the_trait = self.lookup_trait_or_error(trait_path)?;
         let trait_id = the_trait.id;
         let location = bound.trait_path.location;
-        let wildcard_allowed = true;
+        let wildcard_allowed = false;
 
         let (ordered, named) = self.resolve_type_args_inner(
             bound.trait_generics.clone(),
