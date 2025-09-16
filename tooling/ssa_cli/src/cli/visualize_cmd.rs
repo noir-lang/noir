@@ -34,7 +34,7 @@ pub(super) fn run(args: VisualizeCommand, ssa: Ssa) -> eyre::Result<()> {
     let mut output = render_mermaid(ssa).wrap_err("failed to render SSA to Mermaid")?;
 
     if args.markdown {
-        output = format!("```mermaid\n{output}\n```")
+        output = format!("```mermaid\n{output}\n```");
     } else if args.url_encode {
         output = url_encode(output)?;
     }
