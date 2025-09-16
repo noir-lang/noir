@@ -424,6 +424,10 @@ impl<'f> PerFunctionContext<'f> {
                 self.analyze_possibly_simplified_instruction(references, id, false);
             }
             InsertInstructionResult::SimplifiedTo(value) => {
+                // Globals cannot contain references thus we do not need to analyze insertion which simplified to them.
+                if self.inserter.function.dfg.is_global(value) {
+                    return;
+                }
                 let value = &self.inserter.function.dfg[value];
                 if let Value::Instruction { instruction, .. } = value {
                     self.analyze_possibly_simplified_instruction(references, *instruction, true);
@@ -431,6 +435,10 @@ impl<'f> PerFunctionContext<'f> {
             }
             InsertInstructionResult::SimplifiedToMultiple(values) => {
                 for value in values {
+                    // Globals cannot contain references thus we do not need to analyze insertion which simplified to them.
+                    if self.inserter.function.dfg.is_global(value) {
+                        continue;
+                    }
                     let value = &self.inserter.function.dfg[value];
                     if let Value::Instruction { instruction, .. } = value {
                         self.analyze_possibly_simplified_instruction(
