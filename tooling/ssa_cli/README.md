@@ -35,6 +35,8 @@ cargo run -q -p nargo_cli -- compile --silence-warnings --show-ssa-pass Initial 
   > example.ssa
 ```
 
+The `tail` is just to get rid of the "After Initial SSA:" message.
+
 For quick checks we can also just copy-paste some SSA snippet and use e.g. `pbpaste` to pipe it to the SSA CLI.
 
 ### Visualize
@@ -55,6 +57,12 @@ open https://mermaid.live/view#$(cargo run -q -p noir_ssa_cli -- visualize --sou
 ```
 
 The result should look like [this](https://mermaid.live/view#pako:eNqNlN2ymjAUhV-FyZXOeJj8kQAXvWj7CL2qdDooUZyjwYkwp63ju3cbAZMoZ2S8CGt9e0nI3pzRuqkUytFm33ys69K00Y-vhY7gOnWrrSmPdbTB0fJQ7jQsft2s67XB8QrPZis8nwdi9Pb2xa6IbxCgSUiTkaZTBvMNNoMcNg-DKKj0QQyfRemq0OH-SLQ81c0HLNz9kWf7I-P-iL8_z6C-8fhoZHw0WPEpI_GNBGKSMCYZaTllpL6RQkwaxqQjnfmGBFqGtJyiM6CzkM5GWvgGB5qHNJ-iBdAipMVIM994bDYy9tQjHfTU0y6h0fJodrrdwyBQt1GobRTbKZ_VM6eeufXstXru1HO3nr9Wn_T1vzu9bvSpNTDSqgLdzUpeyxITWcLNEq9lyYks6WbJz7L6SY9je7i9dmvqm8bvmhw0dtf4E40MWj_L9pQHrR81e3KD1nerPY1BgwFGC7Q1uwrlrenUAh2UgU8p3KLzlS9QW6uDKlAOy6o07wUq9AVqjqX-2TSHocw03bZG-abcn-CuO1Zlq77vSniDdwReiDLfmk63KCfMRqD8jP6gnCU8ZiTNBPwol3yB_gKCs5iljHNKGMkwSdhlgf7Z_8RxiomgLOOYC3llLv8BmsiLzg).
+
+The same can be achieved for a Noir project with the following utility command:
+
+```shell
+just visualize-live Initial
+```
 
 ### Transform
 
