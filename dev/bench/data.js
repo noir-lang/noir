@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1758031500924,
+  "lastUpdate": 1758031514147,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -4208,90 +4208,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "af9c9f8357d3134c8238763442882aaa7908f7cf",
-          "message": "chore: Check an inline always weight threshold during inline info computation (#9487)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-09-09T19:05:09Z",
-          "tree_id": "6e99fb89c5dc0cdae1200481f1deca6b06353eab",
-          "url": "https://github.com/noir-lang/noir/commit/af9c9f8357d3134c8238763442882aaa7908f7cf"
-        },
-        "date": 1757447093672,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 1.792,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 8.644,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.452,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 18.72,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 16.54,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 17.3,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 201,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 197,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.39,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.518,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.796,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 1.815,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "alejo.amiras@gmail.com",
             "name": "Alejo Amiras",
             "username": "alejoamiras"
@@ -8396,6 +8312,90 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 1.898,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "be751f0d577841b4f88c96e3cd46f9f2312f6541",
+          "message": "chore: use `w` prefix for ACIR witnesses (#9839)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
+          "timestamp": "2025-09-16T13:24:13Z",
+          "tree_id": "087b463a314cccc9e54d06030f2547130687a604",
+          "url": "https://github.com/noir-lang/noir/commit/be751f0d577841b4f88c96e3cd46f9f2312f6541"
+        },
+        "date": 1758031493406,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1.816,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 8.162,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.38,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 19.7,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 18.14,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-empty",
+            "value": 18.78,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 207,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 196,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 1.432,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.482,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.784,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 1.777,
             "unit": "s"
           }
         ]
