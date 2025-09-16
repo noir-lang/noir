@@ -495,6 +495,31 @@ pub(crate) fn process_request<F, T>(
 where
     F: FnOnce(ProcessRequestCallbackArgs) -> T,
 {
+    let type_check = true;
+    process_request_impl(state, text_document_position_params, type_check, callback)
+}
+
+pub(crate) fn process_request_no_type_check<F, T>(
+    state: &mut LspState,
+    text_document_position_params: TextDocumentPositionParams,
+    callback: F,
+) -> Result<T, ResponseError>
+where
+    F: FnOnce(ProcessRequestCallbackArgs) -> T,
+{
+    let type_check = false;
+    process_request_impl(state, text_document_position_params, type_check, callback)
+}
+
+fn process_request_impl<F, T>(
+    state: &mut LspState,
+    text_document_position_params: TextDocumentPositionParams,
+    type_check: bool,
+    callback: F,
+) -> Result<T, ResponseError>
+where
+    F: FnOnce(ProcessRequestCallbackArgs) -> T,
+{
     let uri = text_document_position_params.text_document.uri.clone();
 
     let (file_path, workspace) = if uri.scheme() == "noir-std" {
@@ -512,7 +537,7 @@ where
     };
 
     // First type-check the workspace if needed
-    if state.workspaces_to_process.remove(&workspace.root_dir) {
+    if type_check && state.workspaces_to_process.remove(&workspace.root_dir) {
         let _ = process_workspace(state, &workspace, false);
     }
 
