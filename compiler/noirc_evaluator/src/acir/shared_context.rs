@@ -238,7 +238,8 @@ mod tests {
 
         // Simulate first generation
         let code1 = GeneratedBrillig {
-            // This byte code is gibberish it just needs to be dist
+            // This byte code is gibberish, we just want it to be distinct from the
+            // next Brillig byte code we insert for testing purposes.
             byte_code: vec![Opcode::Call { location: 5 }],
             ..Default::default()
         };
@@ -254,7 +255,7 @@ mod tests {
         assert_eq!(*generated_pointer, ptr1);
         assert_eq!(reused_code.byte_code, code1.byte_code);
 
-        // Explicitly insert a second Brillig artifact with the a different key
+        // Explicitly insert a second Brillig artifact with a different key
         let code2 = GeneratedBrillig { byte_code: vec![Opcode::Return], ..Default::default() };
         let f1 = Id::test_new(1);
         let ptr2 = context.new_generated_pointer();
@@ -280,15 +281,15 @@ mod tests {
         let mut context =
             SharedContext::<FieldElement>::new(BrilligStdLib::default(), Default::default());
         let func_id = Id::test_new(0);
-        let opcode_loc = OpcodeLocation::Acir(0);
+        let opcode_location = OpcodeLocation::Acir(0);
 
         let variants =
             [BrilligStdlibFunc::Inverse, BrilligStdlibFunc::Quotient, BrilligStdlibFunc::ToLeBytes];
 
         for &func in &variants {
             // Generate twice for each to check deduplication
-            context.generate_brillig_calls_to_resolve(&func, func_id, opcode_loc);
-            context.generate_brillig_calls_to_resolve(&func, func_id, opcode_loc);
+            context.generate_brillig_calls_to_resolve(&func, func_id, opcode_location);
+            context.generate_brillig_calls_to_resolve(&func, func_id, opcode_location);
         }
 
         // There should be exactly 3 final GeneratedBrillig entries
@@ -325,6 +326,6 @@ mod tests {
             .insert((func_id, args.clone()), BrilligFunctionId(0));
         // This should panic because the list of Brillig artifacts is empty
         let pointer = context.generated_brillig_pointer(func_id, args).unwrap();
-        let _artifact = &context.generated_brillig[pointer.as_usize()];
+        let _ = &context.generated_brillig(pointer.as_usize());
     }
 }
