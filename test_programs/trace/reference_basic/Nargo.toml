@@ -1,0 +1,6 @@
+[package]
+name = "reference"
+type = "bin"
+authors = [""]
+
+[dependencies]

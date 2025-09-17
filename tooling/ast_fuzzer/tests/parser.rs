@@ -15,7 +15,7 @@ use noirc_evaluator::{
         ir::function::function_values_iter,
         opt::inlining::MAX_INSTRUCTIONS,
         primary_passes,
-        ssa_gen::{self, Ssa},
+        ssa_gen::{self, Ssa}, OptimizationLevel,
     },
 };
 
@@ -47,6 +47,7 @@ fn arb_ssa_roundtrip() {
             small_function_max_instruction: MAX_INSTRUCTIONS,
             max_bytecode_increase_percent: None,
             skip_passes: Default::default(),
+            optimization_level: OptimizationLevel::All,
         };
         let pipeline = primary_passes(&options);
         let last_pass = u.choose_index(pipeline.len())?;
