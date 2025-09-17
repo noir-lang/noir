@@ -429,7 +429,6 @@ impl<'f> PerFunctionContext<'f> {
                     return;
                 }
                 let value = &self.inserter.function.dfg[value];
-                dbg!(value.clone());
                 if let Value::Instruction { instruction, .. } = value {
                     self.analyze_possibly_simplified_instruction(references, *instruction, true);
                 }
