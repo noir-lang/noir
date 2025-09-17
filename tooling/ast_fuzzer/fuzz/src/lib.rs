@@ -43,8 +43,6 @@ pub fn default_ssa_options() -> SsaEvaluatorOptions {
 }
 
 /// Compile a [Program] into SSA or panic.
-///
-/// Prints the AST if `NOIR_AST_FUZZER_SHOW_AST` is set.
 pub fn create_ssa_or_die(
     program: Program,
     options: &SsaEvaluatorOptions,
