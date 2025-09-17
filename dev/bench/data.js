@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1758110019977,
+  "lastUpdate": 1758111182872,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -20226,48 +20226,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "574550bbc3640b78545985e013706ffcfe637e8e",
-          "message": "fix(ownership): consider ident in nested l-value as used (#9793)",
-          "timestamp": "2025-09-10T13:36:04Z",
-          "tree_id": "73969a8803440726b66797680d6ac0688709aa61",
-          "url": "https://github.com/noir-lang/noir/commit/574550bbc3640b78545985e013706ffcfe637e8e"
-        },
-        "date": 1757513059115,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 250791,
-            "range": "± 1079",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 221422,
-            "range": "± 7913",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2788087,
-            "range": "± 1907",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -22319,6 +22277,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2800278,
             "range": "± 2318",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f86ba42b2786734e32965a3aef2b494bd2f387a9",
+          "message": "fix(ssa): Simplify always-fail range constraint (#9885)",
+          "timestamp": "2025-09-17T11:43:46Z",
+          "tree_id": "ce42c7c6f57dc5379cbee7273d50434bef549c9a",
+          "url": "https://github.com/noir-lang/noir/commit/f86ba42b2786734e32965a3aef2b494bd2f387a9"
+        },
+        "date": 1758111161964,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 256500,
+            "range": "± 1343",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 230018,
+            "range": "± 851",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2820293,
+            "range": "± 1373",
             "unit": "ns/iter"
           }
         ]
