@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1758111182872,
+  "lastUpdate": 1758111631404,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -8410,80 +8410,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "574550bbc3640b78545985e013706ffcfe637e8e",
-          "message": "fix(ownership): consider ident in nested l-value as used (#9793)",
-          "timestamp": "2025-09-10T13:36:04Z",
-          "tree_id": "73969a8803440726b66797680d6ac0688709aa61",
-          "url": "https://github.com/noir-lang/noir/commit/574550bbc3640b78545985e013706ffcfe637e8e"
-        },
-        "date": 1757513777312,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.016,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.162,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.011,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.268,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 0.161,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 14.2,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.002,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.005,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.019,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 0.11,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -12103,6 +12029,80 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 0.107,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "f86ba42b2786734e32965a3aef2b494bd2f387a9",
+          "message": "fix(ssa): Simplify always-fail range constraint (#9885)",
+          "timestamp": "2025-09-17T11:43:46Z",
+          "tree_id": "ce42c7c6f57dc5379cbee7273d50434bef549c9a",
+          "url": "https://github.com/noir-lang/noir/commit/f86ba42b2786734e32965a3aef2b494bd2f387a9"
+        },
+        "date": 1758111611194,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.015,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.16,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.01,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.268,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.161,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 14.6,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.002,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.004,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.019,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 0.099,
             "unit": "s"
           }
         ]
