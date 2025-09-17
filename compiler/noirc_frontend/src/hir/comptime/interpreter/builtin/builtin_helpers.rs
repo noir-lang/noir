@@ -640,7 +640,7 @@ pub(super) fn hash_item<T: Hash>(
     let mut hasher = std::collections::hash_map::DefaultHasher::new();
     item.hash(&mut hasher);
     let hash = hasher.finish();
-    Ok(Value::Field(SignedField::positive(hash as u128)))
+    Ok(Value::Field(SignedField::positive(u128::from(hash))))
 }
 
 pub(super) fn eq_item<T: Eq>(

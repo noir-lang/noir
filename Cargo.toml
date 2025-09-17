@@ -8,6 +8,7 @@ members = [
     "compiler/noirc_errors",
     "compiler/noirc_driver",
     "compiler/noirc_printable_type",
+    "compiler/noirc_span",
     "compiler/fm",
     "compiler/wasm",
     # Crates related to tooling built on top of the Noir compiler
@@ -43,6 +44,7 @@ members = [
     # Utility crates
     "utils/iter-extended",
 
+    "tooling/ssa_cli",
     "tooling/ssa_fuzzer",
     "tooling/ssa_fuzzer/fuzzer",
     "tooling/ssa_verification",
@@ -53,6 +55,7 @@ default-members = [
     "tooling/nargo_cli",
     "tooling/acvm_cli",
     "tooling/artifact_cli",
+    "tooling/ssa_cli",
     "tooling/profiler",
     "tooling/inspector",
 ]
@@ -79,6 +82,7 @@ unused_must_use = "warn"
 mismatched_lifetime_syntaxes = "allow"
 
 [workspace.lints.clippy]
+cast_lossless = "warn"
 semicolon_if_nothing_returned = "warn"
 result_large_err = "allow"
 uninlined_format_args = "warn"
@@ -102,6 +106,7 @@ noirc_errors = { path = "compiler/noirc_errors" }
 noirc_evaluator = { path = "compiler/noirc_evaluator" }
 noirc_frontend = { path = "compiler/noirc_frontend" }
 noirc_printable_type = { path = "compiler/noirc_printable_type" }
+noirc_span = { path = "compiler/noirc_span" }
 
 # Noir tooling workspace dependencies
 noir_greybox_fuzzer = { path = "tooling/greybox_fuzzer" }

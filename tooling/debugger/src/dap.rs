@@ -570,7 +570,7 @@ impl<'a, R: Read, W: Write, B: BlackBoxFunctionSolver<FieldElement>> DapSession<
             .clone()
             .into_iter()
             .map(|(witness, value)| Variable {
-                name: format!("_{}", witness.witness_index()),
+                name: witness.to_string(),
                 value: format!("{value:?}"),
                 ..Variable::default()
             })

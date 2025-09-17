@@ -51,6 +51,7 @@ pub mod opt;
 pub mod parser;
 pub mod ssa_gen;
 pub(crate) mod validation;
+mod visit_once_deque;
 
 #[derive(Debug, Clone)]
 pub enum SsaLogging {
@@ -63,6 +64,22 @@ pub enum SsaLogging {
 pub enum OptimizationLevel {
     Debug, // optimizations that don't change the control-flow
     All,   // all available optimizations
+}
+
+impl SsaLogging {
+    /// Check if an SSA pass should be printed.
+    pub fn matches(&self, msg: &str) -> bool {
+        match self {
+            SsaLogging::None => false,
+            SsaLogging::All => true,
+            SsaLogging::Contains(strings) => strings.iter().any(|string| {
+                let string = string.to_lowercase();
+                let string = string.strip_prefix("after ").unwrap_or(&string);
+                let string = string.strip_suffix(':').unwrap_or(string);
+                msg.to_lowercase().contains(string)
+            }),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -140,6 +157,7 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         "Removing Paired rc_inc & rc_decs",
         vec![All, Debug],
     );
+    ssa_pass_builder.add_pass(Ssa::purity_analysis, "Purity Analysis", vec![All, Debug]);
     ssa_pass_builder.add_try_pass(
         move |ssa| {
             ssa.preprocess_functions(

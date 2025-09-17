@@ -2,8 +2,7 @@ use std::str::{CharIndices, FromStr};
 
 use acir_field::{AcirField, FieldElement};
 
-use noirc_errors::{Position, Span};
-
+use noirc_span::{Position, Span};
 use num_bigint::BigInt;
 use num_traits::One;
 use thiserror::Error;
@@ -50,6 +49,14 @@ impl<'a> Lexer<'a> {
                 }
                 self.next_token()
             }
+            '/' if self.peek_char() == Some('/') => {
+                while let Some(char) = self.next_char() {
+                    if char == '\n' {
+                        break;
+                    }
+                }
+                self.next_token()
+            }
             '(' => self.single_char_token(Token::LeftParen),
             ')' => self.single_char_token(Token::RightParen),
             '[' => self.single_char_token(Token::LeftBracket),
@@ -57,20 +64,12 @@ impl<'a> Lexer<'a> {
             ',' => self.single_char_token(Token::Comma),
             ':' => self.single_char_token(Token::Colon),
             ';' => self.single_char_token(Token::Semicolon),
-            '_' => {
+            'w' if self.peek_char().is_some_and(|char| char.is_ascii_digit()) => {
                 let start = self.position;
 
-                // Witness token format is '_' followed by digits
+                // Witness token format is 'w' followed by digits
                 let digits = self.eat_while(None, |ch| ch.is_ascii_digit());
-
                 let end = self.position;
-                if digits.is_empty() {
-                    // '_' not followed by digits, treat as unexpected character
-                    return Err(LexerError::UnexpectedCharacter {
-                        char: '_',
-                        span: Span::single_char(start),
-                    });
-                }
 
                 // Parse digits into u32
                 match digits.parse::<u32>() {

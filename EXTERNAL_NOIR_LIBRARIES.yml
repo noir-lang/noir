@@ -1,4 +1,4 @@
-define: &AZ_COMMIT 3e2417cf884017a8a53a0f28a7aff59032b31583
+define: &AZ_COMMIT 95215869f4912edf381752443e5accb2468bc069
 libraries:
   noir_check_shuffle:
     repo: noir-lang/noir_check_shuffle
@@ -34,7 +34,7 @@ libraries:
     critical: true
   noir_bigcurve:
     repo: noir-lang/noir_bigcurve
-    timeout: 400
+    timeout: 450
     critical: true
   noir_base64:
     repo: noir-lang/noir_base64

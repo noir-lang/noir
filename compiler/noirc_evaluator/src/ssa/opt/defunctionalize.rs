@@ -514,7 +514,7 @@ fn create_apply_functions(
 
 /// Transforms a [FunctionId] into a [FieldElement]
 fn function_id_to_field(function_id: FunctionId) -> FieldElement {
-    (function_id.to_u32() as u128).into()
+    u128::from(function_id.to_u32()).into()
 }
 
 /// Creates a single apply function to enable dispatch across multiple function variants

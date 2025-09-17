@@ -256,7 +256,7 @@ impl FunctionContext<'_> {
             }
             ast::Literal::Bool(value) => {
                 // Don't need to call checked_numeric_constant here since `value` can only be true or false
-                Ok(self.builder.numeric_constant(*value as u128, NumericType::bool()).into())
+                Ok(self.builder.numeric_constant(u128::from(*value), NumericType::bool()).into())
             }
             ast::Literal::Str(string) => Ok(self.codegen_string(string)),
             ast::Literal::FmtStr(fragments, number_of_fields, fields) => {
@@ -281,7 +281,7 @@ impl FunctionContext<'_> {
                 let string = self.codegen_string(&string);
                 let field_count = self
                     .builder
-                    .numeric_constant(*number_of_fields as u128, NumericType::NativeField);
+                    .numeric_constant(u128::from(*number_of_fields), NumericType::NativeField);
                 let fields = self.codegen_expression(fields)?;
 
                 Ok(Tree::Branch(vec![string, field_count.into(), fields]))
@@ -299,7 +299,7 @@ impl FunctionContext<'_> {
 
     fn codegen_string(&mut self, string: &str) -> Values {
         let elements = vecmap(string.as_bytes(), |byte| {
-            self.builder.numeric_constant(*byte as u128, NumericType::char()).into()
+            self.builder.numeric_constant(u128::from(*byte), NumericType::char()).into()
         });
         let typ = Self::convert_non_tuple_type(&ast::Type::String(elements.len() as u32));
         self.codegen_array(elements, typ)
@@ -478,7 +478,7 @@ impl FunctionContext<'_> {
                 let runtime = self.builder.current_function.runtime();
                 if runtime.is_brillig() {
                     let len =
-                        self.builder.numeric_constant(*len as u128, NumericType::length_type());
+                        self.builder.numeric_constant(u128::from(*len), NumericType::length_type());
                     self.codegen_access_check(index, len);
                 }
             }

@@ -10,7 +10,6 @@ use noirc_evaluator::ssa::ir::instruction::BinaryOp;
 use noirc_evaluator::ssa::ir::map::Id;
 use noirc_evaluator::ssa::ir::types::Type as SsaType;
 use noirc_evaluator::ssa::ir::value::Value;
-use noirc_frontend::monomorphization::ast::InlineType;
 use noirc_frontend::monomorphization::ast::InlineType as FrontendInlineType;
 use std::panic::AssertUnwindSafe;
 use std::sync::Arc;
@@ -34,6 +33,7 @@ pub type InstructionWithOneArg = fn(&mut FuzzerBuilder, TypedValue) -> TypedValu
 /// Contains a FunctionBuilder and tracks the current numeric type being used
 pub struct FuzzerBuilder {
     pub(crate) builder: FunctionBuilder,
+    pub(crate) runtime: RuntimeType,
 }
 
 impl FuzzerBuilder {
@@ -43,7 +43,7 @@ impl FuzzerBuilder {
         let mut builder = FunctionBuilder::new("main".into(), main_id);
         builder.set_runtime(RuntimeType::Acir(FrontendInlineType::default()));
         builder.simplify = simplifying_enabled;
-        Self { builder }
+        Self { builder, runtime: RuntimeType::Acir(FrontendInlineType::default()) }
     }
 
     /// Creates a new FuzzerBuilder in Brillig context
@@ -52,7 +52,15 @@ impl FuzzerBuilder {
         let mut builder = FunctionBuilder::new("main".into(), main_id);
         builder.set_runtime(RuntimeType::Brillig(FrontendInlineType::default()));
         builder.simplify = simplifying_enabled;
-        Self { builder }
+        Self { builder, runtime: RuntimeType::Brillig(FrontendInlineType::default()) }
+    }
+
+    pub fn new_by_runtime(runtime: RuntimeType, simplifying_enabled: bool) -> Self {
+        let main_id: Id<Function> = Id::new(0);
+        let mut builder = FunctionBuilder::new("main".into(), main_id);
+        builder.set_runtime(runtime);
+        builder.simplify = simplifying_enabled;
+        Self { builder, runtime }
     }
 
     /// Compiles the built function into a CompiledProgram, to run it with nargo execute
@@ -332,15 +340,18 @@ impl FuzzerBuilder {
         self.builder.insert_store(memory_addr.value_id, value.value_id);
     }
 
-    /// Creates a new ACIR function with the given name and id with inline type InlineType::Inline
-    pub fn new_acir_function(&mut self, name: String, function_id: Id<Function>) {
+    /// Creates a new function with the given name and id with inline type InlineType::Inline
+    /// Sets the same runtime as the builder
+    pub fn new_function(&mut self, name: String, function_id: Id<Function>) {
         // maybe use different inline type
-        self.builder.new_function(name, function_id, InlineType::Inline);
-    }
-
-    /// Creates a new Brillig function with the given name and id with inline type InlineType::Inline
-    pub fn new_brillig_function(&mut self, name: String, function_id: Id<Function>) {
-        self.builder.new_brillig_function(name, function_id, InlineType::Inline);
+        match self.runtime {
+            RuntimeType::Acir(inline_type) => {
+                self.builder.new_function(name, function_id, inline_type);
+            }
+            RuntimeType::Brillig(inline_type) => {
+                self.builder.new_brillig_function(name, function_id, inline_type);
+            }
+        }
     }
 
     /// Inserts an import function with the given function id
@@ -419,7 +430,7 @@ impl FuzzerBuilder {
             .import_intrinsic("to_le_radix")
             .expect("to_le_radix intrinsic should be available");
         let element_type = Type::Numeric(NumericType::U8);
-        let result_type = Type::Array(Arc::new(vec![element_type.clone()]), limb_count as u32);
+        let result_type = Type::Array(Arc::new(vec![element_type.clone()]), u32::from(limb_count));
         let result = self.builder.insert_call(
             intrinsic,
             vec![field_value.value_id, radix],
@@ -942,7 +953,7 @@ impl FuzzerBuilder {
     fn bytes_to_ssa_array(&mut self, vec: Vec<u8>) -> TypedValue {
         let elements: Vec<Id<Value>> = vec
             .into_iter()
-            .map(|x| self.builder.numeric_constant(x as u32, NumericType::U8.into()))
+            .map(|x| self.builder.numeric_constant(u32::from(x), NumericType::U8.into()))
             .collect();
         let array_type =
             Type::Array(Arc::new(vec![Type::Numeric(NumericType::U8)]), elements.len() as u32);
@@ -955,7 +966,7 @@ impl FuzzerBuilder {
     fn bytes_to_ssa_slice(&mut self, vec: Vec<u8>) -> TypedValue {
         let elements: Vec<Id<Value>> = vec
             .into_iter()
-            .map(|x| self.builder.numeric_constant(x as u32, NumericType::U8.into()))
+            .map(|x| self.builder.numeric_constant(u32::from(x), NumericType::U8.into()))
             .collect();
         let slice_type = Type::Slice(Arc::new(vec![Type::Numeric(NumericType::U8)]));
         TypedValue::new(

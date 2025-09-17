@@ -510,22 +510,23 @@ impl<'a> From<&'a InterpreterError> for CustomDiagnostic {
                 CustomDiagnostic::simple_error(msg, String::new(), *location)
             }
             InterpreterError::InvalidValuesForBinary { lhs, rhs, operator, location } => {
-                let msg = format!("No implementation for `{lhs}` {operator} `{rhs}`");
-                CustomDiagnostic::simple_error(msg, String::new(), *location)
-            }
-            InterpreterError::BinaryOperationOverflow { operator, location } => {
                 let msg = if *operator == "/" {
                     "Attempt to divide by zero".to_string()
                 } else {
-                    let operator = match *operator {
-                        "+" => "add",
-                        "-" => "subtract",
-                        "*" => "multiply",
-                        ">>" | "<<" => "bit-shift",
-                        _ => operator,
-                    };
-                    format!("Attempt to {operator} with overflow")
+                    format!("No implementation for `{lhs}` {operator} `{rhs}`")
                 };
+                CustomDiagnostic::simple_error(msg, String::new(), *location)
+            }
+            InterpreterError::BinaryOperationOverflow { operator, location } => {
+                let operator = match *operator {
+                    "+" => "add",
+                    "-" => "subtract",
+                    "*" => "multiply",
+                    ">>" | "<<" => "bit-shift",
+                    _ => operator,
+                };
+                let msg = format!("Attempt to {operator} with overflow");
+
                 CustomDiagnostic::simple_error(msg, String::new(), *location)
             }
             InterpreterError::NegateWithOverflow { location } => {
