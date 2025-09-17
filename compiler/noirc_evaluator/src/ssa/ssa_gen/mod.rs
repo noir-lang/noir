@@ -466,13 +466,13 @@ impl FunctionContext<'_> {
             self.builder.numeric_constant(type_size as u128, NumericType::length_type());
 
         let array_type = &self.builder.type_of_value(array);
+        let runtime = self.builder.current_function.runtime();
 
         // Checks for index Out-of-bounds
         match array_type {
             Type::Array(_, len) => {
                 // Out of bounds array accesses are guaranteed to fail in ACIR so this check is performed implicitly.
                 // We then only need to inject it for brillig functions.
-                let runtime = self.builder.current_function.runtime();
                 if runtime.is_brillig() {
                     let len =
                         self.builder.numeric_constant(u128::from(*len), NumericType::length_type());
@@ -494,7 +494,8 @@ impl FunctionContext<'_> {
         // This can overflow if the original index is already not in the bounds of the array
         // and we skipped inserting constraints. To stay on the conservative side, start with
         // a checked operation, and simplify to unchecked if it can be evaluated.
-        let unchecked = false;
+        // In Brillig we will be protected from overflows by constraints, so we can go unchecked.
+        let unchecked = runtime.is_brillig();
         let base_index = self.builder.set_location(location).insert_binary(
             index,
             BinaryOp::Mul { unchecked },
