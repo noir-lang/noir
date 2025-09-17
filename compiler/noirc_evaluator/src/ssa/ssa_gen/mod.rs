@@ -491,16 +491,19 @@ impl FunctionContext<'_> {
             _ => unreachable!("must have array or slice but got {array_type}"),
         }
 
-        // This shouldn't overflow because the initial index is within array bounds
+        // This can overflow if the original index is already not in the bounds of the array
+        // and we skipped inserting constraints. To stay on the conservative side, start with
+        // a checked operation, and simplify to unchecked if it can be evaluated.
+        let unchecked = false;
         let base_index = self.builder.set_location(location).insert_binary(
             index,
-            BinaryOp::Mul { unchecked: true },
+            BinaryOp::Mul { unchecked },
             type_size,
         );
 
         let mut field_index = 0u128;
         Ok(Self::map_type(element_type, |typ| {
-            let index = self.make_offset(base_index, field_index);
+            let index = self.make_offset(base_index, field_index, unchecked);
             field_index += 1;
 
             // Reference counting in brillig relies on us incrementing reference
@@ -631,7 +634,7 @@ impl FunctionContext<'_> {
 
         let result = self.codegen_expression(&for_expr.block);
         self.codegen_unless_break_or_continue(result, |this, _| {
-            let new_loop_index = this.make_offset(loop_index, 1);
+            let new_loop_index = this.make_offset(loop_index, 1, true);
             this.builder.terminate_with_jmp(loop_entry, vec![new_loop_index]);
         })?;
 
@@ -1198,7 +1201,7 @@ impl FunctionContext<'_> {
 
         // Must remember to increment i before jumping
         if let Some(loop_index) = loop_.loop_index {
-            let new_loop_index = self.make_offset(loop_index, 1);
+            let new_loop_index = self.make_offset(loop_index, 1, true);
             self.builder.terminate_with_jmp(loop_.loop_entry, vec![new_loop_index]);
         } else {
             self.builder.terminate_with_jmp(loop_.loop_entry, vec![]);
