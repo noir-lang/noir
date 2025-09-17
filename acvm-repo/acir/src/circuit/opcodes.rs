@@ -249,7 +249,7 @@ mod tests {
 
         insta::assert_snapshot!(
             xor.to_string(),
-            @"BLACKBOX::XOR [_0, _1]:32 bits [w3]"
+            @"BLACKBOX::XOR [w0, w1]:32 bits [w3]"
         );
     }
 
@@ -262,7 +262,7 @@ mod tests {
 
         insta::assert_snapshot!(
             range.to_string(),
-            @"BLACKBOX::RANGE [_0]:32 bits []"
+            @"BLACKBOX::RANGE [w0]:32 bits []"
         );
     }
 }

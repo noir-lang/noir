@@ -130,10 +130,10 @@ fn assert_zero_with_mul_terms() {
 #[test]
 fn range_check() {
     let src = "
-    current witness : w5
-    private parameters indices : []
-    public parameters indices : []
-    return value indices : []
+    current witness: w5
+    private parameters: []
+    public parameters: []
+    return values: []
     BLACKBOX::RANGE [w0]:32 bits []
     ";
     assert_circuit_roundtrip(src);
@@ -148,7 +148,7 @@ fn xor() {
     return values: []
     BLACKBOX::RANGE [w0]:32 bits []
     BLACKBOX::RANGE [w1]:32 bits []
-    BLACKBOX::XOR [(w0, 32), (w1, 32)] [w2]
+    BLACKBOX::XOR [w0, w1]:32 bits [w2]
     EXPR [ (1, w2) -15 ]
     ";
     assert_circuit_roundtrip(src);
@@ -158,10 +158,10 @@ fn xor() {
 fn aes128_encrypt() {
     // This ACIR represents an accurately constrained aes128 encryption in ACIR
     let src = "
-    current witness : w75
-    private parameters indices : [w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15, w16, w17, w18, w19, w20, w21, w22, w23, w24, w25, w26, w27, w28, w29, w30, w31, w32, w33, w34, w35, w36, w37, w38, w39, w40, w41, w42, w43]
-    public parameters indices : [w44, w45, w46, w47, w48, w49, w50, w51, w52, w53, w54, w55, w56, w57, w58, w59]
-    return value indices : []
+    current witness: w75
+    private parameters: [w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15, w16, w17, w18, w19, w20, w21, w22, w23, w24, w25, w26, w27, w28, w29, w30, w31, w32, w33, w34, w35, w36, w37, w38, w39, w40, w41, w42, w43]
+    public parameters: [w44, w45, w46, w47, w48, w49, w50, w51, w52, w53, w54, w55, w56, w57, w58, w59]
+    return values: []
     BLACKBOX::RANGE [w0]:8 bits []
     BLACKBOX::RANGE [w1]:8 bits []
     BLACKBOX::RANGE [w2]:8 bits []
@@ -246,10 +246,10 @@ fn aes128_encrypt() {
 #[test]
 fn blake2s() {
     let src = "
-    current witness : w68
-    private parameters indices : [w0, w1, w2, w3, w4]
-    public parameters indices : [w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15, w16, w17, w18, w19, w20, w21, w22, w23, w24, w25, w26, w27, w28, w29, w30, w31, w32, w33, w34, w35, w36]
-    return value indices : []
+    current witness: w68
+    private parameters: [w0, w1, w2, w3, w4]
+    public parameters: [w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15, w16, w17, w18, w19, w20, w21, w22, w23, w24, w25, w26, w27, w28, w29, w30, w31, w32, w33, w34, w35, w36]
+    return values: []
     BLACKBOX::BLAKE2S [w0, w1, w2, w3, w4] [w37, w38, w39, w40, w41, w42, w43, w44, w45, w46, w47, w48, w49, w50, w51, w52, w53, w54, w55, w56, w57, w58, w59, w60, w61, w62, w63, w64, w65, w66, w67, w68]
     ";
     assert_circuit_roundtrip(src);
@@ -258,10 +258,10 @@ fn blake2s() {
 #[test]
 fn blake3() {
     let src = "
-    current witness : w37
-    private parameters indices : [w0, w1, w2, w3, w4]
-    public parameters indices : []
-    return value indices : []
+    current witness: w37
+    private parameters: [w0, w1, w2, w3, w4]
+    public parameters: []
+    return values: []
     BLACKBOX::BLAKE3 [w0, w1, w2, w3, w4] [w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15, w16, w17, w18, w19, w20, w21, w22, w23, w24, w25, w26, w27, w28, w29, w30, w31, w32, w33, w34, w35, w36]
     ";
     assert_circuit_roundtrip(src);
@@ -274,10 +274,10 @@ fn ecdsa_secp256k1() {
 
     let src = format!(
         "
-    current witness : w161
-    private parameters indices : []
-    public parameters indices : []
-    return value indices : []
+    current witness: w161
+    private parameters: []
+    public parameters: []
+    return values: []
     BLACKBOX::ECDSA_SECP256K1 [{inputs_str}] [w161]
     "
     );
@@ -381,10 +381,10 @@ fn keccakf1600_missing_inputs() {
 #[test]
 fn embedded_curve_add() {
     let src = "
-    current witness : w9
-    private parameters indices : []
-    public parameters indices : []
-    return value indices : []
+    current witness: w9
+    private parameters: []
+    public parameters: []
+    return values: []
     BLACKBOX::EMBEDDED_CURVE_ADD [w0, w1, w2, w3, w4, w5, w6] [w7, w8, w9]
     ";
     assert_circuit_roundtrip(src);
@@ -406,10 +406,10 @@ fn embedded_curve_add_wrong_output_count() {
 #[test]
 fn poseidon2_permutation() {
     let src = "
-    current witness : w5
-    private parameters indices : []
-    public parameters indices : []
-    return value indices : []
+    current witness: w5
+    private parameters: []
+    public parameters: []
+    return values: []
     BLACKBOX::POSEIDON2_PERMUTATION [w0, w1, w2] [w3, w4, w5]
     ";
     assert_circuit_roundtrip(src);
@@ -587,10 +587,10 @@ fn call_with_predicate() {
 #[test]
 fn array_dynamic() {
     let src = "
-    current witness : w78
-    private parameters indices : [w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15, w16, w17, w18]
-    public parameters indices : []
-    return value indices : []
+    current witness: w78
+    private parameters: [w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15, w16, w17, w18]
+    public parameters: []
+    return values: []
     BLACKBOX::RANGE [w0]:32 bits []
     BLACKBOX::RANGE [w1]:32 bits []
     BLACKBOX::RANGE [w2]:32 bits []
@@ -739,7 +739,7 @@ fn fold_basic_mismatched_ids() {
     current witness: w3
     private parameters: [w0, w1]
     public parameters: []
-    return value indices : [w2]
+    return values: [w2]
     BRILLIG CALL func 0: inputs: [EXPR [ (1, w0) (-1, w1) 0 ]], outputs: [w3]
     EXPR [ (1, w0, w3) (-1, w1, w3) -1 ]
     EXPR [ (-1, w0) (1, w2) 0 ]
