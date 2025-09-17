@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1758057805504,
+  "lastUpdate": 1758107091674,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -20206,48 +20206,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "84741533+defkit@users.noreply.github.com",
-            "name": "defkit",
-            "username": "defkit"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "d6727579dde6c33e6d3e66b9ca985ab595b3f735",
-          "message": "chore(ssa_fuzzer): separate fuzzer runtimes + add brillig fuzz target (#9753)",
-          "timestamp": "2025-09-10T08:22:10Z",
-          "tree_id": "228f25e781f80e321e474d5a366c1858d859d2e4",
-          "url": "https://github.com/noir-lang/noir/commit/d6727579dde6c33e6d3e66b9ca985ab595b3f735"
-        },
-        "date": 1757493986535,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 247376,
-            "range": "± 624",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 218960,
-            "range": "± 2647",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2808473,
-            "range": "± 1238",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "26174818+jialinli98@users.noreply.github.com",
             "name": "Jialin Li",
             "username": "jialinli98"
@@ -22299,6 +22257,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2791719,
             "range": "± 1587",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "69570b72c5f351cdd129551478c6236daa1aad0f",
+          "message": "fix(fuzz): Always introduce a local binding before match (#9883)",
+          "timestamp": "2025-09-17T10:33:54Z",
+          "tree_id": "0cf10cc59d71bf6652c1754417094d52d738db59",
+          "url": "https://github.com/noir-lang/noir/commit/69570b72c5f351cdd129551478c6236daa1aad0f"
+        },
+        "date": 1758107071525,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 255655,
+            "range": "± 1423",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 232614,
+            "range": "± 1566",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2801509,
+            "range": "± 5356",
             "unit": "ns/iter"
           }
         ]
