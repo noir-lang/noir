@@ -1120,7 +1120,7 @@ mod tests {
             jmp b1(v8)
         }
         acir(inline) fn foo f1 {
-          b0(v0: &mut Field):
+          b0(v0: &mut &mut Field):
             return
         }
         ";

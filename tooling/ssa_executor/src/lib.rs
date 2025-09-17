@@ -139,4 +139,39 @@ mod tests {
             _ => {}
         }
     }
+
+    #[test]
+    fn execute_brillig_stdlib_call_with_multiple_acir_calls() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u32, v1: u32, v2: u32):
+            v5 = div v0, v1
+            constrain v5 == v2
+            v6 = call f1(v0, v1) -> u32
+            v7 = call f1(v0, v1) -> u32
+            v8 = call f2(v0, v1) -> u32
+            v9 = div v1, v2
+            constrain v9 == u32 1
+            return
+        }
+        brillig(inline) fn foo f1 {
+          b0(v0: u32, v1: u32):
+            v2 = eq v0, v1
+            constrain v2 == u1 0
+            return v0
+        }
+        acir(fold) fn foo f2 {
+          b0(v0: u32, v1: u32):
+            v2 = eq v0, v1
+            constrain v2 == u1 0
+            return v0
+        }
+        ";
+        let mut witness_map = WitnessMap::new();
+        witness_map.insert(Witness(0), FieldElement::from(9_u32));
+        witness_map.insert(Witness(1), FieldElement::from(3_u32));
+        witness_map.insert(Witness(2), FieldElement::from(3_u32));
+        let result = execute_ssa(src.to_string(), witness_map, CompileOptions::default());
+        assert!(result.is_ok());
+    }
 }

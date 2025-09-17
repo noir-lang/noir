@@ -4,7 +4,7 @@
 use std::cell::{Cell, RefCell};
 
 use crate::targets::default_config;
-use crate::{compare_results_compiled, create_ssa_or_die, default_ssa_options};
+use crate::{compare_results_compiled, compile_into_circuit_or_die, default_ssa_options};
 use arbitrary::{Arbitrary, Unstructured};
 use color_eyre::eyre;
 use noir_ast_fuzzer::compare::{CompareMorph, CompareOptions};
@@ -28,7 +28,9 @@ pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
             rewrite_program(u, &mut program, &rules, max_rewrites);
             Ok((program, options))
         },
-        |program, options| create_ssa_or_die(program, &options.onto(default_ssa_options()), None),
+        |program, options| {
+            compile_into_circuit_or_die(program, &options.onto(default_ssa_options()), None)
+        },
     )?;
 
     let result = inputs.exec()?;
@@ -820,7 +822,6 @@ mod helpers {
 mod tests {
     /// ```ignore
     /// NOIR_AST_FUZZER_SEED=0xb2fb5f0b00100000 \
-    /// NOIR_AST_FUZZER_SHOW_AST=1 \
     /// cargo test -p noir_ast_fuzzer_fuzz orig_vs_morph
     /// ```
     #[test]
