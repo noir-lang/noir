@@ -191,10 +191,7 @@ impl<'f> Validator<'f> {
                 }
             }
             Instruction::MakeArray { elements, typ: _ } => {
-                let results = dfg.instruction_results(instruction);
-                assert_eq!(results.len(), 1, "MakeArray must return exactly one value");
-
-                let result_type = dfg.type_of_value(results[0]);
+                let result_type = self.assert_one_result(instruction, "MakeArray");
 
                 let composite_type = match result_type {
                     Type::Array(composite_type, length) => {
@@ -331,9 +328,7 @@ impl<'f> Validator<'f> {
                 let radix_type = dfg.type_of_value(arguments[1]);
                 assert_u32(&radix_type, "ToRadix radix");
 
-                let results = dfg.instruction_results(instruction);
-                assert_eq!(results.len(), 1, "Expected one result",);
-                let result_type = dfg.type_of_value(results[0]);
+                let result_type = self.assert_one_result(instruction, "ToRadix");
                 assert_u8_array(&result_type, "to_radix output");
             }
             Intrinsic::ToBits(_) => {
@@ -343,15 +338,13 @@ impl<'f> Validator<'f> {
                 let value_type = dfg.type_of_value(arguments[0]);
                 assert_field(&value_type, "ToBits value");
 
-                let results = dfg.instruction_results(instruction);
-                assert_eq!(results.len(), 1, "Expected one result",);
-                let result_type = dfg.type_of_value(results[0]);
+                let result_type = self.assert_one_result(instruction, "ToBits");
                 assert_u1_array(&result_type, "to_bits output");
             }
             Intrinsic::BlackBox(blackbox) => {
                 self.type_check_black_box(instruction, arguments, blackbox);
             }
-            _ => {}
+            _ => (),
         }
     }
 
@@ -396,9 +389,7 @@ impl<'f> Validator<'f> {
                 let key_length = assert_u8_array(&key_type, "aes128_encrypt key");
                 assert_array_length(key_length, 16, "aes128_encrypt key");
 
-                let results = dfg.instruction_results(instruction);
-                assert_eq!(results.len(), 1, "Expected one result",);
-                let result_type = dfg.type_of_value(results[0]);
+                let result_type = self.assert_one_result(instruction, "aes128_encrypt");
                 let result_length = assert_u8_array(&result_type, "aes128_encrypt output");
                 assert_eq!(
                     result_length,
@@ -421,9 +412,7 @@ impl<'f> Validator<'f> {
                 let input_type = dfg.type_of_value(input);
                 assert_u8_array(&input_type, "blake input");
 
-                let results = dfg.instruction_results(instruction);
-                assert_eq!(results.len(), 1, "Expected one result");
-                let result_type = dfg.type_of_value(results[0]);
+                let result_type = self.assert_one_result(instruction, "blake");
                 let result_length = assert_u8_array(&result_type, "blake output");
                 assert_array_length(result_length, 32, "blake output");
             }
@@ -457,9 +446,7 @@ impl<'f> Validator<'f> {
                 let message_hash_type = dfg.type_of_value(message_hash);
                 assert_array(&message_hash_type, "ecdsa_secp256 message_hash");
 
-                let results = dfg.instruction_results(instruction);
-                assert_eq!(results.len(), 1, "Expected one result");
-                let result_type = dfg.type_of_value(results[0]);
+                let result_type = self.assert_one_result(instruction, "ecdsa_secp256");
                 assert_u1(&result_type, "ecdsa_secp256 result");
             }
             BlackBoxFunc::EmbeddedCurveAdd => {
@@ -478,9 +465,7 @@ impl<'f> Validator<'f> {
                 assert_embedded_curve_point(arguments, 0, dfg, "embedded_curve_add _point1");
                 assert_embedded_curve_point(arguments, 3, dfg, "embedded_curve_add _point2");
 
-                let results = dfg.instruction_results(instruction);
-                assert_eq!(results.len(), 1, "Expected one result");
-                let result_type = dfg.type_of_value(results[0]);
+                let result_type = self.assert_one_result(instruction, "embedded_curve_add");
                 let (result_elements, result_length) =
                     assert_array(&result_type, "embedded_curve_add result");
                 assert_array_length(result_length, 1, "embedded_curve_add result length");
@@ -503,9 +488,7 @@ impl<'f> Validator<'f> {
                 let input_length = assert_u64_array(&input_type, "keccakf1600 input");
                 assert_array_length(input_length, 25, "keccakf1600 input");
 
-                let results = dfg.instruction_results(instruction);
-                assert_eq!(results.len(), 1);
-                let result_type = dfg.type_of_value(results[0]);
+                let result_type = self.assert_one_result(instruction, "keccakf1600");
                 let result_length = assert_u64_array(&result_type, "keccakf1600 result");
                 assert_array_length(result_length, 25, "keccakf1600 result");
             }
@@ -556,9 +539,7 @@ impl<'f> Validator<'f> {
                 let state_length_type = dfg.type_of_value(state_length);
                 assert_u32(&state_length_type, "poseidon2_permutation _state_length");
 
-                let results = dfg.instruction_results(instruction);
-                assert_eq!(results.len(), 1, "Expected one result");
-                let result_type = dfg.type_of_value(results[0]);
+                let result_type = self.assert_one_result(instruction, "posedion2_permutation");
                 let result_length =
                     assert_field_array(&result_type, "poseidon2_permutation result");
                 assert_eq!(
@@ -599,6 +580,8 @@ impl<'f> Validator<'f> {
                 let proof_type = arguments[4];
                 let proof_type_type = dfg.type_of_value(proof_type);
                 assert_u32(&proof_type_type, "recursive_aggregation proof_type");
+
+                self.assert_no_results(instruction, "recursive_aggregation");
             }
             BlackBoxFunc::Sha256Compression => {
                 // fn sha256_compression(input: [u32; 16], state: [u32; 8]) -> [u32; 8] {}
@@ -614,13 +597,22 @@ impl<'f> Validator<'f> {
                 let state_length = assert_u32_array(&state_type, "sha256_compression state");
                 assert_array_length(state_length, 8, "sha256_compression state");
 
-                let results = dfg.instruction_results(instruction);
-                assert_eq!(results.len(), 1, "Expected one result");
-                let result_type = dfg.type_of_value(results[0]);
+                let result_type = self.assert_one_result(instruction, "sha256_compression");
                 let result_length = assert_u32_array(&result_type, "sha256_compression result");
                 assert_array_length(result_length, 8, "sha256_compression result");
             }
         }
+    }
+
+    fn assert_no_results(&self, instruction: InstructionId, object: &'static str) {
+        let results = self.function.dfg.instruction_results(instruction);
+        assert_eq!(results.len(), 0, "Expected zero result for {object}",);
+    }
+
+    fn assert_one_result(&self, instruction: InstructionId, object: &'static str) -> Type {
+        let results = self.function.dfg.instruction_results(instruction);
+        assert_eq!(results.len(), 1, "Expected one result for {object}",);
+        self.function.dfg.type_of_value(results[0])
     }
 
     /// Validates that acir functions are not called from unconstrained code.
