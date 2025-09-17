@@ -271,7 +271,7 @@ fn brillig_stdlib_calls_with_multiple_acir_calls() {
     BLACKBOX::RANGE [(w7, 32)] []
     BRILLIG CALL func 0: inputs: [EXPR [ (1, w0) 0 ], EXPR [ (1, w1) 0 ]], outputs: [w8]
     BLACKBOX::RANGE [(w8, 32)] []
-    CALL func 2: PREDICATE: EXPR [ 1 ]
+    CALL func 1: PREDICATE: EXPR [ 1 ]
     inputs: [w0, w1], outputs: [w9]
     BRILLIG CALL func 1: inputs: [EXPR [ (1, w2) 0 ]], outputs: [w10]
     EXPR [ (1, w2, w10) -1 ]
@@ -281,7 +281,7 @@ fn brillig_stdlib_calls_with_multiple_acir_calls() {
     BLACKBOX::RANGE [(w13, 32)] []
     EXPR [ (-1, w2, w11) (1, w1) (-1, w12) 0 ]
     EXPR [ (1, w11) -1 ]
-    
+
     func 1
     current witness: w5
     private parameters: [w0, w1]
@@ -295,7 +295,7 @@ fn brillig_stdlib_calls_with_multiple_acir_calls() {
     EXPR [ (1, w3, w5) 0 ]
     EXPR [ (1, w5) 0 ]
     EXPR [ (-1, w0) (1, w2) 0 ]
-    
+
     unconstrained func 0
     [Const { destination: Direct(2), bit_size: Integer(U32), value: 1 }, Const { destination: Direct(1), bit_size: Integer(U32), value: 32839 }, Const { destination: Direct(0), bit_size: Integer(U32), value: 3 }, Const { destination: Relative(3), bit_size: Integer(U32), value: 2 }, Const { destination: Relative(4), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(32836), size_address: Relative(3), offset_address: Relative(4) }, Cast { destination: Direct(32836), source: Direct(32836), bit_size: Integer(U32) }, Cast { destination: Direct(32837), source: Direct(32837), bit_size: Integer(U32) }, Mov { destination: Relative(1), source: Direct(32836) }, Mov { destination: Relative(2), source: Direct(32837) }, Call { location: 16 }, Call { location: 17 }, Mov { destination: Direct(32838), source: Relative(1) }, Const { destination: Relative(2), bit_size: Integer(U32), value: 32838 }, Const { destination: Relative(3), bit_size: Integer(U32), value: 1 }, Stop { return_data: HeapVector { pointer: Relative(2), size: Relative(3) } }, Return, Call { location: 25 }, BinaryIntOp { destination: Relative(3), op: Equals, bit_size: U32, lhs: Relative(1), rhs: Relative(2) }, Const { destination: Relative(2), bit_size: Integer(U1), value: 0 }, BinaryIntOp { destination: Relative(4), op: Equals, bit_size: U1, lhs: Relative(3), rhs: Relative(2) }, JumpIf { condition: Relative(4), location: 24 }, Const { destination: Relative(5), bit_size: Integer(U32), value: 0 }, Trap { revert_data: HeapVector { pointer: Direct(1), size: Relative(5) } }, Return, Const { destination: Direct(32772), bit_size: Integer(U32), value: 30720 }, BinaryIntOp { destination: Direct(32771), op: LessThan, bit_size: U32, lhs: Direct(0), rhs: Direct(32772) }, JumpIf { condition: Direct(32771), location: 30 }, IndirectConst { destination_pointer: Direct(1), bit_size: Integer(U64), value: 15764276373176857197 }, Trap { revert_data: HeapVector { pointer: Direct(1), size: Direct(2) } }, Return]
     unconstrained func 1
