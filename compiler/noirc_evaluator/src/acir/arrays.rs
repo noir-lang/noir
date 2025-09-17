@@ -593,7 +593,6 @@ impl Context<'_> {
         };
 
         let value_types = self.convert_value(array, dfg).flat_numeric_types();
-        dbg!(value_types.clone());
         // Compiler sanity check
         assert_eq!(
             value_types.len(),
