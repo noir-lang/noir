@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1758110015388,
+  "lastUpdate": 1758110019977,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -12112,80 +12112,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "47281315+guipublic@users.noreply.github.com",
-            "name": "guipublic",
-            "username": "guipublic"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "8cfbdb9d2cbe21faa883271d3259c726db275ad5",
-          "message": "fix: proper error when dividing by minus 1 (#9762)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-09-10T11:18:32Z",
-          "tree_id": "9f5d3c67bd42a8d00fce203fb35809bb60c78c31",
-          "url": "https://github.com/noir-lang/noir/commit/8cfbdb9d2cbe21faa883271d3259c726db275ad5"
-        },
-        "date": 1757505480399,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 258.31,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 291.48,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 243.06,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 506.2,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 438.58,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1500,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 330.65,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 333.18,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 72.58,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 58.39,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -15755,6 +15681,80 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/0bb32f3cda42789b7ec55aff820da91f259791af"
         },
         "date": 1758109886884,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 258.74,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 291.13,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 242.63,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 506.72,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 440.02,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1530,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 331.06,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 333.58,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 73,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 69.57,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "cb571e1ce6a837289bb602e16d043f763cdd8465",
+          "message": "chore(fuzz): Refactor logging in the AST fuzzer (#9884)",
+          "timestamp": "2025-09-17T11:00:40Z",
+          "tree_id": "abf1d14d379e680bfe24678bd3b3ec16edec1e3f",
+          "url": "https://github.com/noir-lang/noir/commit/cb571e1ce6a837289bb602e16d043f763cdd8465"
+        },
+        "date": 1758109998139,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
