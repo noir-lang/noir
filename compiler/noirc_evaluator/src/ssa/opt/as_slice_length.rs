@@ -111,8 +111,6 @@ mod test {
         ");
     }
 
-    /// TODO(https://github.com/noir-lang/noir/issues/9416): This test should be prevented during SSA validation
-    /// Once type checking of intrinsic function calls is supported this test will have to be run against non-validated SSA.
     #[test]
     #[should_panic(expected = "AsSlice called with non-array [Field]")]
     fn as_slice_length_on_slice_type() {
@@ -130,12 +128,10 @@ mod test {
               return v2
         }
         ";
-        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = Ssa::from_str_no_validation(src).unwrap();
         let _ = ssa.as_slice_optimization();
     }
 
-    /// TODO(https://github.com/noir-lang/noir/issues/9416): This test should be prevented during SSA validation
-    /// Once type checking of intrinsic function calls is supported this test will have to be run against non-validated SSA.
     #[test]
     #[should_panic(expected = "AsSlice called with non-array Field")]
     fn as_slice_length_on_numeric_type() {
@@ -146,12 +142,10 @@ mod test {
             return v2
         }
         ";
-        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = Ssa::from_str_no_validation(src).unwrap();
         let _ = ssa.as_slice_optimization();
     }
 
-    /// TODO(https://github.com/noir-lang/noir/issues/9416): This test should be prevented during SSA validation
-    /// Once type checking of intrinsic function calls is supported this test will have to be run against non-validated SSA.
     #[test]
     #[should_panic(expected = "AsSlice should always have one argument")]
     fn as_slice_wrong_number_of_arguments() {
@@ -162,7 +156,7 @@ mod test {
             return v1
         }
         ";
-        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = Ssa::from_str_no_validation(src).unwrap();
         let _ = ssa.as_slice_optimization();
     }
 }

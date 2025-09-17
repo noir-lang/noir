@@ -2151,9 +2151,6 @@ mod test {
     #[test_case(1, TestCall::Function(Some(Purity::Impure)), false; "impure function")]
     #[test_case(1, TestCall::Function(None), false; "purity unknown")]
     #[test_case(1, TestCall::ForeignFunction, false; "foreign functions always impure")]
-    #[test_case(0, TestCall::Intrinsic(Intrinsic::AsWitness), false; "empty loop; predicate pure intrinsic")]
-    #[test_case(1, TestCall::Intrinsic(Intrinsic::AsWitness), true; "non-empty loop; predicate pure intrinsic")]
-    #[test_case(1, TestCall::Intrinsic(Intrinsic::ArrayRefCount), false; "non-empty loop, impure intrinsic")]
     #[test_case(0, TestCall::Intrinsic(Intrinsic::BlackBox(acvm::acir::BlackBoxFunc::Keccakf1600)), true; "empty loop, pure intrinsic")]
     #[test_case(1, TestCall::Intrinsic(Intrinsic::BlackBox(acvm::acir::BlackBoxFunc::Keccakf1600)), true; "non-empty loop, pure intrinsic")]
     fn hoist_from_loop_call_with_purity(upper: u32, test_call: TestCall, should_hoist: bool) {
@@ -2200,6 +2197,65 @@ mod test {
         } else {
             assert_eq!(pre_header.instructions().len(), 1, "should hoist");
         }
+    }
+
+    #[test_case(0, false; "empty loop; predicate pure intrinsic")]
+    #[test_case(1, true; "non-empty loop; predicate pure intrinsic")]
+    fn hoist_as_witness_from_loop_call_with_purity(upper: u32, should_hoist: bool) {
+        let src = format!(
+            r#"
+        acir(inline) fn main f0 {{
+          b0(v0: Field):
+            jmp b1(u32 0)
+          b1(v1: u32):
+            v2 = lt v1, u32 {upper}
+            jmpif v2 then: b2, else: b3
+          b2():
+            call as_witness(v0)
+            v4 = unchecked_add v1, u32 1
+            jmp b1(v4)
+          b3():
+            return
+        }}
+        "#,
+        );
+
+        let ssa = Ssa::from_str(&src).unwrap();
+        let ssa = ssa.loop_invariant_code_motion();
+
+        // The pre-header of the loop b1 is b0
+        let pre_header = &ssa.main().dfg[BasicBlockId::new(0)];
+        if !should_hoist {
+            assert!(pre_header.instructions().is_empty(), "should not hoist");
+        } else {
+            assert_eq!(pre_header.instructions().len(), 1, "should hoist");
+        }
+    }
+
+    #[test]
+    fn does_not_hoist_array_refcount_from_loop_call_with_purity() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: [Field; 3]):
+            jmp b1(u32 0)
+          b1(v1: u32):
+            v2 = lt v1, u32 1
+            jmpif v2 then: b2, else: b3
+          b2():
+            v3 = call array_refcount(v0) -> u32
+            v4 = unchecked_add v1, u32 1
+            jmp b1(v4)
+          b3():
+            return
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.loop_invariant_code_motion();
+
+        // The pre-header of the loop b1 is b0
+        let pre_header = &ssa.main().dfg[BasicBlockId::new(0)];
+        assert!(pre_header.instructions().is_empty(), "should not hoist");
     }
 
     /// Test cases where `i < const` or `const < i` should or shouldn't be simplified.
