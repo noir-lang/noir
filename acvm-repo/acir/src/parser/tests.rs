@@ -130,7 +130,7 @@ fn assert_zero_with_mul_terms() {
 #[test]
 fn range_check() {
     let src = "
-    current witness index : w5
+    current witness : w5
     private parameters indices : []
     public parameters indices : []
     return value indices : []
@@ -158,7 +158,7 @@ fn xor() {
 fn aes128_encrypt() {
     // This ACIR represents an accurately constrained aes128 encryption in ACIR
     let src = "
-    current witness index : w75
+    current witness : w75
     private parameters indices : [w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15, w16, w17, w18, w19, w20, w21, w22, w23, w24, w25, w26, w27, w28, w29, w30, w31, w32, w33, w34, w35, w36, w37, w38, w39, w40, w41, w42, w43]
     public parameters indices : [w44, w45, w46, w47, w48, w49, w50, w51, w52, w53, w54, w55, w56, w57, w58, w59]
     return value indices : []
@@ -246,7 +246,7 @@ fn aes128_encrypt() {
 #[test]
 fn blake2s() {
     let src = "
-    current witness index : w68
+    current witness : w68
     private parameters indices : [w0, w1, w2, w3, w4]
     public parameters indices : [w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15, w16, w17, w18, w19, w20, w21, w22, w23, w24, w25, w26, w27, w28, w29, w30, w31, w32, w33, w34, w35, w36]
     return value indices : []
@@ -258,7 +258,7 @@ fn blake2s() {
 #[test]
 fn blake3() {
     let src = "
-    current witness index : w37
+    current witness : w37
     private parameters indices : [w0, w1, w2, w3, w4]
     public parameters indices : []
     return value indices : []
@@ -274,7 +274,7 @@ fn ecdsa_secp256k1() {
 
     let src = format!(
         "
-    current witness index : w161
+    current witness : w161
     private parameters indices : []
     public parameters indices : []
     return value indices : []
@@ -381,7 +381,7 @@ fn keccakf1600_missing_inputs() {
 #[test]
 fn embedded_curve_add() {
     let src = "
-    current witness index : w9
+    current witness : w9
     private parameters indices : []
     public parameters indices : []
     return value indices : []
@@ -406,7 +406,7 @@ fn embedded_curve_add_wrong_output_count() {
 #[test]
 fn poseidon2_permutation() {
     let src = "
-    current witness index : w5
+    current witness : w5
     private parameters indices : []
     public parameters indices : []
     return value indices : []
@@ -587,7 +587,7 @@ fn call_with_predicate() {
 #[test]
 fn array_dynamic() {
     let src = "
-    current witness index : w78
+    current witness : w78
     private parameters indices : [w0, w1, w2, w3, w4, w5, w6, w7, w8, w9, w10, w11, w12, w13, w14, w15, w16, w17, w18]
     public parameters indices : []
     return value indices : []
