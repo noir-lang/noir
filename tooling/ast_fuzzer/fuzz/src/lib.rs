@@ -42,17 +42,19 @@ pub fn default_ssa_options() -> SsaEvaluatorOptions {
     }
 }
 
-/// Compile a [Program] into SSA or panic.
-pub fn create_ssa_or_die(
+/// Compile a monomorphized [Program] into circuit or panic.
+pub fn compile_into_circuit_or_die(
     program: Program,
     options: &SsaEvaluatorOptions,
     msg: Option<&str>,
 ) -> SsaProgramArtifact {
-    create_ssa_with_passes_or_die(program, options, &primary_passes(options), msg)
+    compile_into_circuit_with_ssa_passes_or_die(program, options, &primary_passes(options), msg)
 }
 
-/// Compile a [Program] into SSA using the given SSA passes, or panic if it cannot be compiled.
-pub fn create_ssa_with_passes_or_die(
+/// Compile a monomorphized [Program] into circuit using the given SSA passes or panic.
+///
+/// If there is a seed in the environment, then it prints the AST when an error is encountered.
+pub fn compile_into_circuit_with_ssa_passes_or_die(
     program: Program,
     options: &SsaEvaluatorOptions,
     primary: &[SsaPass],
