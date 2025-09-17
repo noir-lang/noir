@@ -118,11 +118,28 @@ where
                 .serialize(&inputs.input_map, &inputs.abi)
                 .unwrap_or_else(|e| format!("failed to serialize inputs: {e}"))
         );
+
+        // Display a Program without the Brillig opcodes, which are unreadable.
+        fn display_program(artifact: &SsaProgramArtifact) {
+            for (func_index, function) in artifact.program.functions.iter().enumerate() {
+                eprintln!("func {func_index}");
+                eprintln!("{function}");
+            }
+            for (func_index, function) in
+                artifact.program.unconstrained_functions.iter().enumerate()
+            {
+                eprintln!("unconstrained func {func_index}");
+                eprintln!("opcode count: {}", function.bytecode.len());
+            }
+        }
+
         eprintln!("---\nOptions 1:\n{:?}", inputs.ssa1.options);
-        eprintln!("---\nProgram 1:\n{}", inputs.ssa1.artifact.program);
+        eprintln!("---\nProgram 1:");
+        display_program(&inputs.ssa1.artifact);
 
         eprintln!("---\nOptions 2:\n{:?}", inputs.ssa2.options);
-        eprintln!("---\nProgram 2:\n{}", inputs.ssa2.artifact.program);
+        eprintln!("---\nProgram 2:");
+        display_program(&inputs.ssa1.artifact);
 
         // Returning it as-is, so we can see the error message at the bottom as well.
         Err(report)
