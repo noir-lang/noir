@@ -554,6 +554,28 @@ impl<'f> Validator<'f> {
                     }
                     Value::Function(func_id) => {
                         let called_function = &self.ssa.functions[func_id];
+
+                        let parameter_types = called_function.parameter_types();
+                        assert_eq!(
+                            arguments.len(),
+                            parameter_types.len(),
+                            "Function call to {func_id} expected {} parameters, but got {}",
+                            parameter_types.len(),
+                            arguments.len()
+                        );
+
+                        for (index, (argument, parameter_type)) in
+                            arguments.iter().zip(parameter_types).enumerate()
+                        {
+                            let argument_type = dfg.type_of_value(*argument);
+                            if argument_type != parameter_type {
+                                panic!(
+                                    "Argument #{} to {func_id} has type {parameter_type}, but {argument_type} was given",
+                                    index + 1,
+                                );
+                            }
+                        }
+
                         if let Some(returns) = called_function.returns() {
                             let instruction_results = dfg.instruction_results(instruction);
                             if instruction_results.len() != returns.len() {
@@ -1113,6 +1135,42 @@ mod tests {
         acir(inline) fn f2 f2 {
           b0():
             return Field 2
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "Function call to f1 expected 1 parameters, but got 0")]
+    fn call_has_wrong_parameter_count() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            call f1()
+            return
+        }
+
+        acir(inline) fn foo f1 {
+          b0(v0: Field):
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "Argument #1 to f1 has type Field, but u32 was given")]
+    fn call_has_wrong_argument_type() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            call f1(v0)
+            return
+        }
+
+        acir(inline) fn foo f1 {
+          b0(v0: Field):
+            return
         }
         ";
         let _ = Ssa::from_str(src).unwrap();
