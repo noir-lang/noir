@@ -226,13 +226,6 @@ impl Context<'_> {
         }
 
         if let Some(store_value) = store_value {
-            // We should avoid storing a DynamicArray directly inside an Array. Instead we must allow
-            // the regular `array_set_value` to take place which reads the item from the block the
-            // dynamic array refers to, and writes items one by one. Otherwise subsequent operations
-            // with non-constant indexes will fail.
-            if matches!(store_value, AcirValue::DynamicArray(_)) {
-                return Ok(false);
-            }
             let side_effects_always_enabled =
                 self.acir_context.is_constant_one(&self.current_side_effects_enabled_var);
 
@@ -600,6 +593,7 @@ impl Context<'_> {
         };
 
         let value_types = self.convert_value(array, dfg).flat_numeric_types();
+        dbg!(value_types.clone());
         // Compiler sanity check
         assert_eq!(
             value_types.len(),

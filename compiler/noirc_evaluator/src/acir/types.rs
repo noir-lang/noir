@@ -110,9 +110,10 @@ impl Debug for AcirDynamicArray {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(
             f,
-            "id: {}, len: {}, element_type_sizes: {:?}",
+            "id: {}, len: {}, value_types: {:?}, element_type_sizes: {:?}",
             self.block_id.0,
             self.len,
+            self.value_types,
             self.element_type_sizes.map(|block_id| block_id.0)
         )
     }
@@ -156,11 +157,11 @@ impl AcirValue {
 
     pub(super) fn flat_numeric_types(self) -> Vec<NumericType> {
         match self {
-            AcirValue::Array(_) => {
-                self.flatten().into_iter().map(|(_, typ)| typ.to_numeric_type()).collect()
+            AcirValue::Array(array) => {
+                array.into_iter().flat_map(|elem| elem.flat_numeric_types()).collect()
             }
             AcirValue::DynamicArray(AcirDynamicArray { value_types, .. }) => value_types,
-            _ => unreachable!("An AcirValue::Var cannot be used as an array value"),
+            AcirValue::Var(_, typ) => vec![typ.to_numeric_type()],
         }
     }
 }
