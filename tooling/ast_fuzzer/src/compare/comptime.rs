@@ -27,6 +27,7 @@ use noirc_frontend::{
 
 use super::{CompareArtifact, CompareCompiledResult, CompareOptions, HasPrograms};
 use crate::compare::compiled::ExecResult;
+use crate::compare::logging;
 use crate::{
     Config, DisplayAstAsNoirComptime, arb_program_comptime, program_abi, program_wrap_expression,
 };
@@ -128,8 +129,6 @@ impl CompareComptime {
             String::from_utf8(output).expect("not UTF-8")
         };
 
-        // Log source code before interpreting
-        log::debug!("comptime src:\n{}", self.source);
         let comptime_expr = match interpret(source.as_str(), output.clone()) {
             Ok(expr) => expr,
             Err(e) => {
@@ -182,7 +181,6 @@ impl CompareComptime {
             Self::exec_bytecode(&self.ssa.artifact.program, initial_witness.clone());
 
         // Try to compile the 1st (comptime) version from string.
-        log::debug!("comptime src:\n{}", self.source);
         let (program1, output1) = match prepare_and_compile_snippet(
             self.source.clone(),
             self.force_brillig,
@@ -226,10 +224,13 @@ impl CompareComptime {
         let force_brillig = c.force_brillig;
         let program = arb_program_comptime(u, c)?;
         let abi = program_abi(&program);
+        logging::log_program(&program, "");
 
         let ssa = CompareArtifact::from(f(program.clone())?);
+        logging::log_options(&ssa.options, "compiled");
 
         let source = format!("{}", DisplayAstAsNoirComptime(&program));
+        logging::log_comptime(&source, "");
 
         Ok(Self { program, abi, source, ssa, force_brillig })
     }
