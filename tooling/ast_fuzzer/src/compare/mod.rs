@@ -183,7 +183,7 @@ mod logging {
     }
 
     pub(super) fn log_program(program: &Program, msg: &str) {
-        log::debug!("AST{}:\n{}\n", format_msg(msg), DisplayAstAsNoir(&program));
+        log::debug!("AST{}:\n{}\n", format_msg(msg), DisplayAstAsNoir(program));
     }
 
     pub(super) fn log_ssa(ssa: &Ssa, msg: &str) {
@@ -202,7 +202,7 @@ mod logging {
         log::debug!(
             "ABI inputs:\n{}\n",
             noirc_abi::input_parser::Format::Toml
-                .serialize(&input_map, &abi)
+                .serialize(input_map, abi)
                 .unwrap_or_else(|e| format!("failed to serialize inputs: {e}"))
         );
     }
