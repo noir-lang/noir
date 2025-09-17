@@ -8,13 +8,11 @@
 
 use noirc_errors::call_stack::CallStack;
 use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
-use std::collections::BTreeMap;
 use types::{AcirDynamicArray, AcirValue};
 
 use acvm::acir::{
     circuit::{
-        AssertionPayload, ExpressionWidth, OpcodeLocation, brillig::BrilligFunctionId,
-        opcodes::AcirFunctionId,
+        AssertionPayload, ExpressionWidth, brillig::BrilligFunctionId, opcodes::AcirFunctionId,
     },
     native_types::Witness,
 };
@@ -24,17 +22,16 @@ use noirc_frontend::monomorphization::ast::InlineType;
 
 mod acir_context;
 mod arrays;
+mod shared_context;
 pub(crate) mod ssa;
 #[cfg(test)]
 mod tests;
 mod types;
 
-use crate::brillig::BrilligOptions;
 use crate::brillig::brillig_gen::gen_brillig_for;
 use crate::brillig::{
-    Brillig,
-    brillig_gen::brillig_fn::FunctionContext as BrilligFunctionContext,
-    brillig_ir::artifact::{BrilligParameter, GeneratedBrillig},
+    Brillig, brillig_gen::brillig_fn::FunctionContext as BrilligFunctionContext,
+    brillig_ir::artifact::BrilligParameter,
 };
 use crate::errors::{InternalError, InternalWarning, RuntimeError, SsaReport};
 use crate::ssa::ir::instruction::Hint;
@@ -42,7 +39,7 @@ use crate::ssa::{
     function_builder::data_bus::DataBus,
     ir::{
         dfg::DataFlowGraph,
-        function::{Function, FunctionId, RuntimeType},
+        function::{Function, RuntimeType},
         instruction::{
             Binary, BinaryOp, ConstrainError, Instruction, InstructionId, Intrinsic,
             TerminatorInstruction,
@@ -54,117 +51,11 @@ use crate::ssa::{
     },
     ssa_gen::Ssa,
 };
+use crate::{acir::shared_context::SharedContext, brillig::BrilligOptions};
 
-use acir_context::{AcirContext, BrilligStdLib, BrilligStdlibFunc, power_of_two};
+use acir_context::{AcirContext, BrilligStdLib, power_of_two};
 use types::{AcirType, AcirVar};
 pub use {acir_context::GeneratedAcir, ssa::Artifacts};
-
-#[derive(Default)]
-struct SharedContext<F: AcirField> {
-    brillig_stdlib: BrilligStdLib<F>,
-
-    /// Final list of Brillig functions which will be part of the final program
-    /// This is shared across `Context` structs as we want one list of Brillig
-    /// functions across all ACIR artifacts
-    generated_brillig: Vec<GeneratedBrillig<F>>,
-
-    /// Maps SSA function index -> Final generated Brillig artifact index.
-    /// There can be Brillig functions specified in SSA which do not act as
-    /// entry points in ACIR (e.g. only called by other Brillig functions)
-    /// This mapping is necessary to use the correct function pointer for a Brillig call.
-    /// This uses the brillig parameters in the map since using slices with different lengths
-    /// needs to create different brillig entrypoints
-    brillig_generated_func_pointers:
-        BTreeMap<(FunctionId, Vec<BrilligParameter>), BrilligFunctionId>,
-
-    /// Maps a Brillig std lib function (a handwritten primitive such as for inversion) -> Final generated Brillig artifact index.
-    /// A separate mapping from normal Brillig calls is necessary as these methods do not have an associated function id from SSA.
-    brillig_stdlib_func_pointer: HashMap<BrilligStdlibFunc, BrilligFunctionId>,
-
-    /// Keeps track of Brillig std lib calls per function that need to still be resolved
-    /// with the correct function pointer from the `brillig_stdlib_func_pointer` map.
-    brillig_stdlib_calls_to_resolve: HashMap<FunctionId, Vec<(OpcodeLocation, BrilligFunctionId)>>,
-
-    /// `used_globals` needs to be built from a function call graph.
-    ///
-    /// Maps an ACIR function to the globals used in that function.
-    /// This includes all globals used in functions called internally.
-    used_globals: HashMap<FunctionId, HashSet<ValueId>>,
-}
-
-impl<F: AcirField> SharedContext<F> {
-    fn generated_brillig_pointer(
-        &self,
-        func_id: FunctionId,
-        arguments: Vec<BrilligParameter>,
-    ) -> Option<&BrilligFunctionId> {
-        self.brillig_generated_func_pointers.get(&(func_id, arguments))
-    }
-
-    fn generated_brillig(&self, func_pointer: usize) -> &GeneratedBrillig<F> {
-        &self.generated_brillig[func_pointer]
-    }
-
-    fn insert_generated_brillig(
-        &mut self,
-        func_id: FunctionId,
-        arguments: Vec<BrilligParameter>,
-        generated_pointer: BrilligFunctionId,
-        code: GeneratedBrillig<F>,
-    ) {
-        self.brillig_generated_func_pointers.insert((func_id, arguments), generated_pointer);
-        self.generated_brillig.push(code);
-    }
-
-    fn new_generated_pointer(&self) -> BrilligFunctionId {
-        BrilligFunctionId(self.generated_brillig.len() as u32)
-    }
-
-    fn generate_brillig_calls_to_resolve(
-        &mut self,
-        brillig_stdlib_func: &BrilligStdlibFunc,
-        func_id: FunctionId,
-        opcode_location: OpcodeLocation,
-    ) {
-        if let Some(generated_pointer) =
-            self.brillig_stdlib_func_pointer.get(brillig_stdlib_func).copied()
-        {
-            self.add_call_to_resolve(func_id, (opcode_location, generated_pointer));
-        } else {
-            let code = self.brillig_stdlib.get_code(*brillig_stdlib_func);
-            let generated_pointer = self.new_generated_pointer();
-            self.insert_generated_brillig_stdlib(
-                *brillig_stdlib_func,
-                generated_pointer,
-                func_id,
-                opcode_location,
-                code.clone(),
-            );
-        }
-    }
-
-    /// Insert a newly generated Brillig stdlib function
-    fn insert_generated_brillig_stdlib(
-        &mut self,
-        brillig_stdlib_func: BrilligStdlibFunc,
-        generated_pointer: BrilligFunctionId,
-        func_id: FunctionId,
-        opcode_location: OpcodeLocation,
-        code: GeneratedBrillig<F>,
-    ) {
-        self.brillig_stdlib_func_pointer.insert(brillig_stdlib_func, generated_pointer);
-        self.add_call_to_resolve(func_id, (opcode_location, generated_pointer));
-        self.generated_brillig.push(code);
-    }
-
-    fn add_call_to_resolve(
-        &mut self,
-        func_id: FunctionId,
-        call_to_resolve: (OpcodeLocation, BrilligFunctionId),
-    ) {
-        self.brillig_stdlib_calls_to_resolve.entry(func_id).or_default().push(call_to_resolve);
-    }
-}
 
 /// Context struct for the acir generation pass.
 /// May be similar to the Evaluator struct in the current SSA IR.
@@ -322,8 +213,7 @@ impl<'a> Context<'a> {
 
         let mut warnings = Vec::new();
 
-        let used_globals =
-            self.shared_context.used_globals.remove(&main_func.id()).unwrap_or_default();
+        let used_globals = self.shared_context.get_used_globals_set(main_func.id());
 
         let globals_dfg = (*main_func.dfg.globals).clone();
         let globals_dfg = DataFlowGraph::from(globals_dfg);
