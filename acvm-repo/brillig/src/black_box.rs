@@ -76,3 +76,9 @@ pub enum BlackBoxOp {
         output_bits: MemoryAddress,
     },
 }
+
+impl std::fmt::Display for BlackBoxOp {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "TODO: BlackBoxOp")
+    }
+}
