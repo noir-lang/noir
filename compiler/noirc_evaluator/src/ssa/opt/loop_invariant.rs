@@ -2695,7 +2695,7 @@ mod control_dependence {
           loop_body():
             v6 = unchecked_mul v0, v1
             v7 = unchecked_mul v6, v0
-            call f1()
+            call f1(v7)
             v10 = unchecked_add v2, u32 1
             jmp loop(v10)
           exit():
@@ -2722,7 +2722,7 @@ mod control_dependence {
             v6 = lt v2, v1
             jmpif v6 then: b2, else: b3
           b2():
-            call f1()
+            call f1(v4)
             v9 = unchecked_add v2, u32 1
             jmp b1(v9)
           b3():
@@ -2750,7 +2750,7 @@ mod control_dependence {
           loop_body():
             v6 = mul v0, v1
             v7 = mul v6, v0
-            call f1()
+            call f1(v7)
             v10 = unchecked_add v2, u32 1
             jmp loop(v10)
           exit():
@@ -2772,7 +2772,7 @@ mod control_dependence {
           b0(v0: u32, v1: u32):
             v3 = mul v0, v1
             v4 = mul v3, v0
-            call f1()
+            call f1(v4)
             jmp b1(u32 0)
           b1(v2: u32):
             v8 = lt v2, u32 4

@@ -178,9 +178,9 @@ impl Function {
         let cfg = ControlFlowGraph::with_function(self);
         let post_order = PostOrder::with_cfg(&cfg);
 
-        let is_acir_entry_point = self.runtime().is_acir() && self.runtime().is_entry_point();
+        let is_entry_point = self.runtime().is_entry_point();
         let is_main = self.id() == main_id;
-        let can_prune_entry_block = !(is_acir_entry_point || is_main);
+        let can_prune_entry_block = !(is_entry_point || is_main);
 
         let mut entry_block_keep_list = None;
         for &block in post_order.as_slice() {

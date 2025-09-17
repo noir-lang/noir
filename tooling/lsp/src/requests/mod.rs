@@ -90,6 +90,22 @@ pub(crate) struct LspInitializationOptions {
     #[serde(rename = "enableCodeLens", default = "default_enable_code_lens")]
     pub(crate) enable_code_lens: bool,
 
+    #[serde(rename = "enableInlayHints", default = "default_enable_inlay_hints")]
+    pub(crate) enable_inlay_hints: bool,
+
+    #[serde(rename = "enableCompletions", default = "default_enable_completions")]
+    pub(crate) enable_completions: bool,
+
+    #[serde(rename = "enableSignatureHelp", default = "default_enable_signature_help")]
+    pub(crate) enable_signature_help: bool,
+
+    #[serde(rename = "enableCodeActions", default = "default_enable_code_actions")]
+    pub(crate) enable_code_actions: bool,
+
+    /// Lightweight mode disables code lens, inlay hints, completions, signature help and code actions
+    #[serde(rename = "enableLightweightMode", default = "default_enable_lightweight_mode")]
+    pub(crate) enable_lightweight_mode: bool,
+
     #[serde(rename = "enableParsingCache", default = "default_enable_parsing_cache")]
     pub(crate) enable_parsing_cache: bool,
 
@@ -108,7 +124,7 @@ pub(crate) struct InlayHintsOptions {
     #[serde(rename = "closingBraceHints", default = "default_closing_brace_hints")]
     pub(crate) closing_brace_hints: ClosingBraceHintsOptions,
 
-    #[serde(rename = "ChainingHints", default = "default_chaining_hints")]
+    #[serde(rename = "chainingHints", default = "default_chaining_hints")]
     pub(crate) chaining_hints: ChainingHintsOptions,
 }
 
@@ -143,8 +159,28 @@ fn default_enable_code_lens() -> bool {
     true
 }
 
+fn default_enable_inlay_hints() -> bool {
+    true
+}
+
+fn default_enable_completions() -> bool {
+    true
+}
+
+fn default_enable_signature_help() -> bool {
+    true
+}
+
+fn default_enable_code_actions() -> bool {
+    true
+}
+
 fn default_enable_parsing_cache() -> bool {
     true
+}
+
+fn default_enable_lightweight_mode() -> bool {
+    false
 }
 
 fn default_inlay_hints() -> InlayHintsOptions {
@@ -201,6 +237,11 @@ impl Default for LspInitializationOptions {
             enable_code_lens: default_enable_code_lens(),
             enable_parsing_cache: default_enable_parsing_cache(),
             inlay_hints: default_inlay_hints(),
+            enable_inlay_hints: default_enable_inlay_hints(),
+            enable_completions: default_enable_completions(),
+            enable_signature_help: default_enable_signature_help(),
+            enable_code_actions: default_enable_code_actions(),
+            enable_lightweight_mode: default_enable_lightweight_mode(),
         }
     }
 }
@@ -217,29 +258,33 @@ pub(crate) fn on_initialize(
         .unwrap_or_default();
     state.options = initialization_options;
 
+    let enable_code_lens =
+        !initialization_options.enable_lightweight_mode && initialization_options.enable_code_lens;
+    let enable_inlay_hints = !initialization_options.enable_lightweight_mode
+        && initialization_options.enable_inlay_hints;
+    let enable_completions = !initialization_options.enable_lightweight_mode
+        && initialization_options.enable_completions;
+    let enable_signature_help = !initialization_options.enable_lightweight_mode
+        && initialization_options.enable_signature_help;
+    let enable_code_actions = !initialization_options.enable_lightweight_mode
+        && initialization_options.enable_code_actions;
+
     async move {
-        let text_document_sync = TextDocumentSyncCapability::Kind(TextDocumentSyncKind::FULL);
-
-        let code_lens = if initialization_options.enable_code_lens {
-            Some(CodeLensOptions { resolve_provider: Some(false) })
-        } else {
-            None
-        };
-
-        let nargo = NargoCapability {
-            tests: Some(NargoTestsOptions {
-                fetch: Some(true),
-                run: Some(true),
-                update: Some(true),
-            }),
-        };
-
         Ok(InitializeResult {
             capabilities: ServerCapabilities {
-                text_document_sync: Some(text_document_sync),
-                code_lens_provider: code_lens,
+                text_document_sync: Some(TextDocumentSyncCapability::Kind(
+                    TextDocumentSyncKind::FULL,
+                )),
+                code_lens_provider: enable_code_lens
+                    .then_some(CodeLensOptions { resolve_provider: Some(false) }),
                 document_formatting_provider: true,
-                nargo: Some(nargo),
+                nargo: Some(NargoCapability {
+                    tests: Some(NargoTestsOptions {
+                        fetch: Some(true),
+                        run: Some(true),
+                        update: Some(true),
+                    }),
+                }),
                 definition_provider: Some(lsp_types::OneOf::Left(true)),
                 declaration_provider: Some(DeclarationCapability::Simple(true)),
                 type_definition_provider: Some(TypeDefinitionProviderCapability::Simple(true)),
@@ -259,12 +304,14 @@ pub(crate) fn on_initialize(
                         work_done_progress: None,
                     },
                 })),
-                inlay_hint_provider: Some(lsp_types::OneOf::Right(lsp_types::InlayHintOptions {
-                    work_done_progress_options: WorkDoneProgressOptions {
-                        work_done_progress: None,
+                inlay_hint_provider: enable_inlay_hints.then_some(lsp_types::OneOf::Right(
+                    lsp_types::InlayHintOptions {
+                        work_done_progress_options: WorkDoneProgressOptions {
+                            work_done_progress: None,
+                        },
+                        resolve_provider: None,
                     },
-                    resolve_provider: None,
-                })),
+                )),
                 document_symbol_provider: Some(lsp_types::OneOf::Right(
                     lsp_types::DocumentSymbolOptions {
                         work_done_progress_options: WorkDoneProgressOptions {
@@ -273,20 +320,22 @@ pub(crate) fn on_initialize(
                         label: Some("Noir".to_string()),
                     },
                 )),
-                completion_provider: Some(lsp_types::OneOf::Right(lsp_types::CompletionOptions {
-                    resolve_provider: None,
-                    trigger_characters: Some(vec![
-                        ".".to_string(), // For method calls
-                        ":".to_string(), // For paths
-                        "$".to_string(), // For $var inside `quote { ... }`
-                    ]),
-                    all_commit_characters: None,
-                    work_done_progress_options: WorkDoneProgressOptions {
-                        work_done_progress: None,
+                completion_provider: enable_completions.then_some(lsp_types::OneOf::Right(
+                    lsp_types::CompletionOptions {
+                        resolve_provider: None,
+                        trigger_characters: Some(vec![
+                            ".".to_string(), // For method calls
+                            ":".to_string(), // For paths
+                            "$".to_string(), // For $var inside `quote { ... }`
+                        ]),
+                        all_commit_characters: None,
+                        work_done_progress_options: WorkDoneProgressOptions {
+                            work_done_progress: None,
+                        },
+                        completion_item: None,
                     },
-                    completion_item: None,
-                })),
-                signature_help_provider: Some(lsp_types::OneOf::Right(
+                )),
+                signature_help_provider: enable_signature_help.then_some(lsp_types::OneOf::Right(
                     lsp_types::SignatureHelpOptions {
                         trigger_characters: Some(vec!["(".to_string(), ",".to_string()]),
                         retrigger_characters: None,
@@ -295,13 +344,15 @@ pub(crate) fn on_initialize(
                         },
                     },
                 )),
-                code_action_provider: Some(lsp_types::OneOf::Right(lsp_types::CodeActionOptions {
-                    code_action_kinds: Some(vec![CodeActionKind::QUICKFIX]),
-                    work_done_progress_options: WorkDoneProgressOptions {
-                        work_done_progress: None,
+                code_action_provider: enable_code_actions.then_some(lsp_types::OneOf::Right(
+                    lsp_types::CodeActionOptions {
+                        code_action_kinds: Some(vec![CodeActionKind::QUICKFIX]),
+                        work_done_progress_options: WorkDoneProgressOptions {
+                            work_done_progress: None,
+                        },
+                        resolve_provider: None,
                     },
-                    resolve_provider: None,
-                })),
+                )),
                 workspace_symbol_provider: Some(lsp_types::OneOf::Right(
                     lsp_types::WorkspaceSymbolOptions {
                         work_done_progress_options: WorkDoneProgressOptions {
@@ -495,6 +546,31 @@ pub(crate) fn process_request<F, T>(
 where
     F: FnOnce(ProcessRequestCallbackArgs) -> T,
 {
+    let type_check = true;
+    process_request_impl(state, text_document_position_params, type_check, callback)
+}
+
+pub(crate) fn process_request_no_type_check<F, T>(
+    state: &mut LspState,
+    text_document_position_params: TextDocumentPositionParams,
+    callback: F,
+) -> Result<T, ResponseError>
+where
+    F: FnOnce(ProcessRequestCallbackArgs) -> T,
+{
+    let type_check = false;
+    process_request_impl(state, text_document_position_params, type_check, callback)
+}
+
+fn process_request_impl<F, T>(
+    state: &mut LspState,
+    text_document_position_params: TextDocumentPositionParams,
+    type_check: bool,
+    callback: F,
+) -> Result<T, ResponseError>
+where
+    F: FnOnce(ProcessRequestCallbackArgs) -> T,
+{
     let uri = text_document_position_params.text_document.uri.clone();
 
     let (file_path, workspace) = if uri.scheme() == "noir-std" {
@@ -512,7 +588,7 @@ where
     };
 
     // First type-check the workspace if needed
-    if state.workspaces_to_process.remove(&workspace.root_dir) {
+    if type_check && state.workspaces_to_process.remove(&workspace.root_dir) {
         let _ = process_workspace(state, &workspace, false);
     }
 
