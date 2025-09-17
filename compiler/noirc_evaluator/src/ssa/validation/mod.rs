@@ -330,6 +330,11 @@ impl<'f> Validator<'f> {
 
                 let radix_type = dfg.type_of_value(arguments[1]);
                 assert_u32(&radix_type, "ToRadix radix");
+
+                let results = dfg.instruction_results(instruction);
+                assert_eq!(results.len(), 1, "Expected one result",);
+                let result_type = dfg.type_of_value(results[0]);
+                assert_u8_array(&result_type, "to_radix output");
             }
             Intrinsic::ToBits(_) => {
                 // Intrinsic::ToBits always has a set radix
@@ -337,6 +342,11 @@ impl<'f> Validator<'f> {
 
                 let value_type = dfg.type_of_value(arguments[0]);
                 assert_field(&value_type, "ToBits value");
+
+                let results = dfg.instruction_results(instruction);
+                assert_eq!(results.len(), 1, "Expected one result",);
+                let result_type = dfg.type_of_value(results[0]);
+                assert_u1_array(&result_type, "to_bits output");
             }
             Intrinsic::BlackBox(blackbox) => {
                 self.type_check_black_box(instruction, arguments, blackbox);
@@ -720,6 +730,18 @@ fn assert_array<'a>(typ: &'a Type, object: &str) -> (&'a Arc<Vec<Type>>, u32) {
         panic!("{object} must be an array");
     };
     (elements, *length)
+}
+
+fn assert_u1_array(typ: &Type, object: &str) -> u32 {
+    let (elements, length) = assert_array(typ, object);
+    assert_eq!(
+        elements.len(),
+        1,
+        "Expected {object} to be an array of length 1, not {}",
+        elements.len()
+    );
+    assert_u1(&elements[0], &format!("{object} array element"));
+    length
 }
 
 fn assert_u8_array(typ: &Type, object: &str) -> u32 {
