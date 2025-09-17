@@ -338,7 +338,7 @@ mod tests {
         EXPR [ (1, w0, w1) (1, w5) 0 ]
         EXPR [ (-1, w2) (1, w4) (1, w5) 0 ]
         EXPR [ (1, w2) (-1, w3) (1, w4) (1, w5) 0 ]
-        BLACKBOX::RANGE [(w3, 32)] []
+        BLACKBOX::RANGE [w3]:32 bits []
         ";
         let circuit = Circuit::from_str(src).unwrap();
 
@@ -350,7 +350,7 @@ mod tests {
         return values: []
         EXPR [ (1, w0, w1) (1, w5) 0 ]
         EXPR [ (2, w0, w0) (-1, w3) (2, w5) 0 ]
-        BLACKBOX::RANGE [(w3, 32)] []
+        BLACKBOX::RANGE [w3]:32 bits []
         ");
     }
 
