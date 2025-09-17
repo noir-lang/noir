@@ -328,7 +328,12 @@ libfuzzer_sys::fuzz_target!(
         }
         AbstractVMComparisonResult::SimulatorError(err) => {
             log::error!("Simulator error: {err}");
-            recreate_simulator().expect("Failed to recreate simulator");
+            if err.contains("EOF while parsing a value") {
+                log::warn!("Recreating simulator");
+                recreate_simulator().expect("Failed to recreate simulator");
+            } else {
+                panic!("Simulator error: {err}");
+            }
         }
         AbstractVMComparisonResult::BrilligCompilationError(err) => {
             log::debug!("Brillig compilation error: {err}");

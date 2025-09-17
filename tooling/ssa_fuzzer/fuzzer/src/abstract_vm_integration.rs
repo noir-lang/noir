@@ -70,6 +70,7 @@ pub(crate) fn compare_with_abstract_vm(
             if brillig_outputs.is_empty() {
                 return AbstractVMComparisonResult::Match;
             }
+            log::info!("Brillig outputs: {brillig_outputs:?}");
             return AbstractVMComparisonResult::SimulatorError(e);
         }
     };
