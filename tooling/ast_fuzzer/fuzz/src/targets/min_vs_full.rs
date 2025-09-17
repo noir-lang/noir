@@ -3,7 +3,8 @@
 //! and the fully optimized version.
 use crate::targets::default_config;
 use crate::{
-    compare_results_compiled, create_ssa_or_die, create_ssa_with_passes_or_die, default_ssa_options,
+    compare_results_compiled, compile_into_circuit_or_die,
+    compile_into_circuit_with_ssa_passes_or_die, default_ssa_options,
 };
 use arbitrary::{Arbitrary, Unstructured};
 use color_eyre::eyre;
@@ -22,7 +23,7 @@ pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
             // We want to do the minimum possible amount of SSA passes. Brillig can get away with fewer than ACIR,
             // because ACIR needs unrolling of loops for example, so we treat everything as Brillig.
             let options = CompareOptions::default();
-            let ssa = create_ssa_with_passes_or_die(
+            let ssa = compile_into_circuit_with_ssa_passes_or_die(
                 change_all_functions_into_unconstrained(program),
                 &options.onto(default_ssa_options()),
                 &passes,
@@ -32,8 +33,11 @@ pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
         },
         |u, program| {
             let options = CompareOptions::arbitrary(u)?;
-            let ssa =
-                create_ssa_or_die(program, &options.onto(default_ssa_options()), Some("final"));
+            let ssa = compile_into_circuit_or_die(
+                program,
+                &options.onto(default_ssa_options()),
+                Some("final"),
+            );
             Ok((ssa, options))
         },
     )?;
@@ -51,7 +55,6 @@ pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
 mod tests {
     /// ```ignore
     /// NOIR_AST_FUZZER_SEED=0x6819c61400001000 \
-    /// NOIR_AST_FUZZER_SHOW_AST=1 \
     /// cargo test -p noir_ast_fuzzer_fuzz min_vs_full
     /// ```
     #[test]

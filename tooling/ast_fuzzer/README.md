@@ -38,7 +38,7 @@ cargo +nightly fuzz run acir_vs_brillig fuzz/artifacts/acir_vs_brillig/crash-927
 
 Note that `cargo fuzz` requires `nightly` build, which can be either turned on with the `cargo +nightly` flag, or by running `rustup default nightly`. Also note that `cargo fuzz run` automatically creates a `--release` build, there is no need for an explicit flag to be passed.
 
-The `NOIR_AST_FUZZER_SHOW_AST` env var can be used to print the AST before compilation, in case the compiler crashes on the generated program. Otherwise if the execution fails, the output will include the AST, the inputs, and the ACIR/Brillig opcodes.
+If the execution fails, the output will include the AST, the inputs, and the ACIR/Brillig opcodes.
 
 ## `arbtest`
 
@@ -48,7 +48,11 @@ To get quick feedback about whether there are any easy-to-discover bugs, we can 
 cargo test -p noir_ast_fuzzer_fuzz arbtest
 ```
 
-Unlike `cargo fuzz`, these don't "ramp up" the complexity of the code, but go full tilt from the beginning, and only run for a limited amount of time (e.g. 10 seconds). Upon failure they print a hexadecimal `seed`, which can be used with the `NOIR_AST_FUZZER_SEED` env var to replicate the error.
+Unlike `cargo fuzz`, these don't "ramp up" the complexity of the code, but go full tilt from the beginning, and only run for a limited amount of time (e.g. 10 seconds).
+
+Upon failure they print a hexadecimal `seed`, which can be used with the `NOIR_AST_FUZZER_SEED` env var to replicate the error.
+
+If the compiler crashes during the generation of the SSA artifacts, the problematic program will be printed during attempts to reproduce the issue using a seed. The printing of all inputs can be turned on by setting `RUST_LOG=debug`.
 
 ## Minimizing Noir
 
