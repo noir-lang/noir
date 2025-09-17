@@ -109,7 +109,14 @@ impl<F: AcirField> SharedContext<F> {
         generated_pointer: BrilligFunctionId,
         code: GeneratedBrillig<F>,
     ) {
-        self.brillig_generated_func_pointers.insert((func_id, arguments), generated_pointer);
+        let key = (func_id, arguments);
+        if self.brillig_generated_func_pointers.contains_key(&key) {
+            panic!(
+                "Attempting to override Brillig pointer for function {} with arguments {:?} already exists",
+                func_id, key.1
+            );
+        }
+        self.brillig_generated_func_pointers.insert(key, generated_pointer);
         self.generated_brillig.push(code);
     }
 
@@ -181,5 +188,143 @@ impl<F: AcirField> SharedContext<F> {
     /// We remove as an entry point should only go through ACIR generation a single time.
     pub(super) fn get_used_globals_set(&mut self, func_id: FunctionId) -> HashSet<ValueId> {
         self.used_globals.remove(&func_id).unwrap_or_default()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::acir::acir_context::{BrilligStdLib, BrilligStdlibFunc};
+    use crate::brillig::brillig_ir::artifact::{BrilligParameter, GeneratedBrillig};
+    use crate::ssa::ir::map::Id;
+    use acvm::FieldElement;
+    use acvm::acir::brillig::Opcode;
+    use acvm::acir::circuit::OpcodeLocation;
+
+    #[test]
+    #[should_panic(
+        expected = "Attempting to override Brillig pointer for function f0 with arguments [] already exists"
+    )]
+    fn override_brillig_function_pointer() {
+        let mut context =
+            SharedContext::<FieldElement>::new(BrilligStdLib::default(), Default::default());
+        let func_id = Id::test_new(0);
+        let args = vec![];
+
+        let ptr1 = context.new_generated_pointer();
+        context.insert_generated_brillig(
+            func_id,
+            args.clone(),
+            ptr1,
+            GeneratedBrillig { byte_code: vec![], ..Default::default() },
+        );
+
+        let ptr2 = context.new_generated_pointer();
+        context.insert_generated_brillig(
+            func_id,
+            args.clone(),
+            ptr2,
+            GeneratedBrillig { byte_code: vec![], ..Default::default() },
+        );
+    }
+
+    /// Test that generating the same Brillig function twice reuses the pointer and stores the artifact.
+    #[test]
+    fn reuse_or_insert_generated_brillig() {
+        let mut context =
+            SharedContext::<FieldElement>::new(BrilligStdLib::default(), Default::default());
+        let f0 = Id::test_new(0);
+        let args = vec![BrilligParameter::SingleAddr(0)];
+
+        // Simulate first generation
+        let code1 = GeneratedBrillig {
+            // This byte code is gibberish it just needs to be dist
+            byte_code: vec![Opcode::Call { location: 5 }],
+            ..Default::default()
+        };
+        let ptr1 = context.new_generated_pointer();
+        context.insert_generated_brillig(f0, args.clone(), ptr1, code1.clone());
+
+        // Simulate another call to the same function. We would expect the caller of the shared context to check
+        // whether a pointer already has been generated for a given (id, arguments) pair.
+        // Here we simply do a sanity check here that the pointer gives us the code we expect.
+        let generated_pointer = context.generated_brillig_pointer(f0, args.clone()).unwrap();
+        let reused_code = context.generated_brillig(generated_pointer.as_usize());
+
+        assert_eq!(*generated_pointer, ptr1);
+        assert_eq!(reused_code.byte_code, code1.byte_code);
+
+        // Explicitly insert a second Brillig artifact with the a different key
+        let code2 = GeneratedBrillig { byte_code: vec![Opcode::Return], ..Default::default() };
+        let f1 = Id::test_new(1);
+        let ptr2 = context.new_generated_pointer();
+        context.insert_generated_brillig(f1, args.clone(), ptr2, code2.clone());
+
+        // Check the pointers of both Brillig functions
+        let f0_pointer = context.generated_brillig_pointer(f0, args.clone()).unwrap();
+        assert_eq!(*f0_pointer, ptr1);
+        let f1_pointer = context.generated_brillig_pointer(f1, args).unwrap();
+        assert_eq!(*f1_pointer, ptr2);
+
+        assert_eq!(context.generated_brillig.len(), 2);
+        assert_eq!(
+            context.generated_brillig[ptr1.as_usize()].byte_code,
+            vec![Opcode::Call { location: 5 }]
+        );
+        assert_eq!(context.generated_brillig[ptr2.as_usize()].byte_code, vec![Opcode::Return]);
+    }
+
+    /// Test that Brillig stdlib calls are resolved correctly and not duplicated.
+    #[test]
+    fn brillig_stdlib_all_variants_resolved_once() {
+        let mut context =
+            SharedContext::<FieldElement>::new(BrilligStdLib::default(), Default::default());
+        let func_id = Id::test_new(0);
+        let opcode_loc = OpcodeLocation::Acir(0);
+
+        let variants =
+            [BrilligStdlibFunc::Inverse, BrilligStdlibFunc::Quotient, BrilligStdlibFunc::ToLeBytes];
+
+        for &func in &variants {
+            // Generate twice for each to check deduplication
+            context.generate_brillig_calls_to_resolve(&func, func_id, opcode_loc);
+            context.generate_brillig_calls_to_resolve(&func, func_id, opcode_loc);
+        }
+
+        // There should be exactly 3 final GeneratedBrillig entries
+        assert_eq!(context.generated_brillig.len(), variants.len());
+
+        // Each variant should have a valid function pointer
+        for &func in &variants {
+            assert!(context.brillig_stdlib_func_pointer.contains_key(&func));
+        }
+
+        // Calls to resolve should be 2 per variant
+        let calls = context.get_call_to_resolve(func_id).unwrap();
+        assert_eq!(calls.len(), variants.len() * 2);
+
+        // Check that each call matches the expected stdlib function pointer
+        for (i, (_, func_pointer)) in calls.iter().enumerate() {
+            let variant_index = i / 2; // 2 calls per variant
+            let expected_func = variants[variant_index];
+            assert_eq!(context.brillig_stdlib_func_pointer[&expected_func], *func_pointer);
+        }
+    }
+
+    /// Test that fetching a generated Brillig function with an invalid index panics.
+    #[test]
+    #[should_panic(expected = "index out of bounds: the len is 0 but the index is 0")]
+    fn panic_on_invalid_generated_brillig_index() {
+        let mut context =
+            SharedContext::<FieldElement>::new(BrilligStdLib::default(), Default::default());
+        let func_id = Id::test_new(0);
+        let args = vec![];
+        // Manually insert a pointer without inserting the corresponding Brillig bytecode
+        context
+            .brillig_generated_func_pointers
+            .insert((func_id, args.clone()), BrilligFunctionId(0));
+        // This should panic because the list of Brillig artifacts is empty
+        let pointer = context.generated_brillig_pointer(func_id, args).unwrap();
+        let _artifact = &context.generated_brillig[pointer.as_usize()];
     }
 }
