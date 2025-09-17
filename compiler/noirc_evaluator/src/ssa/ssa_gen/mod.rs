@@ -14,7 +14,7 @@ use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::Location;
 use noirc_frontend::ast::UnaryOp;
 use noirc_frontend::hir_def::types::Type as HirType;
-use noirc_frontend::monomorphization::ast::{self, Expression, MatchCase, Program, While};
+use noirc_frontend::monomorphization::ast::{self, ArrayLiteral, Expression, MatchCase, Program, While};
 use noirc_frontend::shared::Visibility;
 
 use crate::{
@@ -232,16 +232,18 @@ impl FunctionContext<'_> {
                 })
             }
             ast::Literal::Slice(array) => {
-                let elements = self.codegen_array_elements(&array.contents)?;
-
-                let typ = Self::convert_type(&array.typ).flatten();
+               
                 Ok(match array.typ {
                     ast::Type::Slice(_) => {
-                        let slice_length =
-                            self.builder.length_constant(array.contents.len() as u128);
-                        let slice_contents =
-                            self.codegen_array_checked(elements, typ[1].clone())?;
-                        Tree::Branch(vec![slice_length.into(), slice_contents])
+                        let element_type = array.typ.array_element_type().unwrap().clone();
+                        let array_typ = ast::Type::Array(array.contents.len() as u32, Box::new(element_type));
+                        let array_literal = ast::Literal::Array(ArrayLiteral { contents: array.contents.clone(), typ: array_typ });
+                        let array_literal = self.codegen_literal(&array_literal)?;
+                
+
+                        let as_slice = self.builder.import_intrinsic("as_slice").expect("as_slice intrinsic should exist");
+                        let arguments = array_literal.into_value_list(self);
+                        self.insert_call(as_slice, arguments, &array.typ, Location::dummy())
                     }
                     _ => unreachable!("ICE: unexpected slice literal type, got {}", array.typ),
                 })

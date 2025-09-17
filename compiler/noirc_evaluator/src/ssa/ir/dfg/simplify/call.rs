@@ -106,26 +106,7 @@ pub(super) fn simplify_call(
         // Strings are already arrays of bytes in SSA
         Intrinsic::ArrayAsStrUnchecked => SimplifyResult::SimplifiedTo(arguments[0]),
         Intrinsic::AsSlice => {
-            let array = dfg.get_array_constant(arguments[0]);
-            if let Some((array, array_type)) = array {
-                // Compute the resulting slice length by dividing the flattened
-                // array length by the size of each array element
-                let elements_size = array_type.element_size();
-                let inner_element_types = array_type.element_types();
-                assert_eq!(
-                    0,
-                    array.len() % elements_size,
-                    "expected array length to be multiple of its elements size"
-                );
-                let slice_length_value = array.len() / elements_size;
-                let slice_length =
-                    dfg.make_constant(slice_length_value.into(), NumericType::length_type());
-                let new_slice =
-                    make_array(dfg, array, Type::Slice(inner_element_types), block, call_stack);
-                SimplifyResult::SimplifiedToMultiple(vec![slice_length, new_slice])
-            } else {
-                SimplifyResult::None
-            }
+            SimplifyResult::None
         }
         Intrinsic::SlicePushBack => {
             let slice = dfg.get_array_constant(arguments[1]);

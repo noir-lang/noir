@@ -1207,9 +1207,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(
-        expected = "MakeArray slice has 3 elements but composite type has 2 types which don't divide the number of elements"
-    )]
+    #[should_panic(expected = "MakeArray must return an array type, not [(u8, u8)]")]
     fn make_array_slice_returns_incorrect_length() {
         let src = "
         acir(inline) fn main f0 {
