@@ -281,8 +281,8 @@ mod tests {
         private parameters: []
         public parameters: []
         return values: []
-        BLACKBOX::RANGE [(w1, 32)] []
-        BLACKBOX::RANGE [(w1, 16)] []
+        BLACKBOX::RANGE [w1]:32 bits []
+        BLACKBOX::RANGE [w1]:16 bits []
         ";
         let circuit = Circuit::from_str(src).unwrap();
 
@@ -305,7 +305,7 @@ mod tests {
         private parameters: []
         public parameters: []
         return values: []
-        BLACKBOX::RANGE [(w1, 16)] []
+        BLACKBOX::RANGE [w1]:16 bits []
         ");
     }
 
@@ -317,10 +317,10 @@ mod tests {
         private parameters: []
         public parameters: []
         return values: []
-        BLACKBOX::RANGE [(w1, 16)] []
-        BLACKBOX::RANGE [(w1, 16)] []
-        BLACKBOX::RANGE [(w2, 23)] []
-        BLACKBOX::RANGE [(w2, 23)] []
+        BLACKBOX::RANGE [w1]:16 bits []
+        BLACKBOX::RANGE [w1]:16 bits []
+        BLACKBOX::RANGE [w2]:23 bits []
+        BLACKBOX::RANGE [w2]:23 bits []
         ";
         let circuit = Circuit::from_str(src).unwrap();
 
@@ -333,8 +333,8 @@ mod tests {
         private parameters: []
         public parameters: []
         return values: []
-        BLACKBOX::RANGE [(w1, 16)] []
-        BLACKBOX::RANGE [(w2, 23)] []
+        BLACKBOX::RANGE [w1]:16 bits []
+        BLACKBOX::RANGE [w2]:23 bits []
         ");
     }
 
@@ -347,8 +347,8 @@ mod tests {
         private parameters: []
         public parameters: []
         return values: []
-        BLACKBOX::RANGE [(w1, 16)] []
-        BLACKBOX::RANGE [(w1, 16)] []
+        BLACKBOX::RANGE [w1]:16 bits []
+        BLACKBOX::RANGE [w1]:16 bits []
         EXPR [ 0 ]
         EXPR [ 0 ]
         EXPR [ 0 ]
@@ -365,7 +365,7 @@ mod tests {
         private parameters: []
         public parameters: []
         return values: []
-        BLACKBOX::RANGE [(w1, 16)] []
+        BLACKBOX::RANGE [w1]:16 bits []
         EXPR [ 0 ]
         EXPR [ 0 ]
         EXPR [ 0 ]
@@ -381,7 +381,7 @@ mod tests {
         private parameters: []
         public parameters: []
         return values: []
-        BLACKBOX::RANGE [(w1, 16)] []
+        BLACKBOX::RANGE [w1]:16 bits []
         EXPR [ (1, w1) 0 ]
         ";
         let circuit = Circuit::from_str(src).unwrap();
@@ -407,17 +407,17 @@ mod tests {
         private parameters: []
         public parameters: []
         return values: []
-        BLACKBOX::RANGE [(w1, 32)] []
+        BLACKBOX::RANGE [w1]:32 bits []
 
         // Call brillig with w2
         BRILLIG CALL func 0: inputs: [EXPR [ (1, w2) 0 ]], outputs: []
-        BLACKBOX::RANGE [(w1, 16)] []
+        BLACKBOX::RANGE [w1]:16 bits []
 
         // Another call
         BRILLIG CALL func 0: inputs: [EXPR [ (1, w2) 0 ]], outputs: []
 
         // One more constraint, but this is redundant.
-        BLACKBOX::RANGE [(w1, 64)] []
+        BLACKBOX::RANGE [w1]:64 bits []
 
         // assert w1 == 0
         EXPR [ (1, w1) 0 ]
@@ -434,15 +434,15 @@ mod tests {
         let (optimized_circuit, _) =
             optimizer.replace_redundant_ranges(acir_opcode_positions.clone());
 
-        // `BLACKBOX::RANGE [(w1, 32)] []` remains: The minimum does not propagate backwards.
+        // `BLACKBOX::RANGE [w1]:32 bits []` remains: The minimum does not propagate backwards.
         assert_circuit_snapshot!(optimized_circuit, @r"
         current witness: w1
         private parameters: []
         public parameters: []
         return values: []
-        BLACKBOX::RANGE [(w1, 32)] []
+        BLACKBOX::RANGE [w1]:32 bits []
         BRILLIG CALL func 0: inputs: [EXPR [ (1, w2) 0 ]], outputs: []
-        BLACKBOX::RANGE [(w1, 16)] []
+        BLACKBOX::RANGE [w1]:16 bits []
         BRILLIG CALL func 0: inputs: [EXPR [ (1, w2) 0 ]], outputs: []
         EXPR [ (1, w1) 0 ]
         ");
@@ -462,7 +462,7 @@ mod tests {
         private parameters: []
         public parameters: []
         return values: []
-        BLACKBOX::RANGE [(w1, 16)] []
+        BLACKBOX::RANGE [w1]:16 bits []
         INIT (id: 0, len: 8, witnesses: [w0, w0, w0, w0, w0, w0, w0, w0])
         MEM (id: 0, read at: EXPR [ (1, w1) 0 ], value: EXPR [ (1, w2) 0 ])
         ";
