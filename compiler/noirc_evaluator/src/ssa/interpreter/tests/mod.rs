@@ -68,7 +68,7 @@ pub(crate) fn from_constant(constant: FieldElement, typ: NumericType) -> Value {
 }
 
 fn from_u32_slice(slice: &[u32], typ: NumericType) -> Value {
-    let values = slice.iter().map(|v| from_constant((*v as u128).into(), typ)).collect();
+    let values = slice.iter().map(|v| from_constant(u128::from(*v).into(), typ)).collect();
     Value::array(values, vec![Type::Numeric(typ)])
 }
 

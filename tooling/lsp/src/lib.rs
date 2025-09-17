@@ -4,6 +4,7 @@
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
     future::Future,
+    hash::BuildHasher,
     ops::{self, ControlFlow},
     path::{Path, PathBuf},
     pin::Pin,
@@ -13,15 +14,15 @@ use std::{
 
 use acvm::{BlackBoxFunctionSolver, FieldElement};
 use async_lsp::lsp_types::request::{
-    CodeActionRequest, Completion, DocumentSymbolRequest, HoverRequest, InlayHintRequest,
-    PrepareRenameRequest, References, Rename, SignatureHelpRequest, WorkspaceSymbolRequest,
+    CodeActionRequest, Completion, DocumentSymbolRequest, FoldingRangeRequest, HoverRequest,
+    InlayHintRequest, PrepareRenameRequest, References, Rename, SignatureHelpRequest,
+    WorkspaceSymbolRequest,
 };
 use async_lsp::{
     AnyEvent, AnyNotification, AnyRequest, ClientSocket, Error, LspService, ResponseError,
     router::Router,
 };
 use fm::{FileManager, codespan_files as files};
-use fxhash::FxHashSet;
 use nargo::{
     package::{Package, PackageType},
     parse_all,
@@ -42,6 +43,7 @@ use noirc_frontend::{
     usage_tracker::UsageTracker,
 };
 use rayon::prelude::*;
+use rustc_hash::FxHashSet;
 
 use notifications::{
     on_did_change_configuration, on_did_change_text_document, on_did_close_text_document,
@@ -78,7 +80,7 @@ use types::{NargoTest, NargoTestId, Position, Range, Url, notification, request}
 use with_file::parsed_module_with_file;
 
 use crate::{
-    requests::{on_expand_request, on_std_source_code_request},
+    requests::{on_expand_request, on_folding_range_request, on_std_source_code_request},
     types::request::{NargoExpand, NargoStdSourceCode},
 };
 
@@ -175,6 +177,7 @@ impl NargoLspService {
             .request::<SignatureHelpRequest, _>(on_signature_help_request)
             .request::<CodeActionRequest, _>(on_code_action_request)
             .request::<WorkspaceSymbolRequest, _>(on_workspace_symbol_request)
+            .request::<FoldingRangeRequest, _>(on_folding_range_request)
             .request::<NargoExpand, _>(on_expand_request)
             .request::<NargoStdSourceCode, _>(on_std_source_code_request)
             .notification::<notification::Initialized>(on_initialized)
@@ -364,7 +367,9 @@ fn parse_diff(file_manager: &FileManager, state: &mut LspState) -> ParsedFiles {
                     Some((
                         file_id,
                         file_path.to_path_buf(),
-                        fxhash::hash(file_manager.fetch_file(file_id).expect("file must exist")),
+                        rustc_hash::FxBuildHasher
+                            .hash_one(file_manager.fetch_file(file_id).expect("file must exist"))
+                            as usize,
                     ))
                 } else {
                     None

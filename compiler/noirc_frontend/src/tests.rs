@@ -531,9 +531,6 @@ fn check_trait_missing_implementation() {
             Self { bar: x, array: [x,y] }
         }
     }
-
-    fn main() {
-    }
     ";
     check_errors!(src);
 }
@@ -551,9 +548,6 @@ fn check_trait_not_in_scope() {
         fn default(x: Field, y: Field) -> Self {
             Self { bar: x, array: [x,y] }
         }
-    }
-
-    fn main() {
     }
     ";
     check_errors!(src);
@@ -600,9 +594,6 @@ fn check_trait_wrong_parameter() {
             Foo {bar: x}
         }
     }
-
-    fn main() {
-    }
     ";
     check_errors!(src);
 }
@@ -624,9 +615,6 @@ fn check_trait_wrong_parameter2() {
                                 ^^^ Parameter #2 of method `default` must be of type Field, not Foo
             Self { bar: x, array: [x, y.bar] }
         }
-    }
-
-    fn main() {
     }
     ";
     check_errors!(src);
@@ -664,9 +652,6 @@ fn check_trait_wrong_parameters_count() {
            ^^^^^^^ `Default2::default` expects 2 parameters, but this method has 1
             Self { bar: x, array: [x, x] }
         }
-    }
-
-    fn main() {
     }
     ";
     check_errors!(src);
@@ -742,9 +727,6 @@ fn check_trait_duplicate_declaration() {
           ~~~~~~~~ Second trait definition found here
         fn default(x: Field) -> Self;
     }
-
-    fn main() {
-    }
     ";
     check_errors!(src);
 }
@@ -815,8 +797,6 @@ fn test_impl_self_within_default_def() {
             self
         }
     }
-
-    fn main() { }
     ";
     assert_no_errors!(src);
 }
@@ -1192,8 +1172,6 @@ fn deny_cyclic_globals() {
         global B: u32 = A;
                         ^ Variable not in scope
                         ~ Could not find variable
-
-        fn main() {}
     "#;
     check_errors!(src);
 }
@@ -1205,7 +1183,6 @@ fn deny_cyclic_type_aliases() {
         type B = A;
         ^^^^^^^^^^ Dependency cycle found
         ~~~~~~~~~~ 'B' recursively depends on itself: B -> A -> B
-        fn main() {}
     "#;
     check_errors!(src);
 }
@@ -1592,8 +1569,6 @@ fn wrong_type_in_for_range() {
 fn numeric_generic_in_function_signature() {
     let src = r#"
     pub fn foo<let N: u32>(arr: [Field; N]) -> [Field; N] { arr }
-
-    fn main() { }
     "#;
     assert_no_errors!(src);
 }
@@ -1685,8 +1660,6 @@ fn numeric_generic_as_return_type() {
         ^^^^^^^^ Type annotation needed
         ~~~~~~~~ Could not determine the type of the generic argument `T` declared on the function `zeroed`
     }
-
-    fn main() {}
     "#;
     check_errors!(src);
 }
@@ -1735,8 +1708,6 @@ fn numeric_generic_used_in_nested_type_pass() {
     pub struct InnerNumeric<let N: u32> {
         inner: [u64; N],
     }
-
-    fn main() { }
     "#;
     assert_no_errors!(src);
 }
@@ -1763,8 +1734,6 @@ fn numeric_generic_used_in_trait() {
     trait Deserialize<let N: u32, T> {
         fn deserialize(fields: [Field; N], other: T) -> Self;
     }
-
-    fn main() { }
     "#;
     assert_no_errors!(src);
 }
@@ -1796,8 +1765,6 @@ fn numeric_generic_in_trait_impl_with_extra_impl_generics() {
     trait Deserialize<let N: u32> {
         fn deserialize(fields: [Field; N]) -> Self;
     }
-
-    fn main() { }
     "#;
     assert_no_errors!(src);
 }
@@ -1816,8 +1783,6 @@ fn numeric_generic_used_in_where_clause() {
         }
         T::deserialize(fields)
     }
-
-    fn main() { }
     "#;
     assert_no_errors!(src);
 }
@@ -1835,8 +1800,6 @@ fn numeric_generic_used_in_turbofish() {
         assert(double::<9>() == 18);
         assert(double::<7 + 8>() == 30);
     }
-
-    fn main() { }
     "#;
     assert_no_errors!(src);
 }
@@ -2479,8 +2442,6 @@ fn trait_impl_generics_count_mismatch() {
 
     impl Foo<()> for Field {}
          ^^^ Foo expects 0 generics but 1 was given
-
-    fn main() {}
     "#;
     check_errors!(src);
 }
@@ -2505,8 +2466,6 @@ fn duplicate_struct_field() {
         ^ Duplicate definitions of struct field with name x found
         ~ Second struct field found here
     }
-
-    fn main() {}
     "#;
     check_errors!(src);
 }
@@ -2514,30 +2473,28 @@ fn duplicate_struct_field() {
 #[test]
 fn trait_constraint_on_tuple_type() {
     let src = r#"
-        trait Foo<A> {
-            fn foo(self, x: A) -> bool;
-        }
+    trait Foo<A> {
+        fn foo(self, x: A) -> bool;
+    }
 
-        pub fn bar<T, U, V>(x: (T, U), y: V) -> bool where (T, U): Foo<V> {
-            x.foo(y)
-        }
-
-        fn main() {}"#;
+    pub fn bar<T, U, V>(x: (T, U), y: V) -> bool where (T, U): Foo<V> {
+        x.foo(y)
+    }
+    "#;
     assert_no_errors!(src);
 }
 
 #[test]
 fn trait_constraint_on_tuple_type_pub_crate() {
     let src = r#"
-        pub(crate) trait Foo<A> {
-            fn foo(self, x: A) -> bool;
-        }
+    pub(crate) trait Foo<A> {
+        fn foo(self, x: A) -> bool;
+    }
 
-        pub fn bar<T, U, V>(x: (T, U), y: V) -> bool where (T, U): Foo<V> {
-            x.foo(y)
-        }
-
-        fn main() {}"#;
+    pub fn bar<T, U, V>(x: (T, U), y: V) -> bool where (T, U): Foo<V> {
+        x.foo(y)
+    }
+    "#;
     assert_no_errors!(src);
 }
 
@@ -2700,8 +2657,6 @@ fn trait_impl_for_a_type_that_implements_another_trait() {
     pub fn use_it<T>(t: T) -> i32 where T: Two {
         Two::two(t)
     }
-
-    fn main() {}
     "#;
     assert_no_errors!(src);
 }
@@ -2740,8 +2695,6 @@ fn trait_impl_for_a_type_that_implements_another_trait_with_another_impl_used() 
     pub fn use_it(t: u32) -> i32 {
         Two::two(t)
     }
-
-    fn main() {}
     "#;
     assert_no_errors!(src);
 }
@@ -2860,8 +2813,6 @@ fn do_not_infer_partial_global_types() {
                    ^^^^^^^^^^^^^^^^^^^ Globals must have a specified type
             (&["hi"], [[]; 3]);
             ~~~~~~~~~~~~~~~~~~ Inferred type is `([str<2>], [[Field; 0]; 3])`
-
-        fn main() { }
     "#;
     check_errors!(src);
 }
@@ -3202,8 +3153,6 @@ fn uses_self_in_import() {
     pub fn baz() -> i32 {
         bar::foo()
     }
-
-    fn main() {}
     "#;
     assert_no_errors!(src);
 }
@@ -3337,8 +3286,6 @@ fn errors_with_better_message_when_trying_to_invoke_struct_field_that_is_a_funct
                 ~~~~~~~~~~~~~~~ to call the function stored in 'wrapped', surround the field access with parentheses: '(', ')'
             }
         }
-
-        fn main() {}
     "#;
     check_errors!(src);
 }
@@ -3355,8 +3302,6 @@ fn disallows_test_attribute_on_impl_method() {
             fn foo() { }
                ^^^ The `#[test]` attribute is disallowed on `impl` methods
         }
-
-        fn main() { }
     ";
     check_errors!(src);
 }
@@ -3375,8 +3320,6 @@ fn disallows_test_attribute_on_trait_impl_method() {
             fn foo() { }
                ^^^ The `#[test]` attribute is disallowed on `impl` methods
         }
-
-        fn main() { }
     ";
     check_errors!(src);
 }
@@ -3392,8 +3335,6 @@ fn disallows_export_attribute_on_impl_method() {
             fn foo() { }
                ^^^ The `#[export]` attribute is disallowed on `impl` methods
         }
-
-        fn main() { }
     ";
     check_errors!(src);
 }
@@ -3413,8 +3354,6 @@ fn disallows_export_attribute_on_trait_impl_method() {
             fn foo() { }
                ^^^ The `#[export]` attribute is disallowed on `impl` methods
         }
-
-        fn main() { }
     ";
     check_errors!(src);
 }
@@ -3423,8 +3362,6 @@ fn disallows_export_attribute_on_trait_impl_method() {
 fn allows_multiple_underscore_parameters() {
     let src = r#"
         pub fn foo(_: i32, _: i64) {}
-
-        fn main() {}
     "#;
     assert_no_errors!(src);
 }
@@ -3452,8 +3389,6 @@ fn errors_on_cyclic_globals() {
     pub comptime global B: u32 = A;
                                  ^ Variable not in scope
                                  ~ Could not find variable
-
-    fn main() { }
     "#;
     check_errors!(src);
 }
@@ -3633,9 +3568,6 @@ fn infers_lambda_argument_from_function_return_type() {
     pub fn func() -> fn(Foo) -> Field {
         |foo| foo.value
     }
-
-    fn main() {
-    }
     "#;
     assert_no_errors!(src);
 }
@@ -3650,9 +3582,6 @@ fn infers_lambda_argument_from_function_return_type_multiple_statements() {
     pub fn func() -> fn(Foo) -> Field {
         let _ = 1;
         |foo| foo.value
-    }
-
-    fn main() {
     }
     "#;
     assert_no_errors!(src);
@@ -3671,9 +3600,6 @@ fn infers_lambda_argument_from_function_return_type_when_inside_if() {
         } else {
             |foo| foo.value
         }
-    }
-
-    fn main() {
     }
     "#;
     assert_no_errors!(src);
@@ -3940,8 +3866,6 @@ fn check_impl_duplicate_method_without_self() {
            ^^^ duplicate definitions of foo found
            ~~~ second definition found here
     }
-
-    fn main() {}
     ";
     check_errors!(src);
 }
@@ -4204,8 +4128,6 @@ fn object_type_must_be_known_in_method_call() {
                 ~~~ Type must be known by this point to know which method to call
         bar
     }
-
-    fn main() {}
     "#;
     check_errors!(src);
 }
@@ -4359,6 +4281,32 @@ fn unconstrained_numeric_generic_in_impl() {
         }
         "#;
     check_errors!(src);
+}
+
+#[test]
+fn unconstrained_type_parameter_in_trait_impl() {
+    let src = r#"
+        pub trait Trait<T> {}
+        pub struct Foo<T> {}
+
+        impl<T, U> Trait<T> for Foo<T> {}
+                ^ The type parameter `U` is not constrained by the impl trait, self type, or predicates
+                ~ Hint: remove the `U` type parameter
+        "#;
+    check_errors!(src);
+}
+
+#[test]
+fn does_not_error_if_type_parameter_is_used_in_trait_bound_named_generic() {
+    let src = r#"
+    pub trait SomeTrait {}
+    pub trait AnotherTrait {
+        type AssocType;
+    }
+
+    impl<T, U> SomeTrait for T where T: AnotherTrait<AssocType=U> {}
+    "#;
+    assert_no_errors!(src);
 }
 
 #[test]

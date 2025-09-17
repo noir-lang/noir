@@ -16,12 +16,12 @@ use core::panic;
 use std::sync::Arc;
 
 use acvm::{AcirField, FieldElement, acir::BlackBoxFunc};
-use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 
 pub(crate) mod dynamic_array_indices;
 
 use crate::ssa::{
-    ir::{dfg::DataFlowGraph, instruction::TerminatorInstruction},
+    ir::{basic_block::BasicBlockId, dfg::DataFlowGraph, instruction::TerminatorInstruction},
     ssa_gen::Ssa,
 };
 
@@ -655,6 +655,20 @@ impl<'f> Validator<'f> {
         }
     }
 
+    /// Validates that acir functions are not called from unconstrained code.
+    fn check_calls_in_unconstrained(&self, instruction: InstructionId) {
+        if self.function.runtime().is_brillig() {
+            if let Instruction::Call { func, .. } = &self.function.dfg[instruction] {
+                if let Value::Function(func_id) = &self.function.dfg[*func] {
+                    let called_function = &self.ssa.functions[func_id];
+                    if called_function.runtime().is_acir() {
+                        panic!("Call to acir function {} from unconstrained code", func_id);
+                    }
+                }
+            }
+        }
+    }
+
     fn type_check_globals(&self) {
         let globals = (*self.function.dfg.globals).clone();
         for (_, global) in globals.values_iter() {
@@ -662,6 +676,26 @@ impl<'f> Validator<'f> {
             if global_typ.contains_function() {
                 panic!("Globals cannot contain function pointers");
             }
+        }
+    }
+
+    fn validate_block_terminator(&self, block: BasicBlockId) {
+        let terminator = self.function.dfg[block]
+            .terminator()
+            .expect("Block is expected to have a terminator instruction");
+
+        match terminator {
+            TerminatorInstruction::JmpIf { condition, .. } => {
+                let condition_type = self.function.dfg.type_of_value(*condition);
+                assert_eq!(
+                    condition_type,
+                    Type::bool(),
+                    "JmpIf conditions should have boolean type"
+                );
+            }
+            TerminatorInstruction::Jmp { .. }
+            | TerminatorInstruction::Return { .. }
+            | TerminatorInstruction::Unreachable { .. } => (),
         }
     }
 
@@ -673,7 +707,9 @@ impl<'f> Validator<'f> {
             for instruction in self.function.dfg[block].instructions() {
                 self.validate_field_to_integer_cast_invariant(*instruction);
                 self.type_check_instruction(*instruction);
+                self.check_calls_in_unconstrained(*instruction);
             }
+            self.validate_block_terminator(block);
         }
     }
 }
@@ -1262,6 +1298,43 @@ mod tests {
             v2 = call multi_scalar_mul(v0, v1) -> [(Field, Field, u1); 1]
             return v2
         }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "Call to acir function f1 from unconstrained code")]
+    fn disallows_calling_acir_from_brillig() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: u32):
+            call f1(v0)
+            return
+        }
+        acir(inline) fn foo f1 {
+          b0(v0: u32):
+            v4 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+            v5 = array_get v4, index v0 -> Field
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "JmpIf conditions should have boolean type")]
+    fn disallows_non_boolean_jmpif_condition() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            jmpif v0 then: b1, else: b2
+          b1():
+            jmp b2()
+          b2():
+            return
+
+        }
+        
         ";
         let _ = Ssa::from_str(src).unwrap();
     }

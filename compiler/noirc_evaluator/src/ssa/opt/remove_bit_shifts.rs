@@ -93,7 +93,7 @@ impl Function {
     /// If this is an ACIR function, go through every instruction, replacing bit shifts with
     /// more primitive arithmetic operations,
     fn remove_bit_shifts(&mut self) {
-        if self.runtime().is_brillig() {
+        if !self.runtime().is_acir() {
             return;
         }
 
@@ -118,6 +118,8 @@ impl Function {
             let old_result = *context.dfg.instruction_results(instruction_id).first().unwrap();
 
             let mut bitshift_context = Context { context };
+            bitshift_context.enforce_bitshift_rhs_lt_bit_size(rhs);
+
             let new_result = if operator == BinaryOp::Shl {
                 bitshift_context.insert_wrapping_shift_left(lhs, rhs)
             } else {
@@ -139,7 +141,7 @@ struct Context<'m, 'dfg, 'mapping> {
 impl Context<'_, '_, '_> {
     /// Insert ssa instructions which computes lhs << rhs by doing lhs*2^rhs
     /// and truncate the result to bit_size
-    pub(crate) fn insert_wrapping_shift_left(&mut self, lhs: ValueId, rhs: ValueId) -> ValueId {
+    fn insert_wrapping_shift_left(&mut self, lhs: ValueId, rhs: ValueId) -> ValueId {
         let typ = self.context.dfg.type_of_value(lhs).unwrap_numeric();
         let max_lhs_bits = self.context.dfg.get_value_max_num_bits(lhs);
         let max_bit_shift_size = self.context.dfg.get_numeric_constant(rhs).map_or_else(
@@ -154,8 +156,6 @@ impl Context<'_, '_, '_> {
             },
         );
 
-        let pow = self.two_pow(rhs);
-
         // We cap the maximum number of bits here to ensure that we don't try and truncate using a
         // `max_bit_size` greater than what's allowable by the underlying `FieldElement` as this is meaningless.
         //
@@ -166,13 +166,45 @@ impl Context<'_, '_, '_> {
             FieldElement::max_num_bits(),
         );
         if max_bit <= typ.bit_size() {
+            // If the result is guaranteed to fit in the target type we can simply multiply
+            let pow = self.two_pow(rhs);
             let pow = self.insert_cast(pow, typ);
             // Unchecked mul as it can't overflow
             self.insert_binary(lhs, BinaryOp::Mul { unchecked: true }, pow)
-        } else {
+        } else if max_bit < FieldElement::max_num_bits() {
+            // If the result fits in a FieldElement we can multiply in Field, then truncate
+            let pow = self.two_pow(rhs);
             let lhs_field = self.insert_cast(lhs, NumericType::NativeField);
             // Unchecked mul as this is a wrapping operation that we later truncate
             let result = self.insert_binary(lhs_field, BinaryOp::Mul { unchecked: true }, pow);
+            let result = self.insert_truncate(result, typ.bit_size(), max_bit);
+            self.insert_cast(result, typ)
+        } else {
+            // Otherwise, the result might not bit in a FieldElement.
+            // For this, if we have to do `lhs << rhs` we can first shift by half of `rhs`, truncate,
+            // then shift by `rhs - half_of_rhs` and truncate again.
+            assert!(typ.bit_size() <= 128);
+
+            let two = self.numeric_constant(FieldElement::from(2_u32), typ);
+
+            // rhs_divided_by_two = rhs / 2
+            let rhs_divided_by_two = self.insert_binary(rhs, BinaryOp::Div, two);
+
+            // rhs_remainder = rhs - rhs_remainder
+            let rhs_remainder =
+                self.insert_binary(rhs, BinaryOp::Sub { unchecked: true }, rhs_divided_by_two);
+
+            // pow1 = 2^rhs_divided_by_two
+            // pow2 = r^rhs_remainder
+            let pow1 = self.two_pow(rhs_divided_by_two);
+            let pow2 = self.two_pow(rhs_remainder);
+
+            // result = lhs * pow1 * pow2 = lhs * 2^rhs_divided_by_two * 2^rhs_remainder
+            //        = lhs * 2^(rhs_divided_by_two + rhs_remainder) = lhs * 2^rhs
+            let lhs_field = self.insert_cast(lhs, NumericType::NativeField);
+            let result = self.insert_binary(lhs_field, BinaryOp::Mul { unchecked: true }, pow1);
+            let result = self.insert_truncate(result, typ.bit_size(), max_bit);
+            let result = self.insert_binary(result, BinaryOp::Mul { unchecked: true }, pow2);
             let result = self.insert_truncate(result, typ.bit_size(), max_bit);
             self.insert_cast(result, typ)
         }
@@ -181,7 +213,7 @@ impl Context<'_, '_, '_> {
     /// Insert ssa instructions which computes lhs >> rhs by doing lhs/2^rhs
     /// For negative signed integers, we do the division on the 1-complement representation of lhs,
     /// before converting back the result to the 2-complement representation.
-    pub(crate) fn insert_shift_right(&mut self, lhs: ValueId, rhs: ValueId) -> ValueId {
+    fn insert_shift_right(&mut self, lhs: ValueId, rhs: ValueId) -> ValueId {
         let lhs_typ = self.context.dfg.type_of_value(lhs).unwrap_numeric();
 
         let pow = self.two_pow(rhs);
@@ -201,11 +233,8 @@ impl Context<'_, '_, '_> {
                 let lhs_as_field = self.insert_cast(lhs, NumericType::NativeField);
                 // For negative numbers, convert to 1-complement using wrapping addition of a + 1
                 // Unchecked add as these are fields
-                let one_complement = self.insert_binary(
-                    lhs_sign_as_field,
-                    BinaryOp::Add { unchecked: true },
-                    lhs_as_field,
-                );
+                let add = BinaryOp::Add { unchecked: true };
+                let one_complement = self.insert_binary(lhs_sign_as_field, add, lhs_as_field);
                 let one_complement = self.insert_truncate(one_complement, bit_size, bit_size + 1);
                 let one_complement =
                     self.insert_cast(one_complement, NumericType::signed(bit_size));
@@ -219,11 +248,8 @@ impl Context<'_, '_, '_> {
                 // - ones_complement(lhs) / (2^rhs) == 0
                 // As the upper bit is set for the ones complement of negative numbers we'd need 2^rhs
                 // to be larger than the lhs bitsize for this to overflow.
-                let shifted = self.insert_binary(
-                    shifted_complement,
-                    BinaryOp::Sub { unchecked: true },
-                    lhs_sign_as_int,
-                );
+                let sub = BinaryOp::Sub { unchecked: true };
+                let shifted = self.insert_binary(shifted_complement, sub, lhs_sign_as_int);
                 self.insert_truncate(shifted, bit_size, bit_size + 1)
             }
 
@@ -242,7 +268,7 @@ impl Context<'_, '_, '_> {
     /// }
     fn two_pow(&mut self, exponent: ValueId) -> ValueId {
         // Require that exponent < bit_size, ensuring that `pow` returns a value consistent with `lhs`'s type.
-        let max_bit_size = self.enforce_bitshift_rhs_lt_bit_size(exponent);
+        let max_bit_size = self.context.dfg.type_of_value(exponent).bit_size();
 
         if let Some(exponent_const) = self.context.dfg.get_numeric_constant(exponent) {
             let exponent_const_as_u32 = exponent_const.try_to_u32();
@@ -285,7 +311,7 @@ impl Context<'_, '_, '_> {
         // All operations are unchecked as we're acting on Field types (which are always unchecked)
         for i in 1..max_exponent_bits + 1 {
             let idx = self.numeric_constant(
-                FieldElement::from((max_exponent_bits - i) as i128),
+                FieldElement::from(i128::from(max_exponent_bits - i)),
                 NumericType::length_type(),
             );
             let b = self.insert_array_get(exponent_bits, idx, Type::bool());
@@ -310,21 +336,13 @@ impl Context<'_, '_, '_> {
 
     /// Insert constraints ensuring that the right-hand side of a bit-shift operation
     /// is less than the bit size of the left-hand side.
-    /// Returns the maximum bit size allowed for `rhs`.
-    fn enforce_bitshift_rhs_lt_bit_size(&mut self, rhs: ValueId) -> u32 {
+    fn enforce_bitshift_rhs_lt_bit_size(&mut self, rhs: ValueId) {
         let one = self.numeric_constant(FieldElement::one(), NumericType::bool());
         let rhs_type = self.context.dfg.type_of_value(rhs);
 
         let assert_message = Some("attempt to bit-shift with overflow".to_owned());
 
-        let bit_size = match rhs_type {
-            Type::Numeric(NumericType::Unsigned { bit_size }) => bit_size,
-            Type::Numeric(NumericType::Signed { bit_size }) => {
-                assert!(bit_size > 1, "ICE - i1 is not a valid type");
-                bit_size
-            }
-            _ => unreachable!("check_shift_overflow called with non-numeric type"),
-        };
+        let bit_size = rhs_type.bit_size();
         let bit_size_field = FieldElement::from(bit_size);
 
         let unsigned_typ = NumericType::unsigned(bit_size);
@@ -332,38 +350,27 @@ impl Context<'_, '_, '_> {
         let rhs = self.insert_cast(rhs, unsigned_typ);
         let overflow = self.insert_binary(rhs, BinaryOp::Lt, max);
         self.insert_constrain(overflow, one, assert_message.map(Into::into));
-
-        bit_size
     }
 
-    pub(crate) fn field_constant(&mut self, constant: FieldElement) -> ValueId {
+    fn field_constant(&mut self, constant: FieldElement) -> ValueId {
         self.context.dfg.make_constant(constant, NumericType::NativeField)
     }
 
     /// Insert a numeric constant into the current function
-    pub(crate) fn numeric_constant(
-        &mut self,
-        value: impl Into<FieldElement>,
-        typ: NumericType,
-    ) -> ValueId {
+    fn numeric_constant(&mut self, value: impl Into<FieldElement>, typ: NumericType) -> ValueId {
         self.context.dfg.make_constant(value.into(), typ)
     }
 
     /// Insert a binary instruction at the end of the current block.
     /// Returns the result of the binary instruction.
-    pub(crate) fn insert_binary(
-        &mut self,
-        lhs: ValueId,
-        operator: BinaryOp,
-        rhs: ValueId,
-    ) -> ValueId {
+    fn insert_binary(&mut self, lhs: ValueId, operator: BinaryOp, rhs: ValueId) -> ValueId {
         let instruction = Instruction::Binary(Binary { lhs, rhs, operator });
         self.context.insert_instruction(instruction, None).first()
     }
 
     /// Insert a not instruction at the end of the current block.
     /// Returns the result of the instruction.
-    pub(crate) fn insert_not(&mut self, rhs: ValueId) -> ValueId {
+    fn insert_not(&mut self, rhs: ValueId) -> ValueId {
         self.context.insert_instruction(Instruction::Not(rhs), None).first()
     }
 
@@ -379,12 +386,7 @@ impl Context<'_, '_, '_> {
 
     /// Insert a truncate instruction at the end of the current block.
     /// Returns the result of the truncate instruction.
-    pub(crate) fn insert_truncate(
-        &mut self,
-        value: ValueId,
-        bit_size: u32,
-        max_bit_size: u32,
-    ) -> ValueId {
+    fn insert_truncate(&mut self, value: ValueId, bit_size: u32, max_bit_size: u32) -> ValueId {
         self.context
             .insert_instruction(Instruction::Truncate { value, bit_size, max_bit_size }, None)
             .first()
@@ -392,13 +394,13 @@ impl Context<'_, '_, '_> {
 
     /// Insert a cast instruction at the end of the current block.
     /// Returns the result of the cast instruction.
-    pub(crate) fn insert_cast(&mut self, value: ValueId, typ: NumericType) -> ValueId {
+    fn insert_cast(&mut self, value: ValueId, typ: NumericType) -> ValueId {
         self.context.insert_instruction(Instruction::Cast(value, typ), None).first()
     }
 
     /// Insert a call instruction at the end of the current block and return
     /// the results of the call.
-    pub(crate) fn insert_call(
+    fn insert_call(
         &mut self,
         func: ValueId,
         arguments: Vec<ValueId>,
@@ -410,12 +412,7 @@ impl Context<'_, '_, '_> {
     }
 
     /// Insert an instruction to extract an element from an array
-    pub(crate) fn insert_array_get(
-        &mut self,
-        array: ValueId,
-        index: ValueId,
-        element_type: Type,
-    ) -> ValueId {
+    fn insert_array_get(&mut self, array: ValueId, index: ValueId, element_type: Type) -> ValueId {
         let element_type = Some(vec![element_type]);
         let offset = ArrayOffset::None;
         let instruction = Instruction::ArrayGet { array, index, offset };
@@ -947,5 +944,30 @@ mod tests {
             jmpif v8 then: b1, else: b2
         }
         "#);
+    }
+
+    #[test]
+    fn left_bit_shift_u128_overflow_field() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u128):
+            v2 = shl v0, u128 127
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.remove_bit_shifts();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u128):
+            v1 = cast v0 as Field
+            v3 = mul v1, Field 9223372036854775808
+            v4 = truncate v3 to 128 bits, max_bit_size: 254
+            v6 = mul v4, Field 18446744073709551616
+            v7 = truncate v6 to 128 bits, max_bit_size: 254
+            v8 = cast v7 as u128
+            return v8
+        }
+        ");
     }
 }

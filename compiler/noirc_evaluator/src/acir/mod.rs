@@ -6,8 +6,8 @@
 //! ACIR generation is performed by calling the [Ssa::into_acir] method, providing any necessary brillig bytecode.
 //! The compiled program will be returned as an [`Artifacts`] type.
 
-use fxhash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use noirc_errors::call_stack::CallStack;
+use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 use std::collections::BTreeMap;
 use types::{AcirDynamicArray, AcirValue};
 
@@ -19,7 +19,6 @@ use acvm::acir::{
     native_types::Witness,
 };
 use acvm::{FieldElement, acir::AcirField, acir::circuit::opcodes::BlockId};
-use bn254_blackbox_solver::Bn254BlackBoxSolver;
 use iter_extended::{try_vecmap, vecmap};
 use noirc_frontend::monomorphization::ast::InlineType;
 
@@ -183,7 +182,7 @@ struct Context<'a> {
     current_side_effects_enabled_var: AcirVar,
 
     /// Manages and builds the `AcirVar`s to which the converted SSA values refer.
-    acir_context: AcirContext<FieldElement, Bn254BlackBoxSolver>,
+    acir_context: AcirContext<FieldElement>,
 
     /// Track initialized acir dynamic arrays
     ///
@@ -237,7 +236,7 @@ impl<'a> Context<'a> {
         brillig_stdlib: BrilligStdLib<FieldElement>,
         brillig_options: &'a BrilligOptions,
     ) -> Context<'a> {
-        let mut acir_context = AcirContext::new(brillig_stdlib, Bn254BlackBoxSolver::default());
+        let mut acir_context = AcirContext::new(brillig_stdlib);
         acir_context.set_expression_width(expression_width);
         let current_side_effects_enabled_var = acir_context.add_constant(FieldElement::one());
 
@@ -407,7 +406,6 @@ impl<'a> Context<'a> {
             &code,
             inputs,
             outputs,
-            false,
             true,
             // We are guaranteed to have a Brillig function pointer of `0` as main itself is marked as unconstrained
             BrilligFunctionId(0),
@@ -784,7 +782,6 @@ impl<'a> Context<'a> {
                                         code,
                                         inputs,
                                         outputs,
-                                        true,
                                         false,
                                         *generated_pointer,
                                         None,
@@ -803,7 +800,6 @@ impl<'a> Context<'a> {
                                         &code,
                                         inputs,
                                         outputs,
-                                        true,
                                         false,
                                         generated_pointer,
                                         None,

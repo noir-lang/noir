@@ -6,7 +6,10 @@ mod tests {
         assert_ssa_snapshot,
         brillig::BrilligOptions,
         errors::RuntimeError,
-        ssa::{Ssa, SsaBuilder, SsaEvaluatorOptions, SsaLogging, primary_passes},
+        ssa::{
+            Ssa, SsaBuilder, SsaEvaluatorOptions, SsaLogging, opt::inlining::MAX_INSTRUCTIONS,
+            primary_passes,
+        },
     };
 
     fn run_all_passes(ssa: Ssa) -> Result<Ssa, RuntimeError> {
@@ -20,6 +23,7 @@ mod tests {
             enable_brillig_constraints_check_lookback: false,
             skip_brillig_constraints_check: true,
             inliner_aggressiveness: 0,
+            small_function_max_instruction: MAX_INSTRUCTIONS,
             max_bytecode_increase_percent: None,
             skip_passes: Default::default(),
         };

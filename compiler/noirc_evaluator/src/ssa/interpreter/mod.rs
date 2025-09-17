@@ -15,9 +15,9 @@ use super::{
 use crate::ssa::ir::{instruction::binary::truncate_field, printer::display_binary};
 use acvm::{AcirField, FieldElement};
 use errors::{InternalError, InterpreterError, MAX_UNSIGNED_BIT_SIZE};
-use fxhash::FxHashMap as HashMap;
 use iter_extended::{try_vecmap, vecmap};
 use noirc_frontend::Shared;
+use rustc_hash::FxHashMap as HashMap;
 use value::{ArrayValue, NumericValue, ReferenceValue};
 
 pub mod errors;
@@ -928,7 +928,25 @@ impl<'ssa, W: Write> Interpreter<'ssa, W> {
             let element = elements.get(index as usize).ok_or_else(|| {
                 InterpreterError::IndexOutOfBounds { index, length: elements.len() as u32 }
             })?;
-            element.clone()
+
+            // Either return a fresh nested array (in constrained context) or just clone the element.
+            if !self.in_unconstrained_context() {
+                if let Some(array) = element.as_array_or_slice() {
+                    // In the ACIR runtime we expect fresh arrays when accessing a nested array.
+                    // If we do not clone the elements here a mutable array set afterwards could mutate
+                    // not just this returned array but the array we are fetching from in this array get.
+                    Value::ArrayOrSlice(ArrayValue {
+                        elements: Shared::new(array.elements.borrow().to_vec()),
+                        rc: array.rc,
+                        element_types: array.element_types,
+                        is_slice: array.is_slice,
+                    })
+                } else {
+                    element.clone()
+                }
+            } else {
+                element.clone()
+            }
         };
         self.define(result, element)?;
         Ok(())
@@ -1557,8 +1575,8 @@ fn interpret_u1_binary_op(
             // (1, 0) -> (division by 0)
             // (1, 1) -> 1
             if !rhs {
-                let lhs = (lhs as u8).to_string();
-                let rhs = (rhs as u8).to_string();
+                let lhs = u8::from(lhs).to_string();
+                let rhs = u8::from(rhs).to_string();
                 return Err(InterpreterError::DivisionByZero { lhs_id, lhs, rhs_id, rhs });
             }
             lhs
@@ -1569,8 +1587,8 @@ fn interpret_u1_binary_op(
             // (1, 0) -> (division by 0)
             // (1, 1) -> 0
             if !rhs {
-                let lhs = format!("u1 {}", lhs as u8);
-                let rhs = format!("u1 {}", rhs as u8);
+                let lhs = format!("u1 {}", u8::from(lhs));
+                let rhs = format!("u1 {}", u8::from(rhs));
                 return Err(InterpreterError::DivisionByZero { lhs_id, lhs, rhs_id, rhs });
             }
             false
@@ -1583,14 +1601,14 @@ fn interpret_u1_binary_op(
         BinaryOp::Xor => lhs ^ rhs,
         BinaryOp::Shl => {
             if rhs {
-                false
+                return Err(overflow());
             } else {
                 lhs
             }
         }
         BinaryOp::Shr => {
             if rhs {
-                false
+                return Err(overflow());
             } else {
                 lhs
             }

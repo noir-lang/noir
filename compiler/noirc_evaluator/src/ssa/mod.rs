@@ -47,16 +47,33 @@ mod checks;
 pub mod function_builder;
 pub mod interpreter;
 pub mod ir;
-pub(crate) mod opt;
+pub mod opt;
 pub mod parser;
 pub mod ssa_gen;
 pub(crate) mod validation;
+mod visit_once_deque;
 
 #[derive(Debug, Clone)]
 pub enum SsaLogging {
     None,
     All,
     Contains(Vec<String>),
+}
+
+impl SsaLogging {
+    /// Check if an SSA pass should be printed.
+    pub fn matches(&self, msg: &str) -> bool {
+        match self {
+            SsaLogging::None => false,
+            SsaLogging::All => true,
+            SsaLogging::Contains(strings) => strings.iter().any(|string| {
+                let string = string.to_lowercase();
+                let string = string.strip_prefix("after ").unwrap_or(&string);
+                let string = string.strip_suffix(':').unwrap_or(string);
+                msg.to_lowercase().contains(string)
+            }),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -90,6 +107,9 @@ pub struct SsaEvaluatorOptions {
     /// The higher the value, the more inlined Brillig functions will be.
     pub inliner_aggressiveness: i64,
 
+    //// The higher the value, the more Brillig functions will be set to always be inlined.
+    pub small_function_max_instruction: usize,
+
     /// Maximum accepted percentage increase in the Brillig bytecode size after unrolling loops.
     /// When `None` the size increase check is skipped altogether and any decrease in the SSA
     /// instruction count is accepted.
@@ -107,18 +127,27 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         SsaPass::new(Ssa::expand_signed_checks, "expand signed checks"),
         SsaPass::new(Ssa::remove_unreachable_functions, "Removing Unreachable Functions"),
         SsaPass::new(Ssa::defunctionalize, "Defunctionalization"),
-        SsaPass::new(Ssa::inline_simple_functions, "Inlining simple functions")
+        SsaPass::new_try(Ssa::inline_simple_functions, "Inlining simple functions")
             .and_then(Ssa::remove_unreachable_functions),
-        // BUG: Enabling this mem2reg causes an integration test failure in aztec-package; see:
-        // https://github.com/AztecProtocol/aztec-packages/pull/11294#issuecomment-2622809518
-        //SsaPass::new(Ssa::mem2reg, "Mem2Reg (1st)"),
+        SsaPass::new(Ssa::mem2reg, "Mem2Reg"),
         SsaPass::new(Ssa::remove_paired_rc, "Removing Paired rc_inc & rc_decs"),
+        SsaPass::new(Ssa::purity_analysis, "Purity Analysis"),
         SsaPass::new_try(
-            move |ssa| ssa.preprocess_functions(options.inliner_aggressiveness),
+            move |ssa| {
+                ssa.preprocess_functions(
+                    options.inliner_aggressiveness,
+                    options.small_function_max_instruction,
+                )
+            },
             "Preprocessing Functions",
         ),
         SsaPass::new_try(
-            move |ssa| ssa.inline_functions(options.inliner_aggressiveness),
+            move |ssa| {
+                ssa.inline_functions(
+                    options.inliner_aggressiveness,
+                    options.small_function_max_instruction,
+                )
+            },
             "Inlining",
         ),
         // Run mem2reg with the CFG separated into blocks
@@ -153,7 +182,12 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         // This pass must come immediately following `mem2reg` as the succeeding passes
         // may create an SSA which inlining fails to handle.
         SsaPass::new_try(
-            move |ssa| ssa.inline_functions_with_no_predicates(options.inliner_aggressiveness),
+            move |ssa| {
+                ssa.inline_functions_with_no_predicates(
+                    options.inliner_aggressiveness,
+                    options.small_function_max_instruction,
+                )
+            },
             "Inlining",
         ),
         SsaPass::new_try(Ssa::remove_if_else, "Remove IfElse"),
@@ -171,14 +205,15 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         // Simplifying the CFG can have a positive effect on mem2reg: every time we unify with a
         // yet-to-be-visited predecessor we forget known values; less blocks mean less unification.
         SsaPass::new(Ssa::simplify_cfg, "Simplifying"),
-        // We cannot run mem2reg after DIE, because it removes Store instructions.
-        // We have to run it before, to give it a chance to turn Store+Load into known values.
-        SsaPass::new(Ssa::mem2reg, "Mem2Reg"),
-        // Removing unreachable instructions before DIE, so it gets rid of loads that mem2reg couldn't,
-        // if they are unreachable and would cause the DIE post-checks to fail.
+        // Removing unreachable instructions before mem2reg, which may result in some default Store
+        // instructions being added, which it can pair up with Loads. If we ran it after it,
+        // then DIE would just remove the Stores, leaving the Loads dangling.
         // This has to be done after flattening, as it destroys the CFG by removing terminators.
         SsaPass::new(Ssa::remove_unreachable_instructions, "Remove Unreachable Instructions")
             .and_then(Ssa::remove_unreachable_functions),
+        // We cannot run mem2reg after DIE, because it removes Store instructions.
+        // We have to run it before, to give it a chance to turn Store+Load into known values.
+        SsaPass::new(Ssa::mem2reg, "Mem2Reg"),
         SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination"),
         SsaPass::new(Ssa::array_set_optimization, "Array Set Optimizations"),
         SsaPass::new(Ssa::brillig_entry_point_analysis, "Brillig Entry Point Analysis")

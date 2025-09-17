@@ -1,0 +1,6 @@
+[package]
+name = "global_nested_array_call_arg_regression"
+type = "bin"
+authors = [""]
+
+[dependencies]
