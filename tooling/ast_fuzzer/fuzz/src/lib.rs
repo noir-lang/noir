@@ -20,11 +20,7 @@ fn bool_from_env(key: &str) -> bool {
     std::env::var(key).map(|s| s == "1" || s == "true").unwrap_or_default()
 }
 
-// TODO(#7876): Allow specifying options on the command line.
-fn show_ast() -> bool {
-    bool_from_env("NOIR_AST_FUZZER_SHOW_AST")
-}
-
+/// Show all SSA passes during compilation.
 fn show_ssa() -> bool {
     bool_from_env("NOIR_AST_FUZZER_SHOW_SSA")
 }
@@ -57,29 +53,40 @@ pub fn create_ssa_or_die(
     create_ssa_with_passes_or_die(program, options, &primary_passes(options), msg)
 }
 
-/// Compile a [Program] into SSA using the given primary and secondary passes, or panic.
-///
-/// Prints the AST if `NOIR_AST_FUZZER_SHOW_AST` is set.
+/// Compile a [Program] into SSA using the given SSA passes, or panic if it cannot be compiled.
 pub fn create_ssa_with_passes_or_die(
     program: Program,
     options: &SsaEvaluatorOptions,
     primary: &[SsaPass],
     msg: Option<&str>,
 ) -> SsaProgramArtifact {
-    // Unfortunately we can't use `std::panic::catch_unwind`
-    // and `std::panic::resume_unwind` to catch any panic
-    // and print the AST, then resume the panic, because
-    // `Program` has a `RefCell` in it, which is not unwind safe.
-    if show_ast() {
-        eprintln!("---\n{}\n---", DisplayAstAsNoir(&program));
-    }
+    // If we are using a seed, we are probably trying to reproduce some failure;
+    // in that case let's clone the program for printing if it panicked here,
+    // otherwise try to keep things faster by not cloning.
+    let for_print = std::env::var("NOIR_AST_FUZZER_SEED").is_ok().then(|| program.clone());
 
-    ssa::create_program_with_passes(program, options, primary, None).unwrap_or_else(|e| {
-        panic!(
-            "failed to compile program: {}{e}",
-            msg.map(|s| format!("{s}: ")).unwrap_or_default()
+    // We expect the programs generated should compile, but sometimes SSA passes panic, or return an error.
+    // Turn everything into a panic, catch it, print the AST, then resume panicking.
+    let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        ssa::create_program_with_passes(program.clone(), options, primary, None).unwrap_or_else(
+            |e| {
+                panic!(
+                    "failed to compile program: {}{e}",
+                    msg.map(|s| format!("{s}: ")).unwrap_or_default()
+                )
+            },
         )
-    })
+    }));
+
+    match result {
+        Ok(ssa) => ssa,
+        Err(payload) => {
+            if let Some(program) = for_print {
+                eprintln!("--- Failing AST:\n{}\n---", DisplayAstAsNoir(&program));
+            }
+            std::panic::resume_unwind(payload);
+        }
+    }
 }
 
 /// Compare the execution result and print the inputs if the result is a failure.
