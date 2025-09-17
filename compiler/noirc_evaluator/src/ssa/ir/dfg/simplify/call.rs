@@ -105,9 +105,7 @@ pub(super) fn simplify_call(
         }
         // Strings are already arrays of bytes in SSA
         Intrinsic::ArrayAsStrUnchecked => SimplifyResult::SimplifiedTo(arguments[0]),
-        Intrinsic::AsSlice => {
-            SimplifyResult::None
-        }
+        Intrinsic::AsSlice => SimplifyResult::None,
         Intrinsic::SlicePushBack => {
             let slice = dfg.get_array_constant(arguments[1]);
             if let Some((mut slice, element_type)) = slice {
