@@ -51,7 +51,7 @@ impl AcvmBigIntSolver {
             bytes.push(0);
         }
         bytes.iter().zip(outputs.iter()).for_each(|(byte, output)| {
-            initial_witness.insert(*output, F::from(*byte as u128));
+            initial_witness.insert(*output, F::from(u128::from(*byte)));
         });
         Ok(())
     }

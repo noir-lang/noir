@@ -28,6 +28,12 @@ pub(crate) struct InstructionOptions {
     pub(crate) multi_scalar_mul_enabled: bool,
     pub(crate) ecdsa_secp256r1_enabled: bool,
     pub(crate) ecdsa_secp256k1_enabled: bool,
+    pub(crate) blake2s_hash_enabled: bool,
+    pub(crate) blake3_hash_enabled: bool,
+    pub(crate) aes128_encrypt_enabled: bool,
+    pub(crate) field_to_bytes_to_field_enabled: bool,
+    pub(crate) sha256_compression_enabled: bool,
+    pub(crate) keccakf1600_hash_enabled: bool,
 }
 
 impl Default for InstructionOptions {
@@ -58,6 +64,12 @@ impl Default for InstructionOptions {
             multi_scalar_mul_enabled: true,
             ecdsa_secp256r1_enabled: true,
             ecdsa_secp256k1_enabled: true,
+            blake2s_hash_enabled: true,
+            blake3_hash_enabled: true,
+            aes128_encrypt_enabled: true,
+            field_to_bytes_to_field_enabled: true,
+            sha256_compression_enabled: true,
+            keccakf1600_hash_enabled: true,
         }
     }
 }
@@ -159,7 +171,7 @@ impl Default for FuzzerOptions {
     fn default() -> Self {
         Self {
             compile_options: CompileOptions {
-                show_ssa: true,
+                show_ssa: false,
                 show_ssa_pass: vec![],
                 ..Default::default()
             },

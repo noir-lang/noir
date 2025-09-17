@@ -5,16 +5,23 @@ use acvm::{
         native_types::{Witness, WitnessMap, WitnessStack},
     },
 };
-use noir_ssa_executor::runner::execute_single;
+use noir_ssa_executor::{runner::SsaExecutionError, runner::execute_single};
 use std::collections::BTreeSet;
 
 #[derive(Debug)]
 pub enum CompareResults {
-    Agree(WitnessStack<FieldElement>),
+    Agree(WitnessStack<FieldElement>, WitnessStack<FieldElement>),
     Disagree(WitnessStack<FieldElement>, WitnessStack<FieldElement>),
     BothFailed(String, String),
     AcirFailed(String, WitnessStack<FieldElement>),
     BrilligFailed(String, WitnessStack<FieldElement>),
+}
+
+pub fn execute(
+    program: &Program<FieldElement>,
+    initial_witness: WitnessMap<FieldElement>,
+) -> Result<WitnessStack<FieldElement>, SsaExecutionError> {
+    execute_single(program, initial_witness)
 }
 
 /// High level function to execute the given ACIR and Brillig programs with the given initial witness
@@ -46,7 +53,7 @@ pub fn run_and_compare(
             let brillig_results = return_witness_brillig.iter().map(|w| brillig_witness_map[w]);
             let results_equal = acir_results.eq(brillig_results);
             if results_equal {
-                CompareResults::Agree(acir_witness)
+                CompareResults::Agree(acir_witness, brillig_witness)
             } else {
                 CompareResults::Disagree(acir_witness, brillig_witness)
             }

@@ -4,7 +4,7 @@ ci := if env("CI", "") == "true" {
   "1"
 } else {
   "0"
-} 
+}
 use-cross := env("JUST_USE_CROSS", "")
 
 # target information
@@ -37,7 +37,7 @@ install-js-tools: install-binstall
 
 # Installs Playwright (necessary for Javascript browser tests but slow to install)
 install-playwright:
-  npx -y playwright@1.49 install --with-deps
+  npx -y playwright@1.55.0 install --with-deps
 
 # Installs Foundry (necessary for examples)
 install-foundry:
@@ -113,7 +113,7 @@ fuzz-nightly: install-rust-tools
 # Checks if there are any pending insta.rs snapshots and errors if any exist.
 check-pending-snapshots:
   #!/usr/bin/env bash
-  snapshots=$(find . -name *.snap.new) 
+  snapshots=$(find . -name *.snap.new)
   if [[ -n "$snapshots" ]]; then \
     echo "Found pending snapshots:"
     echo ""

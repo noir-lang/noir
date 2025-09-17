@@ -275,6 +275,42 @@ impl BlockContext {
 }
 
 impl LoopContext {
+    /// Create a `LoopContext`:
+    /// * Gather the variables declared within the loop
+    /// * Determine the induction variable bounds
+    fn new(
+        inserter: &FunctionInserter,
+        cfg: &ControlFlowGraph,
+        loop_: &Loop,
+        pre_header: BasicBlockId,
+    ) -> Self {
+        let mut defined_in_loop = HashSet::default();
+        for block in loop_.blocks.iter() {
+            let params = inserter.function.dfg.block_parameters(*block);
+            defined_in_loop.extend(params);
+            for instruction_id in inserter.function.dfg[*block].instructions() {
+                let results = inserter.function.dfg.instruction_results(*instruction_id);
+                defined_in_loop.extend(results);
+            }
+        }
+        let induction_variable = get_induction_var_bounds(inserter, loop_, pre_header);
+
+        Self {
+            // There is only ever one current induction variable for a loop.
+            induction_variable,
+            does_loop_execute: does_loop_execute(induction_variable.map(|(_, bounds)| bounds)),
+            pre_header,
+            defined_in_loop,
+            loop_invariants: HashSet::default(),
+            // Clear any cached control dependent nested loop blocks from the previous loop.
+            // This set is only relevant within the scope of a single loop.
+            // Keeping previous data would incorrectly classify blocks as control dependent,
+            // leading to missed hoisting opportunities.
+            nested_loop_control_dependent_blocks: HashSet::default(),
+            no_break: loop_.is_fully_executed(cfg),
+        }
+    }
+
     fn pre_header(&self) -> BasicBlockId {
         self.pre_header
     }
@@ -376,7 +412,7 @@ impl<'f> LoopInvariantContext<'f> {
         all_loops: &[Loop],
         pre_header: BasicBlockId,
     ) {
-        let mut loop_context = self.init_loop_context(loop_, pre_header);
+        let mut loop_context = LoopContext::new(&self.inserter, &self.cfg, loop_, pre_header);
 
         for block in loop_.blocks.iter() {
             let mut block_context =
@@ -564,37 +600,6 @@ impl<'f> LoopInvariantContext<'f> {
             }
         }
         true
-    }
-
-    /// Create a `LoopContext`:
-    /// * Gather the variables declared within the loop
-    /// * Determine the induction variable bounds
-    fn init_loop_context(&mut self, loop_: &Loop, pre_header: BasicBlockId) -> LoopContext {
-        let mut defined_in_loop = HashSet::default();
-        for block in loop_.blocks.iter() {
-            let params = self.inserter.function.dfg.block_parameters(*block);
-            defined_in_loop.extend(params);
-            for instruction_id in self.inserter.function.dfg[*block].instructions() {
-                let results = self.inserter.function.dfg.instruction_results(*instruction_id);
-                defined_in_loop.extend(results);
-            }
-        }
-        let induction_variable = get_induction_var_bounds(&self.inserter, loop_, pre_header);
-
-        LoopContext {
-            // There is only ever one current induction variable for a loop.
-            induction_variable,
-            does_loop_execute: does_loop_execute(induction_variable.map(|(_, bounds)| bounds)),
-            pre_header,
-            defined_in_loop,
-            loop_invariants: HashSet::default(),
-            // Clear any cached control dependent nested loop blocks from the previous loop.
-            // This set is only relevant within the scope of a single loop.
-            // Keeping previous data would incorrectly classify blocks as control dependent,
-            // leading to missed hoisting opportunities.
-            nested_loop_control_dependent_blocks: HashSet::default(),
-            no_break: loop_.is_fully_executed(&self.cfg),
-        }
     }
 
     /// Create a `BlockContext`.
@@ -871,7 +876,7 @@ fn can_be_hoisted(instruction: &Instruction, function: &Function) -> CanBeHoiste
         MakeArray { .. } => function.runtime().is_acir().into(),
 
         // These can have different behavior depending on the predicate.
-        Binary(_) | ArrayGet { .. } | ArraySet { .. } => {
+        Binary(_) | ArraySet { .. } | ArrayGet { .. } => {
             if !instruction.requires_acir_gen_predicate(&function.dfg) {
                 Yes
             } else {
@@ -892,7 +897,7 @@ mod test {
     use crate::ssa::ir::instruction::{Instruction, Intrinsic, TerminatorInstruction};
     use crate::ssa::ir::types::Type;
     use crate::ssa::opt::loop_invariant::{
-        CanBeHoistedResult, LoopInvariantContext, can_be_hoisted,
+        CanBeHoistedResult, LoopContext, LoopInvariantContext, can_be_hoisted,
     };
     use crate::ssa::opt::pure::Purity;
     use crate::ssa::opt::unrolling::Loops;
@@ -1932,10 +1937,10 @@ mod test {
         let mut ssa = Ssa::from_str(src).unwrap();
         let function = ssa.functions.get_mut(&ssa.main_id).unwrap();
         let mut loops = Loops::find_all(function);
-        let mut ctx = LoopInvariantContext::new(function, &loops.yet_to_unroll);
+        let ctx = LoopInvariantContext::new(function, &loops.yet_to_unroll);
         let pre_header = BasicBlockId::new(0);
         let loop_ = loops.yet_to_unroll.pop().unwrap();
-        let mut loop_ctx = ctx.init_loop_context(&loop_, pre_header);
+        let mut loop_ctx = LoopContext::new(&ctx.inserter, &ctx.cfg, &loop_, pre_header);
 
         let mut get_block_ctx = |id| {
             ctx.init_block_context(
@@ -2015,17 +2020,47 @@ mod test {
         true,
         "nested loop empty, but add cannot overflow"
     )]
-    #[test_case("u32", 0, 10, 10, true, "add", (u32::MAX-5) as i64, true, "add overflows, and loop executes")]
-    #[test_case("u32", 0, 10, 0, true, "add", (u32::MAX-5) as i64, false, "add overflows, but loop empty")]
-    #[test_case("u32", 0, 10, 0, true, "unchecked_add", (u32::MAX-5) as i64, true, "loop empty, but add unchecked")]
+    #[test_case("u32", 0, 10, 10, true, "add", i64::from(u32::MAX - 5), true, "add overflows, and loop executes")]
+    #[test_case("u32", 0, 10, 0, true, "add", i64::from(u32::MAX - 5), false, "add overflows, but loop empty")]
+    #[test_case("u32", 0, 10, 0, true, "unchecked_add", i64::from(u32::MAX - 5), true, "loop empty, but add unchecked")]
     #[test_case("u32", 5, 10, 10, true, "sub", 5, true, "loop executes, sub cannot overflow")]
     #[test_case("u32", 0, 10, 10, true, "sub", 5, true, "sub overflows, and loop executes")]
     #[test_case("u32", 0, 10, 0, true, "sub", 5, false, "sub overflows, but loop empty")]
     #[test_case("u32", 0, 10, 0, true, "unchecked_sub", 5, true, "loop empty, but sub unchecked")]
     #[test_case("u32", 0, 10, 10, true, "mul", 10, true, "loop executes, mul cannot overflow")]
-    #[test_case("u32", 0, 10, 10, true, "mul", u32::MAX as i64, true, "mul overflows, and loop executes")]
-    #[test_case("u32", 0, 10, 0, true, "mul", u32::MAX as i64, false, "mul overflows, but loop empty")]
-    #[test_case("u32", 0, 10, 0, true, "unchecked_mul", u32::MAX as i64, true, "loop empty, but mul unchecked")]
+    #[test_case(
+        "u32",
+        0,
+        10,
+        10,
+        true,
+        "mul",
+        i64::from(u32::MAX),
+        true,
+        "mul overflows, and loop executes"
+    )]
+    #[test_case(
+        "u32",
+        0,
+        10,
+        0,
+        true,
+        "mul",
+        i64::from(u32::MAX),
+        false,
+        "mul overflows, but loop empty"
+    )]
+    #[test_case(
+        "u32",
+        0,
+        10,
+        0,
+        true,
+        "unchecked_mul",
+        i64::from(u32::MAX),
+        true,
+        "loop empty, but mul unchecked"
+    )]
     #[test_case("u32", 0, 10, 10, true, "div", 2, true, "loop executes, div ok")]
     #[test_case("u32", 0, 10, 0, true, "div", 2, true, "loop empty, div ok")]
     #[test_case("u32", 0, 10, 10, true, "div", 0, true, "div by zero, and loop executes")]
@@ -2038,8 +2073,8 @@ mod test {
     #[test_case("u32", 0, 10, 0, true, "eq", 5, true, "loop empty, but eq is safe")]
     #[test_case("u32", 5, 10, 10, true, "shr", 1, true, "loop executes, shr ok")]
     #[test_case("u32", 5, 10, 0, true, "shr", 1, false, "loop empty, shr ok")]
-    #[test_case("u32", 5, 10, 10, true, "shr", 10, true, "shr overflow, and loop executes")]
-    #[test_case("u32", 5, 10, 0, true, "shr", 10, false, "shr overflow, but loop empty")]
+    #[test_case("u32", 5, 10, 10, true, "shr", 32, true, "shr overflow, and loop executes")]
+    #[test_case("u32", 5, 10, 0, true, "shr", 32, false, "shr overflow, but loop empty")]
     #[test_case("u32", 5, 10, 10, true, "shl", 1, true, "loop executes, shl ok")]
     #[test_case("u32", 5, 10, 0, true, "shl", 1, false, "loop empty, shl ok")]
     #[test_case("u32", 5, 10, 10, true, "shl", 32, true, "shl overflow, and loop executes")]
@@ -2326,11 +2361,13 @@ mod control_dependence {
         assert_ssa_snapshot,
         ssa::{
             interpreter::{errors::InterpreterError, tests::from_constant},
-            ir::types::NumericType,
+            ir::{function::RuntimeType, types::NumericType},
             opt::{assert_normalized_ssa_equals, assert_ssa_does_not_change, unrolling::Loops},
             ssa_gen::Ssa,
         },
     };
+    use noirc_frontend::monomorphization::ast::InlineType;
+    use test_case::test_case;
 
     #[test]
     fn do_not_hoist_unsafe_mul_in_control_dependent_block() {
@@ -2658,7 +2695,7 @@ mod control_dependence {
           loop_body():
             v6 = unchecked_mul v0, v1
             v7 = unchecked_mul v6, v0
-            call f1()
+            call f1(v7)
             v10 = unchecked_add v2, u32 1
             jmp loop(v10)
           exit():
@@ -2685,7 +2722,7 @@ mod control_dependence {
             v6 = lt v2, v1
             jmpif v6 then: b2, else: b3
           b2():
-            call f1()
+            call f1(v4)
             v9 = unchecked_add v2, u32 1
             jmp b1(v9)
           b3():
@@ -2713,7 +2750,7 @@ mod control_dependence {
           loop_body():
             v6 = mul v0, v1
             v7 = mul v6, v0
-            call f1()
+            call f1(v7)
             v10 = unchecked_add v2, u32 1
             jmp loop(v10)
           exit():
@@ -2735,7 +2772,7 @@ mod control_dependence {
           b0(v0: u32, v1: u32):
             v3 = mul v0, v1
             v4 = mul v3, v0
-            call f1()
+            call f1(v4)
             jmp b1(u32 0)
           b1(v2: u32):
             v8 = lt v2, u32 4
@@ -2756,7 +2793,7 @@ mod control_dependence {
 
     #[test]
     fn simplify_constraint() {
-        // This test shows the simplification of the constraint constrain v17 == u1 1 which is converted into constrain u1 0 == u1 1 in b5
+        // This test shows the constraint constrain v17 == u1 1 is not simplified into constrain u1 0 == u1 1
         let src = "
         brillig(inline) fn main f0 {
           entry(v0: u32, v1: u32, v2: u32):
@@ -2788,11 +2825,10 @@ mod control_dependence {
         ";
 
         let ssa = Ssa::from_str(src).unwrap();
-
         let ssa = ssa.loop_invariant_code_motion();
-        // The loop is guaranteed to fully execute, so we expect the constrain to be simplified into constrain u1 0 == u1 1
-        // However, even though the constrain is not a loop invariant we expect it to remain in place
-        // as it is control dependent upon its predecessor blocks which are not pure.
+
+        // Despite the loop is guaranteed to fully execute, which implies that the constrain will fail at some iteration,
+        // the constraint is not simplified in case some side-effect instruction would run in the previous iterations.
         assert_ssa_snapshot!(ssa, @r"
         brillig(inline) fn main f0 {
           b0(v0: u32, v1: u32, v2: u32):
@@ -2816,9 +2852,9 @@ mod control_dependence {
             jmp b5()
           b5():
             v15 = lt v3, u32 4
-            constrain u1 0 == u1 1
-            v17 = unchecked_add v3, u32 1
-            jmp b1(v17)
+            constrain v15 == u1 1
+            v16 = unchecked_add v3, u32 1
+            jmp b1(v16)
         }
         ");
     }
@@ -3484,5 +3520,39 @@ mod control_dependence {
         let mut loops = Loops::find_all(ssa.main());
         let loop_ = loops.yet_to_unroll.pop().unwrap();
         assert!(!loop_.is_fully_executed(&loops.cfg));
+    }
+
+    #[test_case(RuntimeType::Brillig(InlineType::default()))]
+    #[test_case(RuntimeType::Acir(InlineType::default()))]
+    fn do_not_hoist_unsafe_array_get_from_control_dependent_block(runtime: RuntimeType) {
+        // We use an unknown index v0 to index an array, but only if v1 is true,
+        // so we should not hoist the constraint or the array_get into the header.
+        // Hoisting the array operation and indexing with an invalid `v0` would
+        // not cause an OOB in Brillig, however the returned value would be invalid,
+        // causing knockdown loop invariant instructions to fail when the loop is not meant to fail.
+        let src = format!(
+            r#"
+          {runtime} impure fn main f0 {{
+            b0(v0: u32, v1: u1):
+              v2 = make_array [u8 0, u8 1] : [u8; 2]
+              jmp b1(u32 0)
+            b1(v3: u32):
+              v4 = lt v3, u32 2
+              jmpif v4 then: b2, else: b3
+            b2():
+              jmpif v1 then: b4, else: b5
+            b3():
+              return
+            b4():
+              constrain v0 == u32 0, "Index out of bounds"
+              v5 = array_get v2, index v0 -> u8
+              jmp b5()
+            b5():
+              v6 = unchecked_add v3, u32 1
+              jmp b1(v6)
+          }}
+          "#
+        );
+        assert_ssa_does_not_change(&src, Ssa::loop_invariant_code_motion);
     }
 }

@@ -21,7 +21,7 @@ use rustc_hash::{FxHashMap as HashMap, FxHashSet as HashSet};
 pub(crate) mod dynamic_array_indices;
 
 use crate::ssa::{
-    ir::{dfg::DataFlowGraph, instruction::TerminatorInstruction},
+    ir::{basic_block::BasicBlockId, dfg::DataFlowGraph, instruction::TerminatorInstruction},
     ssa_gen::Ssa,
 };
 
@@ -552,6 +552,28 @@ impl<'f> Validator<'f> {
                     }
                     Value::Function(func_id) => {
                         let called_function = &self.ssa.functions[func_id];
+
+                        let parameter_types = called_function.parameter_types();
+                        assert_eq!(
+                            arguments.len(),
+                            parameter_types.len(),
+                            "Function call to {func_id} expected {} parameters, but got {}",
+                            parameter_types.len(),
+                            arguments.len()
+                        );
+
+                        for (index, (argument, parameter_type)) in
+                            arguments.iter().zip(parameter_types).enumerate()
+                        {
+                            let argument_type = dfg.type_of_value(*argument);
+                            if argument_type != parameter_type {
+                                panic!(
+                                    "Argument #{} to {func_id} has type {parameter_type}, but {argument_type} was given",
+                                    index + 1,
+                                );
+                            }
+                        }
+
                         if let Some(returns) = called_function.returns() {
                             let instruction_results = dfg.instruction_results(instruction);
                             if instruction_results.len() != returns.len() {
@@ -679,6 +701,26 @@ impl<'f> Validator<'f> {
         }
     }
 
+    fn validate_block_terminator(&self, block: BasicBlockId) {
+        let terminator = self.function.dfg[block]
+            .terminator()
+            .expect("Block is expected to have a terminator instruction");
+
+        match terminator {
+            TerminatorInstruction::JmpIf { condition, .. } => {
+                let condition_type = self.function.dfg.type_of_value(*condition);
+                assert_eq!(
+                    condition_type,
+                    Type::bool(),
+                    "JmpIf conditions should have boolean type"
+                );
+            }
+            TerminatorInstruction::Jmp { .. }
+            | TerminatorInstruction::Return { .. }
+            | TerminatorInstruction::Unreachable { .. } => (),
+        }
+    }
+
     fn run(&mut self) {
         self.type_check_globals();
         self.validate_single_return_block();
@@ -689,6 +731,7 @@ impl<'f> Validator<'f> {
                 self.type_check_instruction(*instruction);
                 self.check_calls_in_unconstrained(*instruction);
             }
+            self.validate_block_terminator(block);
         }
     }
 }
@@ -1096,6 +1139,42 @@ mod tests {
     }
 
     #[test]
+    #[should_panic(expected = "Function call to f1 expected 1 parameters, but got 0")]
+    fn call_has_wrong_parameter_count() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            call f1()
+            return
+        }
+
+        acir(inline) fn foo f1 {
+          b0(v0: Field):
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "Argument #1 to f1 has type Field, but u32 was given")]
+    fn call_has_wrong_argument_type() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            call f1(v0)
+            return
+        }
+
+        acir(inline) fn foo f1 {
+          b0(v0: Field):
+            return
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
     #[should_panic(expected = "Function call to f1 expected 2 return values, but got 1")]
     fn call_has_wrong_return_count() {
         let src = "
@@ -1296,6 +1375,24 @@ mod tests {
             v5 = array_get v4, index v0 -> Field
             return
         }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "JmpIf conditions should have boolean type")]
+    fn disallows_non_boolean_jmpif_condition() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u32):
+            jmpif v0 then: b1, else: b2
+          b1():
+            jmp b2()
+          b2():
+            return
+
+        }
+        
         ";
         let _ = Ssa::from_str(src).unwrap();
     }

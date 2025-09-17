@@ -1,9 +1,6 @@
-use acvm::{
-    BlackBoxFunctionSolver,
-    acir::{
-        AcirField, BlackBoxFunc,
-        circuit::opcodes::{ConstantOrWitnessEnum, FunctionInput},
-    },
+use acvm::acir::{
+    AcirField, BlackBoxFunc,
+    circuit::opcodes::{ConstantOrWitnessEnum, FunctionInput},
 };
 use iter_extended::vecmap;
 use num_bigint::BigUint;
@@ -12,7 +9,7 @@ use crate::errors::{InternalError, RuntimeError};
 
 use super::{AcirContext, AcirValue, AcirVar};
 
-impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
+impl<F: AcirField> AcirContext<F> {
     /// Calls a Blackbox function on the given inputs and returns a given set of outputs
     /// to represent the result of the blackbox function.
     pub(crate) fn black_box_function(
@@ -131,7 +128,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
                 output_count = 0;
 
                 let modulus_id = self.big_int_ctx.get_or_insert_modulus(big_modulus);
-                let result_id = self.big_int_ctx.new_big_int(F::from(modulus_id as u128));
+                let result_id = self.big_int_ctx.new_big_int(F::from(u128::from(modulus_id)));
                 (modulus, vec![result_id.bigint_id::<F>(), result_id.modulus_id::<F>()])
             }
             BlackBoxFunc::AES128Encrypt => {
