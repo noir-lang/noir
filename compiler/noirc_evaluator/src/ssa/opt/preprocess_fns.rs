@@ -92,7 +92,7 @@ mod tests {
         let src = r#"
         acir(inline) fn main f0 {
           b0():
-            call f0()
+            call f0(u32 1, Field 2)
             return
         }
         acir(inline) fn foo f0 {
@@ -116,18 +116,18 @@ mod tests {
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) fn main f0 {
           b0():
-            call f1()
+            call f1(u32 1)
             return
         }
         acir(inline) fn foo f1 {
-          b0(v0: u32, v1: Field):
-            v3 = eq v0, u32 1
-            jmpif v3 then: b1, else: b2
+          b0(v0: u32):
+            v2 = eq v0, u32 1
+            jmpif v2 then: b1, else: b2
           b1():
-            v5 = add v0, u32 1
+            v4 = add v0, u32 1
             jmp b3()
           b2():
-            v4 = sub v0, u32 1
+            v3 = sub v0, u32 1
             jmp b3()
           b3():
             return

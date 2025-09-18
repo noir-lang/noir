@@ -762,7 +762,8 @@ mod test {
         }
         brillig(inline) fn foo f1 {
           b0(v0: [Field; 3]):
-            return Field 1
+            v1 = array_get v0, index u32 0 -> Field
+            return v1
         }
         ";
         assert_ssa_does_not_change(src, Ssa::dead_instruction_elimination);

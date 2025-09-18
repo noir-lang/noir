@@ -4284,6 +4284,32 @@ fn unconstrained_numeric_generic_in_impl() {
 }
 
 #[test]
+fn unconstrained_type_parameter_in_trait_impl() {
+    let src = r#"
+        pub trait Trait<T> {}
+        pub struct Foo<T> {}
+
+        impl<T, U> Trait<T> for Foo<T> {}
+                ^ The type parameter `U` is not constrained by the impl trait, self type, or predicates
+                ~ Hint: remove the `U` type parameter
+        "#;
+    check_errors!(src);
+}
+
+#[test]
+fn does_not_error_if_type_parameter_is_used_in_trait_bound_named_generic() {
+    let src = r#"
+    pub trait SomeTrait {}
+    pub trait AnotherTrait {
+        type AssocType;
+    }
+
+    impl<T, U> SomeTrait for T where T: AnotherTrait<AssocType=U> {}
+    "#;
+    assert_no_errors!(src);
+}
+
+#[test]
 fn resolves_generic_type_argument_via_self() {
     let src = "
     pub struct Foo<T> {}
@@ -4485,6 +4511,19 @@ fn cannot_assign_to_nested_struct() {
         ^^^^^^^^ expected value got type
     }
     "#;
+    check_errors!(src);
+}
+
+#[test]
+fn cannot_return_slice_from_main() {
+    let src = r#"
+    fn main() -> pub [Field]{
+       ^^^^ Invalid type found in the entry point to a program
+       ~~~~ Slice is not a valid entry point type. Found: [Field]
+        &[1,2]
+        
+    }
+        "#;
     check_errors!(src);
 }
 
