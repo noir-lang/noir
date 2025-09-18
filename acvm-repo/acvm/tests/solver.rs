@@ -901,7 +901,7 @@ prop_compose! {
         (inputs in proptest::collection::vec(any::<(u8, bool)>(), modulus.len()), modulus in Just(modulus))
         -> (Vec<ConstantOrWitness>, Vec<u8>) {
         let inputs = inputs.into_iter().zip(modulus.iter()).map(|((input, use_constant), modulus_byte)| {
-            (FieldElement::from(input.clamp(0, *modulus_byte) as u128), use_constant)
+            (FieldElement::from(u128::from(input.clamp(0, *modulus_byte))), use_constant)
         }).collect();
         (inputs, modulus)
     }
@@ -913,7 +913,7 @@ prop_compose! {
         -> (Vec<ConstantOrWitness>, Vec<ConstantOrWitness>, Vec<u8>) {
         let (inputs, modulus) = inputs_modulus;
         let second_inputs = second_inputs.into_iter().zip(modulus.iter()).map(|((input, use_constant), modulus_byte)| {
-            (FieldElement::from(input.clamp(0, *modulus_byte) as u128), use_constant)
+            (FieldElement::from(u128::from(input.clamp(0, *modulus_byte))), use_constant)
         }).collect();
         (inputs, second_inputs, modulus)
     }
@@ -925,7 +925,7 @@ prop_compose! {
         -> (Vec<ConstantOrWitness>, Vec<ConstantOrWitness>, Vec<ConstantOrWitness>, Vec<u8>) {
         let (inputs, second_inputs, modulus) = inputs_pair_modulus;
         let third_inputs = third_inputs.into_iter().zip(modulus.iter()).map(|((input, use_constant), modulus_byte)| {
-            (FieldElement::from(input.clamp(0, *modulus_byte) as u128), use_constant)
+            (FieldElement::from(u128::from(input.clamp(0, *modulus_byte))), use_constant)
         }).collect();
         (inputs, second_inputs, third_inputs, modulus)
     }
@@ -1718,7 +1718,7 @@ proptest! {
         let mut extra_bytes: Vec<_> = extra_bytes
             .into_iter()
             .take(extra_bytes_len as usize)
-            .map(|(x, use_constant)| (FieldElement::from(x as u128), use_constant))
+            .map(|(x, use_constant)| (FieldElement::from(u128::from(x)), use_constant))
             .collect();
         input.append(&mut extra_bytes);
         let expected_results: Vec<_> = drop_use_constant(&input);
@@ -1733,7 +1733,7 @@ proptest! {
         let mut extra_bytes: Vec<_> = extra_bytes
             .into_iter()
             .take(extra_bytes_len as usize)
-            .map(|(x, use_constant)| (FieldElement::from(x as u128), use_constant))
+            .map(|(x, use_constant)| (FieldElement::from(u128::from(x)), use_constant))
             .collect();
         input.append(&mut extra_bytes);
         let expected_results: Vec<_> = drop_use_constant(&input);
@@ -1748,7 +1748,7 @@ proptest! {
     fn bigint_from_to_le_bytes_bigger_than_u8((input, modulus) in bigint_with_modulus(), patch_location: usize, larger_value: u16, use_constant: bool) {
         let mut input = input;
         let patch_location = patch_location % input.len();
-        let larger_value = FieldElement::from(std::cmp::max((u8::MAX as u16) + 1, larger_value) as u128);
+        let larger_value = FieldElement::from(u128::from(std::cmp::max(u16::from(u8::MAX) + 1, larger_value)));
         input[patch_location] = (larger_value, use_constant);
         let expected_results: Vec<_> = drop_use_constant(&input);
         let pedantic_solving = true;

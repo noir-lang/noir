@@ -14,7 +14,9 @@ use crate::{
         brillig_ir::{BrilligContext, artifact::BrilligArtifact},
     },
     ssa::ir::types::NumericType,
-    ssa::opt::brillig_entry_points::{build_inner_call_to_entry_points, get_brillig_entry_points},
+    ssa::opt::brillig_entry_points::{
+        build_inner_call_to_entry_points, get_brillig_entry_points_with_reachability,
+    },
 };
 
 /// Context structure for generating Brillig globals
@@ -62,7 +64,8 @@ impl BrilligGlobals {
         main_id: FunctionId,
     ) -> Self {
         let call_graph = CallGraph::from_ssa(ssa);
-        let brillig_entry_points = get_brillig_entry_points(&ssa.functions, main_id, &call_graph);
+        let brillig_entry_points =
+            get_brillig_entry_points_with_reachability(&ssa.functions, main_id, &call_graph);
 
         let mut hoisted_global_constants: HashMap<FunctionId, ConstantCounterMap> =
             HashMap::default();

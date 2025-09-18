@@ -769,8 +769,9 @@ impl<'a> FunctionContext<'a> {
                 // Checks for index Out-of-bounds
                 match array_type {
                     Type::Array(_, len) => {
-                        let len =
-                            self.builder.numeric_constant(*len as u128, NumericType::length_type());
+                        let len = self
+                            .builder
+                            .numeric_constant(u128::from(*len), NumericType::length_type());
                         self.codegen_access_check(index, len);
                     }
                     _ => unreachable!("must have array or slice but got {array_type}"),

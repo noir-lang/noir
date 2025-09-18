@@ -1,4 +1,7 @@
-use crate::circuit::Circuit;
+use crate::{
+    circuit::{Circuit, Program},
+    parser::ParserError,
+};
 
 /// Trims leading whitespace from each line of the input string
 #[cfg(test)]
@@ -34,6 +37,17 @@ fn assert_circuit_roundtrip(src: &str) {
     if circuit != src {
         println!("Expected:\n~~~\n{src}\n~~~\nGot:\n~~~\n{circuit}\n~~~");
         similar_asserts::assert_eq!(circuit, src);
+    }
+}
+
+fn assert_program_roundtrip(src: &str) {
+    let program = Program::from_str(src).unwrap();
+    let program = program.to_string();
+    let program = trim_leading_whitespace_from_lines(&program);
+    let src = trim_leading_whitespace_from_lines(src);
+    if program != src {
+        println!("Expected:\n~~~\n{src}\n~~~\nGot:\n~~~\n{program}\n~~~");
+        similar_asserts::assert_eq!(program, src);
     }
 }
 
@@ -480,6 +494,18 @@ fn memory_init() {
 }
 
 #[test]
+fn memory_init_duplicate_witness() {
+    let src = "
+    current witness index : _4
+    private parameters indices : []
+    public parameters indices : []
+    return value indices : []
+    INIT (id: 4, len: 2, witnesses: [_0, _0])
+    ";
+    assert_circuit_roundtrip(src);
+}
+
+#[test]
 fn memory_databus() {
     let src = "
     current witness index : _5
@@ -674,4 +700,55 @@ fn array_dynamic() {
     EXPR [ (1, _15, _74) (-1, _74, _78) (-1, _15) (1, _78) 0 ]
     ";
     assert_circuit_roundtrip(src);
+}
+
+#[test]
+fn fold_basic() {
+    let src = "
+    func 0
+    current witness index : _2
+    private parameters indices : [_0]
+    public parameters indices : [_1]
+    return value indices : []
+    CALL func 1: PREDICATE: EXPR [ 1 ]
+    inputs: [_0, _1], outputs: [_2]
+    
+    func 1
+    current witness index : _3
+    private parameters indices : [_0, _1]
+    public parameters indices : []
+    return value indices : [_2]
+    BRILLIG CALL func 0: inputs: [EXPR [ (1, _0) (-1, _1) 0 ]], outputs: [_3]
+    EXPR [ (1, _0, _3) (-1, _1, _3) -1 ]
+    EXPR [ (-1, _0) (1, _2) 0 ]
+    ";
+    assert_program_roundtrip(src);
+}
+
+#[test]
+fn fold_basic_mismatched_ids() {
+    let src = "
+    func 0
+    current witness index : _2
+    private parameters indices : [_0]
+    public parameters indices : [_1]
+    return value indices : []
+    CALL func 1: PREDICATE: EXPR [ 1 ]
+    inputs: [_0, _1], outputs: [_2]
+    
+    func 2
+    current witness index : _3
+    private parameters indices : [_0, _1]
+    public parameters indices : []
+    return value indices : [_2]
+    BRILLIG CALL func 0: inputs: [EXPR [ (1, _0) (-1, _1) 0 ]], outputs: [_3]
+    EXPR [ (1, _0, _3) (-1, _1, _3) -1 ]
+    EXPR [ (-1, _0) (1, _2) 0 ]
+    ";
+    let result = Program::from_str(src).err().unwrap();
+    let ParserError::UnexpectedFunctionId { expected, found, .. } = result.get_error() else {
+        panic!("Expected `UnexpectedFunctionId` error");
+    };
+    assert_eq!(expected, 1);
+    assert_eq!(found, 2);
 }
