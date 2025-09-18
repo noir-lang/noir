@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1758206587880,
+  "lastUpdate": 1758206843328,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -20231,48 +20231,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "14c8a0f9ebd944843199f0b5675af6df8b099674",
-          "message": "chore: add a regression test for #4663 (#9819)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-09-11T12:58:50Z",
-          "tree_id": "314e30e83a50957a606bbef0d347376c7284a2c2",
-          "url": "https://github.com/noir-lang/noir/commit/14c8a0f9ebd944843199f0b5675af6df8b099674"
-        },
-        "date": 1757597274562,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 250239,
-            "range": "± 670",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 218675,
-            "range": "± 1488",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2789919,
-            "range": "± 1653",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "15848336+TomAFrench@users.noreply.github.com",
             "name": "Tom French",
             "username": "TomAFrench"
@@ -22324,6 +22282,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2801926,
             "range": "± 9322",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "47281315+guipublic@users.noreply.github.com",
+            "name": "guipublic",
+            "username": "guipublic"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "a20980458818374739172d9524d098824d43a286",
+          "message": "chore(die): small nit to remove a check which is not useful (#9898)",
+          "timestamp": "2025-09-18T14:20:09Z",
+          "tree_id": "4e38070bd8066f545f99c6088fc332d6b7c15dc5",
+          "url": "https://github.com/noir-lang/noir/commit/a20980458818374739172d9524d098824d43a286"
+        },
+        "date": 1758206822871,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 256854,
+            "range": "± 1428",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 231267,
+            "range": "± 2637",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2803147,
+            "range": "± 7156",
             "unit": "ns/iter"
           }
         ]
