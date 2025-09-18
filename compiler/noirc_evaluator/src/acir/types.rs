@@ -147,6 +147,13 @@ impl AcirValue {
         }
     }
 
+    /// Fetch a flat list of ([AcirVar], [AcirType]).
+    ///
+    /// # Panics
+    /// If [AcirValue::DynamicArray] is supplied or an inner element of an [AcirValue::Array].
+    /// This is because an [AcirValue::DynamicArray] is simply a pointer to an array
+    /// and fetching its internal [AcirValue::Var] would require laying down opcodes to read its content.
+    /// This method should only be used where dynamic arrays are not a possible type.
     pub(super) fn flatten(self) -> Vec<(AcirVar, AcirType)> {
         match self {
             AcirValue::Var(var, typ) => vec![(var, typ)],
@@ -155,6 +162,9 @@ impl AcirValue {
         }
     }
 
+    /// Fetch a flat list of the [NumericType] contained within an array
+    /// An [AcirValue::DynamicArray] should already have a field representing
+    /// its types and should be supported here unlike [AcirValue::flatten]
     pub(super) fn flat_numeric_types(self) -> Vec<NumericType> {
         match self {
             AcirValue::Array(array) => {
