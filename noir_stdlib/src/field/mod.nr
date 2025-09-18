@@ -338,8 +338,8 @@ fn lt_fallback(x: Field, y: Field) -> bool {
 }
 
 mod tests {
-    use crate::{panic::panic, runtime};
-    use super::field_less_than;
+    use crate::{panic::panic, runtime, static_assert};
+    use super::{field_less_than, modulus_be_bits, modulus_le_bits, modulus_be_bytes, modulus_le_bytes};
 
     #[test]
     // docs:start:to_be_bits_example
@@ -573,4 +573,182 @@ mod tests {
         let _: [u8; 4] = large_val.to_le_bytes();
     }
 
+    #[test]
+    fn test_to_from_be_bytes_bn254_edge_cases() {
+        if crate::compat::is_bn254() {
+            let mut p_minus_1_bytes: [u8; 32] = modulus_be_bytes().as_array();
+            assert(p_minus_1_bytes[32-1] > 0);
+            p_minus_1_bytes[32-1] -= 1;
+
+            let p_minus_1 = Field::from_be_bytes::<32>(p_minus_1_bytes);
+            assert_eq(p_minus_1 + 1, 0);
+
+            let q_bytes: [u8; 32] = p_minus_1.to_be_bytes();
+            assert_eq(q_bytes, p_minus_1_bytes);
+
+
+            let mut p_plus_1_bytes: [u8; 32] = modulus_be_bytes().as_array();
+            assert(p_plus_1_bytes[32-1] < 255);
+            p_plus_1_bytes[32-1] += 1;
+
+            let p_plus_1 = Field::from_be_bytes::<32>(p_plus_1_bytes);
+            assert_eq(p_plus_1, 1);
+
+            let mut q_bytes: [u8; 32] = p_plus_1.to_be_bytes();
+            q_bytes[32-1] -= 1;
+            assert_eq(q_bytes, [0; 32]);
+            assert(q_bytes != p_plus_1_bytes);
+
+
+            assert_eq(modulus_be_bytes().len(), 32);
+            let p = Field::from_be_bytes::<32>(modulus_be_bytes().as_array());
+            assert_eq(p, 0);
+
+            let p_bytes: [u8; 32] = p.to_be_bytes();
+            assert_eq(p_bytes, [0; 32]);
+            assert(p_bytes.as_slice() != modulus_be_bytes());
+        }
+    }
+
+    #[test]
+    fn test_to_from_le_bytes_bn254_edge_cases() {
+        if crate::compat::is_bn254() {
+            let mut p_minus_1_bytes: [u8; 32] = modulus_le_bytes().as_array();
+            assert(p_minus_1_bytes[0] > 0);
+            p_minus_1_bytes[0] -= 1;
+
+            let p_minus_1 = Field::from_le_bytes::<32>(p_minus_1_bytes);
+            assert_eq(p_minus_1 + 1, 0);
+
+            let q_bytes: [u8; 32] = p_minus_1.to_le_bytes();
+            assert_eq(q_bytes, p_minus_1_bytes);
+
+
+            let mut p_plus_1_bytes: [u8; 32] = modulus_le_bytes().as_array();
+            assert(p_plus_1_bytes[0] < 255);
+            p_plus_1_bytes[0] += 1;
+
+            let p_plus_1 = Field::from_le_bytes::<32>(p_plus_1_bytes);
+            assert_eq(p_plus_1, 1);
+
+            let mut q_bytes: [u8; 32] = p_plus_1.to_le_bytes();
+            q_bytes[0] -= 1;
+            assert_eq(q_bytes, [0; 32]);
+
+            assert(q_bytes != p_plus_1_bytes);
+
+
+            assert_eq(modulus_le_bytes().len(), 32);
+            let p = Field::from_le_bytes::<32>(modulus_le_bytes().as_array());
+            assert_eq(p, 0);
+
+            let p_bytes: [u8; 32] = p.to_le_bytes();
+            assert_eq(p_bytes, [0; 32]);
+            assert(p_bytes.as_slice() != modulus_le_bytes());
+        }
+    }
+
+    /// Convert a little endian bit array to a field element.
+    /// If the provided bit array overflows the field modulus then the Field will silently wrap around.
+    pub fn from_le_bits<let N: u32>(bits: [u1; N]) -> Field {
+        static_assert(
+            N <= modulus_le_bits().len(),
+            "N must be less than or equal to modulus_le_bits().len()",
+        );
+        let mut v = 1;
+        let mut result = 0;
+
+        for i in 0..N {
+            result += (bits[i] as Field) * v;
+            v = v * 2;
+        }
+        result
+    }
+
+    /// Convert a big endian bit array to a field element.
+    /// If the provided bit array overflows the field modulus then the Field will silently wrap around.
+    pub fn from_be_bits<let N: u32>(bits: [u1; N]) -> Field {
+        let mut v = 1;
+        let mut result = 0;
+
+        for i in 0..N {
+            result += (bits[N - 1 - i] as Field) * v;
+            v = v * 2;
+        }
+        result
+    }
+
+    #[test]
+    fn test_to_from_be_bits_bn254_edge_cases() {
+        if crate::compat::is_bn254() {
+            let mut p_minus_1_bits: [u1; 254] = modulus_be_bits().as_array();
+            assert(p_minus_1_bits[254-1] > 0);
+            p_minus_1_bits[254-1] -= 1;
+
+            let p_minus_1 = from_be_bits::<254>(p_minus_1_bits);
+            assert_eq(p_minus_1 + 1, 0);
+
+            let q_bits: [u1; 254] = p_minus_1.to_be_bits();
+            assert_eq(q_bits, p_minus_1_bits);
+
+
+            let mut p_plus_4_bits: [u1; 254] = modulus_be_bits().as_array();
+            assert(p_plus_4_bits[254-3] < 1);
+            p_plus_4_bits[254-3] += 1;
+
+            let p_plus_4 = from_be_bits::<254>(p_plus_4_bits);
+            assert_eq(p_plus_4, 4);
+
+            let mut q_bits: [u1; 254] = p_plus_4.to_be_bits();
+            q_bits[254-3] -= 1;
+            assert_eq(q_bits, [0; 254]);
+            assert(q_bits != p_plus_4_bits);
+
+
+            assert_eq(modulus_be_bits().len(), 254);
+            let p = from_be_bits::<254>(modulus_be_bits().as_array());
+            assert_eq(p, 0);
+
+            let p_bits: [u1; 254] = p.to_be_bits();
+            assert_eq(p_bits, [0; 254]);
+            assert(p_bits.as_slice() != modulus_be_bits());
+        }
+    }
+
+    #[test]
+    fn test_to_from_le_bits_bn254_edge_cases() {
+        if crate::compat::is_bn254() {
+            let mut p_minus_1_bits: [u1; 254] = modulus_le_bits().as_array();
+            assert(p_minus_1_bits[0] > 0);
+            p_minus_1_bits[0] -= 1;
+
+            let p_minus_1 = from_le_bits::<254>(p_minus_1_bits);
+            assert_eq(p_minus_1 + 1, 0);
+
+            let q_bits: [u1; 254] = p_minus_1.to_le_bits();
+            assert_eq(q_bits, p_minus_1_bits);
+
+
+            let mut p_plus_4_bits: [u1; 254] = modulus_le_bits().as_array();
+            assert(p_plus_4_bits[2] < 1);
+            p_plus_4_bits[2] += 1;
+
+            let p_plus_4 = from_le_bits::<254>(p_plus_4_bits);
+            assert_eq(p_plus_4, 4);
+
+            let mut q_bits: [u1; 254] = p_plus_4.to_le_bits();
+            q_bits[2] -= 1;
+            assert_eq(q_bits, [0; 254]);
+            assert(q_bits != p_plus_4_bits);
+
+
+            assert_eq(modulus_le_bits().len(), 254);
+            let p = from_le_bits::<254>(modulus_le_bits().as_array());
+            assert_eq(p, 0);
+
+            let p_bits: [u1; 254] = p.to_le_bits();
+            assert_eq(p_bits, [0; 254]);
+            assert(p_bits.as_slice() != modulus_le_bits());
+        }
+    }
 }
