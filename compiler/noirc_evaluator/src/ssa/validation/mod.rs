@@ -657,8 +657,9 @@ impl<'f> Validator<'f> {
                 //     public_key_y: [u8; 32],
                 //     signature: [u8; 64],
                 //     message_hash: [u8; N],
+                //     predicate: bool,
                 // ) -> bool
-                assert_arguments_length(arguments, 4, "ecdsa_secp_256");
+                assert_arguments_length(arguments, 5, "ecdsa_secp_256");
 
                 let public_key_x = arguments[0];
                 let public_key_x_type = dfg.type_of_value(public_key_x);
@@ -680,6 +681,9 @@ impl<'f> Validator<'f> {
                 let message_hash = arguments[3];
                 let message_hash_type = dfg.type_of_value(message_hash);
                 assert_array(&message_hash_type, "ecdsa_secp256 message_hash");
+
+                let predicate_type = dfg.type_of_value(arguments[4]);
+                assert_u1(&predicate_type, "ecdsa_secp256 predicate");
 
                 let results = dfg.instruction_results(instruction);
                 assert_eq!(results.len(), 1, "Expected one result");
