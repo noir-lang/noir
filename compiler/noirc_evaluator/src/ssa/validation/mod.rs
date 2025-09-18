@@ -771,16 +771,12 @@ impl<'f> Validator<'f> {
                 assert_eq!(points_length, scalars_length, "MSM input array lengths mismatch");
             }
             BlackBoxFunc::Poseidon2Permutation => {
-                // fn poseidon2_permutation<let N: u32>(_input: [Field; N], _state_length: u32) -> [Field; N] {}
+                // fn poseidon2_permutation<let N: u32>(_input: [Field; N]) -> [Field; N] {}
                 assert_arguments_length(arguments, 2, "poseidon2_permutation");
 
                 let input = arguments[0];
                 let input_type = dfg.type_of_value(input);
                 let input_length = assert_field_array(&input_type, "poseidon2_permutation _input");
-
-                let state_length = arguments[1];
-                let state_length_type = dfg.type_of_value(state_length);
-                assert_u32(&state_length_type, "poseidon2_permutation _state_length");
 
                 let result_type = self.assert_one_result(instruction, "poseidon2_permutation");
                 let result_length =
