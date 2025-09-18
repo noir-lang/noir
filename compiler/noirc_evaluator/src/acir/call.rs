@@ -41,7 +41,7 @@ impl Context<'_> {
                             RuntimeType::Acir(inline_type) => {
                                 assert!(
                                     inline_type.is_entry_point(),
-                                    "ICE: Got a call to an ACIR function {} named {} that is not an entry point",
+                                    "ICE: Got a call to an ACIR function {} named {} that should have already been inlined",
                                     id,
                                     func.name()
                                 );
@@ -100,9 +100,11 @@ impl Context<'_> {
             .map(|result_id| dfg.type_of_value(*result_id).flattened_size() as usize)
             .sum();
 
-        let acir_function_id = ssa
-            .get_entry_point_index(func_id)
-            .expect("Expected an associated final index for ACIR function");
+        let Some(acir_function_id) = ssa.get_entry_point_index(func_id) else {
+            unreachable!(
+                "Expected an associated final index for call to acir function {func_id} with args {arguments:?}"
+            );
+        };
 
         let output_vars = self.acir_context.call_acir_function(
             AcirFunctionId(acir_function_id),
