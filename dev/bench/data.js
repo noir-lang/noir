@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1758202900641,
+  "lastUpdate": 1758202917523,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -8410,80 +8410,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "23c362721dea5ec275d534fad0c23ddf76db2955",
-          "message": "feat(fuzz): Generate calls to `slice_remove` and `slice_insert` in the AST fuzzer (#9786)",
-          "timestamp": "2025-09-11T10:32:10Z",
-          "tree_id": "7adcc31b5a3f25c0e684fb169b9b618a6d2c67ce",
-          "url": "https://github.com/noir-lang/noir/commit/23c362721dea5ec275d534fad0c23ddf76db2955"
-        },
-        "date": 1757589500526,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 0.015,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 0.167,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 0.011,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 0.265,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 0.162,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 14.7,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 0.002,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 0.004,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.019,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 0.099,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -12103,6 +12029,80 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 0.111,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5524470351b946d21d5b21609c2bb25c0f994eaa",
+          "message": "fix(acir_gen): Handle flattening of numeric types when an `Array` contains a `DynamicArray` (#9887)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
+          "timestamp": "2025-09-18T12:59:02Z",
+          "tree_id": "eae7ec80a83719465dbc52f974b9a5e83ba6ab09",
+          "url": "https://github.com/noir-lang/noir/commit/5524470351b946d21d5b21609c2bb25c0f994eaa"
+        },
+        "date": 1758202896872,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 0.018,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 0.162,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 0.01,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 0.266,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 0.168,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 14.2,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 0.002,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 0.004,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.019,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 0.096,
             "unit": "s"
           }
         ]
