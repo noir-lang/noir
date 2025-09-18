@@ -519,8 +519,9 @@ fn should_replace_instruction_with_defaults(context: &SimpleOptimizationContext)
 
         // If it's zero, make sure that the type in the results
         if index_zero {
-            let Type::Array(typ, _) = context.dfg.type_of_value(*array) else {
-                unreachable!("array type expected");
+            let typ = match context.dfg.type_of_value(*array) {
+                Type::Array(typ, _) | Type::Slice(typ) => typ,
+                other => unreachable!("Array or Slice type expected; got {other:?}"),
             };
             let results = context.dfg.instruction_results(context.instruction_id).to_vec();
             let result_type = context.dfg.type_of_value(results[0]);
