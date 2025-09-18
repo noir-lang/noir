@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1758209644521,
+  "lastUpdate": 1758209646487,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -4223,90 +4223,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "b74c4824c992b4ebb1504589dd11109672c8e978",
-          "message": "chore: use the ACIR parser in redundant_ranges tests (#9827)",
-          "timestamp": "2025-09-11T16:59:53Z",
-          "tree_id": "cf50a7e325c239e4ac7b50af63a2343b4eef0f19",
-          "url": "https://github.com/noir-lang/noir/commit/b74c4824c992b4ebb1504589dd11109672c8e978"
-        },
-        "date": 1757612058592,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 1.822,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 8.728,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.366,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 18.92,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 16.56,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 18.1,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 206,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 210,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.376,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.544,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.78,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 1.707,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -8416,6 +8332,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 1.955,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "163862677+noirwhal@users.noreply.github.com",
+            "name": "noirwhal",
+            "username": "noirwhal"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8be34eb5629abffb67d9226ada43518eae97db12",
+          "message": "chore: bump external pinned commits (#9902)\n\nCo-authored-by: noirwhal <tomfrench@aztecprotocol.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-09-18T14:50:19Z",
+          "tree_id": "854f2750ed40f64b1014b13234ad4b409bbd15fc",
+          "url": "https://github.com/noir-lang/noir/commit/8be34eb5629abffb67d9226ada43518eae97db12"
+        },
+        "date": 1758209624853,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1.976,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 7.762,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.374,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 1.418,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 1.38,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1.43,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 1.418,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.498,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 18.58,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 16.84,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 1.398,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.787,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 2,
             "unit": "s"
           }
         ]
