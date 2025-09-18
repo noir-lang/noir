@@ -1,6 +1,4 @@
-import * as buffer from 'buffer';
-
-const Buffer = buffer.BufferShim;
+import { Buffer } from 'buffer';
 
 // bb.js requires writeBigUInt64BE and readBigUInt64BE which are not present in buffer-esm
 // so we are adding custom implementations
