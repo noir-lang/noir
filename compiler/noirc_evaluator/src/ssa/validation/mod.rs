@@ -1610,4 +1610,52 @@ mod tests {
         ";
         let _ = Ssa::from_str(src).unwrap();
     }
+
+    #[test]
+    #[should_panic(expected = "AsSlice argument must be an array")]
+    fn as_slice_length_on_slice_type() {
+        let src = "
+        acir(inline) fn main f0 {
+            b0():
+              v3 = make_array [Field 1, Field 2, Field 3] : [Field] 
+              v4 = call f1(v3) -> u32
+              return v4
+        }
+
+        acir(inline) fn foo f1 {
+            b0(v0: [Field]):
+              v2, v3 = call as_slice(v0) -> (u32, [Field])
+              return v2
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(expected = "AsSlice argument must be an array")]
+    fn as_slice_length_on_numeric_type() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: Field):
+            v2, v3 = call as_slice(v0) -> (u32, [Field])
+            return v2
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "assertion `left == right` failed: Expected AsSlice to have 1 arguments, got 0\n  left: 0\n right: 1"
+    )]
+    fn as_slice_wrong_number_of_arguments() {
+        let src = "
+        acir(inline) fn main f0 {
+          b0():
+            v1, v2 = call as_slice() -> (u32, [Field])
+            return v1
+        }
+        ";
+        let _ = Ssa::from_str(src).unwrap();
+    }
 }
