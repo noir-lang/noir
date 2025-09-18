@@ -208,8 +208,7 @@ impl Context<'_> {
         }
     }
 
-    /// Handle constant index: if there is no predicate and we have the array values,
-    /// we can perform the operation directly on the array
+    /// See [Self::handle_constant_index_wrapper]
     fn handle_constant_index(
         &mut self,
         instruction: InstructionId,
