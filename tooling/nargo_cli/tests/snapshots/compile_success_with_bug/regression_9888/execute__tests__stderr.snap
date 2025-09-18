@@ -1,0 +1,40 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: stderr
+---
+warning: unused variable d
+  ┌─ src/main.nr:6:17
+  │
+6 │             let d = unsafe { func_3() };
+  │                 - unused variable
+  │
+
+warning: Unsafe block must have a safety comment above it
+  ┌─ src/main.nr:2:13
+  │
+2 │     let b = unsafe { func_3() };
+  │             ------ The comment must start with the "Safety: " word
+  │
+
+warning: Unsafe block must have a safety comment above it
+  ┌─ src/main.nr:4:17
+  │
+4 │         let c = unsafe { func_4() }[1532016929_u32].3;
+  │                 ------ The comment must start with the "Safety: " word
+  │
+
+warning: Unsafe block must have a safety comment above it
+  ┌─ src/main.nr:6:21
+  │
+6 │             let d = unsafe { func_3() };
+  │                     ------ The comment must start with the "Safety: " word
+  │
+
+bug: Assertion is always false: attempt to multiply with overflow
+  ┌─ src/main.nr:4:17
+  │
+4 │         let c = unsafe { func_4() }[1532016929_u32].3;
+  │                 ----------------------------------- As a result, the compiled circuit is ensured to fail. Other assertions may also fail during execution
+  │
+  = Call stack:
+    1. src/main.nr:4:17

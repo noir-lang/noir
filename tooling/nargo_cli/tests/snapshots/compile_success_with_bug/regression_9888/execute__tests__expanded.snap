@@ -1,0 +1,29 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main() {
+    // Safety: comment added by `nargo expand`
+    let b: bool = unsafe { func_3() };
+    if b {
+        // Safety: comment added by `nargo expand`
+        let c: bool = unsafe { func_4() }[1532016929_u32].3;
+        if c {
+            // Safety: comment added by `nargo expand`
+            let d: bool = unsafe { func_3() };
+        }
+    }
+}
+
+unconstrained fn func_3() -> bool {
+    true
+}
+
+unconstrained fn func_4() -> [(str<3>, str<3>, bool, bool); 4] {
+    [
+        ("ABC", "CDE", false, true),
+        ("FGH", "IJK", false, true),
+        ("LMN", "OPQ", false, true),
+        ("RST", "UVW", false, true),
+    ]
+}

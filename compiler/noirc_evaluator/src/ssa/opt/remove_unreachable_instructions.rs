@@ -203,7 +203,13 @@ impl Function {
             if current_block_reachability == Reachability::UnreachableUnderPredicate {
                 // Instructions that don't interact with the predicate should be left alone,
                 // because the `remove_enable_side_effects` pass might have moved the boundaries around them.
-                if !instruction.requires_acir_gen_predicate(context.dfg) {
+                // But if the instruction has changed, then it might have become invalid in some way,
+                // for example if a value used as an index in an array_get has been replaced by a default,
+                // it might have invalidated the ctrl typevars of the instruction by referring to a different
+                // composite type member. In such cases it's best to remove the instruction anyway.
+                if !context.has_instruction_changed()
+                    && !instruction.requires_acir_gen_predicate(context.dfg)
+                {
                     return;
                 }
                 remove_and_replace_with_defaults(context, func_id, block_id);
@@ -734,6 +740,40 @@ mod test {
             v7 = load v6 -> u1
             enable_side_effects u1 1
             return v7
+        }
+        "#);
+    }
+
+    #[test]
+    fn replaces_array_get_following_conditional_constraint_with_default_if_index_was_defaulted() {
+        let src = r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1):
+            enable_side_effects v0
+            v1 = make_array [u8 1, u8 2] : [u8; 2]
+            v2 = make_array [v1, u1 0] : [([u8; 2], u1); 1]
+            v3 = mul u32 4294967295, u32 2          // overflow
+            v4 = add v3, u32 1                      // after overflow, replaced by default
+            v5 = array_get v1, index v4 -> u1       // if v4 is replaced by default, the item at 0 is not a u1
+            v6 = unchecked_mul v0, v5               // v5 is no longer a u1, but [u8; 2]
+            enable_side_effects u1 1
+            return
+        }
+        "#;
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.remove_unreachable_instructions();
+
+        // The `array_get` is should be replaced by `u1 0`
+        assert_ssa_snapshot!(ssa, @r#"
+        acir(inline) predicate_pure fn main f0 {
+          b0(v0: u1):
+            enable_side_effects v0
+            v3 = make_array [u8 1, u8 2] : [u8; 2]
+            v5 = make_array [v3, u1 0] : [([u8; 2], u1); 1]
+            v8 = mul u32 4294967295, u32 2
+            constrain u1 0 == v0, "attempt to multiply with overflow"
+            enable_side_effects u1 1
+            return
         }
         "#);
     }
