@@ -192,6 +192,22 @@ pub(crate) fn eval_constant_binary_op(
             let Some(rhs) = try_convert_field_element_to_signed_integer(rhs, bit_size) else {
                 return CouldNotEvaluate;
             };
+
+            // Because we always perform signed operations using i128, an operation like `-128_i8 / -1`
+            // will not overflow as it'll actually be done via `-128_i128 / -1`. Thus we need to
+            // manually check this specific case.
+            if matches!(operator, BinaryOp::Div | BinaryOp::Mod) && rhs == -1 {
+                assert!(bit_size < 128);
+                let min_value = -(1_i128 << (bit_size - 1));
+                if lhs == min_value {
+                    return Failure(if operator == BinaryOp::Div {
+                        "attempt to divide with overflow".to_string()
+                    } else {
+                        "attempt to calculate the remainder with overflow".to_string()
+                    });
+                }
+            }
+
             let result = function(lhs, rhs);
 
             let result = {
