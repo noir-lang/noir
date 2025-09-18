@@ -1,7 +1,7 @@
 import * as buffer from 'buffer-esm';
 const Buffer = buffer.BufferShim;
 
-// Patch Node specific method that does not exist in `buffer-esm
+// bb.js requires `allocUnsafeSlow` which is not present in buffer-esm
 if (!Buffer.allocUnsafeSlow) {
   Buffer.allocUnsafeSlow = Buffer.allocUnsafe;
 }
@@ -55,7 +55,7 @@ if (!Buffer.prototype.readBigUInt64BE) {
 }
 
 // Set Buffer as globalThis (window)
-if (!globalThis.Buffer) globalThis.Buffer = Buffer;
+if (!globalThis.Buffer) globalThis.Buffer = buffer.BufferShim;
 
 export { Buffer };
 export default Buffer;
