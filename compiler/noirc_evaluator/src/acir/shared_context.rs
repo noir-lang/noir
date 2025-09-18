@@ -109,8 +109,12 @@ impl<F: AcirField> SharedContext<F> {
         generated_pointer: BrilligFunctionId,
         code: GeneratedBrillig<F>,
     ) {
-        let previous_pointer = self.brillig_generated_func_pointers.insert((func_id, arguments), generated_pointer);
-        assert!(previous_pointer.is_none(), "Attempting to override Brillig pointer for function {func_id} which already exists");
+        let previous_pointer =
+            self.brillig_generated_func_pointers.insert((func_id, arguments), generated_pointer);
+        assert!(
+            previous_pointer.is_none(),
+            "Attempting to override Brillig pointer for function {func_id} which already exists"
+        );
         self.generated_brillig.push(code);
     }
 
@@ -163,7 +167,10 @@ impl<F: AcirField> SharedContext<F> {
     /// or an empty set if the function had no globals recorded.
     ///
     /// We remove as an entry point should only go through ACIR generation a single time.
-    pub(super) fn get_and_remove_used_globals_set(&mut self, func_id: FunctionId) -> HashSet<ValueId> {
+    pub(super) fn get_and_remove_used_globals_set(
+        &mut self,
+        func_id: FunctionId,
+    ) -> HashSet<ValueId> {
         self.used_globals.remove(&func_id).unwrap_or_default()
     }
 }
