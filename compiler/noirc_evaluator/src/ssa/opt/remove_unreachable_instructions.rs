@@ -127,6 +127,7 @@
 use std::sync::Arc;
 
 use acvm::{AcirField, FieldElement};
+use im::HashSet;
 use noirc_errors::call_stack::CallStackId;
 
 use crate::ssa::{
@@ -154,7 +155,7 @@ impl Ssa {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 enum Reachability {
     /// By default instructions are reachable.
     Reachable,
@@ -175,12 +176,17 @@ impl Function {
         // after an always failing one was found.
         let mut current_block_reachability = Reachability::Reachable;
 
+        // Previously established side effect predicates under which the block
+        // became conditionally unreachable.
+        let mut unreachable_predicates = HashSet::new();
+
         self.simple_optimization(|context| {
             let block_id = context.block_id;
 
             if current_block_id != Some(block_id) {
                 current_block_id = Some(block_id);
                 current_block_reachability = Reachability::Reachable;
+                unreachable_predicates.clear();
             }
 
             if current_block_reachability == Reachability::Unreachable {
@@ -190,13 +196,22 @@ impl Function {
 
             let instruction = context.instruction();
             if let Instruction::EnableSideEffectsIf { condition } = instruction {
-                current_block_reachability = match context.dfg.get_numeric_constant(*condition) {
-                    Some(predicate) if predicate.is_zero() => {
-                        // We can replace side effecting instructions with defaults until the next predicate.
-                        Reachability::UnreachableUnderPredicate
-                    }
-                    _ => Reachability::Reachable,
-                };
+                current_block_reachability =
+                    if let Some(predicate) = context.dfg.get_numeric_constant(*condition) {
+                        // If side effects are turned off, we can replace side effecting instructions with defaults until the next predicate
+                        if predicate.is_zero() {
+                            Reachability::UnreachableUnderPredicate
+                        } else {
+                            Reachability::Reachable
+                        }
+                    } else {
+                        // During loops a previous predicate variable can be restored.
+                        if unreachable_predicates.contains(condition) {
+                            Reachability::UnreachableUnderPredicate
+                        } else {
+                            Reachability::Reachable
+                        }
+                    };
                 return;
             };
 
@@ -374,6 +389,9 @@ impl Function {
                 let call_stack = terminator.call_stack();
                 context.dfg[block_id]
                     .set_terminator(TerminatorInstruction::Unreachable { call_stack });
+            }
+            if current_block_reachability == Reachability::UnreachableUnderPredicate {
+                unreachable_predicates.insert(context.enable_side_effects);
             }
         });
     }
@@ -754,6 +772,8 @@ mod test {
             v2 = make_array [v1, u1 0] : [([u8; 2], u1); 1]
             v3 = mul u32 4294967295, u32 2          // overflow
             v4 = add v3, u32 1                      // after overflow, replaced by default
+            enable_side_effects u1 1                // end of side effects mode
+            enable_side_effects v0                  // restore side effects to what we know will fail
             v5 = array_get v1, index v4 -> u1       // if v4 is replaced by default, the item at 0 is not a u1
             v6 = unchecked_mul v0, v5               // v5 is no longer a u1, but [u8; 2]
             enable_side_effects u1 1
@@ -772,6 +792,8 @@ mod test {
             v5 = make_array [v3, u1 0] : [([u8; 2], u1); 1]
             v8 = mul u32 4294967295, u32 2
             constrain u1 0 == v0, "attempt to multiply with overflow"
+            enable_side_effects u1 1
+            enable_side_effects v0
             enable_side_effects u1 1
             return
         }

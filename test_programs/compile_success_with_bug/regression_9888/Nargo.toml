@@ -2,5 +2,7 @@
 name = "regression_9888"
 type = "bin"
 authors = [""]
+compiler_unstable_features = ["enums"]
+
 
 [dependencies]
