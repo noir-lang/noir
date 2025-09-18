@@ -690,6 +690,7 @@ impl<'f> Validator<'f> {
                 // fn embedded_curve_add_array_return(
                 //     _point1: EmbeddedCurvePoint,
                 //     _point2: EmbeddedCurvePoint,
+                //     _predicate: bool,
                 // ) -> [EmbeddedCurvePoint; 1] {}
                 //
                 // struct EmbeddedCurvePoint {
@@ -697,10 +698,13 @@ impl<'f> Validator<'f> {
                 //     y: Field,
                 //     is_infinite: bool,
                 // }
-                assert_arguments_length(arguments, 6, "embedded_curve_add");
+                assert_arguments_length(arguments, 7, "embedded_curve_add");
 
                 assert_embedded_curve_point(arguments, 0, dfg, "embedded_curve_add _point1");
                 assert_embedded_curve_point(arguments, 3, dfg, "embedded_curve_add _point2");
+
+                let predicate_type = dfg.type_of_value(arguments[6]);
+                assert_u1(&predicate_type, "embedded_curve_add _predicate");
 
                 let result_type = self.assert_one_result(instruction, "embedded_curve_add");
                 let (result_elements, result_length) =
