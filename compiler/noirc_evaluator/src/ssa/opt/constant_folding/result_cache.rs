@@ -3,7 +3,6 @@ use crate::ssa::{
         basic_block::BasicBlockId,
         dfg::DataFlowGraph,
         dom::DominatorTree,
-        function::Function,
         instruction::{Instruction, InstructionId},
         value::{Value, ValueId},
     },
@@ -83,29 +82,29 @@ impl InstructionResultCache {
     pub(super) fn remove_possibly_mutated_cached_make_arrays(
         &mut self,
         instruction: &Instruction,
-        function: &Function,
+        dfg: &DataFlowGraph,
     ) {
         use Instruction::{ArraySet, Call, MakeArray, Store};
 
         /// Recursively remove from the cache any array values.
         fn go(
-            function: &Function,
+            dfg: &DataFlowGraph,
             cached_instruction_results: &mut InstructionResultCache,
             value: &ValueId,
         ) {
             // We expect globals to be immutable, so we can cache those results indefinitely.
-            if function.dfg.is_global(*value) {
+            if dfg.is_global(*value) {
                 return;
             };
 
             // We only care about arrays and slices. (`Store` can act on non-array values as well)
-            if !function.dfg.type_of_value(*value).is_array() {
+            if !dfg.type_of_value(*value).is_array() {
                 return;
             };
 
             // Look up the original instruction that created the value, which is the cache key.
-            let instruction = match &function.dfg[*value] {
-                Value::Instruction { instruction, .. } => &function.dfg[*instruction],
+            let instruction = match &dfg[*value] {
+                Value::Instruction { instruction, .. } => &dfg[*instruction],
                 _ => return,
             };
 
@@ -118,12 +117,12 @@ impl InstructionResultCache {
             // can be passed around, and through them their sub-arrays might be modified.
             if let MakeArray { elements, .. } = instruction {
                 for elem in elements {
-                    go(function, cached_instruction_results, elem);
+                    go(dfg, cached_instruction_results, elem);
                 }
             }
         }
 
-        let mut remove_if_array = |value| go(function, self, value);
+        let mut remove_if_array = |value| go(dfg, self, value);
 
         // Should we consider calls to slice_push_back and similar to be mutating operations as well?
         match instruction {
@@ -131,10 +130,10 @@ impl InstructionResultCache {
                 // If we write to a value, it's not safe for reuse, as its value has changed since its creation.
                 remove_if_array(value);
             }
-            Call { arguments, func } if function.runtime().is_brillig() => {
+            Call { arguments, func } if dfg.runtime().is_brillig() => {
                 // If we pass a value to a function, it might get modified, making it unsafe for reuse after the call.
-                let Value::Function(func_id) = &function.dfg[*func] else { return };
-                if matches!(function.dfg.purity_of(*func_id), None | Some(Purity::Impure)) {
+                let Value::Function(func_id) = &dfg[*func] else { return };
+                if matches!(dfg.purity_of(*func_id), None | Some(Purity::Impure)) {
                     // Arrays passed to functions might be mutated by them if there are no `inc_rc` instructions
                     // placed *before* the call to protect them. Currently we don't track the ref count in this
                     // context, so be conservative and do not reuse any array shared with a callee.

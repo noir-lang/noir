@@ -410,28 +410,55 @@ impl<'f> PerFunctionContext<'f> {
         &mut self,
         block_id: BasicBlockId,
         references: &mut Block,
-        instruction: InstructionId,
+        instruction_id: InstructionId,
     ) {
         // If the instruction was simplified and optimized out of the program we shouldn't analyze it.
         // Analyzing it could make tracking aliases less accurate if it is e.g. an ArrayGet
         // call that used to hold references but has since been optimized out to a known result.
         // However, if we don't analyze it, then it may be a MakeArray replacing an ArraySet containing references,
         // and we need to mark those references as used to keep their stores alive.
-        let (instruction, simplified) = {
-            let (ins, loc) = self.inserter.map_instruction(instruction);
-            match self.inserter.push_instruction_value(ins, instruction, block_id, loc) {
-                InsertInstructionResult::Results(id, _) => (id, false),
-                InsertInstructionResult::SimplifiedTo(value) => {
-                    let value = &self.inserter.function.dfg[value];
-                    let Value::Instruction { instruction, .. } = value else {
-                        return;
-                    };
-                    (*instruction, true)
-                }
-                _ => return,
-            }
-        };
+        let (instruction, loc) = self.inserter.map_instruction(instruction_id);
 
+        match self.inserter.push_instruction_value(instruction, instruction_id, block_id, loc) {
+            InsertInstructionResult::Results(id, _) => {
+                self.analyze_possibly_simplified_instruction(references, id, false);
+            }
+            InsertInstructionResult::SimplifiedTo(value) => {
+                // Globals cannot contain references thus we do not need to analyze insertion which simplified to them.
+                if self.inserter.function.dfg.is_global(value) {
+                    return;
+                }
+                let value = &self.inserter.function.dfg[value];
+                if let Value::Instruction { instruction, .. } = value {
+                    self.analyze_possibly_simplified_instruction(references, *instruction, true);
+                }
+            }
+            InsertInstructionResult::SimplifiedToMultiple(values) => {
+                for value in values {
+                    // Globals cannot contain references thus we do not need to analyze insertion which simplified to them.
+                    if self.inserter.function.dfg.is_global(value) {
+                        continue;
+                    }
+                    let value = &self.inserter.function.dfg[value];
+                    if let Value::Instruction { instruction, .. } = value {
+                        self.analyze_possibly_simplified_instruction(
+                            references,
+                            *instruction,
+                            true,
+                        );
+                    }
+                }
+            }
+            InsertInstructionResult::InstructionRemoved => (),
+        }
+    }
+
+    fn analyze_possibly_simplified_instruction(
+        &mut self,
+        references: &mut Block,
+        instruction: InstructionId,
+        simplified: bool,
+    ) {
         let ins = &self.inserter.function.dfg[instruction];
 
         // Some instructions, when simplified, cause problems if processed again.
@@ -1093,7 +1120,7 @@ mod tests {
             jmp b1(v8)
         }
         acir(inline) fn foo f1 {
-          b0(v0: &mut Field):
+          b0(v0: &mut &mut Field):
             return
         }
         ";
@@ -2252,5 +2279,116 @@ mod tests {
             jmp b1(v30)
         }
         "#);
+    }
+
+    #[test]
+    fn analyzes_instruction_simplified_to_multiple() {
+        // This is a test to make sure that if an instruction is simplified to multiple instructions,
+        // like in the case of `slice_push_back`, those are handled correctly.
+        let src = r#"
+        brillig(inline) predicate_pure fn main f0 {
+          b0():
+            v4 = allocate -> &mut u1
+            store u1 0 at v4
+            v7 = make_array [v4] : [&mut u1]
+            v8 = allocate -> &mut u1
+            store u1 0 at v8
+            v11, v12 = call slice_push_back(u32 2, v7, v8) -> (u32, [&mut u1])
+            v16 = array_get v12, index u32 1 -> &mut u1
+            v17 = load v16 -> u1
+            jmpif v17 then: b1, else: b2
+          b1():
+            jmp b3(v12)
+          b2():
+            jmp b3(v12)
+          b3(v2: [&mut u1]):
+            v23 = array_get v2, index u32 0 -> &mut u1
+            v24 = load v23 -> u1
+            return v24
+        }
+        "#;
+
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
+
+        assert_ssa_snapshot!(ssa, @r"
+        brillig(inline) predicate_pure fn main f0 {
+          b0():
+            v1 = allocate -> &mut u1
+            store u1 0 at v1
+            v3 = make_array [v1] : [&mut u1]
+            v4 = allocate -> &mut u1
+            store u1 0 at v4
+            v5 = make_array [v1, v4] : [&mut u1]
+            v7 = array_set v5, index u32 2, value v4
+            v8 = make_array [v1, v4] : [&mut u1]
+            jmpif u1 0 then: b1, else: b2
+          b1():
+            jmp b3(v8)
+          b2():
+            jmp b3(v8)
+          b3(v0: [&mut u1]):
+            v10 = array_get v0, index u32 0 -> &mut u1
+            v11 = load v10 -> u1
+            return v11
+        }
+        "
+        );
+    }
+
+    #[test]
+    fn simplify_to_global_instruction() {
+        // We want to have more global instructions than instructions in the function as we want
+        // to test that we never attempt to access a function's instruction map using a global instruction index.
+        // If we were to access the function's instruction map using the global instruction index in this case
+        // we would expect to hit an OOB panic.
+        // We also want to make sure that we simplify to a make array instructions as global constants will
+        // resolve directly to a constant.
+        let src = "
+        g0 = Field 1
+        g1 = Field 2
+        g2 = Field 3
+        g3 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        g4 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        g5 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        g6 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        g7 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        g8 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        g9 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        g10 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        g11 = make_array [g10, g10, g10] : [[Field; 3]; 3]
+  
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut [[Field; 3]; 3]
+            store g11 at v0
+            v1 = load v0 -> [[Field; 3]; 3]
+            v3 = array_get v1, index u32 0 -> [Field; 3]
+            return v3
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
+
+        assert_ssa_snapshot!(ssa, @r"
+        g0 = Field 1
+        g1 = Field 2
+        g2 = Field 3
+        g3 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        g4 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        g5 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        g6 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        g7 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        g8 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        g9 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        g10 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        g11 = make_array [g10, g10, g10] : [[Field; 3]; 3]
+        
+        acir(inline) fn main f0 {
+          b0():
+            v12 = allocate -> &mut [[Field; 3]; 3]
+            return g10
+        }
+        ");
     }
 }

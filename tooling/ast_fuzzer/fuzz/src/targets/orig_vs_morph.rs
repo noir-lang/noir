@@ -3,12 +3,13 @@
 
 use std::cell::{Cell, RefCell};
 
-use crate::{compare_results_compiled, create_ssa_or_die, default_ssa_options};
+use crate::targets::default_config;
+use crate::{compare_results_compiled, compile_into_circuit_or_die, default_ssa_options};
 use arbitrary::{Arbitrary, Unstructured};
 use color_eyre::eyre;
 use noir_ast_fuzzer::compare::{CompareMorph, CompareOptions};
 use noir_ast_fuzzer::scope::ScopeStack;
-use noir_ast_fuzzer::{Config, visitor::visit_expr_be_mut};
+use noir_ast_fuzzer::visitor::visit_expr_be_mut;
 use noir_ast_fuzzer::{rewrite, visitor};
 use noirc_frontend::ast::UnaryOp;
 use noirc_frontend::monomorphization::ast::{
@@ -18,7 +19,7 @@ use noirc_frontend::monomorphization::ast::{
 pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
     let rules = rules::all();
     let max_rewrites = 10;
-    let config = Config { avoid_overflow: u.arbitrary()?, ..Default::default() };
+    let config = default_config(u)?;
     let inputs = CompareMorph::arb(
         u,
         config,
@@ -27,7 +28,9 @@ pub fn fuzz(u: &mut Unstructured) -> eyre::Result<()> {
             rewrite_program(u, &mut program, &rules, max_rewrites);
             Ok((program, options))
         },
-        |program, options| create_ssa_or_die(program, &options.onto(default_ssa_options()), None),
+        |program, options| {
+            compile_into_circuit_or_die(program, &options.onto(default_ssa_options()), None)
+        },
     )?;
 
     let result = inputs.exec()?;
@@ -819,11 +822,10 @@ mod helpers {
 mod tests {
     /// ```ignore
     /// NOIR_AST_FUZZER_SEED=0xb2fb5f0b00100000 \
-    /// NOIR_AST_FUZZER_SHOW_AST=1 \
     /// cargo test -p noir_ast_fuzzer_fuzz orig_vs_morph
     /// ```
     #[test]
     fn fuzz_with_arbtest() {
-        crate::targets::tests::fuzz_with_arbtest(super::fuzz, 2000);
+        crate::targets::tests::fuzz_with_arbtest(super::fuzz, 10000);
     }
 }

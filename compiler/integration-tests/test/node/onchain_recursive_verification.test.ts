@@ -37,13 +37,13 @@ it(`smart contract can verify a recursive proof`, async () => {
   const { witness: recursiveWitness } = await recursiveCircuitNoir.execute(recursiveInputs);
   const { proof: recursiveProof, publicInputs: recursivePublicInputs } = await recursiveBackend.generateProof(
     recursiveWitness,
-    { keccak: true },
+    { keccakZK: true },
   );
 
   // Verify recursive proof
   const verified = await recursiveBackend.verifyProof(
     { proof: recursiveProof, publicInputs: recursivePublicInputs },
-    { keccak: true },
+    { keccakZK: true },
   );
 
   expect(verified).to.be.true;

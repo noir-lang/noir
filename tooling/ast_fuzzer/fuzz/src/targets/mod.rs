@@ -1,3 +1,6 @@
+use arbitrary::Unstructured;
+use noir_ast_fuzzer::Config;
+
 pub mod acir_vs_brillig;
 pub mod comptime_vs_brillig_direct;
 pub mod comptime_vs_brillig_nargo;
@@ -5,6 +8,20 @@ pub mod min_vs_full;
 pub mod orig_vs_morph;
 pub mod pass_vs_prev;
 
+/// Create a default configuration instance, with some common flags randomized.
+fn default_config(u: &mut Unstructured) -> arbitrary::Result<Config> {
+    // Some errors such as overflows and OOB are easy to trigger, so in half
+    // the cases we avoid all of them, to make sure they don't mask other errors.
+    let avoid_frequent_errors = u.arbitrary()?;
+    let config = Config {
+        avoid_overflow: avoid_frequent_errors,
+        avoid_index_out_of_bounds: avoid_frequent_errors,
+        ..Default::default()
+    };
+    Ok(config)
+}
+
+/// Common functions used in the test modules of targets.
 #[cfg(test)]
 mod tests {
 
@@ -52,7 +69,6 @@ mod tests {
     /// Run it with for example:
     /// ```ignore
     /// NOIR_AST_FUZZER_SEED=0x6819c61400001000 \
-    /// NOIR_AST_FUZZER_SHOW_AST=1 \
     /// cargo test -p noir_ast_fuzzer_fuzz acir_vs_brillig
     /// ```
     ///

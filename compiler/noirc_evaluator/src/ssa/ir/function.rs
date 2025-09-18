@@ -26,10 +26,16 @@ impl RuntimeType {
     /// We return `false` for InlineType::Inline on default, which is true
     /// in all cases except for main. `main` should be supported with special
     /// handling in any places where this function determines logic.
+    ///
+    /// ## Important
+    /// If a Brillig function is not main it requires special handling to determine
+    /// whether it is an entry point. Brillig entry points can also be anywhere we start
+    /// Brillig execution from an ACIR runtime. This requires analyzing the call sites of the ACIR runtime.
     pub(crate) fn is_entry_point(&self) -> bool {
         match self {
-            RuntimeType::Acir(inline_type) => inline_type.is_entry_point(),
-            RuntimeType::Brillig(_) => true,
+            RuntimeType::Acir(inline_type) | RuntimeType::Brillig(inline_type) => {
+                inline_type.is_entry_point()
+            }
         }
     }
 
@@ -218,7 +224,7 @@ impl Function {
             .iter()
             .map(|block| {
                 let block = &self.dfg[*block];
-                block.instructions().len() + block.terminator().is_some() as usize
+                block.instructions().len() + usize::from(block.terminator().is_some())
             })
             .sum()
     }
@@ -238,6 +244,16 @@ impl Function {
 
     pub fn has_data_bus_return_data(&self) -> bool {
         self.dfg.data_bus.return_data.is_some()
+    }
+
+    /// Return the types of the function parameters.
+    pub fn parameter_types(&self) -> Vec<Type> {
+        vecmap(self.parameters(), |p| self.dfg.type_of_value(*p))
+    }
+
+    /// Return the types of the returned values, if there are any.
+    pub fn return_types(&self) -> Option<Vec<Type>> {
+        self.returns().map(|rs| vecmap(rs, |p| self.dfg.type_of_value(*p)))
     }
 }
 
