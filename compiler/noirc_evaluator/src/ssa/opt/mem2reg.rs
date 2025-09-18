@@ -2184,7 +2184,7 @@ mod tests {
             v11 = load v4 -> u32
             v12 = load v5 -> u1
             inc_rc v10
-            v15 = call poseidon2_permutation(v10, u32 4) -> [Field; 4]
+            v15 = call poseidon2_permutation(v10) -> [Field; 4]
             v16 = load v2 -> [Field; 3]
             v17 = load v3 -> [Field; 4]
             v18 = load v4 -> u32
