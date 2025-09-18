@@ -109,14 +109,8 @@ impl<F: AcirField> SharedContext<F> {
         generated_pointer: BrilligFunctionId,
         code: GeneratedBrillig<F>,
     ) {
-        let key = (func_id, arguments);
-        if self.brillig_generated_func_pointers.contains_key(&key) {
-            panic!(
-                "Attempting to override Brillig pointer for function {} with arguments {:?} already exists",
-                func_id, key.1
-            );
-        }
-        self.brillig_generated_func_pointers.insert(key, generated_pointer);
+        let previous_pointer = self.brillig_generated_func_pointers.insert((func_id, arguments), generated_pointer);
+        assert!(previous_pointer.is_none(), "Attempting to override Brillig pointer for function {func_id} which already exists");
         self.generated_brillig.push(code);
     }
 
@@ -139,30 +133,13 @@ impl<F: AcirField> SharedContext<F> {
         {
             self.add_call_to_resolve(func_id, (opcode_location, generated_pointer));
         } else {
-            let code = self.brillig_stdlib.get_code(*brillig_stdlib_func);
+            // Now we can insert a newly generated Brillig stdlib function
+            let code = self.brillig_stdlib.get_code(*brillig_stdlib_func).clone();
             let generated_pointer = self.new_generated_pointer();
-            self.insert_generated_brillig_stdlib(
-                *brillig_stdlib_func,
-                generated_pointer,
-                func_id,
-                opcode_location,
-                code.clone(),
-            );
+            self.brillig_stdlib_func_pointer.insert(*brillig_stdlib_func, generated_pointer);
+            self.add_call_to_resolve(func_id, (opcode_location, generated_pointer));
+            self.generated_brillig.push(code);
         }
-    }
-
-    /// Insert a newly generated Brillig stdlib function
-    fn insert_generated_brillig_stdlib(
-        &mut self,
-        brillig_stdlib_func: BrilligStdlibFunc,
-        generated_pointer: BrilligFunctionId,
-        func_id: FunctionId,
-        opcode_location: OpcodeLocation,
-        code: GeneratedBrillig<F>,
-    ) {
-        self.brillig_stdlib_func_pointer.insert(brillig_stdlib_func, generated_pointer);
-        self.add_call_to_resolve(func_id, (opcode_location, generated_pointer));
-        self.generated_brillig.push(code);
     }
 
     /// Track a new stdlib call site that must later be patched with its function pointer.
@@ -186,7 +163,7 @@ impl<F: AcirField> SharedContext<F> {
     /// or an empty set if the function had no globals recorded.
     ///
     /// We remove as an entry point should only go through ACIR generation a single time.
-    pub(super) fn get_used_globals_set(&mut self, func_id: FunctionId) -> HashSet<ValueId> {
+    pub(super) fn get_and_remove_used_globals_set(&mut self, func_id: FunctionId) -> HashSet<ValueId> {
         self.used_globals.remove(&func_id).unwrap_or_default()
     }
 }
@@ -203,7 +180,7 @@ mod tests {
 
     #[test]
     #[should_panic(
-        expected = "Attempting to override Brillig pointer for function f0 with arguments [] already exists"
+        expected = "Attempting to override Brillig pointer for function f0 which already exists"
     )]
     fn override_brillig_function_pointer() {
         let mut context =

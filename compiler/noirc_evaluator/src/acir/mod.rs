@@ -213,7 +213,7 @@ impl<'a> Context<'a> {
 
         let mut warnings = Vec::new();
 
-        let used_globals = self.shared_context.get_used_globals_set(main_func.id());
+        let used_globals = self.shared_context.get_and_remove_used_globals_set(main_func.id());
 
         let globals_dfg = (*main_func.dfg.globals).clone();
         let globals_dfg = DataFlowGraph::from(globals_dfg);
