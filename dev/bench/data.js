@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1758207311497,
+  "lastUpdate": 1758207379813,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -20196,48 +20196,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "6f8c89019ad96bebad89d1632d34f96374fa9598",
-          "message": "chore: prefer `From` for infallible numeric casts (#9802)",
-          "timestamp": "2025-09-11T16:08:27Z",
-          "tree_id": "ea37781c607d5348ab37dc3e4ebc587a53a40938",
-          "url": "https://github.com/noir-lang/noir/commit/6f8c89019ad96bebad89d1632d34f96374fa9598"
-        },
-        "date": 1757608613214,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 247407,
-            "range": "± 675",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 218732,
-            "range": "± 2899",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2780296,
-            "range": "± 1096",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -22289,6 +22247,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2803147,
             "range": "± 7156",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "ee41aad6a14c79ef24f6369f43cdd7ffdaf6e9f4",
+          "message": "chore: validate SSA intrinsics arguments and return types (#9892)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-09-18T14:27:06Z",
+          "tree_id": "01be88738fda702ce4da0ebc3815b879361692bf",
+          "url": "https://github.com/noir-lang/noir/commit/ee41aad6a14c79ef24f6369f43cdd7ffdaf6e9f4"
+        },
+        "date": 1758207358811,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 269698,
+            "range": "± 1073",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 241754,
+            "range": "± 7118",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2817669,
+            "range": "± 19484",
             "unit": "ns/iter"
           }
         ]
