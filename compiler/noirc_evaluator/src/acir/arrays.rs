@@ -1,3 +1,13 @@
+//! Array handling for lowering SSA array operations to ACIR
+//!
+//! This module defines how Noir's high-level array and slice semantics
+//! are lowered into ACIR’s low-level, flat memory model. Arrays in SSA
+//! IR can appear as constants or dynamically allocated blocks.
+//! Our responsibility here is to
+//! preserve correctness while ensuring memory access is efficient and
+//! side-effect safe.
+//!
+
 use acvm::acir::{circuit::opcodes::BlockType, native_types::Witness};
 use acvm::{FieldElement, acir::AcirField, acir::circuit::opcodes::BlockId};
 use iter_extended::{try_vecmap, vecmap};
@@ -106,7 +116,7 @@ impl Context<'_> {
         };
 
         // For 0-length arrays and slices, even the disabled memory operations would cause runtime failures.
-        // Set rhe result to a zero value that matches the type then bypass the rest of the operation,
+        // Set the result to a zero value that matches the type then bypass the rest of the operation,
         // leaving an assertion that the side effect variable must be false.
         if self.has_zero_length(array, dfg) {
             // Zero result.
