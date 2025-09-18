@@ -23,14 +23,16 @@ pub(super) fn evaluate_infix(
     let lhs_overflow = InterpreterError::BinaryOperationOverflow { operator: "<<", location };
     let rhs_overflow = InterpreterError::BinaryOperationOverflow { operator: ">>", location };
     let math_error = |operator| InterpreterError::BinaryOperationOverflow { location, operator };
-    if operator.kind == BinaryOpKind::Divide && rhs_value.is_zero() {
+
+    if matches!(operator.kind, BinaryOpKind::Divide | BinaryOpKind::Modulo) && rhs_value.is_zero() {
         return Err(InterpreterError::InvalidValuesForBinary {
             lhs: lhs_type,
             rhs: rhs_type,
             location,
-            operator: "/",
+            operator: if operator.kind == BinaryOpKind::Divide { "/" } else { "%" },
         });
     }
+
     /// Generate matches that can promote the type of one side to the other if they are compatible.
     macro_rules! match_values {
         (($lhs_value:ident as $lhs:ident $op:literal $rhs_value:ident as $rhs:ident) {
