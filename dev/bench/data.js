@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1758207379813,
+  "lastUpdate": 1758207536684,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -12112,80 +12112,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "344986f013749e039395a97f22e5c597122287e4",
-          "message": "chore: bump linked bb version (#9237)\n\nCo-authored-by: Ary Borenszweig <asterite@gmail.com>\nCo-authored-by: saleel <saleel@saleel.xyz>",
-          "timestamp": "2025-09-11T12:45:17Z",
-          "tree_id": "cbff02227a2ca06660a20429f12a2a6e83b30f97",
-          "url": "https://github.com/noir-lang/noir/commit/344986f013749e039395a97f22e5c597122287e4"
-        },
-        "date": 1757597161981,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 258.31,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 291.48,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 243.06,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 506.2,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 438.58,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1500,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 330.65,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 333.18,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 72.58,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 58.39,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -15755,6 +15681,80 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/b5ad1959c000e856383b804c248d102c6bc18f22"
         },
         "date": 1758206098092,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 258.74,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 291.13,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 242.63,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 506.72,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 440.02,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1530,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 331.06,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 333.58,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 73,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 69.57,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "d5ffc90a1c24ce079a32bc31bf12e181ee1f5213",
+          "message": "chore: implement Display for brillig (#9893)",
+          "timestamp": "2025-09-18T14:10:02Z",
+          "tree_id": "b58bcead83ade8a284334788cb51032fb94395e2",
+          "url": "https://github.com/noir-lang/noir/commit/d5ffc90a1c24ce079a32bc31bf12e181ee1f5213"
+        },
+        "date": 1758207516490,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
