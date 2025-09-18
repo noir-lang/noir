@@ -32,7 +32,7 @@ projects:
   rollup-block-root-first-empty-tx:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
-    path: noir-projects/noir-protocol-circuits/crates/rollup-block-first-empty-tx
+    path: noir-projects/noir-protocol-circuits/crates/rollup-block-root-first-empty-tx
     cannot_execute: true
     num_runs: 5
     timeout: 60
@@ -87,10 +87,10 @@ projects:
     execution-timeout: 1
     compilation-memory-limit: 1600
     execution-memory-limit: 650
-  rollup-merge:
+  rollup-tx-merge:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
-    path: noir-projects/noir-protocol-circuits/crates/rollup-merge
+    path: noir-projects/noir-protocol-circuits/crates/rollup-tx-merge
     num_runs: 5
     timeout: 300
     compilation-timeout: 4
