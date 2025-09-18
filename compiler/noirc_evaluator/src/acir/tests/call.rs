@@ -12,25 +12,25 @@ fn basic_calls_fold() {
 }
 
 #[test]
-#[should_panic = "internal error: entered unreachable code: Expected an associated final index for call to acir function f1 with args [Id(0), Id(1)]"]
+#[should_panic = "ICE: Got a call to an ACIR function f1 named foo that should have already been inlined"]
 fn basic_calls_no_predicates() {
     basic_call_with_outputs_assert(InlineType::NoPredicates);
 }
 
 #[test]
-#[should_panic = "internal error: entered unreachable code: Expected an associated final index for call to acir function f1 with args [Id(0), Id(1)]"]
+#[should_panic = "ICE: Got a call to an ACIR function f1 named foo that should have already been inlined"]
 fn call_output_as_next_call_input_no_predicates() {
     call_output_as_next_call_input(InlineType::NoPredicates);
 }
 
 #[test]
-#[should_panic = "internal error: entered unreachable code: Expected an associated final index for call to acir function f1 with args [Id(0), Id(1)]"]
+#[should_panic = "ICE: Got a call to an ACIR function f1 named func_with_nested_foo_call that should have already been inlined"]
 fn nested_call_no_predicates() {
     basic_nested_call(InlineType::NoPredicates);
 }
 
 #[test]
-#[should_panic = "ICE: Got an ACIR function named foo that should have already been inlined"]
+#[should_panic = "ICE: Got a call to an ACIR function f1 named foo that should have already been inlined"]
 fn call_without_inline_attribute() {
     basic_call_with_outputs_assert(InlineType::Inline);
 }

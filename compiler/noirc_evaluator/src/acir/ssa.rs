@@ -44,11 +44,7 @@ pub(super) fn codegen_acir(
     let used_globals = ssa.used_globals_in_functions();
 
     // TODO: can we parallelize this?
-    let mut shared_context = SharedContext {
-        brillig_stdlib: brillig_stdlib.clone(),
-        used_globals,
-        ..SharedContext::default()
-    };
+    let mut shared_context = SharedContext::new(brillig_stdlib.clone(), used_globals);
 
     for function in ssa.functions.values() {
         let context = Context::new(
@@ -76,9 +72,7 @@ pub(super) fn codegen_acir(
             }
 
             // Fetch the Brillig stdlib calls to resolve for this function
-            if let Some(calls_to_resolve) =
-                shared_context.brillig_stdlib_calls_to_resolve.get(&function.id())
-            {
+            if let Some(calls_to_resolve) = shared_context.get_call_to_resolve(function.id()) {
                 // Resolve the Brillig stdlib calls
                 // We have to do a separate loop as the generated ACIR cannot be borrowed as mutable after an immutable borrow
                 for (opcode_location, brillig_function_pointer) in calls_to_resolve {
@@ -92,8 +86,8 @@ pub(super) fn codegen_acir(
         }
     }
 
-    let brillig_bytecode = shared_context
-        .generated_brillig
+    let generated_brillig = shared_context.finish();
+    let brillig_bytecode = generated_brillig
         .into_iter()
         .map(|brillig| BrilligBytecode { function_name: brillig.name, bytecode: brillig.byte_code })
         .collect();
