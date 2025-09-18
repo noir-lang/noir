@@ -36,9 +36,6 @@ export default {
       if (ctx.url.includes('pino/browser.js')) {
         ctx.url = '/compiler/integration-tests/test/mocks/pino.js';
       }
-      if (ctx.url.includes('buffer/index.js')) {
-        ctx.url = '/compiler/integration-tests/test/mocks/buffer.js';
-      }
       await next();
     },
   ],
