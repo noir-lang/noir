@@ -67,10 +67,10 @@ projects:
     execution-timeout: 0.75
     compilation-memory-limit: 1700
     execution-memory-limit: 600
-  rollup-checkpoint-root-single-tx:
+  rollup-checkpoint-root-single-block:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
-    path: noir-projects/noir-protocol-circuits/crates/rollup-checkpoint-root-single-tx
+    path: noir-projects/noir-protocol-circuits/crates/rollup-checkpoint-root-single-block
     num_runs: 5
     timeout: 15
     compilation-timeout: 20
