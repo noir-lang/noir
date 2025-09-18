@@ -176,11 +176,6 @@ impl Function {
         // after an always failing one was found.
         let mut current_block_reachability = Reachability::Reachable;
 
-        // Remember which instructions were replaced by default values,
-        // because using them can change the meaning of downstream instructions
-        // which are otherwise *not* side effecting, but we can't use them any more.
-        let mut replaced_with_defaults = HashSet::new();
-
         // In some cases a side effect variable can become effective again.
         let mut unreachable_predicates = HashSet::new();
 
@@ -190,7 +185,6 @@ impl Function {
             if current_block_id != Some(block_id) {
                 current_block_id = Some(block_id);
                 current_block_reachability = Reachability::Reachable;
-                replaced_with_defaults.clear();
                 unreachable_predicates.clear();
             }
 
@@ -221,29 +215,9 @@ impl Function {
             };
 
             if current_block_reachability == Reachability::UnreachableUnderPredicate {
-                // Instructions that don't interact with the predicate should be left alone,
-                // because the `remove_enable_side_effects` pass might have moved the boundaries around them.
-                if !instruction.requires_acir_gen_predicate(context.dfg) {
-                    // However if an instruction uses a value which has been replaced with a default,
-                    // then we should remove it even if it doesn't have side effects; for example an
-                    // an array_get with a complex type can return different data types at different
-                    // indexes, and reading at index 0 might return the wrong kind of data.
-                    let mut any_replaced_with_defaults = false;
-
-                    instruction.for_each_value(|id| {
-                        any_replaced_with_defaults |= replaced_with_defaults.contains(&id)
-                    });
-
-                    if !any_replaced_with_defaults {
-                        return;
-                    }
+                if should_replace_instruction_with_defaults(context) {
+                    remove_and_replace_with_defaults(context, func_id, block_id);
                 }
-                remove_and_replace_with_defaults(
-                    context,
-                    &mut replaced_with_defaults,
-                    func_id,
-                    block_id,
-                );
                 return;
             }
 
@@ -295,12 +269,7 @@ impl Function {
 
                     // Subsequent instructions can either be removed, of replaced by defaults until the next predicate.
                     current_block_reachability = if fails_under_predicate {
-                        remove_and_replace_with_defaults(
-                            context,
-                            &mut replaced_with_defaults,
-                            func_id,
-                            block_id,
-                        );
+                        remove_and_replace_with_defaults(context, func_id, block_id);
                         Reachability::UnreachableUnderPredicate
                     } else {
                         context.remove_current_instruction();
@@ -340,12 +309,7 @@ impl Function {
                     } else {
                         // We will never use the results (the constraint fails if the side effects are enabled),
                         // but we need them to make the rest of the SSA valid even if the side effects are off.
-                        remove_and_replace_with_defaults(
-                            context,
-                            &mut replaced_with_defaults,
-                            func_id,
-                            block_id,
-                        );
+                        remove_and_replace_with_defaults(context, func_id, block_id);
                         Reachability::UnreachableUnderPredicate
                     };
                 }
@@ -383,12 +347,7 @@ impl Function {
                         // Here we could use the empty slice as the replacement of the return value,
                         // except that slice operations also return the removed element and the new length
                         // so it's easier to just use zeroed values here
-                        remove_and_replace_with_defaults(
-                            context,
-                            &mut replaced_with_defaults,
-                            func_id,
-                            block_id,
-                        );
+                        remove_and_replace_with_defaults(context, func_id, block_id);
                         Reachability::UnreachableUnderPredicate
                     };
                 }
@@ -517,7 +476,6 @@ fn zeroed_value(
 /// Remove the current instruction and replace it with default values.
 fn remove_and_replace_with_defaults(
     context: &mut SimpleOptimizationContext<'_, '_>,
-    replaced_with_defaults: &mut HashSet<ValueId>,
     func_id: FunctionId,
     block_id: BasicBlockId,
 ) {
@@ -529,7 +487,6 @@ fn remove_and_replace_with_defaults(
         let typ = &context.dfg.type_of_value(result_id);
         let default_value = zeroed_value(context.dfg, func_id, block_id, typ);
         context.replace_value(result_id, default_value);
-        replaced_with_defaults.insert(result_id);
     }
 }
 
@@ -544,6 +501,36 @@ fn insert_constraint(
     let instruction = Instruction::Constrain(zero, context.enable_side_effects, message);
     let call_stack = context.dfg.get_instruction_call_stack_id(context.instruction_id);
     context.dfg.insert_instruction_and_results(instruction, block_id, None, call_stack);
+}
+
+/// Check if an instruction should be replaced with default values if we are in the
+/// `UnreachableUnderPredicate` mode. These are generally the ones that require an
+/// ACIR predicate, but there are some exceptions where an instruction that does
+/// not require a predicate, because it's safe, is only so because of instructions
+/// that have been replaced earlier. In such cases they may not be type safe and
+/// should be removed.
+fn should_replace_instruction_with_defaults(context: &SimpleOptimizationContext) -> bool {
+    let instruction = context.instruction();
+
+    // ArrayGet needs special handling: if we replaced the index with a default value, it could be invalid.
+    if let Instruction::ArrayGet { array, index, offset: _ } = instruction {
+        // If we replaced the index with a default, it's going to be zero.
+        let index_zero = context.dfg.get_numeric_constant(*index).is_some_and(|c| c.is_zero());
+
+        // If it's zero, make sure that the type in the results
+        if index_zero {
+            let Type::Array(typ, _) = context.dfg.type_of_value(*array) else {
+                unreachable!("array type expected");
+            };
+            let results = context.dfg.instruction_results(context.instruction_id).to_vec();
+            let result_type = context.dfg.type_of_value(results[0]);
+            return typ[0] != result_type;
+        }
+    };
+
+    // Instructions that don't interact with the predicate should be left alone,
+    // because the `remove_enable_side_effects` pass might have moved the boundaries around them.
+    instruction.requires_acir_gen_predicate(context.dfg)
 }
 
 #[cfg(test)]
@@ -807,7 +794,6 @@ mod test {
             enable_side_effects v0
             v3 = make_array [u8 1, u8 2] : [u8; 2]
             v5 = make_array [v3, u1 0] : [([u8; 2], u1); 1]
-            v8 = mul u32 4294967295, u32 2
             constrain u1 0 == v0, "attempt to multiply with overflow"
             enable_side_effects u1 1
             enable_side_effects v0
