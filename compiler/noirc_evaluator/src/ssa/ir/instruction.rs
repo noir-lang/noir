@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::hash::Hash;
 
 use acvm::{
-    AcirField,
+    AcirField, FieldElement,
     acir::{BlackBoxFunc, circuit::ErrorSelector},
 };
 use iter_extended::vecmap;
@@ -534,7 +534,29 @@ impl Instruction {
                     !matches!(typ, Type::Numeric(NumericType::NativeField))
                 }
                 BinaryOp::Div | BinaryOp::Mod => {
-                    dfg.get_numeric_constant(binary.rhs).is_none_or(|c| c.is_zero())
+                    // If we don't know rhs at compile time, it might be zero or -1
+                    let Some(rhs) = dfg.get_numeric_constant(binary.rhs) else {
+                        return true;
+                    };
+
+                    // Div or mod by zero is a side effect (failure)
+                    if rhs.is_zero() {
+                        return true;
+                    }
+
+                    // For signed types, division or modulo by -1 can overflow.
+                    let NumericType::Signed { bit_size } =
+                        dfg.type_of_value(binary.rhs).unwrap_numeric()
+                    else {
+                        return false;
+                    };
+
+                    let minus_one_as_field = FieldElement::from((1_u128 << bit_size) - 1);
+                    if rhs == minus_one_as_field {
+                        return true;
+                    }
+
+                    false
                 }
                 BinaryOp::Shl | BinaryOp::Shr => {
                     // Bit-shifts which are known to be by a number of bits less than the bit size of the type have no side effects.
