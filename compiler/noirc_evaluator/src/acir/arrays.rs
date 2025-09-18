@@ -194,7 +194,12 @@ impl Context<'_> {
                     Ok(false)
                 }
             }
-            AcirValue::DynamicArray(_) => Ok(false),
+            AcirValue::DynamicArray(_) => {
+                // We do not perform any compile-time reads/writes to dynamic arrays as we'd need to promote this into
+                // a regular array by reading all of its elements. It's then better to defer to the dynamic index
+                // codepath so we just issue a single read/write.
+                Ok(false)
+            }
         }
     }
 
