@@ -243,13 +243,6 @@ impl Context<'_> {
             // as if the predicate were true. This is as if the predicate were to resolve to false then
             // the result should not affect the rest of circuit execution.
             let value = array[index].clone();
-            // An `Array` might contain a `DynamicArray`, however if we define the result this way,
-            // we would bypass the array initialization and the handling of dynamic values that
-            // happens in `array_get_value`. Rather than repeat it here, let the non-special-case
-            // handling take over by returning `false`.
-            if matches!(value, AcirValue::DynamicArray(_)) {
-                return Ok(false);
-            }
             self.define_result(dfg, instruction, value);
             Ok(true)
         }
