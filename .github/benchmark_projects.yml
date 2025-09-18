@@ -29,10 +29,10 @@ projects:
     execution-timeout: 0.35
     compilation-memory-limit: 750
     execution-memory-limit: 300
-  rollup-block-root-empty:
+  rollup-block-root-first-empty-tx:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
-    path: noir-projects/noir-protocol-circuits/crates/rollup-block-root-empty
+    path: noir-projects/noir-protocol-circuits/crates/rollup-block-first-empty-tx
     cannot_execute: true
     num_runs: 5
     timeout: 60
