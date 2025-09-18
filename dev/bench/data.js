@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1758216678720,
+  "lastUpdate": 1758221291864,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -20341,48 +20341,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "26174818+jialinli98@users.noreply.github.com",
-            "name": "Jialin Li",
-            "username": "jialinli98"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "7e7cb4c5e7542528b8d73ad6ecca19bb2f1ee697",
-          "message": "chore: adding tests to vec (#9715)",
-          "timestamp": "2025-09-12T05:44:17Z",
-          "tree_id": "5c748f9ac372e8c20b4731fd0d8bc2601f693471",
-          "url": "https://github.com/noir-lang/noir/commit/7e7cb4c5e7542528b8d73ad6ecca19bb2f1ee697"
-        },
-        "date": 1757657478487,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 256237,
-            "range": "± 1550",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 225894,
-            "range": "± 597",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2814298,
-            "range": "± 3328",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "michaeljklein@users.noreply.github.com",
             "name": "Michael J Klein",
             "username": "michaeljklein"
@@ -22434,6 +22392,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2796368,
             "range": "± 3962",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "7ba4f39855cef71dbd7b0ed9edd48828d417f602",
+          "message": "chore(ci): alert in slack if fuzzer fails (#9910)",
+          "timestamp": "2025-09-18T18:24:31Z",
+          "tree_id": "422ec20231579f2987d57b0e35116c957b7dc32a",
+          "url": "https://github.com/noir-lang/noir/commit/7ba4f39855cef71dbd7b0ed9edd48828d417f602"
+        },
+        "date": 1758221271306,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 255822,
+            "range": "± 570",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 232092,
+            "range": "± 2913",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2800608,
+            "range": "± 5007",
             "unit": "ns/iter"
           }
         ]
