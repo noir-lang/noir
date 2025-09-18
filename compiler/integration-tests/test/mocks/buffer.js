@@ -1,6 +1,10 @@
-import * as buffer from 'buffer';
+import * as buffer from 'buffer-esm';
+const Buffer = buffer.BufferShim;
 
-const { Buffer } = buffer;
+// Patch Node specific method that does not exist in `buffer-esm
+if (!Buffer.allocUnsafeSlow) {
+  Buffer.allocUnsafeSlow = Buffer.allocUnsafe;
+}
 
 // bb.js requires writeBigUInt64BE and readBigUInt64BE which are not present in buffer-esm
 // so we are adding custom implementations
