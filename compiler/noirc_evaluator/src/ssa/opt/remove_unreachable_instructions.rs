@@ -606,7 +606,6 @@ mod test {
         assert_ssa_snapshot!(ssa, @r#"
         acir(inline) predicate_pure fn main f0 {
           b0():
-            v2 = sub u32 0, u32 1
             constrain u1 0 == u1 1, "attempt to subtract with overflow"
             unreachable
         }
@@ -629,7 +628,6 @@ mod test {
         assert_ssa_snapshot!(ssa, @r#"
         acir(inline) predicate_pure fn main f0 {
           b0():
-            v2 = div u32 1, u32 0
             constrain u1 0 == u1 1, "attempt to divide by zero"
             unreachable
         }
@@ -671,7 +669,6 @@ mod test {
         acir(inline) predicate_pure fn main f0 {
           b0(v0: u1):
             enable_side_effects v0
-            v3 = sub u32 0, u32 1
             constrain u1 0 == v0, "attempt to subtract with overflow"
             return u32 0
         }
@@ -699,7 +696,6 @@ mod test {
         acir(inline) predicate_pure fn main f0 {
           b0(v0: u1):
             enable_side_effects v0
-            v3 = sub u32 0, u32 1
             constrain u1 0 == v0, "attempt to subtract with overflow"
             return u32 0
         }
@@ -823,11 +819,9 @@ mod test {
         acir(inline) predicate_pure fn main f0 {
           b0(v0: u1):
             enable_side_effects v0
-            v3 = sub u32 0, u32 1
             constrain u1 0 == v0, "attempt to subtract with overflow"
             enable_side_effects u1 1
-            v6 = add v3, u32 1
-            return v6
+            return u32 1
         }
         "#);
     }
@@ -1322,7 +1316,6 @@ mod test {
         acir(inline) predicate_pure fn main f0 {
           b0(v0: u1):
             enable_side_effects v0
-            v3 = div u64 1, u64 0
             constrain u1 0 == v0, "attempt to divide by zero"
             enable_side_effects u1 1
             return
