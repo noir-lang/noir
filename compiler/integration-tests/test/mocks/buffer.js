@@ -53,10 +53,5 @@ if (!Buffer.prototype.readBigUInt64BE) {
 // Set Buffer as globalThis (window)
 if (!globalThis.Buffer) globalThis.Buffer = Buffer;
 
-// This is Node specific method and it is not
-if (!Buffer.allocUnsafeSlow) {
-  Buffer.allocUnsafeSlow = Buffer.allocUnsafe;
-}
-
 export { Buffer };
 export default Buffer;
