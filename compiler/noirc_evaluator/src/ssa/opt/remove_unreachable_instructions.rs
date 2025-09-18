@@ -524,7 +524,12 @@ fn should_replace_instruction_with_defaults(context: &SimpleOptimizationContext)
             };
             let results = context.dfg.instruction_results(context.instruction_id).to_vec();
             let result_type = context.dfg.type_of_value(results[0]);
-            return typ[0] != result_type;
+            // If the type doesn't agree then we should not use this any more,
+            // as the type in the array will replace the type we wanted to get,
+            // and cause problems further on.
+            // If the array contains a reference, then we should replace the results
+            // with defaults because unloaded references also cause issues.
+            return typ[0] != result_type || result_type.contains_reference();
         }
     };
 
@@ -750,14 +755,13 @@ mod test {
           b0(v0: u1):
             v1 = make_array [] : [&mut u1; 0]
             enable_side_effects v0
-            v4 = mod u32 1, u32 0
             constrain u1 0 == v0, "attempt to calculate the remainder with a divisor of zero"
             constrain u1 0 == v0, "Index out of bounds"
-            v6 = allocate -> &mut u1
-            store u1 0 at v6
-            v7 = load v6 -> u1
+            v3 = allocate -> &mut u1
+            store u1 0 at v3
+            v4 = load v3 -> u1
             enable_side_effects u1 1
-            return v7
+            return v4
         }
         "#);
     }
