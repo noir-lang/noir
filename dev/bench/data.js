@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1758210999264,
+  "lastUpdate": 1758211001815,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -4223,90 +4223,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "2a5315c89a033340cd2d3299404bbdb97dd5d3c7",
-          "message": "chore(die): Encapsulate array access checks in separate module (#9828)",
-          "timestamp": "2025-09-11T18:08:54Z",
-          "tree_id": "e3f682021ce3a02a69640d83b8549816b09959c0",
-          "url": "https://github.com/noir-lang/noir/commit/2a5315c89a033340cd2d3299404bbdb97dd5d3c7"
-        },
-        "date": 1757616527590,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 1.742,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 8.434,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.412,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 18.36,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 16.96,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 17.46,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 201,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 201,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.496,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.484,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.813,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 1.874,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "aakoshh@gmail.com",
             "name": "Akosh Farkash",
             "username": "aakoshh"
@@ -8421,6 +8337,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 2,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "mvezenov@gmail.com",
+            "name": "Maxim Vezenov",
+            "username": "vezenovm"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "89a1da5a16e5c85bb07e10102882e9cd7db29eed",
+          "message": "chore(acir_gen): New shared_context module and some additional unit tests (#9895)",
+          "timestamp": "2025-09-18T15:15:50Z",
+          "tree_id": "4694c55a0c6bb80bb5f3a76d6e8ab0c362cd615e",
+          "url": "https://github.com/noir-lang/noir/commit/89a1da5a16e5c85bb07e10102882e9cd7db29eed"
+        },
+        "date": 1758210979599,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1.876,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 8.074,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.37,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 1.476,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 1.46,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1.46,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 1.514,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.508,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 18.92,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 16.84,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 1.39,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.817,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 1.99,
             "unit": "s"
           }
         ]
