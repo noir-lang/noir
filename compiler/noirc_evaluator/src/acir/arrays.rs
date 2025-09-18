@@ -169,6 +169,11 @@ impl Context<'_> {
         Ok(())
     }
 
+    /// Attempts a compile-time read/write from an array.
+    ///
+    /// This relies on all previous operations on this array being done at known indices so that the `AcirValue`` at each
+    /// position is known (even if the value of this `AcirValue` is unknown). This can then be done only for
+    /// `AcirValue::Array` as a `AcirValue::DynamicArray`'s has been mutated at an unknown index.
     fn handle_constant_index_wrapper(
         &mut self,
         instruction: InstructionId,
