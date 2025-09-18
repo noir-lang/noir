@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1758202917523,
+  "lastUpdate": 1758203059825,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -12112,80 +12112,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "aakoshh@gmail.com",
-            "name": "Akosh Farkash",
-            "username": "aakoshh"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "23c362721dea5ec275d534fad0c23ddf76db2955",
-          "message": "feat(fuzz): Generate calls to `slice_remove` and `slice_insert` in the AST fuzzer (#9786)",
-          "timestamp": "2025-09-11T10:32:10Z",
-          "tree_id": "7adcc31b5a3f25c0e684fb169b9b618a6d2c67ce",
-          "url": "https://github.com/noir-lang/noir/commit/23c362721dea5ec275d534fad0c23ddf76db2955"
-        },
-        "date": 1757589687438,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 258.31,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 291.48,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 243.06,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 506.2,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 438.58,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1500,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 330.65,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 333.18,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 72.58,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 58.39,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -15755,6 +15681,80 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/a2ec2e5ac84afbb95f8ddf9ca6695d83eb2f574a"
         },
         "date": 1758138756721,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 258.74,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 291.13,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 242.63,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-private",
+            "value": 506.72,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-base-public",
+            "value": 440.02,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1530,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-merge",
+            "value": 331.06,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 333.58,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 73,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 69.57,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "aakoshh@gmail.com",
+            "name": "Akosh Farkash",
+            "username": "aakoshh"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5524470351b946d21d5b21609c2bb25c0f994eaa",
+          "message": "fix(acir_gen): Handle flattening of numeric types when an `Array` contains a `DynamicArray` (#9887)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
+          "timestamp": "2025-09-18T12:59:02Z",
+          "tree_id": "eae7ec80a83719465dbc52f974b9a5e83ba6ab09",
+          "url": "https://github.com/noir-lang/noir/commit/5524470351b946d21d5b21609c2bb25c0f994eaa"
+        },
+        "date": 1758203039402,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
