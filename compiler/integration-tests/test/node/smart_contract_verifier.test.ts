@@ -54,9 +54,15 @@ test_cases.forEach((testInfo) => {
     const verified = await backend.verifyProof(proofData, { keccakZK: true });
     expect(verified, 'Proof fails verification in JS').to.be.true;
 
-    // Smart contract verification
+    // Link the ZKTranscriptLib
+    const ZKTranscriptLib = await ethers.deployContract('ZKTranscriptLib');
+    await ZKTranscriptLib.waitForDeployment();
 
-    const contract = await ethers.deployContract(testInfo.compiled, []);
+    const contract = await ethers.deployContract(testInfo.compiled, [], {
+      libraries: {
+        ZKTranscriptLib: await ZKTranscriptLib.getAddress(),
+      },
+    });
 
     const result = await contract.verify(proofData.proof, proofData.publicInputs);
 
