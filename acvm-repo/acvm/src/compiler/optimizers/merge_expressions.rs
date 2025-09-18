@@ -366,7 +366,7 @@ mod tests {
         public parameters: []
         return values: [w2]
         BRILLIG CALL func 0: inputs: [], outputs: [w3]
-        BLACKBOX::AND [w0, w1)]:8 bits [w4]
+        BLACKBOX::AND [w0, w1]:8 bits [w4]
         EXPR [ (1, w3) (-1, w4) 0 ]
         EXPR [ (-1, w2) (1, w4) 0 ]
         ";
