@@ -167,6 +167,9 @@ impl Comparable for NargoErrorWithTypes {
                     // while in ACIR we have checked multiplication unless we know its safe.
                     msg.contains("multiply with overflow") || msg.contains("index out of bounds")
                 })
+                || both(&msg1, &msg2, |msg| {
+                    msg.contains("add with overflow") || msg.contains("index out of bounds")
+                })
         } else {
             false
         };
