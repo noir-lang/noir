@@ -944,6 +944,4 @@ impl<'a> Context<'a> {
 
         self.acir_context.truncate_var(var, bit_size, max_bit_size)
     }
-
-  
 }
