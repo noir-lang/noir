@@ -42,6 +42,7 @@ fn main() -> Result<(), String> {
 
     generate_minimal_execution_success_tests(&mut test_file, &test_dir);
     generate_interpret_execution_success_tests(&mut test_file, &test_dir);
+    generate_interpret_execution_failure_tests(&mut test_file, &test_dir);
 
     generate_fuzzing_failure_tests(&mut test_file, &test_dir);
 
@@ -732,6 +733,32 @@ fn generate_interpret_execution_success_tests(test_file: &mut File, test_data_di
                 min_inliner: min_inliner(&test_name),
                 max_inliner: max_inliner(&test_name),
             },
+        );
+    }
+    writeln!(test_file, "}}").unwrap();
+}
+
+fn generate_interpret_execution_failure_tests(test_file: &mut File, test_data_dir: &Path) {
+    let test_type = "execution_failure";
+    let test_cases = read_test_cases(test_data_dir, test_type);
+
+    writeln!(
+        test_file,
+        "mod interpret_{test_type} {{
+        use super::*;
+    "
+    )
+    .unwrap();
+    for (test_name, test_dir) in test_cases {
+        let test_dir = test_dir.display();
+
+        generate_test_cases(
+            test_file,
+            &test_name,
+            &test_dir,
+            "interpret",
+            "interpret_execution_failure(nargo);",
+            &MatrixConfig { vary_brillig: true, ..Default::default() },
         );
     }
     writeln!(test_file, "}}").unwrap();
