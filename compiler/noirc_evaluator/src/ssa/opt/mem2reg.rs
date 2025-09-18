@@ -424,6 +424,10 @@ impl<'f> PerFunctionContext<'f> {
                 self.analyze_possibly_simplified_instruction(references, id, false);
             }
             InsertInstructionResult::SimplifiedTo(value) => {
+                // Globals cannot contain references thus we do not need to analyze insertion which simplified to them.
+                if self.inserter.function.dfg.is_global(value) {
+                    return;
+                }
                 let value = &self.inserter.function.dfg[value];
                 if let Value::Instruction { instruction, .. } = value {
                     self.analyze_possibly_simplified_instruction(references, *instruction, true);
@@ -431,6 +435,10 @@ impl<'f> PerFunctionContext<'f> {
             }
             InsertInstructionResult::SimplifiedToMultiple(values) => {
                 for value in values {
+                    // Globals cannot contain references thus we do not need to analyze insertion which simplified to them.
+                    if self.inserter.function.dfg.is_global(value) {
+                        continue;
+                    }
                     let value = &self.inserter.function.dfg[value];
                     if let Value::Instruction { instruction, .. } = value {
                         self.analyze_possibly_simplified_instruction(
@@ -2326,5 +2334,61 @@ mod tests {
         }
         "
         );
+    }
+
+    #[test]
+    fn simplify_to_global_instruction() {
+        // We want to have more global instructions than instructions in the function as we want
+        // to test that we never attempt to access a function's instruction map using a global instruction index.
+        // If we were to access the function's instruction map using the global instruction index in this case
+        // we would expect to hit an OOB panic.
+        // We also want to make sure that we simplify to a make array instructions as global constants will
+        // resolve directly to a constant.
+        let src = "
+        g0 = Field 1
+        g1 = Field 2
+        g2 = Field 3
+        g3 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        g4 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        g5 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        g6 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        g7 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        g8 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        g9 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        g10 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        g11 = make_array [g10, g10, g10] : [[Field; 3]; 3]
+  
+        acir(inline) fn main f0 {
+          b0():
+            v0 = allocate -> &mut [[Field; 3]; 3]
+            store g11 at v0
+            v1 = load v0 -> [[Field; 3]; 3]
+            v3 = array_get v1, index u32 0 -> [Field; 3]
+            return v3
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.mem2reg();
+
+        assert_ssa_snapshot!(ssa, @r"
+        g0 = Field 1
+        g1 = Field 2
+        g2 = Field 3
+        g3 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        g4 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        g5 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        g6 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        g7 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        g8 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        g9 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        g10 = make_array [Field 1, Field 2, Field 3] : [Field; 3]
+        g11 = make_array [g10, g10, g10] : [[Field; 3]; 3]
+        
+        acir(inline) fn main f0 {
+          b0():
+            v12 = allocate -> &mut [[Field; 3]; 3]
+            return g10
+        }
+        ");
     }
 }
