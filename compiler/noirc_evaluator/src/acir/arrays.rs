@@ -1,13 +1,3 @@
-//! Array handling for lowering SSA array operations to ACIR
-//!
-//! This module defines how Noir's high-level array and slice semantics
-//! are lowered into ACIR’s low-level, flat memory model. Arrays in SSA
-//! IR can appear as constants or dynamically allocated blocks.
-//! Our responsibility here is to
-//! preserve correctness while ensuring memory access is efficient and
-//! side-effect safe.
-//!
-
 use acvm::acir::{circuit::opcodes::BlockType, native_types::Witness};
 use acvm::{FieldElement, acir::AcirField, acir::circuit::opcodes::BlockId};
 use iter_extended::{try_vecmap, vecmap};
