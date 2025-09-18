@@ -1,4 +1,6 @@
-import { Buffer } from 'buffer';
+import * as buffer from 'buffer';
+
+const { Buffer } = buffer;
 
 // bb.js requires writeBigUInt64BE and readBigUInt64BE which are not present in buffer-esm
 // so we are adding custom implementations
@@ -50,6 +52,11 @@ if (!Buffer.prototype.readBigUInt64BE) {
 
 // Set Buffer as globalThis (window)
 if (!globalThis.Buffer) globalThis.Buffer = Buffer;
+
+// This is Node specific method and it is not
+if (!Buffer.allocUnsafeSlow) {
+  Buffer.allocUnsafeSlow = Buffer.allocUnsafe;
+}
 
 export { Buffer };
 export default Buffer;
