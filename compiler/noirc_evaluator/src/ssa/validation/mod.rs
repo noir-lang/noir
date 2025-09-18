@@ -778,7 +778,7 @@ impl<'f> Validator<'f> {
                 let input_length = assert_field_array(&input_type, "poseidon2_permutation _input");
                 assert_u32(&state_length_type, "poseidon2_permutation _state_length");
 
-                let result_type = self.assert_one_result(instruction, "posedion2_permutation");
+                let result_type = self.assert_one_result(instruction, "poseidon2_permutation");
                 let result_length =
                     assert_field_array(&result_type, "poseidon2_permutation result");
                 assert_eq!(
