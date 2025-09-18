@@ -1575,9 +1575,6 @@ impl<F: AcirField> AcirContext<F> {
             }
             Some(optional_value) => {
                 let mut values = Vec::new();
-                if let AcirValue::DynamicArray(_) = optional_value {
-                    unreachable!("Dynamic array should already be initialized");
-                }
                 self.initialize_array_inner(&mut values, optional_value)?;
                 values
             }
