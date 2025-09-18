@@ -13286,13 +13286,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"buffer-esm@npm:^1.2.0":
-  version: 1.2.0
-  resolution: "buffer-esm@npm:1.2.0"
-  checksum: 10/69bae6dd6ca0d1c6b9e408a8b61de4e70df884b2091464c02da32da503fbcb115208bf37c5afe6b3c4d64328b31c326e6b06231571c771988bc969f234023496
-  languageName: node
-  linkType: hard
-
 "buffer-from@npm:^1.0.0":
   version: 1.1.2
   resolution: "buffer-from@npm:1.1.2"
@@ -19127,7 +19120,7 @@ __metadata:
     "@web/dev-server-import-maps": "npm:^0.2.1"
     "@web/test-runner": "npm:^0.20.2"
     "@web/test-runner-playwright": "npm:^0.11.1"
-    buffer-esm: "npm:^1.2.0"
+    buffer: "npm:^6.0.3"
     eslint: "npm:^9.28.0"
     eslint-plugin-prettier: "npm:^5.4.1"
     ethers: "npm:^6.14.3"

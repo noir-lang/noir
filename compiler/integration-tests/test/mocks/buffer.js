@@ -1,4 +1,4 @@
-import * as buffer from 'buffer-esm';
+import * as buffer from 'buffer';
 
 const Buffer = buffer.BufferShim;
 
