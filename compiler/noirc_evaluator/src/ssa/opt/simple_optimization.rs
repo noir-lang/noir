@@ -132,7 +132,7 @@ impl SimpleOptimizationContext<'_, '_> {
 
     /// Check if the instruction has changed relative to its original contents,
     /// e.g. because any of its values have been replaced.
-    pub(crate) fn has_instruction_changed(&self) -> bool {
+    fn has_instruction_changed(&self) -> bool {
         // If the instruction changed, then there is a chance that we can (or have to)
         // simplify it before we insert it back into the block.
         let instruction_hash = rustc_hash::FxBuildHasher.hash_one(self.instruction());
