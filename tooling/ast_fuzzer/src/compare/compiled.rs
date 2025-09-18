@@ -160,7 +160,10 @@ impl Comparable for NargoErrorWithTypes {
                         || msg.contains("division by zero")
                 })
                 || both(&msg1, &msg2, |msg| {
-                    msg.contains("attempted to shift by") || msg.contains("bit-shift with overflow")
+                    msg.contains("attempted to shift by")
+                        || msg.contains("shift with overflow")
+                        || msg.contains("shift right with overflow")
+                        || msg.contains("shift left with overflow")
                 })
                 || both(&msg1, &msg2, |msg| {
                     // In Brillig we have constraints protecting overflows,
