@@ -65,7 +65,7 @@ impl std::fmt::Display for MemoryAddress {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             MemoryAddress::Direct(address) => write!(f, "@{address}"),
-            MemoryAddress::Relative(offset) => write!(f, "sp+{offset}"),
+            MemoryAddress::Relative(offset) => write!(f, "sp[{offset}]"),
         }
     }
 }
@@ -169,7 +169,7 @@ impl Default for HeapArray {
 
 impl std::fmt::Display for HeapArray {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "pointer {} size {}", self.pointer, self.size)
+        write!(f, "[{}; {}]", self.pointer, self.size)
     }
 }
 
@@ -183,7 +183,7 @@ pub struct HeapVector {
 
 impl std::fmt::Display for HeapVector {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "pointer {} size {}", self.pointer, self.size)
+        write!(f, "&[{}; {}]", self.pointer, self.size)
     }
 }
 
@@ -301,13 +301,13 @@ impl std::fmt::Display for ValueOrArray {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ValueOrArray::MemoryAddress(memory_address) => {
-                write!(f, "memory {memory_address}")
+                write!(f, "{memory_address}")
             }
             ValueOrArray::HeapArray(heap_array) => {
-                write!(f, "heap array {heap_array}")
+                write!(f, "{heap_array}")
             }
             ValueOrArray::HeapVector(heap_vector) => {
-                write!(f, "heap vector {heap_vector}")
+                write!(f, "{heap_vector}")
             }
         }
     }
@@ -473,7 +473,7 @@ impl<F: std::fmt::Display> std::fmt::Display for BrilligOpcode<F> {
             BrilligOpcode::CalldataCopy { destination_address, size_address, offset_address } => {
                 write!(
                     f,
-                    "{destination_address} = calldata copy size {size_address} offset {offset_address}"
+                    "{destination_address} = calldata copy [{offset_address}; {size_address}]"
                 )
             }
             BrilligOpcode::Call { location } => {
