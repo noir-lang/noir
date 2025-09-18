@@ -51,6 +51,8 @@ export default {
   plugins: [
     esbuildPlugin({
       ts: true,
+      nodeResolve: true,
+      commonjs: true,
     }),
     importMapsPlugin({
       inject: {
