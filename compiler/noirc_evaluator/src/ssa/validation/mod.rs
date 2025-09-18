@@ -740,10 +740,8 @@ impl<'f> Validator<'f> {
                 //     points: [EmbeddedCurvePoint; N],
                 //     scalars: [EmbeddedCurveScalar; N],
                 // ) -> [EmbeddedCurvePoint; 1] {}
-                assert_arguments_length(arguments, 2, "multi_scalar_mul");
-
-                let points_type = dfg.type_of_value(arguments[0]);
-                let scalars_type = dfg.type_of_value(arguments[1]);
+                let (points_type, scalars_type) =
+                    self.assert_two_arguments(arguments, "multi_scalar_mul");
 
                 let (points_elements, points_length) =
                     assert_array(&points_type, "multi_scalar_mul points");
@@ -772,10 +770,7 @@ impl<'f> Validator<'f> {
             }
             BlackBoxFunc::Poseidon2Permutation => {
                 // fn poseidon2_permutation<let N: u32>(_input: [Field; N]) -> [Field; N] {}
-                assert_arguments_length(arguments, 2, "poseidon2_permutation");
-
-                let input = arguments[0];
-                let input_type = dfg.type_of_value(input);
+                let input_type = self.assert_one_argument(arguments, "poseidon2_permutation");
                 let input_length = assert_field_array(&input_type, "poseidon2_permutation _input");
 
                 let result_type = self.assert_one_result(instruction, "poseidon2_permutation");
