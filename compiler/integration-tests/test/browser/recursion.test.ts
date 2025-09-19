@@ -49,8 +49,11 @@ describe('It compiles noir program code, receiving circuit bytes and abi object.
 
     // Get verification key for inner circuit as fields
     const innerCircuitVerificationKey = await main_backend.getVerificationKey();
+    main_backend.destroy();
+
     const barretenbergAPI = await Barretenberg.new({ threads: 1 });
     const vkAsFields = await barretenbergAPI.acirVkAsFieldsUltraHonk(new RawBuffer(innerCircuitVerificationKey));
+    barretenbergAPI.destroy();
 
     const recursion_inputs: InputMap = {
       verification_key: vkAsFields.map((field) => field.toString()),

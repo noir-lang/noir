@@ -22,7 +22,12 @@ if (process.env.CI !== 'true' || process.env.RUNNER_DEBUG === '1') {
 
 export default {
   browsers: [
-    playwrightLauncher({ product: 'chromium' }),
+    playwrightLauncher({
+      product: 'chromium',
+      createBrowserContext: async ({ browser }) => {
+        return await browser.newContext(); // fresh WASM memory per it()
+      },
+    }),
     // playwrightLauncher({ product: "webkit" }),
     // playwrightLauncher({ product: "firefox" }),
   ],
