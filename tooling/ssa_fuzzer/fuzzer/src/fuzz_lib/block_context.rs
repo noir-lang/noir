@@ -603,7 +603,7 @@ impl BlockContext {
                     }
                 }
             }
-            Instruction::PointAdd { p1, p2 } => {
+            Instruction::PointAdd { p1, p2, predicate } => {
                 if !self.options.instruction_options.point_add_enabled {
                     return;
                 }
@@ -614,12 +614,12 @@ impl BlockContext {
                 }
                 let p1 = p1.unwrap();
                 let p2 = p2.unwrap();
-                let acir_point = builder.point_add(p1.clone(), p2.clone());
+                let acir_point = builder.point_add(p1.clone(), p2.clone(), predicate);
                 for typed_value in [&acir_point.x, &acir_point.y, &acir_point.is_infinite] {
                     self.store_variable(typed_value);
                 }
             }
-            Instruction::MultiScalarMul { points_and_scalars } => {
+            Instruction::MultiScalarMul { points_and_scalars, predicate } => {
                 if !self.options.instruction_options.multi_scalar_mul_enabled {
                     return;
                 }
@@ -640,7 +640,8 @@ impl BlockContext {
                 if points_vec.len() != scalars_vec.len() {
                     unreachable!("points_vec.len() != scalars_vec.len()");
                 }
-                let point = builder.multi_scalar_mul(points_vec.clone(), scalars_vec.clone());
+                let point =
+                    builder.multi_scalar_mul(points_vec.clone(), scalars_vec.clone(), predicate);
                 for typed_value in [&point.x, &point.y, &point.is_infinite] {
                     self.store_variable(typed_value);
                 }
@@ -651,6 +652,7 @@ impl BlockContext {
                 corrupt_pubkey_x,
                 corrupt_pubkey_y,
                 corrupt_signature,
+                predicate,
             } => {
                 if !self.options.instruction_options.ecdsa_secp256r1_enabled {
                     return;
@@ -668,6 +670,7 @@ impl BlockContext {
                     prepared_signature.public_key_y.clone(),
                     prepared_signature.hash.clone(),
                     prepared_signature.signature.clone(),
+                    predicate,
                 );
                 self.store_variable(&result);
             }
@@ -677,6 +680,7 @@ impl BlockContext {
                 corrupt_pubkey_x,
                 corrupt_pubkey_y,
                 corrupt_signature,
+                predicate,
             } => {
                 if !self.options.instruction_options.ecdsa_secp256k1_enabled {
                     return;
@@ -694,6 +698,7 @@ impl BlockContext {
                     prepared_signature.public_key_y.clone(),
                     prepared_signature.hash.clone(),
                     prepared_signature.signature.clone(),
+                    predicate,
                 );
                 self.store_variable(&result);
             }

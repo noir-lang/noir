@@ -199,13 +199,10 @@ impl<F: AcirField> MergeExpressionsOptimizer<F> {
 
                 witnesses
             }
-            Opcode::MemoryOp { block_id: _, op, predicate } => {
-                //index, value, and predicate
+            Opcode::MemoryOp { block_id: _, op } => {
+                //index and value
                 let mut witnesses = CircuitSimulator::expr_wit(&op.index);
                 witnesses.extend(CircuitSimulator::expr_wit(&op.value));
-                if let Some(p) = predicate {
-                    witnesses.extend(CircuitSimulator::expr_wit(p));
-                }
                 witnesses
             }
 
@@ -341,7 +338,7 @@ mod tests {
         EXPR [ (1, w0, w1) (1, w5) 0 ]
         EXPR [ (-1, w2) (1, w4) (1, w5) 0 ]
         EXPR [ (1, w2) (-1, w3) (1, w4) (1, w5) 0 ]
-        BLACKBOX::RANGE [(w3, 32)] []
+        BLACKBOX::RANGE [w3]:32 bits []
         ";
         let circuit = Circuit::from_str(src).unwrap();
 
@@ -353,7 +350,7 @@ mod tests {
         return values: []
         EXPR [ (1, w0, w1) (1, w5) 0 ]
         EXPR [ (2, w0, w0) (-1, w3) (2, w5) 0 ]
-        BLACKBOX::RANGE [(w3, 32)] []
+        BLACKBOX::RANGE [w3]:32 bits []
         ");
     }
 
@@ -369,7 +366,7 @@ mod tests {
         public parameters: []
         return values: [w2]
         BRILLIG CALL func 0: inputs: [], outputs: [w3]
-        BLACKBOX::AND [(w0, 8), (w1, 8)] [w4]
+        BLACKBOX::AND [w0, w1]:8 bits [w4]
         EXPR [ (1, w3) (-1, w4) 0 ]
         EXPR [ (-1, w2) (1, w4) 0 ]
         ";

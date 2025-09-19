@@ -14,11 +14,13 @@ const test_cases = [
   {
     case: 'test_programs/execution_success/a_1_mul',
     compiled: 'contracts/a_1_mul.sol:HonkVerifier',
+    zk_lib: 'contracts/a_1_mul.sol:ZKTranscriptLib',
     numPublicInputs: 0,
   },
   {
     case: 'test_programs/execution_success/assert_statement',
     compiled: 'contracts/assert_statement.sol:HonkVerifier',
+    zk_lib: 'contracts/assert_statement.sol:ZKTranscriptLib',
     numPublicInputs: 1,
   },
 ];
@@ -45,7 +47,7 @@ test_cases.forEach((testInfo) => {
     const prover_toml = readFileSync(resolve(`${base_relative_path}/${test_case}/Prover.toml`)).toString();
     const inputs = toml.parse(prover_toml);
     const { witness } = await program.execute(inputs);
-
+    console.log(witness);
     const backend = new UltraHonkBackend(noir_program.bytecode);
     const proofData = await backend.generateProof(witness, { keccakZK: true });
 
@@ -56,7 +58,15 @@ test_cases.forEach((testInfo) => {
 
     // Smart contract verification
 
-    const contract = await ethers.deployContract(testInfo.compiled, []);
+    // Link the ZKTranscriptLib
+    const ZKTranscriptLib = await ethers.deployContract(testInfo.zk_lib);
+    await ZKTranscriptLib.waitForDeployment();
+
+    const contract = await ethers.deployContract(testInfo.compiled, [], {
+      libraries: {
+        ZKTranscriptLib: await ZKTranscriptLib.getAddress(),
+      },
+    });
 
     const result = await contract.verify(proofData.proof, proofData.publicInputs);
 

@@ -46,7 +46,7 @@ libraries:
     critical: true
   sparse_array:
     repo: noir-lang/sparse_array
-    timeout: 3
+    timeout: 10
     critical: false
   noir_json_parser:
     repo: noir-lang/noir_json_parser

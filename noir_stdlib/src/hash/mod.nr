@@ -92,7 +92,7 @@ pub fn pedersen_hash_with_separator<let N: u32>(input: [Field; N], separator: u3
     let length_generator: [EmbeddedCurvePoint; 1] =
         derive_generators("pedersen_hash_length".as_bytes(), 0);
     generators[N] = length_generator[0];
-    multi_scalar_mul_array_return(generators, scalars)[0].x
+    multi_scalar_mul_array_return(generators, scalars, true)[0].x
 }
 
 #[field(bn254)]
@@ -125,8 +125,13 @@ fn from_field_unsafe(scalar: Field) -> EmbeddedCurveScalar {
     EmbeddedCurveScalar { lo: xlo, hi: xhi }
 }
 
+pub fn poseidon2_permutation<let N: u32>(input: [Field; N], state_len: u32) -> [Field; N] {
+    assert_eq(input.len(), state_len);
+    poseidon2_permutation_internal(input)
+}
+
 #[foreign(poseidon2_permutation)]
-pub fn poseidon2_permutation<let N: u32>(_input: [Field; N], _state_length: u32) -> [Field; N] {}
+fn poseidon2_permutation_internal<let N: u32>(input: [Field; N]) -> [Field; N] {}
 
 // Generic hashing support.
 // Partially ported and impacted by rust.

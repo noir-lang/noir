@@ -106,7 +106,7 @@ impl Context<'_> {
         };
 
         // For 0-length arrays and slices, even the disabled memory operations would cause runtime failures.
-        // Set rhe result to a zero value that matches the type then bypass the rest of the operation,
+        // Set the result to a zero value that matches the type then bypass the rest of the operation,
         // leaving an assertion that the side effect variable must be false.
         if self.has_zero_length(array, dfg) {
             // Zero result.

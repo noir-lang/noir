@@ -345,12 +345,6 @@ pub enum BrilligOpcode<F> {
         source: MemoryAddress,
         bit_size: BitSize,
     },
-    /// Sets the program counter to the value of `location` if
-    /// the value at the `condition` address is zero.
-    JumpIfNot {
-        condition: MemoryAddress,
-        location: Label,
-    },
     /// Sets the program counter to the value of `location`
     /// If the value at `condition` is non-zero
     JumpIf {
@@ -460,9 +454,6 @@ impl<F: std::fmt::Display> std::fmt::Display for BrilligOpcode<F> {
             }
             BrilligOpcode::Cast { destination, source, bit_size } => {
                 write!(f, "{destination} = cast {source} to {bit_size}")
-            }
-            BrilligOpcode::JumpIfNot { condition, location } => {
-                write!(f, "jump if not {condition} to {location}")
             }
             BrilligOpcode::JumpIf { condition, location } => {
                 write!(f, "jump if {condition} to {location}")

@@ -31,6 +31,7 @@ fn smoke_test_embedded_curve_add() {
             derive_from_scalar_mul: true,
             is_infinite: false,
         },
+        predicate: true,
     };
     let block = InstructionBlock { instructions: vec![add_instruction] };
     let commands = vec![];
@@ -76,6 +77,7 @@ fn smoke_test_embedded_multi_scalar_mul() {
     let gen_point = Point { scalar: base_scalar, derive_from_scalar_mul: true, is_infinite: false };
     let instruction = Instruction::MultiScalarMul {
         points_and_scalars: vec![(gen_point, scalar_1), (gen_point, scalar_2)],
+        predicate: true,
     };
     let block = InstructionBlock { instructions: vec![instruction] };
     let commands = vec![];

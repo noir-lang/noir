@@ -42,21 +42,9 @@ pub enum BlackBoxOp {
         input2_infinite: MemoryAddress,
         result: HeapArray,
     },
-    /// BigInt addition
-    BigIntAdd { lhs: MemoryAddress, rhs: MemoryAddress, output: MemoryAddress },
-    /// BigInt subtraction
-    BigIntSub { lhs: MemoryAddress, rhs: MemoryAddress, output: MemoryAddress },
-    /// BigInt multiplication
-    BigIntMul { lhs: MemoryAddress, rhs: MemoryAddress, output: MemoryAddress },
-    /// BigInt division
-    BigIntDiv { lhs: MemoryAddress, rhs: MemoryAddress, output: MemoryAddress },
-    /// BigInt from le bytes
-    BigIntFromLeBytes { inputs: HeapVector, modulus: HeapVector, output: MemoryAddress },
-    /// BigInt to le bytes
-    BigIntToLeBytes { input: MemoryAddress, output: HeapVector },
     /// Applies the Poseidon2 permutation function to the given state,
     /// outputting the permuted state.
-    Poseidon2Permutation { message: HeapVector, output: HeapArray, len: MemoryAddress },
+    Poseidon2Permutation { message: HeapVector, output: HeapArray },
     /// Applies the SHA-256 compression function to the input message
     Sha256Compression { input: HeapArray, hash_values: HeapArray, output: HeapArray },
     /// Returns a decomposition in `num_limbs` limbs of the given input over the given radix.
@@ -139,29 +127,8 @@ impl std::fmt::Display for BlackBoxOp {
                     "embedded_curve_add(input1_x: {input1_x}, input1_y: {input1_y}, input1_infinite: {input1_infinite}, input2_x: {input2_x}, input2_y: {input2_y}, input2_infinite: {input2_infinite}, result: {result})"
                 )
             }
-            BlackBoxOp::BigIntAdd { lhs, rhs, output } => {
-                write!(f, "big_int_add(lhs: {lhs}, rhs: {rhs}, output: {output})")
-            }
-            BlackBoxOp::BigIntSub { lhs, rhs, output } => {
-                write!(f, "big_int_sub(lhs: {lhs}, rhs: {rhs}, output: {output})")
-            }
-            BlackBoxOp::BigIntMul { lhs, rhs, output } => {
-                write!(f, "big_int_mul(lhs: {lhs}, rhs: {rhs}, output: {output})")
-            }
-            BlackBoxOp::BigIntDiv { lhs, rhs, output } => {
-                write!(f, "big_int_div(lhs: {lhs}, rhs: {rhs}, output: {output})")
-            }
-            BlackBoxOp::BigIntFromLeBytes { inputs, modulus, output } => {
-                write!(
-                    f,
-                    "big_int_from_le_bytes(inputs: {inputs}, modulus: {modulus}, output: {output})"
-                )
-            }
-            BlackBoxOp::BigIntToLeBytes { input, output } => {
-                write!(f, "big_int_to_le_bytes(input: {input}, output: {output})")
-            }
-            BlackBoxOp::Poseidon2Permutation { message, output, len } => {
-                write!(f, "poseidon2_permutation(message: {message}, len: {len}, output: {output})")
+            BlackBoxOp::Poseidon2Permutation { message, output } => {
+                write!(f, "poseidon2_permutation(message: {message}, output: {output})")
             }
             BlackBoxOp::Sha256Compression { input, hash_values, output } => {
                 write!(

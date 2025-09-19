@@ -142,13 +142,14 @@ pub fn multi_scalar_mul<let N: u32>(
 ) -> EmbeddedCurvePoint
 // docs:end:multi_scalar_mul
 {
-    multi_scalar_mul_array_return(points, scalars)[0]
+    multi_scalar_mul_array_return(points, scalars, true)[0]
 }
 
 #[foreign(multi_scalar_mul)]
 pub(crate) fn multi_scalar_mul_array_return<let N: u32>(
     points: [EmbeddedCurvePoint; N],
     scalars: [EmbeddedCurveScalar; N],
+    predicate: bool,
 ) -> [EmbeddedCurvePoint; 1] {}
 
 // docs:start:fixed_base_scalar_mul
@@ -234,6 +235,7 @@ pub fn embedded_curve_add(
 fn embedded_curve_add_array_return(
     _point1: EmbeddedCurvePoint,
     _point2: EmbeddedCurvePoint,
+    _predicate: bool,
 ) -> [EmbeddedCurvePoint; 1] {}
 
 /// This function assumes that:
@@ -264,5 +266,5 @@ pub fn embedded_curve_add_unsafe(
     point1: EmbeddedCurvePoint,
     point2: EmbeddedCurvePoint,
 ) -> EmbeddedCurvePoint {
-    embedded_curve_add_array_return(point1, point2)[0]
+    embedded_curve_add_array_return(point1, point2, true)[0]
 }

@@ -1667,7 +1667,7 @@ mod test {
           b3():
             v11 = load v5 -> [Field; 4]
             inc_rc v11
-            v14 = call poseidon2_permutation(v11, u32 4) -> [Field; 4]
+            v14 = call poseidon2_permutation(v11) -> [Field; 4]
             store v14 at v5
             return
           b4():
