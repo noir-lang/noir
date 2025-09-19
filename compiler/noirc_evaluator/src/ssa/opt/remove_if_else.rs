@@ -89,6 +89,9 @@
 //! The result of the removed `IfElse` instruction, array `v24`, is a merge of each of the elements of `v5` and `v8`.
 //! The elements at index 0 are replaced by their known value, instead of doing an additional array get.
 //! Operations with the conditions are unchecked operations, because the conditions are 0 or 1, so it cannot overflow.
+//!
+//! For slices the logic is similar except that slice lengths need to be tracked in order to know
+//! the length of the merge slice.
 
 use std::collections::hash_map::Entry;
 
