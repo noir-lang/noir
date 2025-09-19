@@ -1667,30 +1667,24 @@ mod tests {
     #[test]
     #[should_panic(expected = "ArrayGet/ArraySet index must be u32")]
     fn array_get_wrong_index_type() {
-        let src = format!(
-            r#"
-        acir(inline) predicate_pure fn main f0 {{
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
           b0(v0: [u8; 3], v1: u64):
             v2 = array_get v0, index v1 -> u32
             return v2
-        }}
-        "#
-        );
-        let _ = Ssa::from_str(&src).unwrap();
+        }";
+        let _ = Ssa::from_str(src).unwrap();
     }
 
     #[test]
     #[should_panic(expected = "ArrayGet/ArraySet must operate on an array")]
     fn array_get_wrong_array_type() {
-        let src = format!(
-            r#"
-        acir(inline) predicate_pure fn main f0 {{
+        let src = "
+        acir(inline) predicate_pure fn main f0 {
           b0(v0: u32, v1: u32):
             v2 = array_get v0, index v1 -> u32
             return v2
-        }}
-        "#
-        );
-        let _ = Ssa::from_str(&src).unwrap();
+        }";
+        let _ = Ssa::from_str(src).unwrap();
     }
 }
