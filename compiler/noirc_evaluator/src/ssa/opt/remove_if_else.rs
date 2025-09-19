@@ -1,5 +1,5 @@
-//! This file contains the SSA `remove_if_else` pass - a required pass for ACIR to remove any remaining
-//! `Instruction::IfElse` in the singular program-function, and replace them with
+//! This file contains the SSA `remove_if_else` pass - a required pass for ACIR to remove any
+//! remaining`Instruction::IfElse` in the singular program-function, and replace them with
 //! arithmetic operations using the `then_condition`.
 //!
 //! ACIR/Brillig differences within this pass:
@@ -9,15 +9,18 @@
 //! Conditions:
 //!   - Precondition: Flatten CFG has been performed which should result in the function having only
 //!     one basic block.
-//!   - Precondition: `then_value` and `else_value` of `Instruction::IfElse` return arrays or slices. Numeric values should be handled previously by the flattening pass.
+//!   - Precondition: `then_value` and `else_value` of `Instruction::IfElse` return arrays or slices.
+//!     Numeric values should be handled previously by the flattening pass.
 //!     Reference or function values are not handled by remove if-else and will cause an error.
 //!   - Postcondition: A program without any `IfElse` instructions.
 //!
 //! Relevance to other passes:
-//!   - Flattening inserts `Instruction::IfElse` to merge array or slice values from an if-expression's "then"
-//!     and "else" branches. `Instruction::IfElse` with numeric values are directly handled during flattening,
-//!     [via instruction simplification][crate::ssa::ir::dfg::simplify::simplify], and will cause a panic in the `remove_if_else` pass.
-//!   - Defunctionalize removes first-class function values from the program which eliminates the need for remove-if-else to handle `Instruction::IfElse` returning function values.
+//!   - Flattening inserts `Instruction::IfElse` to merge array or slice values from an
+//!     if-expression's "then" and "else" branches. `Instruction::IfElse` with numeric values are
+//!     directly handled during flattening, [via instruction simplification][crate::ssa::ir::dfg::simplify::simplify],
+//!     and will cause a panic in the `remove_if_else` pass.
+//!   - Defunctionalize removes first-class function values from the program which eliminates the need
+//!     for remove-if-else to handle `Instruction::IfElse` returning function values.
 //!
 //! Implementation details & examples:
 //! `IfElse` instructions choose between its two operand values,
