@@ -15,8 +15,8 @@
 //!
 //! Relevance to other passes:
 //!   - Flattening inserts `Instruction::IfElse` to merge array or slice values from an if-expression's "then"
-//!     and "else" branches. `Instruction::IfElse` with numeric values are directly handled during the flattening
-//!     and will cause a panic in the `remove_if_else` pass.
+//!     and "else" branches. `Instruction::IfElse` with numeric values are directly handled during flattening,
+//!     [via instruction simplification][crate::ssa::ir::dfg::simplify::simplify], and will cause a panic in the `remove_if_else` pass.
 //!   - Defunctionalize removes first-class function values from the program which eliminates the need for remove-if-else to handle `Instruction::IfElse` returning function values.
 //!
 //! Implementation details & examples:
