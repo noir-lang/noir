@@ -55,7 +55,7 @@ if (!Buffer.prototype.readBigUInt64BE) {
 }
 
 // Set Buffer as globalThis (window)
-if (!globalThis.Buffer) globalThis.Buffer = buffer.BufferShim;
+if (!globalThis.Buffer) globalThis.Buffer = Buffer;
 
 export { Buffer };
 export default Buffer;
