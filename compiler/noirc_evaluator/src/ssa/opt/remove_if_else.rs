@@ -450,7 +450,7 @@ mod tests {
     }
 
     #[test]
-    fn try_merge_only_changed_indices() {
+    fn merges_all_indices_even_if_they_did_not_change() {
         // This is the flattened SSA for the following Noir logic:
         // ```
         // fn main(x: bool, mut y: [u32; 2]) {
@@ -483,10 +483,10 @@ mod tests {
         let mut ssa = Ssa::from_str(src).unwrap();
         ssa = ssa.remove_if_else().unwrap();
 
-        // We attempt to optimize array mergers to only handle where an array was modified,
-        // rather than merging the entire array. As we only modify the `y` array at a single index,
-        // we instead only map the if predicate onto the the numeric value we are looking to write,
-        // and then write into the array directly.
+        // In the past we used to optimize array mergers to only handle where an array was modified,
+        // rather than merging the entire array.
+        // However, that was removed in https://github.com/noir-lang/noir/pull/8142
+        // Pending: investigate if this can be brought back: https://github.com/noir-lang/noir/issues/8145
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) predicate_pure fn main f0 {
           b0(v0: u1, v1: [u32; 2]):
@@ -519,23 +519,23 @@ mod tests {
     #[test]
     fn merge_slice() {
         let src = "
-acir(inline) impure fn main f0 {
-  b0(v0: u1, v1: Field, v2: Field):
-    v3 = make_array [] : [Field]   
-    v4 = allocate -> &mut u32       
-    v5 = allocate -> &mut [Field]    
-    enable_side_effects v0
-    v6 = cast v0 as u32
-    v7, v8 = call slice_push_back(v6, v3, v2) -> (u32, [Field])
-    v9 = not v0                                   
-    v10 = cast v0 as u32   
-    v12 = if v0 then v8 else (if v9) v3   
-    enable_side_effects u1 1        
-    v15, v16 = call slice_push_back(v10, v12, v2) -> (u32, [Field])
-    v17 = array_get v16, index u32 0 -> Field    
-    constrain v17 == Field 1
-    return
-}
+        acir(inline) impure fn main f0 {
+          b0(v0: u1, v1: Field, v2: Field):
+            v3 = make_array [] : [Field]   
+            v4 = allocate -> &mut u32       
+            v5 = allocate -> &mut [Field]    
+            enable_side_effects v0
+            v6 = cast v0 as u32
+            v7, v8 = call slice_push_back(v6, v3, v2) -> (u32, [Field])
+            v9 = not v0                                   
+            v10 = cast v0 as u32   
+            v12 = if v0 then v8 else (if v9) v3   
+            enable_side_effects u1 1        
+            v15, v16 = call slice_push_back(v10, v12, v2) -> (u32, [Field])
+            v17 = array_get v16, index u32 0 -> Field    
+            constrain v17 == Field 1
+            return
+        }
         ";
 
         let mut ssa = Ssa::from_str(src).unwrap();
