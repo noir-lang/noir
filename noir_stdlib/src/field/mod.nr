@@ -155,7 +155,7 @@ impl Field {
         bytes
     }
 
-    fn to_le_radix<let N: u32>(self: Self, radix: u32) -> [u8; N] {
+    pub fn to_le_radix<let N: u32>(self: Self, radix: u32) -> [u8; N] {
         // Brillig does not need an immediate radix
         if !crate::runtime::is_unconstrained() {
             static_assert(1 < radix, "radix must be greater than 1");
@@ -165,7 +165,7 @@ impl Field {
         __to_le_radix(self, radix)
     }
 
-    fn to_be_radix<let N: u32>(self: Self, radix: u32) -> [u8; N] {
+    pub fn to_be_radix<let N: u32>(self: Self, radix: u32) -> [u8; N] {
         // Brillig does not need an immediate radix
         if !crate::runtime::is_unconstrained() {
             static_assert(1 < radix, "radix must be greater than 1");
