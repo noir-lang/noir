@@ -67,6 +67,7 @@ test_cases.forEach((testInfo) => {
     const backend = new UltraHonkBackend(noir_program.bytecode, { logger: debugLogger });
     const proof = await backend.generateProof(witness);
     const verificationKey = await backend.getVerificationKey();
+    await backend.destroy();
 
     // JS verification
     const verifier_backend = new UltraHonkVerifierBackend();
