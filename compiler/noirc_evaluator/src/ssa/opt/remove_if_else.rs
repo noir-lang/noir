@@ -607,4 +607,332 @@ mod tests {
         }
         ");
     }
+
+    #[test]
+    fn merge_slice_with_slice_push_front() {
+        let src = "
+        acir(inline) impure fn main f0 {
+          b0(v0: u1, v1: Field, v2: Field):
+            v3 = make_array [] : [Field]
+            v4 = allocate -> &mut u32
+            v5 = allocate -> &mut [Field]
+            enable_side_effects v0
+            v6 = cast v0 as u32
+            v7, v8 = call slice_push_front(v6, v3, v2) -> (u32, [Field])
+            v9 = not v0
+            v10 = cast v0 as u32
+            v12 = if v0 then v8 else (if v9) v3
+            enable_side_effects u1 1
+            v15, v16 = call slice_push_front(v10, v12, v2) -> (u32, [Field])
+            v17 = array_get v16, index u32 0 -> Field
+            constrain v17 == Field 1
+            return
+        }
+        ";
+
+        let mut ssa = Ssa::from_str(src).unwrap();
+        ssa = ssa.remove_if_else().unwrap();
+
+        // Here v17 is the result of merging the original slice value with a dummy value
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) impure fn main f0 {
+          b0(v0: u1, v1: Field, v2: Field):
+            v3 = make_array [] : [Field]
+            v4 = allocate -> &mut u32
+            v5 = allocate -> &mut [Field]
+            enable_side_effects v0
+            v6 = cast v0 as u32
+            v8, v9 = call slice_push_front(v6, v3, v2) -> (u32, [Field])
+            v10 = not v0
+            v11 = cast v0 as u32
+            v13 = array_get v9, index u32 0 -> Field
+            v14 = cast v0 as Field
+            v15 = cast v10 as Field
+            v16 = mul v14, v13
+            v17 = make_array [v16] : [Field]
+            enable_side_effects u1 1
+            v20 = add v11, u32 1
+            v21 = make_array [v2, v16] : [Field]
+            constrain v2 == Field 1
+            return
+        }
+        ");
+    }
+
+    #[test]
+    fn merge_slice_with_as_slice_and_slice_push_front() {
+        // Same as the previous test, but using `as_slice` to prove that slice length tracking
+        // is working correctly.
+        let src = "
+        acir(inline) impure fn main f0 {
+          b0(v0: u1, v1: Field, v2: Field):
+            v102 = make_array [] : [Field; 0]
+            v103, v3 = call as_slice(v102) -> (u32, [Field])
+            v4 = allocate -> &mut u32
+            v5 = allocate -> &mut [Field]
+            enable_side_effects v0
+            v6 = cast v0 as u32
+            v7, v8 = call slice_push_front(v6, v3, v2) -> (u32, [Field])
+            v9 = not v0
+            v10 = cast v0 as u32
+            v12 = if v0 then v8 else (if v9) v3
+            enable_side_effects u1 1
+            v15, v16 = call slice_push_front(v10, v12, v2) -> (u32, [Field])
+            v17 = array_get v16, index u32 0 -> Field
+            constrain v17 == Field 1
+            return
+        }
+        ";
+
+        let mut ssa = Ssa::from_str(src).unwrap();
+        ssa = ssa.remove_if_else().unwrap();
+
+        // Here v19 is the result of merging the original slice value with a dummy value
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) impure fn main f0 {
+          b0(v0: u1, v1: Field, v2: Field):
+            v3 = make_array [] : [Field; 0]
+            v5, v6 = call as_slice(v3) -> (u32, [Field])
+            v7 = allocate -> &mut u32
+            v8 = allocate -> &mut [Field]
+            enable_side_effects v0
+            v9 = cast v0 as u32
+            v11, v12 = call slice_push_front(v9, v6, v2) -> (u32, [Field])
+            v13 = not v0
+            v14 = cast v0 as u32
+            v16 = array_get v12, index u32 0 -> Field
+            v17 = cast v0 as Field
+            v18 = cast v13 as Field
+            v19 = mul v17, v16
+            v20 = make_array [v19] : [Field]
+            enable_side_effects u1 1
+            v23 = add v14, u32 1
+            v24 = make_array [v2, v19] : [Field]
+            constrain v2 == Field 1
+            return
+        }
+        ");
+    }
+
+    #[test]
+    fn merge_slice_with_slice_insert() {
+        let src = "
+        acir(inline) impure fn main f0 {
+          b0(v0: u1, v1: Field, v2: Field):
+            v3 = make_array [] : [Field]
+            v4 = allocate -> &mut u32
+            v5 = allocate -> &mut [Field]
+            enable_side_effects v0
+            v6 = cast v0 as u32
+            v7, v8 = call slice_insert(v6, v3, u32 0, v2) -> (u32, [Field])
+            v9 = not v0
+            v10 = cast v0 as u32
+            v12 = if v0 then v8 else (if v9) v3
+            enable_side_effects u1 1
+            v15, v16 = call slice_insert(v10, v12, u32 0, v2) -> (u32, [Field])
+            v17 = array_get v16, index u32 0 -> Field
+            constrain v17 == Field 1
+            return
+        }
+        ";
+
+        let mut ssa = Ssa::from_str(src).unwrap();
+        ssa = ssa.remove_if_else().unwrap();
+
+        // Here v14 is the result of merging the original slice value with a dummy value
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) impure fn main f0 {
+          b0(v0: u1, v1: Field, v2: Field):
+            v3 = make_array [] : [Field]
+            v4 = allocate -> &mut u32
+            v5 = allocate -> &mut [Field]
+            enable_side_effects v0
+            v6 = cast v0 as u32
+            v9, v10 = call slice_insert(v6, v3, u32 0, v2) -> (u32, [Field])
+            v11 = not v0
+            v12 = cast v0 as u32
+            v13 = array_get v10, index u32 0 -> Field
+            v14 = cast v0 as Field
+            v15 = cast v11 as Field
+            v16 = mul v14, v13
+            v17 = make_array [v16] : [Field]
+            enable_side_effects u1 1
+            v20 = add v12, u32 1
+            v21 = make_array [v2, v16] : [Field]
+            constrain v2 == Field 1
+            return
+        }
+        ");
+    }
+
+    #[test]
+    fn merge_slice_with_slice_pop_back() {
+        let src = "
+        acir(inline) impure fn main f0 {
+          b0(v0: u1, v1: Field, v2: Field):
+            v3 = make_array [Field 2, Field 3] : [Field]
+            v4 = allocate -> &mut u32
+            v5 = allocate -> &mut [Field]
+            enable_side_effects v0
+            v6 = cast v0 as u32
+            v7, v8, v100 = call slice_pop_back(v6, v3) -> (u32, [Field], Field)
+            v9 = not v0
+            v10 = cast v0 as u32
+            v12 = if v0 then v8 else (if v9) v3
+            enable_side_effects u1 1
+            v15, v16, v101 = call slice_pop_back(v10, v12) -> (u32, [Field], Field)
+            v17 = array_get v16, index u32 0 -> Field
+            constrain v17 == Field 1
+            return
+        }
+        ";
+
+        let mut ssa = Ssa::from_str(src).unwrap();
+        ssa = ssa.remove_if_else().unwrap();
+
+        // Here [v21, v24] is the result of merging the original slice (`[Field 2, Field 3]`)
+        // where for v24 there's a dummy value in one of the cases.
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) impure fn main f0 {
+          b0(v0: u1, v1: Field, v2: Field):
+            v5 = make_array [Field 2, Field 3] : [Field]
+            v6 = allocate -> &mut u32
+            v7 = allocate -> &mut [Field]
+            enable_side_effects v0
+            v8 = cast v0 as u32
+            v10, v11, v12 = call slice_pop_back(v8, v5) -> (u32, [Field], Field)
+            v13 = not v0
+            v14 = cast v0 as u32
+            v16 = array_get v11, index u32 0 -> Field
+            v17 = cast v0 as Field
+            v18 = cast v13 as Field
+            v19 = mul v17, v16
+            v20 = mul v18, Field 2
+            v21 = add v19, v20
+            v22 = cast v0 as Field
+            v23 = cast v13 as Field
+            v24 = mul v23, Field 3
+            v25 = make_array [v21, v24] : [Field]
+            enable_side_effects u1 1
+            v27, v28, v29 = call slice_pop_back(v14, v25) -> (u32, [Field], Field)
+            v30 = array_get v28, index u32 0 -> Field
+            constrain v30 == Field 1
+            return
+        }
+        ");
+    }
+
+    #[test]
+    fn merge_slice_with_slice_pop_front() {
+        let src = "
+        acir(inline) impure fn main f0 {
+          b0(v0: u1, v1: Field, v2: Field):
+            v3 = make_array [Field 2, Field 3] : [Field]
+            v4 = allocate -> &mut u32
+            v5 = allocate -> &mut [Field]
+            enable_side_effects v0
+            v6 = cast v0 as u32
+            v100, v7, v8 = call slice_pop_front(v6, v3) -> (Field, u32, [Field])
+            v9 = not v0
+            v10 = cast v0 as u32
+            v12 = if v0 then v8 else (if v9) v3
+            enable_side_effects u1 1
+            v101, v15, v16 = call slice_pop_front(v10, v12) -> (Field, u32, [Field])
+            v17 = array_get v16, index u32 0 -> Field
+            constrain v17 == Field 1
+            return
+        }
+        ";
+
+        let mut ssa = Ssa::from_str(src).unwrap();
+        ssa = ssa.remove_if_else().unwrap();
+
+        // Here [v21, v24] is the result of merging the original slice (`[Field 2, Field 3]`)
+        // where for v21 there's a dummy value in one of the cases.
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) impure fn main f0 {
+          b0(v0: u1, v1: Field, v2: Field):
+            v5 = make_array [Field 2, Field 3] : [Field]
+            v6 = allocate -> &mut u32
+            v7 = allocate -> &mut [Field]
+            enable_side_effects v0
+            v8 = cast v0 as u32
+            v10, v11, v12 = call slice_pop_front(v8, v5) -> (Field, u32, [Field])
+            v13 = not v0
+            v14 = cast v0 as u32
+            v16 = array_get v12, index u32 0 -> Field
+            v17 = cast v0 as Field
+            v18 = cast v13 as Field
+            v19 = mul v17, v16
+            v20 = mul v18, Field 2
+            v21 = add v19, v20
+            v22 = cast v0 as Field
+            v23 = cast v13 as Field
+            v24 = mul v23, Field 3
+            v25 = make_array [v21, v24] : [Field]
+            enable_side_effects u1 1
+            v27, v28, v29 = call slice_pop_front(v14, v25) -> (Field, u32, [Field])
+            v30 = array_get v29, index u32 0 -> Field
+            constrain v30 == Field 1
+            return
+        }
+        ");
+    }
+
+    #[test]
+    fn merge_slice_with_slice_remove() {
+        let src = "
+        acir(inline) impure fn main f0 {
+          b0(v0: u1, v1: Field, v2: Field):
+            v3 = make_array [Field 2, Field 3] : [Field]
+            v4 = allocate -> &mut u32
+            v5 = allocate -> &mut [Field]
+            enable_side_effects v0
+            v6 = cast v0 as u32
+            v7, v8, v100 = call slice_remove(v6, v3, u32 0) -> (u32, [Field], Field)
+            v9 = not v0
+            v10 = cast v0 as u32
+            v12 = if v0 then v8 else (if v9) v3
+            enable_side_effects u1 1
+            v15, v16, v101 = call slice_remove(v10, v12, u32 0) -> (u32, [Field], Field)
+            v17 = array_get v16, index u32 0 -> Field
+            constrain v17 == Field 1
+            return
+        }
+        ";
+
+        let mut ssa = Ssa::from_str(src).unwrap();
+        ssa = ssa.remove_if_else().unwrap();
+
+        // Here [v21, v24] is the result of merging the original slice (`[Field 2, Field 3]`)
+        // where for v21 there's a dummy value in one of the cases.
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) impure fn main f0 {
+          b0(v0: u1, v1: Field, v2: Field):
+            v5 = make_array [Field 2, Field 3] : [Field]
+            v6 = allocate -> &mut u32
+            v7 = allocate -> &mut [Field]
+            enable_side_effects v0
+            v8 = cast v0 as u32
+            v11, v12, v13 = call slice_remove(v8, v5, u32 0) -> (u32, [Field], Field)
+            v14 = not v0
+            v15 = cast v0 as u32
+            v16 = array_get v12, index u32 0 -> Field
+            v17 = cast v0 as Field
+            v18 = cast v14 as Field
+            v19 = mul v17, v16
+            v20 = mul v18, Field 2
+            v21 = add v19, v20
+            v22 = cast v0 as Field
+            v23 = cast v14 as Field
+            v24 = mul v23, Field 3
+            v25 = make_array [v21, v24] : [Field]
+            enable_side_effects u1 1
+            v27, v28, v29 = call slice_remove(v15, v25, u32 0) -> (u32, [Field], Field)
+            v30 = array_get v28, index u32 0 -> Field
+            constrain v30 == Field 1
+            return
+        }
+        ");
+    }
 }
