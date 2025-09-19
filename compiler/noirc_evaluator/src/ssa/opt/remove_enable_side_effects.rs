@@ -262,10 +262,10 @@ mod test {
     fn remove_enable_side_effects_for_slice_push_back() {
         let src = "
         acir(inline) predicate_pure fn main f0 {
-          b0(v0: u32, v1: u1):
+          b0(v0: [u32; 3], v1: u1, v2: u32):
             v3 = array_get v0, index u32 0 -> u32
             v7 = make_array [Field 1, Field 2, Field 3] : [Field]
-            v9 = array_set v7, index v0, value Field 4
+            v9 = array_set v7, index v2, value Field 4
 
             // this instruction should be removed
             enable_side_effects v1
@@ -278,11 +278,11 @@ mod test {
         let ssa = ssa.remove_enable_side_effects();
         assert_ssa_snapshot!(ssa, @r"
         acir(inline) predicate_pure fn main f0 {
-          b0(v0: u32, v1: u1):
-            v3 = array_get v0, index u32 0 -> u32
-            v7 = make_array [Field 1, Field 2, Field 3] : [Field]
-            v9 = array_set v7, index v0, value Field 4
-            v13, v14 = call slice_push_back(u32 3, v9, Field 5) -> (u32, [Field])
+          b0(v0: [u32; 3], v1: u1, v2: u32):
+            v4 = array_get v0, index u32 0 -> u32
+            v8 = make_array [Field 1, Field 2, Field 3] : [Field]
+            v10 = array_set v8, index v2, value Field 4
+            v14, v15 = call slice_push_back(u32 3, v10, Field 5) -> (u32, [Field])
             return
         }
         ");
@@ -292,7 +292,7 @@ mod test {
     fn remove_enable_side_effects_for_slice_push_front() {
         let src = "
         acir(inline) predicate_pure fn main f0 {
-          b0(v0: u32, v1: u1):
+          b0(v0: [u32; 3], v1: u32):
             v3 = array_get v0, index u32 0 -> u32
             v7 = make_array [Field 1, Field 2, Field 3] : [Field]
             v9 = array_set v7, index v0, value Field 4
@@ -322,10 +322,10 @@ mod test {
     fn keep_enable_side_effects_for_slice_pop_back() {
         let src = "
         acir(inline) predicate_pure fn main f0 {
-          b0(v0: u32, v1: u1):
+          b0(v0: [u32; 3], v1: u1, v2: u32):
             v3 = array_get v0, index u32 0 -> u32
             v7 = make_array [Field 1, Field 2, Field 3] : [Field]
-            v9 = array_set v7, index v0, value Field 4
+            v9 = array_set v7, index v2, value Field 4
             enable_side_effects v1
             v13, v14, v15 = call slice_pop_back(u32 3, v9) -> (u32, [Field], Field)
             return
@@ -338,10 +338,10 @@ mod test {
     fn keep_enable_side_effects_for_slice_pop_front() {
         let src = "
         acir(inline) predicate_pure fn main f0 {
-          b0(v0: u32, v1: u1):
+          b0(v0: [u32; 3], v1: u1, v2: u32):
             v3 = array_get v0, index u32 0 -> u32
             v7 = make_array [Field 1, Field 2, Field 3] : [Field]
-            v9 = array_set v7, index v0, value Field 4
+            v9 = array_set v7, index v2, value Field 4
             enable_side_effects v1
             v13, v14, v15 = call slice_pop_front(u32 3, v9) -> (Field, u32, [Field])
             return
@@ -354,7 +354,7 @@ mod test {
     fn keep_enable_side_effects_for_slice_insert() {
         let src = "
         acir(inline) predicate_pure fn main f0 {
-          b0(v0: u32, v1: u1):
+          b0(v0: [u32; 3], v1: u1):
             v3 = array_get v0, index u32 0 -> u32
             v7 = make_array [Field 1, Field 2, Field 3] : [Field]
             v9 = array_set v7, index v0, value Field 4
@@ -370,7 +370,7 @@ mod test {
     fn keep_enable_side_effects_for_slice_remove() {
         let src = "
         acir(inline) predicate_pure fn main f0 {
-          b0(v0: u32, v1: u1):
+          b0(v0: [u32; 3], v1: u32):
             v3 = array_get v0, index u32 0 -> u32
             v7 = make_array [Field 1, Field 2, Field 3] : [Field]
             v9 = array_set v7, index v0, value Field 4
