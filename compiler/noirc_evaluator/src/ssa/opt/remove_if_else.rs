@@ -149,6 +149,14 @@ impl Function {
 
 #[derive(Default)]
 struct Context {
+    /// Keeps track of each size a slice is known to be.
+    ///
+    /// This is passed to the `ValueMerger` because when merging two slices
+    /// we need to know their sizes to create the merged slice.
+    ///
+    /// Note: as this pass operates on a single block, which is an entry block,
+    /// and because slices are disallowed in entry blocks, all slice lengths
+    /// should be known at this point.
     slice_sizes: HashMap<ValueId, u32>,
 }
 
