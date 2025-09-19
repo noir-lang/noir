@@ -504,11 +504,11 @@ fn insert_constraint(
 }
 
 /// Check if an instruction should be replaced with default values if we are in the
-/// `UnreachableUnderPredicate` mode. These are generally the ones that require an
-/// ACIR predicate, but there are some exceptions where an instruction that does
-/// not require a predicate, because it's safe, is only so because of instructions
-/// that have been replaced earlier. In such cases they may not be type safe and
-/// should be removed.
+/// `UnreachableUnderPredicate` mode.
+///
+/// These are generally the ones that require an ACIR predicate, except for `ArrayGet`,
+/// which might appear safe after having its index replaced by a default zero value,
+/// but by doing so we may have made the item and result types misaligned.
 fn should_replace_instruction_with_defaults(context: &SimpleOptimizationContext) -> bool {
     let instruction = context.instruction();
 
@@ -528,9 +528,22 @@ fn should_replace_instruction_with_defaults(context: &SimpleOptimizationContext)
             // If the type doesn't agree then we should not use this any more,
             // as the type in the array will replace the type we wanted to get,
             // and cause problems further on.
+            if typ[0] != result_type {
+                return true;
+            }
             // If the array contains a reference, then we should replace the results
             // with defaults because unloaded references also cause issues.
-            return typ[0] != result_type || result_type.contains_reference();
+            if context.dfg.runtime().is_acir() && result_type.contains_reference() {
+                return true;
+            }
+            // Note that it may be incorrect to replace a *safe* ArrayGet with defaults,
+            // because `remove_enable_side_effects` may have moved the side effect
+            // boundaries around them, and then `fold_constants_with_brillig` could
+            // have replaced some with `enable_side_effect u1 0`. If we then replace
+            // a *safe* ArrayGet with a default, that might be a result that would
+            // really be enabled, had it not been skipped over by its original side
+            // effect variable. Instructions which use its result would then get
+            // incorrect zero, instead of whatever was in the array.
         }
     };
 
