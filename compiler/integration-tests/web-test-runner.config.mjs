@@ -14,7 +14,11 @@ if (process.env.CI !== 'true' || process.env.RUNNER_DEBUG === '1') {
     name: 'environment',
     serve(context) {
       if (context.path === '/compiler/integration-tests/test/environment.js') {
-        return 'export const TEST_LOG_LEVEL = 2;';
+        return `
+          export const TEST_LOG_LEVEL = 2;
+          // Bind fetch globally to avoid illegal invocation errors
+          globalThis.fetch = globalThis.fetch.bind(globalThis);
+        `;
       }
     },
   });
@@ -25,7 +29,7 @@ export default {
     playwrightLauncher({
       product: 'chromium',
       createBrowserContext: async ({ browser }) => {
-        return await browser.newContext(); // fresh WASM memory per it()
+        return await browser.newContext();
       },
     }),
     // playwrightLauncher({ product: "webkit" }),
