@@ -59,7 +59,6 @@ export class GithubDependencyResolver implements DependencyResolver {
       return localArchivePath;
     }
 
-    this.#log(`url: ${url}`);
     const response = await this.#fetch(url, {
       method: 'GET',
     });
@@ -152,5 +151,5 @@ export function resolveGithubCodeArchive(dependency: GitDependencyConfig, format
     throw new Error('Invalid git reference. Git references cannot contain path traversal characters');
   }
 
-  return new URL(`https://github.com/${owner}/${repo}/archive/refs/tags/${ref}.${extension}`);
+  return new URL(`https://github.com/${owner}/${repo}/archive/${ref}.${extension}`);
 }
