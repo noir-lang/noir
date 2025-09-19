@@ -507,12 +507,10 @@ jobs:
           PACKAGES_TO_BUILD="@noir-lang/types,@noir-lang/noir_js"
           yarn workspaces foreach -Wvtp --from "{$PACKAGES_TO_BUILD}" run build
 
-      # TODO(https://github.com/noir-lang/noir/issues/9935): These tests are currently broken as they are currently written
-      # We have other browser tests under `examples/browser`, but it would be good to get these working again.
-      # - name: Run `integration-tests`
-      #   working-directory: ./compiler/integration-tests
-      #   run: |
-      #     yarn test:node
+      - name: Run `integration-tests`
+        working-directory: ./compiler/integration-tests
+        run: |
+          yarn test:node
 
   test-integration-browser:
     name: Integration Tests (Browser)
@@ -558,10 +556,12 @@ jobs:
           PACKAGES_TO_BUILD="@noir-lang/types,@noir-lang/noir_js"
           yarn workspaces foreach -Wvtp --from "{$PACKAGES_TO_BUILD}" run build
 
-      - name: Run `integration-tests`
-        working-directory: ./compiler/integration-tests
-        run: |
-          yarn test:browser
+      # TODO(https://github.com/noir-lang/noir/issues/9935): These tests are currently broken as they are currently written
+      # We have other browser tests under `examples/browser`, but it would be good to get these working again.
+      # - name: Run `integration-tests`
+      #   working-directory: ./compiler/integration-tests
+      #   run: |
+      #     yarn test:browser
 
   test-examples:
     name: Example scripts
