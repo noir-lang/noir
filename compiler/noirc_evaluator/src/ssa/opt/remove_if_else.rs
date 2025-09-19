@@ -199,7 +199,6 @@ impl Context {
                         else_value,
                     )?;
 
-                    let _typ = context.dfg.type_of_value(value);
                     let results = context.dfg.instruction_results(instruction_id);
                     let result = results[0];
 
