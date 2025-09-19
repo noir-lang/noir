@@ -22,13 +22,7 @@ if (process.env.CI !== 'true' || process.env.RUNNER_DEBUG === '1') {
 
 export default {
   browsers: [
-    playwrightLauncher({
-      product: 'chromium',
-      createBrowserContext: async ({ browser }) => {
-        // Each test gets a completely new context
-        return await browser.newContext();
-      },
-    }),
+    playwrightLauncher({ product: 'chromium' }),
     // playwrightLauncher({ product: "webkit" }),
     // playwrightLauncher({ product: "firefox" }),
   ],

@@ -8,8 +8,8 @@
     "test": "yarn test:browser && yarn test:node",
     "test:node": "bash ./scripts/setup.sh && hardhat test test/node/prove_and_verify.test.ts && hardhat test test/node/smart_contract_verifier.test.ts && hardhat test test/node/onchain_recursive_verification.test.ts",
     "test:browser": "web-test-runner",
-    "test:integration:browser": "web-test-runner test/browser/**/*.test.ts",
-    "test:integration:browser:watch": "web-test-runner test/browser/**/*.test.ts --watch",
+    "test:integration:browser": "web-test-runner test/browser/a_1_mul.test.ts && web-test-runner test/browser/assert_statement.test.ts",
+    "test:integration:browser:watch": "web-test-runner test/browser/a_1_mul.test.ts --watch && web-test-runner test/browser/assert_statement.test.ts --watch",
     "lint": "NODE_NO_WARNINGS=1 eslint . --max-warnings 0"
   },
   "dependencies": {
