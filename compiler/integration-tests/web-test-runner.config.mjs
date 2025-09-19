@@ -47,6 +47,10 @@ export default {
     `<!DOCTYPE html>
     <html>
       <body>
+        <script>
+          // Ensure fetch is always bound to globalThis
+          globalThis.fetch = globalThis.fetch.bind(globalThis);
+        </script>
         <script type="module" src="/compiler/integration-tests/test/mocks/buffer.js"></script>
         <script type="module" src="${testFramework}"></script>
       </body>
