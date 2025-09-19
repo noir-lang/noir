@@ -1,0 +1,72 @@
+global G_A: str<1> = "B";
+global G_B: ((Field, Field, bool), [str<3>; 1], str<3>, Field, (Field, Field, bool)) = (
+    (218246652875437164009655208784095375107, -313608744114162797896018893666882091480, true),
+    ["ERD"], "IAT", -120526842023866287823029064655616936845,
+    (-158893399940351649111039879038827064887, 114242794008481451001418400118000869414, false),
+);
+fn main() -> return_data (Field, Field, bool) {
+    let _n = unsafe {
+        func_3(
+            if (
+                if G_B.0.2 {
+                    let b = G_B;
+                    match b {
+                        (item_c, _item_d, _item_e, _item_f, item_g) => if unsafe {
+                            func_3(G_B, [G_A, G_A], G_B.0.2)
+                        } {
+                            for _idx_h in 177_u8..180_u8 {
+                                for _idx_i in 198_u8..207_u8 {
+                                    for _idx_j in 133_u8..135_u8 {
+                                        let mut k: [str<1>; 2] = [
+                                            G_A,
+                                            if (item_c.2 > unsafe { func_4([]) }[1532016929_u32].3) {
+                                                G_A
+                                            } else {
+                                                if unsafe { func_3(G_B, [G_A, G_A], item_g.2) } {
+                                                    "N"
+                                                } else {
+                                                    G_A
+                                                }
+                                            },
+                                        ];
+                                        k = k;
+                                    }
+                                }
+                            }
+                            (item_c.2 == G_B.0.2)
+                        } else {
+                            true
+                        },
+                    }
+                } else {
+                    G_B.4.2
+                }
+                    <= (G_B.4.2 < G_B.0.2)
+            ) {
+                G_B
+            } else {
+                G_B
+            },
+            [G_A, G_A],
+            G_B.4.2,
+        )
+    };
+    G_B.4
+}
+
+unconstrained fn func_3(
+    _a: ((Field, Field, bool), [str<3>; 1], str<3>, Field, (Field, Field, bool)),
+    _b: [str<1>; 2],
+    _c: bool,
+) -> bool {
+    true
+}
+
+unconstrained fn func_4(_a: [[str<3>; 4]; 0]) -> [(str<3>, str<3>, bool, bool); 4] {
+    [
+        ("ABC", "CDE", false, true),
+        ("FGH", "IJK", false, true),
+        ("LMN", "OPQ", false, true),
+        ("RST", "UVW", false, true),
+    ]
+}
