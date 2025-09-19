@@ -22,7 +22,13 @@ if (process.env.CI !== 'true' || process.env.RUNNER_DEBUG === '1') {
 
 export default {
   browsers: [
-    playwrightLauncher({ product: 'chromium' }),
+    playwrightLauncher({
+      product: 'chromium',
+      createBrowserContext: async ({ browser }) => {
+        // Each test gets a completely new context
+        return await browser.newContext();
+      },
+    }),
     // playwrightLauncher({ product: "webkit" }),
     // playwrightLauncher({ product: "firefox" }),
   ],
@@ -47,10 +53,6 @@ export default {
     `<!DOCTYPE html>
     <html>
       <body>
-        <script>
-          // Ensure fetch is always bound to globalThis
-          globalThis.fetch = globalThis.fetch.bind(globalThis);
-        </script>
         <script type="module" src="/compiler/integration-tests/test/mocks/buffer.js"></script>
         <script type="module" src="${testFramework}"></script>
       </body>
