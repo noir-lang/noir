@@ -2,8 +2,8 @@ import * as buffer from 'buffer-esm';
 const Buffer = buffer.BufferShim;
 
 // bb.js requires `allocUnsafeSlow` which is not present in buffer-esm
-if (!Buffer.prototype.allocUnsafeSlow) {
-  Buffer.prototype.allocUnsafeSlow = Buffer.allocUnsafe;
+if (!Buffer.allocUnsafeSlow) {
+  Buffer.allocUnsafeSlow = Buffer.allocUnsafe;
 }
 
 // bb.js requires writeBigUInt64BE and readBigUInt64BE which are not present in buffer-esm
@@ -55,7 +55,7 @@ if (!Buffer.prototype.readBigUInt64BE) {
 }
 
 // Set Buffer as globalThis (window)
-if (!globalThis.Buffer) globalThis.Buffer = Buffer;
+if (!globalThis.Buffer) globalThis.Buffer = buffer.BufferShim;
 
 export { Buffer };
 export default Buffer;
