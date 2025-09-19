@@ -3662,6 +3662,7 @@ dependencies = [
 name = "noir_ssa_cli"
 version = "1.0.0-beta.12"
 dependencies = [
+ "base64",
  "clap",
  "color-eyre",
  "const_format",
@@ -3672,6 +3673,7 @@ dependencies = [
  "noirc_driver",
  "noirc_errors",
  "noirc_evaluator",
+ "serde_json",
  "tempfile",
  "thiserror 1.0.69",
  "toml",

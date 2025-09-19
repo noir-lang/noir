@@ -133,6 +133,15 @@ format-noir:
   cargo run -- --program-dir={{justfile_dir()}}/noir_stdlib fmt --check
   cd ./test_programs && NARGO="{{justfile_dir()}}/target/debug/nargo" ./format.sh check
 
+# Visualize the CFG after a certain SSA pass and open the Mermaid Live editor.
+# This is mostly here for reference: it only works if the pass matches a single unique pass in the pipeline, and there are no errors.
+[no-cd]
+visualize-ssa-cfg PASS:
+  open https://mermaid.live/view#$( \
+    cargo run -q -p nargo_cli -- compile --show-ssa-pass {{PASS}} \
+      | grep -v After \
+      | cargo run -q -p noir_ssa_cli -- visualize --url-encode)
+
 # Javascript
 
 # Lints Javascript code
