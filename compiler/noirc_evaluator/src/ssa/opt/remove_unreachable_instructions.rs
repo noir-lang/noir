@@ -504,34 +504,21 @@ fn insert_constraint(
 }
 
 /// Check if an instruction should be replaced with default values if we are in the
-/// `UnreachableUnderPredicate` mode. These are generally the ones that require an
-/// ACIR predicate, but there are some exceptions where an instruction that does
-/// not require a predicate, because it's safe, is only so because of instructions
-/// that have been replaced earlier. In such cases they may not be type safe and
-/// should be removed.
+/// `UnreachableUnderPredicate` mode.
+///
+/// These are generally the ones that require an ACIR predicate, except for `ArrayGet`,
+/// which might appear safe after having its index replaced by a default zero value,
+/// but by doing so we may have made the item and result types misaligned.
 fn should_replace_instruction_with_defaults(context: &SimpleOptimizationContext) -> bool {
     let instruction = context.instruction();
 
     // ArrayGet needs special handling: if we replaced the index with a default value, it could be invalid.
-    if let Instruction::ArrayGet { array, index, offset: _ } = instruction {
-        // If we replaced the index with a default, it's going to be zero.
-        let index_zero = context.dfg.get_numeric_constant(*index).is_some_and(|c| c.is_zero());
-
-        // If it's zero, make sure that the type in the results
-        if index_zero {
-            let typ = match context.dfg.type_of_value(*array) {
-                Type::Array(typ, _) | Type::Slice(typ) => typ,
-                other => unreachable!("Array or Slice type expected; got {other:?}"),
-            };
-            let results = context.dfg.instruction_results(context.instruction_id).to_vec();
-            let result_type = context.dfg.type_of_value(results[0]);
-            // If the type doesn't agree then we should not use this any more,
-            // as the type in the array will replace the type we wanted to get,
-            // and cause problems further on.
-            // If the array contains a reference, then we should replace the results
-            // with defaults because unloaded references also cause issues.
-            return typ[0] != result_type || result_type.contains_reference();
-        }
+    if matches!(instruction, Instruction::ArrayGet { .. }) {
+        // We could check whether the type of the 0th item in the array matches the type
+        // of the 0th result of the instruction: if not, then we must have replaced the
+        // index with a default 0 value and introduced an inconsistency. But there should
+        // be no harm in replacing all ArrayGet instructions with defaults, and it's simpler.
+        return true;
     };
 
     // Instructions that don't interact with the predicate should be left alone,
