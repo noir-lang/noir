@@ -409,12 +409,12 @@ mod tests {
         // ```
         // fn main(x: bool, mut y: [u32; 2]) {
         //     if x {
-        //         y[0] = 1;
-        //         y[1] = 2;
+        //         y[0] = 2;
+        //         y[1] = 3;
         //     }
         //
         //     let z = y[0] + y[1];
-        //     assert(z == 3);
+        //     assert(z == 5);
         // }
         // ```
         let src = "
@@ -422,16 +422,16 @@ mod tests {
           b0(v0: u1, v1: [u32; 2]):
             v2 = allocate -> &mut [u32; 2]
             enable_side_effects v0
-            v5 = array_set v1, index u32 0, value u32 1
-            v7 = array_set v5, index u32 1, value u32 2
+            v5 = array_set v1, index u32 0, value u32 2
+            v7 = array_set v5, index u32 1, value u32 3
             v8 = not v0
             v9 = if v0 then v7 else (if v8) v1
             enable_side_effects u1 1
             v11 = array_get v9, index u32 0 -> u32
             v12 = array_get v9, index u32 1 -> u32
             v13 = add v11, v12
-            v15 = eq v13, u32 3
-            constrain v13 == u32 3
+            v15 = eq v13, u32 5
+            constrain v13 == u32 5
             return
         }
         ";
@@ -448,25 +448,26 @@ mod tests {
           b0(v0: u1, v1: [u32; 2]):
             v2 = allocate -> &mut [u32; 2]
             enable_side_effects v0
-            v5 = array_set v1, index u32 0, value u32 1
-            v7 = array_set v5, index u32 1, value u32 2
-            v8 = not v0
-            v9 = array_get v1, index u32 0 -> u32
-            v10 = cast v0 as u32
-            v11 = cast v8 as u32
-            v12 = unchecked_mul v11, v9
-            v13 = unchecked_add v10, v12
-            v14 = array_get v1, index u32 1 -> u32
-            v15 = cast v0 as u32
-            v16 = cast v8 as u32
-            v17 = unchecked_mul v15, u32 2
-            v18 = unchecked_mul v16, v14
-            v19 = unchecked_add v17, v18
-            v20 = make_array [v13, v19] : [u32; 2]
+            v5 = array_set v1, index u32 0, value u32 2
+            v8 = array_set v5, index u32 1, value u32 3
+            v9 = not v0
+            v10 = array_get v1, index u32 0 -> u32
+            v11 = cast v0 as u32
+            v12 = cast v9 as u32
+            v13 = unchecked_mul v11, u32 2
+            v14 = unchecked_mul v12, v10
+            v15 = unchecked_add v13, v14
+            v16 = array_get v1, index u32 1 -> u32
+            v17 = cast v0 as u32
+            v18 = cast v9 as u32
+            v19 = unchecked_mul v17, u32 3
+            v20 = unchecked_mul v18, v16
+            v21 = unchecked_add v19, v20
+            v22 = make_array [v15, v21] : [u32; 2]
             enable_side_effects u1 1
-            v22 = add v13, v19
-            v24 = eq v22, u32 3
-            constrain v22 == u32 3
+            v24 = add v15, v21
+            v26 = eq v24, u32 5
+            constrain v24 == u32 5
             return
         }
         ");
@@ -478,11 +479,11 @@ mod tests {
         // ```
         // fn main(x: bool, mut y: [u32; 2]) {
         //     if x {
-        //         y[0] = 1;
+        //         y[0] = 2;
         //     }
         //
         //     let z = y[0] + y[1];
-        //     assert(z == 1);
+        //     assert(z == 3);
         // }
         // ```
         let src = "
@@ -490,15 +491,15 @@ mod tests {
           b0(v0: u1, v1: [u32; 2]):
             v2 = allocate -> &mut [u32; 2]
             enable_side_effects v0
-            v5 = array_set v1, index u32 0, value u32 1
+            v5 = array_set v1, index u32 0, value u32 2
             v6 = not v0
             v7 = if v0 then v5 else (if v6) v1
             enable_side_effects u1 1
             v9 = array_get v7, index u32 0 -> u32
             v10 = array_get v7, index u32 1 -> u32
             v11 = add v9, v10
-            v12 = eq v11, u32 1
-            constrain v11 == u32 1
+            v12 = eq v11, u32 3
+            constrain v11 == u32 3
             return
         }
         ";
@@ -515,25 +516,26 @@ mod tests {
           b0(v0: u1, v1: [u32; 2]):
             v2 = allocate -> &mut [u32; 2]
             enable_side_effects v0
-            v5 = array_set v1, index u32 0, value u32 1
+            v5 = array_set v1, index u32 0, value u32 2
             v6 = not v0
             v7 = array_get v1, index u32 0 -> u32
             v8 = cast v0 as u32
             v9 = cast v6 as u32
-            v10 = unchecked_mul v9, v7
-            v11 = unchecked_add v8, v10
-            v12 = array_get v5, index u32 1 -> u32
-            v13 = array_get v1, index u32 1 -> u32
-            v14 = cast v0 as u32
-            v15 = cast v6 as u32
-            v16 = unchecked_mul v14, v12
-            v17 = unchecked_mul v15, v13
-            v18 = unchecked_add v16, v17
-            v19 = make_array [v11, v18] : [u32; 2]
+            v10 = unchecked_mul v8, u32 2
+            v11 = unchecked_mul v9, v7
+            v12 = unchecked_add v10, v11
+            v14 = array_get v5, index u32 1 -> u32
+            v15 = array_get v1, index u32 1 -> u32
+            v16 = cast v0 as u32
+            v17 = cast v6 as u32
+            v18 = unchecked_mul v16, v14
+            v19 = unchecked_mul v17, v15
+            v20 = unchecked_add v18, v19
+            v21 = make_array [v12, v20] : [u32; 2]
             enable_side_effects u1 1
-            v21 = add v11, v18
-            v22 = eq v21, u32 1
-            constrain v21 == u32 1
+            v23 = add v12, v20
+            v25 = eq v23, u32 3
+            constrain v23 == u32 3
             return
         }
         ");
