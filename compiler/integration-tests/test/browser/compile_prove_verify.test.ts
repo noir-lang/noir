@@ -6,7 +6,7 @@ import { TEST_LOG_LEVEL } from '../environment.js';
 import { compile, createFileManager } from '@noir-lang/noir_wasm';
 import { Noir } from '@noir-lang/noir_js';
 import { InputMap } from '@noir-lang/noirc_abi';
-import { UltraHonkBackend } from '@aztec/bb.js';
+import { UltraHonkBackend, UltraHonkVerifierBackend } from '@aztec/bb.js';
 
 import { getFile } from './utils.js';
 
@@ -66,10 +66,11 @@ test_cases.forEach((testInfo) => {
 
     const backend = new UltraHonkBackend(noir_program.bytecode, { logger: debugLogger });
     const proof = await backend.generateProof(witness);
+    const verificationKey = await backend.getVerificationKey();
 
     // JS verification
-
-    const verified = await backend.verifyProof(proof);
+    const verifier_backend = new UltraHonkVerifierBackend();
+    const verified = await verifier_backend.verifyProof({ ...proof, verificationKey });
     expect(verified, 'Proof fails verification in JS').to.be.true;
   });
 
