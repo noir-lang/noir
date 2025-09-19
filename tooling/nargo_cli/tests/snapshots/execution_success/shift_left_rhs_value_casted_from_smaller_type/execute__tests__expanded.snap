@@ -1,0 +1,7 @@
+---
+source: tooling/nargo_cli/tests/execute.rs
+expression: expanded_code
+---
+fn main(b: u8) -> pub u64 {
+    15877946327378367777_u64 << (b as u64)
+}
