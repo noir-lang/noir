@@ -13,10 +13,6 @@ import { getFile } from './utils.js';
 const logger = new Logger({ name: 'test', minLevel: TEST_LOG_LEVEL });
 const debugLogger = logger.debug.bind(logger);
 
-const suite = Mocha.Suite.create(mocha.suite, 'Noir end to end test');
-
-suite.timeout(60 * 20e3); //20mins
-
 async function getCircuit(projectPath: string) {
   const fm = createFileManager('/');
   await fm.writeFile('./src/main.nr', await getFile(`${projectPath}/src/main.nr`));
