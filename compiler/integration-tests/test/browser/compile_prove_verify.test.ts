@@ -13,17 +13,6 @@ import { getFile } from './utils.js';
 const logger = new Logger({ name: 'test', minLevel: TEST_LOG_LEVEL });
 const debugLogger = logger.debug.bind(logger);
 
-const test_cases = [
-  {
-    case: 'test_programs/execution_success/a_1_mul',
-    numPublicInputs: 0,
-  },
-  {
-    case: 'test_programs/execution_success/assert_statement',
-    numPublicInputs: 1,
-  },
-];
-
 const suite = Mocha.Suite.create(mocha.suite, 'Noir end to end test');
 
 suite.timeout(60 * 20e3); //20mins
