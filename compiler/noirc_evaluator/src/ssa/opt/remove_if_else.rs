@@ -91,7 +91,9 @@
 //! Operations with the conditions are unchecked operations, because the conditions are 0 or 1, so it cannot overflow.
 //!
 //! For slices the logic is similar except that slice lengths need to be tracked in order to know
-//! the length of the merge slice.
+//! the length of the merged slice resulting in a `make_array` instruction. This length will be the
+//! maximum length of the two input slices. Note that the actual length of the merged slice should
+//! have been merged during flattening.
 
 use std::collections::hash_map::Entry;
 
