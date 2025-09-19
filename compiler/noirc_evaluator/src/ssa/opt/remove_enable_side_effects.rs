@@ -35,6 +35,9 @@ impl Ssa {
     #[tracing::instrument(level = "trace", skip(self))]
     pub(crate) fn remove_enable_side_effects(mut self) -> Ssa {
         for function in self.functions.values_mut() {
+            #[cfg(debug_assertions)]
+            remove_enable_side_effects_pre_check(function);
+
             function.remove_enable_side_effects();
         }
         self
@@ -47,10 +50,6 @@ impl Function {
             // Brillig functions do not make use of the `EnableSideEffects` instruction so are unaffected by this pass.
             return;
         }
-
-        // Check the precondition that this optimization runs when there's only one block
-        let block = self.entry_block();
-        assert_eq!(self.dfg[block].successors().count(), 0);
 
         let one = self.dfg.make_constant(FieldElement::one(), NumericType::bool());
         let mut active_condition = one;
@@ -87,6 +86,7 @@ impl Function {
 
                 if condition_is_one {
                     last_side_effects_enabled_instruction = None;
+                    context.insert_current_instruction();
                 } else {
                     last_side_effects_enabled_instruction = Some(context.instruction_id);
                     context.remove_current_instruction();
@@ -105,6 +105,16 @@ impl Function {
             }
         });
     }
+}
+
+/// Check that the CFG has been flattened.
+#[cfg(debug_assertions)]
+fn remove_enable_side_effects_pre_check(function: &Function) {
+    if !function.runtime().is_acir() {
+        return;
+    }
+    let block = function.entry_block();
+    assert_eq!(function.dfg[block].successors().count(), 0);
 }
 
 #[cfg(test)]
@@ -258,7 +268,7 @@ mod test {
             v9 = array_set v7, index v0, value Field 4
 
             // this instruction should be removed
-            enable_side_effects v1 
+            enable_side_effects v1
 
             v13, v14 = call slice_push_back(u32 3, v9, Field 5) -> (u32, [Field])
             return
