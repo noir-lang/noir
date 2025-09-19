@@ -273,7 +273,7 @@ fn slice_capacity_change(
 ) -> SizeChange {
     match intrinsic {
         Intrinsic::SlicePushBack | Intrinsic::SlicePushFront | Intrinsic::SliceInsert => {
-            // Expecting:  len, slice = ...
+            // All of these return `Self` (the slice), we are expecting: len, slice = ...
             assert_eq!(results.len(), 2);
             let old = arguments[1];
             let new = results[1];
@@ -283,6 +283,11 @@ fn slice_capacity_change(
         }
 
         Intrinsic::SlicePopBack | Intrinsic::SliceRemove => {
+            // fn pop_back(self) -> (Self, T)
+            // fn remove(self, index: u32) -> (Self, T)
+            //
+            // These functions return the slice as the first result `(len, slice)`,
+            // so the slice is the second result.
             let old = arguments[1];
             let new = results[1];
             assert!(matches!(dfg.type_of_value(old), Type::Slice(_)));
@@ -291,6 +296,9 @@ fn slice_capacity_change(
         }
 
         Intrinsic::SlicePopFront => {
+            // fn pop_front(self) -> (T, Self)
+            //
+            // The returned slice is the last result.
             let old = arguments[1];
             let new = results[results.len() - 1];
             assert!(matches!(dfg.type_of_value(old), Type::Slice(_)));
