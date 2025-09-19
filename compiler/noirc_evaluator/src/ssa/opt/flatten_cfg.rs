@@ -163,7 +163,6 @@ use crate::ssa::{
 };
 
 mod branch_analysis;
-pub(crate) mod value_merger;
 
 impl Ssa {
     /// Flattens the control flow graph of main such that the function is left with a

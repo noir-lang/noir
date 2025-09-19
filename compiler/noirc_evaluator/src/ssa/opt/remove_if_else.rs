@@ -104,6 +104,7 @@ use rustc_hash::FxHashMap as HashMap;
 
 use crate::errors::RtResult;
 
+use crate::ssa::ir::dfg::simplify::value_merger::ValueMerger;
 use crate::ssa::{
     Ssa,
     ir::{
@@ -113,7 +114,6 @@ use crate::ssa::{
         types::Type,
         value::{Value, ValueId},
     },
-    opt::flatten_cfg::value_merger::ValueMerger,
 };
 
 impl Ssa {
