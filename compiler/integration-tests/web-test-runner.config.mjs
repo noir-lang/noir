@@ -14,11 +14,7 @@ if (process.env.CI !== 'true' || process.env.RUNNER_DEBUG === '1') {
     name: 'environment',
     serve(context) {
       if (context.path === '/compiler/integration-tests/test/environment.js') {
-        return `
-          export const TEST_LOG_LEVEL = 2;
-          // Bind fetch globally to avoid illegal invocation errors
-          globalThis.fetch = globalThis.fetch.bind(globalThis);
-        `;
+        return `export const TEST_LOG_LEVEL = 2;`;
       }
     },
   });
@@ -28,13 +24,12 @@ export default {
   browsers: [
     playwrightLauncher({
       product: 'chromium',
-      createBrowserContext: async ({ browser }) => {
-        return await browser.newContext();
-      },
     }),
     // playwrightLauncher({ product: "webkit" }),
     // playwrightLauncher({ product: "firefox" }),
   ],
+  concurrency: 1,
+  concurrentBrowsers: 1,
   middleware: [
     async (ctx, next) => {
       if (ctx.url.endsWith('.wasm.gz')) {
@@ -56,6 +51,10 @@ export default {
     `<!DOCTYPE html>
     <html>
       <body>
+        <script>
+          // Force bind fetch
+          globalThis.fetch = globalThis.fetch.bind(globalThis);
+        </script>
         <script type="module" src="/compiler/integration-tests/test/mocks/buffer.js"></script>
         <script type="module" src="${testFramework}"></script>
       </body>

@@ -43,8 +43,11 @@ describe('Noir end to end test', function () {
 
     const backend = new UltraHonkBackend(noir_program.bytecode, { logger: debugLogger });
     const proof = await backend.generateProof(witness);
-    const verificationKey = await backend.getVerificationKey();
     await backend.destroy();
+
+    const vkBackend = new UltraHonkBackend(noir_program.bytecode, { logger: debugLogger });
+    const verificationKey = await vkBackend.getVerificationKey();
+    await vkBackend.destroy();
 
     const verifier_backend = new UltraHonkVerifierBackend();
     const verified = await verifier_backend.verifyProof({ ...proof, verificationKey });
