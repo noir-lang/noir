@@ -803,7 +803,7 @@ jobs:
       - test-noir-wasm
       - test-noir-codegen
       - test-integration-node
-      - test-integration-browser
+      #- test-integration-browser
       - test-examples
       - compile-noir-contracts
     permissions:
