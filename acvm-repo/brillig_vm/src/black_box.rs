@@ -386,33 +386,32 @@ fn to_be_radix<F: AcirField>(
     num_limbs: usize,
     output_bits: bool,
 ) -> Result<Vec<MemoryValue<F>>, BlackBoxResolutionError> {
-    let mut input = BigUint::from_bytes_be(&input.to_be_bytes());
-
-    let radix = BigUint::from_bytes_be(&radix.to_be_bytes());
-    let mut limbs: Vec<MemoryValue<F>> = vec![MemoryValue::default(); num_limbs];
-
     assert!(
-        radix >= BigUint::from(2u32) && radix <= BigUint::from(256u32),
+        radix >= 2u32 && radix <= 256u32,
         "Radix out of the valid range [2,256]. Value: {radix}"
     );
 
     assert!(
-        num_limbs >= 1 || input == BigUint::from(0u32),
+        num_limbs >= 1 || input.is_zero(),
         "Input value {input} is not zero but number of limbs is zero."
     );
 
     assert!(
-        !output_bits || radix == BigUint::from(2u32),
+        !output_bits || radix == 2u32,
         "Radix {radix} is not equal to 2 and bit mode is activated."
     );
 
+    let mut input = BigUint::from_bytes_be(&input.to_be_bytes());
+    let radix = BigUint::from(radix);
+
+    let mut limbs: Vec<MemoryValue<F>> = vec![MemoryValue::default(); num_limbs];
     for i in (0..num_limbs).rev() {
         let limb = &input % &radix;
-        if output_bits {
-            limbs[i] = MemoryValue::U1(!limb.is_zero());
+        limbs[i] = if output_bits {
+            MemoryValue::U1(!limb.is_zero())
         } else {
             let limb: u8 = limb.try_into().unwrap();
-            limbs[i] = MemoryValue::U8(limb);
+            MemoryValue::U8(limb)
         };
         input /= &radix;
     }
