@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1758571229020,
+  "lastUpdate": 1758571452437,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -4433,90 +4433,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "1b4e25231fd0518d75e794889b4dc5a68e1ebf46",
-          "message": "chore(opt): Fetch set of Brillig entry points without reachability and recursive functions computation  (#9844)",
-          "timestamp": "2025-09-13T16:15:03Z",
-          "tree_id": "3edb634b05cdeb762caee5d2e7469ada82f73697",
-          "url": "https://github.com/noir-lang/noir/commit/1b4e25231fd0518d75e794889b4dc5a68e1ebf46"
-        },
-        "date": 1757782141793,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 1.728,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 8.556,
-            "unit": "s"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 1.392,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 18.22,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 16.14,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-empty",
-            "value": 17.54,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root-single-tx",
-            "value": 197,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 198,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 1.36,
-            "unit": "s"
-          },
-          {
-            "name": "rollup-root",
-            "value": 1.512,
-            "unit": "s"
-          },
-          {
-            "name": "semaphore-depth-10",
-            "value": 0.821,
-            "unit": "s"
-          },
-          {
-            "name": "sha512-100-bytes",
-            "value": 1.942,
-            "unit": "s"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "163862677+noirwhal@users.noreply.github.com",
             "name": "noirwhal",
             "username": "noirwhal"
@@ -8696,6 +8612,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "sha512-100-bytes",
             "value": 1.71,
+            "unit": "s"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "asterite@gmail.com",
+            "name": "Ary Borenszweig",
+            "username": "asterite"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "4696f026afa515404770b21b705be24c807702cb",
+          "message": "chore: minor constant_folding refactors (#9954)\n\nCo-authored-by: Maxim Vezenov <mvezenov@gmail.com>",
+          "timestamp": "2025-09-22T19:22:55Z",
+          "tree_id": "a5f7525025dc0c3d0c1519420c163f16330f8213",
+          "url": "https://github.com/noir-lang/noir/commit/4696f026afa515404770b21b705be24c807702cb"
+        },
+        "date": 1758571432074,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 1.748,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 7.756,
+            "unit": "s"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 1.37,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-first-empty-tx",
+            "value": 1.396,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root-single-tx",
+            "value": 1.36,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 1.49,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 1.498,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-root",
+            "value": 1.522,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 21.28,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 80.12,
+            "unit": "s"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 1.502,
+            "unit": "s"
+          },
+          {
+            "name": "semaphore-depth-10",
+            "value": 0.793,
+            "unit": "s"
+          },
+          {
+            "name": "sha512-100-bytes",
+            "value": 1.845,
             "unit": "s"
           }
         ]
