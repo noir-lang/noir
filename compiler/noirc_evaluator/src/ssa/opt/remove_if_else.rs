@@ -301,7 +301,7 @@ fn slice_capacity_change(
             // fn pop_back(self) -> (Self, T)
             // fn remove(self, index: u32) -> (Self, T)
             //
-            // These functions return the slice as the first result `(len, slice)`,
+            // These functions return the slice as the result `(len, slice, item)`,
             // so the slice is the second result.
             let old = arguments[1];
             let new = results[1];
