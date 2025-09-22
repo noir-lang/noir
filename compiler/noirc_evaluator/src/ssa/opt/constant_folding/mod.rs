@@ -302,13 +302,7 @@ impl Context {
 
         self.values_to_replace.batch_insert(&old_results, &new_results);
 
-        self.cache_instruction(
-            instruction.clone(),
-            new_results,
-            dfg,
-            *side_effects_enabled_var,
-            block,
-        );
+        self.cache_instruction(&instruction, new_results, dfg, *side_effects_enabled_var, block);
 
         // If we just inserted an `Instruction::EnableSideEffectsIf`, we need to update `side_effects_enabled_var`
         // so that we use the correct set of constrained values in future.
@@ -366,7 +360,7 @@ impl Context {
 
     fn cache_instruction(
         &mut self,
-        instruction: Instruction,
+        instruction: &Instruction,
         instruction_results: Vec<ValueId>,
         dfg: &DataFlowGraph,
         side_effects_enabled_var: ValueId,
@@ -381,8 +375,8 @@ impl Context {
                     dfg,
                     side_effects_enabled_var,
                     block,
-                    lhs,
-                    rhs,
+                    *lhs,
+                    *rhs,
                 );
             }
         }
@@ -397,7 +391,7 @@ impl Context {
         // We know that `v4` can be simplified to `v2`.
         // Thus, even if the index is dynamic (meaning the array get would have side effects),
         // we can simplify the operation when we take into account the predicate.
-        if let Instruction::ArraySet { index, value, .. } = &instruction {
+        if let Instruction::ArraySet { index, value, .. } = instruction {
             let predicate = self.use_constraint_info.then_some(side_effects_enabled_var);
 
             let offset = ArrayOffset::None;
@@ -409,21 +403,21 @@ impl Context {
         }
 
         self.cached_instruction_results
-            .remove_possibly_mutated_cached_make_arrays(&instruction, dfg);
+            .remove_possibly_mutated_cached_make_arrays(instruction, dfg);
 
         // If the instruction doesn't have side-effects and if it won't interact with enable_side_effects during acir_gen,
         // we cache the results so we can reuse them if the same instruction appears again later in the block.
         // Others have side effects representing failure, which are implicit in the ACIR code and can also be deduplicated.
-        let can_be_deduplicated = can_be_deduplicated(&instruction, dfg);
+        let can_be_deduplicated = can_be_deduplicated(instruction, dfg);
 
         let use_constraint_info = self.use_constraint_info;
         let is_make_array = matches!(instruction, Instruction::MakeArray { .. });
 
         let cache_instruction = || {
-            let predicate = self.cache_predicate(side_effects_enabled_var, &instruction, dfg);
+            let predicate = self.cache_predicate(side_effects_enabled_var, instruction, dfg);
             // If we see this make_array again, we can reuse the current result.
             self.cached_instruction_results.cache(
-                instruction,
+                instruction.clone(),
                 predicate,
                 block,
                 instruction_results,
