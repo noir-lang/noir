@@ -58,6 +58,12 @@ impl Function {
         }
 
         self.simple_optimization(|context| {
+            let instruction = context.instruction();
+
+            let Instruction::Constrain(lhs, rhs, msg) = instruction else {
+                return;
+            };
+
             // This Noir code:
             //
             // ```noir
@@ -70,28 +76,43 @@ impl Function {
             // v0 = eq x, y
             // constrain v0 == u1 0
             // ```
-            let instruction = context.instruction();
+            if context.dfg.get_numeric_constant(*lhs).is_some_and(|constant| constant.is_zero()) {
+                let Value::Instruction { instruction, .. } = &context.dfg[*rhs] else {
+                    return;
+                };
 
-            let Instruction::Constrain(lhs, rhs, msg) = instruction else {
-                return;
-            };
+                let Instruction::Binary(Binary { lhs, rhs, operator: BinaryOp::Eq, .. }) =
+                    context.dfg[*instruction]
+                else {
+                    return;
+                };
 
-            if !context.dfg.get_numeric_constant(*rhs).is_some_and(|constant| constant.is_zero()) {
+                let new_instruction = Instruction::ConstrainNotEqual(lhs, rhs, msg.clone());
+                context.replace_current_instruction_with(new_instruction);
                 return;
             }
 
-            let Value::Instruction { instruction, .. } = &context.dfg[*lhs] else {
-                return;
-            };
+            // However, we'll also consider an SSA like this since it could happen after other
+            // SSA optimizations run:
+            //
+            // ```ssa
+            // v0 = eq x, y
+            // constrain u1 0 == v0
+            // ```
+            if context.dfg.get_numeric_constant(*rhs).is_some_and(|constant| constant.is_zero()) {
+                let Value::Instruction { instruction, .. } = &context.dfg[*lhs] else {
+                    return;
+                };
 
-            let Instruction::Binary(Binary { lhs, rhs, operator: BinaryOp::Eq, .. }) =
-                context.dfg[*instruction]
-            else {
-                return;
-            };
+                let Instruction::Binary(Binary { lhs, rhs, operator: BinaryOp::Eq, .. }) =
+                    context.dfg[*instruction]
+                else {
+                    return;
+                };
 
-            let new_instruction = Instruction::ConstrainNotEqual(lhs, rhs, msg.clone());
-            context.replace_current_instruction_with(new_instruction);
+                let new_instruction = Instruction::ConstrainNotEqual(lhs, rhs, msg.clone());
+                context.replace_current_instruction_with(new_instruction);
+            }
         });
     }
 }
@@ -104,12 +125,34 @@ mod tests {
     };
 
     #[test]
-    fn replaces_constrain_with_constrain_not_equal_in_acir() {
+    fn replaces_constrain_with_constrain_not_equal_in_acir_zero_on_rhs() {
         let src = "
         acir(inline) fn main f1 {
           b0(v0: Field, v1: Field):
             v2 = eq v0, v1
             constrain v2 == u1 0
+            return
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let ssa = ssa.make_constrain_not_equal();
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: Field, v1: Field):
+            v2 = eq v0, v1
+            constrain v0 != v1
+            return
+        }
+        ");
+    }
+
+    #[test]
+    fn replaces_constrain_with_constrain_not_equal_in_acir_zero_on_lhs() {
+        let src = "
+        acir(inline) fn main f1 {
+          b0(v0: Field, v1: Field):
+            v2 = eq v0, v1
+            constrain u1 0 == v2
             return
         }
         ";
