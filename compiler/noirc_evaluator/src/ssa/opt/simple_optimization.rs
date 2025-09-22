@@ -130,16 +130,24 @@ impl SimpleOptimizationContext<'_, '_> {
         self.values_to_replace.insert(from, to);
     }
 
+    /// Check if the instruction has changed relative to its original contents,
+    /// e.g. because any of its values have been replaced.
+    fn has_instruction_changed(&self) -> bool {
+        // If the instruction changed, then there is a chance that we can (or have to)
+        // simplify it before we insert it back into the block.
+        let instruction_hash = rustc_hash::FxBuildHasher.hash_one(self.instruction());
+        self.orig_instruction_hash != instruction_hash
+    }
+
     /// Instructs this context to insert the current instruction right away, as opposed
     /// to doing this at the end of `mutate`'s block (unless `remove_current_instruction is called`).
     ///
-    /// If the instruction or its values has relative to their original content,
+    /// If the instruction or its values has changed relative to their original content,
     /// we attempt to simplify the instruction before re-inserting it into the block.
     pub(crate) fn insert_current_instruction(&mut self) {
         // If the instruction changed, then there is a chance that we can (or have to)
         // simplify it before we insert it back into the block.
-        let instruction_hash = rustc_hash::FxBuildHasher.hash_one(self.instruction());
-        let simplify = self.orig_instruction_hash != instruction_hash;
+        let simplify = self.has_instruction_changed();
 
         if simplify {
             // Based on FunctionInserter::push_instruction_value.
@@ -148,6 +156,7 @@ impl SimpleOptimizationContext<'_, '_> {
             let ctrl_typevars = instruction
                 .requires_ctrl_typevars()
                 .then(|| vecmap(&results, |result| self.dfg.type_of_value(*result)));
+
             let new_results = self.dfg.insert_instruction_and_results_if_simplified(
                 instruction,
                 self.block_id,
