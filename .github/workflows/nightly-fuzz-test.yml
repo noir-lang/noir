@@ -38,8 +38,13 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RUST_MIN_STACK: 8388608
 
+      - name: Get current date
+        id: date
+        run: echo "DAY=date::$(date +'%u')" >> $GITHUB_OUTPUT
+
       - name: Send an alert in slack
-        if: ${{ failure() }}
+        # Send notifications on weekdays if there's a failure.
+        if: ${{ failure() && steps.date.outputs.DAY <= 5 }}
         uses: slackapi/slack-github-action@v2.1.1
         with:
           webhook: ${{ secrets.FUZZING_ALERT_URL }}
