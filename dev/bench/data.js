@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1758305215023,
+  "lastUpdate": 1758534772865,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -20491,48 +20491,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "15848336+TomAFrench@users.noreply.github.com",
-            "name": "Tom French",
-            "username": "TomAFrench"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "35b7c14f383c3f558bd1408ab47a83736703e6a4",
-          "message": "chore: increase number of cases tried in PR fuzzing (#9829)",
-          "timestamp": "2025-09-12T13:29:39Z",
-          "tree_id": "2e7710df0be5a178c588ddffc3cca3ac4bc0541c",
-          "url": "https://github.com/noir-lang/noir/commit/35b7c14f383c3f558bd1408ab47a83736703e6a4"
-        },
-        "date": 1757685431222,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 255669,
-            "range": "± 895",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 225616,
-            "range": "± 6973",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2795987,
-            "range": "± 13010",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -22584,6 +22542,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2795566,
             "range": "± 3155",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "163862677+noirwhal@users.noreply.github.com",
+            "name": "noirwhal",
+            "username": "noirwhal"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "6e469c3004209a8b107e7707306e25c80a110fd6",
+          "message": "chore: Release Noir(1.0.0-beta.13) (#9737)\n\nCo-authored-by: noirwhal <tomfrench@aztecprotocol.com>",
+          "timestamp": "2025-09-22T09:23:37Z",
+          "tree_id": "8cef5cf8aac85a4df3811116ba371e0f75d14d0c",
+          "url": "https://github.com/noir-lang/noir/commit/6e469c3004209a8b107e7707306e25c80a110fd6"
+        },
+        "date": 1758534751805,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 274554,
+            "range": "± 371",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 244700,
+            "range": "± 509",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2808929,
+            "range": "± 7685",
             "unit": "ns/iter"
           }
         ]
