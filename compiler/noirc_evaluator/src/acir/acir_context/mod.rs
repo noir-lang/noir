@@ -8,16 +8,13 @@
 //! [`AcirContext`] also tracks [`Expression`]s which have been simplified into a [`Witness`], or constant witnesses
 //! allowing these to be reused later in the program.
 
-use acvm::{
-    BlackBoxFunctionSolver,
-    acir::{
-        AcirField, BlackBoxFunc,
-        circuit::{
-            AssertionPayload, ErrorSelector, ExpressionOrMemory, ExpressionWidth, Opcode,
-            opcodes::{AcirFunctionId, BlockId, BlockType, MemOp},
-        },
-        native_types::{Expression, Witness},
+use acvm::acir::{
+    AcirField, BlackBoxFunc,
+    circuit::{
+        AssertionPayload, ErrorSelector, ExpressionOrMemory, ExpressionWidth, Opcode,
+        opcodes::{AcirFunctionId, BlockId, BlockType, MemOp},
     },
+    native_types::{Expression, Witness},
 };
 use iter_extended::{try_vecmap, vecmap};
 use noirc_errors::call_stack::{CallStack, CallStackHelper};
@@ -32,7 +29,6 @@ use crate::{
     errors::{InternalBug, InternalError, RuntimeError, SsaReport},
 };
 
-mod big_int;
 mod black_box;
 mod brillig_call;
 mod generated_acir;
@@ -41,7 +37,6 @@ use super::{
     AcirDynamicArray, AcirValue,
     types::{AcirType, AcirVar},
 };
-use big_int::BigIntContext;
 
 pub use generated_acir::GeneratedAcir;
 pub(crate) use generated_acir::{BrilligStdLib, BrilligStdlibFunc};
@@ -50,8 +45,7 @@ pub(crate) use generated_acir::{BrilligStdLib, BrilligStdlibFunc};
 /// Context object which holds the relationship between
 /// `Variables`(AcirVar) and types such as `Expression` and `Witness`
 /// which are placed into ACIR.
-pub(crate) struct AcirContext<F: AcirField, B: BlackBoxFunctionSolver<F>> {
-    pub(super) blackbox_solver: B,
+pub(crate) struct AcirContext<F: AcirField> {
     brillig_stdlib: BrilligStdLib<F>,
 
     vars: HashMap<AcirVar, AcirVarData<F>>,
@@ -67,23 +61,18 @@ pub(crate) struct AcirContext<F: AcirField, B: BlackBoxFunctionSolver<F>> {
     /// addition.
     pub(super) acir_ir: GeneratedAcir<F>,
 
-    /// The BigIntContext, used to generate identifiers for BigIntegers
-    big_int_ctx: BigIntContext,
-
     expression_width: ExpressionWidth,
 
     pub(super) warnings: Vec<SsaReport>,
 }
 
-impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
-    pub(super) fn new(brillig_stdlib: BrilligStdLib<F>, blackbox_solver: B) -> Self {
+impl<F: AcirField> AcirContext<F> {
+    pub(super) fn new(brillig_stdlib: BrilligStdLib<F>) -> Self {
         AcirContext {
             brillig_stdlib,
-            blackbox_solver,
             vars: Default::default(),
             constant_witnesses: Default::default(),
             acir_ir: Default::default(),
-            big_int_ctx: Default::default(),
             expression_width: Default::default(),
             warnings: Default::default(),
         }
@@ -302,7 +291,6 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
             &self.brillig_stdlib.get_code(BrilligStdlibFunc::Inverse).clone(),
             vec![AcirValue::Var(var, AcirType::field())],
             vec![AcirType::field()],
-            true,
         )?;
         let inverted_var = Self::expect_one_var(results);
 
@@ -388,9 +376,10 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
                 let sum = self.add_var(lhs, rhs)?;
                 self.add_mul_var(sum, -F::from(2_u128), prod)
             }
-            NumericType::Signed { .. } | NumericType::Unsigned { .. } => {
+            NumericType::Signed { bit_size } | NumericType::Unsigned { bit_size } => {
                 let inputs = vec![AcirValue::Var(lhs, typ.clone()), AcirValue::Var(rhs, typ)];
-                let outputs = self.black_box_function(BlackBoxFunc::XOR, inputs, 1)?;
+                let outputs =
+                    self.black_box_function(BlackBoxFunc::XOR, inputs, Some(bit_size), 1, None)?;
                 Ok(outputs[0])
             }
             NumericType::NativeField => {
@@ -423,9 +412,10 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
                 // Operands are booleans.
                 self.mul_var(lhs, rhs)
             }
-            NumericType::Signed { .. } | NumericType::Unsigned { .. } => {
+            NumericType::Signed { bit_size } | NumericType::Unsigned { bit_size } => {
                 let inputs = vec![AcirValue::Var(lhs, typ.clone()), AcirValue::Var(rhs, typ)];
-                let outputs = self.black_box_function(BlackBoxFunc::AND, inputs, 1)?;
+                let outputs =
+                    self.black_box_function(BlackBoxFunc::AND, inputs, Some(bit_size), 1, None)?;
                 Ok(outputs[0])
             }
             NumericType::NativeField => {
@@ -898,7 +888,6 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
                     AcirValue::Var(rhs, AcirType::unsigned(bit_size)),
                 ],
                 vec![AcirType::unsigned(max_q_bits), AcirType::unsigned(max_rhs_bits)],
-                true,
             )?
             .try_into()
             .expect("quotient only returns two values");
@@ -1168,6 +1157,18 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         let r_is_0 = self.eq_var(r1, zero)?;
         let r_is_not_0 = self.not_var(r_is_0, AcirType::unsigned(1))?;
         let remainder = self.mul_var(remainder, r_is_not_0)?;
+
+        // The quotient must be a valid signed integer.
+        // For instance -128/-1 = 128, but 128 is not a valid i8
+        // Because it is the only possible overflow that can happen due to signed representation,
+        // we simply check for this case: quotient is negative, or distinct from 2^{bit_size-1}
+        // Indeed, negative quotient cannot 'overflow' because the division will not increase its absolute value
+        let assert_message =
+            self.generate_assertion_message_payload("Attempt to divide with overflow".to_string());
+        let unsigned = self.not_var(q_sign, AcirType::unsigned(1))?;
+        // We just use `unsigned` for the predicate of assert_neq_var because if the `predicate` is false, the quotient
+        // we get from the unsigned division under the predicate will not be 2^{bit_size-1} anyways.
+        self.assert_neq_var(quotient, max_power_of_two, unsigned, Some(assert_message))?;
 
         Ok((quotient, remainder))
     }
@@ -1517,7 +1518,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
 
         // Add the memory read operation to the list of opcodes
         let op = MemOp::read_at_mem_index(index_witness.into(), value_read_witness);
-        self.acir_ir.push_opcode(Opcode::MemoryOp { block_id, op, predicate: None });
+        self.acir_ir.push_opcode(Opcode::MemoryOp { block_id, op });
 
         Ok(value_read_var)
     }
@@ -1539,7 +1540,7 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
 
         // Add the memory write operation to the list of opcodes
         let op = MemOp::write_to_mem_index(index_witness.into(), value_write_witness.into());
-        self.acir_ir.push_opcode(Opcode::MemoryOp { block_id, op, predicate: None });
+        self.acir_ir.push_opcode(Opcode::MemoryOp { block_id, op });
 
         Ok(())
     }
@@ -1570,9 +1571,6 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
             }
             Some(optional_value) => {
                 let mut values = Vec::new();
-                if let AcirValue::DynamicArray(_) = optional_value {
-                    unreachable!("Dynamic array should already be initialized");
-                }
                 self.initialize_array_inner(&mut values, optional_value)?;
                 values
             }

@@ -12,10 +12,7 @@ use crate::{
     circuit::{
         Circuit, Opcode, Program, PublicInputs,
         brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs},
-        opcodes::{
-            AcirFunctionId, BlackBoxFuncCall, BlockId, BlockType, ConstantOrWitnessEnum,
-            FunctionInput, MemOp,
-        },
+        opcodes::{AcirFunctionId, BlackBoxFuncCall, BlockId, BlockType, FunctionInput, MemOp},
     },
     native_types::{Expression, Witness},
 };
@@ -176,7 +173,6 @@ impl<'a> Parser<'a> {
     fn parse_current_witness_index(&mut self) -> ParseResult<u32> {
         self.eat_keyword_or_error(Keyword::Current)?;
         self.eat_keyword_or_error(Keyword::Witness)?;
-        self.eat_keyword_or_error(Keyword::Index)?;
         self.eat_or_error(Token::Colon)?;
 
         Ok(self.eat_witness_or_error()?.0)
@@ -185,7 +181,6 @@ impl<'a> Parser<'a> {
     fn parse_private_parameters(&mut self) -> ParseResult<BTreeSet<Witness>> {
         self.eat_keyword_or_error(Keyword::Private)?;
         self.eat_keyword_or_error(Keyword::Parameters)?;
-        self.eat_keyword_or_error(Keyword::Indices)?;
         self.eat_or_error(Token::Colon)?;
 
         self.parse_witness_ordered_set()
@@ -194,7 +189,6 @@ impl<'a> Parser<'a> {
     fn parse_public_parameters(&mut self) -> ParseResult<BTreeSet<Witness>> {
         self.eat_keyword_or_error(Keyword::Public)?;
         self.eat_keyword_or_error(Keyword::Parameters)?;
-        self.eat_keyword_or_error(Keyword::Indices)?;
         self.eat_or_error(Token::Colon)?;
 
         self.parse_witness_ordered_set()
@@ -202,8 +196,7 @@ impl<'a> Parser<'a> {
 
     fn parse_return_values(&mut self) -> ParseResult<BTreeSet<Witness>> {
         self.eat_keyword_or_error(Keyword::Return)?;
-        self.eat_keyword_or_error(Keyword::Value)?;
-        self.eat_keyword_or_error(Keyword::Indices)?;
+        self.eat_keyword_or_error(Keyword::Values)?;
         self.eat_or_error(Token::Colon)?;
 
         self.parse_witness_ordered_set()
@@ -351,30 +344,43 @@ impl<'a> Parser<'a> {
             }
             BlackBoxFunc::AND => {
                 let inputs = self.parse_blackbox_inputs()?;
+                let num_bits = self.parse_blackbox_bit_size()?;
                 let outputs = self.parse_witness_vector()?;
 
                 self.expect_len(&inputs, 2, "AND", false)?;
                 self.expect_len(&outputs, 1, "AND", true)?;
 
-                BlackBoxFuncCall::AND { lhs: inputs[0], rhs: inputs[1], output: outputs[0] }
+                BlackBoxFuncCall::AND {
+                    lhs: inputs[0],
+                    rhs: inputs[1],
+                    num_bits,
+                    output: outputs[0],
+                }
             }
             BlackBoxFunc::XOR => {
                 let inputs = self.parse_blackbox_inputs()?;
+                let num_bits = self.parse_blackbox_bit_size()?;
                 let outputs = self.parse_witness_vector()?;
 
                 self.expect_len(&inputs, 2, "XOR", false)?;
                 self.expect_len(&outputs, 1, "XOR", true)?;
 
-                BlackBoxFuncCall::XOR { lhs: inputs[0], rhs: inputs[1], output: outputs[0] }
+                BlackBoxFuncCall::XOR {
+                    lhs: inputs[0],
+                    rhs: inputs[1],
+                    num_bits,
+                    output: outputs[0],
+                }
             }
             BlackBoxFunc::RANGE => {
                 let inputs = self.parse_blackbox_inputs()?;
+                let num_bits = self.parse_blackbox_bit_size()?;
                 let outputs = self.parse_witness_vector()?;
 
                 self.expect_len(&inputs, 1, "RANGE", false)?;
                 self.expect_len(&outputs, 0, "RANGE", true)?;
 
-                BlackBoxFuncCall::RANGE { input: inputs[0] }
+                BlackBoxFuncCall::RANGE { input: inputs[0], num_bits }
             }
             BlackBoxFunc::Blake2s => {
                 let inputs = self.parse_blackbox_inputs()?;
@@ -393,6 +399,7 @@ impl<'a> Parser<'a> {
             BlackBoxFunc::EcdsaSecp256k1 => {
                 let mut inputs = self.parse_blackbox_inputs()?;
 
+                let predicate = self.try_extract_tail::<1, _>(&mut inputs, "predicate")?[0];
                 let hashed_message =
                     self.try_extract_tail::<32, _>(&mut inputs, "hashed_message")?;
                 let signature = self.try_extract_tail::<64, _>(&mut inputs, "signature")?;
@@ -409,11 +416,13 @@ impl<'a> Parser<'a> {
                     signature,
                     hashed_message,
                     output,
+                    predicate,
                 }
             }
             BlackBoxFunc::EcdsaSecp256r1 => {
                 let mut inputs = self.parse_blackbox_inputs()?;
 
+                let predicate = self.try_extract_tail::<1, _>(&mut inputs, "predicate")?[0];
                 let hashed_message =
                     self.try_extract_tail::<32, _>(&mut inputs, "hashed_message")?;
                 let signature = self.try_extract_tail::<64, _>(&mut inputs, "signature")?;
@@ -430,6 +439,7 @@ impl<'a> Parser<'a> {
                     signature,
                     hashed_message,
                     output,
+                    predicate,
                 }
             }
             BlackBoxFunc::MultiScalarMul => todo!(),
@@ -447,26 +457,25 @@ impl<'a> Parser<'a> {
             }
             BlackBoxFunc::EmbeddedCurveAdd => {
                 let mut inputs = self.parse_blackbox_inputs()?;
-
+                let predicate = self.try_extract_tail::<1, _>(&mut inputs, "predicate")?[0];
                 let input2 = self.try_extract_tail::<3, _>(&mut inputs, "EC add input2")?;
                 let input1 = self.try_extract_tail::<3, _>(&mut inputs, "EC add input1")?;
-
                 let outputs = self.parse_witness_vector()?;
                 self.expect_len(&outputs, 3, "EmbeddedCurveAdd", true)?;
 
                 BlackBoxFuncCall::EmbeddedCurveAdd {
                     input1,
                     input2,
+                    predicate,
                     outputs: (outputs[0], outputs[1], outputs[2]),
                 }
             }
             BlackBoxFunc::Poseidon2Permutation => {
                 let inputs = self.parse_blackbox_inputs()?;
-                let len = inputs.len() as u32;
 
                 let outputs = self.parse_witness_vector()?;
 
-                BlackBoxFuncCall::Poseidon2Permutation { inputs, outputs, len }
+                BlackBoxFuncCall::Poseidon2Permutation { inputs, outputs }
             }
             BlackBoxFunc::Sha256Compression => {
                 let mut inputs = self.parse_blackbox_inputs()?;
@@ -480,14 +489,6 @@ impl<'a> Parser<'a> {
 
                 BlackBoxFuncCall::Sha256Compression { inputs, hash_values, outputs }
             }
-            BlackBoxFunc::BigIntAdd
-            | BlackBoxFunc::BigIntSub
-            | BlackBoxFunc::BigIntMul
-            | BlackBoxFunc::BigIntDiv
-            | BlackBoxFunc::BigIntFromLeBytes
-            | BlackBoxFunc::BigIntToLeBytes => {
-                unreachable!("Set to be removed, thus they are not implemented")
-            }
         };
         Ok(func)
     }
@@ -498,18 +499,16 @@ impl<'a> Parser<'a> {
         let mut inputs = Vec::new();
 
         while !self.eat(Token::RightBracket)? {
-            self.eat_or_error(Token::LeftParen)?;
-
             let input = match self.token.token() {
                 Token::Int(value) => {
                     let value = *value;
                     self.bump()?;
-                    ConstantOrWitnessEnum::Constant(value)
+                    FunctionInput::Constant(value)
                 }
                 Token::Witness(index) => {
                     let witness = *index;
                     self.bump()?;
-                    ConstantOrWitnessEnum::Witness(Witness(witness))
+                    FunctionInput::Witness(Witness(witness))
                 }
                 other => {
                     return Err(ParserError::ExpectedOneOfTokens {
@@ -520,26 +519,7 @@ impl<'a> Parser<'a> {
                 }
             };
 
-            self.eat_or_error(Token::Comma)?;
-
-            let num_bits = self.eat_u32_or_error()?;
-
-            let function_input = match input {
-                ConstantOrWitnessEnum::Constant(value) => FunctionInput::constant(value, num_bits)
-                    .map_err(|err| ParserError::InvalidInputBitSize {
-                        value: err.value,
-                        value_num_bits: err.value_num_bits,
-                        max_bits: err.max_bits,
-                        span: self.token.span(),
-                    })?,
-                ConstantOrWitnessEnum::Witness(witness) => {
-                    FunctionInput::witness(witness, num_bits)
-                }
-            };
-
-            inputs.push(function_input);
-
-            self.eat_or_error(Token::RightParen)?;
+            inputs.push(input);
 
             // Eat a comma if there is another input, but do not error if there is no comma
             // as this means we have reached the end of the inputs.
@@ -549,10 +529,15 @@ impl<'a> Parser<'a> {
         Ok(inputs)
     }
 
+    fn parse_blackbox_bit_size(&mut self) -> ParseResult<u32> {
+        self.eat_or_error(Token::Colon)?;
+        let num_bits = self.eat_u32_or_error()?;
+        self.eat_expected_ident("bits")?;
+        Ok(num_bits)
+    }
+
     fn parse_memory_op(&mut self) -> ParseResult<Opcode<FieldElement>> {
         self.eat_keyword_or_error(Keyword::MemoryOp)?;
-
-        let predicate = self.eat_predicate()?;
 
         self.eat_or_error(Token::LeftParen)?;
 
@@ -599,11 +584,7 @@ impl<'a> Parser<'a> {
 
         self.eat_or_error(Token::RightParen)?;
 
-        Ok(Opcode::MemoryOp {
-            block_id: BlockId(block_id),
-            op: MemOp { index, value, operation },
-            predicate,
-        })
+        Ok(Opcode::MemoryOp { block_id: BlockId(block_id), op: MemOp { index, value, operation } })
     }
 
     fn parse_memory_init(&mut self) -> ParseResult<Opcode<FieldElement>> {
@@ -632,7 +613,7 @@ impl<'a> Parser<'a> {
         // Parse `len: <int>`
         self.eat_expected_ident("len")?;
         self.eat_or_error(Token::Colon)?;
-        let _ = self.eat_u32_or_error()?;
+        let len = self.eat_u32_or_error()?;
         self.eat_or_error(Token::Comma)?;
 
         // Parse `witnesses: [_0, _1, ...]`
@@ -640,6 +621,14 @@ impl<'a> Parser<'a> {
         self.eat_or_error(Token::Colon)?;
         let init = self.parse_witness_vector()?;
         self.eat_or_error(Token::RightParen)?;
+
+        if init.len() != len as usize {
+            return Err(ParserError::InitLengthMismatch {
+                expected: len as usize,
+                found: init.len(),
+                span: self.token.span(),
+            });
+        }
 
         Ok(Opcode::MemoryInit { block_id, init, block_type })
     }
@@ -1033,14 +1022,12 @@ pub(crate) enum ParserError {
     ExpectedBlackBoxFuncName { found: Token, span: Span },
     #[error("Number does not fit in u32, got: '{number}'")]
     IntegerLargerThanU32 { number: FieldElement, span: Span },
-    #[error(
-        "FunctionInput value has too many bits: value: {value}, {value_num_bits} >= {max_bits}"
-    )]
-    InvalidInputBitSize { value: String, value_num_bits: u32, max_bits: u32, span: Span },
     #[error("Expected {expected} inputs for {name}, found {found}")]
     IncorrectInputLength { expected: usize, found: usize, name: String, span: Span },
     #[error("Expected {expected} outputs for {name}, found {found}")]
     IncorrectOutputLength { expected: usize, found: usize, name: String, span: Span },
+    #[error("Expected {expected} witnesses for INIT, found {found}")]
+    InitLengthMismatch { expected: usize, found: usize, span: Span },
     #[error("Expected function id {expected}, found {found}")]
     UnexpectedFunctionId { expected: u32, found: u32, span: Span },
 }
@@ -1050,19 +1037,19 @@ impl ParserError {
         use ParserError::*;
         match self {
             LexerError(e) => e.span(),
-            ExpectedToken { span, .. } => *span,
-            ExpectedOneOfTokens { span, .. } => *span,
-            ExpectedIdentifier { span, .. } => *span,
-            ExpectedFieldElement { span, .. } => *span,
-            ExpectedWitness { span, .. } => *span,
-            DuplicatedConstantTerm { span, .. } => *span,
-            MissingConstantTerm { span } => *span,
-            ExpectedBlackBoxFuncName { span, .. } => *span,
-            IntegerLargerThanU32 { span, .. } => *span,
-            InvalidInputBitSize { span, .. } => *span,
-            IncorrectInputLength { span, .. } => *span,
-            IncorrectOutputLength { span, .. } => *span,
-            UnexpectedFunctionId { span, .. } => *span,
+            ExpectedToken { span, .. }
+            | ExpectedOneOfTokens { span, .. }
+            | ExpectedIdentifier { span, .. }
+            | ExpectedFieldElement { span, .. }
+            | ExpectedWitness { span, .. }
+            | DuplicatedConstantTerm { span, .. }
+            | MissingConstantTerm { span }
+            | ExpectedBlackBoxFuncName { span, .. }
+            | IntegerLargerThanU32 { span, .. }
+            | IncorrectInputLength { span, .. }
+            | IncorrectOutputLength { span, .. }
+            | InitLengthMismatch { span, .. }
+            | UnexpectedFunctionId { span, .. } => *span,
         }
     }
 }

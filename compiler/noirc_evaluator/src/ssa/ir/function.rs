@@ -29,10 +29,16 @@ impl RuntimeType {
     /// We return `false` for InlineType::Inline on default, which is true
     /// in all cases except for main. `main` should be supported with special
     /// handling in any places where this function determines logic.
+    ///
+    /// ## Important
+    /// If a Brillig function is not main it requires special handling to determine
+    /// whether it is an entry point. Brillig entry points can also be anywhere we start
+    /// Brillig execution from an ACIR runtime. This requires analyzing the call sites of the ACIR runtime.
     pub(crate) fn is_entry_point(&self) -> bool {
         match self {
-            RuntimeType::Acir(inline_type) => inline_type.is_entry_point(),
-            RuntimeType::Brillig(_) => true,
+            RuntimeType::Acir(inline_type) | RuntimeType::Brillig(inline_type) => {
+                inline_type.is_entry_point()
+            }
         }
     }
 

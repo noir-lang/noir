@@ -1,12 +1,7 @@
-use acvm::{
-    BlackBoxFunctionSolver,
-    acir::{
-        AcirField,
-        brillig::Opcode as BrilligOpcode,
-        circuit::brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs},
-        native_types::{Expression, Witness},
-    },
-    brillig_vm::{MemoryValue, VM, VMStatus},
+use acvm::acir::{
+    AcirField,
+    circuit::brillig::{BrilligFunctionId, BrilligInputs, BrilligOutputs},
+    native_types::{Expression, Witness},
 };
 use iter_extended::{try_vecmap, vecmap};
 
@@ -16,7 +11,7 @@ use crate::errors::{InternalError, RuntimeError};
 use super::generated_acir::{BrilligStdlibFunc, PLACEHOLDER_BRILLIG_INDEX};
 use super::{AcirContext, AcirDynamicArray, AcirType, AcirValue, AcirVar};
 
-impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
+impl<F: AcirField> AcirContext<F> {
     /// Generates a brillig call to a handwritten section of brillig bytecode.
     pub(crate) fn stdlib_brillig_call(
         &mut self,
@@ -25,14 +20,12 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         stdlib_func_bytecode: &GeneratedBrillig<F>,
         inputs: Vec<AcirValue>,
         outputs: Vec<AcirType>,
-        attempt_execution: bool,
     ) -> Result<Vec<AcirValue>, RuntimeError> {
         self.brillig_call(
             predicate,
             stdlib_func_bytecode,
             inputs,
             outputs,
-            attempt_execution,
             false,
             PLACEHOLDER_BRILLIG_INDEX,
             Some(brillig_stdlib_func),
@@ -46,7 +39,6 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
         generated_brillig: &GeneratedBrillig<F>,
         inputs: Vec<AcirValue>,
         outputs: Vec<AcirType>,
-        attempt_execution: bool,
         unsafe_return_values: bool,
         brillig_function_index: BrilligFunctionId,
         brillig_stdlib_func: Option<BrilligStdlibFunc>,
@@ -90,20 +82,6 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
                 }
             })?;
 
-        // Optimistically try executing the brillig now, if we can complete execution they just return the results.
-        // This is a temporary measure pending SSA optimizations being applied to Brillig which would remove constant-input opcodes (See #2066)
-        //
-        // We do _not_ want to do this in the situation where the `main` function is unconstrained, as if execution succeeds
-        // the entire program will be replaced with witness constraints to its outputs.
-        if attempt_execution {
-            if let Some(brillig_outputs) =
-                self.execute_brillig(&generated_brillig.byte_code, &brillig_inputs, &outputs)
-            {
-                return Ok(brillig_outputs);
-            }
-        }
-
-        // Otherwise we must generate ACIR for it and execute at runtime.
         let mut brillig_outputs = Vec::new();
         let outputs_var = vecmap(outputs, |output| match output {
             AcirType::NumericType(_) => {
@@ -129,8 +107,8 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
             brillig_stdlib_func,
         );
 
-        fn range_constraint_value<G: AcirField, C: BlackBoxFunctionSolver<G>>(
-            context: &mut AcirContext<G, C>,
+        fn range_constraint_value<G: AcirField>(
+            context: &mut AcirContext<G>,
             value: &AcirValue,
         ) -> Result<(), RuntimeError> {
             let one = context.add_constant(G::one());
@@ -246,121 +224,5 @@ impl<F: AcirField, B: BlackBoxFunctionSolver<F>> AcirContext<F, B> {
             }
         }
         (AcirValue::Array(array_values), witnesses)
-    }
-
-    fn execute_brillig(
-        &mut self,
-        code: &[BrilligOpcode<F>],
-        inputs: &[BrilligInputs<F>],
-        outputs_types: &[AcirType],
-    ) -> Option<Vec<AcirValue>> {
-        let mut memory = (execute_brillig(code, &self.blackbox_solver, inputs)?).into_iter();
-
-        let outputs_var = vecmap(outputs_types.iter(), |output| match output {
-            AcirType::NumericType(_) => {
-                let var = self.add_constant(memory.next().expect("Missing return data").to_field());
-                AcirValue::Var(var, output.clone())
-            }
-            AcirType::Array(element_types, size) => {
-                self.brillig_constant_array_output(element_types, *size, &mut memory)
-            }
-        });
-
-        Some(outputs_var)
-    }
-
-    /// Recursively create [`AcirValue`]s for returned arrays. This is necessary because a brillig returned array can have nested arrays as elements.
-    fn brillig_constant_array_output(
-        &mut self,
-        element_types: &[AcirType],
-        size: usize,
-        memory_iter: &mut impl Iterator<Item = MemoryValue<F>>,
-    ) -> AcirValue {
-        let mut array_values = im::Vector::new();
-        for _ in 0..size {
-            for element_type in element_types {
-                match element_type {
-                    AcirType::Array(nested_element_types, nested_size) => {
-                        let nested_acir_value = self.brillig_constant_array_output(
-                            nested_element_types,
-                            *nested_size,
-                            memory_iter,
-                        );
-                        array_values.push_back(nested_acir_value);
-                    }
-                    AcirType::NumericType(_) => {
-                        let memory_value =
-                            memory_iter.next().expect("ICE: Unexpected end of memory");
-                        let var = self.add_constant(memory_value.to_field());
-                        array_values.push_back(AcirValue::Var(var, element_type.clone()));
-                    }
-                }
-            }
-        }
-        AcirValue::Array(array_values)
-    }
-}
-
-/// Attempts to execute the provided [`Brillig`][`acvm::acir::brillig`] bytecode
-///
-/// Returns the finished state of the Brillig VM if execution can complete.
-///
-/// Returns `None` if complete execution of the Brillig bytecode is not possible.
-fn execute_brillig<F: AcirField, B: BlackBoxFunctionSolver<F>>(
-    code: &[BrilligOpcode<F>],
-    blackbox_solver: &B,
-    inputs: &[BrilligInputs<F>],
-) -> Option<Vec<MemoryValue<F>>> {
-    // Set input values
-    let mut calldata: Vec<F> = Vec::new();
-
-    // Each input represents a constant or array of constants.
-    // Iterate over each input and push it into registers and/or memory.
-    for input in inputs {
-        match input {
-            BrilligInputs::Single(expr) => {
-                calldata.push(*expr.to_const()?);
-            }
-            BrilligInputs::Array(expr_arr) => {
-                // Attempt to fetch all array input values
-                for expr in expr_arr.iter() {
-                    calldata.push(*expr.to_const()?);
-                }
-            }
-            BrilligInputs::MemoryArray(_) => {
-                return None;
-            }
-        }
-    }
-
-    // Instantiate a Brillig VM given the solved input registers and memory, along with the Brillig bytecode.
-    let profiling_active = false;
-    let mut vm = VM::new(calldata, code, blackbox_solver, profiling_active, None);
-
-    // Run the Brillig VM on these inputs, bytecode, etc!
-    let vm_status = vm.process_opcodes();
-
-    // Check the status of the Brillig VM.
-    // It may be finished, in-progress, failed, or may be waiting for results of a foreign call.
-    // If it's finished then we can omit the opcode and just write in the return values.
-    match vm_status {
-        VMStatus::Finished { return_data_offset, return_data_size } => Some(
-            vm.get_memory()[return_data_offset..(return_data_offset + return_data_size)].to_vec(),
-        ),
-        VMStatus::InProgress => unreachable!("Brillig VM has not completed execution"),
-        VMStatus::Failure { .. } => {
-            // TODO: Return an error stating that the brillig function failed.
-            None
-        }
-        VMStatus::ForeignCallWait { .. } => {
-            // If execution can't complete then keep the opcode
-
-            // TODO: We could bake in all the execution up to this point by replacing the inputs
-            // such that they initialize the registers/memory to the current values and then discard
-            // any opcodes prior to the one which performed this foreign call.
-            //
-            // Seems overkill for now however.
-            None
-        }
     }
 }

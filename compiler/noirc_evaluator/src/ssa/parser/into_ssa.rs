@@ -4,7 +4,7 @@ use std::{
 };
 
 use acvm::acir::circuit::ErrorSelector;
-use noirc_errors::call_stack::CallStackId;
+use noirc_errors::{Location, call_stack::CallStackId};
 
 use crate::ssa::{
     function_builder::FunctionBuilder,
@@ -156,10 +156,18 @@ impl Translator {
             RuntimeType::Brillig(inline_type) => {
                 self.builder.new_brillig_function(external_name, function_id, inline_type);
                 self.builder.set_globals(self.globals_graph.clone());
+
+                // In our ACIR generation tests we want to make sure that `brillig_locations` in the `GeneratedAcir` was accurately set.
+                // Thus, we set a dummy location here so that translated instructions have a location associated with them.
+                let stack = vec![Location::dummy()];
+                let call_stack_data = &mut self.builder.current_function.dfg.call_stack_data;
+                let call_stack = call_stack_data.get_or_insert_locations(&stack);
+                self.builder.set_call_stack(call_stack);
             }
         }
 
         self.builder.set_purities(self.purities.clone());
+
         self.translate_function_body(function)
     }
 
@@ -573,7 +581,7 @@ impl Translator {
     }
 
     fn finish(self) -> Ssa {
-        let mut ssa = self.builder.finish();
+        let mut ssa = self.builder.finish().generate_entry_point_index();
 
         // Normalize the IDs so we have a better chance of matching the SSA we parsed
         // after the step-by-step reconstruction done during translation. This assumes

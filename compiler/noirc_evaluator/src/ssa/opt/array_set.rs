@@ -6,11 +6,13 @@
 //!
 //! This optimization only applies to ACIR. In Brillig we use ref-counting to decide when
 //! there are no other references to an array.
+//! This pass assumes that Load and Store instructions have been previously removed.
 //!
 //! The pass is expected to run at most once, and requires these passes to occur before itself:
 //! * unrolling
 //! * flattening
 //! * removal of if-else instructions
+//! * mem2reg and DIE, in order to remove Load/Store instructions
 
 use core::panic;
 use std::mem;
@@ -84,6 +86,12 @@ fn array_set_optimization_pre_check(func: &Function) {
                 Instruction::IfElse { .. } => {
                     panic!("IfElse instruction exists before `array_set_optimization` pass");
                 }
+                Instruction::Load { .. } => {
+                    panic!("Load instruction exists before `array_set_optimization` pass");
+                }
+                Instruction::Store { .. } => {
+                    panic!("Store instruction exists before `array_set_optimization` pass");
+                }
                 _ => {}
             }
         }
@@ -96,7 +104,7 @@ fn array_set_optimization_pre_check(func: &Function) {
 ///   - Mutable array_set optimization has been applied to Brillig function.
 #[cfg(debug_assertions)]
 fn array_set_optimization_post_check(func: &Function) {
-    // Brillig functions should be not have any mutable array sets.
+    // Brillig functions should not have any mutable array sets.
     if func.runtime().is_brillig() {
         for block_id in func.reachable_blocks() {
             let instruction_ids = func.dfg[block_id].instructions();
@@ -135,9 +143,6 @@ struct Context<'f> {
     dfg: &'f DataFlowGraph,
     array_to_last_use: HashMap<ValueId, InstructionId>,
     instructions_that_can_be_made_mutable: HashSet<InstructionId>,
-    // Mapping of an array that comes from a load and whether the address
-    // it was loaded from is a reference parameter passed to the block.
-    arrays_from_load: HashMap<ValueId, bool>,
 }
 
 impl<'f> Context<'f> {
@@ -146,7 +151,6 @@ impl<'f> Context<'f> {
             dfg,
             array_to_last_use: HashMap::default(),
             instructions_that_can_be_made_mutable: HashSet::default(),
-            arrays_from_load: HashMap::default(),
         }
     }
 
@@ -194,21 +198,13 @@ impl<'f> Context<'f> {
                 Instruction::ArraySet { array, .. } => {
                     self.set_last_use(*array, *instruction_id);
 
-                    // If the array we are setting does not come from a load we can safely mark it mutable.
-                    // If the array comes from a load we may potentially being mutating an array at a reference
-                    // that is loaded from by other values.
-
                     // We also want to check that the array is not part of the terminator arguments, as this means it is used again.
                     let mut is_array_in_terminator = false;
                     terminator.for_each_value(|value| {
                         is_array_in_terminator |= value == *array;
                     });
 
-                    let can_mutate = if let Some(is_from_param) = self.arrays_from_load.get(array) {
-                        !is_from_param
-                    } else {
-                        !is_array_in_terminator
-                    };
+                    let can_mutate = !is_array_in_terminator;
 
                     if can_mutate {
                         self.instructions_that_can_be_made_mutable.insert(*instruction_id);
@@ -222,14 +218,11 @@ impl<'f> Context<'f> {
                         }
                     }
                 }
-                // Arrays loaded from input references might be shared with the caller.
-                Instruction::Load { address } => {
-                    let result = self.dfg.instruction_results(*instruction_id)[0];
-                    if self.dfg.type_of_value(result).is_array() {
-                        let is_reference_param =
-                            self.dfg.block_parameters(block_id).contains(address);
-                        self.arrays_from_load.insert(result, is_reference_param);
-                    }
+                // Arrays loaded from memory might reference an existing array
+                // For instance if the array comes from a load we may potentially be mutating an array
+                // at a reference that is loaded from by other values.
+                Instruction::Load { .. } => {
+                    panic!("Load instruction exists before `array_set_optimization` pass");
                 }
                 // Arrays nested in other arrays are a use.
                 Instruction::MakeArray { elements, .. } => {
@@ -268,50 +261,6 @@ mod tests {
         assert_ssa_snapshot,
         ssa::{Ssa, opt::assert_ssa_does_not_change},
     };
-
-    #[test]
-    fn array_set_in_loop_with_conditional_clone() {
-        // We want to make sure that we do not mark a single array set mutable which is loaded
-        // from and cloned in a loop. If the array is inadvertently marked mutable, and is cloned in a previous iteration
-        // of the loop, its clone will also be altered.
-
-        // Note that this is a Brillig function, so it's skipped altogether.
-        // We can't just change it to ACIR, because it uses multiple blocks, it's not unrolled and flattened.
-        // It's left here to prevent any regressions, should we ever run the array_set optimization on Brillig again.
-        let src = "
-            brillig(inline) fn main f0 {
-              b0():
-                v2 = make_array [Field 0, Field 0, Field 0, Field 0, Field 0] : [Field; 5]
-                v3 = make_array [v2, v2] : [[Field; 5]; 2]
-                v4 = allocate -> &mut [[Field; 5]; 2]
-                store v3 at v4
-                v5 = allocate -> &mut [[Field; 5]; 2]
-                store v3 at v5
-                jmp b1(u32 0)
-              b1(v0: u32):
-                v8 = lt v0, u32 5
-                jmpif v8 then: b3, else: b2
-              b2():
-                return
-              b3():
-                v9 = eq v0, u32 5
-                jmpif v9 then: b4, else: b5
-              b4():
-                v10 = load v4 -> [[Field; 5]; 2]
-                store v10 at v5
-                jmp b5()
-              b5():
-                v11 = load v4 -> [[Field; 5]; 2]
-                v12 = array_get v11, index u32 0 -> [Field; 5]
-                v14 = array_set v12, index v0, value Field 20
-                v15 = array_set v11, index v0, value v14
-                store v15 at v4
-                v17 = add v0, u32 1
-                jmp b1(v17)
-            }
-            ";
-        assert_ssa_does_not_change(src, Ssa::array_set_optimization);
-    }
 
     #[test]
     fn does_not_mutate_array_used_in_make_array() {
@@ -377,66 +326,12 @@ mod tests {
     }
 
     #[test]
-    fn does_not_mutate_array_loaded_from_reference_parameter() {
-        let src = "
-            acir(inline) fn main f0 {
-              b0():
-                v1 = make_array [Field 0] : [Field; 1]
-                v2 = allocate -> &mut [Field; 1]
-                store v1 at v2
-                call f1(v2)
-                return
-            }
-
-            acir(inline) fn func_1 f1 {
-              b0(v0: &mut [Field; 1]):
-                v1 = load v0 -> [Field; 1]
-                v2 = array_set v1, index u32 0, value Field 1
-                return
-            }
-            ";
-        assert_ssa_does_not_change(src, Ssa::array_set_optimization);
-    }
-
-    #[test]
-    fn mutate_arrays_loaded_from_non_parameter_reference() {
-        let src = "
-            acir(inline) fn main f0 {
-              b0():
-                v1 = make_array [Field 0] : [Field; 1]
-                v2 = allocate -> &mut [Field; 1]
-                store v1 at v2
-                v3 = load v2 -> [Field; 1]
-                v4 = array_set v3, index u32 0, value Field 1
-                return
-            }
-            ";
-        let ssa = Ssa::from_str(src).unwrap();
-
-        let ssa = ssa.array_set_optimization();
-        assert_ssa_snapshot!(ssa, @r"
-            acir(inline) fn main f0 {
-              b0():
-                v1 = make_array [Field 0] : [Field; 1]
-                v2 = allocate -> &mut [Field; 1]
-                store v1 at v2
-                v3 = load v2 -> [Field; 1]
-                v6 = array_set mut v3, index u32 0, value Field 1
-                return
-            }
-        ");
-    }
-
-    #[test]
     fn does_not_mutate_arrays_in_unreachable_blocks() {
         let src = "
             acir(inline) fn main f0 {
               b0():
                 v1 = make_array [Field 0] : [Field; 1]
-                v2 = allocate -> &mut [Field; 1]
-                store v1 at v2
-                v3 = load v2 -> [Field; 1]
-                v4 = array_set v3, index u32 0, value Field 1
+                v4 = array_set v1, index u32 0, value Field 1
                 constrain u1 0 == u1 1
                 unreachable
             }
@@ -457,6 +352,38 @@ mod tests {
                 v3 = not v0
                 v4 = if v0 then v1 else (if v3) v2
                 v5 = array_set v4, index u32 0, value u32 1
+                return v1
+            }
+            ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let _ssa = ssa.array_set_optimization();
+    }
+
+    #[test]
+    #[should_panic]
+    fn assumes_no_load() {
+        let src = "
+            acir(inline) predicate_pure fn main f0 {
+              b0(v0: u1, v1: [u32; 2], v2: [u32; 2]):
+                v3 = load v2 -> [u32; 2]
+                v4 = array_get v3, index u32 0 -> u32
+                v5 = array_set v1, index u32 0, value v4
+                return v1
+            }
+            ";
+        let ssa = Ssa::from_str(src).unwrap();
+        let _ssa = ssa.array_set_optimization();
+    }
+
+    #[test]
+    #[should_panic]
+    fn assumes_no_store() {
+        let src = "
+            acir(inline) predicate_pure fn main f0 {
+              b0(v0: u1, v1: [u32; 2], v2: [u32; 2]):
+                v3 = allocate -> &mut [u32; 2]
+                store v2 at v3
+                v5 = array_set v3, index u32 0, value u32 1
                 return v1
             }
             ";

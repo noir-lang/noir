@@ -143,7 +143,7 @@ struct Context {
     /// For example, this allows simplifying the instructions below to determine that `v2 == Field 3` without
     /// laying down constraints for the addition:
     ///
-    /// ```
+    /// ```ssa
     /// constrain v1 == Field 0
     /// v2 = add v1, Field 2
     /// ```
@@ -497,7 +497,7 @@ enum CanBeDeduplicated {
     /// An example is `EnableSideEffects` where a "duplicate" of this instruction has an important effect on later instructions
     /// which is not implied by the existence of the original `EnableSideEffects` instruction. For example:
     ///
-    /// ```
+    /// ```ssa
     /// enable_side_effects u1 1
     /// enable_side_effects u1 0
     /// enable_side_effects u1 1 <-- deduplicating this instruction results in side effects being disabled rather than enabled.
@@ -1667,7 +1667,7 @@ mod test {
           b3():
             v11 = load v5 -> [Field; 4]
             inc_rc v11
-            v14 = call poseidon2_permutation(v11, u32 4) -> [Field; 4]
+            v14 = call poseidon2_permutation(v11) -> [Field; 4]
             store v14 at v5
             return
           b4():

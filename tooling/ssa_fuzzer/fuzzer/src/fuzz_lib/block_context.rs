@@ -458,6 +458,9 @@ impl BlockContext {
                 }
             }
             Instruction::FieldToBytesToField { field_idx } => {
+                if !self.options.instruction_options.field_to_bytes_to_field_enabled {
+                    return;
+                }
                 let field = self.get_stored_variable(&Type::Numeric(NumericType::Field), field_idx);
                 let field = match field {
                     Some(field) => field,
@@ -468,6 +471,9 @@ impl BlockContext {
                 self.store_variable(&field);
             }
             Instruction::Blake2sHash { field_idx, limbs_count } => {
+                if !self.options.instruction_options.blake2s_hash_enabled {
+                    return;
+                }
                 let input = self.get_stored_variable(&Type::Numeric(NumericType::Field), field_idx);
                 let input = match input {
                     Some(input) => input,
@@ -482,6 +488,9 @@ impl BlockContext {
                 self.store_variable(&hash_as_field);
             }
             Instruction::Blake3Hash { field_idx, limbs_count } => {
+                if !self.options.instruction_options.blake3_hash_enabled {
+                    return;
+                }
                 let input = self.get_stored_variable(&Type::Numeric(NumericType::Field), field_idx);
                 let input = match input {
                     Some(input) => input,
@@ -496,6 +505,9 @@ impl BlockContext {
                 self.store_variable(&hash_as_field);
             }
             Instruction::Keccakf1600Hash { u64_indices, load_elements_of_array } => {
+                if !self.options.instruction_options.keccakf1600_hash_enabled {
+                    return;
+                }
                 let input = match self.insert_array(
                     builder,
                     u64_indices.to_vec(),
@@ -520,6 +532,9 @@ impl BlockContext {
                 }
             }
             Instruction::Aes128Encrypt { input_idx, input_limbs_count, key_idx, iv_idx } => {
+                if !self.options.instruction_options.aes128_encrypt_enabled {
+                    return;
+                }
                 if input_limbs_count == 0 {
                     return;
                 }
@@ -554,6 +569,9 @@ impl BlockContext {
                 state_indices,
                 load_elements_of_array,
             } => {
+                if !self.options.instruction_options.sha256_compression_enabled {
+                    return;
+                }
                 let input = match self.insert_array(
                     builder,
                     input_indices.to_vec(),
@@ -585,7 +603,7 @@ impl BlockContext {
                     }
                 }
             }
-            Instruction::PointAdd { p1, p2 } => {
+            Instruction::PointAdd { p1, p2, predicate } => {
                 if !self.options.instruction_options.point_add_enabled {
                     return;
                 }
@@ -596,12 +614,12 @@ impl BlockContext {
                 }
                 let p1 = p1.unwrap();
                 let p2 = p2.unwrap();
-                let acir_point = builder.point_add(p1.clone(), p2.clone());
+                let acir_point = builder.point_add(p1.clone(), p2.clone(), predicate);
                 for typed_value in [&acir_point.x, &acir_point.y, &acir_point.is_infinite] {
                     self.store_variable(typed_value);
                 }
             }
-            Instruction::MultiScalarMul { points_and_scalars } => {
+            Instruction::MultiScalarMul { points_and_scalars, predicate } => {
                 if !self.options.instruction_options.multi_scalar_mul_enabled {
                     return;
                 }
@@ -622,7 +640,8 @@ impl BlockContext {
                 if points_vec.len() != scalars_vec.len() {
                     unreachable!("points_vec.len() != scalars_vec.len()");
                 }
-                let point = builder.multi_scalar_mul(points_vec.clone(), scalars_vec.clone());
+                let point =
+                    builder.multi_scalar_mul(points_vec.clone(), scalars_vec.clone(), predicate);
                 for typed_value in [&point.x, &point.y, &point.is_infinite] {
                     self.store_variable(typed_value);
                 }
@@ -633,6 +652,7 @@ impl BlockContext {
                 corrupt_pubkey_x,
                 corrupt_pubkey_y,
                 corrupt_signature,
+                predicate,
             } => {
                 if !self.options.instruction_options.ecdsa_secp256r1_enabled {
                     return;
@@ -650,6 +670,7 @@ impl BlockContext {
                     prepared_signature.public_key_y.clone(),
                     prepared_signature.hash.clone(),
                     prepared_signature.signature.clone(),
+                    predicate,
                 );
                 self.store_variable(&result);
             }
@@ -659,6 +680,7 @@ impl BlockContext {
                 corrupt_pubkey_x,
                 corrupt_pubkey_y,
                 corrupt_signature,
+                predicate,
             } => {
                 if !self.options.instruction_options.ecdsa_secp256k1_enabled {
                     return;
@@ -676,6 +698,7 @@ impl BlockContext {
                     prepared_signature.public_key_y.clone(),
                     prepared_signature.hash.clone(),
                     prepared_signature.signature.clone(),
+                    predicate,
                 );
                 self.store_variable(&result);
             }

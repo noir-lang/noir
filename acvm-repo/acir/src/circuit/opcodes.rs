@@ -13,9 +13,7 @@ use serde::{Deserialize, Serialize};
 mod black_box_function_call;
 mod memory_operation;
 
-pub use black_box_function_call::{
-    BlackBoxFuncCall, ConstantOrWitnessEnum, FunctionInput, InvalidInputBitSize,
-};
+pub use black_box_function_call::{BlackBoxFuncCall, FunctionInput, InvalidInputBitSize};
 pub use memory_operation::{BlockId, MemOp};
 
 /// Type for a memory block
@@ -102,9 +100,6 @@ pub enum Opcode<F: AcirField> {
         block_id: BlockId,
         /// Describe the memory operation to perform
         op: MemOp<F>,
-        /// Predicate of the memory operation - indicates if it should be skipped
-        /// Disables the execution of the opcode when the expression evaluates to zero
-        predicate: Option<Expression<F>>,
     },
 
     /// Initialize an ACIR array from a vector of witnesses.
@@ -153,11 +148,8 @@ impl<F: AcirField> std::fmt::Display for Opcode<F> {
         match self {
             Opcode::AssertZero(expr) => expr.fmt(f),
             Opcode::BlackBoxFuncCall(g) => g.fmt(f),
-            Opcode::MemoryOp { block_id, op, predicate } => {
+            Opcode::MemoryOp { block_id, op } => {
                 write!(f, "MEM ")?;
-                if let Some(pred) = predicate {
-                    writeln!(f, "PREDICATE: {pred}")?;
-                }
 
                 let is_read = op.operation.is_zero();
                 if is_read {
@@ -242,33 +234,35 @@ mod tests {
 
         insta::assert_snapshot!(
             mem_init.to_string(),
-            @"INIT (id: 42, len: 10, witnesses: [_0, _1, _2, _3, _4, _5, _6, _7, _8, _9])"
+            @"INIT (id: 42, len: 10, witnesses: [w0, w1, w2, w3, w4, w5, w6, w7, w8, w9])"
         );
     }
 
     #[test]
     fn blackbox_snapshot() {
         let xor: Opcode<FieldElement> = Opcode::BlackBoxFuncCall(BlackBoxFuncCall::XOR {
-            lhs: FunctionInput::witness(0.into(), 32),
-            rhs: FunctionInput::witness(1.into(), 32),
+            lhs: FunctionInput::Witness(0.into()),
+            rhs: FunctionInput::Witness(1.into()),
+            num_bits: 32,
             output: Witness(3),
         });
 
         insta::assert_snapshot!(
             xor.to_string(),
-            @"BLACKBOX::XOR [(_0, 32), (_1, 32)] [_3]"
+            @"BLACKBOX::XOR [w0, w1]:32 bits [w3]"
         );
     }
 
     #[test]
     fn range_display_snapshot() {
         let range: Opcode<FieldElement> = Opcode::BlackBoxFuncCall(BlackBoxFuncCall::RANGE {
-            input: FunctionInput::witness(0.into(), 32),
+            input: FunctionInput::Witness(0.into()),
+            num_bits: 32,
         });
 
         insta::assert_snapshot!(
             range.to_string(),
-            @"BLACKBOX::RANGE [(_0, 32)] []"
+            @"BLACKBOX::RANGE [w0]:32 bits []"
         );
     }
 }

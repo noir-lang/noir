@@ -226,6 +226,18 @@ pub(crate) fn simplify(
                     zero,
                     assert_message.as_ref().map(|msg| ConstrainError::from(msg.clone())),
                 ))
+            } else if let Some(c) = dfg.get_numeric_constant(*value) {
+                if c.num_bits() > *max_bit_size {
+                    let zero = dfg.make_constant(FieldElement::zero(), NumericType::bool());
+                    let one = dfg.make_constant(FieldElement::one(), NumericType::bool());
+                    SimplifiedToInstruction(Instruction::Constrain(
+                        zero,
+                        one,
+                        assert_message.as_ref().map(|msg| ConstrainError::from(msg.clone())),
+                    ))
+                } else {
+                    Remove
+                }
             } else {
                 None
             }
@@ -508,25 +520,30 @@ mod tests {
 
     #[test]
     fn removes_range_constraints_on_constants() {
-        let src = "
+        let src = r#"
         acir(inline) fn main f0 {
-          b0(v0: Field):
+          b0(v0: Field, v1: u8):
             range_check Field 0 to 1 bits
             range_check Field 1 to 1 bits
+            range_check Field 2 to 1 bits, "2 > 1"
             range_check Field 255 to 8 bits
-            range_check Field 256 to 8 bits
+            range_check Field 256 to 8 bits, "256 > 255"
+            range_check v0 to 8 bits
+            range_check v1 to 8 bits
             return
         }
-        ";
+        "#;
         let ssa = Ssa::from_str_simplifying(src).unwrap();
 
-        assert_ssa_snapshot!(ssa, @r"
+        assert_ssa_snapshot!(ssa, @r#"
         acir(inline) fn main f0 {
-          b0(v0: Field):
-            range_check Field 256 to 8 bits
+          b0(v0: Field, v1: u8):
+            constrain u1 0 == u1 1, "2 > 1"
+            constrain u1 0 == u1 1, "256 > 255"
+            range_check v0 to 8 bits
             return
         }
-        ");
+        "#);
     }
 
     #[test]

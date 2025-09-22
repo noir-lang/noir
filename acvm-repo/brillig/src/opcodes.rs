@@ -61,6 +61,15 @@ impl MemoryAddress {
     }
 }
 
+impl std::fmt::Display for MemoryAddress {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            MemoryAddress::Direct(address) => write!(f, "@{address}"),
+            MemoryAddress::Relative(offset) => write!(f, "sp[{offset}]"),
+        }
+    }
+}
+
 /// Describes the memory layout for an array/vector element
 #[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize, Hash)]
 pub enum HeapValueType {
@@ -106,6 +115,44 @@ impl HeapValueType {
     }
 }
 
+impl std::fmt::Display for HeapValueType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let write_types =
+            |f: &mut std::fmt::Formatter<'_>, value_types: &[HeapValueType]| -> std::fmt::Result {
+                if value_types.len() == 1 {
+                    write!(f, "{}", value_types[0])?;
+                } else {
+                    write!(f, "(")?;
+                    for (index, value_type) in value_types.iter().enumerate() {
+                        if index > 0 {
+                            write!(f, ", ")?;
+                        }
+                        write!(f, "{value_type}")?;
+                    }
+                    write!(f, ")")?;
+                }
+                Ok(())
+            };
+
+        match self {
+            HeapValueType::Simple(bit_size) => {
+                write!(f, "{bit_size}")
+            }
+            HeapValueType::Array { value_types, size } => {
+                write!(f, "[")?;
+                write_types(f, value_types)?;
+                write!(f, "; {size}")?;
+                write!(f, "]")
+            }
+            HeapValueType::Vector { value_types } => {
+                write!(f, "&[")?;
+                write_types(f, value_types)?;
+                write!(f, "]")
+            }
+        }
+    }
+}
+
 /// A fixed-sized array starting from a Brillig memory location.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy, Hash)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
@@ -120,12 +167,24 @@ impl Default for HeapArray {
     }
 }
 
+impl std::fmt::Display for HeapArray {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "[{}; {}]", self.pointer, self.size)
+    }
+}
+
 /// A memory-sized vector passed starting from a Brillig memory location and with a memory-held size
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy, Hash)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
 pub struct HeapVector {
     pub pointer: MemoryAddress,
     pub size: MemoryAddress,
+}
+
+impl std::fmt::Display for HeapVector {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "&[{}; {}]", self.pointer, self.size)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Copy, PartialOrd, Ord, Hash)]
@@ -205,6 +264,15 @@ impl BitSize {
     }
 }
 
+impl std::fmt::Display for BitSize {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            BitSize::Field => write!(f, "field"),
+            BitSize::Integer(bit_size) => write!(f, "{bit_size}"),
+        }
+    }
+}
+
 /// Lays out various ways an external foreign call's input and output data may be interpreted inside Brillig.
 /// This data can either be an individual value or memory.
 ///
@@ -227,6 +295,22 @@ pub enum ValueOrArray {
     /// In the case of a foreign call input, the vector is read from this Brillig memory location + as many cells as the 2nd address indicates.
     /// In the case of a foreign call output, the vector is written to this Brillig memory location and as 'size' cells, with size being stored in the second address.
     HeapVector(HeapVector),
+}
+
+impl std::fmt::Display for ValueOrArray {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ValueOrArray::MemoryAddress(memory_address) => {
+                write!(f, "{memory_address}")
+            }
+            ValueOrArray::HeapArray(heap_array) => {
+                write!(f, "{heap_array}")
+            }
+            ValueOrArray::HeapVector(heap_vector) => {
+                write!(f, "{heap_vector}")
+            }
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
@@ -260,12 +344,6 @@ pub enum BrilligOpcode<F> {
         destination: MemoryAddress,
         source: MemoryAddress,
         bit_size: BitSize,
-    },
-    /// Sets the program counter to the value of `location` if
-    /// the value at the `condition` address is zero.
-    JumpIfNot {
-        condition: MemoryAddress,
-        location: Label,
     },
     /// Sets the program counter to the value of `location`
     /// If the value at `condition` is non-zero
@@ -362,6 +440,106 @@ pub enum BrilligOpcode<F> {
     },
 }
 
+impl<F: std::fmt::Display> std::fmt::Display for BrilligOpcode<F> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            BrilligOpcode::BinaryFieldOp { destination, op, lhs, rhs } => {
+                write!(f, "{destination} = field {op} {lhs}, {rhs}")
+            }
+            BrilligOpcode::BinaryIntOp { destination, op, bit_size, lhs, rhs } => {
+                write!(f, "{destination} = {bit_size} {op} {lhs}, {rhs}")
+            }
+            BrilligOpcode::Not { destination, source, bit_size } => {
+                write!(f, "{destination} = {bit_size} not {source}")
+            }
+            BrilligOpcode::Cast { destination, source, bit_size } => {
+                write!(f, "{destination} = cast {source} to {bit_size}")
+            }
+            BrilligOpcode::JumpIf { condition, location } => {
+                write!(f, "jump if {condition} to {location}")
+            }
+            BrilligOpcode::Jump { location } => {
+                write!(f, "jump to {location}")
+            }
+            BrilligOpcode::CalldataCopy { destination_address, size_address, offset_address } => {
+                write!(
+                    f,
+                    "{destination_address} = calldata copy [{offset_address}; {size_address}]"
+                )
+            }
+            BrilligOpcode::Call { location } => {
+                write!(f, "call {location}")
+            }
+            BrilligOpcode::Const { destination, bit_size, value } => {
+                write!(f, "{destination} = const {bit_size} {value}")
+            }
+            BrilligOpcode::IndirectConst { destination_pointer, bit_size, value } => {
+                write!(f, "{destination_pointer} = indirect const {bit_size} {value}")
+            }
+            BrilligOpcode::Return => {
+                write!(f, "return")
+            }
+            BrilligOpcode::ForeignCall {
+                function,
+                destinations,
+                destination_value_types,
+                inputs,
+                input_value_types,
+            } => {
+                assert_eq!(destinations.len(), destination_value_types.len());
+
+                if !destinations.is_empty() {
+                    for (index, (destination, destination_value_type)) in
+                        destinations.iter().zip(destination_value_types.iter()).enumerate()
+                    {
+                        if index > 0 {
+                            write!(f, ", ")?;
+                        }
+                        write!(f, "{destination}: {destination_value_type}")?;
+                    }
+                    write!(f, " = ")?;
+                }
+
+                write!(f, "foreign call {function}(")?;
+
+                assert_eq!(inputs.len(), input_value_types.len());
+                for (index, (input, input_value_type)) in
+                    inputs.iter().zip(input_value_types.iter()).enumerate()
+                {
+                    if index > 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{input}: {input_value_type}")?;
+                }
+
+                write!(f, ")")?;
+                Ok(())
+            }
+            BrilligOpcode::Mov { destination, source } => {
+                write!(f, "{destination} = {source}")
+            }
+            BrilligOpcode::ConditionalMov { destination, source_a, source_b, condition } => {
+                write!(f, "{destination} = if {condition} then {source_a} else {source_b}")
+            }
+            BrilligOpcode::Load { destination, source_pointer } => {
+                write!(f, "{destination} = load {source_pointer}")
+            }
+            BrilligOpcode::Store { destination_pointer, source } => {
+                write!(f, "store {source} at {destination_pointer}")
+            }
+            BrilligOpcode::BlackBox(black_box_op) => {
+                write!(f, "{black_box_op}")
+            }
+            BrilligOpcode::Trap { revert_data } => {
+                write!(f, "trap {revert_data}")
+            }
+            BrilligOpcode::Stop { return_data } => {
+                write!(f, "stop {return_data}")
+            }
+        }
+    }
+}
+
 /// Binary fixed-length field expressions
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Hash)]
 #[cfg_attr(feature = "arb", derive(proptest_derive::Arbitrary))]
@@ -379,6 +557,21 @@ pub enum BinaryFieldOp {
     LessThan,
     /// (<=) field less or equal
     LessThanEquals,
+}
+
+impl std::fmt::Display for BinaryFieldOp {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            BinaryFieldOp::Add => write!(f, "add"),
+            BinaryFieldOp::Sub => write!(f, "sub"),
+            BinaryFieldOp::Mul => write!(f, "mul"),
+            BinaryFieldOp::Div => write!(f, "field_div"),
+            BinaryFieldOp::IntegerDiv => write!(f, "int_div"),
+            BinaryFieldOp::Equals => write!(f, "eq"),
+            BinaryFieldOp::LessThan => write!(f, "lt"),
+            BinaryFieldOp::LessThanEquals => write!(f, "lt_eq"),
+        }
+    }
 }
 
 /// Binary fixed-length integer expressions
@@ -405,6 +598,25 @@ pub enum BinaryIntOp {
     Shl,
     /// (>>) Shift right
     Shr,
+}
+
+impl std::fmt::Display for BinaryIntOp {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            BinaryIntOp::Add => write!(f, "add"),
+            BinaryIntOp::Sub => write!(f, "sub"),
+            BinaryIntOp::Mul => write!(f, "mul"),
+            BinaryIntOp::Div => write!(f, "div"),
+            BinaryIntOp::Equals => write!(f, "eq"),
+            BinaryIntOp::LessThan => write!(f, "lt"),
+            BinaryIntOp::LessThanEquals => write!(f, "lt_eq"),
+            BinaryIntOp::And => write!(f, "and"),
+            BinaryIntOp::Or => write!(f, "or"),
+            BinaryIntOp::Xor => write!(f, "xor"),
+            BinaryIntOp::Shl => write!(f, "shl"),
+            BinaryIntOp::Shr => write!(f, "shr"),
+        }
+    }
 }
 
 #[cfg(feature = "arb")]

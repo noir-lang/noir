@@ -87,20 +87,18 @@ pub(crate) enum Keyword {
     Current,
     /// witness
     Witness,
-    /// index
-    Index,
     /// private
     Private,
     /// parameters
     Parameters,
-    /// indices
-    Indices,
     /// public
     Public,
     /// return
     Return,
     /// value
     Value,
+    /// values
+    Values,
     /// EXPR
     Expression,
     /// BLACKBOX
@@ -128,13 +126,12 @@ impl Keyword {
         let keyword = match word {
             "current" => Keyword::Current,
             "witness" => Keyword::Witness,
-            "index" => Keyword::Index,
             "private" => Keyword::Private,
             "parameters" => Keyword::Parameters,
-            "indices" => Keyword::Indices,
             "public" => Keyword::Public,
             "return" => Keyword::Return,
             "value" => Keyword::Value,
+            "values" => Keyword::Values,
             "EXPR" => Keyword::Expression,
             "BLACKBOX" => Keyword::BlackBoxFuncCall,
             "MEM" => Keyword::MemoryOp,
@@ -156,13 +153,12 @@ impl std::fmt::Display for Keyword {
         match self {
             Keyword::Current => write!(f, "current"),
             Keyword::Witness => write!(f, "witness"),
-            Keyword::Index => write!(f, "index"),
             Keyword::Private => write!(f, "private"),
             Keyword::Parameters => write!(f, "parameters"),
-            Keyword::Indices => write!(f, "indices"),
             Keyword::Public => write!(f, "public"),
             Keyword::Return => write!(f, "return"),
             Keyword::Value => write!(f, "value"),
+            Keyword::Values => write!(f, "values"),
             Keyword::Expression => write!(f, "EXPR"),
             Keyword::BlackBoxFuncCall => write!(f, "BLACKBOX"),
             Keyword::MemoryOp => write!(f, "MEM"),
