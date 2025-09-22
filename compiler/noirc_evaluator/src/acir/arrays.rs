@@ -836,8 +836,8 @@ impl Context<'_> {
                     unreachable!("ICE: element type size arrays are expected to be initialized");
                 }
 
-                // We can safely overwrite the memory block from the initial call to `self.internal_block_id(&array_id)` here.  
-                // The type sizes array is never mutated so we can re-use it. 
+                // We can safely overwrite the memory block from the initial call to `self.internal_block_id(&array_id)` here.
+                // The type sizes array is never mutated so we can re-use it.
                 self.internal_memory_blocks.insert(array_id, *inner_elem_type_sizes);
                 Ok(*inner_elem_type_sizes)
             }
