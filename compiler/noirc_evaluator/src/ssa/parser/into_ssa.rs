@@ -288,19 +288,19 @@ impl Translator {
                 self.define_variable(target, value_id)?;
             }
             ParsedInstruction::ArrayGet { target, element_type, array, index, offset } => {
+                self.set_offset(&target, offset)?;
                 let array = self.translate_value(array)?;
                 let index = self.translate_value(index)?;
                 let value_id = self.builder.insert_array_get(array, index, element_type);
                 self.define_variable(target, value_id)?;
-                self.set_offset(offset);
             }
             ParsedInstruction::ArraySet { target, array, index, value, mutable, offset } => {
+                self.set_offset(&target, offset)?;
                 let array = self.translate_value(array)?;
                 let index = self.translate_value(index)?;
                 let value = self.translate_value(value)?;
                 let value_id = self.builder.insert_array_set(array, index, value, mutable);
                 self.define_variable(target, value_id)?;
-                self.set_offset(offset);
             }
             ParsedInstruction::BinaryOp { target, lhs, op, rhs } => {
                 let lhs = self.translate_value(lhs)?;
@@ -599,7 +599,14 @@ impl Translator {
     }
 
     /// If any array instruction has an offset, mark the DFG as using offsets in general.
-    fn set_offset(&mut self, offset: ArrayOffset) {
-        self.builder.current_function.dfg.brillig_arrays_offset |= offset != ArrayOffset::None;
+    fn set_offset(&mut self, target: &Identifier, offset: ArrayOffset) -> Result<(), SsaError> {
+        if offset == ArrayOffset::None {
+            return Ok(());
+        }
+        if !self.builder.current_function.dfg.runtime().is_brillig() {
+            return Err(SsaError::IllegalOffset(target.clone(), offset));
+        }
+        self.builder.current_function.dfg.brillig_arrays_offset = true;
+        Ok(())
     }
 }

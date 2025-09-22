@@ -133,6 +133,8 @@ pub(crate) enum SsaError {
     VariableAlreadyDefined(Identifier),
     #[error("Global '{0}' already defined")]
     GlobalAlreadyDefined(Identifier),
+    #[error("Illegal use of offset in non-Brillig function '{0:?}'")]
+    IllegalOffset(Identifier, ArrayOffset),
 }
 
 impl SsaError {
@@ -144,7 +146,8 @@ impl SsaError {
             | SsaError::UnknownBlock(identifier)
             | SsaError::VariableAlreadyDefined(identifier)
             | SsaError::GlobalAlreadyDefined(identifier)
-            | SsaError::UnknownFunction(identifier) => identifier.span,
+            | SsaError::UnknownFunction(identifier)
+            | SsaError::IllegalOffset(identifier, _) => identifier.span,
             SsaError::MismatchedReturnValues { returns, expected: _ } => returns[0].span,
         }
     }

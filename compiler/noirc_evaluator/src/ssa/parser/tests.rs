@@ -883,3 +883,16 @@ fn unknown_function_global_function_pointer() {
     ";
     let _ = Ssa::from_str_no_validation(src).unwrap();
 }
+
+#[test]
+#[should_panic(expected = "Illegal use of offset")]
+fn illegal_offset_in_acir_function() {
+    let src = "
+    acir(inline) fn main f0 {
+      b0(v0: [Field; 3]):
+        v3 = array_set v0, index u32 2 minus 1, value Field 1
+        return
+    }
+    ";
+    let _ = Ssa::from_str_no_validation(src).unwrap();
+}
