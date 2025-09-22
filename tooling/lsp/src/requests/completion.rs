@@ -1003,7 +1003,7 @@ impl<'a> NodeFinder<'a> {
     fn resolve_path(&self, segments: Vec<Ident>) -> Option<ModuleDefId> {
         let last_segment = segments.last().unwrap().clone();
 
-        // If we can't resolve a path trough lookup, let's see if the last segment is bound to a type
+        // If we can't resolve a path through lookup, let's see if the last segment is bound to a type
         let location = Location::new(last_segment.span(), self.file);
         if let Some(reference_id) = self.interner.find_referenced(location) {
             if let Some(id) = module_def_id_from_reference_id(reference_id) {
