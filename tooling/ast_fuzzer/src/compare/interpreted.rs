@@ -202,7 +202,9 @@ impl Comparable for ssa::interpreter::errors::InterpreterError {
                 msg2.as_ref().is_some_and(|msg| msg == msg1)
             }
             (DivisionByZero { .. }, ConstrainEqFailed { msg, .. }) => {
-                msg.as_ref().is_some_and(|msg| msg == "attempt to divide by zero")
+                msg.as_ref().is_some_and(|msg| {
+                    msg == "attempt to divide by zero" || msg.contains("divisor of zero")
+                })
             }
             (PoppedFromEmptySlice { .. }, ConstrainEqFailed { msg, .. }) => {
                 // The removal of unreachable instructions can replace popping from an empty slice with an always-fail constraint.
