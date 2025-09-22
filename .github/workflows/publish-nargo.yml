@@ -19,114 +19,7 @@ on:
 
 
 jobs:
-  build-apple-darwin:
-    runs-on: macos-14
-    env:
-      CROSS_CONFIG: ${{ github.workspace }}/.github/Cross.toml
-      NIGHTLY_RELEASE: ${{ inputs.tag == '' }}
-    strategy:
-      matrix:
-        target: [x86_64-apple-darwin, aarch64-apple-darwin]
-    timeout-minutes: 30
-    permissions:
-      id-token: write
-      # Necessary to upload new release artifacts
-      contents: write
-      attestations: write
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-        with:
-          ref: ${{ inputs.tag || env.GITHUB_REF }}
-
-
-      - name: Setup toolchain
-        uses: dtolnay/rust-toolchain@1.85.0
-        with:
-          targets: ${{ matrix.target }}
-
-      - uses: Swatinem/rust-cache@v2
-        with:
-          key: ${{ matrix.target }}
-          cache-on-failure: true
-          save-if: ${{ github.event_name != 'merge_group' }}
-
-      - uses: taiki-e/install-action@just
-
-      - name: Build binaries
-        run: just package
-        env:
-          CARGO_BUILD_TARGET: ${{ matrix.target }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload Noir binaries artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: noir-${{ matrix.target }}
-          path: ./dist/*
-          retention-days: 3
-
-      - name: Upload nargo binary to release tag
-        uses: svenstaro/upload-release-action@v2
-        if: ${{ inputs.publish || github.event_name == 'schedule' }}
-        with:
-          repo_name: noir-lang/noir
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: ./nargo-${{ matrix.target }}.tar.gz
-          asset_name: nargo-${{ matrix.target }}.tar.gz
-          overwrite: true
-          tag: ${{ inputs.tag || 'nightly' }} # This will fail if `inputs.tag` is not a tag (e.g. testing a branch)
-
-      - name: Generate noir binaries attestation
-        if: ${{ inputs.publish || github.event_name == 'schedule' }}
-        uses: actions/attest-build-provenance@v3
-        with:
-          subject-path: ./noir-${{ matrix.target }}.tar.gz
-
-      - name: Upload Noir binaries to release tag
-        uses: svenstaro/upload-release-action@v2
-        if: ${{ inputs.publish || github.event_name == 'schedule' }}
-        with:
-          repo_name: noir-lang/noir
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: ./noir-${{ matrix.target }}.tar.gz
-          asset_name: noir-${{ matrix.target }}.tar.gz
-          overwrite: true
-          tag: ${{ inputs.tag || 'nightly' }} # This will fail if `inputs.tag` is not a tag (e.g. testing a branch)
-
-      - name: Get formatted date
-        id: date
-        if: ${{ inputs.tag == '' && inputs.publish || github.event_name == 'schedule' }}
-        run: echo "date=$(date '+%Y-%m-%d')" >> $GITHUB_OUTPUT
-
-      - name: Upload nargo binary to release with date tag
-        uses: svenstaro/upload-release-action@v2
-        if: ${{ inputs.tag == '' && inputs.publish || github.event_name == 'schedule' }}
-        with:
-          repo_name: noir-lang/noir
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: ./nargo-${{ matrix.target }}.tar.gz
-          asset_name: nargo-${{ matrix.target }}.tar.gz
-          prerelease: true
-          make_latest: false
-          overwrite: true
-          tag: ${{ format('{0}-{1}', 'nightly', steps.date.outputs.date) }}
-
-      - name: Upload Noir binaries to release with date tag
-        uses: svenstaro/upload-release-action@v2
-        if: ${{ inputs.tag == '' && inputs.publish || github.event_name == 'schedule' }}
-        with:
-          repo_name: noir-lang/noir
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: ./noir-${{ matrix.target }}.tar.gz
-          asset_name: noir-${{ matrix.target }}.tar.gz
-          prerelease: true
-          make_latest: false
-          overwrite: true
-          tag: ${{ format('{0}-{1}', 'nightly', steps.date.outputs.date) }}
-
-  build-linux:
+  build:
     runs-on: ubuntu-22.04
     env:
       CROSS_CONFIG: ${{ github.workspace }}/.github/Cross.toml
@@ -134,7 +27,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target: [x86_64-unknown-linux-gnu, x86_64-unknown-linux-musl, aarch64-unknown-linux-gnu]
+        target:
+          - x86_64-unknown-linux-gnu
+          - x86_64-unknown-linux-musl
+          - aarch64-unknown-linux-gnu
+          - x86_64-apple-darwin
+          - aarch64-apple-darwin
     timeout-minutes: 30
     permissions:
       id-token: write
