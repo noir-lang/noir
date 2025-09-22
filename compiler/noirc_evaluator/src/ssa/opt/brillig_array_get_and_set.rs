@@ -272,35 +272,37 @@ mod tests {
         assert_ssa_does_not_change(src, Ssa::brillig_array_get_and_set);
     }
 
+    // This test is here to demonstrate how trying to use the common machinery
+    // after this pass would lead to unexpected results.
     #[test]
-    #[should_panic]
-    fn is_safe_index_unusable_once_offset() {
+    fn is_safe_index_unexpected_after_pass() {
         let src = "
         brillig(inline) fn main f0 {
           b0(v0: [Field; 1]):
-            v2 = array_set v0, index u32 0, value Field 2
-            return v2
+            v1 = array_get v0, index u32 0 -> Field
+            return v1
         }
         ";
 
+        fn has_side_effects(ssa: &Ssa) -> bool {
+            let func = ssa.main();
+            let b0 = &func.dfg[func.entry_block()];
+            let instruction = &func.dfg[b0.instructions()[0]];
+            instruction.has_side_effects(&func.dfg)
+        }
+
         let ssa = Ssa::from_str(src).unwrap();
 
-        let func = ssa.main();
-        let b0 = &func.dfg[func.entry_block()];
-        let instruction = &func.dfg[b0.instructions()[0]];
         assert!(
-            !instruction.has_side_effects(&func.dfg),
-            "Indexing 1-element array with index 0 should be safe and have no side effects"
+            !has_side_effects(&ssa),
+            "Indexing 1-element array with index 0 should be safe and have no side effects."
         );
 
         let ssa = ssa.brillig_array_get_and_set();
 
-        let func = ssa.main();
-        let b0 = &func.dfg[func.entry_block()];
-        let instruction = &func.dfg[b0.instructions()[0]];
         assert!(
-            !instruction.has_side_effects(&func.dfg),
-            "It should have no side effects, but it panics instead as it's not expected to be used"
+            has_side_effects(&ssa),
+            "It should have no side effects, but the index is now considered unsafe."
         );
     }
 }
