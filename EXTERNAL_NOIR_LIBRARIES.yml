@@ -1,4 +1,4 @@
-define: &AZ_COMMIT 95215869f4912edf381752443e5accb2468bc069
+define: &AZ_COMMIT 63acec5b331ff4ad7011ffc76b8b6e1c3b5a9afb
 libraries:
   noir_check_shuffle:
     repo: noir-lang/noir_check_shuffle
@@ -83,7 +83,7 @@ libraries:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
     path: noir-projects/noir-protocol-circuits/crates/blob
-    timeout: 300
+    timeout: 400
     critical: false
   protocol_circuits_parity_lib:
     repo: AztecProtocol/aztec-packages
@@ -113,7 +113,7 @@ libraries:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
     path: noir-projects/noir-protocol-circuits/crates/rollup-lib
-    timeout: 800
+    timeout: 900
     critical: false
     # Use 1 test threads for rollup-lib because each test requires a lot of memory, and multiple ones in parallel exceed the maximum memory limit.
     nargo_args: "--test-threads 1"

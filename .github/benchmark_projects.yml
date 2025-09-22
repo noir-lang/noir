@@ -1,4 +1,4 @@
-define: &AZ_COMMIT 95215869f4912edf381752443e5accb2468bc069
+define: &AZ_COMMIT 63acec5b331ff4ad7011ffc76b8b6e1c3b5a9afb
 projects:
   private-kernel-inner:
     repo: AztecProtocol/aztec-packages
@@ -29,30 +29,10 @@ projects:
     execution-timeout: 0.35
     compilation-memory-limit: 750
     execution-memory-limit: 300
-  rollup-base-private:
+  rollup-block-root-first-empty-tx:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
-    path: noir-projects/noir-protocol-circuits/crates/rollup-base-private
-    num_runs: 5
-    timeout: 15
-    compilation-timeout: 25
-    execution-timeout: 1
-    compilation-memory-limit: 1600
-    execution-memory-limit: 650
-  rollup-base-public:
-    repo: AztecProtocol/aztec-packages
-    ref: *AZ_COMMIT
-    path: noir-projects/noir-protocol-circuits/crates/rollup-base-public
-    num_runs: 5
-    timeout: 15
-    compilation-timeout: 20
-    execution-timeout: 0.75
-    compilation-memory-limit: 1700
-    execution-memory-limit: 600
-  rollup-block-root-empty:
-    repo: AztecProtocol/aztec-packages
-    ref: *AZ_COMMIT
-    path: noir-projects/noir-protocol-circuits/crates/rollup-block-root-empty
+    path: noir-projects/noir-protocol-circuits/crates/rollup-block-root-first-empty-tx
     cannot_execute: true
     num_runs: 5
     timeout: 60
@@ -77,10 +57,40 @@ projects:
     execution-timeout: 40
     compilation-memory-limit: 10000
     execution-memory-limit: 1900
-  rollup-merge:
+  rollup-checkpoint-merge:
     repo: AztecProtocol/aztec-packages
     ref: *AZ_COMMIT
-    path: noir-projects/noir-protocol-circuits/crates/rollup-merge
+    path: noir-projects/noir-protocol-circuits/crates/rollup-checkpoint-merge
+    num_runs: 5
+    timeout: 15
+    compilation-timeout: 20
+    execution-timeout: 0.75
+    compilation-memory-limit: 1700
+    execution-memory-limit: 600
+  rollup-checkpoint-root-single-block:
+    repo: AztecProtocol/aztec-packages
+    ref: *AZ_COMMIT
+    path: noir-projects/noir-protocol-circuits/crates/rollup-checkpoint-root-single-block
+    num_runs: 5
+    timeout: 15
+    compilation-timeout: 20
+    execution-timeout: 0.75
+    compilation-memory-limit: 10000
+    execution-memory-limit: 2000
+  rollup-checkpoint-root:
+    repo: AztecProtocol/aztec-packages
+    ref: *AZ_COMMIT
+    path: noir-projects/noir-protocol-circuits/crates/rollup-checkpoint-root
+    num_runs: 5
+    timeout: 15
+    compilation-timeout: 20
+    execution-timeout: 1
+    compilation-memory-limit: 10000
+    execution-memory-limit: 2000
+  rollup-tx-merge:
+    repo: AztecProtocol/aztec-packages
+    ref: *AZ_COMMIT
+    path: noir-projects/noir-protocol-circuits/crates/rollup-tx-merge
     num_runs: 5
     timeout: 300
     compilation-timeout: 4
@@ -97,6 +107,26 @@ projects:
     execution-timeout: 0.6
     compilation-memory-limit: 500
     execution-memory-limit: 450
+  rollup-tx-base-private:
+    repo: AztecProtocol/aztec-packages
+    ref: *AZ_COMMIT
+    path: noir-projects/noir-protocol-circuits/crates/rollup-tx-base-private
+    num_runs: 5
+    timeout: 15
+    compilation-timeout: 30
+    execution-timeout: 0.75
+    compilation-memory-limit: 1700
+    execution-memory-limit: 600
+  rollup-tx-base-public:
+    repo: AztecProtocol/aztec-packages
+    ref: *AZ_COMMIT
+    path: noir-projects/noir-protocol-circuits/crates/rollup-tx-base-public
+    num_runs: 5
+    timeout: 15
+    compilation-timeout: 100
+    execution-timeout: 0.75
+    compilation-memory-limit: 8000
+    execution-memory-limit: 600
   semaphore-depth-10:
     repo: noir-lang/noir
     path: test_programs/benchmarks/semaphore_depth_10
