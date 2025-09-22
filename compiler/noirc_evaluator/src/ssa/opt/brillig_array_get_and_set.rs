@@ -291,13 +291,13 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
+    #[should_panic(expected = "Array offsets are not supposed to be set yet")]
     fn is_safe_index_unusable_once_offset() {
         let src = "
         brillig(inline) fn main f0 {
           b0(v0: [Field; 1]):
-            v2 = array_set v0, index u32 0, value Field 2
-            return v2
+            v1 = array_get v0, index u32 0 -> Field
+            return v1
         }
         ";
 
