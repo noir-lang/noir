@@ -376,7 +376,10 @@ impl<F: AcirField> std::fmt::Display for Program<F> {
         }
         for (func_index, function) in self.unconstrained_functions.iter().enumerate() {
             writeln!(f, "unconstrained func {func_index}")?;
-            writeln!(f, "{:?}", function.bytecode)?;
+            let width = function.bytecode.len().to_string().len();
+            for (index, opcode) in function.bytecode.iter().enumerate() {
+                writeln!(f, "{index:>width$}: {opcode}")?;
+            }
         }
         Ok(())
     }

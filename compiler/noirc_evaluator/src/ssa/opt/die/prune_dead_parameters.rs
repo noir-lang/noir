@@ -217,7 +217,7 @@ impl Function {
             // Update the predecessor argument list to match the new parameter list
             self.update_predecessor_terminators(cfg.predecessors(block), block, &keep_list);
 
-            if block == self.entry_block() && can_prune_entry_block {
+            if block == self.entry_block() {
                 entry_block_keep_list = Some(keep_list);
             }
         }

@@ -130,7 +130,57 @@ fn does_not_generate_memory_blocks_without_dynamic_accesses() {
     EXPR [ (1, w0) 0 ]
 
     unconstrained func 0
-    [Const { destination: Direct(2), bit_size: Integer(U32), value: 1 }, Const { destination: Direct(1), bit_size: Integer(U32), value: 32839 }, Const { destination: Direct(0), bit_size: Integer(U32), value: 3 }, Const { destination: Relative(3), bit_size: Integer(U32), value: 3 }, Const { destination: Relative(4), bit_size: Integer(U32), value: 0 }, CalldataCopy { destination_address: Direct(32836), size_address: Relative(3), offset_address: Relative(4) }, Cast { destination: Direct(32836), source: Direct(32836), bit_size: Integer(U32) }, Mov { destination: Relative(1), source: Direct(32836) }, Const { destination: Relative(2), bit_size: Integer(U32), value: 32837 }, Const { destination: Relative(4), bit_size: Integer(U32), value: 2 }, Const { destination: Relative(6), bit_size: Integer(U32), value: 3 }, BinaryIntOp { destination: Relative(5), op: Add, bit_size: U32, lhs: Relative(4), rhs: Relative(6) }, Mov { destination: Relative(3), source: Direct(1) }, BinaryIntOp { destination: Direct(1), op: Add, bit_size: U32, lhs: Direct(1), rhs: Relative(5) }, IndirectConst { destination_pointer: Relative(3), bit_size: Integer(U32), value: 1 }, BinaryIntOp { destination: Relative(5), op: Add, bit_size: U32, lhs: Relative(3), rhs: Direct(2) }, Store { destination_pointer: Relative(5), source: Relative(4) }, BinaryIntOp { destination: Relative(5), op: Add, bit_size: U32, lhs: Relative(5), rhs: Direct(2) }, Store { destination_pointer: Relative(5), source: Relative(4) }, Const { destination: Relative(6), bit_size: Integer(U32), value: 3 }, BinaryIntOp { destination: Relative(5), op: Add, bit_size: U32, lhs: Relative(3), rhs: Relative(6) }, Mov { destination: Direct(32771), source: Relative(2) }, Mov { destination: Direct(32772), source: Relative(5) }, Mov { destination: Direct(32773), source: Relative(4) }, Call { location: 31 }, Mov { destination: Relative(2), source: Relative(3) }, Call { location: 42 }, Call { location: 43 }, Const { destination: Relative(1), bit_size: Integer(U32), value: 32839 }, Const { destination: Relative(2), bit_size: Integer(U32), value: 0 }, Stop { return_data: HeapVector { pointer: Relative(1), size: Relative(2) } }, BinaryIntOp { destination: Direct(32775), op: Add, bit_size: U32, lhs: Direct(32771), rhs: Direct(32773) }, Mov { destination: Direct(32776), source: Direct(32771) }, Mov { destination: Direct(32777), source: Direct(32772) }, BinaryIntOp { destination: Direct(32778), op: Equals, bit_size: U32, lhs: Direct(32776), rhs: Direct(32775) }, JumpIf { condition: Direct(32778), location: 41 }, Load { destination: Direct(32774), source_pointer: Direct(32776) }, Store { destination_pointer: Direct(32777), source: Direct(32774) }, BinaryIntOp { destination: Direct(32776), op: Add, bit_size: U32, lhs: Direct(32776), rhs: Direct(2) }, BinaryIntOp { destination: Direct(32777), op: Add, bit_size: U32, lhs: Direct(32777), rhs: Direct(2) }, Jump { location: 34 }, Return, Return, Call { location: 45 }, Return, Const { destination: Direct(32772), bit_size: Integer(U32), value: 30720 }, BinaryIntOp { destination: Direct(32771), op: LessThan, bit_size: U32, lhs: Direct(0), rhs: Direct(32772) }, JumpIf { condition: Direct(32771), location: 50 }, IndirectConst { destination_pointer: Direct(1), bit_size: Integer(U64), value: 15764276373176857197 }, Trap { revert_data: HeapVector { pointer: Direct(1), size: Direct(2) } }, Return]
+     0: @2 = const u32 1
+     1: @1 = const u32 32839
+     2: @0 = const u32 3
+     3: sp[3] = const u32 3
+     4: sp[4] = const u32 0
+     5: @32836 = calldata copy [sp[4]; sp[3]]
+     6: @32836 = cast @32836 to u32
+     7: sp[1] = @32836
+     8: sp[2] = const u32 32837
+     9: sp[4] = const u32 2
+    10: sp[6] = const u32 3
+    11: sp[5] = u32 add sp[4], sp[6]
+    12: sp[3] = @1
+    13: @1 = u32 add @1, sp[5]
+    14: sp[3] = indirect const u32 1
+    15: sp[5] = u32 add sp[3], @2
+    16: store sp[4] at sp[5]
+    17: sp[5] = u32 add sp[5], @2
+    18: store sp[4] at sp[5]
+    19: sp[6] = const u32 3
+    20: sp[5] = u32 add sp[3], sp[6]
+    21: @32771 = sp[2]
+    22: @32772 = sp[5]
+    23: @32773 = sp[4]
+    24: call 31
+    25: sp[2] = sp[3]
+    26: call 42
+    27: call 43
+    28: sp[1] = const u32 32839
+    29: sp[2] = const u32 0
+    30: stop &[sp[1]; sp[2]]
+    31: @32775 = u32 add @32771, @32773
+    32: @32776 = @32771
+    33: @32777 = @32772
+    34: @32778 = u32 eq @32776, @32775
+    35: jump if @32778 to 41
+    36: @32774 = load @32776
+    37: store @32774 at @32777
+    38: @32776 = u32 add @32776, @2
+    39: @32777 = u32 add @32777, @2
+    40: jump to 34
+    41: return
+    42: return
+    43: call 45
+    44: return
+    45: @32772 = const u32 30720
+    46: @32771 = u32 lt @0, @32772
+    47: jump if @32771 to 50
+    48: @1 = indirect const u64 15764276373176857197
+    49: trap &[@1; @2]
+    50: return
     ");
 }
 

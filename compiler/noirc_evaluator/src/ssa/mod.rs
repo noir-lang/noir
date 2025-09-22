@@ -215,7 +215,6 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         // We have to run it before, to give it a chance to turn Store+Load into known values.
         SsaPass::new(Ssa::mem2reg, "Mem2Reg"),
         SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination"),
-        SsaPass::new(Ssa::array_set_optimization, "Array Set Optimizations"),
         SsaPass::new(Ssa::brillig_entry_point_analysis, "Brillig Entry Point Analysis")
             // Remove any potentially unnecessary duplication from the Brillig entry point analysis.
             .and_then(Ssa::remove_unreachable_functions),
@@ -234,8 +233,8 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         SsaPass::new_try(
             Ssa::verify_no_dynamic_indices_to_references,
             "Verifying no dynamic array indices to reference value elements",
-        )
-        .and_then(|ssa| {
+        ),
+        SsaPass::new(Ssa::array_set_optimization, "Array Set Optimizations").and_then(|ssa| {
             // Deferred sanity checks that don't modify the SSA, just panic if we have something unexpected
             // that we don't know how to attribute to a concrete error with the Noir code.
             ssa.dead_instruction_elimination_post_check(true);
