@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1758556944298,
+  "lastUpdate": 1758557779263,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -12532,80 +12532,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": true,
-          "id": "ed2a32111bb727cc771f8a110ab802d45fd3c130",
-          "message": "chore(ssa): Brillig entry point specialization post check  (#9845)",
-          "timestamp": "2025-09-12T20:54:35Z",
-          "tree_id": "f6b6cd9861239bbf6b8a26fb737369164e03472b",
-          "url": "https://github.com/noir-lang/noir/commit/ed2a32111bb727cc771f8a110ab802d45fd3c130"
-        },
-        "date": 1757712908137,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 258.83,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 291.99,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 243.6,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 506.71,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 439.12,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1540,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 331.16,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 333.68,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 72.87,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 69.42,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "26174818+jialinli98@users.noreply.github.com",
             "name": "Jialin Li",
             "username": "jialinli98"
@@ -16340,6 +16266,95 @@ window.BENCHMARK_DATA = {
           "url": "https://github.com/noir-lang/noir/commit/74b44a7a683ee8447cf00d39b864f1ad9c8a05f8"
         },
         "date": 1758554419624,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 259.27,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 292.53,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 243.22,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 336.27,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 335.23,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 1540,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 1540,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 336.44,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 523.42,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 540.09,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 334.45,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 73,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 69.57,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": false,
+          "id": "ca32861f78f9668371ac49e47edbbb7c9aae0984",
+          "message": "chore(ci): only send slack notifications during the week (#9946)",
+          "timestamp": "2025-09-22T15:21:56Z",
+          "tree_id": "c3637aa4a0fb6c8f8074e3780f4e94dc9d5ad7d0",
+          "url": "https://github.com/noir-lang/noir/commit/ca32861f78f9668371ac49e47edbbb7c9aae0984"
+        },
+        "date": 1758557758849,
         "tool": "customSmallerIsBetter",
         "benches": [
           {
