@@ -23,14 +23,14 @@
 //!
 //! Now the index to retrieve is 4 and there's no need to offset it in Brillig,
 //! avoiding one addition.
+//!
 //! The "minus 1" part is just there so that readers can understand that the index
 //! was offset and that the actual element index is 3. On the Brillig side,
 //! array operations with constant indexes are always assumed to have already been
 //! shifted.
 //!
-//! In the case of slices, these are represented as Brillig vectors, where the items
-//! pointer instead starts at three rather than one.
-//! A Brillig vector is represented as [RC, Size, Capacity, ...items]. So for a slice
+//! In the case of slices, they are represented as Brillig vectors as [RC, Size, Capacity, ...items],
+//! thus the items pointer instead starts at three rather than one. So for a slice
 //! this pass will transform this:
 //!
 //! ```ssa
@@ -44,6 +44,10 @@
 //! b0(v0: [Field]):
 //!   v1 = array_get v0, index u32 6 minus 3 -> Field
 //! ```
+//!
+//! This pass meant to be one of the very last, just before generating ACIR and Brillig opcodes
+//! from the SSA. Some of the earlier passes would not expect the offset to be set, and may
+//! not take offset indexes correctly into account.
 use acvm::FieldElement;
 
 use crate::{
@@ -278,5 +282,37 @@ mod tests {
         }
         ";
         assert_ssa_does_not_change(src, Ssa::brillig_array_get_and_set);
+    }
+
+    #[test]
+    #[should_panic]
+    fn is_safe_index_unusable_once_offset() {
+        let src = "
+        brillig(inline) fn main f0 {
+          b0(v0: [Field; 1]):
+            v2 = array_set v0, index u32 0, value Field 2
+            return v2
+        }
+        ";
+
+        let ssa = Ssa::from_str(src).unwrap();
+
+        let func = ssa.main();
+        let b0 = &func.dfg[func.entry_block()];
+        let instruction = &func.dfg[b0.instructions()[0]];
+        assert!(
+            !instruction.has_side_effects(&func.dfg),
+            "Indexing 1-element array with index 0 should be safe and have no side effects"
+        );
+
+        let ssa = ssa.brillig_array_get_and_set();
+
+        let func = ssa.main();
+        let b0 = &func.dfg[func.entry_block()];
+        let instruction = &func.dfg[b0.instructions()[0]];
+        assert!(
+            !instruction.has_side_effects(&func.dfg),
+            "It should have no side effects, but it panics instead as it's not expected to be used"
+        );
     }
 }

@@ -119,9 +119,10 @@ pub(crate) fn simplify(
             if matches!(array_or_slice_type, Type::Array(_, 1))
                 && array_or_slice_type.flattened_size() == 1
             {
+                assert_eq!(*offset, ArrayOffset::None);
                 // If the array is of length 1 then we know the only value which can be potentially read out of it.
                 // We can then simply assert that the index is equal to zero and return the array's contained value.
-                optimize_length_one_array_read(dfg, block, call_stack, *array, *index, *offset)
+                optimize_length_one_array_read(dfg, block, call_stack, *array, *index)
             } else {
                 None
             }
@@ -342,7 +343,6 @@ fn optimize_length_one_array_read(
     call_stack: CallStackId,
     array: ValueId,
     index: ValueId,
-    offset: ArrayOffset,
 ) -> SimplifyResult {
     let zero = dfg.make_constant(FieldElement::zero(), NumericType::length_type());
     let index_constraint = Instruction::Constrain(
@@ -357,7 +357,7 @@ fn optimize_length_one_array_read(
         SimplifyResult::SimplifiedToInstruction(Instruction::ArrayGet {
             array,
             index: zero,
-            offset,
+            offset: ArrayOffset::None,
         })
     } else {
         result
