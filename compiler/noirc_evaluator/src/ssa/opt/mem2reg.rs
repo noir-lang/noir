@@ -2184,7 +2184,7 @@ mod tests {
             v11 = load v4 -> u32
             v12 = load v5 -> u1
             inc_rc v10
-            v15 = call poseidon2_permutation(v10, u32 4) -> [Field; 4]
+            v15 = call poseidon2_permutation(v10) -> [Field; 4]
             v16 = load v2 -> [Field; 3]
             v17 = load v3 -> [Field; 4]
             v18 = load v4 -> u32
@@ -2239,40 +2239,40 @@ mod tests {
             v7 = lt v4, u32 3
             jmpif v7 then: b2, else: b3
           b2():
-            v15 = load v0 -> [Field; 3]
-            v16 = load v1 -> [Field; 4]
-            v17 = load v2 -> u32
-            v18 = load v3 -> u1
-            v19 = lt v4, v17
-            jmpif v19 then: b4, else: b5
+            v14 = load v0 -> [Field; 3]
+            v15 = load v1 -> [Field; 4]
+            v16 = load v2 -> u32
+            v17 = load v3 -> u1
+            v18 = lt v4, v16
+            jmpif v18 then: b4, else: b5
           b3():
             v8 = load v0 -> [Field; 3]
             v9 = load v1 -> [Field; 4]
             v10 = load v2 -> u32
             v11 = load v3 -> u1
             inc_rc v9
-            v14 = call poseidon2_permutation(v9, u32 4) -> [Field; 4]
+            v13 = call poseidon2_permutation(v9) -> [Field; 4]
             store v8 at v0
-            store v14 at v1
+            store v13 at v1
             store v10 at v2
             store v11 at v3
             return
           b4():
             v20 = lt v4, u32 4
             constrain v20 == u1 1, "Index out of bounds"
-            v22 = array_get v16, index v4 -> Field
+            v22 = array_get v15, index v4 -> Field
             v23 = lt v4, u32 3
             constrain v23 == u1 1, "Index out of bounds"
-            v24 = array_get v15, index v4 -> Field
+            v24 = array_get v14, index v4 -> Field
             v25 = add v22, v24
             v26 = lt v4, u32 4
             constrain v26 == u1 1, "Index out of bounds"
-            v27 = array_set v16, index v4, value v25
+            v27 = array_set v15, index v4, value v25
             v29 = unchecked_add v4, u32 1
-            store v15 at v0
+            store v14 at v0
             store v27 at v1
-            store v17 at v2
-            store v18 at v3
+            store v16 at v2
+            store v17 at v3
             jmp b5()
           b5():
             v30 = unchecked_add v4, u32 1
