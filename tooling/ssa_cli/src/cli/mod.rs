@@ -48,7 +48,7 @@ enum SsaCommand {
     /// List the SSA passes we can apply.
     List,
     /// Parse and (optionally) validate the SSA.
-    /// Prints the normalized SSA, with canonic ID assignment.
+    /// Prints the normalized SSA, with canonical ID assignment.
     Check,
     Interpret(interpret_cmd::InterpretCommand),
     Transform(transform_cmd::TransformCommand),
