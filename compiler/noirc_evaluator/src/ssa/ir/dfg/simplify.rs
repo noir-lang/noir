@@ -80,9 +80,9 @@ pub(crate) fn simplify(
             let canonicalized = binary.clone().canonicalize(dfg);
             match simplify_binary(binary, dfg) {
                 None => SimplifiedToInstruction(Instruction::Binary(canonicalized)),
-                result => result
+                result => result,
             }
-        },
+        }
         Instruction::Cast(value, typ) => simplify_cast(*value, *typ, dfg),
         Instruction::Not(value) => {
             match &dfg[*value] {

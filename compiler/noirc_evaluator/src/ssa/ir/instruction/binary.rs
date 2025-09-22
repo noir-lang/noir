@@ -48,10 +48,15 @@ pub enum BinaryOp {
 
 impl BinaryOp {
     pub(crate) fn commutative(&self) -> bool {
-        matches!(self, BinaryOp::Add { .. } | BinaryOp::Mul { .. } | BinaryOp::Eq | BinaryOp::And |
-            BinaryOp::Or |
-            BinaryOp::Xor)
-       
+        matches!(
+            self,
+            BinaryOp::Add { .. }
+                | BinaryOp::Mul { .. }
+                | BinaryOp::Eq
+                | BinaryOp::And
+                | BinaryOp::Or
+                | BinaryOp::Xor
+        )
     }
 }
 
@@ -97,17 +102,26 @@ impl Binary {
         }
     }
 
-    pub(crate) fn canonicalize(self, dfg:&DataFlowGraph) -> Self {
-       if self.operator.commutative() {
+    pub(crate) fn canonicalize(self, dfg: &DataFlowGraph) -> Self {
+        if self.operator.commutative() {
             match (&dfg[self.lhs], &dfg[self.rhs]) {
-               (_, Value::NumericConstant{..}) => self,
-               ( Value::NumericConstant{..}, _) => Self { lhs: self.rhs, rhs: self.lhs, operator: self.operator },
-               
-               _ => self
+                (_, Value::NumericConstant { .. }) => self,
+                (Value::NumericConstant { .. }, _) => {
+                    Self { lhs: self.rhs, rhs: self.lhs, operator: self.operator }
+                }
+                (Value::Instruction { .. } | Value::Param { .. }, Value::Instruction { .. } | Value::Param { .. }) => {
+                    let (lhs, rhs) = if self.lhs <= self.rhs {
+                        (self.lhs, self.rhs)
+                    } else {
+                        (self.rhs, self.lhs)
+                    };
+                    Self { lhs, rhs, operator: self.operator }
+                }
+                _ => self,
             }
-       } else {
-        self
-       }
+        } else {
+            self
+        }
     }
 }
 
