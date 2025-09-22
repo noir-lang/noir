@@ -573,13 +573,8 @@ mod test {
         assert_ssa_snapshot,
         ssa::{
             Ssa,
-            function_builder::FunctionBuilder,
             interpreter::value::Value,
-            ir::{
-                map::Id,
-                types::{NumericType, Type},
-                value::ValueMapping,
-            },
+            ir::{types::NumericType, value::ValueMapping},
             opt::{assert_normalized_ssa_equals, assert_ssa_does_not_change},
         },
     };
@@ -891,46 +886,29 @@ mod test {
 
     #[test]
     fn deduplicate_across_blocks() {
-        // fn main f0 {
-        //   b0(v0: u1):
-        //     v1 = not v0
-        //     jmp b1()
-        //   b1():
-        //     v2 = not v0
-        //     return v2
-        // }
-        let main_id = Id::test_new(0);
+        let src = "
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            v1 = not v0
+            jmp b1()
+          b1():
+            v2 = not v0
+            return v2
+        }
+        ";
+        let ssa = Ssa::from_str(src).unwrap();
 
-        // Compiling main
-        let mut builder = FunctionBuilder::new("main".into(), main_id);
-        let b1 = builder.insert_block();
-
-        let v0 = builder.add_parameter(Type::bool());
-        let _v1 = builder.insert_not(v0);
-        builder.terminate_with_jmp(b1, Vec::new());
-
-        builder.switch_to_block(b1);
-        let v2 = builder.insert_not(v0);
-        builder.terminate_with_return(vec![v2]);
-
-        let ssa = builder.finish();
-        let main = ssa.main();
-        assert_eq!(main.dfg[main.entry_block()].instructions().len(), 1);
-        assert_eq!(main.dfg[b1].instructions().len(), 1);
-
-        // Expected output:
-        //
-        // fn main f0 {
-        //   b0(v0: u1):
-        //     v1 = not v0
-        //     jmp b1()
-        //   b1():
-        //     return v1
-        // }
         let ssa = ssa.fold_constants_using_constraints();
-        let main = ssa.main();
-        assert_eq!(main.dfg[main.entry_block()].instructions().len(), 1);
-        assert_eq!(main.dfg[b1].instructions().len(), 0);
+        assert_ssa_snapshot!(ssa, @r"
+        acir(inline) fn main f0 {
+          b0(v0: u1):
+            v1 = not v0
+            jmp b1()
+          b1():
+            return v1
+        }
+        "
+        );
     }
 
     #[test]
