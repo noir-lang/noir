@@ -215,7 +215,6 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         // We have to run it before, to give it a chance to turn Store+Load into known values.
         SsaPass::new(Ssa::mem2reg, "Mem2Reg"),
         SsaPass::new(Ssa::dead_instruction_elimination, "Dead Instruction Elimination"),
-        SsaPass::new(Ssa::array_set_optimization, "Array Set Optimizations"),
         SsaPass::new(Ssa::brillig_entry_point_analysis, "Brillig Entry Point Analysis")
             // Remove any potentially unnecessary duplication from the Brillig entry point analysis.
             .and_then(Ssa::remove_unreachable_functions),
@@ -230,8 +229,8 @@ pub fn primary_passes(options: &SsaEvaluatorOptions) -> Vec<SsaPass<'_>> {
         SsaPass::new_try(
             Ssa::verify_no_dynamic_indices_to_references,
             "Verifying no dynamic array indices to reference value elements",
-        )
-        .and_then(|ssa| {
+        ),
+        SsaPass::new(Ssa::array_set_optimization, "Array Set Optimizations").and_then(|ssa| {
             // Deferred sanity checks that don't modify the SSA, just panic if we have something unexpected
             // that we don't know how to attribute to a concrete error with the Noir code.
             ssa.dead_instruction_elimination_post_check(true);
@@ -414,10 +413,8 @@ pub fn combine_artifacts(
     debug_functions: DebugFunctions,
     debug_types: DebugTypes,
 ) -> SsaProgramArtifact {
-    let ArtifactsAndWarnings(
-        (generated_acirs, generated_brillig, brillig_function_names, error_types),
-        ssa_level_warnings,
-    ) = artifacts;
+    let ArtifactsAndWarnings((generated_acirs, generated_brillig, error_types), ssa_level_warnings) =
+        artifacts;
 
     assert_eq!(
         generated_acirs.len(),
@@ -444,13 +441,7 @@ pub fn combine_artifacts(
         .map(|(selector, hir_type)| (selector, ErrorType::Dynamic(hir_type)))
         .collect();
 
-    SsaProgramArtifact::new(
-        functions,
-        brillig_function_names,
-        generated_brillig,
-        error_types,
-        ssa_level_warnings,
-    )
+    SsaProgramArtifact::new(functions, generated_brillig, error_types, ssa_level_warnings)
 }
 
 fn resolve_function_signature(func_sig: &FunctionSignature) -> Vec<(u32, Visibility)> {
@@ -489,8 +480,8 @@ pub fn convert_generated_acir_into_circuit(
     let return_values = PublicInputs(return_witnesses.iter().copied().collect());
 
     let circuit = Circuit {
+        function_name: name.clone(),
         current_witness_index,
-        expression_width: ExpressionWidth::Unbounded,
         opcodes,
         private_parameters,
         public_parameters,

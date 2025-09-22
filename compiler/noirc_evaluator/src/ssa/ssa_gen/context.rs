@@ -518,12 +518,16 @@ impl<'a> FunctionContext<'a> {
     }
 
     /// Create a const offset of an address for an array load or store
-    pub(super) fn make_offset(&mut self, mut address: ValueId, offset: u128) -> ValueId {
+    pub(super) fn make_offset(
+        &mut self,
+        mut address: ValueId,
+        offset: u128,
+        unchecked: bool,
+    ) -> ValueId {
         if offset != 0 {
             let typ = self.builder.type_of_value(address).unwrap_numeric();
             let offset = self.builder.numeric_constant(offset, typ);
-            address =
-                self.builder.insert_binary(address, BinaryOp::Add { unchecked: true }, offset);
+            address = self.builder.insert_binary(address, BinaryOp::Add { unchecked }, offset);
         }
         address
     }

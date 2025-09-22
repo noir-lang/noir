@@ -666,13 +666,7 @@ fn simplify_black_box_func(
             blackbox::simplify_ec_add(dfg, solver, arguments, block, call_stack)
         }
 
-        BlackBoxFunc::BigIntAdd
-        | BlackBoxFunc::BigIntSub
-        | BlackBoxFunc::BigIntMul
-        | BlackBoxFunc::BigIntDiv
-        | BlackBoxFunc::RecursiveAggregation
-        | BlackBoxFunc::BigIntFromLeBytes
-        | BlackBoxFunc::BigIntToLeBytes => SimplifyResult::None,
+        BlackBoxFunc::RecursiveAggregation => SimplifyResult::None,
 
         BlackBoxFunc::AND => {
             unreachable!("ICE: `BlackBoxFunc::AND` calls should be transformed into a `BinaryOp`")

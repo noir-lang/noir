@@ -19,6 +19,7 @@ use crate::ssa::ir::{
     types::{NumericType, Type},
     value::{Value, ValueId},
 };
+use acvm::acir::BlackBoxFunc;
 use acvm::acir::brillig::{MemoryAddress, ValueOrArray};
 use acvm::{FieldElement, acir::AcirField};
 use iter_extended::vecmap;
@@ -709,6 +710,26 @@ impl<'block, Registers: RegisterAllocator> BrilligBlock<'block, Registers> {
                                 } else {
                                     arguments_no_slice_len.push(*arg);
                                 }
+                            }
+
+                            if matches!(
+                                bb_func,
+                                BlackBoxFunc::EcdsaSecp256k1
+                                    | BlackBoxFunc::EcdsaSecp256r1
+                                    | BlackBoxFunc::MultiScalarMul
+                                    | BlackBoxFunc::EmbeddedCurveAdd
+                            ) {
+                                // Some black box functions have a predicate argument in SSA which we don't want to
+                                // use in the brillig VM. This is as we do not need to flatten the CFG in brillig
+                                // so we expect the predicate to always be true.
+                                let predicate = &arguments_no_slice_len.pop().expect(
+                                    "ICE: ECDSA black box function must have a predicate argument",
+                                );
+                                assert_eq!(
+                                    dfg.get_numeric_constant_with_type(*predicate),
+                                    Some((FieldElement::one(), NumericType::bool())),
+                                    "ICE: ECDSA black box function must have a predicate argument with value 1"
+                                );
                             }
 
                             let function_arguments = vecmap(&arguments_no_slice_len, |arg| {
