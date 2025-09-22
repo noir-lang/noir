@@ -275,7 +275,6 @@ impl Context {
                         }
                     }
 
-                    let cached = cached.to_vec();
                     self.values_to_replace.batch_insert(&old_results, &cached);
                     return;
                 }
