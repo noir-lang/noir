@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1758535883152,
+  "lastUpdate": 1758536367640,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -20541,48 +20541,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "asterite@gmail.com",
-            "name": "Ary Borenszweig",
-            "username": "asterite"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "d60ba5c4241784987841fe71826064d11c0ff1ba",
-          "message": "feat: better check_u128_mul_overflow logic when an operand is constant (#9835)\n\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
-          "timestamp": "2025-09-12T14:25:42Z",
-          "tree_id": "8ee47f5515e215d0ac26018fa61c89742cc4b404",
-          "url": "https://github.com/noir-lang/noir/commit/d60ba5c4241784987841fe71826064d11c0ff1ba"
-        },
-        "date": 1757688831131,
-        "tool": "cargo",
-        "benches": [
-          {
-            "name": "purely_sequential_opcodes",
-            "value": 255107,
-            "range": "± 1462",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_opcodes",
-            "value": 227331,
-            "range": "± 1527",
-            "unit": "ns/iter"
-          },
-          {
-            "name": "perfectly_parallel_batch_inversion_opcodes",
-            "value": 2789568,
-            "range": "± 1232",
-            "unit": "ns/iter"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "mvezenov@gmail.com",
             "name": "Maxim Vezenov",
             "username": "vezenovm"
@@ -22634,6 +22592,48 @@ window.BENCHMARK_DATA = {
             "name": "perfectly_parallel_batch_inversion_opcodes",
             "value": 2808929,
             "range": "± 7685",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "15848336+TomAFrench@users.noreply.github.com",
+            "name": "Tom French",
+            "username": "TomAFrench"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "44b6be785e16d20a4f3e3c472d37a50d83e5aee1",
+          "message": "chore: redo typo PR by viktorking7 (#9939)",
+          "timestamp": "2025-09-22T11:16:38+01:00",
+          "tree_id": "07796f13de291039aa6bd4fc645e789fbf3ed618",
+          "url": "https://github.com/noir-lang/noir/commit/44b6be785e16d20a4f3e3c472d37a50d83e5aee1"
+        },
+        "date": 1758536347403,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "purely_sequential_opcodes",
+            "value": 258574,
+            "range": "± 1073",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_opcodes",
+            "value": 234280,
+            "range": "± 6875",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "perfectly_parallel_batch_inversion_opcodes",
+            "value": 2816735,
+            "range": "± 2477",
             "unit": "ns/iter"
           }
         ]
