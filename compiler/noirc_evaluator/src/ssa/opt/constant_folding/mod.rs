@@ -1157,9 +1157,6 @@ mod test {
             }
             ";
         let ssa = Ssa::from_str(src).unwrap();
-        // Need to run SSA pass that sets up Brillig array gets
-        let ssa = ssa.brillig_array_get_and_set();
-
         let ssa = ssa.fold_constants_with_brillig();
         let ssa = ssa.remove_unreachable_functions();
         assert_ssa_snapshot!(ssa, @r"
