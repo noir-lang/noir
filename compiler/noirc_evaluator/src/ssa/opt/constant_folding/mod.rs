@@ -275,7 +275,7 @@ impl Context {
                         }
                     }
 
-                    self.values_to_replace.batch_insert(&old_results, &cached);
+                    self.values_to_replace.batch_insert(&old_results, cached);
                     return;
                 }
                 CacheResult::NeedToHoistToCommonBlock(dominator) => {
