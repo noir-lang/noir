@@ -409,11 +409,8 @@ impl Context<'_> {
         let predicate_index = self.predicated_index(index_var, index, array_id, dfg, offset)?;
 
         // Handle the predicated store value
-        let new_value = if let Some(store) = store_value {
-            Some(self.predicated_store_value(store, dfg, block_id, predicate_index)?)
-        } else {
-            None
-        };
+        let new_value = store_value
+            .map(|store| self.predicated_store_value(store, dfg, block_id, predicate_index)?);
 
         Ok((predicate_index, new_value))
     }
