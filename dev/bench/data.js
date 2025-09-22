@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1758539815105,
+  "lastUpdate": 1758540615522,
   "repoUrl": "https://github.com/noir-lang/noir",
   "entries": {
     "Compilation Memory": [
@@ -12392,80 +12392,6 @@ window.BENCHMARK_DATA = {
       {
         "commit": {
           "author": {
-            "email": "mvezenov@gmail.com",
-            "name": "Maxim Vezenov",
-            "username": "vezenovm"
-          },
-          "committer": {
-            "email": "noreply@github.com",
-            "name": "GitHub",
-            "username": "web-flow"
-          },
-          "distinct": false,
-          "id": "294caf851dc8f5846f3f76a32c22f18c49f3a240",
-          "message": "chore(die): Remove RC tracker (#9809)",
-          "timestamp": "2025-09-12T14:26:48Z",
-          "tree_id": "a17cad79b523ca4c618d78b57ea9295c96080e13",
-          "url": "https://github.com/noir-lang/noir/commit/294caf851dc8f5846f3f76a32c22f18c49f3a240"
-        },
-        "date": 1757689957965,
-        "tool": "customSmallerIsBetter",
-        "benches": [
-          {
-            "name": "private-kernel-inner",
-            "value": 258.83,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-reset",
-            "value": 291.99,
-            "unit": "MB"
-          },
-          {
-            "name": "private-kernel-tail",
-            "value": 243.6,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-private",
-            "value": 506.71,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-base-public",
-            "value": 439.12,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-block-root",
-            "value": 1540,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-merge",
-            "value": 331.16,
-            "unit": "MB"
-          },
-          {
-            "name": "rollup-root",
-            "value": 333.68,
-            "unit": "MB"
-          },
-          {
-            "name": "semaphore_depth_10",
-            "value": 72.87,
-            "unit": "MB"
-          },
-          {
-            "name": "sha512_100_bytes",
-            "value": 69.42,
-            "unit": "MB"
-          }
-        ]
-      },
-      {
-        "commit": {
-          "author": {
             "email": "asterite@gmail.com",
             "name": "Ary Borenszweig",
             "username": "asterite"
@@ -16195,6 +16121,95 @@ window.BENCHMARK_DATA = {
           {
             "name": "rollup-tx-merge",
             "value": 334.61,
+            "unit": "MB"
+          },
+          {
+            "name": "semaphore_depth_10",
+            "value": 73,
+            "unit": "MB"
+          },
+          {
+            "name": "sha512_100_bytes",
+            "value": 69.57,
+            "unit": "MB"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "163862677+noirwhal@users.noreply.github.com",
+            "name": "noirwhal",
+            "username": "noirwhal"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "df21c9b21762e3f91c48a4e3311e84d5358ee25c",
+          "message": "chore: bump external pinned commits (#9938)\n\nCo-authored-by: noirwhal <tomfrench@aztecprotocol.com>\nCo-authored-by: Tom French <15848336+TomAFrench@users.noreply.github.com>",
+          "timestamp": "2025-09-22T10:53:25Z",
+          "tree_id": "7615a287c60acc56eecae689a87b91ea04d2d23c",
+          "url": "https://github.com/noir-lang/noir/commit/df21c9b21762e3f91c48a4e3311e84d5358ee25c"
+        },
+        "date": 1758540595325,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "private-kernel-inner",
+            "value": 259.15,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-reset",
+            "value": 291.64,
+            "unit": "MB"
+          },
+          {
+            "name": "private-kernel-tail",
+            "value": 243.15,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-block-root",
+            "value": 336.27,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-merge",
+            "value": 335.15,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root-single-block",
+            "value": 1540,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-checkpoint-root",
+            "value": 1540,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-root",
+            "value": 336.36,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-private",
+            "value": 523.42,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-base-public",
+            "value": 540.08,
+            "unit": "MB"
+          },
+          {
+            "name": "rollup-tx-merge",
+            "value": 334.45,
             "unit": "MB"
           },
           {
