@@ -643,13 +643,10 @@ mod tests {
             v10 = not v0
             v11 = cast v0 as u32
             v13 = array_get v9, index u32 0 -> Field
-            v14 = cast v0 as Field
-            v15 = cast v10 as Field
-            v16 = mul v14, v13
-            v17 = make_array [v16] : [Field]
+            v14 = make_array [v13] : [Field]
             enable_side_effects u1 1
-            v20 = add v11, u32 1
-            v21 = make_array [v2, v16] : [Field]
+            v17 = add v11, u32 1
+            v18 = make_array [v2, v13] : [Field]
             constrain v2 == Field 1
             return
         }
@@ -698,13 +695,10 @@ mod tests {
             v13 = not v0
             v14 = cast v0 as u32
             v16 = array_get v12, index u32 0 -> Field
-            v17 = cast v0 as Field
-            v18 = cast v13 as Field
-            v19 = mul v17, v16
-            v20 = make_array [v19] : [Field]
+            v17 = make_array [v16] : [Field]
             enable_side_effects u1 1
-            v23 = add v14, u32 1
-            v24 = make_array [v2, v19] : [Field]
+            v20 = add v14, u32 1
+            v21 = make_array [v2, v16] : [Field]
             constrain v2 == Field 1
             return
         }
@@ -749,13 +743,10 @@ mod tests {
             v11 = not v0
             v12 = cast v0 as u32
             v13 = array_get v10, index u32 0 -> Field
-            v14 = cast v0 as Field
-            v15 = cast v11 as Field
-            v16 = mul v14, v13
-            v17 = make_array [v16] : [Field]
+            v14 = make_array [v13] : [Field]
             enable_side_effects u1 1
-            v20 = add v12, u32 1
-            v21 = make_array [v2, v16] : [Field]
+            v17 = add v12, u32 1
+            v18 = make_array [v2, v13] : [Field]
             constrain v2 == Field 1
             return
         }
@@ -806,14 +797,11 @@ mod tests {
             v19 = mul v17, v16
             v20 = mul v18, Field 2
             v21 = add v19, v20
-            v22 = cast v0 as Field
-            v23 = cast v13 as Field
-            v24 = mul v23, Field 3
-            v25 = make_array [v21, v24] : [Field]
+            v22 = make_array [v21, Field 3] : [Field]
             enable_side_effects u1 1
-            v27, v28, v29 = call slice_pop_back(v14, v25) -> (u32, [Field], Field)
-            v30 = array_get v28, index u32 0 -> Field
-            constrain v30 == Field 1
+            v24, v25, v26 = call slice_pop_back(v14, v22) -> (u32, [Field], Field)
+            v27 = array_get v25, index u32 0 -> Field
+            constrain v27 == Field 1
             return
         }
         ");
@@ -863,14 +851,11 @@ mod tests {
             v19 = mul v17, v16
             v20 = mul v18, Field 2
             v21 = add v19, v20
-            v22 = cast v0 as Field
-            v23 = cast v13 as Field
-            v24 = mul v23, Field 3
-            v25 = make_array [v21, v24] : [Field]
+            v22 = make_array [v21, Field 3] : [Field]
             enable_side_effects u1 1
-            v27, v28, v29 = call slice_pop_front(v14, v25) -> (Field, u32, [Field])
-            v30 = array_get v29, index u32 0 -> Field
-            constrain v30 == Field 1
+            v24, v25, v26 = call slice_pop_front(v14, v22) -> (Field, u32, [Field])
+            v27 = array_get v26, index u32 0 -> Field
+            constrain v27 == Field 1
             return
         }
         ");
@@ -920,14 +905,11 @@ mod tests {
             v19 = mul v17, v16
             v20 = mul v18, Field 2
             v21 = add v19, v20
-            v22 = cast v0 as Field
-            v23 = cast v14 as Field
-            v24 = mul v23, Field 3
-            v25 = make_array [v21, v24] : [Field]
+            v22 = make_array [v21, Field 3] : [Field]
             enable_side_effects u1 1
-            v27, v28, v29 = call slice_remove(v15, v25, u32 0) -> (u32, [Field], Field)
-            v30 = array_get v28, index u32 0 -> Field
-            constrain v30 == Field 1
+            v24, v25, v26 = call slice_remove(v15, v22, u32 0) -> (u32, [Field], Field)
+            v27 = array_get v25, index u32 0 -> Field
+            constrain v27 == Field 1
             return
         }
         ");
